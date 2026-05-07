@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
 // Build trigger: 2026-04-30
 import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -35,6 +35,8 @@ import MessageBubble from './messages/MessageBubble';
 import StoryBubble from './messages/StoryBubble';
 import CreateNoteModal from './messages/CreateNoteModal';
 import ViewNoteModal from './messages/ViewNoteModal';
+import ConversationListPanel from './messages/ConversationListPanel';
+import ChatViewPanel from './messages/ChatViewPanel';
 import { ROLES } from '../constants/roles';
 import usePresence from '../hooks/usePresence';
 
@@ -511,549 +513,53 @@ export const MessagesPage = () => {
   // tab from flashing in the new tab during the React render cycle. Without this,
   // switching from Channel (7 items) to Requests (0 items) shows Channel items
   // for one frame because state updates (useEffect) run AFTER the render.
-  let filteredConversations = [];
-  try {
-    filteredConversations = conversations
-      .filter(c => {
-        // Folder guard: only show conversations that belong to the active folder.
-        // The backend already returns folder-filtered data, but during tab
-        // transitions, stale data from the previous folder may still be in state.
-        if (c.folder && c.folder !== activeFolder) return false;
-        // Search filter
-        return (c?.other_user_name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
-      })
-      .sort((a, b) => {
-        // Pinned conversations first
-        if (a.is_pinned && !b.is_pinned) return -1;
-        if (!a.is_pinned && b.is_pinned) return 1;
-        // Then by last message time
-        const bTime = new Date(b.last_message_at || 0).getTime();
-        const aTime = new Date(a.last_message_at || 0).getTime();
-        return (isNaN(bTime) ? 0 : bTime) - (isNaN(aTime) ? 0 : aTime);
-      });
-  } catch (err) {
-    logger.error('Error filtering conversations:', err);
-  }
 
-  // Render conversation list (shared between mobile and desktop)
-  const renderConversationList = () => {
-    try {
-      return (
-    <div ref={msgPullRef} className="flex flex-col h-full bg-background">
-      <PullToRefreshIndicator isPulling={msgPulling} progress={msgPullProgress} isRefreshing={msgPtrRefreshing} />
-      {/* Mobile Header */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border">
-        <button aria-label="Filter" 
-          aria-expanded={showMobileTools} onClick={() => setShowMobileTools(!showMobileTools)}
-          className="p-2 text-muted-foreground hover:text-foreground"
-        >
-          <Filter className="w-5 h-5" />
-        </button>
-        <h1 className="text-lg font-bold text-foreground font-oswald flex items-center gap-2">
-          Messages
-          <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}`} title={isOnline ? 'Connected' : 'Reconnecting...'} />
-        </h1>
-        <button aria-label="Edit3" 
-          onClick={handleComposeNew}
-          className="p-2 text-muted-foreground hover:text-foreground"
-        >
-          <Edit3 className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Search Bar */}
-      <div className="px-4 py-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input aria-label="Search conversations"
-            type="text"
-            placeholder="Search conversations"
-            value={searchQuery}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-muted border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-ring"
-          />
-        </div>
-      </div>
-
-      {/* Stories/Notes Section */}
-      <div className="px-2 pt-4 pb-3 border-b border-border">
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-          {stories.map((story) => (
-            <StoryBubble 
-              key={story.id} 
-              story={story} 
-              onClick={handleNoteClick}
-              isOwnNote={story.isOwnNote}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Folder Tabs - Dynamic based on effective role (respects God Mode masking) */}
-      <div className="relative">
-        {/* Scroll indicators */}
-        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
-        
-        <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide border-b border-zinc-800 scroll-smooth">
-          {getFolders(user?.role, user?.is_admin || isGodMode, effectiveRole, isMasked, user?.is_grom_parent === true).map((folder) => {
-            const _Icon = folder.icon;
-            const count = folderCounts[folder.id] || 0;
-            const isActive = activeFolder === folder.id;
-            
-            return (
-              <button
-                key={folder.id}
-                onClick={() => setActiveFolder(folder.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
-                  isActive 
-                    ? 'bg-foreground text-background' 
-                    : 'bg-muted text-muted-foreground hover:bg-accent'
-                }`}
-              data-testid={`folder-${folder.id}`}
-            >
-              {folder.emoji && <span className="text-sm">{folder.emoji}</span>}
-              <span>{folder.label}</span>
-              {count > 0 && (
-                <>
-                  <span className={`w-2 h-2 rounded-full ${folder.color.replace('text-', 'bg-')}`} />
-                  <span className="text-xs opacity-70">{count}</span>
-                </>
-              )}
-            </button>
-          );
-        })}
-        </div>
-      </div>
-
-      {/* Conversation List */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Crew Chats Folder - Special rendering */}
-        {activeFolder === 'crew_chats' ? (
-          crewChatsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : crewChats.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-              <Users className="w-12 h-12 mb-2 text-muted-foreground/50" />
-              <p>No active crew sessions</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">Book a session with crew to start chatting</p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {crewChats.map((chat) => (
-                <button aria-label="div"
-                  key={chat.id}
-                  onClick={() => navigate(`/bookings/${chat.id}/chat`)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50"
-                  data-testid={`crew-chat-${chat.id}`}
-                >
-                  {/* Session Icon */}
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                    <Users className="w-6 h-6 text-white" />
-                  </div>
-                  
-                  {/* Chat Info */}
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-white truncate">
-                        {chat.location || 'Surf Session'}
-                      </span>
-                      {chat.unread_count > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                      <span>{chat.chatInfo?.participants?.length || 0} participants</span>
-                      <span>-</span>
-                      <span>{chat.status}</span>
-                    </div>
-                    {(() => {
-                      if (!chat.session_date) return null;
-                      const sessionDate = new Date(chat.session_date);
-                      if (isNaN(sessionDate.getTime())) return null;
-                      return (
-                        <div className="text-xs text-cyan-400 mt-0.5">
-                          {sessionDate.toLocaleDateString()}
-                        </div>
-                      );
-                    })()}
-                  </div>
-                  
-                  {/* Arrow */}
-                  <ChevronLeft className="w-4 h-4 text-gray-600 rotate-180" />
-                </button>
-              ))}
-            </div>
-          )
-        ) : loading ? (
-          <div className="flex items-center justify-center h-32">
-            <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : filteredConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-gray-500">
-            <p>No conversations in {activeFolder}</p>
-          </div>
-        ) : (
-          <>
-            {/* Quick Accept All Banner for Requests folder */}
-            {activeFolder === 'requests' && filteredConversations.length > 1 && (
-              <div className="px-4 py-2 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-b border-zinc-800">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">
-                    {filteredConversations.length} pending request{filteredConversations.length > 1 ? 's' : ''}
-                  </span>
-                  <Button aria-label="Confirm"
-                    onClick={handleAcceptAllRequests}
-                    size="sm"
-                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-3 py-1 h-7"
-                    data-testid="accept-all-requests-btn"
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Accept All
-                  </Button>
-                </div>
-              </div>
-            )}
-            {filteredConversations.map((conv) => (
-              <ConversationItem
-                key={conv.id}
-                conversation={conv}
-                isSelected={selectedConversation?.id === conv.id}
-                isOnline={isOnline(conv.other_user_id)}
-                onClick={() => {
-                  setSelectedConversation(conv);
-                  navigate(`/messages/${conv.id}`);
-                }}
-              />
-            ))}
-          </>
-        )}
-      </div>
-    </div>
-      );
-    } catch (err) {
-      logger.error('Error in renderConversationList:', err);
-      return <div className="p-4 text-red-500">List Error: {err.toString()}</div>;
-    }
-  };
-
-  // Render chat view
-  const renderChatView = () => {
-    // Cache-bust avatar URL to prevent stale images
-    const rawChatAvatarUrl = conversationDetail?.other_user_avatar || selectedConversation?.other_user_avatar;
-    const chatAvatarUrl = rawChatAvatarUrl ? getFullUrl(rawChatAvatarUrl) : null;
-    const chatAvatarWithCacheBust = cacheBustUrl(chatAvatarUrl, conversationDetail?.last_message_at);
-    
-    return (
-    <div className="flex flex-col h-full bg-background messages-chat-view">
-      {/* Chat Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-sm">
-        <button aria-label="Previous"
-          onClick={handleBackNavigation}
-          className="text-muted-foreground hover:text-foreground"
-          data-testid="back-button"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <button
-          onClick={() => navigate(`/profile/${conversationDetail?.other_user_id || selectedConversation?.other_user_id}`)}
-          className="w-10 h-10 rounded-full bg-muted overflow-hidden ring-2 ring-cyan-500/30 hover:ring-cyan-400 hover:scale-105 transition-all flex-shrink-0 relative"
-          title="View profile"
-        >
-          {chatAvatarWithCacheBust ? (
-            <img loading="lazy" decoding="async" 
-              src={chatAvatarWithCacheBust} 
-              className="w-full h-full object-cover" 
-              alt=""
-              onError={(e) => {
-                e.target.style.display = 'none';
-                if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-              }}
-            />
-          ) : null}
-          <span 
-            className="w-full h-full flex items-center justify-center text-muted-foreground absolute inset-0"
-            style={{ display: chatAvatarWithCacheBust ? 'none' : 'flex' }}
-          >
-            {(conversationDetail?.other_user_name || selectedConversation?.other_user_name)?.charAt(0)}
-          </span>
-        </button>
-        <div className="flex-1 min-w-0">
-          <button
-            onClick={() => navigate(`/profile/${conversationDetail?.other_user_id || selectedConversation?.other_user_id}`)}
-            className="font-medium text-foreground hover:text-cyan-400 transition-colors text-left block truncate"
-          >
-            {conversationDetail?.other_user_name || selectedConversation?.other_user_name}
-          </button>
-          <div className="text-xs mt-0.5">
-            {selectedConversation?.is_new_chat ? (
-              <span className="text-muted-foreground">Start a conversation</span>
-            ) : typingUsers.length > 0 ? (
-              <span className="text-cyan-400 animate-pulse">typing...</span>
-            ) : isOnline(conversationDetail?.other_user_id || selectedConversation?.other_user_id) ? (
-              <span className="text-green-400">&#x25CF; Active now</span>
-            ) : (() => {
-              const lastActive = conversationDetail?.other_user_last_active;
-              if (!lastActive) return <span className="text-muted-foreground">Active recently</span>;
-              const lastActiveDate = new Date(lastActive);
-              if (isNaN(lastActiveDate.getTime())) return <span className="text-muted-foreground">Active recently</span>;
-              const diff = Math.floor((Date.now() - lastActiveDate.getTime()) / 1000);
-              if (diff < 3600) return <span className="text-muted-foreground">Active {Math.floor(diff / 60)}m ago</span>;
-              if (diff < 86400) return <span className="text-muted-foreground">Active {Math.floor(diff / 3600)}h ago</span>;
-              return <span className="text-muted-foreground">Active {lastActiveDate.toLocaleDateString()}</span>;
-            })()}
-          </div>
-        </div>
-        
-        {/* Call Buttons - Audio & Video */}
-        {!selectedConversation?.is_new_chat && !selectedConversation?.is_request && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                const callEvent = new CustomEvent('rawsurf:startCall', { 
-                  detail: { 
-                    targetUserId: selectedConversation?.other_user_id, 
-                    callType: 'audio',
-                    targetUserName: conversationDetail?.other_user_name || selectedConversation?.other_user_name,
-                    targetUserAvatar: chatAvatarUrl,
-                  }
-                });
-                window.dispatchEvent(callEvent);
-              }}
-              className="text-muted-foreground hover:text-cyan-400 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-              title="Audio call"
-              data-testid="audio-call-btn"
-            >
-              <Phone className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => {
-                const callEvent = new CustomEvent('rawsurf:startCall', { 
-                  detail: { 
-                    targetUserId: selectedConversation?.other_user_id, 
-                    callType: 'video',
-                    targetUserName: conversationDetail?.other_user_name || selectedConversation?.other_user_name,
-                    targetUserAvatar: chatAvatarUrl,
-                  }
-                });
-                window.dispatchEvent(callEvent);
-              }}
-              className="text-muted-foreground hover:text-cyan-400 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-              title="Video call"
-              data-testid="video-call-btn"
-            >
-              <Video className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-        
-        {/* Conversation Controls Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button aria-label="More options" 
-              className="text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted transition-colors"
-              data-testid="conversation-menu-btn"
-            >
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 bg-popover border border-border">
-            <DropdownMenuItem 
-              onClick={handleMarkUnread}
-              className="flex items-center justify-between cursor-pointer hover:bg-accent"
-            >
-              <span>{conversationDetail?.is_manually_unread ? 'Mark as read' : 'Mark as unread'}</span>
-              <Mail className="w-5 h-5" />
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={handleTogglePin}
-              className="flex items-center justify-between cursor-pointer hover:bg-accent"
-            >
-              <span>{conversationDetail?.is_pinned ? 'Unpin' : 'Pin'}</span>
-              <Pin className="w-5 h-5" />
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={handleToggleMute}
-              className="flex items-center justify-between cursor-pointer hover:bg-accent"
-            >
-              <span>{conversationDetail?.is_muted ? 'Unmute' : 'Mute'}</span>
-              <BellOff className="w-5 h-5" />
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={handleDeleteConversation}
-              className="flex items-center justify-between cursor-pointer text-red-500 hover:bg-red-500/10 hover:text-red-600"
-            >
-              <span>Delete</span>
-              <Trash2 className="w-5 h-5" />
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Request Banner */}
-      {conversationDetail?.is_request && (
-        <div className="p-4 bg-muted border-b border-border">
-          <p className="text-muted-foreground text-sm mb-3">This person isn't in your contacts. Accept to move to your primary inbox.</p>
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleAcceptRequest} 
-              className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold"
-              data-testid="accept-request-btn"
-            >
-              Accept
-            </Button>
-            <Button 
-              onClick={handleDeclineRequest} 
-              variant="outline"
-              className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"
-              data-testid="decline-request-btn"
-            >
-              Decline
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
-        {selectedConversation?.is_new_chat ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <div className="w-20 h-20 rounded-full bg-muted overflow-hidden mb-4">
-              {selectedConversation.other_user_avatar ? (
-                <img loading="lazy" decoding="async" src={selectedConversation.other_user_avatar} className="w-full h-full object-cover" alt="" />
-              ) : (
-                <span className="w-full h-full flex items-center justify-center text-3xl text-muted-foreground">
-                  {selectedConversation.other_user_name?.charAt(0)}
-                </span>
-              )}
-            </div>
-            <h3 className="text-foreground font-semibold text-lg">{selectedConversation.other_user_name}</h3>
-            <p className="text-muted-foreground text-sm mt-2">Send a message to start the conversation</p>
-          </div>
-        ) : (
-          conversationDetail?.messages?.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              onReact={handleReaction}
-              onReply={(msg) => setReplyingTo(msg)}
-              onNavigateProfile={(userId) => navigate(`/profile/${userId}`)}
-            />
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Reply Preview */}
-      {replyingTo && (
-        <div className="px-4 py-2 bg-muted border-t border-border flex items-center gap-2">
-          <Reply className="w-4 h-4 text-cyan-400" />
-          <span className="flex-1 text-sm text-muted-foreground truncate">Replying to: {replyingTo.content}</span>
-          <button onClick={() => setReplyingTo(null)} className="text-muted-foreground hover:text-foreground" aria-label="Close">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Message Input */}
-      {(selectedConversation?.is_new_chat || !conversationDetail?.is_request) && (
-        <div className="p-4 border-t border-border bg-muted/50 relative flex-shrink-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-          <WebcamCaptureModal
-            isOpen={showVideoCapture}
-            onClose={() => setShowVideoCapture(false)}
-            onCapture={handleEphemeralMediaUpload}
-            maxLength={30}
-          />
-          {/* GIF Picker - positioned above the entire input area */}
-          <GifPicker
-            show={showGifPicker}
-            onSelect={(gifUrl) => {
-              if (gifUrl) {
-                handleSendGif(gifUrl);
-                setShowGifPicker(false);
-              }
-            }}
-            onClose={() => setShowGifPicker(false)}
-          />
-          
-          {showVoiceRecorder ? (
-            <VoiceRecorder
-              conversationId={selectedConversation?.id}
-              senderId={user.id}
-              onSend={handleVoiceNoteSent}
-              onCancel={() => setShowVoiceRecorder(false)}
-            />
-          ) : (
-            <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-              {/* Media upload button */}
-              <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
-                <Image className="w-5 h-5" />
-              </button>
-              <input aria-label="Upload file" ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaUpload} className="hidden" />
-              
-              {/* GIF button */}
-              <button 
-                type="button" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowGifPicker(prev => !prev);
-                }}
-                className={`p-2 transition-colors touch-manipulation ${showGifPicker ? 'text-cyan-400' : 'text-muted-foreground hover:text-cyan-400'}`}
-                data-testid="gif-button"
-              >
-                <span className="text-xs font-bold border border-current rounded px-1">GIF</span>
-              </button>
-              
-              <div className="flex-1 relative">
-                <input aria-label="Message..."
-                  type="text"
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  placeholder="Message..."
-                  className="w-full bg-muted rounded-full px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-cyan-500"
-                />
-                <button aria-label="Emoji"
-                  type="button"
-                  aria-expanded={showEmojiPicker} onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                >
-                  <Smile className="w-5 h-5" />
-                </button>
-                <EmojiPicker
-                  show={showEmojiPicker}
-                  onSelect={(emoji) => { setNewMessage(prev => prev + emoji); setShowEmojiPicker(false); }}
-                  onClose={() => setShowEmojiPicker(false)}
-                />
-              </div>
-
-              {newMessage.trim() ? (
-                <button aria-label="Send"
-                  type="submit"
-                  disabled={sendingMessage}
-                  className="p-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full text-white disabled:opacity-50"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-              ) : (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button type="button" onClick={() => setShowVideoCapture(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors">
-                    <Video className="w-5 h-5" />
-                  </button>
-                  <button type="button" onClick={() => setShowVoiceRecorder(true)} className="p-2 text-muted-foreground hover:text-cyan-400 transition-colors" aria-label="Microphone">
-                    <Mic className="w-5 h-5" />
-                  </button>
-                </div>
-              )}
-            </form>
-          )}
-        </div>
-      )}
-    </div>
+  // Render conversation list (extracted to messages/ConversationListPanel.js)
+  const renderConversationList = () => (
+    <ConversationListPanel
+      msgPullRef={msgPullRef} msgPulling={msgPulling} msgPullProgress={msgPullProgress} msgPtrRefreshing={msgPtrRefreshing}
+      user={user} effectiveRole={effectiveRole} isMasked={isMasked} isGodMode={isGodMode}
+      activeFolder={activeFolder} setActiveFolder={setActiveFolder}
+      conversations={conversations} folderCounts={folderCounts}
+      selectedConversation={selectedConversation} setSelectedConversation={setSelectedConversation}
+      searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+      stories={stories} loading={loading}
+      showMobileTools={showMobileTools} setShowMobileTools={setShowMobileTools}
+      crewChats={crewChats} crewChatsLoading={crewChatsLoading}
+      isOnline={isOnline}
+      handleComposeNew={handleComposeNew} handleNoteClick={handleNoteClick}
+      handleAcceptAllRequests={handleAcceptAllRequests}
+      navigate={navigate}
+    />
   );
-  };
+
+  // Render chat view (extracted to messages/ChatViewPanel.js)
+  const renderChatView = () => (
+    <ChatViewPanel
+      user={user}
+      selectedConversation={selectedConversation} conversationDetail={conversationDetail}
+      newMessage={newMessage} setNewMessage={setNewMessage} sendingMessage={sendingMessage}
+      replyingTo={replyingTo} setReplyingTo={setReplyingTo}
+      typingUsers={typingUsers}
+      showVoiceRecorder={showVoiceRecorder} setShowVoiceRecorder={setShowVoiceRecorder}
+      showVideoCapture={showVideoCapture} setShowVideoCapture={setShowVideoCapture}
+      showEmojiPicker={showEmojiPicker} setShowEmojiPicker={setShowEmojiPicker}
+      showGifPicker={showGifPicker} setShowGifPicker={setShowGifPicker}
+      messagesEndRef={messagesEndRef} fileInputRef={fileInputRef}
+      isOnline={isOnline}
+      handleBackNavigation={handleBackNavigation}
+      handleSendMessage={handleSendMessage} handleSendGif={handleSendGif}
+      handleInputChange={handleInputChange}
+      handleReaction={handleReaction}
+      handleAcceptRequest={handleAcceptRequest} handleDeclineRequest={handleDeclineRequest}
+      handleTogglePin={handleTogglePin} handleToggleMute={handleToggleMute}
+      handleMarkUnread={handleMarkUnread} handleDeleteConversation={handleDeleteConversation}
+      handleMediaUpload={handleMediaUpload} handleEphemeralMediaUpload={handleEphemeralMediaUpload}
+      handleVoiceNoteSent={handleVoiceNoteSent}
+      navigate={navigate}
+    />
+  );
+
 
   // Render empty state for desktop
   const renderEmptyState = () => (
