@@ -5,7 +5,7 @@ Service-to-Gallery logic enforces tier-based access and resolution limits
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
-from database import SessionLocal
+from database import AsyncSessionLocal
 from models import (
     Profile, GalleryItem, SurferGalleryClaimQueue,
     GalleryTierEnum, Gallery
@@ -32,7 +32,7 @@ async def async_global_scan(surfer_id: str, selfie_url: str, spot_id: Optional[s
     """
     import random
     
-    async with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         # 1. Temporarily cache this selfie for subsequent matches
         surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
         surfer = surfer_result.scalar_one_or_none()
