@@ -41,6 +41,8 @@ import TaggingAssignModal from './gallery/TaggingAssignModal';
 import EditGalleryModal from './gallery/EditGalleryModal';
 import GalleryPricingModal from './gallery/GalleryPricingModal';
 import ItemPricingModal from './gallery/ItemPricingModal';
+import GallerySessionPanel from './gallery/GallerySessionPanel';
+import PhotographerLightbox from './gallery/PhotographerLightbox';
 
 
 
@@ -255,9 +257,9 @@ export const PhotographerGalleryManager = () => {
                   gallery.session_type === 'on_demand' ? 'border-orange-500/50 text-orange-400 text-[10px]' :
                   'border-zinc-500/50 text-zinc-400 text-[10px]'
                 }>
-                  {gallery.session_type === 'live' ? '📸 Live Session' : 
-                   gallery.session_type === 'booking' ? '📅 Booking' : 
-                   gallery.session_type === 'on_demand' ? '⚡ On-Demand' : gallery.session_type}
+                  {gallery.session_type === 'live' ? 'Ã°Å¸â€œÂ¸ Live Session' : 
+                   gallery.session_type === 'booking' ? 'Ã°Å¸â€œâ€¦ Booking' : 
+                   gallery.session_type === 'on_demand' ? 'Ã¢Å¡Â¡ On-Demand' : gallery.session_type}
                 </Badge>
               )}
               {gallery.session_type === 'manual' && (
@@ -292,7 +294,7 @@ export const PhotographerGalleryManager = () => {
                   const willPublish = !gallery?.is_public;
                   await apiClient.post(`/gallery/${galleryId}/publish?photographer_id=${user?.profile_id}`, { is_published: willPublish });
                   setGallery(prev => ({ ...prev, is_public: willPublish, is_featured: willPublish }));
-                  toast.success(willPublish ? '📸 Gallery published to your Sessions tab!' : 'Gallery unpublished');
+                  toast.success(willPublish ? 'Ã°Å¸â€œÂ¸ Gallery published to your Sessions tab!' : 'Gallery unpublished');
                 } catch (err) {
                   toast.error('Failed to publish gallery');
                 } finally {
@@ -321,7 +323,7 @@ export const PhotographerGalleryManager = () => {
                 Set Pricing
               </Button>
             )}
-            {/* Push to Spot Hub ï¿½ requires linked surf spot AND live session */}
+            {/* Push to Spot Hub ÃƒÂ¯Ã‚Â¿Ã‚Â½ requires linked surf spot AND live session */}
             {gallery?.surf_spot_id && (
               <Button
                 variant="outline"
@@ -395,173 +397,23 @@ export const PhotographerGalleryManager = () => {
         </div>
 
         {/* ============ SESSION CONTEXT PANEL ============ */}
-        <Card className={`mb-6 ${cardBgClass} overflow-hidden`}>
-          <CardContent className="p-0">
-            {/* Session Header Banner */}
-            {sessionInfo?.is_linked ? (
-              <div className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border-b border-emerald-500/30 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <span className={`font-medium ${textPrimaryClass}`}>
-                      {sessionInfo.session_type === 'live' ? 'Live Session' : 
-                       sessionInfo.session_type === 'booking' ? 'Booked Session' : 
-                       sessionInfo.session_type === 'on_demand' ? 'On-Demand' : 'Session'} Linked
-                    </span>
-                    <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px]">
-                      {sessionInfo.session_type}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-emerald-400 hover:text-emerald-300 h-7 px-2"
-                      onClick={fetchSessionParticipants}
-                      disabled={loadingParticipants}
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${loadingParticipants ? 'animate-spin' : ''}`} />
-                    </Button>
-                    {sessionParticipants.length > 0 && totalGalleryItems > 0 && (
-                      <Button aria-label="Loader2"
-                        size="sm"
-                        onClick={handleDistributeAll}
-                        disabled={distributing === 'all'}
-                        className="bg-gradient-to-r from-emerald-400 to-cyan-500 text-black h-7 px-3 text-xs font-medium"
-                      >
-                        {distributing === 'all' ? (
-                          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-                        ) : (
-                          <Send className="w-3.5 h-3.5 mr-1" />
-                        )}
-                        Distribute All
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gradient-to-r from-amber-500/15 to-orange-500/15 border-b border-amber-500/30 px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-amber-400" />
-                    <span className={`font-medium ${textPrimaryClass}`}>No Session Linked</span>
-                    <span className={`text-xs ${textSecondaryClass}`}>Distribution unavailable</span>
-                  </div>
-                  <Button aria-label="Link2"
-                    size="sm"
-                    onClick={() => { setShowLinkSessionModal(true); fetchRecentSessions(); }}
-                    className="bg-gradient-to-r from-amber-400 to-orange-500 text-black h-7 px-3 text-xs font-medium"
-                  >
-                    <Link2 className="w-3.5 h-3.5 mr-1" /> Link Session
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Participant Roster */}
-            {loadingParticipants ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                <span className={`ml-2 text-sm ${textSecondaryClass}`}>Loading participants...</span>
-              </div>
-            ) : sessionParticipants.length > 0 ? (
-              <div className="px-4 py-3">
-                <div className="flex items-center justify-between mb-3">
-                  <p className={`text-xs font-medium uppercase tracking-wider ${textSecondaryClass}`}>
-                    Participants ({sessionParticipants.length})
-                  </p>
-                  <p className={`text-xs ${textSecondaryClass}`}>
-                    {totalGalleryItems} items in gallery
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  {sessionParticipants.map((participant) => {
-                    const progress = totalGalleryItems > 0 
-                      ? Math.round((participant.items_distributed / totalGalleryItems) * 100) 
-                      : 0;
-                    const isFullyDistributed = participant.items_distributed >= totalGalleryItems && totalGalleryItems > 0;
-                    
-                    return (
-                      <div
-                        key={participant.surfer_id}
-                        className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors ${
-                          isLight ? 'bg-gray-50 hover:bg-gray-100' : 'bg-zinc-800/50 hover:bg-zinc-800'
-                        }`}
-                      >
-                        {/* Avatar */}
-                        <div className="w-9 h-9 rounded-full overflow-hidden bg-zinc-700 flex-shrink-0 ring-2 ring-offset-1 ring-offset-transparent ring-cyan-500/30">
-                          {participant.avatar_url ? (
-                            <img loading="lazy" decoding="async"
-                              src={getFullUrl(participant.avatar_url)}
-                              alt={participant.full_name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Users className="w-4 h-4 m-auto mt-2.5 text-zinc-500" />
-                          )}
-                        </div>
-
-                        {/* Name + Status */}
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium truncate ${textPrimaryClass}`}>
-                            {participant.full_name}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {/* Distribution progress bar */}
-                            <div className={`flex-1 h-1.5 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} max-w-[100px]`}>
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                  isFullyDistributed ? 'bg-emerald-400' : progress > 0 ? 'bg-cyan-400' : 'bg-zinc-600'
-                                }`}
-                                style={{ width: `${Math.min(progress, 100)}%` }}
-                              />
-                            </div>
-                            <span className={`text-[10px] ${textSecondaryClass}`}>
-                              {participant.items_distributed}/{totalGalleryItems}
-                            </span>
-                            {isFullyDistributed && (
-                              <CheckCircle className="w-3 h-3 text-emerald-400" />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Action Button */}
-                        {!isFullyDistributed ? (
-                          <Button aria-label="Loader2"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDistributeToSurfer(participant.surfer_id, participant.full_name)}
-                            disabled={distributing === participant.surfer_id || totalGalleryItems === 0}
-                            className="h-7 px-2 text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
-                          >
-                            {distributing === participant.surfer_id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <>
-                                <Send className="w-3.5 h-3.5 mr-1" />
-                                <span className="text-xs">Push</span>
-                              </>
-                            )}
-                          </Button>
-                        ) : (
-                          <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px] h-7">
-                            ? Delivered
-                          </Badge>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : sessionInfo?.is_linked ? (
-              <div className={`text-center py-6 ${textSecondaryClass}`}>
-                <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No participants found for this session</p>
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
+        {/* Session Context Panel - Extracted to gallery/GallerySessionPanel.js */}
+        <GallerySessionPanel
+          sessionInfo={sessionInfo}
+          sessionParticipants={sessionParticipants}
+          totalGalleryItems={totalGalleryItems}
+          loadingParticipants={loadingParticipants}
+          distributing={distributing}
+          fetchSessionParticipants={fetchSessionParticipants}
+          handleDistributeAll={handleDistributeAll}
+          handleDistributeToSurfer={handleDistributeToSurfer}
+          setShowLinkSessionModal={setShowLinkSessionModal}
+          fetchRecentSessions={fetchRecentSessions}
+          cardBgClass={cardBgClass}
+          textPrimaryClass={textPrimaryClass}
+          textSecondaryClass={textSecondaryClass}
+          isLight={isLight}
+        />
 
 
         {/* Current Pricing Summary - Only for sellers */}
@@ -577,15 +429,15 @@ export const PhotographerGalleryManager = () => {
                     gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
                     'border-zinc-500/50 text-zinc-400'
                   }>
-                    {gallery.session_settings.session_type === 'live' ? '📸 Live Session' :
-                     gallery.session_settings.session_type === 'booking' ? '📅 Booking' :
-                     gallery.session_settings.session_type === 'on_demand' ? '⚡ On-Demand' : '✏️ Manual'}
+                    {gallery.session_settings.session_type === 'live' ? 'Ã°Å¸â€œÂ¸ Live Session' :
+                     gallery.session_settings.session_type === 'booking' ? 'Ã°Å¸â€œâ€¦ Booking' :
+                     gallery.session_settings.session_type === 'on_demand' ? 'Ã¢Å¡Â¡ On-Demand' : 'Ã¢Å“ÂÃ¯Â¸Â Manual'}
                   </Badge>
                 )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* This Session's Included Content ï¿½ editable */}
+              {/* This Session's Included Content ÃƒÂ¯Ã‚Â¿Ã‚Â½ editable */}
               {gallery?.session_settings && (
                 <div className="rounded-xl p-4" style={{
                   background: 'linear-gradient(135deg, rgba(6,182,212,0.08), rgba(59,130,246,0.06))',
@@ -593,7 +445,7 @@ export const PhotographerGalleryManager = () => {
                 }}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
-                      This Session ï¿½ Included Content
+                      This Session ÃƒÂ¯Ã‚Â¿Ã‚Â½ Included Content
                     </h4>
                     <span className="text-[10px] text-cyan-400/70">
                       {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}
@@ -1017,75 +869,13 @@ export const PhotographerGalleryManager = () => {
       {/* TaggingAssignModal - Extracted to gallery/TaggingAssignModal.js */}
       <TaggingAssignModal {...{ showPricingModal, setShowPricingModal, showEditModal, setShowEditModal, showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal, showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity, showLinkSessionModal, setShowLinkSessionModal, showAssignDrawer, setShowAssignDrawer, selectedItem, setSelectedItem, aiTagSuggestions, setAiTagSuggestions, selectedTags, setSelectedTags, analyzingPhoto, gallery, setGallery, pricing, setPricing, editData, setEditData, itemCustomPrice, setItemCustomPrice, handleSavePricing, handleSaveEdit, handleAnalyzePhoto, toggleTagSelection, handleConfirmTags, handleSetCustomPrice, handleAssignItemToSurfer, assigningItem, salesData, clientsData, loadingSales, loadingSessions, sessionParticipants, distributing, recentSessions, handleLinkSession, fetchRecentSessions, user, galleryId, isLight, textPrimaryClass, textSecondaryClass, borderClass, inputBgClass, cardBgClass, navigate }} />
 
-      {/* Phase 2: Lightbox Modal */}
-      {lightboxItem && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
-          onClick={() => setLightboxItem(null)}
-        >
-          <button
-            className="absolute top-4 right-4 text-white/70 hover:text-white p-2"
-            onClick={() => setLightboxItem(null)}
-          >
-            <X className="w-8 h-8" />
-          </button>
-          
-          {/* Navigation arrows */}
-          {filteredItems.findIndex(i => i.id === lightboxItem.id) > 0 && (
-            <button aria-label="Go back"
-              className="absolute left-4 text-white/70 hover:text-white p-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                const idx = filteredItems.findIndex(i => i.id === lightboxItem.id);
-                setLightboxItem(filteredItems[idx - 1]);
-              }}
-            >
-              <ArrowLeft className="w-10 h-10" />
-            </button>
-          )}
-          {filteredItems.findIndex(i => i.id === lightboxItem.id) < filteredItems.length - 1 && (
-            <button aria-label="Go back"
-              className="absolute right-4 text-white/70 hover:text-white p-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                const idx = filteredItems.findIndex(i => i.id === lightboxItem.id);
-                setLightboxItem(filteredItems[idx + 1]);
-              }}
-            >
-              <ArrowLeft className="w-10 h-10 rotate-180" />
-            </button>
-          )}
-          
-          {/* Image */}
-          <img loading="lazy" decoding="async"
-            src={lightboxItem.preview_url || lightboxItem.original_url}
-            alt={lightboxItem.title || 'Gallery item'}
-            className="max-w-[90vw] max-h-[85vh] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-          
-          {/* Bottom info bar */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-            <div className="flex items-center justify-between max-w-4xl mx-auto">
-              <div>
-                <p className="text-white font-medium">{lightboxItem.title || 'Untitled'}</p>
-                <p className="text-white/60 text-sm">{new Date(lightboxItem.created_at).toLocaleDateString()}</p>
-              </div>
-              <div className="flex gap-2">
-                <Button aria-label="Sparkles"
-                  size="sm"
-                  variant="ghost"
-                  className="text-white"
-                  onClick={(e) => { e.stopPropagation(); handleOpenTagging(lightboxItem); setLightboxItem(null); }}
-                >
-                  <Sparkles className="w-5 h-5 mr-1" /> AI Tag
-                </Button>
-              </div>
-            </div>
-            <p className="text-center text-white/40 text-xs mt-2">? ? Navigate ï¿½ Esc Close</p>
-          </div>
-        </div>
-      )}
+      {/* Phase 2: Lightbox Modal - Extracted to gallery/PhotographerLightbox.js */}
+      <PhotographerLightbox
+        lightboxItem={lightboxItem}
+        setLightboxItem={setLightboxItem}
+        filteredItems={filteredItems}
+        handleOpenTagging={handleOpenTagging}
+      />
 
       {/* SalesDashboardModal - Extracted to gallery/SalesDashboardModal.js */}
       <SalesDashboardModal {...{ showPricingModal, setShowPricingModal, showEditModal, setShowEditModal, showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal, showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity, showLinkSessionModal, setShowLinkSessionModal, showAssignDrawer, setShowAssignDrawer, selectedItem, setSelectedItem, aiTagSuggestions, setAiTagSuggestions, selectedTags, setSelectedTags, analyzingPhoto, gallery, setGallery, pricing, setPricing, editData, setEditData, itemCustomPrice, setItemCustomPrice, handleSavePricing, handleSaveEdit, handleAnalyzePhoto, toggleTagSelection, handleConfirmTags, handleSetCustomPrice, handleAssignItemToSurfer, assigningItem, salesData, clientsData, loadingSales, loadingSessions, sessionParticipants, distributing, recentSessions, handleLinkSession, fetchRecentSessions, user, galleryId, isLight, textPrimaryClass, textSecondaryClass, borderClass, inputBgClass, cardBgClass, navigate }} />
@@ -1141,11 +931,11 @@ const PricingTierRow = ({
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px]">
         <span className={textSecondaryClass}>
           <span className="text-cyan-400/60">Photo:</span>{' '}
-          Web ${photo?.web || 'ï¿½'} ï¿½ HD ${photo?.standard || 'ï¿½'} ï¿½ 4K ${photo?.high || 'ï¿½'}
+          Web ${photo?.web || 'ÃƒÂ¯Ã‚Â¿Ã‚Â½'} ÃƒÂ¯Ã‚Â¿Ã‚Â½ HD ${photo?.standard || 'ÃƒÂ¯Ã‚Â¿Ã‚Â½'} ÃƒÂ¯Ã‚Â¿Ã‚Â½ 4K ${photo?.high || 'ÃƒÂ¯Ã‚Â¿Ã‚Â½'}
         </span>
         <span className={textSecondaryClass}>
           <span className="text-purple-400/60">Video:</span>{' '}
-          720p ${video?.['720p'] || 'ï¿½'} ï¿½ 1080p ${video?.['1080p'] || 'ï¿½'} ï¿½ 4K ${video?.['4k'] || 'ï¿½'}
+          720p ${video?.['720p'] || 'ÃƒÂ¯Ã‚Â¿Ã‚Â½'} ÃƒÂ¯Ã‚Â¿Ã‚Â½ 1080p ${video?.['1080p'] || 'ÃƒÂ¯Ã‚Â¿Ã‚Â½'} ÃƒÂ¯Ã‚Â¿Ã‚Â½ 4K ${video?.['4k'] || 'ÃƒÂ¯Ã‚Â¿Ã‚Â½'}
         </span>
       </div>
     </div>
