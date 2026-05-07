@@ -17,9 +17,9 @@ import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import {
-  Check, Clock, MapPin, Radio, Award, Camera, Loader2,
+  Check, Clock, MapPin, Camera, Loader2,
   Zap, X, ChevronRight, Users, Bell, ArrowLeft, RefreshCw,
-  Edit2, Navigation, Lock, MessageCircle, Mic, AlertTriangle
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -30,39 +30,17 @@ import PhotographerCard from './on-demand/PhotographerCard';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import { useSessionChatSync } from '../hooks/useSessionChatSync';
 import useHapticFeedback from '../hooks/useHapticFeedback';
+import DispatchSessionHero from './on-demand/DispatchSessionHero';
+import DispatchChatBlock from './on-demand/DispatchChatBlock';
+import DispatchLocationCard from './on-demand/DispatchLocationCard';
+import DispatchTimeline from './on-demand/DispatchTimeline';
 
 // --- Constants ---
 // SURFBOARD_COLORS and SurfboardAvatar extracted to ./routing/SurfboardAvatar.js
 
 // --- Photographer Card ---
 // PhotographerCard extracted to ./on-demand/PhotographerCard.js
-
-// --- Timeline Step ---
-const TimelineStep = ({ icon: Icon, label, sub, done, active, isLight }) => {
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
-  return (
-    <div className={`flex items-center gap-3 transition-opacity ${!done && !active ? 'opacity-40' : ''}`}>
-      <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-500 ${
-          done
-            ? 'bg-green-500/20'
-            : active
-            ? 'bg-amber-500/20 animate-pulse'
-            : 'bg-zinc-700/50'
-        }`}
-      >
-        <Icon
-          className={`w-4 h-4 ${done ? 'text-green-400' : active ? 'text-amber-400' : 'text-zinc-500'}`}
-        />
-      </div>
-      <div>
-        <p className={`text-sm font-medium ${textPrimary}`}>{label}</p>
-        {sub && <p className={`text-xs ${textSecondary}`}>{sub}</p>}
-      </div>
-    </div>
-  );
-};
+// TimelineStep extracted to ./on-demand/DispatchTimeline.js
 
 // --- Main Component ---
 export const DispatchLobby = () => {
@@ -232,7 +210,7 @@ export const DispatchLobby = () => {
         // Photographer ACCEPTED
         if (['accepted', 'en_route'].includes(newStatus) && !acceptSoundPlayedRef.current) {
           acceptSoundPlayedRef.current = true;
-          toast.success('📸 Photographer accepted! They\'re on their way.', {
+          toast.success('ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¸ Photographer accepted! They\'re on their way.', {
             id: 'photographer-accepted',
             duration: 6000,
           });
@@ -245,7 +223,7 @@ export const DispatchLobby = () => {
 
         // Photographer ARRIVED - notify the surfer
         if (newStatus === 'arrived') {
-          toast.success('📍 Your photographer has arrived! Look for them at the spot.', {
+          toast.success('ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
             duration: 8000,
           });
@@ -279,7 +257,7 @@ export const DispatchLobby = () => {
         const diff = newPaidCount - prevPaidCountRef.current;
         const newlyPaid = newCrew.filter(m => m.paid).slice(-diff);
         const names = newlyPaid.map(m => m.name || 'A crew member').join(', ');
-        toast.success(`${names} joined the session! 🏄`, {
+        toast.success(`${names} joined the session! ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â‚¬Å¾`, {
           id: `crew-paid-${newPaidCount}`,
           duration: 4000,
         });
@@ -471,107 +449,17 @@ export const DispatchLobby = () => {
         )}
 
         {/* --- SESSION ACTIVE HERO (when photographer arrived) --- */}
-        {sessionActive && (
-          <div
-            className={`relative rounded-3xl overflow-hidden border-2 ${
-              isLight
-                ? 'bg-gradient-to-br from-green-50 via-emerald-50 to-cyan-50 border-green-300'
-                : 'bg-gradient-to-br from-green-900/40 via-emerald-900/30 to-cyan-900/30 border-green-500/40'
-            }`}
-          >
-            {/* Animated top bar */}
-            <div className="h-1.5 bg-gradient-to-r from-green-400 via-cyan-400 to-green-400 animate-pulse" />
-
-            <div className="p-5 space-y-4">
-              {/* Status + Timer */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-400 animate-pulse shadow-lg shadow-green-400/50" />
-                  <span className={`font-bold text-sm ${
-                    isLight ? 'text-green-700' : 'text-green-400'
-                  }`}>
-                    Session Active
-                  </span>
-                </div>
-                <div className={`font-mono text-2xl font-bold tabular-nums ${
-                  isLight ? 'text-green-700' : 'text-green-400'
-                }`}>
-                  {Math.floor(sessionElapsed / 3600) > 0 && `${Math.floor(sessionElapsed / 3600)}:`}
-                  {Math.floor((sessionElapsed % 3600) / 60).toString().padStart(2, '0')}:{(sessionElapsed % 60).toString().padStart(2, '0')}
-                </div>
-              </div>
-
-              {/* Photographer info row */}
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-green-400 flex-shrink-0">
-                  {photographerAvatarUrl ? (
-                    <img loading="lazy" decoding="async"
-                      src={getFullUrl(photographerAvatarUrl)}
-                      alt={photographerName}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-green-400 to-cyan-500 flex items-center justify-center">
-                      <Camera className="w-6 h-6 text-white" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`font-bold ${textPrimary} truncate`}>
-                    {photographerName}
-                  </p>
-                  <p className={`text-sm ${isLight ? 'text-green-600' : 'text-green-400'}`}>
-                    📸 Shooting your session now
-                  </p>
-                </div>
-                <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
-                  <Camera className="w-3 h-3 mr-1" />
-                  Live
-                </Badge>
-              </div>
-
-              {/* Communication Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button aria-label="Message"
-                  onClick={() => setShowSessionChat(true)}
-                  className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
-                    isLight
-                      ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
-                      : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white'
-                  }`}
-                  data-testid="session-chat-btn"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Chat
-                  {chatUnreadCount > 0 && (
-                    <span className="w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center">
-                      {chatUnreadCount}
-                    </span>
-                  )}
-                </button>
-                <button aria-label="Microphone"
-                  onClick={() => setShowSessionChat(true)}
-                  className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
-                    isLight
-                      ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
-                  }`}
-                  data-testid="session-voice-btn"
-                >
-                  <Mic className="w-5 h-5" />
-                  Voice Note
-                </button>
-              </div>
-
-              {/* Session tips */}
-              <p className={`text-xs text-center ${
-                isLight ? 'text-green-600/70' : 'text-green-400/60'
-              }`}>
-                Stay nearby · your photographer is capturing the action!
-              </p>
-            </div>
-          </div>
-        )}
+        {/* --- SESSION ACTIVE HERO - Extracted to on-demand/DispatchSessionHero.js --- */}
+        <DispatchSessionHero
+          sessionActive={sessionActive}
+          sessionElapsed={sessionElapsed}
+          photographerName={photographerName}
+          photographerAvatarUrl={photographerAvatarUrl}
+          chatUnreadCount={chatUnreadCount}
+          setShowSessionChat={setShowSessionChat}
+          isLight={isLight}
+          textPrimary={textPrimary}
+        />
 
         {/* --- Photographer Card (hidden when session is active - replaced by hero above) --- */}
         {!sessionActive && (
@@ -585,102 +473,19 @@ export const DispatchLobby = () => {
         )}
 
         {/* --- Communication Block: Shown when photographer accepted but NOT yet arrived --- */}
-        {photographerAccepted && !sessionActive && photographerId && (
-          <div
-            className={`rounded-2xl overflow-hidden border-2 ${
-              isLight
-                ? 'bg-gradient-to-br from-cyan-50 via-blue-50 to-white border-cyan-300'
-                : 'bg-gradient-to-br from-cyan-900/30 via-blue-900/20 to-zinc-950 border-cyan-500/40'
-            }`}
-          >
-            {/* Animated top bar */}
-            <div className="h-1 bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400 animate-pulse" />
-            <div className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <MessageCircle className={`w-4 h-4 ${isLight ? 'text-cyan-600' : 'text-cyan-400'}`} />
-                <span className={`font-bold text-sm ${textPrimary}`}>Chat with your photographer</span>
-              </div>
-              <p className={`text-xs ${textSecondary}`}>
-                {photographerName} is on the way! Send a message or voice note to help them find you at the beach.
-              </p>
-
-              {/* Inline message preview - shows latest photographer message */}
-              {bgLatestMessage && (
-                <button
-                  onClick={() => setShowSessionChat(true)}
-                  className={`w-full flex items-start gap-3 p-2.5 rounded-xl border transition-all active:scale-[0.98] ${
-                    chatUnreadCount > 0
-                      ? (isLight ? 'bg-cyan-50 border-cyan-300 ring-1 ring-cyan-200' : 'bg-cyan-500/10 border-cyan-400/40 ring-1 ring-cyan-400/20')
-                      : (isLight ? 'bg-white/60 border-gray-200' : 'bg-zinc-800/50 border-zinc-700/50')
-                  }`}
-                  data-testid="lobby-message-preview"
-                >
-                  <div className="relative flex-shrink-0">
-                    <MessageCircle className={`w-4 h-4 mt-0.5 ${
-                      chatUnreadCount > 0 ? (isLight ? 'text-cyan-600' : 'text-cyan-400') : (isLight ? 'text-gray-400' : 'text-zinc-500')
-                    }`} />
-                    {chatUnreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-[8px] font-bold text-white flex items-center justify-center">
-                        {chatUnreadCount > 9 ? '9+' : chatUnreadCount}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className={`text-xs font-semibold ${
-                        chatUnreadCount > 0 ? (isLight ? 'text-cyan-700' : 'text-cyan-400') : (isLight ? 'text-gray-500' : 'text-zinc-400')
-                      }`}>
-                        {bgLatestMessage.sender_id !== user?.id ? photographerName : 'You'}
-                      </p>
-                      <span className={`text-[10px] flex-shrink-0 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`}>
-                        {new Date(bgLatestMessage.created_at).toLocaleTimeString([], {
-                          hour: '2-digit', minute: '2-digit'
-                        })}
-                      </span>
-                    </div>
-                    <p className={`text-sm truncate ${
-                      chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
-                    }`}>
-                      {bgLatestMessage.message_type === 'voice_note'
-                        ? '🎙️ Voice note'
-                        : (bgLatestMessage.content || '📷 Media')}
-                    </p>
-                  </div>
-                </button>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <button aria-label="Message"
-                  onClick={() => setShowSessionChat(true)}
-                  className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
-                    isLight
-                      ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
-                      : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white'
-                  }`}
-                  data-testid="pre-session-chat-btn"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  Chat
-                  {chatUnreadCount > 0 && (
-                    <span className="w-5 h-5 rounded-full bg-red-500 text-[10px] font-bold flex items-center justify-center">
-                      {chatUnreadCount}
-                    </span>
-                  )}
-                </button>
-                <button aria-label="Microphone"
-                  onClick={() => setShowSessionChat(true)}
-                  className={`flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.97] ${
-                    isLight
-                      ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
-                  }`}
-                  data-testid="pre-session-voice-btn"
-                >
-                  <Mic className="w-5 h-5" />
-                  Voice Note
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* --- Communication Block - Extracted to on-demand/DispatchChatBlock.js --- */}
+        {photographerAccepted && !sessionActive && (
+          <DispatchChatBlock
+            photographerName={photographerName}
+            photographerId={photographerId}
+            chatUnreadCount={chatUnreadCount}
+            bgLatestMessage={bgLatestMessage}
+            userId={user?.id}
+            setShowSessionChat={setShowSessionChat}
+            isLight={isLight}
+            textPrimary={textPrimary}
+            textSecondary={textSecondary}
+          />
         )}
 
         {/* --- THE LINEUP (Surfboard Visualization) --- */}
@@ -823,143 +628,33 @@ export const DispatchLobby = () => {
         )}
 
         {/* --- Session Timeline --- */}
-        <div
-          className={`p-4 rounded-2xl space-y-3 ${
-            isLight ? 'bg-white border border-gray-200' : 'bg-zinc-900 border border-zinc-800'
-          }`}
-        >
-          <h3 className={`text-sm font-bold ${textPrimary} flex items-center gap-2`}>
-            <Zap className="w-4 h-4 text-amber-400" /> Session Progress
-          </h3>
-          <div className="space-y-2.5">
-            <TimelineStep
-              icon={Check}
-              label="Session Booked"
-              sub="Request created & payment secured"
-              done
-              isLight={isLight}
-            />
-            <TimelineStep
-              icon={Camera}
-              label="Add Your Selfie"
-              sub="So the photographer can find you"
-              done={captainSelfieUploaded}
-              active={!captainSelfieUploaded}
-              isLight={isLight}
-            />
-            <TimelineStep
-              icon={Users}
-              label="Crew Paying"
-              sub={
-                crewLineup.length > 0
-                  ? `${paidCount}/${crewLineup.length} crew members confirmed`
-                  : 'Solo session - no crew to wait for'
-              }
-              done={crewAllPaid}
-              active={!crewAllPaid && captainSelfieUploaded}
-              isLight={isLight}
-            />
-            <TimelineStep
-              icon={Radio}
-              label="Photographer Confirming"
-              sub="Waiting for them to accept your request"
-              done={photographerAccepted}
-              active={crewAllPaid && !photographerAccepted}
-              isLight={isLight}
-            />
-            <TimelineStep
-              icon={MapPin}
-              label="Photographer En Route"
-              sub={
-                photographerAccepted && eta
-                  ? `~${eta} min away`
-                  : 'Pending confirmation'
-              }
-              done={['en_route', 'arrived', 'completed'].includes(dispatch?.status)}
-              active={dispatch?.status === 'accepted'}
-              isLight={isLight}
-            />
-          </div>
-        </div>
-
+        {/* --- Session Timeline - Extracted to on-demand/DispatchTimeline.js --- */}
+        <DispatchTimeline
+          dispatch={dispatch}
+          captainSelfieUploaded={captainSelfieUploaded}
+          crewAllPaid={crewAllPaid}
+          crewLineup={crewLineup}
+          paidCount={paidCount}
+          photographerAccepted={photographerAccepted}
+          eta={eta}
+          isLight={isLight}
+          textPrimary={textPrimary}
+        />
         {/* --- Location Card (editable when unlocked) --- */}
-        <div
-          className={`p-4 rounded-2xl border ${
-            isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-800'
-          }`}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                locationLocked ? 'bg-green-500/15' : 'bg-cyan-500/15'
-              }`}>
-                {locationLocked
-                  ? <Lock className="w-4 h-4 text-green-400" />
-                  : <MapPin className="w-4 h-4 text-cyan-400" />
-                }
-              </div>
-              <div>
-                <p className={`text-xs font-medium ${locationLocked ? 'text-green-400' : 'text-cyan-400'}`}>
-                  {locationLocked ? 'Meeting Point (Locked)' : 'Meeting Point'}
-                </p>
-              </div>
-            </div>
-            {!locationLocked && !editingLocation && (
-              <button aria-label="Edit"
-                onClick={() => { setEditingLocation(true); setNewLocationName(dispatch?.location_name || ''); }}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  isLight
-                    ? 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100'
-                    : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20'
-                }`}
-              >
-                <Edit2 className="w-3 h-3" /> Edit
-              </button>
-            )}
-          </div>
-
-          {editingLocation ? (
-            <div className="space-y-2">
-              <input aria-label="e.g. Pier at 2nd Street"
-                type="text"
-                value={newLocationName}
-                onChange={e => setNewLocationName(e.target.value)}
-                placeholder="e.g. Pier at 2nd Street"
-                className={`w-full px-3 py-2 rounded-lg text-sm border focus:outline-none focus:ring-2 focus:ring-cyan-400/50 ${
-                  isLight
-                    ? 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'
-                    : 'bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500'
-                }`}
-                autoFocus
-                onKeyDown={e => { if (e.key === 'Enter') handleUpdateLocation(); if (e.key === 'Escape') setEditingLocation(false); }}
-              />
-              <p className={`text-[10px] ${textSecondary}`}>
-                Your current GPS coordinates will be used. Press Enter to save.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setEditingLocation(false)}
-                  className={`flex-1 text-xs py-1.5 ${isLight ? 'bg-gray-100 text-gray-600' : 'bg-zinc-800 text-zinc-400'}`}
-                  disabled={savingLocation}
-                >Cancel</Button>
-                <Button aria-label="Loader2"
-                  onClick={handleUpdateLocation}
-                  disabled={savingLocation || !newLocationName.trim()}
-                  className="flex-1 text-xs py-1.5 bg-cyan-500 hover:bg-cyan-600 text-white font-bold"
-                >
-                  {savingLocation ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Save Location'}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Navigation className={`w-4 h-4 flex-shrink-0 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`} />
-              <p className={`text-sm font-bold ${textPrimary} truncate`}>
-                {dispatch?.location_name || dispatch?.location?.name || 'On-Demand Session'}
-              </p>
-            </div>
-          )}
-        </div>
+        {/* --- Location Card - Extracted to on-demand/DispatchLocationCard.js --- */}
+        <DispatchLocationCard
+          dispatch={dispatch}
+          locationLocked={locationLocked}
+          editingLocation={editingLocation}
+          setEditingLocation={setEditingLocation}
+          newLocationName={newLocationName}
+          setNewLocationName={setNewLocationName}
+          savingLocation={savingLocation}
+          handleUpdateLocation={handleUpdateLocation}
+          isLight={isLight}
+          textPrimary={textPrimary}
+          textSecondary={textSecondary}
+        />
 
         {/* --- Session Details Grid --- */}
         <div
