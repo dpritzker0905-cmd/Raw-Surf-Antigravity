@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Trash2, Edit2, EyeOff, ExternalLink, Share2, Link, Flag, UserMinus, Star, Users,
-  Loader2, Pin
+  Loader2, Pin, MessageSquareOff, UserCircle
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { 

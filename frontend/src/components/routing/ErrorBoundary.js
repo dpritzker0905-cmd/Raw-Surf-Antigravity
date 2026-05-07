@@ -10,7 +10,8 @@
  */
 import React from 'react';
 
-const IS_DEV = process.env.NODE_ENV === 'development';
+const IS_DEV = process.env.NODE_ENV === 'development' || 
+  (typeof window !== 'undefined' && window.location.hostname.startsWith('dev--'));
 
 // Key to track if we've already attempted a reload for chunk errors
 const CHUNK_RELOAD_KEY = 'rawsurf_chunk_reload_attempted';
