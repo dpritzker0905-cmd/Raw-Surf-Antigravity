@@ -1,4 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { initializeMap, recreateMapAtLocation } from './map/mapInitializer';
+import { updateMapMarkers as updateMapMarkersService } from './map/markerManager';
+import { updateFriendMarkers } from './map/friendMarkers';
+import { updateOnDemandMarkers } from './map/onDemandMarkers';
 import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -25,10 +29,7 @@ import { LocationPicker } from './LocationPicker';
 import { MapFilterTabs } from './map/MapFilterTabs';
 import { MapHeader } from './map/MapHeader';
 import MapErrorBoundary from './map/MapErrorBoundary';
-import {
-  API, ELECTRIC_CYAN, FLORIDA_CENTER, getErrorMessage, debounce, truncateCoord, isValidLatLng,
-  TILE_LAYER_CONFIG, MAPBOX_TILES, DEFAULT_MAP_OPTIONS, SPOT_CLUSTER_OPTIONS, PHOTOGRAPHER_CLUSTER_OPTIONS
-} from './map/mapUtils';
+import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
@@ -534,151 +535,16 @@ const MapPageContent = () => {
   }, [ipLocation, userLocation, showIpBanner]);
 
   useEffect(() => {
-    if (!mapInstanceRef.current || !window.L) return;
-    friendMarkersRef.current.forEach(m => m.remove());
-    friendMarkersRef.current = [];
-    if (!showFriendsOnMap || friendsOnMap.length === 0) return;
-    friendsOnMap.forEach(friend => {
-      if (!friend.latitude || !friend.longitude) return;
-      
-      const friendIcon = window.L.divIcon({
-        className: 'custom-marker friend-marker',
-        html: `
-          <div class="relative">
-            <div class="absolute inset-0 w-10 h-10 rounded-full bg-yellow-400 animate-pulse opacity-30"></div>
-            <div class="relative w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-yellow-400 to-orange-400">
-              <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
-                ${friend.avatar_url 
-                  ? `<img loading="lazy" decoding="async" src="${friend.avatar_url}" alt="${friend.full_name || 'Friend'} avatar" class="w-full h-full object-cover" />`
-                  : `<span class="text-sm text-yellow-400 font-bold">${friend.full_name?.charAt(0) || '?'}</span>`
-                }
-              </div>
-            </div>
-            <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-yellow-400 rounded text-[8px] text-black font-bold whitespace-nowrap">
-              ${friend.is_shooting ? 'LIVE' : 'FRIEND'}
-            </div>
-          </div>
-        `,
-        iconSize: [40, 40],
-        iconAnchor: [20, 40]
-      });
-      
-      const marker = window.L.marker([friend.latitude, friend.longitude], { icon: friendIcon })
-        .addTo(mapInstanceRef.current)
-        .bindPopup(`
-          <div class="text-center p-2">
-            <p class="font-bold text-sm">${friend.full_name}</p>
-            <p class="text-xs text-gray-500">${friend.role}</p>
-            ${friend.is_shooting ? '<p class="text-xs text-emerald-500 font-bold">Currently Shooting</p>' : ''}
-          </div>
-        `);
-      
-      friendMarkersRef.current.push(marker);
-    });
+    updateFriendMarkers({ mapInstance: mapInstanceRef.current, friendMarkersRef, friendsOnMap, showFriendsOnMap });
   }, [friendsOnMap, showFriendsOnMap]);
 
   useEffect(() => {
-    if (!mapInstanceRef.current || !isPhotographer) return;
-    onDemandMarkersRef.current.forEach(m => m.remove());
-    onDemandMarkersRef.current = [];
-    
-    if (!activeOnDemandRequests || activeOnDemandRequests.length === 0) return;
-    const getPriorityColors = (badge, isBoosted) => {
-      if (isBoosted) return { gradient: 'from-orange-400 to-red-600', shadow: 'orange', bg: 'orange', ring: 'ring-orange-400' };
-      
-      if (!badge) return { gradient: 'from-emerald-400 to-green-600', shadow: 'emerald', bg: 'emerald' };
-      
-      switch (badge.level) {
-        case 'boosted':
-          return { gradient: 'from-orange-400 to-red-600', shadow: 'orange', bg: 'orange', ring: 'ring-orange-400' };
-        case 'pro':
-          return { gradient: 'from-yellow-400 to-amber-600', shadow: 'amber', bg: 'amber', ring: 'ring-yellow-400' };
-        case 'comp':
-          return { gradient: 'from-purple-400 to-violet-600', shadow: 'violet', bg: 'purple', ring: 'ring-purple-400' };
-        default:
-          return { gradient: 'from-cyan-400 to-blue-600', shadow: 'cyan', bg: 'cyan', ring: 'ring-cyan-400' };
-      }
-    };
-    activeOnDemandRequests.forEach((request, index) => {
-      if (!request.latitude || !request.longitude) return;
-      
-      const isBoosted = request.is_boosted;
-      const badge = request.priority_badge || { level: 'regular', label: 'Surfer', color: 'cyan' };
-      const colors = getPriorityColors(badge, isBoosted);
-      const queuePosition = index + 1;
-      const badgeIcon = isBoosted
-        ? `<svg class="w-3 h-3 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/><path d="M12 2v14"/></svg>`
-        : badge.level === 'pro'
-        ? `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.09 8.26L21 9.27L16 14.14L17.18 21.02L12 17.77L6.82 21.02L8 14.14L3 9.27L9.91 8.26L12 2Z"/></svg>`
-        : badge.level === 'comp'
-        ? `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17 10.43V3H7v7.43c0 .35.18.68.49.86l4.18 2.51-.99 2.34-3.41.29 2.59 2.24L9.07 22 12 20.23 14.93 22l-.79-3.33 2.59-2.24-3.41-.29-.99-2.34 4.18-2.51c.3-.18.49-.51.49-.86z"/></svg>`
-        : `<svg class="w-3 h-3 text-${colors.bg}-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`;
-      
-      const onDemandIcon = window.L.divIcon({
-        className: 'custom-marker on-demand-marker',
-        html: `
-          <div class="relative">
-            <div class="absolute inset-0 w-14 h-14 -top-1 -left-1 rounded-full bg-${colors.bg}-400 animate-ping opacity-40"></div>
-            <div class="absolute inset-0 w-12 h-12 rounded-full bg-${colors.bg}-500 animate-pulse opacity-30"></div>
-            <div class="absolute -top-2 -right-2 z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-${colors.bg}-500/90 text-white text-[8px] font-bold shadow-md ${isBoosted || badge.level === 'pro' ? 'animate-pulse' : ''}">
-              ${badgeIcon}
-              ${isBoosted ? '🚀' : badge.level === 'pro' ? 'PRO' : badge.level === 'comp' ? 'COMP' : ''}
-            </div>
-            ${isBoosted ? `
-              <div class="absolute -top-2 -left-2 z-10 px-1.5 py-0.5 rounded-full bg-orange-500 text-white text-[8px] font-bold shadow-md animate-pulse">
-                ${request.boost_time_remaining_minutes || 0}m
-              </div>
-            ` : badge.level === 'pro' ? `
-              <div class="absolute -top-2 -left-2 z-10 w-5 h-5 rounded-full bg-yellow-500 text-black text-[10px] font-bold flex items-center justify-center shadow-md">
-                ${queuePosition}
-              </div>
-            ` : ''}
-            <div class="relative w-12 h-12 rounded-full bg-gradient-to-br ${colors.gradient} p-[3px] shadow-lg shadow-${colors.shadow}-500/50">
-              <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
-                ${request.requester_avatar 
-                  ? `<img loading="lazy" decoding="async" src="${request.requester_avatar}" alt="${request.requester_name || 'Requester'} avatar" class="w-full h-full object-cover" />`
-                  : `<span class="text-${colors.bg}-400 text-lg font-bold">${request.requester_name?.charAt(0) || 'S'}</span>`
-                }
-              </div>
-            </div>
-            <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-${colors.bg}-500 rounded text-[9px] text-white font-bold whitespace-nowrap animate-pulse">
-              ${isBoosted ? 'BOOSTED 🚀' : 'NEEDS PRO'}
-            </div>
-          </div>
-        `,
-        iconSize: [48, 56],
-        iconAnchor: [24, 56]
-      });
-      
-      const popupBgColor = isBoosted ? '#ea580c' : (badge.color === 'yellow' ? '#eab308' : badge.color === 'purple' ? '#a855f7' : '#06b6d4');
-      const popupTextColor = isBoosted ? '#c2410c' : (badge.color === 'yellow' ? '#ca8a04' : badge.color === 'purple' ? '#9333ea' : '#0891b2');
-      
-      const marker = window.L.marker([request.latitude, request.longitude], { icon: onDemandIcon })
-        .addTo(mapInstanceRef.current)
-        .bindPopup(`
-          <div class="text-center p-2 min-w-[150px]">
-            <div class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-2" style="background: ${popupBgColor}">
-              <span class="text-[10px] font-bold text-white">${isBoosted ? 'BOOSTED 🚀' : badge.label.toUpperCase()}</span>
-            </div>
-            
-            <p class="font-bold text-sm" style="color: ${popupTextColor}">${request.requester_name}</p>
-            <p class="text-xs text-gray-500">Looking for a Pro</p>
-            <p class="text-xs text-gray-400 mt-1">${request.location_name || 'Nearby'}</p>
-            <p class="text-xs font-medium mt-1" style="color: ${badge.color === 'yellow' ? '#ca8a04' : badge.color === 'purple' ? '#9333ea' : '#0891b2'}">${request.estimated_duration}h session</p>
-            ${badge.level === 'pro' ? '<p class="text-[10px] font-bold text-yellow-600 mt-2">? PRIORITY REQUEST</p>' : ''}
-          </div>
-        `);
-      
-      onDemandMarkersRef.current.push(marker);
-    });
+    updateOnDemandMarkers({ mapInstance: mapInstanceRef.current, onDemandMarkersRef, activeOnDemandRequests, isPhotographer });
   }, [activeOnDemandRequests, isPhotographer]);
 
-  // Get user's GPS location - NUCLEAR: Recreate map at new location
   const getUserLocation = async () => {
     try {
       const location = await requestLocation();
-      
-      // Validate coordinates
       if (!location?.lat || !location?.lng ||
           typeof location.lat !== 'number' || typeof location.lng !== 'number' ||
           Number.isNaN(location.lat) || Number.isNaN(location.lng)) {
@@ -686,54 +552,10 @@ const MapPageContent = () => {
         setShowLocationPicker(true);
         return;
       }
-      
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-      
-      setTimeout(() => {
-        if (mapRef.current && window.L) {
-          const map = window.L.map(mapRef.current, {
-            center: [location.lat, location.lng], zoom: 12,
-            ...DEFAULT_MAP_OPTIONS
-          });
-          window.L.tileLayer(mapTilesUrl, TILE_LAYER_CONFIG.options).addTo(map);
-          window.L.control.zoom({ position: 'bottomright' }).addTo(map);
-          
-          spotClusterRef.current = window.L.markerClusterGroup(SPOT_CLUSTER_OPTIONS);
-          map.addLayer(spotClusterRef.current);
-          photographerClusterRef.current = window.L.markerClusterGroup(PHOTOGRAPHER_CLUSTER_OPTIONS);
-          map.addLayer(photographerClusterRef.current);
-
-          if (window.visualViewport) {
-            const onVvResize = debounce(() => {
-              if (mapInstanceRef.current) {
-                mapInstanceRef.current.invalidateSize({ pan: false });
-              }
-            }, 100);
-            window.visualViewport.addEventListener('resize', onVvResize);
-            window.visualViewport.addEventListener('scroll', onVvResize);
-            map.on('remove', () => {
-              window.visualViewport.removeEventListener('resize', onVvResize);
-              window.visualViewport.removeEventListener('scroll', onVvResize);
-            });
-          }
-          
-          mapInstanceRef.current = map;
-          
-          // Update markers
-          setTimeout(() => {
-            updateMapMarkers();
-            updateUserLocationMarker();
-            if (mapInstanceRef.current) {
-              mapInstanceRef.current.invalidateSize();
-            }
-          }, 100);
-        }
-      }, 100);
-
-      
+      recreateMapAtLocation({
+        location, mapRef, mapInstanceRef, spotClusterRef, photographerClusterRef,
+        mapTilesUrl, onMarkersReady: () => { updateMapMarkers(); updateUserLocationMarker(); }
+      });
     } catch (error) {
       logger.error('[MAP] GPS failed:', error);
       setShowLocationPicker(true);
@@ -741,276 +563,18 @@ const MapPageContent = () => {
   };
 
   const initMap = () => {
-    if (!mapRef.current || !window.L) {
-      logger.warn('[MAP] Missing container or Leaflet');
-      return;
-    }
-    
-    try {
-      mapRef.current.style.height = '100%';
-      mapRef.current.style.minHeight = '50vh';
-    const rect = mapRef.current.getBoundingClientRect();
-    if (!rect.width || !rect.height) {
-      setTimeout(initMap, 100);
-      return;
-    }
-    if (mapInstanceRef.current) return;
-    const map = window.L.map(mapRef.current, {
-      center: [FLORIDA_CENTER.lat, FLORIDA_CENTER.lng],
-      zoom: 7,
-      ...DEFAULT_MAP_OPTIONS
+    initializeMap({
+      mapRef, mapInstanceRef, spotClusterRef, photographerClusterRef,
+      mapTilesUrl, onMarkersReady: () => { updateMapMarkers(); updateUserLocationMarker(); }
     });
-    setTimeout(() => { if (map?.invalidateSize) map.invalidateSize(); }, 100);
-    const tileLayer = window.L.tileLayer(mapTilesUrl, TILE_LAYER_CONFIG.options).addTo(map);
-    map._tileLayer = tileLayer;
-    window.L.control.zoom({ position: 'bottomright' }).addTo(map);
-    
-    // Initialize marker cluster groups with custom icons
-    spotClusterRef.current = window.L.markerClusterGroup({
-      ...SPOT_CLUSTER_OPTIONS,
-      chunkInterval: 100,
-      chunkDelay: 25,
-      animate: true,
-      animateAddingMarkers: false,
-      removeOutsideVisibleBounds: true,
-      iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
-        return window.L.divIcon({
-          className: 'custom-cluster-marker',
-          html: `
-            <div class="w-10 h-10 rounded-full bg-gradient-to-r from-emerald-400 to-yellow-400 flex items-center justify-center shadow-lg">
-              <span class="text-black font-bold text-sm">${count}</span>
-            </div>
-          `,
-          iconSize: [40, 40],
-          iconAnchor: [20, 20]
-        });
-      }
-    });
-    photographerClusterRef.current = window.L.markerClusterGroup({
-      ...PHOTOGRAPHER_CLUSTER_OPTIONS,
-      maxClusterRadius: 80,
-      disableClusteringAtZoom: 12,
-      chunkInterval: 100,
-      chunkDelay: 25,
-      animate: true,
-      animateAddingMarkers: false,
-      removeOutsideVisibleBounds: true,
-      iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
-        return window.L.divIcon({
-          className: 'custom-cluster-marker',
-          html: `
-            <div class="relative">
-              <div class="absolute inset-0 w-12 h-12 rounded-full bg-cyan-400 animate-ping opacity-30"></div>
-              <div class="w-12 h-12 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg">
-                <span class="text-white font-bold text-sm">${count}</span>
-              </div>
-            </div>
-          `,
-          iconSize: [48, 48],
-          iconAnchor: [24, 24]
-        });
-      }
-    });
-    
-    map.addLayer(spotClusterRef.current);
-    map.addLayer(photographerClusterRef.current);
-    const debouncedMoveEnd = debounce(() => {}, 250);
-    map.on('moveend', debouncedMoveEnd);
-
-    if (window.visualViewport) {
-      const onVisualViewportResize = debounce(() => {
-        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize({ pan: false });
-      }, 100);
-      window.visualViewport.addEventListener('resize', onVisualViewportResize);
-      window.visualViewport.addEventListener('scroll', onVisualViewportResize);
-      map.on('remove', () => {
-        window.visualViewport.removeEventListener('resize', onVisualViewportResize);
-        window.visualViewport.removeEventListener('scroll', onVisualViewportResize);
-      });
-    }
-    mapInstanceRef.current = map;
-    updateMapMarkers();
-    updateUserLocationMarker();
-    } catch (error) {
-      logger.error('[MAP] Error initializing map:', error);
-      toast.error('Map failed to load', { description: 'Please refresh the page' });
-    }
   };
 
   const updateMapMarkers = () => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    try {
-      markersRef.current.forEach(m => m.remove());
-      markersRef.current = [];
-    if (spotClusterRef.current) spotClusterRef.current.clearLayers();
-    if (photographerClusterRef.current) photographerClusterRef.current.clearLayers();
-    
-
-    
-    // Add surf spot markers to CLUSTER GROUP for performance
-    // Privacy Shield: Shows different visual state based on geofence
-    if ((filter === 'all' || filter === 'spots') && spotClusterRef.current) {
-      const spotMarkers = [];
-      
-      surfSpots.forEach(spot => {
-        // Validate coordinates before creating marker
-        if (!isValidLatLng(spot.latitude, spot.longitude)) return;
-        
-        const hasPhotographers = spot.active_photographers_count > 0;
-        const isWithinGeofence = spot.is_within_geofence !== false; // Default to true if not set
-        const distanceMiles = spot.distance_miles;
-        
-        // Privacy Shield visual state
-        const spotIcon = window.L.divIcon({
-          className: 'custom-marker',
-          html: `
-            <div class="relative">
-              <div class="w-8 h-8 rounded-full flex items-center justify-center ${
-                !isWithinGeofence
-                  ? 'bg-zinc-800 border-2 border-zinc-600 opacity-60'
-                  : hasPhotographers 
-                    ? 'bg-gradient-to-r from-emerald-400 to-yellow-400' 
-                    : 'bg-zinc-700 border-2 border-zinc-500'
-              }">
-                ${!isWithinGeofence ? `
-                  <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 17a2 2 0 002-2V9a2 2 0 00-2-2 2 2 0 00-2 2v6a2 2 0 002 2m6-9h-1V6a5 5 0 00-10 0v2H6a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V10a2 2 0 00-2-2z"/>
-                  </svg>
-                ` : `
-                  <svg class="w-4 h-4 ${hasPhotographers ? 'text-black' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                  </svg>
-                `}
-              </div>
-              ${hasPhotographers && isWithinGeofence ? `
-                <div class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold animate-pulse">
-                  ${spot.active_photographers_count}
-                </div>
-              ` : ''}
-              ${!isWithinGeofence && distanceMiles ? `
-                <div class="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-[9px] text-gray-500 whitespace-nowrap font-medium">
-                  ${distanceMiles > 100 ? Math.round(distanceMiles) : distanceMiles.toFixed(1)} mi
-                </div>
-              ` : ''}
-            </div>
-          `,
-          iconSize: [32, 32],
-          iconAnchor: [16, 32]
-        });
-        
-        // Use truncated coordinates for performance
-        const marker = window.L.marker(
-          [truncateCoord(spot.latitude), truncateCoord(spot.longitude)], 
-          { icon: spotIcon }
-        ).on('click', () => handleSpotClick(spot));
-        
-        spotMarkers.push(marker);
-      });
-      spotClusterRef.current.addLayers(spotMarkers);
-    }
-    if ((filter === 'all' || filter === 'photographers') && photographerClusterRef.current) {
-      const photographerMarkers = [];
-      livePhotographers.forEach(photographer => {
-        if (!isValidLatLng(photographer.latitude, photographer.longitude)) return;
-        const isPulsing = pulsingMarkers.has(photographer.id);
-        const isAtOfficialSpot = photographer.current_spot_id || photographer.spot_id;
-        const isShootingLive = photographer.is_streaming || photographer.is_live;
-        const isOnDemand = photographer.on_demand_available || photographer.is_available_on_demand;
-        const isBoth = isShootingLive && isOnDemand;
-        let statusClass, ringClass, labelClass, statusLabel;
-        if (isBoth) {
-          statusClass = 'status-both';
-          ringClass = 'status-both-ring';
-          labelClass = 'status-both-label';
-          statusLabel = 'LIVE + BOOK';
-        } else if (isShootingLive) {
-          statusClass = 'status-shooting-live';
-          ringClass = 'status-shooting-live-ring';
-          labelClass = 'status-shooting-live-label';
-          statusLabel = 'SHOOTING';
-        } else if (isOnDemand) {
-          statusClass = 'status-on-demand';
-          ringClass = 'status-on-demand-ring';
-          labelClass = 'status-on-demand-label';
-          statusLabel = 'ON-DEMAND';
-        } else {
-          statusClass = ''; ringClass = ''; labelClass = ''; statusLabel = 'ROAMING';
-        }
-        
-        const photographerIcon = window.L.divIcon({
-          className: 'custom-marker photographer-marker',
-          html: isAtOfficialSpot
-            ? `
-              <div class="photographer-pin-container">
-                ${isBoth ? `
-                  <div class="photographer-pin-pulse ${statusClass}" style="background: rgba(168, 85, 247, 0.4);"></div>
-                  <div class="absolute inset-0 w-14 h-14 -top-1 -left-1 rounded-full ${statusClass}" style="background: rgba(124, 58, 237, 0.3);"></div>
-                ` : isShootingLive ? `
-                  <div class="photographer-pin-pulse ${statusClass}" style="background: rgba(239, 68, 68, 0.4);"></div>
-                  <div class="absolute inset-0 w-14 h-14 -top-1 -left-1 rounded-full ${statusClass}" style="background: rgba(220, 38, 38, 0.3);"></div>
-                ` : isOnDemand ? `
-                  <div class="photographer-pin-pulse ${statusClass}" style="background: rgba(34, 197, 94, 0.4);"></div>
-                  <div class="absolute inset-0 w-14 h-14 -top-1 -left-1 rounded-full ${statusClass}" style="background: rgba(22, 163, 74, 0.3);"></div>
-                ` : isPulsing ? `
-                  <div class="absolute inset-0 w-16 h-16 -top-2 -left-2 rounded-full animate-ping opacity-60" style="background-color: ${ELECTRIC_CYAN};"></div>
-                  <div class="absolute inset-0 w-14 h-14 -top-1 -left-1 rounded-full animate-pulse opacity-40" style="background-color: ${ELECTRIC_CYAN};"></div>
-                ` : `
-                  <div class="absolute inset-0 w-12 h-12 rounded-full bg-cyan-400 animate-ping opacity-40"></div>
-                `}
-                <div class="photographer-pin-avatar p-[3px] rounded-full ${ringClass || ''}" style="${!ringClass ? `background: ${isPulsing ? `linear-gradient(135deg, ${ELECTRIC_CYAN}, #0099CC)` : 'linear-gradient(to right, rgb(34 211 238), rgb(59 130 246))'}` : ''}">
-                  <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
-                    ${photographer.avatar_url 
-                      ? `<img loading="lazy" decoding="async" src="${photographer.avatar_url}" alt="${photographer.full_name || 'Photographer'} avatar" class="w-full h-full object-cover" />`
-                      : `<span class="text-lg ${isBoth ? 'text-purple-400' : isShootingLive ? 'text-red-400' : isOnDemand ? 'text-green-400' : ''}" style="${!isBoth && !isShootingLive && !isOnDemand ? `color: ${isPulsing ? ELECTRIC_CYAN : 'rgb(34 211 238)'}` : ''}">${photographer.full_name?.charAt(0) || '?'}</span>`
-                    }
-                  </div>
-                </div>
-                <div class="photographer-pin-status-label ${labelClass || ''}" style="${!labelClass ? `background-color: ${isPulsing ? ELECTRIC_CYAN : 'rgb(16 185 129)'}` : ''}">
-                  ${isPulsing ? 'NEW!' : statusLabel}
-                </div>
-              </div>
-            `
-            : `
-              <div class="relative">
-                <div class="absolute inset-0 w-12 h-12 rounded-full bg-orange-400 animate-ping opacity-40"></div>
-                <div class="relative w-12 h-12 rounded-full p-[3px]" style="background: linear-gradient(135deg, #f97316, #eab308);">
-                  <div class="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
-                    ${photographer.avatar_url 
-                      ? `<img loading="lazy" decoding="async" src="${photographer.avatar_url}" alt="${photographer.full_name || 'Photographer'} avatar" class="w-full h-full object-cover" />`
-                      : `<span class="text-lg text-orange-400">${photographer.full_name?.charAt(0) || '?'}</span>`
-                    }
-                  </div>
-                </div>
-                <div class="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
-                  <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
-                  </svg>
-                </div>
-                <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-orange-500 rounded text-[9px] text-white font-bold">
-                  ROAMING
-                </div>
-              </div>
-            `,
-          iconSize: [56, 64],
-          iconAnchor: [28, 64]
-        });
-        
-        // Use truncated coordinates for performance
-        const marker = window.L.marker(
-          [truncateCoord(photographer.latitude), truncateCoord(photographer.longitude)], 
-          { icon: photographerIcon }
-        ).on('click', () => handlePhotographerClick(photographer));
-        
-        photographerMarkers.push(marker);
-      });
-      photographerClusterRef.current.addLayers(photographerMarkers);
-    }
-    } catch (error) {
-      logger.error('[MAP] Error updating markers:', error);
-    }
+    updateMapMarkersService({
+      map: mapInstanceRef.current, markersRef, spotClusterRef, photographerClusterRef,
+      filter, surfSpots, livePhotographers, pulsingMarkers,
+      handleSpotClick, handlePhotographerClick
+    });
   };
 
   const handleStartGoLiveFlow = useCallback((spotId, sessionSettings = {}) => {
