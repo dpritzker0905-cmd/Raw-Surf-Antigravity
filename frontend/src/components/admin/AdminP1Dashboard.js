@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -14,6 +14,8 @@ import {
   FraudAlertDetailModal,
   ViolationDetailModal,
 } from './p1/AdminP1Modals';
+import AdminP1ComplianceTab from './p1/AdminP1ComplianceTab';
+import AdminP1TestAccountsTab from './p1/AdminP1TestAccountsTab';
 
 import { UserCheck, Eye, AlertTriangle, Search,
 
@@ -582,348 +584,26 @@ export const AdminP1Dashboard = () => {
 
           {/* COMPLIANCE (TOS VIOLATIONS) TAB */}
           {activeSubTab === 'compliance' && (
-            <div className="space-y-4" data-testid="compliance-tab">
-              {/* Stats Cards */}
-              {complianceStats && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Card className={`${cardBgClass} border`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-yellow-500/20">
-                          <AlertTriangle className="w-5 h-5 text-yellow-400" />
-                        </div>
-                        <div>
-                          <p className={`text-2xl font-bold ${textClass}`}>{complianceStats.total_violations}</p>
-                          <p className={`text-xs ${textSecondary}`}>Total Violations</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className={`${cardBgClass} border`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-red-500/20">
-                          <MapPin className="w-5 h-5 text-red-400" />
-                        </div>
-                        <div>
-                          <p className={`text-2xl font-bold ${textClass}`}>{complianceStats.location_fraud_count}</p>
-                          <p className={`text-xs ${textSecondary}`}>Location Fraud</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className={`${cardBgClass} border`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-orange-500/20">
-                          <Scale className="w-5 h-5 text-orange-400" />
-                        </div>
-                        <div>
-                          <p className={`text-2xl font-bold ${textClass}`}>{complianceStats.pending_appeals}</p>
-                          <p className={`text-xs ${textSecondary}`}>Pending Appeals</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card className={`${cardBgClass} border`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-purple-500/20">
-                          <Ban className="w-5 h-5 text-purple-400" />
-                        </div>
-                        <div>
-                          <p className={`text-2xl font-bold ${textClass}`}>{complianceStats.suspended_users + complianceStats.banned_users}</p>
-                          <p className={`text-xs ${textSecondary}`}>Suspended/Banned</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Week Summary */}
-              {complianceStats && (
-                <Card className={`${cardBgClass} border border-blue-500/30`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="w-5 h-5 text-blue-400" />
-                        <span className={textClass}>This Week: <strong>{complianceStats.violations_this_week}</strong> new violations</span>
-                      </div>
-                      <Button aria-label="Refresh"
-                        size="sm"
-                        variant="outline"
-                        onClick={fetchComplianceData}
-                        className="gap-1"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        Refresh
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Location Fraud Map Visualization */}
-              {locationFraudMapData.length > 0 && (
-                <Card className={`${cardBgClass} border border-red-500/30`}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className={`text-sm ${textClass} flex items-center gap-2`}>
-                      <MapPin className="w-4 h-4 text-red-400" />
-                      Location Fraud Map ({locationFraudMapData.length} incidents)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {/* Legend */}
-                      <div className="flex gap-4 text-xs">
-                        <div className="flex items-center gap-1">
-                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                          <span className={textSecondary}>Claimed Location</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                          <span className={textSecondary}>Actual Location</span>
-                        </div>
-                      </div>
-                      
-                      {/* Fraud Incidents List */}
-                      <div className="max-h-60 overflow-y-auto space-y-2">
-                        {locationFraudMapData.map((fraud, _idx) => (
-                          <div 
-                            key={fraud.id}
-                            className="p-3 rounded-lg bg-muted/50 border border-border"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <Badge className={`text-[10px] ${
-                                fraud.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                fraud.severity === 'severe' ? 'bg-orange-500/20 text-orange-400' :
-                                'bg-yellow-500/20 text-yellow-400'
-                              }`}>
-                                {fraud.severity} - {fraud.distance_miles?.toFixed(1)} mi
-                              </Badge>
-                              <span className={`text-[10px] ${textSecondary}`}>
-                                {formatDate(fraud.created_at)}
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                <span className={textSecondary}>
-                                  Claimed: {fraud.claimed[0]?.toFixed(4)}, {fraud.claimed[1]?.toFixed(4)}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                                <span className={textSecondary}>
-                                  Actual: {fraud.actual[0]?.toFixed(4)}, {fraud.actual[1]?.toFixed(4)}
-                                </span>
-                              </div>
-                            </div>
-                            {/* Visual Distance Bar */}
-                            <div className="mt-2 h-1.5 bg-input rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full ${
-                                  fraud.distance_miles > 50 ? 'bg-red-500' :
-                                  fraud.distance_miles > 10 ? 'bg-orange-500' :
-                                  'bg-yellow-500'
-                                }`}
-                                style={{ width: `${Math.min((fraud.distance_miles / 100) * 100, 100)}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Pending Appeals Section with Bulk Actions */}
-              {pendingAppeals.length > 0 && (
-                <Card className={`${cardBgClass} border border-orange-500/30`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className={`text-sm ${textClass} flex items-center gap-2`}>
-                        <Scale className="w-4 h-4 text-orange-400" />
-                        Pending Appeals ({pendingAppeals.length})
-                      </CardTitle>
-                      
-                      {/* Bulk Actions */}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={selectAllAppeals}
-                          className="h-7 text-xs"
-                        >
-                          {selectedAppeals.size === pendingAppeals.length ? 'Deselect All' : 'Select All'}
-                        </Button>
-                        
-                        {selectedAppeals.size > 0 && (
-                          <>
-                            <Button aria-label="Loader2"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleBulkReviewAppeals(true)}
-                              disabled={bulkProcessing}
-                              className="h-7 text-xs border-green-500 text-green-400 hover:bg-green-500/20"
-                            >
-                              {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ThumbsUp className="w-3 h-3 mr-1" />}
-                              Approve ({selectedAppeals.size})
-                            </Button>
-                            <Button aria-label="Loader2"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleBulkReviewAppeals(false)}
-                              disabled={bulkProcessing}
-                              className="h-7 text-xs border-red-500 text-red-400 hover:bg-red-500/20"
-                            >
-                              {bulkProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <ThumbsDown className="w-3 h-3 mr-1" />}
-                              Deny ({selectedAppeals.size})
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {pendingAppeals.map(violation => (
-                      <div
-                        key={violation.id}
-                        className={`p-3 rounded-lg border transition-colors ${
-                          selectedAppeals.has(violation.id) 
-                            ? 'bg-orange-500/20 border-orange-500' 
-                            : 'bg-orange-500/10 border-orange-500/20 hover:bg-orange-500/20'
-                        }`}
-                        data-testid={`appeal-${violation.id}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <input aria-label="Checkbox"
-                              type="checkbox"
-                              checked={selectedAppeals.has(violation.id)}
-                              onChange={() => toggleAppealSelection(violation.id)}
-                              className="w-4 h-4 rounded border-orange-500 bg-muted text-orange-500 focus:ring-orange-500"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <div 
-                              className="cursor-pointer"
-                              onClick={() => {
-                                setSelectedViolation(violation);
-                                setShowViolationDetail(true);
-                              }}
-                            >
-                              <p className={`font-medium ${textClass}`}>{violation.title}</p>
-                              <p className={`text-xs ${textSecondary}`}>
-                                {violation.violation_type.replace(/_/g, ' ')} - User: {violation.user_id.slice(0, 8)}...
-                              </p>
-                            </div>
-                          </div>
-                          <Badge className="bg-orange-500/20 text-orange-400">Appeal Pending</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Recent Violations List */}
-              <Card className={cardBgClass}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className={`text-sm ${textClass}`}>
-                      <Flag className="w-4 h-4 inline mr-2" />
-                      Recent Violations
-                    </CardTitle>
-                    <Select value={complianceFilter.type} onValueChange={(v) => setComplianceFilter({ type: v })}>
-                      <SelectTrigger className="w-[140px] h-8 bg-muted border-border">
-                        <SelectValue placeholder="Filter" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="location_fraud">Location Fraud</SelectItem>
-                        <SelectItem value="harassment">Harassment</SelectItem>
-                        <SelectItem value="scam">Scam</SelectItem>
-                        <SelectItem value="spam">Spam</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {recentViolations.length === 0 ? (
-                    <p className={`text-center py-8 ${textSecondary}`}>No violations recorded</p>
-                  ) : (
-                    recentViolations
-                      .filter(v => complianceFilter.type === 'all' || v.violation_type === complianceFilter.type)
-                      .map(violation => (
-                        <div
-                          key={violation.id}
-                          className={`p-3 rounded-lg ${cardBgClass} border cursor-pointer hover:bg-muted/50 transition-colors`}
-                          onClick={() => {
-                            setSelectedViolation(violation);
-                            setShowViolationDetail(true);
-                          }}
-                          data-testid={`violation-${violation.id}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`p-1.5 rounded-full ${
-                                violation.severity === 'critical' ? 'bg-red-500/20' :
-                                violation.severity === 'severe' ? 'bg-orange-500/20' :
-                                violation.severity === 'moderate' ? 'bg-yellow-500/20' :
-                                'bg-gray-500/20'
-                              }`}>
-                                {violation.violation_type === 'location_fraud' ? (
-                                  <MapPin className={`w-4 h-4 ${
-                                    violation.severity === 'critical' ? 'text-red-400' :
-                                    violation.severity === 'severe' ? 'text-orange-400' :
-                                    'text-yellow-400'
-                                  }`} />
-                                ) : (
-                                  <Flag className="w-4 h-4 text-muted-foreground" />
-                                )}
-                              </div>
-                              <div>
-                                <p className={`font-medium ${textClass}`}>{violation.title}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <Badge className={`text-[10px] ${
-                                    violation.severity === 'critical' ? 'bg-red-500/20 text-red-400' :
-                                    violation.severity === 'severe' ? 'bg-orange-500/20 text-orange-400' :
-                                    violation.severity === 'moderate' ? 'bg-yellow-500/20 text-yellow-400' :
-                                    'bg-gray-500/20 text-muted-foreground'
-                                  }`}>
-                                    {violation.severity}
-                                  </Badge>
-                                  <span className={`text-xs ${textSecondary}`}>
-                                    {violation.action_taken.replace(/_/g, ' ')}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className={`text-xs ${textSecondary}`}>{formatDate(violation.created_at)}</p>
-                              {violation.appeal_status && (
-                                <Badge className={`mt-1 text-[10px] ${
-                                  violation.appeal_status === 'pending' ? 'bg-orange-500/20 text-orange-400' :
-                                  violation.appeal_status === 'approved' ? 'bg-green-500/20 text-green-400' :
-                                  'bg-red-500/20 text-red-400'
-                                }`}>
-                                  Appeal: {violation.appeal_status}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <AdminP1ComplianceTab
+              complianceStats={complianceStats}
+              complianceFilter={complianceFilter}
+              setComplianceFilter={setComplianceFilter}
+              locationFraudMapData={locationFraudMapData}
+              pendingAppeals={pendingAppeals}
+              recentViolations={recentViolations}
+              selectedAppeals={selectedAppeals}
+              toggleAppealSelection={toggleAppealSelection}
+              selectAllAppeals={selectAllAppeals}
+              handleBulkReviewAppeals={handleBulkReviewAppeals}
+              bulkProcessing={bulkProcessing}
+              setSelectedViolation={setSelectedViolation}
+              setShowViolationDetail={setShowViolationDetail}
+              fetchComplianceData={fetchComplianceData}
+              formatDate={formatDate}
+              cardBgClass={cardBgClass}
+              textClass={textClass}
+              textSecondary={textSecondary}
+            />
           )}
 
           {/* USER JOURNEY TAB */}
@@ -1075,130 +755,23 @@ export const AdminP1Dashboard = () => {
 
           {/* TEST ACCOUNTS TAB */}
           {activeSubTab === 'test_accounts' && (
-            <div className="space-y-4">
-              {/* Seed Accounts Card */}
-              <Card className={cardBgClass}>
-                <CardHeader>
-                  <CardTitle className={`flex items-center gap-2 ${textClass}`}>
-                    <Users className="w-5 h-5 text-green-400" />
-                    Seed Test Accounts
-                  </CardTitle>
-                  <p className={`text-sm ${textSecondary}`}>
-                    Create test accounts for QA testing. All accounts use @test.rawsurf.io email domain.
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
-                      <label className={`text-xs ${textSecondary}`}>Password for new accounts</label>
-                      <Input
-                        value={testAccountPassword}
-                        onChange={(e) => setTestAccountPassword(e.target.value)}
-                        className="bg-muted border-border"
-                        placeholder="Test123!"
-                      />
-                    </div>
-                    <Button aria-label="Loader2"
-                      onClick={seedAllRoleAccounts}
-                      disabled={seedingAccounts}
-                      className="bg-green-500 hover:bg-green-600 text-white"
-                      data-testid="seed-all-roles-btn"
-                    >
-                      {seedingAccounts ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      Seed All Roles
-                    </Button>
-                    <Button
-                      onClick={cleanupOldTestAccounts}
-                      disabled={actionLoading}
-                      variant="outline"
-                      className="border-red-500/50 text-red-400 hover:bg-red-500/10"
-                      data-testid="cleanup-test-accounts-btn"
-                    >
-                      Cleanup Old (&gt;7 days)
-                    </Button>
-                  </div>
-                  
-                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                    <p className={`text-sm ${textClass}`}>
-                      <strong>Seed All Roles</strong> creates one account for each role type:
-                    </p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {['Surfer', 'Photographer', 'Approved Pro', 'Grom', 'GromParent', 'Competitive Surfer'].map(role => (
-                        <Badge key={role} variant="outline" className="text-green-400 border-green-500/50">
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Existing Test Accounts */}
-              <Card className={cardBgClass}>
-                <CardHeader>
-                  <CardTitle className={`flex items-center gap-2 ${textClass}`}>
-                    <Users className="w-5 h-5 text-blue-400" />
-                    Existing Test Accounts
-                    <Badge className="ml-2 bg-blue-500/20 text-blue-400">{testAccounts.length}</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {testAccounts.length === 0 ? (
-                    <p className={`text-center py-8 ${textSecondary}`}>
-                      No test accounts found. Click "Seed All Roles" to create test accounts.
-                    </p>
-                  ) : (
-                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                      {testAccounts.map(account => (
-                        <div 
-                          key={account.id}
-                          className="flex items-center gap-3 p-3 bg-muted rounded-lg hover:bg-input transition-colors"
-                          data-testid={`test-account-${account.id}`}
-                        >
-                          <Avatar>
-                            <AvatarFallback className="bg-blue-500/20 text-blue-400">
-                              {account.full_name?.[0] || '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-medium ${textClass} truncate`}>{account.full_name}</p>
-                            <p className={`text-sm ${textSecondary} truncate`}>{account.email}</p>
-                          </div>
-                          <Badge variant="outline" className="shrink-0">{account.role}</Badge>
-                          {account.is_verified && (
-                            <Badge className="bg-cyan-500/20 text-cyan-400 shrink-0">Verified</Badge>
-                          )}
-                          {account.is_approved_pro && (
-                            <Badge className="bg-purple-500/20 text-purple-400 shrink-0">Pro</Badge>
-                          )}
-                          <Button aria-label="Copy"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => copyCredentials(account)}
-                            className="shrink-0"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                          <Button aria-label="View"
-                            size="sm"
-                            onClick={() => {
-                              setSearchUserQuery('');
-                              setSearchResults([]);
-                              setImpersonationReason('QA testing');
-                              startImpersonation(account.id);
-                            }}
-                            className="bg-purple-500 hover:bg-purple-600 shrink-0"
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            View As
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            <AdminP1TestAccountsTab
+              testAccounts={testAccounts}
+              testAccountPassword={testAccountPassword}
+              setTestAccountPassword={setTestAccountPassword}
+              seedAllRoleAccounts={seedAllRoleAccounts}
+              seedingAccounts={seedingAccounts}
+              cleanupOldTestAccounts={cleanupOldTestAccounts}
+              actionLoading={actionLoading}
+              copyCredentials={copyCredentials}
+              startImpersonation={startImpersonation}
+              setSearchUserQuery={setSearchUserQuery}
+              setSearchResults={setSearchResults}
+              setImpersonationReason={setImpersonationReason}
+              cardBgClass={cardBgClass}
+              textClass={textClass}
+              textSecondary={textSecondary}
+            />
           )}
         </>
       )}
