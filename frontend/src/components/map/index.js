@@ -8,4 +8,3 @@ export { BoostSelector } from './BoostSelector';
 export { RequestProModal } from './RequestProModal';
 export { default as MapErrorBoundary } from './MapErrorBoundary';
 export * from './mapUtils';
-export * from './markerIcons';
