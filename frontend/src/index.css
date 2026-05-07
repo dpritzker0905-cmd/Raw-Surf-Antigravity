@@ -84,10 +84,10 @@ code,
 }
 
 /* ── Mobile sheet / bottom-drawer positioning ── */
-/* Replaces all the !bottom-20 / calc(100dvh-6rem) one-offs */
+/* Sits flush above BottomNav; max-height avoids overlapping TopNav (56px). */
 .sheet-safe-bottom {
-  bottom: var(--safe-bottom) !important;
-  max-height: calc(100dvh - var(--safe-bottom)) !important;
+  bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom, 0px)) !important;
+  max-height: calc(100dvh - var(--bottomnav-h) - env(safe-area-inset-bottom, 0px) - 56px - env(safe-area-inset-top, 0px)) !important;
 }
 
 /* ── Dialog: mobile bottom-safe positioning via CSS class ─────────────
