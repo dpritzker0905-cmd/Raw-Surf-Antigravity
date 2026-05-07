@@ -1187,7 +1187,7 @@ export const CreatePost = () => {
       />
       
       {/* VideoInfoModal - Extracted to create-post/VideoInfoModal.js */}
-      <VideoInfoModal isOpen={showVideoInfoModal} onClose={() => setShowVideoInfoModal(false)} isLight={isLight} textPrimaryClass={textPrimaryClass} textSecondaryClass={textSecondaryClass} borderClass={borderClass} />
+      <VideoInfoModal isOpen={showVideoInfoModal} onClose={() => setShowVideoInfoModal(false)} isLight={isLight} />
       
       {/* Broadcast Launch Modal */}
       <GoLiveModal 
