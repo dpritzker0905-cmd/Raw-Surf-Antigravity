@@ -14,8 +14,6 @@ import { Input } from './ui/input';
 
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
-import { Badge } from './ui/badge';
-
 import {
 
   ArrowLeft, Send, Mic, MoreVertical,
@@ -28,57 +26,47 @@ import {
   EMOJI_CATEGORIES,
   EXTENDED_EMOJI_CATEGORIES,
 } from '../constants/emojis';
-import { toast } from 'sonner';
 
 import logger from '../utils/logger';
 
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
-import { formatClockTime, formatDuration } from '../utils/formatTime';
+import { formatDuration } from '../utils/formatTime';
 
 import useCrewChat from '../hooks/useCrewChat';
 
 // Quick Actions for surf coordination - Expanded with more useful options
 const QUICK_ACTIONS = [
   // Status updates
-  { id: 'omw', text: 'On my way! 🏄', category: 'status', icon: '🚗' },
-  { id: 'late', text: 'Running 5 mins late', category: 'status', icon: '⏰' },
-  { id: 'arrived', text: 'Just arrived at the spot', category: 'status', icon: '📍' },
-  { id: 'parking', text: 'Looking for parking', category: 'status', icon: '🅿️' },
-  { id: 'paddling', text: 'Paddling out now!', category: 'status', icon: '🏊' },
-  { id: 'ready', text: 'Ready when you are! 🤙', category: 'status', icon: '✅' },
+  { id: 'omw', text: 'On my way! Ã°Å¸Ââ€ž', category: 'status', icon: 'Ã°Å¸Å¡â€”' },
+  { id: 'late', text: 'Running 5 mins late', category: 'status', icon: 'Ã¢ÂÂ°' },
+  { id: 'arrived', text: 'Just arrived at the spot', category: 'status', icon: 'Ã°Å¸â€œÂ' },
+  { id: 'parking', text: 'Looking for parking', category: 'status', icon: 'Ã°Å¸â€¦Â¿Ã¯Â¸Â' },
+  { id: 'paddling', text: 'Paddling out now!', category: 'status', icon: 'Ã°Å¸ÂÅ ' },
+  { id: 'ready', text: 'Ready when you are! Ã°Å¸Â¤â„¢', category: 'status', icon: 'Ã¢Å“â€¦' },
 
   // Wave conditions
-  { id: 'pumping', text: 'Waves are pumping! 🌊', category: 'conditions', icon: '🌊' },
-  { id: 'glassy', text: "It's glassy out here! 🔥", category: 'conditions', icon: '✨' },
-  { id: 'choppy', text: 'Getting a bit choppy', category: 'conditions', icon: '💨' },
-  { id: 'crowded', text: 'Pretty crowded lineup', category: 'conditions', icon: '👥' },
-  { id: 'uncrowded', text: 'Lineup is empty! 🎉', category: 'conditions', icon: '🏖️' },
-  { id: 'perfect', text: 'Conditions are PERFECT', category: 'conditions', icon: '💯' },
+  { id: 'pumping', text: 'Waves are pumping! Ã°Å¸Å’Å ', category: 'conditions', icon: 'Ã°Å¸Å’Å ' },
+  { id: 'glassy', text: "It's glassy out here! Ã°Å¸â€Â¥", category: 'conditions', icon: 'Ã¢Å“Â¨' },
+  { id: 'choppy', text: 'Getting a bit choppy', category: 'conditions', icon: 'Ã°Å¸â€™Â¨' },
+  { id: 'crowded', text: 'Pretty crowded lineup', category: 'conditions', icon: 'Ã°Å¸â€˜Â¥' },
+  { id: 'uncrowded', text: 'Lineup is empty! Ã°Å¸Å½â€°', category: 'conditions', icon: 'Ã°Å¸Ââ€“Ã¯Â¸Â' },
+  { id: 'perfect', text: 'Conditions are PERFECT', category: 'conditions', icon: 'Ã°Å¸â€™Â¯' },
 
   // Logistics
-  { id: 'gear', text: 'Bringing extra gear', category: 'logistics', icon: '🎒' },
-  { id: 'wax', text: 'Got extra wax if needed', category: 'logistics', icon: '🧴' },
-  { id: 'drinks', text: 'Bringing drinks/snacks', category: 'logistics', icon: '🥤' },
-  { id: 'camera', text: 'Camera is ready! 📸', category: 'logistics', icon: '📷' },
+  { id: 'gear', text: 'Bringing extra gear', category: 'logistics', icon: 'Ã°Å¸Å½â€™' },
+  { id: 'wax', text: 'Got extra wax if needed', category: 'logistics', icon: 'Ã°Å¸Â§Â´' },
+  { id: 'drinks', text: 'Bringing drinks/snacks', category: 'logistics', icon: 'Ã°Å¸Â¥Â¤' },
+  { id: 'camera', text: 'Camera is ready! Ã°Å¸â€œÂ¸', category: 'logistics', icon: 'Ã°Å¸â€œÂ·' },
 
   // Vibes
-  { id: 'stoked', text: 'So stoked for this session!', category: 'vibes', icon: '🤩' },
-  { id: 'sunset', text: 'Staying for sunset 🌅', category: 'vibes', icon: '🌅' },
-  { id: 'thanks', text: 'Thanks for the session! 🤙', category: 'vibes', icon: '🙏' },
-  { id: 'again', text: "Let's do this again soon!", category: 'vibes', icon: '🔄' },
+  { id: 'stoked', text: 'So stoked for this session!', category: 'vibes', icon: 'Ã°Å¸Â¤Â©' },
+  { id: 'sunset', text: 'Staying for sunset Ã°Å¸Å’â€¦', category: 'vibes', icon: 'Ã°Å¸Å’â€¦' },
+  { id: 'thanks', text: 'Thanks for the session! Ã°Å¸Â¤â„¢', category: 'vibes', icon: 'Ã°Å¸â„¢Â' },
+  { id: 'again', text: "Let's do this again soon!", category: 'vibes', icon: 'Ã°Å¸â€â€ž' },
 ];
 
 // Quick Action Categories with colors
-const _QUICK_ACTION_CATEGORIES = {
-  status: { label: 'Status', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
-  conditions: { label: 'Conditions', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  logistics: { label: 'Logistics', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-  vibes: { label: 'Vibes', color: 'bg-pink-500/20 text-pink-400 border-pink-500/30' },
-};
-
-// Emoji data imported from ../constants/emojis.js
-// (REACTION_EMOJIS, EMOJI_CATEGORIES, EXTENDED_EMOJI_CATEGORIES)
 
 export default function CrewChat() {
   const { bookingId } = useParams();
@@ -123,7 +111,6 @@ export default function CrewChat() {
   const [mentionResults, setMentionResults] = useState([]);
   const [mentionCursorPos, setMentionCursorPos] = useState(0);
 
-
   // ============ HANDLERS EXTRACTED TO hooks/useCrewChat.js ============
   const {
     messagesEndRef, wsRef, inputRef, fileInputRef, audioRef,
@@ -148,8 +135,6 @@ export default function CrewChat() {
     setShowEmojiPicker, showMentionPicker, mentionResults,
     showReactionPicker,
   });
-
-
 
   // Render message content with clickable @mentions
 
@@ -430,9 +415,9 @@ export default function CrewChat() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{msg.file_name || 'File'}</p>
                       <p className={`text-xs ${isMe ? 'text-cyan-200' : 'text-zinc-400'}`}>
-                        {msg.file_size || 'Download'} • Tap to open
+                        {msg.file_size || 'Download'} Ã¢â‚¬Â¢ Tap to open
                       </p>
-                      {msg.content && !msg.content.startsWith('📎') && (
+                      {msg.content && !msg.content.startsWith('Ã°Å¸â€œÅ½') && (
                         <p className="text-sm mt-1">{msg.content}</p>
                       )}
                     </div>

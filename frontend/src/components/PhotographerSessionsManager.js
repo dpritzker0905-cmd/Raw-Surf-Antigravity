@@ -8,7 +8,6 @@ import {
   MapPin,
   Users,
   DollarSign,
-  Clock,
   Play,
   Square,
   Eye,
@@ -16,13 +15,8 @@ import {
   Zap,
   Settings,
   RefreshCw,
-  ChevronDown,
-  Heart,
-  Target,
   Video,
   Tag,
-  Percent,
-  Sparkles,
   Upload,
   AlertTriangle,
   Check,
@@ -33,10 +27,8 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
+
+
 import { toast } from 'sonner';
 import useSessionActions from '../hooks/useSessionActions';
 import PhotoUploadModal from './PhotoUploadModal';
@@ -50,7 +42,6 @@ import SessionDetailDrawer from './bookings/SessionDetailDrawer';
 import SessionSettingsModal from './sessions/SessionSettingsModal';
 import GoLiveLocationModal from './sessions/GoLiveLocationModal';
 import { SessionPricingModal, GalleryCreatedModal } from './sessions/SessionPricingModals';
-
 
 // Helper function to get commission rate based on subscription tier
 const getCommissionRate = (subscriptionTier) => {
@@ -85,79 +76,6 @@ const getCommissionRate = (subscriptionTier) => {
   return COMMISSION_RATES[tier] || COMMISSION_RATES.free;
 };
 
-// LiveSavingsBadge ? imported from ./sessions/LiveSavingsBadge
-// PotentialEarningsCalculator ? imported from ./sessions/PotentialEarningsCalculator
-
-// Promotional Preview Component - Shows how deal appears to surfers
-const _PromotionalPreview = ({ 
-  generalPhotoPrice, 
-  livePhotoPrice, 
-  buyinPrice, 
-  photosIncluded,
-  isLight,
-  textPrimaryClass,
-  textSecondaryClass 
-}) => {
-  const savings = generalPhotoPrice - livePhotoPrice;
-  const hasSavings = savings > 0;
-  const savingsPercent = Math.round((savings / generalPhotoPrice) * 100);
-  
-  return (
-    <div className={`p-4 rounded-xl ${isLight ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200' : 'bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30'}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <Eye className="w-5 h-5 text-blue-400" />
-        <span className={`font-bold ${textPrimaryClass}`}>Surfer Preview</span>
-        <Badge variant="outline" className="text-xs border-blue-500/50 text-blue-400 ml-auto">
-          What surfers see
-        </Badge>
-      </div>
-      
-      <div className={`p-3 rounded-lg ${isLight ? 'bg-white' : 'bg-zinc-900/50'}`}>
-        {hasSavings && (
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-green-400" />
-            <span className="text-green-400 font-bold text-sm">Live Session Savings!</span>
-          </div>
-        )}
-        
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className={textSecondaryClass}>Session Buy-in</span>
-            <span className={`font-bold ${textPrimaryClass}`}>${buyinPrice}</span>
-          </div>
-          
-          {photosIncluded > 0 && (
-            <div className="flex items-center justify-between">
-              <span className={textSecondaryClass}>Photos Included</span>
-              <span className="text-cyan-400 font-medium">{photosIncluded} photos</span>
-            </div>
-          )}
-          
-          <div className="flex items-center justify-between">
-            <span className={textSecondaryClass}>Additional Photos</span>
-            <div className="flex items-center gap-2">
-              {hasSavings && (
-                <span className="text-gray-500 line-through text-sm">${generalPhotoPrice}</span>
-              )}
-              <span className="text-white font-bold">${livePhotoPrice}</span>
-              {hasSavings && (
-                <Badge className="bg-green-500 text-white text-xs">
-                  {savingsPercent}% OFF
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {hasSavings && (
-          <p className="text-xs text-green-400 mt-3">
-            Surfers save ${savings} per photo by joining your live session!
-          </p>
-        )}
-      </div>
-    </div>
-  );
-};
 
 export const PhotographerSessionsManager = () => {
   const { user } = useAuth();
@@ -789,8 +707,6 @@ export const PhotographerSessionsManager = () => {
         borderClass={borderClass}
       />
 
-
-      
       {/* Photo Upload Modal */}
       <PhotoUploadModal
         isOpen={showPhotoUpload}

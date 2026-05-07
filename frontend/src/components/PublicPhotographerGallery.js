@@ -6,7 +6,7 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Camera, Image, Play, ShoppingCart, Grid, LayoutGrid, MapPin, Check,
   Sparkles, Star, ArrowLeft, User, Lock,
-  Zap, Radio, CalendarCheck, Folder, Search, ScanFace
+  CalendarCheck, Folder, Search, ScanFace
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -14,12 +14,9 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { LockerSelfieModal } from './LockerSelfieModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { isGrom } from '../constants/roles';
 import usePublicGalleryActions from '../hooks/usePublicGalleryActions';
-
 
 // Gallery View Modes
 const VIEW_MODES = {
@@ -28,15 +25,6 @@ const VIEW_MODES = {
   LIST: 'list'
 };
 
-// Service Types for filtering
-const _SERVICE_TYPES = [
-  { id: 'all', label: 'All Photos', icon: Image },
-  { id: 'live_session', label: 'Live Sessions', icon: Radio },
-  { id: 'booking', label: 'Bookings', icon: CalendarCheck },
-  { id: 'on_demand', label: 'On-Demand', icon: Zap },
-  { id: 'portfolio', label: 'Portfolio', icon: Star }
-];
-
 export const PublicPhotographerGallery = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -44,12 +32,9 @@ export const PublicPhotographerGallery = () => {
   const [searchParams] = useSearchParams();
   const { photographerId: paramPhotographerId } = useParams();
   
-  // Get photographer ID from URL params or query string
   const photographerId = paramPhotographerId || searchParams.get('photographer');
-  // Deep-link: ?gallery=<id> auto-selects a specific session gallery tab
   const deepLinkGalleryId = searchParams.get('gallery');
-  
-  // State
+
   const [photographer, setPhotographer] = useState(null);
   const [galleries, setGalleries] = useState([]);
   const [items, setItems] = useState([]);
@@ -58,7 +43,6 @@ export const PublicPhotographerGallery = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [viewMode, setViewMode] = useState(VIEW_MODES.GRID);
   const [serviceFilter, _setServiceFilter] = useState('all');
-  const [_showFilters, _setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [purchasedIds, setPurchasedIds] = useState(new Set());
@@ -67,15 +51,11 @@ export const PublicPhotographerGallery = () => {
   const [selectedQuality, setSelectedQuality] = useState('standard');
   const [galleriesReady, setGalleriesReady] = useState(false);
   
-  // AI Face Match state
   const [showAIMatch, setShowAIMatch] = useState(false);
   const [aiMatchResults, setAIMatchResults] = useState([]);
   const [_aiMatchLoading, setAIMatchLoading] = useState(false);
-  
-  // New Find Me Selfie Scanner state
   const [scanModalOpen, setScanModalOpen] = useState(false);
 
-  // Swipe-to-navigate state for mobile gallery switching
   const swipeStartXRef = useRef(0);
   const swipeStartYRef = useRef(0);
   const swipeActiveRef = useRef(false);
@@ -85,7 +65,6 @@ export const PublicPhotographerGallery = () => {
   const galleryPillsRef = useRef(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Theme classes
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const mainBg = isLight ? 'bg-gray-50' : isBeach ? 'bg-black' : 'bg-zinc-950';
@@ -110,8 +89,6 @@ export const PublicPhotographerGallery = () => {
   const viewToggleActive = isLight ? 'bg-gray-200' : 'bg-zinc-700';
   const viewToggleInactive = isLight ? 'bg-white' : 'bg-zinc-900';
 
-
-  // ============ HANDLERS EXTRACTED TO hooks/usePublicGalleryActions.js ============
   const {
     fetchPhotographer,
     fetchGalleries,
@@ -151,7 +128,6 @@ export const PublicPhotographerGallery = () => {
     setIsAnimating,
   });
 
-
   useEffect(() => {
     if (photographerId) {
       fetchPhotographer();
@@ -160,7 +136,6 @@ export const PublicPhotographerGallery = () => {
     }
   }, [photographerId, fetchPhotographer, fetchGalleries, fetchItems]);
 
-  // Auto-select gallery tab: deep-link first, then default to first gallery
   useEffect(() => {
     if (galleries.length > 0 && !selectedGallery) {
       if (deepLinkGalleryId) {
@@ -170,12 +145,11 @@ export const PublicPhotographerGallery = () => {
           return;
         }
       }
-      // No deep-link or target not found - default to first gallery
+      // Default to first gallery
       setSelectedGallery(galleries[0]);
     }
   }, [deepLinkGalleryId, galleries, selectedGallery]);
 
-  // Auto-scroll active gallery pill into view after swipe or selection change
   useEffect(() => {
     if (!selectedGallery || !galleryPillsRef.current) return;
     const activeBtn = galleryPillsRef.current.querySelector(
@@ -185,7 +159,6 @@ export const PublicPhotographerGallery = () => {
       activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
     }
   }, [selectedGallery]);
-
 
   if (!photographerId) {
     return (
@@ -350,7 +323,7 @@ export const PublicPhotographerGallery = () => {
             const dx = e.touches[0].clientX - swipeStartXRef.current;
             const dy = e.touches[0].clientY - swipeStartYRef.current;
             if (!swipeLockedRef.current) {
-              // If vertical scroll dominates, cancel swipe
+  
               if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
                 swipeActiveRef.current = false;
                 if (galleryContentRef.current) {
@@ -389,7 +362,7 @@ export const PublicPhotographerGallery = () => {
               handleSwipeGallery(goingLeft ? 'left' : 'right');
               return;
             }
-            // Snap back
+
             if (galleryContentRef.current) {
               galleryContentRef.current.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
               galleryContentRef.current.style.transform = 'translateX(0)';

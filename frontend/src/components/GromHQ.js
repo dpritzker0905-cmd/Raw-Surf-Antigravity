@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-
   Shield, Users, DollarSign, Clock, Trophy, Plus,
   Settings, ChevronRight, CheckCircle, XCircle,
   ShoppingBag, Activity, Bell, UserPlus,
@@ -30,8 +29,6 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { PurchaseRequestsPanel } from './grom/PurchaseRequestsPanel';
 import { GenericPageSkeleton } from './ui/SkeletonVariants';
-
-
 
 /**
  * Grom HQ - Parental Management Dashboard
@@ -641,82 +638,25 @@ export const GromHQ = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button aria-label="div" 
-              variant="outline" 
-              className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => toast.info('Have your Grom sign up with a Grom account, then use the link request from the "Linked Groms" section above.')}
-            >
-              <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center mr-3">
-                <UserPlus className="w-5 h-5 text-cyan-400" />
-              </div>
-              <div className="text-left flex-1">
-                <div className={`font-semibold ${textPrimary}`}>Invite a Grom</div>
-                <div className={`text-xs ${textSecondary}`}>Send a link request to your child</div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-cyan-400" />
-            </Button>
-            
-            <Button aria-label="div" 
-              variant="outline" 
-              className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => { if (linkedGroms.length > 0) { navigate(`/grom-hq/manage/${linkedGroms[0].id}`); } else { toast.info('Link a Grom first to manage spending controls.'); } }}
-            >
-              <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center mr-3">
-                <CreditCard className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div className="text-left flex-1">
-                <div className={`font-semibold ${textPrimary}`}>Spending Controls</div>
-                <div className={`text-xs ${textSecondary}`}>Set limits and approve purchases</div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-emerald-400" />
-            </Button>
-            
-            <Button aria-label="div" 
-              variant="outline" 
-              className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => { setShowActivityFeed(true); toast.success('Scroll up to see the Family Activity feed'); }}
-            >
-              <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center mr-3">
-                <Activity className="w-5 h-5 text-yellow-400" />
-              </div>
-              <div className="text-left flex-1">
-                <div className={`font-semibold ${textPrimary}`}>Activity Monitor</div>
-                <div className={`text-xs ${textSecondary}`}>View screen time and session history</div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-yellow-400" />
-            </Button>
-            
-            <Button aria-label="div" 
-              variant="outline" 
-              className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => navigate('/settings')}
-            >
-              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center mr-3">
-                <ShieldAlert className="w-5 h-5 text-red-400" />
-              </div>
-              <div className="text-left flex-1">
-                <div className={`font-semibold ${textPrimary}`}>Safety Settings</div>
-                <div className={`text-xs ${textSecondary}`}>Manage privacy and content filters</div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-red-400" />
-            </Button>
-            
-            <Button aria-label="div" 
-              variant="outline" 
-              className={`w-full justify-start h-auto py-4 ${borderColor}`}
-              onClick={() => navigate('/gear-hub')}
-            >
-              <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center mr-3">
-                <ShoppingBag className="w-5 h-5 text-purple-400" />
-              </div>
-              <div className="text-left flex-1">
-                <div className={`font-semibold ${textPrimary}`}>Gear Hub</div>
-                <div className={`text-xs ${textSecondary}`}>Buy gear for your Grom</div>
-              </div>
-              <ArrowRight className="w-5 h-5 text-purple-400" />
-            </Button>
+            {[
+              { icon: <UserPlus className="w-5 h-5 text-cyan-400" />, color: 'bg-cyan-500/20', arrow: 'text-cyan-400', title: 'Invite a Grom', desc: 'Send a link request to your child', onClick: () => toast.info('Have your Grom sign up with a Grom account, then use the link request from the "Linked Groms" section above.') },
+              { icon: <CreditCard className="w-5 h-5 text-emerald-400" />, color: 'bg-emerald-500/20', arrow: 'text-emerald-400', title: 'Spending Controls', desc: 'Set limits and approve purchases', onClick: () => { if (linkedGroms.length > 0) { navigate(`/grom-hq/manage/${linkedGroms[0].id}`); } else { toast.info('Link a Grom first to manage spending controls.'); } } },
+              { icon: <Activity className="w-5 h-5 text-yellow-400" />, color: 'bg-yellow-500/20', arrow: 'text-yellow-400', title: 'Activity Monitor', desc: 'View screen time and session history', onClick: () => { setShowActivityFeed(true); toast.success('Scroll up to see the Family Activity feed'); } },
+              { icon: <ShieldAlert className="w-5 h-5 text-red-400" />, color: 'bg-red-500/20', arrow: 'text-red-400', title: 'Safety Settings', desc: 'Manage privacy and content filters', onClick: () => navigate('/settings') },
+              { icon: <ShoppingBag className="w-5 h-5 text-purple-400" />, color: 'bg-purple-500/20', arrow: 'text-purple-400', title: 'Gear Hub', desc: 'Buy gear for your Grom', onClick: () => navigate('/gear-hub') },
+            ].map((action) => (
+              <Button aria-label="div" key={action.title} variant="outline" className={`w-full justify-start h-auto py-4 ${borderColor}`} onClick={action.onClick}>
+                <div className={`w-10 h-10 rounded-full ${action.color} flex items-center justify-center mr-3`}>{action.icon}</div>
+                <div className="text-left flex-1">
+                  <div className={`font-semibold ${textPrimary}`}>{action.title}</div>
+                  <div className={`text-xs ${textSecondary}`}>{action.desc}</div>
+                </div>
+                <ArrowRight className={`w-5 h-5 ${action.arrow}`} />
+              </Button>
+            ))}
           </CardContent>
         </Card>
+
 
         {/* Parent Age Verification Status */}
         <Card className={`${cardBg} border-2 ${ageVerified ? 'border-emerald-500/30' : 'border-yellow-500/30'}`}>

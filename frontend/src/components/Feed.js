@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
-
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
+import { usePersona } from '../contexts/PersonaContext';
 import { LivePhotographers } from './LivePhotographers';
 import { PhotographerSessionDashboard } from './PhotographerSessionDashboard';
 import { StoriesBar, CreateStoryModal } from './Stories';
@@ -18,29 +17,22 @@ import FeedLineupCard from './FeedLineupCard';
 import SessionCountdownWidget from './SessionCountdownWidget';
 import WavesFeed from './WavesFeed';
 import CreateWaveModal from './CreateWaveModal';
-import { MapPin, Flame, Plus, Check, Loader2, Navigation, Play, Users, Sparkles, RefreshCw } from 'lucide-react';
+import { MapPin, Flame, Plus, Check, Play, Users, Sparkles, RefreshCw } from 'lucide-react';
 import FeedSkeleton from './ui/FeedSkeleton';
 import LastUpdatedBanner from './ui/LastUpdatedBanner';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { toast } from 'sonner';
 import useFeedActions from '../hooks/useFeedActions';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Input } from './ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import useSwipeTabs from '../hooks/useSwipeTabs';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 import CheckInModal from './feed/CheckInModal';
 import { ReactionPicker, ReactionOverlay } from './feed/ReactionPicker';
-
 // Tab order for the feed - used by swipe navigation and sliding indicator
 const FEED_TABS = ['for_you', 'waves', 'following'];
-
-
 
 export const Feed = () => {
   const { user } = useAuth();
@@ -99,7 +91,6 @@ export const Feed = () => {
   // Gamification reward card shown after successful GPS check-in
   const [checkInReward, setCheckInReward] = useState(null);
 
-  
   // Live Stream Viewer state - for joining live broadcasts from feed
   const [liveStreamInfo, setLiveStreamInfo] = useState(null);
   const [showLiveViewer, setShowLiveViewer] = useState(false);
@@ -353,64 +344,15 @@ export const Feed = () => {
     return () => observer.disconnect();
   }, [loadMorePosts, feedHasMoreRef, loadingMoreRef, posts.length]); // Re-attach when posts change
 
-  // Load new posts when user taps the chip
 
-  // Fetch feed lineups for display in feed
-
-  // Fetch upcoming booked sessions for countdown widget
-
-  // Fetch currently live users
-
-  // Fetch who the current user is following
-
-  // Handle following a photographer from the feed
-
-  // Handle unfollowing a user from the post menu
-
-  // Handle post updates from menu (edit, settings change)
-
-  // Handle post deletion
-
-  // Handle joining a live stream from post author
-
-
-
-
-
-  // Calculate distance between two points
-
-  // Get GPS location for check-in - two-attempt strategy for iPhone 16 / iOS Safari
-
-
-  // Shaka button gesture handlers (500ms threshold)
-  // Quick tap = instant Shaka like OR clear active reaction
-  // Long press (500ms) = opens reaction menu which STAYS OPEN
+  // Shaka gesture refs
   const longPressTriggeredRef = useRef(false);
   const touchStartTimeRef = useRef(0);
-  
-  // Handle tap on Shaka button - Toggle logic
-  // Tap on ANY active state ? revert to UNCHECKED Shaka
-  // Tap on unchecked Shaka ? check it (like)
-  
-
-
-
-
-
-  // Comment functions
-
-
-
-  // "I Was There" Collaboration handlers
-
-
-
-
-
 
   // Swipeable tab navigation - hooks must be called before any early returns
   const swipeHandlers = useSwipeTabs(FEED_TABS, activeTab, setActiveTab);
   const activeTabIndex = FEED_TABS.indexOf(activeTab);
+
 
   // Pull-to-refresh for mobile - triggers feed refresh on swipe-down
   const { pullRef, isPulling, pullProgress, isRefreshing: isPtrRefreshing } = usePullToRefresh(
@@ -428,7 +370,6 @@ export const Feed = () => {
 
   // Get theme-specific classes
   const isLight = theme === 'light';
-  const _isDark = theme === 'dark';
   const isBeach = theme === 'beach';
   
   // Main background: white for light, dark gray for dark, pure black for beach
