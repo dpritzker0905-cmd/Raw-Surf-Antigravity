@@ -1,9 +1,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapPin, Navigation, Loader2, Check, Target, AlertTriangle } from 'lucide-react';
+import { MapPin, Navigation, Loader2, Check, Target, AlertTriangle, Star, Anchor, DollarSign, Map as MapIcon } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import apiClient from '../../lib/apiClient';
+import logger from '../../utils/logger';
+import { toast } from 'sonner';
 
 const ImpactZonePicker = ({ 
   location, 
