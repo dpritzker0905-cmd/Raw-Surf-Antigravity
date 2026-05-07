@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Share2, Link, UserCircle, ChevronDown, Loader2, Check, MessageSquareOff } from 'lucide-react';
+import { Share2, Link, UserCircle, ChevronDown, Loader2, Check, MessageSquareOff, Copy } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';

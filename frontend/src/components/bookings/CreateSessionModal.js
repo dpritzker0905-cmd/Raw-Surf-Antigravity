@@ -42,6 +42,10 @@ const CreateSessionModal = (props) => {
     isDateDisabled, timeSlots, isSlotBooked, isTimeSlotWithinLeadTime,
     newCrewInput, setNewCrewInput, calculateCrewTotal, calculatePerPersonSplit
   } = props;
+
+  // Safe fallback — prevent crash if bookingPricing hasn't loaded yet
+  const safePricing = bookingPricing || {};
+
   return (
     <>
       {/* Create Session Modal - STEP-BASED CALENDAR UX */}
@@ -126,7 +130,7 @@ const CreateSessionModal = (props) => {
                   max={8}
                   step={0.5}
                   suffix="hours"
-                  description={`Total: $${(newBooking.duration_hours * bookingPricing.booking_hourly_rate).toFixed(0)} (${bookingPricing.booking_hourly_rate}/hr)`}
+                  description={`Total: $${(newBooking.duration_hours * (safePricing.booking_hourly_rate || 0)).toFixed(0)} (${safePricing.booking_hourly_rate || 0}/hr)`}
                   theme={theme}
                 />
               </div>

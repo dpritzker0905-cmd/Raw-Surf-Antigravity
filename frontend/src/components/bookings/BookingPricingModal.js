@@ -37,6 +37,10 @@ const BookingPricingModal = (props) => {
     cardBgClass, mainBgClass,
     handleSaveBookingPricing
   } = props;
+
+  // Safe fallback — prevent crash if bookingPricing hasn't loaded yet
+  const safePricing = bookingPricing || {};
+
   return (
     <>
       {/* Booking Pricing Modal - NUMERIC STEPPERS (no sliders) */}
@@ -56,7 +60,7 @@ const BookingPricingModal = (props) => {
               <div className="space-y-4">
                 <NumericStepper
                   label="Hourly Rate"
-                  value={bookingPricing.booking_hourly_rate}
+                  value={safePricing.booking_hourly_rate}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, booking_hourly_rate: val })}
                   min={10}
                   max={500}
@@ -68,7 +72,7 @@ const BookingPricingModal = (props) => {
                 />
                 <NumericStepper
                   label="Minimum Hours"
-                  value={bookingPricing.booking_min_hours}
+                  value={safePricing.booking_min_hours}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, booking_min_hours: val })}
                   min={0.5}
                   max={8}
@@ -92,7 +96,7 @@ const BookingPricingModal = (props) => {
               <div className="space-y-3">
                 <NumericStepper
                   label="Web-Res"
-                  value={bookingPricing.booking_price_web}
+                  value={safePricing.booking_price_web}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, booking_price_web: val })}
                   min={0}
                   max={50}
@@ -103,7 +107,7 @@ const BookingPricingModal = (props) => {
                 />
                 <NumericStepper
                   label="Standard"
-                  value={bookingPricing.booking_price_standard}
+                  value={safePricing.booking_price_standard}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, booking_price_standard: val })}
                   min={0}
                   max={100}
@@ -114,7 +118,7 @@ const BookingPricingModal = (props) => {
                 />
                 <NumericStepper
                   label="High-Res"
-                  value={bookingPricing.booking_price_high}
+                  value={safePricing.booking_price_high}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, booking_price_high: val })}
                   min={0}
                   max={200}
@@ -137,14 +141,14 @@ const BookingPricingModal = (props) => {
                   <p className={`text-xs ${textSecondaryClass}`}>All photos included - unlimited downloads</p>
                 </div>
                 <Switch
-                  checked={bookingPricing.booking_full_gallery}
+                  checked={safePricing.booking_full_gallery}
                   onCheckedChange={(checked) => setBookingPricing({ ...bookingPricing, booking_full_gallery: checked })}
                 />
               </div>
               
-              {!bookingPricing.booking_full_gallery && (
+              {!safePricing.booking_full_gallery && (
                 <NumericStepper
-                  value={bookingPricing.booking_photos_included}
+                  value={safePricing.booking_photos_included}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, booking_photos_included: val })}
                   min={0}
                   max={999}
@@ -166,7 +170,7 @@ const BookingPricingModal = (props) => {
               </p>
               <NumericStepper
                 label="Price Per Additional Surfer"
-                value={bookingPricing.price_per_additional_surfer}
+                value={safePricing.price_per_additional_surfer}
                 onChange={(val) => setBookingPricing({ ...bookingPricing, price_per_additional_surfer: val })}
                 min={0}
                 max={100}
@@ -189,7 +193,7 @@ const BookingPricingModal = (props) => {
               <div className="space-y-3">
                 <NumericStepper
                   label="2+ Surfers Discount"
-                  value={bookingPricing.group_discount_2_plus || 0}
+                  value={safePricing.group_discount_2_plus || 0}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, group_discount_2_plus: val })}
                   min={0}
                   max={50}
@@ -200,7 +204,7 @@ const BookingPricingModal = (props) => {
                 />
                 <NumericStepper
                   label="3+ Surfers Discount"
-                  value={bookingPricing.group_discount_3_plus || 0}
+                  value={safePricing.group_discount_3_plus || 0}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, group_discount_3_plus: val })}
                   min={0}
                   max={50}
@@ -211,7 +215,7 @@ const BookingPricingModal = (props) => {
                 />
                 <NumericStepper
                   label="5+ Surfers Discount"
-                  value={bookingPricing.group_discount_5_plus || 0}
+                  value={safePricing.group_discount_5_plus || 0}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, group_discount_5_plus: val })}
                   min={0}
                   max={50}
@@ -237,7 +241,7 @@ const BookingPricingModal = (props) => {
               <div className="space-y-4">
                 <NumericStepper
                   label="Service Radius"
-                  value={bookingPricing.service_radius_miles || 25}
+                  value={safePricing.service_radius_miles || 25}
                   onChange={(val) => setBookingPricing({ ...bookingPricing, service_radius_miles: val })}
                   min={5}
                   max={100}
@@ -253,13 +257,13 @@ const BookingPricingModal = (props) => {
                     <div>
                       <p className={`font-medium text-sm ${textPrimaryClass}`}>Home Location (Base)</p>
                       <p className={`text-xs ${textSecondaryClass}`}>
-                        {bookingPricing.home_latitude && bookingPricing.home_longitude 
-                          ? `${bookingPricing.home_latitude.toFixed(4)}, ${bookingPricing.home_longitude.toFixed(4)}`
+                        {safePricing.home_latitude && safePricing.home_longitude 
+                          ? `${safePricing.home_latitude.toFixed(4)}, ${safePricing.home_longitude.toFixed(4)}`
                           : 'Required for distance-based pricing'
                         }
                       </p>
                     </div>
-                    {bookingPricing.home_latitude && (
+                    {safePricing.home_latitude && (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
                         <Check className="w-3 h-3 mr-1" />
                         Set
@@ -268,10 +272,10 @@ const BookingPricingModal = (props) => {
                   </div>
                   
                   {/* Location Name Display */}
-                  {bookingPricing.home_location_name && (
+                  {safePricing.home_location_name && (
                     <p className={`text-sm ${textPrimaryClass} mb-2 flex items-center gap-1`}>
                       <MapPin className="w-3 h-3 text-orange-400" />
-                      {bookingPricing.home_location_name}
+                      {safePricing.home_location_name}
                     </p>
                   )}
                   
@@ -303,7 +307,7 @@ const BookingPricingModal = (props) => {
                     </Button>
                     
                     {/* Clear location */}
-                    {bookingPricing.home_latitude && (
+                    {safePricing.home_latitude && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -328,14 +332,14 @@ const BookingPricingModal = (props) => {
                     <div className="flex gap-2">
                       <Input aria-label="e.g., San Diego, CA or Uluwatu, Bali"
                         placeholder="e.g., San Diego, CA or Uluwatu, Bali"
-                        value={bookingPricing.location_search || ''}
+                        value={safePricing.location_search || ''}
                         onChange={(e) => setBookingPricing({ ...bookingPricing, location_search: e.target.value })}
                         className={`flex-1 text-sm ${isLight ? 'bg-white' : 'bg-zinc-900'} ${textPrimaryClass}`}
                       />
                       <Button
                         size="sm"
                         onClick={async () => {
-                          const query = bookingPricing.location_search;
+                          const query = safePricing.location_search;
                           if (!query) return;
                           
                           try {
@@ -371,7 +375,7 @@ const BookingPricingModal = (props) => {
                   </div>
                   
                   {/* Warning if not set */}
-                  {!bookingPricing.home_latitude && (
+                  {!safePricing.home_latitude && (
                     <div className={`mt-2 p-2 rounded-lg ${isLight ? 'bg-amber-50' : 'bg-amber-500/10'} border border-amber-500/30`}>
                       <p className={`text-xs ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
                       </p>
@@ -386,17 +390,17 @@ const BookingPricingModal = (props) => {
                     <p className={`text-xs ${textSecondaryClass}`}>Add surcharges based on distance</p>
                   </div>
                   <Switch
-                    checked={bookingPricing.charges_travel_fees || false}
+                    checked={safePricing.charges_travel_fees || false}
                     onCheckedChange={(checked) => setBookingPricing({ ...bookingPricing, charges_travel_fees: checked })}
                   />
                 </div>
                 
                 {/* Travel Surcharge Tiers */}
-                {bookingPricing.charges_travel_fees && (
+                {safePricing.charges_travel_fees && (
                   <div className={`p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
                     <p className={`text-sm font-medium ${textPrimaryClass} mb-3`}>Travel Fee Tiers</p>
                     <div className="space-y-2">
-                      {(bookingPricing.travel_surcharges || []).map((tier, idx) => (
+                      {(safePricing.travel_surcharges || []).map((tier, idx) => (
                         <div key={idx} className="flex items-center gap-2">
                           <span className={`text-xs ${textSecondaryClass} w-24`}>
                             {tier.min_miles}-{tier.max_miles} mi:
@@ -407,7 +411,7 @@ const BookingPricingModal = (props) => {
                               type="number"
                               value={tier.surcharge}
                               onChange={(e) => {
-                                const newTiers = [...(bookingPricing.travel_surcharges || [])];
+                                const newTiers = [...(safePricing.travel_surcharges || [])];
                                 newTiers[idx] = { ...newTiers[idx], surcharge: parseFloat(e.target.value) || 0 };
                                 setBookingPricing({ ...bookingPricing, travel_surcharges: newTiers });
                               }}
@@ -423,7 +427,7 @@ const BookingPricingModal = (props) => {
                       size="sm"
                       variant="ghost"
                       onClick={() => {
-                        const tiers = bookingPricing.travel_surcharges || [];
+                        const tiers = safePricing.travel_surcharges || [];
                         const lastMax = tiers.length > 0 ? tiers[tiers.length - 1].max_miles : 0;
                         setBookingPricing({
                           ...bookingPricing,
