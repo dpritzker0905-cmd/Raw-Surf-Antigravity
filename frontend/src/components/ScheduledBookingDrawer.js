@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ScheduledBookingDrawer - Complete booking flow for scheduled sessions
  * Integrates: ExactTimeSlotPicker, Impact Zone coordinates, Account Credit, Crew Split, Confirmation
  */

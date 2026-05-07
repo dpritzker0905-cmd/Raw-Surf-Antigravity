@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useIPGeolocation - IP-based location fallback when GPS is denied
  * Features:
  * - Coastal Snap: Snaps inland IP locations to nearest coastline

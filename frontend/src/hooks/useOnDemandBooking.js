@@ -575,7 +575,7 @@ const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLoca
           updateUser({ credit_balance: payResponse.data.remaining_credits });
         }
         
-        toast.success('Payment confirmed! âœ… Setting up your session...');
+        toast.success('Payment confirmed! \u{2705} Setting up your session...');
         haptic('success');
         // Navigate to full lobby page - selfie prompt lives there
         const lobbyState = {

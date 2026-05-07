@@ -56,7 +56,7 @@ export const GalleryFolderModals = ({
       <Dialog open={showGalleryPricingModal} onOpenChange={setShowGalleryPricingModal}>
         <DialogContent className="bg-background border-border text-foreground max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Gallery Pricing â€” All Service Types</DialogTitle>
+            <DialogTitle className="text-foreground">Gallery Pricing \u{2014} All Service Types</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-xs text-muted-foreground">
@@ -66,7 +66,7 @@ export const GalleryFolderModals = ({
             {/* â”€â”€â”€ GALLERY (General) â”€â”€â”€ */}
             <div className="p-4 rounded-lg bg-card border border-border">
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
-                <Image className="w-4 h-4 text-cyan-400" /> Gallery â€” General Pricing
+                <Image className="w-4 h-4 text-cyan-400" /> Gallery \u{2014} General Pricing
               </h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -83,7 +83,7 @@ export const GalleryFolderModals = ({
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F3AC)} Videos</p>
                   {[
                     { label: '720p HD', field: 'video_price_720p' },
                     { label: '1080p Full HD', field: 'video_price_1080p' },
@@ -118,7 +118,7 @@ export const GalleryFolderModals = ({
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F3AC)} Videos</p>
                   {[
                     { label: '720p HD', field: 'live_video_720p' },
                     { label: '1080p Full HD', field: 'live_video_1080p' },
@@ -167,7 +167,7 @@ export const GalleryFolderModals = ({
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F3AC)} Videos</p>
                   {[
                     { label: '720p HD', field: 'on_demand_video_720p' },
                     { label: '1080p Full HD', field: 'on_demand_video_1080p' },
@@ -216,7 +216,7 @@ export const GalleryFolderModals = ({
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">ðŸŽ¬ Videos</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase">{String.fromCodePoint(0x1F3AC)} Videos</p>
                   {[
                     { label: '720p HD', field: 'booking_video_720p' },
                     { label: '1080p Full HD', field: 'booking_video_1080p' },
@@ -290,7 +290,7 @@ export const GalleryFolderModals = ({
       </Dialog>
 
       {/* Add Photo to Gallery Modal */}
-      {/* Add Photo to Gallery Modal â€” Upload New + Pick from Library */}
+      {/* Add Photo to Gallery Modal \u{2014} Upload New + Pick from Library */}
       <Dialog open={showAddToGalleryModal} onOpenChange={setShowAddToGalleryModal}>
         <DialogContent className="bg-background border-border text-foreground max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -300,7 +300,7 @@ export const GalleryFolderModals = ({
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            {/* Upload New â€” Primary CTA */}
+            {/* Upload New \u{2014} Primary CTA */}
             <button aria-label="Upload"
               onClick={() => {
                 setShowAddToGalleryModal(false);
@@ -329,7 +329,7 @@ export const GalleryFolderModals = ({
             {gallery.length === 0 ? (
               <div className="text-center py-6 bg-muted/50 rounded-lg">
                 <Camera className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Your library is empty â€” upload your first photo above!</p>
+                <p className="text-muted-foreground text-sm">Your library is empty \u{2014} upload your first photo above!</p>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2 max-h-[40vh] overflow-y-auto rounded-lg">

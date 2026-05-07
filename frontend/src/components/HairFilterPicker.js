@@ -1,5 +1,5 @@
 /**
- * HairFilterPicker â€” UI for selecting AR hair overlays
+ * HairFilterPicker \u{2014} UI for selecting AR hair overlays
  * 
  * Features:
  * - Male/Female category tabs
@@ -21,7 +21,7 @@ const CATEGORIES = [
 ];
 
 /**
- * HairStyleCard â€” Individual hair style option
+ * HairStyleCard \u{2014} Individual hair style option
  */
 const HairStyleCard = ({ style, isSelected, onSelect, colors }) => (
   <motion.button

@@ -107,7 +107,7 @@ const IncomingRequestCard = React.memo(({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
-                    {request.requester_stance === 'goofy' ? 'ðŸ¦¶ Goofy' : 'ðŸ¦¶ Regular'}
+                    {request.requester_stance === 'goofy' ? '\u{1F9B6} Goofy' : '\u{1F9B6} Regular'}
                   </span>
                 )}
               </div>
@@ -271,12 +271,12 @@ const IncomingRequestCard = React.memo(({
             {/* Surfer Identification Section */}
             {(request.requester_stance || request.requester_board_description) && (
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20 space-y-2">
-                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>ðŸ” Surfer ID</p>
+                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>{'\u{1F50D}'} Surfer ID</p>
                 {request.requester_stance && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
-                      {request.requester_stance === 'goofy' ? 'ðŸ¦¶ Goofy Foot' : 'ðŸ¦¶ Regular'}
+                      {request.requester_stance === 'goofy' ? '\u{1F9B6} Goofy Foot' : '\u{1F9B6} Regular'}
                     </span>
                   </div>
                 )}
@@ -704,11 +704,11 @@ const ActiveSessionCard = React.memo(({
         {/* Surfer Identification Details */}
         {(session.requester_stance || session.requester_board_description) && (
           <div className={`p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20`}>
-            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>ðŸ” Surfer Identification</p>
+            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>{'\u{1F50D}'} Surfer Identification</p>
             <div className="flex flex-wrap items-center gap-2">
               {session.requester_stance && (
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
-                  {session.requester_stance === 'goofy' ? 'ðŸ¦¶ Goofy Foot' : 'ðŸ¦¶ Regular'}
+                  {session.requester_stance === 'goofy' ? '\u{1F9B6} Goofy Foot' : '\u{1F9B6} Regular'}
                 </span>
               )}
               {session.requester_board_description && (
@@ -823,7 +823,7 @@ const ActiveSessionCard = React.memo(({
                 chatUnreadCount > 0 ? 'text-white font-medium' : 'text-zinc-400'
               }`}>
                 {chatLatestMessage.message_type === 'voice_note'
-                  ? 'ðŸŽ™ï¸ Voice note'
+                  ? String.fromCodePoint(0x1F399) + '\uFE0F Voice note'
                   : (chatLatestMessage.content || String.fromCodePoint(0x1F4F7) + ' Media')}
               </p>
             </div>

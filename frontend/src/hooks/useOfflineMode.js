@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useOfflineMode - React hook for managing offline spot data
  * 
  * Features:

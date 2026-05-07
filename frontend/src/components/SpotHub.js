@@ -214,7 +214,7 @@ const SpotHub = () => {
     // eslint-disable-next-line
   }, [spotId, user?.id]);
   
-  // IntersectionObserver for collapsible header â€“ detects when hero scrolls out of view
+  // IntersectionObserver for collapsible header \u{2013} detects when hero scrolls out of view
   useEffect(() => {
     const heroEl = heroRef.current;
     if (!heroEl) return;

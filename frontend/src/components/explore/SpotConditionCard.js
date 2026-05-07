@@ -1,5 +1,5 @@
 /**
- * SpotConditionCard â€” Displays a surf spot with real-time conditions overlay.
+ * SpotConditionCard \u{2014} Displays a surf spot with real-time conditions overlay.
  * Extracted from Explore.js to reduce file size and improve reusability.
  * 
  * Features:

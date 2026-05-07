@@ -507,7 +507,7 @@ const PostCard = ({
               style={{ transform: `translateX(-${activeSlide * 100}%)` }}
             >
               {carouselItems.map((item, idx) => (
-                <div key={idx} className="w-full h-full flex-shrink-0">
+                <div key={idx} className="w-full h-full flex-shrink-0 relative">
                   {item.type === 'video' ? (
                     <video
                       className="w-full h-full object-cover"
@@ -520,15 +520,31 @@ const PostCard = ({
                       <source src={getFullUrl(item.url)} type="video/mp4" />
                     </video>
                   ) : (
-                    <img
-                      loading="lazy"
-                      decoding="async"
-                      src={getFullUrl(item.url)}
-                      alt={`Slide ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                      draggable={false}
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
+                    <>
+                      <img
+                        loading="lazy"
+                        decoding="async"
+                        src={getFullUrl(item.url)}
+                        alt={`Slide ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        draggable={false}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          // Show the sibling placeholder
+                          const placeholder = e.target.nextElementSibling;
+                          if (placeholder) placeholder.style.display = 'flex';
+                        }}
+                      />
+                      {/* Placeholder for failed image loads (ephemeral storage wipe) */}
+                      <div 
+                        className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-900 items-center justify-center flex-col gap-2"
+                        style={{ display: 'none' }}
+                      >
+                        <RefreshCw className="w-8 h-8 text-zinc-500" />
+                        <span className="text-zinc-400 text-sm font-medium">Photo unavailable</span>
+                        <span className="text-zinc-500 text-xs">Slide {idx + 1}</span>
+                      </div>
+                    </>
                   )}
                 </div>
               ))}

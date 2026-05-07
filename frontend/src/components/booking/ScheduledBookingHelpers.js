@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ScheduledBookingHelpers.js
  * Extracted helper components for ScheduledBookingDrawer.
  * Includes: AccountCreditSection, SchedSurfboardAvatar, SchedEmptySeat,

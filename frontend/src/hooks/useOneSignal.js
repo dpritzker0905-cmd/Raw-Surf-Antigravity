@@ -1,4 +1,4 @@
-﻿/**
+/**
  * OneSignal Push Notifications Hook
  * Initialize OneSignal and manage user subscriptions
  */

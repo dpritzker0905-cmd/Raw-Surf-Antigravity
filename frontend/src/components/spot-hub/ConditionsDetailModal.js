@@ -30,7 +30,7 @@ const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const urgencyOptions = [
-    { id: 'now', label: 'Right Now', emoji: 'âš¡', description: 'ASAP (expires in 2 hours)' },
+    { id: 'now', label: 'Right Now', emoji: '\u{26A1}', description: 'ASAP (expires in 2 hours)' },
     { id: 'today', label: 'Today', emoji: 'â˜€ï¸', description: 'Within the day (expires in 12 hours)' },
     { id: 'flexible', label: 'Flexible', emoji: String.fromCodePoint(0x1F919), description: 'Anytime works (expires in 3 days)' }
   ];
