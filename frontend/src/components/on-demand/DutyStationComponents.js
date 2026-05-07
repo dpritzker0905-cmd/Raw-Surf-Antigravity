@@ -1,12 +1,13 @@
 /**
  * DutyStationComponents.js  Extracted sub-components from DutyStationDrawer.
- * GpsProximityCheck (108 lines) and OnDemandSpotSelector (113 lines).
- * Reduces DutyStationDrawer from 54.4KB to ~45KB.
+ * GpsProximityCheck, OnDemandSpotSelector, StatusCard, ModeSelector,
+ * GpsWarningBanner, SelectedSpotDisplay, StatsPreview, QuickActions.
  */
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   MapPin, MapPinOff, Navigation, Loader2, CheckCircle, CheckCircle2, AlertTriangle,
-  ChevronDown, X, Search, ArrowUp, Zap, Check
+  ChevronDown, X, Search, ArrowUp, Zap, Check, XCircle, Users, Settings, ChevronRight, Shield
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -361,4 +362,216 @@ const StatusCard = ({
   );
 };
 
-export { GpsProximityCheck, OnDemandSpotSelector, StatusCard };
+/**
+ * Mode Selector - Segmented control for switching between Live and On-Demand
+ */
+const ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, liveActive, onDemandActive }) => {
+  const modes = showOnDemand ? ['live', 'onDemand'] : ['live'];
+  
+  if (!showOnDemand) return null;
+  
+  const anyModeActive = liveActive || onDemandActive;
+  
+  return (
+    <div 
+      className="p-1 bg-muted/80 rounded-full flex gap-1 border border-border"
+      data-testid="mode-selector"
+    >
+      {modes.map((modeId) => {
+        const mode = MODE_CONFIG[modeId];
+        const Icon = mode.icon;
+        const isSelected = selectedMode === modeId;
+        
+        return (
+          <button
+            key={modeId}
+            onClick={() => !anyModeActive && onModeChange(modeId)}
+            disabled={anyModeActive}
+            className={`
+              relative flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-full
+              font-medium text-sm transition-all duration-200
+              ${anyModeActive ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}
+              ${isSelected ? 'text-white' : 'text-muted-foreground hover:text-foreground'}
+            `}
+            data-testid={`mode-${modeId}-button`}
+          >
+            {isSelected && (
+              <motion.div
+                layoutId="modeBackground"
+                className={`absolute inset-0 rounded-full ${mode.colors.primary} ${mode.colors.glow}`}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              />
+            )}
+            <Icon className="w-4 h-4 relative z-10" />
+            <span className="relative z-10">{mode.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+/**
+ * GPS Warning Banner - Shows when GPS is unavailable
+ */
+const GpsWarningBanner = ({ onConfirmAnyway }) => {
+  const [confirmed, setConfirmed] = useState(false);
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      className="p-4 rounded-xl bg-red-500/10 border-2 border-red-500/50"
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-red-300 font-semibold">GPS Location Required</p>
+          <p className="text-red-400/80 text-sm mt-1">
+            Your GPS is unavailable or inaccurate. Activating without accurate location 
+            may result in:
+          </p>
+          <ul className="text-red-400/70 text-xs mt-2 space-y-1 list-disc list-inside">
+            <li>Negative customer reviews</li>
+            <li>Selling suspension</li>
+            <li>Account action or termination</li>
+          </ul>
+          
+          <div className="mt-4 flex items-start gap-2">
+            <Checkbox 
+              id="gps-warning-confirm"
+              checked={confirmed}
+              onCheckedChange={setConfirmed}
+              className="mt-0.5 border-red-500/50"
+            />
+            <label htmlFor="gps-warning-confirm" className="text-xs text-red-300 cursor-pointer">
+              I understand the risks and confirm I am at the correct location
+            </label>
+          </div>
+          
+          {confirmed && (
+            <Button aria-label="Shield"
+              onClick={onConfirmAnyway}
+              size="sm"
+              className="mt-3 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/50"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Proceed Anyway
+            </Button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+/**
+ * Selected Spot Display with Deselect for Live Mode
+ */
+const SelectedSpotDisplay = ({ spot, onDeselect }) => {
+  if (!spot) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-between"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+          <MapPin className="w-5 h-5 text-blue-400" />
+        </div>
+        <div>
+          <p className="text-foreground font-medium text-sm">{spot.name}</p>
+          <p className="text-blue-400/70 text-xs">{spot.region || 'Selected for Live'}</p>
+        </div>
+      </div>
+      <button
+        onClick={onDeselect}
+        className="p-2 rounded-lg hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
+        data-testid="deselect-live-spot"
+        aria-label="Deselect spot"
+      >
+        <XCircle className="w-5 h-5" />
+      </button>
+    </motion.div>
+  );
+};
+
+/**
+ * Stats Preview
+ */
+const StatsPreview = ({ mode, stats }) => {
+  const config = MODE_CONFIG[mode];
+  
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="p-4 rounded-xl bg-card border border-border text-center">
+        <p className={`text-2xl font-bold tracking-tight ${config.colors.text}`}>
+          ${stats?.todayEarnings?.toFixed(0) || '0'}
+        </p>
+        <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Today</p>
+      </div>
+      <div className="p-4 rounded-xl bg-card border border-border text-center">
+        <p className={`text-2xl font-bold tracking-tight ${config.colors.text}`}>
+          {stats?.sessionsToday || 0}
+        </p>
+        <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Sessions</p>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Quick Actions
+ */
+const QuickActions = ({ mode, onClose, nearbyShooters }) => {
+  const navigate = useNavigate();
+  
+  return (
+    <div className="space-y-2">
+      <button aria-label="div"
+        onClick={() => {
+          navigate('/map?view=photographers');
+          onClose?.();
+        }}
+        className="w-full flex items-center gap-3 p-4 bg-card hover:bg-muted rounded-xl border border-border transition-colors"
+        data-testid="duty-nearby-shooters"
+      >
+        <div className="w-11 h-11 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+          <Users className="w-5 h-5 text-cyan-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-foreground font-medium">Other Shooters</p>
+          <p className="text-muted-foreground text-sm">See who's active nearby</p>
+        </div>
+        {nearbyShooters > 0 && (
+          <Badge className="bg-cyan-500/20 text-cyan-400 border-0">{nearbyShooters}</Badge>
+        )}
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      </button>
+      
+      <button aria-label="div"
+        onClick={() => {
+          navigate(mode === 'live' ? '/photographer/sessions' : '/photographer/on-demand-settings');
+          onClose?.();
+        }}
+        className="w-full flex items-center gap-3 p-4 bg-card hover:bg-muted rounded-xl border border-border transition-colors"
+        data-testid="duty-settings"
+      >
+        <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
+          <Settings className="w-5 h-5 text-purple-400" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-foreground font-medium">
+            {mode === 'live' ? 'Live Settings' : 'On-Demand Settings'}
+          </p>
+          <p className="text-muted-foreground text-sm">Pricing & preferences</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      </button>
+    </div>
+  );
+};
+
+export { GpsProximityCheck, OnDemandSpotSelector, StatusCard, ModeSelector, GpsWarningBanner, SelectedSpotDisplay, StatsPreview, QuickActions };
