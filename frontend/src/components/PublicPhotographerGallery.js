@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import usePublicGalleryActions from '../hooks/usePublicGalleryActions';
+import { PhotographerAvailability } from './PhotographerAvailability';
 
 // Gallery View Modes
 const VIEW_MODES = {
@@ -241,13 +242,21 @@ export const PublicPhotographerGallery = () => {
               >
                 View Profile
               </Button>
-              <Button aria-label="Calendar Check" 
-                onClick={() => navigate(`/profile/${photographerId}`)}
-                className="bg-gradient-to-r from-emerald-500 to-yellow-500 text-black font-semibold"
-              >
-                <CalendarCheck className="w-4 h-4 mr-2" />
-                Book Session
-              </Button>
+              <PhotographerAvailability
+                photographerId={photographerId}
+                photographerName={photographer?.full_name || 'Photographer'}
+                onWatchLive={() => navigate(`/live/${photographerId}`)}
+                onRequestOnDemand={() => navigate(`/profile/${photographerId}`)}
+                onBook={() => navigate(`/profile/${photographerId}`)}
+                trigger={
+                  <Button aria-label="Calendar Check" 
+                    className="bg-gradient-to-r from-emerald-500 to-yellow-500 text-black font-semibold"
+                  >
+                    <CalendarCheck className="w-4 h-4 mr-2" />
+                    Book Session
+                  </Button>
+                }
+              />
             </div>
           </div>
         </div>
