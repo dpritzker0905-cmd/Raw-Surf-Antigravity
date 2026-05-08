@@ -122,6 +122,7 @@ const useFeedActions = ({
     handleShakaPointerDown: reactionActions.handleShakaPointerDown,
     handleShakaPointerUp: reactionActions.handleShakaPointerUp,
     handleShakaPointerLeave: reactionActions.handleShakaPointerLeave,
+    handleShakaClick: reactionActions.handleShakaClick,
     handleReaction: reactionActions.handleReaction,
     handleSavePost: reactionActions.handleSavePost,
     handleCommentSubmit: reactionActions.handleCommentSubmit,

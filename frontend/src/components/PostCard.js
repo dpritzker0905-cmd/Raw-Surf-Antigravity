@@ -58,6 +58,7 @@ const PostCard = ({
   onLikeStart,
   onLikeEnd,
   onLikeLeave,
+  onLikeClick,
   onCommentChange,
   onCommentSubmit,
   onLoadAllComments,
@@ -285,6 +286,12 @@ const PostCard = ({
                   e.preventDefault();
                   onLikeEnd(post.id, e);
                 }}
+                onClick={(e) => {
+                  // Fallback for mobile browsers where pointerUp may not fire
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (onLikeClick) onLikeClick(post.id);
+                }}
                 onPointerCancel={() => onLikeLeave()}
                 onPointerLeave={() => onLikeLeave()}
                 onContextMenu={(e) => {
@@ -293,7 +300,7 @@ const PostCard = ({
                   e.stopPropagation();
                   return false;
                 }}
-                className={`transition-all duration-300 select-none transform touch-manipulation ${
+                className={`transition-all duration-300 select-none transform ${
                   post.liked || post.reactions?.some(r => r.user_id === user?.id) || isPressing
                     ? 'scale-110' 
                     : 'hover:scale-105'
@@ -304,7 +311,7 @@ const PostCard = ({
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
                   WebkitTapHighlightColor: 'transparent',
-                  touchAction: 'none' // Prevent browser from handling touch gestures
+                  touchAction: 'manipulation' // Allow taps and scrolling, block double-tap zoom
                 }}
                 data-testid={`like-btn-${post.id}`}
                 title="Tap to like, hold for reactions"

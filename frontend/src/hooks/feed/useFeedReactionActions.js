@@ -81,11 +81,15 @@ const useFeedReactionActions = ({
     longPressTriggeredRef.current = false;
     touchStartTimeRef.current = Date.now();
 
+    // Capture anchor rect eagerly — React recycles the synthetic event,
+    // so e.currentTarget will be null by the time the timeout fires.
+    const anchorRect = e.currentTarget?.getBoundingClientRect();
+
     longPressTimerRef.current = setTimeout(() => {
       longPressTriggeredRef.current = true;
       setPressingPostId(postId);
       setShowReactionPicker(true);
-      setPickerAnchor(e.currentTarget?.getBoundingClientRect());
+      setPickerAnchor(anchorRect);
     }, 500);
   };
 
@@ -94,12 +98,30 @@ const useFeedReactionActions = ({
     if (!longPressTriggeredRef.current) {
       handleShakaTapToggle(postId);
     }
+    longPressTriggeredRef.current = false;
     setPressingPostId(null);
   };
 
   const handleShakaPointerLeave = () => {
     clearTimeout(longPressTimerRef.current);
+    longPressTriggeredRef.current = false;
     setPressingPostId(null);
+  };
+
+  // Fallback onClick for mobile browsers where pointerUp may not fire
+  // (e.g., when touch is intercepted by scroll or context menu).
+  const handleShakaClick = (postId) => {
+    // Only act if pointerUp didn't already handle it — check elapsed time.
+    const elapsed = Date.now() - touchStartTimeRef.current;
+    if (elapsed < 500 && !longPressTriggeredRef.current) {
+      // PointerUp should have handled it, but if the like didn't go through
+      // within the last 100ms, this is a safety net.
+      // Skip if pointerUp already processed it (check in-flight guard).
+      if (!likingInFlight.current.has(postId)) {
+        handleLike(postId);
+      }
+    }
+    longPressTriggeredRef.current = false;
   };
 
   const handleReaction = async (postId, emoji) => {
@@ -366,6 +388,7 @@ const useFeedReactionActions = ({
     handleShakaPointerDown,
     handleShakaPointerUp,
     handleShakaPointerLeave,
+    handleShakaClick,
     handleReaction,
     handleSavePost,
     handleCommentSubmit,
