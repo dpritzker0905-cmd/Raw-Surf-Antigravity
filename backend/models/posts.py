@@ -91,6 +91,11 @@ class Post(Base):
     collaborators = relationship('PostCollaboration', back_populates='post', foreign_keys='PostCollaboration.post_id', cascade='all, delete-orphan')
     hashtags = relationship('Hashtag', secondary='post_hashtags', back_populates='posts')
 
+    __table_args__ = (
+        # Composite index for feed query: WHERE media_url IS NOT NULL ORDER BY created_at DESC
+        Index('ix_posts_feed_created', 'created_at'),
+    )
+
 
 
 class PostCollaboration(Base):

@@ -4,6 +4,7 @@ Refactored to use modular routers for better maintainability
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from contextlib import asynccontextmanager
 import os
 import logging
@@ -173,6 +174,9 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan
 )
+
+# GZip Compression — compress responses > 500 bytes (60-80% reduction for JSON)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # CORS Configuration
 app.add_middleware(

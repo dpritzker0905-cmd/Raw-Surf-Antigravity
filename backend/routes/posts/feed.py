@@ -144,17 +144,8 @@ async def get_feed(
     """
     Get feed posts with privacy enforcement and cursor-based pagination.
     
-    Pagination:
-    - First request: no cursor, returns newest `limit` posts
-    - Subsequent requests: pass `cursor` (ISO timestamp of last post's created_at)
-      to fetch the next page of older posts
-    - Response includes `next_cursor` and `has_more` for client-side infinite scroll
-    
-    Privacy Rules:
-    - Public accounts (is_private=False): Posts visible to everyone
-    - Private accounts (is_private=True): Posts only visible to:
-      - The author themselves
-      - Accepted followers (mutual friends)
+    Performance-optimized: only loads author + spot + last 2 comments.
+    Full reaction/like/collaborator data loaded via GET /posts/{id}.
     """
     # First, get the viewer's accepted friends (if viewing user is provided)
     viewer_friend_ids = set()
@@ -183,104 +174,68 @@ async def get_feed(
             from dateutil.parser import isoparse
             cursor_dt = isoparse(cursor)
         except Exception:
-            # Fallback: try basic datetime parse
             cursor_dt = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
         query = query.where(Post.created_at < cursor_dt)
     
+    # OPTIMIZED: Only load author, spot, and comments (last 2 sliced in Python).
+    # Removed: likes (use likes_count column), reactions, collaborators — loaded via single-post endpoint.
     result = await db.execute(
         query
         .options(
             selectinload(Post.author), 
             selectinload(Post.comments).selectinload(Comment.author),
-            selectinload(Post.reactions).selectinload(PostReaction.user),
-            selectinload(Post.likes).selectinload(PostLike.user),
-            selectinload(Post.collaborators).selectinload(PostCollaboration.user),
             selectinload(Post.spot)
         )
         .order_by(Post.created_at.desc())
-        .limit(limit * 2)  # Fetch extra to account for filtered private posts
+        .limit(limit + 5)  # Small buffer for privacy filtering (was limit*2)
     )
     posts = result.scalars().all()
     
-    # Get liked post IDs for the current user
+    # Collect post IDs for this page to scope liked/saved queries
+    page_post_ids = [p.id for p in posts]
+    
+    # OPTIMIZED: Only check liked/saved status for THIS page's posts, not all user likes
     liked_post_ids = set()
     saved_post_ids = set()
-    if user_id:
+    if user_id and page_post_ids:
         likes_result = await db.execute(
-            select(PostLike.post_id).where(PostLike.user_id == user_id)
+            select(PostLike.post_id).where(
+                PostLike.user_id == user_id,
+                PostLike.post_id.in_(page_post_ids)
+            )
         )
         liked_post_ids = {row[0] for row in likes_result.fetchall()}
         
-        # Get saved post IDs for the current user
         from models import SavedPost
         saved_result = await db.execute(
-            select(SavedPost.post_id).where(SavedPost.user_id == user_id)
+            select(SavedPost.post_id).where(
+                SavedPost.user_id == user_id,
+                SavedPost.post_id.in_(page_post_ids)
+            )
         )
         saved_post_ids = {row[0] for row in saved_result.fetchall()}
     
     response = []
     for p in posts:
-        # Skip posts without media_url (invalid posts)
         if not p.media_url:
             continue
         
-        # PRIVACY ENFORCEMENT: Check if post author has private account
+        # PRIVACY ENFORCEMENT
         if p.author and getattr(p.author, 'is_private', False):
-            # Private account - only show to:
-            # 1. The author themselves
-            # 2. Accepted followers (friends)
             if user_id:
                 is_own_post = str(p.author_id) == str(user_id)
                 is_friend = str(p.author_id) in viewer_friend_ids
                 if not is_own_post and not is_friend:
-                    continue  # Skip this post - viewer can't see it
+                    continue
             else:
-                # No viewer - skip all private posts
                 continue
         
-        # Stop if we have enough posts
         if len(response) >= limit:
             break
             
         # Get last 2 comments for inline display
         recent_comments = sorted(p.comments, key=lambda c: c.created_at, reverse=True)[:2]
-        recent_comments.reverse()  # Show oldest first of the 2
-        
-        # Get reactions
-        reactions_data = [
-            ReactionData(
-                emoji=r.emoji,
-                user_id=r.user_id,
-                user_name=r.user.full_name if r.user else None,
-                avatar_url=r.user.avatar_url if r.user else None,
-                user_role=r.user.role.value if (r.user and r.user.role) else None
-            ) for r in p.reactions
-        ]
-        
-        for like in getattr(p, 'likes', []):
-            reactions_data.append(ReactionData(
-                emoji="🤙",
-                user_id=like.user_id,
-                user_name=like.user.full_name if getattr(like, 'user', None) else None,
-                avatar_url=like.user.avatar_url if getattr(like, 'user', None) else None,
-                user_role=like.user.role.value if (getattr(like, "user", None) and like.user.role) else None
-            ))
-        
-        # Get accepted collaborators
-        accepted_collaborators = [
-            c for c in (p.collaborators or []) if c.status == 'accepted'
-        ]
-        collaborators_data = [
-            CollaboratorData(
-                id=c.id,
-                user_id=c.user_id,
-                full_name=c.user.full_name if c.user else None,
-                username=c.user.username if c.user else None,
-                avatar_url=c.user.avatar_url if c.user else None,
-                status=c.status,
-                verified_by_gps=c.verified_by_gps or False
-            ) for c in accepted_collaborators
-        ]
+        recent_comments.reverse()
         
         # Get spot data if available
         spot_data = None
@@ -307,7 +262,7 @@ async def get_feed(
             comments_count=p.comments_count or len(p.comments) or 0,
             is_liked_by_user=p.id in liked_post_ids,
             saved=p.id in saved_post_ids,
-            reactions=reactions_data,
+            reactions=[],  # Loaded on-demand via single post endpoint
             video_width=p.video_width,
             video_height=p.video_height,
             video_duration=p.video_duration,
@@ -343,9 +298,9 @@ async def get_feed(
             conditions_source=p.conditions_source,
             # Spot
             spot=spot_data,
-            # Collaborators
-            collaborators=collaborators_data,
-            collaborator_count=len(accepted_collaborators),
+            # Collaborators — loaded on-demand via single post endpoint
+            collaborators=[],
+            collaborator_count=0,
             # Check-in fields
             is_check_in=p.is_check_in or False,
             check_in_spot_name=getattr(p, 'check_in_spot_name', None),
@@ -364,7 +319,7 @@ async def get_feed(
             carousel_media=p.carousel_media or []
         ))
     
-    # Cursor-based pagination: determine next_cursor and has_more
+    # Cursor-based pagination
     next_cursor = None
     has_more = False
     if len(response) >= limit:
