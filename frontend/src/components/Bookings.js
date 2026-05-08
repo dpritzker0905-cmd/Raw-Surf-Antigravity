@@ -19,32 +19,32 @@ import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 
-import { Input } from './ui/input';
+
+
 
 import { Label } from './ui/label';
 
 import { toast } from 'sonner';
 
-import { PhotographerDirectory } from './PhotographerDirectory';
 
-import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 
-import LineupManagerDrawer from './LineupManagerDrawer';
+
+
+
 
 // Tab components extracted for maintainability
 import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab, DirectoryTab, SubscriptionsTab } from './bookings/index';
 
-import { OnDemandRequestDrawer } from './OnDemandRequestDrawer';
 
-import { CrewPaymentModal } from './CrewPaymentModal';
 
-import { JumpInSessionModal } from './JumpInSessionModal';
+
+
+
 
 import logger from '../utils/logger';
 import useBookingsActions from '../hooks/useBookingsActions';
-import InviteModalContent from './bookings/InviteModalContent';
+import BookingsModals from './bookings/BookingsModals';
 
 
 
@@ -777,155 +777,53 @@ export const Bookings = () => {
         </div>
       </div>
 
-      {/* Join by Code Modal */}
-      <Dialog open={showJoinCodeModal} onOpenChange={setShowJoinCodeModal}>
-        <DialogContent className={`${isLight ? 'bg-white' : 'bg-card'} border ${borderClass}`}>
-          <DialogHeader>
-            <DialogTitle className={textPrimaryClass}>Join with Invite Code</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <Label className={textSecondaryClass}>Invite Code</Label>
-            <Input
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="Enter 6-character code"
-              maxLength={6}
-              className={`${inputBgClass} ${textPrimaryClass} uppercase tracking-widest text-center text-xl`}
-            />
-            <p className={`text-sm ${textSecondaryClass} mt-2`}>
-              Enter the code shared by your friend to join their session.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowJoinCodeModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => handleJoinByCode(joinCode)}
-              className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black"
-            >
-              Join Session
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Invite Friends Modal */}
-      <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
-        <DialogContent className={`${isLight ? 'bg-white' : 'bg-card'} border ${borderClass}`}>
-          <DialogHeader>
-            <DialogTitle className={textPrimaryClass}>Invite Friends</DialogTitle>
-          </DialogHeader>
-          <InviteModalContent
-            booking={selectedBooking}
-            user={user}
-            isLight={isLight}
-            textPrimaryClass={textPrimaryClass}
-            textSecondaryClass={textSecondaryClass}
-            onCopyCode={copyInviteCode}
-            onClose={() => setShowInviteModal(false)}
-            onRefresh={fetchData}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Jump In Session Modal - Direct render without UnifiedSpotDrawer */}
-      {showJumpInDrawer && selectedPhotographer && (
-        <JumpInSessionModal
-          photographer={selectedPhotographer}
-          onClose={() => {
-            setShowJumpInDrawer(false);
-            setSelectedPhotographer(null);
-          }}
-          onSuccess={() => {
-            setShowJumpInDrawer(false);
-            setSelectedPhotographer(null);
-            toast.success('Successfully joined session!');
-          }}
-        />
-      )}
-      
-      {/* On-Demand Request Drawer */}
-      {selectedOnDemandPro && (
-        <OnDemandRequestDrawer
-          photographer={selectedOnDemandPro}
-          isOpen={showOnDemandDrawer}
-          onClose={() => {
-            setShowOnDemandDrawer(false);
-            setSelectedOnDemandPro(null);
-            setResumeDispatchId(null);
-          }}
-          onSuccess={handleOnDemandSuccess}
-          userLocation={userLocation}
-          userCredits={userCreditBalance || user?.credit_balance || 0}
-          resumeDispatchId={resumeDispatchId}
-        />
-      )}
-      
-      {/* Photographer Directory for Scheduled Bookings */}
-      <PhotographerDirectory
-        isOpen={showPhotographerDirectory}
-        onClose={() => setShowPhotographerDirectory(false)}
-        onSelectPhotographer={(photographer) => {
-          // Open the scheduled booking drawer with selected photographer
-          setSelectedScheduledPhotographer(photographer);
-          setShowPhotographerDirectory(false);
-          setShowScheduledBookingDrawer(true);
-        }}
-      />
-      
-      {/* Scheduled Booking Drawer - Full booking flow */}
-      <ScheduledBookingDrawer
-        isOpen={showScheduledBookingDrawer}
-        onClose={() => {
-          setShowScheduledBookingDrawer(false);
-          setSelectedScheduledPhotographer(null);
-        }}
-        photographer={selectedScheduledPhotographer}
-        onSuccess={(_booking) => {
-          setShowScheduledBookingDrawer(false);
-          setSelectedScheduledPhotographer(null);
-          fetchData();
-          toast.success('Session booked! Check your scheduled sessions.');
-        }}
-      />
-
-      {/* The Crew View Drawer - Surfboard lineup visualization */}
-      <LineupManagerDrawer
-        isOpen={showCrewViewDrawer}
-        onClose={() => {
-          setShowCrewViewDrawer(false);
-          setSelectedCrewBooking(null);
-        }}
-        lineup={selectedCrewBooking}
+      {/* Modals & Drawers — Extracted to bookings/BookingsModals.js (v82) */}
+      <BookingsModals
+        isLight={isLight}
+        textPrimaryClass={textPrimaryClass}
+        textSecondaryClass={textSecondaryClass}
+        borderClass={borderClass}
+        inputBgClass={inputBgClass}
         user={user}
-        onRefresh={fetchData}
-        onLineupUpdate={(updatedFields) => {
-          // Immediately update the selectedCrewBooking with the new fields
-          setSelectedCrewBooking(prev => prev ? { ...prev, ...updatedFields } : null);
-          // Also update in bookings array
-          setBookings(prev => prev.map(b => 
-            b.id === selectedCrewBooking?.id ? { ...b, ...updatedFields } : b
-          ));
-        }}
-      />
-      
-      {/* Crew Payment Modal for On-Demand Session Invites */}
-      <CrewPaymentModal
-        invite={selectedCrewInvite}
-        isOpen={showCrewPaymentModal}
-        onClose={() => {
-          setShowCrewPaymentModal(false);
-          setSelectedCrewInvite(null);
-        }}
-        onSuccess={() => {
-          fetchData();
-          setShowCrewPaymentModal(false);
-          setSelectedCrewInvite(null);
-          // Switch to "Live Now" tab so crew member can see their active session
-          setActiveTab('on_demand');
-          toast.success('Check your active session below!');
-        }}
+        showJoinCodeModal={showJoinCodeModal}
+        setShowJoinCodeModal={setShowJoinCodeModal}
+        joinCode={joinCode}
+        setJoinCode={setJoinCode}
+        handleJoinByCode={handleJoinByCode}
+        showInviteModal={showInviteModal}
+        setShowInviteModal={setShowInviteModal}
+        selectedBooking={selectedBooking}
+        copyInviteCode={copyInviteCode}
+        fetchData={fetchData}
+        showJumpInDrawer={showJumpInDrawer}
+        setShowJumpInDrawer={setShowJumpInDrawer}
+        selectedPhotographer={selectedPhotographer}
+        setSelectedPhotographer={setSelectedPhotographer}
+        selectedOnDemandPro={selectedOnDemandPro}
+        showOnDemandDrawer={showOnDemandDrawer}
+        setShowOnDemandDrawer={setShowOnDemandDrawer}
+        setSelectedOnDemandPro={setSelectedOnDemandPro}
+        resumeDispatchId={resumeDispatchId}
+        setResumeDispatchId={setResumeDispatchId}
+        handleOnDemandSuccess={handleOnDemandSuccess}
+        userLocation={userLocation}
+        userCreditBalance={userCreditBalance}
+        showPhotographerDirectory={showPhotographerDirectory}
+        setShowPhotographerDirectory={setShowPhotographerDirectory}
+        setSelectedScheduledPhotographer={setSelectedScheduledPhotographer}
+        showScheduledBookingDrawer={showScheduledBookingDrawer}
+        setShowScheduledBookingDrawer={setShowScheduledBookingDrawer}
+        selectedScheduledPhotographer={selectedScheduledPhotographer}
+        showCrewViewDrawer={showCrewViewDrawer}
+        setShowCrewViewDrawer={setShowCrewViewDrawer}
+        selectedCrewBooking={selectedCrewBooking}
+        setSelectedCrewBooking={setSelectedCrewBooking}
+        setBookings={setBookings}
+        selectedCrewInvite={selectedCrewInvite}
+        showCrewPaymentModal={showCrewPaymentModal}
+        setShowCrewPaymentModal={setShowCrewPaymentModal}
+        setSelectedCrewInvite={setSelectedCrewInvite}
+        setActiveTab={setActiveTab}
       />
     </div>
   );
