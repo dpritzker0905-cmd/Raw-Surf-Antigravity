@@ -262,6 +262,27 @@ const useFeedDataActions = ({
   };
 
   const fetchPosts = async () => {
+    // Stale-while-revalidate: show cached feed instantly while fetching fresh data
+    const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+    let servedFromCache = false;
+    try {
+      const cached = localStorage.getItem('rawsurf_cached_feed');
+      const cachedTs = localStorage.getItem('rawsurf_cached_feed_ts');
+      if (cached && cachedTs) {
+        const age = Date.now() - new Date(cachedTs).getTime();
+        if (age < CACHE_TTL_MS) {
+          const cachedPosts = JSON.parse(cached);
+          if (cachedPosts.length > 0) {
+            setPosts(cachedPosts);
+            setFeedLastUpdated(cachedTs);
+            setLoading(false); // Unblock UI immediately with cached content
+            servedFromCache = true;
+            logger.info(`feed:cache-hit (${Math.round(age/1000)}s old, ${cachedPosts.length} posts)`);
+          }
+        }
+      }
+    } catch { /* ignore corrupt cache */ }
+
     try {
       const response = await apiClient.get(`/posts`, {
         params: { limit: 10 },
