@@ -42,15 +42,27 @@ async def upload_feed_media(
     import gc
 
 
-    # Validate file type
+    # Validate file type — with filename-based fallback for iPhone Safari
+    # iPhone can send HEVC .MOV videos as application/octet-stream or video/3gpp
     is_video = file.content_type in ALLOWED_VIDEO_TYPES
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
 
     if not is_video and not is_image:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM"
-        )
+        # Fallback: infer type from filename extension (critical for iPhone uploads)
+        ext = (file.filename or '').rsplit('.', 1)[-1].lower() if file.filename else ''
+        VIDEO_EXTS = {'mp4', 'mov', 'webm', 'mpeg', 'm4v', '3gp', '3gpp', 'avi', 'mkv'}
+        IMAGE_EXTS = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'}
+        if ext in VIDEO_EXTS:
+            is_video = True
+            logger.info(f"Feed upload: inferred video from extension .{ext} (content_type={file.content_type})")
+        elif ext in IMAGE_EXTS:
+            is_image = True
+            logger.info(f"Feed upload: inferred image from extension .{ext} (content_type={file.content_type})")
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid file type '{file.content_type}'. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM"
+            )
 
     # Create feed subdirectory
     feed_dir = UPLOAD_DIR / "feed"
@@ -231,12 +243,16 @@ async def upload_wave_video(
     import gc
 
 
-    # Waves must be video
+    # Waves must be video — with filename-based fallback for iPhone
     if file.content_type not in ALLOWED_VIDEO_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Waves must be video: MP4, MOV, or WebM"
-        )
+        ext = (file.filename or '').rsplit('.', 1)[-1].lower() if file.filename else ''
+        VIDEO_EXTS = {'mp4', 'mov', 'webm', 'mpeg', 'm4v', '3gp', '3gpp'}
+        if ext not in VIDEO_EXTS:
+            raise HTTPException(
+                status_code=400,
+                detail="Waves must be video: MP4, MOV, or WebM"
+            )
+        logger.info(f"Wave upload: inferred video from extension .{ext} (content_type={file.content_type})")
 
     # ── 1. Stream upload directly to disk (never hold full file in RAM) ──
     waves_dir = UPLOAD_DIR / "waves"

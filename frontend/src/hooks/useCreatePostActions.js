@@ -312,8 +312,17 @@ const useCreatePostActions = ({
     if (files.length === 0) return;
 
     const firstFile = files[0];
-    const isVideo = firstFile.type.startsWith('video/');
-    const isImage = firstFile.type.startsWith('image/');
+    let isVideo = firstFile.type.startsWith('video/');
+    let isImage = firstFile.type.startsWith('image/');
+
+    // Fallback: detect type from filename extension (iPhone can send empty MIME types)
+    if (!isVideo && !isImage && firstFile.name) {
+      const ext = firstFile.name.split('.').pop()?.toLowerCase();
+      const VIDEO_EXTS = ['mp4', 'mov', 'webm', 'mpeg', 'm4v', '3gp', 'avi'];
+      const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+      if (VIDEO_EXTS.includes(ext)) isVideo = true;
+      else if (IMAGE_EXTS.includes(ext)) isImage = true;
+    }
 
     if (!isVideo && !isImage) {
       toast.error('Please select image or video files');

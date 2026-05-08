@@ -121,8 +121,17 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
     if (files.length === 0) return;
 
     const firstFile = files[0];
-    const isVideo = firstFile.type.startsWith('video/');
-    const isImage = firstFile.type.startsWith('image/');
+    let isVideo = firstFile.type.startsWith('video/');
+    let isImage = firstFile.type.startsWith('image/');
+
+    // Fallback: detect type from filename extension (iPhone can send empty MIME types)
+    if (!isVideo && !isImage && firstFile.name) {
+      const ext = firstFile.name.split('.').pop()?.toLowerCase();
+      const VIDEO_EXTS = ['mp4', 'mov', 'webm', 'mpeg', 'm4v', '3gp', 'avi'];
+      const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+      if (VIDEO_EXTS.includes(ext)) isVideo = true;
+      else if (IMAGE_EXTS.includes(ext)) isImage = true;
+    }
 
     if (!isVideo && !isImage) {
       toast.error('Please select image or video files');
@@ -199,28 +208,47 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
         formData.append('file', file);
         formData.append('user_id', user.id);
 
+        const isVideoFile = file.type.startsWith('video/');
+
         setProcessingStatus(
           isCarousel 
             ? `Uploading photo ${i + 1} of ${selectedFiles.length}...` 
-            : (mediaType === 'video' ? 'Uploading & processing video (may transcode to 1080p)...' : 'Uploading...')
+            : (isVideoFile ? 'Uploading & processing video (may transcode to 1080p)...' : 'Uploading...')
         );
 
-        const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (progressEvent) => {
-            const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
-            setUploadProgress(overallProgress);
+        try {
+          const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: isVideoFile ? 300000 : 120000, // 5min for video, 2min for images
+            onUploadProgress: (progressEvent) => {
+              const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              const overallProgress = Math.round(((i + fileProgress / 100) / selectedFiles.length) * 100);
+              setUploadProgress(overallProgress);
+              if (isVideoFile && fileProgress >= 100) {
+                setProcessingStatus('Processing video on server...');
+              }
+            }
+          });
+          
+          uploadedMedia.push({
+            url: uploadResponse.data.media_url,
+            type: uploadResponse.data.media_type,
+            thumbnail_url: uploadResponse.data.thumbnail_url,
+            width: uploadResponse.data.final_width,
+            height: uploadResponse.data.final_height
+          });
+        } catch (uploadErr) {
+          logger.error('Upload failed:', uploadErr);
+          const detail = uploadErr.response?.data?.detail;
+          if (uploadErr.code === 'ECONNABORTED' || uploadErr.message?.includes('timeout')) {
+            toast.error(isVideoFile
+              ? 'Video upload timed out. Try a shorter or smaller video.'
+              : 'Upload timed out. Please try again.');
+          } else {
+            toast.error(detail || (isVideoFile ? 'Video upload failed. Please try again.' : 'Upload failed. Please try again.'));
           }
-        });
-        
-        uploadedMedia.push({
-          url: uploadResponse.data.media_url,
-          type: uploadResponse.data.media_type,
-          thumbnail_url: uploadResponse.data.thumbnail_url,
-          width: uploadResponse.data.final_width,
-          height: uploadResponse.data.final_height
-        });
+          return; // Exit early — don't try to create post without media
+        }
       }
 
       setProcessingStatus('Creating post...');
