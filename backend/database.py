@@ -12,10 +12,10 @@ ASYNC_DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg:/
 
 engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    pool_size=15,         # Paid Render tier — more headroom for concurrent feed/gallery queries
-    max_overflow=10,      # Burst capacity for peak traffic
-    pool_timeout=30,
-    pool_recycle=3600,    # Recycle connections every 60 min (fewer TLS handshakes)
+    pool_size=5,          # Conservative: Supabase Session-mode pooler has hard client limits
+    max_overflow=3,       # 5+3=8 max per instance — safe for deploy overlap (2×8=16 < pool_size limit)
+    pool_timeout=20,
+    pool_recycle=1800,    # Recycle every 30 min to avoid stale connections
     pool_pre_ping=True,
     echo=False,
     connect_args={
