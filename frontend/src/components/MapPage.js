@@ -41,6 +41,7 @@ import { useMapState } from '../hooks/useMapState';
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
+import useDispatchTracking from '../hooks/useDispatchTracking';
 
 const MapPageContent = () => {
   const { user } = useAuth();
@@ -174,7 +175,6 @@ const MapPageContent = () => {
   const [pendingRequestPro, setPendingRequestPro] = useState(false);
   const [requestProLocationLoading, setRequestProLocationLoading] = useState(false);
   const [showRequestProSelfieModal, setShowRequestProSelfieModal] = useState(false);
-  const [activeDispatchId, setActiveDispatchId] = useState(null);
   const [boostHours, setBoostHours] = useState(0);
   const [onDemandPhotographers, setOnDemandPhotographers] = useState([]);
   const [requestProSelectedPro, setRequestProSelectedPro] = useState(null);
@@ -200,9 +200,7 @@ const MapPageContent = () => {
   const onDemandMarkersRef = useRef([]);
   const [_lockedShooterCount, setLockedShooterCount] = useState(null);
   
-  const [activeDispatch, setActiveDispatch] = useState(null);
   const [trackingMarkersRef] = useState({ surfer: null, photographer: null, routeLine: null });
-  const trackingIntervalRef = useRef(null);
   const [showPermissionNudge, setShowPermissionNudge] = useState(false);
   const [permissionNudgeAction, setPermissionNudgeAction] = useState('booking');
 
@@ -327,19 +325,13 @@ const MapPageContent = () => {
 
   useEffect(() => { fetchFriends(); }, [inviteFriends, user?.id]);
 
-  useEffect(() => {
-    const checkActiveDispatch = async () => {
-      if (!user?.id) return;
-      try {
-        const response = await apiClient.get(`/dispatch/user/${user.id}/active`);
-        if (response.data && response.data.status === 'en_route') {
-          setActiveDispatch(response.data);
-        }
-      } catch (e) {}
-    };
-    
-    checkActiveDispatch();
-  }, [user?.id]);
+  // Dispatch tracking — extracted to useDispatchTracking hook (v80)
+  const {
+    activeDispatch,
+    activeDispatchId,
+    setActiveDispatchId,
+    clearDispatch,
+  } = useDispatchTracking({ userId: user?.id, updateTrackingMarkers });
 
   useEffect(() => {
     if (!isPhotographer) return;
@@ -347,53 +339,6 @@ const MapPageContent = () => {
     const interval = setInterval(fetchActiveRequests, 30000);
     return () => clearInterval(interval);
   }, [isPhotographer]);
-
-  useEffect(() => {
-    if (!activeDispatch || activeDispatch.status !== 'en_route') {
-      if (trackingIntervalRef.current) clearInterval(trackingIntervalRef.current);
-      return;
-    }
-    const pollLocations = async () => {
-      try {
-        const response = await apiClient.get(`/dispatch/${activeDispatch.id}/tracking`);
-        setActiveDispatch(prev => ({
-          ...prev,
-          photographer_lat: response.data.photographer_location?.lat,
-          photographer_lng: response.data.photographer_location?.lng,
-          requester_lat: response.data.requester_location?.lat,
-          requester_lng: response.data.requester_location?.lng,
-          estimated_arrival_minutes: response.data.estimated_arrival_minutes
-        }));
-        updateTrackingMarkers(response.data);
-      } catch (error) {
-        logger.error('Error polling dispatch locations:', error);
-      }
-    };
-    const sendLocationUpdate = async () => {
-      if (!navigator.geolocation) return;
-      
-      navigator.geolocation.getCurrentPosition(async (position) => {
-        try {
-          await apiClient.post(`/dispatch/${activeDispatch.id}/update-location`, {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-        } catch (error) {
-          logger.error('Error sending location update:', error);
-        }
-      });
-    };
-    pollLocations();
-    sendLocationUpdate();
-    trackingIntervalRef.current = setInterval(() => {
-      pollLocations();
-      sendLocationUpdate();
-    }, 5000);
-    
-    return () => {
-      if (trackingIntervalRef.current) clearInterval(trackingIntervalRef.current);
-    };
-  }, [activeDispatch?.id, activeDispatch?.status, user?.id]);
 
   useEffect(() => {
     const channel = supabase
@@ -710,7 +655,7 @@ const MapPageContent = () => {
         </div>
       </div>
 
-      <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={() => setActiveDispatch(null)} />
+      <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={clearDispatch} />
 
       <MapRightControls
         userLocation={userLocation}
