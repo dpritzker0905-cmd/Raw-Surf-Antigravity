@@ -15,10 +15,9 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
-import { getFullUrl } from '../utils/media';
 import {
-  Check, Clock, MapPin, Camera, Loader2,
-  Zap, X, ChevronRight, Users, Bell, ArrowLeft, RefreshCw,
+  Clock, MapPin, Loader2,
+  Zap, X, Users, Bell, ArrowLeft, RefreshCw,
   AlertTriangle
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -34,6 +33,7 @@ import DispatchSessionHero from './on-demand/DispatchSessionHero';
 import DispatchChatBlock from './on-demand/DispatchChatBlock';
 import DispatchLocationCard from './on-demand/DispatchLocationCard';
 import DispatchTimeline from './on-demand/DispatchTimeline';
+import DispatchSelfieSection from './on-demand/DispatchSelfieSection';
 
 // --- Constants ---
 // SURFBOARD_COLORS and SurfboardAvatar extracted to ./routing/SurfboardAvatar.js
@@ -579,53 +579,15 @@ export const DispatchLobby = () => {
           )}
         </div>
 
-        {/* --- Selfie prompt (if missing) --- */}
-        {!captainSelfieUploaded && (
-          <button aria-label="div"
-            onClick={() => setShowSelfieModal(true)}
-            className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed transition-all ${
-              isLight
-                ? 'border-amber-300 bg-amber-50 hover:bg-amber-100'
-                : 'border-amber-500/40 bg-amber-500/5 hover:bg-amber-500/10'
-            }`}
-          >
-            <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-              <Camera className="w-5 h-5 text-amber-400" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className={`font-semibold text-sm ${textPrimary}`}>
-                Add Your Selfie
-              </p>
-              <p className={`text-xs ${textSecondary}`}>
-                So the photographer can find you at the beach
-              </p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-amber-400" />
-          </button>
-        )}
-
-        {captainSelfieUploaded && (
-          <div
-            className={`flex items-center gap-3 p-3 rounded-xl ${
-              isLight ? 'bg-green-50' : 'bg-green-500/10'
-            } border border-green-400/30`}
-          >
-            <img loading="lazy" decoding="async"
-              src={getFullUrl(dispatch.selfie_url)}
-              alt="Your selfie"
-              className="w-10 h-10 rounded-full object-cover ring-2 ring-green-400 flex-shrink-0"
-            />
-            <div className="flex-1">
-              <p className={`text-sm font-medium ${textPrimary}`}>
-                Selfie uploaded
-              </p>
-              <p className={`text-xs ${textSecondary}`}>
-                Photographer can identify you
-              </p>
-            </div>
-            <Check className="w-5 h-5 text-green-400" />
-          </div>
-        )}
+        {/* --- Selfie Section - Extracted to on-demand/DispatchSelfieSection.js (v81) --- */}
+        <DispatchSelfieSection
+          captainSelfieUploaded={captainSelfieUploaded}
+          selfieUrl={dispatch?.selfie_url}
+          onShowSelfieModal={() => setShowSelfieModal(true)}
+          isLight={isLight}
+          textPrimary={textPrimary}
+          textSecondary={textSecondary}
+        />
 
         {/* --- Session Timeline --- */}
         {/* --- Session Timeline - Extracted to on-demand/DispatchTimeline.js --- */}
