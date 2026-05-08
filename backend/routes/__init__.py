@@ -40,7 +40,8 @@ from .admin import (
     admin_analytics_enhanced_router, admin_support_router,
     admin_content_mod_router, admin_communications_router,
     admin_system_router, admin_finance_router, admin_content_mgmt_router,
-    admin_ab_analytics_router,
+    admin_ab_analytics_router, admin_test_accounts_router,
+    admin_user_journey_router,
 )
 
 # ─── Standalone route files (infrastructure — no package needed) ─────────────────
@@ -97,6 +98,8 @@ api_router.include_router(admin_system_router, tags=["Admin System"])
 api_router.include_router(admin_finance_router, tags=["Admin Finance"])
 api_router.include_router(admin_content_mgmt_router, tags=["Admin Content Management"])
 api_router.include_router(admin_ab_analytics_router, tags=["Admin A/B Analytics"])
+api_router.include_router(admin_test_accounts_router, tags=["Admin Test Accounts"])
+api_router.include_router(admin_user_journey_router, tags=["Admin User Journey"])
 
 # ─── Include standalone routes ──────────────────────────────────────────────────
 api_router.include_router(health_router, tags=["Health"])

@@ -33,6 +33,10 @@ from .surfer_locker import router as surfer_locker_router
 from .admin import router as admin_router
 from .gallery_find_me import router as find_me_router
 from .gallery_migrations import router as migrations_router
+from .gallery_purchases import router as purchases_router
+from .gallery_conditions import router as conditions_router
+from .collections_roster import router as collections_roster_router
+from .distribution_tagging import router as distribution_tagging_router
 
 router.include_router(items_router)
 router.include_router(collections_router)
@@ -44,4 +48,9 @@ router.include_router(surfer_locker_router)
 router.include_router(admin_router)
 router.include_router(find_me_router)
 router.include_router(migrations_router)
+router.include_router(purchases_router)
+router.include_router(conditions_router)
+router.include_router(collections_roster_router)
+router.include_router(distribution_tagging_router)
+
 
