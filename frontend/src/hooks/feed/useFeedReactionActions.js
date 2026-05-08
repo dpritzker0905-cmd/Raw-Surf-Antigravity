@@ -153,7 +153,7 @@ const useFeedReactionActions = ({
     setShowReactionPicker(false);
 
     try {
-      const response = await apiClient.post(`/posts/${postId}/reaction`, {
+      const response = await apiClient.post(`/posts/${postId}/reactions`, {
         user_id: user.id,
         emoji: emoji
       });

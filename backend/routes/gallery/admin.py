@@ -1,7 +1,7 @@
-"""
-Gallery admin — cleanup, heal URLs, thumbnails, conditions, AI find-me, migrations.
+﻿"""
+Gallery admin â€” cleanup, heal URLs, thumbnails, conditions, AI find-me, migrations.
 
-Part of the gallery package — extracted from the gallery.py monolith.
+Part of the gallery package â€” extracted from the gallery.py monolith.
 """
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -343,9 +343,9 @@ async def recalculate_gallery_counts(
         return {"error": str(e), "traceback": traceback.format_exc()}
 
 
-# ═══════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # ADMIN: Correct Session Content Settings
-# ═══════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 class UpdateSessionSettingsRequest(BaseModel):
     photos_included: Optional[int] = None
@@ -478,7 +478,7 @@ async def set_gallery_thumbnail(
     old_cover = gallery.cover_image_url
     gallery.cover_image_url = new_cover_url
     
-    # Sync to linked condition reports — when the gallery thumbnail changes,
+    # Sync to linked condition reports â€” when the gallery thumbnail changes,
     # any condition report linked via the same live_session_id should also update.
     # This prevents blank/broken photos on SpotHub's condition reports section.
     # DEFENSIVE: wrap in try/except so CR sync issues never block cover photo updates.
@@ -558,7 +558,7 @@ async def clear_gallery_thumbnail(
     gallery.cover_image_url = None
     await db.commit()
     
-    gallery_logger.info(f"Gallery {gallery_id} thumbnail cleared — will auto-select on next load")
+    gallery_logger.info(f"Gallery {gallery_id} thumbnail cleared â€” will auto-select on next load")
     
     return {
         "success": True,
@@ -591,9 +591,9 @@ async def push_conditions_to_spot_hub(
     - The photographer wants to manually refresh their spot hub presence
     
     Behavior:
-    - If an existing CR is found for this gallery's session/spot → UPDATE it
+    - If an existing CR is found for this gallery's session/spot â†’ UPDATE it
       (refresh media, reset 24h expiry, reactivate)
-    - If no CR exists → CREATE a new one
+    - If no CR exists â†’ CREATE a new one
     """
     from models import ConditionReport, SurfSpot, GalleryItem, Profile, Story
     
@@ -619,7 +619,7 @@ async def push_conditions_to_spot_hub(
             detail="This gallery has no linked surf spot. Link a session or assign a spot first."
         )
     
-    # Must be linked to a live session — condition reports are tethered to sessions.
+    # Must be linked to a live session â€” condition reports are tethered to sessions.
     # Without this, orphaned CRs appear on dates with no session record.
     if not gallery.live_session_id:
         raise HTTPException(
@@ -678,7 +678,7 @@ async def push_conditions_to_spot_hub(
     photographer = prof_result.scalar_one_or_none()
     
     # Look for an existing condition report to update
-    # ONLY match by live_session_id — prevents cross-session contamination
+    # ONLY match by live_session_id â€” prevents cross-session contamination
     # when multiple sessions happen at the same spot
     existing_cr = None
     
@@ -722,7 +722,7 @@ async def push_conditions_to_spot_hub(
         
         condition_report_id = existing_cr.id
         gallery_logger.info(
-            f"Push-conditions: UPDATED CR {existing_cr.id} for gallery {gallery_id} → spot {spot_name}"
+            f"Push-conditions: UPDATED CR {existing_cr.id} for gallery {gallery_id} â†’ spot {spot_name}"
         )
     else:
         # CREATE new condition report
@@ -755,7 +755,7 @@ async def push_conditions_to_spot_hub(
         condition_report_id = new_cr.id
         
         gallery_logger.info(
-            f"Push-conditions: CREATED new CR {new_cr.id} for gallery {gallery_id} → spot {spot_name} (date={original_date})"
+            f"Push-conditions: CREATED new CR {new_cr.id} for gallery {gallery_id} â†’ spot {spot_name} (date={original_date})"
         )
     
     await db.commit()
@@ -804,7 +804,7 @@ async def get_gallery_conditions_status(
             "is_expired": True
         }
     
-    # Look for existing CR — ONLY by live_session_id to prevent cross-session confusion
+    # Look for existing CR â€” ONLY by live_session_id to prevent cross-session confusion
     existing_cr = None
     
     if gallery.live_session_id:
@@ -841,609 +841,6 @@ async def get_gallery_conditions_status(
     }
 
 
-# ============ AI "FIND ME" IN GALLERY ============
-
-
-class FindMeRequest(BaseModel):
-    selfie_url: str
-    board_description: Optional[str] = None
-    wetsuit_description: Optional[str] = None
-    rash_guard_description: Optional[str] = None
-    stance: Optional[str] = None  # 'regular' or 'goofy'
-
-
-@router.post("/gallery/{gallery_id}/find-me")
-async def find_me_in_gallery(
-    gallery_id: str,
-    user_id: str,
-    data: FindMeRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    AI-powered surfer identification in a gallery.
-    Scans gallery photos and returns matches ranked by confidence.
-    
-    Rate limits:
-      - Free/Basic: 5 scans/day, max 150 photos/scan
-      - Premium: 10 scans/day, unlimited photos/scan
-    """
-    # Verify user exists
-    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
-    user = user_result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Determine tier limits
-    subscription_tier = getattr(user, 'subscription_tier', 'free') or 'free'
-    is_premium = subscription_tier in ('premium', 'pro', 'gold')
-    max_scans_per_day = 10 if is_premium else 5
-    max_photos_per_scan = None if is_premium else 150  # None = unlimited
-    
-    # Check daily scan count (use XPTransaction as a scan log)
-    from sqlalchemy import func
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    scan_count_result = await db.execute(
-        select(func.count(XPTransaction.id)).where(
-            XPTransaction.user_id == user_id,
-            XPTransaction.transaction_type == 'find_me_scan',
-            XPTransaction.created_at >= today_start
-        )
-    )
-    scans_today = scan_count_result.scalar() or 0
-    
-    if scans_today >= max_scans_per_day:
-        tier_label = "Premium" if is_premium else "Free/Basic"
-        raise HTTPException(
-            status_code=429,
-            detail=f"Daily scan limit reached ({max_scans_per_day}/day for {tier_label} users). "
-                   f"{'Try again tomorrow.' if is_premium else 'Upgrade to Premium for 10 scans/day.'}"
-        )
-    
-    # Get gallery (public OR private — access check below)
-    gallery_result = await db.execute(
-        select(Gallery).where(Gallery.id == gallery_id)
-    )
-    gallery = gallery_result.scalar_one_or_none()
-    if not gallery:
-        raise HTTPException(status_code=404, detail="Gallery not found")
-    
-    # Access control: public = anyone, private = owner or session participants only
-    if not gallery.is_public:
-        if gallery.photographer_id == user_id:
-            pass  # Owner always has access
-        else:
-            # Check if user has a selection quota (= was assigned to this session)
-            quota_result = await db.execute(
-                select(SurferSelectionQuota).where(
-                    SurferSelectionQuota.surfer_id == user_id,
-                    SurferSelectionQuota.gallery_id == gallery_id
-                )
-            )
-            if not quota_result.scalar_one_or_none():
-                # Also check by live_session_id as a fallback
-                has_session_access = False
-                if gallery.live_session_id:
-                    session_quota = await db.execute(
-                        select(SurferSelectionQuota).where(
-                            SurferSelectionQuota.surfer_id == user_id,
-                            SurferSelectionQuota.live_session_id == gallery.live_session_id
-                        )
-                    )
-                    has_session_access = session_quota.scalar_one_or_none() is not None
-                if not has_session_access:
-                    raise HTTPException(
-                        status_code=403,
-                        detail="This gallery is private. Only session participants can scan it."
-                    )
-    
-    # Fetch gallery items (watermarked previews for AI analysis)
-    items_query = select(GalleryItem).where(
-        GalleryItem.gallery_id == gallery_id,
-        GalleryItem.is_public.is_(True),
-        GalleryItem.is_deleted.is_(False)
-    ).order_by(GalleryItem.created_at.desc())
-    
-    if max_photos_per_scan:
-        items_query = items_query.limit(max_photos_per_scan)
-    
-    items_result = await db.execute(items_query)
-    items = items_result.scalars().all()
-    
-    if not items:
-        return {
-            "matches": [],
-            "total_photos_scanned": 0,
-            "matches_found": 0,
-            "gallery_id": gallery_id,
-            "message": "No photos in this gallery to scan"
-        }
-    
-    # Build surfer profile for AI matching
-    from services.ai_identity_matching import SurferProfile, batch_analyze_session_photos
-    
-    surfer_profile = SurferProfile(
-        profile_photo_url=user.avatar_url,
-        session_selfie_url=data.selfie_url,
-        board_description=data.board_description,
-        wetsuit_description=data.wetsuit_description,
-        rash_guard_description=data.rash_guard_description,
-        stance=data.stance
-    )
-    
-    # Get photo URLs for analysis (use preview_url for watermarked previews)
-    photo_urls = []
-    url_to_item = {}
-    for item in items:
-        url = item.preview_url or item.original_url
-        if url:
-            photo_urls.append(url)
-            url_to_item[url] = item
-    
-    # Build session context
-    spot_name = gallery.title or "Unknown Spot"
-    session_context = f"Session at {spot_name}"
-    if gallery.session_date:
-        session_context += f" on {gallery.session_date.strftime('%B %d, %Y')}"
-    
-    # Run AI batch analysis
-    gallery_logger.info(
-        f"Find Me scan: user={user_id}, gallery={gallery_id}, "
-        f"photos={len(photo_urls)}, tier={subscription_tier}"
-    )
-    
-    ai_results = await batch_analyze_session_photos(
-        photo_urls=photo_urls,
-        surfer_profile=surfer_profile,
-        session_context=session_context
-    )
-    
-    # Process results and build response
-    matches = []
-    for result in ai_results:
-        if result.get("is_match") and result.get("confidence", 0) >= 0.3:
-            item = url_to_item.get(result["photo_url"])
-            if item:
-                matches.append({
-                    "gallery_item_id": item.id,
-                    "preview_url": item.preview_url,
-                    "thumbnail_url": item.thumbnail_url,
-                    "media_type": item.media_type or 'image',
-                    "confidence": round(result["confidence"], 2),
-                    "match_methods": result.get("match_methods", []),
-                    "reasoning": result.get("details", {}).get("reasoning", ""),
-                    "is_for_sale": item.is_for_sale,
-                    "price": item.price
-                })
-    
-    # Sort by confidence (highest first)
-    matches.sort(key=lambda x: x["confidence"], reverse=True)
-    
-    # Log the scan (for rate limiting)
-    scan_log = XPTransaction(
-        user_id=user_id,
-        transaction_type='find_me_scan',
-        xp_amount=0,
-        description=f"AI Find Me scan in gallery {gallery_id} ({len(matches)} matches from {len(photo_urls)} photos)"
-    )
-    db.add(scan_log)
-    await db.commit()
-    
-    # Fire push notification if matches were found (best-effort, never blocks response)
-    if matches:
-        try:
-            from routes.notifications.push import notify_photos_found_ai
-            spot_name = gallery.title or "Unknown Spot"
-            await notify_photos_found_ai(
-                surfer_id=user_id,
-                gallery_id=gallery_id,
-                match_count=len(matches),
-                spot_name=spot_name
-            )
-        except Exception as push_err:
-            gallery_logger.warning(f"Find-Me push notification failed: {push_err}")
-    
-    return {
-        "matches": matches,
-        "total_photos_scanned": len(photo_urls),
-        "matches_found": len(matches),
-        "gallery_id": gallery_id,
-        "scans_remaining_today": max_scans_per_day - scans_today - 1,
-        "max_photos_per_scan": max_photos_per_scan or "unlimited",
-        "subscription_tier": subscription_tier
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════
-# ADMIN: Migrate Gallery Titles to Date · Time · Location · Type
-# ═══════════════════════════════════════════════════════════════════
-
-SESSION_TYPE_LABELS = {
-    'live': 'Live Session',
-    'on_demand': 'On-Demand',
-    'booking': 'Booking',
-    'manual': 'Gallery',
-    None: 'Gallery',
-}
-
-
-@router.post("/gallery/migrate-titles")
-async def migrate_gallery_titles(
-    photographer_id: str = Query(..., description="Photographer ID for authorization"),
-    dry_run: bool = Query(False, description="If true, preview changes without saving"),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Retroactively update all gallery titles to the new format:
-      Date · Time · Location · Type
-    
-    Skips galleries whose title already contains ' · ' (already migrated).
-    Use dry_run=true to preview changes before committing.
-    """
-    import re
-
-    # Verify photographer exists
-    profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
-    photographer = profile_result.scalar_one_or_none()
-    if not photographer:
-        raise HTTPException(status_code=404, detail="Photographer not found")
-
-    # Fetch all galleries for this photographer, eager-load surf_spot
-    result = await db.execute(
-        select(Gallery)
-        .where(Gallery.photographer_id == photographer_id)
-        .options(selectinload(Gallery.surf_spot))
-    )
-    galleries = result.scalars().all()
-
-    updated = []
-    skipped = []
-
-    for g in galleries:
-        # Skip already-migrated titles (contain · separator)
-        if g.title and ' · ' in g.title:
-            skipped.append({"id": g.id, "title": g.title, "reason": "already_migrated"})
-            continue
-
-        # Need session_date to build the new title
-        ts = g.session_date or g.created_at
-        if not ts:
-            skipped.append({"id": g.id, "title": g.title, "reason": "no_date"})
-            continue
-
-        # Format date and time components
-        date_part = ts.strftime("%b %d, %Y")
-        try:
-            time_part = ts.strftime("%-I:%M %p")  # Linux/Mac
-        except ValueError:
-            time_part = ts.strftime("%#I:%M %p")  # Windows
-
-        # Get spot name from relationship or parse from existing title
-        spot_name = None
-        if g.surf_spot:
-            spot_name = g.surf_spot.name
-        elif g.title:
-            # Try to extract spot name from old-format title
-            # Old format: "Live Session at Cocoa Beach Pier - April 26, 2026 at 1:00 PM"
-            match = re.search(r'(?:Session|Gallery) at (.+?)(?:\s*-\s*)', g.title)
-            if match:
-                spot_name = match.group(1).strip()
-
-        # Build type label
-        type_label = SESSION_TYPE_LABELS.get(g.session_type, 'Gallery')
-
-        # Assemble new title
-        if spot_name:
-            new_title = f"{date_part} · {time_part} · {spot_name} · {type_label}"
-        else:
-            new_title = f"{date_part} · {time_part} · {type_label}"
-
-        old_title = g.title
-        updated.append({
-            "id": g.id,
-            "old_title": old_title,
-            "new_title": new_title,
-        })
-
-        if not dry_run:
-            g.title = new_title
-
-    if not dry_run and updated:
-        await db.commit()
-
-    return {
-        "message": f"{'Would update' if dry_run else 'Updated'} {len(updated)} gallery titles, skipped {len(skipped)}",
-        "dry_run": dry_run,
-        "updated": updated,
-        "skipped": skipped,
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════
-# ADMIN: Clean up GalleryItem titles (replace hash/UUID filenames)
-# ═══════════════════════════════════════════════════════════════════
-
-def _is_hash_title(title: str) -> bool:
-    """Detect if a title is a non-human-readable hash, UUID, or numeric string.
-    Returns True for titles like:
-      - '517123533_30162777753884_4533105'
-      - 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
-      - '2f3a4b5c_original'
-    """
-    if not title:
-        return True
-    import re
-    cleaned = title.strip()
-    # UUID pattern
-    if re.match(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', cleaned, re.I):
-        return True
-    # UUID without dashes (32 hex chars)
-    if re.match(r'^[a-f0-9]{32}', cleaned, re.I):
-        return True
-    # Strip common suffixes like _original, _preview
-    base = re.sub(r'_(original|preview|thumb|thumbnail)$', '', cleaned)
-    # All digits + underscores (Instagram-style) — at least 10 chars
-    if re.match(r'^[\d_]+$', base) and len(base) >= 10:
-        return True
-    # Mostly digits/hex with underscores — >70% non-alpha in a long string
-    alpha_count = sum(1 for c in base if c.isalpha() and c not in 'abcdefABCDEF')
-    if len(base) > 15 and alpha_count < len(base) * 0.3:
-        return True
-    return False
-
-
-@router.post("/gallery/{gallery_id}/clean-item-titles")
-async def clean_gallery_item_titles(
-    gallery_id: str,
-    photographer_id: str = Query(..., description="Photographer ID for authorization"),
-    dry_run: bool = Query(False, description="If true, preview changes without saving"),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Replace hash/UUID/numeric-only item titles with clean sequential names.
-    
-    Photos become: "Surf Photo 1", "Surf Photo 2", …
-    Videos become: "Surf Video 1", "Surf Video 2", …
-    
-    Only renames items whose current title looks like a system-generated hash.
-    Items with human-readable titles are left untouched.
-    """
-    # Verify gallery ownership
-    result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
-    gallery = result.scalar_one_or_none()
-    if not gallery:
-        raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    # Get all items, ordered by creation date
-    items_result = await db.execute(
-        select(GalleryItem)
-        .where(
-            GalleryItem.gallery_id == gallery_id,
-            GalleryItem.is_deleted == False
-        )
-        .order_by(GalleryItem.created_at.asc())
-    )
-    items = items_result.scalars().all()
-
-    photo_counter = 0
-    video_counter = 0
-    updated = []
-    skipped = []
-
-    for item in items:
-        is_video = item.media_type == 'video'
-
-        if is_video:
-            video_counter += 1
-        else:
-            photo_counter += 1
-
-        if not _is_hash_title(item.title):
-            skipped.append({"id": item.id, "title": item.title, "reason": "human_readable"})
-            continue
-
-        if is_video:
-            new_title = f"Surf Video {video_counter}"
-        else:
-            new_title = f"Surf Photo {photo_counter}"
-
-        updated.append({
-            "id": item.id,
-            "old_title": item.title,
-            "new_title": new_title,
-        })
-
-        if not dry_run:
-            item.title = new_title
-
-    if not dry_run and updated:
-        await db.commit()
-
-    return {
-        "message": f"{'Would rename' if dry_run else 'Renamed'} {len(updated)} items, skipped {len(skipped)} (already readable)",
-        "gallery_id": gallery_id,
-        "dry_run": dry_run,
-        "updated": updated,
-        "skipped": skipped,
-    }
-
-
-@router.post("/gallery/clean-all-item-titles")
-async def clean_all_item_titles(
-    photographer_id: str = Query(..., description="Photographer ID for authorization"),
-    dry_run: bool = Query(False, description="If true, preview changes without saving"),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Batch version: Clean up hash-style item titles across ALL galleries for a photographer.
-    Calls the per-gallery logic for each gallery.
-    """
-    # Verify photographer exists
-    profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
-    photographer = profile_result.scalar_one_or_none()
-    if not photographer:
-        raise HTTPException(status_code=404, detail="Photographer not found")
-
-    # Get all galleries
-    result = await db.execute(
-        select(Gallery).where(Gallery.photographer_id == photographer_id)
-    )
-    galleries = result.scalars().all()
-
-    total_updated = 0
-    total_skipped = 0
-    gallery_results = []
-
-    for g in galleries:
-        items_result = await db.execute(
-            select(GalleryItem)
-            .where(
-                GalleryItem.gallery_id == g.id,
-                GalleryItem.is_deleted == False
-            )
-            .order_by(GalleryItem.created_at.asc())
-        )
-        items = items_result.scalars().all()
-
-        photo_counter = 0
-        video_counter = 0
-        g_updated = 0
-
-        for item in items:
-            is_video = item.media_type == 'video'
-            if is_video:
-                video_counter += 1
-            else:
-                photo_counter += 1
-
-            if not _is_hash_title(item.title):
-                total_skipped += 1
-                continue
-
-            new_title = f"Surf Video {video_counter}" if is_video else f"Surf Photo {photo_counter}"
-
-            if not dry_run:
-                item.title = new_title
-            g_updated += 1
-            total_updated += 1
-
-        if g_updated > 0:
-            gallery_results.append({
-                "gallery_id": g.id,
-                "gallery_title": g.title,
-                "items_renamed": g_updated,
-            })
-
-    if not dry_run and total_updated > 0:
-        await db.commit()
-
-    return {
-        "message": f"{'Would rename' if dry_run else 'Renamed'} {total_updated} items across {len(gallery_results)} galleries, skipped {total_skipped}",
-        "dry_run": dry_run,
-        "total_updated": total_updated,
-        "total_skipped": total_skipped,
-        "galleries": gallery_results,
-    }
-
-
-# ── Admin: Heal Session Dates ─────────────────────────────────────────────────
-# Backfill NULL session_date values on legacy galleries using linked metadata.
-# Secured via JWT admin auth.
-from deps.admin_auth import get_current_admin
-
-@router.post("/gallery/admin/heal-session-dates")
-async def heal_session_dates(
-    dry_run: bool = Query(default=True, description="Preview changes without committing"),
-    admin: dict = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Backfill NULL session_date values on galleries using metadata from linked
-    LiveSession, Booking, or DispatchRequest records.
-
-    Priority order:
-      1. LiveSession.started_at (most accurate — actual session start)
-      2. Booking.session_date (scheduled date)
-      3. DispatchRequest.created_at (on-demand request timestamp)
-      4. Gallery.created_at (last-resort fallback)
-
-    Use dry_run=true (default) to preview before committing.
-    """
-    # Fetch all galleries with NULL session_date
-    result = await db.execute(
-        select(Gallery).where(Gallery.session_date.is_(None))
-    )
-    galleries = result.scalars().all()
-
-    healed = []
-    skipped = []
-
-    for gallery in galleries:
-        source = None
-        healed_date = None
-
-        # 1. Try linked LiveSession
-        if gallery.live_session_id:
-            ls_result = await db.execute(
-                select(LiveSession).where(LiveSession.id == gallery.live_session_id)
-            )
-            live_session = ls_result.scalar_one_or_none()
-            if live_session and live_session.started_at:
-                healed_date = live_session.started_at
-                source = "live_session.started_at"
-
-        # 2. Try linked Booking
-        if not healed_date and gallery.booking_id:
-            bk_result = await db.execute(
-                select(Booking).where(Booking.id == gallery.booking_id)
-            )
-            booking = bk_result.scalar_one_or_none()
-            if booking and booking.session_date:
-                healed_date = booking.session_date
-                source = "booking.session_date"
-
-        # 3. Try linked DispatchRequest
-        if not healed_date and gallery.dispatch_request_id:
-            dr_result = await db.execute(
-                select(DispatchRequest).where(DispatchRequest.id == gallery.dispatch_request_id)
-            )
-            dispatch = dr_result.scalar_one_or_none()
-            if dispatch and dispatch.created_at:
-                healed_date = dispatch.created_at
-                source = "dispatch_request.created_at"
-
-        # 4. Fallback to gallery.created_at
-        if not healed_date and gallery.created_at:
-            healed_date = gallery.created_at
-            source = "gallery.created_at (fallback)"
-
-        if healed_date:
-            if not dry_run:
-                gallery.session_date = healed_date
-            healed.append({
-                "gallery_id": gallery.id,
-                "title": gallery.title,
-                "source": source,
-                "healed_date": healed_date.isoformat() if healed_date else None,
-            })
-        else:
-            skipped.append({
-                "gallery_id": gallery.id,
-                "title": gallery.title,
-                "reason": "No linked metadata found"
-            })
-
-    if not dry_run and healed:
-        await db.commit()
-
-    return {
-        "message": f"{'Would heal' if dry_run else 'Healed'} {len(healed)} galleries, skipped {len(skipped)}",
-        "dry_run": dry_run,
-        "total_null": len(galleries),
-        "total_healed": len(healed),
-        "total_skipped": len(skipped),
-        "healed": healed,
-        "skipped": skipped,
-    }
+# AI Find Me extracted to gallery_find_me.py (v85)
+# Gallery migrations extracted to gallery_migrations.py (v85)
 

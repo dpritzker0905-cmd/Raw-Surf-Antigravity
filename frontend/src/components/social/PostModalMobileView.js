@@ -6,7 +6,7 @@
  * - Emoji reaction picker
  * - Comment input with emoji picker
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import ShakaIcon from './ShakaIcon';
 import { ImageCarousel } from './PostModalComponents';
 import { useNavigate } from 'react-router-dom';
@@ -47,6 +47,27 @@ const PostModalMobileView = ({
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [postMenuOpen, setPostMenuOpen] = useState(false);
 
+  // Guard: track when the reaction picker was recently dismissed
+  // to prevent the backdrop from closing the entire modal.
+  const pickerJustDismissedRef = useRef(false);
+
+  const handleBackdropClose = useCallback(() => {
+    // Skip close if the reaction picker was just dismissed (touch residual)
+    if (pickerJustDismissedRef.current) {
+      pickerJustDismissedRef.current = false;
+      return;
+    }
+    onClose();
+  }, [onClose]);
+
+  // Wrap setShowReactionPicker to set the guard when dismissing
+  const dismissReactionPicker = useCallback(() => {
+    pickerJustDismissedRef.current = true;
+    setShowReactionPicker(false);
+    // Reset guard after event loop settles
+    setTimeout(() => { pickerJustDismissedRef.current = false; }, 300);
+  }, [setShowReactionPicker]);
+
   return (
     <div 
       className={`fixed inset-0 z-[9999] ${m.containerBg}`}
@@ -55,11 +76,11 @@ const PostModalMobileView = ({
       {/* Tap-to-close backdrop - ONLY in the image area, not top bar or bottom */}
       <div 
         className="absolute inset-0 top-[60px] bottom-[200px]"
-        onClick={onClose}
+        onClick={handleBackdropClose}
         onTouchEnd={(e) => {
           // Only close if tapping the backdrop itself
           if (e.target === e.currentTarget) {
-            onClose();
+            handleBackdropClose();
           }
         }}
         style={{ zIndex: 1 }}
@@ -143,7 +164,7 @@ const PostModalMobileView = ({
           {/* Backdrop to close picker */}
           <div 
             className="absolute inset-0 bg-black/30"
-            onClick={() => setShowReactionPicker(false)}
+            onClick={(e) => { e.stopPropagation(); dismissReactionPicker(); }}
           />
           {/* Centered Picker - 2-row grid for mobile */}
           <div 
@@ -157,7 +178,7 @@ const PostModalMobileView = ({
             onClick={(e) => e.stopPropagation()}
           >
             <button 
-              onClick={() => setShowReactionPicker(false)}
+              onClick={(e) => { e.stopPropagation(); dismissReactionPicker(); }}
               className={`absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center ${t.textMuted} ${m.pickerCloseHover} rounded-full touch-manipulation`}
               style={{ zIndex: 1 }}
             >
@@ -167,7 +188,7 @@ const PostModalMobileView = ({
               {REACTION_EMOJIS.map((emoji, _index) => (
                 <button
                   key={emoji}
-                  onClick={() => handleReaction(emoji)}
+                  onClick={(e) => { e.stopPropagation(); pickerJustDismissedRef.current = true; handleReaction(emoji); setTimeout(() => { pickerJustDismissedRef.current = false; }, 300); }}
                   className={`w-11 h-11 flex items-center justify-center rounded-full ${t.reactionHover} active:scale-90 transition-transform duration-100 touch-manipulation`}
                   style={{ fontSize: '24px' }}
                   data-testid={`post-reaction-${emoji}`}
