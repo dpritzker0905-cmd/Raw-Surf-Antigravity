@@ -1,11 +1,7 @@
-﻿import React, { useState, useEffect } from 'react';
-
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-
 import { useTheme } from '../../contexts/ThemeContext';
-
 import { useLocation } from 'react-router-dom';
-
 import useAdminP1Actions from '../../hooks/useAdminP1Actions';
 import {
   StatusBadge, SeverityBadge,
@@ -15,32 +11,18 @@ import {
 } from './p1/AdminP1Modals';
 import AdminP1ComplianceTab from './p1/AdminP1ComplianceTab';
 import AdminP1TestAccountsTab from './p1/AdminP1TestAccountsTab';
-
-import { UserCheck, Eye, AlertTriangle, Search,
-
-  Loader2, ChevronRight, Instagram, Globe, FileText, Camera, Award, RefreshCw, Activity, Calendar, DollarSign, MessageSquare,
-  Flag, Gavel, Users
+import {
+  UserCheck, Eye, AlertTriangle, Search, Loader2, ChevronRight, Instagram,
+  Globe, FileText, Camera, Award, RefreshCw, Activity, Calendar, DollarSign,
+  MessageSquare, Flag, Gavel, Users
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-
 import { Button } from '../ui/button';
-
 import { Input } from '../ui/input';
-
-
 import { Badge } from '../ui/badge';
-
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-
-
 import { getFullUrl } from '../../utils/media';
-
-
-
-// StatusBadge, SeverityBadge imported from ./p1/AdminP1Modals.js
 
 export const AdminP1Dashboard = () => {
   const { user, startImpersonation: authStartImpersonation, impersonation: authImpersonation, endImpersonation: authEndImpersonation } = useAuth();
@@ -208,7 +190,6 @@ export const AdminP1Dashboard = () => {
       else if (activeSubTab === 'test_accounts') fetchTestAccounts();
     }
   }, [user?.id, activeSubTab, verificationFilter, fraudFilter, complianceFilter]);
-
 
   return (
     <div className="space-y-4" data-testid="admin-p1-dashboard">

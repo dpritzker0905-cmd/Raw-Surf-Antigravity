@@ -20,16 +20,11 @@ import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
-
-
-
-
 import { toast } from 'sonner';
 
 import apiClient from '../lib/apiClient';
 
 import { ExactTimeSlotPicker } from './ExactTimeSlotPicker';
-
 
 import { SelfieCapture } from './SelfieCapture';
 
@@ -41,12 +36,8 @@ import ImpactZonePicker from './booking/ImpactZonePicker';
 import BookingPaymentStep from './booking/BookingPaymentStep';
 import BookingSessionSummary from './booking/BookingSessionSummary';
 
-
-
-
 // Extracted helper components
 import { DURATION_PRICES, CrewSplitSection, CrossSellSuggestion, BookingConfirmation } from './booking/ScheduledBookingHelpers';
-
 
 /**
  * Main Scheduled Booking Drawer Component

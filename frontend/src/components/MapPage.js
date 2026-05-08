@@ -6,29 +6,22 @@ import { updateOnDemandMarkers } from './map/onDemandMarkers';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
 import { toast } from 'sonner';
 import useMapActions from '../hooks/useMapActions';
-import { JumpInSessionModal } from './JumpInSessionModal';
 import { supabase } from '../lib/supabase';
 import UnifiedSpotDrawer from './UnifiedSpotDrawer';
-import { RequestProSelfieModal } from './RequestProSelfieModal';
-import { RequestProModal } from './map/RequestProModal';
 import { MapLiveFloatingIsland } from './MapLiveIndicator';
 import DispatchTrackingPanel from './map/DispatchTrackingPanel';
 import FeaturedPhotographersPanel from './map/FeaturedPhotographersPanel';
 import PhotographerBottomSheet from './map/PhotographerBottomSheet';
-import EndSessionModal from './EndSessionModal';
-import ConditionsModal from './ConditionsModal';
 import WaveLoader from './WaveLoader';
-import { GPSSettingsGuide } from './GPSSettingsGuide';
-import { LocationPicker } from './LocationPicker';
 import { MapFilterTabs } from './map/MapFilterTabs';
 import { MapHeader } from './map/MapHeader';
 import MapErrorBoundary from './map/MapErrorBoundary';
 import { IPLocationBanner } from './map/IPLocationBanner';
 import { MapRightControls } from './map/MapRightControls';
 import { NearestSpotCard } from './map/NearestSpotCard';
+import MapPageModals from './map/MapPageModals';
 import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES, FLORIDA_CENTER } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -728,28 +721,13 @@ const MapPageContent = () => {
         userId={user?.id}
       />
 
-      {showJumpInModal && selectedPhotographer && (
-        <JumpInSessionModal
-          photographer={selectedPhotographer}
-          onClose={() => setShowJumpInModal(false)}
-          onSuccess={(_data) => {
-            setShowJumpInModal(false);
-            setBottomSheetOpen(false);
-            toast.success(`Joined ${selectedPhotographer.full_name}'s session!`);
-          }}
-        />
-      )}
-
-      <RequestProModal
-        isOpen={showRequestProModal}
-        onClose={() => {
-          setShowRequestProModal(false);
-          setRequestProSelectedPro(null);
-          setSelectedFriends([]);
-          setFriendSearchQuery('');
-          setShowFriendPicker(false);
-        }}
-        userId={user?.id}
+      <MapPageModals
+        showJumpInModal={showJumpInModal}
+        setShowJumpInModal={setShowJumpInModal}
+        selectedPhotographer={selectedPhotographer}
+        setBottomSheetOpen={setBottomSheetOpen}
+        showRequestProModal={showRequestProModal}
+        setShowRequestProModal={setShowRequestProModal}
         user={user}
         userLocation={userLocation}
         nearestSpot={nearestSpot}
@@ -757,70 +735,36 @@ const MapPageContent = () => {
         onDemandLoading={onDemandLoading}
         friendsList={friendsList}
         friendsLoading={friendsLoading}
-        onSuccess={(dispatchId) => {
-          setActiveDispatchId(dispatchId);
-          setTimeout(() => setShowRequestProSelfieModal(true), 1500);
-        }}
-      />
-
-      <RequestProSelfieModal
-        dispatchId={activeDispatchId}
-        isOpen={showRequestProSelfieModal}
-        onClose={() => setShowRequestProSelfieModal(false)}
-        onSuccess={(_selfieUrl) => {
-          toast.success('Great! Your Pro will be able to spot you easily.');
-        }}
-      />
-
-      <EndSessionModal
-        isOpen={showEndSessionModal}
-        onClose={closeEndSessionModal}
-        onConfirm={handleEndSessionConfirmed}
-        session={currentLiveSession}
-        isLoading={endSessionLoading}
-      />
-
-      <ConditionsModal
-        isOpen={showConditionsModal}
-        onClose={closeConditionsModal}
-        onConfirm={handleConditionsConfirm}
-        spotName={surfSpots.find(s => s.id === goLiveSpotId)?.name || 'Selected Spot'}
-        isLoading={goLiveLoading}
-      />
-
-      <PermissionNudgeDrawer
-        isOpen={showPermissionNudge}
-        onClose={() => setShowPermissionNudge(false)}
-        onRetryLocation={getUserLocation}
-        action={permissionNudgeAction}
-      />
-      
-      <GPSSettingsGuide
-        isOpen={showGPSGuide}
-        onClose={() => setShowGPSGuide(false)}
-        onRetryLocation={getUserLocation}
-        onManualLocation={() => setShowLocationPicker(true)}
-        currentAccuracy={userLocation?.accuracy}
-        isLoading={gpsLoading}
-      />
-      
-      <LocationPicker
-        isOpen={showLocationPicker}
-        onClose={() => setShowLocationPicker(false)}
-        onLocationSelected={(location) => {
-          if (location && isValidLatLng(location.lat, location.lng)) {
-            setUserLocation(location);
-            if (mapInstanceRef.current) {
-              mapInstanceRef.current.setView([location.lat, location.lng], 12);
-            }
-            toast.success('Location set manually!');
-          } else {
-            toast.error('Invalid location selected');
-          }
-        }}
-        currentLocation={userLocation}
-        currentAccuracy={userLocation?.accuracy}
+        setRequestProSelectedPro={setRequestProSelectedPro}
+        setSelectedFriends={setSelectedFriends}
+        setFriendSearchQuery={setFriendSearchQuery}
+        setShowFriendPicker={setShowFriendPicker}
+        setActiveDispatchId={setActiveDispatchId}
+        setShowRequestProSelfieModal={setShowRequestProSelfieModal}
+        showRequestProSelfieModal={showRequestProSelfieModal}
+        activeDispatchId={activeDispatchId}
+        showEndSessionModal={showEndSessionModal}
+        closeEndSessionModal={closeEndSessionModal}
+        handleEndSessionConfirmed={handleEndSessionConfirmed}
+        currentLiveSession={currentLiveSession}
+        endSessionLoading={endSessionLoading}
+        showConditionsModal={showConditionsModal}
+        closeConditionsModal={closeConditionsModal}
+        handleConditionsConfirm={handleConditionsConfirm}
+        goLiveSpotId={goLiveSpotId}
         surfSpots={surfSpots}
+        goLiveLoading={goLiveLoading}
+        showPermissionNudge={showPermissionNudge}
+        setShowPermissionNudge={setShowPermissionNudge}
+        getUserLocation={getUserLocation}
+        permissionNudgeAction={permissionNudgeAction}
+        showGPSGuide={showGPSGuide}
+        setShowGPSGuide={setShowGPSGuide}
+        gpsLoading={gpsLoading}
+        setShowLocationPicker={setShowLocationPicker}
+        showLocationPicker={showLocationPicker}
+        setUserLocation={setUserLocation}
+        mapInstanceRef={mapInstanceRef}
       />
     </div>
   );

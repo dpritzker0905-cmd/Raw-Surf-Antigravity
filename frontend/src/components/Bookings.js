@@ -11,7 +11,7 @@ import { usePersona } from '../contexts/PersonaContext';
 
 import apiClient from '../lib/apiClient';
 
-import { Users, Zap, Radio, History, CalendarClock, UserPlus, Mail, Target, Sparkles, Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Users, Zap, Radio, History, CalendarClock, UserPlus, Mail, Target, Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 import { Card, CardContent } from './ui/card';
 
@@ -34,20 +34,7 @@ import BookingsModals from './bookings/BookingsModals';
 // Role IDs must match Auth.js signup roles exactly
 const SURFER_ROLES = ['Grom', 'Surfer', 'Comp Surfer', 'Pro', 'Hobbyist', 'Grom Parent'];
 
-// Live Savings Badge Component (synced with Map drawer)
-const _LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
-  const savings = generalPrice - livePrice;
-  const _savingsPercent = generalPrice > 0 ? Math.round((savings / generalPrice) * 100) : 0;
-  
-  if (savings <= 0) return null;
-  
-  return (
-    <Badge className={`bg-gradient-to-r from-green-500 to-emerald-500 text-foreground font-bold ${className}`}>
-      <Sparkles className="w-3 h-3 mr-1" />
-      Save ${savings}/photo!
-    </Badge>
-  );
-};
+
 
 export const Bookings = () => {
   const { user, updateUser } = useAuth();
