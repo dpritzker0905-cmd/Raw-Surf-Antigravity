@@ -73,6 +73,10 @@ import { AdminSpotsPanel } from './admin/AdminSpotsPanel';
 import { getFullUrl } from '../utils/media';
 import AdminOverviewTab from './admin/AdminOverviewTab';
 import { AdminComplianceDashboard } from './admin/AdminComplianceDashboard';
+import { AdminAccessControlPanel } from './admin/AdminAccessControlPanel';
+import { AdminPersonaPanel } from './admin/AdminPersonaPanel';
+import { AdminSessionsPanel } from './admin/AdminSessionsPanel';
+import { AdminLogsPanel } from './admin/AdminLogsPanel';
 
 
 
@@ -560,92 +564,14 @@ const UnifiedAdminConsole = () => {
 
         {/* Access Control Tab - Site Access Code */}
         {activeTab === 'access' && (
-          <Card className={cardBgClass}>
-            <CardHeader>
-              <CardTitle className={`${textClass} text-sm flex items-center gap-2`}>
-                <Lock className="w-4 h-4 text-cyan-400" />
-                Site Access Control
-              </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Require access code to view the site during private beta
-              </p>
-            </CardHeader>
-            <CardContent>
-              {!siteSettings ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Enable/Disable Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div>
-                      <p className="text-foreground font-medium">Access Code Required</p>
-                      <p className="text-muted-foreground text-sm">
-                        {siteSettings.access_code_enabled 
-                          ? 'Visitors must enter code to access the site' 
-                          : 'Site is publicly accessible'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => updateSiteSettings({ access_code_enabled: !siteSettings.access_code_enabled })}
-                      disabled={savingSettings}
-                      className={`relative w-14 h-8 rounded-full transition-colors ${
-                        siteSettings.access_code_enabled ? 'bg-cyan-500' : 'bg-muted'
-                      }`}
-                      data-testid="access-code-toggle"
-                    >
-                      <span className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${
-                        siteSettings.access_code_enabled ? 'left-7' : 'left-1'
-                      }`} />
-                    </button>
-                  </div>
-                  
-                  {/* Access Code Input */}
-                  {siteSettings.access_code_enabled && (
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <label className="block text-foreground font-medium mb-2">Access Code</label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={siteSettings.access_code || ''}
-                          onChange={(e) => setSiteSettings(prev => ({ ...prev, access_code: e.target.value.toUpperCase() }))}
-                          placeholder="Enter access code"
-                          className="bg-input border-input text-foreground uppercase tracking-widest font-mono"
-                          data-testid="access-code-input"
-                        />
-                        <Button aria-label="Loader2"
-                          onClick={() => updateSiteSettings({ access_code: siteSettings.access_code })}
-                          disabled={savingSettings}
-                          className="bg-cyan-500 hover:bg-cyan-600"
-                          data-testid="save-access-code-btn"
-                        >
-                          {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
-                        </Button>
-                      </div>
-                      <p className="text-yellow-400 text-xs mt-2">
-                        {String.fromCodePoint(0x26A0, 0xFE0F)} Changing the code will require ALL users to re-enter the new code
-                      </p>
-                    </div>
-                  )}
-                  
-                  {/* Status Indicator */}
-                  <div className={`p-4 rounded-lg border ${
-                    siteSettings.access_code_enabled 
-                      ? 'bg-yellow-500/10 border-yellow-500/30' 
-                      : 'bg-green-500/10 border-green-500/30'
-                  }`}>
-                    <p className={`text-sm font-medium ${
-                      siteSettings.access_code_enabled ? 'text-yellow-400' : 'text-green-400'
-                    }`}>
-                      {siteSettings.access_code_enabled 
-                        ? `${String.fromCodePoint(0x1F512)} Site is protected - Current code: ${siteSettings.access_code || 'Not set'}` 
-                        : `${String.fromCodePoint(0x1F513)} Site is public - Anyone can access`}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <AdminAccessControlPanel
+            siteSettings={siteSettings}
+            setSiteSettings={setSiteSettings}
+            savingSettings={savingSettings}
+            updateSiteSettings={updateSiteSettings}
+            cardBgClass={cardBgClass}
+            textClass={textClass}
+          />
         )}
 
         {/* Compliance Tab - ToS Violations, Appeals, Fraud */}
@@ -705,258 +631,47 @@ const UnifiedAdminConsole = () => {
 
         {/* Persona Tab */}
         {activeTab === 'persona' && (
-          <div className="space-y-4">
-            <p className={`text-sm ${textSecondary} text-center`}>
-              Select a persona to test how different users experience the app
-            </p>
-            
-            <div className="grid grid-cols-1 gap-2">
-              {ALL_PERSONAS.map((persona) => {
-                const isActive = activePersona === persona.id;
-                const roleInfo = getExpandedRoleInfo(persona.id);
-                const colorClass = `text-${roleInfo?.color || 'cyan'}-400`;
-                
-                return (
-                  <button
-                    key={persona.id}
-                    onClick={() => handleSelectPersona(persona)}
-                    className={`p-3 rounded-xl border-2 transition-all duration-200 ${
-                      isActive 
-                        ? 'border-yellow-400 bg-yellow-400/10' 
-                        : `${cardBgClass} hover:border-zinc-500`
-                    }`}
-                    data-testid={`persona-${persona.id.replace(/\s+/g, '-').toLowerCase()}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10 border-2 border-current">
-                        <AvatarFallback className={`bg-muted ${colorClass}`}>
-                          {persona.label.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 text-left">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${textClass}`}>{persona.label}</span>
-                          {isActive && (
-                            <span className="px-2 py-0.5 bg-yellow-400 text-black text-xs font-bold rounded-full">
-                              ACTIVE
-                            </span>
-                          )}
-                        </div>
-                        <p className={`text-xs ${textSecondary}`}>
-                          {roleInfo?.category || 'User'} - {roleInfo?.description || 'Test this role'}
-                        </p>
-                      </div>
-                      {isActive && <Check className="w-5 h-5 text-yellow-400" />}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <AdminPersonaPanel
+            activePersona={activePersona}
+            handleSelectPersona={handleSelectPersona}
+            cardBgClass={cardBgClass}
+            textClass={textClass}
+            textSecondary={textSecondary}
+          />
         )}
 
-        {/* Live Sessions Tab */}
         {activeTab === 'sessions' && (
-          <div className="space-y-4">
-            {loadingPhotographers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-                <span className={`ml-2 text-sm ${textSecondary}`}>Loading data...</span>
-              </div>
-            ) : (
-              <>
-                {/* Force Start Section */}
-                <Card className={`${cardBgClass} border-green-500/30`}>
-                  <CardHeader>
-                    <CardTitle className={`${textClass} text-sm flex items-center gap-2`}>
-                      <Play className="w-4 h-4 text-green-500" />
-                      Force Start Session
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {/* Photographer Selector */}
-                    <div>
-                      <label className={`text-xs ${textSecondary} mb-1 block`}>Photographer</label>
-                      <Input
-                        placeholder="Search photographers..."
-                        value={photographerSearch}
-                        onChange={(e) => setPhotographerSearch(e.target.value)}
-                        className="mb-2 bg-card border-input h-9 text-sm"
-                      />
-                      <select
-                        value={selectedPhotographer}
-                        onChange={(e) => setSelectedPhotographer(e.target.value)}
-                        className="w-full h-10 px-3 rounded-md bg-card border border-input text-foreground text-sm"
-                      >
-                        <option value="">Select photographer...</option>
-                        {filteredPhotographers.map((p) => (
-                          <option key={p.id} value={p.id} disabled={p.is_shooting}>
-                            {p.full_name} {p.is_shooting ? '(LIVE)' : ''} - {p.role}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    {/* Location Selector */}
-                    <div>
-                      <label className={`text-xs ${textSecondary} mb-1 block`}>Surf Spot</label>
-                      <Input
-                        placeholder="Search spots..."
-                        value={spotSearch}
-                        onChange={(e) => setSpotSearch(e.target.value)}
-                        className="mb-2 bg-card border-input h-9 text-sm"
-                      />
-                      <select
-                        value={selectedSpot}
-                        onChange={(e) => setSelectedSpot(e.target.value)}
-                        className="w-full h-10 px-3 rounded-md bg-card border border-input text-foreground text-sm"
-                      >
-                        <option value="">Select surf spot...</option>
-                        {filteredSpots.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} - {s.region}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    {/* Session Price */}
-                    <div>
-                      <label className={`text-xs ${textSecondary} mb-1 block`}>Buy-in Price ($)</label>
-                      <Input
-                        type="number"
-                        value={sessionPrice}
-                        onChange={(e) => setSessionPrice(e.target.value)}
-                        className="bg-card border-input h-9 text-sm w-24"
-                        min="0"
-                      />
-                    </div>
-                    
-                    {/* Media Upload */}
-                    <div>
-                      <label className={`text-xs ${textSecondary} mb-1 block`}>Conditions Media</label>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleMediaSelect}
-                        className="hidden"
-                      />
-                      {mediaPreview ? (
-                        <div className="relative">
-                          {conditionMediaType === 'video' ? (
-                            <video src={mediaPreview} className="w-full h-24 object-cover rounded-lg" controls />
-                          ) : (
-                            <img loading="lazy" decoding="async" src={mediaPreview} alt="Conditions" className="w-full h-24 object-cover rounded-lg" />
-                          )}
-                          <button aria-label="Close"
-                            onClick={clearMedia}
-                            className="absolute top-1 right-1 p-1 bg-black/60 rounded-full"
-                          ><X className="w-4 h-4 text-foreground" />
-                          </button>
-                        </div>
-                      ) : (
-                        <Button aria-label="Upload"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full border-dashed border-input h-16"
-                        >
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Photo/Video
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {/* Notes */}
-                    <div>
-                      <label className={`text-xs ${textSecondary} mb-1 block`}>Spot Notes</label>
-                      <Textarea
-                        placeholder="e.g., 3-4ft, glassy..."
-                        value={spotNotes}
-                        onChange={(e) => setSpotNotes(e.target.value)}
-                        className="bg-card border-input text-sm h-14 resize-none"
-                      />
-                    </div>
-                    
-                    <Button aria-label="Loader2"
-                      onClick={handleForceStart}
-                      disabled={forceStartLoading || !selectedPhotographer || !selectedSpot}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold"
-                    >
-                      {forceStartLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <Play className="w-4 h-4 mr-2" />
-                      )}
-                      Force Start Session
-                    </Button>
-                  </CardContent>
-                </Card>
-                
-                {/* Active Sessions */}
-                <Card className={`${cardBgClass} border-red-500/30`}>
-                  <CardHeader>
-                    <CardTitle className={`${textClass} text-sm flex items-center gap-2`}>
-                      <Square className="w-4 h-4 text-red-500" />
-                      Active Sessions ({activeSessions.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {activeSessions.length === 0 ? (
-                      <p className={`text-sm ${textSecondary} text-center py-4`}>
-                        No active sessions
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {activeSessions.map((session) => (
-                          <div 
-                            key={session.id}
-                            className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 flex items-center gap-3"
-                          >
-                            <Avatar className="w-10 h-10">
-                              <AvatarImage src={session.photographer_avatar} />
-                              <AvatarFallback className="bg-input">
-                                <Camera className="w-4 h-4" />
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-medium text-sm ${textClass} truncate flex items-center gap-2`}>
-                                {session.photographer_name}
-                                <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded animate-pulse">
-                                  LIVE
-                                </span>
-                              </p>
-                              <p className={`text-xs ${textSecondary} flex items-center gap-1`}>
-                                <MapPin className="w-3 h-3" />
-                                {session.spot_name}
-                              </p>
-                            </div>
-                            <Button aria-label="Loader2"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleForceEnd(session.photographer_id)}
-                              disabled={forceEndLoading === session.photographer_id}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              {forceEndLoading === session.photographer_id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Square className="w-3 h-3 mr-1" />
-                                  End
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </div>
+          <AdminSessionsPanel
+            loadingPhotographers={loadingPhotographers}
+            filteredPhotographers={filteredPhotographers}
+            filteredSpots={filteredSpots}
+            selectedPhotographer={selectedPhotographer}
+            setSelectedPhotographer={setSelectedPhotographer}
+            selectedSpot={selectedSpot}
+            setSelectedSpot={setSelectedSpot}
+            photographerSearch={photographerSearch}
+            setPhotographerSearch={setPhotographerSearch}
+            spotSearch={spotSearch}
+            setSpotSearch={setSpotSearch}
+            sessionPrice={sessionPrice}
+            setSessionPrice={setSessionPrice}
+            spotNotes={spotNotes}
+            setSpotNotes={setSpotNotes}
+            conditionMedia={conditionMedia}
+            conditionMediaType={conditionMediaType}
+            mediaPreview={mediaPreview}
+            handleMediaSelect={handleMediaSelect}
+            clearMedia={clearMedia}
+            fileInputRef={fileInputRef}
+            handleForceStart={handleForceStart}
+            forceStartLoading={forceStartLoading}
+            activeSessions={activeSessions}
+            handleForceEnd={handleForceEnd}
+            forceEndLoading={forceEndLoading}
+            cardBgClass={cardBgClass}
+            textClass={textClass}
+            textSecondary={textSecondary}
+          />
         )}
 
         {/* Users Tab */}
@@ -999,32 +714,11 @@ const UnifiedAdminConsole = () => {
 
         {/* Logs Tab */}
         {activeTab === 'logs' && (
-          <Card className={cardBgClass}>
-            <CardHeader>
-              <CardTitle className={`${textClass} text-sm`}>Admin Action Logs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                {logs.map((log) => (
-                  <div key={log.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-lg">
-                    <div className="flex-1">
-                      <p className="text-foreground text-sm">
-                        <span className="text-yellow-400">{log.admin_name || 'Unknown'}</span>
-                        {' '}{log.action?.replace(/_/g, ' ')}{' '}
-                        <span className="text-gray-500">({log.target_type})</span>
-                      </p>
-                    </div>
-                    <span className="text-gray-500 text-xs">
-                      {log.created_at ? new Date(log.created_at).toLocaleString() : ''}
-                    </span>
-                  </div>
-                ))}
-                {logs.length === 0 && (
-                  <p className="text-muted-foreground text-center py-4">No admin logs yet</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <AdminLogsPanel
+            logs={logs}
+            cardBgClass={cardBgClass}
+            textClass={textClass}
+          />
         )}
       </div>
 
