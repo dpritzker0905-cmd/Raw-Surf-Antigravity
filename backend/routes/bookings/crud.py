@@ -97,6 +97,34 @@ async def check_time_slot_conflict(
 
 # ============ PYDANTIC MODELS (shared across booking modules) ============
 
+# NOTE: CrewMember, CreateUserBookingRequest, CancelBookingRequest live in
+# booking_lifecycle.py. Import them from there, NOT from crud.py.
+
+# CreateBookingWithStripeRequest stays here (used by payments.py)
+class CrewMember(BaseModel):
+    user_id: str
+    name: str
+    share_amount: float
+
+class CreateBookingWithStripeRequest(BaseModel):
+    photographer_id: str
+    location: str
+    session_date: str  # ISO format
+    duration: int = 60
+    max_participants: int = 1
+    allow_splitting: bool = False
+    split_mode: str = 'friends_only'
+    crew_members: Optional[List[CrewMember]] = None
+    payment_window_expires: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    description: Optional[str] = None
+    apply_credits: Optional[float] = 0
+    impact_zone_type: Optional[str] = None
+    impact_zone_preset: Optional[str] = None
+    origin_url: str  # For Stripe redirect URLs
+
+
 class JoinBookingRequest(BaseModel):
     payment_method: str = 'credits'
 

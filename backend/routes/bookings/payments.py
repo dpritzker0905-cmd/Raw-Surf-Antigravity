@@ -1,4 +1,4 @@
-﻿"""
+"""
 bookings/payments.py â€” Stripe checkout, crew pay, split payments, crew hub, escrow
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -41,7 +41,6 @@ if STRIPE_API_KEY:
 # Import shared models from crud domain
 from .crud import (
     CrewMember,
-    CreateUserBookingRequest,
     CreateBookingWithStripeRequest,
     JoinBookingRequest,
     InviteFriendRequest,
