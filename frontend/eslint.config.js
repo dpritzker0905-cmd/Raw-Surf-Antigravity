@@ -84,6 +84,15 @@ module.exports = [
     },
   },
   {
+    // Test files — add Jest globals to prevent no-undef errors
+    files: ["src/**/*.test.{js,jsx,ts,tsx}", "src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
+    languageOptions: {
+      globals: {
+        ...globals.jest,
+      },
+    },
+  },
+  {
     // Ignore build artifacts and node_modules
     ignores: ["node_modules/**", "build/**", "public/**", "*.config.js"],
   },

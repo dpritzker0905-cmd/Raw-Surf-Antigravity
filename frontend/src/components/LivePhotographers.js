@@ -72,7 +72,7 @@ export const LivePhotographers = () => {
               >
                 <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden p-[2px]">
                   {user.avatar_url ? (
-                    <img 
+                    <img loading="lazy" 
                       src={getFullUrl(user.avatar_url)} 
                       alt={user.full_name}
                       className="w-full h-full object-cover rounded-full"

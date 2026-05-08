@@ -19,34 +19,16 @@ import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
-
-
-
-
 import { Label } from './ui/label';
 
 import { toast } from 'sonner';
 
-
-
-
-
-
-
 // Tab components extracted for maintainability
 import { LiveSessionsTab, OnDemandTab, ScheduledTab, FindBuddiesTab, PastTab, LiveNowTab, LineupTab, DirectoryTab, SubscriptionsTab } from './bookings/index';
-
-
-
-
-
-
 
 import logger from '../utils/logger';
 import useBookingsActions from '../hooks/useBookingsActions';
 import BookingsModals from './bookings/BookingsModals';
-
-
 
 // Surfer-capable roles that can join sessions
 // Role IDs must match Auth.js signup roles exactly
@@ -66,8 +48,6 @@ const _LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
     </Badge>
   );
 };
-
-
 
 export const Bookings = () => {
   const { user, updateUser } = useAuth();
@@ -105,7 +85,6 @@ export const Bookings = () => {
 
   // loading must be declared before the useEffect that depends on it
   const [loading, setLoading] = useState(true);
-
 
   // Sliding indicator bar position (left + width track the active tab button)
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
@@ -177,7 +156,6 @@ export const Bookings = () => {
       ogTags.forEach(tag => tag.remove());
     };
   }, []);
-
 
   const [bookings, setBookings] = useState([]);
   const [liveSessions, setLiveSessions] = useState([]);
@@ -521,7 +499,6 @@ export const Bookings = () => {
             </CardContent>
           </Card>
         )}
-
 
         {/* Tabs - scrolls with content */}
         <div

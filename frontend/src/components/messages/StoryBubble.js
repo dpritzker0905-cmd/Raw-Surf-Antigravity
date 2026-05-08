@@ -44,7 +44,7 @@ const StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = fa
           <div className="p-0.5 bg-background rounded-full">
             <div className="w-14 h-14 rounded-full overflow-hidden bg-muted relative">
               {story.avatar ? (
-                <img 
+                <img loading="lazy" 
                   src={story.avatar} 
                   alt="" 
                   className="w-full h-full object-cover"

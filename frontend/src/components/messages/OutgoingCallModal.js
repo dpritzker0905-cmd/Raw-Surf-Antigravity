@@ -82,7 +82,7 @@ export default function OutgoingCallModal({
       <div className="relative mb-6">
         <div className="w-32 h-32 rounded-full overflow-hidden ring-4 ring-cyan-400/20 shadow-[0_0_40px_rgba(6,182,212,0.1)]">
           {targetAvatar ? (
-            <img src={targetAvatar} className="w-full h-full object-cover" alt={targetName} />
+            <img loading="lazy" src={targetAvatar} className="w-full h-full object-cover" alt={targetName} />
           ) : (
             <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
               <span className="text-4xl text-white font-bold">

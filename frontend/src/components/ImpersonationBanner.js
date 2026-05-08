@@ -41,7 +41,7 @@ const ImpersonationBanner = () => {
           
           <div className="flex items-center gap-2">
             {targetUser.avatar_url ? (
-              <img 
+              <img loading="lazy" 
                 src={getFullUrl(targetUser.avatar_url)} 
                 alt="" 
                 className="w-8 h-8 rounded-full border-2 border-white/50"

@@ -52,7 +52,7 @@ const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-full overflow-hidden bg-muted relative">
             {avatarWithCacheBust ? (
-              <img 
+              <img loading="lazy" 
                 src={avatarWithCacheBust} 
                 alt="" 
                 className="w-full h-full object-cover"
