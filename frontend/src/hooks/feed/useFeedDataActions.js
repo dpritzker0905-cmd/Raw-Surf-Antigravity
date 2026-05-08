@@ -29,7 +29,8 @@ const useFeedDataActions = ({
     setIsRefreshing(true);
     try {
       const response = await apiClient.get('/posts', {
-        params: { limit: 10 }
+        params: { limit: 10 },
+        timeout: 8000  // 8s timeout — Render cold-starts can take up to 30s
       });
       // New paginated response format: { posts, next_cursor, has_more }
       const data = response.data;
@@ -263,7 +264,8 @@ const useFeedDataActions = ({
   const fetchPosts = async () => {
     try {
       const response = await apiClient.get(`/posts`, {
-        params: { limit: 20 }
+        params: { limit: 10 },
+        timeout: 12000  // 12s timeout for initial load (allows Render wake-up)
       });
       // New paginated response format: { posts, next_cursor, has_more }
       const data = response.data;

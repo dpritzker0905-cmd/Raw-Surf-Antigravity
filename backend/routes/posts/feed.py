@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, load_only
 from typing import List, Optional
 from datetime import datetime, timedelta
 
@@ -144,8 +144,11 @@ async def get_feed(
     """
     Get feed posts with privacy enforcement and cursor-based pagination.
     
-    Performance-optimized: only loads author + spot + last 2 comments.
-    Full reaction/like/collaborator data loaded via GET /posts/{id}.
+    Performance-optimized v79:
+    - Only eager-loads author (load_only: name, avatar, role, username) + spot
+    - Comments fetched in a SEPARATE batch query (top-2 per post) to avoid
+      loading entire comment histories for every post
+    - liked/saved status scoped to this page only
     """
     # First, get the viewer's accepted friends (if viewing user is provided)
     viewer_friend_ids = set()
@@ -177,24 +180,27 @@ async def get_feed(
             cursor_dt = datetime.fromisoformat(cursor.replace('Z', '+00:00'))
         query = query.where(Post.created_at < cursor_dt)
     
-    # OPTIMIZED: Only load author, spot, and comments (last 2 sliced in Python).
-    # Removed: likes (use likes_count column), reactions, collaborators — loaded via single-post endpoint.
+    # v79 OPTIMIZED: Only load author + spot.  Comments loaded separately below.
     result = await db.execute(
         query
         .options(
-            selectinload(Post.author), 
-            selectinload(Post.comments).selectinload(Comment.author),
-            selectinload(Post.spot)
+            selectinload(Post.author).load_only(
+                Profile.id, Profile.full_name, Profile.username,
+                Profile.avatar_url, Profile.role, Profile.is_private
+            ),
+            selectinload(Post.spot).load_only(
+                SurfSpot.id, SurfSpot.name, SurfSpot.region
+            )
         )
         .order_by(Post.created_at.desc())
-        .limit(limit + 5)  # Small buffer for privacy filtering (was limit*2)
+        .limit(limit + 5)  # Small buffer for privacy filtering
     )
     posts = result.scalars().all()
     
-    # Collect post IDs for this page to scope liked/saved queries
+    # Collect post IDs for batch queries
     page_post_ids = [p.id for p in posts]
     
-    # OPTIMIZED: Only check liked/saved status for THIS page's posts, not all user likes
+    # --- Batch: liked/saved status (scoped to THIS page) ---
     liked_post_ids = set()
     saved_post_ids = set()
     if user_id and page_post_ids:
@@ -215,6 +221,62 @@ async def get_feed(
         )
         saved_post_ids = {row[0] for row in saved_result.fetchall()}
     
+    # --- Batch: recent 2 comments per post (single query, not N+1) ---
+    # Uses a window function to rank comments per post by recency
+    from sqlalchemy import literal_column
+    comments_by_post = {}  # post_id -> [CommentResponse, ...]
+    if page_post_ids:
+        row_num = func.row_number().over(
+            partition_by=Comment.post_id,
+            order_by=Comment.created_at.desc()
+        ).label('rn')
+        ranked_subq = (
+            select(
+                Comment.id, Comment.post_id, Comment.author_id,
+                Comment.content, Comment.created_at,
+                Comment.is_edited, Comment.edited_at,
+                row_num
+            )
+            .where(Comment.post_id.in_(page_post_ids))
+            .subquery()
+        )
+        top2_q = (
+            select(ranked_subq)
+            .where(ranked_subq.c.rn <= 2)
+            .order_by(ranked_subq.c.post_id, ranked_subq.c.created_at.asc())
+        )
+        top2_result = await db.execute(top2_q)
+        
+        # Batch-fetch comment author profiles
+        comment_rows = top2_result.fetchall()
+        comment_author_ids = list({r.author_id for r in comment_rows})
+        author_map = {}
+        if comment_author_ids:
+            authors_result = await db.execute(
+                select(Profile).where(Profile.id.in_(comment_author_ids))
+                .options(load_only(
+                    Profile.id, Profile.full_name, Profile.username, Profile.avatar_url
+                ))
+            )
+            for a in authors_result.scalars().all():
+                author_map[a.id] = a
+        
+        for r in comment_rows:
+            author = author_map.get(r.author_id)
+            cr = CommentResponse(
+                id=r.id,
+                post_id=r.post_id,
+                author_id=r.author_id,
+                author_name=author.full_name if author else 'Unknown',
+                author_username=author.username if author else None,
+                author_avatar=author.avatar_url if author else None,
+                content=r.content,
+                created_at=r.created_at,
+                is_edited=r.is_edited or False,
+                edited_at=r.edited_at
+            )
+            comments_by_post.setdefault(r.post_id, []).append(cr)
+    
     response = []
     for p in posts:
         if not p.media_url:
@@ -232,10 +294,6 @@ async def get_feed(
         
         if len(response) >= limit:
             break
-            
-        # Get last 2 comments for inline display
-        recent_comments = sorted(p.comments, key=lambda c: c.created_at, reverse=True)[:2]
-        recent_comments.reverse()
         
         # Get spot data if available
         spot_data = None
@@ -259,7 +317,7 @@ async def get_feed(
             caption=p.caption,
             location=p.location,
             likes_count=p.likes_count or 0,
-            comments_count=p.comments_count or len(p.comments) or 0,
+            comments_count=p.comments_count or 0,
             is_liked_by_user=p.id in liked_post_ids,
             saved=p.id in saved_post_ids,
             reactions=[],  # Loaded on-demand via single post endpoint
@@ -268,20 +326,7 @@ async def get_feed(
             video_duration=p.video_duration,
             was_transcoded=p.was_transcoded or False,
             created_at=p.created_at,
-            recent_comments=[
-                CommentResponse(
-                    id=c.id,
-                    post_id=c.post_id,
-                    author_id=c.author_id,
-                    author_name=c.author.full_name if c.author else 'Unknown',
-                    author_username=c.author.username if c.author else None,
-                    author_avatar=c.author.avatar_url if c.author else None,
-                    content=c.content,
-                    created_at=c.created_at,
-                    is_edited=c.is_edited or False,
-                    edited_at=c.edited_at
-                ) for c in recent_comments
-            ],
+            recent_comments=comments_by_post.get(p.id, []),
             # Session Log Metadata
             session_date=p.session_date,
             session_start_time=p.session_start_time,
