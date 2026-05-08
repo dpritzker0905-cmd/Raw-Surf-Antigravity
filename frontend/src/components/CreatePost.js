@@ -679,12 +679,21 @@ export const CreatePost = () => {
               selectedState={selectedState} setSelectedState={setSelectedState}
               selectedCity={selectedCity} setSelectedCity={setSelectedCity}
               selectedSpot={selectedSpot} setSelectedSpot={setSelectedSpot}
-              locationHierarchy={locationHierarchy} filteredSpots={[]}
-              searchQuery={''} setSearchQuery={() => {}}
+              locationHierarchy={locationHierarchy}
               location={location} setLocation={setLocation}
-              spotSearchLoading={false}
-              cardBg={cardBg} cardBorder={cardBorder}
-              isLight={isLight}
+              nearestSpot={nearestSpot} userLat={userLat} userLon={userLon}
+              gpsLoading={gpsLoading} getGpsLocation={getGpsLocation}
+              recentLocations={recentLocations}
+              knownSpots={knownSpots} allSpots={allSpots}
+              handleHierarchySpotSelect={handleHierarchySpotSelect}
+              handleRecentLocationSelect={handleRecentLocationSelect}
+              handleSpotSelect={handleSpotSelect}
+              fetchConditions={fetchConditions}
+              calculateDistance={calculateDistance}
+              cardBg={cardBg} cardBorder={cardBorder} isLight={isLight}
+              labelClass={labelClass} bgInput={bgInput} borderInput={borderInput} textInput={textInput}
+              selectContentBg={selectContentBg} selectItemClass={selectItemClass}
+              hoverBg={hoverBg} pillBg={pillBg}
             />
 
             {/* Session Conditions (Extracted to create-post/SessionConditionsPanel.js) */}

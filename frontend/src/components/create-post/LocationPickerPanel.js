@@ -1,22 +1,41 @@
-﻿/**
+/**
  * LocationPickerPanel.js - Extracted from CreatePost.js (v61)
  * Hierarchical location/spot picker: Country > State > City > Spot.
+ * 
+ * FIXED (v76): All parent-scope dependencies now received as props.
  */
 import React from 'react';
-import { MapPin, ChevronRight, ChevronDown, Check, Search, Loader2 } from 'lucide-react';
+import { MapPin, ChevronDown, Loader2, Navigation } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const LocationPickerPanel = ({
+  // Toggle state
   showLocationPicker, setShowLocationPicker,
+  // Hierarchy selection state
   selectedCountry, setSelectedCountry,
   selectedState, setSelectedState,
   selectedCity, setSelectedCity,
   selectedSpot, setSelectedSpot,
-  locationHierarchy, filteredSpots,
-  searchQuery, setSearchQuery,
+  // Data
+  locationHierarchy,
   location, setLocation,
-  spotSearchLoading,
-  cardBg, cardBorder,
-  isLight,
+  nearestSpot, userLat, userLon,
+  gpsLoading, getGpsLocation,
+  recentLocations,
+  knownSpots, allSpots,
+  // Handlers
+  handleHierarchySpotSelect,
+  handleRecentLocationSelect,
+  handleSpotSelect,
+  fetchConditions,
+  calculateDistance,
+  // Theme classes
+  cardBg, cardBorder, isLight,
+  labelClass, bgInput, borderInput, textInput,
+  selectContentBg, selectItemClass,
+  hoverBg, pillBg,
 }) => {
   return (
     <>
@@ -35,7 +54,7 @@ const LocationPickerPanel = ({
                   </span>
                   {nearestSpot && userLat && (
                     <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                      ?? {nearestSpot.distance}km
+                      📍 {nearestSpot.distance}km
                     </span>
                   )}
                 </div>
@@ -92,7 +111,7 @@ const LocationPickerPanel = ({
                     <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
                   </div>
 
-                  {/* Hierarchical Pickers: Country ? State ? City ? Spot */}
+                  {/* Hierarchical Pickers: Country → State → City → Spot */}
                   <div className="space-y-2">
                     {/* Country */}
                     <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setSelectedState(''); setSelectedCity(''); }}>
