@@ -11,8 +11,8 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import {
   ArrowLeft, RefreshCw, Camera, Video, Zap, Calendar,
-  Loader2, Check, Percent, Star, MapPin, Shield, CheckCircle,
-  CreditCard, Coins, ChevronRight, Sparkles, Bell, Radio
+  Loader2, Check, Percent, MapPin, Shield, CheckCircle,
+  CreditCard, Coins, Sparkles, Bell
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { ROLE_SETS } from '../constants/roles';

@@ -4,19 +4,16 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ShakaIcon from './social/ShakaIcon';
-import { ModalVideoPlayer, ImageCarousel, CommentItem } from './social/PostModalComponents';
+import { ImageCarousel, CommentItem } from './social/PostModalComponents';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { X, ChevronLeft, ChevronRight, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Play, Pause, Volume2, Volume1, VolumeX, Smile } from 'lucide-react';
-import { toast } from 'sonner';
-import { RichText, CommentText } from './RichText';
+import { X, ChevronLeft, ChevronRight, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Smile } from 'lucide-react';
+import { RichText } from './RichText';
 import { SharePostModal } from './PostMenu';
 import PostMenu from './PostMenu';
-import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { formatTimeAgo, formatDuration } from '../utils/formatTime';
+import { formatTimeAgo } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
 import EmojiPicker from './EmojiPicker';
 import useFocusTrap from '../hooks/useFocusTrap';

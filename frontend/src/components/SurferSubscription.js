@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import { Check, X, Loader2, Calendar, MapPin, Zap, Bell, Shield } from 'lucide-react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 // Import from centralized config - SINGLE SOURCE OF TRUTH
 import { SURFER_PLANS } from '../config/subscriptionPlans.config';
 import logger from '../utils/logger';

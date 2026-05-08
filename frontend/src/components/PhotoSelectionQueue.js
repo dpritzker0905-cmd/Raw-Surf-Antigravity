@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Check, Image, Video, AlertCircle, Loader2, X, Gift, Camera, Timer, Zap, Ban } from 'lucide-react';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 

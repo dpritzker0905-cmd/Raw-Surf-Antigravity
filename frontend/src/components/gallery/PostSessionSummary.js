@@ -6,7 +6,7 @@
  */
 import React, { useState, useMemo } from 'react';
 import {
-  Camera, MapPin, Calendar, Users, Sparkles, Send,
+  Camera, MapPin, Users, Sparkles, Send,
   CheckCircle, AlertTriangle, Loader2, ChevronDown, ChevronUp,
   Image as ImageIcon,
 } from 'lucide-react';

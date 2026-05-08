@@ -1,17 +1,8 @@
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import {
-  DollarSign, Tag, X, Users, MapPin, Calendar, Sparkles, UserCheck, Loader2,
-  Search, Filter, Check, MoreVertical, TrendingUp, ShoppingBag, BarChart3,
-  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw,
-  Image as ImageIcon, Video, Eye, Settings, Trash2, Upload
+import { Loader2, ShoppingBag, BarChart3
 } from 'lucide-react';
-import { getFullUrl } from '../../utils/media';
 
 const SalesDashboardModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,

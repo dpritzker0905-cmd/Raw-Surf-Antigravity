@@ -3,7 +3,7 @@
  * Profile data, social stats, gamification, avatar upload.
  * 13 pure handlers.
  */
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 

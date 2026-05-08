@@ -7,7 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   MapPin, Clock, DollarSign, Camera, Zap, User, Navigation,
-  Check, X, Eye, Loader2, ChevronDown, ChevronUp, Users, MessageCircle
+  Check, X, Eye, Loader2, ChevronDown, ChevronUp, Users
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';

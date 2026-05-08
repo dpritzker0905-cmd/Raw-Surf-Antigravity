@@ -3,7 +3,7 @@
  * Collapsible session conditions form: wave height, period, direction, wind, tide.
  */
 import React from 'react';
-import { Waves, ChevronDown, Navigation, Loader2, Check, Wind, Droplets, Clock, Compass } from 'lucide-react';
+import { Waves, ChevronDown, Navigation, Loader2, Check, Wind } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';

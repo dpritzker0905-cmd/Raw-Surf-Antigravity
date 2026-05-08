@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Crown, Shield, Star, Trash2, Volume2, VolumeX, Loader2, X, Timer } from 'lucide-react';
+import { Crown, X, Timer } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
-} from '../ui/dropdown-menu';
+
 
 // Surfboard colors for each position
 const SURFBOARD_COLORS = [

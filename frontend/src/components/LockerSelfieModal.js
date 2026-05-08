@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import { ScanFace, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import { useLocation } from 'react-router-dom';
 
@@ -10,7 +10,7 @@ import apiClient from '../lib/apiClient';
 
 import { 
 
-  Power, MapPin, Clock, DollarSign, Camera, Zap, Settings, User, Navigation, Check, X, Flame, Bell, Volume2, VolumeX, Loader2, Radio, Eye, Calendar, Square, ChevronDown, ChevronUp, Wallet, History, Info, Waves, Users, MessageCircle, Mic
+  Power, MapPin, Zap, Settings, User, Check, X, Bell, Volume2, VolumeX, Loader2, Radio, Calendar, History
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import {
@@ -28,9 +28,7 @@ import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
-import { Switch } from './ui/switch';
 
-import { NumericStepper } from './ui/numeric-stepper';
 
 import { toast } from 'sonner';
 import useOnDemandActions from '../hooks/useOnDemandActions';
@@ -41,7 +39,6 @@ import { ROLES } from '../constants/roles';
 import { SessionChatDrawer, SessionChatFAB } from './SessionChatDrawer';
 import SessionDetailDrawer from './bookings/SessionDetailDrawer';
 import { useSessionChatSync } from '../hooks/useSessionChatSync';
-import { formatDuration } from '../utils/formatTime';
 
 
 

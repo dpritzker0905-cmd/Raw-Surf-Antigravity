@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Plus, Waves, Clock, MapPin, Star, Trash2, Edit3,
-  ChevronLeft, Loader2, Calendar, Thermometer, Wind, Users,
-  X, Save, Smile, Frown, Meh, Heart, Zap, Sun, CloudRain
+  ChevronLeft, Loader2, Calendar, Thermometer, Wind, Users, Save
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';

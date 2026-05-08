@@ -16,7 +16,7 @@ import {
   Users,
   AlertCircle
 } from 'lucide-react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { HOBBYIST_PLANS } from '../config/subscriptionPlans.config';
 import logger from '../utils/logger';
 

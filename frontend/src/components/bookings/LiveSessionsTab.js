@@ -8,7 +8,7 @@ import { Calendar, Radio, LogOut, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 
 

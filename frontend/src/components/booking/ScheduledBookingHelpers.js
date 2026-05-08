@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import {
-  Camera, MapPin, Clock, DollarSign, Zap, ChevronRight,
-  Check, AlertTriangle, Sparkles, Bell, Gift,
+import { MapPin, Clock, DollarSign, Zap,
+  Check, Sparkles, Bell, Gift,
   X, Loader2, CheckCircle2, Radio, Users,
   UserPlus, Search, Crown, Percent, Award, Plus
 } from 'lucide-react';

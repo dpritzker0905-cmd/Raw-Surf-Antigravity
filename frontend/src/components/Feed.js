@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -23,8 +22,6 @@ import LastUpdatedBanner from './ui/LastUpdatedBanner';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 import { toast } from 'sonner';
 import useFeedActions from '../hooks/useFeedActions';
-import { Button } from './ui/button';
-import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import useSwipeTabs from '../hooks/useSwipeTabs';
 import usePullToRefresh from '../hooks/usePullToRefresh';

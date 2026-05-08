@@ -17,12 +17,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 import apiClient from '../lib/apiClient';
 
-import { 
-  Users, Crown, Lock, Unlock, UserPlus, X, Copy, Send,
+import { Lock, Unlock, UserPlus, X, Copy, Send,
   DollarSign, Clock, MapPin, Loader2, MessageCircle,
-  Globe, UserCheck, Timer, Ban, Search,
-  Sparkles, Zap, Waves, Anchor, Navigation,
-  UserMinus, Settings, ChevronDown, ChevronUp, CheckCircle
+  Globe, UserCheck, Ban, Search, Waves, Anchor, Navigation, Settings
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 

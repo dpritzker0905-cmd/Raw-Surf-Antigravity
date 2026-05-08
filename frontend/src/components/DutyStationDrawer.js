@@ -23,7 +23,7 @@ import { Sheet, SheetContent } from './ui/sheet';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { GpsProximityCheck, OnDemandSpotSelector, StatusCard, ModeSelector, GpsWarningBanner, SelectedSpotDisplay, StatsPreview, QuickActions } from './on-demand/DutyStationComponents';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { SpotSelector } from './SpotSelector';
 import { motion, AnimatePresence } from 'framer-motion';
 import logger from '../utils/logger';

@@ -3,16 +3,14 @@
  * GpsProximityCheck, OnDemandSpotSelector, StatusCard, ModeSelector,
  * GpsWarningBanner, SelectedSpotDisplay, StatsPreview, QuickActions.
  */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  MapPin, MapPinOff, Navigation, Loader2, CheckCircle, CheckCircle2, AlertTriangle,
-  ChevronDown, X, Search, ArrowUp, Zap, Check, XCircle, Users, Settings, ChevronRight, Shield
+  MapPin, MapPinOff, Navigation, Loader2, CheckCircle2, AlertTriangle, Zap, Check, XCircle, Users, Settings, ChevronRight, Shield
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Checkbox } from '../ui/checkbox';
-import { getFullUrl } from '../../utils/media';
 import { motion } from 'framer-motion';
 import { MODE_CONFIG, LIVE_PROXIMITY_MILES, LIVE_PROXIMITY_METERS } from '../DutyStationDrawer';
 

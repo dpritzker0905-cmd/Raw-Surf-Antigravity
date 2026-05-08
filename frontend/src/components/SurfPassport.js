@@ -7,7 +7,7 @@ import {
   X, Users, Target, Sparkles, Navigation, CheckCircle2, AlertCircle,
   Plane, Hotel
 } from 'lucide-react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 

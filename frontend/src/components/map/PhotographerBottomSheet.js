@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, X, Users, MessageCircle } from 'lucide-react';
+import { X, Users, MessageCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { getFullUrl } from '../../utils/media';
 

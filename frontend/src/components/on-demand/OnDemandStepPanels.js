@@ -3,7 +3,7 @@
  * Crew and Crew Payment step panels (~466 lines).
  */
 import React from 'react';
-import { Users, UserPlus, Search, ChevronDown, ChevronUp, X, Loader2, Check, AlertCircle, CreditCard, Coins, DollarSign, Crown, ArrowRight, Mail, Phone, Percent, Gift, MapPin, Plus, ChevronRight, Award, Wallet, Calculator } from 'lucide-react';
+import { X, Loader2, Check, CreditCard, MapPin, Plus, ChevronRight, Award, Wallet, Calculator } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';

@@ -6,7 +6,7 @@
  * - Session Persistence: Stores last known city for comparison
  */
 import { useState, useEffect, useCallback } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 const LAST_CITY_KEY = 'rawsurf_last_known_city';

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../contexts/AuthContext';
 
-import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
+import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -12,24 +12,18 @@ import apiClient from '../lib/apiClient';
 
 import {
 
-  Shield, Zap, Users, DollarSign, Search, Ban, CheckCircle, 
-  Loader2, ChevronDown, ChevronLeft, ChevronRight, Eye, Trash2, UserX, UserCheck, 
-  Crown, Trophy, Radio, MapPin, Camera, Play, Square, Image, Video, 
-  Upload, X, Check, User, FileText, ArrowLeft, Settings, Activity,
-  Megaphone, History, RefreshCw, TrendingUp, PieChart, BarChart3, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock, KeyRound, Scale
+  Shield, Zap, Users, DollarSign, Ban, 
+  Loader2, ChevronLeft, ChevronRight, UserCheck, Trophy, Radio, MapPin, X, ArrowLeft, Activity,
+  Megaphone, History, RefreshCw, Wallet, AlertCircle, Edit, BarChart2,
+  Headphones, Server, Flag, Mail, Layout, Lock, Scale
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 
 import { Button } from './ui/button';
 
-import { Input } from './ui/input';
 
 import { Textarea } from './ui/textarea';
 
-import { Badge } from './ui/badge';
 
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 import {
   Dialog,
@@ -67,10 +61,8 @@ import { AdminCommunicationsDashboard } from './admin/AdminCommunicationsDashboa
 import { AdminContentMgmtDashboard } from './admin/AdminContentMgmtDashboard';
 
 import logger from '../utils/logger';
-import useAdminConsoleActions from '../hooks/useAdminConsoleActions';
 import { AdControlsPanel } from './admin/AdControlsPanel';
 import { AdminSpotsPanel } from './admin/AdminSpotsPanel';
-import { getFullUrl } from '../utils/media';
 import AdminOverviewTab from './admin/AdminOverviewTab';
 import { AdminComplianceDashboard } from './admin/AdminComplianceDashboard';
 import { AdminAccessControlPanel } from './admin/AdminAccessControlPanel';
@@ -777,7 +769,7 @@ const UnifiedAdminConsole = () => {
 // Stat Card Component
 
 // Extracted admin tab panel components
-import { StatCard, UserDetailModal, DropdownBadge, UsersTabContent, AnalyticsTabContent } from './admin/AdminTabPanels';
+import { UserDetailModal, UsersTabContent } from './admin/AdminTabPanels';
 
 
 export default UnifiedAdminConsole;

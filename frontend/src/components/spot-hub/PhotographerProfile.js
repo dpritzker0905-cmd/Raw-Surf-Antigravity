@@ -4,14 +4,12 @@
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Camera, MapPin, Star, ChevronRight, Loader2, Users, Calendar,
-  DollarSign, Award, CheckCircle2, MessageCircle, Eye, Heart
+  Camera, MapPin, Star, Loader2, Users, Calendar
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { motion, AnimatePresence } from 'framer-motion';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';

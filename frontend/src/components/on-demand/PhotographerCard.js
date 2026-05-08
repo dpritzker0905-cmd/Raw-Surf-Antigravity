@@ -3,8 +3,7 @@
  * Extracted from DispatchLobby.js.
  */
 import React from 'react';
-import { Star, Camera, Loader2, CheckCircle, Navigation, XCircle, Search } from 'lucide-react';
-import { Badge } from '../ui/badge';
+import { Camera } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
 const PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) => {

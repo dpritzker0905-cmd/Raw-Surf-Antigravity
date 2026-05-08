@@ -11,9 +11,8 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import {
   Camera, MapPin, Star, Users, Image as ImageIcon,
-  Calendar, ExternalLink, Share2, ArrowLeft, Loader2,
-  CheckCircle, Instagram, Globe, Briefcase, Play,
-  Heart, MessageCircle, ShieldCheck, RefreshCw, Sparkles,
+  Calendar, Share2, ArrowLeft, Loader2,
+  CheckCircle, Instagram, Globe, Briefcase, Play, MessageCircle, ShieldCheck, RefreshCw, Sparkles,
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { ProfileHeaderSkeleton, GallerySkeleton } from './ui/SkeletonVariants';

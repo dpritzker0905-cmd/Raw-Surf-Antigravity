@@ -8,8 +8,8 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import {
-  Sparkles, Loader2, Search, Check, X, UserCheck, Users,
-  ImagePlus, Link2, Calendar, Camera, MapPin, Wand2, Tag, ArrowRight
+  Sparkles, Loader2, Users,
+  ImagePlus, Link2, Camera
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 

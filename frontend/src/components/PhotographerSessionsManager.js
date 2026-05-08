@@ -18,10 +18,6 @@ import {
   Video,
   Tag,
   Upload,
-  AlertTriangle,
-  Check,
-  Search,
-  X,
   ImageIcon
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';

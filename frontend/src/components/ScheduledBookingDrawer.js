@@ -3,7 +3,7 @@
  * Integrates: ExactTimeSlotPicker, Impact Zone coordinates, Account Credit, Crew Split, Confirmation
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,10 +11,8 @@ import { useTheme } from '../contexts/ThemeContext';
 
 import {
 
-  Camera, MapPin, Clock, DollarSign, Zap, ChevronRight, ChevronLeft,
-  Check, AlertTriangle, Star, Wallet, Target, Sparkles, Bell, Gift,
-  Navigation, Map as MapIcon, X, Loader2, CheckCircle2, Radio, CreditCard, Users,
-  UserPlus, Search, Crown, Percent, Anchor, Award, Plus
+  Camera, MapPin, Clock, Zap, ChevronRight, ChevronLeft,
+  Check, Sparkles, Loader2, CheckCircle2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
@@ -22,21 +20,16 @@ import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
-import { Input } from './ui/input';
 
-import { Label } from './ui/label';
 
-import { Slider } from './ui/slider';
 
-import { Switch } from './ui/switch';
 
 import { toast } from 'sonner';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { ExactTimeSlotPicker } from './ExactTimeSlotPicker';
 
-import { SavedCrewSelector } from './SavedCrewSelector';
 
 import { SelfieCapture } from './SelfieCapture';
 
@@ -52,7 +45,7 @@ import BookingSessionSummary from './booking/BookingSessionSummary';
 
 
 // Extracted helper components
-import { DURATION_PRICES, SchedSurfboardAvatar, SchedEmptySeat, SCHED_BOARD_COLORS, CrewSplitSection, CrossSellSuggestion, BookingConfirmation } from './booking/ScheduledBookingHelpers';
+import { DURATION_PRICES, CrewSplitSection, CrossSellSuggestion, BookingConfirmation } from './booking/ScheduledBookingHelpers';
 
 
 /**

@@ -18,15 +18,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Camera, MapPin, Clock, Loader2, Target, Check,
   X, Zap, ChevronDown, ChevronUp, Plus, Award,
-  Wallet, Users, CreditCard, ChevronLeft,
+  Wallet, CreditCard, ChevronLeft,
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import {
 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '../ui/dialog';
-import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';

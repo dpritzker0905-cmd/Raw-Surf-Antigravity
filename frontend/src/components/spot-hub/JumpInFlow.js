@@ -6,14 +6,9 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Camera, MapPin, Clock, DollarSign, Zap, Check, X, Users,
-  ChevronRight, ChevronLeft, Loader2, Star, CreditCard, Crown,
-  UserPlus, Wallet, Radio, Navigation, Shield
+  Camera, Check, Loader2, CreditCard
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { motion, AnimatePresence } from 'framer-motion';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';

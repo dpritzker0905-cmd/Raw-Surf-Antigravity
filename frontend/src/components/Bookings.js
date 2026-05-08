@@ -11,7 +11,7 @@ import { usePersona } from '../contexts/PersonaContext';
 
 import apiClient from '../lib/apiClient';
 
-import { Users, Zap, Radio, History, CalendarClock, UserPlus, Copy, Mail, Target, Sparkles, Search, Loader2, AtSign, Send, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { Users, Zap, Radio, History, CalendarClock, UserPlus, Mail, Target, Sparkles, Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
 import { Card, CardContent } from './ui/card';
 
@@ -43,7 +43,6 @@ import { CrewPaymentModal } from './CrewPaymentModal';
 import { JumpInSessionModal } from './JumpInSessionModal';
 
 import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
 import useBookingsActions from '../hooks/useBookingsActions';
 import InviteModalContent from './bookings/InviteModalContent';
 

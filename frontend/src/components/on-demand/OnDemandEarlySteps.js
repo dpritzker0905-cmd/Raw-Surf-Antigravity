@@ -9,7 +9,6 @@ import React from 'react';
 import { MapPin, Camera, Zap, Clock, ChevronRight, Plus, Check, Bell, Search, Navigation, History } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { Button } from '../ui/button';
 import { getFullUrl } from '../../utils/media';
 import { Loader2 } from 'lucide-react';
 

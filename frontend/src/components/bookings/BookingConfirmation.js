@@ -5,9 +5,8 @@
  * Extracted from ScheduledBookingDrawer.js for maintainability.
  */
 import React from 'react';
-import {
-  Camera, MapPin, Clock, DollarSign, Check, Star, Bell, Gift,
-  Sparkles, ChevronRight, CheckCircle2
+import { MapPin, Clock, DollarSign, Check, Bell, Gift,
+  Sparkles, CheckCircle2
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';

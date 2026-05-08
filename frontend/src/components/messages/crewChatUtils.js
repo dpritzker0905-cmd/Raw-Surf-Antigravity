@@ -3,9 +3,7 @@
  * Reduces CrewChat from 52.6KB to under 50KB.
  */
 import React from 'react';
-import { FileText, Image, File } from 'lucide-react';
-import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
-  const formatFileSize = (bytes) => {
+const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;

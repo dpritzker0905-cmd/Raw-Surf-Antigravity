@@ -1,12 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { X, ChevronLeft, ChevronRight, MapPin, Play, Pause, Camera, Waves, Plus, Loader2, Image, Video, Bell } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
-import { supabase } from '../lib/supabase';
 import LiveStreamViewer from './LiveStreamViewer';
 import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';

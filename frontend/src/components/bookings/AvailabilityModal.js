@@ -1,21 +1,14 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
-import { Textarea } from '../ui/textarea';
 import {
-  Calendar as CalendarIcon, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
-  ChevronDown, ChevronRight, Plus, Settings, Image as ImageIcon, Video,
-  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw,
+  Calendar as CalendarIcon, Check,
   Repeat
 } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { getFullUrl } from '../../utils/media';
 
 const AvailabilityModal = (props) => {
   // Destructure all needed props from parent

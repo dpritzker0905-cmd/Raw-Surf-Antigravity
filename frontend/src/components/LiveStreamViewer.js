@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  X, Radio, Users, Heart, MessageCircle, Send, Loader2, WifiOff,
+  X, Radio, Users, MessageCircle, Send, Loader2, WifiOff,
   ArrowLeft, Share2, UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

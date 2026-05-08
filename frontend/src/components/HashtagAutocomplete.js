@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Hash, TrendingUp, Loader2 } from 'lucide-react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 

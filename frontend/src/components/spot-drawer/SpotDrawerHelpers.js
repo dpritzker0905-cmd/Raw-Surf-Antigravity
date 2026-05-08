@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Camera, Check, Lock, Sparkles, Star, Crown, Trophy } from 'lucide-react';
+import { Camera, Check, Lock, Sparkles, Star, Crown, Trophy } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';

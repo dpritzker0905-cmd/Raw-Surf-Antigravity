@@ -5,23 +5,18 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { MapPin, Loader2, Navigation, Image, Video, Upload, Camera, Megaphone, Waves, ChevronDown, Wind, ArrowUpDown, X, Check, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Clock, Music, VolumeX, Radio } from 'lucide-react';
+import { Loader2, Image, Video, Upload, Camera, Megaphone, X, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Radio } from 'lucide-react';
 import { toast } from 'sonner';
 import useCreatePostActions from '../hooks/useCreatePostActions';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { CreateAdModal } from './CreateAdModal';
 import CreateWaveModal from './CreateWaveModal';
 import EmojiPicker from './EmojiPicker';
 import MentionAutocomplete from './MentionAutocomplete';
 import HashtagAutocomplete from './HashtagAutocomplete';
-import logger from '../utils/logger';
 import GoLiveModal from './GoLiveModal';
 import WebcamCaptureModal from './WebcamCaptureModal';
 import VideoInfoModal from './create-post/VideoInfoModal';

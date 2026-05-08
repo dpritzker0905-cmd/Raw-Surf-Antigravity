@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import { Crown, Shield, Send, UserPlus, Loader2, ChevronDown, Search, UserCircle2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { toast } from 'sonner';
 
 const QuickActionsPanel = ({ 
   lineup, 

@@ -1,25 +1,20 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
-import logger from '../utils/logger';
 import { 
 
   ArrowLeft, Upload, Image as ImageIcon, Video, DollarSign, 
-  Settings, Trash2, Eye, Tag, X, Users,
-  MapPin, Calendar, Sparkles, UserCheck, Loader2,
+  Settings, Trash2, Eye, Users,
+  MapPin, Calendar, Sparkles, Loader2,
   Search, Filter, Check, MoreVertical,
-  TrendingUp, ShoppingBag, BarChart3,
-  Link2, Send, CheckCircle, AlertCircle, ArrowRight, UserPlus, RefreshCw, Globe, Radio,
+  TrendingUp, ShoppingBag, CheckCircle, Globe, Radio,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import {
 
@@ -31,7 +26,6 @@ import {
 } from './ui/dropdown-menu';
 import { toast } from 'sonner';
 import usePhotographerGalleryActions from '../hooks/usePhotographerGalleryActions';
-import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import AssignDrawer from './gallery/AssignDrawerModal';
 import LinkSessionModal from './gallery/LinkSessionModal';

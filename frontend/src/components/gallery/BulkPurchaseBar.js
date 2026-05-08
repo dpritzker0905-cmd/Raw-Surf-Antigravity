@@ -20,7 +20,7 @@ import {
 
 
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 
 
 // Default discount tiers (can be overridden by photographer settings)

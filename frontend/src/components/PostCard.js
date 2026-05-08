@@ -12,7 +12,6 @@ import SessionJoinCard from './SessionJoinCard';
 import { RichText } from './RichText';
 import PostCardMedia from './social/PostCardMedia';
 import { MapPin, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Radio, ShoppingBag, ChevronRight } from 'lucide-react';
-import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
 import { formatTimeAgo } from '../utils/formatTime';
 

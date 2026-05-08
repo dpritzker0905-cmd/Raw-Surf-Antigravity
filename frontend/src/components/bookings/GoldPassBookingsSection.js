@@ -9,7 +9,7 @@
  * Placement: Bookings page, before the main booking tabs
  */
 import React, { useState, useEffect } from 'react';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { 
   Crown, Sparkles, Loader2, ChevronRight, Lock, 
   Calendar, Clock, Camera, ArrowUpRight

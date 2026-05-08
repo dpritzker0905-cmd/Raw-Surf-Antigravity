@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { Waves, Clock, Compass, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, ArrowUp, ArrowDown, Droplets, Calendar, Lock, Crown } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';

@@ -2,8 +2,7 @@
  * surfAlertConstants.js - Shared surf alert configuration constants.
  * Extracted from SurfAlerts.js to reduce component size.
  */
-import { Sunrise, Sun, Sunset, Moon, ArrowUp, ArrowDown, Minus, Waves, Zap, ThumbsUp, AlertTriangle, Activity, Wind } from 'lucide-react';
-import React from 'react';
+import { Sunrise, Sun, Sunset, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
 const TIME_WINDOWS = [
   { id: 'dawn', label: 'Dawn Patrol', icon: Sunrise, time: '5am - 8am', color: 'text-orange-400' },

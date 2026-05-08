@@ -4,18 +4,13 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
 import { Textarea } from '../ui/textarea';
 import {
-  Calendar as CalendarIcon, Clock, MapPin, Users, DollarSign, Camera, Loader2, Check, X,
-  ChevronDown, ChevronRight, ChevronLeft, Plus, Settings, Image as ImageIcon, Video,
-  Sparkles, Tag, Percent, AlertTriangle, Star, ArrowRight, RefreshCw,
+  Calendar as CalendarIcon, Users, X, ChevronLeft, Plus,
   UserPlus, Globe, Mail
 } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
 import { NumericStepper } from '../ui/numeric-stepper';
 

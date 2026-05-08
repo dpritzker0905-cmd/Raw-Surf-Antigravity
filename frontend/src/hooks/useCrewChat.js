@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
-import { formatClockTime, formatDuration } from '../utils/formatTime';
+import { formatClockTime } from '../utils/formatTime';
 
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 const MAX_VOICE_DURATION = 30;

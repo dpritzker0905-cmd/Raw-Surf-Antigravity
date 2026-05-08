@@ -2,27 +2,22 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
-import { MapPin, Camera, Radio, Users, Waves, AlertTriangle, DollarSign, Zap, Check, ArrowLeft, Image, Tag, Sparkles, Star, CreditCard, Coins, Loader2, RefreshCw, ChevronDown, ChevronRight, Calendar, Lock, Crown, Trophy, CheckCircle, ExternalLink, MessageCircle, X } from 'lucide-react';
+import { MapPin, Camera, Users, Waves, AlertTriangle, Check, ArrowLeft, Loader2, ChevronDown, CheckCircle, X } from 'lucide-react';
 
 import { Button } from './ui/button';
 
-import { SpotConditions } from './SpotConditions';
 
-import { SpotVerificationNudge } from './SpotVerificationNudge';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 
 import { Drawer, DrawerContent } from './ui/drawer';
 
-import { Input } from './ui/input';
 
-import { Switch } from './ui/switch';
 
 import { Badge } from './ui/badge';
 
 import { useAuth } from '../contexts/AuthContext';
 
-import { usePersona } from '../contexts/PersonaContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -32,22 +27,19 @@ import { JumpInSessionModal } from './JumpInSessionModal';
 
 import { LockerSelfieModal } from './LockerSelfieModal';
 
-import { ScanFace } from 'lucide-react';
 
 import apiClient from '../lib/apiClient';
 
 import { toast } from 'sonner';
 
 import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
 
 
 
 
 // Extracted sub-components
-import { DRAWER_MODE, CAMERA_AUTHORIZED_KEY, SpotOfTheDayBadge, LiveSavingsBadge, StarRating, ReviewsCarousel, GeofenceUpgradeCTA } from './spot-drawer/SpotDrawerHelpers';
-import { PhotographerProfile, PhotographerProfileContent } from './spot-drawer/PhotographerProfileContent';
-import JumpInFlow from './spot-drawer/JumpInFlow';
+import { DRAWER_MODE } from './spot-drawer/SpotDrawerHelpers';
+import { PhotographerProfileContent } from './spot-drawer/PhotographerProfileContent';
 import SpotReportContent from './spot-drawer/SpotReportContent';
 import SpotSetupPanel from './spot-drawer/SpotSetupPanel';
 

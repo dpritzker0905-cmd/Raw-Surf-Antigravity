@@ -1,5 +1,4 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
 
 const EmptySeat = ({ seatNumber, isLight, onClick }) => {
   const textSecondary = isLight ? 'text-gray-400' : 'text-gray-500';

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  RefreshCw, Camera, Video, Zap, Calendar, Loader2, Check, 
-  CreditCard, Coins, Percent, Clock, X, ChevronRight
+  RefreshCw, Camera, Video, Zap, Calendar, Loader2, Percent
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';

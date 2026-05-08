@@ -15,7 +15,7 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import { 
-  Users, Camera, Lock, Unlock, UserPlus, X, Copy, Send, MapPin,
+  Users, Camera, Lock, Unlock, UserPlus, Copy, Send, MapPin,
   Loader2, MessageCircle, Search, Settings
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';

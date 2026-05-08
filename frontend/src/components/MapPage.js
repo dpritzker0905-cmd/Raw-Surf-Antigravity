@@ -3,12 +3,10 @@ import { initializeMap, recreateMapAtLocation } from './map/mapInitializer';
 import { updateMapMarkers as updateMapMarkersService } from './map/markerManager';
 import { updateFriendMarkers } from './map/friendMarkers';
 import { updateOnDemandMarkers } from './map/onDemandMarkers';
-import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { PermissionNudgeDrawer } from './PermissionNudgeDrawer';
-import { Button } from './ui/button';
 import { toast } from 'sonner';
 import useMapActions from '../hooks/useMapActions';
 import { JumpInSessionModal } from './JumpInSessionModal';
@@ -40,7 +38,6 @@ import { useMarkerClustering } from '../hooks/useMarkerClustering';
 import { useMapState } from '../hooks/useMapState';
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
 import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
 import useDispatchTracking from '../hooks/useDispatchTracking';
 
 const MapPageContent = () => {

@@ -4,7 +4,7 @@
  * and static image display. Includes double-tap-to-like shaka animation.
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Play, ChevronLeft, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX, Pause } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
 const PostCardMedia = ({

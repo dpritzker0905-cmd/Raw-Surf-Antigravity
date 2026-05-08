@@ -11,7 +11,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { AtSign, Check, X, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 

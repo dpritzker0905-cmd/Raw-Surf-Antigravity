@@ -3,7 +3,7 @@
  * Gallery management: upload, pricing, tagging, distribution.
  * ~466 lines, 27 handlers extracted.
  */
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { useEffect, useMemo } from 'react';

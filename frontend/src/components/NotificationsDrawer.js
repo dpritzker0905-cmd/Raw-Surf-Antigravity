@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import apiClient from '../lib/apiClient';
 import { getNotifications, markRead, markAllRead } from '../services/notificationService';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';

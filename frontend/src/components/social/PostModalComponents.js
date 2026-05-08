@@ -2,11 +2,10 @@
  * PostModalComponents.js - Sub-components extracted from PostModal.js.
  * ModalVideoPlayer, ImageCarousel, CommentItem.
  */
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Pause, Volume1, Volume2, VolumeX, Maximize, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { Play, Pause, Volume1, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
-import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
 import { formatTimeAgo, formatDuration } from '../../utils/formatTime';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';

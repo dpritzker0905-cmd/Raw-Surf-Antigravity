@@ -6,7 +6,7 @@
 import React from 'react';
 import {
   UserCheck, AlertTriangle, ExternalLink, Instagram, Globe,
-  FileText, Camera, Award, Link2, Loader2,
+  FileText, Link2, Loader2,
   Gavel, Scale, ThumbsUp, ThumbsDown
 } from 'lucide-react';
 import { Badge } from '../../ui/badge';

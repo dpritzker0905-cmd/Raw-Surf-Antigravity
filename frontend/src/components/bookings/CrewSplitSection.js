@@ -4,13 +4,10 @@
  * 
  * Extracted from ScheduledBookingDrawer.js for maintainability.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Users, UserPlus, Search, Crown, X, DollarSign,
-  Check, Loader2, Plus, Percent, Award
+  Users, UserPlus, Search, Crown, X, Loader2, Plus, Percent, Award
 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';

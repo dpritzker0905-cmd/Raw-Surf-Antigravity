@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { CheckCircle, Loader2, XCircle, ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
 import logger from '../utils/logger';

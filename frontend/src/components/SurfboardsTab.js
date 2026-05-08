@@ -10,7 +10,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import {
   Plus, Edit2, Trash2, X, Loader2, ChevronLeft, ChevronRight,
   Ruler, Calendar, Waves

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../../lib/apiClient';
 import { isProLevelRole, isBusinessRole } from '../../contexts/PersonaContext';
-import { Check, X, Search, Users, Star, Camera, Briefcase, Store, Shield } from 'lucide-react';
+import { Check, X, Users, Star, Camera, Briefcase, Store, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import logger from '../../utils/logger';
 

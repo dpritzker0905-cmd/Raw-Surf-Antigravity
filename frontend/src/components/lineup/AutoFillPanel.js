@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2, RefreshCw, ChevronDown, ChevronUp, UserCircle2, Zap, Users, Send } from 'lucide-react';
+import { Sparkles, Loader2, ChevronDown, ChevronUp, Zap, Users, Send } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';

@@ -7,7 +7,7 @@
  * - Join session directly (triggers crew payment flow)
  */
 import React, { useState } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { Users, DollarSign, Loader2, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';

@@ -6,8 +6,7 @@
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  MapPin, Camera, Radio, Users, Waves, DollarSign,
+import { Camera, Radio, Users, Waves, DollarSign,
   Sparkles, ExternalLink, ChevronRight, MessageCircle
 } from 'lucide-react';
 import { ScanFace } from 'lucide-react';

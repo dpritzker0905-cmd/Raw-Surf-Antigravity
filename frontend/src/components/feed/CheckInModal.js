@@ -3,7 +3,7 @@
  * Self-contained GPS-based surf spot check-in modal with gamification rewards.
  */
 import React from 'react';
-import { MapPin, Flame, Loader2, Navigation, Check, Sparkles } from 'lucide-react';
+import { MapPin, Flame, Loader2, Navigation, Sparkles } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';

@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import { CrewLeaderboard } from './CrewLeaderboard';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
 import { GenericPageSkeleton } from './ui/SkeletonVariants';

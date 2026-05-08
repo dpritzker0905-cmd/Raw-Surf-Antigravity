@@ -1,6 +1,5 @@
 import React from 'react';
-import {
-  Bell, MessageSquare, Heart, UserPlus, Camera, CalendarCheck,
+import { MessageSquare, Heart, UserPlus, Camera, CalendarCheck,
   DollarSign, Mail, VolumeX, Volume2, Activity, Clock
 } from 'lucide-react';
 

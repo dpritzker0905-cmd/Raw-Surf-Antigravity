@@ -14,7 +14,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { CrewLeaderboard } from './CrewLeaderboard';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 

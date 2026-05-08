@@ -10,7 +10,7 @@
  * - #hashtags: Cyan color, navigate to /explore?hashtag={tag}
  * - @mentions: Blue color, navigate to /profile/{username}
  */
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';

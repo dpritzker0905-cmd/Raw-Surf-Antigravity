@@ -6,12 +6,10 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  MapPin, Camera, User, Navigation, Check, X,
-  Loader2, Square, Eye, MessageCircle, Mic
+  MapPin, Camera, User, Navigation, Check, Square, Eye, MessageCircle, Mic
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 import { formatDuration } from '../../utils/formatTime';
 

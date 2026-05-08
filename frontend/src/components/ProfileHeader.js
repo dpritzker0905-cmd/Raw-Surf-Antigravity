@@ -1,10 +1,7 @@
 import React from 'react';
 import {
-  Camera, MapPin, Flame, Waves, Radio, Heart,
-  Users, Shield, Trophy, Ban, Star, Zap,
-  ArrowLeft, Check, Loader2, UserPlus, UserMinus,
-  Instagram, Globe, ExternalLink, Settings, Bookmark,
-  Grid3X3, Play, Image, UserSquare2
+  Camera, MapPin, Flame, Radio, Heart, Trophy, Ban, Check, Loader2, UserPlus, UserMinus,
+  Instagram, Globe, ExternalLink, Settings
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';

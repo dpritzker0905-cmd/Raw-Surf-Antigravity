@@ -8,7 +8,6 @@
  */
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
-import logger from '../utils/logger';
 
 const useRequestProActions = ({
   // Auth

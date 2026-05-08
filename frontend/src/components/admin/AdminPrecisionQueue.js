@@ -3,7 +3,7 @@ import { AlertTriangle, MapPin, Check, X, Loader2, RefreshCw, ExternalLink, Mess
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 
 

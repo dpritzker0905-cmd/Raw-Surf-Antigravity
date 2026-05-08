@@ -4,10 +4,8 @@
  * Extracted from UnifiedSpotDrawer.js for maintainability.
  */
 import React from 'react';
-import { MapPin, Lock, Sparkles, Crown, Zap } from 'lucide-react';
+import { Lock, Crown } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { motion } from 'framer-motion';
 const GeofenceUpgradeCTA = ({ distanceMiles, _visibilityRadius, activePhotographersCount = 0 }) => {
   const navigate = useNavigate();
   

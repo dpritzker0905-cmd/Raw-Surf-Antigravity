@@ -1,12 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiClient from '../../lib/apiClient';
 import {
-  Shield, Zap, Users, DollarSign, Search, Ban, CheckCircle,
-  Loader2, ChevronDown, ChevronLeft, ChevronRight, Eye, Trash2, UserX, UserCheck,
-  Crown, Trophy, Radio, MapPin, Camera, Play, Square, Image, Video,
-  Upload, X, Check, User, FileText, ArrowLeft, Settings, Activity,
-  Megaphone, History, RefreshCw, TrendingUp, PieChart, BarChart3, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock
+  Loader2, Image, Video, X, Check, FileText,
+  Megaphone
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -16,7 +12,6 @@ import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
-import { AdminPrecisionQueue } from './AdminPrecisionQueue';
 
 /**
  * AdControlsPanel - Extracted from UnifiedAdminConsole

@@ -6,9 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import apiClient from '../lib/apiClient';
 
-import { Calendar as CalendarIcon, MapPin, Users, DollarSign, Clock, Check, X, CalendarCheck, CalendarX, History, Plus, Copy, Share2, UserPlus, Globe, Settings, Camera, ChevronLeft, Mail, Link2, Send, Sunrise, Sunset, Sun, Repeat, LayoutGrid, Unlock, Lock, Navigation } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, DollarSign, Clock, Check, X, CalendarCheck, CalendarX, History, Plus, Copy, Share2, UserPlus, Settings, Sunrise, Sunset, Sun, LayoutGrid, Unlock, Lock } from 'lucide-react';
 
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 
@@ -16,19 +15,12 @@ import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 
-import { Input } from './ui/input';
 
-import { Label } from './ui/label';
 
-import { Textarea } from './ui/textarea';
 
-import { Switch } from './ui/switch';
 
-import { NumericStepper } from './ui/numeric-stepper';
 
-import { Calendar } from './ui/calendar';
 
 import { toast } from 'sonner';
 import useBookingManagerActions from '../hooks/useBookingManagerActions';
@@ -37,8 +29,6 @@ import { PhotographerAvailabilityCalendar } from './PhotographerAvailabilityCale
 
 import { PhotographerSessionManager } from './PhotographerSessionManager';
 
-import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
 import EditBookingModal from './bookings/EditBookingModal';
 import AvailabilityModal from './bookings/AvailabilityModal';
 import CrewSplitModal from './bookings/CrewSplitModal';

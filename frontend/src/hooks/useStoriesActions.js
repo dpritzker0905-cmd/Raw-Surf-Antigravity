@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';

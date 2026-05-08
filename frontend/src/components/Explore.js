@@ -5,38 +5,22 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   Search,
-  MapPin,
   Users,
   Image,
-  TrendingUp,
-  Radio,
   X,
   Waves,
   Heart,
-  Trophy,
-  MessageCircle,
-  Camera,
-  Clock,
-  ChevronDown,
   ChevronRight,
   ChevronLeft,
   Navigation,
-  Compass,
-  Loader2,
   Play,
-  Hash,
-  Globe,
-  Archive,
-  FolderOpen
+  Hash
 } from 'lucide-react';
 
 import { Input } from './ui/input';
 
-import { Badge } from './ui/badge';
 
-import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 
-import { getExpandedRoleInfo } from '../contexts/PersonaContext';
 
 import { useConditionsSync, useLiveStreamSync } from '../hooks/useWebSocket';
 
@@ -44,23 +28,13 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import { SocialAdCard } from './SocialAdCard';
 
 import { toast } from 'sonner';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
 
-import ExploreSpotCard from './ExploreSpotCard';
 
-import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
 import { getPopularLocations } from '../utils/countryFlags';
-import ResponsiveImage from './ui/ResponsiveImage';
-import PostMediaPreview from './explore/PostMediaPreview';
-import BrowseMode from './explore/BrowseMode';
-import NearbyMode from './explore/NearbyMode';
 import ExploreWavesTab from './explore/ExploreWavesTab';
-import UserRoleBadge from './explore/UserRoleBadge';
 import useExploreConditions from '../hooks/useExploreConditions';
 import useExploreData from '../hooks/useExploreData';
 import HashtagsTab from './explore/HashtagsTab';

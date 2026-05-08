@@ -9,7 +9,7 @@
  *   - Track replacement for WebGL filtered canvas streams
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import { logger } from '../../utils/logger';
 

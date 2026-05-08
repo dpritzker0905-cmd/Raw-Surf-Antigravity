@@ -5,7 +5,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import {
   Megaphone, Image, Video, X, Upload, Loader2, DollarSign,
   CheckCircle, AlertCircle, ExternalLink, Sparkles

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, Camera, DollarSign, ChevronRight, ChevronDown, Users, MapPin, Loader2, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, WifiOff, Download, Trash2, HardDrive, Image, Wallet } from 'lucide-react';
+import { LogOut, User, Bell, Shield, DollarSign, ChevronRight, ChevronDown, MapPin, Loader2, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, WifiOff, Download, Trash2, HardDrive, Image, Wallet } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
@@ -13,7 +13,6 @@ import apiClient from '../lib/apiClient';
 import { AccountBillingHub } from './settings/AccountBillingHub';
 import { AdCenterPanel } from './settings/AdCenterPanel';
 import useOfflineMode from '../hooks/useOfflineMode';
-import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 
 import { SurfModeCard } from './settings/SurfModeCard';

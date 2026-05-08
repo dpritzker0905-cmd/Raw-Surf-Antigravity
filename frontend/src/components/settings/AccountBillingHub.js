@@ -13,7 +13,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { 
   CreditCard, Trophy, Users, Loader2, Check, 
   Clock, AlertCircle, Waves, UserPlus, Crown, Shield, Coins, Plus

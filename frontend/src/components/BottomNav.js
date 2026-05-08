@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Compass, Plus, Camera, MessageCircle, Waves } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { PhotoToolsDrawer } from './PhotoToolsDrawer';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import useRoutePreloader from '../hooks/useRoutePreloader';

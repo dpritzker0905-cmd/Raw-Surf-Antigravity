@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import {
-  Play, Square, Loader2, MapPin, Camera, Upload, X, Radio
+  Play, Square, Loader2, MapPin, Camera, Upload, X
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';

@@ -2,7 +2,7 @@
  * CrewChat - Real-time messaging for booking coordination
  * Features: Text, Voice (30s max), Images, Quick Actions, Emoji Picker, Reactions
  */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState } from 'react';
 
 import { useParams, useNavigate } from 'react-router-dom';
 
@@ -27,9 +27,8 @@ import {
   EXTENDED_EMOJI_CATEGORIES,
 } from '../constants/emojis';
 
-import logger from '../utils/logger';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import { BACKEND_URL } from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import { formatDuration } from '../utils/formatTime';
 

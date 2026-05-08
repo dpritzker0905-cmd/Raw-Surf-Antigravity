@@ -12,7 +12,7 @@ import {
   Shield, AlertTriangle, Scale, Users, Ban, Clock,
   Check, X, Loader2, ChevronDown, ChevronRight,
   MapPin, Eye, RefreshCw, FileText, Gavel, ExternalLink, MessageSquare,
-  Plus, Trash2, Save, Edit3, ScrollText, Download, Upload, Database
+  Plus, Trash2, Save, ScrollText, Download, Upload, Database
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';

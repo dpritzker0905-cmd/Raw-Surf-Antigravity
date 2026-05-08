@@ -3,7 +3,7 @@
  * Controlled via admin settings - can be disabled when going live
  */
 import React, { useState, useEffect } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { Lock, Loader2, Waves } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';

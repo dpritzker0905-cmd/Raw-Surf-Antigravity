@@ -3,11 +3,11 @@
  * Different options for own posts vs other users' posts
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { 
   Trash2, Edit2, EyeOff, ExternalLink, Share2, Link, Flag, UserMinus, Star, Users,
   Loader2, Pin, MessageSquareOff, UserCircle
@@ -18,8 +18,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogDescription,
-  DialogFooter
+  DialogDescription
 } from './ui/dialog';
 import { 
   Drawer,

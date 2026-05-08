@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Camera, Clock, AlertTriangle, Loader2,
-  Timer, XCircle, CheckCircle, Mail, Hand, UserCircle, X
+  Timer, XCircle, CheckCircle, Mail, UserCircle, X
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 

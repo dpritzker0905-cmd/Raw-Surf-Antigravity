@@ -1,7 +1,7 @@
 /**
  * useWebPSupport.test.js — Unit tests for WebP detection hook.
  */
-import { renderHook, act } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import useWebPSupport from '../../hooks/useWebPSupport';
 import { getOptimizedImageUrl } from '../../hooks/useWebPSupport';
 

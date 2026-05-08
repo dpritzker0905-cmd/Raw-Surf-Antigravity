@@ -11,8 +11,7 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import {
   ShoppingCart, CheckCircle, XCircle, Clock, DollarSign,
-  Loader2, Camera, Package, CreditCard, RefreshCw,
-  ChevronDown
+  Loader2, Camera, Package, CreditCard, RefreshCw
 } from 'lucide-react';
 import logger from '../../utils/logger';
 

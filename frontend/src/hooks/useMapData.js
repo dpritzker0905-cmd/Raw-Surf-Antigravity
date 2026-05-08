@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 

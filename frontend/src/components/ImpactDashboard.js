@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import {
 
   Heart, Target, Search, Users, DollarSign, TrendingUp, Loader2, ExternalLink, Check, Waves, Star, Gift, Settings

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   RefreshCw, Plus, Trash2, Save, Users, Camera, Video, Zap, 
-  Calendar, ChevronDown, ChevronUp, Loader2, ToggleLeft, ToggleRight,
+  Calendar, ChevronDown, ChevronUp, Loader2,
   DollarSign, Percent, ArrowLeft, Eye, EyeOff
 } from 'lucide-react';
 import { Button } from './ui/button';

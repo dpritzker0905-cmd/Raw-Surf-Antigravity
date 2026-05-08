@@ -5,11 +5,10 @@ import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { 
-  Camera, DollarSign, MapPin, Flame, 
-  Grid3X3, Bookmark, UserSquare2, Play, Waves, ExternalLink,
-  Instagram, Globe, Check, Loader2, ArrowLeft,
-  Users, Image, Shield, Trophy, Ban,
-  Star, Zap, Award
+  Camera, DollarSign, Flame, 
+  Grid3X3, Bookmark, UserSquare2, Play, Waves, Loader2, ArrowLeft,
+  Users, Image, Shield, Ban,
+  Star, Zap
 } from 'lucide-react';
 
 // Custom Surfboard Icon Component
@@ -32,28 +31,21 @@ const SurfboardIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 );
 
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import useProfileActions from '../hooks/useProfileActions';
 import { TaggedPhotoModal } from './TaggedPhotoModal';
-import { XPDisplay, BadgeRow } from './GamificationUI';
 import GoLiveModal from './GoLiveModal';
-import { StokedTab } from './StokedTab';
-import { CrewLeaderboard } from './CrewLeaderboard';
 import { PhotographerAvailability } from './PhotographerAvailability';
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
-import { SurfboardsTab } from './SurfboardsTab';
 import { FollowersModal } from './FollowersModal';
-import { ProfileReviewsSection } from './ProfileReviewsSection';
 import logger from '../utils/logger';
 import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import AvatarCropModal from './AvatarCropModal';
 import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
-import TrustSignalBadges from './ui/TrustSignalBadges';
 
 // Extracted hooks
 import { useProfileBlock } from '../hooks/useProfileBlock';
@@ -62,11 +54,8 @@ import { useProfileQuickBook } from '../hooks/useProfileQuickBook';
 
 // Extracted sub-components
 import { ProfileEditModal } from './ProfileEditModal';
-import { ProfileQuickBookModal } from './ProfileQuickBookModal';
 import { ProfileNoteModal } from './ProfileNoteModal';
 import { ProfileBlockModal } from './ProfileBlockModal';
-import { BadgeSection } from './BadgeSection';
-import { MediaGridItem } from './MediaGridItem';
 import ProfileTabContent from './ProfileTabContent';
 import ProfileHeaderSection from './profile/ProfileHeaderSection';
 import ProfileActionButtons from './profile/ProfileActionButtons';

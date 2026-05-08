@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import { 
   Camera, Image, Play, ShoppingCart, Grid, LayoutGrid, MapPin, Check,
   Sparkles, Star, ArrowLeft, User, Lock,
@@ -14,7 +13,6 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { LockerSelfieModal } from './LockerSelfieModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import usePublicGalleryActions from '../hooks/usePublicGalleryActions';
 import { PhotographerAvailability } from './PhotographerAvailability';

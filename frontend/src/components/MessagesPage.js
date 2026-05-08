@@ -4,43 +4,24 @@ import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useSearchParams, useNavigate, useParams, useLocation } from 'react-router-dom';
-import { 
-  Search, Send, ChevronLeft, MoreHorizontal, Check, CheckCheck, 
-  X, Mic, Image, Camera, Play, Edit3, Video, Phone, PhoneCall,
-  Reply, Smile, Heart, Shield, Users, EyeOff, Filter, Star, Store, Briefcase, Pin, BellOff, Mail, Trash2, Clock
-} from 'lucide-react';
-import { Input } from './ui/input';
+
+
 import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+
+
 import { toast } from 'sonner';
-import VoiceRecorder from './VoiceRecorder';
-import WebcamCaptureModal from './WebcamCaptureModal';
 import { supabase } from '../lib/supabase';
 import logger from '../utils/logger';
 import useMessagesActions from '../hooks/useMessagesActions';
-import { getFullUrl, cacheBustUrl } from '../utils/media';
-import GifPicker from './messages/GifPicker';
-import EmojiPicker from './messages/EmojiPicker';
-import EphemeralCountdown from './messages/EphemeralCountdown';
 import ComposeModal from './messages/ComposeModal';
-import ConversationItem from './messages/ConversationItem';
 import usePullToRefresh from '../hooks/usePullToRefresh';
-import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
-import MessageBubble from './messages/MessageBubble';
-import StoryBubble from './messages/StoryBubble';
 import CreateNoteModal from './messages/CreateNoteModal';
 import ViewNoteModal from './messages/ViewNoteModal';
 import ConversationListPanel from './messages/ConversationListPanel';
 import ChatViewPanel from './messages/ChatViewPanel';
-import { ROLES } from '../constants/roles';
 import usePresence from '../hooks/usePresence';
 
-import { getRoleIcon, isProRole, isBusinessRole, getFolders, ShakaIcon } from './messages/messagesHelpers';
+import { getFolders, ShakaIcon } from './messages/messagesHelpers';
 
 
 

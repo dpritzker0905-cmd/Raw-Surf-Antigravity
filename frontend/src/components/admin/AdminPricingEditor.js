@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { 
   DollarSign, 
   Save, 
@@ -13,7 +13,6 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Percent,
   Tag
 } from 'lucide-react';
 import { Button } from '../ui/button';

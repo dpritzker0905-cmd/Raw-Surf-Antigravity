@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { Wallet, CreditCard, ArrowUpRight, ArrowDownLeft, History, Plus, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';

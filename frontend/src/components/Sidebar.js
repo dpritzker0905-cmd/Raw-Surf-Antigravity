@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { Home, Compass, MapPin, Calendar, MessageCircle, Bell, BellRing, User, Settings, LogOut, Camera, Shield, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, ShoppingBag, Heart, Sun, Moon, Waves, Eye, TrendingUp, Zap, Crown, Baby, Lock, Plus, Stamp, Target, Backpack, CreditCard, RefreshCw, BookOpen } from 'lucide-react';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { getUnreadCount } from '../services/notificationService';
 import { SurfPassport } from './SurfPassport';
 import { GlobalSearchBar } from './GlobalSearchBar';

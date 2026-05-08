@@ -7,7 +7,6 @@ import {
   Heart,
   X
 } from 'lucide-react';
-import { getFullUrl } from '../../utils/media';
 import { BACKEND_URL } from '../../lib/apiClient';
 import EphemeralCountdown from './EphemeralCountdown';
 import logger from '../../utils/logger';

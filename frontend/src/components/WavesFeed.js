@@ -4,7 +4,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Heart, MessageCircle, Share2, Volume2, Volume1, VolumeX, Play, ChevronUp, ChevronDown, MapPin, Plus, Loader2 } from 'lucide-react';

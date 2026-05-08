@@ -2,45 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import {
   Camera,
-  Upload,
   X,
-  DollarSign,
   Plus,
   Loader2,
-  Image,
   Check,
-  Video,
-  Play,
-  Settings,
-  Edit3,
   Sparkles,
-  RotateCcw,
   Folder,
   MapPin,
-  Calendar,
   Trash2,
   Copy,
   Radio,
   UserPlus,
-  Droplet,
   ChevronLeft,
-  ChevronDown,
-  ChevronUp,
-  Users,
-  Send,
-  CheckCircle,
-  Link2,
-  ImagePlus
+  Link2
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Input } from './ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
-import { Label } from './ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { toast } from 'sonner';
 import { GalleryGrid } from './GalleryGrid';
 import WatermarkSettings from './WatermarkSettings';
@@ -50,11 +31,8 @@ import { UploadPhotoModal } from './gallery/UploadPhotoModal';
 import { GalleryItemModal } from './gallery/GalleryItemModal';
 import { SessionRosterCard } from './gallery/SessionRosterCard';
 import { PostSessionSummary } from './gallery/PostSessionSummary';
-import { GalleryCard } from './gallery/GalleryCard';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
-import { getFullUrl } from '../utils/media';
-import { TagAssignModal, ThumbnailPickerModal, LinkSessionModal } from './gallery/GalleryModals';
 import { GalleryFolderList } from './gallery/GalleryFolderList';
 
 // Extracted gallery folder modals
@@ -64,7 +42,6 @@ import GromHighlightsCard from './gallery/GromHighlightsCard';
 
 
 
-import { getErrorMessage } from '../utils/errors';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 import useGalleryActions from '../hooks/useGalleryActions';
 import PullToRefreshIndicator from './ui/PullToRefreshIndicator';

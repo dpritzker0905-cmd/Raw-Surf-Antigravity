@@ -1,7 +1,6 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Button } from '../ui/button';
-import { Video, Waves, Radio, HelpCircle, Clock, Music, VolumeX, Play } from 'lucide-react';
+import { Video, HelpCircle, Clock, Music, VolumeX, Play } from 'lucide-react';
 
 const VideoInfoModal = ({ isOpen, onClose, isLight, textPrimaryClass, textSecondaryClass, borderClass }) => {
   return (

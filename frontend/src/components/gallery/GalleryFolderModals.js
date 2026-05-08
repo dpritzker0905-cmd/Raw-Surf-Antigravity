@@ -5,17 +5,14 @@
  *           DeleteFolderModal, MoveFolderModal, CopyFolderModal, AddToGalleryModal
  */
 import React from 'react';
-import {
-  DollarSign, Plus, Loader2, Image, Check, Video, Upload, Camera,
-  Settings, Edit3, Sparkles, RotateCcw, Folder, MapPin,
-  Calendar, Trash2, Copy, Radio, Droplet, ChevronDown, Users,
-  Send, Link2, ImagePlus, AlertTriangle
+import { Plus, Loader2, Image, Upload, Camera,
+  Settings, Edit3, Folder, MapPin,
+  Calendar, Trash2, Copy, Radio, Droplet
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
 

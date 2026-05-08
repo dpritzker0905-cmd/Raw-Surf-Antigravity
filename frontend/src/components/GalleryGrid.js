@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Edit3, Trash2, Check, Loader2, Play, Image, MoreVertical, X } from 'lucide-react';
 import { getFullUrl } from '../utils/media';
 

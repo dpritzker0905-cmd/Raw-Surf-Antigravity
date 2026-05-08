@@ -6,7 +6,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 import { useLocation } from 'react-router-dom';
 
-import apiClient from '../../lib/apiClient';
 import useAdminP1Actions from '../../hooks/useAdminP1Actions';
 import {
   StatusBadge, SeverityBadge,
@@ -19,8 +18,8 @@ import AdminP1TestAccountsTab from './p1/AdminP1TestAccountsTab';
 
 import { UserCheck, Eye, AlertTriangle, Search,
 
-  Loader2, ChevronRight, ExternalLink, Instagram, Globe, FileText, Camera, Award, Link2, RefreshCw, Activity, Calendar, DollarSign, MessageSquare,
-  Flag, Gavel, Ban, Scale, MapPin, ThumbsUp, ThumbsDown, Users, Copy
+  Loader2, ChevronRight, Instagram, Globe, FileText, Camera, Award, RefreshCw, Activity, Calendar, DollarSign, MessageSquare,
+  Flag, Gavel, Users
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 
@@ -28,19 +27,15 @@ import { Button } from '../ui/button';
 
 import { Input } from '../ui/input';
 
-import { Textarea } from '../ui/textarea';
 
 import { Badge } from '../ui/badge';
 
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-import { toast } from 'sonner';
 
-import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 
 

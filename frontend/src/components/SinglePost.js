@@ -2,12 +2,12 @@
  * SinglePost - View a single post with full details
  * Used when navigating directly to /post/:postId
  */
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { ArrowLeft, Loader2, X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { Button } from './ui/button';
 import PostCard from './PostCard';
 import PostMenu, { SharePostModal } from './PostMenu';

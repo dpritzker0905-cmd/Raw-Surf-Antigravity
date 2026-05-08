@@ -3,9 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import { 
-  MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Loader2, Calendar, MessageCircle, Compass,
-  Sun, Lock, Crown, ChevronLeft,
-  Navigation, AlertCircle, Bell
+  MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Calendar, MessageCircle, Compass,
+  Sun, Lock, Crown, ChevronLeft, AlertCircle, Bell
 } from 'lucide-react';
 
 import SpotHubConditionsTab from './spot-hub/SpotHubConditionsTab';
@@ -25,17 +24,14 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import apiClient from '../lib/apiClient';
 
 import { toast } from 'sonner';
 
 import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 
-import logger from '../utils/logger';
 
 import useSpotHubActions from '../hooks/useSpotHubActions';
 import { getThemeTokens } from '../utils/themeTokens';
-import { ROLES } from '../constants/roles';
 import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
 
 

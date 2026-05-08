@@ -1,21 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-  Radio, Clock, Mic, MicOff, Camera, CameraOff, Loader2, AlertTriangle,
-  RefreshCw, MessageCircle, Heart, X, Sparkles,
-  Share2, Eye, Film, Power, Play, ArrowLeft, ChevronRight,
-  Info, TrendingUp, Award, Star, Scissors
+  Radio, CameraOff, AlertTriangle,
+  RefreshCw, X, ArrowLeft, ChevronRight,
+  Info
 } from 'lucide-react';
 import { Button } from './ui/button';
 
-import { Input } from './ui/input';
 
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
 import { useAuth } from '../contexts/AuthContext';
 
 import { useTheme } from '../contexts/ThemeContext';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { toast } from 'sonner';
 
@@ -23,33 +20,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import {
   LiveKitRoom,
-  VideoTrack,
-  useLocalParticipant,
-  useTracks,
-  RoomAudioRenderer,
-  useConnectionState,
-  useDataChannel,
 } from '@livekit/components-react';
-import { WebGLBroadcastController } from './WebGLBroadcastController';
 
 import '@livekit/components-styles';
 
-import { Track, ConnectionState, DataPacket_Kind } from 'livekit-client';
 
 import logger from '../utils/logger';
-import { getFullUrl } from '../utils/media';
-import { HairFilterEngine } from '../utils/HairFilterEngine';
-import { HairFilterPicker } from './HairFilterPicker';
 
 // Extracted sub-components (v46 decomposition)
 import {
   ConnectionQualityBadge,
   getThemeColors,
-  VideoFilterPanel,
-  EmojiBurst,
-  CommentTile,
-  LiveCommentsFeed,
-  QuickReactions,
   EndStreamDialog,
 } from './live/GoLiveSubComponents';
 

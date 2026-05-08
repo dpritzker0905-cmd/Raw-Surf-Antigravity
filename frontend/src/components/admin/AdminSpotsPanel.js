@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../../lib/apiClient';
-import {
-  Shield, Zap, Users, DollarSign, Search, Ban, CheckCircle,
-  Loader2, ChevronDown, ChevronLeft, ChevronRight, Eye, Trash2, UserX, UserCheck,
-  Crown, Trophy, Radio, MapPin, Camera, Play, Square, Image, Video,
-  Upload, X, Check, User, FileText, ArrowLeft, Settings, Activity,
-  Megaphone, History, RefreshCw, TrendingUp, PieChart, BarChart3, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock
+import { Search, CheckCircle,
+  Loader2, Trash2, MapPin,
+  Upload, Settings, RefreshCw
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -15,7 +11,6 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
-import { AdminSpotEditor } from './AdminSpotEditor';
 import { supabase } from '../../lib/supabase';
 
 /**

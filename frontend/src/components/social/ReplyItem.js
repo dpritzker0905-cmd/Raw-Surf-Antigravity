@@ -6,9 +6,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
-import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
-import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
 import { formatTimeAgo } from '../../utils/formatTime';
 
 const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {

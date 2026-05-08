@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import GromLimitedFeed from './GromLimitedFeed';
 import logger from '../utils/logger';
 import { Shield, Lock, Clock, Copy, CheckCircle, ShieldAlert, UserPlus } from 'lucide-react';

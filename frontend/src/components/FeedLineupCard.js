@@ -6,7 +6,7 @@
  */
 import React, { useState } from 'react';
 
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 
 import { useNavigate } from 'react-router-dom';
 

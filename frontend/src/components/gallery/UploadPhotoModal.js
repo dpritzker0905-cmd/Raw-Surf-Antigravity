@@ -12,7 +12,7 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  X, Image, Loader2, Folder, Upload, CheckCircle2, 
+  X, Loader2, Folder, Upload, CheckCircle2, 
   AlertCircle, Camera, Film, Info, ChevronDown, RotateCcw, Plus
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';

@@ -26,7 +26,7 @@ import {
   CollapsibleTrigger,
 } from '../ui/collapsible';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
 

@@ -1,33 +1,23 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import React from 'react';
 
-import { useAuth } from '../contexts/AuthContext';
 
-import { useTheme } from '../contexts/ThemeContext';
 
 import apiClient from '../lib/apiClient';
 
-import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Plus, X, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Search, Navigation, History, Sparkles } from 'lucide-react';
+import { MapPin, Camera, Zap, Clock, ChevronRight, Radio, Award, Calculator, Loader2, Wallet, Check, Bell, CreditCard, Navigation, Sparkles } from 'lucide-react';
 
 import { Button } from './ui/button';
 
-import { Badge } from './ui/badge';
 
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
-import { Input } from './ui/input';
 
 import { toast } from 'sonner';
 
 import { RequestProSelfieModal } from './RequestProSelfieModal';
 
-import { QualityTierBadge } from './gallery/PriceSourceBadge';
 
-import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
-import { ROLES } from '../constants/roles';
-import useHapticFeedback from '../hooks/useHapticFeedback';
-import SurfboardAvatar from './on-demand/SurfboardAvatar';
 import { CrewStepPanel, CrewPaymentStepPanel } from './on-demand/OnDemandStepPanels';
 import { TimingStep, DurationStep, SplitChoiceStep, LocationStep } from './on-demand/OnDemandEarlySteps';
 

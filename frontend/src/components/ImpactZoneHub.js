@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
   Trophy, Target, TrendingUp, Users, Calendar, 
-  ChevronRight, Loader2, Plus, CheckCircle, Clock, Medal,
+  ChevronRight, Plus, CheckCircle, Clock, Medal,
   Flame, Award, Video, MapPin, Star
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -13,7 +13,7 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
-import apiClient, { BACKEND_URL } from '../lib/apiClient';
+import apiClient from '../lib/apiClient';
 import ChallengesTab from './career/ChallengesTab';
 import logger from '../utils/logger';
 import { GenericPageSkeleton } from './ui/SkeletonVariants';

@@ -11,7 +11,7 @@
  * - Countdown timer to lineup close (96hrs before session)
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import apiClient, { BACKEND_URL } from '../../lib/apiClient';
+import apiClient from '../../lib/apiClient';
 import { 
   Users, Clock, MapPin, Calendar, ChevronRight, 
   Loader2, UserPlus, Lock, Unlock, Eye,
