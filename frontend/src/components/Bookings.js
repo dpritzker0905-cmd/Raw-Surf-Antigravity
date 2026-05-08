@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import useSwipeNavigation from '../hooks/useSwipeNavigation';
 
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
@@ -86,15 +87,7 @@ export const Bookings = () => {
   const dragStartXRef = useRef(0);
   const scrollStartRef = useRef(0);
 
-  // Swipe-to-navigate state for mobile tab switching
-  const swipeStartXRef = useRef(0);
-  const swipeStartYRef = useRef(0);
-  const swipeActiveRef = useRef(false);
-  const swipeDragRef = useRef(0);
-  const swipeLockedRef = useRef(false); // true once we commit to horizontal swipe
-  const contentRef = useRef(null);
-  const [slideDirection, setSlideDirection] = useState(null); // 'left' | 'right' | null
-  const [isAnimating, setIsAnimating] = useState(false);
+  // Swipe-to-navigate — uses shared hook (v81)
 
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
@@ -463,6 +456,13 @@ export const Bookings = () => {
     { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw, count: 0 },
   ];
 
+  // Shared swipe hook (v81) — replaces inline touch handlers
+  const { contentRef, swipeHandlers } = useSwipeNavigation({
+    tabs,
+    activeTab,
+    setActiveTab,
+  });
+
   if (loading) {
     return (
       <div className={`flex items-center justify-center min-h-screen ${mainBgClass}`}>
@@ -645,74 +645,9 @@ export const Bookings = () => {
           </div>
         </div>
 
-        {/* Tab Content -- swipeable on mobile with simple fast transition */}
-        <div
-          className="relative overflow-hidden"
-          onTouchStart={(e) => {
-            if (isAnimating) return;
-            swipeStartXRef.current = e.touches[0].clientX;
-            swipeStartYRef.current = e.touches[0].clientY;
-            swipeActiveRef.current = true;
-            swipeLockedRef.current = false;
-            swipeDragRef.current = 0;
-          }}
-          onTouchMove={(e) => {
-            if (!swipeActiveRef.current || isAnimating) return;
-            const dx = e.touches[0].clientX - swipeStartXRef.current;
-            const dy = e.touches[0].clientY - swipeStartYRef.current;
-
-            // Determine direction lock on first significant movement
-            if (!swipeLockedRef.current) {
-              if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
-                // Vertical scroll -- cancel swipe entirely
-                swipeActiveRef.current = false;
-                return;
-              }
-              if (Math.abs(dx) > 10) {
-                swipeLockedRef.current = true;
-              } else {
-                return; // Not enough movement yet
-              }
-            }
-
-            // Prevent vertical scrolling while swiping horizontally
-            e.preventDefault();
-
-            const tabIds = tabs.map(t => t.id);
-            const currentIdx = tabIds.indexOf(activeTab);
-            // Add resistance at edges
-            const atEdge = (dx > 0 && currentIdx === 0) || (dx < 0 && currentIdx === tabIds.length - 1);
-            const dampened = atEdge ? dx * 0.2 : dx;
-            swipeDragRef.current = dampened;
-          }}
-          onTouchEnd={() => {
-            if (!swipeActiveRef.current || isAnimating) {
-              swipeActiveRef.current = false;
-              return;
-            }
-            swipeActiveRef.current = false;
-
-            const dragX = swipeDragRef.current;
-            const MIN_SWIPE = 50;
-            const tabIds = tabs.map(t => t.id);
-            const currentIdx = tabIds.indexOf(activeTab);
-
-            if (Math.abs(dragX) >= MIN_SWIPE && swipeLockedRef.current) {
-              const goingLeft = dragX < 0;
-              const nextIdx = goingLeft ? currentIdx + 1 : currentIdx - 1;
-
-              if (nextIdx >= 0 && nextIdx < tabIds.length) {
-                // Simple instant switch - no multi-stage animation
-                setActiveTab(tabIds[nextIdx]);
-                return;
-              }
-            }
-          }}
-        >
-          <div
-            ref={contentRef}
-            className="space-y-4"
-          >
+        {/* Tab Content -- swipeable via useSwipeNavigation hook (v81) */}
+        <div className="relative overflow-hidden" {...swipeHandlers}>
+          <div ref={contentRef} className="space-y-4">
           {/* The Lineup Tab - Surf Session Lobby */}
           <div style={{ display: activeTab === 'lineup' ? 'block' : 'none' }}>
             <LineupTab
