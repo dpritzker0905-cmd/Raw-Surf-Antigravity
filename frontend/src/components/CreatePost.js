@@ -679,10 +679,10 @@ export const CreatePost = () => {
               selectedState={selectedState} setSelectedState={setSelectedState}
               selectedCity={selectedCity} setSelectedCity={setSelectedCity}
               selectedSpot={selectedSpot} setSelectedSpot={setSelectedSpot}
-              locationHierarchy={locationHierarchy} filteredSpots={filteredSpots}
-              searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+              locationHierarchy={locationHierarchy} filteredSpots={[]}
+              searchQuery={''} setSearchQuery={() => {}}
               location={location} setLocation={setLocation}
-              spotSearchLoading={spotSearchLoading}
+              spotSearchLoading={false}
               cardBg={cardBg} cardBorder={cardBorder}
               isLight={isLight}
             />
