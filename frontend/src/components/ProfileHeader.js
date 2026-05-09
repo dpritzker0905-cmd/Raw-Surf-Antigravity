@@ -376,7 +376,7 @@ export const ProfileHeader = ({
           <>
             <Button
               onClick={() => setShowEditModal(true)}
-              className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground text-sm h-10"
+              className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border shadow-sm font-medium text-sm h-10"
               data-testid="edit-profile-btn"
             >
               Edit profile
