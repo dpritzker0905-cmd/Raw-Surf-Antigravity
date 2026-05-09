@@ -301,9 +301,19 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
         is_muted = conv.is_muted_for_one if is_participant_one else conv.is_muted_for_two
         is_manually_unread = conv.is_unread_for_one if is_participant_one else conv.is_unread_for_two
         
-        # Get last activity by the OTHER user (their most recent message) for online dot
+        # Get last activity by the OTHER user — pick the most recent signal
+        # from their last message in this thread, their profile updated_at, and conversation last_message_at
         other_user_msgs = [m for m in conv.messages if m.sender_id != user_id]
-        other_user_last_active = max((m.created_at for m in other_user_msgs), default=None) if other_user_msgs else None
+        other_user_last_msg = max((m.created_at for m in other_user_msgs), default=None) if other_user_msgs else None
+        activity_signals = [
+            ts for ts in [
+                other_user_last_msg,
+                getattr(other_user, 'updated_at', None) if other_user else None,
+                conv.last_message_at,
+            ]
+            if ts is not None
+        ]
+        other_user_last_active = max(activity_signals) if activity_signals else None
         
         response.append(ConversationResponse(
             id=conv.id,
@@ -420,10 +430,23 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
     is_manually_unread = conversation.is_unread_for_one if is_participant_one else conversation.is_unread_for_two
     
     # Use last message time from this conversation as proxy for "last active"
-    # This is much more accurate than profile.updated_at which only tracks profile edits
+    # Pick the MOST RECENT signal from all available sources:
+    #   1) Other user's last message in this thread
+    #   2) Other user's profile updated_at (captures logins, post edits, profile changes)
+    #   3) Conversation's last_message_at (captures any recent thread activity)
     other_user_msgs = [m for m in conversation.messages if m.sender_id != user_id]
     other_user_last_msg = max((m.created_at for m in other_user_msgs), default=None) if other_user_msgs else None
-    other_user_last_active = other_user_last_msg or (conversation.last_message_at if conversation.last_message_at else None)
+    
+    # Collect all non-None activity signals and pick the most recent
+    activity_signals = [
+        ts for ts in [
+            other_user_last_msg,
+            getattr(other_user, 'updated_at', None) if other_user else None,
+            conversation.last_message_at,
+        ]
+        if ts is not None
+    ]
+    other_user_last_active = max(activity_signals) if activity_signals else None
     
     return ConversationDetailResponse(
         id=conversation.id,

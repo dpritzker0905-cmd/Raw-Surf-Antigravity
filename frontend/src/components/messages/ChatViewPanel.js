@@ -107,10 +107,16 @@ const ChatViewPanel = ({
             ) : isOnline(conversationDetail?.other_user_id || selectedConversation?.other_user_id) ? (
               <span className="text-green-400">&#x25CF; Active now</span>
             ) : (() => {
-              const lastActive = conversationDetail?.other_user_last_active;
-              if (!lastActive) return <span className="text-muted-foreground">Active recently</span>;
-              const lastActiveDate = new Date(lastActive);
-              if (isNaN(lastActiveDate.getTime())) return <span className="text-muted-foreground">Active recently</span>;
+              // Merge last-active signals from both detail + list responses to avoid stale dates
+              const detailActive = conversationDetail?.other_user_last_active;
+              const listActive = selectedConversation?.other_user_last_active || selectedConversation?.last_message_at;
+              const candidates = [detailActive, listActive]
+                .map(t => t ? new Date(t) : null)
+                .filter(d => d && !isNaN(d.getTime()));
+              const lastActiveDate = candidates.length > 0
+                ? new Date(Math.max(...candidates.map(d => d.getTime())))
+                : null;
+              if (!lastActiveDate) return <span className="text-muted-foreground">Active recently</span>;
               const diff = Math.floor((Date.now() - lastActiveDate.getTime()) / 1000);
               if (diff < 3600) return <span className="text-muted-foreground">Active {Math.floor(diff / 60)}m ago</span>;
               if (diff < 86400) return <span className="text-muted-foreground">Active {Math.floor(diff / 3600)}h ago</span>;
