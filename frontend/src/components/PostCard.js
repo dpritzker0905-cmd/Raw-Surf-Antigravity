@@ -300,7 +300,7 @@ const PostCard = ({
                   return false;
                 }}
                 className={`transition-all duration-300 select-none transform ${
-                  post.liked || post.reactions?.some(r => r.user_id === user?.id) || isPressing
+                  post.liked || post.user_reaction || isPressing
                     ? 'scale-110' 
                     : 'hover:scale-105'
                 }`}

@@ -75,6 +75,19 @@ async def unlike_post(post_id: str, user_id: str = Depends(get_user_id_from_jwt_
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
+    # Cross-table cleanup: also remove any PostReaction for this user
+    # to prevent orphaned reactions when the frontend calls unlike
+    reaction_result = await db.execute(
+        select(PostReaction).where(
+            PostReaction.post_id == post_id,
+            PostReaction.user_id == user_id
+        )
+    )
+    existing_reaction = reaction_result.scalar_one_or_none()
+    if existing_reaction:
+        await db.delete(existing_reaction)
+        post.likes_count = max(0, (post.likes_count or 1) - 1)
+    
     # Check if user has liked this post
     like_result = await db.execute(
         select(PostLike).where(
@@ -87,8 +100,8 @@ async def unlike_post(post_id: str, user_id: str = Depends(get_user_id_from_jwt_
     if existing_like:
         await db.delete(existing_like)
         post.likes_count = max(0, post.likes_count - 1)
-        await db.commit()
     
+    await db.commit()
     return {"likes_count": post.likes_count, "is_liked": False, "action": "unliked"}
 
 

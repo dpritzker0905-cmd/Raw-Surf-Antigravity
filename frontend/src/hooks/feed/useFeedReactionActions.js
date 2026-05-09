@@ -39,13 +39,15 @@ const useFeedReactionActions = ({
     const wasLiked = currentPost?.liked;
     const oldCount = currentPost?.likes_count || 0;
     
-    // Optimistic UI update
+    // Optimistic UI update — also clear user_reaction on unlike
+    // (backend cross-table cleanup removes PostReaction too)
     setPosts(prevPosts => prevPosts.map(p =>
       p.id === postId
         ? {
             ...p,
             liked: !wasLiked,
-            likes_count: wasLiked ? Math.max(0, oldCount - 1) : oldCount + 1
+            likes_count: wasLiked ? Math.max(0, oldCount - 1) : oldCount + 1,
+            ...(wasLiked ? { user_reaction: null } : {})
           }
         : p
     ));
@@ -74,7 +76,18 @@ const useFeedReactionActions = ({
 
   const handleShakaTapToggle = (postId) => {
     if (longPressTriggeredRef.current) return;
-    handleLike(postId);
+
+    // If user already has a reaction (emoji or shaka-via-reaction), route
+    // through handleReaction so the backend removes from the PostReaction
+    // table (not PostLike).  Tapping shaka when an emoji is active means
+    // "undo my reaction", so we send the CURRENT emoji to toggle it off.
+    const targetPost = posts.find(p => p.id === postId);
+    const existing = targetPost?.user_reaction;
+    if (existing) {
+      handleReaction(postId, existing.emoji);
+    } else {
+      handleLike(postId);
+    }
   };
 
   const handleShakaPointerDown = (postId, e) => {
@@ -137,17 +150,26 @@ const useFeedReactionActions = ({
     const targetPost = posts.find(p => p.id === postId);
     const currentReaction = targetPost?.user_reaction;
     const isRemoving = currentReaction?.emoji === emoji;
+    const isChanging = currentReaction && !isRemoving;
+    const oldCount = targetPost?.likes_count || 0;
 
-    // Optimistic update
+    // Optimistic update — include likes_count so the counter reacts instantly
     setPosts(prevPosts => prevPosts.map(p => {
       if (p.id !== postId) return p;
       if (isRemoving) {
-        return { ...p, user_reaction: null, liked: false };
+        // Toggle off: clear reaction, decrement count
+        return { ...p, user_reaction: null, liked: false, likes_count: Math.max(0, oldCount - 1) };
       }
+      if (isChanging) {
+        // Swap emoji: no count change (backend replaces row in-place)
+        return { ...p, user_reaction: { emoji, user_id: user.id }, liked: true };
+      }
+      // Brand-new reaction: increment count
       return {
         ...p,
         user_reaction: { emoji, user_id: user.id },
-        liked: true
+        liked: true,
+        likes_count: oldCount + 1
       };
     }));
     setShowReactionPicker(null);
@@ -158,14 +180,21 @@ const useFeedReactionActions = ({
         emoji: emoji
       });
 
+      // Reconcile authoritative likes_count from server so the UI
+      // stays accurate even when cross-table cleanup adjusted the number.
       const action = response.data?.action;
+      const serverCount = response.data?.likes_count;
       if (action === 'removed') {
         setPosts(prevPosts => prevPosts.map(p =>
-          p.id === postId ? { ...p, liked: false } : p
+          p.id === postId
+            ? { ...p, liked: false, user_reaction: null, ...(serverCount != null ? { likes_count: serverCount } : {}) }
+            : p
         ));
       } else if (action === 'added' || action === 'changed') {
         setPosts(prevPosts => prevPosts.map(p =>
-          p.id === postId ? { ...p, liked: true } : p
+          p.id === postId
+            ? { ...p, liked: true, ...(serverCount != null ? { likes_count: serverCount } : {}) }
+            : p
         ));
       }
       
