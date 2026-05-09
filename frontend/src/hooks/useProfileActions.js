@@ -37,7 +37,7 @@ const useProfileActions = ({
   setTabLoading,
 }) => {
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (retryCount = 0) => {
     if (!profileUserId) {
       setLoading(false);
       return;
@@ -60,7 +60,15 @@ const useProfileActions = ({
       }
     } catch (error) {
       logger.error('Failed to load profile:', error);
-      // Only show error toast, don't redirect - let user stay on page
+      // Race condition fix: On own profile, the backend row may not be
+      // committed yet right after signup/login. Retry up to 3 times with
+      // exponential backoff before showing the error toast.
+      if (error.response?.status === 404 && isOwnProfile && retryCount < 3) {
+        const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
+        logger.info(`[ProfileRace] Retry ${retryCount + 1}/3 in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+        return fetchProfile(retryCount + 1);
+      }
       if (error.response?.status === 404) {
         toast.error('User not found');
         navigate('/explore');

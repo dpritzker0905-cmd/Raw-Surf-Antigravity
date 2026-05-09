@@ -24,7 +24,7 @@ const ALL_CATEGORIES = {
   ...ALL_EMOJI_CATEGORIES,
 };
 const CATEGORY_NAMES = Object.keys(ALL_CATEGORIES);
-const TAB_ICONS = { Quick: '?', ...CATEGORY_ICONS };
+const TAB_ICONS = { Quick: '\u{26A1}', ...CATEGORY_ICONS };
 
 // -------------------------------------------------
 //  Shared: Icon-based category tab bar with scroll arrows
@@ -319,11 +319,12 @@ export const CommentInputWithEmoji = ({
   const inputRef = useRef(null);
 
   const handleEmojiSelect = (emoji) => {
+    const safeValue = value || '';
     const input = inputRef.current;
     if (input) {
-      const start = input.selectionStart || value.length;
-      const end = input.selectionEnd || value.length;
-      const newValue = value.slice(0, start) + emoji + value.slice(end);
+      const start = input.selectionStart ?? safeValue.length;
+      const end = input.selectionEnd ?? safeValue.length;
+      const newValue = safeValue.slice(0, start) + emoji + safeValue.slice(end);
       onChange(newValue);
 
       setTimeout(() => {
@@ -331,7 +332,7 @@ export const CommentInputWithEmoji = ({
         input.setSelectionRange(start + emoji.length, start + emoji.length);
       }, 0);
     } else {
-      onChange(value + emoji);
+      onChange(safeValue + emoji);
     }
   };
 
@@ -411,11 +412,12 @@ export const TextareaWithEmoji = ({
   const textareaRef = useRef(null);
 
   const handleEmojiSelect = (emoji) => {
+    const safeValue = value || '';
     const textarea = textareaRef.current;
     if (textarea) {
-      const start = textarea.selectionStart || value.length;
-      const end = textarea.selectionEnd || value.length;
-      const newValue = value.slice(0, start) + emoji + value.slice(end);
+      const start = textarea.selectionStart ?? safeValue.length;
+      const end = textarea.selectionEnd ?? safeValue.length;
+      const newValue = safeValue.slice(0, start) + emoji + safeValue.slice(end);
       onChange(newValue);
 
       setTimeout(() => {
@@ -423,7 +425,7 @@ export const TextareaWithEmoji = ({
         textarea.setSelectionRange(start + emoji.length, start + emoji.length);
       }, 0);
     } else {
-      onChange(value + emoji);
+      onChange(safeValue + emoji);
     }
   };
 

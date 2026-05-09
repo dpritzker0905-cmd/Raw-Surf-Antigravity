@@ -28,7 +28,7 @@ const DM_CATEGORIES = {
 const CATEGORY_NAMES = Object.keys(DM_CATEGORIES);
 
 // Icon map with "Recent" added
-const TAB_ICONS = { Recent: '🕐', ...CATEGORY_ICONS };
+const TAB_ICONS = { Recent: '\u{1F550}', ...CATEGORY_ICONS };
 
 const EmojiPicker = ({ show, onSelect, onClose }) => {
   const [activeCategory, setActiveCategory] = useState('Recent');

@@ -190,6 +190,27 @@ app.add_middleware(
 # Include the main API router with all sub-routers
 app.include_router(api_router)
 
+# ── Health check endpoint for monitoring ──
+import time
+_start_time = time.time()
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for external monitoring (Render, UptimeRobot, etc.)"""
+    import platform
+    uptime_seconds = time.time() - _start_time
+    hours, remainder = divmod(int(uptime_seconds), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return {
+        "status": "healthy",
+        "version": "2.0.0",
+        "uptime": f"{hours}h {minutes}m {seconds}s",
+        "uptime_seconds": round(uptime_seconds, 1),
+        "python_version": platform.python_version(),
+        "environment": os.environ.get("RENDER", "local"),
+    }
+
+
 # Stripe Webhook Handler (kept at root level for proper signature verification)
 @app.post("/api/webhook/stripe")
 async def stripe_webhook(request: Request):
