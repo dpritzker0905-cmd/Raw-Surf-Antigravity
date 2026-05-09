@@ -216,6 +216,14 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
       }
     }
 
+    if (formData.year_acquired !== '' && formData.year_acquired != null) {
+      const year = Number(formData.year_acquired);
+      const currentYear = new Date().getFullYear();
+      if (year < 1900 || year > currentYear + 1) {
+        toast.error(`Year Acquired must be between 1900 and ${currentYear + 1}`); return;
+      }
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -447,6 +455,8 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
             <Label className={textPrimary}>Year Acquired</Label>
             <Input
               type="number"
+              min="1900"
+              max={new Date().getFullYear() + 1}
               value={formData.year_acquired}
               onChange={(e) => setFormData(p => ({ ...p, year_acquired: e.target.value }))}
               placeholder="2024"

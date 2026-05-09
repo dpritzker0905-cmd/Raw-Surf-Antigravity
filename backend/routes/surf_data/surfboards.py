@@ -65,6 +65,16 @@ class SurfboardCreate(BaseModel):
             raise ValueError(f"{info.field_name} must be a non-negative number")
         return v
 
+    @field_validator('year_acquired', mode='before')
+    @classmethod
+    def validate_year(cls, v):
+        if v is not None and v != '':
+            year = int(v)
+            current_year = datetime.now().year
+            if year < 1900 or year > current_year + 1:
+                raise ValueError(f"year_acquired must be between 1900 and {current_year + 1}")
+        return v
+
 
 class SurfboardUpdate(BaseModel):
     name: Optional[str] = None
@@ -98,6 +108,16 @@ class SurfboardUpdate(BaseModel):
     def validate_dimensions(cls, v, info):
         if v is not None and v != '' and float(v) < 0:
             raise ValueError(f"{info.field_name} must be a non-negative number")
+        return v
+
+    @field_validator('year_acquired', mode='before')
+    @classmethod
+    def validate_year(cls, v):
+        if v is not None and v != '':
+            year = int(v)
+            current_year = datetime.now().year
+            if year < 1900 or year > current_year + 1:
+                raise ValueError(f"year_acquired must be between 1900 and {current_year + 1}")
         return v
 
 
