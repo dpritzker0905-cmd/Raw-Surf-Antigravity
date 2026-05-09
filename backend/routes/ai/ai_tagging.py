@@ -96,8 +96,27 @@ async def suggest_surfer_tags(
         for s in surfers if s.avatar_url
     ]
     
-    # Compare faces
-    matches = await compare_faces(data.image_url, profile_photos)
+    # Fetch registered surfboard data for board-based identification
+    from models import Surfboard
+    surfer_ids = [p["id"] for p in profile_photos]
+    board_result = await db.execute(
+        select(Surfboard).where(Surfboard.user_id.in_(surfer_ids))
+    )
+    boards = board_result.scalars().all()
+    surfboard_data = [
+        {
+            "user_id": b.user_id,
+            "brand": b.brand,
+            "model": b.model,
+            "board_type": b.board_type,
+            "length_feet": b.length_feet,
+            "length_inches": b.length_inches,
+        }
+        for b in boards
+    ]
+    
+    # Compare faces + surfboard context
+    matches = await compare_faces(data.image_url, profile_photos, surfboard_data)
     
     # Enrich matches with profile data
     suggested_tags = []
@@ -109,7 +128,8 @@ async def suggest_surfer_tags(
                 "name": profile["name"],
                 "avatar_url": profile["avatar_url"],
                 "confidence": match.get("confidence", "low"),
-                "reasoning": match.get("reasoning", "")
+                "reasoning": match.get("reasoning", ""),
+                "board_match": match.get("board_match", False)
             })
     
     return {
@@ -636,3 +656,135 @@ async def ai_face_match(
         "surfer_name": surfer.full_name,
         "photographer_id": data.photographer_id
     }
+
+
+# ===================== AI Surfboard Scanner =====================
+
+class ScanSurfboardRequest(BaseModel):
+    image_url: Optional[str] = None
+    image_base64: Optional[str] = None
+    surfboard_id: Optional[str] = None  # Link analysis to a specific board
+
+
+@router.post("/ai/scan-surfboard")
+async def scan_surfboard_image(
+    data: ScanSurfboardRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Scan a surfboard photo using AI vision to extract identifying features.
+    Used to build a visual profile for board-based surfer identification
+    in gallery images. Analyzes brand logos, shape, color, fin setup, etc.
+
+    If surfboard_id is provided, stores the analysis on the board record.
+    """
+    if not data.image_url and not data.image_base64:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either image_url or image_base64"
+        )
+
+    # Use analyze_image_with_vision with a board-specific prompt
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    import httpx, base64, os
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="AI service not configured"
+        )
+
+    chat = LlmChat(
+        api_key=api_key,
+        session_id=f"board-scan-{datetime.now(timezone.utc).timestamp()}",
+        system_message=(
+            "You are an expert surfboard analyst. Analyze the surfboard "
+            "in this image and extract identifying features that could "
+            "be used to recognize this board in surf action photos.\n\n"
+            "Return JSON:\n"
+            '{\n'
+            '    "brand": "detected brand/shaper name or null",\n'
+            '    "model": "detected model name or null",\n'
+            '    "board_type": "shortboard|longboard|fish|funboard|gun|'
+            'foamie|other",\n'
+            '    "estimated_length": "e.g. 5\'10\\" or null",\n'
+            '    "color_scheme": ["primary color", "secondary color"],\n'
+            '    "fin_setup": "thruster|quad|twin|single|other or null",\n'
+            '    "tail_shape": "squash|swallow|round|pin|other or null",\n'
+            '    "distinctive_features": ["list of unique visual markers"],\n'
+            '    "condition_notes": "any visible dings, repairs, stickers",\n'
+            '    "confidence": "high/medium/low"\n'
+            "}"
+        )
+    ).with_model("openai", "gpt-4o")
+
+    try:
+        if data.image_base64:
+            img_b64 = data.image_base64
+        else:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(data.image_url, timeout=30)
+                if resp.status_code != 200:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Could not fetch image from URL"
+                    )
+                img_b64 = base64.b64encode(resp.content).decode('utf-8')
+
+        image_content = ImageContent(image_base64=img_b64)
+        user_message = UserMessage(
+            text="Analyze this surfboard image. Return JSON only.",
+            file_contents=[image_content]
+        )
+
+        response = await chat.send_message(user_message)
+
+        # Parse JSON from response
+        try:
+            if "```json" in response:
+                json_str = response.split("```json")[1].split("```")[0].strip()
+            elif "```" in response:
+                json_str = response.split("```")[1].split("```")[0].strip()
+            else:
+                json_str = response.strip()
+            analysis = json.loads(json_str)
+        except json.JSONDecodeError:
+            analysis = {"raw_response": response, "confidence": "low"}
+
+        # If surfboard_id provided, update the board record with AI insights
+        if data.surfboard_id:
+            from models import Surfboard
+            board_result = await db.execute(
+                select(Surfboard).where(Surfboard.id == data.surfboard_id)
+            )
+            board = board_result.scalar_one_or_none()
+            if board:
+                # Update fields the AI detected that were previously empty
+                if not board.brand and analysis.get("brand"):
+                    board.brand = analysis["brand"]
+                if not board.model and analysis.get("model"):
+                    board.model = analysis["model"]
+                if not board.board_type and analysis.get("board_type"):
+                    board.board_type = analysis["board_type"]
+                if not board.fin_setup and analysis.get("fin_setup"):
+                    board.fin_setup = analysis["fin_setup"]
+                if not board.tail_shape and analysis.get("tail_shape"):
+                    board.tail_shape = analysis["tail_shape"]
+                await db.commit()
+                analysis["board_updated"] = True
+            else:
+                analysis["board_updated"] = False
+
+        return {"success": True, "analysis": analysis}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Surfboard scan failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Surfboard analysis failed: {str(e)}"
+        )

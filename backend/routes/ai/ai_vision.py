@@ -105,9 +105,11 @@ Return your analysis as JSON with this structure:
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
 
-async def compare_faces(photo_data: str, profile_photos: List[dict]) -> List[dict]:
+async def compare_faces(photo_data: str, profile_photos: List[dict],
+                        surfboard_data: List[dict] = None) -> List[dict]:
     """
     Compare faces in a photo with profile photos to suggest matches.
+    Optionally includes surfboard quiver data for board-based identification.
     Returns list of potential matches with confidence scores.
     """
     from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
@@ -115,24 +117,59 @@ async def compare_faces(photo_data: str, profile_photos: List[dict]) -> List[dic
     if not OPENAI_API_KEY:
         return []
 
+    # Build surfboard context for each profile
+    board_context = ""
+    if surfboard_data:
+        board_lines = []
+        for bd in surfboard_data:
+            specs = []
+            if bd.get('brand'):
+                specs.append(f"Brand: {bd['brand']}")
+            if bd.get('model'):
+                specs.append(f"Model: {bd['model']}")
+            if bd.get('board_type'):
+                specs.append(f"Type: {bd['board_type']}")
+            if bd.get('length_feet') or bd.get('length_inches'):
+                ft = bd.get('length_feet', '')
+                inch = bd.get('length_inches', '')
+                specs.append(f"Length: {ft}'{inch}\"")
+            if specs:
+                board_lines.append(
+                    f"  - Owner ID {bd['user_id']}: {', '.join(specs)}"
+                )
+        if board_lines:
+            board_context = (
+                "\n\nRegistered surfboards (use board brand/shape/size to "
+                "help confirm identity):\n" + "\n".join(board_lines)
+            )
+
     chat = LlmChat(
         api_key=OPENAI_API_KEY,
         session_id=f"face-compare-{datetime.now().timestamp()}",
-        system_message="""You are helping identify surfers in photos by comparing with their profile photos.
-Given a surf action photo and profile photos, identify which profile photos might match people in the action shot.
-Consider: body type, stance, wetsuit/gear if visible, hair color/style, and any other identifying features.
-Note: This is for tagging assistance only. Be conservative with matches - only suggest high-confidence matches.
-
-Return JSON:
-{
-    "matches": [
-        {
-            "profile_id": "id from the profile list",
-            "confidence": "high/medium/low",
-            "reasoning": "why you think this is a match"
-        }
-    ]
-}"""
+        system_message=(
+            "You are helping identify surfers in photos by comparing with "
+            "their profile photos and registered surfboard data.\n"
+            "Given a surf action photo and profile photos, identify which "
+            "profile photos might match people in the action shot.\n"
+            "Consider: body type, stance, wetsuit/gear if visible, hair "
+            "color/style, and any other identifying features.\n"
+            "IMPORTANT: Also compare the surfboard visible in the action "
+            "shot against the registered surfboard data (brand logos, board "
+            "shape, size, color). A matching board is a strong signal.\n"
+            "Note: This is for tagging assistance only. Be conservative "
+            "with matches - only suggest high-confidence matches.\n\n"
+            "Return JSON:\n"
+            '{\n'
+            '    "matches": [\n'
+            '        {\n'
+            '            "profile_id": "id from the profile list",\n'
+            '            "confidence": "high/medium/low",\n'
+            '            "reasoning": "why you think this is a match",\n'
+            '            "board_match": true or false\n'
+            '        }\n'
+            '    ]\n'
+            '}'
+        )
     ).with_model("openai", "gpt-4o")
 
     try:
@@ -154,9 +191,9 @@ Return JSON:
         image_content = ImageContent(image_base64=main_photo_base64)
         user_message = UserMessage(
             text=f"""Analyze this surf photo. These are the potential surfers to match:
-{profiles_text}
+{profiles_text}{board_context}
 
-Based on any visible features, suggest which profiles might be in this photo.
+Based on any visible features (face, body, wetsuit, AND surfboard), suggest which profiles might be in this photo.
 Return JSON with matches array.""",
             file_contents=[image_content]
         )

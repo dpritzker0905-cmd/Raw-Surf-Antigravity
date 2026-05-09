@@ -207,6 +207,15 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
   };
   
   const handleSubmit = async () => {
+    // Client-side validation: reject negative dimensions
+    const dimChecks = { length_feet: 'Length (ft)', length_inches: 'Length (in)',
+      width_inches: 'Width', thickness_inches: 'Thickness', volume_liters: 'Volume' };
+    for (const [key, label] of Object.entries(dimChecks)) {
+      if (formData[key] !== '' && formData[key] != null && Number(formData[key]) < 0) {
+        toast.error(`${label} must be a positive number`); return;
+      }
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -316,6 +325,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
               <div className="col-span-1">
                 <Input
                   type="number"
+                  min="0"
                   value={formData.length_feet}
                   onChange={(e) => setFormData(p => ({ ...p, length_feet: e.target.value }))}
                   placeholder="5"
@@ -326,6 +336,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
               <div className="col-span-1">
                 <Input aria-label="10"
                   type="number"
+                  min="0"
                   value={formData.length_inches}
                   onChange={(e) => setFormData(p => ({ ...p, length_inches: e.target.value }))}
                   placeholder="10"
@@ -336,6 +347,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
               <div className="col-span-1">
                 <Input aria-label="19.5"
                   type="number"
+                  min="0"
                   step="0.25"
                   value={formData.width_inches}
                   onChange={(e) => setFormData(p => ({ ...p, width_inches: e.target.value }))}
@@ -347,6 +359,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
               <div className="col-span-1">
                 <Input aria-label="2.5"
                   type="number"
+                  min="0"
                   step="0.125"
                   value={formData.thickness_inches}
                   onChange={(e) => setFormData(p => ({ ...p, thickness_inches: e.target.value }))}
@@ -358,6 +371,7 @@ const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
               <div className="col-span-1">
                 <Input aria-label="28.5"
                   type="number"
+                  min="0"
                   step="0.1"
                   value={formData.volume_liters}
                   onChange={(e) => setFormData(p => ({ ...p, volume_liters: e.target.value }))}

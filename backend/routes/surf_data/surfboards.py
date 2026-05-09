@@ -4,23 +4,32 @@ Surfboard Collection Routes
 - Photo management
 - Future: Marketplace integration
 """
-
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime, timezone
 
 from database import get_db
 from models import Surfboard, Profile
 from core.security import get_user_id_from_jwt_or_query
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/surfboards", tags=["surfboards"])
 
 
 # ============ PYDANTIC MODELS ============
+
+def _validate_non_negative(value, field_name: str):
+    """Reject negative numbers for physical dimensions."""
+    if value is not None and value < 0:
+        raise ValueError(f"{field_name} must be a non-negative number")
+    return value
+
 
 class SurfboardCreate(BaseModel):
     name: Optional[str] = None
@@ -42,6 +51,20 @@ class SurfboardCreate(BaseModel):
     photo_urls: Optional[List[str]] = []
     primary_photo_index: Optional[int] = 0
 
+    @field_validator('length_feet', 'length_inches', mode='before')
+    @classmethod
+    def validate_length(cls, v, info):
+        if v is not None and v != '' and int(v) < 0:
+            raise ValueError(f"{info.field_name} must be a non-negative number")
+        return v
+
+    @field_validator('width_inches', 'thickness_inches', 'volume_liters', 'purchase_price', mode='before')
+    @classmethod
+    def validate_dimensions(cls, v, info):
+        if v is not None and v != '' and float(v) < 0:
+            raise ValueError(f"{info.field_name} must be a non-negative number")
+        return v
+
 
 class SurfboardUpdate(BaseModel):
     name: Optional[str] = None
@@ -62,6 +85,20 @@ class SurfboardUpdate(BaseModel):
     purchase_price: Optional[float] = None
     photo_urls: Optional[List[str]] = None
     primary_photo_index: Optional[int] = None
+
+    @field_validator('length_feet', 'length_inches', mode='before')
+    @classmethod
+    def validate_length(cls, v, info):
+        if v is not None and v != '' and int(v) < 0:
+            raise ValueError(f"{info.field_name} must be a non-negative number")
+        return v
+
+    @field_validator('width_inches', 'thickness_inches', 'volume_liters', 'purchase_price', mode='before')
+    @classmethod
+    def validate_dimensions(cls, v, info):
+        if v is not None and v != '' and float(v) < 0:
+            raise ValueError(f"{info.field_name} must be a non-negative number")
+        return v
 
 
 class SurfboardResponse(BaseModel):
@@ -196,8 +233,8 @@ async def get_surfboard(
 
 @router.post("/")
 async def create_surfboard(
+    data: SurfboardCreate,
     user_id: str = Depends(get_user_id_from_jwt_or_query),
-    data: SurfboardCreate = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Add a new surfboard to user's quiver"""
@@ -208,34 +245,44 @@ async def create_surfboard(
     if not user_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Create surfboard
-    board = Surfboard(
-        user_id=user_id,
-        name=data.name if data else None,
-        brand=data.brand if data else None,
-        model=data.model if data else None,
-        length_feet=data.length_feet if data else None,
-        length_inches=data.length_inches if data else None,
-        width_inches=data.width_inches if data else None,
-        thickness_inches=data.thickness_inches if data else None,
-        volume_liters=data.volume_liters if data else None,
-        board_type=data.board_type if data else None,
-        fin_setup=data.fin_setup if data else None,
-        tail_shape=data.tail_shape if data else None,
-        construction=data.construction if data else None,
-        description=data.description if data else None,
-        condition=data.condition if data else None,
-        year_acquired=data.year_acquired if data else None,
-        purchase_price=data.purchase_price if data else None,
-        photo_urls=data.photo_urls if data else [],
-        primary_photo_index=data.primary_photo_index if data else 0
-    )
+    # Clean empty strings to None to prevent DB issues
+    def clean(val):
+        if isinstance(val, str) and val.strip() == '':
+            return None
+        return val
     
-    db.add(board)
-    await db.commit()
-    await db.refresh(board)
-    
-    return surfboard_to_response(board)
+    try:
+        board = Surfboard(
+            user_id=user_id,
+            name=clean(data.name),
+            brand=clean(data.brand),
+            model=clean(data.model),
+            length_feet=data.length_feet,
+            length_inches=data.length_inches,
+            width_inches=data.width_inches,
+            thickness_inches=data.thickness_inches,
+            volume_liters=data.volume_liters,
+            board_type=clean(data.board_type),
+            fin_setup=clean(data.fin_setup),
+            tail_shape=clean(data.tail_shape),
+            construction=clean(data.construction),
+            description=clean(data.description),
+            condition=clean(data.condition),
+            year_acquired=data.year_acquired,
+            purchase_price=data.purchase_price,
+            photo_urls=data.photo_urls or [],
+            primary_photo_index=data.primary_photo_index or 0
+        )
+        
+        db.add(board)
+        await db.commit()
+        await db.refresh(board)
+        
+        return surfboard_to_response(board)
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to create surfboard for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to save surfboard: {str(e)}")
 
 
 @router.patch("/{board_id}")
