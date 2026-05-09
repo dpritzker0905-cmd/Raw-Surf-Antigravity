@@ -20,16 +20,20 @@ router = APIRouter()
 
 from .sessions import router as sessions_router
 from .lifecycle import router as lifecycle_router
+from .dispatch_transitions import router as dispatch_transitions_router
 from .exceptions import router as exceptions_router
 from .status import router as status_router
 from .crew import router as crew_router
 from .boost import router as boost_router
 from .progress import router as progress_router
+from .dispatch_matching import router as dispatch_matching_router
 
 router.include_router(sessions_router)
 router.include_router(lifecycle_router)
+router.include_router(dispatch_transitions_router)
 router.include_router(exceptions_router)
 router.include_router(status_router)
 router.include_router(crew_router)
 router.include_router(boost_router)
 router.include_router(progress_router)
+router.include_router(dispatch_matching_router)
