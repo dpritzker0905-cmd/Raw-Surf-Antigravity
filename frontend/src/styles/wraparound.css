@@ -1,5 +1,5 @@
 /* ==========================================================================
-   WRAPAROUND ANIMATION ENGINE ("True Liquid Chroma / Caustic Wave")
+   WRAPAROUND ANIMATION ENGINE ("Fluid Aurora / True Liquid")
    ========================================================================== */
 
 :root {
@@ -44,103 +44,64 @@
 }
 
 /* ==========================================================================
-   MODE 1: Light Mode ("Orthogonal Ocean Glint")
-   True rippling wave using crossing NW-SE and NE-SW layers plus a radial sun-glint.
+   MODE 1: Light Mode ("Organic Ocean Swell")
+   Eliminates all straight lines by using massive, overlapping radial blobs.
    ========================================================================== */
 :root, .light {
   --laser-pattern: 
-    /* Layer 1: NW to SE Ripple */
-    linear-gradient(135deg, 
-      rgba(255, 255, 255, 0) 10%, 
-      rgba(142, 197, 70, 0.25) 40%, 
-      rgba(255, 255, 255, 0.9) 50%, 
-      rgba(142, 197, 70, 0.25) 60%, 
-      rgba(255, 255, 255, 0) 90%
-    ),
-    /* Layer 2: NE to SW Intersecting Caustic */
-    linear-gradient(225deg, 
-      rgba(255, 255, 255, 0) 10%, 
-      rgba(0, 180, 216, 0.15) 40%, 
-      rgba(255, 255, 255, 0.7) 50%, 
-      rgba(0, 180, 216, 0.15) 60%, 
-      rgba(255, 255, 255, 0) 90%
-    ),
-    /* Layer 3: Soft Radial Orb (Breaks straight lines) */
-    radial-gradient(circle at 50% 50%, 
-      rgba(255, 255, 255, 0.8) 0%, 
-      rgba(142, 197, 70, 0.2) 30%, 
-      transparent 60%
-    );
+    /* Layer 1: The Green Wash */
+    radial-gradient(circle at 50% 50%, rgba(142, 197, 70, 0.35) 0%, transparent 60%),
+    /* Layer 2: The White Crest */
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.9) 0%, transparent 50%),
+    /* Layer 3: The Cyan Undertow */
+    radial-gradient(circle at 50% 50%, rgba(0, 180, 216, 0.2) 0%, transparent 65%);
   --laser-blend: normal;
-  --laser-duration: 12s; 
+  --laser-duration: 16s;
 }
 .light .sidebar-wave-bg, :not(.dark):not(.beach-mode) .sidebar-wave-bg {
   background-image: var(--laser-pattern);
-  background-size: 200% 200%, 200% 200%, 300% 300%;
-  animation: wave-liquid-light var(--laser-duration) linear infinite;
+  /* Stretch the circles into massive amorphous ovals */
+  background-size: 300% 150%, 200% 150%, 400% 250%;
+  animation: wave-fluid-light var(--laser-duration) ease-in-out infinite alternate;
   mix-blend-mode: var(--laser-blend);
 }
 
 /* ==========================================================================
-   MODE 2: Beach Mode ("Sunset Swell")
-   Warm, slow caustic reflections oscillating naturally.
+   MODE 2: Beach Mode ("Sunset Caustic")
+   Ambient, incredibly slow orbital overlaps of warm colors.
    ========================================================================== */
 .beach-mode {
   --laser-pattern: 
-    linear-gradient(135deg, 
-      rgba(255, 210, 0, 0) 20%, 
-      rgba(255, 210, 0, 0.2) 45%, 
-      rgba(255, 150, 0, 0.4) 50%, 
-      rgba(255, 210, 0, 0.2) 55%, 
-      rgba(255, 210, 0, 0) 80%
-    ),
-    linear-gradient(225deg, 
-      rgba(0, 180, 216, 0) 20%, 
-      rgba(0, 180, 216, 0.15) 45%, 
-      rgba(0, 220, 255, 0.3) 50%, 
-      rgba(0, 180, 216, 0.15) 55%, 
-      rgba(0, 180, 216, 0) 80%
-    ),
-    radial-gradient(ellipse at 50% 50%, 
-      rgba(255, 210, 0, 0.2) 0%, 
-      transparent 60%
-    );
+    /* The Golden Glow */
+    radial-gradient(circle at 50% 50%, rgba(255, 210, 0, 0.3) 0%, transparent 60%),
+    /* The Orange Sunset */
+    radial-gradient(circle at 50% 50%, rgba(255, 150, 0, 0.25) 0%, transparent 55%),
+    /* The Cyan Water */
+    radial-gradient(circle at 50% 50%, rgba(0, 180, 216, 0.2) 0%, transparent 65%);
   --laser-blend: normal;
-  --laser-duration: 18s; /* Very slow organic pacing */
+  --laser-duration: 22s; /* Extremely slow, ambient */
 }
 .beach-mode .sidebar-wave-bg {
   background-image: var(--laser-pattern);
-  background-size: 250% 250%, 250% 250%, 400% 400%;
-  animation: wave-liquid-beach var(--laser-duration) ease-in-out infinite alternate;
+  background-size: 250% 200%, 300% 250%, 350% 200%;
+  animation: wave-fluid-beach var(--laser-duration) ease-in-out infinite alternate;
   mix-blend-mode: var(--laser-blend);
 }
 
 /* ==========================================================================
-   MODE 3: Dark Mode ("Bioluminescent Mesh Matrix")
-   Opposing deep sea laser grid with an orbital glow.
+   MODE 3: Dark Mode ("Bioluminescent Fluid Matrix")
+   Soft, ghostly blobs moving behind the DMX hardware grid mask.
    ========================================================================== */
 .dark {
   --laser-pattern: 
-    linear-gradient(135deg, 
-      transparent 35%, 
-      rgba(0, 255, 255, 0.15) 48%, 
-      rgba(142, 197, 70, 0.2) 50%, 
-      rgba(0, 255, 255, 0.15) 52%, 
-      transparent 65%
-    ),
-    linear-gradient(225deg, 
-      transparent 35%, 
-      rgba(0, 150, 255, 0.1) 48%, 
-      rgba(0, 255, 255, 0.15) 50%, 
-      rgba(0, 150, 255, 0.1) 52%, 
-      transparent 65%
-    ),
-    radial-gradient(circle at 50% 50%, 
-      rgba(0, 255, 255, 0.1) 0%, 
-      transparent 50%
-    );
+    /* Deep Blue Matrix */
+    radial-gradient(circle at 50% 50%, rgba(0, 150, 255, 0.15) 0%, transparent 60%),
+    /* Neon Cyan Pulse */
+    radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.1) 0%, transparent 50%),
+    /* Subdued Green Glint */
+    radial-gradient(circle at 50% 50%, rgba(142, 197, 70, 0.08) 0%, transparent 55%);
   --laser-blend: normal;
-  --laser-duration: 20s;
+  --laser-duration: 18s;
 }
 .dark .sidebar-wave-container {
   /* DMX LED Board Grid Mask */
@@ -151,36 +112,39 @@
 }
 .dark .sidebar-wave-bg {
   background-image: var(--laser-pattern);
-  background-size: 200% 200%, 200% 200%, 300% 300%;
-  animation: wave-liquid-dark var(--laser-duration) linear infinite;
+  background-size: 250% 250%, 200% 300%, 300% 200%;
+  animation: wave-fluid-dark var(--laser-duration) ease-in-out infinite alternate;
   mix-blend-mode: var(--laser-blend);
   opacity: 0.8; /* Subtle baseline opacity */
 }
 
 /* ==========================================================================
-   KEYFRAMES (True Multi-Layer Position Animations)
+   KEYFRAMES (Fluid Orbital Positioning)
    ========================================================================== */
 
-/* Light Mode: Opposing X/Y vectors create a rolling liquid interference */
-@keyframes wave-liquid-light {
+/* Light Mode: Sweeps across like an undulating ocean swell */
+@keyframes wave-fluid-light {
   0% { 
-    /* L1: Top-Left, L2: Top-Right, L3: Left-Center */
-    background-position: 0% 0%, 200% 0%, 0% 50%; 
+    background-position: 0% 50%, 100% 20%, 50% 100%; 
+  }
+  50% {
+    background-position: 50% 80%, 50% 50%, 100% 0%; 
   }
   100% { 
-    /* L1: Bottom-Right, L2: Bottom-Left, L3: Right-Center */
-    background-position: 200% 200%, 0% 200%, 200% 50%; 
+    background-position: 100% 30%, 0% 80%, 0% 0%; 
   }
 }
 
-/* Beach Mode: Organic ebb and flow (Ease-in-out Alternate) */
-@keyframes wave-liquid-beach {
-  0% { background-position: 0% 0%, 250% 100%, 0% 0%; }
-  100% { background-position: 250% 250%, 0% -150%, 100% 100%; }
+/* Beach Mode: Warm tidal ebbs and flows */
+@keyframes wave-fluid-beach {
+  0% { background-position: 0% 0%, 100% 100%, 50% 50%; }
+  50% { background-position: 100% 50%, 0% 50%, 100% 0%; }
+  100% { background-position: 50% 100%, 50% 0%, 0% 100%; }
 }
 
-/* Dark Mode: Slow deep grid matrix slide */
-@keyframes wave-liquid-dark {
-  0% { background-position: 0% 0%, 200% 0%, 0% 0%; }
-  100% { background-position: 200% 200%, 0% 200%, 200% 200%; }
+/* Dark Mode: Ghostly, deep-sea amorphous drifting */
+@keyframes wave-fluid-dark {
+  0% { background-position: 0% 100%, 100% 0%, 50% 50%; }
+  50% { background-position: 100% 50%, 50% 100%, 0% 0%; }
+  100% { background-position: 50% 0%, 0% 50%, 100% 100%; }
 }
