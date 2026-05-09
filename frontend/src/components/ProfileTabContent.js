@@ -333,7 +333,7 @@ const ProfileTabContent = ({
             
             // For Sessions tab: Photographer's shot sessions link to their gallery
             if (activeTab === 'session_shots' && mediaItem?.is_photographer_session && mediaItem?.gallery_id) {
-              navigate(`/gallery/${mediaItem.gallery_id}`);
+              navigate(`/photographer/${profileUserId}/gallery?gallery=${mediaItem.gallery_id}`);
               return;
             }
             

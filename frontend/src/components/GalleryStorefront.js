@@ -488,7 +488,7 @@ export const GalleryStorefront = () => {
               <Card
                 key={gallery.id}
                 className={`${cardBg} ${borderColor} overflow-hidden hover:border-cyan-500/50 transition-all cursor-pointer group`}
-                onClick={() => navigate(`/photographer/galleries/${gallery.id}`)}
+                onClick={() => navigate(isSelf ? `/photographer/galleries/${gallery.id}` : `/photographer/${photographer.id}/gallery?gallery=${gallery.id}`)}
               >
                 {/* Cover image */}
                 <div className="aspect-[4/3] bg-zinc-800 relative overflow-hidden">
