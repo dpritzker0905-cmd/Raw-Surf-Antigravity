@@ -102,7 +102,7 @@ const PostCard = ({
           user_name: l.full_name,
           avatar_url: l.avatar_url,
           user_role: l.role,
-          emoji: '🤙'
+          emoji: '\u{1F919}'
         }))
       ];
       setDetailedReactions(allReactors);

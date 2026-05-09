@@ -37,6 +37,7 @@ from .gallery_purchases import router as purchases_router
 from .gallery_conditions import router as conditions_router
 from .collections_roster import router as collections_roster_router
 from .distribution_tagging import router as distribution_tagging_router
+from .gallery_pricing import router as pricing_router
 
 router.include_router(items_router)
 router.include_router(collections_router)
@@ -52,5 +53,6 @@ router.include_router(purchases_router)
 router.include_router(conditions_router)
 router.include_router(collections_roster_router)
 router.include_router(distribution_tagging_router)
+router.include_router(pricing_router)
 
 

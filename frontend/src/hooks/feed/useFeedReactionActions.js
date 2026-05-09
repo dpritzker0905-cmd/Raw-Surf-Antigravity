@@ -150,7 +150,7 @@ const useFeedReactionActions = ({
         liked: true
       };
     }));
-    setShowReactionPicker(false);
+    setShowReactionPicker(null);
 
     try {
       const response = await apiClient.post(`/posts/${postId}/reactions`, {
