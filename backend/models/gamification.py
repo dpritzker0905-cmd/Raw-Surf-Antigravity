@@ -545,8 +545,8 @@ class Surfboard(Base):
     sale_status = Column(String(20), default='not_listed')  # not_listed, active, pending, sold
     
     # Metadata
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     
     # Relationships
     owner = relationship("Profile", backref=backref("surfboards", lazy="dynamic"))
