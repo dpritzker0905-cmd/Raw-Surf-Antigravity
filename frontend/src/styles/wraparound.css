@@ -1,5 +1,5 @@
 /* ==========================================================================
-   WRAPAROUND ANIMATION ENGINE ("Laser Wash" DMX Pixel Mapping)
+   WRAPAROUND ANIMATION ENGINE ("Laser Wash" / Razer Chroma Wave)
    ========================================================================== */
 
 :root {
@@ -14,21 +14,19 @@
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
-  /* Darken slightly underneath the lasers */
-  background: rgba(0, 0, 0, 0.05);
+  /* Very subtle darkening underneath */
+  background: rgba(0, 0, 0, 0.02);
 }
 
-/* The moving laser element */
+/* The moving wave element */
+/* Using inset: 0 and animating background-position ensures it NEVER breaks bounds at the top or bottom */
 .sidebar-wave-bg {
   position: absolute;
-  top: -100%;
-  left: -50%;
-  width: 200%;
-  height: 300%;
-  background-repeat: no-repeat;
-  opacity: 0.7;
-  transition: opacity 0.4s ease;
-  will-change: transform;
+  inset: 0;
+  background-repeat: repeat;
+  opacity: 0.6;
+  transition: opacity 0.5s ease;
+  will-change: background-position;
 }
 
 /* Sync logic */
@@ -48,51 +46,60 @@
 }
 
 /* ==========================================================================
-   MODE 1: Light Mode ("Sun-Flare Glint")
-   Fast, sharp, angular light sweeps in bright white and brand green.
+   MODE 1: Light Mode ("Chroma Wave Left-to-Right")
+   Wave moves from left to right. Soft white and brand green glints.
    ========================================================================== */
 :root, .light {
-  /* Three angled beams sweeping together */
-  --laser-pattern: 
-    linear-gradient(135deg, transparent 40%, rgba(142, 197, 70, 0.6) 45%, rgba(255, 255, 255, 0.9) 50%, rgba(142, 197, 70, 0.6) 55%, transparent 60%),
-    linear-gradient(135deg, transparent 20%, rgba(142, 197, 70, 0.3) 25%, transparent 30%);
+  --laser-pattern: linear-gradient(90deg, 
+    rgba(255, 255, 255, 0) 0%, 
+    rgba(142, 197, 70, 0.15) 35%, 
+    rgba(255, 255, 255, 0.8) 50%, 
+    rgba(142, 197, 70, 0.15) 65%, 
+    rgba(255, 255, 255, 0) 100%
+  );
   --laser-blend: normal;
-  --laser-duration: 6s; /* Fast sweep */
+  --laser-duration: 7s; 
 }
 .light .sidebar-wave-bg, :not(.dark):not(.beach-mode) .sidebar-wave-bg {
   background-image: var(--laser-pattern);
-  background-size: 100% 100%;
-  animation: laser-sweep-fast var(--laser-duration) cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  background-size: 200% 100%;
+  animation: wave-horizontal-left-right var(--laser-duration) linear infinite;
   mix-blend-mode: var(--laser-blend);
 }
 
 /* ==========================================================================
-   MODE 2: Beach Mode ("The Barrel Tunnel")
-   Thick, glowing, vertical columns of cyan and gold. Color dodge for intensity.
+   MODE 2: Beach Mode ("Golden Hour Fade")
+   Fades across instead of moving vertically. Slow, warm gradients.
    ========================================================================== */
 .beach-mode {
-  --laser-pattern: 
-    linear-gradient(180deg, transparent 0%, rgba(0, 180, 216, 0.8) 40%, rgba(255, 210, 0, 0.9) 50%, rgba(0, 180, 216, 0.8) 60%, transparent 100%),
-    linear-gradient(90deg, rgba(255, 210, 0, 0.3) 0%, transparent 50%, rgba(0, 180, 216, 0.3) 100%);
-  --laser-blend: hard-light;
-  --laser-duration: 10s;
+  --laser-pattern: linear-gradient(90deg, 
+    rgba(0, 180, 216, 0.05) 0%, 
+    rgba(255, 210, 0, 0.25) 50%, 
+    rgba(0, 180, 216, 0.05) 100%
+  );
+  --laser-blend: normal;
+  --laser-duration: 14s; /* Slower per user request */
 }
 .beach-mode .sidebar-wave-bg {
   background-image: var(--laser-pattern);
-  background-size: 100% 50%, 100% 100%;
-  animation: laser-sweep-vertical var(--laser-duration) linear infinite;
+  background-size: 200% 100%;
+  animation: wave-horizontal-fade var(--laser-duration) ease-in-out infinite alternate;
   mix-blend-mode: var(--laser-blend);
 }
 
 /* ==========================================================================
    MODE 3: Dark Mode ("Bioluminescent DMX Grid")
-   Pixel-mapped matrix. A grid mask overlay forces light through discrete blocks.
+   Pixel-mapped matrix. Opacity significantly reduced for optimal legibility.
    ========================================================================== */
 .dark {
-  /* Deep blue and neon cyan sweeping beams */
-  --laser-pattern: 
-    linear-gradient(45deg, transparent 30%, rgba(0, 255, 255, 0.8) 45%, rgba(142, 197, 70, 0.9) 50%, rgba(0, 255, 255, 0.8) 55%, transparent 70%);
-  --laser-blend: screen;
+  --laser-pattern: linear-gradient(45deg, 
+    rgba(0, 0, 0, 0) 25%, 
+    rgba(0, 255, 255, 0.08) 45%, 
+    rgba(142, 197, 70, 0.15) 50%, 
+    rgba(0, 255, 255, 0.08) 55%, 
+    rgba(0, 0, 0, 0) 75%
+  );
+  --laser-blend: normal;
   --laser-duration: 12s;
 }
 .dark .sidebar-wave-container {
@@ -101,37 +108,33 @@
   mask-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='16' height='16' fill='black' rx='2' ry='2'/%3E%3C/svg%3E");
   -webkit-mask-size: 20px 20px;
   mask-size: 20px 20px;
-  background: rgba(0, 0, 0, 0.8);
 }
 .dark .sidebar-wave-bg {
   background-image: var(--laser-pattern);
-  background-size: 200% 200%;
-  animation: laser-sweep-diag var(--laser-duration) linear infinite;
+  background-size: 300% 300%;
+  animation: wave-diagonal var(--laser-duration) linear infinite;
   mix-blend-mode: var(--laser-blend);
-  opacity: 0.9;
+  opacity: 0.8; /* Subtle baseline opacity */
 }
 
 /* ==========================================================================
-   KEYFRAMES
+   KEYFRAMES (Using Background Position for Seamless Bounds)
    ========================================================================== */
 
-/* Fast angled sweep for Light Mode */
-@keyframes laser-sweep-fast {
-  0% { transform: translateY(-50%) translateX(-25%); }
-  50% { transform: translateY(20%) translateX(10%); }
-  100% { transform: translateY(-50%) translateX(-25%); }
+/* Light Mode: Moves continuously left-to-right */
+@keyframes wave-horizontal-left-right {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-/* Thick vertical wash for Beach Mode */
-@keyframes laser-sweep-vertical {
-  0% { transform: translateY(-30%); }
-  50% { transform: translateY(10%); }
-  100% { transform: translateY(-30%); }
+/* Beach Mode: Slowly fades back and forth horizontally */
+@keyframes wave-horizontal-fade {
+  0% { background-position: 0% 0; }
+  100% { background-position: 100% 0; }
 }
 
-/* Matrix sweep across the DMX grid for Dark Mode */
-@keyframes laser-sweep-diag {
-  0% { transform: translate(-20%, -20%); }
-  50% { transform: translate(10%, 10%); }
-  100% { transform: translate(-20%, -20%); }
+/* Dark Mode: Continuous diagonal matrix sweep */
+@keyframes wave-diagonal {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 300% 300%; }
 }
