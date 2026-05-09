@@ -1,0 +1,104 @@
+name: LOC Governance Check
+
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - 'backend/**/*.py'
+      - 'frontend/src/**/*.js'
+
+jobs:
+  loc-check:
+    runs-on: ubuntu-latest
+    name: File Size Governance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check Python file LOC
+        id: py_check
+        run: |
+          MAX=800
+          WARN=750
+          violations=""
+          warnings=""
+          
+          for f in $(find backend -name '*.py' \
+            -not -path '*/venv/*' \
+            -not -path '*/__pycache__/*' \
+            -not -path '*/node_modules/*' \
+            -not -path '*/migrations_archive/*' \
+            -not -path '*/.git/*'); do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt "$MAX" ]; then
+              violations="$violations\n  ❌ $lines LOC  $f"
+            elif [ "$lines" -gt "$WARN" ]; then
+              warnings="$warnings\n  ⚠️ $lines LOC  $f"
+            fi
+          done
+
+          if [ -n "$warnings" ]; then
+            echo "## ⚠️ Warning Zone (750+ LOC)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo -e "$warnings" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -n "$violations" ]; then
+            echo "## ❌ LOC Violations (800+ LOC)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo -e "$violations" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "has_violations=true" >> $GITHUB_OUTPUT
+          else
+            echo "## ✅ All Python files under 800 LOC" >> $GITHUB_STEP_SUMMARY
+            echo "has_violations=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check JS file LOC
+        id: js_check
+        run: |
+          MAX=800
+          WARN=750
+          violations=""
+          warnings=""
+          
+          for f in $(find frontend/src -name '*.js' \
+            -not -path '*/node_modules/*' \
+            -not -path '*/_deprecated/*'); do
+            lines=$(wc -l < "$f")
+            if [ "$lines" -gt "$MAX" ]; then
+              violations="$violations\n  ❌ $lines LOC  $f"
+            elif [ "$lines" -gt "$WARN" ]; then
+              warnings="$warnings\n  ⚠️ $lines LOC  $f"
+            fi
+          done
+
+          if [ -n "$warnings" ]; then
+            echo "## ⚠️ JS Warning Zone (750+ LOC)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo -e "$warnings" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ -n "$violations" ]; then
+            echo "## ❌ JS LOC Violations (800+ LOC)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo -e "$violations" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "has_violations=true" >> $GITHUB_OUTPUT
+          else
+            echo "## ✅ All JS files under 800 LOC" >> $GITHUB_STEP_SUMMARY
+            echo "has_violations=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fail on violations
+        if: steps.py_check.outputs.has_violations == 'true' || steps.js_check.outputs.has_violations == 'true'
+        run: |
+          echo "::error::One or more files exceed the 800 LOC governance limit. Split before merging."
+          exit 1
