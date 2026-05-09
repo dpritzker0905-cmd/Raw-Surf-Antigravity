@@ -1,8 +1,10 @@
 import React from 'react';
 
-const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
-  // Priority: optimistic user_reaction (set by handleReaction) > reactions array (from server)
-  const userReaction = post.user_reaction || post.reactions?.find(r => r.user_id === userId);
+const ReactionIcon = ({ post, userId, isLiked, isPressing, userReactionOverride }) => {
+  // Priority: explicit override (from PostModal's local state) > post.user_reaction > reactions array
+  const userReaction = userReactionOverride !== undefined
+    ? userReactionOverride
+    : (post.user_reaction || post.reactions?.find(r => r.user_id === userId) || null);
   const hasNonShakaReaction = userReaction && userReaction.emoji !== '\u{1F919}';
   
   // Determine if Shaka should be colored (checked) or grayscale (unchecked)

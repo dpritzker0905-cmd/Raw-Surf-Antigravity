@@ -3,7 +3,7 @@
  * Opens when clicking on a post in the feed
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import ShakaIcon from './social/ShakaIcon';
+import ReactionIcon from './social/ReactionIcon';
 import { ImageCarousel, CommentItem } from './social/PostModalComponents';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -560,11 +560,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   data-testid="desktop-reaction-button"
                   title="Tap to react, hold for emoji picker"
                 >
-                  {userReaction ? (
-                    <span className="text-2xl select-none">{userReaction.emoji}</span>
-                  ) : (
-                    <ShakaIcon filled={liked} size={24} />
-                  )}
+                  <ReactionIcon post={post} userId={user?.id} isLiked={liked} isPressing={isPressing} userReactionOverride={userReaction} />
                 </button>
                 <button aria-label="Message"
                   className={`${t.iconDefault} ${t.iconHover} transition-opacity`}

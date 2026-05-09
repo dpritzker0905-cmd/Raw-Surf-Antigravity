@@ -7,7 +7,7 @@
  * - Comment input with emoji picker
  */
 import React, { useState, useRef, useCallback } from 'react';
-import ShakaIcon from './ShakaIcon';
+import ReactionIcon from './ReactionIcon';
 import { ImageCarousel } from './PostModalComponents';
 import { useNavigate } from 'react-router-dom';
 import { X, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Smile } from 'lucide-react';
@@ -236,11 +236,7 @@ const PostModalMobileView = ({
               }}
               data-testid="reaction-button"
             >
-              {userReaction ? (
-                <span className="text-3xl select-none">{userReaction.emoji}</span>
-              ) : (
-                <ShakaIcon filled={liked} size={28} />
-              )}
+              <ReactionIcon post={post} userId={user?.id} isLiked={liked} isPressing={isPressing} userReactionOverride={userReaction} />
             </button>
             
             {/* Like Count */}
