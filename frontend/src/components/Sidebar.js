@@ -21,8 +21,6 @@ export const Sidebar = () => {
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const [photoToolsOpen, setPhotoToolsOpen] = useState(false);
-  const [backpackOpen, setBackpackOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
   const [logoSpinning, setLogoSpinning] = useState(false);
   const { activeSession } = useActiveSession();
@@ -76,46 +74,11 @@ export const Sidebar = () => {
   // Check if user is a surfer (not photographer-only roles)
   const isSurfer = ['Grom', 'Surfer', 'Comp Surfer', 'Pro'].includes(effectiveRole);
   
-  // Check if user is a Grom (shows The Inside hub - includes Stoked features)
-  const isGrom = effectiveRole === ROLES.GROM;
-  
-  // Check if user is a Comp Surfer (shows Impact Zone)
-  const isCompSurfer = effectiveRole === ROLES.COMP_SURFER;
-  
-  // Check if user is a Pro (shows The Peak)
-  const isPro = effectiveRole === ROLES.PRO;
-  
-  // Check if user is a regular surfer (role = Surfer, not Comp Surfer/Pro/Grom)
-  const isRegularSurfer = effectiveRole === ROLES.SURFER;
-
-  // Check if user qualifies for Stoked tab:
-  // - Comp Surfer or Pro role always gets access
-  // - Regular Surfer in any competitive/pro surf_mode also gets access
-  const isProSurferMode = user?.surf_mode === 'pro';
-  const isCompetitiveSurferMode = user?.surf_mode === 'competitive';
-  const isCompetitiveSurfer = isCompetitiveSurferMode || isProSurferMode; // used for Stoked access + locking
-  const hasStokesAccess = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (isRegularSurfer && isCompetitiveSurfer);
-  
-  // Locked only if Surfer AND still in casual/non-competitive mode
-  const isStokedLocked = isRegularSurfer && !isCompetitiveSurfer;
-  
   // Check if user is a hobbyist (shows Gear Hub) - Grom Parent is NOT a hobbyist (gets Grom HQ instead)
   const isHobbyist = effectiveRole === ROLES.HOBBYIST;
   
   // Check if user is a Grom Parent (shows Grom HQ)
   const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
-  
-  // Check if current path is a photo tools path
-  const isPhotoToolsPath = ['/gallery', '/photographer/bookings', '/photographer/sessions', '/photographer/on-demand', '/photographer/earnings', '/photographer/on-demand-settings', '/photographer/subscription-settings'].some(path => 
-    location.pathname.startsWith(path)
-  );
-  
-  // Auto-expand photo tools if on a photo tools path
-  useEffect(() => {
-    if (isPhotoToolsPath) {
-      setPhotoToolsOpen(true);
-    }
-  }, [isPhotoToolsPath]);
 
   useEffect(() => {
     if (user?.id) {
@@ -171,78 +134,18 @@ export const Sidebar = () => {
     { path: '/notifications', icon: Bell, label: 'Notifications', badge: unreadCount },
     { path: '/explore', icon: Compass, label: 'Explore' },
     { path: '/map', icon: MapPin, label: 'Map' },
-    // Bookings - Only for surfers. Photographers have their own Bookings Manager under Photo Tools.
-    ...(!isPhotographer ? [{ path: '/bookings', icon: Calendar, label: 'Bookings' }] : []),
     // Create button - special handling (not a NavLink)
     { id: 'create', icon: Plus, label: 'Create', isCreateButton: true },
-    // Career Hub: The Peak for Pro role OR Surfer in pro surf_mode
-    ...(isPro || (isRegularSurfer && isProSurferMode) ? [{ path: '/career/the-peak', icon: Crown, label: 'The Peak', highlight: true, highlightColor: 'amber' }] : []),
-    // Career Hub: Impact Zone for Comp Surfers OR Surfers in competitive surf_mode (NOT pro mode - they get The Peak)
-    ...(isCompSurfer || (isRegularSurfer && isCompetitiveSurferMode) ? [{ path: '/career/impact-zone', icon: Target, label: 'Impact Zone', highlight: true, highlightColor: 'orange' }] : []),
-    // Career Hub: The Inside for Groms (includes Stoked features - no separate Stoked for Groms)
-    ...(isGrom ? [{ path: '/career/the-inside', icon: Baby, label: 'The Inside', highlight: true, highlightColor: 'cyan' }] : []),
-    // Stoked tab ONLY for Comp Surfer, Pro - Groms use The Inside instead
-    ...(hasStokesAccess ? [{ path: '/stoked', icon: Zap, label: 'Stoked', highlight: true, highlightColor: 'yellow' }] : []),
-    // Regular Surfers see Locked placeholder only if in casual mode
-    ...(isStokedLocked ? [{ path: '/stoked-locked', icon: Zap, label: 'Stoked', isLocked: true }] : []),
-    // Impacted tab for ALL photographers (Hobbyist, Photographer, Approved Pro) - NOT Grom Parent
-    ...(!isGromParent && isPhotographer ? [{ path: '/impacted', icon: Heart, label: 'Impacted', highlight: true, highlightColor: 'pink' }] : []),
     // Grom HQ for Grom Parents (Shield icon)
     ...(isGromParent ? [{ path: '/grom-hq', icon: Shield, label: 'Grom HQ', highlight: true, highlightColor: 'cyan' }] : []),
     ...(isHobbyist ? [{ path: '/gear-hub', icon: ShoppingBag, label: 'Gear Hub', highlight: true, highlightColor: 'emerald' }] : []),
     { path: '/messages', icon: MessageCircle, label: 'Messages', badge: unreadMessages },
     // My Gallery for Surfers - "The Locker" - positioned after Messages per Master Logic Sync
     ...(isSurfer ? [{ path: '/my-gallery', icon: Lock, label: 'My Gallery', highlight: true, highlightColor: 'cyan' }] : []),
-    // Backpack - expandable menu with Passport, Wallet, Surf Alerts
-    { id: 'backpack', icon: Backpack, label: 'Backpack', isBackpackMenu: true, highlight: true, highlightColor: 'amber' },
     { path: '/profile', icon: User, label: 'Profile' },
   ];
 
-  // Photo tools sub-items for photographers - ROLE BASED
-  // Grom Parent: Gallery ONLY (renamed to "Grom Archive"), NO commerce
-  // Hobbyist: Gallery only - can spend but not earn
-  // Photographer/Approved Pro: Full access
-  const getPhotoToolsItems = () => {
-    if (isGromParent) {
-      // Grom Parent: Only archive gallery, zero commerce
-      return [
-        { path: '/gallery', icon: Image, label: 'Grom Archive' },
-      ];
-    }
-    
-    if (effectiveRole === ROLES.HOBBYIST) {
-      // Hobbyist: Can spend but not earn - no earnings/bookings/sessions
-      return [
-        { path: '/gallery', icon: Image, label: 'Gallery Hub' },
-      ];
-    }
-    
-    // Professional photographers: Full access
-    return [
-      { path: '/gallery', icon: Image, label: 'Gallery Hub' },
-      { path: '/photographer/bookings', icon: CalendarCheck, label: 'Bookings Manager' },
-      { path: '/photographer/sessions', icon: Radio, label: 'Live Sessions' },
-      { path: '/photographer/on-demand', icon: Zap, label: 'On-Demand Hub' },
-      { path: '/photographer/earnings', icon: TrendingUp, label: 'Earnings Dashboard' },
-      { path: '/photographer/subscription-settings', icon: RefreshCw, label: 'Subscription Settings' },
-    ];
-  };
-  
-  const photoToolsItems = getPhotoToolsItems();
-  
-  // Backpack sub-items - Surf Log, Passport, Wallet, Surf Alerts
-  const backpackItems = [
-    { path: '/surf-log', icon: BookOpen, label: 'Surf Log', color: 'text-cyan-400' },
-    { id: 'passport', icon: Stamp, label: 'Surf Passport', isPassportButton: true, color: 'text-emerald-400' },
-    { path: '/wallet', icon: CreditCard, label: 'Credit Wallet', color: 'text-yellow-400' },
-    { path: '/alerts', icon: BellRing, label: 'Surf Alerts', color: 'text-orange-400' },
-  ];
-  
-  // On-Demand Settings - Available for Photographer and Approved Pro (NOT Hobbyist/Grom Parent)
-  const canUseOnDemand = ['Photographer', 'Pro', 'Approved Pro'].includes(effectiveRole);
-  const onDemandSettingsItem = canUseOnDemand 
-    ? { path: '/photographer/on-demand-settings', icon: MapPin, label: 'On-Demand Settings' }
-    : null;
+  // Removed Backpack and Photo Tools configurations (Moved to RightSidebar)
 
   // Get role badge color
   const _getRoleBadgeColor = (role) => {
@@ -366,61 +269,7 @@ export const Sidebar = () => {
             );
           }
 
-          // Backpack menu - expandable with Passport, Wallet, Alerts
-          if (item.isBackpackMenu) {
-            return (
-              <div key="backpack-menu" className="mb-0.5">
-                <button
-                  onClick={() => setBackpackOpen(!backpackOpen)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all text-sm text-amber-400 hover:bg-amber-500/10`}
-                  data-testid="nav-backpack"
-                >
-                  <div className="flex items-center gap-2">
-                    <Backpack className="w-4 h-4" />
-                    <span>Backpack</span>
-                  </div>
-                  {backpackOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                </button>
-                {backpackOpen && (
-                  <div className="ml-3 pl-3 border-l border-amber-500/20 mt-1 space-y-0.5">
-                    {backpackItems.map((subItem) => {
-                      const SubIcon = subItem.icon;
-                      if (subItem.isPassportButton) {
-                        return (
-                          <button aria-label="Sub Icon"
-                            key="passport"
-                            onClick={() => setPassportOpen(true)}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${subItem.color} hover:bg-emerald-500/10`}
-                            data-testid="nav-passport"
-                          >
-                            <SubIcon className="w-4 h-4" />
-                            <span>{subItem.label}</span>
-                          </button>
-                        );
-                      }
-                      return (
-                        <NavLink
-                          key={subItem.path}
-                          to={subItem.path}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
-                              isActive
-                                ? `${subItem.color} bg-${subItem.color.split('-')[1]}-500/20`
-                                : `${subItem.color} hover:bg-${subItem.color.split('-')[1]}-500/10`
-                            }`
-                          }
-                          data-testid={`nav-${subItem.label.toLowerCase().replace(' ', '-')}`}
-                        >
-                          <SubIcon className="w-4 h-4" />
-                          <span>{subItem.label}</span>
-                        </NavLink>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          }
+          // Removed Backpack rendering (Moved to RightSidebar)
           
           return ([
             <NavLink
@@ -490,74 +339,7 @@ export const Sidebar = () => {
           </button>
         )}
 
-        {/* Photo Tools Section - Only for Photographers */}
-        {isPhotographer && (
-          <div className="mt-2">
-            <button aria-label="Camera"
-              onClick={() => setPhotoToolsOpen(!photoToolsOpen)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg mb-1 transition-all ${
-                isPhotoToolsPath
-                  ? 'bg-gradient-to-r from-cyan-400/20 to-blue-400/20 text-cyan-400'
-                  : `${textSecondaryClass} ${hoverBgClass} hover:${textPrimaryClass}`
-              }`}
-              data-testid="nav-photo-tools"
-            >
-              <div className="flex items-center gap-3">
-                <Camera className="w-5 h-5" />
-                <span>Photo Tools</span>
-              </div>
-              {photoToolsOpen ? (
-                <ChevronDown className="w-4 h-4" />
-              ) : (
-                <ChevronRight className="w-4 h-4" />
-              )}
-            </button>
-            
-            {/* Sub-items */}
-            {photoToolsOpen && (
-              <div className="ml-4 space-y-1">
-                {photoToolsItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
-                          isActive
-                            ? 'bg-cyan-400/20 text-cyan-400 font-medium'
-                            : `${textSecondaryClass} ${hoverBgClass} hover:${textPrimaryClass}`
-                        }`
-                      }
-                      data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </NavLink>
-                  );
-                })}
-                
-                {/* On-Demand Settings - Photographer & Approved Pro */}
-                {onDemandSettingsItem && (
-                  <NavLink
-                    to={onDemandSettingsItem.path}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
-                        isActive
-                          ? 'bg-amber-400/20 text-amber-400 font-medium'
-                          : `text-amber-400 ${hoverBgClass} hover:text-amber-300`
-                      }`
-                    }
-                    data-testid="nav-on-demand-settings"
-                  >
-                    <onDemandSettingsItem.icon className="w-4 h-4" />
-                    <span>{onDemandSettingsItem.label}</span>
-                  </NavLink>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Photo Tools Section extracted to RightSidebar */}
       </nav>
 
       {/* Bottom actions - Compact for smaller screens */}

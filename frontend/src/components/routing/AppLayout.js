@@ -15,6 +15,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Sidebar } from '../Sidebar';
+import { RightSidebar } from '../RightSidebar';
 import { TopNav } from '../TopNav';
 import { BottomNav } from '../BottomNav';
 import { ActiveSessionBanner } from '../ActiveSessionBanner';
@@ -192,6 +193,7 @@ const CallManager = () => {
 const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
   const { theme } = useTheme();
   const { impersonation } = useAuth();
+  const location = useLocation();
 
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
@@ -201,6 +203,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
   const showSidebar = !hideNav;
   const showTopNav = !hideNav && !hideTopNav;
   const showBottomNav = !hideNav;
+  const isMapOpen = location.pathname === '/map';
 
   return (
     <div
@@ -216,6 +219,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
 
       {/* Navigation chrome */}
       {showSidebar && <Sidebar />}
+      {showSidebar && <RightSidebar />}
       {showTopNav && <TopNav />}
 
       {/* Violation awareness banner — appears below nav when user has strikes */}
@@ -223,7 +227,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
 
       {/* Page content */}
       <main
-        className={`${mainBgClass} ${showSidebar ? 'md:ml-[200px]' : ''} ${showTopNav ? 'pt-14 md:pt-0' : ''} ${showBottomNav ? 'pb-20 md:pb-0' : ''} transition-colors duration-300 ${impersonationPadding} hide-scrollbar`}
+        className={`${mainBgClass} ${showSidebar ? 'md:ml-[200px]' : ''} ${showSidebar && !isMapOpen ? 'lg:mr-[200px]' : ''} ${showTopNav ? 'pt-14 md:pt-0' : ''} ${showBottomNav ? 'pb-20 md:pb-0' : ''} transition-all duration-300 ${impersonationPadding} hide-scrollbar`}
         style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}
       >
         {children}
