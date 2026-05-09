@@ -698,7 +698,5 @@ async def mark_note_notifications_read(
 
 
 
-# ============================================================
-# RE-EXPORTS - Extracted to note_reactions.py (v93 audit)
-# ============================================================
-from .note_reactions import router as _reactions_router  # noqa: F401
+
+

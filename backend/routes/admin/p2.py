@@ -588,7 +588,4 @@ async def check_feature_flag(
     return {"enabled": True, "reason": "enabled"}
 
 
-# ============================================================
-# RE-EXPORTS - Extracted to p2_campaigns.py (v93 audit)
-# ============================================================
-from .p2_campaigns import router as _campaigns_router  # noqa: F401
+

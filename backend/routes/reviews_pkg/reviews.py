@@ -776,7 +776,5 @@ async def get_surfer_review_stats(
 
 
 
-# ============================================================
-# RE-EXPORTS - Extracted to review_moderation.py (v93 audit)
-# ============================================================
-from .review_moderation import router as _mod_router  # noqa: F401
+
+

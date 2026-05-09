@@ -68,8 +68,7 @@ jobs:
         continue-on-error: true  # Warn only, don't block
 
   # v89 Governance — File Size Enforcement (<800 LOC)
-  # v91: 14 legacy violations remain (see v91_system_audit.md for full list)
-  # Set continue-on-error to false once all violations are resolved
+  # v94: All violations resolved — strict enforcement enabled
   backend-file-size-check:
     runs-on: ubuntu-latest
     steps:
@@ -83,7 +82,7 @@ jobs:
       - name: "🔍 Check file sizes (max 800 LOC)"
         working-directory: backend
         run: python scripts/check_file_size.py --path . --max-lines 800
-        continue-on-error: true  # v91: 14 legacy violations remain — warn only
+        continue-on-error: false  # v94: All files compliant — strict enforcement
 
   # v89 Governance — Import Graph Validation
   backend-import-check:

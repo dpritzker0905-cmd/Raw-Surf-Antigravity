@@ -577,7 +577,5 @@ async def refresh_platform_metrics_cache(
 
 
 
-# ============================================================
-# RE-EXPORTS - Extracted to analytics_settings.py (v93 audit)
-# ============================================================
-from .analytics_settings import router as _settings_router  # noqa: F401
+
+
