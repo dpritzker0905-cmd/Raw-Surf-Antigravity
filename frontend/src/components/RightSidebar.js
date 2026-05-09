@@ -101,12 +101,17 @@ export const RightSidebar = () => {
   };
 
   return (
-    <aside className={`fixed right-0 top-0 h-full ${sidebarBgClass} border-l flex flex-col z-40 transition-all duration-300 overflow-hidden hidden lg:flex ${isMapOpen ? 'w-0 opacity-0 border-l-0' : 'w-[200px] opacity-100'}`}>
-      <div className={`p-4 border-b ${borderClass} flex-shrink-0 w-[200px]`}>
+    <aside className={`fixed right-0 top-0 h-full ${sidebarBgClass} border-l flex flex-col z-40 transition-all duration-300 overflow-hidden hidden lg:flex sidebar-right relative ${isMapOpen ? 'w-0 opacity-0 border-l-0' : 'w-[200px] opacity-100'}`}>
+      {/* Wraparound Animation Background */}
+      <div className="sidebar-wave-container">
+        <div className="sidebar-wave-bg"></div>
+      </div>
+
+      <div className={`p-4 border-b ${borderClass} flex-shrink-0 w-[200px] z-10 relative`}>
         <span className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>Workspace</span>
       </div>
 
-      <nav className="flex-1 p-2 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+      <nav className="flex-1 p-2 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent z-10 relative">
         {topItems.map((item) => {
           const Icon = item.icon;
           

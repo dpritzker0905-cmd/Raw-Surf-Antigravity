@@ -1,0 +1,108 @@
+/* wraparound.css */
+
+/* Global Animation Variables */
+:root {
+  --wave-duration: 12s;
+  --wave-delay-right: -6s; /* Right side is 180 degrees out of phase for continuous flow */
+}
+
+/* Base Wrapper for the animated background */
+.sidebar-wave-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* The moving element */
+.sidebar-wave-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 200%;
+  background-repeat: repeat;
+  animation: global-drift var(--wave-duration) linear infinite;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+/* Sync logic */
+.sidebar-left .sidebar-wave-bg {
+  animation-delay: 0s;
+}
+
+.sidebar-right .sidebar-wave-bg {
+  animation-delay: var(--wave-delay-right);
+}
+
+/* Hover acceleration logic */
+.nav-item-hover:hover ~ .sidebar-wave-bg, 
+.sidebar-left:hover .sidebar-wave-bg,
+.sidebar-right:hover .sidebar-wave-bg {
+  opacity: 1;
+}
+
+/* 
+  MODE 1: Light Mode ("Clean Foam")
+  Crisp, minimalist dots rolling.
+*/
+:root, .light {
+  --wave-pattern: radial-gradient(circle at center, rgba(142, 197, 70, 0.15) 2px, transparent 2px);
+  --wave-size: 40px 40px;
+}
+
+/* 
+  MODE 2: Beach Mode ("Golden Hour Tide")
+  Vertical rising/falling tide.
+*/
+.beach-mode {
+  --wave-pattern: radial-gradient(circle at center, rgba(0, 180, 216, 0.25) 3px, transparent 3px),
+                  radial-gradient(circle at center, rgba(255, 210, 0, 0.15) 2px, transparent 2px);
+  --wave-size: 60px 60px;
+}
+.beach-mode .sidebar-wave-bg {
+  /* Tidal animation */
+  animation: global-tide var(--wave-duration) ease-in-out infinite;
+  background-position: 0 0, 30px 30px;
+}
+
+/* 
+  MODE 3: Dark Mode ("Deep Swell Bioluminescence")
+  Slow pulse and drift. glowing plankton.
+*/
+.dark {
+  --wave-pattern: radial-gradient(circle at center, rgba(142, 197, 70, 0.2) 2px, transparent 4px),
+                  radial-gradient(circle at center, rgba(0, 255, 255, 0.1) 3px, transparent 6px);
+  --wave-size: 50px 50px;
+  --wave-duration: 20s; /* Slower in dark mode */
+}
+.dark .sidebar-wave-bg {
+  animation: global-pulse var(--wave-duration) ease-in-out infinite;
+  background-position: 0 0, 25px 25px;
+}
+
+/* Keyframes */
+@keyframes global-drift {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(-50%, -50%); }
+}
+
+@keyframes global-tide {
+  0% { transform: translate(0, 0); }
+  50% { transform: translate(-25%, -10%); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes global-pulse {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+  50% { transform: translate(-10%, -5%) scale(1.05); opacity: 0.8; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+}
+
+/* Apply pattern */
+.sidebar-wave-bg {
+  background-image: var(--wave-pattern);
+  background-size: var(--wave-size);
+}

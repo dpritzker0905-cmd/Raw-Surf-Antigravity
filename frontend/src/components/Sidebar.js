@@ -157,9 +157,14 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className={`fixed left-0 top-0 h-full w-[200px] ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-colors duration-300`}>
+    <aside className={`fixed left-0 top-0 h-full w-[200px] ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-colors duration-300 overflow-hidden sidebar-left relative`}>
+      {/* Wraparound Animation Background */}
+      <div className="sidebar-wave-container">
+        <div className="sidebar-wave-bg"></div>
+      </div>
+      
       {/* Logo - Compact, clickable (Instagram-style refresh) */}
-      <div className={`p-3 border-b ${borderClass} flex-shrink-0`}>
+      <div className={`p-3 border-b ${borderClass} flex-shrink-0 z-10 relative`}>
         <button
           onClick={handleLogoClick}
           className="flex items-center gap-2 group cursor-pointer"
@@ -212,7 +217,7 @@ export const Sidebar = () => {
       </div>
 
       {/* Navigation - Scrollable section with minimum height */}
-      <nav className="flex-1 p-2 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" role="navigation" aria-label="Main navigation">
+      <nav className="flex-1 p-2 overflow-y-auto min-h-0 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent z-10 relative" role="navigation" aria-label="Main navigation">
         {navItems.map((item, _index) => {
           const Icon = item.icon;
           
@@ -342,7 +347,7 @@ export const Sidebar = () => {
       </nav>
 
       {/* Bottom actions - Compact for smaller screens */}
-      <div className={`p-2 border-t ${borderClass} flex-shrink-0`}>
+      <div className={`p-2 border-t ${borderClass} flex-shrink-0 z-10 relative`}>
         {/* Settings - User preferences, notifications, billing */}
         <NavLink
           to="/settings"

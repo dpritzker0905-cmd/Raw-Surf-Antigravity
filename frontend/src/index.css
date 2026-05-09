@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500;600&display=swap');
 @import './styles/map-status.css';
+@import './styles/wraparound.css';
 
 @tailwind base;
 @tailwind components;
