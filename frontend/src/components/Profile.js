@@ -8,7 +8,7 @@ import {
   Camera, DollarSign, Flame, 
   Grid3X3, Bookmark, UserSquare2, Play, Waves, Loader2, ArrowLeft,
   Users, Image, Shield, Ban,
-  Star, Zap
+  Star, Zap, BarChart2
 } from 'lucide-react';
 
 // Custom Surfboard Icon Component
@@ -350,9 +350,9 @@ export const Profile = () => {
     { id: 'session_shots', icon: Waves, label: 'Sessions', count: contentStats.session_shots },
     ...(isOwnProfile ? [{ id: 'saved', icon: Bookmark, label: 'Saved', count: contentStats.saved }] : []),
     { id: 'tagged', icon: UserSquare2, label: 'Tagged', count: contentStats.tagged },
-    // Swell tab for photographers (combines Crew + Impact), Crew tab for non-photographers
+    // Stats tab for photographers (combines Crew + Impact), Crew tab for non-photographers
     ...(!isGromParent && isPhotographer && impactScore?.is_photographer 
-      ? [{ id: 'swell', icon: Waves, label: 'Swell', count: null }]
+      ? [{ id: 'stats', icon: BarChart2, label: 'Stats', count: null }]
       : [{ id: 'crew', icon: Users, label: 'Crew', count: null }]
     ),
     // Surfboards tab: Show for all users (custom surfboard icon)

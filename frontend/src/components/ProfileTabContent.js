@@ -33,8 +33,8 @@ const ProfileTabContent = ({
   setSelectedTaggedPhoto,
   setShowTaggedPhotoModal,
 }) => {
-  // === Swell Tab (photographers) ===
-  if (activeTab === 'swell' && impactScore?.is_photographer) {
+  // === Stats Tab (photographers) ===
+  if (activeTab === 'stats' && impactScore?.is_photographer) {
     return (
       <div className="p-4 space-y-6">
         {/* Impact Section */}
