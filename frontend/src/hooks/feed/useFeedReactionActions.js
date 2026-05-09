@@ -88,7 +88,7 @@ const useFeedReactionActions = ({
     longPressTimerRef.current = setTimeout(() => {
       longPressTriggeredRef.current = true;
       setPressingPostId(postId);
-      setShowReactionPicker(true);
+      setShowReactionPicker(postId);
       setPickerAnchor(anchorRect);
     }, 500);
   };

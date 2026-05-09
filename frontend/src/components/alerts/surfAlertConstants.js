@@ -23,28 +23,28 @@ const TIDE_STATES = [
 // Surf condition options
 const SURF_CONDITIONS = [
   // Surface conditions
-  { id: 'glassy', label: 'Glassy', description: 'Mirror-like surface', category: 'surface', emoji: '🌊' },
-  { id: 'clean', label: 'Clean', description: 'Light texture, good shape', category: 'surface', emoji: '?' },
-  { id: 'choppy', label: 'Choppy', description: 'Bumpy, textured surface', category: 'surface', emoji: '🌊' },
-  { id: 'messy', label: 'Messy', description: 'Disorganized waves', category: 'surface', emoji: '🌊' },
+  { id: 'glassy', label: 'Glassy', description: 'Mirror-like surface', category: 'surface', emoji: '\u{1FA9E}' },
+  { id: 'clean', label: 'Clean', description: 'Light texture, good shape', category: 'surface', emoji: '\u{2728}' },
+  { id: 'choppy', label: 'Choppy', description: 'Bumpy, textured surface', category: 'surface', emoji: '\u{1F4A8}' },
+  { id: 'messy', label: 'Messy', description: 'Disorganized waves', category: 'surface', emoji: '\u{1F300}' },
   
   // Wind conditions
-  { id: 'offshore', label: 'Offshore Wind', description: 'Wind from land to sea', category: 'wind', emoji: '???' },
-  { id: 'onshore', label: 'Onshore Wind', description: 'Wind from sea to land', category: 'wind', emoji: '🌊' },
-  { id: 'cross-shore', label: 'Cross-shore', description: 'Side wind', category: 'wind', emoji: '🌊' },
-  { id: 'light-wind', label: 'Light Wind', description: 'Under 10 knots', category: 'wind', emoji: '🌊' },
-  { id: 'no-wind', label: 'No Wind', description: 'Calm conditions', category: 'wind', emoji: '🌊' },
+  { id: 'offshore', label: 'Offshore Wind', description: 'Wind from land to sea', category: 'wind', emoji: '\u{1F343}' },
+  { id: 'onshore', label: 'Onshore Wind', description: 'Wind from sea to land', category: 'wind', emoji: '\u{1F32C}\u{FE0F}' },
+  { id: 'cross-shore', label: 'Cross-shore', description: 'Side wind', category: 'wind', emoji: '\u{27A1}\u{FE0F}' },
+  { id: 'light-wind', label: 'Light Wind', description: 'Under 10 knots', category: 'wind', emoji: '\u{1F33F}' },
+  { id: 'no-wind', label: 'No Wind', description: 'Calm conditions', category: 'wind', emoji: '\u{1F54A}\u{FE0F}' },
   
   // Wave quality
-  { id: 'hollow', label: 'Hollow', description: 'Barreling waves', category: 'quality', emoji: '🌊' },
-  { id: 'steep', label: 'Steep', description: 'Fast, vertical faces', category: 'quality', emoji: '🌊' },
-  { id: 'mellow', label: 'Mellow', description: 'Gentle, forgiving waves', category: 'quality', emoji: '🌊' },
-  { id: 'powerful', label: 'Powerful', description: 'Strong, heavy waves', category: 'quality', emoji: '🌊' },
-  { id: 'peaky', label: 'Peaky', description: 'A-frame peaks', category: 'quality', emoji: '🌊' },
-  { id: 'walled', label: 'Walled', description: 'Long, unbroken faces', category: 'quality', emoji: '🌊' },
+  { id: 'hollow', label: 'Hollow', description: 'Barreling waves', category: 'quality', emoji: '\u{1F30A}' },
+  { id: 'steep', label: 'Steep', description: 'Fast, vertical faces', category: 'quality', emoji: '\u{26A1}' },
+  { id: 'mellow', label: 'Mellow', description: 'Gentle, forgiving waves', category: 'quality', emoji: '\u{1F60C}' },
+  { id: 'powerful', label: 'Powerful', description: 'Strong, heavy waves', category: 'quality', emoji: '\u{1F4AA}' },
+  { id: 'peaky', label: 'Peaky', description: 'A-frame peaks', category: 'quality', emoji: '\u{1F3D4}\u{FE0F}' },
+  { id: 'walled', label: 'Walled', description: 'Long, unbroken faces', category: 'quality', emoji: '\u{1F9F1}' },
   
   // Crowd conditions
-  { id: 'uncrowded', label: 'Uncrowded', description: 'Few surfers out', category: 'crowd', emoji: '???' },
+  { id: 'uncrowded', label: 'Uncrowded', description: 'Few surfers out', category: 'crowd', emoji: '\u{1F3D6}\u{FE0F}' },
 ];
 
 // Calculate distance between two coordinates
