@@ -274,7 +274,19 @@ async def distribute_gallery_item_to_participants(
                 logger.warning(f"Failed to notify surfer {participant.surfer_id}: {e}")
     
     await db.flush()
-    logger.info(f"Distributed {distributed_count} locker items for gallery item {gallery_item_id}")
+
+    # ── Structured distribution metrics (v96 audit) ──
+    logger.info(
+        "DISTRIBUTION_METRIC: gallery_item=%s gallery=%s session_type=%s "
+        "participants=%d distributed=%d skipped=%d success_rate=%.2f",
+        gallery_item_id,
+        gallery.id,
+        session_type,
+        len(participants),
+        distributed_count,
+        len(participants) - distributed_count,
+        (distributed_count / max(len(participants), 1)),
+    )
     return distributed_count
 
 

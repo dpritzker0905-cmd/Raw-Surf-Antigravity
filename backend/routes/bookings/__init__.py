@@ -19,6 +19,7 @@ The combined router is exported as `router` for backward compatibility:
 from fastapi import APIRouter
 
 from .crud import router as _crud_router
+from .directory import router as _directory_router
 from .booking_lifecycle import router as _lifecycle_router
 from .payments import router as _payments_router
 from .stripe_checkout import router as _stripe_checkout_router
@@ -33,6 +34,7 @@ from .waitlist import router as _waitlist_router
 # Compose a single combined router from all domain sub-routers
 router = APIRouter()
 router.include_router(_crud_router)
+router.include_router(_directory_router)
 router.include_router(_lifecycle_router)
 router.include_router(_payments_router)
 router.include_router(_stripe_checkout_router)
