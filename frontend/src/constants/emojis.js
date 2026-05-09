@@ -17,7 +17,9 @@
 export const QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F64C}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F60E}', '\u{1F4AA}'];
 
 // ─── Reaction emojis for post/comment/message reactions ──────────
-// Used by Feed.js, PostCard.js, PostModal.js, CrewChat, and messages.
+// SYNC CONTRACT: Must match backend/routes/posts/schemas.py → VALID_REACTIONS
+// Verified in-sync v103: both lists are 10 identical codepoints in the same order.
+// If you add/remove an emoji here, update VALID_REACTIONS in the backend too.
 // Curated for surf culture: Shaka, Wave, Surfer, Fire, 100, Heart,
 // Clap, Laugh, Stoked-face, Flexed-biceps.
 export const REACTION_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F602}', '\u{1F60E}', '\u{1F4AA}'];

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PostModal - Instagram-style post popup with image on left, details on right
  * Opens when clicking on a post in the feed
  */
@@ -119,6 +119,9 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
   const lastTapRef = useRef(0);
   
+  // Guard: prevent modal close when reaction picker was just dismissed
+  const pickerJustDismissedRef = useRef(false);
+  
   const modalRef = useRef(null);
   const mobileCommentInputRef = useRef(null);
   const desktopCommentInputRef = useRef(null);
@@ -194,9 +197,9 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
       setLikeCount(post.likes_count || 0);
       setSaved(post.saved || post.is_saved_by_user || false);
       setCaptionExpanded(false);
-      // Set initial reaction state from post data
-      const existingReaction = post.reactions?.find(r => r.user_id === user?.id);
-      setUserReaction(existingReaction || null);
+      // Priority: optimistic user_reaction (set by feed) > reactions array (from server)
+      const existingReaction = post.user_reaction || post.reactions?.find(r => r.user_id === user?.id) || null;
+      setUserReaction(existingReaction);
     }
   }, [isOpen, post?.id]);
   
@@ -327,7 +330,14 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center"
-      onClick={onClose}
+      onClick={() => {
+        // Skip close if the reaction picker was just dismissed
+        if (pickerJustDismissedRef.current) {
+          pickerJustDismissedRef.current = false;
+          return;
+        }
+        onClose();
+      }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/80" />
@@ -464,7 +474,12 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             <div className="fixed inset-0 z-[200]">
               <div 
                 className="absolute inset-0 bg-black/30"
-                onClick={() => setShowReactionPicker(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  pickerJustDismissedRef.current = true;
+                  setShowReactionPicker(false);
+                  setTimeout(() => { pickerJustDismissedRef.current = false; }, 300);
+                }}
               />
               <div 
                 className={`absolute ${t.reactionPickerBg} backdrop-blur-md border ${t.reactionPickerBorder} rounded-full px-2 py-2 shadow-2xl animate-in zoom-in-95 duration-200 flex items-center`}

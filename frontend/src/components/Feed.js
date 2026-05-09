@@ -16,7 +16,7 @@ import FeedLineupCard from './FeedLineupCard';
 import SessionCountdownWidget from './SessionCountdownWidget';
 import WavesFeed from './WavesFeed';
 import CreateWaveModal from './CreateWaveModal';
-import { MapPin, Flame, Plus, Check, Play, Users, Sparkles, RefreshCw } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import FeedSkeleton from './ui/FeedSkeleton';
 import LastUpdatedBanner from './ui/LastUpdatedBanner';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
@@ -28,6 +28,9 @@ import usePullToRefresh from '../hooks/usePullToRefresh';
 import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 import CheckInModal from './feed/CheckInModal';
 import { ReactionPicker, ReactionOverlay } from './feed/ReactionPicker';
+import FeedTabBar from './feed/FeedTabBar';
+import FeedActionBar from './feed/FeedActionBar';
+import FeedEmptyState from './feed/FeedEmptyState';
 // Tab order for the feed - used by swipe navigation and sliding indicator
 const FEED_TABS = ['for_you', 'waves', 'following'];
 
@@ -349,7 +352,6 @@ export const Feed = () => {
 
   // Swipeable tab navigation - hooks must be called before any early returns
   const swipeHandlers = useSwipeTabs(FEED_TABS, activeTab, setActiveTab);
-  const activeTabIndex = FEED_TABS.indexOf(activeTab);
 
 
   // Pull-to-refresh for mobile - triggers feed refresh on swipe-down
@@ -436,52 +438,13 @@ export const Feed = () => {
       {!isPhotographer && <LivePhotographers />}
 
       {/* Feed Tabs - with sliding indicator */}
-      <div className={`relative flex border-b ${borderClass}`}>
-        <button
-          onClick={() => setActiveTab('for_you')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'for_you' ? textPrimaryClass : textSecondaryClass
-          }`}
-          data-testid="tab-for-you"
-          aria-label="For You feed tab"
-        >
-          For You
-        </button>
-        <button aria-label="Play"
-          onClick={() => setActiveTab('waves')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'waves' ? textPrimaryClass : textSecondaryClass
-          }`}
-          data-testid="tab-waves"
-          aria-label="Waves video tab"
-        >
-          <span className="flex items-center justify-center gap-1">
-            <Play className="w-3.5 h-3.5" />
-            Waves
-          </span>
-        </button>
-        <button
-          onClick={() => setActiveTab('following')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'following' ? textPrimaryClass : textSecondaryClass
-          }`}
-          data-testid="tab-following"
-          aria-label="Following feed tab"
-        >
-          Following
-        </button>
-        {/* Sliding indicator - transitions smoothly between tabs */}
-        <div
-          className="absolute bottom-0 h-0.5 rounded-full transition-all duration-300 ease-out"
-          style={{
-            width: `${100 / FEED_TABS.length}%`,
-            left: `${(activeTabIndex * 100) / FEED_TABS.length}%`,
-            background: activeTab === 'waves'
-              ? 'linear-gradient(to right, #22d3ee, #3b82f6)'
-              : 'linear-gradient(to right, #facc15, #f97316)',
-          }}
-        />
-      </div>
+      <FeedTabBar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        textPrimaryClass={textPrimaryClass}
+        textSecondaryClass={textSecondaryClass}
+        borderClass={borderClass}
+      />
 
       {/* Swipeable content area - touch handlers enable left/right tab swiping */}
       <div {...swipeHandlers} style={{ touchAction: 'pan-y' }}>
@@ -505,41 +468,13 @@ export const Feed = () => {
       {activeTab !== 'waves' && (
         <>
           {/* Action Bar: Check In, Streak, Post */}
-          <div className={`flex items-center gap-3 px-4 py-3 border-b ${borderClass}`}>
-            <button
-              onClick={handleCheckIn}
-              disabled={streak.checked_in_today}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors ${
-                streak.checked_in_today
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                  : isLight ? 'bg-gray-100 hover:bg-gray-200 text-gray-800' : 'bg-zinc-800 hover:bg-zinc-700 text-white'
-              }`}
-              data-testid="check-in-btn"
-            >
-              {streak.checked_in_today ? (
-                <Check className="w-4 h-4" />
-              ) : (
-                <MapPin className="w-4 h-4" />
-              )}
-              {streak.checked_in_today ? 'Checked In' : 'Check In'}
-            </button>
-
-            <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-full">
-              <Flame className="w-4 h-4 text-orange-400" />
-              <span className="text-sm text-orange-400 font-medium">
-                {streak.current_streak} day{streak.current_streak !== 1 ? 's' : ''}
-              </span>
-            </div>
-
-            <button aria-label="Add"
-              onClick={() => setShowCreatePostModal(true)}
-              className="ml-auto flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 rounded-full text-sm text-black font-medium transition-colors"
-              data-testid="create-post-btn"
-            >
-              <Plus className="w-4 h-4" />
-              Post
-            </button>
-          </div>
+          <FeedActionBar
+            streak={streak}
+            isLight={isLight}
+            borderClass={borderClass}
+            onCheckIn={handleCheckIn}
+            onCreatePost={() => setShowCreatePostModal(true)}
+          />
 
           {/* Session Countdown Widget - Show upcoming booked sessions */}
           {upcomingSessions.length > 0 && (
@@ -581,34 +516,12 @@ export const Feed = () => {
             )}
             
             {posts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-                {activeTab === 'following' ? (
-                  <>
-                    <Users className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
-                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>Your feed is empty</p>
-                    <p className={`text-sm mb-5 ${textSecondaryClass}`}>Follow photographers and surfers to see their latest posts here.</p>
-                    <button
-                      onClick={() => navigate('/explore')}
-                      className="px-6 py-2.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-semibold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all active:scale-95"
-                      aria-label="Discover photographers to follow"
-                    >
-                      Discover Photographers
-                    </button>
-                  </>
-                ) : activeTab === 'waves' ? (
-                  <>
-                    <Play className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
-                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>No waves yet</p>
-                    <p className={`text-sm ${textSecondaryClass}`}>Short video clips from the surf community will appear here.</p>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className={`w-12 h-12 mb-3 ${textSecondaryClass} opacity-40`} />
-                    <p className={`font-semibold text-lg mb-1 ${textPrimaryClass}`}>No posts yet</p>
-                    <p className={`text-sm ${textSecondaryClass}`}>Be the first to share a moment from the water!</p>
-                  </>
-                )}
-              </div>
+              <FeedEmptyState
+                activeTab={activeTab}
+                textPrimaryClass={textPrimaryClass}
+                textSecondaryClass={textSecondaryClass}
+                onNavigateExplore={() => navigate('/explore')}
+              />
             ) : (
           injectAdsIntoPosts(posts, user?.is_ad_supported).map((post, index) => (
             <React.Fragment key={post.id}>

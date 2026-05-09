@@ -6,7 +6,10 @@ from typing import List, Optional
 from datetime import datetime
 
 
-VALID_REACTIONS = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂', '😎', '💪']
+# SYNC CONTRACT: Must match frontend/constants/emojis.js → REACTION_EMOJIS
+# Verified in-sync v103: both lists are 10 identical codepoints in the same order.
+# If you add/remove an emoji here, update REACTION_EMOJIS in the frontend too.
+VALID_REACTIONS = ['\U0001F919', '\U0001F30A', '\U0001F3C4', '\U0001F525', '\U0001F4AF', '\u2764\uFE0F', '\U0001F44F', '\U0001F602', '\U0001F60E', '\U0001F4AA']
 
 class PostCreate(BaseModel):
     media_url: str

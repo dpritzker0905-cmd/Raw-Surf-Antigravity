@@ -215,7 +215,8 @@ export default function usePostModal({
       const newReactions = action === 'removed'
         ? otherReactions
         : [...otherReactions, { emoji, user_id: user.id, user_name: user.full_name }];
-      onPostUpdated?.({ id: post.id, liked: newLiked, likes_count: newCount, reactions: newReactions });
+      const newUserReaction = action === 'removed' ? null : { emoji, user_id: user.id };
+      onPostUpdated?.({ id: post.id, liked: newLiked, likes_count: newCount, reactions: newReactions, user_reaction: newUserReaction });
     } catch (err) {
       // Revert optimistic update
       setLiked(prevLiked);
