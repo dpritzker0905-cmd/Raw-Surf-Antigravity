@@ -27,6 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import logger from '../utils/logger';
 import ConditionsModal from './ConditionsModal';
 import { ROLES } from '../constants/roles';
+import useDutyStationActions from '../hooks/useDutyStationActions';
 
 // Constants & geo utilities — extracted to on-demand/dutyStationConstants.js (v81)
 import {
@@ -171,124 +172,38 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     setProximityConfirmed(false);
   }, [selectedSpot?.id]);
   
-  const fetchStatuses = async () => {
-    try {
-      const liveResponse = await apiClient.get(`/photographer/${user.id}/status`);
-      const liveData = liveResponse.data;
-      setLiveActive(liveData?.is_shooting || false);
-      
-      if (liveData?.is_shooting && liveData?.current_spot_id) {
-        setSelectedSpot({
-          id: liveData.current_spot_id,
-          name: liveData.current_spot_name,
-          latitude: liveData.current_spot_latitude,
-          longitude: liveData.current_spot_longitude
-        });
-        setMode('live');
-        setProximityConfirmed(true);
-      }
-      
-      if (showOnDemand) {
-        const onDemandResponse = await apiClient.get(`/photographer/${user.id}/on-demand-status`);
-        const onDemandData = onDemandResponse.data;
-        setOnDemandActive(onDemandData?.is_available || false);
-        
-        if (onDemandData?.is_available) {
-          // Always switch to On-Demand tab when it's active
-          setSelectedSpots(onDemandData.active_spots || []);
-          setMode('onDemand');
-        }
-      }
-      
-      try {
-        const statsResponse = await apiClient.get(`/photographer/${user.id}/daily-stats`);
-        setStats(statsResponse.data || { todayEarnings: 0, sessionsToday: 0 });
-      } catch (e) { /* daily stats are optional - don't block on failure */ }
-    } catch (error) {
-      logger.error('Failed to fetch statuses:', error);
-      // If status fetch fails but the user has a stale session, the backend will
-      // still report is_shooting=true.  Fallback: assume not active so the user
-      // can at least attempt to go live (the backend will catch conflicts).
-      setLiveActive(false);
-      setOnDemandActive(false);
-    }
-  };
-  
-  // Force-end a stale session that's blocking new go-live attempts
-  const forceEndStaleSession = async () => {
-    try {
-      setLoading(true);
-      await apiClient.post(`/photographer/${user.id}/end-session`);
-      setLiveActive(false);
-      setSelectedSpot(null);
-      toast.success('Previous session ended. You can now go live again.');
-      // Re-fetch clean status
-      await fetchStatuses();
-    } catch (err) {
-      const errDetail = err.response?.data?.detail;
-      // "No active session to end" means the DB is already clean - clear local state
-      if (errDetail && errDetail.toLowerCase().includes('no active session')) {
-        setLiveActive(false);
-        toast.success('Session already cleared. You can go live now.');
-      } else {
-        toast.error(`Could not end session: ${errDetail || err.message}`);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const fetchAvailableSpots = async () => {
-    if (!userLocation) return;
-    
-    setSpotsLoading(true);
-    try {
-      // Use correct endpoint: /surf-spots/nearby with radius_miles parameter
-      const response = await apiClient.get(`/surf-spots/nearby`, {
-        params: {
-          latitude: userLocation.lat,
-          longitude: userLocation.lng,
-          radius_miles: radiusConfig.max // Use max radius for the tier
-        }
-      });
-      
-      // Map response and filter spots within the tier's radius
-      const spotsWithDistance = (response.data || []).map(spot => {
-        // Backend already provides distance_miles, but calculate if missing
-        const distance = spot.distance_miles || spot.distance || metersToMiles(
-          calculateDistance(userLocation.lat, userLocation.lng, spot.latitude, spot.longitude)
-        );
-        return { ...spot, distance };
-      }).filter(spot => spot.distance <= radiusConfig.max);
-      
-      setAvailableSpots(spotsWithDistance);
-    } catch (error) {
-      logger.error('Failed to fetch spots:', error);
-      setAvailableSpots([]);
-    } finally {
-      setSpotsLoading(false);
-    }
-  };
-  
-  const fetchNearbyShooters = async () => {
-    try {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (position) => {
-          const response = await apiClient.get(`/photographers/live`, {
-            params: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              radius: 25
-            }
-          });
-          const others = (response.data || []).filter(p => p.id !== user?.id);
-          setNearbyShooters(others.length);
-        });
-      }
-    } catch (error) {
-      logger.error('Failed to fetch nearby shooters:', error);
-    }
-  };
+  const {
+    fetchStatuses,
+    forceEndStaleSession,
+    fetchAvailableSpots,
+    fetchNearbyShooters,
+    handleConditionsConfirm,
+    handleActivateOnDemand,
+    handleDeactivateLive,
+    handleDeactivateOnDemand
+  } = useDutyStationActions({
+    user,
+    userLocation,
+    radiusConfig,
+    showOnDemand,
+    onDemandActive,
+    selectedSpot,
+    selectedSpots,
+    pricingConfig,
+    setLiveActive,
+    setOnDemandActive,
+    setSelectedSpot,
+    setSelectedSpots,
+    setAvailableSpots,
+    setSpotsLoading,
+    setLoading,
+    setNearbyShooters,
+    setProximityConfirmed,
+    setStats,
+    setShowConditionsModal,
+    gpsAvailable,
+    setGpsAvailable
+  });
   
   const handleSelectSpot = useCallback((spot) => {
     setSelectedSpot(spot);
@@ -342,262 +257,7 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
     setShowConditionsModal(true);
   };
   
-  // Handle conditions report confirmation - actually goes live
-  // Uses two-step flow: (1) pre-upload media to /upload/conditions, (2) send URL to go-live
-  // Includes automatic retry for Render cold-start resilience
-  const handleConditionsConfirm = async (conditionsData) => {
-    setLoading(true);
-    try {
-      if (onDemandActive) {
-        try {
-          await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, { is_available: false });
-          setOnDemandActive(false);
-          toast.info('Switching to Live mode. On-Demand disabled.');
-        } catch (odErr) {
-          // Don't block go-live if on-demand toggle fails - backend will auto-disable
-          logger.warn('[DutyStation] On-Demand toggle failed, backend will handle:', odErr);
-        }
-      }
-      
-      // Step 1: Pre-upload condition media via multipart form to avoid large JSON body
-      let conditionMediaUrl = null;
-      let conditionMediaType = conditionsData?.mediaType || null;
-      let uploadWokeServer = false; // Track if the upload request woke a sleeping server
-      if (conditionsData?.media instanceof Blob) {
-        try {
-          const ext = conditionMediaType === 'video' ? '.webm' : '.jpg';
-          const mimeType = conditionMediaType === 'video' ? 'video/webm' : 'image/jpeg';
-          const formData = new FormData();
-          formData.append('file', conditionsData.media, `conditions${ext}`);
-          formData.append('user_id', user.id);
-          logger.log('[DutyStation] Pre-uploading condition media-', { size: conditionsData.media.size, type: mimeType });
-          const uploadStart = Date.now();
-          const uploadRes = await apiClient.post('/upload/conditions', formData, {
-            headers: { 'Content-Type': undefined }, // Let browser set multipart boundary
-            timeout: 60000 // 60s for large video uploads
-          });
-          const uploadDuration = Date.now() - uploadStart;
-          conditionMediaUrl = uploadRes.data?.media_url;
-          conditionMediaType = uploadRes.data?.media_type || conditionMediaType;
-          logger.log('[DutyStation] Condition media uploaded:', conditionMediaUrl, `(${uploadDuration}ms)`);
-          // If upload took > 10s, server was likely cold-starting - it's warm now
-          if (uploadDuration > 10000) uploadWokeServer = true;
-        } catch (uploadErr) {
-          // Non-fatal: proceed without condition media (matches PSM pattern)
-          logger.warn('[DutyStation] Condition media upload failed (non-fatal):', uploadErr.message);
-          conditionMediaUrl = null;
-          conditionMediaType = null;
-          // Upload failure likely means server was sleeping - flag for warm-up
-          uploadWokeServer = true;
-        }
-      }
-      
-      // Step 2: Build go-live request - clean JSON payload with pricing config
-      // IMPORTANT: latitude/longitude must be USER's GPS position (not spot coords)
-      // - the backend uses these for Hobbyist proximity checks against nearby Pros
-      const goLivePayload = {
-        // Core spot data
-        spot_id: selectedSpot.id,
-        spot_name: selectedSpot.name,
-        location: selectedSpot.name,
-        // User's GPS coords (for Hobbyist proximity check), fall back to spot coords
-        latitude: userLocation?.lat || selectedSpot.latitude,
-        longitude: userLocation?.lng || selectedSpot.longitude,
-        // Session pricing - mirrors PhotographerSessionsManager
-        price_per_join: pricingConfig.price_per_join,
-        live_photo_price: pricingConfig.live_photo_price,
-        photos_included: pricingConfig.photos_included,
-        videos_included: pricingConfig.videos_included ?? 1,
-        general_photo_price: pricingConfig.general_photo_price,
-        photo_price_web: pricingConfig.photo_price_web,
-        photo_price_standard: pricingConfig.photo_price_standard,
-        photo_price_high: pricingConfig.photo_price_high,
-        estimated_duration: pricingConfig.estimated_duration,
-        max_surfers: pricingConfig.max_surfers,
-        auto_accept: pricingConfig.auto_accept,
-        // Condition media (URL only - no base64 fallback)
-        condition_media_url: conditionMediaUrl || null,
-        condition_media_type: conditionMediaType,
-        // Spot notes
-        spot_notes: conditionsData?.spotNotes || null,
-        // Earnings destination (Hobbyist cause/grom allocation)
-        earnings_destination_type: pricingConfig.earnings_destination_type || null,
-        earnings_destination_id: pricingConfig.earnings_destination_id || null,
-        earnings_cause_name: pricingConfig.earnings_cause_name || null
-      };
-      
-      logger.log('[DutyStation] Go-live payload:', {
-        ...goLivePayload,
-        condition_media_url: goLivePayload.condition_media_url ? '(url set)' : null
-      });
-      
-      // -- Go-live POST with automatic retry for cold-start resilience --
-      // Render free tier drops the first request while waking up.
-      // Strategy: always warm the server with a lightweight ping first,
-      // then POST go-live. If that fails with no response, wait and retry.
-      const MAX_ATTEMPTS = 3;
-      let lastError = null;
-      
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-        try {
-          // ALWAYS warm the server before go-live - cold starts are the #1 failure cause.
-          // On attempt 1: quick ping to wake if sleeping.
-          // On retries: longer wait + ping to let server finish booting.
-          if (attempt > 1) {
-            const retryDelay = attempt === 2 ? 5000 : 10000; // 5s, then 10s
-            toast.loading(`Server waking up - retry ${attempt - 1} of ${MAX_ATTEMPTS - 1}-`, { id: 'go-live-warmup' });
-            await new Promise(r => setTimeout(r, retryDelay));
-          } else {
-            toast.loading('Connecting to server-', { id: 'go-live-warmup' });
-          }
-          
-          try {
-            // Lightweight status check to confirm server is alive
-            await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
-            logger.log(`[DutyStation] Server warm-up ping succeeded (attempt ${attempt})`);
-          } catch (pingErr) {
-            if (attempt === 1) {
-              // First ping failed - server is definitely cold. Wait for it.
-              logger.warn('[DutyStation] Server cold - waiting 8s for boot-', pingErr.message);
-              toast.loading('Server is starting up-', { id: 'go-live-warmup' });
-              await new Promise(r => setTimeout(r, 8000));
-              // Try ping again after waiting
-              try {
-                await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
-                logger.log('[DutyStation] Server alive after wait');
-              } catch (secondPingErr) {
-                logger.warn('[DutyStation] Server still unresponsive after 8s wait:', secondPingErr.message);
-              }
-            } else {
-              logger.warn(`[DutyStation] Warm-up ping failed on attempt ${attempt}:`, pingErr.message);
-            }
-          }
-          toast.dismiss('go-live-warmup');
-          
-          const goLiveRes = await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, {
-            timeout: 120000 // 120s - matches PSM; accommodates Render cold starts
-          });
-          logger.log('[DutyStation] Go-live success:', goLiveRes.data?.live_session_id);
-          setLiveActive(true);
-          setShowConditionsModal(false);
-          toast.success(`Now live at ${selectedSpot.name}!`);
-          return; // ? Success - exit the function
-        } catch (err) {
-          lastError = err;
-          toast.dismiss('go-live-warmup');
-          const hasResponse = !!err.response;
-          const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
-          
-          // Only retry on cold-start symptoms (no HTTP response, or timeout)
-          // Do NOT retry on 4xx/5xx - those are real server errors
-          if (hasResponse || attempt >= MAX_ATTEMPTS) {
-            break; // Server responded with an error, or out of retries
-          }
-          
-          // No response or timeout - server is likely still booting
-          logger.warn(`[DutyStation] Go-live attempt ${attempt} failed, will retry-`, err.code, err.message);
-        }
-      }
-      
-      // If we get here, all attempts failed - surface the error from the last attempt
-      throw lastError;
-    } catch (error) {
-      const detail = error.response?.data?.detail || '';
-      const status = error.response?.status;
-      logger.error('[DutyStation] Go-live failed after retries:', { status, detail, message: error.message });
-      
-      // Check specific statuses FIRST - before the generic detail fallback
-      if (status === 413) {
-        toast.error('Media file too large. Please use a shorter video or lower-quality photo.');
-      } else if (status === 400 && detail.toLowerCase().includes('already')) {
-        // Stale session blocking new go-live - offer recovery action
-        toast.error('You have a stale live session blocking new activations.', {
-          duration: 8000,
-          action: {
-            label: 'End Stale Session',
-            onClick: () => forceEndStaleSession()
-          }
-        });
-      } else if (status === 409) {
-        toast.error('Session conflict detected. Please refresh and try again.');
-      } else if (detail) {
-        // Generic backend error message (covers 403 role errors, etc.)
-        toast.error(`Go-live error: ${detail}`);
-      } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        toast.error('Server is warming up - please wait a moment and try again.', { duration: 6000 });
-      } else if (!error.response) {
-        // Exhausted retries with no server response
-        logger.error('[DutyStation] No HTTP response after retries:', error.code, error.message);
-        toast.error('Could not reach the server after retrying. Please check your connection and try again.', { duration: 8000 });
-      } else {
-        toast.error('Failed to go live. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleActivateOnDemand = async () => {
-    if (selectedSpots.length === 0) {
-      toast.error('Please select at least one spot');
-      return;
-    }
-    
-    // Check GPS availability
-    if (!gpsAvailable) {
-      toast.error('GPS is required for On-Demand mode');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      if (liveActive) {
-        await apiClient.post(`/photographer/${user.id}/end-session`);
-        setLiveActive(false);
-        toast.info('Switching to On-Demand mode. Live session ended.');
-      }
-      
-      await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, {
-        is_available: true,
-        spots: selectedSpots.map(s => ({ id: s.id, name: s.name, latitude: s.latitude, longitude: s.longitude }))
-      });
-      setOnDemandActive(true);
-      toast.success(`On-Demand activated for ${selectedSpots.length} spot${selectedSpots.length !== 1 ? 's' : ''}!`);
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to activate On-Demand');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleDeactivateLive = async () => {
-    setLoading(true);
-    try {
-      await apiClient.post(`/photographer/${user.id}/end-session`);
-      setLiveActive(false);
-      setSelectedSpot(null);
-      setProximityConfirmed(false);
-      toast.success('Live session ended');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to end session');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleDeactivateOnDemand = async () => {
-    setLoading(true);
-    try {
-      await apiClient.post(`/photographer/${user.id}/on-demand-toggle`, { is_available: false });
-      setOnDemandActive(false);
-      setSelectedSpots([]);
-      toast.success('On-Demand mode deactivated');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update status');
-    } finally {
-      setLoading(false);
-    }
-  };
+
   
   const handleActivate = mode === 'live' ? handleActivateLive : handleActivateOnDemand;
   const handleDeactivate = mode === 'live' ? handleDeactivateLive : handleDeactivateOnDemand;

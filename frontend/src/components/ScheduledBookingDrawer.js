@@ -38,6 +38,9 @@ import BookingSessionSummary from './booking/BookingSessionSummary';
 
 // Extracted helper components
 import { DURATION_PRICES, CrewSplitSection, CrossSellSuggestion, BookingConfirmation } from './booking/ScheduledBookingHelpers';
+import { BookingSelfieStep } from './booking/BookingSelfieStep';
+import { BookingConfirmStep } from './booking/BookingConfirmStep';
+import { BookingFooter } from './booking/BookingFooter';
 
 /**
  * Main Scheduled Booking Drawer Component
@@ -549,105 +552,29 @@ export const ScheduledBookingDrawer = ({
         
           {/* Step 5: Selfie for Identification */}
           {step === 'selfie' && (
-            <div className="space-y-4 pb-4">
-              <div className={`p-4 rounded-xl ${isLight ? 'bg-cyan-50' : 'bg-cyan-500/10'} border border-cyan-500/30`}>
-                <h4 className={`font-bold text-sm ${textPrimary} mb-2 flex items-center gap-2`}>
-                  <Camera className="w-4 h-4 text-cyan-400" />
-                  Help the Photographer Find You!
-                </h4>
-                <p className={`text-xs ${textSecondary}`}>
-                  Take a quick selfie with your board. This helps the photographer identify you in their photos so you don't miss any shots!
-                </p>
-              </div>
-              
-              {selfieUrl ? (
-                <div className="space-y-3">
-                  <div className="relative aspect-[4/3] rounded-xl overflow-hidden">
-                    <img loading="lazy" decoding="async" src={selfieUrl} alt="Your selfie" className="w-full h-full object-cover" />
-                    <Badge className="absolute top-2 right-2 bg-green-500 text-white">
-                      <Check className="w-3 h-3 mr-1" /> Saved
-                    </Badge>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button aria-label="Camera"
-                      variant="outline"
-                      onClick={() => setSelfieUrl(null)}
-                      className="flex-1"
-                    >
-                      <Camera className="w-4 h-4 mr-2" />
-                      Retake
-                    </Button>
-                    <Button aria-label="Next"
-                      onClick={() => setStep('confirm')}
-                      className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold"
-                    >
-                      Continue
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <SelfieCapture
-                  onCapture={(url) => {
-                    setSelfieUrl(url);
-                    toast.success('Selfie captured! The photographer will use this to find you.');
-                  }}
-                  onSkip={() => {
-                    setStep('confirm');
-                  }}
-                  title="Selfie with Your Board"
-                  subtitle="Hold your board so the photographer can spot you in the lineup"
-                  skipAllowed={true}
-                  theme={isLight ? 'light' : 'dark'}
-                />
-              )}
-            </div>
+            <BookingSelfieStep
+              selfieUrl={selfieUrl}
+              setSelfieUrl={setSelfieUrl}
+              setStep={setStep}
+              isLight={isLight}
+              textPrimary={textPrimary}
+              textSecondary={textSecondary}
+            />
           )}
         
           {/* Step 6: Confirmation */}
           {step === 'confirm' && (
-            <div className="space-y-4 pb-4">
-              <div className={`p-3 rounded-xl ${isLight ? 'bg-yellow-50' : 'bg-yellow-500/10'} border border-yellow-500/30`}>
-                <h4 className={`font-bold text-sm ${textPrimary} mb-2 flex items-center gap-2`}>
-                  <CheckCircle2 className="w-4 h-4 text-yellow-400" />
-                  Confirm Your Booking
-                </h4>
-                
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Camera className="w-3 h-3 text-gray-500" />
-                    <span className={textPrimary}>{photographer?.full_name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3 h-3 text-gray-500" />
-                    <span className={textPrimary}>
-                      {selectedDate?.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {selectedTime}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-3 h-3 text-gray-500" />
-                    <span className={`${textPrimary} truncate`}>{impactZone?.description}</span>
-                  </div>
-                  
-                  <div className={`pt-2 border-t ${isLight ? 'border-yellow-200' : 'border-yellow-500/30'}`}>
-                    <div className="flex justify-between">
-                      <span className={textSecondary}>Total</span>
-                      <span className={textPrimary}>${totalPrice.toFixed(2)}</span>
-                    </div>
-                    {appliedCredits > 0 && (
-                      <div className="flex justify-between text-yellow-500">
-                        <span>Credits</span>
-                        <span>-${appliedCredits.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between font-bold text-sm mt-1">
-                      <span className={textPrimary}>Pay Now</span>
-                      <span className="text-green-400">${(totalPrice - appliedCredits).toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <BookingConfirmStep
+              photographer={photographer}
+              selectedDate={selectedDate}
+              selectedTime={selectedTime}
+              impactZone={impactZone}
+              totalPrice={totalPrice}
+              appliedCredits={appliedCredits}
+              isLight={isLight}
+              textPrimary={textPrimary}
+              textSecondary={textSecondary}
+            />
           )}
           
           {/* Step 6: Success */}
@@ -679,114 +606,17 @@ export const ScheduledBookingDrawer = ({
         </div>
         
         {/* Sticky Footer Navigation */}
-        {step !== 'success' && (
-          <div className={`flex-shrink-0 px-4 py-2 border-t ${isLight ? 'border-gray-200 bg-white' : 'border-zinc-800 bg-zinc-900'}`}>
-            {step === 'time' && (
-              <Button aria-label="Next"
-                onClick={handleNext}
-                disabled={!canProceedFromTime}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
-                data-testid="continue-to-location-btn"
-              >
-                Continue
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            )}
-            
-            {step === 'location' && (
-              <div className="flex gap-2">
-                <Button aria-label="Previous"
-                  variant="outline"
-                  onClick={handleBack}
-                  className={`flex-1 h-10 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Back
-                </Button>
-                <Button aria-label="Next"
-                  onClick={handleNext}
-                  disabled={!canProceedFromLocation}
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
-                  data-testid="continue-to-crew-btn"
-                >
-                  Continue
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            )}
-            
-            {step === 'crew' && (
-              <div className="flex gap-2">
-                <Button aria-label="Previous"
-                  variant="outline"
-                  onClick={handleBack}
-                  className={`flex-1 h-10 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Back
-                </Button>
-                <Button aria-label="Next"
-                  onClick={handleNext}
-                  disabled={!canProceedFromCrew}
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
-                  data-testid="continue-to-payment-btn"
-                >
-                  Payment
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            )}
-            
-            {step === 'payment' && (
-              <div className="flex gap-2">
-                <Button aria-label="Previous"
-                  variant="outline"
-                  onClick={handleBack}
-                  className={`flex-1 h-10 ${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Back
-                </Button>
-                <Button aria-label="Next"
-                  onClick={handleNext}
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10"
-                  data-testid="review-booking-btn"
-                >
-                  Review
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            )}
-            
-            {step === 'confirm' && (
-              <div className="flex gap-2">
-                <Button aria-label="Previous"
-                  variant="outline"
-                  onClick={handleBack}
-                  className="flex-1 h-10 border-zinc-700"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" />
-                  Back
-                </Button>
-                <Button aria-label="Loader2"
-                  onClick={handleSubmitBooking}
-                  disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold h-10"
-                  data-testid="confirm-booking-btn"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4 mr-1" />
-                      Confirm & Pay
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
+        <BookingFooter
+          step={step}
+          isLight={isLight}
+          handleNext={handleNext}
+          handleBack={handleBack}
+          handleSubmitBooking={handleSubmitBooking}
+          loading={loading}
+          canProceedFromTime={canProceedFromTime}
+          canProceedFromLocation={canProceedFromLocation}
+          canProceedFromCrew={canProceedFromCrew}
+        />
       </DialogContent>
     </Dialog>
   );
