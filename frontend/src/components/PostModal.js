@@ -330,17 +330,23 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center"
-      onClick={() => {
-        // Skip close if the reaction picker was just dismissed
-        if (pickerJustDismissedRef.current) {
-          pickerJustDismissedRef.current = false;
-          return;
-        }
-        onClose();
-      }}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/80" />
+      {/* Backdrop — onMouseDown is the industry-standard close trigger.
+          Unlike onClick on the outer container, mouseDown on a dedicated
+          backdrop layer can never be accidentally triggered by events
+          originating inside the modal content or picker overlays. */}
+      <div
+        className="absolute inset-0 bg-black/80"
+        onMouseDown={(e) => {
+          // Only react to clicks directly on the backdrop, never bubbled
+          if (e.target !== e.currentTarget) return;
+          if (pickerJustDismissedRef.current) {
+            pickerJustDismissedRef.current = false;
+            return;
+          }
+          onClose();
+        }}
+      />
       
       {/* Close button */}
       <button aria-label="Close"

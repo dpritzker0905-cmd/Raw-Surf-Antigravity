@@ -182,8 +182,11 @@ export default function usePostModal({
     } else {
       setUserReaction({ emoji });
       setLiked(true); // Any active reaction = liked
-      // Only increment if user didn't already have a reaction (swap = no count change)
-      if (!prevReaction) {
+      // Only increment if user didn't already have a reaction (swap = no count change).
+      // Check BOTH prevReaction and prevLiked — a PostLike-based shaka may not
+      // have set userReaction yet, but liked will be true.
+      const hadExistingReaction = !!prevReaction || prevLiked;
+      if (!hadExistingReaction) {
         setLikeCount(prevCount + 1);
       }
     }

@@ -227,6 +227,15 @@ async def get_feed(
                 emoji=row[1], user_id=user_id
             )
         
+        # Synthesize a shaka user_reaction for PostLike users who have no
+        # PostReaction row.  This tells the frontend "this user already has a
+        # reaction" so the optimistic swap logic doesn't bump the count.
+        for pid in liked_post_ids:
+            if pid not in user_reactions_map:
+                user_reactions_map[pid] = ReactionData(
+                    emoji="\U0001F919", user_id=user_id
+                )
+        
         from models import SavedPost
         saved_result = await db.execute(
             select(SavedPost.post_id).where(
@@ -524,6 +533,11 @@ async def get_single_post(
             is_liked = True
             viewer_reaction_data = ReactionData(
                 emoji=viewer_reaction.emoji, user_id=viewer_id
+            )
+        elif is_liked:
+            # PostLike exists but no PostReaction — synthesize shaka
+            viewer_reaction_data = ReactionData(
+                emoji="\U0001F919", user_id=viewer_id
             )
         
         # Check if saved
