@@ -1,0 +1,249 @@
+"""
+explore_discover/spot_details.py — Spot details endpoint with full conditions, forecast, and photographer listing.
+Extracted from explore.py (v92 audit) for LOC compliance.
+"""
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
+from sqlalchemy.orm import selectinload
+from typing import Optional
+from datetime import datetime, timezone, timedelta
+import httpx
+import logging
+
+from database import get_db
+from models import Profile, SurfSpot, Post, SurfReport
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
+
+
+def get_conditions_label(wave_height_ft: float) -> str:
+    if wave_height_ft < 1:
+        return "Flat"
+    elif wave_height_ft < 2:
+        return "Ankle High"
+    elif wave_height_ft < 3:
+        return "Knee High"
+    elif wave_height_ft < 4:
+        return "Waist High"
+    elif wave_height_ft < 5:
+        return "Chest High"
+    elif wave_height_ft < 6:
+        return "Head High"
+    elif wave_height_ft < 8:
+        return "Overhead"
+    elif wave_height_ft < 10:
+        return "Double Overhead"
+    else:
+        return "Triple Overhead+"
+
+
+@router.get("/explore/spot-details/{spot_id}")
+async def get_spot_details(
+    spot_id: str,
+    subscription_tier: str = "free",
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get detailed information about a specific surf spot including
+    conditions, full forecast, reports, and content.
+    """
+    result = await db.execute(
+        select(SurfSpot).where(SurfSpot.id == spot_id)
+    )
+    spot = result.scalar_one_or_none()
+    
+    if not spot:
+        return {"error": "Spot not found"}
+    
+    # Determine forecast days AFTER today
+    # TODAY = current conditions (not forecast)
+    # FREE = 3 days AFTER today
+    # PAID = 7 days AFTER today  
+    # PREMIUM = 10 days AFTER today
+    forecast_days_after_today = 3
+    if subscription_tier in ['paid', 'basic']:
+        forecast_days_after_today = 7
+    elif subscription_tier in ['premium', 'pro', 'gold']:
+        forecast_days_after_today = 10
+    
+    # Always fetch 10 days from the API so we can show locked previews
+    max_forecast_days = 10
+    api_forecast_days = max_forecast_days + 1  # +1 because index 0 is today
+    
+    spot_data = {
+        "id": spot.id,
+        "name": spot.name,
+        "region": spot.region,
+        "difficulty": spot.difficulty,
+        "image_url": spot.image_url,
+        "latitude": spot.latitude,
+        "longitude": spot.longitude,
+        "description": spot.description,
+        "wave_type": getattr(spot, 'wave_type', None),
+        "best_tide": spot.best_tide,
+        "best_swell": getattr(spot, 'best_swell', None),
+        "current_conditions": None,
+        "forecast": [],
+        "forecast_days_allowed": forecast_days_after_today
+    }
+    
+    # Fetch real-time conditions and forecast
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(OPEN_METEO_MARINE_URL, params={
+                "latitude": spot.latitude,
+                "longitude": spot.longitude,
+                "current": "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction",
+                "daily": "wave_height_max,wave_direction_dominant,wave_period_max,swell_wave_height_max",
+                "forecast_days": api_forecast_days,
+                "timezone": "America/New_York"
+            })
+            
+            if response.status_code == 200:
+                data = response.json()
+                current = data.get("current", {})
+                daily = data.get("daily", {})
+                
+                wave_height_m = current.get("wave_height", 0)
+                wave_height_ft = round(wave_height_m * 3.28084, 1) if wave_height_m else 0
+                
+                swell_m = current.get("swell_wave_height", 0)
+                swell_ft = round(swell_m * 3.28084, 1) if swell_m else 0
+                
+                # Today's conditions from "current" API endpoint
+                spot_data["current_conditions"] = {
+                    "wave_height_ft": wave_height_ft,
+                    "wave_direction": current.get("wave_direction"),
+                    "wave_period": current.get("wave_period"),
+                    "swell_height_ft": swell_ft,
+                    "swell_direction": current.get("swell_wave_direction"),
+                    "label": get_conditions_label(wave_height_ft),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                # Build forecast - SKIP today (index 0), start from tomorrow (index 1)
+                dates = daily.get("time", [])
+                wave_max = daily.get("wave_height_max", [])
+                directions = daily.get("wave_direction_dominant", [])
+                periods = daily.get("wave_period_max", [])
+                swell_max = daily.get("swell_wave_height_max", [])
+                
+                for i in range(1, min(len(dates), max_forecast_days + 1)):
+                    date = dates[i]
+                    max_m = wave_max[i] if i < len(wave_max) else 0
+                    max_ft = round(max_m * 3.28084, 1) if max_m else 0
+                    min_ft = round(max_ft * 0.6, 1)
+                    
+                    swell_max_m = swell_max[i] if i < len(swell_max) else 0
+                    swell_max_ft = round(swell_max_m * 3.28084, 1) if swell_max_m else 0
+                    
+                    spot_data["forecast"].append({
+                        "date": date,
+                        "wave_height_min": min_ft,
+                        "wave_height_max": max_ft,
+                        "wave_direction": directions[i] if i < len(directions) else None,
+                        "wave_period": periods[i] if i < len(periods) else None,
+                        "swell_height_ft": swell_max_ft,
+                        "label": get_conditions_label(max_ft)
+                    })
+    except Exception as e:
+        logger.error(f"Error fetching conditions for {spot.name}: {e}")
+    
+    # Get recent reports (last 48 hours)
+    reports_result = await db.execute(
+        select(SurfReport)
+        .where(SurfReport.spot_id == spot_id)
+        .where(SurfReport.created_at > datetime.now(timezone.utc) - timedelta(hours=48))
+        .order_by(desc(SurfReport.created_at))
+        .limit(10)
+    )
+    reports = reports_result.scalars().all()
+    
+    spot_data["recent_reports"] = [{
+        "id": r.id,
+        "wave_height": r.wave_height,
+        "conditions": r.conditions,
+        "crowd_level": r.crowd_level,
+        "wind_direction": r.wind_direction,
+        "rating": r.rating,
+        "notes": r.notes,
+        "created_at": r.created_at.isoformat() if r.created_at else None
+    } for r in reports]
+    
+    # Get photographers at this spot: live-shooting AND on-demand available
+    shooting_result = await db.execute(
+        select(Profile)
+        .where(Profile.current_spot_id == spot_id)
+        .where(Profile.is_shooting .is_(True))
+    )
+    shooting_photographers = shooting_result.scalars().all()
+    
+    on_demand_result = await db.execute(
+        select(Profile)
+        .where(Profile.current_spot_id == spot_id)
+        .where(Profile.on_demand_available .is_(True))
+        .where(Profile.is_shooting .is_(False))  # NOT already in live session
+    )
+    on_demand_photographers = on_demand_result.scalars().all()
+    
+    # Combine with status differentiation
+    combined_photographers = []
+    for p in shooting_photographers:
+        combined_photographers.append({
+            "id": p.id,
+            "full_name": p.full_name,
+            "avatar_url": p.avatar_url,
+            "is_shooting": True,
+            "is_streaming": p.is_streaming,
+            "is_on_demand": False,
+            "status": "live_shooting",
+            "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
+            "session_price": p.session_price,
+            "hourly_rate": p.hourly_rate,
+            "booking_hourly_rate": getattr(p, 'booking_hourly_rate', None),
+            "role": p.role.value if p.role else 'photographer',
+            "current_spot_id": p.current_spot_id
+        })
+    for p in on_demand_photographers:
+        combined_photographers.append({
+            "id": p.id,
+            "full_name": p.full_name,
+            "avatar_url": p.avatar_url,
+            "is_shooting": False,
+            "is_streaming": False,
+            "is_on_demand": True,
+            "status": "on_demand",
+            "on_demand_hourly_rate": getattr(p, 'on_demand_hourly_rate', None),
+            "session_price": p.session_price,
+            "hourly_rate": p.hourly_rate,
+            "booking_hourly_rate": getattr(p, 'booking_hourly_rate', None),
+            "role": p.role.value if p.role else 'photographer',
+            "current_spot_id": p.current_spot_id
+        })
+    
+    spot_data["active_photographers"] = combined_photographers
+    
+    # Get recent posts at this spot
+    posts_result = await db.execute(
+        select(Post)
+        .options(selectinload(Post.author))
+        .where(Post.spot_id == spot_id)
+        .order_by(desc(Post.created_at))
+        .limit(12)
+    )
+    posts = posts_result.scalars().all()
+    
+    spot_data["recent_posts"] = [{
+        "id": p.id,
+        "image_url": p.media_url,
+        "caption": p.caption,
+        "likes_count": p.likes_count,
+        "author_name": p.author.full_name if p.author else None,
+        "author_avatar": p.author.avatar_url if p.author else None
+    } for p in posts]
+    
+    return spot_data
