@@ -1,4 +1,4 @@
-﻿"""Messages conversations â€” thread management, sending, listing, and actions."""
+"""Messages conversations â€” thread management, sending, listing, and actions."""
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -145,7 +145,11 @@ async def send_message(data: SendMessageRequest, sender_id: str, db: AsyncSessio
     elif data.message_type == 'gif':
         preview = "ðŸŽ­ GIF"
     else:
-        preview = data.content[:100] + "..." if len(data.content) > 100 else data.content
+        # post_share messages contain JSON — show a clean preview
+        if data.message_type == 'post_share':
+            preview = "\U0001F4F8 Shared a post"
+        else:
+            preview = data.content[:100] + "..." if len(data.content) > 100 else data.content
     
     conversation.last_message_preview = preview
     conversation.last_message_at = datetime.now(timezone.utc)

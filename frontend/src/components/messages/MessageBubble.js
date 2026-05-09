@@ -7,7 +7,9 @@ import {
   Heart,
   X
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../lib/apiClient';
+import { getFullUrl } from '../../utils/media';
 import EphemeralCountdown from './EphemeralCountdown';
 import logger from '../../utils/logger';
 import { formatClockTime } from '../../utils/formatTime';
@@ -25,8 +27,25 @@ const REACTIONS = [
 // Format timestamp for message bubble - shared utility
 const formatTime = formatClockTime;
 
+/**
+ * Attempt to parse a post_share message's JSON content.
+ * Returns null if it's a legacy plain-text share.
+ */
+const parsePostShareData = (content) => {
+  if (!content) return null;
+  try {
+    const data = JSON.parse(content);
+    // Validate it has at minimum a post_id
+    if (data && data.post_id) return data;
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 
 const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
+  const navigate = useNavigate();
   const [showReactions, setShowReactions] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const longPressTimer = useRef(null);
@@ -37,6 +56,104 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
   
   const handleTouchEnd = () => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
+  /**
+   * Renders an Instagram-style shared-post card.
+   * Clickable to navigate to the full post.
+   */
+  const renderPostShareCard = (shareData) => {
+    const mediaUrl = getFullUrl(shareData.media_url);
+    const authorAvatar = getFullUrl(shareData.author_avatar);
+    const isVideo = shareData.media_type === 'video';
+    const caption = shareData.caption || '';
+    const truncatedCaption = caption.length > 120
+      ? caption.substring(0, 120) + '\u{2026}'
+      : caption;
+
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/post/${shareData.post_id}`);
+        }}
+        className="block w-full text-left rounded-xl overflow-hidden border border-white/10 bg-black/20 hover:bg-black/30 transition-colors cursor-pointer max-w-[280px]"
+        data-testid="shared-post-card"
+        aria-label="View shared post"
+      >
+        {/* Post Thumbnail */}
+        {mediaUrl && (
+          <div className="relative w-full aspect-[4/3] bg-black/40 overflow-hidden">
+            {isVideo ? (
+              <video
+                src={mediaUrl}
+                className="w-full h-full object-cover"
+                muted
+                preload="metadata"
+                playsInline
+              />
+            ) : (
+              <img
+                loading="lazy"
+                decoding="async"
+                src={mediaUrl}
+                alt="Shared post"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            )}
+            {isVideo && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="white">
+                    <polygon points="4,2 14,8 4,14" />
+                  </svg>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Author + Caption */}
+        <div className="px-3 py-2.5">
+          {/* Author row */}
+          {shareData.author_name && (
+            <div className="flex items-center gap-2 mb-1.5">
+              {authorAvatar ? (
+                <img
+                  src={authorAvatar}
+                  alt=""
+                  className="w-5 h-5 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-[9px] font-semibold text-white/70">
+                    {shareData.author_name?.charAt(0) || '?'}
+                  </span>
+                </div>
+              )}
+              <span className="text-xs font-semibold truncate" style={{ color: 'inherit' }}>
+                {shareData.author_name}
+              </span>
+            </div>
+          )}
+
+          {/* Caption */}
+          {truncatedCaption && (
+            <p className="text-xs leading-relaxed opacity-80 line-clamp-2" style={{ color: 'inherit' }}>
+              {truncatedCaption}
+            </p>
+          )}
+
+          {/* "View Post" hint */}
+          <p className="text-[10px] mt-1.5 opacity-50 font-medium" style={{ color: 'inherit' }}>
+            View post
+          </p>
+        </div>
+      </button>
+    );
   };
 
   const renderMedia = () => {
@@ -53,6 +170,16 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     };
     
     const mediaUrl = getMediaUrl(message.media_url);
+
+    // ── Post Share Card ──
+    if (message.message_type === 'post_share') {
+      const shareData = parsePostShareData(message.content);
+      if (shareData) {
+        return renderPostShareCard(shareData);
+      }
+      // Legacy plain-text post shares fall through to text rendering
+      return null;
+    }
     
     if (message.message_type === 'image' && mediaUrl) {
       return (
@@ -106,6 +233,9 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     return null;
   };
 
+  // Determine if this is a rich post share (suppress text content for those)
+  const isRichPostShare = message.message_type === 'post_share' && parsePostShareData(message.content);
+
   return (
     <div 
       className={`relative flex ${message.is_mine ? 'justify-end' : 'justify-start'} items-end gap-2 mb-3 group`}
@@ -154,13 +284,14 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
           </button>
         )}
         
-        <div className={`rounded-2xl px-4 py-2 ${
+        <div className={`rounded-2xl ${isRichPostShare ? 'p-1' : 'px-4 py-2'} ${
           message.is_mine 
             ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white' 
             : 'bg-muted text-foreground'
         }`}>
           {renderMedia()}
-          {message.content && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
+          {/* Hide raw content for rich post shares (the card replaces it) */}
+          {message.content && !isRichPostShare && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
         </div>
         
         <div className={`flex items-center gap-1 mt-1 ${message.is_mine ? 'justify-end' : 'justify-start'}`}>
@@ -211,3 +342,4 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
 };
 
 export default MessageBubble;
+

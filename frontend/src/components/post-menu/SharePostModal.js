@@ -96,18 +96,26 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
     }
   }, [open]);
 
-  // Send post as DM
+  // Send post as DM — encode full post metadata so the chat can render a rich card
   const handleSendDm = async (recipientId, recipientName) => {
     if (!user?.id || !post?.id || dmSending) return;
     
     setDmSending(recipientId);
     try {
-      const postUrl = `${window.location.origin}/post/${post.id}`;
-      const shareText = `Check out this post on Raw Surf! ${SHARE_ICONS.wave}\n${postUrl}`;
+      // Build structured payload for rich post preview card in chat
+      const postSharePayload = JSON.stringify({
+        post_id: post.id,
+        media_url: post.media_url || null,
+        media_type: post.media_type || 'image',
+        caption: post.caption ? post.caption.substring(0, 300) : '',
+        author_name: post.author_name || post.user?.full_name || '',
+        author_username: post.author_username || post.user?.username || '',
+        author_avatar: post.author_avatar || post.user?.avatar_url || '',
+      });
       
       await apiClient.post('/messages/send', {
         recipient_id: recipientId,
-        content: shareText,
+        content: postSharePayload,
         message_type: 'post_share',
         media_url: post.media_url || null
       }, {
