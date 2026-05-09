@@ -1,5 +1,5 @@
 # Raw Surf — CI Pipeline
-# Runs lint check and build verification on every push to dev
+# Runs lint check, architecture governance, and build verification
 name: CI
 
 on:
@@ -66,3 +66,33 @@ jobs:
         working-directory: backend
         run: flake8 --max-line-length=150 --count --select=E9,F63,F7,F82 --show-source --statistics .
         continue-on-error: true  # Warn only, don't block
+
+  # v89 Governance — File Size Enforcement (<800 LOC)
+  backend-file-size-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: "🔍 Check file sizes (max 800 LOC)"
+        working-directory: backend
+        run: python scripts/check_file_size.py --path . --max-lines 800
+
+  # v89 Governance — Import Graph Validation
+  backend-import-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: "🔍 Check for circular imports"
+        working-directory: backend
+        run: python scripts/check_imports.py --path routes

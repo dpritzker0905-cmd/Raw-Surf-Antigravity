@@ -36,7 +36,8 @@ from .surfer_gallery import router as surfer_gallery_router
 # ─── Admin packages ─────────────────────────────────────────────────────────────
 from .admin import admin_router, admin_analytics_router
 from .admin import (
-    admin_moderation_router, admin_p1_router, admin_p2_router,
+    admin_moderation_router, admin_moderation_reports_router,
+    admin_p1_router, admin_p2_router,
     admin_analytics_enhanced_router, admin_support_router,
     admin_content_mod_router, admin_communications_router,
     admin_system_router, admin_finance_router, admin_content_mgmt_router,
@@ -88,6 +89,7 @@ api_router.include_router(surfer_gallery_router, tags=["Surfer Gallery"])
 api_router.include_router(admin_router, tags=["Admin"])
 api_router.include_router(admin_analytics_router, tags=["Admin Analytics"])
 api_router.include_router(admin_moderation_router, tags=["Admin Moderation"])
+api_router.include_router(admin_moderation_reports_router, tags=["Admin Moderation Reports"])
 api_router.include_router(admin_p1_router, tags=["Admin P1 Features"])
 api_router.include_router(admin_p2_router, tags=["Admin P2 Features"])
 api_router.include_router(admin_analytics_enhanced_router, tags=["Admin Analytics Enhanced"])
