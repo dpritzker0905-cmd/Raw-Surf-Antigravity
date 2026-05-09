@@ -1,4 +1,4 @@
-﻿"""
+"""
 Crew Chat Routes - Real-time messaging for booking coordination
 Allows Captains, Crew members, and Photographers to communicate
 about gear, meeting spots, and session details.
@@ -21,6 +21,9 @@ from services.mentions_service import mentions_service
 
 # Reaction endpoints, WebSocket manager, and WS endpoint extracted to crew_chat_reactions.py (v94)
 from .crew_chat_reactions import crew_chat_manager, verify_chat_access  # noqa: F401
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # PYDANTIC MODELS
@@ -54,38 +57,6 @@ class CrewChatMessageResponse(BaseModel):
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
-
-async def verify_chat_access(booking_id: str, user_id: str, db: AsyncSession) -> tuple:
-    """
-    Verify user has access to the booking chat.
-    Returns (booking, role) where role is 'captain', 'crew', or 'photographer'
-    """
-    # Get booking with participants
-    result = await db.execute(
-        select(Booking).where(Booking.id == booking_id)
-        .options(
-            selectinload(Booking.participants),
-            selectinload(Booking.photographer)
-        )
-    )
-    booking = result.scalar_one_or_none()
-    
-    if not booking:
-        return None, None
-    
-    # Check if user is the photographer
-    if booking.photographer_id == user_id:
-        return booking, "photographer"
-    
-    # Check if user is a participant
-    for p in booking.participants or []:
-        if p.participant_id == user_id:
-            if p.is_captain or booking.creator_id == user_id:
-                return booking, "captain"
-            return booking, "crew"
-    
-    return None, None
-
 
 async def create_system_message(booking_id: str, content: str, system_data: dict, db: AsyncSession):
     """Create a system-generated message (e.g., payment updates)"""
