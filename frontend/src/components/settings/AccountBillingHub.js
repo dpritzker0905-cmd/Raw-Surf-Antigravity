@@ -28,6 +28,8 @@ import {
   SURFER_PLANS, 
   GROM_PLANS, 
   PHOTOGRAPHER_PLANS,
+  HOBBYIST_PLANS,
+  VERIFIED_PRO_PLANS,
   subscriptionTierToTierId,
   getPlanByTierId
 } from '../../config/subscriptionPlans.config';
@@ -45,8 +47,12 @@ const getPlansForRole = (role) => {
   
   if (gromRoles.includes(role)) {
     return GROM_PLANS.monthly;
+  } else if (role === 'Approved Pro') {
+    const freePlan = HOBBYIST_PLANS.monthly.find(p => p.tier_id === 'tier_1');
+    return [freePlan, ...VERIFIED_PRO_PLANS.monthly];
   } else if (photographerRoles.includes(role)) {
-    return PHOTOGRAPHER_PLANS.monthly;
+    const freePlan = HOBBYIST_PLANS.monthly.find(p => p.tier_id === 'tier_1');
+    return [freePlan, ...PHOTOGRAPHER_PLANS.monthly];
   }
   return SURFER_PLANS.monthly;
 };
