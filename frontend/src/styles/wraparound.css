@@ -49,7 +49,7 @@
   Crisp, minimalist dots rolling.
 */
 :root, .light {
-  --wave-pattern: radial-gradient(circle at center, rgba(142, 197, 70, 0.15) 2px, transparent 2px);
+  --wave-pattern: radial-gradient(circle at center, rgba(142, 197, 70, 0.35) 2px, transparent 3px);
   --wave-size: 40px 40px;
 }
 
@@ -58,8 +58,8 @@
   Vertical rising/falling tide.
 */
 .beach-mode {
-  --wave-pattern: radial-gradient(circle at center, rgba(0, 180, 216, 0.25) 3px, transparent 3px),
-                  radial-gradient(circle at center, rgba(255, 210, 0, 0.15) 2px, transparent 2px);
+  --wave-pattern: radial-gradient(circle at center, rgba(0, 180, 216, 0.4) 3px, transparent 4px),
+                  radial-gradient(circle at center, rgba(255, 210, 0, 0.3) 2px, transparent 3px);
   --wave-size: 60px 60px;
 }
 .beach-mode .sidebar-wave-bg {
@@ -73,8 +73,8 @@
   Slow pulse and drift. glowing plankton.
 */
 .dark {
-  --wave-pattern: radial-gradient(circle at center, rgba(142, 197, 70, 0.2) 2px, transparent 4px),
-                  radial-gradient(circle at center, rgba(0, 255, 255, 0.1) 3px, transparent 6px);
+  --wave-pattern: radial-gradient(circle at center, rgba(142, 197, 70, 0.4) 2px, transparent 4px),
+                  radial-gradient(circle at center, rgba(0, 255, 255, 0.25) 3px, transparent 6px);
   --wave-size: 50px 50px;
   --wave-duration: 20s; /* Slower in dark mode */
 }

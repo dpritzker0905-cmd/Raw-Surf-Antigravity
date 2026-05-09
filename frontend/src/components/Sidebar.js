@@ -157,7 +157,7 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className={`fixed left-0 top-0 h-full w-[200px] ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-colors duration-300 overflow-hidden sidebar-left relative`}>
+    <aside className={`fixed left-0 top-0 h-full w-[200px] ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-colors duration-300 overflow-hidden sidebar-left`}>
       {/* Wraparound Animation Background */}
       <div className="sidebar-wave-container">
         <div className="sidebar-wave-bg"></div>
