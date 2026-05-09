@@ -48,7 +48,8 @@ const useSwipeNavigation = ({ tabs, activeTab, setActiveTab }) => {
 
     // Lock axis: if vertical movement is dominant, cancel swipe
     if (!swipeLockedRef.current) {
-      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+      // Use a stricter threshold to ensure we don't accidentally lock vertical scrolls
+      if (Math.abs(dy) > Math.abs(dx) * 0.8 && Math.abs(dy) > 10) {
         swipeActiveRef.current = false;
         if (contentRef.current) {
           contentRef.current.style.transform = '';
@@ -63,7 +64,11 @@ const useSwipeNavigation = ({ tabs, activeTab, setActiveTab }) => {
       }
     }
 
-    e.preventDefault();
+    // We rely on CSS `touch-action: pan-y` on the container instead of `e.preventDefault()`.
+    // Calling preventDefault here can cause severe scroll-locking regressions on precision touchpads.
+    // if (e.cancelable) {
+    //   e.preventDefault();
+    // }
     const currentIdx = tabIds.indexOf(activeTab);
     const atEdge = (dx > 0 && currentIdx === 0) || (dx < 0 && currentIdx === tabIds.length - 1);
     const dampened = atEdge ? dx * 0.2 : dx;

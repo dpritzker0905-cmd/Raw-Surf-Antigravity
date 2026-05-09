@@ -46,10 +46,11 @@ export default function useSwipeTabs(tabs, activeTab, setActiveTab, options = {}
       }
     }
 
-    // Prevent vertical scroll while we're swiping horizontally
-    if (swiping.current) {
-      e.preventDefault();
-    }
+    // We rely on CSS `touch-action: pan-y` on the container instead of `e.preventDefault()`.
+    // Calling preventDefault here can cause severe scroll-locking regressions on precision touchpads.
+    // if (swiping.current && e.cancelable) {
+    //   e.preventDefault();
+    // }
   }, []);
 
   const onTouchEnd = useCallback((e) => {

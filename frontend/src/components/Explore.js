@@ -574,6 +574,7 @@ export const Explore = () => {
       <div
         className="relative overflow-hidden"
         {...swipeHandlers}
+        style={{ touchAction: 'pan-y' }}
       >
       <div ref={exploreContentRef} className="will-change-transform">
 
