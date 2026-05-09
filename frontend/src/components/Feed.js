@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -317,6 +317,13 @@ export const Feed = () => {
     window.addEventListener('feed:refresh', handleFeedRefresh);
     return () => window.removeEventListener('feed:refresh', handleFeedRefresh);
   }, [handleFeedRefresh]);
+
+  // Stable reference for PostModal's onClose — prevents the history useEffect
+  // from re-firing when unrelated Feed state changes (e.g. reaction picker
+  // toggling) cause a re-render with a new inline arrow function identity.
+  const handleClosePostModal = useCallback(() => {
+    setPostModalOpen(null);
+  }, []);
 
   // Track the latest rendered post id so we can detect new arrivals
   useEffect(() => {
@@ -683,7 +690,7 @@ export const Feed = () => {
       <PostModal
         post={postModalOpen}
         isOpen={postModalOpen !== null}
-        onClose={() => setPostModalOpen(null)}
+        onClose={handleClosePostModal}
         onPostUpdated={handlePostUpdated}
         posts={posts.filter(p => !p.isAd)}
         onNavigatePost={(nextPost) => setPostModalOpen(nextPost)}

@@ -150,7 +150,10 @@ const useFeedReactionActions = ({
     const targetPost = posts.find(p => p.id === postId);
     const currentReaction = targetPost?.user_reaction;
     const isRemoving = currentReaction?.emoji === emoji;
-    const isChanging = currentReaction && !isRemoving;
+    // A user has an "existing reaction" if they have a user_reaction object
+    // OR if they're marked as liked (PostLike-based shaka with no user_reaction).
+    const hasExistingReaction = !!currentReaction || !!targetPost?.liked;
+    const isChanging = hasExistingReaction && !isRemoving;
     const oldCount = targetPost?.likes_count || 0;
 
     // Optimistic update — include likes_count so the counter reacts instantly
