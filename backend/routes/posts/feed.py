@@ -203,6 +203,7 @@ async def get_feed(
     # --- Batch: liked/saved status (scoped to THIS page) ---
     liked_post_ids = set()
     saved_post_ids = set()
+    user_reactions_map = {}  # post_id -> ReactionData (the viewer's emoji reaction)
     if user_id and page_post_ids:
         likes_result = await db.execute(
             select(PostLike.post_id).where(
@@ -211,6 +212,20 @@ async def get_feed(
             )
         )
         liked_post_ids = {row[0] for row in likes_result.fetchall()}
+        
+        # Also check PostReaction table — users who reacted via emoji picker
+        # are counted as "liked" so the shaka/icon renders correctly on reload.
+        reactions_result = await db.execute(
+            select(PostReaction.post_id, PostReaction.emoji).where(
+                PostReaction.user_id == user_id,
+                PostReaction.post_id.in_(page_post_ids)
+            )
+        )
+        for row in reactions_result.fetchall():
+            liked_post_ids.add(row[0])  # Treat emoji-reacted as "liked"
+            user_reactions_map[row[0]] = ReactionData(
+                emoji=row[1], user_id=user_id
+            )
         
         from models import SavedPost
         saved_result = await db.execute(
@@ -321,6 +336,7 @@ async def get_feed(
             is_liked_by_user=p.id in liked_post_ids,
             saved=p.id in saved_post_ids,
             reactions=[],  # Loaded on-demand via single post endpoint
+            user_reaction=user_reactions_map.get(p.id),  # Viewer's own reaction
             video_width=p.video_width,
             video_height=p.video_height,
             video_duration=p.video_duration,
@@ -483,9 +499,10 @@ async def get_single_post(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
-    # Check if viewer has liked this post
+    # Check if viewer has liked this post (PostLike OR PostReaction)
     is_liked = False
     is_saved = False
+    viewer_reaction_data = None
     if viewer_id:
         like_result = await db.execute(
             select(PostLike).where(
@@ -494,6 +511,20 @@ async def get_single_post(
             )
         )
         is_liked = like_result.scalar_one_or_none() is not None
+        
+        # Also check PostReaction table for emoji reactions
+        reaction_result = await db.execute(
+            select(PostReaction).where(
+                PostReaction.post_id == post_id,
+                PostReaction.user_id == viewer_id
+            )
+        )
+        viewer_reaction = reaction_result.scalar_one_or_none()
+        if viewer_reaction:
+            is_liked = True
+            viewer_reaction_data = ReactionData(
+                emoji=viewer_reaction.emoji, user_id=viewer_id
+            )
         
         # Check if saved
         from models import SavedPost
@@ -522,7 +553,7 @@ async def get_single_post(
     
     for like in getattr(post, 'likes', []):
         reactions_data.append(ReactionData(
-            emoji="🤙",
+            emoji="\U0001F919",
             user_id=like.user_id,
             user_name=like.user.full_name if getattr(like, 'user', None) else None,
             avatar_url=like.user.avatar_url if getattr(like, 'user', None) else None,
@@ -570,6 +601,7 @@ async def get_single_post(
         comments_count=post.comments_count or len(post.comments),
         is_liked_by_user=is_liked,
         reactions=reactions_data,
+        user_reaction=viewer_reaction_data,
         video_width=post.video_width,
         video_height=post.video_height,
         video_duration=post.video_duration,

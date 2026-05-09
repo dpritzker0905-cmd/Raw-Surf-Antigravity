@@ -58,8 +58,6 @@ class ReactionData(BaseModel):
     avatar_url: Optional[str] = None
     user_role: Optional[str] = None
 
-# Valid surf-themed reactions — must stay in sync with frontend constants/emojis.js → REACTION_EMOJIS
-VALID_REACTIONS = ['🤙', '🌊', '🏄', '🔥', '💯', '❤️', '👏', '😂', '😎', '💪']
 
 class CommentResponse(BaseModel):
     id: str
@@ -153,6 +151,9 @@ class PostResponse(BaseModel):
     # Carousel support
     is_carousel: bool = False
     carousel_media: Optional[List[dict]] = []  # [{"url": "...", "type": "image/video", "thumbnail": "..."}]
+    
+    # User's own reaction on this post (populated by feed for optimistic UI)
+    user_reaction: Optional[ReactionData] = None
     
     # Single post view fields
     liked: bool = False

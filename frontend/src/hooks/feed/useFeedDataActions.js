@@ -45,7 +45,7 @@ const useFeedDataActions = ({
 
       // Snap to new posts immediately on manual tap (non-silent)
       if (!silent) {
-        setPosts(incoming.map(post => ({ ...post, liked: post.is_liked_by_user })));
+        setPosts(incoming.map(post => ({ ...post, liked: post.is_liked_by_user || !!post.user_reaction })));
         setNewPostsChip(0);
         latestPostIdRef.current = incoming[0]?.id ?? null;
       } else {
@@ -305,7 +305,7 @@ const useFeedDataActions = ({
         // Map is_liked_by_user to liked for frontend state
         const mappedPosts = postsArray.map(post => ({
           ...post,
-          liked: post.is_liked_by_user
+          liked: post.is_liked_by_user || !!post.user_reaction
         }));
         setPosts(mappedPosts);
         setLoading(false); // Unblock UI immediately after posts arrive
@@ -420,7 +420,7 @@ const useFeedDataActions = ({
       if (newPosts.length > 0) {
         const mappedNew = newPosts.map(post => ({
           ...post,
-          liked: post.is_liked_by_user
+          liked: post.is_liked_by_user || !!post.user_reaction
         }));
         
         // Append to existing posts, deduplicating by ID

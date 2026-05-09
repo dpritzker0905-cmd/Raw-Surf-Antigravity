@@ -493,7 +493,11 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                 {REACTION_EMOJIS.map((emoji) => (
                   <button
                     key={emoji}
-                    onClick={() => handleReaction(emoji)}
+                    onClick={() => {
+                      pickerJustDismissedRef.current = true;
+                      handleReaction(emoji);
+                      setTimeout(() => { pickerJustDismissedRef.current = false; }, 400);
+                    }}
                     className={`w-10 h-10 flex items-center justify-center rounded-full ${t.reactionHover} active:scale-90 transition-transform duration-100 touch-manipulation ${
                       userReaction?.emoji === emoji ? (isLight ? 'bg-gray-200 ring-1 ring-cyan-400/50' : 'bg-zinc-700/50 ring-1 ring-cyan-400/50') : ''
                     }`}
@@ -504,7 +508,11 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
                   </button>
                 ))}
                 <button 
-                  onClick={() => setShowReactionPicker(false)}
+                  onClick={() => {
+                    pickerJustDismissedRef.current = true;
+                    setShowReactionPicker(false);
+                    setTimeout(() => { pickerJustDismissedRef.current = false; }, 400);
+                  }}
                   className={`w-8 h-8 flex items-center justify-center ${t.textSecondary} ${t.hoverText} border-l ${t.reactionPickerBorder} ml-1 ${t.reactionHover} rounded-full`}
                   aria-label="Close reaction picker"
                 >
