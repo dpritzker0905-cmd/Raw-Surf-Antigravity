@@ -6,9 +6,9 @@
   --laser-delay-right: -4s; /* Out of phase for continuous flow */
 }
 
-/* Base Wrapper for the animated background */
-.sidebar-wave-container {
-  position: absolute;
+/* Base Wrapper for the global animated background */
+.aurora-bg-container {
+  position: fixed;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
@@ -18,28 +18,19 @@
 }
 
 /* The moving wave element */
-.sidebar-wave-bg {
+.aurora-bg-wave {
   position: absolute;
-  inset: 0;
+  inset: -50%; /* Give it more room to bleed over */
+  width: 200%;
+  height: 200%;
   background-repeat: repeat;
   opacity: 0.6;
   transition: opacity 0.5s ease;
   will-change: background-position;
 }
 
-/* Sync logic */
-.sidebar-left .sidebar-wave-bg {
-  animation-delay: 0s;
-}
-
-.sidebar-right .sidebar-wave-bg {
-  animation-delay: var(--laser-delay-right);
-}
-
-/* Hover acceleration logic */
-.nav-item-hover:hover ~ .sidebar-wave-bg, 
-.sidebar-left:hover .sidebar-wave-bg,
-.sidebar-right:hover .sidebar-wave-bg {
+/* Optional hover acceleration if desired globally, or just keep it static */
+.aurora-bg-wave.active-hover {
   opacity: 1;
 }
 
@@ -58,7 +49,7 @@
   --laser-blend: normal;
   --laser-duration: 16s;
 }
-.light .sidebar-wave-bg, :not(.dark):not(.beach-mode) .sidebar-wave-bg {
+.light .aurora-bg-wave, :not(.dark):not(.beach-mode) .aurora-bg-wave {
   background-image: var(--laser-pattern);
   /* Stretch the circles into massive amorphous ovals */
   background-size: 300% 150%, 200% 150%, 400% 250%;
@@ -81,7 +72,7 @@
   --laser-blend: normal;
   --laser-duration: 22s; /* Extremely slow, ambient */
 }
-.beach-mode .sidebar-wave-bg {
+.beach-mode .aurora-bg-wave {
   background-image: var(--laser-pattern);
   background-size: 250% 200%, 300% 250%, 350% 200%;
   animation: wave-fluid-beach var(--laser-duration) ease-in-out infinite alternate;
@@ -103,14 +94,14 @@
   --laser-blend: normal;
   --laser-duration: 18s;
 }
-.dark .sidebar-wave-container {
+.dark .aurora-bg-container {
   /* DMX LED Board Grid Mask */
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='16' height='16' fill='black' rx='2' ry='2'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='16' height='16' fill='black' rx='2' ry='2'/%3E%3C/svg%3E");
   -webkit-mask-size: 20px 20px;
   mask-size: 20px 20px;
 }
-.dark .sidebar-wave-bg {
+.dark .aurora-bg-wave {
   background-image: var(--laser-pattern);
   background-size: 250% 250%, 200% 300%, 300% 200%;
   animation: wave-fluid-dark var(--laser-duration) ease-in-out infinite alternate;
@@ -124,15 +115,9 @@
 
 /* Light Mode: Sweeps across like an undulating ocean swell */
 @keyframes wave-fluid-light {
-  0% { 
-    background-position: 0% 50%, 100% 20%, 50% 100%; 
-  }
-  50% {
-    background-position: 50% 80%, 50% 50%, 100% 0%; 
-  }
-  100% { 
-    background-position: 100% 30%, 0% 80%, 0% 0%; 
-  }
+  0% { background-position: 0% 50%, 100% 20%, 50% 100%; }
+  50% { background-position: 50% 80%, 50% 50%, 100% 0%; }
+  100% { background-position: 100% 30%, 0% 80%, 0% 0%; }
 }
 
 /* Beach Mode: Warm tidal ebbs and flows */
@@ -147,4 +132,37 @@
   0% { background-position: 0% 100%, 100% 0%, 50% 50%; }
   50% { background-position: 100% 50%, 50% 100%, 0% 0%; }
   100% { background-position: 50% 0%, 0% 50%, 100% 100%; }
+}
+
+/* ==========================================================================
+   MOBILE (PORTRAIT) OPTIMIZATION
+   ========================================================================== */
+@media (max-aspect-ratio: 4/5), (max-width: 768px) {
+  /* Throttle keyframe speed globally by overriding duration */
+  .light .aurora-bg-wave, :not(.dark):not(.beach-mode) .aurora-bg-wave {
+    animation-duration: calc(var(--laser-duration) * 1.5);
+    background-size: 400% 200%, 300% 200%, 500% 300%;
+  }
+  .beach-mode .aurora-bg-wave {
+    animation-duration: calc(var(--laser-duration) * 1.5);
+    background-size: 350% 300%, 400% 350%, 450% 300%;
+  }
+  .dark .aurora-bg-wave {
+    animation-duration: calc(var(--laser-duration) * 1.5);
+    background-size: 350% 350%, 300% 400%, 400% 300%;
+  }
+
+  /* Battery saver / Reduced motion override */
+  @media (prefers-reduced-motion: reduce) {
+    .aurora-bg-wave {
+      animation: none !important;
+      opacity: 0.3 !important;
+    }
+  }
+}
+
+/* High performance fallback */
+.aurora-bg-container.static-fallback .aurora-bg-wave {
+  animation: none !important;
+  opacity: 0.4 !important;
 }
