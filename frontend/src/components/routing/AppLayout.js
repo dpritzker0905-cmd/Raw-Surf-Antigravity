@@ -79,7 +79,6 @@ const PushNotificationInit = () => {
 const BackButtonHandler = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Push a guard history entry so the back button has something
   // to "pop" before exiting the SPA context entirely.

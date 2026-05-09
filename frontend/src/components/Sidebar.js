@@ -68,8 +68,7 @@ export const Sidebar = () => {
     ? 'bg-gradient-to-r from-lime-400 to-yellow-400 text-black font-medium'
     : 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-medium';
 
-  // Check if user is a photographer (use effective role for God Mode)
-  const isPhotographer = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
+  // Photographer checks removed as they are handled in RightSidebar
   
   // Check if user is a surfer (not photographer-only roles)
   const isSurfer = ['Grom', 'Surfer', 'Comp Surfer', 'Pro'].includes(effectiveRole);

@@ -11,6 +11,7 @@ export const RightSidebar = () => {
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();
   const location = useLocation();
+  const isMapOpen = location.pathname === '/map';
   
   const [photoToolsOpen, setPhotoToolsOpen] = useState(false);
   const [backpackOpen, setBackpackOpen] = useState(false);
