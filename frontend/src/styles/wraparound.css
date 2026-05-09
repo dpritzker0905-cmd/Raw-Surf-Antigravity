@@ -66,12 +66,13 @@
       rgba(255, 255, 255, 0) 100%
     );
   --laser-blend: normal;
-  --laser-duration: 7s; 
+  --laser-duration: 14s; /* Slowed down per user request */
 }
 .light .sidebar-wave-bg, :not(.dark):not(.beach-mode) .sidebar-wave-bg {
   background-image: var(--laser-pattern);
-  background-size: 200% 100%;
-  animation: wave-horizontal-left-right var(--laser-duration) linear infinite;
+  /* Two different background sizes allow the gradients to move at different rates */
+  background-size: 200% 100%, 250% 100%;
+  animation: wave-horizontal-complex var(--laser-duration) linear infinite;
   mix-blend-mode: var(--laser-blend);
 }
 
@@ -133,6 +134,12 @@
 @keyframes wave-horizontal-left-right {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
+}
+
+/* Light Mode Complex: Animates multiple background sizes at different speeds for interference */
+@keyframes wave-horizontal-complex {
+  0% { background-position: -200% 0, -250% 0; }
+  100% { background-position: 200% 0, 250% 0; }
 }
 
 /* Beach Mode: Slowly fades back and forth horizontally */
