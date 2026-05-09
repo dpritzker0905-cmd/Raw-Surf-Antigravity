@@ -25,6 +25,11 @@ from services.gallery_sync import manually_assign_item_to_surfer
 router = APIRouter()
 
 
+class TagItemToSurferRequest(BaseModel):
+    item_id: str
+    surfer_id: str
+
+
 @router.post("/gallery/{gallery_id}/tag-item")
 async def tag_single_item_to_surfer(
     gallery_id: str,
