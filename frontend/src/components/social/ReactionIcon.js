@@ -1,8 +1,9 @@
 import React from 'react';
 
 const ReactionIcon = ({ post, userId, isLiked, isPressing }) => {
-  const userReaction = post.reactions?.find(r => r.user_id === userId);
-  const hasNonShakaReaction = userReaction && userReaction.emoji !== '🤙';
+  // Priority: optimistic user_reaction (set by handleReaction) > reactions array (from server)
+  const userReaction = post.user_reaction || post.reactions?.find(r => r.user_id === userId);
+  const hasNonShakaReaction = userReaction && userReaction.emoji !== '\u{1F919}';
   
   // Determine if Shaka should be colored (checked) or grayscale (unchecked)
   // Also show colored when pressing (holding down) for visual feedback
