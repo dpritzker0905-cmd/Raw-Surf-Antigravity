@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 @router.get("/top-sponsors")
 async def get_top_sponsors(
     limit: int = Query(default=50, le=100),
-    period: str = Query(default='monthly', regex='^(monthly|lifetime)$'),
+    period: str = Query(default='monthly', pattern='^(monthly|lifetime)$'),
     db: AsyncSession = Depends(get_db)
 ):
     """

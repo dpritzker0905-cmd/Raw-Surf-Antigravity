@@ -37,8 +37,9 @@ from .surfer_gallery import router as surfer_gallery_router
 from .admin import admin_router, admin_analytics_router
 from .admin import (
     admin_moderation_router, admin_moderation_reports_router,
-    admin_p1_router, admin_p2_router,
-    admin_analytics_enhanced_router, admin_support_router,
+    admin_p1_router, admin_p2_router, admin_p2_campaigns_router,
+    admin_analytics_enhanced_router, admin_analytics_settings_router,
+    admin_support_router,
     admin_content_mod_router, admin_communications_router,
     admin_system_router, admin_finance_router, admin_content_mgmt_router,
     admin_ab_analytics_router, admin_test_accounts_router,
@@ -102,6 +103,8 @@ api_router.include_router(admin_content_mgmt_router, tags=["Admin Content Manage
 api_router.include_router(admin_ab_analytics_router, tags=["Admin A/B Analytics"])
 api_router.include_router(admin_test_accounts_router, tags=["Admin Test Accounts"])
 api_router.include_router(admin_user_journey_router, tags=["Admin User Journey"])
+api_router.include_router(admin_analytics_settings_router, tags=["Admin Analytics Settings"])
+api_router.include_router(admin_p2_campaigns_router, tags=["Admin P2 Campaigns"])
 
 # ─── Include standalone routes ──────────────────────────────────────────────────
 api_router.include_router(health_router, tags=["Health"])

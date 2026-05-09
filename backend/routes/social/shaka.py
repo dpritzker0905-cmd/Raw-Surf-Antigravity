@@ -284,7 +284,7 @@ async def get_sent_shakas(
 @router.get("/sponsorships/{user_id}")
 async def get_user_sponsorships(
     user_id: str,
-    direction: str = Query(default='received', regex='^(received|given)$'),
+    direction: str = Query(default='received', pattern='^(received|given)$'),
     limit: int = Query(default=20, le=50),
     db: AsyncSession = Depends(get_db)
 ):
