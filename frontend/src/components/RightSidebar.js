@@ -101,7 +101,7 @@ export const RightSidebar = () => {
   };
 
   return (
-    <aside className={`fixed right-0 top-0 h-full ${sidebarBgClass} border-l flex flex-col z-40 transition-all duration-300 overflow-hidden hidden lg:flex sidebar-right relative ${isMapOpen ? 'w-0 opacity-0 border-l-0' : 'w-[200px] opacity-100'}`}>
+    <aside className={`fixed right-0 top-0 h-full ${sidebarBgClass} border-l flex flex-col z-40 transition-all duration-300 overflow-hidden hidden lg:flex sidebar-right ${isMapOpen ? 'w-0 opacity-0 border-l-0' : 'w-[200px] opacity-100'}`}>
       {/* Wraparound Animation Background */}
       <div className="sidebar-wave-container">
         <div className="sidebar-wave-bg"></div>
