@@ -54,7 +54,8 @@ const UnifiedSpotDrawer = ({
   isUserLive = false,
   currentLiveSpot = null,
   goLiveLoading = false,
-  userId = null
+  userId = null,
+  timeOffsetHours = 0
 }) => {
   // Privacy Shield: Check if spot is within user's geofence
   const { user } = useAuth();
@@ -531,7 +532,7 @@ const UnifiedSpotDrawer = ({
                       <h2
                         className={`${textPrimary} font-bold text-lg cursor-pointer hover:text-cyan-400 transition-colors truncate font-oswald`}
                         
-                        onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }}
+                        onClick={() => { navigate(`/spot-hub/${spot.id}?timeOffset=${timeOffsetHours}`); onClose?.(); }}
                         title="View Spot Hub"
                       >
                         {spot.name}
@@ -627,6 +628,7 @@ const UnifiedSpotDrawer = ({
                     headerBorder={headerBorder}
                     isLight={isLight}
                     isBeach={isBeach}
+                    timeOffsetHours={timeOffsetHours}
                   />
                 )}
 

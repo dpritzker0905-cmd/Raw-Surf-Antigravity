@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 import { 
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Calendar, MessageCircle, Compass,
@@ -100,7 +100,12 @@ const SpotHub = () => {
   const rowBg = t.rowBg;
   
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  
+  const searchParams = new URLSearchParams(location.search);
+  const timeOffset = parseInt(searchParams.get('timeOffset') || '0', 10);
+  const forecastScrollRef = useRef(null);
   
   const [spot, setSpot] = useState(null);
   const [spotDetails, setSpotDetails] = useState(null);
@@ -138,8 +143,10 @@ const SpotHub = () => {
   const [optimalTime, setOptimalTime] = useState(null);
   const [intelLoading, setIntelLoading] = useState(false);
   
-  const userTier = user?.subscription_tier || 'free';
-  const forecastDaysAllowed = ['premium', 'pro', 'gold'].includes(userTier) ? 10 : ['paid', 'basic'].includes(userTier) ? 7 : 3;
+  const userTier = user?.tier_id || user?.subscription_tier || 'free';
+  const isPremium = ['premium', 'pro', 'gold', 'tier_3', 'admin'].includes(userTier);
+  const isBasic = ['paid', 'basic', 'tier_2'].includes(userTier);
+  const forecastDaysAllowed = isPremium ? 14 : isBasic ? 7 : 1;
   
   // ============ HANDLERS FROM useSpotHubActions ============
   const {
@@ -187,6 +194,25 @@ const SpotHub = () => {
     }
     // eslint-disable-next-line
   }, [spotId, user?.id]);
+  
+  // Bidirectional Map Timeline Sync: Scroll to the correct forecast day based on timeOffset
+  useEffect(() => {
+    if (forecastScrollRef.current && spotDetails?.forecast?.length > 0) {
+      const dayIndex = Math.floor(timeOffset / 24);
+      // Roughly calculate the scroll position (55px width + 6px gap)
+      const scrollPosition = dayIndex * 61;
+      
+      // Delay slightly to ensure layout is complete
+      setTimeout(() => {
+        if (forecastScrollRef.current) {
+          forecastScrollRef.current.scrollTo({
+            left: scrollPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 300);
+    }
+  }, [timeOffset, spotDetails?.forecast?.length]);
   
   // IntersectionObserver for collapsible header \u{2013} detects when hero scrolls out of view
   useEffect(() => {
@@ -400,22 +426,25 @@ const SpotHub = () => {
               <Calendar className="w-3 h-3" />
               {forecastDaysAllowed}-Day Forecast (Tomorrow onwards)
             </span>
-            {userTier !== 'premium' && (
+            {userTier !== 'tier_3' && userTier !== 'premium' && (
               <button aria-label="Crown" 
                 onClick={() => navigate('/settings?tab=billing')}
-                className="text-[10px] text-purple-400 flex items-center gap-1"
+                className="text-[10px] text-purple-400 flex items-center gap-1 bg-purple-500/10 px-2 py-1 rounded-full transition-colors hover:bg-purple-500/20"
               >
                 <Crown className="w-3 h-3" />
-                Upgrade
+                Unlock 14-Day
               </button>
             )}
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <div 
+            ref={forecastScrollRef}
+            className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar scroll-smooth"
+          >
             {forecast.slice(0, forecastDaysAllowed).map((day, i) => (
               <ForecastDayCard key={day.date} day={day} dayIndex={i} />
             ))}
             {/* Show locked days */}
-            {forecast.slice(forecastDaysAllowed, 10).map((day, i) => (
+            {forecast.slice(forecastDaysAllowed, 14).map((day, i) => (
               <ForecastDayCard key={day.date} day={day} dayIndex={forecastDaysAllowed + i} isLocked />
             ))}
           </div>

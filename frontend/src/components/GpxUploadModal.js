@@ -5,6 +5,7 @@ import { UploadCloud, FileType2, Loader2, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
+import { useAuth } from '../contexts/AuthContext';
 
 // Simplified Haversine for parser
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -19,14 +20,14 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 
 const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const isLight = theme === 'light';
   const fileInputRef = useRef(null);
   const [parsing, setParsing] = useState(false);
   const [isStravaConnected, setIsStravaConnected] = useState(false);
   const [checkingStrava, setCheckingStrava] = useState(false);
 
-  // Hardcoded for testing; in production use user object from AuthContext
-  const userId = "mock_user"; 
+  const userId = user?.id;
 
   useEffect(() => {
     if (isOpen) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigation, Loader2, MapPin, Camera, Users } from 'lucide-react';
+import { Navigation, Loader2, MapPin, Camera, Users, Layers } from 'lucide-react';
 import { Button } from '../ui/button';
 
 /**
@@ -20,6 +20,8 @@ export const MapRightControls = ({
   onToggleFeatured,
   onToggleFriends,
   onShowGPSGuide,
+  showWeatherControls,
+  onToggleWeatherControls,
 }) => {
   return (
     <div
@@ -91,6 +93,16 @@ export const MapRightControls = ({
         data-testid="friends-on-map-btn"
       >
         <Users className={`w-5 h-5 ${showFriendsOnMap ? 'text-yellow-400' : ''}`} />
+      </Button>
+
+      {/* Mobile Weather Layers Toggle */}
+      <Button
+        aria-expanded={showWeatherControls}
+        onClick={onToggleWeatherControls}
+        className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 md:hidden ${showWeatherControls ? 'ring-2 ring-cyan-400' : ''}`}
+        data-testid="weather-layers-btn"
+      >
+        <Layers className={`w-5 h-5 ${showWeatherControls ? 'text-cyan-400' : ''}`} />
       </Button>
 
       {/* Friend count badge */}

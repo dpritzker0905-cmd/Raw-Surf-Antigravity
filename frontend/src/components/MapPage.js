@@ -19,6 +19,8 @@ import { IPLocationBanner } from './map/IPLocationBanner';
 import { MapRightControls } from './map/MapRightControls';
 import { NearestSpotCard } from './map/NearestSpotCard';
 import MapPageModals from './map/MapPageModals';
+import MapWeatherControls from './map/MapWeatherControls';
+import MapTimelineSlider from './map/MapTimelineSlider';
 import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES, FLORIDA_CENTER } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -142,6 +144,24 @@ const MapPageContent = () => {
     pulsingMarkers,
     setPulsingMarkers,
   } = useMapState();
+
+  // Weather Mapping State
+  const [activeModel, setActiveModel] = useState('GFS');
+  const [activeLayers, setActiveLayers] = useState([]);
+  const [timeOffsetHours, setTimeOffsetHours] = useState(0);
+  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
+  const [showWeatherControls, setShowWeatherControls] = useState(false);
+
+  const toggleLayer = useCallback((layerId) => {
+    setActiveLayers(prev => 
+      prev.includes(layerId) ? prev.filter(id => id !== layerId) : [...prev, layerId]
+    );
+  }, []);
+
+  const handleUpgradeClick = useCallback(() => {
+    // Show a toast or trigger subscription modal
+    toast.info("Upgrade your subscription to access this feature!");
+  }, []);
   
   // Nearest spot (derived from user location)
   const nearestSpot = useMemo(() => 
@@ -455,6 +475,9 @@ const MapPageContent = () => {
           mapInstanceRef={mapInstanceRef}
           activeDispatch={activeOnDemandRequests[0]}
           friendsOnMap={friendsOnMap}
+          activeModel={activeModel}
+          activeLayers={activeLayers}
+          timeOffsetHours={timeOffsetHours}
         />
       </div>
 
@@ -553,7 +576,47 @@ const MapPageContent = () => {
         onToggleFeatured={() => setShowFeaturedPanel(!showFeaturedPanel)}
         onToggleFriends={() => setShowFriendsOnMap(!showFriendsOnMap)}
         onShowGPSGuide={() => setShowGPSGuide(true)}
+        showWeatherControls={showWeatherControls}
+        onToggleWeatherControls={() => setShowWeatherControls(!showWeatherControls)}
       />
+
+      {/* Desktop Weather Controls */}
+      <MapWeatherControls 
+        isDesktop={true}
+        activeModel={activeModel}
+        onModelChange={setActiveModel}
+        activeLayers={activeLayers}
+        onLayerToggle={toggleLayer}
+        userTier={user?.tier_id || 'tier_1'}
+        onUpgradeClick={handleUpgradeClick}
+      />
+
+      {/* Mobile Weather Controls Overlay */}
+      {showWeatherControls && (
+        <div className="absolute inset-x-4 top-40 z-[1000] md:hidden shadow-2xl">
+          <MapWeatherControls 
+            isDesktop={false}
+            activeModel={activeModel}
+            onModelChange={setActiveModel}
+            activeLayers={activeLayers}
+            onLayerToggle={toggleLayer}
+            userTier={user?.tier_id || 'tier_1'}
+            onUpgradeClick={handleUpgradeClick}
+          />
+        </div>
+      )}
+
+      {/* Timeline Slider (Shows if any layer is active) */}
+      {activeLayers.length > 0 && (
+        <MapTimelineSlider
+          currentTimeOffset={timeOffsetHours}
+          onTimeChange={setTimeOffsetHours}
+          isPlaying={isPlayingTimeline}
+          onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
+          userTier={user?.tier_id || 'tier_1'}
+          onUpgradeClick={handleUpgradeClick}
+        />
+      )}
 
       {showFeaturedPanel && (
         <FeaturedPhotographersPanel
@@ -617,6 +680,7 @@ const MapPageContent = () => {
         currentLiveSpot={currentLiveSpot}
         goLiveLoading={goLiveLoading}
         userId={user?.id}
+        timeOffsetHours={timeOffsetHours}
       />
 
       <MapPageModals

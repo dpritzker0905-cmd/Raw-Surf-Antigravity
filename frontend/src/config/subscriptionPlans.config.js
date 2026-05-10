@@ -77,6 +77,7 @@ export const SURFER_PLANS = {
       gold_pass: false,
       features: [
         { text: 'Profile & social features', included: true },
+        { text: 'Live + 24hr surf forecast (GFS)', included: true, highlight: true },
         { text: 'Book photo sessions', included: true },
         { text: 'Find photographers within 1 mile', included: true, highlight: true },
         { text: '5GB photo storage', included: true },
@@ -102,6 +103,7 @@ export const SURFER_PLANS = {
       gold_pass: false,
       features: [
         { text: 'Everything in Free', included: true },
+        { text: '7-day surf forecast (GFS, EURO, ICON)', included: true, highlight: true },
         { text: 'Ad-free experience', included: true, highlight: true },
         { text: 'Find photographers within 5 miles', included: true },
         { text: '50GB photo storage', included: true },
@@ -127,6 +129,7 @@ export const SURFER_PLANS = {
       gold_pass: true,
       features: [
         { text: 'Everything in Basic', included: true },
+        { text: '14-day surf forecast (GFS, EURO, ICON)', included: true, highlight: true },
         { text: 'Find photographers WORLDWIDE', included: true, highlight: true },
         { text: 'Unlimited photo storage', included: true, highlight: true },
         { text: '20% discount on photo sessions', included: true, highlight: true },
@@ -158,6 +161,7 @@ export const SURFER_PLANS = {
       gold_pass: false,
       features: [
         { text: 'Everything in Free', included: true },
+        { text: '7-day surf forecast (GFS, EURO, ICON)', included: true, highlight: true },
         { text: 'Ad-free experience', included: true, highlight: true },
         { text: 'Find photographers within 5 miles', included: true },
         { text: '50GB photo storage', included: true },
@@ -185,6 +189,7 @@ export const SURFER_PLANS = {
       gold_pass: true,
       features: [
         { text: 'Everything in Basic', included: true },
+        { text: '14-day surf forecast (GFS, EURO, ICON)', included: true, highlight: true },
         { text: 'Find photographers WORLDWIDE', included: true, highlight: true },
         { text: 'Unlimited photo storage', included: true, highlight: true },
         { text: '20% discount on photo sessions', included: true },

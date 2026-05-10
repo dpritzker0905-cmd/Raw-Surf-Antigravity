@@ -46,6 +46,7 @@ const SpotReportContent = ({
   headerBorder,
   isLight,
   isBeach,
+  timeOffsetHours = 0,
 }) => {
   const navigate = useNavigate();
 
@@ -407,7 +408,7 @@ const SpotReportContent = ({
         )}
       </div>
       <div className="px-4 py-3">
-        <button aria-label="div" onClick={() => { navigate(`/spot-hub/${spot.id}`); onClose?.(); }} className={`w-full group overflow-hidden rounded-xl border ${isLight ? 'border-cyan-400/40 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 hover:from-cyan-100 hover:via-blue-100 hover:to-purple-100' : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20'} transition-all duration-300`} data-testid="view-spot-hub-btn">
+        <button aria-label="div" onClick={() => { navigate(`/spot-hub/${spot.id}?timeOffset=${timeOffsetHours}`); onClose?.(); }} className={`w-full group overflow-hidden rounded-xl border ${isLight ? 'border-cyan-400/40 bg-gradient-to-r from-cyan-50 via-blue-50 to-purple-50 hover:from-cyan-100 hover:via-blue-100 hover:to-purple-100' : 'border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10 hover:from-cyan-500/20 hover:via-blue-500/20 hover:to-purple-500/20'} transition-all duration-300`} data-testid="view-spot-hub-btn">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 p-0.5 shrink-0">
