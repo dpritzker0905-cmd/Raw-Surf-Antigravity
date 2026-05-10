@@ -134,6 +134,13 @@
   100% { background-position: 50% 0%, 0% 50%, 100% 100%; }
 }
 
+/* Mobile specific: Left-to-right fade for Beach Mode */
+@keyframes wave-fluid-beach-mobile {
+  0% { background-position: 0% 50%, -20% 50%, 20% 50%; }
+  50% { background-position: 100% 50%, 120% 50%, 80% 50%; }
+  100% { background-position: 0% 50%, -20% 50%, 20% 50%; }
+}
+
 /* ==========================================================================
    MOBILE (PORTRAIT) OPTIMIZATION
    ========================================================================== */
@@ -142,15 +149,15 @@
   .light .aurora-bg-wave, :not(.dark):not(.beach-mode) .aurora-bg-wave {
     animation-duration: calc(var(--laser-duration) * 1.5);
     background-size: 400% 200%, 300% 200%, 500% 300%;
-    opacity: 0.45;
+    opacity: 0.3; /* Lightest setting */
   }
   .beach-mode .aurora-bg-wave {
-    animation-duration: calc(var(--laser-duration) * 1.5);
-    background-size: 350% 300%, 400% 350%, 450% 300%;
+    animation: wave-fluid-beach-mobile calc(var(--laser-duration) * 1.5) ease-in-out infinite alternate;
+    background-size: 350% 200%, 400% 200%, 450% 200%;
     opacity: 0.45;
   }
   .dark .aurora-bg-wave {
-    animation-duration: calc(var(--laser-duration) * 1.5);
+    animation-duration: calc(var(--laser-duration) * 1.35); /* Tiny bit quicker pulse */
     background-size: 350% 350%, 300% 400%, 400% 300%;
     opacity: 0.6;
   }
