@@ -291,16 +291,27 @@ export const MessagesPage = () => {
   }, [selectedConvId]);
 
   const scrollToBottom = (instant = false) => {
-    // Use rAF + microtask to ensure scroll happens AFTER React has
-    // committed DOM updates and the browser has painted. Without this,
-    // scrollIntoView fires before message elements are laid out.
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ 
-          behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth' 
+    const doScroll = () => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth',
+          block: 'end'
         });
         initialScrollDoneRef.current = true;
-      }, 0);
+      }
+    };
+
+    // Use rAF + delays to ensure scroll happens AFTER React has
+    // committed DOM updates and the browser has painted. 
+    // 0ms is often too fast for React 18, so we use 100ms.
+    requestAnimationFrame(() => {
+      setTimeout(doScroll, 100);
+      
+      // Fallback for initial load in case images/media push layout down
+      // slightly after the first 100ms
+      if (!initialScrollDoneRef.current || instant) {
+        setTimeout(doScroll, 500);
+      }
     });
   };
 
