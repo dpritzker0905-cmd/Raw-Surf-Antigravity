@@ -5,7 +5,7 @@ import { Badge } from '../ui/badge';
 import { Users, Sparkles, Loader2, Check, Send } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
-import apiClient from '../../utils/apiClient';
+import apiClient from '../../lib/apiClient';
 
 const TaggingAssignModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
