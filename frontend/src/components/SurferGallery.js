@@ -238,7 +238,7 @@ export const SurferGallery = () => {
               My Gallery
             </h1>
             <p className={`text-sm ${textSecondaryClass} mt-1`}>
-              Your private media locker ï¿½ {stats.total || 0} items
+              Your private media locker • {stats.total || 0} items
             </p>
           </div>
           
@@ -737,7 +737,7 @@ export const SurferGallery = () => {
         />
       )}
       
-      {/* Find Me FAB ï¿½ one-tap selfie scanner access */}
+      {/* Find Me FAB - one-tap selfie scanner access */}
       {!multiSelectMode && !lightboxItem && (
         <button aria-label="Scan Face"
           onClick={() => setScanModal(true)}

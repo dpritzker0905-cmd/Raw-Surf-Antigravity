@@ -8,9 +8,12 @@ from database import get_db
 from datetime import datetime, timezone
 from typing import List, Optional
 import json
-from models import Booking, BookingParticipant, LiveSession, PhotoTag, Profile
+from models import (
+    Booking, BookingParticipant, LiveSession, PhotoTag, Profile,
+    SurferGalleryClaimQueue, SurferGalleryItem, GalleryTierEnum
+)
 
-from .gallery_core import ClaimActionRequest, VisibilityUpdateRequest
+from .gallery_core import ClaimActionRequest, VisibilityUpdateRequest, get_gallery_tier_from_service, get_max_quality_for_tier
 router = APIRouter()
 @router.get("/claim-queue-count/{surfer_id}")
 async def get_claim_queue_count(

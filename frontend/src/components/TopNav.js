@@ -173,7 +173,7 @@ export const TopNav = () => {
         {/* Pull Handle — visual affordance for the drawer gesture */}
         <button
           onClick={toggleDrawer}
-          className="flex justify-center pb-2 pt-1 -mt-1 w-full group"
+          className="flex justify-center pb-1 pt-0.5 -mt-1 w-full group"
           aria-label={drawerOpen ? 'Close tools drawer' : 'Open tools drawer'}
           aria-expanded={drawerOpen}
           data-testid="topnav-pull-handle"
@@ -181,31 +181,56 @@ export const TopNav = () => {
           {/* Surfboard-styled pull handle - SVG Side Profile with Water Physics */}
           <div className="relative flex items-center justify-center overflow-visible">
             <svg 
-              viewBox="0 0 120 24" 
+              viewBox="0 0 120 40" 
               className={`transition-all duration-300 origin-center ${
                 drawerOpen 
-                  ? 'w-16 h-auto drop-shadow-[0_0_6px_rgba(34,211,238,0.6)] animate-float-board' 
+                  ? 'w-16 h-auto drop-shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-float-board' 
                   : 'w-12 h-auto'
               }`} 
               fill="none" 
               xmlns="http://www.w3.org/2000/svg"
             >
-              {/* The Fin (Top, near the right tail) */}
+              {/* Water Wave Physics (Visible when drawer is open) */}
               <path 
-                d="M 85 14.5 C 90 2, 95 0, 98 0 C 94 6, 98 10, 100 14.5 Z" 
-                className={`transition-colors duration-300 ${drawerOpen ? 'fill-cyan-400' : 'fill-zinc-500 group-hover:fill-zinc-400'}`} 
+                d="M 15 30 Q 30 22 50 28 T 90 28 T 115 25" 
+                className={`transition-all duration-700 ease-out ${drawerOpen ? 'stroke-cyan-400 opacity-100' : 'stroke-transparent opacity-0'}`}
+                strokeWidth="2"
+                strokeLinecap="round"
+                fill="none"
               />
-              {/* The Board (Upside down shortboard with rocker) */}
               <path 
-                d="M 10 20 C 20 14, 50 14, 110 14 C 111 14, 112 14.5, 112 15 C 112 15.5, 111 16, 110 16 C 50 16, 20 19, 10 20 Z" 
+                d="M 25 35 Q 45 28 65 33 T 105 33" 
+                className={`transition-all duration-700 ease-out delay-100 ${drawerOpen ? 'stroke-blue-500 opacity-80' : 'stroke-transparent opacity-0'}`}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                fill="none"
+              />
+
+              {/* Fin (Upside down board means fin is on top!) */}
+              <path 
+                d="M 88 19 C 91 5, 98 2, 100 2 C 98 10, 102 15, 100 18 Z" 
+                className={`transition-colors duration-300 ${drawerOpen ? 'fill-cyan-300' : 'fill-zinc-500 group-hover:fill-zinc-400'}`} 
+              />
+              
+              {/* Longboard (Upside down, thick profile) */}
+              <path 
+                d="M 10 20 C 30 28, 90 28, 110 20 C 113 19, 113 17, 110 16 C 90 24, 30 24, 10 16 C 7 17, 7 19, 10 20 Z" 
                 className={`transition-colors duration-300 ${drawerOpen ? 'fill-blue-500' : 'fill-zinc-600 group-hover:fill-zinc-500'}`} 
+              />
+              
+              {/* Center stringer (wood line down the middle) */}
+              <path 
+                d="M 10 18 C 30 26, 90 26, 110 18" 
+                className={`transition-colors duration-300 ${drawerOpen ? 'stroke-amber-600' : 'stroke-zinc-800'}`}
+                strokeWidth="0.5"
+                fill="none"
               />
             </svg>
             <style>
               {`
                 @keyframes floatBoard {
                   0%, 100% { transform: translateY(0px) rotate(0deg); }
-                  50% { transform: translateY(2px) rotate(1deg); }
+                  50% { transform: translateY(3px) rotate(1.5deg); }
                 }
                 .animate-float-board {
                   animation: floatBoard 3s ease-in-out infinite;

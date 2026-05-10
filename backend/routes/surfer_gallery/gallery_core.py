@@ -8,7 +8,11 @@ from database import get_db
 from datetime import datetime, timezone
 from typing import List, Optional
 import json
-from models import GalleryItem, Notification, Profile, SurfSpot
+from models import (
+    GalleryItem, Notification, Profile, SurfSpot,
+    SurferGalleryItem, SurferGalleryClaimQueue, SurferSelectionQuota,
+    GalleryPurchase
+)
 
 from .schemas import ScanLockerRequest, async_global_scan
 from fastapi import BackgroundTasks
