@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { UploadCloud, FileType2, Loader2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
+import apiClient from '../lib/apiClient';
 
 // Simplified Haversine for parser
 const getDistance = (lat1, lon1, lat2, lon2) => {
@@ -88,6 +89,22 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
     reader.readAsText(file);
   };
 
+  const handleStravaSync = async () => {
+    setParsing(true);
+    try {
+      // In a real app, this would check if user is authed, if not redirect to /api/strava/auth-url
+      // For now, we simulate fetching recent activity from Strava directly.
+      const res = await apiClient.get(`/strava/sync-recent?user_id=mock_user`);
+      const metrics = res.data;
+      onParsed(metrics);
+      toast.success("Strava data synced successfully! 🤙");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to sync with Strava.");
+    } finally {
+      setParsing(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border-zinc-800 max-w-sm rounded-2xl`}>
@@ -95,34 +112,62 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
           <DialogTitle className={`text-xl font-bold ${isLight ? 'text-gray-900' : 'text-white'} text-center`}>Sync Smartwatch</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col items-center justify-center p-6 text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-purple-500/10 flex items-center justify-center">
-            <FileType2 className="w-8 h-8 text-purple-500" />
-          </div>
-          
-          <div>
-            <h3 className={`font-semibold ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>Upload GPX File</h3>
-            <p className={`text-xs mt-1 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-              Export your session from Apple Health or Garmin Connect as a .gpx file.
-            </p>
+        <div className="flex flex-col items-center justify-center p-6 text-center space-y-6">
+          <div className="w-full space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-orange-500/10 flex items-center justify-center">
+              <svg className="w-8 h-8 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
+              </svg>
+            </div>
+            <div>
+              <h3 className={`font-semibold ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>Connect with Strava</h3>
+              <p className={`text-xs mt-1 px-4 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                Automatically sync your Apple Watch or Garmin sessions via Strava.
+              </p>
+            </div>
+            <Button 
+              disabled={parsing}
+              onClick={handleStravaSync} 
+              className="w-full bg-[#FC4C02] hover:bg-[#E34402] text-white font-bold py-6 rounded-xl shadow-lg shadow-orange-500/20 transition-transform hover:scale-[1.02]"
+            >
+              {parsing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+              {parsing ? "Syncing..." : "Sync Latest Session"}
+            </Button>
           </div>
 
-          <input 
-            type="file" 
-            accept=".gpx" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            className="hidden" 
-          />
+          <div className="relative w-full">
+            <div className="absolute inset-0 flex items-center">
+              <div className={`w-full border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className={`px-2 ${isLight ? 'bg-white text-gray-400' : 'bg-zinc-900 text-gray-500'}`}>OR</span>
+            </div>
+          </div>
 
-          <Button 
-            disabled={parsing}
-            onClick={() => fileInputRef.current?.click()} 
-            className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-6 mt-4 rounded-xl shadow-lg shadow-purple-500/20"
-          >
-            {parsing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <UploadCloud className="w-5 h-5 mr-2" />}
-            {parsing ? "Parsing Data..." : "Select File"}
-          </Button>
+          <div className="w-full space-y-4">
+            <div className="flex items-center gap-3 justify-center mb-2">
+              <FileType2 className={`w-5 h-5 ${isLight ? 'text-gray-400' : 'text-gray-500'}`} />
+              <h3 className={`text-sm font-semibold ${isLight ? 'text-gray-600' : 'text-gray-300'}`}>Manual GPX Upload</h3>
+            </div>
+            
+            <input 
+              type="file" 
+              accept=".gpx" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              className="hidden" 
+            />
+
+            <Button 
+              disabled={parsing}
+              onClick={() => fileInputRef.current?.click()} 
+              variant="outline"
+              className={`w-full py-5 rounded-xl border-dashed ${isLight ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-zinc-700 text-gray-300 hover:bg-zinc-800'}`}
+            >
+              <UploadCloud className="w-4 h-4 mr-2" />
+              Upload .gpx File
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
