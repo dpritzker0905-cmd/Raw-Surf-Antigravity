@@ -111,7 +111,7 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
 };
 
 /* --- Create / Edit Modal ------------------------------------- */
-const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, prefillGear }) => {
+const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, prefillGear, prefillLocation }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const bg = isLight ? 'bg-white' : 'bg-zinc-900';
@@ -147,10 +147,13 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
         session_date: new Date().toISOString().split('T')[0],
         duration_minutes: prefillMetrics ? Math.floor(prefillMetrics.duration_minutes || 0) : '',
         board_model: prefillGear || '',
+        spot_name: prefillLocation?.name || '',
+        latitude: prefillLocation?.lat || '',
+        longitude: prefillLocation?.lng || '',
         notes: prefillMetrics ? `Distance: ${(prefillMetrics.distance / 1000).toFixed(2)}km | Waves: ${prefillMetrics.waveCount} | Top Speed: ${(prefillMetrics.topSpeed * 3.6).toFixed(1)}km/h` : ''
       }));
     }
-  }, [entry, isOpen, prefillMetrics, prefillGear]);
+  }, [entry, isOpen, prefillMetrics, prefillGear, prefillLocation]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -323,6 +326,7 @@ const SurfLog = () => {
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const [selectedGear, setSelectedGear] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [trackingMetrics, setTrackingMetrics] = useState(null);
   const [gpxModalOpen, setGpxModalOpen] = useState(false);
 
@@ -439,14 +443,22 @@ const SurfLog = () => {
       <PreSessionConfigModal 
         isOpen={configModalOpen} 
         onClose={() => setConfigModalOpen(false)}
-        onStartLive={(board) => {
+        onStartLive={(board, location) => {
           setSelectedGear(board);
+          setSelectedLocation(location);
           setConfigModalOpen(false);
           setIsLiveTracking(true);
         }}
         onSyncWatch={() => {
           setConfigModalOpen(false);
           setGpxModalOpen(true);
+        }}
+        onManualEntry={(board, location) => {
+          setSelectedGear(board);
+          setSelectedLocation(location);
+          setConfigModalOpen(false);
+          setEditEntry(null);
+          setModalOpen(true);
         }}
       />
 
@@ -463,12 +475,13 @@ const SurfLog = () => {
 
       <EntryModal 
         isOpen={modalOpen} 
-        onClose={() => { setModalOpen(false); setEditEntry(null); setTrackingMetrics(null); }} 
+        onClose={() => { setModalOpen(false); setEditEntry(null); setTrackingMetrics(null); setSelectedLocation(null); }} 
         entry={editEntry} 
         userId={user?.id} 
         onSaved={fetchData} 
         prefillMetrics={trackingMetrics}
         prefillGear={selectedGear}
+        prefillLocation={selectedLocation}
       />
       
       {!loading && (
