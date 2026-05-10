@@ -178,24 +178,40 @@ export const TopNav = () => {
           aria-expanded={drawerOpen}
           data-testid="topnav-pull-handle"
         >
-          {/* Surfboard-styled pull handle - uses ellipse border radius and a center stringer */}
-          <div
-            className={`relative flex items-center justify-center overflow-visible transition-all duration-300 ${
-              drawerOpen
-                ? 'w-16 h-2 rounded-[50%] bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
-                : 'w-12 h-1.5 rounded-[50%] bg-zinc-600 group-hover:bg-zinc-500'
-            }`}
-          >
-            {/* The Stringer (center line down the board) */}
-            <div className={`w-full h-[1px] ${drawerOpen ? 'bg-white/40' : 'bg-black/40'}`} />
-            
-            {/* The Fin Skeg (single fin) */}
-            <div 
-              className={`absolute -top-1 right-2.5 w-1.5 h-1.5 rounded-tr-[2px] -z-10 transition-all duration-300 ${
-                drawerOpen ? 'bg-blue-500' : 'bg-zinc-600 group-hover:bg-zinc-500'
+          {/* Surfboard-styled pull handle - SVG Side Profile with Water Physics */}
+          <div className="relative flex items-center justify-center overflow-visible">
+            <svg 
+              viewBox="0 0 120 24" 
+              className={`transition-all duration-300 origin-center ${
+                drawerOpen 
+                  ? 'w-16 h-auto drop-shadow-[0_0_6px_rgba(34,211,238,0.6)] animate-float-board' 
+                  : 'w-12 h-auto'
               }`} 
-              style={{ transform: 'skewX(-20deg)' }}
-            />
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* The Fin (Top, near the right tail) */}
+              <path 
+                d="M 85 14.5 C 90 2, 95 0, 98 0 C 94 6, 98 10, 100 14.5 Z" 
+                className={`transition-colors duration-300 ${drawerOpen ? 'fill-cyan-400' : 'fill-zinc-500 group-hover:fill-zinc-400'}`} 
+              />
+              {/* The Board (Upside down shortboard with rocker) */}
+              <path 
+                d="M 10 20 C 20 14, 50 14, 110 14 C 111 14, 112 14.5, 112 15 C 112 15.5, 111 16, 110 16 C 50 16, 20 19, 10 20 Z" 
+                className={`transition-colors duration-300 ${drawerOpen ? 'fill-blue-500' : 'fill-zinc-600 group-hover:fill-zinc-500'}`} 
+              />
+            </svg>
+            <style>
+              {`
+                @keyframes floatBoard {
+                  0%, 100% { transform: translateY(0px) rotate(0deg); }
+                  50% { transform: translateY(2px) rotate(1deg); }
+                }
+                .animate-float-board {
+                  animation: floatBoard 3s ease-in-out infinite;
+                }
+              `}
+            </style>
           </div>
         </button>
 
