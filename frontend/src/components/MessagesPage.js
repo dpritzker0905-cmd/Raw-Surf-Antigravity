@@ -292,7 +292,27 @@ export const MessagesPage = () => {
 
   const scrollToBottom = (instant = false) => {
     const doScroll = () => {
-      if (messagesEndRef.current) {
+      // Due to responsive layout rendering both a desktop and mobile ChatViewPanel,
+      // the messagesEndRef was incorrectly attaching to the hidden mobile element.
+      // Instead, we query the DOM for the actually visible scroll container.
+      const scrollContainers = document.querySelectorAll('.messages-scroll-container');
+      let visibleContainer = null;
+      
+      scrollContainers.forEach(container => {
+        // offsetParent is not null if the element is visible
+        if (container.offsetParent !== null) {
+          visibleContainer = container;
+        }
+      });
+
+      if (visibleContainer) {
+        visibleContainer.scrollTo({
+          top: visibleContainer.scrollHeight,
+          behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth'
+        });
+        initialScrollDoneRef.current = true;
+      } else if (messagesEndRef.current && messagesEndRef.current.offsetParent !== null) {
+        // Fallback to ref if somehow DOM query fails but ref is visible
         messagesEndRef.current.scrollIntoView({ 
           behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth',
           block: 'end'
