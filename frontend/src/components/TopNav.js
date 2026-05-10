@@ -193,14 +193,14 @@ export const TopNav = () => {
               {/* Water Wave Physics (Visible when drawer is open) */}
               <path 
                 d="M 15 30 Q 30 22 50 28 T 90 28 T 115 25" 
-                className={`transition-all duration-700 ease-out ${drawerOpen ? 'stroke-cyan-400 opacity-100' : 'stroke-transparent opacity-0'}`}
+                className={`transition-all duration-700 ease-out blur-[1px] ${drawerOpen ? 'stroke-cyan-400 opacity-40' : 'stroke-transparent opacity-0'}`}
                 strokeWidth="2"
                 strokeLinecap="round"
                 fill="none"
               />
               <path 
                 d="M 25 35 Q 45 28 65 33 T 105 33" 
-                className={`transition-all duration-700 ease-out delay-100 ${drawerOpen ? 'stroke-blue-500 opacity-80' : 'stroke-transparent opacity-0'}`}
+                className={`transition-all duration-700 ease-out delay-100 blur-[1px] ${drawerOpen ? 'stroke-blue-500 opacity-30' : 'stroke-transparent opacity-0'}`}
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 fill="none"
@@ -208,19 +208,19 @@ export const TopNav = () => {
 
               {/* Fin (Upside down board means fin is on top!) */}
               <path 
-                d="M 88 19 C 91 5, 98 2, 100 2 C 98 10, 102 15, 100 18 Z" 
+                d="M 85 18 C 86 5, 95 2, 98 2 C 95 10, 95 16, 95 20 Z" 
                 className={`transition-colors duration-300 ${drawerOpen ? 'fill-cyan-300' : 'fill-zinc-500 group-hover:fill-zinc-400'}`} 
               />
               
-              {/* Longboard (Upside down, thick profile) */}
+              {/* Longboard (Upside down: deck is concave bottom edge, hull is convex top edge) */}
               <path 
-                d="M 10 20 C 30 28, 90 28, 110 20 C 113 19, 113 17, 110 16 C 90 24, 30 24, 10 16 C 7 17, 7 19, 10 20 Z" 
+                d="M 10 24 C 30 14, 90 14, 110 24 C 113 25, 113 27, 110 28 C 90 20, 30 20, 10 28 C 7 27, 7 25, 10 24 Z" 
                 className={`transition-colors duration-300 ${drawerOpen ? 'fill-blue-500' : 'fill-zinc-600 group-hover:fill-zinc-500'}`} 
               />
               
               {/* Center stringer (wood line down the middle) */}
               <path 
-                d="M 10 18 C 30 26, 90 26, 110 18" 
+                d="M 10 26 C 30 17, 90 17, 110 26" 
                 className={`transition-colors duration-300 ${drawerOpen ? 'stroke-amber-600' : 'stroke-zinc-800'}`}
                 strokeWidth="0.5"
                 fill="none"
