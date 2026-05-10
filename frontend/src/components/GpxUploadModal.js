@@ -117,7 +117,8 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
     try {
       if (!isStravaConnected) {
         // Step 1: User is not connected, start OAuth Flow
-        const res = await apiClient.get(`/strava/auth-url?user_id=${userId}`);
+        const redirectUri = encodeURIComponent(`${window.location.origin}/surf-log`);
+        const res = await apiClient.get(`/strava/auth-url?user_id=${userId}&redirect_uri=${redirectUri}`);
         window.location.href = res.data.url; // Redirects out of the app to Strava
         return;
       }

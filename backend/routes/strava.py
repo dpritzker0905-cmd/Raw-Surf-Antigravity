@@ -63,24 +63,25 @@ async def get_strava_status(user_id: str):
         }
 
 @router.get("/auth-url")
-async def get_strava_auth_url(user_id: str):
+async def get_strava_auth_url(user_id: str, redirect_uri: str = Query(None)):
     """Returns the Strava OAuth authorization URL, embedding the user_id in the state parameter."""
-    # Use API_URL env var, default to the standard FastAPI dev port (8000)
-    # This prevents unpredictable host injection from proxies or IPv6 [::1] bindings
-    api_url = os.environ.get('API_URL', 'http://localhost:8000')
-    redirect_uri = f"{api_url}/api/strava/callback" 
+    # Allow the frontend to pass its own origin (e.g. https://raw-surf.com/surf-log)
+    # This prevents hardcoded localhost issues when deployed to production.
+    # Strava's own OAuth dashboard will enforce security validation on this URI.
+    if not redirect_uri:
+        redirect_uri = f"{FRONTEND_URL}/surf-log"
+        
     url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={redirect_uri}&approval_prompt=force&scope=activity:read_all&state={user_id}"
     return {"url": url}
 
-@router.get("/callback") # Important: GET method for browser redirect callback
+@router.get("/callback")
 async def strava_callback(code: str, state: str, error: str = None):
-    """Exchanges the OAuth code for an access token and redirects the user back to the app."""
+    """Exchanges the OAuth code for an access token. Called by the frontend."""
     if error:
-        logger.warning(f"Strava auth error: {error}")
-        return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_error={error}")
+        raise HTTPException(status_code=400, detail=f"Strava auth error: {error}")
         
     if not code or not state:
-        return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_error=missing_params")
+        raise HTTPException(status_code=400, detail="Missing code or state")
         
     user_id = state
     
@@ -94,7 +95,7 @@ async def strava_callback(code: str, state: str, error: str = None):
         
         if res.status_code != 200:
             logger.error(f"Strava token exchange failed: {res.text}")
-            return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_error=exchange_failed")
+            raise HTTPException(status_code=400, detail="Strava token exchange failed")
             
         data = res.json()
         
@@ -109,7 +110,7 @@ async def strava_callback(code: str, state: str, error: str = None):
                 profile.strava_expires_at = data.get("expires_at")
                 await db.commit()
                 
-    return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_connected=true")
+    return {"success": True, "connected": True}
 
 @router.get("/sync-recent")
 async def sync_recent_activity(user_id: str):
