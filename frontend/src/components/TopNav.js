@@ -191,10 +191,10 @@ export const TopNav = () => {
             
             {/* The Fin Skeg (single fin) */}
             <div 
-              className={`absolute -bottom-1 right-2.5 w-1.5 h-1.5 rounded-br-[2px] -z-10 transition-all duration-300 ${
+              className={`absolute -top-1 right-2.5 w-1.5 h-1.5 rounded-tr-[2px] -z-10 transition-all duration-300 ${
                 drawerOpen ? 'bg-blue-500' : 'bg-zinc-600 group-hover:bg-zinc-500'
               }`} 
-              style={{ transform: 'skewX(20deg)' }}
+              style={{ transform: 'skewX(-20deg)' }}
             />
           </div>
         </button>
