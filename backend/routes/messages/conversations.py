@@ -137,13 +137,13 @@ async def send_message(data: SendMessageRequest, sender_id: str, db: AsyncSessio
     
     # Generate preview based on message type
     if data.message_type == 'image':
-        preview = "ðŸ“· Photo"
+        preview = "📷 Photo"
     elif data.message_type == 'video':
-        preview = "ðŸŽ¬ Video"
+        preview = "🎬 Video"
     elif data.message_type == 'voice_note':
-        preview = "ðŸŽ¤ Voice message"
+        preview = "🎤 Voice message"
     elif data.message_type == 'gif':
-        preview = "ðŸŽ­ GIF"
+        preview = "🎞️ GIF"
     else:
         # post_share messages contain JSON — show a clean preview
         if data.message_type == 'post_share':
