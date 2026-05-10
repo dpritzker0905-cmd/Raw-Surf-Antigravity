@@ -330,15 +330,17 @@ const SurfLog = () => {
         userId={user?.id}
         spotId={null}
         selectedBoard={selectedGear}
-        onEndSession={(metrics, board) => {
+        onEndSession={(metrics, board, activeSeconds) => {
           setIsLiveTracking(false);
-          setTrackingMetrics({
-            ...metrics,
-            duration_minutes: metrics.startTime ? (Date.now() - new Date(metrics.startTime).getTime()) / 60000 : 0
-          });
-          setSelectedGear(board);
-          setEditEntry(null);
-          setModalOpen(true);
+          if (metrics) {
+            setTrackingMetrics({
+              ...metrics,
+              duration_minutes: activeSeconds ? activeSeconds / 60 : 0
+            });
+            setSelectedGear(board);
+            setEditEntry(null);
+            setModalOpen(true);
+          }
         }}
       />
     );
