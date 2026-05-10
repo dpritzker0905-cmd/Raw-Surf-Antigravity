@@ -103,7 +103,7 @@ export const TopNav = () => {
         <AdaptiveBackground />
 
         {/* Main TopNav Row: Logo + 2 Icons */}
-        <div className="flex items-center justify-between px-3 py-2.5 relative z-10">
+        <div className="flex items-center justify-between px-3 py-1.5 relative z-10">
           {/* Left: Logo */}
           <div className="flex items-center shrink-0">
             <button
@@ -173,7 +173,7 @@ export const TopNav = () => {
         {/* Pull Handle — visual affordance for the drawer gesture */}
         <button
           onClick={toggleDrawer}
-          className="flex justify-center pb-1 pt-0.5 -mt-1 w-full group"
+          className="flex justify-center pb-1 pt-0.5 -mt-2 w-full group"
           aria-label={drawerOpen ? 'Close tools drawer' : 'Open tools drawer'}
           aria-expanded={drawerOpen}
           data-testid="topnav-pull-handle"
