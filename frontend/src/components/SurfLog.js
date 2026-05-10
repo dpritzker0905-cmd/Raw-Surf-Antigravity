@@ -347,6 +347,34 @@ const SurfLog = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Handle Strava OAuth Callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    const error = params.get('error');
+
+    if (code && state) {
+      const exchangeToken = async () => {
+        try {
+          const res = await apiClient.get(`/strava/callback?code=${code}&state=${state}`);
+          if (res.data.success) {
+            toast.success("Strava successfully connected! 🤙");
+            // Clean up the URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (err) {
+          logger.error("Failed to connect Strava:", err);
+          toast.error("Failed to finalize Strava connection.");
+        }
+      };
+      exchangeToken();
+    } else if (error) {
+      toast.error(`Strava connection denied: ${error}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const handleDelete = async (entryId) => {
     if (!window.confirm('Delete this session?')) return;
     try {
