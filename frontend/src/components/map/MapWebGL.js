@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
-import Map, { Marker, Source, Layer } from 'react-map-gl';
+import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import useMarkerClustering from '../../hooks/useMarkerClustering';
 
