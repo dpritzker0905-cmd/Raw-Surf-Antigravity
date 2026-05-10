@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSessionTracker } from '../hooks/useSessionTracker';
-import { Waves, Navigation, Zap, Lock, Unlock, Pause, Play, Square, Trash2, X } from 'lucide-react';
+import { Waves, Navigation, Zap, Lock, Unlock, Pause, Play, Square, Trash2, X, AlertTriangle } from 'lucide-react';
 
 const LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) => {
   const [status, setStatus] = useState('LOCKED'); // 'LOCKED' | 'UNLOCKED' | 'PAUSED'
   const isTracking = status !== 'PAUSED';
   const { metrics } = useSessionTracker(userId, spotId, isTracking);
   const [activeSeconds, setActiveSeconds] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   useEffect(() => {
     let interval;
@@ -26,9 +27,12 @@ const LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) =
   const handleFinish = () => onEndSession(metrics, selectedBoard, activeSeconds);
   
   const handleDiscard = () => {
-    if (window.confirm("Discard session? This cannot be undone.")) {
-      onEndSession(null);
-    }
+    setShowConfirmModal(true);
+  };
+
+  const confirmDiscard = () => {
+    setShowConfirmModal(false);
+    onEndSession(null);
   };
 
   return (
@@ -137,6 +141,33 @@ const LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) =
           </div>
         )}
       </div>
+
+      {/* Discard Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl w-full max-w-sm text-center animate-in zoom-in-95 shadow-2xl">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Discard Session?</h2>
+            <p className="text-zinc-400 text-sm mb-8">This cannot be undone. All tracked metrics and data will be permanently lost.</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowConfirmModal(false)} 
+                className="flex-1 py-4 rounded-2xl bg-zinc-800 text-white font-semibold hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDiscard} 
+                className="flex-1 py-4 rounded-2xl bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
