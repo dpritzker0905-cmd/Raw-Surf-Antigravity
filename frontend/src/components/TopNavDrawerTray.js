@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -25,6 +25,15 @@ export const TopNavDrawerTray = ({ isOpen }) => {
   const { getEffectiveRole } = usePersona();
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [photoToolsOpen, setPhotoToolsOpen] = useState(false);
+  
+  // Track screen width for layout density
+  const [isWideScreen, setIsWideScreen] = useState(window.innerWidth >= 640);
+
+  useEffect(() => {
+    const handleResize = () => setIsWideScreen(window.innerWidth >= 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const effectiveRole = getEffectiveRole(user?.role);
 
@@ -110,15 +119,13 @@ export const TopNavDrawerTray = ({ isOpen }) => {
   const allItems = [...universalItems, ...roleItems];
 
   // Dynamic layout math:
-  // <= 5 items: 1 row
-  // 6 items: [3, 3]
-  // 7 items: [4, 3]
-  // 8 items: [4, 4]
-  // 9 items: [5, 4]
-  // 10 items: [5, 5]
+  // Standard Mobile: max 6 per row. Wide screen (iPad/Fold): max 8 per row.
   const getRows = (items) => {
     const len = items.length;
-    if (len <= 5) return [items, []];
+    const maxPerRow = isWideScreen ? 8 : 6;
+    
+    if (len <= maxPerRow) return [items, []];
+    
     const row1Count = Math.ceil(len / 2);
     return [items.slice(0, row1Count), items.slice(row1Count)];
   };
