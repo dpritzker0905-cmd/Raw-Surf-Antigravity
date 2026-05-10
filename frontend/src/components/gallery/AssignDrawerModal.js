@@ -15,7 +15,7 @@ const AssignDrawerModal = ({
   pricing, setPricing, editData, setEditData, itemCustomPrice, setItemCustomPrice,
   handleSavePricing, handleSaveEdit, handleAnalyzePhoto, toggleTagSelection,
   handleConfirmTags, handleSetCustomPrice, handleAssignItemToSurfer,
-  assigningItem, salesData, clientsData, loadingSales, loadingSessions,
+  assigningItem, setAssigningItem, salesData, clientsData, loadingSales, loadingSessions,
   sessionParticipants, distributing, recentSessions, handleLinkSession,
   fetchRecentSessions, user, galleryId, isLight, textPrimaryClass,
   textSecondaryClass, borderClass, inputBgClass, cardBgClass, navigate,
@@ -89,4 +89,4 @@ const AssignDrawerModal = ({
   );
 };
 
-export default AssignDrawer;
+export default AssignDrawerModal;

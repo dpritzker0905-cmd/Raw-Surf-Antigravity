@@ -145,7 +145,7 @@ const CheckInModal = ({
   
                   {/* Country selector */}
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block">Country</label>
+                    <span className="text-sm text-gray-400 mb-2 block">Country</span>
                     <Select
                       value={selectedCountry}
                       onValueChange={(v) => { setSelectedCountry(v); setSelectedState(''); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
@@ -170,7 +170,7 @@ const CheckInModal = ({
                     if (states.length === 0) return null;
                     return (
                       <div>
-                        <label className="text-sm text-gray-400 mb-2 block">State / Province</label>
+                        <span className="text-sm text-gray-400 mb-2 block">State / Province</span>
                         <Select
                           value={selectedState}
                           onValueChange={(v) => { setSelectedState(v); setSelectedCity(''); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
@@ -212,7 +212,7 @@ const CheckInModal = ({
                     if (derivedCities.length === 0) return null; // No regional data at all
                     return (
                       <div>
-                        <label className="text-sm text-gray-400 mb-2 block">City / Area <span className="text-zinc-600 text-xs">(optional)</span></label>
+                        <span className="text-sm text-gray-400 mb-2 block">City / Area <span className="text-zinc-600 text-xs">(optional)</span></span>
                         <Select
                           value={selectedCity}
                           onValueChange={(v) => { setSelectedCity(v === '__all__' ? '' : v); setCheckInData(prev => ({ ...prev, spot_id: '' })); }}
@@ -235,12 +235,12 @@ const CheckInModal = ({
   
                   {/* Spot selector - GPS-sorted when GPS active, filtered by hierarchy when manual */}
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block">
+                    <span className="text-sm text-gray-400 mb-2 block">
                       Surf Spot
                       {checkInData.use_gps && checkInData.latitude && (
                         <span className="ml-2 text-xs text-cyan-400">?? sorted by distance</span>
                       )}
-                    </label>
+                    </span>
                     <Select
                       value={checkInData.spot_id}
                       onValueChange={(v) => setCheckInData(prev => ({ ...prev, spot_id: v }))}
@@ -304,7 +304,7 @@ const CheckInModal = ({
   
                   {/* Conditions */}
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block">Conditions</label>
+                    <span className="text-sm text-gray-400 mb-2 block">Conditions</span>
                     <Select value={checkInData.conditions} onValueChange={(v) => setCheckInData(prev => ({ ...prev, conditions: v }))}>
                       <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
                         <SelectValue placeholder="How's it looking?" />
@@ -321,7 +321,7 @@ const CheckInModal = ({
   
                   {/* Wave Height */}
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block">Wave Height</label>
+                    <span className="text-sm text-gray-400 mb-2 block">Wave Height</span>
                     <Select value={checkInData.wave_height} onValueChange={(v) => setCheckInData(prev => ({ ...prev, wave_height: v }))}>
                       <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
                         <SelectValue placeholder="How big?" />
@@ -340,8 +340,8 @@ const CheckInModal = ({
   
                   {/* Notes */}
                   <div>
-                    <label className="text-sm text-gray-400 mb-2 block">Notes (optional)</label>
-                    <Input
+                    <label htmlFor="notes-input" className="text-sm text-gray-400 mb-2 block">Notes (optional)</label>
+                    <Input id="notes-input"
                       placeholder="How was your session?"
                       value={checkInData.notes}
                       onChange={(e) => setCheckInData(prev => ({ ...prev, notes: e.target.value }))}

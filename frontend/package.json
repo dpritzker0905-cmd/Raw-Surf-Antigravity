@@ -72,7 +72,8 @@
   "scripts": {
     "start": "craco start",
     "build": "NODE_OPTIONS=--openssl-legacy-provider craco build",
-    "test": "craco test"
+    "test": "craco test",
+    "lint": "eslint src"
   },
   "browserslist": {
     "production": [

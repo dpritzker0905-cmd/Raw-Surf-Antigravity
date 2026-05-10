@@ -571,6 +571,7 @@ const useGalleryActions = ({
             tagged++;
           }
         } catch (_err) {
+          /* ignore */
         }
       }
       const parts = [];
@@ -625,6 +626,42 @@ const useGalleryActions = ({
       return;
     }
     setDeleteConfirm({ type: 'bulk', count: selectedItems.size });
+  };
+
+  const executeBulkDelete = async () => {
+    setFolderActionLoading(true);
+    try {
+      const itemIds = Array.from(selectedItems);
+      // Try to delete from gallery first, fallback to direct delete
+      await Promise.all(itemIds.map(async (itemId) => {
+        try {
+          if (selectedGallery) {
+            await apiClient.delete(`/galleries/${selectedGallery.id}/items/${itemId}?photographer_id=${user.id}`);
+          } else {
+            await apiClient.delete(`/gallery/item/${itemId}?photographer_id=${user.id}`);
+          }
+        } catch (err) {
+          if (err.response?.status === 404 && selectedGallery) {
+            await apiClient.delete(`/gallery/item/${itemId}?photographer_id=${user.id}`);
+          } else {
+            throw err;
+          }
+        }
+      }));
+      toast.success(`Deleted ${itemIds.length} item${itemIds.length > 1 ? 's' : ''}`);
+      clearSelection();
+      fetchGalleries();
+      if (selectedGallery) {
+        fetchGalleryItems(selectedGallery.id);
+      } else {
+        fetchGallery();
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'Failed to delete items'));
+    } finally {
+      setFolderActionLoading(false);
+      setDeleteConfirm(null);
+    }
   };
 
   const handleOpenThumbnailPicker = async (gal) => {
@@ -775,6 +812,7 @@ const useGalleryActions = ({
     handleBatchTagToSurfer,
     handleSearchSurfers,
     handleBulkDelete,
+    executeBulkDelete,
     handleOpenThumbnailPicker,
     handleSetThumbnail,
     handleClearThumbnail,

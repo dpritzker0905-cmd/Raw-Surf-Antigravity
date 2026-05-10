@@ -127,49 +127,9 @@ export const GalleryStorefront = () => {
     }
   };
 
-  // -- Loading state --
-  if (loading) {
-    return (
-      <div data-testid="gallery-storefront" className={`min-h-screen ${pageBg} p-4 max-w-4xl mx-auto`}>
-        <ProfileHeaderSkeleton />
-        <div className="mt-6"><GallerySkeleton /></div>
-      </div>
-    );
-  }
-
-  // -- Not found --
-  if (error === 'notfound') {
-    return (
-      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
-        <div className="text-center max-w-md px-4">
-          <Camera className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
-          <h2 className={`text-xl font-bold ${textPrimary} mb-2`}>Photographer Not Found</h2>
-          <p className={`${textSecondary} mb-6`}>
-            No photographer with username <span className="text-cyan-400 font-mono">@{username}</span> exists.
-          </p>
-          <Button onClick={() => navigate('/explore')} className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
-            Browse Photographers
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !photographer) {
-    return (
-      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
-        <div className="text-center">
-          <p className={textSecondary}>Something went wrong. Please try again.</p>
-          <Button onClick={fetchStorefront} variant="outline" className="mt-4">Retry</Button>
-        </div>
-      </div>
-    );
-  }
-
-  const isSelf = user?.id === photographer.id;
-
   // Dynamic Open Graph meta tags for social sharing / link previews
   useEffect(() => {
+    if (!photographer) return;
     const ogTags = [];
     const setMeta = (property, content) => {
       if (!content) return;
@@ -216,6 +176,47 @@ export const GalleryStorefront = () => {
       ogTags.forEach(tag => tag.remove());
     };
   }, [photographer, username]);
+
+  // -- Loading state --
+  if (loading) {
+    return (
+      <div data-testid="gallery-storefront" className={`min-h-screen ${pageBg} p-4 max-w-4xl mx-auto`}>
+        <ProfileHeaderSkeleton />
+        <div className="mt-6"><GallerySkeleton /></div>
+      </div>
+    );
+  }
+
+  // -- Not found --
+  if (error === 'notfound') {
+    return (
+      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
+        <div className="text-center max-w-md px-4">
+          <Camera className="w-16 h-16 text-zinc-600 mx-auto mb-4" />
+          <h2 className={`text-xl font-bold ${textPrimary} mb-2`}>Photographer Not Found</h2>
+          <p className={`${textSecondary} mb-6`}>
+            No photographer with username <span className="text-cyan-400 font-mono">@{username}</span> exists.
+          </p>
+          <Button onClick={() => navigate('/explore')} className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
+            Browse Photographers
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !photographer) {
+    return (
+      <div className={`min-h-screen ${pageBg} flex items-center justify-center`}>
+        <div className="text-center">
+          <p className={textSecondary}>Something went wrong. Please try again.</p>
+          <Button onClick={fetchStorefront} variant="outline" className="mt-4">Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const isSelf = user?.id === photographer.id;
 
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>

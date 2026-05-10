@@ -9,11 +9,20 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import {
   Sparkles, Loader2, Users,
-  ImagePlus, Link2, Camera
+  ImagePlus, Link2, Camera,
+  CheckCircle, Send, UserPlus, RotateCcw, Radio
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-export const TagAssignModal = (props) => {
+export const TagAssignModal = ({
+  showTagAssignModal, setShowTagAssignModal,
+  selectedGallery, selectedItems, galleryItems,
+  participantsLoading, participants, aiAutoTagLoading, handleAiAutoTag,
+  batchTagLoading, distributeLoading, handleBatchTagToSurfer,
+  distributeAllLoading, handleDistributeAll, sessionInfo,
+  manualSurferSearch, setManualSurferSearch, handleSearchSurfers,
+  searchLoading, searchResults
+}) => {
   return (
     <>
           {/* ============ TAG & ASSIGN MODAL ============ */}
@@ -293,7 +302,11 @@ export const TagAssignModal = (props) => {
   );
 };
 
-export const ThumbnailPickerModal = (props) => {
+export const ThumbnailPickerModal = ({
+  showThumbnailPicker, setShowThumbnailPicker,
+  thumbnailPickerGallery, thumbnailPickerLoading, thumbnailPickerItems,
+  handleSetThumbnail, settingThumbnail, handleClearThumbnail
+}) => {
   return (
     <>
           {/* ============ THUMBNAIL PICKER MODAL ============ */}
@@ -375,7 +388,11 @@ export const ThumbnailPickerModal = (props) => {
   );
 };
 
-export const LinkSessionModal = (props) => {
+export const LinkSessionModal = ({
+  showLinkSessionModal, setShowLinkSessionModal,
+  linkSessionGallery, recentSessionsLoading, recentSessions,
+  handleLinkSession, linkingSession
+}) => {
   return (
     <>
           {/* ============ LINK SESSION MODAL ============ */}

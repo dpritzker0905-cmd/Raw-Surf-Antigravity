@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
-import useMarkerClustering from '../../hooks/useMarkerClustering';
+import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';

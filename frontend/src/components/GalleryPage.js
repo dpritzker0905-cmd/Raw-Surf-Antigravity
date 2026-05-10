@@ -244,7 +244,7 @@ export const GalleryPage = () => {
   // ============ HANDLERS EXTRACTED TO hooks/useGalleryActions.js ============
   const {
     fetchLinkedGroms, fetchGromHighlights, handleTagGrom, handleUntagGrom,
-    fetchGalleries, fetchGalleryItems, handleDeleteFromGallery, executeDeleteFromGallery,
+    fetchGalleries, fetchGalleryItems, handleDeleteFromGallery, executeDeleteFromGallery, executeBulkDelete,
     handleAddToGallery, openGalleryDetail, closeGalleryDetail,
     fetchConditionsStatus, handlePushToSpotHub, handleSaveGalleryPricing,
     fetchGallery, handleQuickPriceUpdate, handleClearCustomPrice,

@@ -4,15 +4,20 @@
  * 
  * Extracted from UnifiedSpotDrawer.js for maintainability.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Camera, Check, Loader2, CreditCard
+  Camera, Check, Loader2, CreditCard, ArrowLeft, RefreshCw, Coins
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import { useAuth } from '../../contexts/AuthContext';
+import { usePersona } from '../../contexts/PersonaContext';
+
+const CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
+
 const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const { user, updateUser } = useAuth();
   const { getEffectiveRole, isGodMode, activePersona } = usePersona();

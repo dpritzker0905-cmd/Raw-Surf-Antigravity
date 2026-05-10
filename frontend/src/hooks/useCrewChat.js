@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { formatClockTime } from '../utils/formatTime';
 
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
-const MAX_VOICE_DURATION = 30;
+export const MAX_VOICE_DURATION = 30;
 
 export default function useCrewChat({
   user, bookingId, inputValue, setInputValue, isSending, setIsSending,
@@ -19,7 +19,7 @@ export default function useCrewChat({
   setSelectedFile, setShowFilePreview, setFileCaption,
   setShowReactionPicker, playingVoice, setPlayingVoice,
   setShowEmojiPicker, showMentionPicker, mentionResults,
-  showReactionPicker,
+  showReactionPicker, typingUsers, chatInfo
 }) {
   const messagesEndRef = useRef(null);
   const wsRef = useRef(null);
@@ -506,13 +506,20 @@ export default function useCrewChat({
 
   const formatTime = formatClockTime;
 
+  const getTypingNames = () => {
+    if (!chatInfo?.participants) return [];
+    return typingUsers
+      .map(id => chatInfo.participants.find(p => p.user_id === id)?.full_name?.split(' ')[0])
+      .filter(Boolean);
+  };
+
   return {
     // Refs
     messagesEndRef, wsRef, inputRef, fileInputRef, audioRef,
     // Fetchers
     fetchChatInfo, fetchMessages,
     // Message handlers
-    sendMessage, handleReply, cancelReply, sendQuickAction,
+    sendMessage, handleReply, cancelReply, sendQuickAction, handleMentionSelect,
     // Media handlers
     startRecording, stopRecording, cancelRecording, uploadImage,
     handleFileSelect, uploadFile, toggleVoicePlayback,
@@ -521,6 +528,6 @@ export default function useCrewChat({
     // Reaction
     handleReaction,
     // Helpers
-    getFileIcon, formatTime: formatClockTime,
+    getFileIcon, formatTime: formatClockTime, getTypingNames
   };
 }

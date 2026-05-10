@@ -3,6 +3,8 @@
  * Reduces CrewChat from 52.6KB to under 50KB.
  */
 import React from 'react';
+import { Badge } from '../ui/badge';
+
 const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
@@ -24,9 +26,9 @@ const formatFileSize = (bytes) => {
     return Object.values(reactions).reduce((sum, users) => sum + users.length, 0);
   };
 
-  const hasUserReacted = (reactions, emoji) => {
+  const hasUserReacted = (reactions, emoji, userId) => {
     if (!reactions || !reactions[emoji]) return false;
-    return reactions[emoji].includes(user?.id);
+    return reactions[emoji].includes(userId);
   };
 
   const getRoleBadge = (role) => {
@@ -47,7 +49,7 @@ const formatFileSize = (bytes) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const renderMessageContent = (content, mentions = []) => {
+  const renderMessageContent = (content, mentions = [], navigate) => {
     if (!mentions || mentions.length === 0) {
       return <span>{content}</span>;
     }
@@ -70,7 +72,7 @@ const formatFileSize = (bytes) => {
       parts.push(
         <button
           key={`mention-${match.index}`}
-          onClick={() => navigate(`/profile/${userId}`)}
+          onClick={() => navigate && navigate(`/profile/${userId}`)}
           className="text-cyan-400 hover:text-cyan-300 font-medium"
         >
           @{displayName}

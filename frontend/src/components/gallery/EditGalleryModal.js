@@ -21,7 +21,7 @@ const EditGalleryModal = ({
   sessionParticipants, distributing, recentSessions, handleLinkSession,
   fetchRecentSessions, user, galleryId, isLight, textPrimaryClass,
   textSecondaryClass, borderClass, inputBgClass, cardBgClass, navigate,
-  totalGalleryItems, showPricing
+  totalGalleryItems, showPricing, handleDeleteGallery
 }) => {
   return (
     <>

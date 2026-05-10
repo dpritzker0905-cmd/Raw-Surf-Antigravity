@@ -1,9 +1,9 @@
-﻿/**
+/**
  * SessionConditionsPanel.js - Extracted from CreatePost.js (v61)
  * Collapsible session conditions form: wave height, period, direction, wind, tide.
  */
 import React from 'react';
-import { Waves, ChevronDown, Navigation, Loader2, Check, Wind } from 'lucide-react';
+import { Waves, ChevronDown, Navigation, Loader2, Check, Wind, ArrowUpDown } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -27,6 +27,8 @@ const SessionConditionsPanel = ({
   bgInput, borderInput, textInput, labelClass,
   isLight,
 }) => {
+  const selectContentBg = isLight ? 'bg-white' : 'bg-zinc-800';
+
   return (
     <>
             {/* Session Conditions Toggle */}

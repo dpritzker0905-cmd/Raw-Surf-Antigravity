@@ -2,9 +2,10 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Users, Sparkles, Loader2, Check, Send
-} from 'lucide-react';
+import { Users, Sparkles, Loader2, Check, Send } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
+import { toast } from 'sonner';
+import apiClient from '../../utils/apiClient';
 
 const TaggingAssignModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
@@ -20,7 +21,7 @@ const TaggingAssignModal = ({
   sessionParticipants, distributing, recentSessions, handleLinkSession,
   fetchRecentSessions, user, galleryId, isLight, textPrimaryClass,
   textSecondaryClass, borderClass, inputBgClass, cardBgClass, navigate,
-  totalGalleryItems, showPricing
+  totalGalleryItems, showPricing, fetchGallery, fetchSessionParticipants
 }) => {
   return (
     <>

@@ -12,6 +12,7 @@ export const useDutyStationActions = ({
   selectedSpot,
   selectedSpots,
   pricingConfig,
+  liveActive,
   setLiveActive,
   setOnDemandActive,
   setSelectedSpot,
@@ -207,13 +208,13 @@ export const useDutyStationActions = ({
           
           try {
             await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
-          } catch (pingErr) {
+            } catch (pingErr) {
             if (attempt === 1) {
               toast.loading('Server is starting up...', { id: 'go-live-warmup' });
               await new Promise(r => setTimeout(r, 8000));
               try {
                 await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
-              } catch (secondPingErr) {}
+              } catch (secondPingErr) { /* ignore */ }
             }
           }
           toast.dismiss('go-live-warmup');

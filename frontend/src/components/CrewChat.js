@@ -32,7 +32,8 @@ import { BACKEND_URL } from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import { formatDuration } from '../utils/formatTime';
 
-import useCrewChat from '../hooks/useCrewChat';
+import useCrewChat, { MAX_VOICE_DURATION } from '../hooks/useCrewChat';
+import { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent } from './messages/crewChatUtils';
 
 // Quick Actions for surf coordination - Expanded with more useful options
 const QUICK_ACTIONS = [
@@ -118,8 +119,8 @@ export default function CrewChat() {
     startRecording, stopRecording, cancelRecording, uploadImage,
     handleFileSelect, uploadFile, toggleVoicePlayback,
     handleInputChange, handleKeyDown, handleEmojiSelect,
-    handleReaction,
-    getFileIcon, formatTime,
+    handleReaction, handleMentionSelect, getTypingNames,
+    formatTime,
   } = useCrewChat({
     user, bookingId, inputValue, setInputValue, isSending, setIsSending,
     setMessages, setChatInfo, setOnlineUsers, setTypingUsers, setIsLoading,
@@ -132,7 +133,7 @@ export default function CrewChat() {
     setSelectedFile, setShowFilePreview, setFileCaption,
     setShowReactionPicker, playingVoice, setPlayingVoice,
     setShowEmojiPicker, showMentionPicker, mentionResults,
-    showReactionPicker,
+    showReactionPicker, typingUsers, chatInfo
   });
 
   // Render message content with clickable @mentions
@@ -391,7 +392,7 @@ export default function CrewChat() {
                       } ${msg.reply_to ? 'rounded-t-lg' : ''}`}
                     >
                       <p className="text-sm whitespace-pre-wrap break-words">
-                        {renderMessageContent(msg.content, msg.mentions)}
+                        {renderMessageContent(msg.content, msg.mentions, navigate)}
                       </p>
                     </div>
                   </div>
@@ -433,7 +434,7 @@ export default function CrewChat() {
                           key={emoji}
                           onClick={() => handleReaction(msg.id, emoji)}
                           className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-colors ${
-                            hasUserReacted(msg.reactions, emoji)
+                            hasUserReacted(msg.reactions, emoji, user?.id)
                               ? 'bg-cyan-500/30 border border-cyan-500/50'
                               : 'bg-zinc-800 border border-zinc-700 hover:bg-zinc-700'
                           }`}
@@ -479,7 +480,7 @@ export default function CrewChat() {
                               key={emoji}
                               onClick={() => handleReaction(msg.id, emoji)}
                               className={`w-8 h-8 flex items-center justify-center text-lg rounded hover:bg-zinc-700 transition-colors ${
-                                hasUserReacted(msg.reactions, emoji) ? 'bg-cyan-500/30' : ''
+                                hasUserReacted(msg.reactions, emoji, user?.id) ? 'bg-cyan-500/30' : ''
                               }`}
                             >
                               {emoji}

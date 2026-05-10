@@ -1,8 +1,8 @@
-﻿/**
+/**
  * messagesHelpers.js - Extracted from MessagesPage.js (v61)
  * Role-based folder system, icon helpers, and UI components for the messaging system.
  */
-import { Star, Camera, Search, Store, Users, Briefcase, Smile, EyeOff } from 'lucide-react';
+import { Star, Camera, Search, Store, Users, Briefcase, Smile, EyeOff, Shield } from 'lucide-react';
 import { getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../../contexts/PersonaContext';
 import { ROLES } from '../../constants/roles';
 

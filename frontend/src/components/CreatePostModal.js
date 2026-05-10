@@ -410,8 +410,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           )}
 
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Caption (optional)</label>
-            <Textarea aria-label="What's happening?"
+            <label htmlFor="caption-input" className="text-sm text-gray-400 mb-2 block">Caption (optional)</label>
+            <Textarea id="caption-input" aria-label="What's happening?"
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="What's happening?"
@@ -423,10 +423,10 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           {recentLocations.length > 0 && (
             <div className="space-y-2" data-testid="recent-locations-section">
               <div className="flex items-center justify-between">
-                <label className="text-sm text-gray-400 flex items-center gap-2">
+                <span className="text-sm text-gray-400 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-cyan-400" />
                   Recent Locations
-                </label>
+                </span>
                 <button
                   type="button"
                   aria-expanded={showRecentLocations} onClick={() => setShowRecentLocations(!showRecentLocations)}
@@ -458,8 +458,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           )}
 
           <div>
-            <label className="text-sm text-gray-400 mb-2 block">Location (optional)</label>
-            <Input aria-label="e.g., Sebastian Inlet, FL"
+            <label htmlFor="location-input" className="text-sm text-gray-400 mb-2 block">Location (optional)</label>
+            <Input id="location-input" aria-label="e.g., Sebastian Inlet, FL"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="e.g., Sebastian Inlet, FL"
@@ -514,8 +514,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Date</label>
-                    <Input aria-label="Date"
+                    <label htmlFor="session-date-input" className="text-xs text-gray-400 mb-1 block">Date</label>
+                    <Input id="session-date-input" aria-label="Date"
                       type="date"
                       value={sessionDate}
                       onChange={(e) => setSessionDate(e.target.value)}
@@ -524,8 +524,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Start</label>
-                    <Input aria-label="Time"
+                    <label htmlFor="session-start-input" className="text-xs text-gray-400 mb-1 block">Start</label>
+                    <Input id="session-start-input" aria-label="Time"
                       type="time"
                       value={sessionStartTime}
                       onChange={(e) => setSessionStartTime(e.target.value)}
@@ -533,8 +533,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block">End</label>
-                    <Input aria-label="Time"
+                    <label htmlFor="session-end-input" className="text-xs text-gray-400 mb-1 block">End</label>
+                    <Input id="session-end-input" aria-label="Time"
                       type="time"
                       value={sessionEndTime}
                       onChange={(e) => setSessionEndTime(e.target.value)}
@@ -545,10 +545,10 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
+                    <label htmlFor="wave-height-input" className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
                       <Waves className="w-3 h-3" /> Wave Height (ft)
                     </label>
-                    <Input aria-label="e.g., 4.5"
+                    <Input id="wave-height-input" aria-label="e.g., 4.5"
                       type="number"
                       step="0.5"
                       value={waveHeightFt}
@@ -558,8 +558,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Period (sec)</label>
-                    <Input aria-label="e.g., 12"
+                    <label htmlFor="wave-period-input" className="text-xs text-gray-400 mb-1 block">Period (sec)</label>
+                    <Input id="wave-period-input" aria-label="e.g., 12"
                       type="number"
                       value={wavePeriodSec}
                       onChange={(e) => { setWavePeriodSec(e.target.value); setConditionsSource('manual'); }}
@@ -568,17 +568,17 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Wave Dir</label>
+                    <span className="text-xs text-gray-400 mb-1 block">Wave Dir</span>
                     <DirSelect value={waveDirection} onChange={(v) => { setWaveDirection(v); setConditionsSource('manual'); }} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
+                    <label htmlFor="wind-speed-input" className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
                       <Wind className="w-3 h-3" /> Wind (mph)
                     </label>
-                    <Input aria-label="e.g., 8"
+                    <Input id="wind-speed-input" aria-label="e.g., 8"
                       type="number"
                       step="0.5"
                       value={windSpeedMph}
@@ -588,16 +588,16 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Direction</label>
+                    <span className="text-xs text-gray-400 mb-1 block">Direction</span>
                     <DirSelect value={windDirection} onChange={(v) => { setWindDirection(v); setConditionsSource('manual'); }} placeholder="Select..." />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
+                    <span className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
                       <ArrowUpDown className="w-3 h-3" /> Tide Status
-                    </label>
+                    </span>
                     <Select value={tideStatus} onValueChange={(v) => { setTideStatus(v); setConditionsSource('manual'); }}>
                       <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white text-sm">
                         <SelectValue placeholder="Select..." />
@@ -610,8 +610,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
                     </Select>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-400 mb-1 block">Tide Height (ft)</label>
-                    <Input aria-label="e.g., 2.3"
+                    <label htmlFor="tide-height-input" className="text-xs text-gray-400 mb-1 block">Tide Height (ft)</label>
+                    <Input id="tide-height-input" aria-label="e.g., 2.3"
                       type="number"
                       step="0.1"
                       value={tideHeightFt}

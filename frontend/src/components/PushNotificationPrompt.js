@@ -64,16 +64,14 @@ const PushNotificationPrompt = () => {
     const success = await subscribe();
     setSubscribing(false);
     if (success) {
-      toast.success('Push notifications enabled! 🔔🌊');
-      setAnimatingOut(true);
-      setTimeout(() => setVisible(false), 300);
+      toast.success('Push notifications enabled! \uD83D\uDD14\uD83C\uDF0A');
     } else {
       // If denied, dismiss permanently (can't ask again)
       if (Notification.permission === 'denied') {
         toast.error('Notifications blocked. You can enable them in your browser settings.');
-        dismiss();
       }
     }
+    dismiss();
   }, [subscribe, dismiss]);
 
   if (!visible) return null;

@@ -18,6 +18,12 @@ import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
+import { AdminP2RevenueTab } from './p2/AdminP2RevenueTab';
+import { AdminP2PromoTab } from './p2/AdminP2PromoTab';
+import { AdminP2FlagsTab } from './p2/AdminP2FlagsTab';
+import { AdminP2CampaignsTab } from './p2/AdminP2CampaignsTab';
+import { AdminP2Modals } from './p2/AdminP2Modals';
+
 export const AdminP2Dashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -228,561 +234,74 @@ export const AdminP2Dashboard = () => {
       ) : (
         <>
           {activeSubTab === 'revenue' && revenueData && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-4 gap-3">
-                <Card className={`${cardBgClass} border-green-500/30`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`text-xs ${textSecondary}`}>GMV (30d)</p>
-                        <p className="text-2xl font-bold text-green-400">
-                          {formatCurrency(revenueData.gmv)}
-                        </p>
-                        <p className={`text-xs ${revenueData.gmv_change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {revenueData.gmv_change >= 0 ? '+' : ''}{revenueData.gmv_change}% vs prev
-                        </p>
-                      </div>
-                      <TrendingUp className="w-8 h-8 text-green-500/50" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className={`${cardBgClass} border-blue-500/30`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`text-xs ${textSecondary}`}>Platform Revenue</p>
-                        <p className="text-2xl font-bold text-blue-400">
-                          {formatCurrency(revenueData.platform_revenue)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {revenueData.take_rate}% take rate
-                        </p>
-                      </div>
-                      <DollarSign className="w-8 h-8 text-blue-500/50" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className={`${cardBgClass} border-purple-500/30`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`text-xs ${textSecondary}`}>MRR</p>
-                        <p className="text-2xl font-bold text-purple-400">
-                          {formatCurrency(revenueData.mrr)}
-                        </p>
-                        <p className="text-xs text-gray-500">Subscriptions</p>
-                      </div>
-                      <BarChart3 className="w-8 h-8 text-purple-500/50" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className={`${cardBgClass} border-orange-500/30`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`text-xs ${textSecondary}`}>Conversion Rate</p>
-                        <p className="text-2xl font-bold text-orange-400">
-                          {funnelData?.overall_conversion_rate || 0}%
-                        </p>
-                        <p className="text-xs text-gray-500">Booking funnel</p>
-                      </div>
-                      <Percent className="w-8 h-8 text-orange-500/50" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card className={cardBgClass}>
-                <CardHeader className="pb-2">
-                  <CardTitle className={`text-sm ${textClass}`}>Revenue by Type</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-4 gap-2">
-                    {Object.entries(revenueData.breakdown_by_type || {}).map(([type, data]) => (
-                      <div key={type} className="p-3 bg-muted rounded-lg">
-                        <p className="text-xs text-gray-500 capitalize">{type.replace(/_/g, ' ')}</p>
-                        <p className="text-lg font-bold text-foreground">{formatCurrency(data.revenue)}</p>
-                        <p className="text-xs text-muted-foreground">{data.transactions} txns</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {funnelData && (
-                <Card className={cardBgClass}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className={`text-sm ${textClass}`}>Booking Funnel</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {funnelData.funnel?.map((stage, _idx) => (
-                        <div key={stage.stage} className="flex items-center gap-3">
-                          <div className="w-32 text-xs text-muted-foreground">{stage.stage}</div>
-                          <div className="flex-1 relative h-6 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-teal-500 rounded-full transition-all"
-                              style={{ width: `${stage.conversion_rate}%` }}
-                            />
-                            <span className="absolute inset-0 flex items-center justify-center text-xs text-foreground font-medium">
-                              {stage.count} ({stage.conversion_rate}%)
-                            </span>
-                          </div>
-                          {stage.drop_off > 0 && (
-                            <div className="text-xs text-red-400">-{stage.drop_off}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {cohortData?.cohorts && cohortData.cohorts.length > 0 && (
-                <Card className={cardBgClass}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className={`text-sm ${textClass}`}>Cohort Retention</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr className="text-gray-500">
-                            <th className="text-left p-2">Cohort</th>
-                            <th className="text-center p-2">Size</th>
-                            {[0,1,2,3,4,5].map(m => (
-                              <th key={m} className="text-center p-2">M{m}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {cohortData.cohorts.slice(0, 6).map(cohort => (
-                            <tr key={cohort.cohort_month} className="border-t border-border">
-                              <td className="p-2 text-foreground">{cohort.cohort_month}</td>
-                              <td className="p-2 text-center text-muted-foreground">{cohort.cohort_size}</td>
-                              {[0,1,2,3,4,5].map(m => {
-                                const retention = cohort.retention[`month_${m}`];
-                                return (
-                                  <td key={m} className="p-2 text-center">
-                                    {retention !== undefined ? (
-                                      <span className={`px-2 py-0.5 rounded ${
-                                        retention >= 50 ? 'bg-green-500/20 text-green-400' :
-                                        retention >= 25 ? 'bg-yellow-500/20 text-yellow-400' :
-                                        'bg-red-500/20 text-red-400'
-                                      }`}>
-                                        {retention}%
-                                      </span>
-                                    ) : '-'}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            <AdminP2RevenueTab
+              revenueData={revenueData}
+              funnelData={funnelData}
+              cohortData={cohortData}
+              cardBgClass={cardBgClass}
+              textClass={textClass}
+              textSecondary={textSecondary}
+              formatCurrency={formatCurrency}
+            />
           )}
 
           {activeSubTab === 'promo' && (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h3 className={`font-medium ${textClass}`}>Promo Codes</h3>
-                <Button size="sm" onClick={() => setShowCreatePromo(true)} className="bg-green-500 hover:bg-green-600" aria-label="Add">
-                  <Plus className="w-4 h-4 mr-1" /> Create Code
-                </Button>
-              </div>
-
-              {promoCodes.length === 0 ? (
-                <Card className={cardBgClass}>
-                  <CardContent className="py-12 text-center">
-                    <Gift className="w-12 h-12 mx-auto text-gray-500 mb-3" />
-                    <p className={textSecondary}>No promo codes yet</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                promoCodes.map(promo => (
-                  <Card key={promo.id} className={cardBgClass}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="p-2 bg-green-500/20 rounded-lg">
-                            <Gift className="w-6 h-6 text-green-400" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <code className="text-lg font-bold text-foreground bg-muted px-2 py-0.5 rounded">
-                                {promo.code}
-                              </code>
-                              <Button aria-label="Copy" 
-                                size="sm" 
-                                variant="ghost" 
-                                className="h-6 w-6 p-0"
-                                onClick={() => { navigator.clipboard.writeText(promo.code); toast.success('Copied!'); }}
-                              >
-                                <Copy className="w-3 h-3" />
-                              </Button>
-                            </div>
-                            <p className={`text-sm ${textSecondary}`}>
-                              {promo.code_type === 'percentage' ? `${promo.discount_value}% off` :
-                               promo.code_type === 'fixed_amount' ? `$${promo.discount_value} off` :
-                               `${promo.discount_value} free credits`}
-                              {promo.campaign_name && ` ? ${promo.campaign_name}`}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-sm text-foreground">
-                              {promo.current_uses} / {promo.max_uses || '8'} uses
-                            </p>
-                            {promo.valid_until && (
-                              <p className="text-xs text-gray-500">
-                                Expires {formatDate(promo.valid_until)}
-                              </p>
-                            )}
-                          </div>
-                          <Switch
-                            checked={promo.is_active}
-                            onCheckedChange={() => handleTogglePromo(promo.id)}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+            <AdminP2PromoTab
+              promoCodes={promoCodes}
+              setShowCreatePromo={setShowCreatePromo}
+              handleTogglePromo={handleTogglePromo}
+              cardBgClass={cardBgClass}
+              textClass={textClass}
+              textSecondary={textSecondary}
+              formatDate={formatDate}
+            />
           )}
 
           {activeSubTab === 'flags' && (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h3 className={`font-medium ${textClass}`}>Feature Flags</h3>
-                <Button size="sm" onClick={() => setShowCreateFlag(true)} className="bg-blue-500 hover:bg-blue-600" aria-label="Add">
-                  <Plus className="w-4 h-4 mr-1" /> Create Flag
-                </Button>
-              </div>
-
-              {featureFlags.length === 0 ? (
-                <Card className={cardBgClass}>
-                  <CardContent className="py-12 text-center">
-                    <FlagIcon className="w-12 h-12 mx-auto text-gray-500 mb-3" />
-                    <p className={textSecondary}>No feature flags yet</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                featureFlags.map(flag => (
-                  <Card key={flag.id} className={`${cardBgClass} ${flag.kill_switch_enabled ? 'border-red-500/50' : ''}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <code className="text-sm font-mono text-foreground bg-muted px-2 py-0.5 rounded">
-                              {flag.key}
-                            </code>
-                            {flag.is_experiment && (
-                              <Badge className="bg-purple-500/20 text-purple-400">Experiment</Badge>
-                            )}
-                            {flag.kill_switch_enabled && (
-                              <Badge className="bg-red-500/20 text-red-400">Kill Switch ON</Badge>
-                            )}
-                          </div>
-                          <p className={`text-sm ${textClass} mt-1`}>{flag.name}</p>
-                          {flag.description && (
-                            <p className={`text-xs ${textSecondary}`}>{flag.description}</p>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-gray-500">Rollout:</span>
-                            <input aria-label="Range slider"
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={flag.rollout_percentage}
-                              onChange={(e) => handleUpdateRollout(flag.id, parseInt(e.target.value))}
-                              className="w-20 h-2 bg-input rounded-lg appearance-none cursor-pointer"
-                            />
-                            <span className="text-xs text-foreground w-8">{flag.rollout_percentage}%</span>
-                          </div>
-                          
-                          <Switch
-                            checked={flag.is_enabled}
-                            onCheckedChange={() => handleToggleFlag(flag.id, flag.is_enabled)}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+            <AdminP2FlagsTab
+              featureFlags={featureFlags}
+              setShowCreateFlag={setShowCreateFlag}
+              handleUpdateRollout={handleUpdateRollout}
+              handleToggleFlag={handleToggleFlag}
+              cardBgClass={cardBgClass}
+              textClass={textClass}
+              textSecondary={textSecondary}
+            />
           )}
 
           {activeSubTab === 'campaigns' && (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <h3 className={`font-medium ${textClass}`}>Push Notification Campaigns</h3>
-                <Button size="sm" onClick={() => setShowCreateCampaign(true)} className="bg-purple-500 hover:bg-purple-600" aria-label="Add">
-                  <Plus className="w-4 h-4 mr-1" /> Create Campaign
-                </Button>
-              </div>
-
-              {campaigns.length === 0 ? (
-                <Card className={cardBgClass}>
-                  <CardContent className="py-12 text-center">
-                    <Bell className="w-12 h-12 mx-auto text-gray-500 mb-3" />
-                    <p className={textSecondary}>No campaigns yet</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                campaigns.map(campaign => (
-                  <Card key={campaign.id} className={cardBgClass}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className={`font-medium ${textClass}`}>{campaign.name}</p>
-                            <Badge className={`text-xs ${
-                              campaign.status === 'sent' ? 'bg-green-500/20 text-green-400' :
-                              campaign.status === 'scheduled' ? 'bg-blue-500/20 text-blue-400' :
-                              campaign.status === 'cancelled' ? 'bg-gray-500/20 text-muted-foreground' :
-                              'bg-yellow-500/20 text-yellow-400'
-                            }`}>
-                              {campaign.status}
-                            </Badge>
-                          </div>
-                          <p className={`text-sm ${textSecondary}`}>
-                            <strong>{campaign.title}</strong>: {campaign.body}
-                          </p>
-                          
-                          {campaign.status === 'sent' && (
-                            <div className="flex gap-4 mt-2 text-xs">
-                              <span className="text-muted-foreground">
-                                <Users className="w-3 h-3 inline mr-1" />
-                                {campaign.stats.targeted} targeted
-                              </span>
-                              <span className="text-green-400">
-                                <Check className="w-3 h-3 inline mr-1" />
-                                {campaign.stats.delivered} delivered
-                              </span>
-                              <span className="text-blue-400">
-                                <Eye className="w-3 h-3 inline mr-1" />
-                                {campaign.stats.open_rate}% opened
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="shrink-0 flex flex-col items-end gap-2">
-                          <p className={`text-xs ${textSecondary}`}>
-                            {campaign.sent_at ? `Sent ${formatDate(campaign.sent_at)}` : 
-                             campaign.scheduled_at ? `Scheduled ${formatDate(campaign.scheduled_at)}` :
-                             formatDate(campaign.created_at)}
-                          </p>
-                          {campaign.status === 'draft' && (
-                            <Button aria-label="Send"
-                              size="sm"
-                              onClick={() => handleSendCampaign(campaign.id)}
-                              disabled={actionLoading}
-                              className="bg-green-500 hover:bg-green-600"
-                            >
-                              <Send className="w-3 h-3 mr-1" /> Send Now
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+            <AdminP2CampaignsTab
+              campaigns={campaigns}
+              setShowCreateCampaign={setShowCreateCampaign}
+              handleSendCampaign={handleSendCampaign}
+              actionLoading={actionLoading}
+              cardBgClass={cardBgClass}
+              textClass={textClass}
+              textSecondary={textSecondary}
+              formatDate={formatDate}
+            />
           )}
         </>
       )}
 
-      <Dialog open={showCreatePromo} onOpenChange={setShowCreatePromo}>
-        <DialogContent className="bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle>Create Promo Code</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-muted-foreground">Code</label>
-              <Input
-                value={newPromo.code}
-                onChange={(e) => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })}
-                placeholder="SUMMER2026"
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm text-muted-foreground">Type</label>
-                <Select value={newPromo.code_type} onValueChange={(v) => setNewPromo({ ...newPromo, code_type: v })}>
-                  <SelectTrigger className="bg-muted border-border mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="percentage">Percentage Off</SelectItem>
-                    <SelectItem value="fixed_amount">Fixed Amount</SelectItem>
-                    <SelectItem value="free_credits">Free Credits</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground">
-                  {newPromo.code_type === 'percentage' ? 'Percentage' : 'Amount'}
-                </label>
-                <Input
-                  type="number"
-                  value={newPromo.discount_value}
-                  onChange={(e) => setNewPromo({ ...newPromo, discount_value: parseFloat(e.target.value) })}
-                  className="bg-muted border-border mt-1"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Max Uses (optional)</label>
-              <Input
-                type="number"
-                value={newPromo.max_uses || ''}
-                onChange={(e) => setNewPromo({ ...newPromo, max_uses: e.target.value ? parseInt(e.target.value) : null })}
-                placeholder="Unlimited"
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Campaign Name (optional)</label>
-              <Input
-                value={newPromo.campaign_name}
-                onChange={(e) => setNewPromo({ ...newPromo, campaign_name: e.target.value })}
-                placeholder="Summer Sale 2026"
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreatePromo(false)}>Cancel</Button>
-            <Button aria-label="Loader2" onClick={handleCreatePromo} disabled={actionLoading} className="bg-green-500 hover:bg-green-600">
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showCreateFlag} onOpenChange={setShowCreateFlag}>
-        <DialogContent className="bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle>Create Feature Flag</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-muted-foreground">Key (snake_case)</label>
-              <Input
-                value={newFlag.key}
-                onChange={(e) => setNewFlag({ ...newFlag, key: e.target.value.toLowerCase().replace(/\s/g, '_') })}
-                placeholder="new_booking_flow"
-                className="bg-muted border-border mt-1 font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Name</label>
-              <Input
-                value={newFlag.name}
-                onChange={(e) => setNewFlag({ ...newFlag, name: e.target.value })}
-                placeholder="New Booking Flow"
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Description</label>
-              <Textarea
-                value={newFlag.description}
-                onChange={(e) => setNewFlag({ ...newFlag, description: e.target.value })}
-                placeholder="What does this flag control?"
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Initial Rollout %</label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                value={newFlag.rollout_percentage}
-                onChange={(e) => setNewFlag({ ...newFlag, rollout_percentage: parseInt(e.target.value) })}
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateFlag(false)}>Cancel</Button>
-            <Button aria-label="Loader2" onClick={handleCreateFlag} disabled={actionLoading} className="bg-blue-500 hover:bg-blue-600">
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showCreateCampaign} onOpenChange={setShowCreateCampaign}>
-        <DialogContent className="bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle>Create Push Campaign</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm text-muted-foreground">Campaign Name</label>
-              <Input
-                value={newCampaign.name}
-                onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
-                placeholder="Summer Promo Announcement"
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Notification Title</label>
-              <Input
-                value={newCampaign.title}
-                onChange={(e) => setNewCampaign({ ...newCampaign, title: e.target.value })}
-                placeholder="ðŸ”¥ Don't miss out!"
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">Notification Body</label>
-              <Textarea
-                value={newCampaign.body}
-                onChange={(e) => setNewCampaign({ ...newCampaign, body: e.target.value })}
-                placeholder="Book your next session and get 20% off..."
-                className="bg-muted border-border mt-1"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={newCampaign.target_all_users}
-                onCheckedChange={(v) => setNewCampaign({ ...newCampaign, target_all_users: v })}
-              />
-              <label className="text-sm text-muted-foreground">Send to all users</label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateCampaign(false)}>Cancel</Button>
-            <Button aria-label="Loader2" onClick={handleCreateCampaign} disabled={actionLoading} className="bg-purple-500 hover:bg-purple-600">
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdminP2Modals
+        showCreatePromo={showCreatePromo}
+        setShowCreatePromo={setShowCreatePromo}
+        newPromo={newPromo}
+        setNewPromo={setNewPromo}
+        handleCreatePromo={handleCreatePromo}
+        showCreateFlag={showCreateFlag}
+        setShowCreateFlag={setShowCreateFlag}
+        newFlag={newFlag}
+        setNewFlag={setNewFlag}
+        handleCreateFlag={handleCreateFlag}
+        showCreateCampaign={showCreateCampaign}
+        setShowCreateCampaign={setShowCreateCampaign}
+        newCampaign={newCampaign}
+        setNewCampaign={setNewCampaign}
+        handleCreateCampaign={handleCreateCampaign}
+        actionLoading={actionLoading}
+      />
     </div>
   );
 };

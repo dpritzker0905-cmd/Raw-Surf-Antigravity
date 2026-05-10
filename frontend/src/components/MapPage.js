@@ -182,6 +182,8 @@ const MapPageContent = () => {
   const [_lockedShooterCount, setLockedShooterCount] = useState(null);
   
   const [trackingMarkersRef] = useState({ surfer: null, photographer: null, routeLine: null });
+  const userMarkerRef = useRef(null);
+  const userAccuracyCircleRef = useRef(null);
   const [showPermissionNudge, setShowPermissionNudge] = useState(false);
   const [permissionNudgeAction, setPermissionNudgeAction] = useState('booking');
 
