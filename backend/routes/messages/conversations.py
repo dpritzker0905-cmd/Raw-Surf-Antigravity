@@ -356,9 +356,19 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
     if user_id not in [conversation.participant_one_id, conversation.participant_two_id]:
         raise HTTPException(status_code=403, detail="Not a participant in this conversation")
     
+    # Mark all unread messages from the other user as read
     for message in conversation.messages:
         if message.sender_id != user_id and not message.is_read:
             message.is_read = True
+    
+    # Also clear the manual "mark as unread" flag — opening a conversation
+    # means the user has seen it, so the unread indicator should be dismissed.
+    is_participant_one = conversation.participant_one_id == user_id
+    if is_participant_one and conversation.is_unread_for_one:
+        conversation.is_unread_for_one = False
+    elif not is_participant_one and conversation.is_unread_for_two:
+        conversation.is_unread_for_two = False
+    
     await db.commit()
     
     is_participant_one = conversation.participant_one_id == user_id

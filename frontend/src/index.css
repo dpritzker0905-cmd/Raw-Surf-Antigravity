@@ -604,3 +604,45 @@ input[type="range"].appearance-none::-moz-range-track {
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Messages scroll container: visible scrollbar on desktop ──────────
+   The global * { scrollbar-width: none } hides all scrollbars.
+   On desktop, users need a visible, grabbable scrollbar to navigate
+   long message threads (Instagram DM pattern).
+   On mobile, the scrollbar stays hidden (thumb scrolling is natural).
+   ─────────────────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .messages-scroll-container {
+    -ms-overflow-style: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255,255,255,0.2) transparent;
+    scrollbar-gutter: stable;
+  }
+  .messages-scroll-container::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+  }
+  .messages-scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .messages-scroll-container::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 3px;
+  }
+  .messages-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.35);
+  }
+  .messages-scroll-container::-webkit-scrollbar-thumb:active {
+    background: rgba(255,255,255,0.5);
+  }
+  /* Light mode scrollbar */
+  .light .messages-scroll-container {
+    scrollbar-color: rgba(0,0,0,0.15) transparent;
+  }
+  .light .messages-scroll-container::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.12);
+  }
+  .light .messages-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.25);
+  }
+}

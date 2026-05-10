@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 // Build trigger: 2026-04-30
 import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -291,10 +291,17 @@ export const MessagesPage = () => {
   }, [selectedConvId]);
 
   const scrollToBottom = (instant = false) => {
-    messagesEndRef.current?.scrollIntoView({ 
-      behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth' 
+    // Use rAF + microtask to ensure scroll happens AFTER React has
+    // committed DOM updates and the browser has painted. Without this,
+    // scrollIntoView fires before message elements are laid out.
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: instant || !initialScrollDoneRef.current ? 'auto' : 'smooth' 
+        });
+        initialScrollDoneRef.current = true;
+      }, 0);
     });
-    initialScrollDoneRef.current = true;
   };
 
   // AbortController ref - cancels in-flight conversation fetches when the user

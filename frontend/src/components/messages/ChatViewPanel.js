@@ -235,7 +235,7 @@ const ChatViewPanel = ({
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-1 messages-scroll-container">
         {selectedConversation?.is_new_chat ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-20 h-20 rounded-full bg-muted overflow-hidden mb-4">

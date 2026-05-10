@@ -158,6 +158,17 @@ const useMessagesActions = ({
     try {
       const response = await apiClient.get(`/messages/conversation/${convId}?user_id=${user.id}`);
       setConversationDetail(response.data);
+      
+      // Optimistic unread clearing: the backend marks messages as read
+      // when GET /conversation/{id} is called, but the conversation list
+      // won't update until the next 10s poll. Immediately zero out the
+      // unread_count and is_manually_unread for this conversation in local
+      // state so the sidebar badge disappears instantly.
+      setConversations(prev => prev.map(c => 
+        c.id === convId 
+          ? { ...c, unread_count: 0, is_manually_unread: false }
+          : c
+      ));
     } catch (error) {
       logger.error('Failed to fetch conversation:', error);
     }
