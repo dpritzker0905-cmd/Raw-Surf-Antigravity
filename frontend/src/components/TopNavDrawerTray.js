@@ -39,12 +39,12 @@ export const TopNavDrawerTray = ({ isOpen }) => {
       return [
         {
           id: 'map', icon: MapPin, label: 'Map',
-          color: 'text-yellow-400', bgColor: 'bg-yellow-500/15',
+          color: 'text-yellow-400',
           action: () => navigate('/map')
         },
         {
           id: 'photo-tools', icon: Camera, label: 'Photo Tools',
-          color: 'text-cyan-400', bgColor: 'bg-cyan-500/15',
+          color: 'text-cyan-400',
           action: () => setPhotoToolsOpen(true)
         }
       ];
@@ -54,17 +54,17 @@ export const TopNavDrawerTray = ({ isOpen }) => {
       return [
         {
           id: 'map', icon: MapPin, label: 'Map',
-          color: 'text-yellow-400', bgColor: 'bg-yellow-500/15',
+          color: 'text-yellow-400',
           action: () => navigate('/map')
         },
         {
           id: 'grom-archive', icon: Camera, label: 'Grom Archive',
-          color: 'text-cyan-400', bgColor: 'bg-cyan-500/15',
+          color: 'text-cyan-400',
           action: () => setPhotoToolsOpen(true)
         },
         {
           id: 'sessions', icon: Users, label: 'Sessions',
-          color: 'text-blue-400', bgColor: 'bg-blue-500/15',
+          color: 'text-blue-400',
           isSessionHub: true
         }
       ];
@@ -74,12 +74,12 @@ export const TopNavDrawerTray = ({ isOpen }) => {
     return [
       {
         id: 'sessions', icon: Users, label: 'Sessions',
-        color: 'text-blue-400', bgColor: 'bg-blue-500/15',
+        color: 'text-blue-400',
         isSessionHub: true
       },
       {
         id: 'gallery', icon: Image, label: 'My Gallery',
-        color: 'text-purple-400', bgColor: 'bg-purple-500/15',
+        color: 'text-purple-400',
         action: () => navigate('/gallery')
       }
     ];
@@ -91,17 +91,17 @@ export const TopNavDrawerTray = ({ isOpen }) => {
   const universalItems = [
     {
       id: 'search', icon: Search, label: 'Search',
-      color: 'text-gray-300', bgColor: 'bg-white/10',
+      color: 'text-gray-300',
       action: () => navigate('/search')
     },
     {
       id: 'settings', icon: Settings, label: 'Settings',
-      color: 'text-gray-300', bgColor: 'bg-white/10',
+      color: 'text-gray-300',
       action: () => navigate('/settings')
     },
     {
       id: 'backpack', icon: Backpack, label: 'Backpack',
-      color: 'text-amber-400', bgColor: 'bg-amber-500/15',
+      color: 'text-amber-400',
       action: () => setBackpackOpen(true)
     }
   ];
@@ -109,19 +109,19 @@ export const TopNavDrawerTray = ({ isOpen }) => {
   // Render a single drawer item button
   const renderItem = (item) => {
     const Icon = item.icon;
+    const btnClass = "flex flex-col items-center gap-1 p-2 hover:scale-110 active:scale-95 transition-all duration-200 min-w-[60px] group";
 
     // SurferSessionHub needs to wrap the button
     if (item.isSessionHub) {
       return (
         <SurferSessionHub key={item.id} isPhotographer={false}>
           <button
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl ${item.bgColor}
-              hover:scale-105 active:scale-95 transition-all duration-200 min-w-[80px]`}
+            className={btnClass}
             data-testid={`drawer-${item.id}`}
             aria-label={item.label}
           >
-            <Icon className={`w-5 h-5 ${item.color}`} />
-            <span className={`text-[10px] font-medium ${item.color}`}>{item.label}</span>
+            <Icon className={`w-5 h-5 ${item.color} group-hover:brightness-125 transition-all`} />
+            <span className={`text-[10px] font-medium ${item.color} opacity-90 group-hover:opacity-100 transition-opacity`}>{item.label}</span>
           </button>
         </SurferSessionHub>
       );
@@ -131,13 +131,12 @@ export const TopNavDrawerTray = ({ isOpen }) => {
       <button
         key={item.id}
         onClick={item.action}
-        className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl ${item.bgColor}
-          hover:scale-105 active:scale-95 transition-all duration-200 min-w-[80px]`}
+        className={btnClass}
         data-testid={`drawer-${item.id}`}
         aria-label={item.label}
       >
-        <Icon className={`w-5 h-5 ${item.color}`} />
-        <span className={`text-[10px] font-medium ${item.color}`}>{item.label}</span>
+        <Icon className={`w-5 h-5 ${item.color} group-hover:brightness-125 transition-all`} />
+        <span className={`text-[10px] font-medium ${item.color} opacity-90 group-hover:opacity-100 transition-opacity`}>{item.label}</span>
       </button>
     );
   };
@@ -148,7 +147,7 @@ export const TopNavDrawerTray = ({ isOpen }) => {
       <div
         className="overflow-hidden transition-all duration-300 ease-out"
         style={{
-          maxHeight: isOpen ? '180px' : '0px',
+          maxHeight: isOpen ? '140px' : '0px',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none'
         }}
