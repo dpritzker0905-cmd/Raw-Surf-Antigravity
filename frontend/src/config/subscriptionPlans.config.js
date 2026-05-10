@@ -41,6 +41,19 @@
 
 import { Shield, Zap, Crown, Camera, Sparkles } from 'lucide-react';
 
+// Helper to get commission rates from admin configuration or fall back to defaults
+const getCommissionRates = () => {
+  try {
+    const saved = localStorage.getItem('admin_commission_rates');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    // Ignore errors for SSR or if localStorage is unavailable
+  }
+  return { free: 25, tier_1: 25, tier_2: 20, tier_3: 15 };
+};
+
+const adminCommissionRates = getCommissionRates();
+
 // Stoked Credit conversion rate - SIMPLIFIED 1:1 RATIO
 export const CREDIT_TO_USD_RATE = 1; // 1 credit = $1.00
 
@@ -278,12 +291,12 @@ export const PHOTOGRAPHER_PLANS = {
       icon: Camera,
       iconColor: 'text-orange-400',
       bgColor: 'bg-orange-500/20',
-      commission: '20%',
-      commission_rate: 0.20,
+      commission: `${adminCommissionRates.tier_2}%`,
+      commission_rate: adminCommissionRates.tier_2 / 100,
       features: [
         { text: 'Unlimited cloud storage', included: true },
         { text: 'Set your own prices', included: true },
-        { text: '20% platform commission', included: true, highlight: true },
+        { text: `${adminCommissionRates.tier_2}% platform commission`, included: true, highlight: true },
         { text: 'Track surfers within 5 miles', included: true },
         { text: '24/7 email support', included: true },
         { text: 'Customizable location tags', included: true },
@@ -306,12 +319,12 @@ export const PHOTOGRAPHER_PLANS = {
       icon: Sparkles,
       iconColor: 'text-purple-400',
       bgColor: 'bg-purple-500/20',
-      commission: '15%',
-      commission_rate: 0.15,
+      commission: `${adminCommissionRates.tier_3}%`,
+      commission_rate: adminCommissionRates.tier_3 / 100,
       gold_pass: true,
       features: [
         { text: 'Everything in Basic', included: true },
-        { text: '15% platform commission', included: true, highlight: true },
+        { text: `${adminCommissionRates.tier_3}% platform commission`, included: true, highlight: true },
         { text: 'Track surfers WORLDWIDE', included: true, highlight: true },
         { text: '50 free AI credits/month ($50 value)', included: true, highlight: true },
         { text: '24/7 priority email support', included: true },
@@ -341,12 +354,12 @@ export const PHOTOGRAPHER_PLANS = {
       icon: Camera,
       iconColor: 'text-orange-400',
       bgColor: 'bg-orange-500/20',
-      commission: '20%',
-      commission_rate: 0.20,
+      commission: `${adminCommissionRates.tier_2}%`,
+      commission_rate: adminCommissionRates.tier_2 / 100,
       features: [
         { text: 'Unlimited cloud storage', included: true },
         { text: 'Set your own prices', included: true },
-        { text: '20% platform commission', included: true, highlight: true },
+        { text: `${adminCommissionRates.tier_2}% platform commission`, included: true, highlight: true },
         { text: 'Track surfers within 5 miles', included: true },
         { text: '20% annual discount', included: true, highlight: true }
       ],
@@ -367,12 +380,12 @@ export const PHOTOGRAPHER_PLANS = {
       icon: Sparkles,
       iconColor: 'text-purple-400',
       bgColor: 'bg-purple-500/20',
-      commission: '15%',
-      commission_rate: 0.15,
+      commission: `${adminCommissionRates.tier_3}%`,
+      commission_rate: adminCommissionRates.tier_3 / 100,
       gold_pass: true,
       features: [
         { text: 'Everything in Basic', included: true },
-        { text: '15% platform commission', included: true, highlight: true },
+        { text: `${adminCommissionRates.tier_3}% platform commission`, included: true, highlight: true },
         { text: 'Track surfers WORLDWIDE', included: true, highlight: true },
         { text: '50 free AI credits/month', included: true, highlight: true },
         { text: '20% annual discount', included: true, highlight: true }
