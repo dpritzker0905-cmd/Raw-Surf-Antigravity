@@ -11,12 +11,11 @@ import { useTheme } from '../contexts/ThemeContext';
 
 import {
 
-  Camera, MapPin, Clock, Zap, ChevronRight, ChevronLeft,
-  Check, Sparkles, Loader2, CheckCircle2
+  Camera,
+  Check, Sparkles
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
-import { Button } from './ui/button';
 
 import { Badge } from './ui/badge';
 
@@ -26,7 +25,6 @@ import apiClient from '../lib/apiClient';
 
 import { ExactTimeSlotPicker } from './ExactTimeSlotPicker';
 
-import { SelfieCapture } from './SelfieCapture';
 
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';

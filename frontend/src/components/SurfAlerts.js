@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { 
-  Bell, BellRing, Plus, Trash2, MapPin, Waves, Loader2, X, Check, BellOff,
+  Bell, BellRing, Plus, Trash2, MapPin, Waves, Loader2, Check, BellOff,
   Share2, Copy, Pencil
 } from 'lucide-react';
 import { Button } from './ui/button';

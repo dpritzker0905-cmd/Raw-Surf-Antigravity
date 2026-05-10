@@ -10,7 +10,7 @@ import apiClient from '../lib/apiClient';
 
 import { 
 
-  Power, MapPin, Zap, Settings, User, Check, X, Bell, Volume2, VolumeX, Loader2, Radio, Calendar, History
+  Power, MapPin, Zap, Settings, Check, X, Bell, Volume2, VolumeX, Loader2, Radio, Calendar, History
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 

@@ -84,11 +84,12 @@ module.exports = [
     },
   },
   {
-    // Test files — add Jest globals to prevent no-undef errors
-    files: ["src/**/*.test.{js,jsx,ts,tsx}", "src/**/__tests__/**/*.{js,jsx,ts,tsx}"],
+    // Test files — add Jest and Node globals to prevent no-undef errors
+    files: ["src/**/*.test.{js,jsx,ts,tsx}", "src/**/__tests__/**/*.{js,jsx,ts,tsx}", "src/setupTests.js"],
     languageOptions: {
       globals: {
         ...globals.jest,
+        ...globals.node,
       },
     },
   },

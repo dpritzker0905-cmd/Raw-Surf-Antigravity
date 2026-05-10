@@ -3,8 +3,8 @@ import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Camera, Image, Play, ShoppingCart, Grid, LayoutGrid, MapPin, Check,
-  Sparkles, Star, ArrowLeft, User, Lock,
+  Camera, Image, ShoppingCart, Grid, LayoutGrid, Check,
+  Sparkles, ArrowLeft, User, Lock,
   CalendarCheck, Folder, Search, ScanFace
 } from 'lucide-react';
 import { Button } from './ui/button';

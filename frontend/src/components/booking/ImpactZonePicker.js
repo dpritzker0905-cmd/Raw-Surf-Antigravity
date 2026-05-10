@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { MapPin, Navigation, Loader2, Check, Target, AlertTriangle, Star, Anchor, DollarSign, Map as MapIcon } from 'lucide-react';
+import { MapPin, Navigation, Loader2, Check, Target, AlertTriangle, DollarSign } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';

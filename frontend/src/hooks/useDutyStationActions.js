@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';

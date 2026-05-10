@@ -4,19 +4,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient from '../../lib/apiClient';
 import {
-  DollarSign, TrendingUp, Gift, Flag as FlagIcon, Bell, BarChart3,
-  Loader2, Plus, RefreshCw, Send, Activity, Target, Zap,
+  DollarSign, TrendingUp, BarChart3,
+  Loader2, RefreshCw, Activity, Target, Zap,
   ArrowUpRight, ArrowDownRight, MapPin, Star, Clock, Heart
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Switch } from '../ui/switch';
-import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 

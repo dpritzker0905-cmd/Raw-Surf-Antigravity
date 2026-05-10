@@ -13,8 +13,7 @@ import AdminP1VerificationTab from './p1/AdminP1VerificationTab';
 import AdminP1ComplianceTab from './p1/AdminP1ComplianceTab';
 import AdminP1TestAccountsTab from './p1/AdminP1TestAccountsTab';
 import {
-  UserCheck, Eye, AlertTriangle, Search, Loader2, ChevronRight, Instagram,
-  Globe, FileText, Camera, Award, RefreshCw, Activity, Calendar, DollarSign,
+  UserCheck, Eye, AlertTriangle, Search, Loader2, ChevronRight, FileText, Activity, Calendar, DollarSign,
   MessageSquare, Flag, Gavel, Users
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';

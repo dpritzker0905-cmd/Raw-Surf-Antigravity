@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import {
-  Search, Settings, Backpack, MapPin, Camera, Users, Trophy, Image
+  Search, Settings, Backpack, MapPin, Camera, Users, Image
 } from 'lucide-react';
 import { BackpackDrawer } from './BackpackDrawer';
 import { PhotoToolsDrawer } from './PhotoToolsDrawer';

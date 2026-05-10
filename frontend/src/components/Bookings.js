@@ -17,9 +17,7 @@ import { Card, CardContent } from './ui/card';
 
 import { Button } from './ui/button';
 
-import { Badge } from './ui/badge';
 
-import { Label } from './ui/label';
 
 import { toast } from 'sonner';
 
