@@ -108,17 +108,12 @@ export const TopNavDrawerTray = ({ isOpen }) => {
 
   const roleItems = getRoleItems();
 
-  // ============ ROW 1 CONFIG (Universal) ============
-  const universalItems = [
+  // ============ LEFT UNIVERSAL ITEMS ============
+  const leftItems = [
     {
       id: 'search', icon: Search, label: 'Search',
       color: 'text-gray-300',
       action: () => navigate('/search')
-    },
-    {
-      id: 'settings', icon: Settings, label: 'Settings',
-      color: 'text-gray-300',
-      action: () => navigate('/settings')
     },
     {
       id: 'backpack', icon: Backpack, label: 'Backpack',
@@ -127,8 +122,17 @@ export const TopNavDrawerTray = ({ isOpen }) => {
     }
   ];
 
-  // Combine into a single array for dynamic chunking
-  const allItems = [...universalItems, ...roleItems];
+  // ============ RIGHT UNIVERSAL ITEMS ============
+  const rightItems = [
+    {
+      id: 'settings', icon: Settings, label: 'Settings',
+      color: 'text-gray-300',
+      action: () => navigate('/settings')
+    }
+  ];
+
+  // Combine into a single array, with Settings on the far right
+  const allItems = [...leftItems, ...roleItems, ...rightItems];
 
   // Render a single drawer item button
   const renderItem = (item) => {
