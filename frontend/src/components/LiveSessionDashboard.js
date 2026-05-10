@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSessionTracker } from '../hooks/useSessionTracker';
-import { Waves, Navigation, Zap, Lock, Unlock, Pause, Play, Square, Trash2 } from 'lucide-react';
+import { Waves, Navigation, Zap, Lock, Unlock, Pause, Play, Square, Trash2, X } from 'lucide-react';
 
 const LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) => {
   const [status, setStatus] = useState('LOCKED'); // 'LOCKED' | 'UNLOCKED' | 'PAUSED'
@@ -32,7 +32,16 @@ const LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) =
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between overflow-hidden font-sans">
+    <div className="fixed inset-0 w-screen h-[100dvh] z-50 bg-black flex flex-col justify-between overflow-y-auto font-sans">
+      {/* Desktop Fallback Close */}
+      <button 
+        onClick={handleDiscard}
+        className="absolute top-6 right-6 z-50 p-2 text-white/50 hover:text-white hidden md:block bg-zinc-900/50 rounded-full"
+        title="Exit Dashboard"
+      >
+        <X className="w-6 h-6" />
+      </button>
+
       {/* Background Pulse Effect */}
       <div className={`absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-1000 ${status === 'PAUSED' ? 'opacity-5' : 'opacity-20'}`}>
         <div className={`w-[120vw] h-[120vw] rounded-full blur-3xl ${status === 'PAUSED' ? 'bg-yellow-500' : 'bg-cyan-500 animate-pulse'}`} style={{ animationDuration: '4s' }} />
@@ -67,7 +76,7 @@ const LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) =
       </div>
 
       {/* Controls Container */}
-      <div className="relative z-10 pb-12 px-6">
+      <div className="relative z-10 pb-8 px-6 mt-auto">
         {status === 'LOCKED' && (
           <div className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4">
             <button

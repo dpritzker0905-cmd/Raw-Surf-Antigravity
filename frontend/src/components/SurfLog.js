@@ -16,6 +16,7 @@ import { getThemeTokens } from '../utils/themeTokens';
 import PreSessionConfigModal from './PreSessionConfigModal';
 import LiveSessionDashboard from './LiveSessionDashboard';
 import GpxUploadModal from './GpxUploadModal';
+import { LocationPicker } from './LocationPicker';
 
 const MOODS = [
   { id: 'stoked', label: 'Stoked', icon: '🤙', color: 'text-green-400' },
@@ -122,8 +123,10 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
     wave_height: '', wind_direction: '', tide_status: '', water_temp: '', crowd_level: '',
     board_model: '', wetsuit: '', fin_setup: '',
     notes: '', mood: '', personal_rating: 0, conditions_rating: 0,
+    latitude: '', longitude: ''
   });
   const [saving, setSaving] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
 
   useEffect(() => {
     if (entry) {
@@ -136,6 +139,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
         board_model: entry.board_model || '', wetsuit: entry.wetsuit || '', fin_setup: entry.fin_setup || '',
         notes: entry.notes || '', mood: entry.mood || '',
         personal_rating: entry.personal_rating || 0, conditions_rating: entry.conditions_rating || 0,
+        latitude: entry.latitude || '', longitude: entry.longitude || ''
       });
     } else {
       setForm(f => ({ 
@@ -168,6 +172,21 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
       logger.error('Save surf log entry failed:', err);
       toast.error(err.response?.data?.detail || 'Failed to save entry');
     } finally { setSaving(false); }
+  };
+
+  const handleLocationSelected = async (loc) => {
+    set('latitude', loc.lat);
+    set('longitude', loc.lng);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
+      const data = await res.json();
+      if (data && data.address) {
+        const spotName = data.address.beach || data.address.suburb || data.address.town || data.address.city || data.display_name.split(',')[0];
+        set('spot_name', spotName);
+      }
+    } catch (e) {
+      console.warn("Reverse geocode failed", e);
+    }
   };
 
   const ChipSelect = ({ options, value, onChange, label }) => (
@@ -210,7 +229,15 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
           {/* Duration & Spot */}
           <div className="grid grid-cols-2 gap-3">
             <div><label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Duration (min)</label><input type="number" value={form.duration_minutes} onChange={e => set('duration_minutes', e.target.value)} placeholder="90" className={inputCls} /></div>
-            <div><label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Spot Name</label><input type="text" value={form.spot_name} onChange={e => set('spot_name', e.target.value)} placeholder="Pipeline" className={inputCls} /></div>
+            <div>
+              <label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Spot Name</label>
+              <div className="flex gap-2">
+                <input type="text" value={form.spot_name} onChange={e => set('spot_name', e.target.value)} placeholder="Pipeline" className={inputCls} />
+                <button type="button" onClick={() => setLocationPickerOpen(true)} className="px-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white flex-shrink-0" title="Pick on map">
+                  <MapPin className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Conditions */}
@@ -270,6 +297,12 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
           </Button>
         </div>
       </DialogContent>
+
+      <LocationPicker 
+        isOpen={locationPickerOpen} 
+        onClose={() => setLocationPickerOpen(false)} 
+        onLocationSelected={handleLocationSelected} 
+      />
     </Dialog>
   );
 };
