@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import {
@@ -21,10 +21,17 @@ import { ROLES } from '../constants/roles';
  */
 export const TopNavDrawerTray = ({ isOpen }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [photoToolsOpen, setPhotoToolsOpen] = useState(false);
+  
+  // Close sub-drawers on route change
+  useEffect(() => {
+    setBackpackOpen(false);
+    setPhotoToolsOpen(false);
+  }, [location.pathname]);
   
   // Track screen width for layout density
   const [isWideScreen, setIsWideScreen] = useState(window.innerWidth >= 640);
@@ -67,7 +74,7 @@ export const TopNavDrawerTray = ({ isOpen }) => {
           action: () => navigate('/map')
         },
         {
-          id: 'grom-archive', icon: Camera, label: 'Grom Archive',
+          id: 'photo-tools', icon: Camera, label: 'Photo Tools',
           color: 'text-cyan-400',
           action: () => setPhotoToolsOpen(true)
         },

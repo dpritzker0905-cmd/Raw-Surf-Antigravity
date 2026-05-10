@@ -169,30 +169,13 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   };
   
   // ============ MOBILE PHOTO HUB - FINAL HIERARCHY (Clean Vertical Menu) ============
-  // Order: Gallery Hub ? Bookings Manager ? Live Sessions ? Earnings Dashboard ? On-Demand Settings
-  // GROM PARENT: ONLY sees "Grom Archive" - NO Bookings, Live Sessions, Earnings, On-Demand
   
   const getMenuItems = () => {
-    // GROM PARENT RESTRICTION: Only "Grom Archive" is visible
-    // NO Bookings, NO Live Sessions, NO Earnings, NO On-Demand
-    if (isGromParent) {
-      return [
-        {
-          id: 'gallery',
-          icon: Image,
-          label: 'Grom Archive',
-          description: 'Manage your Grom\'s surf photos',
-          path: '/gallery',
-          color: 'text-cyan-400',
-          bgColor: 'bg-cyan-500/10',
-          badge: stats.galleryPhotos > 0 ? `${stats.galleryPhotos} photos` : null
-        }
-      ];
-    }
+    let items = [];
     
     // HOBBYIST: Gallery only - no Bookings, no Earnings, no On-Demand
     if (isHobbyist) {
-      return [
+      items = [
         {
           id: 'gallery',
           icon: Image,
@@ -217,85 +200,102 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
           restricted: 'Hobbyist'
         }
       ];
+    } else if (['Photographer', 'Pro', 'Approved Pro'].includes(effectiveRole)) {
+      // PROFESSIONAL PHOTOGRAPHERS: Full access
+      items = [
+        // 1. MY GALLERY - CMS & Folders
+        {
+          id: 'gallery',
+          icon: Image,
+          label: 'Gallery Hub',
+          description: 'Folders, sessions & distribution',
+          path: '/gallery',
+          color: 'text-cyan-400',
+          bgColor: 'bg-cyan-500/10',
+          badge: stats.galleryPhotos > 0 ? `${stats.galleryPhotos} photos` : null
+        },
+        
+        // 2. BOOKINGS MANAGER - Tiered Pricing & Calendar
+        {
+          id: 'bookings',
+          icon: Calendar,
+          label: 'Bookings Manager',
+          description: 'Calendar - Crew splits - Tiered pricing',
+          path: '/photographer/bookings',
+          color: 'text-purple-400',
+          bgColor: 'bg-purple-500/10',
+          badge: stats.pendingBookings > 0 ? `${stats.pendingBookings} pending` : null,
+          badgeColor: 'bg-purple-500',
+          hasNew: true
+        },
+        
+        // 3. LIVE SESSIONS - Start & Manage
+        {
+          id: 'live-sessions',
+          icon: Radio,
+          label: 'Live Sessions',
+          description: 'Start shooting, manage active sessions',
+          path: '/photographer/sessions',
+          color: 'text-red-400',
+          bgColor: 'bg-red-500/10',
+          badge: stats.activeSessions > 0 ? `${stats.activeSessions} LIVE` : null,
+          badgeColor: 'bg-red-500'
+        },
+        
+        // 4. EARNINGS DASHBOARD - Payouts
+        {
+          id: 'earnings',
+          icon: DollarSign,
+          label: 'Earnings Dashboard',
+          description: 'Revenue, payouts, analytics',
+          path: '/photographer/earnings',
+          color: 'text-green-400',
+          bgColor: 'bg-green-500/10',
+          badge: stats.todayEarnings > 0 ? `$${stats.todayEarnings} today` : null,
+          badgeColor: 'bg-green-500'
+        },
+        
+        // 5. ON-DEMAND SETTINGS - Pro Only
+        ...(canUseOnDemand ? [{
+          id: 'on-demand-settings',
+          icon: MapPin,
+          label: 'On-Demand Settings',
+          description: 'Spots, pricing & availability',
+          path: '/photographer/on-demand-settings',
+          color: 'text-amber-400',
+          bgColor: 'bg-amber-500/10',
+          isPro: true
+        }] : []),
+        
+        // 6. PHOTO SUBSCRIPTION SETTINGS - Recurring Plans
+        {
+          id: 'subscription-settings',
+          icon: RefreshCw,
+          label: 'Subscription Settings',
+          description: 'Weekly & monthly bundles for surfers',
+          path: '/photographer/subscription-settings',
+          color: 'text-violet-400',
+          bgColor: 'bg-violet-500/10',
+          hasNew: true
+        }
+      ];
     }
     
-    // PROFESSIONAL PHOTOGRAPHERS: Full access
-    return [
-      // 1. MY GALLERY - CMS & Folders
-      {
-        id: 'gallery',
+    // GROM PARENT: Append "Grom Archive" to the bottom of the drawer
+    if (isGromParent) {
+      items.push({
+        id: 'grom-archive',
         icon: Image,
-        label: 'Gallery Hub',
-        description: 'Folders, sessions & distribution',
+        label: 'Grom Archive',
+        description: 'View, organize & tag your Grom\'s surf photos',
         path: '/gallery',
         color: 'text-cyan-400',
         bgColor: 'bg-cyan-500/10',
         badge: stats.galleryPhotos > 0 ? `${stats.galleryPhotos} photos` : null
-      },
-      
-      // 2. BOOKINGS MANAGER - Tiered Pricing & Calendar
-      {
-        id: 'bookings',
-        icon: Calendar,
-        label: 'Bookings Manager',
-        description: 'Calendar - Crew splits - Tiered pricing',
-        path: '/photographer/bookings',
-        color: 'text-purple-400',
-        bgColor: 'bg-purple-500/10',
-        badge: stats.pendingBookings > 0 ? `${stats.pendingBookings} pending` : null,
-        badgeColor: 'bg-purple-500',
-        hasNew: true
-      },
-      
-      // 3. LIVE SESSIONS - Start & Manage
-      {
-        id: 'live-sessions',
-        icon: Radio,
-        label: 'Live Sessions',
-        description: 'Start shooting, manage active sessions',
-        path: '/photographer/sessions',
-        color: 'text-red-400',
-        bgColor: 'bg-red-500/10',
-        badge: stats.activeSessions > 0 ? `${stats.activeSessions} LIVE` : null,
-        badgeColor: 'bg-red-500'
-      },
-      
-      // 4. EARNINGS DASHBOARD - Payouts
-      {
-        id: 'earnings',
-        icon: DollarSign,
-        label: 'Earnings Dashboard',
-        description: 'Revenue, payouts, analytics',
-        path: '/photographer/earnings',
-        color: 'text-green-400',
-        bgColor: 'bg-green-500/10',
-        badge: stats.todayEarnings > 0 ? `$${stats.todayEarnings} today` : null,
-        badgeColor: 'bg-green-500'
-      },
-      
-      // 5. ON-DEMAND SETTINGS - Pro Only
-      ...(canUseOnDemand ? [{
-        id: 'on-demand-settings',
-        icon: MapPin,
-        label: 'On-Demand Settings',
-        description: 'Spots, pricing & availability',
-        path: '/photographer/on-demand-settings',
-        color: 'text-amber-400',
-        bgColor: 'bg-amber-500/10',
-        isPro: true
-      }] : []),
-      // 6. PHOTO SUBSCRIPTION SETTINGS - Recurring Plans
-      {
-        id: 'subscription-settings',
-        icon: RefreshCw,
-        label: 'Subscription Settings',
-        description: 'Weekly & monthly bundles for surfers',
-        path: '/photographer/subscription-settings',
-        color: 'text-violet-400',
-        bgColor: 'bg-violet-500/10',
-        hasNew: true
-      }
-    ];
+      });
+    }
+    
+    return items;
   };
   
   const menuItems = getMenuItems();
@@ -340,10 +340,10 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h2 className={`text-lg font-bold ${textPrimary}`}>
-                {isGromParent ? 'Grom Archive' : 'Photo Tools'}
+                Photo Tools
               </h2>
               <p className={`text-xs ${textSecondary}`}>
-                {isGromParent ? 'Manage your Grom\'s memories' : 'Manage your photography business'}
+                Manage your photography tools
               </p>
             </div>
           </div>
@@ -360,92 +360,58 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
             WebkitOverflowScrolling: 'touch'
           }}
         >
-          {/* GROM PARENT: Simple single-action view */}
-          {isGromParent ? (
-            <div className="py-4">
-              {/* Single large button to go to Grom Archive */}
-              <button aria-label="div"
-                onClick={() => handleNavigation('/gallery')}
-                className="w-full p-6 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border border-cyan-500/40 hover:border-cyan-400 transition-all group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-                    <Image className="w-7 h-7 text-white" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className={`text-lg font-bold ${textPrimary} group-hover:text-cyan-400 transition-colors`}>
-                      Open Grom Archive
-                    </p>
-                    <p className={`text-sm ${textSecondary}`}>
-                      View, organize & tag your Grom's surf photos
-                    </p>
-                    {stats.galleryPhotos > 0 && (
-                      <span className="inline-block mt-2 px-2 py-0.5 bg-cyan-500/30 text-cyan-400 text-xs font-medium rounded">
-                        {stats.galleryPhotos} photos
-                      </span>
-                    )}
-                  </div>
-                  <ChevronRight className="w-6 h-6 text-cyan-400 group-hover:translate-x-1 transition-transform" />
+          {/* Gamification Stats - Only for Photographers/Hobbyists */}
+          {['Photographer', 'Pro', 'Approved Pro', 'Hobbyist'].includes(effectiveRole) && (
+            <div className={`p-4 rounded-2xl ${isLight ? 'bg-gradient-to-r from-amber-50 to-orange-50' : 'bg-gradient-to-r from-amber-500/10 to-orange-500/10'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-5 h-5 text-amber-400" />
+                  <span className={`font-bold ${textPrimary}`}>Your Stats</span>
                 </div>
-              </button>
-              
-              {/* Helpful tip */}
-              <p className={`text-center text-xs ${textSecondary} mt-4`}>
-                Tag photos with your Grom's profile to share to their highlights
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Gamification Stats - Only for non-Grom Parents */}
-              <div className={`p-4 rounded-2xl ${isLight ? 'bg-gradient-to-r from-amber-50 to-orange-50' : 'bg-gradient-to-r from-amber-500/10 to-orange-500/10'}`}>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-amber-400" />
-                    <span className={`font-bold ${textPrimary}`}>Your Stats</span>
-                  </div>
-                  <button 
-                    onClick={() => handleNavigation('/leaderboard')}
-                    className="text-xs text-amber-400 hover:text-amber-300"
-                  >
-                    View Leaderboard ?
-                  </button>
-                </div>
-            
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-amber-400">{stats.xp || 0}</div>
-                    <div className={`text-xs ${textSecondary}`}>XP</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Flame className="w-4 h-4 text-orange-500" />
-                      <span className="text-2xl font-bold text-orange-500">{stats.streak || 0}</span>
-                    </div>
-                    <div className={`text-xs ${textSecondary}`}>Month Streak</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Award className="w-4 h-4 text-purple-400" />
-                      <span className="text-2xl font-bold text-purple-400">{stats.badges?.length || 0}</span>
-                    </div>
-                    <div className={`text-xs ${textSecondary}`}>Badges</div>
-                  </div>
-                </div>
-            
-                {/* Hot Streak Indicator */}
-                {stats.streak >= 3 && (
-                  <div className="mt-3 pt-3 border-t border-amber-500/30">
-                    <div className="flex items-center gap-2 text-orange-400 animate-pulse">
-                      <Flame className="w-4 h-4" />
-                <span className="text-sm font-medium">{String.fromCodePoint(0x1F525)} Hot Streak! 2x XP Active (3+ this week)</span>
-                    </div>
-                  </div>
-                )}
+                <button 
+                  onClick={() => handleNavigation('/leaderboard')}
+                  className="text-xs text-amber-400 hover:text-amber-300"
+                >
+                  View Leaderboard ?
+                </button>
               </div>
           
-              {/* CLEAN VERTICAL MENU - Photo Hub (Non-Grom Parents only) */}
-              <div className="space-y-2">
-                {menuItems.map((item) => (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-400">{stats.xp || 0}</div>
+                  <div className={`text-xs ${textSecondary}`}>XP</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Flame className="w-4 h-4 text-orange-500" />
+                    <span className="text-2xl font-bold text-orange-500">{stats.streak || 0}</span>
+                  </div>
+                  <div className={`text-xs ${textSecondary}`}>Month Streak</div>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Award className="w-4 h-4 text-purple-400" />
+                    <span className="text-2xl font-bold text-purple-400">{stats.badges?.length || 0}</span>
+                  </div>
+                  <div className={`text-xs ${textSecondary}`}>Badges</div>
+                </div>
+              </div>
+          
+              {/* Hot Streak Indicator */}
+              {stats.streak >= 3 && (
+                <div className="mt-3 pt-3 border-t border-amber-500/30">
+                  <div className="flex items-center gap-2 text-orange-400 animate-pulse">
+                    <Flame className="w-4 h-4" />
+                    <span className="text-sm font-medium">{String.fromCodePoint(0x1F525)} Hot Streak! 2x XP Active (3+ this week)</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+      
+          {/* Menu Items */}
+          <div className="space-y-2">
+            {menuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNavigation(item.path)}
@@ -487,8 +453,6 @@ export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
               </button>
             ))}
           </div>
-            </>
-          )}
         </div>
       </div>
     </>

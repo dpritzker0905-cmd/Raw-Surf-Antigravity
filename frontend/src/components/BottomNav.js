@@ -204,7 +204,6 @@ export const BottomNav = () => {
 
   // Handler to close any open drawers and navigate
   const handleNavigation = (path) => {
-    setShowPhotoTools(false); // Close Photo Tools drawer if open
     navigate(path);
   };
 
