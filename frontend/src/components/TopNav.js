@@ -115,12 +115,9 @@ export const TopNav = () => {
               <img loading="lazy" decoding="async"
                 src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
                 alt="Raw Surf"
-                className="w-7 h-7 group-hover:scale-110"
+                className={`w-7 h-7 origin-left transition-transform duration-300 ${!drawerOpen && 'group-hover:scale-110'}`}
                 style={{
-                  transition: logoSpinning
-                    ? 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1)'
-                    : 'transform 0.2s ease',
-                  transform: logoSpinning ? 'rotate(360deg)' : 'rotate(0deg)'
+                  transform: `${logoSpinning ? 'rotate(360deg) ' : ''}${drawerOpen ? 'scale(1.25)' : ''}`.trim() || undefined
                 }}
               />
             </button>
@@ -176,18 +173,22 @@ export const TopNav = () => {
         {/* Pull Handle — visual affordance for the drawer gesture */}
         <button
           onClick={toggleDrawer}
-          className="flex justify-center pb-1 -mt-1 w-full"
+          className="flex justify-center pb-2 pt-1 -mt-1 w-full group"
           aria-label={drawerOpen ? 'Close tools drawer' : 'Open tools drawer'}
           aria-expanded={drawerOpen}
           data-testid="topnav-pull-handle"
         >
+          {/* Surfboard-styled pull handle - uses ellipse border radius and a center stringer */}
           <div
-            className={`w-10 h-1 rounded-full transition-all duration-300 ${
+            className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${
               drawerOpen
-                ? 'bg-cyan-400/60 w-14'
-                : 'bg-zinc-600 hover:bg-zinc-500'
+                ? 'w-16 h-2 rounded-[50%] bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
+                : 'w-12 h-1.5 rounded-[50%] bg-zinc-600 group-hover:bg-zinc-500'
             }`}
-          />
+          >
+            {/* The Stringer (center line down the board) */}
+            <div className={`w-full h-[1px] ${drawerOpen ? 'bg-white/40' : 'bg-black/40'}`} />
+          </div>
         </button>
 
         {/* Pull-Down Drawer Tray (2 rows: universal + role-specific) */}
