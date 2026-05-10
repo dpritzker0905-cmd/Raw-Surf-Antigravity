@@ -125,52 +125,45 @@ export const TopNavDrawerTray = ({ isOpen }) => {
   // Combine into a single array for dynamic chunking
   const allItems = [...universalItems, ...roleItems];
 
-  // Dynamic layout math:
-  // Standard Mobile: max 6 per row. Wide screen (iPad/Fold): max 8 per row.
-  const getRows = (items) => {
-    const len = items.length;
-    const maxPerRow = isWideScreen ? 8 : 6;
-    
-    if (len <= maxPerRow) return [items, []];
-    
-    const row1Count = Math.ceil(len / 2);
-    return [items.slice(0, row1Count), items.slice(row1Count)];
-  };
-
-  const [row1Items, row2Items] = getRows(allItems);
-
   // Render a single drawer item button
   const renderItem = (item) => {
     const Icon = item.icon;
-    const btnClass = "flex flex-col items-center gap-1 p-2 hover:scale-110 active:scale-95 transition-all duration-200 min-w-[60px] group";
+    const itemWidth = isWideScreen ? '12.5%' : '16.666667%';
+    const btnClass = "flex flex-col items-center justify-center gap-1 p-2 hover:scale-110 active:scale-95 transition-all duration-200 group";
+
+    const wrapperClass = "flex-shrink-0 snap-start flex justify-center";
+    const wrapperStyle = { width: itemWidth };
 
     // SurferSessionHub needs to wrap the button
     if (item.isSessionHub) {
       return (
-        <SurferSessionHub key={item.id} isPhotographer={false}>
-          <button
-            className={btnClass}
-            data-testid={`drawer-${item.id}`}
-            aria-label={item.label}
-          >
-            <Icon className={`w-5 h-5 ${item.color} group-hover:brightness-125 transition-all`} />
-            <span className={`text-[10px] font-medium ${item.color} opacity-90 group-hover:opacity-100 transition-opacity`}>{item.label}</span>
-          </button>
-        </SurferSessionHub>
+        <div key={item.id} className={wrapperClass} style={wrapperStyle}>
+          <SurferSessionHub isPhotographer={false}>
+            <button
+              className={btnClass}
+              data-testid={`drawer-${item.id}`}
+              aria-label={item.label}
+            >
+              <Icon className={`w-5 h-5 ${item.color} group-hover:brightness-125 transition-all`} />
+              <span className={`text-[10px] font-medium ${item.color} opacity-90 group-hover:opacity-100 transition-opacity whitespace-nowrap`}>{item.label}</span>
+            </button>
+          </SurferSessionHub>
+        </div>
       );
     }
 
     return (
-      <button
-        key={item.id}
-        onClick={item.action}
-        className={btnClass}
-        data-testid={`drawer-${item.id}`}
-        aria-label={item.label}
-      >
-        <Icon className={`w-5 h-5 ${item.color} group-hover:brightness-125 transition-all`} />
-        <span className={`text-[10px] font-medium ${item.color} opacity-90 group-hover:opacity-100 transition-opacity`}>{item.label}</span>
-      </button>
+      <div key={item.id} className={wrapperClass} style={wrapperStyle}>
+        <button
+          onClick={item.action}
+          className={btnClass}
+          data-testid={`drawer-${item.id}`}
+          aria-label={item.label}
+        >
+          <Icon className={`w-5 h-5 ${item.color} group-hover:brightness-125 transition-all`} />
+          <span className={`text-[10px] font-medium ${item.color} opacity-90 group-hover:opacity-100 transition-opacity whitespace-nowrap`}>{item.label}</span>
+        </button>
+      </div>
     );
   };
 
@@ -180,38 +173,27 @@ export const TopNavDrawerTray = ({ isOpen }) => {
       <div
         className="overflow-hidden transition-all duration-300 ease-out"
         style={{
-          maxHeight: isOpen ? '140px' : '0px',
+          maxHeight: isOpen ? '100px' : '0px',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none'
         }}
         data-testid="topnav-drawer-tray"
       >
-        <div className="px-4 pt-2 pb-3 space-y-2">
-          {/* Row 1 */}
+        <div className="pt-2 pb-3">
+          {/* Single Row Carousel */}
           <div
-            className="flex items-center justify-center gap-2 transition-all duration-200"
+            className="flex items-center overflow-x-auto snap-x snap-mandatory transition-all duration-200 [&::-webkit-scrollbar]:hidden"
             style={{
               opacity: isOpen ? 1 : 0,
               transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
-              transitionDelay: isOpen ? '50ms' : '0ms'
+              transitionDelay: isOpen ? '50ms' : '0ms',
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none',
+              WebkitOverflowScrolling: 'touch'
             }}
           >
-            {row1Items.map(renderItem)}
+            {allItems.map(renderItem)}
           </div>
-
-          {/* Row 2 (if needed) */}
-          {row2Items.length > 0 && (
-            <div
-              className="flex items-center justify-center gap-2 transition-all duration-200"
-              style={{
-                opacity: isOpen ? 1 : 0,
-                transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
-                transitionDelay: isOpen ? '130ms' : '0ms'
-              }}
-            >
-              {row2Items.map(renderItem)}
-            </div>
-          )}
         </div>
       </div>
 
