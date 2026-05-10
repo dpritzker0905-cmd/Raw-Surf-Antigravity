@@ -115,7 +115,7 @@ export const TopNav = () => {
               <img loading="lazy" decoding="async"
                 src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
                 alt="Raw Surf"
-                className={`w-7 h-7 origin-left transition-transform duration-300 ${!drawerOpen && 'group-hover:scale-110'}`}
+                className={`w-7 h-7 origin-top-left transition-transform duration-300 ${!drawerOpen && 'group-hover:scale-110'}`}
                 style={{
                   transform: `${logoSpinning ? 'rotate(360deg) ' : ''}${drawerOpen ? 'scale(1.25)' : ''}`.trim() || undefined
                 }}
