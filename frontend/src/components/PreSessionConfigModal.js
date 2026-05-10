@@ -11,8 +11,8 @@ const PreSessionConfigModal = ({ isOpen, onClose, onStartLive, onSyncWatch }) =>
   const subtext = isLight ? 'text-gray-500' : 'text-gray-400';
 
   const [selectedBoard, setSelectedBoard] = useState('');
-  // Mock quiver for now
-  const quiver = ["6'2 Shortboard", "9'0 Longboard", "5'8 Fish"];
+  // Mock profile quiver for now (to be fetched from user profile)
+  const profileQuiver = ["6'2 Shortboard", "9'0 Longboard", "5'8 Fish"];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -26,7 +26,7 @@ const PreSessionConfigModal = ({ isOpen, onClose, onStartLive, onSyncWatch }) =>
           <div className="space-y-2">
             <p className={`text-sm font-medium ${text}`}>Select Gear</p>
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {quiver.map(board => (
+              {profileQuiver.map(board => (
                 <button
                   key={board}
                   onClick={() => setSelectedBoard(board)}
