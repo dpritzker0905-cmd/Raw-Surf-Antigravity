@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { UploadCloud, FileType2, Loader2 } from 'lucide-react';
+import { UploadCloud, FileType2, Loader2, CheckCircle2 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
@@ -22,6 +22,29 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
   const isLight = theme === 'light';
   const fileInputRef = useRef(null);
   const [parsing, setParsing] = useState(false);
+  const [isStravaConnected, setIsStravaConnected] = useState(false);
+  const [checkingStrava, setCheckingStrava] = useState(false);
+
+  // Hardcoded for testing; in production use user object from AuthContext
+  const userId = "mock_user"; 
+
+  useEffect(() => {
+    if (isOpen) {
+      checkStravaConnection();
+    }
+  }, [isOpen]);
+
+  const checkStravaConnection = async () => {
+    setCheckingStrava(true);
+    try {
+      const res = await apiClient.get(`/strava/status?user_id=${userId}`);
+      setIsStravaConnected(res.data.connected);
+    } catch (err) {
+      console.error("Failed to check Strava status", err);
+    } finally {
+      setCheckingStrava(false);
+    }
+  };
 
   const parseGPX = (xmlText) => {
     try {
@@ -92,14 +115,25 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
   const handleStravaSync = async () => {
     setParsing(true);
     try {
-      // In a real app, this would check if user is authed, if not redirect to /api/strava/auth-url
-      // For now, we simulate fetching recent activity from Strava directly.
-      const res = await apiClient.get(`/strava/sync-recent?user_id=mock_user`);
+      if (!isStravaConnected) {
+        // Step 1: User is not connected, start OAuth Flow
+        const res = await apiClient.get(`/strava/auth-url?user_id=${userId}`);
+        window.location.href = res.data.url; // Redirects out of the app to Strava
+        return;
+      }
+      
+      // Step 2: User is connected, sync data
+      const res = await apiClient.get(`/strava/sync-recent?user_id=${userId}`);
       const metrics = res.data;
       onParsed(metrics);
       toast.success("Strava data synced successfully! 🤙");
+      onClose(); // Close modal on success
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to sync with Strava.");
+      // If unauthorized, reset connection state
+      if (err.response?.status === 401) {
+        setIsStravaConnected(false);
+      }
     } finally {
       setParsing(false);
     }
@@ -114,24 +148,43 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
 
         <div className="flex flex-col items-center justify-center p-6 text-center space-y-6">
           <div className="w-full space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-full bg-orange-500/10 flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-orange-500/10 flex items-center justify-center relative">
               <svg className="w-8 h-8 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" />
               </svg>
+              {isStravaConnected && (
+                <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                </div>
+              )}
             </div>
+            
             <div>
-              <h3 className={`font-semibold ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>Connect with Strava</h3>
+              <h3 className={`font-semibold ${isLight ? 'text-gray-800' : 'text-gray-200'}`}>
+                {isStravaConnected ? 'Strava Connected' : 'Connect with Strava'}
+              </h3>
               <p className={`text-xs mt-1 px-4 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-                Automatically sync your Apple Watch or Garmin sessions via Strava.
+                {isStravaConnected 
+                  ? 'Your account is linked. Click below to pull your latest session.'
+                  : 'Automatically sync your Apple Watch or Garmin sessions via Strava.'}
               </p>
             </div>
+            
             <Button 
-              disabled={parsing}
+              disabled={parsing || checkingStrava}
               onClick={handleStravaSync} 
-              className="w-full bg-[#FC4C02] hover:bg-[#E34402] text-white font-bold py-6 rounded-xl shadow-lg shadow-orange-500/20 transition-transform hover:scale-[1.02]"
+              className={`w-full font-bold py-6 rounded-xl shadow-lg transition-transform hover:scale-[1.02] ${
+                isStravaConnected 
+                  ? "bg-green-600 hover:bg-green-700 text-white shadow-green-500/20" 
+                  : "bg-[#FC4C02] hover:bg-[#E34402] text-white shadow-orange-500/20"
+              }`}
             >
-              {parsing ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
-              {parsing ? "Syncing..." : "Sync Latest Session"}
+              {parsing || checkingStrava ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : null}
+              {checkingStrava 
+                ? "Checking Status..." 
+                : parsing 
+                  ? (isStravaConnected ? "Syncing..." : "Redirecting...")
+                  : (isStravaConnected ? "Sync Latest Session" : "Authorize Strava Account")}
             </Button>
           </div>
 

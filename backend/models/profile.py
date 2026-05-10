@@ -251,6 +251,11 @@ class Profile(Base):
     # JSON format: {"access_token": "...", "pages": [...], "instagram_accounts": [...]}
     meta_connections = Column(JSON, nullable=True)
     
+    # ============ STRAVA INTEGRATION ============
+    strava_access_token = Column(String(255), nullable=True)
+    strava_refresh_token = Column(String(255), nullable=True)
+    strava_expires_at = Column(Integer, nullable=True)
+    
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     

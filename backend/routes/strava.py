@@ -1,40 +1,87 @@
-from fastapi import APIRouter, HTTPException, Request, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import RedirectResponse
 import os
 import httpx
 import logging
-from database import get_db
+from database import get_db, async_session_maker
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from sqlalchemy import select
+from models import Profile
+import time
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Allow environment variables or fallback to hardcoded tokens for testing
 STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID", "238756")
 STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "3dc3dacb2fbaa94b6b5c914b669d2ca072e84bcc")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
-# For testing sync without full OAuth
-TEST_ACCESS_TOKEN = os.environ.get("STRAVA_TEST_ACCESS_TOKEN", "ca8ffd5d1129ad973a03279438690b6617f7d9dd")
+async def refresh_strava_token_if_needed(profile: Profile, db: AsyncSession) -> str:
+    """Checks if the access token is expired, refreshes it if necessary, and returns the valid access token."""
+    if not profile.strava_access_token or not profile.strava_refresh_token:
+        return None
+        
+    current_time = int(time.time())
+    # Add a 5 minute buffer
+    if profile.strava_expires_at and current_time < (profile.strava_expires_at - 300):
+        return profile.strava_access_token
+        
+    logger.info(f"Strava token expired for user {profile.id}, refreshing...")
+    async with httpx.AsyncClient() as client:
+        res = await client.post("https://www.strava.com/oauth/token", data={
+            "client_id": STRAVA_CLIENT_ID,
+            "client_secret": STRAVA_CLIENT_SECRET,
+            "refresh_token": profile.strava_refresh_token,
+            "grant_type": "refresh_token"
+        })
+        
+        if res.status_code != 200:
+            logger.error(f"Failed to refresh Strava token: {res.text}")
+            return None
+            
+        data = res.json()
+        profile.strava_access_token = data.get("access_token")
+        profile.strava_refresh_token = data.get("refresh_token")
+        profile.strava_expires_at = data.get("expires_at")
+        
+        await db.commit()
+        return profile.strava_access_token
+
+@router.get("/status")
+async def get_strava_status(user_id: str):
+    """Check if the user has connected their Strava account."""
+    async with async_session_maker() as db:
+        result = await db.execute(select(Profile).where(Profile.id == user_id))
+        profile = result.scalar_one_or_none()
+        
+        if not profile:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        return {
+            "connected": bool(profile.strava_access_token and profile.strava_refresh_token)
+        }
 
 @router.get("/auth-url")
-async def get_strava_auth_url():
-    """Returns the Strava OAuth authorization URL."""
-    if not STRAVA_CLIENT_ID or STRAVA_CLIENT_ID == "238756":
-        logger.warning("Using hardcoded/test Strava Client ID. In production, ensure STRAVA_CLIENT_ID is set in .env.")
-        
-    redirect_uri = f"{FRONTEND_URL}/surf-log?strava_callback=true" 
-    url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={redirect_uri}&approval_prompt=force&scope=activity:read_all"
+async def get_strava_auth_url(user_id: str):
+    """Returns the Strava OAuth authorization URL, embedding the user_id in the state parameter."""
+    # We pass state=user_id so we know who the callback belongs to.
+    redirect_uri = f"{os.environ.get('API_URL', 'http://localhost:8001')}/api/strava/callback" 
+    url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={redirect_uri}&approval_prompt=force&scope=activity:read_all&state={user_id}"
     return {"url": url}
 
-@router.post("/callback")
-async def strava_callback(code: str):
-    """Exchanges the OAuth code for an access token."""
-    if not code:
-        raise HTTPException(status_code=400, detail="Missing authorization code")
+@router.get("/callback") # Important: GET method for browser redirect callback
+async def strava_callback(code: str, state: str, error: str = None):
+    """Exchanges the OAuth code for an access token and redirects the user back to the app."""
+    if error:
+        logger.warning(f"Strava auth error: {error}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_error={error}")
         
+    if not code or not state:
+        return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_error=missing_params")
+        
+    user_id = state
+    
     async with httpx.AsyncClient() as client:
         res = await client.post("https://www.strava.com/oauth/token", data={
             "client_id": STRAVA_CLIENT_ID,
@@ -45,49 +92,43 @@ async def strava_callback(code: str):
         
         if res.status_code != 200:
             logger.error(f"Strava token exchange failed: {res.text}")
-            raise HTTPException(status_code=400, detail="Failed to exchange token with Strava")
+            return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_error=exchange_failed")
             
         data = res.json()
         
-        # Here we would normally store this in the database for the user:
-        # access_token = data.get("access_token")
-        # refresh_token = data.get("refresh_token")
-        # expires_at = data.get("expires_at")
-        # await update_user_strava_tokens(user_id, access_token, refresh_token, expires_at)
-        
-        return {"status": "success", "access_token": data.get("access_token")}
+        # Save to database
+        async with async_session_maker() as db:
+            result = await db.execute(select(Profile).where(Profile.id == user_id))
+            profile = result.scalar_one_or_none()
+            
+            if profile:
+                profile.strava_access_token = data.get("access_token")
+                profile.strava_refresh_token = data.get("refresh_token")
+                profile.strava_expires_at = data.get("expires_at")
+                await db.commit()
+                
+    return RedirectResponse(url=f"{FRONTEND_URL}/surf-log?strava_connected=true")
 
 @router.get("/sync-recent")
-async def sync_recent_activity(user_id: str, access_token: Optional[str] = None):
-    """
-    Fetches the most recent surfing activity from Strava.
-    Uses the provided access_token, the test token, or simulated data as a last resort.
-    """
-    token_to_use = access_token or TEST_ACCESS_TOKEN
-    
-    if not token_to_use:
-        raise HTTPException(status_code=401, detail="No Strava access token available.")
+async def sync_recent_activity(user_id: str):
+    """Fetches the most recent surfing activity from Strava for the user."""
+    async with async_session_maker() as db:
+        result = await db.execute(select(Profile).where(Profile.id == user_id))
+        profile = result.scalar_one_or_none()
+        
+        if not profile:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        access_token = await refresh_strava_token_if_needed(profile, db)
+        
+        if not access_token:
+            raise HTTPException(status_code=401, detail="Strava account not connected or token invalid")
 
     async with httpx.AsyncClient() as client:
-        # 1. Fetch recent activities
         res = await client.get(
             "https://www.strava.com/api/v3/athlete/activities?per_page=5", 
-            headers={"Authorization": f"Bearer {token_to_use}"}
+            headers={"Authorization": f"Bearer {access_token}"}
         )
-        
-        if res.status_code == 401:
-            # Token expired or invalid, return mock data gracefully for development
-            logger.warning(f"Strava API returned 401 Unauthorized for token. Returning mock data.")
-            import random
-            return {
-                "source": "strava",
-                "distance": random.randint(1500, 4000),
-                "topSpeed": random.uniform(4.5, 8.5),
-                "waveCount": random.randint(3, 12),
-                "duration_minutes": random.randint(45, 120),
-                "mocked": True,
-                "note": "Strava token expired. Mock data returned."
-            }
             
         if res.status_code != 200:
             logger.error(f"Failed to fetch Strava activities: {res.text}")
@@ -101,13 +142,11 @@ async def sync_recent_activity(user_id: str, access_token: Optional[str] = None)
         surf_activity = next((act for act in activities if act.get("type") == "Surfing" or act.get("sport_type") == "Surfing"), activities[0])
         
         # Calculate metrics from the Strava activity object
-        # Strava distance is in meters, max_speed is in meters/second, elapsed_time is in seconds
         distance = surf_activity.get("distance", 0)
         top_speed = surf_activity.get("max_speed", 0)
         duration_minutes = surf_activity.get("elapsed_time", 0) / 60
         
-        # We don't have waveCount directly from the summary, we'd need to fetch streams and calculate it.
-        # For now, we simulate a realistic wave count based on distance and duration
+        # Simulate a realistic wave count based on distance and duration since Strava lacks it natively without fetching heavy streams
         wave_count = max(0, int((distance / 1000) * 2 + (duration_minutes / 30)))
         
         return {
