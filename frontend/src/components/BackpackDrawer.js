@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Backpack, Stamp, ChevronRight, X, CreditCard, BellRing, BookOpen } from 'lucide-react';
+import { usePersona } from '../contexts/PersonaContext';
+import {
+  Backpack, Stamp, ChevronRight, X, CreditCard, BellRing, BookOpen,
+  Heart, Zap, ShoppingBag, Sparkles, Crown, Target, Shield
+} from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { SurfPassport } from './SurfPassport';
+import { StokedDrawer } from './StokedDrawer';
+import { ExclusiveAreaDrawer, hasExclusiveArea, getAreaType } from './ExclusiveAreaDrawer';
+import { ROLES } from '../constants/roles';
 
 /**
  * BackpackDrawer - Consolidated menu for Passport, Wallet, and Surf Alerts
@@ -16,8 +23,26 @@ import { SurfPassport } from './SurfPassport';
  */
 export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
   const { user } = useAuth();
+  const { getEffectiveRole } = usePersona();
   const navigate = useNavigate();
   const [passportOpen, setPassportOpen] = useState(false);
+  const [stokedOpen, setStokedOpen] = useState(false);
+  const [exclusiveAreaOpen, setExclusiveAreaOpen] = useState(false);
+  const [gromHQOpen, setGromHQOpen] = useState(false);
+
+  // Role resolution
+  const effectiveRole = getEffectiveRole(user?.role);
+  const isPhotographer = ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
+  const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
+  const isProSurferMode = user?.surf_mode === 'pro';
+  const isCompetitiveSurferMode = user?.surf_mode === 'competitive';
+  const resolvedRole = effectiveRole === ROLES.SURFER
+    ? (isProSurferMode ? 'Pro' : isCompetitiveSurferMode ? 'Comp Surfer' : effectiveRole)
+    : effectiveRole;
+  const hasExclusiveAccess = hasExclusiveArea(resolvedRole);
+  const exclusiveAreaType = getAreaType(resolvedRole);
+  const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole) ||
+    (effectiveRole === ROLES.SURFER && (isProSurferMode || isCompetitiveSurferMode));
 
   const handlePassportClick = () => {
     onClose(); // Close backpack first
@@ -84,6 +109,81 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
     }
   ];
 
+  // Role-specific perks that appear in the "Your Perks" section
+  const handlePerkOpen = (drawerSetter) => {
+    onClose(); // Close backpack first
+    setTimeout(() => drawerSetter(true), 150);
+  };
+
+  const getRolePerks = () => {
+    const perks = [];
+
+    // Grom: The Inside
+    if (effectiveRole === ROLES.GROM) {
+      perks.push({
+        id: 'the-inside', icon: Sparkles, label: 'The Inside',
+        description: 'Your exclusive grom community',
+        color: 'text-purple-400', bgColor: 'bg-purple-500/20', borderColor: 'border-purple-500/30',
+        action: () => handlePerkOpen(setExclusiveAreaOpen)
+      });
+    }
+
+    // Competitive Surfers: Impact Zone + Stoked
+    if (isCompetitive && isCompetitiveSurferMode) {
+      perks.push({
+        id: 'impact-zone', icon: Target, label: 'The Impact Zone',
+        description: 'Competition hub & rankings',
+        color: 'text-red-400', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/30',
+        action: () => handlePerkOpen(setExclusiveAreaOpen)
+      });
+    }
+
+    // Pro Surfers: The Peak + Stoked
+    if (isCompetitive && isProSurferMode) {
+      perks.push({
+        id: 'the-peak', icon: Crown, label: 'The Peak',
+        description: 'Pro lounge & rankings',
+        color: 'text-amber-400', bgColor: 'bg-amber-500/20', borderColor: 'border-amber-500/30',
+        action: () => handlePerkOpen(setExclusiveAreaOpen)
+      });
+    }
+
+    // All surfer types (including comp/pro) get Stoked
+    if (!isPhotographer && !isGromParent && effectiveRole !== ROLES.GROM) {
+      perks.push({
+        id: 'stoked', icon: isCompetitive ? Zap : ShoppingBag,
+        label: isCompetitive ? 'Stoked' : 'Stoked / Gear',
+        description: isCompetitive ? 'Community picks & stoke' : 'Gear deals & community picks',
+        color: isCompetitive ? 'text-yellow-400' : 'text-emerald-400',
+        bgColor: isCompetitive ? 'bg-yellow-500/20' : 'bg-emerald-500/20',
+        borderColor: isCompetitive ? 'border-yellow-500/30' : 'border-emerald-500/30',
+        action: () => handlePerkOpen(setStokedOpen)
+      });
+    }
+
+    // Photographers: Impact Dashboard
+    if (isPhotographer) {
+      perks.push({
+        id: 'impact', icon: Heart, label: 'Impact Dashboard',
+        description: 'Your earnings & community impact',
+        color: 'text-pink-400', bgColor: 'bg-pink-500/20', borderColor: 'border-pink-500/30',
+        action: () => handleNavigation('/impacted')
+      });
+    }
+
+    // Grom Parents: Grom HQ Quick View
+    if (isGromParent) {
+      perks.push({
+        id: 'grom-hq', icon: Shield, label: 'Grom HQ',
+        description: 'Monitor your grom\u2019s activity',
+        color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', borderColor: 'border-cyan-500/30',
+        action: () => handlePerkOpen(setGromHQOpen)
+      });
+    }
+
+    return perks;
+  };
+
   return (
     <>
       <Sheet open={isOpen} modal={false} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -133,6 +233,35 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
               );
             })}
 
+            {/* ── YOUR PERKS ── Role-Specific Section */}
+            {getRolePerks().length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Your Perks</p>
+                <div className="space-y-2">
+                  {getRolePerks().map((perk) => {
+                    const PerkIcon = perk.icon;
+                    return (
+                      <button
+                        key={perk.id}
+                        onClick={perk.action}
+                        className={`w-full flex items-center gap-4 p-3.5 rounded-xl border ${perk.borderColor} ${perk.bgColor} hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group`}
+                        data-testid={`backpack-perk-${perk.id}`}
+                      >
+                        <div className={`w-10 h-10 rounded-lg ${perk.bgColor} flex items-center justify-center shrink-0`}>
+                          <PerkIcon className={`w-5 h-5 ${perk.color}`} />
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className={`font-semibold text-sm ${perk.color}`}>{perk.label}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{perk.description}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:translate-x-1 transition-transform shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Quick Stats Section */}
             <div className="mt-4 pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Quick Stats</p>
@@ -158,11 +287,37 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
         </SheetContent>
       </Sheet>
 
-      {/* Surf Passport Modal - Opens separately after drawer closes */}
+      {/* Surf Passport Modal */}
       <SurfPassport 
         isOpen={passportOpen} 
         onClose={handlePassportClose} 
       />
+
+      {/* Stoked Drawer (surfer perks) */}
+      <StokedDrawer
+        isOpen={stokedOpen}
+        onClose={() => setStokedOpen(false)}
+      />
+
+      {/* Exclusive Area Drawer (Grom/Comp/Pro) */}
+      {hasExclusiveAccess && (
+        <ExclusiveAreaDrawer
+          isOpen={exclusiveAreaOpen}
+          onClose={() => setExclusiveAreaOpen(false)}
+          onOpenChange={setExclusiveAreaOpen}
+          areaType={exclusiveAreaType}
+        />
+      )}
+
+      {/* Grom HQ Drawer (Grom Parents) */}
+      {isGromParent && (
+        <ExclusiveAreaDrawer
+          isOpen={gromHQOpen}
+          onClose={() => setGromHQOpen(false)}
+          onOpenChange={setGromHQOpen}
+          areaType="grom_parent"
+        />
+      )}
     </>
   );
 };

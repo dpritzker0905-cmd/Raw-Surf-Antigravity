@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Compass, Plus, Camera, MessageCircle, Waves } from 'lucide-react';
+import { Compass, Plus, MessageCircle, Waves } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
-import { usePersona } from '../contexts/PersonaContext';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { PhotoToolsDrawer } from './PhotoToolsDrawer';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
-import { ROLES } from '../constants/roles';
 import useRoutePreloader from '../hooks/useRoutePreloader';
 import { AdaptiveBackground } from './AdaptiveBackground';
 
@@ -96,30 +93,24 @@ const HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
 };
 
 /**
- * Mobile Bottom Navigation - Restructured April 2026
+ * Mobile Bottom Navigation v4.2 — Universal Layout for ALL Roles
  * 
- * NEW LAYOUT - Thumb-Zone Optimized with Messages:
- * 
- * Tab 1: Home - Global (Social Feed)
- * Tab 2: Action Center (Role-Based):
- *        - Surfers: Explore Tab
- *        - Photographers: Photo Tools Tab
- * Tab 3: Create Post - Center Action (prominent, high-contrast)
- * Tab 4: Messages - HIGH-FREQUENCY THUMB ACCESS (moved from TopNav)
+ * Tab 1: Home - Global (Social Feed) — Animated Wave Icon
+ * Tab 2: Explore - Universal (Browse spots, photographers, trending)
+ * Tab 3: Create Post - Center FAB (prominent, high-contrast)
+ * Tab 4: Messages - HIGH-FREQUENCY THUMB ACCESS
  * Tab 5: Me - Universal Profile (Mini Photo)
  * 
- * NOTE: Results Center (Gear/Stoked/Impact/Grom HQ) moved to TopNav as Dynamic Persona Icon
+ * NOTE: Photo Tools, Backpack, Sessions moved to TopNav pull-down drawer
  */
 export const BottomNav = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
-  const { getEffectiveRole } = usePersona();
   const navigate = useNavigate();
   const location = useLocation();
   const preload = useRoutePreloader();
   
-  // State for Photo Tools drawer and unread messages
-  const [showPhotoTools, setShowPhotoTools] = useState(false);
+  // State for unread messages and avatar
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [freshAvatarUrl, setFreshAvatarUrl] = useState(null);
   
@@ -154,14 +145,6 @@ export const BottomNav = () => {
     const version = user?.updated_at ? new Date(user.updated_at).getTime() : Date.now();
     return withCacheBuster(raw, version);
   }, [user?.avatar_url, user?.updated_at, freshAvatarUrl]);
-  
-  // Get effective role for UI rendering (respects God Mode masking)
-  const effectiveRole = getEffectiveRole(user?.role);
-  
-  // Role categorization
-  const photographerRoles = ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'];
-  const isPhotographer = photographerRoles.includes(effectiveRole);
-  const _isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
   
   // Theme-specific classes
   const isLight = theme === 'light';
@@ -206,49 +189,10 @@ export const BottomNav = () => {
     return () => ro.disconnect();
   }, []);
 
-  // Close Photo Tools drawer when route changes (e.g., navigation from TopNav)
-  useEffect(() => {
-    setShowPhotoTools(false);
-  }, [location.pathname]);
-
-
-  // Tab 2: Action Center destination & icon (Role-Based)
-  const getActionCenterConfig = () => {
-    const isDedicatedGromParent = effectiveRole === ROLES.GROM_PARENT;
-    // DEDICATED Grom Parent accounts: Photo Tools (archive-only, no commerce)
-    if (isDedicatedGromParent) {
-      return {
-        path: '/gallery',
-        icon: Camera,
-        label: 'Photo Tools',
-        activeColor: 'text-cyan-400'
-      };
-    }
-    
-    if (isPhotographer) {
-      return {
-        path: '/photographer/sessions',
-        icon: Camera,
-        label: 'Photo Tools',
-        activeColor: 'text-cyan-400'
-      };
-    }
-    // Default for surfers (including surfer+Grom Parent): Explore
-    return {
-      path: '/explore',
-      icon: Compass,
-      label: 'Explore',
-      activeColor: 'text-yellow-400'
-    };
-  };
-
   // Tab 5: Me - Profile destination (ALWAYS goes to personal profile page)
   const getProfileDestination = () => {
     return '/profile';
   };
-
-  const actionConfig = getActionCenterConfig();
-  const ActionIcon = actionConfig.icon;
 
   // Check if current path matches
   const isPathActive = (path) => {
@@ -283,38 +227,22 @@ export const BottomNav = () => {
           onNavigate={handleNavigation}
         />
 
-        {/* Tab 2: Action Center - Role-Based (Explore / Photo Tools) */}
-        {isPhotographer ? (
-          // Photographers get Photo Tools Drawer
-          <button
-            onClick={() => setShowPhotoTools(true)}
-            className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${
-              showPhotoTools ? actionConfig.activeColor : textInactiveClass
-            }`}
-            data-testid="bottomnav-action-center" aria-current={isPathActive(actionConfig.path) ? "page" : undefined}
-          >
-            <ActionIcon className={`w-6 h-6 ${showPhotoTools ? actionConfig.activeColor : textInactiveClass}`} />
-            <span className={`text-[10px] font-medium ${showPhotoTools ? actionConfig.activeColor : textInactiveClass}`}>
-              {actionConfig.label}
-            </span>
-          </button>
-        ) : (
-          // Surfers get Explore navigation + new photos badge
-          <button
-            onClick={() => handleNavigation(actionConfig.path)}
-            onMouseEnter={() => preload('explore')}
-            onTouchStart={() => preload('explore')}
-            className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`}
-            data-testid="bottomnav-action-center" aria-current={isPathActive(actionConfig.path) ? "page" : undefined}
-          >
-            <div className="relative">
-              <ActionIcon className={`w-6 h-6 ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`} />
-            </div>
-            <span className={`text-[10px] font-medium ${isPathActive(actionConfig.path) ? actionConfig.activeColor : textInactiveClass}`}>
-              {actionConfig.label}
-            </span>
-          </button>
-        )}
+        {/* Tab 2: Explore — Universal for ALL roles */}
+        <button
+          onClick={() => handleNavigation('/explore')}
+          onMouseEnter={() => preload('explore')}
+          onTouchStart={() => preload('explore')}
+          className={`flex flex-col items-center gap-0.5 min-w-[56px] py-1 ${isPathActive('/explore') ? 'text-yellow-400' : textInactiveClass}`}
+          data-testid="bottomnav-explore" aria-current={isPathActive('/explore') ? "page" : undefined}
+          aria-label="Explore"
+        >
+          <div className="relative">
+            <Compass className={`w-6 h-6 ${isPathActive('/explore') ? 'text-yellow-400' : textInactiveClass}`} />
+          </div>
+          <span className={`text-[10px] font-medium ${isPathActive('/explore') ? 'text-yellow-400' : textInactiveClass}`}>
+            Explore
+          </span>
+        </button>
 
         {/* Tab 3: Create Post - Center Action Button */}
         <button
@@ -372,14 +300,6 @@ export const BottomNav = () => {
           </span>
         </button>
       </div>
-      
-      {/* Photo Tools Drawer - Only rendered for photographers */}
-      {isPhotographer && (
-        <PhotoToolsDrawer 
-          isOpen={showPhotoTools} 
-          onClose={() => setShowPhotoTools(false)} 
-        />
-      )}
     </nav>
   );
 };

@@ -2,60 +2,32 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { MapPin, Search, Bell, Settings, ShoppingBag, Zap, Heart, Shield, Users, Compass, Backpack } from 'lucide-react';
-import { SurferSessionHub } from './SurferSessionHub';
+import { Bell, Shield, MapPin } from 'lucide-react';
 import { DutyStationIcon } from './DutyStationDrawer';
-import { BackpackDrawer } from './BackpackDrawer';
-import { StokedDrawer } from './StokedDrawer';
 import { NotificationsDrawer } from './NotificationsDrawer';
-import { ExclusiveAreaDrawer, hasExclusiveArea, getAreaType, getAreaIcon, getAreaColor } from './ExclusiveAreaDrawer';
+import { TopNavDrawerTray } from './TopNavDrawerTray';
 import { getUnreadCount } from '../services/notificationService';
+import useTopNavPullDown from '../hooks/useTopNavPullDown';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { AdaptiveBackground } from './AdaptiveBackground';
 
 
 /**
- * TopNav - Global Header Navigation (Restructured April 2026)
- * 
- * NEW LAYOUT - Map-First with Backpack & Dynamic Persona Icon:
- * 
- * PHOTOGRAPHERS (Hobbyist/Photographer/Approved Pro) - 8 Icons:
- * 1. Duty Station Icon (Far Left) - Unified Live/On-Demand Drawer
- * 2. Map Icon - Primary navigation
- * 3. Backpack Icon - Opens drawer with Passport, Wallet, Surf Alerts
- * 4. Explore Icon - Browse trending, spots, broadcasts
- * 5. Session Hub Icon - Sessions drawer
- * 6. Search Icon
- * 7. Notification Bell
- * 8. Settings Icon (Far Right)
- * 
- * GROM PARENTS - 7 Icons:
- * 1. Map Icon (Far Left) - Primary navigation
- * 2. Backpack Icon - Opens drawer with Passport, Wallet, Surf Alerts
- * 3. Explore Icon - Browse trending, spots, broadcasts
- * 4. Dynamic Persona Icon - Opens Grom HQ
- * 5. Search Icon
- * 6. Notification Bell
- * 7. Settings Icon (Far Right)
- * 
- * SURFERS - 6 Icons:
- * 1. Map Icon (Far Left) - Primary navigation
- * 2. Backpack Icon - Opens drawer with Passport, Wallet, Surf Alerts
- * 3. Dynamic Persona Icon - Opens StokedDrawer or exclusive area
- * 4. Search Icon
- * 5. Notification Bell
- * 6. Settings Icon (Far Right)
- * 
- * Dynamic Persona Icon Logic:
- * - Groms: Waves Icon -> The Inside (ExclusiveAreaDrawer)
- * - Regular Surfers: Gear Icon -> StokedDrawer
- * - Competitive Surfers (Comp/Pro): Stoked Icon (Zap) -> StokedDrawer
- * - Photographers: Heart Icon -> /impacted (Impact Dashboard)
- * - Grom Parents: Shield Icon -> /grom-hq
- * 
- * NOTE: Messages moved to BottomNav for thumb-zone accessibility
- * NOTE: Explore added to TopNav for photographers/grom parents (not in their BottomNav)
+ * TopNav v4.2 — Ultra-Clean 2-Icon Header + Pull-Down Drawer
+ *
+ * VISIBLE (collapsed — ALL roles):
+ *   [Logo]                    [Role-Critical]  [Bell]
+ *                   ═══════  (pull handle)
+ *
+ * EXPANDED (pull-down drawer — 2 rows):
+ *   Row 1 (Universal):  Search | Settings | Backpack
+ *   Row 2 (Role-Based): Map | Photo Tools | Sessions | Gallery (varies)
+ *
+ * Role-Critical Icon:
+ *   - Photographers:  DutyStation (go live / on-demand)
+ *   - Surfers/Groms:  Map (find spots & photographers)
+ *   - Grom Parents:   GromHQ Shield (child monitoring)
  */
 export const TopNav = () => {
   const { user } = useAuth();
@@ -63,14 +35,20 @@ export const TopNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [backpackOpen, setBackpackOpen] = useState(false);
-  const [stokedOpen, setStokedOpen] = useState(false);
-  const [exclusiveAreaOpen, setExclusiveAreaOpen] = useState(false);
-  const [gromHQDrawerOpen, setGromHQDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [logoSpinning, setLogoSpinning] = useState(false);
 
-  // Logo click: refresh current page in-place (same as Sidebar)
+  // Pull-down drawer gesture hook
+  const { headerRef, isOpen: drawerOpen, close: closeDrawer, toggle: toggleDrawer } = useTopNavPullDown();
+
+  // Get effective role (respects God Mode persona masking)
+  const effectiveRole = getEffectiveRole(user?.role);
+
+  // Role categorization
+  const isPhotographer = ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
+  const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
+
+  // Logo click: refresh feed or scroll to top
   const handleLogoClick = useCallback(() => {
     if (location.pathname === '/feed') {
       window.dispatchEvent(new CustomEvent('feed:refresh'));
@@ -80,83 +58,13 @@ export const TopNav = () => {
     setTimeout(() => setLogoSpinning(false), 600);
   }, [location.pathname]);
 
-  // Close all drawers when route changes (e.g., when BottomNav item is clicked)
+  // Close drawer and notifications on route change
   useEffect(() => {
-    setBackpackOpen(false);
-    setStokedOpen(false);
-    setExclusiveAreaOpen(false);
-    setGromHQDrawerOpen(false);
+    closeDrawer();
     setNotificationsOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, closeDrawer]);
 
-  // Check if God Mode banner is active (need to shift TopNav down)
-  const _isGodModeBannerVisible = user?.is_admin && isGodMode && isPersonaBarActive;
-
-  // Get effective role (respects God Mode persona masking)
-  const effectiveRole = getEffectiveRole(user?.role);
-  
-  // All photographer roles get the Duty Station icon (Hobbyist, Photographer, Approved Pro)
-  const isPhotographer = ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole);
-  
-  // Check if user has exclusive area access (Grom, Comp Surfer, Pro)
-  // Surfers in competitive/pro surf_mode get the matching exclusive area
-  const isProSurferMode = user?.surf_mode === 'pro';
-  const isCompetitiveSurferMode = user?.surf_mode === 'competitive';
-  const isCompetitiveSurfer = isCompetitiveSurferMode || isProSurferMode;
-  // Map surf_mode to the equivalent role for icon/drawer resolution
-  const resolvedRole = effectiveRole === ROLES.SURFER
-    ? (isProSurferMode ? 'Pro' : isCompetitiveSurferMode ? 'Comp Surfer' : effectiveRole)
-    : effectiveRole;
-  const hasExclusiveAccess = hasExclusiveArea(resolvedRole);
-  const exclusiveAreaType = getAreaType(resolvedRole);
-  const ExclusiveIcon = getAreaIcon(resolvedRole);
-  const exclusiveIconColor = getAreaColor(resolvedRole);
-  
-  // Role categorization for Dynamic Persona Icon
-  const isGromParent = effectiveRole === ROLES.GROM_PARENT || user?.is_grom_parent === true;
-  // isCompetitive: true for Comp Surfer/Pro roles OR regular Surfer in competitive/pro surf_mode
-  const isCompetitive = ['Comp Surfer', 'Pro'].includes(effectiveRole) || (effectiveRole === ROLES.SURFER && isCompetitiveSurfer);
-  // Note: isPhotographer already defined above for Duty Station icon
-  const _isGromOrRegularSurfer = ['Grom', 'Surfer'].includes(effectiveRole);
-
-  // Get Dynamic Persona Icon configuration based on role
-  const getPersonaIconConfig = () => {
-    if (isPhotographer) {
-      return {
-        icon: Heart,
-        label: 'Impact',
-        color: 'text-pink-400',
-        hoverColor: 'hover:text-pink-300'
-      };
-    }
-    if (isCompetitive) {
-      return {
-        icon: Zap,
-        label: 'Stoked',
-        color: 'text-yellow-400',
-        hoverColor: 'hover:text-yellow-300'
-      };
-    }
-    if (effectiveRole === ROLES.GROM) {
-      return {
-        icon: null,  // Groms use ExclusiveArea button, no separate persona icon needed
-        label: null,
-        color: '',
-        hoverColor: ''
-      };
-    }
-    // Default: Regular Surfers get Gear
-    return {
-      icon: ShoppingBag,
-      label: 'Gear',
-      color: 'text-emerald-400',
-      hoverColor: 'hover:text-emerald-300'
-    };
-  };
-
-  const personaConfig = getPersonaIconConfig();
-  const PersonaIcon = personaConfig.icon;
-
+  // Notification count polling
   const fetchUnreadCount = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -170,28 +78,33 @@ export const TopNav = () => {
   useEffect(() => {
     if (user?.id) {
       fetchUnreadCount();
-      // Poll every 30 seconds for new notifications
-      const interval = setInterval(() => {
-        fetchUnreadCount();
-      }, 30000);
+      const interval = setInterval(fetchUnreadCount, 30000);
       return () => clearInterval(interval);
     }
   }, [user?.id, fetchUnreadCount]);
 
+  // Check if God Mode banner is active
+  const _isGodModeBannerVisible = user?.is_admin && isGodMode && isPersonaBarActive;
+
   return (
     <>
-      <header 
+      <header
+        ref={headerRef}
         className="fixed left-0 right-0 z-[100] bg-background border-b border-border md:hidden transition-all duration-200 top-0"
-        style={{ 
+        style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
-          paddingRight: 'env(safe-area-inset-right, 0px)'
+          paddingRight: 'env(safe-area-inset-right, 0px)',
+          touchAction: 'pan-x',
+          overscrollBehavior: 'none'
         }}
         data-testid="top-nav"
       >
         <AdaptiveBackground />
+
+        {/* Main TopNav Row: Logo + 2 Icons */}
         <div className="flex items-center justify-between px-3 py-2.5 relative z-10">
-          {/* Left Side - Logo (tap = refresh feed or go to feed) */}
+          {/* Left: Logo */}
           <div className="flex items-center shrink-0">
             <button
               onClick={handleLogoClick}
@@ -213,137 +126,40 @@ export const TopNav = () => {
             </button>
           </div>
 
-          {/* Icon Layout - Search First, then Map-First with Passport & Persona */}
-          <div className="flex items-center gap-2.5">
-            
-            {/* Position 0: Search Icon - First in the row */}
-            <button 
-              onClick={() => navigate('/search')}
-              className="text-muted-foreground hover:text-foreground transition-colors p-1"
-              data-testid="topnav-search"
-              aria-label="Search"
-            >
-              <Search className="w-5 h-5" />
-            </button>
-            
-            {/* Position 1: Duty Station Icon (PHOTOGRAPHERS ONLY) */}
-            {isPhotographer && (
+          {/* Right: Role-Critical Icon + Notifications Bell */}
+          <div className="flex items-center gap-3">
+            {/* Role-Critical Icon */}
+            {isPhotographer ? (
+              // Photographers: DutyStation (Go Live / On-Demand)
               <DutyStationIcon />
-            )}
-            
-            {/* Position 2 (or 1): Map Icon - PRIMARY NAVIGATION */}
-            <button 
-              onClick={() => navigate('/map')}
-              className="text-yellow-400 hover:text-yellow-300 transition-colors p-1"
-              data-testid="topnav-map"
-              aria-label="Map"
-            >
-              <MapPin className="w-5 h-5" />
-            </button>
-            
-            {/* Position 3 (or 2): Exclusive Area Icon - Grom/Grom Parent/Comp/Pro only */}
-            {hasExclusiveAccess && ExclusiveIcon && (
-              <button 
-                onClick={() => {
-                  setBackpackOpen(false);
-                  setStokedOpen(false);
-                  setGromHQDrawerOpen(false);
-                  setNotificationsOpen(false);
-                  setExclusiveAreaOpen(prev => !prev);
-                }}
-                className={`${exclusiveIconColor} hover:opacity-80 transition-colors p-1`}
-                data-testid="topnav-exclusive-area"
-                aria-label={
-                  exclusiveAreaType === 'grom' ? 'The Inside' :
-                  exclusiveAreaType === 'comp' ? 'The Impact Zone' :
-                  exclusiveAreaType === 'pro' ? 'The Peak' : 'Exclusive Area'
-                }
-              >
-                <ExclusiveIcon className="w-5 h-5" />
-              </button>
-            )}
-            
-            {/* Position 4 (or 3): Backpack Icon - Opens Backpack Drawer (Passport, Wallet, Alerts) */}
-            <button 
-              onClick={() => setBackpackOpen(!backpackOpen)}
-              className="text-amber-400 hover:text-amber-300 transition-colors p-1"
-              data-testid="topnav-backpack"
-              aria-label="Backpack"
-            >
-              <Backpack className="w-5 h-5" />
-            </button>
-            
-            {/* Position 4.5: Explore Icon - For PHOTOGRAPHERS & GROM PARENTS (they don't have it in BottomNav) */}
-            {(isPhotographer || isGromParent) && (
-              <button 
-                onClick={() => navigate('/explore')}
-                className="text-orange-400 hover:text-orange-300 transition-colors p-1"
-                data-testid="topnav-explore"
-                aria-label="Explore"
-              >
-                <Compass className="w-5 h-5" />
-              </button>
-            )}
-            
-            {/* Position 5 (or 4): Session Hub Icon - For SURFERS only (Photographers use Duty Station) */}
-            {!isPhotographer && (
-              <SurferSessionHub isPhotographer={false}>
-                <button 
-                  className="text-cyan-400 hover:text-cyan-300 transition-colors p-1"
-                  data-testid="topnav-sessions"
-                  aria-label="Session Hub"
-                >
-                  <Users className="w-5 h-5" />
-                </button>
-              </SurferSessionHub>
-            )}
-            
-            {/* Position 5.5: Grom HQ Shield Icon - for Grom Parents */}
-            {isGromParent && (
-              <button 
-                onClick={() => {
-                  setBackpackOpen(false);
-                  setStokedOpen(false);
-                  setExclusiveAreaOpen(false);
-                  setNotificationsOpen(false);
-                  setGromHQDrawerOpen(prev => !prev);
-                }}
+            ) : isGromParent ? (
+              // Grom Parents: GromHQ Shield
+              <button
+                onClick={() => navigate('/grom-hq')}
                 className="text-cyan-400 hover:text-cyan-300 transition-colors p-1"
-                data-testid="topnav-grom-hq"
+                data-testid="topnav-gromhq"
                 aria-label="Grom HQ"
               >
                 <Shield className="w-5 h-5" />
               </button>
-            )}
-
-            {/* Position 6 (or 5): Stoked/Persona Icon - Role-Based Navigation */}
-            {/* Note: Groms skip this - they use the ExclusiveArea button instead */}
-            {effectiveRole !== ROLES.GROM && (
-              <button 
-                onClick={() => {
-                  if (effectiveRole === ROLES.GROM_PARENT) {
-                    // Fallback for purely dedicated Grom Parents if they tap Gear
-                    setStokedOpen(!stokedOpen);
-                  } else if (isPhotographer) {
-                    navigate('/impacted');  // Photographers → Impact Dashboard
-                  } else if (isCompetitive) {
-                    setStokedOpen(!stokedOpen);  // Comp/Pro → Stoked Drawer
-                  } else {
-                    setStokedOpen(!stokedOpen);  // Regular Surfers → Stoked/Gear Drawer
-                  }
-                }}
-                className={`${personaConfig.color} ${personaConfig.hoverColor} transition-colors p-1`}
-                data-testid="topnav-stoked"
-                aria-label={personaConfig.label}
+            ) : (
+              // Surfers & Groms: Map
+              <button
+                onClick={() => navigate('/map')}
+                className="text-yellow-400 hover:text-yellow-300 transition-colors p-1"
+                data-testid="topnav-map"
+                aria-label="Map"
               >
-                <PersonaIcon className="w-5 h-5" />
+                <MapPin className="w-5 h-5" />
               </button>
             )}
-            
-            {/* Position 6 (or 5): Notifications Bell - Toggles Drawer */}
-            <button 
+
+            {/* Notifications Bell — always visible */}
+            <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
-              className={`transition-colors relative p-1 ${notificationsOpen ? 'text-yellow-400' : 'text-gray-400 hover:text-white'}`}
+              className={`transition-colors relative p-1 ${
+                notificationsOpen ? 'text-yellow-400' : 'text-gray-400 hover:text-white'
+              }`}
               data-testid="topnav-notifications"
               aria-label="Notifications"
             >
@@ -354,59 +170,45 @@ export const TopNav = () => {
                 </span>
               )}
             </button>
-            
-            {/* Position 7 (or 6): Settings Icon */}
-            <button 
-              onClick={() => navigate('/settings')}
-              className="text-gray-400 hover:text-white transition-colors p-1"
-              data-testid="topnav-settings"
-              aria-label="Settings"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
           </div>
         </div>
+
+        {/* Pull Handle — visual affordance for the drawer gesture */}
+        <button
+          onClick={toggleDrawer}
+          className="flex justify-center pb-1 -mt-1 w-full"
+          aria-label={drawerOpen ? 'Close tools drawer' : 'Open tools drawer'}
+          aria-expanded={drawerOpen}
+          data-testid="topnav-pull-handle"
+        >
+          <div
+            className={`w-10 h-1 rounded-full transition-all duration-300 ${
+              drawerOpen
+                ? 'bg-cyan-400/60 w-14'
+                : 'bg-zinc-600 hover:bg-zinc-500'
+            }`}
+          />
+        </button>
+
+        {/* Pull-Down Drawer Tray (2 rows: universal + role-specific) */}
+        <TopNavDrawerTray isOpen={drawerOpen} />
       </header>
 
-      {/* Backpack Drawer - Contains Passport, Wallet, Surf Alerts */}
-      <BackpackDrawer 
-        isOpen={backpackOpen} 
-        onClose={() => setBackpackOpen(false)}
-        onReopen={() => setBackpackOpen(true)}
-      />
-      
+      {/* Backdrop when drawer is open */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-[99] bg-black/30 md:hidden"
+          onClick={closeDrawer}
+          data-testid="topnav-drawer-backdrop"
+        />
+      )}
+
       {/* Notifications Drawer */}
       <NotificationsDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
         onCountUpdate={fetchUnreadCount}
       />
-      
-      {/* Stoked Drawer */}
-      <StokedDrawer
-        isOpen={stokedOpen}
-        onClose={() => setStokedOpen(false)}
-      />
-      
-      {/* Exclusive Area Drawer - Grom (The Inside) / Comp (The Impact Zone) / Pro (The Peak) */}
-      {hasExclusiveAccess && (
-        <ExclusiveAreaDrawer
-          isOpen={exclusiveAreaOpen}
-          onClose={() => setExclusiveAreaOpen(false)}
-          onOpenChange={setExclusiveAreaOpen}
-          areaType={exclusiveAreaType}
-        />
-      )}
-
-      {/* Grom HQ Drawer - always available if isGromParent is true */}
-      {isGromParent && (
-        <ExclusiveAreaDrawer
-          isOpen={gromHQDrawerOpen}
-          onClose={() => setGromHQDrawerOpen(false)}
-          onOpenChange={setGromHQDrawerOpen}
-          areaType="grom_parent"
-        />
-      )}
     </>
   );
 };
