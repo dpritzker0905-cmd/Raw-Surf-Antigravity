@@ -66,8 +66,10 @@ async def get_strava_status(user_id: str):
 async def get_strava_auth_url(request: Request, user_id: str):
     """Returns the Strava OAuth authorization URL, embedding the user_id in the state parameter."""
     # We pass state=user_id so we know who the callback belongs to.
-    # Dynamically build the redirect_uri based on the server's actual host/port
+    # Dynamically build the redirect_uri based on the server's actual host/port.
+    # Strava strictly validates the domain string. If it expects 'localhost', '127.0.0.1' will fail.
     base_url = str(request.base_url).rstrip('/')
+    base_url = base_url.replace("127.0.0.1", "localhost")
     redirect_uri = f"{base_url}/api/strava/callback" 
     url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={redirect_uri}&approval_prompt=force&scope=activity:read_all&state={user_id}"
     return {"url": url}
