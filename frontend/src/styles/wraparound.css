@@ -142,14 +142,17 @@
   .light .aurora-bg-wave, :not(.dark):not(.beach-mode) .aurora-bg-wave {
     animation-duration: calc(var(--laser-duration) * 1.5);
     background-size: 400% 200%, 300% 200%, 500% 300%;
+    opacity: 0.45;
   }
   .beach-mode .aurora-bg-wave {
     animation-duration: calc(var(--laser-duration) * 1.5);
     background-size: 350% 300%, 400% 350%, 450% 300%;
+    opacity: 0.45;
   }
   .dark .aurora-bg-wave {
     animation-duration: calc(var(--laser-duration) * 1.5);
     background-size: 350% 350%, 300% 400%, 400% 300%;
+    opacity: 0.6;
   }
 
   /* Battery saver / Reduced motion override */
