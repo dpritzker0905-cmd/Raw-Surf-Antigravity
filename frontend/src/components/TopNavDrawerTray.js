@@ -106,6 +106,25 @@ export const TopNavDrawerTray = ({ isOpen }) => {
     }
   ];
 
+  // Combine into a single array for dynamic chunking
+  const allItems = [...universalItems, ...roleItems];
+
+  // Dynamic layout math:
+  // <= 5 items: 1 row
+  // 6 items: [3, 3]
+  // 7 items: [4, 3]
+  // 8 items: [4, 4]
+  // 9 items: [5, 4]
+  // 10 items: [5, 5]
+  const getRows = (items) => {
+    const len = items.length;
+    if (len <= 5) return [items, []];
+    const row1Count = Math.ceil(len / 2);
+    return [items.slice(0, row1Count), items.slice(row1Count)];
+  };
+
+  const [row1Items, row2Items] = getRows(allItems);
+
   // Render a single drawer item button
   const renderItem = (item) => {
     const Icon = item.icon;
@@ -154,29 +173,31 @@ export const TopNavDrawerTray = ({ isOpen }) => {
         data-testid="topnav-drawer-tray"
       >
         <div className="px-4 pt-2 pb-3 space-y-2">
-          {/* Row 1: Universal — Search | Settings | Backpack */}
+          {/* Row 1 */}
           <div
-            className="flex items-center justify-center gap-3 transition-all duration-200"
+            className="flex items-center justify-center gap-2 transition-all duration-200"
             style={{
               opacity: isOpen ? 1 : 0,
               transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
               transitionDelay: isOpen ? '50ms' : '0ms'
             }}
           >
-            {universalItems.map(renderItem)}
+            {row1Items.map(renderItem)}
           </div>
 
-          {/* Row 2: Role-Specific — staggered 80ms after Row 1 */}
-          <div
-            className="flex items-center justify-center gap-3 transition-all duration-200"
-            style={{
-              opacity: isOpen ? 1 : 0,
-              transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
-              transitionDelay: isOpen ? '130ms' : '0ms'
-            }}
-          >
-            {roleItems.map(renderItem)}
-          </div>
+          {/* Row 2 (if needed) */}
+          {row2Items.length > 0 && (
+            <div
+              className="flex items-center justify-center gap-2 transition-all duration-200"
+              style={{
+                opacity: isOpen ? 1 : 0,
+                transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
+                transitionDelay: isOpen ? '130ms' : '0ms'
+              }}
+            >
+              {row2Items.map(renderItem)}
+            </div>
+          )}
         </div>
       </div>
 
