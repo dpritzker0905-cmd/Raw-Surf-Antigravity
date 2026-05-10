@@ -32,6 +32,11 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+        
+    # RBAC: Prevent Hobbyist/Grom Parent from creating commerce-enabled posts
+    if getattr(data, 'session_price_per_person', None) is not None and float(data.session_price_per_person) > 0:
+        if profile.role in [RoleEnum.HOBBYIST, RoleEnum.GROM_PARENT]:
+            raise HTTPException(status_code=403, detail="Hobbyists and Grom Parents cannot create commercial sessions.")
     
     # Reject future-dated sessions (allow 1-day buffer for international timezones up to UTC+14)
     if data.session_date and data.session_date > datetime.utcnow() + timedelta(days=1):

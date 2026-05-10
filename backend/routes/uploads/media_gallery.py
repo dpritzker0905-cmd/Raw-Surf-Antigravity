@@ -100,6 +100,11 @@ async def upload_photographer_gallery_media(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+        
+    from models import RoleEnum
+    if user.role in [RoleEnum.HOBBYIST, RoleEnum.GROM_PARENT]:
+        raise HTTPException(status_code=403, detail="Hobbyists and Grom Parents cannot upload commercial photos.")
+        
     subscription = user.subscription_tier or 'free'
     is_paid = subscription in ['basic', 'premium']
     is_video = file.content_type in ALLOWED_VIDEO_TYPES
@@ -184,13 +189,23 @@ async def upload_photographer_gallery_media(
             gc.collect()
             save_kwargs = {}
             if ext.lower() in ('.jpg', '.jpeg'):
-                save_kwargs = {'quality': 95, 'exif': b''}
+                save_kwargs = {'quality': 95}
+                try:
+                    import piexif
+                    # Inject Do Not Train / NoAI metadata via piexif
+                    exif_dict = {"0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": None}
+                    exif_dict["0th"][piexif.ImageIFD.Copyright] = b"NoAI, DoNotTrain, Copyright RAW SURF OS"
+                    exif_dict["0th"][piexif.ImageIFD.Software] = b"Raw Surf OS - AI Shielded"
+                    exif_bytes = piexif.dump(exif_dict)
+                    save_kwargs['exif'] = exif_bytes
+                except ImportError:
+                    save_kwargs['exif'] = b''
             elif ext.lower() == '.png':
                 save_kwargs = {'optimize': True}
             elif ext.lower() == '.webp':
                 save_kwargs = {'quality': 95}
             img.save(str(original_path), **save_kwargs)
-            logger.info(f"Saved EXIF-corrected image: {original_filename}")
+            logger.info(f"Saved EXIF-corrected and DRM-shielded image: {original_filename}")
             img.close()
             del img
             gc.collect()
@@ -269,6 +284,11 @@ async def upload_session_photo(
     photographer = result.scalar_one_or_none()
     if not photographer:
         raise HTTPException(status_code=404, detail="Photographer not found")
+        
+    from models import RoleEnum
+    if photographer.role in [RoleEnum.HOBBYIST, RoleEnum.GROM_PARENT]:
+        raise HTTPException(status_code=403, detail="Hobbyists and Grom Parents cannot upload commercial photos.")
+        
     is_video = file.content_type in ALLOWED_VIDEO_TYPES
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
     if not is_video and not is_image:
