@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const useDispatchTracking = ({ userId, updateTrackingMarkers }) => {
+const useDispatchTracking = ({ userId }) => {
   const [activeDispatch, setActiveDispatch] = useState(null);
   const [activeDispatchId, setActiveDispatchId] = useState(null);
   const trackingIntervalRef = useRef(null);
@@ -41,15 +41,14 @@ const useDispatchTracking = ({ userId, updateTrackingMarkers }) => {
         const response = await apiClient.get(`/dispatch/${activeDispatch.id}/tracking`);
         setActiveDispatch(prev => ({
           ...prev,
+          photographer_location: response.data.photographer_location,
+          requester_location: response.data.requester_location,
           photographer_lat: response.data.photographer_location?.lat,
           photographer_lng: response.data.photographer_location?.lng,
           requester_lat: response.data.requester_location?.lat,
           requester_lng: response.data.requester_location?.lng,
           estimated_arrival_minutes: response.data.estimated_arrival_minutes
         }));
-        if (updateTrackingMarkers) {
-          updateTrackingMarkers(response.data);
-        }
       } catch (error) {
         logger.error('Error polling dispatch locations:', error);
       }
@@ -80,7 +79,7 @@ const useDispatchTracking = ({ userId, updateTrackingMarkers }) => {
     return () => {
       if (trackingIntervalRef.current) clearInterval(trackingIntervalRef.current);
     };
-  }, [activeDispatch?.id, activeDispatch?.status, userId, updateTrackingMarkers]);
+  }, [activeDispatch?.id, activeDispatch?.status, userId]);
 
   const clearDispatch = useCallback(() => {
     setActiveDispatch(null);

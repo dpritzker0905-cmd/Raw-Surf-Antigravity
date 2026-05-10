@@ -1,8 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { initializeMap, recreateMapAtLocation } from './map/mapInitializer';
-import { updateMapMarkers as updateMapMarkersService } from './map/markerManager';
-import { updateFriendMarkers } from './map/friendMarkers';
-import { updateOnDemandMarkers } from './map/onDemandMarkers';
+import MapWebGL from './map/MapWebGL';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -40,13 +37,7 @@ const MapPageContent = () => {
   
   const isLight = theme === 'light';
   const mapTilesUrl = isLight ? MAPBOX_TILES.light : TILE_LAYER_CONFIG.url;
-  const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
-  const userMarkerRef = useRef(null);
-  const userAccuracyCircleRef = useRef(null);
-  const spotClusterRef = useRef(null);
-  const photographerClusterRef = useRef(null);
   
   // User location hook - handles GPS and location-related state
   const {
@@ -211,27 +202,41 @@ const MapPageContent = () => {
     // Force map resize on filter change
     if (mapInstanceRef.current) {
       setTimeout(() => {
-        mapInstanceRef.current.invalidateSize();
+        mapInstanceRef.current.resize();
         
         // Fit bounds to all data points for 'ALL' filter
         if (newFilter === 'all') {
-          const bounds = [];
+          let minLng = Infinity, minLat = Infinity;
+          let maxLng = -Infinity, maxLat = -Infinity;
+          
           surfSpots.forEach(spot => {
             if (spot.latitude && spot.longitude) {
-              bounds.push([spot.latitude, spot.longitude]);
+              minLng = Math.min(minLng, spot.longitude);
+              minLat = Math.min(minLat, spot.latitude);
+              maxLng = Math.max(maxLng, spot.longitude);
+              maxLat = Math.max(maxLat, spot.latitude);
             }
           });
           livePhotographers.forEach(p => {
             if (p.current_latitude && p.current_longitude) {
-              bounds.push([p.current_latitude, p.current_longitude]);
+              minLng = Math.min(minLng, p.current_longitude);
+              minLat = Math.min(minLat, p.current_latitude);
+              maxLng = Math.max(maxLng, p.current_longitude);
+              maxLat = Math.max(maxLat, p.current_latitude);
             }
           });
           
-          if (bounds.length > 0) {
-            mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
+          if (minLng !== Infinity) {
+            mapInstanceRef.current.fitBounds(
+              [[minLng, minLat], [maxLng, maxLat]], 
+              { padding: 50 }
+            );
           } else {
             // Default to Florida center if no data
-            mapInstanceRef.current.setView([FLORIDA_CENTER.lat, FLORIDA_CENTER.lng], 7);
+            mapInstanceRef.current.jumpTo({
+              center: [FLORIDA_CENTER.lng, FLORIDA_CENTER.lat], 
+              zoom: 7
+            });
           }
         }
       }, 100);
@@ -285,8 +290,6 @@ const MapPageContent = () => {
     fetchOnDemandPros,
     fetchFriends,
     fetchActiveRequests,
-    updateTrackingMarkers,
-    updateUserLocationMarker,
     handleSpotClick,
     fetchActiveShootersAtSpot,
     handleCloseUnifiedDrawer,
@@ -321,7 +324,7 @@ const MapPageContent = () => {
     activeDispatchId,
     setActiveDispatchId,
     clearDispatch,
-  } = useDispatchTracking({ userId: user?.id, updateTrackingMarkers });
+  } = useDispatchTracking({ userId: user?.id });
 
   useEffect(() => {
     if (!isPhotographer) return;
@@ -366,119 +369,7 @@ const MapPageContent = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!loading) {
-      const frameId = requestAnimationFrame(() => initMap());
-      return () => cancelAnimationFrame(frameId);
-    }
-  }, [loading]);
-
-  useEffect(() => {
-    if (mapInstanceRef.current && mapInstanceRef.current._tileLayer) {
-      mapInstanceRef.current._tileLayer.setUrl(mapTilesUrl);
-    }
-  }, [isLight, mapTilesUrl]);
-
-  useEffect(() => {
-    if (mapInstanceRef.current && !locationDenied) startWatchingLocation();
-    return () => stopWatchingLocation();
-  }, [startWatchingLocation, stopWatchingLocation, locationDenied]);
-
-  const hasAutocenteredRef = useRef(false);
-  useEffect(() => {
-    if (mapInstanceRef.current && !hasAutocenteredRef.current) {
-      if (user?.home_latitude && user?.home_longitude &&
-          typeof user.home_latitude === 'number' && typeof user.home_longitude === 'number' &&
-          !Number.isNaN(user.home_latitude) && !Number.isNaN(user.home_longitude) &&
-          user.home_latitude >= -90 && user.home_latitude <= 90 && 
-          user.home_longitude >= -180 && user.home_longitude <= 180) {
-        
-        hasAutocenteredRef.current = true;
-        logger.debug(`[MAP] Auto-centering on home location: ${user.home_latitude.toFixed(4)}, ${user.home_longitude.toFixed(4)}`);
-        
-        // Zoom in tight (14) for saved home location
-        mapInstanceRef.current.setView([user.home_latitude, user.home_longitude], 14);
-        
-        setTimeout(() => {
-          if (mapInstanceRef.current) {
-            mapInstanceRef.current.invalidateSize();
-          }
-        }, 200);
-        return;
-      }
-      
-      // Priority 2 & 3: GPS or IP location
-      if (effectiveLocation) {
-        const { lat, lng, source } = effectiveLocation;
-        
-        // Validate coordinates
-        if (typeof lat === 'number' && typeof lng === 'number' &&
-            !Number.isNaN(lat) && !Number.isNaN(lng) && 
-            lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-          
-          hasAutocenteredRef.current = true;
-          logger.debug(`[MAP] Auto-centering on ${source}: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-          
-          // GPS gets zoom 12, IP gets zoom 9
-          const zoom = source === 'gps' ? 12 : 9;
-          mapInstanceRef.current.setView([lat, lng], zoom);
-          
-          // Simple refresh
-          setTimeout(() => {
-            if (mapInstanceRef.current) {
-              mapInstanceRef.current.invalidateSize();
-            }
-          }, 200);
-        }
-      }
-    }
-  }, [effectiveLocation, user?.home_latitude, user?.home_longitude]);
-
-  useEffect(() => {
-    if (!loading && mapInstanceRef.current) {
-      updateMapMarkers();
-    }
-  }, [surfSpots, livePhotographers, filter, pulsingMarkers, loading]);
-  
-  useEffect(() => {
-    if (!loading && mapInstanceRef.current) {
-      updateUserLocationMarker();
-    }
-  }, [userLocation, effectiveLocation, loading]);
-
-  useEffect(() => {
-    if (selectedSpot && surfSpots.length > 0) {
-      const updatedSpot = surfSpots.find(s => s.id === selectedSpot.id);
-      if (updatedSpot && updatedSpot.active_photographers_count !== selectedSpot.active_photographers_count) {
-        setSelectedSpot(updatedSpot);
-      }
-    }
-  }, [surfSpots, selectedSpot]);
-
-  useEffect(() => {
-    if (mapInstanceRef.current) {
-      setTimeout(() => mapInstanceRef.current.invalidateSize(), 300);
-    }
-  }, [bottomSheetOpen]);
-
-  // Auto-dismiss IP location banner after 5 seconds
-  useEffect(() => {
-    if (ipLocation && !userLocation && showIpBanner) {
-      const timer = setTimeout(() => {
-        setShowIpBanner(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [ipLocation, userLocation, showIpBanner]);
-
-  useEffect(() => {
-    updateFriendMarkers({ mapInstance: mapInstanceRef.current, friendMarkersRef, friendsOnMap, showFriendsOnMap });
-  }, [friendsOnMap, showFriendsOnMap]);
-
-  useEffect(() => {
-    updateOnDemandMarkers({ mapInstance: mapInstanceRef.current, onDemandMarkersRef, activeOnDemandRequests, isPhotographer });
-  }, [activeOnDemandRequests, isPhotographer]);
-
+  // MapLibre doesn't need these manual updates; React handles it via props!
   const getUserLocation = async () => {
     try {
       const location = await requestLocation();
@@ -489,29 +380,13 @@ const MapPageContent = () => {
         setShowLocationPicker(true);
         return;
       }
-      recreateMapAtLocation({
-        location, mapRef, mapInstanceRef, spotClusterRef, photographerClusterRef,
-        mapTilesUrl, onMarkersReady: () => { updateMapMarkers(); updateUserLocationMarker(); }
-      });
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.flyTo({ center: [location.lng, location.lat], zoom: 12 });
+      }
     } catch (error) {
       logger.error('[MAP] GPS failed:', error);
       setShowLocationPicker(true);
     }
-  };
-
-  const initMap = () => {
-    initializeMap({
-      mapRef, mapInstanceRef, spotClusterRef, photographerClusterRef,
-      mapTilesUrl, onMarkersReady: () => { updateMapMarkers(); updateUserLocationMarker(); }
-    });
-  };
-
-  const updateMapMarkers = () => {
-    updateMapMarkersService({
-      map: mapInstanceRef.current, markersRef, spotClusterRef, photographerClusterRef,
-      filter, surfSpots, livePhotographers, pulsingMarkers,
-      handleSpotClick, handlePhotographerClick
-    });
   };
 
   const handleStartGoLiveFlow = useCallback((spotId, sessionSettings = {}) => {
@@ -564,11 +439,22 @@ const MapPageContent = () => {
       data-testid="map-page-container"
     >
       {/* Map Container - Fill entire view */}
-      <div 
-        ref={mapRef} 
-        className="absolute inset-0 z-0" 
-        data-testid="map-container"
-      />
+      <div className="absolute inset-0 z-0" data-testid="map-container">
+        <MapWebGL 
+          isLight={isLight}
+          userLocation={userLocation}
+          effectiveLocation={effectiveLocation}
+          surfSpots={surfSpots}
+          livePhotographers={livePhotographers}
+          filter={filter}
+          pulsingMarkers={pulsingMarkers}
+          onSpotClick={handleSpotClick}
+          onPhotographerClick={handlePhotographerClick}
+          mapInstanceRef={mapInstanceRef}
+          activeDispatch={activeOnDemandRequests[0]}
+          friendsOnMap={friendsOnMap}
+        />
+      </div>
 
       {/* TOP RAIL */}
       <div 
@@ -596,8 +482,13 @@ const MapPageContent = () => {
             locationDenied={locationDenied}
             surfSpots={surfSpots}
             onSpotSelect={(spot) => {
-              if (mapRef.current && isValidLatLng(spot.latitude, spot.longitude)) {
-                mapRef.current.flyTo([spot.latitude, spot.longitude], 14, { duration: 1 });
+              if (mapInstanceRef.current && isValidLatLng(spot.latitude, spot.longitude)) {
+                mapInstanceRef.current.flyTo({
+                  center: [spot.longitude, spot.latitude],
+                  zoom: 14,
+                  pitch: 45,
+                  duration: 1000
+                });
               }
               setSelectedSpot(spot);
               setUnifiedDrawerOpen(true);
@@ -679,7 +570,12 @@ const MapPageContent = () => {
         userLocation={userLocation}
         onSpotSelect={(spot) => {
           if (mapInstanceRef.current && spot.latitude && spot.longitude) {
-            mapInstanceRef.current.setView([spot.latitude, spot.longitude], 14);
+            mapInstanceRef.current.flyTo({
+              center: [spot.longitude, spot.latitude],
+              zoom: 14,
+              pitch: 45,
+              duration: 1000
+            });
           }
           setSelectedSpot(spot);
           setUnifiedDrawerOpen(true);

@@ -14,9 +14,25 @@ import logger from '../utils/logger';
  */
 export const useMapData = (userId = null, userLocation = null) => {
   const [surfSpots, setSurfSpots] = useState([]);
+  const [surfSpotsGeoJSON, setSurfSpotsGeoJSON] = useState({ type: 'FeatureCollection', features: [] });
+  
   const [livePhotographers, setLivePhotographers] = useState([]);
+  const [livePhotographersGeoJSON, setLivePhotographersGeoJSON] = useState({ type: 'FeatureCollection', features: [] });
+  
   const [featuredPhotographers, setFeaturedPhotographers] = useState([]);
+  const [featuredPhotographersGeoJSON, setFeaturedPhotographersGeoJSON] = useState({ type: 'FeatureCollection', features: [] });
+  
   const [loading, setLoading] = useState(true);
+
+  // Helper to convert arrays to GeoJSON
+  const toGeoJSON = (data, latKey = 'latitude', lngKey = 'longitude') => ({
+    type: 'FeatureCollection',
+    features: (data || []).filter(item => item[latKey] && item[lngKey]).map(item => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [parseFloat(item[lngKey]), parseFloat(item[latKey])] },
+      properties: { ...item }
+    }))
+  });
 
   const fetchSurfSpots = useCallback(async (viewport = null) => {
     try {
@@ -44,6 +60,7 @@ export const useMapData = (userId = null, userLocation = null) => {
       const url = `/surf-spots${params.toString() ? '?' + params.toString() : ''}`;
       const response = await apiClient.get(url);
       setSurfSpots(response.data);
+      setSurfSpotsGeoJSON(toGeoJSON(response.data));
     } catch (error) {
       logger.error('Error fetching surf spots:', error);
     }
@@ -53,6 +70,7 @@ export const useMapData = (userId = null, userLocation = null) => {
     try {
       const response = await apiClient.get(`/live-photographers`);
       setLivePhotographers(response.data);
+      setLivePhotographersGeoJSON(toGeoJSON(response.data));
     } catch (error) {
       logger.error('Error fetching live photographers:', error);
     }
@@ -62,6 +80,7 @@ export const useMapData = (userId = null, userLocation = null) => {
     try {
       const response = await apiClient.get(`/photographers/featured`);
       setFeaturedPhotographers(response.data);
+      setFeaturedPhotographersGeoJSON(toGeoJSON(response.data));
     } catch (error) {
       logger.error('Error fetching featured photographers:', error);
     }
@@ -92,8 +111,11 @@ export const useMapData = (userId = null, userLocation = null) => {
 
   return {
     surfSpots,
+    surfSpotsGeoJSON,
     livePhotographers,
+    livePhotographersGeoJSON,
     featuredPhotographers,
+    featuredPhotographersGeoJSON,
     loading,
     refreshData: loadMapData,
     fetchLivePhotographers,

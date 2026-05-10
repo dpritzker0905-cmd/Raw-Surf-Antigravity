@@ -68,6 +68,30 @@ export const MAPBOX_TILES = {
 };
 
 /**
+ * Generate a MapLibre GL JS compatible style object using Mapbox raster tiles
+ */
+export const getMapStyle = (isLight) => ({
+  version: 8,
+  sources: {
+    'raster-tiles': {
+      type: 'raster',
+      tiles: [isLight ? MAPBOX_TILES.light : MAPBOX_TILES.dark],
+      tileSize: 256,
+      attribution: '© Mapbox © OpenStreetMap'
+    }
+  },
+  layers: [
+    {
+      id: 'simple-tiles',
+      type: 'raster',
+      source: 'raster-tiles',
+      minzoom: 0,
+      maxzoom: 22
+    }
+  ]
+});
+
+/**
  * Default tile layer configuration — Mapbox raster tiles via Leaflet
  */
 export const TILE_LAYER_CONFIG = {
