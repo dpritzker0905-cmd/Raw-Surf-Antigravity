@@ -10,7 +10,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   X, MapPin, Calendar, Clock, DollarSign, Users, Star,
-  ChevronRight, ImageIcon, Award, Zap, Send,
+  ChevronRight, Image as ImageIcon, Award, Zap, Send,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';

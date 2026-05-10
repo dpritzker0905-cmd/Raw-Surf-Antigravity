@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   DollarSign, Clock, Users, Zap, ChevronDown, Heart, Video, Tag, Percent,
-  Sparkles, Check, ImageIcon
+  Sparkles, Check, Image as ImageIcon
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';

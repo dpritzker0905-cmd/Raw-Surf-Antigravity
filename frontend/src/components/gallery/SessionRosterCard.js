@@ -4,7 +4,7 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  ImageIcon,
+  Image as ImageIcon,
   Video,
   X,
   ZoomIn,

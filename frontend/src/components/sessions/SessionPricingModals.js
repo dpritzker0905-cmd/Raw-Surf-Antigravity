@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Clock, DollarSign, ImageIcon } from 'lucide-react';
+import { Users, Clock, DollarSign, Image as ImageIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';

@@ -16,7 +16,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Lock, Download, Sparkles, Filter, Crown, Gift,
   Search, Grid, List, SortDesc, Camera, History, X,
-  ChevronRight, Loader2, ScanFace,
+  ChevronRight, Loader2, ScanFace, Image as ImageIcon,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
