@@ -13,6 +13,8 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
+import PreSessionConfigModal from './PreSessionConfigModal';
+import LiveSessionDashboard from './LiveSessionDashboard';
 
 const MOODS = [
   { id: 'stoked', label: 'Stoked', icon: '🤙', color: 'text-green-400' },
@@ -107,7 +109,7 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
 };
 
 /* --- Create / Edit Modal ------------------------------------- */
-const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
+const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, prefillGear }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const bg = isLight ? 'bg-white' : 'bg-zinc-900';
@@ -135,9 +137,15 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved }) => {
         personal_rating: entry.personal_rating || 0, conditions_rating: entry.conditions_rating || 0,
       });
     } else {
-      setForm(f => ({ ...f, session_date: new Date().toISOString().split('T')[0] }));
+      setForm(f => ({ 
+        ...f, 
+        session_date: new Date().toISOString().split('T')[0],
+        duration_minutes: prefillMetrics ? Math.floor(prefillMetrics.duration_minutes || 0) : '',
+        board_model: prefillGear || '',
+        notes: prefillMetrics ? `Distance: ${(prefillMetrics.distance / 1000).toFixed(2)}km | Waves: ${prefillMetrics.waveCount} | Top Speed: ${(prefillMetrics.topSpeed * 3.6).toFixed(1)}km/h` : ''
+      }));
     }
-  }, [entry, isOpen]);
+  }, [entry, isOpen, prefillMetrics, prefillGear]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -278,6 +286,10 @@ const SurfLog = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editEntry, setEditEntry] = useState(null);
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [isLiveTracking, setIsLiveTracking] = useState(false);
+  const [selectedGear, setSelectedGear] = useState('');
+  const [trackingMetrics, setTrackingMetrics] = useState(null);
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
@@ -308,7 +320,27 @@ const SurfLog = () => {
   };
 
   const handleEdit = (entry) => { setEditEntry(entry); setModalOpen(true); };
-  const handleCreate = () => { setEditEntry(null); setModalOpen(true); };
+  const handleCreate = () => { setEditEntry(null); setConfigModalOpen(true); };
+
+  if (isLiveTracking) {
+    return (
+      <LiveSessionDashboard 
+        userId={user?.id}
+        spotId={null}
+        selectedBoard={selectedGear}
+        onEndSession={(metrics, board) => {
+          setIsLiveTracking(false);
+          setTrackingMetrics({
+            ...metrics,
+            duration_minutes: metrics.startTime ? (Date.now() - new Date(metrics.startTime).getTime()) / 60000 : 0
+          });
+          setSelectedGear(board);
+          setEditEntry(null);
+          setModalOpen(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className={`max-w-2xl mx-auto pb-24 ${isLight ? 'bg-gray-50/50 min-h-screen' : 'min-h-screen'}`}>
@@ -367,7 +399,39 @@ const SurfLog = () => {
         </>
       )}
 
-      <EntryModal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditEntry(null); }} entry={editEntry} userId={user?.id} onSaved={fetchData} />
+      <PreSessionConfigModal 
+        isOpen={configModalOpen} 
+        onClose={() => setConfigModalOpen(false)}
+        onStartLive={(board) => {
+          setSelectedGear(board);
+          setConfigModalOpen(false);
+          setIsLiveTracking(true);
+        }}
+        onSyncWatch={() => {
+          setConfigModalOpen(false);
+          toast.info('Smartwatch sync API coming soon! For now, enter manually.');
+        }}
+      />
+
+      <EntryModal 
+        isOpen={modalOpen} 
+        onClose={() => { setModalOpen(false); setEditEntry(null); setTrackingMetrics(null); }} 
+        entry={editEntry} 
+        userId={user?.id} 
+        onSaved={fetchData} 
+        prefillMetrics={trackingMetrics}
+        prefillGear={selectedGear}
+      />
+      
+      {!loading && (
+        <button 
+          onClick={() => setConfigModalOpen(true)}
+          className="fixed bottom-20 right-6 z-50 w-14 h-14 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full shadow-lg shadow-cyan-500/30 flex items-center justify-center transition-transform hover:scale-110"
+          aria-label="Track Session"
+        >
+          <MapPin className="w-6 h-6" />
+        </button>
+      )}
     </div>
   );
 };
