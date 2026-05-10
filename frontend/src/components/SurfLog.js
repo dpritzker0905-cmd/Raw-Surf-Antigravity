@@ -15,6 +15,7 @@ import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 import PreSessionConfigModal from './PreSessionConfigModal';
 import LiveSessionDashboard from './LiveSessionDashboard';
+import GpxUploadModal from './GpxUploadModal';
 
 const MOODS = [
   { id: 'stoked', label: 'Stoked', icon: '🤙', color: 'text-green-400' },
@@ -290,6 +291,7 @@ const SurfLog = () => {
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const [selectedGear, setSelectedGear] = useState('');
   const [trackingMetrics, setTrackingMetrics] = useState(null);
+  const [gpxModalOpen, setGpxModalOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
@@ -409,7 +411,18 @@ const SurfLog = () => {
         }}
         onSyncWatch={() => {
           setConfigModalOpen(false);
-          toast.info('Smartwatch sync API coming soon! For now, enter manually.');
+          setGpxModalOpen(true);
+        }}
+      />
+
+      <GpxUploadModal
+        isOpen={gpxModalOpen}
+        onClose={() => setGpxModalOpen(false)}
+        onParsed={(metrics) => {
+          setGpxModalOpen(false);
+          setTrackingMetrics(metrics);
+          setEditEntry(null);
+          setModalOpen(true);
         }}
       />
 

@@ -14,56 +14,35 @@ export const useSessionTracker = (userId, spotId, isTracking) => {
     startTime: null,
   });
   
-  const lastPosRef = useRef(null);
+  const workerRef = useRef(null);
   const watchIdRef = useRef(null);
-  
-  // Haversine formula to calculate distance
-  const getDistanceFromLatLonInMeters = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // Radius of the earth in m
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2); 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-    return R * c;
-  };
+
+  useEffect(() => {
+    // Initialize Web Worker for offloading calculation
+    workerRef.current = new Worker(new URL('../workers/gpsWorker.js', import.meta.url));
+    
+    workerRef.current.onmessage = (e) => {
+      if (e.data.type === 'METRICS_UPDATE') {
+        setMetrics(prev => ({ ...prev, ...e.data.payload }));
+      }
+    };
+
+    return () => {
+      workerRef.current.terminate();
+    };
+  }, []);
 
   const processPosition = useCallback((position) => {
-    const { latitude, longitude, speed } = position.coords;
-    
-    setMetrics(prev => {
-      let newDistance = prev.distance;
-      let newTopSpeed = prev.topSpeed;
-      let newWaveCount = prev.waveCount;
-      
-      const currentSpeed = speed || 0;
-      if (currentSpeed > newTopSpeed) newTopSpeed = currentSpeed;
-      
-      // Simple wave count heuristic: speed jumps above 4 m/s (approx 9 mph)
-      // In a real app we'd use moving averages and accelerometer data
-      if (currentSpeed > 4.0 && (!lastPosRef.current || (lastPosRef.current.speed || 0) <= 4.0)) {
-        newWaveCount += 1;
-      }
-      
-      if (lastPosRef.current) {
-        const dist = getDistanceFromLatLonInMeters(
-          lastPosRef.current.lat, lastPosRef.current.lon,
-          latitude, longitude
-        );
-        newDistance += dist;
-      }
-      
-      lastPosRef.current = { lat: latitude, lon: longitude, speed: currentSpeed, timestamp: position.timestamp };
-      
-      return {
-        ...prev,
-        distance: newDistance,
-        topSpeed: newTopSpeed,
-        waveCount: newWaveCount
-      };
-    });
+    if (workerRef.current) {
+      workerRef.current.postMessage({
+        type: 'PROCESS_POSITION',
+        payload: {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          speed: position.coords.speed
+        }
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -80,7 +59,9 @@ export const useSessionTracker = (userId, spotId, isTracking) => {
       if (watchIdRef.current) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
-        lastPosRef.current = null;
+        if (workerRef.current) {
+          workerRef.current.postMessage({ type: 'RESET' });
+        }
       }
     }
     
