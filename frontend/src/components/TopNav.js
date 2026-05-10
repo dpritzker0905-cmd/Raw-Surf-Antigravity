@@ -180,7 +180,7 @@ export const TopNav = () => {
         >
           {/* Surfboard-styled pull handle - uses ellipse border radius and a center stringer */}
           <div
-            className={`relative flex items-center justify-center overflow-hidden transition-all duration-300 ${
+            className={`relative flex items-center justify-center overflow-visible transition-all duration-300 ${
               drawerOpen
                 ? 'w-16 h-2 rounded-[50%] bg-gradient-to-r from-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(34,211,238,0.4)]'
                 : 'w-12 h-1.5 rounded-[50%] bg-zinc-600 group-hover:bg-zinc-500'
@@ -188,6 +188,14 @@ export const TopNav = () => {
           >
             {/* The Stringer (center line down the board) */}
             <div className={`w-full h-[1px] ${drawerOpen ? 'bg-white/40' : 'bg-black/40'}`} />
+            
+            {/* The Fin Skeg (single fin) */}
+            <div 
+              className={`absolute -bottom-1.5 right-2 w-1.5 h-1.5 rounded-br-[2px] transition-all duration-300 ${
+                drawerOpen ? 'bg-blue-500' : 'bg-zinc-600 group-hover:bg-zinc-500'
+              }`} 
+              style={{ transform: 'skewX(-20deg)' }}
+            />
           </div>
         </button>
 

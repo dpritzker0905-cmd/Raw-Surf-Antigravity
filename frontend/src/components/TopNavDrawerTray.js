@@ -82,6 +82,11 @@ export const TopNavDrawerTray = ({ isOpen }) => {
           id: 'sessions', icon: Users, label: 'Sessions',
           color: 'text-blue-400',
           isSessionHub: true
+        },
+        {
+          id: 'grom-archives', icon: Image, label: 'Grom Archives',
+          color: 'text-purple-400',
+          action: () => navigate('/gallery')
         }
       ];
     }
@@ -96,7 +101,7 @@ export const TopNavDrawerTray = ({ isOpen }) => {
       {
         id: 'gallery', icon: Image, label: 'My Gallery',
         color: 'text-purple-400',
-        action: () => navigate('/gallery')
+        action: () => navigate('/my-gallery')
       }
     ];
   };
@@ -182,7 +187,7 @@ export const TopNavDrawerTray = ({ isOpen }) => {
         <div className="pt-2 pb-3">
           {/* Single Row Carousel */}
           <div
-            className="flex items-center overflow-x-auto snap-x snap-mandatory transition-all duration-200 [&::-webkit-scrollbar]:hidden"
+            className={`flex items-center overflow-x-auto snap-x snap-mandatory transition-all duration-200 [&::-webkit-scrollbar]:hidden ${allItems.length <= (isWideScreen ? 8 : 6) ? 'justify-center' : ''}`}
             style={{
               opacity: isOpen ? 1 : 0,
               transform: isOpen ? 'translateY(0)' : 'translateY(-8px)',
