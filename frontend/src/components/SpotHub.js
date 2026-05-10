@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { 
   MapPin, Waves, Camera, Clock, Users, X, TrendingUp, Calendar, MessageCircle, Compass,
-  Sun, Lock, Crown, ChevronLeft, AlertCircle, Bell
+  Sun, Lock, Crown, ChevronLeft, AlertCircle, Bell, Brain
 } from 'lucide-react';
 
 import SpotHubConditionsTab from './spot-hub/SpotHubConditionsTab';
