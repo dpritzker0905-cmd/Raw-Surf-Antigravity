@@ -71,7 +71,7 @@ const PreSessionConfigModal = ({ isOpen, onClose, onStartLive, onSyncWatch, onMa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${bg} border-zinc-800 max-w-sm rounded-2xl`}>
+      <DialogContent className={`${bg} border-zinc-800 max-w-sm rounded-2xl max-h-[90vh] overflow-y-auto`}>
         <DialogHeader>
           <DialogTitle className={`text-xl font-bold ${text} text-center`}>Start Session</DialogTitle>
         </DialogHeader>
