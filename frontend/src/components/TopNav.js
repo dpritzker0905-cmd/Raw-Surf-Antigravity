@@ -12,6 +12,7 @@ import { ExclusiveAreaDrawer, hasExclusiveArea, getAreaType, getAreaIcon, getAre
 import { getUnreadCount } from '../services/notificationService';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
+import { AdaptiveBackground } from './AdaptiveBackground';
 
 
 /**
@@ -188,7 +189,8 @@ export const TopNav = () => {
         }}
         data-testid="top-nav"
       >
-        <div className="flex items-center justify-between px-3 py-2.5">
+        <AdaptiveBackground />
+        <div className="flex items-center justify-between px-3 py-2.5 relative z-10">
           {/* Left Side - Logo (tap = refresh feed or go to feed) */}
           <div className="flex items-center shrink-0">
             <button

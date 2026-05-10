@@ -29,7 +29,6 @@ import InCallView from '../messages/InCallView';
 import PermissionDeniedModal from '../messages/PermissionDeniedModal';
 import ViolationBanner from '../ViolationBanner';
 import PushNotificationPrompt from '../PushNotificationPrompt';
-import { AdaptiveBackground } from '../AdaptiveBackground';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -210,9 +209,6 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       className={`${mainBgClass} transition-colors duration-300 relative`}
       style={{ height: '100dvh', overflow: 'hidden' }}
     >
-      {/* Global Background Animation */}
-      <AdaptiveBackground />
-
       {/* System overlays */}
       <ImpersonationBannerWrapper />
       <PersonaMaskBannerWrapper />

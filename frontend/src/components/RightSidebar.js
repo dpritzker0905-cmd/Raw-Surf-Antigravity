@@ -5,6 +5,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { Calendar, Camera, ChevronDown, ChevronRight, Image, CalendarCheck, Radio, Zap, TrendingUp, RefreshCw, MapPin, Target, Crown, Baby, Heart, Backpack, BookOpen, Stamp, CreditCard, BellRing, Lock } from 'lucide-react';
 import { ROLES } from '../constants/roles';
+import { AdaptiveBackground } from './AdaptiveBackground';
 
 export const RightSidebar = () => {
   const { user } = useAuth();
@@ -102,6 +103,7 @@ export const RightSidebar = () => {
 
   return (
     <aside className={`fixed right-0 top-0 h-full ${sidebarBgClass} border-l flex flex-col z-40 transition-all duration-300 overflow-hidden hidden lg:flex sidebar-right ${isMapOpen ? 'w-0 opacity-0 border-l-0' : 'w-[200px] opacity-100'}`}>
+      <AdaptiveBackground />
 
       <div className={`p-4 border-b ${borderClass} flex-shrink-0 w-[200px] z-10 relative`}>
         <span className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>Workspace</span>

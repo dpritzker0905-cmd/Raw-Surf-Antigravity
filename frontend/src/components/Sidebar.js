@@ -11,7 +11,7 @@ import { GlobalSearchBar } from './GlobalSearchBar';
 import useActiveSession from '../hooks/useActiveSession';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
-
+import { AdaptiveBackground } from './AdaptiveBackground';
 
 export const Sidebar = () => {
   const { user, logout } = useAuth();
@@ -158,6 +158,7 @@ export const Sidebar = () => {
 
   return (
     <aside className={`fixed left-0 top-0 h-full w-[200px] ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-colors duration-300 overflow-hidden sidebar-left`}>
+      <AdaptiveBackground />
       {/* Logo - Compact, clickable (Instagram-style refresh) */}
       <div className={`p-3 border-b ${borderClass} flex-shrink-0 z-10 relative`}>
         <button

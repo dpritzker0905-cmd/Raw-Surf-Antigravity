@@ -10,7 +10,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import useRoutePreloader from '../hooks/useRoutePreloader';
-
+import { AdaptiveBackground } from './AdaptiveBackground';
 
 /**
  * Animated Wave Home Icon - Simple Lucide Waves with gentle animation
@@ -274,7 +274,8 @@ export const BottomNav = () => {
       }}
       data-testid="bottom-nav"
     >
-      <div className="flex items-center justify-around py-2 px-1">
+      <AdaptiveBackground />
+      <div className="flex items-center justify-around py-2 px-1 relative z-10">
         {/* Tab 1: Home - Animated Wave Icon */}
         <HomeWaveButton 
           textActiveClass={textActiveClass}
