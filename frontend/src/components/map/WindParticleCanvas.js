@@ -4,129 +4,126 @@ import { useTheme } from '../../contexts/ThemeContext';
 /**
  * WindParticleCanvas — Professional dual-layer wind visualization engine.
  *
- * Architecture matches Windy.com's proven approach:
- *   Layer 1 (Color Field): The PRIMARY visual — a vivid, clearly-visible heatmap
- *     showing wind speed magnitude across the entire viewport. Uses rich, saturated
- *     colors at high enough alpha to be unmistakably visible on BOTH light and dark
- *     base maps. Rendered via ImageData → CSS blur for smooth gradients.
+ * Architecture:
+ *   Layer 1 (Color Field): A vivid heatmap of wind speed across the viewport.
+ *     Rendered via ImageData \u2192 CSS blur. Updates on moveend/zoomend with
+ *     real-time CSS-transform tracking during pan to stay glued to the map.
  *
- *   Layer 2 (Particle Trails): SECONDARY directional accents — bright animated
- *     lines flowing with the wind. Uses pixel-space movement for zoom-agnostic
- *     visibility at all zoom levels.
+ *   Layer 2 (Particle Trails): Animated directional lines flowing with the wind.
+ *     Uses pixel-space movement for zoom-agnostic visibility.
  *
- * Data: Static 1° GFS global wind grid (u/v components, bilinear interpolation).
+ * Data: Static 1\u00B0 GFS global wind grid (u/v, bilinear interpolation).
  */
 
 // --- Configuration ---
 const PARTICLE_COUNT = 3500;
 const MAX_AGE = 70;
 const LINE_WIDTH = 1.0;
-const FIELD_CELL_SIZE = 8;          // px per grid cell for color field
-const FIELD_BLUR_PX = 12;           // CSS blur radius for smooth gradients
-const FIELD_UPDATE_THROTTLE = 120;  // ms debounce for field redraws on map move
+const FIELD_CELL_SIZE = 8;
+const FIELD_BLUR_PX = 12;
+const FIELD_UPDATE_THROTTLE = 80; // ms debounce for field redraws after pan
 const GLOBAL_WIND_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 
 /**
- * FIELD color ramps — the PRIMARY visual layer.
+ * FIELD color ramps \u2014 the primary visual.
  *
- * CRITICAL DESIGN PRINCIPLE: These colors must be clearly visible against
- * their respective map base tiles. Light themes need saturated mid-tone
- * colors (NOT pale/washed out). Dark themes can use brighter neons.
+ * Windy-style hue spread: 6 distinct hue families across the 0\u201317 m/s range
+ * (covers 95% of real-world conditions) so the user ALWAYS sees multi-color
+ * differentiation, not a single monochrome tint.
  *
- * Beaufort-scale 12-stop ramp for professional wind speed differentiation.
+ * Key calibration: alpha at 0.55\u20130.80 so the overlay is the DOMINANT visual
+ * while map geography stays readable beneath.
+ *
  * Format: [minSpeedMS, r, g, b, alpha]
- *
- * Alpha guideline: 0.40 minimum for calm, scaling to 0.75 for extreme.
- * This ensures the field is ALWAYS clearly visible while the map geography
- * (coastlines, city names, roads) remains readable underneath.
  */
 const THEME_FIELD_COLORS = {
   dark: [
-    [0,  40,  80,  160, 0.40],     // calm — deep navy
-    [2,  30,  120, 185, 0.42],     // light air — ocean blue
-    [4,  20,  155, 180, 0.44],     // light breeze — teal
-    [6,  30,  180, 140, 0.46],     // gentle — sea green
-    [8,  60,  195, 90,  0.48],     // moderate — green
-    [11, 140, 210, 40,  0.50],     // fresh — lime
-    [14, 220, 210, 30,  0.52],     // strong — yellow
-    [17, 245, 170, 25,  0.55],     // near gale — amber
-    [21, 245, 110, 30,  0.58],     // gale — orange
-    [25, 235, 60,  40,  0.62],     // strong gale — red-orange
-    [29, 210, 30,  60,  0.66],     // storm — red
-    [34, 180, 20,  120, 0.70],     // violent storm — magenta
-    [40, 140, 15,  160, 0.75],     // hurricane — purple
+    //  Speed   R    G    B    A
+    [0,   30,  60, 160, 0.55],   // calm \u2014 deep blue
+    [2,   25, 100, 185, 0.56],   // light air \u2014 royal blue
+    [3,   20, 145, 195, 0.57],   // \u2014 cyan-blue
+    [5,   15, 180, 175, 0.58],   // light breeze \u2014 teal
+    [7,   30, 190, 120, 0.59],   // gentle \u2014 sea green
+    [9,   70, 195,  60, 0.60],   // moderate \u2014 green
+    [11, 150, 205,  30, 0.61],   // fresh \u2014 lime-green
+    [14, 220, 200,  25, 0.63],   // strong \u2014 yellow
+    [17, 245, 160,  20, 0.65],   // near gale \u2014 amber
+    [21, 245, 100,  25, 0.68],   // gale \u2014 orange
+    [25, 235,  50,  35, 0.72],   // strong gale \u2014 red-orange
+    [30, 210,  25,  55, 0.75],   // storm \u2014 red
+    [36, 175,  15, 110, 0.78],   // violent storm \u2014 magenta
+    [44, 135,  10, 160, 0.80],   // hurricane \u2014 purple
   ],
   light: [
-    // On a WHITE map, we need darker, more saturated colors to be visible!
-    [0,  25,  60,  140, 0.45],     // calm — rich navy (dark on white = visible)
-    [2,  20,  95,  165, 0.47],     // light air — medium blue
-    [4,  15,  130, 155, 0.49],     // light breeze — dark teal
-    [6,  25,  155, 115, 0.51],     // gentle — forest green
-    [8,  50,  165, 55,  0.53],     // moderate — green
-    [11, 120, 175, 25,  0.55],     // fresh — olive-lime
-    [14, 190, 170, 15,  0.57],     // strong — dark gold
-    [17, 215, 130, 15,  0.60],     // near gale — amber
-    [21, 210, 80,  20,  0.63],     // gale — burnt orange
-    [25, 200, 40,  30,  0.66],     // strong gale — dark red
-    [29, 175, 20,  50,  0.70],     // storm — crimson
-    [34, 150, 15,  95,  0.73],     // violent storm — dark magenta
-    [40, 115, 10,  135, 0.76],     // hurricane — dark purple
+    // Darker, saturated tones for contrast against white/light map base
+    [0,   20,  45, 130, 0.55],   // calm \u2014 dark navy
+    [2,   15,  80, 155, 0.56],
+    [3,   10, 115, 160, 0.57],   // \u2014 dark cyan
+    [5,   10, 145, 140, 0.58],   // \u2014 dark teal
+    [7,   20, 155, 100, 0.59],
+    [9,   50, 160,  40, 0.60],   // moderate \u2014 forest green
+    [11, 120, 165,  20, 0.61],   // fresh \u2014 olive
+    [14, 180, 165,  10, 0.63],   // strong \u2014 dark gold
+    [17, 210, 125,  10, 0.65],   // near gale \u2014 dark amber
+    [21, 210,  75,  15, 0.68],   // gale \u2014 burnt orange
+    [25, 200,  35,  25, 0.72],   // strong gale \u2014 dark red
+    [30, 175,  15,  40, 0.75],   // storm \u2014 crimson
+    [36, 145,  10,  85, 0.78],   // violent storm \u2014 dark magenta
+    [44, 110,   5, 130, 0.80],   // hurricane \u2014 dark purple
   ],
   beach: [
-    [0,  170, 130, 80,  0.40],     // calm — warm sand
-    [2,  190, 115, 60,  0.42],     // light air — caramel
-    [4,  205, 95,  50,  0.44],     // light breeze — terracotta
-    [6,  215, 75,  50,  0.46],     // gentle — burnt sienna
-    [8,  220, 55,  55,  0.48],     // moderate — coral red
-    [11, 215, 40,  75,  0.50],     // fresh — hot pink
-    [14, 200, 35,  100, 0.53],     // strong — rose
-    [17, 180, 30,  130, 0.56],     // near gale — magenta
-    [21, 155, 25,  155, 0.59],     // gale — purple
-    [25, 130, 20,  175, 0.62],     // strong gale — dark violet
-    [29, 100, 15,  190, 0.66],     // storm — deep purple
-    [34, 75,  10,  200, 0.70],     // violent storm — indigo
-    [40, 50,  5,   210, 0.74],     // hurricane — royal blue
+    [0,  160, 120,  70, 0.50],   // calm \u2014 warm sand
+    [2,  180, 105,  55, 0.52],
+    [3,  195,  90,  45, 0.54],
+    [5,  210,  70,  45, 0.56],
+    [7,  220,  50,  50, 0.58],   // \u2014 coral
+    [9,  215,  35,  70, 0.60],
+    [11, 205,  30,  95, 0.62],
+    [14, 190,  25, 120, 0.64],   // \u2014 rose
+    [17, 170,  20, 145, 0.66],
+    [21, 145,  15, 165, 0.69],   // \u2014 purple
+    [25, 120,  10, 180, 0.72],
+    [30,  90,  10, 195, 0.75],   // \u2014 deep violet
+    [36,  60,   5, 205, 0.78],
+    [44,  40,   0, 215, 0.80],   // hurricane \u2014 indigo
   ],
 };
 
 /**
- * PARTICLE color ramps — bright directional accents above the color field.
- * These use HIGH contrast colors (near-white for dark theme, dark for light)
- * so they pop above the field layer.
+ * PARTICLE color ramps \u2014 bright accents above the field.
  * Format: [minSpeedMS, r, g, b, alpha]
  */
 const THEME_PARTICLE_COLORS = {
   dark: [
-    [0,  200, 230, 255, 0.50],     // calm — bright white-blue
-    [5,  170, 245, 245, 0.60],     // moderate — bright cyan
-    [10, 220, 255, 210, 0.68],     // fresh — bright green-white
-    [15, 255, 255, 170, 0.74],     // strong — bright yellow-white
-    [20, 255, 210, 130, 0.80],     // gale — bright orange-white
-    [28, 255, 150, 150, 0.85],     // storm — bright red-white
-    [36, 255, 130, 220, 0.90],     // hurricane — bright magenta-white
+    [0,  200, 230, 255, 0.50],
+    [5,  170, 245, 245, 0.60],
+    [10, 220, 255, 210, 0.68],
+    [15, 255, 255, 170, 0.74],
+    [20, 255, 210, 130, 0.80],
+    [28, 255, 150, 150, 0.85],
+    [36, 255, 130, 220, 0.90],
   ],
   light: [
-    // On light map with dark field, particles should be LIGHTER to contrast
-    [0,  50,  90,  180, 0.55],     // calm — medium blue (darker than field)
-    [5,  40,  140, 170, 0.65],     // moderate — teal
-    [10, 60,  170, 70,  0.70],     // fresh — green
-    [15, 180, 170, 20,  0.75],     // strong — gold
-    [20, 220, 110, 20,  0.80],     // gale — orange
-    [28, 200, 40,  40,  0.85],     // storm — red
-    [36, 160, 20,  100, 0.90],     // hurricane — magenta
+    [0,   50,  90, 180, 0.55],
+    [5,   40, 140, 170, 0.65],
+    [10,  60, 170,  70, 0.70],
+    [15, 180, 170,  20, 0.75],
+    [20, 220, 110,  20, 0.80],
+    [28, 200,  40,  40, 0.85],
+    [36, 160,  20, 100, 0.90],
   ],
   beach: [
-    [0,  255, 230, 190, 0.50],     // calm — warm cream
-    [5,  255, 195, 140, 0.60],     // moderate — peach
-    [10, 255, 155, 120, 0.68],     // fresh — salmon
-    [15, 255, 115, 110, 0.74],     // strong — coral
-    [20, 245, 80,  130, 0.80],     // gale — hot pink
-    [28, 210, 60,  180, 0.85],     // storm — purple
-    [36, 160, 50,  220, 0.90],     // hurricane — violet
+    [0,  255, 230, 190, 0.50],
+    [5,  255, 195, 140, 0.60],
+    [10, 255, 155, 120, 0.68],
+    [15, 255, 115, 110, 0.74],
+    [20, 245,  80, 130, 0.80],
+    [28, 210,  60, 180, 0.85],
+    [36, 160,  50, 220, 0.90],
   ],
 };
 
-/** Look up [speed, r, g, b, a] from a structured ramp */
+/** Look up [speed, r, g, b, a] from a sorted ramp */
 function lookupColor(speed, ramp) {
   for (let i = ramp.length - 1; i >= 0; i--) {
     if (speed >= ramp[i][0]) return ramp[i];
@@ -157,27 +154,22 @@ class GlobalWindGrid {
     this.vData = v.data;
   }
 
-  /** Bilinear interpolation of wind [u, v, speed] at a geographic point */
   interpolate(lat, lng) {
     let lon = lng;
     while (lon < this.lo1) lon += 360;
     while (lon > this.lo2 + this.dx) lon -= 360;
-
     const fi = (lon - this.lo1) / this.dx;
     const fj = (this.la1 - lat) / this.dy;
     const i = Math.floor(fi);
     const j = Math.floor(fj);
     if (i < 0 || i >= this.nx - 1 || j < 0 || j >= this.ny - 1) return null;
-
     const fx = fi - i;
     const fy = fj - j;
     const p = j * this.nx + i;
-
     const u = (1 - fx) * (1 - fy) * this.uData[p] + fx * (1 - fy) * this.uData[p + 1]
             + (1 - fx) * fy * this.uData[p + this.nx] + fx * fy * this.uData[p + this.nx + 1];
     const v = (1 - fx) * (1 - fy) * this.vData[p] + fx * (1 - fy) * this.vData[p + 1]
             + (1 - fx) * fy * this.vData[p + this.nx] + fx * fy * this.vData[p + this.nx + 1];
-
     return [u, v, Math.sqrt(u * u + v * v)];
   }
 }
@@ -191,6 +183,9 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   const animRef = useRef(null);
   const windGridRef = useRef(null);
   const fieldTimerRef = useRef(null);
+  // Stores the geographic anchor point at the time the field was last rendered.
+  // Used to compute CSS-transform offset during pan so the overlay stays glued.
+  const fieldOriginRef = useRef(null);
   const [gridLoaded, setGridLoaded] = useState(false);
   const { theme } = useTheme();
 
@@ -237,8 +232,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     const container = map.getContainer();
     const w = container.clientWidth;
     const h = container.clientHeight;
-
-    // Size canvas to match viewport (no DPR scaling for field — blur smooths anyway)
     canvas.width = w;
     canvas.height = h;
     canvas.style.width = w + 'px';
@@ -253,7 +246,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
-        // Sample wind at the center of each cell
         const cx = (col + 0.5) * FIELD_CELL_SIZE;
         const cy = (row + 0.5) * FIELD_CELL_SIZE;
         const geo = map.unproject([cx, cy]);
@@ -264,7 +256,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
         const c = lookupColor(speed, ramp);
         const r = c[1], g = c[2], b = c[3], a = Math.round(c[4] * 255);
 
-        // Fill the cell block with the looked-up color
         const startX = col * FIELD_CELL_SIZE;
         const startY = row * FIELD_CELL_SIZE;
         const endX = Math.min(startX + FIELD_CELL_SIZE, w);
@@ -283,9 +274,35 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     }
 
     ctx.putImageData(imgData, 0, 0);
+
+    // --- PAN-SYNC: Record the anchor point for CSS transform tracking ---
+    const center = map.getCenter();
+    const centerPx = map.project([center.lng, center.lat]);
+    fieldOriginRef.current = {
+      lng: center.lng, lat: center.lat,
+      px: centerPx.x, py: centerPx.y,
+    };
+    // Reset any CSS transform left from a prior drag
+    canvas.style.transform = '';
+    if (trailRef.current) trailRef.current.style.transform = '';
   }, [mapInstance, fieldRamp]);
 
-  // Render field on load + throttled on viewport change
+  // --- PAN-SYNC: CSS-transform tracking during drag ---
+  const onMapMove = useCallback(() => {
+    const map = mapInstance;
+    const origin = fieldOriginRef.current;
+    if (!map || !origin) return;
+    try {
+      const cur = map.project([origin.lng, origin.lat]);
+      const dx = cur.x - origin.px;
+      const dy = cur.y - origin.py;
+      const t = `translate(${dx}px, ${dy}px)`;
+      if (fieldRef.current) fieldRef.current.style.transform = t;
+      if (trailRef.current) trailRef.current.style.transform = t;
+    } catch (_) { /* map not ready */ }
+  }, [mapInstance]);
+
+  // Render field on load + throttled on viewport change + pan sync
   useEffect(() => {
     const map = mapInstance;
     if (!map || !isActive || !gridLoaded) return;
@@ -297,17 +314,21 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       fieldTimerRef.current = setTimeout(renderColorField, FIELD_UPDATE_THROTTLE);
     };
 
+    // `move` fires every frame during pan/zoom \u2014 used for CSS transform sync
+    map.on('move', onMapMove);
+    // `moveend`/`zoomend` fires after interaction \u2014 used for full re-render
     map.on('moveend', onViewChange);
     map.on('zoomend', onViewChange);
     window.addEventListener('resize', onViewChange);
 
     return () => {
+      map.off('move', onMapMove);
       map.off('moveend', onViewChange);
       map.off('zoomend', onViewChange);
       window.removeEventListener('resize', onViewChange);
       clearTimeout(fieldTimerRef.current);
     };
-  }, [mapInstance, isActive, gridLoaded, renderColorField]);
+  }, [mapInstance, isActive, gridLoaded, renderColorField, onMapMove]);
 
   // Re-render field when theme changes
   useEffect(() => {
@@ -348,7 +369,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     }
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(seedParticle());
 
-    // Cache pixels-per-degree at the map center for pixel-space movement
     let cachedPPD = 1;
     let frameCount = 0;
     function updatePPD() {
@@ -370,11 +390,10 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       const grid = windGridRef.current;
       const ramp = particleRamp;
 
-      // Refresh PPD every ~30 frames (~0.5s at 60fps)
       frameCount++;
       if (frameCount % 30 === 0) updatePPD();
 
-      // --- Fade existing trails ---
+      // Fade existing trails
       tCtx.globalCompositeOperation = 'destination-in';
       tCtx.globalAlpha = 1.0;
       tCtx.fillStyle = 'rgba(0, 0, 0, 0.90)';
@@ -385,7 +404,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       if (!grid) { animRef.current = requestAnimationFrame(draw); return; }
 
       for (const p of particles) {
-        // Initialize geographic coords from random pixel position
         if (p.lng === undefined || p.lat === undefined) {
           const geo = map.unproject([p.x, p.y]);
           p.lng = geo.lng;
@@ -397,9 +415,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           const [u, v, speed] = wind;
           const prevPos = map.project([p.lng, p.lat]);
 
-          // --- PIXEL-SPACE MOVEMENT ---
-          // Target a constant pixel displacement per frame regardless of zoom.
-          // This guarantees visible particle motion at ALL zoom levels.
           const targetPx = 1.0 + speed * 0.12;
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
@@ -413,12 +428,11 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           const dy = newPos.y - prevPos.y;
           const pixelDist = Math.sqrt(dx * dx + dy * dy);
 
-          // Skip sub-pixel movements (invisible)
           if (pixelDist < 0.5) continue;
 
           const entry = lookupColor(speed, ramp);
 
-          // --- Subtle glow halo for strong winds ---
+          // Glow halo for strong winds
           if (speed > 12) {
             tCtx.beginPath();
             tCtx.moveTo(prevPos.x, prevPos.y);
@@ -428,7 +442,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             tCtx.stroke();
           }
 
-          // --- Core particle line ---
+          // Core particle line
           tCtx.beginPath();
           tCtx.moveTo(prevPos.x, prevPos.y);
           tCtx.lineTo(newPos.x, newPos.y);
@@ -436,14 +450,13 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           tCtx.strokeStyle = toRgba(entry);
           tCtx.stroke();
         } else {
-          // No wind data at this position — recycle immediately
           p.age = MAX_AGE + 1;
         }
 
-        // Recycle expired or out-of-viewport particles
         if (p.lng !== undefined) {
           const testPos = map.project([p.lng, p.lat]);
-          if (p.age > MAX_AGE || testPos.x < -50 || testPos.x > w + 50 || testPos.y < -50 || testPos.y > h + 50) {
+          if (p.age > MAX_AGE || testPos.x < -50 || testPos.x > w + 50
+              || testPos.y < -50 || testPos.y > h + 50) {
             Object.assign(p, seedParticle());
           }
         }
@@ -485,8 +498,12 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   };
 
   return (
-    <>
-      {/* Layer 1: Wind speed color field — PRIMARY (blurred for smooth gradients) */}
+    // Wrapper clips CSS blur bleed at viewport edges
+    <div style={{
+      position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+      overflow: 'hidden', pointerEvents: 'none', zIndex: 4,
+    }}>
+      {/* Layer 1: Wind speed color field (blurred for smooth gradients) */}
       <canvas
         ref={fieldRef}
         style={{
@@ -495,7 +512,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           filter: `blur(${FIELD_BLUR_PX}px)`,
         }}
       />
-      {/* Layer 2: Animated particle trails — SECONDARY (directional accents) */}
+      {/* Layer 2: Animated particle trails (directional accents) */}
       <canvas
         ref={trailRef}
         style={{
@@ -503,7 +520,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           zIndex: 5,
         }}
       />
-    </>
+    </div>
   );
 };
 
