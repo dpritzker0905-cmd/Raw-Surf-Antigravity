@@ -22,6 +22,7 @@ import { NearestSpotCard } from './map/NearestSpotCard';
 import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapTimelineSlider from './map/MapTimelineSlider';
+import MobileTimelineDrawer from './map/MobileTimelineDrawer';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
 import { FLORIDA_CENTER, isValidLatLng, truncateCoord } from './map/mapUtils';
@@ -577,9 +578,27 @@ const MapPageContent = () => {
         </>
       )}
 
-      {/* Timeline / Radar Scrubber (shows when any weather layer is active) */}
+      {/* Desktop Timeline (hidden on mobile) */}
       {activeLayers.length > 0 && (
-        <MapTimelineSlider
+        <div className="hidden md:block">
+          <MapTimelineSlider
+            radarMode={isRadarOrSat}
+            radarFrames={radarFrames}
+            radarFrameIndex={radarFrameIndex}
+            onRadarFrameChange={setRadarFrameIndex}
+            currentTimeOffset={timeOffsetHours}
+            onTimeChange={setTimeOffsetHours}
+            isPlaying={isPlayingTimeline}
+            onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
+            userTier={user?.tier_id || 'tier_1'}
+            onUpgradeClick={handleUpgradeClick}
+          />
+        </div>
+      )}
+
+      {/* Mobile Timeline Drawer — collapsible bar above bottom nav */}
+      {activeLayers.length > 0 && (
+        <MobileTimelineDrawer
           radarMode={isRadarOrSat}
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
@@ -588,8 +607,7 @@ const MapPageContent = () => {
           onTimeChange={setTimeOffsetHours}
           isPlaying={isPlayingTimeline}
           onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
-          userTier={user?.tier_id || 'tier_1'}
-          onUpgradeClick={handleUpgradeClick}
+          activeLayer={activeLayers[0]}
         />
       )}
 
