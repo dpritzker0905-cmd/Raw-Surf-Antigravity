@@ -188,6 +188,15 @@ const MapPageContent = () => {
     };
   }, [isPlayingTimeline, isRadarOrSat, radarFrames.length]);
 
+  const maxHoursForUser = useMemo(() => {
+    const tier = user?.tier_id || 'tier_1';
+    if (tier === 'tier_3' || tier === 'admin') return 14 * 24;
+    if (tier === 'tier_2') return 7 * 24;
+    return 24;
+  }, [user]);
+
+  const isLockedForecast = timeOffsetHours > maxHoursForUser;
+
   // Forecast time-step animation (non-radar layers: precipitation, wind, pressure, waves)
   const forecastIntervalRef = useRef(null);
   useEffect(() => {
@@ -217,15 +226,6 @@ const MapPageContent = () => {
     // Show a toast or trigger subscription modal
     toast.info("Upgrade your subscription to access this feature!");
   }, []);
-
-  const maxHoursForUser = useMemo(() => {
-    const tier = user?.tier_id || 'tier_1';
-    if (tier === 'tier_3' || tier === 'admin') return 14 * 24;
-    if (tier === 'tier_2') return 7 * 24;
-    return 24;
-  }, [user]);
-
-  const isLockedForecast = timeOffsetHours > maxHoursForUser;
 
   
   // Nearest spot (derived from user location)
