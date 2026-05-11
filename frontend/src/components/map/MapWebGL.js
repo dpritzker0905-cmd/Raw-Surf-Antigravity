@@ -278,8 +278,8 @@ const MapWebGL = ({
       
       try {
         const bounds = mapInstance.getBounds();
-        const latMin = Math.max(-90, bounds.getSouth() - 5);
-        const latMax = Math.min(90, bounds.getNorth() + 5);
+        const latMin = Math.max(-80, bounds.getSouth() - 5);
+        const latMax = Math.min(80, bounds.getNorth() + 5);
         const lngMin = bounds.getWest() - 5;
         const lngMax = bounds.getEast() + 5;
 
@@ -408,14 +408,14 @@ const MapWebGL = ({
       {/* Uses the om:// custom protocol */}
       {omTileUrl && (
         <Source
-          key={`om-weather-raster-${omTileUrl}`}
-          id="om-weather-raster-source"
+          key={`om-weather-source-${omTileUrl}`}
+          id={`om-weather-source-${omTileUrl}`}
           type="raster"
           url={omTileUrl}
           maxzoom={12}
         >
           <Layer
-            id="om-weather-raster-layer"
+            id={`om-weather-layer-${omTileUrl}`}
             type="raster"
             paint={{ 'raster-opacity': 0.7, 'raster-fade-duration': 300 }}
           />

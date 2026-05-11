@@ -18,17 +18,17 @@ export const IPLocationBanner = ({
 
   return (
     <div
-      className={`mt-2 px-3 py-2 rounded-lg backdrop-blur-sm pointer-events-auto flex items-center justify-between gap-2 text-sm ${
+      className={`mt-2 px-3 py-2 rounded-full backdrop-blur-md pointer-events-auto flex items-center justify-between gap-2 text-sm shadow-lg ${
         cityChanged
-          ? 'bg-gradient-to-r from-yellow-900/80 to-orange-900/80 border border-yellow-500/30'
+          ? 'bg-zinc-900/90 border border-cyan-500/30'
           : 'bg-zinc-800/90 border border-zinc-700'
       }`}
       data-testid="ip-location-banner"
     >
       <div className="flex items-center gap-2 min-w-0">
-        <MapPin className="w-4 h-4 flex-shrink-0 text-gray-400" />
+        <MapPin className={`w-4 h-4 flex-shrink-0 ${cityChanged ? 'text-cyan-400' : 'text-gray-400'}`} />
         <span className="text-gray-300 truncate">
-          {cityChanged ? 'Updated: ' : ''}
+          {cityChanged ? <span className="text-cyan-400 mr-1">Updated:</span> : ''}
           <span className="font-medium text-white">{ipLocation?.city}</span>
           <span className="text-gray-500 text-xs ml-1">(approx)</span>
         </span>

@@ -134,8 +134,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(seedParticle());
 
     function draw() {
-      if (moving) { animRef.current = requestAnimationFrame(draw); return; }
-
       const zoom = map.getZoom();
       const zoomScale = SPEED_FACTOR * Math.pow(zoom / 7, 0.8);
       const w = trailCanvas.width;
@@ -187,28 +185,12 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       animRef.current = requestAnimationFrame(draw);
     }
 
-    function onMoveStart() {
-      moving = true;
-      tCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
-    }
-    
-    function onMoveEnd() {
-      moving = false;
-      resize();
-      particles = [];
-      for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(seedParticle());
-    }
-
-    map.on('movestart', onMoveStart);
-    map.on('moveend', onMoveEnd);
     window.addEventListener('resize', resize);
     
     draw();
 
     return () => {
       cancelAnimationFrame(animRef.current);
-      map.off('movestart', onMoveStart);
-      map.off('moveend', onMoveEnd);
       window.removeEventListener('resize', resize);
       tCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
     };

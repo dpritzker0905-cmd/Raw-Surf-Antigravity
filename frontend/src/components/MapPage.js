@@ -503,15 +503,6 @@ const MapPageContent = () => {
               setUnifiedDrawerOpen(true);
             }}
           />
-          <IPLocationBanner
-            showIpBanner={showIpBanner}
-            cityChanged={cityChanged}
-            locationDenied={locationDenied}
-            ipLocation={ipLocation}
-            userLocation={userLocation}
-            onRequestGPS={getUserLocation}
-            onDismiss={() => setShowIpBanner(false)}
-          />
           <RequestProButton
             userLocation={userLocation}
             requestProLocationLoading={requestProLocationLoading}
@@ -520,6 +511,15 @@ const MapPageContent = () => {
             setLocationDenied={setLocationDenied}
             getUserLocation={getUserLocation}
             setShowRequestProModal={setShowRequestProModal}
+          />
+          <IPLocationBanner
+            showIpBanner={showIpBanner}
+            cityChanged={cityChanged}
+            locationDenied={locationDenied}
+            ipLocation={ipLocation}
+            userLocation={userLocation}
+            onRequestGPS={getUserLocation}
+            onDismiss={() => setShowIpBanner(false)}
           />
         </div>
       </div>
