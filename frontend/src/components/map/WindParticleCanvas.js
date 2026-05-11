@@ -140,44 +140,63 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       const h = trailCanvas.height;
       const grid = windGridRef.current;
 
-      // Fade existing trails slightly
+      // Fade existing trails slightly more slowly to build up the color layer
       tCtx.globalCompositeOperation = 'destination-in';
-      tCtx.fillStyle = `rgba(0, 0, 0, ${FADE_ALPHA})`;
+      tCtx.fillStyle = `rgba(0, 0, 0, 0.90)`; 
       tCtx.fillRect(0, 0, w, h);
       tCtx.globalCompositeOperation = 'source-over';
 
       if (grid) {
         for (const p of particles) {
-          const geo = map.unproject([p.x, p.y]);
-          const wind = grid.interpolate(geo.lat, geo.lng);
+          // Initialize geographic coordinates if not set
+          if (p.lng === undefined || p.lat === undefined) {
+            const geo = map.unproject([p.x, p.y]);
+            p.lng = geo.lng;
+            p.lat = geo.lat;
+          }
+
+          const wind = grid.interpolate(p.lat, p.lng);
           if (wind) {
             const [u, v, speed] = wind;
-            const px = p.x;
-            const py = p.y;
-            p.x += u * zoomScale;
-            p.y -= v * zoomScale; // Canvas Y is flipped
+            
+            // Get previous pixel position
+            const prevPos = map.project([p.lng, p.lat]);
+            
+            // Geographic step (adjust based on speed and zoom scale)
+            // Convert u, v (m/s) to approximate degrees. Very rough approximation.
+            const degreeScale = 0.005 * zoomScale;
+            p.lng += u * degreeScale;
+            p.lat += v * degreeScale;
             p.age++;
             
-            const angle = Math.atan2(-v, u); // Canvas Y is inverted
-            const arrowSize = 4 * (1 + zoomScale * 0.1); // Dynamic arrow size based on zoom
+            // Get new pixel position
+            const newPos = map.project([p.lng, p.lat]);
+            
+            const angle = Math.atan2(newPos.y - prevPos.y, newPos.x - prevPos.x); 
+            const arrowSize = 3 * (1 + zoomScale * 0.1); 
             
             tCtx.beginPath();
-            tCtx.moveTo(px, py);
-            tCtx.lineTo(p.x, p.y);
+            tCtx.moveTo(prevPos.x, prevPos.y);
+            tCtx.lineTo(newPos.x, newPos.y);
             
-            // Draw tiny arrowhead at current position
-            tCtx.lineTo(p.x - arrowSize * Math.cos(angle - Math.PI / 6), p.y - arrowSize * Math.sin(angle - Math.PI / 6));
-            tCtx.moveTo(p.x, p.y);
-            tCtx.lineTo(p.x - arrowSize * Math.cos(angle + Math.PI / 6), p.y - arrowSize * Math.sin(angle + Math.PI / 6));
+            // Draw subtle arrowhead
+            tCtx.lineTo(newPos.x - arrowSize * Math.cos(angle - Math.PI / 6), newPos.y - arrowSize * Math.sin(angle - Math.PI / 6));
+            tCtx.moveTo(newPos.x, newPos.y);
+            tCtx.lineTo(newPos.x - arrowSize * Math.cos(angle + Math.PI / 6), newPos.y - arrowSize * Math.sin(angle + Math.PI / 6));
             
             tCtx.lineWidth = LINE_WIDTH;
             tCtx.strokeStyle = getWindColor(speed);
             tCtx.stroke();
           } else {
-            p.age = MAX_AGE + 1; // Kill particle if outside valid data
+            p.age = MAX_AGE + 1; // Kill if outside valid data
           }
-          if (p.age > MAX_AGE || p.x < 0 || p.x > w || p.y < 0 || p.y > h) {
+          
+          // Check bounds using projected pixel coordinates
+          const testPos = map.project([p.lng, p.lat]);
+          if (p.age > MAX_AGE || testPos.x < 0 || testPos.x > w || testPos.y < 0 || testPos.y > h) {
             Object.assign(p, seedParticle());
+            p.lng = undefined;
+            p.lat = undefined;
           }
         }
       }

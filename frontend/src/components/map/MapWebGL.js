@@ -427,26 +427,22 @@ const MapWebGL = ({
         <Source id="marine-source" type="geojson" data={marineData}>
           <Layer
             id="marine-heatmap"
-            type="heatmap"
+            type="circle"
             paint={{
-              'heatmap-weight': [
+              'circle-color': [
                 'interpolate', ['linear'],
                 ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
-                0, 0.1, activeLayers.includes('swell_height') ? 5 : 15, 1
+                0, 'rgba(0,0,0,0)',
+                activeLayers.includes('swell_height') ? 0.5 : 4, '#93c5fd',   // blue-300
+                activeLayers.includes('swell_height') ? 1.5 : 8, '#22d3ee',   // cyan-400
+                activeLayers.includes('swell_height') ? 2.5 : 12, '#2563eb',  // blue-600
+                activeLayers.includes('swell_height') ? 3.5 : 16, '#9333ea',  // purple-600
+                activeLayers.includes('swell_height') ? 5.0 : 20, '#be123c'   // rose-700
               ],
-              'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 1, 1.5, 8, 3, 12, 5],
-              'heatmap-color': [
-                'interpolate', ['linear'], ['heatmap-density'],
-                0,   'rgba(0,0,0,0)',
-                0.2, 'rgba(0,100,255,0.4)',
-                0.4, 'rgba(0,200,255,0.6)',
-                0.6, 'rgba(0,255,150,0.7)',
-                0.8, 'rgba(255,150,0,0.85)',
-                1.0, 'rgba(255,50,0,0.95)'
-              ],
-              // Extreme radius to interpolate sparse 8x8 grid smoothly over entire oceans
-              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 150, 4, 300, 8, 450, 12, 600],
-              'heatmap-opacity': 0.7
+              // Massive blurred circles to perfectly simulate an interpolating heatmap
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 70, 4, 160, 8, 350, 12, 600],
+              'circle-blur': 0.8,
+              'circle-opacity': 0.65
             }}
           />
         </Source>
