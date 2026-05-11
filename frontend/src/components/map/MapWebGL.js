@@ -203,8 +203,7 @@ const MapWebGL = ({
           key={`om-weather-${omTileUrl}`}
           id="om-weather-source"
           type="raster"
-          tiles={[omTileUrl]}
-          tileSize={256}
+          url={omTileUrl}
           maxzoom={12}
         >
           <Layer
