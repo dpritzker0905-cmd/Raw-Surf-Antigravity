@@ -28,9 +28,10 @@ const OM_MODEL_MAP = {
  * `null` means no tile is available (data-card only).
  */
 const OM_VARIABLE_MAP = {
-  precipitation: null, // Open-Meteo precipitation tile layers crash on load, using RainViewer instead
-  wind:          'wind_gusts_10m',
+  precipitation: 'precipitation',
+  wind:          'wind_u_component_10m',
   pressure:      'pressure_msl',
+  fog:           'cloud_cover',
   swell_height:  null,  // Marine models don't have tile coverage yet
   swell_period:  null,
 };
@@ -253,20 +254,56 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Open-Meteo Animated Weather Tiles (precipitation, wind, pressure) */}
+      {/* Open-Meteo Animated Weather Tiles (precipitation, wind, fog, pressure) */}
       {/* Uses the om:// custom protocol — works for both live AND forecast time offsets */}
       {omTileUrl && (
         <Source
-          key={`om-weather-${omTileUrl}`}
-          id="om-weather-source"
+          key={`om-weather-raster-${omTileUrl}`}
+          id="om-weather-raster-source"
           type="raster"
           url={omTileUrl}
           maxzoom={12}
         >
           <Layer
-            id="om-weather-layer"
+            id="om-weather-raster-layer"
             type="raster"
             paint={{ 'raster-opacity': 0.7, 'raster-fade-duration': 300 }}
+          />
+        </Source>
+      )}
+
+      {/* Wind Directional Arrows (Vector) */}
+      {omTileUrl && activeLayers.includes('wind') && (
+        <Source
+          key={`om-weather-vector-${omTileUrl}`}
+          id="om-weather-vector-source"
+          type="vector"
+          url={`${omTileUrl}&arrows=true`}
+        >
+          <Layer
+            id="om-weather-vector-layer"
+            type="line"
+            source-layer="wind-arrows"
+            paint={{
+              'line-color': [
+                'case',
+                ['boolean', ['>', ['to-number', ['get', 'value']], 25], false],
+                'rgba(0,0,0, 0.8)',
+                [
+                  'case',
+                  ['boolean', ['>', ['to-number', ['get', 'value']], 15], false],
+                  'rgba(0,0,0, 0.6)',
+                  [
+                    'case',
+                    ['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
+                    'rgba(0,0,0, 0.4)',
+                    'rgba(0,0,0, 0.2)'
+                  ]
+                ]
+              ],
+              'line-width': 2
+            }}
+            layout={{ 'line-cap': 'round' }}
           />
         </Source>
       )}
