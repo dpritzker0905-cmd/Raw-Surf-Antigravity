@@ -3,14 +3,12 @@ import { Wind, Waves, CloudRain, Thermometer, ArrowUp, Droplets, Gauge } from 'l
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
- * Floating forecast data overlay — renders when a weather layer is active
- * and the timeline is NOT at "Live" (timeOffset > 0).
+ * Floating forecast data readout — renders alongside tile overlays when
+ * a weather layer is active.
  *
  * Data source: Open-Meteo Weather & Marine APIs (GFS / ECMWF / ICON).
- * This replaces map tile overlays for forecast time offsets because
- * no free tile provider supplies forecast raster tiles.
- *
- * For "Live" (timeOffset === 0), the OWM raster tiles handle visualization.
+ * Shows numeric values for the currently selected layer + time offset.
+ * Map tile visualization is handled by the om:// protocol in MapWebGL.
  */
 export const MapForecastOverlay = ({
   forecastData,
@@ -23,10 +21,7 @@ export const MapForecastOverlay = ({
   const { theme } = useTheme();
   const isLight = theme === 'light';
 
-  // Don't show for Live (tile overlays handle that)
-  if (timeOffsetHours === 0 && activeLayer !== 'swell_height' && activeLayer !== 'swell_period') {
-    return null;
-  }
+  // Always show data readout when layer is active (tiles + numeric data)
 
   // Don't show when no data loaded yet
   if (!forecastData && !marineData) return null;
@@ -119,7 +114,7 @@ export const MapForecastOverlay = ({
 
   return (
     <div
-      className={`absolute top-28 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px]`}
+      className={`absolute bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
     >
       {/* Header */}

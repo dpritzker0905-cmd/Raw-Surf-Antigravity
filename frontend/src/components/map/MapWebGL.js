@@ -1,11 +1,48 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
+import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+// --- Open-Meteo Weather Tile Protocol ---
+// Registers the `om://` custom protocol for MapLibre at module level.
+// This enables raster weather tile overlays powered by Open-Meteo OMfiles
+// (precipitation, wind, pressure, cloud cover) for live AND forecast time offsets.
+let omProtocolRegistered = false;
+try {
+  const { omProtocol } = require('@openmeteo/weather-map-layer');
+  if (!omProtocolRegistered) {
+    maplibregl.addProtocol('om', omProtocol);
+    omProtocolRegistered = true;
+  }
+} catch (e) {
+  console.warn('[MapWebGL] @openmeteo/weather-map-layer not available:', e.message);
+}
+
+/**
+ * Map Open-Meteo model identifiers to their tile-server paths.
+ * Used to construct om:// source URLs.
+ */
+const OM_MODEL_MAP = {
+  GFS:  'ncep_gfs025',
+  EURO: 'ecmwf_ifs025',
+  ICON: 'dwd_icon',
+};
+
+/**
+ * Map app layer IDs to Open-Meteo tile variable names.
+ * `null` means no tile is available (data-card only).
+ */
+const OM_VARIABLE_MAP = {
+  precipitation: 'precipitation',
+  wind:          'wind_speed_10m',
+  pressure:      'surface_pressure',
+  swell_height:  null,  // Marine models don't have tile coverage yet
+  swell_period:  null,
+};
 const MapWebGL = ({
   isLight,
   userLocation,
@@ -36,9 +73,18 @@ const MapWebGL = ({
   
   const [bounds, setBounds] = useState(null);
 
-  // OpenWeatherMap API key from env
-  const owmKey = process.env.REACT_APP_OWM_API_KEY || '';
-  const isLive = timeOffsetHours === 0;
+  // Open-Meteo tile source URL — builds om:// URL for the active weather layer
+  const omTileUrl = useMemo(() => {
+    if (!activeLayers.length) return null;
+    const activeLayer = activeLayers[0];
+    // Radar + satellite use RainViewer, not Open-Meteo tiles
+    if (activeLayer === 'radar' || activeLayer === 'satellite') return null;
+    const variable = OM_VARIABLE_MAP[activeLayer];
+    if (!variable) return null; // swell layers — no tile data
+    const model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+    const darkParam = !isLight ? '&dark=true' : '';
+    return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?variable=${variable}${darkParam}`;
+  }, [activeLayers, activeModel, isLight]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -150,30 +196,25 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Precipitation (OpenWeatherMap — current conditions only) */}
-      {activeLayers.includes('precipitation') && owmKey && isLive && (
-        <Source id="precip-source" type="raster" tiles={[`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
-          <Layer id="precip-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
+      {/* Open-Meteo Animated Weather Tiles (precipitation, wind, pressure) */}
+      {/* Uses the om:// custom protocol — works for both live AND forecast time offsets */}
+      {omTileUrl && (
+        <Source
+          key={`om-weather-${omTileUrl}`}
+          id="om-weather-source"
+          type="raster"
+          url={omTileUrl}
+          maxzoom={12}
+        >
+          <Layer
+            id="om-weather-layer"
+            type="raster"
+            paint={{ 'raster-opacity': 0.7, 'raster-fade-duration': 300 }}
+          />
         </Source>
       )}
 
-      {/* Wind (OpenWeatherMap — current conditions only) */}
-      {activeLayers.includes('wind') && owmKey && isLive && (
-        <Source id="wind-source" type="raster" tiles={[`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
-          <Layer id="wind-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
-        </Source>
-      )}
-
-      {/* Pressure (OpenWeatherMap — current conditions only) */}
-      {activeLayers.includes('pressure') && owmKey && isLive && (
-        <Source id="pressure-source" type="raster" tiles={[`https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
-          <Layer id="pressure-layer" type="raster" paint={{ 'raster-opacity': 0.6 }} />
-        </Source>
-      )}
-
-      {/* Wave/Swell layers use Open-Meteo data overlay (MapForecastOverlay) */}
-      {/* No tile source exists for free wave data — handled by JSON forecast panel */}
-      {/* ---------------------------------- */}
+      {/* Wave/Swell layers — no raster tiles available yet, handled by data-card overlay */}
 
       {/* Spot Clusters */}
       {spotClusters.map(cluster => {

@@ -6,6 +6,7 @@
     "@hookform/resolvers": "^5.0.1",
     "@livekit/components-react": "^2.9.20",
     "@livekit/components-styles": "^1.2.0",
+    "@openmeteo/weather-map-layer": "^0.0.19",
     "@radix-ui/react-accordion": "^1.2.8",
     "@radix-ui/react-alert-dialog": "^1.1.11",
     "@radix-ui/react-aspect-ratio": "^1.1.4",

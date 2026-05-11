@@ -189,12 +189,16 @@ const MapPageContent = () => {
       .catch(err => logger.error('[MAP] RainViewer fetch failed:', err));
   }, []);
 
-  // Radar animation interval — cycles frames when playing + radar active
+  // Animation intervals — cycles through frames/time when playing
   const isRadarActive = activeLayers.includes('radar');
   const isSatelliteActive = activeLayers.includes('satellite');
-  const isAnimatedLayer = isRadarActive || isSatelliteActive;
+  const isRadarOrSat = isRadarActive || isSatelliteActive;
+  // All weather layers are now animated (radar via frames, others via time offset)
+  const isAnimatedLayer = activeLayers.length > 0;
+
+  // Radar/Satellite frame animation
   useEffect(() => {
-    if (isPlayingTimeline && isAnimatedLayer && radarFrames.length > 1) {
+    if (isPlayingTimeline && isRadarOrSat && radarFrames.length > 1) {
       radarIntervalRef.current = setInterval(() => {
         setRadarFrameIndex(prev => (prev + 1) % radarFrames.length);
       }, 800);
@@ -202,16 +206,31 @@ const MapPageContent = () => {
     return () => {
       if (radarIntervalRef.current) clearInterval(radarIntervalRef.current);
     };
-  }, [isPlayingTimeline, isAnimatedLayer, radarFrames.length]);
+  }, [isPlayingTimeline, isRadarOrSat, radarFrames.length]);
+
+  // Forecast time-step animation (non-radar layers: precipitation, wind, pressure, waves)
+  const forecastIntervalRef = useRef(null);
+  useEffect(() => {
+    if (isPlayingTimeline && !isRadarOrSat && activeLayers.length > 0) {
+      forecastIntervalRef.current = setInterval(() => {
+        setTimeOffsetHours(prev => {
+          const next = prev + 3; // step 3 hours per tick
+          return next > maxHoursForUser ? 0 : next; // loop back to Live
+        });
+      }, 1200);
+    }
+    return () => {
+      if (forecastIntervalRef.current) clearInterval(forecastIntervalRef.current);
+    };
+  }, [isPlayingTimeline, isRadarOrSat, activeLayers, maxHoursForUser]);
 
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev => 
       prev.includes(layerId) ? [] : [layerId]
     );
-    // Reset radar animation state when switching layers
-    if (layerId !== 'radar' && layerId !== 'satellite') {
-      setIsPlayingTimeline(false);
-    }
+    // Reset play state when switching layers
+    setIsPlayingTimeline(false);
+    setTimeOffsetHours(0);
   }, []);
 
   const handleUpgradeClick = useCallback(() => {
