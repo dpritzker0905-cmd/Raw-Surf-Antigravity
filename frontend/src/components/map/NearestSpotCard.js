@@ -9,15 +9,18 @@ export const NearestSpotCard = ({
   nearestSpot,
   userLocation,
   onSpotSelect,
+  isHidden
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!nearestSpot || !userLocation) return null;
 
+  const hiddenClass = isHidden ? 'hidden md:block' : '';
+
   // Collapsed: show a small pill that can be re-expanded
   if (isCollapsed) {
     return (
-      <div className="absolute bottom-24 left-4 z-[1000] pointer-events-auto">
+      <div className={`absolute bottom-24 left-4 z-[1000] pointer-events-auto ${hiddenClass}`}>
         <button
           onClick={() => setIsCollapsed(false)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/90 backdrop-blur-sm rounded-full shadow-lg border border-zinc-700/50 hover:bg-zinc-700/90 transition-colors"
@@ -35,7 +38,7 @@ export const NearestSpotCard = ({
 
   // Expanded: full info card
   return (
-    <div className="absolute bottom-24 left-4 z-[1000] pointer-events-auto">
+    <div className={`absolute bottom-24 left-4 z-[1000] pointer-events-auto ${hiddenClass}`}>
       <div
         className="bg-zinc-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-zinc-700/50 overflow-hidden max-w-[200px]"
         data-testid="nearest-spot-card"

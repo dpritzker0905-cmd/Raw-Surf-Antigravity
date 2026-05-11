@@ -43,7 +43,9 @@ class GlobalWindGrid {
     const v = data[1];
     const h = u.header;
     this.lo1 = h.lo1;
+    this.lo2 = h.lo2;
     this.la1 = h.la1;
+    this.la2 = h.la2;
     this.dx = h.dx;
     this.dy = h.dy;
     this.nx = h.nx;
@@ -53,8 +55,11 @@ class GlobalWindGrid {
   }
 
   interpolate(lat, lng) {
-    // Wrap longitude
-    const lon = lng < 0 ? lng + 360 : lng;
+    let lon = lng;
+    // The JSON spans [-180.5, 179.5]. Only wrap if outside the grid completely.
+    while (lon < this.lo1) lon += 360;
+    while (lon > this.lo2 + this.dx) lon -= 360;
+
     const fi = (lon - this.lo1) / this.dx;
     const fj = (this.la1 - lat) / this.dy;
     
@@ -155,9 +160,18 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             p.y -= v * zoomScale; // Canvas Y is flipped
             p.age++;
             
+            const angle = Math.atan2(-v, u); // Canvas Y is inverted
+            const arrowSize = 4 * (1 + zoomScale * 0.1); // Dynamic arrow size based on zoom
+            
             tCtx.beginPath();
             tCtx.moveTo(px, py);
             tCtx.lineTo(p.x, p.y);
+            
+            // Draw tiny arrowhead at current position
+            tCtx.lineTo(p.x - arrowSize * Math.cos(angle - Math.PI / 6), p.y - arrowSize * Math.sin(angle - Math.PI / 6));
+            tCtx.moveTo(p.x, p.y);
+            tCtx.lineTo(p.x - arrowSize * Math.cos(angle + Math.PI / 6), p.y - arrowSize * Math.sin(angle + Math.PI / 6));
+            
             tCtx.lineWidth = LINE_WIDTH;
             tCtx.strokeStyle = getWindColor(speed);
             tCtx.stroke();

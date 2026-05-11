@@ -621,6 +621,7 @@ const MapPageContent = () => {
       <NearestSpotCard
         nearestSpot={nearestSpot}
         userLocation={userLocation}
+        isHidden={showWeatherControls}
         onSpotSelect={(spot) => {
           if (mapInstanceRef.current && spot.latitude && spot.longitude) {
             mapInstanceRef.current.flyTo({
