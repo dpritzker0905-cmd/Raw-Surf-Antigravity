@@ -155,7 +155,7 @@ const MapPageContent = () => {
 
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev => 
-      prev.includes(layerId) ? prev.filter(id => id !== layerId) : [...prev, layerId]
+      prev.includes(layerId) ? [] : [layerId]
     );
   }, []);
 

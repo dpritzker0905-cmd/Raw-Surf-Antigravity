@@ -38,10 +38,12 @@ export const MapWeatherControls = ({
   ];
 
   const layers = [
-    { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-zinc-400' },
-    { id: 'swell', label: 'Swell Energy', icon: Waves, color: 'text-blue-400' },
+    { id: 'satellite', label: 'Live Satellite', icon: Globe, color: 'text-zinc-400' },
+    { id: 'radar', label: 'Live Radar', icon: CloudRain, color: 'text-indigo-300' },
+    { id: 'precipitation', label: 'Precipitation', icon: CloudRain, color: 'text-indigo-500' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
-    { id: 'rain', label: 'Precip', icon: CloudRain, color: 'text-indigo-400' },
+    { id: 'swell_height', label: 'Wave Height', icon: Waves, color: 'text-blue-400' },
+    { id: 'swell_period', label: 'Wave Period', icon: Waves, color: 'text-cyan-400' },
     { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' }
   ];
 
@@ -134,10 +136,10 @@ export const MapWeatherControls = ({
           <span className={`text-[10px] font-bold uppercase tracking-wide ${textMuted}`}>Map Legend</span>
         </div>
         
-        {activeLayers.includes('swell') && (
+        {(activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
           <div className="mb-3">
             <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
-              <span>Waves (ft)</span>
+              <span>Waves (ft / s)</span>
             </div>
             <div className="h-2 w-full rounded-full bg-gradient-to-r from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700" />
             <div className={`text-[9px] ${textMuted} mt-0.5 flex justify-between px-1`}>
@@ -158,7 +160,7 @@ export const MapWeatherControls = ({
           </div>
         )}
 
-        {activeLayers.includes('rain') && (
+        {(activeLayers.includes('precipitation') || activeLayers.includes('radar')) && (
           <div className="mb-3">
             <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
               <span>Rain (in/h)</span>
@@ -182,7 +184,7 @@ export const MapWeatherControls = ({
           </div>
         )}
 
-        {!activeLayers.includes('swell') && !activeLayers.includes('wind') && !activeLayers.includes('rain') && !activeLayers.includes('pressure') && (
+        {!activeLayers.includes('swell_height') && !activeLayers.includes('swell_period') && !activeLayers.includes('wind') && !activeLayers.includes('precipitation') && !activeLayers.includes('radar') && !activeLayers.includes('pressure') && (
           <div className={`text-[10px] ${textMuted} italic`}>
             Enable a weather layer to see legend.
           </div>
