@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronRight, ChevronLeft, Info } from 'lucide-react';
+import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronRight, ChevronLeft, Info, Globe } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 export const MapWeatherControls = ({
@@ -38,6 +38,7 @@ export const MapWeatherControls = ({
   ];
 
   const layers = [
+    { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-zinc-400' },
     { id: 'swell', label: 'Swell Energy', icon: Waves, color: 'text-blue-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
     { id: 'rain', label: 'Precip', icon: CloudRain, color: 'text-indigo-400' },
@@ -134,28 +135,56 @@ export const MapWeatherControls = ({
         </div>
         
         {activeLayers.includes('swell') && (
-          <div className="mb-2">
+          <div className="mb-3">
             <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
-              <span>Wave Height</span>
-              <span>0-10+ ft</span>
+              <span>Waves (ft)</span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-blue-300 via-blue-500 to-purple-600" />
+            <div className="h-2 w-full rounded-full bg-gradient-to-r from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700" />
+            <div className={`text-[9px] ${textMuted} mt-0.5 flex justify-between px-1`}>
+              <span>0</span><span>2</span><span>4</span><span>8</span><span>12</span><span>20+</span>
+            </div>
           </div>
         )}
         
         {activeLayers.includes('wind') && (
-          <div>
+          <div className="mb-3">
             <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
-              <span>Wind Speed</span>
-              <span>0-40+ kts</span>
+              <span>Wind (kts)</span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-teal-200 via-teal-400 to-yellow-500" />
+            <div className="h-2 w-full rounded-full bg-gradient-to-r from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600" />
+            <div className={`text-[9px] ${textMuted} mt-0.5 flex justify-between px-1`}>
+              <span>0</span><span>5</span><span>10</span><span>20</span><span>30</span><span>50+</span>
+            </div>
           </div>
         )}
 
-        {!activeLayers.includes('swell') && !activeLayers.includes('wind') && (
+        {activeLayers.includes('rain') && (
+          <div className="mb-3">
+            <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
+              <span>Rain (in/h)</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-gradient-to-r from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600" />
+            <div className={`text-[9px] ${textMuted} mt-0.5 flex justify-between px-1`}>
+              <span>0</span><span>.1</span><span>.3</span><span>.5</span><span>1.0</span><span>2+</span>
+            </div>
+          </div>
+        )}
+
+        {activeLayers.includes('pressure') && (
+          <div className="mb-3">
+            <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
+              <span>Pressure (hPa)</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-gradient-to-r from-gray-100 via-blue-300 via-emerald-300 via-yellow-400 to-red-600" />
+            <div className={`text-[9px] ${textMuted} mt-0.5 flex justify-between px-1`}>
+              <span>980</span><span>990</span><span>1000</span><span>1010</span><span>1020</span><span>1030</span>
+            </div>
+          </div>
+        )}
+
+        {!activeLayers.includes('swell') && !activeLayers.includes('wind') && !activeLayers.includes('rain') && !activeLayers.includes('pressure') && (
           <div className={`text-[10px] ${textMuted} italic`}>
-            Enable Swell or Wind to see legend.
+            Enable a weather layer to see legend.
           </div>
         )}
       </div>

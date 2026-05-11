@@ -93,7 +93,7 @@ const MapWebGL = ({
       ref={innerMapRef}
       {...viewState}
       onMove={onMove}
-      mapStyle={getMapStyle(isLight)}
+      mapStyle={getMapStyle(isLight, activeLayers?.includes('satellite'))}
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
     >

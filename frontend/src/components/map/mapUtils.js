@@ -65,17 +65,18 @@ const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
 export const MAPBOX_TILES = {
   dark:  `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
   light: `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+  satellite: `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
 };
 
 /**
  * Generate a MapLibre GL JS compatible style object using Mapbox raster tiles
  */
-export const getMapStyle = (isLight) => ({
+export const getMapStyle = (isLight, isSatellite) => ({
   version: 8,
   sources: {
     'raster-tiles': {
       type: 'raster',
-      tiles: [isLight ? MAPBOX_TILES.light : MAPBOX_TILES.dark],
+      tiles: [isSatellite ? MAPBOX_TILES.satellite : (isLight ? MAPBOX_TILES.light : MAPBOX_TILES.dark)],
       tileSize: 256,
       attribution: '© Mapbox © OpenStreetMap'
     }
