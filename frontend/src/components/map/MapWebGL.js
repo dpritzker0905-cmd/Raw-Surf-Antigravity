@@ -353,6 +353,31 @@ const MapWebGL = ({
     };
   }, [activeLayers, mapInstance]);
 
+  // Dynamically inject coastline/landmass borders after style loads
+  useEffect(() => {
+    if (!mapInstance) return;
+    const updateCoastlines = () => {
+      try {
+        if (!mapInstance.getStyle()) return;
+        
+        const targetColor = isLight ? 'rgba(0,0,0,0.5)' : isBeach ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.25)';
+        
+        if (mapInstance.getLayer('coastline')) {
+          mapInstance.setPaintProperty('coastline', 'line-color', targetColor);
+          mapInstance.setPaintProperty('coastline', 'line-width', 1.5);
+        }
+        if (mapInstance.getLayer('water')) {
+          mapInstance.setPaintProperty('water', 'fill-outline-color', targetColor);
+        }
+      } catch (e) {}
+    };
+
+    mapInstance.on('styledata', updateCoastlines);
+    updateCoastlines(); // Attempt immediate
+
+    return () => mapInstance.off('styledata', updateCoastlines);
+  }, [mapInstance, isLight, isBeach]);
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
     <Map
@@ -444,9 +469,10 @@ const MapWebGL = ({
                 activeLayers.includes('swell_height') ? 3.5 : 16, '#9333ea',  // purple-600
                 activeLayers.includes('swell_height') ? 5.0 : 20, '#be123c'   // rose-700
               ],
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 70, 4, 160, 8, 350, 12, 600],
-              'circle-blur': 0.8,
-              'circle-opacity': 0.8
+              // Radii scaled carefully to respect mobile WebGL MAX_POINT_SIZE limits while remaining highly visible
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 25, 4, 45, 8, 80, 12, 120],
+              'circle-blur': 0.6,
+              'circle-opacity': 0.75
             }}
           />
           <Layer

@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useState } from 'react';
 const PARTICLE_COUNT = 3500; 
 const MAX_AGE = 100;
 const FADE_ALPHA = 0.96; // Slower fade for smooth, elegant trails
-const LINE_WIDTH = 0.8; // Very thin lines for subtlety
+const LINE_WIDTH = 1.5; // Slightly thicker lines for visibility
 const SPEED_FACTOR = 3.0;
 const GLOBAL_WIND_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 
@@ -175,7 +175,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             const newPos = map.project([p.lng, p.lat]);
             
             const angle = Math.atan2(newPos.y - prevPos.y, newPos.x - prevPos.x); 
-            const arrowSize = 3 * (1 + zoomScale * 0.1); 
+            const arrowSize = 4 * (1 + zoomScale * 0.1); 
             
             // Draw vector path
             tCtx.beginPath();
@@ -191,8 +191,8 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             
             // Advanced Graphics: Neon Glow/Bloom Effect
             // Base thick stroke with low alpha for the glow aura
-            tCtx.lineWidth = LINE_WIDTH * 3;
-            tCtx.globalAlpha = 0.3;
+            tCtx.lineWidth = LINE_WIDTH * 4;
+            tCtx.globalAlpha = 0.4;
             tCtx.strokeStyle = colorStr;
             tCtx.stroke();
             
