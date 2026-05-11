@@ -21,8 +21,6 @@ import { MapRightControls } from './map/MapRightControls';
 import { NearestSpotCard } from './map/NearestSpotCard';
 import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
-import MapTimelineSlider from './map/MapTimelineSlider';
-import MobileTimelineDrawer from './map/MobileTimelineDrawer';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
 import { FLORIDA_CENTER, isValidLatLng, truncateCoord } from './map/mapUtils';
@@ -554,6 +552,14 @@ const MapPageContent = () => {
         onLayerToggle={toggleLayer}
         userTier={user?.tier_id || 'tier_1'}
         onUpgradeClick={handleUpgradeClick}
+        radarMode={isRadarOrSat}
+        radarFrames={radarFrames}
+        radarFrameIndex={radarFrameIndex}
+        onRadarFrameChange={setRadarFrameIndex}
+        currentTimeOffset={timeOffsetHours}
+        onTimeChange={setTimeOffsetHours}
+        isPlaying={isPlayingTimeline}
+        onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
       />
 
       {/* Mobile Weather Controls — anchored ABOVE bottom nav bar */}
@@ -573,43 +579,20 @@ const MapPageContent = () => {
               userTier={user?.tier_id || 'tier_1'}
               onUpgradeClick={handleUpgradeClick}
               onClose={() => setShowWeatherControls(false)}
+              radarMode={isRadarOrSat}
+              radarFrames={radarFrames}
+              radarFrameIndex={radarFrameIndex}
+              onRadarFrameChange={setRadarFrameIndex}
+              currentTimeOffset={timeOffsetHours}
+              onTimeChange={setTimeOffsetHours}
+              isPlaying={isPlayingTimeline}
+              onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
             />
           </div>
         </>
       )}
 
-      {/* Desktop Timeline (hidden on mobile) */}
-      {activeLayers.length > 0 && (
-        <div className="hidden md:block">
-          <MapTimelineSlider
-            radarMode={isRadarOrSat}
-            radarFrames={radarFrames}
-            radarFrameIndex={radarFrameIndex}
-            onRadarFrameChange={setRadarFrameIndex}
-            currentTimeOffset={timeOffsetHours}
-            onTimeChange={setTimeOffsetHours}
-            isPlaying={isPlayingTimeline}
-            onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
-            userTier={user?.tier_id || 'tier_1'}
-            onUpgradeClick={handleUpgradeClick}
-          />
-        </div>
-      )}
 
-      {/* Mobile Timeline Drawer — collapsible bar above bottom nav */}
-      {activeLayers.length > 0 && (
-        <MobileTimelineDrawer
-          radarMode={isRadarOrSat}
-          radarFrames={radarFrames}
-          radarFrameIndex={radarFrameIndex}
-          onRadarFrameChange={setRadarFrameIndex}
-          currentTimeOffset={timeOffsetHours}
-          onTimeChange={setTimeOffsetHours}
-          isPlaying={isPlayingTimeline}
-          onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
-          activeLayer={activeLayers[0]}
-        />
-      )}
 
       {/* Forecast Data Overlay — shows Open-Meteo data when layer active */}
       {activeLayers.length > 0 && (

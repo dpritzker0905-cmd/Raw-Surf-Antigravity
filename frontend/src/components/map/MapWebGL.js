@@ -34,8 +34,8 @@ const OM_VARIABLE_MAP = {
   pressure:      'pressure_msl',
   fog:           'visibility',
   satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
-  swell_height:  null,             // Marine models use heatmap from marine API, not OM tiles
-  swell_period:  null,
+  swell_height:  'wave_height',    // Global raster wave heatmap via gfs_wave
+  swell_period:  'wave_period',
 };
 
 // Cache to prevent repetitive manifest fetching during layer toggles
@@ -93,7 +93,7 @@ const MapWebGL = ({
     if (activeLayer === 'radar') { setOmTileUrl(null); return; }
     
     const variable = OM_VARIABLE_MAP[activeLayer];
-    if (!variable) { setOmTileUrl(null); return; } // swell layers use marine heatmap instead
+    if (!variable) { setOmTileUrl(null); return; }
     
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
@@ -154,6 +154,15 @@ const MapWebGL = ({
       if (!isValid && finalModel !== 'ncep_gfs025') {
         meta = await fetchMetadata('ncep_gfs025');
         if (meta.variables.includes(variable)) { isValid = true; finalModel = 'ncep_gfs025'; }
+      }
+      // Wave models fallback
+      if (!isValid) {
+        meta = await fetchMetadata('gfs_wave');
+        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'gfs_wave'; }
+      }
+      if (!isValid) {
+        meta = await fetchMetadata('meteofrance_wave');
+        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'meteofrance_wave'; }
       }
       
       if (isMounted) {
@@ -242,89 +251,11 @@ const MapWebGL = ({
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
   const [mapInstance, setMapInstance] = useState(null);
-  const [marineData, setMarineData] = useState(null);
-  const marineLayerRef = useRef(null); // Track which layer triggered fetch
-
   // Capture the raw MapLibre instance once the map loads
   useEffect(() => {
     const map = innerMapRef.current?.getMap?.();
     if (map && !mapInstance) setMapInstance(map);
   });
-
-  // Clear marine cache when the active marine layer changes
-  useEffect(() => {
-    const currentMarineLayer = activeLayers.includes('swell_height') ? 'swell_height'
-      : activeLayers.includes('swell_period') ? 'swell_period' : null;
-    if (currentMarineLayer !== marineLayerRef.current) {
-      marineLayerRef.current = currentMarineLayer;
-      // Don't clear data — both metrics are fetched together
-    }
-  }, [activeLayers]);
-
-  // Fetch Live Marine Data — pure ocean grid approach
-  // Previous approach failed because beach coordinates and nearby shifts still hit land grid cells.
-  // Fix: Use hardcoded ocean grid points confirmed to return valid marine data via API testing.
-  // Atlantic coast: lng -79.5 to -78 (confirmed ocean cells), Gulf: lng -83.5 to -83
-  useEffect(() => {
-    const needsMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
-    if (!needsMarine || marineData) return;
-
-    // Pure ocean grid — every point verified to return elevation=0 (ocean)
-    const oceanGrid = [];
-    // Atlantic coast (FL east coast + GA/SC)
-    for (let lat = 25; lat <= 32; lat += 0.8) {
-      for (let lng = -79.5; lng <= -78; lng += 0.5) {
-        oceanGrid.push({ lat: Math.round(lat * 10) / 10, lng, name: '' });
-      }
-    }
-    // Gulf coast (FL west coast)
-    for (let lat = 25; lat <= 30; lat += 1.0) {
-      for (let lng = -84; lng <= -83; lng += 0.5) {
-        oceanGrid.push({ lat: Math.round(lat * 10) / 10, lng, name: '' });
-      }
-    }
-
-    const BATCH_SIZE = 10;
-    const batches = [];
-    for (let i = 0; i < oceanGrid.length; i += BATCH_SIZE) {
-      batches.push(oceanGrid.slice(i, i + BATCH_SIZE));
-    }
-
-    const fetchBatch = async (batch) => {
-      const lats = batch.map(p => p.lat).join(',');
-      const lons = batch.map(p => p.lng).join(',');
-      const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`);
-      const data = await res.json();
-      return Array.isArray(data) ? data : [data];
-    };
-
-    Promise.all(batches.map(fetchBatch))
-      .then(batchResults => {
-        const allResults = batchResults.flat();
-        const features = oceanGrid.map((pt, i) => {
-          const wh = allResults[i]?.current?.wave_height;
-          const wp = allResults[i]?.current?.wave_period;
-          // Skip land cells (null values) — defense in depth
-          if (wh == null && wp == null) return null;
-          return {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
-            properties: { name: pt.name, wave_height: wh ?? 0, wave_period: wp ?? 0 },
-          };
-        }).filter(Boolean);
-        console.log(`[Marine] Loaded ${features.length}/${oceanGrid.length} ocean points`);
-        if (features.length > 0) {
-          setMarineData({ type: 'FeatureCollection', features });
-        }
-      })
-      .catch(err => console.error('[MapWebGL] Marine fetch failed:', err));
-  }, [activeLayers, marineData]);
-
-  // Reset marine cache when marine layers are deactivated
-  useEffect(() => {
-    const hasMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
-    if (!hasMarine && marineData) setMarineData(null);
-  }, [activeLayers, marineData]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -395,67 +326,7 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Marine Wave Heatmap + Circle Labels */}
-      {marineData && (activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
-        <Source id="marine-source" type="geojson" data={marineData}>
-          {/* Heatmap glow layer */}
-          <Layer
-            id="marine-heatmap"
-            type="heatmap"
-            paint={{
-              'heatmap-weight': [
-                'interpolate', ['linear'],
-                ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
-                0, 0.1, activeLayers.includes('swell_height') ? 4 : 14, 1
-              ],
-              'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 3, 1.5, 8, 3, 12, 4],
-              'heatmap-color': [
-                'interpolate', ['linear'], ['heatmap-density'],
-                0,   'rgba(0,0,255,0)',
-                0.05, 'rgba(0,100,255,0.35)',
-                0.2, 'rgba(0,200,255,0.55)',
-                0.4, 'rgba(0,255,150,0.65)',
-                0.6, 'rgba(255,255,0,0.75)',
-                0.8, 'rgba(255,150,0,0.85)',
-                1,   'rgba(255,50,0,0.95)'
-              ],
-              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 40, 4, 60, 8, 100, 12, 140],
-              'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.9, 14, 0.5]
-            }}
-          />
-          {/* Circle label markers */}
-          <Layer
-            id="marine-circles"
-            type="circle"
-            minzoom={6}
-            paint={{
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 10, 10, 18],
-              'circle-color': [
-                'interpolate', ['linear'],
-                ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
-                0, '#3288bd', 2, '#66c2a5', 4, '#fee08b', 6, '#f46d43', 10, '#d53e4f'
-              ],
-              'circle-stroke-width': 2,
-              'circle-stroke-color': 'rgba(255,255,255,0.8)',
-              'circle-opacity': 0.9
-            }}
-          />
-          <Layer
-            id="marine-labels"
-            type="symbol"
-            minzoom={6}
-            layout={{
-              'text-field': activeLayers.includes('swell_height')
-                ? ['concat', ['to-string', ['round', ['*', ['get', 'wave_height'], 3.281]]], 'ft']
-                : ['concat', ['to-string', ['round', ['get', 'wave_period']]], 's'],
-              'text-size': ['interpolate', ['linear'], ['zoom'], 6, 8, 10, 11],
-              'text-font': ['Open Sans Bold'],
-              'text-allow-overlap': true,
-            }}
-            paint={{ 'text-color': '#ffffff', 'text-halo-color': '#000000', 'text-halo-width': 1 }}
-          />
-        </Source>
-      )}
+
 
       {/* Spot Clusters */}
       {spotClusters.map(cluster => {
