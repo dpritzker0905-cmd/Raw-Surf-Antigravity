@@ -31,7 +31,7 @@ const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
   wind:          'wind_u_component_10m',
   pressure:      'pressure_msl',
-  fog:           'cloud_cover',
+  fog:           'visibility',
   swell_height:  null,  // Marine models don't have tile coverage yet
   swell_period:  null,
 };
@@ -115,12 +115,19 @@ const MapWebGL = ({
       let isValid = await checkModel(targetModel);
       let finalModel = targetModel;
       
-      // Dynamic Fallback: if not supported by the primary model, fallback to DWD ICON
+      // Dynamic Fallback: if not supported by the primary model, fallback to DWD ICON, then GFS
       if (!isValid && targetModel !== 'dwd_icon') {
         const isFallbackValid = await checkModel('dwd_icon');
         if (isFallbackValid) {
           isValid = true;
           finalModel = 'dwd_icon';
+        }
+      }
+      if (!isValid && targetModel !== 'ncep_gfs025') {
+        const isGfsValid = await checkModel('ncep_gfs025');
+        if (isGfsValid) {
+          isValid = true;
+          finalModel = 'ncep_gfs025';
         }
       }
       
@@ -204,13 +211,16 @@ const MapWebGL = ({
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
   }, [radarFrames, radarFrameIndex]);
 
+  // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
+  const currentMapStyle = useMemo(() => getMapStyle(isLight, activeLayers?.includes('satellite')), [isLight, activeLayers]);
+
   return (
     <Map
       ref={innerMapRef}
       mapLib={maplibregl}
       {...viewState}
       onMove={onMove}
-      mapStyle={getMapStyle(isLight, activeLayers?.includes('satellite'))}
+      mapStyle={currentMapStyle}
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
       attributionControl={false}

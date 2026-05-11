@@ -61,7 +61,7 @@ export const MapWeatherControls = ({
 
   // Legend data per active layer
   const legendConfig = {
-    fog: { label: 'Fog/Clouds (%)', gradient: 'from-transparent via-gray-400 to-gray-700', stops: ['0','25','50','75','100'] },
+    fog: { label: 'Visibility (m)', gradient: 'from-gray-700 via-gray-400 to-transparent', stops: ['0','1k','5k','10k','24k'] },
     wind: { label: 'Wind (kts)', gradient: 'from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600', stops: ['0','5','10','20','30','50+'] },
     precipitation: { label: 'Rain (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
     radar: { label: 'Rain (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
