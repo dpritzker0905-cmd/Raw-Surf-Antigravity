@@ -3,22 +3,33 @@ import React, { useEffect, useRef, useState } from 'react';
 /**
  * WindParticleCanvas — GPU-friendly animated wind particle overlay for MapLibre.
  *
- * Renders thousands of flowing particles on a canvas synced with the map,
+ * Renders flowing particles + directional arrows on a canvas synced with the map,
  * mimicking Windy.com's signature directional wind flow visualization.
  *
  * Architecture:
- * - Fetches GFS-format wind grid data (U/V component arrays)
- * - Builds a bilinear-interpolated wind field
+ * - Fetches live wind data from Open-Meteo (speed + direction at grid points)
+ * - Converts to U/V vectors and builds a bilinear-interpolated wind field
  * - Animates particles in screen-space, projecting to/from geo-coords
+ * - Draws directional arrow barbs at regular screen-space intervals
  * - Clears and reseeds on map pan/zoom for seamless interaction
  */
 
-const PARTICLE_COUNT = 3500;
-const MAX_AGE = 120;
-const FADE_ALPHA = 0.93;
-const LINE_WIDTH = 1.8;
-const SPEED_FACTOR = 2.5;
-const WIND_DATA_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
+const PARTICLE_COUNT = 4000;
+const MAX_AGE = 100;
+const FADE_ALPHA = 0.91;
+const LINE_WIDTH = 2.2;
+const SPEED_FACTOR = 3.0;
+const ARROW_GRID_PX = 100; // Screen-space pixels between direction arrows
+
+// Open-Meteo live wind grid parameters
+const GRID_LAT_MIN = 20;
+const GRID_LAT_MAX = 50;
+const GRID_LNG_MIN = -100;
+const GRID_LNG_MAX = -60;
+const GRID_STEP = 2; // degrees
+
+// Legacy fallback (static GFS snapshot)
+const FALLBACK_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 
 // Windy-inspired color ramp keyed on wind speed (m/s)
 const COLOR_STOPS = [
@@ -33,20 +44,42 @@ function getWindColor(speed) {
   return COLOR_STOPS[0][1];
 }
 
-/** Bilinear-interpolated wind field from GFS U/V grid arrays */
+/** Bilinear-interpolated wind field from U/V grid arrays */
 class WindGrid {
-  constructor(data) {
-    const uComp = data[0];
-    const vComp = data[1];
-    const h = uComp.header;
-    this.lo1 = h.lo1;
-    this.la1 = h.la1;
-    this.dx = h.dx;
-    this.dy = h.dy;
-    this.nx = h.nx;
-    this.ny = h.ny;
-    this.uData = uComp.data;
-    this.vData = vComp.data;
+  constructor({ lo1, la1, dx, dy, nx, ny, uData, vData }) {
+    this.lo1 = lo1; this.la1 = la1;
+    this.dx = dx; this.dy = dy;
+    this.nx = nx; this.ny = ny;
+    this.uData = uData; this.vData = vData;
+  }
+
+  /** Build from GFS-format JSON (legacy fallback) */
+  static fromGFS(data) {
+    const u = data[0], v = data[1], h = u.header;
+    return new WindGrid({ lo1: h.lo1, la1: h.la1, dx: h.dx, dy: h.dy, nx: h.nx, ny: h.ny, uData: u.data, vData: v.data });
+  }
+
+  /** Build from Open-Meteo multi-coord current response */
+  static fromOpenMeteo(results, latSteps, lngSteps) {
+    const ny = latSteps.length;
+    const nx = lngSteps.length;
+    const uData = new Array(nx * ny);
+    const vData = new Array(nx * ny);
+    // Open-Meteo returns array in same order as input coords
+    // Input is row-major: lat[0]lng[0], lat[0]lng[1], ... (north to south, west to east)
+    for (let j = 0; j < ny; j++) {
+      for (let i = 0; i < nx; i++) {
+        const idx = j * nx + i;
+        const r = results[idx];
+        const speed = r?.current?.wind_speed_10m ?? 0;
+        const dir = (r?.current?.wind_direction_10m ?? 0) * Math.PI / 180;
+        uData[idx] = -speed * Math.sin(dir);
+        vData[idx] = -speed * Math.cos(dir);
+      }
+    }
+    // lo1 in 0-360 convention for interpolation compatibility
+    const lo1 = lngSteps[0] < 0 ? lngSteps[0] + 360 : lngSteps[0];
+    return new WindGrid({ lo1, la1: latSteps[0], dx: GRID_STEP, dy: GRID_STEP, nx, ny, uData, vData });
   }
 
   interpolate(lat, lng) {
@@ -56,21 +89,66 @@ class WindGrid {
     const i = Math.floor(fi);
     const j = Math.floor(fj);
     if (i < 0 || i >= this.nx - 1 || j < 0 || j >= this.ny - 1) return null;
-
-    const fx = fi - i;
-    const fy = fj - j;
+    const fx = fi - i; const fy = fj - j;
     const idx00 = j * this.nx + i;
     const idx10 = idx00 + 1;
     const idx01 = idx00 + this.nx;
     const idx11 = idx01 + 1;
-
     const u = (1 - fx) * (1 - fy) * this.uData[idx00] + fx * (1 - fy) * this.uData[idx10]
             + (1 - fx) * fy * this.uData[idx01] + fx * fy * this.uData[idx11];
     const v = (1 - fx) * (1 - fy) * this.vData[idx00] + fx * (1 - fy) * this.vData[idx10]
             + (1 - fx) * fy * this.vData[idx01] + fx * fy * this.vData[idx11];
-
     return [u, v, Math.sqrt(u * u + v * v)];
   }
+}
+
+/** Fetch live wind grid from Open-Meteo, fall back to static GFS */
+async function fetchWindGrid() {
+  try {
+    const latSteps = [];
+    for (let lat = GRID_LAT_MAX; lat >= GRID_LAT_MIN; lat -= GRID_STEP) latSteps.push(lat);
+    const lngSteps = [];
+    for (let lng = GRID_LNG_MIN; lng <= GRID_LNG_MAX; lng += GRID_STEP) lngSteps.push(lng);
+    // Build paired coordinate arrays for cross-product grid
+    const allLats = []; const allLngs = [];
+    for (const lat of latSteps) {
+      for (const lng of lngSteps) { allLats.push(lat); allLngs.push(lng); }
+    }
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${allLats.join(',')}&longitude=${allLngs.join(',')}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const results = Array.isArray(data) ? data : [data];
+    if (results.length !== allLats.length) throw new Error('Mismatched result count');
+    return WindGrid.fromOpenMeteo(results, latSteps, lngSteps);
+  } catch (err) {
+    console.warn('[Wind] Open-Meteo fetch failed, falling back to static GFS:', err.message);
+    const res = await fetch(FALLBACK_URL);
+    const data = await res.json();
+    return WindGrid.fromGFS(data);
+  }
+}
+
+/** Draw a directional arrow barb at (x, y) pointing in wind direction */
+function drawArrow(ctx, x, y, u, v, speed, zoom) {
+  const angle = Math.atan2(-v, u); // screen-space angle (v inverted)
+  const len = Math.min(8 + speed * 1.2, 24) * Math.pow(zoom / 7, 0.3);
+  const headLen = len * 0.4;
+  const headAngle = 0.5;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(-len / 2, 0);
+  ctx.lineTo(len / 2, 0);
+  ctx.lineTo(len / 2 - headLen * Math.cos(headAngle), -headLen * Math.sin(headAngle));
+  ctx.moveTo(len / 2, 0);
+  ctx.lineTo(len / 2 - headLen * Math.cos(headAngle), headLen * Math.sin(headAngle));
+  ctx.strokeStyle = getWindColor(speed);
+  ctx.lineWidth = Math.max(1.5, 2.5 * Math.pow(zoom / 7, 0.3));
+  ctx.globalAlpha = 0.85;
+  ctx.stroke();
+  ctx.restore();
 }
 
 const WindParticleCanvas = ({ mapInstance, isActive }) => {
@@ -82,10 +160,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   useEffect(() => {
     if (!isActive) { setWindGrid(null); return; }
     let cancelled = false;
-    fetch(WIND_DATA_URL)
-      .then(r => r.json())
-      .then(data => { if (!cancelled) setWindGrid(new WindGrid(data)); })
-      .catch(err => console.error('[Wind] Data fetch failed:', err));
+    fetchWindGrid().then(grid => { if (!cancelled) setWindGrid(grid); });
     return () => { cancelled = true; };
   }, [isActive]);
 
@@ -94,15 +169,14 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     const map = mapInstance;
     const canvas = canvasRef.current;
     if (!map || !canvas || !isActive || !windGrid) return;
-
     const ctx = canvas.getContext('2d');
     let particles = [];
     let moving = false;
+    let arrowTick = 0;
 
     function resize() {
-      const container = map.getContainer();
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+      const c = map.getContainer();
+      canvas.width = c.clientWidth; canvas.height = c.clientHeight;
     }
     resize();
 
@@ -113,8 +187,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
 
     function draw() {
       if (moving) { animRef.current = requestAnimationFrame(draw); return; }
-
-      // Fade trails — longer persistence for visible wind streams
+      // Fade trails
       ctx.globalCompositeOperation = 'destination-in';
       ctx.fillStyle = `rgba(0, 0, 0, ${FADE_ALPHA})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -126,34 +199,37 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       for (const p of particles) {
         const geo = map.unproject([p.x, p.y]);
         const wind = windGrid.interpolate(geo.lat, geo.lng);
-
         if (wind) {
           const [u, v, speed] = wind;
-          const prevX = p.x;
-          const prevY = p.y;
-          p.x += u * zoomScale;
-          p.y -= v * zoomScale;
+          const prevX = p.x; const prevY = p.y;
+          p.x += u * zoomScale; p.y -= v * zoomScale;
           p.age++;
-
-          // Progressive tapering: thicker at start, thinner as particle ages
           const ageRatio = 1 - (p.age / MAX_AGE);
           const lineW = LINE_WIDTH * Math.max(0.3, ageRatio);
-          const alpha = Math.max(0.15, ageRatio * 0.9);
-
-          ctx.beginPath();
-          ctx.moveTo(prevX, prevY);
-          ctx.lineTo(p.x, p.y);
-          ctx.lineWidth = lineW;
-          ctx.strokeStyle = getWindColor(speed);
-          ctx.globalAlpha = alpha;
-          ctx.stroke();
-          ctx.globalAlpha = 1;
+          const alpha = Math.max(0.2, ageRatio * 0.9);
+          ctx.beginPath(); ctx.moveTo(prevX, prevY); ctx.lineTo(p.x, p.y);
+          ctx.lineWidth = lineW; ctx.strokeStyle = getWindColor(speed);
+          ctx.globalAlpha = alpha; ctx.stroke(); ctx.globalAlpha = 1;
         } else {
           p.age = MAX_AGE + 1;
         }
-
         if (p.age > MAX_AGE || p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
           Object.assign(p, seedParticle());
+        }
+      }
+
+      // Draw directional arrows at grid intervals (every 5th frame for perf)
+      arrowTick++;
+      if (arrowTick % 5 === 0) {
+        for (let sx = ARROW_GRID_PX / 2; sx < canvas.width; sx += ARROW_GRID_PX) {
+          for (let sy = ARROW_GRID_PX / 2; sy < canvas.height; sy += ARROW_GRID_PX) {
+            const geo = map.unproject([sx, sy]);
+            const wind = windGrid.interpolate(geo.lat, geo.lng);
+            if (wind) {
+              const [u, v, speed] = wind;
+              if (speed > 0.5) drawArrow(ctx, sx, sy, u, v, speed, zoom);
+            }
+          }
         }
       }
       animRef.current = requestAnimationFrame(draw);
@@ -161,8 +237,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
 
     function onMoveStart() { moving = true; ctx.clearRect(0, 0, canvas.width, canvas.height); }
     function onMoveEnd() {
-      moving = false;
-      resize();
+      moving = false; resize(); arrowTick = 0;
       particles = [];
       for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(seedParticle());
     }

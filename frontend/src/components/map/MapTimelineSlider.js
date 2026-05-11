@@ -55,7 +55,7 @@ export const MapTimelineSlider = ({
     const progress = ((radarFrameIndex + 1) / totalFrames) * 100;
 
     return (
-      <div className={`absolute bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      <div className={`absolute bottom-[64px] md:bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-center w-full px-3 py-2 gap-3 h-14">
           {/* Play/Pause */}
           <button
@@ -128,7 +128,7 @@ export const MapTimelineSlider = ({
 
   // ==================== FORECAST MODE ====================
   return (
-    <div className={`absolute bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <div className={`absolute bottom-[64px] md:bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`} style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <div className="flex items-center w-full px-3 py-2 gap-3 h-14">
         {/* Play/Pause */}
         <button

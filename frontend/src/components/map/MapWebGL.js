@@ -261,48 +261,69 @@ const MapWebGL = ({
     }
   }, [activeLayers]);
 
-  // Fetch Live Marine Data (Waves + Period) for surfSpots — batched to avoid URL overflow
+  // Fetch Live Marine Data — grid-based ocean points + shifted spot coords
+  // Root cause fix: beach coordinates are "on land" for the marine API → returns null.
+  // Solution: shift spot coords ~0.08° offshore AND supplement with ocean grid points.
   useEffect(() => {
     const needsMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
-    if (!needsMarine || !surfSpots?.length || marineData) return;
+    if (!needsMarine || marineData) return;
 
-    const coastal = surfSpots.filter(s => s.latitude && s.longitude).slice(0, 50);
-    if (!coastal.length) return;
+    // 1. Shift surf spot coords offshore (east for Atlantic, west for Gulf)
+    const shiftedSpots = (surfSpots || [])
+      .filter(s => s.latitude && s.longitude)
+      .slice(0, 30)
+      .map(s => {
+        const isGulf = s.longitude < -81.5;
+        return {
+          lat: s.latitude,
+          lng: s.longitude + (isGulf ? -0.08 : 0.08), // Push into ocean
+          name: s.name || '',
+        };
+      });
 
-    // Batch into chunks of 10 spots each (safe URL length)
+    // 2. Generate supplemental ocean grid points for denser coverage
+    const gridPoints = [];
+    for (let lat = 25; lat <= 31; lat += 1.5) {
+      for (let lng = -81; lng <= -79; lng += 1.0) {
+        gridPoints.push({ lat, lng: lng, name: '' });
+      }
+    }
+
+    const allPoints = [...shiftedSpots, ...gridPoints].slice(0, 50);
+    if (!allPoints.length) return;
+
     const BATCH_SIZE = 10;
     const batches = [];
-    for (let i = 0; i < coastal.length; i += BATCH_SIZE) {
-      batches.push(coastal.slice(i, i + BATCH_SIZE));
+    for (let i = 0; i < allPoints.length; i += BATCH_SIZE) {
+      batches.push(allPoints.slice(i, i + BATCH_SIZE));
     }
 
     const fetchBatch = async (batch) => {
-      const lats = batch.map(s => s.latitude).join(',');
-      const lons = batch.map(s => s.longitude).join(',');
+      const lats = batch.map(p => p.lat).join(',');
+      const lons = batch.map(p => p.lng).join(',');
       const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`);
       const data = await res.json();
-      // Single-coord returns object, multi-coord returns array
       return Array.isArray(data) ? data : [data];
     };
 
     Promise.all(batches.map(fetchBatch))
       .then(batchResults => {
         const allResults = batchResults.flat();
-        const features = coastal.map((spot, i) => {
+        const features = allPoints.map((pt, i) => {
           const wh = allResults[i]?.current?.wave_height;
           const wp = allResults[i]?.current?.wave_period;
           if (wh == null && wp == null) return null;
           return {
             type: 'Feature',
-            geometry: { type: 'Point', coordinates: [spot.longitude, spot.latitude] },
-            properties: {
-              name: spot.name || '',
-              wave_height: wh ?? 0,
-              wave_period: wp ?? 0,
-            },
+            geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
+            properties: { name: pt.name, wave_height: wh ?? 0, wave_period: wp ?? 0 },
           };
         }).filter(Boolean);
-        setMarineData({ type: 'FeatureCollection', features });
+        if (features.length > 0) {
+          setMarineData({ type: 'FeatureCollection', features });
+        } else {
+          console.warn('[MapWebGL] Marine API returned no ocean data for any points');
+        }
       })
       .catch(err => console.error('[MapWebGL] Marine batch fetch failed:', err));
   }, [activeLayers, surfSpots, marineData]);
@@ -393,30 +414,30 @@ const MapWebGL = ({
               'heatmap-weight': [
                 'interpolate', ['linear'],
                 ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
-                0, 0, activeLayers.includes('swell_height') ? 6 : 18, 1
+                0, 0.1, activeLayers.includes('swell_height') ? 4 : 14, 1
               ],
-              'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 4, 1, 12, 3],
+              'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 3, 1.5, 8, 3, 12, 4],
               'heatmap-color': [
                 'interpolate', ['linear'], ['heatmap-density'],
                 0,   'rgba(0,0,255,0)',
-                0.1, 'rgba(0,100,255,0.3)',
-                0.3, 'rgba(0,200,255,0.5)',
-                0.5, 'rgba(0,255,150,0.6)',
-                0.7, 'rgba(255,255,0,0.75)',
-                0.9, 'rgba(255,150,0,0.85)',
+                0.05, 'rgba(0,100,255,0.35)',
+                0.2, 'rgba(0,200,255,0.55)',
+                0.4, 'rgba(0,255,150,0.65)',
+                0.6, 'rgba(255,255,0,0.75)',
+                0.8, 'rgba(255,150,0,0.85)',
                 1,   'rgba(255,50,0,0.95)'
               ],
-              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 30, 6, 50, 10, 80, 14, 120],
-              'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 14, 0.5]
+              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 40, 4, 60, 8, 100, 12, 140],
+              'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.9, 14, 0.5]
             }}
           />
-          {/* Circle label markers at high zoom */}
+          {/* Circle label markers */}
           <Layer
             id="marine-circles"
             type="circle"
-            minzoom={8}
+            minzoom={6}
             paint={{
-              'circle-radius': 16,
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 10, 10, 18],
               'circle-color': [
                 'interpolate', ['linear'],
                 ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
@@ -430,12 +451,12 @@ const MapWebGL = ({
           <Layer
             id="marine-labels"
             type="symbol"
-            minzoom={8}
+            minzoom={6}
             layout={{
               'text-field': activeLayers.includes('swell_height')
                 ? ['concat', ['to-string', ['round', ['*', ['get', 'wave_height'], 3.281]]], 'ft']
                 : ['concat', ['to-string', ['round', ['get', 'wave_period']]], 's'],
-              'text-size': 10,
+              'text-size': ['interpolate', ['linear'], ['zoom'], 6, 8, 10, 11],
               'text-font': ['Open Sans Bold'],
               'text-allow-overlap': true,
             }}
