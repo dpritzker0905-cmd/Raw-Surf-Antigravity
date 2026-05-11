@@ -153,10 +153,48 @@ const MapPageContent = () => {
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [showWeatherControls, setShowWeatherControls] = useState(false);
 
+  // Radar animation state — driven by RainViewer past frames
+  const [radarFrames, setRadarFrames] = useState([]);
+  const [radarFrameIndex, setRadarFrameIndex] = useState(0);
+  const radarIntervalRef = useRef(null);
+
+  // Fetch RainViewer frames once on mount
+  useEffect(() => {
+    fetch('https://api.rainviewer.com/public/weather-maps.json')
+      .then(r => r.json())
+      .then(data => {
+        const past = data?.radar?.past || [];
+        const nowcast = data?.radar?.nowcast || [];
+        const allFrames = [...past, ...nowcast];
+        if (allFrames.length > 0) {
+          setRadarFrames(allFrames);
+          setRadarFrameIndex(past.length > 0 ? past.length - 1 : 0);
+        }
+      })
+      .catch(err => logger.error('[MAP] RainViewer fetch failed:', err));
+  }, []);
+
+  // Radar animation interval — cycles frames when playing + radar active
+  const isRadarActive = activeLayers.includes('radar');
+  useEffect(() => {
+    if (isPlayingTimeline && isRadarActive && radarFrames.length > 1) {
+      radarIntervalRef.current = setInterval(() => {
+        setRadarFrameIndex(prev => (prev + 1) % radarFrames.length);
+      }, 800);
+    }
+    return () => {
+      if (radarIntervalRef.current) clearInterval(radarIntervalRef.current);
+    };
+  }, [isPlayingTimeline, isRadarActive, radarFrames.length]);
+
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev => 
       prev.includes(layerId) ? [] : [layerId]
     );
+    // Reset radar animation state when switching layers
+    if (layerId !== 'radar') {
+      setIsPlayingTimeline(false);
+    }
   }, []);
 
   const handleUpgradeClick = useCallback(() => {
@@ -481,7 +519,8 @@ const MapPageContent = () => {
           friendsOnMap={friendsOnMap}
           activeModel={activeModel}
           activeLayers={activeLayers}
-          timeOffsetHours={timeOffsetHours}
+          radarFrames={radarFrames}
+          radarFrameIndex={radarFrameIndex}
         />
       </div>
 
@@ -609,15 +648,14 @@ const MapPageContent = () => {
         onUpgradeClick={handleUpgradeClick}
       />
 
-      {/* Mobile Weather Controls Overlay */}
+      {/* Mobile Weather Controls — compact bottom-sheet, NOT mid-screen overlay */}
       {showWeatherControls && (
         <>
-          {/* Backdrop — tap to dismiss */}
           <div 
-            className="absolute inset-0 z-[999] bg-black/30 md:hidden"
+            className="absolute inset-0 z-[999] bg-black/20 md:hidden"
             onClick={() => setShowWeatherControls(false)}
           />
-          <div className="absolute inset-x-4 top-40 z-[1000] md:hidden shadow-2xl">
+          <div className="absolute bottom-0 left-0 right-0 z-[1000] md:hidden shadow-2xl">
             <MapWeatherControls 
               isDesktop={false}
               activeModel={activeModel}
@@ -626,14 +664,19 @@ const MapPageContent = () => {
               onLayerToggle={toggleLayer}
               userTier={user?.tier_id || 'tier_1'}
               onUpgradeClick={handleUpgradeClick}
+              onClose={() => setShowWeatherControls(false)}
             />
           </div>
         </>
       )}
 
-      {/* Timeline Slider (Shows if any layer is active) */}
+      {/* Timeline / Radar Scrubber (shows when any weather layer is active) */}
       {activeLayers.length > 0 && (
         <MapTimelineSlider
+          radarMode={isRadarActive}
+          radarFrames={radarFrames}
+          radarFrameIndex={radarFrameIndex}
+          onRadarFrameChange={setRadarFrameIndex}
           currentTimeOffset={timeOffsetHours}
           onTimeChange={setTimeOffsetHours}
           isPlaying={isPlayingTimeline}

@@ -1,41 +1,42 @@
 import React, { useMemo } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
+/**
+ * Dual-mode timeline control:
+ * - RADAR MODE: Frame stepper cycling through RainViewer's ~12 past frames (2h @ 10min)
+ * - FORECAST MODE: Standard 14-day slider for OWM/model forecast data
+ */
 export const MapTimelineSlider = ({
-  currentTimeOffset, // in hours from now
-  onTimeChange,
+  // Shared
   isPlaying,
   onTogglePlay,
+  // Radar mode
+  radarMode = false,
+  radarFrames = [],
+  radarFrameIndex = 0,
+  onRadarFrameChange,
+  // Forecast mode
+  currentTimeOffset,
+  onTimeChange,
   userTier = 'tier_1',
-  onUpgradeClick
 }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
-  
-  // Total max hours available to scroll
-  const maxPossibleHours = 14 * 24;
 
-  const handleSliderChange = (e) => {
-    onTimeChange(parseInt(e.target.value, 10));
+  const sliderBg = isLight ? 'bg-white/90' : 'bg-black/80';
+  const textClass = isLight ? 'text-gray-900' : 'text-white';
+  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+
+  // Format radar frame timestamp to local time
+  const formatRadarTime = (frame) => {
+    if (!frame?.time) return '--:--';
+    const d = new Date(frame.time * 1000);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
-  // Generate day labels (Now, +1d, +2d, ...)
-  const generateDays = () => {
-    const days = [];
-    for (let i = 0; i <= 14; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() + i);
-      const label = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
-      days.push({ offset: i * 24, label });
-    }
-    return days;
-  };
-
-  const days = generateDays();
-
-  // Format the currently selected time
-  const formatTime = (offsetHours) => {
+  // Format forecast offset
+  const formatForecastTime = (offsetHours) => {
     if (offsetHours === 0) return 'Live';
     const d = new Date();
     d.setHours(d.getHours() + offsetHours);
@@ -44,81 +45,136 @@ export const MapTimelineSlider = ({
     return `${dayName} ${time}`;
   };
 
-  const sliderBg = isLight ? 'bg-white/90' : 'bg-black/80';
-  const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+  const currentFrame = radarFrames[radarFrameIndex];
+  const maxPossibleHours = 14 * 24;
 
-  return (
-    <div className={`absolute bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`}>
-      <div className="flex items-center w-full px-2 md:px-4 py-2 gap-2 md:gap-4 h-16">
-        
-        {/* Play/Pause & Time Display */}
-        <div className="flex items-center gap-3 shrink-0 min-w-[120px]">
+  // ==================== RADAR MODE ====================
+  if (radarMode && radarFrames.length > 0) {
+    const totalFrames = radarFrames.length;
+    const progress = ((radarFrameIndex + 1) / totalFrames) * 100;
+
+    return (
+      <div className={`absolute bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`}>
+        <div className="flex items-center w-full px-3 py-2 gap-3 h-14">
+          {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-105 ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 shrink-0 ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
+            aria-label={isPlaying ? 'Pause radar animation' : 'Play radar animation'}
           >
-            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
+            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
           </button>
-          <div className="flex flex-col hidden sm:flex">
-            <span className={`font-bold text-sm ${textClass}`}>{formatTime(currentTimeOffset)}</span>
-            <span className={`text-[10px] uppercase tracking-wider font-semibold ${textMuted}`}>
-              {currentTimeOffset === 0 ? 'Current' : 'Forecast'}
-            </span>
-          </div>
-        </div>
 
-        {/* Timeline Slider Area */}
-        <div className="flex-1 relative h-full flex flex-col justify-end pb-2">
-          
-          {/* Day Markers */}
-          <div className="absolute top-0 left-0 right-0 flex justify-between px-2">
-            {days.map((day, i) => (
-              <div 
-                key={i} 
-                className={`text-[10px] font-medium hidden md:block ${day.offset === 0 ? textClass : textMuted}`}
-                style={{ position: 'absolute', left: `${(day.offset / maxPossibleHours) * 100}%`, transform: 'translateX(-50%)' }}
-              >
-                {day.label}
-              </div>
-            ))}
-          </div>
+          {/* Step backward */}
+          <button
+            onClick={() => onRadarFrameChange(Math.max(0, radarFrameIndex - 1))}
+            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-700'} transition-colors`}
+            aria-label="Previous radar frame"
+          >
+            <SkipBack className={`w-3.5 h-3.5 ${textMuted}`} />
+          </button>
 
-          <div className="relative mt-5">
-            {/* The actual range input */}
+          {/* Progress bar + time */}
+          <div className="flex-1 flex flex-col gap-0.5">
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold ${textClass}`}>
+                {formatRadarTime(currentFrame)}
+              </span>
+              <span className={`text-[10px] ${textMuted}`}>
+                {radarFrameIndex + 1}/{totalFrames}
+              </span>
+            </div>
+            {/* Clickable scrubber */}
             <input
               type="range"
-              min="0"
-              max={maxPossibleHours}
-              step="3"
-              value={currentTimeOffset}
-              onChange={handleSliderChange}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer relative z-10"
+              min={0}
+              max={totalFrames - 1}
+              step={1}
+              value={radarFrameIndex}
+              onChange={(e) => onRadarFrameChange(parseInt(e.target.value, 10))}
+              className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
               style={{
-                background: `linear-gradient(to right, #06b6d4 ${(currentTimeOffset / maxPossibleHours) * 100}%, ${isLight ? '#e5e7eb' : '#3f3f46'} ${(currentTimeOffset / maxPossibleHours) * 100}%)`
+                background: `linear-gradient(to right, #06b6d4 ${progress}%, ${isLight ? '#e5e7eb' : '#3f3f46'} ${progress}%)`
               }}
+              aria-label="Radar frame scrubber"
             />
-            {/* Custom Thumb is tricky cross-browser via inline styles, but webkit CSS usually handles it if defined globally. 
-                Using tailwind accent color works for modern browsers. */}
-            <style>{`
-              input[type=range]::-webkit-slider-thumb {
-                appearance: none;
-                width: 16px;
-                height: 16px;
-                background: white;
-                border: 3px solid #06b6d4;
-                border-radius: 50%;
-                cursor: pointer;
-              }
-            `}</style>
+          </div>
+
+          {/* Step forward */}
+          <button
+            onClick={() => onRadarFrameChange(Math.min(totalFrames - 1, radarFrameIndex + 1))}
+            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-700'} transition-colors`}
+            aria-label="Next radar frame"
+          >
+            <SkipForward className={`w-3.5 h-3.5 ${textMuted}`} />
+          </button>
+
+          {/* Radar label */}
+          <div className={`text-[9px] uppercase tracking-wider font-bold shrink-0 ${textMuted}`}>
+            Radar
           </div>
         </div>
-        
-        {/* Mobile quick time display */}
-        <div className={`sm:hidden font-bold text-xs shrink-0 w-20 text-right ${textClass}`}>
-          {formatTime(currentTimeOffset)}
+        <style>{`
+          input[type=range]::-webkit-slider-thumb {
+            appearance: none; width: 14px; height: 14px;
+            background: white; border: 2px solid #06b6d4;
+            border-radius: 50%; cursor: pointer;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // ==================== FORECAST MODE ====================
+  return (
+    <div className={`absolute bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`}>
+      <div className="flex items-center w-full px-3 py-2 gap-3 h-14">
+        {/* Play/Pause */}
+        <button
+          onClick={onTogglePlay}
+          className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-105 shrink-0 ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
+          aria-label={isPlaying ? 'Pause forecast animation' : 'Play forecast animation'}
+        >
+          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+        </button>
+
+        {/* Time display */}
+        <div className="flex flex-col shrink-0 min-w-[80px]">
+          <span className={`font-bold text-xs ${textClass}`}>{formatForecastTime(currentTimeOffset)}</span>
+          <span className={`text-[9px] uppercase tracking-wider font-semibold ${textMuted}`}>
+            {currentTimeOffset === 0 ? 'Current' : 'Forecast'}
+          </span>
+        </div>
+
+        {/* Slider */}
+        <div className="flex-1">
+          <input
+            type="range"
+            min="0"
+            max={maxPossibleHours}
+            step="3"
+            value={currentTimeOffset}
+            onChange={(e) => onTimeChange(parseInt(e.target.value, 10))}
+            className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+            style={{
+              background: `linear-gradient(to right, #06b6d4 ${(currentTimeOffset / maxPossibleHours) * 100}%, ${isLight ? '#e5e7eb' : '#3f3f46'} ${(currentTimeOffset / maxPossibleHours) * 100}%)`
+            }}
+            aria-label="Forecast timeline scrubber"
+          />
+        </div>
+
+        {/* Mobile time label */}
+        <div className={`sm:hidden font-bold text-[10px] shrink-0 w-16 text-right ${textClass}`}>
+          {formatForecastTime(currentTimeOffset)}
         </div>
       </div>
+      <style>{`
+        input[type=range]::-webkit-slider-thumb {
+          appearance: none; width: 14px; height: 14px;
+          background: white; border: 2px solid #06b6d4;
+          border-radius: 50%; cursor: pointer;
+        }
+      `}</style>
     </div>
   );
 };

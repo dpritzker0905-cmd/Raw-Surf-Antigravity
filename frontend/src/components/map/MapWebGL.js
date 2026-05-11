@@ -21,7 +21,8 @@ const MapWebGL = ({
   friendsOnMap,
   activeModel,
   activeLayers,
-  timeOffsetHours
+  radarFrameIndex,
+  radarFrames,
 }) => {
   const innerMapRef = useRef(null);
   const [viewState, setViewState] = useState({
@@ -33,20 +34,6 @@ const MapWebGL = ({
   });
   
   const [bounds, setBounds] = useState(null);
-
-  // RainViewer Radar — use `path` field (hash-based, not timestamp)
-  const [radarPath, setRadarPath] = useState(null);
-  useEffect(() => {
-    fetch('https://api.rainviewer.com/public/weather-maps.json')
-      .then(r => r.json())
-      .then(data => {
-        if (data?.radar?.past?.length > 0) {
-          const latest = data.radar.past[data.radar.past.length - 1];
-          setRadarPath(latest.path);
-        }
-      })
-      .catch(err => console.error('Failed to fetch RainViewer data', err));
-  }, []);
 
   // OpenWeatherMap API key from env
   const owmKey = process.env.REACT_APP_OWM_API_KEY || '';
@@ -105,6 +92,14 @@ const MapWebGL = ({
     };
   }, [spotsToCluster]);
 
+  // Compute radar tile URL from frames + index
+  const radarTileUrl = useMemo(() => {
+    if (!radarFrames?.length || radarFrameIndex == null) return null;
+    const frame = radarFrames[radarFrameIndex];
+    if (!frame?.path) return null;
+    return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
+  }, [radarFrames, radarFrameIndex]);
+
   return (
     <Map
       ref={innerMapRef}
@@ -138,42 +133,50 @@ const MapWebGL = ({
       </Source>
 
       {/* --- WEATHER LAYERS --- */}
-      {/* Live Radar (RainViewer — free, no key required) */}
-      {activeLayers.includes('radar') && radarPath && (
-        <Source id="radar-source" type="raster" tiles={[`https://tilecache.rainviewer.com${radarPath}/256/{z}/{x}/{y}/2/1_1.png`]} tileSize={256} maxzoom={7}>
+
+      {/* Live Radar (RainViewer — animated frames) */}
+      {activeLayers.includes('radar') && radarTileUrl && (
+        <Source
+          key={`radar-${radarFrameIndex}`}
+          id="radar-source"
+          type="raster"
+          tiles={[radarTileUrl]}
+          tileSize={256}
+          maxzoom={7}
+        >
           <Layer id="radar-layer" type="raster" paint={{ 'raster-opacity': 0.65 }} />
         </Source>
       )}
 
-      {/* Precipitation (OpenWeatherMap — requires valid API key) */}
+      {/* Precipitation (OpenWeatherMap) */}
       {activeLayers.includes('precipitation') && owmKey && (
         <Source id="precip-source" type="raster" tiles={[`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="precip-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
         </Source>
       )}
 
-      {/* Wind (OpenWeatherMap — requires valid API key) */}
+      {/* Wind (OpenWeatherMap) */}
       {activeLayers.includes('wind') && owmKey && (
         <Source id="wind-source" type="raster" tiles={[`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="wind-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
         </Source>
       )}
 
-      {/* Pressure (OpenWeatherMap — requires valid API key) */}
+      {/* Pressure (OpenWeatherMap) */}
       {activeLayers.includes('pressure') && owmKey && (
         <Source id="pressure-source" type="raster" tiles={[`https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="pressure-layer" type="raster" paint={{ 'raster-opacity': 0.6 }} />
         </Source>
       )}
 
-      {/* Swell Height (Placeholder) */}
+      {/* Swell Height (Placeholder — awaiting marine data pipeline) */}
       {activeLayers.includes('swell_height') && (
         <Source id="swell-height-placeholder" type="geojson" data={{ type: 'FeatureCollection', features: [] }}>
           <Layer id="swell-height-layer" type="heatmap" paint={{'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(33,102,172,0)', 1, 'rgb(103,169,207)']}} />
         </Source>
       )}
 
-      {/* Swell Period (Placeholder) */}
+      {/* Swell Period (Placeholder — awaiting marine data pipeline) */}
       {activeLayers.includes('swell_period') && (
         <Source id="swell-period-placeholder" type="geojson" data={{ type: 'FeatureCollection', features: [] }}>
           <Layer id="swell-period-layer" type="heatmap" paint={{'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, 'rgb(103,169,207)']}} />
@@ -318,7 +321,7 @@ const MapWebGL = ({
         <Marker longitude={activeDispatch.requester_location.lng} latitude={activeDispatch.requester_location.lat} anchor="bottom">
           <div className="relative">
             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg ring-4 ring-yellow-400/30">
-              <span className="text-xl">🌊</span>
+              <span className="text-xl">{'\u{1F30A}'}</span>
             </div>
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-yellow-500 rounded-full text-[10px] text-black font-bold shadow-sm">
               YOU
@@ -350,4 +353,3 @@ const MapWebGL = ({
 };
 
 export default MapWebGL;
-
