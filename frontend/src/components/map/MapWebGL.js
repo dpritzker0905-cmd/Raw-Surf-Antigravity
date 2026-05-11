@@ -10,16 +10,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { omProtocol } from '@openmeteo/weather-map-layer';
 
 // --- Open-Meteo Weather Tile Protocol ---
-// Registers the `om://` custom protocol for MapLibre at module level.
-// This enables raster weather tile overlays powered by Open-Meteo OMfiles
-// (precipitation, wind, pressure, cloud cover) for live AND forecast time offsets.
-if (maplibregl.addProtocol) {
-  try {
-    maplibregl.addProtocol('om', omProtocol);
-  } catch (e) {
-    // Ignore if already registered (e.g. during fast refresh)
-  }
-}
+// The `om://` custom protocol is now registered inside the MapWebGL component via useEffect
+// to prevent Webpack module-level TDZ (Temporal Dead Zone) ReferenceErrors during chunk initialization.
 
 /**
  * Map Open-Meteo model identifiers to their tile-server paths.
@@ -66,6 +58,17 @@ const MapWebGL = ({
   timeOffsetHours = 0,
 }) => {
   const innerMapRef = useRef(null);
+  
+  // Register Open-Meteo protocol safely on mount
+  useEffect(() => {
+    if (maplibregl && maplibregl.addProtocol) {
+      try {
+        maplibregl.addProtocol('om', omProtocol);
+      } catch (e) {
+        // Ignore if already registered
+      }
+    }
+  }, []);
   const [viewState, setViewState] = useState({
     longitude: FLORIDA_CENTER.lng,
     latitude: FLORIDA_CENTER.lat,

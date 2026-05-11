@@ -24,12 +24,11 @@ import MapWeatherControls from './map/MapWeatherControls';
 import MapTimelineSlider from './map/MapTimelineSlider';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
-import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES, FLORIDA_CENTER } from './map/mapUtils';
+import { FLORIDA_CENTER } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
 import { useIPGeolocation } from '../hooks/useIPGeolocation';
-import { useMarkerClustering } from '../hooks/useMarkerClustering';
 import { useMapState } from '../hooks/useMapState';
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
 import logger from '../utils/logger';
@@ -41,22 +40,13 @@ const MapPageContent = () => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const { theme } = useTheme();
-  
   const isLight = theme === 'light';
-  const mapTilesUrl = isLight ? MAPBOX_TILES.light : TILE_LAYER_CONFIG.url;
   const mapInstanceRef = useRef(null);
-  
+
   // User location hook - handles GPS and location-related state
   const {
-    userLocation,
-    locationDenied,
-    gpsLoading,
-    requestLocation,
-    findNearestSpot,
-    setUserLocation,
-    setLocationDenied,
-    startWatchingLocation,
-    stopWatchingLocation,
+    userLocation, locationDenied, gpsLoading, requestLocation, findNearestSpot,
+    setUserLocation, setLocationDenied, startWatchingLocation, stopWatchingLocation,
   } = useUserLocation();
 
   const {
@@ -65,7 +55,6 @@ const MapPageContent = () => {
     featuredPhotographers,
     loading,
     fetchLivePhotographers,
-    _fetchSurfSpots,
   } = useMapData(user?.id, userLocation);
 
   const {
@@ -95,18 +84,7 @@ const MapPageContent = () => {
     }
   });
 
-  const {
-    ipLocation, 
-    _ipLoading, 
-    _coastalSnapped,
-    cityChanged,
-    _forceRecalibrate 
-  } = useIPGeolocation();
-
-  const [mapBounds, _setMapBounds] = useState(null);
-  const [mapZoom, _setMapZoom] = useState(10);
-  const clusteringOptions = useMemo(() => ({ radius: 60, maxZoom: 14 }), []);
-  const { _clusters } = useMarkerClustering(surfSpots, mapBounds, mapZoom, clusteringOptions);
+  const { ipLocation, cityChanged } = useIPGeolocation();
 
   const effectiveLocation = useMemo(() => {
     // Check GPS location first
