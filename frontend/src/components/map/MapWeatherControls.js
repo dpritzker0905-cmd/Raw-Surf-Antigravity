@@ -1,6 +1,6 @@
-import React from 'react';
-import { Wind, Waves, CloudRain, Thermometer, Lock } from 'lucide-react';
-import { Button } from '../ui/button';
+import React, { useState } from 'react';
+import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronRight, ChevronLeft, Info } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export const MapWeatherControls = ({
   isDesktop = true,
@@ -11,7 +11,24 @@ export const MapWeatherControls = ({
   userTier = 'tier_1',
   onUpgradeClick
 }) => {
-  // Free: GFS only. Basic/Premium: GFS, EURO, ICON
+  const { theme } = useTheme();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
+
+  // Theming
+  const bgClass = isLight 
+    ? 'bg-white/90 border-gray-200 shadow-xl' 
+    : isBeach 
+      ? 'bg-black/80 border-cyan-900/50 shadow-cyan-900/20' 
+      : 'bg-zinc-900/90 border-zinc-800 shadow-2xl';
+  const textClass = isLight ? 'text-gray-900' : 'text-white';
+  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+  const btnBg = isLight ? 'bg-gray-100' : 'bg-zinc-800/50';
+  const btnHover = isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-700';
+  const panelBg = isLight ? 'bg-gray-100' : 'bg-zinc-800';
+
   const isBasicOrPremium = userTier === 'tier_2' || userTier === 'tier_3' || userTier === 'admin' || userTier === 'tier_4';
 
   const models = [
@@ -23,7 +40,7 @@ export const MapWeatherControls = ({
   const layers = [
     { id: 'swell', label: 'Swell Energy', icon: Waves, color: 'text-blue-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
-    { id: 'rain', label: 'Precipitation', icon: CloudRain, color: 'text-indigo-400' },
+    { id: 'rain', label: 'Precip', icon: CloudRain, color: 'text-indigo-400' },
     { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' }
   ];
 
@@ -36,23 +53,40 @@ export const MapWeatherControls = ({
   };
 
   const containerClass = isDesktop
-    ? "absolute top-24 right-4 z-[1000] w-64 bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-xl shadow-2xl p-4 hidden md:block"
-    : "w-full bg-zinc-900/90 rounded-xl p-4";
+    ? `absolute top-24 right-2 z-[1000] backdrop-blur-xl border rounded-xl transition-all duration-300 ease-in-out ${bgClass} ${isCollapsed ? 'w-12 h-12 p-0 overflow-hidden flex items-center justify-center cursor-pointer' : 'w-64 p-4'}`
+    : `w-full rounded-xl p-4 backdrop-blur-xl border ${bgClass}`;
+
+  if (isDesktop && isCollapsed) {
+    return (
+      <div className={containerClass} onClick={() => setIsCollapsed(false)}>
+        <ChevronLeft className={`w-6 h-6 ${textClass}`} />
+      </div>
+    );
+  }
 
   return (
-    <div className={containerClass}>
-      <h3 className="text-white font-bold text-sm mb-3 uppercase tracking-wider">Forecast Models</h3>
+    <div className={`${containerClass} hidden md:block`}>
+      {isDesktop && (
+        <button 
+          onClick={() => setIsCollapsed(true)}
+          className={`absolute top-3 right-3 p-1 rounded-md ${btnHover} transition-colors`}
+        >
+          <ChevronRight className={`w-5 h-5 ${textMuted}`} />
+        </button>
+      )}
+
+      <h3 className={`${textClass} font-bold text-xs mb-3 uppercase tracking-wider`}>Forecast Models</h3>
       
       {/* Model Toggle */}
-      <div className="flex bg-zinc-800 rounded-lg p-1 mb-6">
+      <div className={`flex ${panelBg} rounded-lg p-1 mb-5`}>
         {models.map(model => (
           <button
             key={model.id}
             onClick={() => handleModelClick(model)}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 py-1 text-xs font-semibold rounded-md transition-all ${
               activeModel === model.id
                 ? 'bg-cyan-500 text-black shadow-sm'
-                : 'text-gray-400 hover:text-white hover:bg-zinc-700'
+                : `${textMuted} hover:${textClass} ${btnHover}`
             }`}
           >
             {model.label}
@@ -61,10 +95,10 @@ export const MapWeatherControls = ({
         ))}
       </div>
 
-      <h3 className="text-white font-bold text-sm mb-3 uppercase tracking-wider">Weather Layers</h3>
+      <h3 className={`${textClass} font-bold text-xs mb-3 uppercase tracking-wider`}>Weather Layers</h3>
       
       {/* Layer Toggles */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5 mb-5">
         {layers.map(layer => {
           const isActive = activeLayers.includes(layer.id);
           const Icon = layer.icon;
@@ -72,24 +106,58 @@ export const MapWeatherControls = ({
             <button
               key={layer.id}
               onClick={() => onLayerToggle(layer.id)}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg border transition-all ${
+              className={`flex items-center justify-between px-3 py-1.5 rounded-lg border transition-all ${
                 isActive 
-                  ? 'bg-zinc-800 border-cyan-500/50' 
-                  : 'bg-zinc-800/50 border-transparent hover:bg-zinc-700'
+                  ? `${panelBg} border-cyan-500/50` 
+                  : `${btnBg} border-transparent ${btnHover}`
               }`}
             >
-              <div className="flex items-center gap-3">
-                <Icon className={`w-4 h-4 ${isActive ? layer.color : 'text-gray-400'}`} />
-                <span className={`text-sm font-medium ${isActive ? 'text-white' : 'text-gray-400'}`}>
+              <div className="flex items-center gap-2">
+                <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted}`} />
+                <span className={`text-xs font-medium ${isActive ? textClass : textMuted}`}>
                   {layer.label}
                 </span>
               </div>
-              <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isActive ? 'bg-cyan-500' : 'bg-zinc-600'}`}>
-                <div className={`w-3 h-3 bg-white rounded-full transition-transform ${isActive ? 'translate-x-4' : 'translate-x-0'}`} />
+              <div className={`w-7 h-3.5 rounded-full p-[2px] transition-colors ${isActive ? 'bg-cyan-500' : (isLight ? 'bg-gray-300' : 'bg-zinc-600')}`}>
+                <div className={`w-2.5 h-2.5 bg-white rounded-full transition-transform ${isActive ? 'translate-x-3.5' : 'translate-x-0'}`} />
               </div>
             </button>
           );
         })}
+      </div>
+
+      {/* Legend / Key */}
+      <div className={`p-3 rounded-lg ${panelBg} border border-transparent ${isBeach ? 'border-cyan-900/30' : ''}`}>
+        <div className="flex items-center gap-1.5 mb-2">
+          <Info className={`w-3.5 h-3.5 ${textMuted}`} />
+          <span className={`text-[10px] font-bold uppercase tracking-wide ${textMuted}`}>Map Legend</span>
+        </div>
+        
+        {activeLayers.includes('swell') && (
+          <div className="mb-2">
+            <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
+              <span>Wave Height</span>
+              <span>0-10+ ft</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-blue-300 via-blue-500 to-purple-600" />
+          </div>
+        )}
+        
+        {activeLayers.includes('wind') && (
+          <div>
+            <div className={`text-[10px] ${textClass} mb-1 flex justify-between`}>
+              <span>Wind Speed</span>
+              <span>0-40+ kts</span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-teal-200 via-teal-400 to-yellow-500" />
+          </div>
+        )}
+
+        {!activeLayers.includes('swell') && !activeLayers.includes('wind') && (
+          <div className={`text-[10px] ${textMuted} italic`}>
+            Enable Swell or Wind to see legend.
+          </div>
+        )}
       </div>
     </div>
   );

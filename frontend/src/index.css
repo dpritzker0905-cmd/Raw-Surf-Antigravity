@@ -263,6 +263,26 @@ code {
   background: transparent !important;
 }
 
+@media (min-width: 768px) {
+  *::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+    height: 6px !important;
+    background: transparent !important;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgba(150, 150, 150, 0.3) !important;
+    border-radius: 3px !important;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: rgba(150, 150, 150, 0.5) !important;
+  }
+  * {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(150, 150, 150, 0.3) transparent !important;
+  }
+}
+
 /* Restore scrollbar only for specific elements that need it (like code blocks, modals with long content) */
 .show-scrollbar {
   -ms-overflow-style: auto !important;

@@ -147,7 +147,7 @@ const MapPageContent = () => {
 
   // Weather Mapping State
   const [activeModel, setActiveModel] = useState('GFS');
-  const [activeLayers, setActiveLayers] = useState([]);
+  const [activeLayers, setActiveLayers] = useState(['swell']);
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [showWeatherControls, setShowWeatherControls] = useState(false);
