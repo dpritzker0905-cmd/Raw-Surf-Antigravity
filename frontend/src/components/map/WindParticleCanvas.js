@@ -1,31 +1,32 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * WindParticleCanvas — Viewport-aware animated wind overlay for MapLibre.
+ * WindParticleCanvas — True Global Animated Wind Overlay for MapLibre.
  *
  * Architecture:
- * - Fetches a dynamic 15x15 grid of wind data (U/V) based on the current map viewport bounds.
- * - Slices API requests into batches to bypass Open-Meteo's 100-point limit, achieving FULL GLOBAL coverage.
+ * - Fetches a static, 1-degree resolution global wind JSON to bypass Open-Meteo point API rate limits.
+ * - This provides TRUE WORLDWIDE coverage instantly.
  * - Fading particle trails show wind flow direction via motion.
- * - Particles are rendered subtly to allow the landmass to be clearly visible below.
+ * - Particles are rendered extremely subtly so landmasses remain highly visible.
  */
 
-const PARTICLE_COUNT = 3000; // Reduced density for subtlety
+const PARTICLE_COUNT = 3500; 
 const MAX_AGE = 100;
-const FADE_ALPHA = 0.94; // slightly slower fade for smoother, longer trails
-const LINE_WIDTH = 1.0; // Thinner lines
-const SPEED_FACTOR = 3.5;
+const FADE_ALPHA = 0.96; // Slower fade for smooth, elegant trails
+const LINE_WIDTH = 0.8; // Very thin lines for subtlety
+const SPEED_FACTOR = 3.0;
+const GLOBAL_WIND_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 
-// Subtle, transparent color ramp to blend with landmass
+// Subtle, transparent color ramp to blend seamlessly with the map
 const COLOR_STOPS = [
-  [0, 'rgba(50, 136, 189, 0.4)'],
-  [4, 'rgba(102, 194, 165, 0.5)'],
-  [8, 'rgba(171, 221, 164, 0.5)'],
-  [12, 'rgba(230, 245, 152, 0.6)'],
-  [16, 'rgba(255, 255, 191, 0.6)'],
-  [20, 'rgba(254, 224, 139, 0.7)'],
-  [25, 'rgba(253, 174, 97, 0.7)'],
-  [30, 'rgba(244, 109, 67, 0.8)'],
+  [0, 'rgba(50, 136, 189, 0.25)'],
+  [4, 'rgba(102, 194, 165, 0.35)'],
+  [8, 'rgba(171, 221, 164, 0.45)'],
+  [12, 'rgba(230, 245, 152, 0.5)'],
+  [16, 'rgba(255, 255, 191, 0.55)'],
+  [20, 'rgba(254, 224, 139, 0.6)'],
+  [25, 'rgba(253, 174, 97, 0.65)'],
+  [30, 'rgba(244, 109, 67, 0.7)'],
   [40, 'rgba(213, 62, 79, 0.8)']
 ];
 
@@ -36,34 +37,23 @@ function getWindColor(speed) {
   return COLOR_STOPS[0][1];
 }
 
-class WindGrid {
-  constructor({ lo1, la1, dx, dy, nx, ny, uData, vData }) {
-    this.lo1 = lo1; this.la1 = la1;
-    this.dx = dx; this.dy = dy;
-    this.nx = nx; this.ny = ny;
-    this.uData = uData; this.vData = vData;
-  }
-
-  static fromOpenMeteo(results, latSteps, lngSteps) {
-    const ny = latSteps.length;
-    const nx = lngSteps.length;
-    const uData = new Float32Array(nx * ny);
-    const vData = new Float32Array(nx * ny);
-    for (let j = 0; j < ny; j++) {
-      for (let i = 0; i < nx; i++) {
-        const idx = j * nx + i;
-        const r = results[idx];
-        const spd = r?.current?.wind_speed_10m ?? 0;
-        const dir = (r?.current?.wind_direction_10m ?? 0) * Math.PI / 180;
-        uData[idx] = -spd * Math.sin(dir);
-        vData[idx] = -spd * Math.cos(dir);
-      }
-    }
-    const lo1 = lngSteps[0] < 0 ? lngSteps[0] + 360 : lngSteps[0];
-    return new WindGrid({ lo1, la1: latSteps[0], dx: Math.abs(lngSteps[1] - lngSteps[0]), dy: Math.abs(latSteps[1] - latSteps[0]), nx, ny, uData, vData });
+class GlobalWindGrid {
+  constructor(data) {
+    const u = data[0];
+    const v = data[1];
+    const h = u.header;
+    this.lo1 = h.lo1;
+    this.la1 = h.la1;
+    this.dx = h.dx;
+    this.dy = h.dy;
+    this.nx = h.nx;
+    this.ny = h.ny;
+    this.uData = u.data;
+    this.vData = v.data;
   }
 
   interpolate(lat, lng) {
+    // Wrap longitude
     const lon = lng < 0 ? lng + 360 : lng;
     const fi = (lon - this.lo1) / this.dx;
     const fj = (this.la1 - lat) / this.dy;
@@ -86,76 +76,37 @@ class WindGrid {
   }
 }
 
-/** 
- * Batched fetch to bypass API limits and enable true global coverage.
- * Open-Meteo restricts arrays to ~100 points per request.
- */
-async function fetchBatchedWindGrid(bounds) {
-  try {
-    const latMin = Math.max(-90, bounds.south - 5);
-    const latMax = Math.min(90, bounds.north + 5);
-    const lngMin = bounds.west - 5;
-    const lngMax = bounds.east + 5;
-
-    // Use a dense 16x16 grid (256 points total).
-    const latStep = Math.max(0.5, (latMax - latMin) / 16);
-    const lngStep = Math.max(0.5, (lngMax - lngMin) / 16);
-
-    const latSteps = [];
-    for (let lat = latMax; lat >= latMin; lat -= latStep) latSteps.push(Number(lat.toFixed(2)));
-    
-    const lngSteps = [];
-    for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
-      let normLng = lng;
-      while (normLng > 180) normLng -= 360;
-      while (normLng < -180) normLng += 360;
-      lngSteps.push(Number(normLng.toFixed(2)));
-    }
-
-    const allPoints = [];
-    for (const lat of latSteps) {
-      for (const lng of lngSteps) { allPoints.push({ lat, lng }); }
-    }
-
-    // Split into batches of 80 points
-    const BATCH_SIZE = 80;
-    const batches = [];
-    for (let i = 0; i < allPoints.length; i += BATCH_SIZE) {
-      batches.push(allPoints.slice(i, i + BATCH_SIZE));
-    }
-
-    const fetchBatch = async (batch) => {
-      const lats = batch.map(p => p.lat).join(',');
-      const lons = batch.map(p => p.lng).join(',');
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return Array.isArray(data) ? data : [data];
-    };
-
-    const batchResults = await Promise.all(batches.map(fetchBatch));
-    const results = batchResults.flat();
-    
-    console.log(`[Wind] Loaded global batched grid: ${results.length} points over ${batches.length} requests`);
-    return WindGrid.fromOpenMeteo(results, latSteps, lngSteps);
-  } catch (err) {
-    console.warn('[Wind] Batched fetch failed:', err.message);
-    return null;
-  }
-}
-
 const WindParticleCanvas = ({ mapInstance, isActive }) => {
   const trailRef = useRef(null);
   const animRef = useRef(null);
   const windGridRef = useRef(null);
-  const isFetchingRef = useRef(false);
   const [gridLoaded, setGridLoaded] = useState(false);
 
+  // Fetch global wind data ONLY ONCE
+  useEffect(() => {
+    let cancelled = false;
+    const fetchGlobal = async () => {
+      try {
+        const res = await fetch(GLOBAL_WIND_URL);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) {
+          windGridRef.current = new GlobalWindGrid(data);
+          setGridLoaded(true);
+        }
+      } catch (err) {
+        console.warn('[Wind] Global fetch failed:', err);
+      }
+    };
+    fetchGlobal();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Render loop
   useEffect(() => {
     const map = mapInstance;
     const trailCanvas = trailRef.current;
-    if (!map || !trailCanvas || !isActive) return;
+    if (!map || !trailCanvas || !isActive || !gridLoaded) return;
 
     const tCtx = trailCanvas.getContext('2d');
     let particles = [];
@@ -186,6 +137,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       const h = trailCanvas.height;
       const grid = windGridRef.current;
 
+      // Fade existing trails slightly
       tCtx.globalCompositeOperation = 'destination-in';
       tCtx.fillStyle = `rgba(0, 0, 0, ${FADE_ALPHA})`;
       tCtx.fillRect(0, 0, w, h);
@@ -200,10 +152,9 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             const px = p.x;
             const py = p.y;
             p.x += u * zoomScale;
-            p.y -= v * zoomScale;
+            p.y -= v * zoomScale; // Canvas Y is flipped
             p.age++;
             
-            const ageRatio = 1 - (p.age / MAX_AGE);
             tCtx.beginPath();
             tCtx.moveTo(px, py);
             tCtx.lineTo(p.x, p.y);
@@ -211,7 +162,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             tCtx.strokeStyle = getWindColor(speed);
             tCtx.stroke();
           } else {
-            p.age = MAX_AGE + 1;
+            p.age = MAX_AGE + 1; // Kill particle if outside valid data
           }
           if (p.age > MAX_AGE || p.x < 0 || p.x > w || p.y < 0 || p.y > h) {
             Object.assign(p, seedParticle());
@@ -221,23 +172,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
 
       animRef.current = requestAnimationFrame(draw);
     }
-
-    const updateGrid = async () => {
-      if (isFetchingRef.current) return;
-      isFetchingRef.current = true;
-      const bounds = map.getBounds();
-      const newGrid = await fetchBatchedWindGrid({
-        north: bounds.getNorth(),
-        south: bounds.getSouth(),
-        east: bounds.getEast(),
-        west: bounds.getWest()
-      });
-      if (newGrid) {
-        windGridRef.current = newGrid;
-        setGridLoaded(true);
-      }
-      isFetchingRef.current = false;
-    };
 
     function onMoveStart() {
       moving = true;
@@ -249,14 +183,12 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       resize();
       particles = [];
       for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(seedParticle());
-      updateGrid();
     }
 
     map.on('movestart', onMoveStart);
     map.on('moveend', onMoveEnd);
     window.addEventListener('resize', resize);
     
-    updateGrid();
     draw();
 
     return () => {
@@ -266,7 +198,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       window.removeEventListener('resize', resize);
       tCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
     };
-  }, [isActive, mapInstance]);
+  }, [isActive, mapInstance, gridLoaded]);
 
   if (!isActive) return null;
 

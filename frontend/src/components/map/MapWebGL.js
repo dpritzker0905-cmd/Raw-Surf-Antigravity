@@ -260,7 +260,9 @@ const MapWebGL = ({
     if (map && !mapInstance) setMapInstance(map);
   });
 
-  // Fetch dynamic, global marine data via batched API calls
+  // Fetch dynamic, global marine data with strict 1.2s debounce
+  // Uses a sparse 8x8 grid (64 points) to fit within a single Open-Meteo API call (<100 points).
+  // Heatmap rendering handles massive interpolation to display a beautiful global color map.
   useEffect(() => {
     if (!mapInstance) return;
     const hasMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
@@ -269,6 +271,7 @@ const MapWebGL = ({
       return;
     }
 
+    let timeoutId;
     const updateMarineGrid = async () => {
       if (isFetchingMarine.current) return;
       isFetchingMarine.current = true;
@@ -280,9 +283,9 @@ const MapWebGL = ({
         const lngMin = bounds.getWest() - 5;
         const lngMax = bounds.getEast() + 5;
 
-        // 16x16 global grid
-        const latStep = Math.max(0.5, (latMax - latMin) / 16);
-        const lngStep = Math.max(0.5, (lngMax - lngMin) / 16);
+        // Sparse 8x8 global grid (64 points total)
+        const latStep = Math.max(1, (latMax - latMin) / 8);
+        const lngStep = Math.max(1, (lngMax - lngMin) / 8);
 
         const latSteps = [];
         for (let lat = latMax; lat >= latMin; lat -= latStep) latSteps.push(Number(lat.toFixed(2)));
@@ -300,26 +303,18 @@ const MapWebGL = ({
           for (const lng of lngSteps) { allPoints.push({ lat, lng }); }
         }
 
-        // Batch into chunks of 80 to bypass Open-Meteo limit
-        const BATCH_SIZE = 80;
-        const batches = [];
-        for (let i = 0; i < allPoints.length; i += BATCH_SIZE) {
-          batches.push(allPoints.slice(i, i + BATCH_SIZE));
-        }
+        // Limit strictly to 95 points just to be safe (Open-Meteo limit is 100)
+        const safePoints = allPoints.slice(0, 95);
+        const lats = safePoints.map(p => p.lat).join(',');
+        const lons = safePoints.map(p => p.lng).join(',');
 
-        const fetchBatch = async (batch) => {
-          const lats = batch.map(p => p.lat).join(',');
-          const lons = batch.map(p => p.lng).join(',');
-          const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`);
-          if (!res.ok) return [];
-          const data = await res.json();
-          return Array.isArray(data) ? data : [data];
-        };
+        const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        const allResults = Array.isArray(data) ? data : [data];
 
-        const batchResults = await Promise.all(batches.map(fetchBatch));
-        const allResults = batchResults.flat();
-
-        const features = allPoints.map((pt, i) => {
+        const features = safePoints.map((pt, i) => {
           const r = allResults[i];
           if (!r || !r.current) return null;
           const wh = r.current.wave_height;
@@ -336,18 +331,25 @@ const MapWebGL = ({
           setMarineData({ type: 'FeatureCollection', features });
         }
       } catch (err) {
-        console.warn('[MapWebGL] Global marine fetch failed:', err);
+        console.warn('[MapWebGL] Global marine sparse fetch failed:', err);
       } finally {
         isFetchingMarine.current = false;
       }
     };
 
-    updateMarineGrid();
+    const debouncedUpdate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(updateMarineGrid, 1200); // 1.2s debounce prevents rate limit 429
+    };
+
+    // Initial fetch
+    debouncedUpdate();
 
     // Re-fetch when map stops moving
-    mapInstance.on('moveend', updateMarineGrid);
+    mapInstance.on('moveend', debouncedUpdate);
     return () => {
-      mapInstance.off('moveend', updateMarineGrid);
+      clearTimeout(timeoutId);
+      mapInstance.off('moveend', debouncedUpdate);
     };
   }, [activeLayers, mapInstance]);
 
@@ -443,8 +445,8 @@ const MapWebGL = ({
                 0.9, 'rgba(255,150,0,0.9)',
                 1,   'rgba(255,50,0,0.95)'
               ],
-              // Massive radius to interpolate point grid smoothly over entire oceans
-              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 60, 4, 100, 8, 160, 12, 200],
+              // Extreme radius to interpolate sparse 8x8 grid smoothly over entire oceans
+              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 150, 4, 250, 8, 400, 12, 600],
               'heatmap-opacity': 0.8
             }}
           />
