@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, Globe, X, Cloud } from 'lucide-react';
+import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
@@ -45,7 +45,6 @@ export const MapWeatherControls = ({
   ];
 
   const layers = [
-    { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-zinc-300' },
     { id: 'radar', label: 'Radar', icon: CloudRain, color: 'text-indigo-400' },
     { id: 'precipitation', label: 'Rain', icon: CloudRain, color: 'text-blue-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },

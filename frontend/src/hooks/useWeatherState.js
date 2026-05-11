@@ -22,17 +22,16 @@ export function useWeatherState({ user }) {
   const radarIntervalRef = useRef(null);
   const forecastIntervalRef = useRef(null);
 
-  // Fetch RainViewer frames once on mount
+  // Fetch RainViewer radar frames once on mount (satellite IR discontinued Jan 2026)
   useEffect(() => {
     fetch('https://api.rainviewer.com/public/weather-maps.json')
       .then(r => r.json())
       .then(data => {
+        // Nowcast discontinued Jan 2026 — only past frames available
         const past = data?.radar?.past || [];
-        const nowcast = data?.radar?.nowcast || [];
-        const allFrames = [...past, ...nowcast];
-        if (allFrames.length > 0) {
-          setRadarFrames(allFrames);
-          setRadarFrameIndex(past.length > 0 ? past.length - 1 : 0);
+        if (past.length > 0) {
+          setRadarFrames(past);
+          setRadarFrameIndex(past.length - 1);
         }
       })
       .catch(err => logger.error('[MAP] RainViewer fetch failed:', err));
@@ -40,8 +39,7 @@ export function useWeatherState({ user }) {
 
   // --- Derived booleans ---
   const isRadarActive = activeLayers.includes('radar');
-  const isSatelliteActive = activeLayers.includes('satellite');
-  const isRadarOrSat = isRadarActive || isSatelliteActive;
+  const isRadarOrSat = isRadarActive; // Satellite IR discontinued
 
   // --- Subscription-gated max forecast hours ---
   const maxHoursForUser = useMemo(() => {
@@ -107,7 +105,6 @@ export function useWeatherState({ user }) {
     setRadarFrameIndex,
     // Derived
     isRadarActive,
-    isSatelliteActive,
     isRadarOrSat,
     maxHoursForUser,
     isLockedForecast,

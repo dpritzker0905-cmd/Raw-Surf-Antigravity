@@ -38,7 +38,7 @@ const OM_VARIABLE_MAP = {
 };
 
 // Cache to prevent repetitive manifest fetching during layer toggles
-const MODEL_VARIABLES_CACHE = {};
+const MODEL_METADATA_CACHE = {};
 
 const MapWebGL = ({
   isLight,
@@ -88,8 +88,8 @@ const MapWebGL = ({
     if (!activeLayers.length) { setOmTileUrl(null); return; }
     const activeLayer = activeLayers[0];
     
-    // Radar + satellite use RainViewer, not Open-Meteo tiles
-    if (activeLayer === 'radar' || activeLayer === 'satellite') { setOmTileUrl(null); return; }
+    // Radar uses RainViewer, not Open-Meteo tiles
+    if (activeLayer === 'radar') { setOmTileUrl(null); return; }
     
     const variable = OM_VARIABLE_MAP[activeLayer];
     if (!variable) { setOmTileUrl(null); return; } // swell layers — no tile data
@@ -97,49 +97,65 @@ const MapWebGL = ({
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
     
-    const checkModel = async (modelToCheck) => {
-      if (!MODEL_VARIABLES_CACHE[modelToCheck]) {
+    /** Fetch and cache model metadata (variables + valid_times) */
+    const fetchMetadata = async (modelToCheck) => {
+      if (!MODEL_METADATA_CACHE[modelToCheck]) {
         try {
           const res = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`);
           if (!res.ok) throw new Error('Fetch failed');
           const data = await res.json();
-          MODEL_VARIABLES_CACHE[modelToCheck] = data.variables || [];
+          MODEL_METADATA_CACHE[modelToCheck] = {
+            variables: data.variables || [],
+            validTimes: data.valid_times || [],
+            referenceTime: data.reference_time || null,
+          };
         } catch (err) {
           console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-          MODEL_VARIABLES_CACHE[modelToCheck] = [];
+          MODEL_METADATA_CACHE[modelToCheck] = { variables: [], validTimes: [], referenceTime: null };
         }
       }
-      return MODEL_VARIABLES_CACHE[modelToCheck].includes(variable);
+      return MODEL_METADATA_CACHE[modelToCheck];
+    };
+
+    /** Compute time_step param from timeOffsetHours using cached valid_times */
+    const computeTimeStep = (meta) => {
+      if (timeOffsetHours === 0) return 'time_step=current_time_1H';
+      const { validTimes, referenceTime } = meta;
+      if (!validTimes.length) return 'time_step=current_time_1H';
+      // Find the valid_times index closest to (now + offset)
+      const targetMs = Date.now() + timeOffsetHours * 3600000;
+      let closestIdx = 0;
+      let minDiff = Infinity;
+      for (let i = 0; i < validTimes.length; i++) {
+        const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
+        if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+      }
+      return `time_step=valid_times_${closestIdx}`;
     };
 
     const resolveUrl = async () => {
-      let isValid = await checkModel(targetModel);
+      let meta = await fetchMetadata(targetModel);
       let finalModel = targetModel;
+      let isValid = meta.variables.includes(variable);
       
       // Dynamic Fallback: if not supported by the primary model, fallback to DWD ICON, then GFS
       if (!isValid && targetModel !== 'dwd_icon') {
-        const isFallbackValid = await checkModel('dwd_icon');
-        if (isFallbackValid) {
-          isValid = true;
-          finalModel = 'dwd_icon';
-        }
+        meta = await fetchMetadata('dwd_icon');
+        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'dwd_icon'; }
       }
       if (!isValid && targetModel !== 'ncep_gfs025') {
-        const isGfsValid = await checkModel('ncep_gfs025');
-        if (isGfsValid) {
-          isValid = true;
-          finalModel = 'ncep_gfs025';
-        }
+        meta = await fetchMetadata('ncep_gfs025');
+        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'ncep_gfs025'; }
       }
       
       if (isMounted) {
         if (isValid) {
           const darkParam = !isLight ? '&dark=true' : '';
-          const url = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?variable=${variable}${darkParam}`;
-          console.log('[MapWebGL] omTileUrl generated (validated):', url);
+          const timeParam = computeTimeStep(meta);
+          const url = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?${timeParam}&variable=${variable}${darkParam}`;
           setOmTileUrl(url);
         } else {
-          console.warn(`[MapWebGL] Variable ${variable} is unsupported by ${targetModel} and fallback dwd_icon. Skipping layer to prevent map crash.`);
+          console.warn(`[MapWebGL] Variable ${variable} unsupported across all models. Skipping tile layer.`);
           setOmTileUrl(null);
         }
       }
@@ -148,7 +164,7 @@ const MapWebGL = ({
     resolveUrl();
     
     return () => { isMounted = false; };
-  }, [activeLayers, activeModel, isLight]);
+  }, [activeLayers, activeModel, isLight, timeOffsetHours]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -204,16 +220,17 @@ const MapWebGL = ({
     };
   }, [spotsToCluster]);
 
-  // Compute radar tile URL from frames + index
+  // Compute radar tile URL from frames + index (2026 hash-based format)
   const radarTileUrl = useMemo(() => {
     if (!radarFrames?.length || radarFrameIndex == null) return null;
     const frame = radarFrames[radarFrameIndex];
     if (!frame?.path) return null;
-    return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/2/1_1.png`;
+    // 2026 API: color=7 (Universal Blue), smooth=1, snow=0, max zoom=7
+    return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
   }, [radarFrames, radarFrameIndex]);
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
-  const currentMapStyle = useMemo(() => getMapStyle(isLight, activeLayers?.includes('satellite')), [isLight, activeLayers]);
+  const currentMapStyle = useMemo(() => getMapStyle(isLight, false), [isLight]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
   const [mapInstance, setMapInstance] = useState(null);
@@ -236,26 +253,36 @@ const MapWebGL = ({
     }
   }, [activeLayers]);
 
-  // Fetch Live Marine Data (Waves + Period) for surfSpots
+  // Fetch Live Marine Data (Waves + Period) for surfSpots — batched to avoid URL overflow
   useEffect(() => {
     const needsMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
     if (!needsMarine || !surfSpots?.length || marineData) return;
 
-    // Filter to coastal spots only (have valid coords), limit to 50 to prevent URL overflow
     const coastal = surfSpots.filter(s => s.latitude && s.longitude).slice(0, 50);
     if (!coastal.length) return;
 
-    const lats = coastal.map(s => s.latitude).join(',');
-    const lons = coastal.map(s => s.longitude).join(',');
+    // Batch into chunks of 10 spots each (safe URL length)
+    const BATCH_SIZE = 10;
+    const batches = [];
+    for (let i = 0; i < coastal.length; i += BATCH_SIZE) {
+      batches.push(coastal.slice(i, i + BATCH_SIZE));
+    }
 
-    fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`)
-      .then(res => res.json())
-      .then(data => {
-        const arr = Array.isArray(data) ? data : [data];
+    const fetchBatch = async (batch) => {
+      const lats = batch.map(s => s.latitude).join(',');
+      const lons = batch.map(s => s.longitude).join(',');
+      const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`);
+      const data = await res.json();
+      // Single-coord returns object, multi-coord returns array
+      return Array.isArray(data) ? data : [data];
+    };
+
+    Promise.all(batches.map(fetchBatch))
+      .then(batchResults => {
+        const allResults = batchResults.flat();
         const features = coastal.map((spot, i) => {
-          const wh = arr[i]?.current?.wave_height;
-          const wp = arr[i]?.current?.wave_period;
-          // Skip inland/invalid points that return null
+          const wh = allResults[i]?.current?.wave_height;
+          const wp = allResults[i]?.current?.wave_period;
           if (wh == null && wp == null) return null;
           return {
             type: 'Feature',
@@ -269,7 +296,7 @@ const MapWebGL = ({
         }).filter(Boolean);
         setMarineData({ type: 'FeatureCollection', features });
       })
-      .catch(err => console.error('[MapWebGL] Marine fetch failed:', err));
+      .catch(err => console.error('[MapWebGL] Marine batch fetch failed:', err));
   }, [activeLayers, surfSpots, marineData]);
 
   // Reset marine cache when marine layers are deactivated

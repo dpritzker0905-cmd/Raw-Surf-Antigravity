@@ -13,10 +13,11 @@ import React, { useEffect, useRef, useState } from 'react';
  * - Clears and reseeds on map pan/zoom for seamless interaction
  */
 
-const PARTICLE_COUNT = 2500;
-const MAX_AGE = 90;
-const FADE_ALPHA = 0.97;
-const LINE_WIDTH = 1.2;
+const PARTICLE_COUNT = 3500;
+const MAX_AGE = 120;
+const FADE_ALPHA = 0.93;
+const LINE_WIDTH = 1.8;
+const SPEED_FACTOR = 2.5;
 const WIND_DATA_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 
 // Windy-inspired color ramp keyed on wind speed (m/s)
@@ -113,29 +114,40 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     function draw() {
       if (moving) { animRef.current = requestAnimationFrame(draw); return; }
 
-      // Fade trails
+      // Fade trails — longer persistence for visible wind streams
       ctx.globalCompositeOperation = 'destination-in';
       ctx.fillStyle = `rgba(0, 0, 0, ${FADE_ALPHA})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.globalCompositeOperation = 'source-over';
 
-      const zoomScale = 0.6 * Math.pow(map.getZoom() / 7, 0.7);
+      const zoom = map.getZoom();
+      const zoomScale = SPEED_FACTOR * Math.pow(zoom / 7, 0.8);
 
-      ctx.lineWidth = LINE_WIDTH;
       for (const p of particles) {
         const geo = map.unproject([p.x, p.y]);
         const wind = windGrid.interpolate(geo.lat, geo.lng);
 
         if (wind) {
           const [u, v, speed] = wind;
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
+          const prevX = p.x;
+          const prevY = p.y;
           p.x += u * zoomScale;
           p.y -= v * zoomScale;
           p.age++;
+
+          // Progressive tapering: thicker at start, thinner as particle ages
+          const ageRatio = 1 - (p.age / MAX_AGE);
+          const lineW = LINE_WIDTH * Math.max(0.3, ageRatio);
+          const alpha = Math.max(0.15, ageRatio * 0.9);
+
+          ctx.beginPath();
+          ctx.moveTo(prevX, prevY);
           ctx.lineTo(p.x, p.y);
+          ctx.lineWidth = lineW;
           ctx.strokeStyle = getWindColor(speed);
+          ctx.globalAlpha = alpha;
           ctx.stroke();
+          ctx.globalAlpha = 1;
         } else {
           p.age = MAX_AGE + 1;
         }
