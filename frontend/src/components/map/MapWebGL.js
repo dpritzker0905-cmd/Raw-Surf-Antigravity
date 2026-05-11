@@ -36,7 +36,7 @@ const OM_MODEL_MAP = {
  * `null` means no tile is available (data-card only).
  */
 const OM_VARIABLE_MAP = {
-  precipitation: 'precipitation',
+  precipitation: null, // Open-Meteo precipitation tile layers crash on load, using RainViewer instead
   wind:          'wind_gusts_10m',
   pressure:      'pressure_msl',
   swell_height:  null,  // Marine models don't have tile coverage yet
@@ -209,6 +209,7 @@ const MapWebGL = ({
       mapStyle={getMapStyle(isLight, activeLayers?.includes('satellite'))}
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
+      attributionControl={false}
     >
       {/* Geofence Visual Layer */}
       <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
