@@ -2,121 +2,118 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
- * WindParticleCanvas \u2014 Professional dual-layer wind visualization.
+ * WindParticleCanvas — V144 High-performance wind visualization.
  *
- * Layer 1 (Color Field): Padded heatmap rendered 1.6x viewport size so
- *   panning never reveals white space. Uses row-based fast projection
- *   (~100 unproject calls instead of 8000+) for near-instant re-renders.
- *   CSS transform tracks map movement between re-renders.
+ * Key V144 optimization: Inline Mercator projection replaces all map.project()
+ * calls in the particle loop. Eliminates ~10,500 Mapbox API calls/frame,
+ * replacing them with pure arithmetic (~50-100x faster per projection).
  *
- * Layer 2 (Particle Trails): Animated directional lines at 60fps.
- *   Self-positioning via map.project() each frame (no CSS transform needed).
- *
- * Data: Static 1\u00B0 GFS global wind grid (u/v, bilinear interpolation).
+ * Layer 1 (Color Field): Padded 2x canvas, color-grouped fillRect, CSS transform sync.
+ * Layer 2 (Particle Trails): Inline projection, batched drawing, paused during interaction.
  */
 
-// --- Configuration ---
 const PARTICLE_COUNT = 3500;
 const MAX_AGE = 70;
 const LINE_WIDTH = 1.0;
-const FIELD_CELL_SIZE = 12;         // px per grid cell (blur smooths them)
-const FIELD_BLUR_PX = 14;           // CSS blur radius
-const FIELD_PAD = 0.3;              // 30% padding on each side (canvas = 1.6x viewport)
-const FIELD_UPDATE_THROTTLE = 40;   // ms debounce for field redraws
+const FIELD_CELL_SIZE = 14;
+const FIELD_BLUR_PX = 16;
+const FIELD_PAD = 0.5;
 const GLOBAL_WIND_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
+const DEG2RAD = Math.PI / 180;
+const PI = Math.PI;
 
-/**
- * FIELD color ramps.
- *
- * Alpha calibrated at 0.48\u20130.78 to balance:
- *   - Clear wind color visibility (dominant overlay)
- *   - Land/ocean geography readable beneath (coastlines, terrain)
- *
- * Format: [minSpeedMS, r, g, b, alpha]
- */
+// --- Inline Mercator Projection (replaces map.project/unproject) ---
+// Snapshots map state once per frame, then projects all particles via pure math.
+// Eliminates ~10,500 Mapbox API calls per frame → pure arithmetic.
+class FastMercator {
+  constructor() {
+    this.scale = 1; this.cx = 0; this.cy = 0;
+    this.hw = 0; this.hh = 0;
+  }
+
+  /** Snapshot map state — call ONCE per frame */
+  sync(map) {
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    const container = map.getContainer();
+    this.scale = Math.pow(2, zoom) * 512;
+    this.cx = ((center.lng + 180) / 360) * this.scale;
+    this.cy = ((1 - Math.log(Math.tan(PI / 4 + center.lat * DEG2RAD / 2)) / PI) / 2) * this.scale;
+    this.hw = container.clientWidth / 2;
+    this.hh = container.clientHeight / 2;
+  }
+
+  /** lng/lat → pixel (replaces map.project) */
+  project(lng, lat) {
+    const wx = ((lng + 180) / 360) * this.scale;
+    const wy = ((1 - Math.log(Math.tan(PI / 4 + lat * DEG2RAD / 2)) / PI) / 2) * this.scale;
+    return { x: wx - this.cx + this.hw, y: wy - this.cy + this.hh };
+  }
+
+  /** pixel → lng/lat (replaces map.unproject) */
+  unproject(px, py) {
+    const wx = (px - this.hw + this.cx) / this.scale;
+    const wy = (py - this.hh + this.cy) / this.scale;
+    const lng = wx * 360 - 180;
+    const lat = (Math.atan(Math.exp(PI * (1 - 2 * wy))) - PI / 4) * 2 / DEG2RAD;
+    return { lng, lat };
+  }
+}
+
+// --- Color Ramps ---
 const THEME_FIELD_COLORS = {
   dark: [
-    [0,   30,  60, 160, 0.48],   // calm \u2014 deep blue
-    [2,   25, 100, 185, 0.50],   // light air \u2014 royal blue
-    [3,   20, 145, 195, 0.52],   // \u2014 cyan-blue
-    [5,   15, 180, 175, 0.54],   // light breeze \u2014 teal
-    [7,   30, 190, 120, 0.56],   // gentle \u2014 sea green
-    [9,   70, 195,  60, 0.58],   // moderate \u2014 green
-    [11, 150, 205,  30, 0.60],   // fresh \u2014 lime-green
-    [14, 220, 200,  25, 0.63],   // strong \u2014 yellow
-    [17, 245, 160,  20, 0.66],   // near gale \u2014 amber
-    [21, 245, 100,  25, 0.69],   // gale \u2014 orange
-    [25, 235,  50,  35, 0.72],   // strong gale \u2014 red-orange
-    [30, 210,  25,  55, 0.75],   // storm \u2014 red
-    [36, 175,  15, 110, 0.77],   // violent storm \u2014 magenta
-    [44, 135,  10, 160, 0.78],   // hurricane \u2014 purple
+    [0,30,60,160,0.48],[2,25,100,185,0.50],[3,20,145,195,0.52],[5,15,180,175,0.54],
+    [7,30,190,120,0.56],[9,70,195,60,0.58],[11,150,205,30,0.60],[14,220,200,25,0.63],
+    [17,245,160,20,0.66],[21,245,100,25,0.69],[25,235,50,35,0.72],[30,210,25,55,0.75],
+    [36,175,15,110,0.77],[44,135,10,160,0.78],
   ],
   light: [
-    [0,   20,  45, 130, 0.48],   // calm \u2014 dark navy
-    [2,   15,  80, 155, 0.50],
-    [3,   10, 115, 160, 0.52],   // \u2014 dark cyan
-    [5,   10, 145, 140, 0.54],
-    [7,   20, 155, 100, 0.56],
-    [9,   50, 160,  40, 0.58],   // moderate \u2014 forest green
-    [11, 120, 165,  20, 0.60],
-    [14, 180, 165,  10, 0.63],   // strong \u2014 dark gold
-    [17, 210, 125,  10, 0.66],
-    [21, 210,  75,  15, 0.69],   // gale \u2014 burnt orange
-    [25, 200,  35,  25, 0.72],
-    [30, 175,  15,  40, 0.75],   // storm \u2014 crimson
-    [36, 145,  10,  85, 0.77],
-    [44, 110,   5, 130, 0.78],
+    [0,20,45,130,0.48],[2,15,80,155,0.50],[3,10,115,160,0.52],[5,10,145,140,0.54],
+    [7,20,155,100,0.56],[9,50,160,40,0.58],[11,120,165,20,0.60],[14,180,165,10,0.63],
+    [17,210,125,10,0.66],[21,210,75,15,0.69],[25,200,35,25,0.72],[30,175,15,40,0.75],
+    [36,145,10,85,0.77],[44,110,5,130,0.78],
   ],
   beach: [
-    [0,  160, 120,  70, 0.44],
-    [2,  180, 105,  55, 0.46],
-    [3,  195,  90,  45, 0.48],
-    [5,  210,  70,  45, 0.50],
-    [7,  220,  50,  50, 0.52],
-    [9,  215,  35,  70, 0.55],
-    [11, 205,  30,  95, 0.58],
-    [14, 190,  25, 120, 0.61],
-    [17, 170,  20, 145, 0.64],
-    [21, 145,  15, 165, 0.67],
-    [25, 120,  10, 180, 0.70],
-    [30,  90,  10, 195, 0.73],
-    [36,  60,   5, 205, 0.76],
-    [44,  40,   0, 215, 0.78],
+    [0,160,120,70,0.44],[2,180,105,55,0.46],[3,195,90,45,0.48],[5,210,70,45,0.50],
+    [7,220,50,50,0.52],[9,215,35,70,0.55],[11,205,30,95,0.58],[14,190,25,120,0.61],
+    [17,170,20,145,0.64],[21,145,15,165,0.67],[25,120,10,180,0.70],[30,90,10,195,0.73],
+    [36,60,5,205,0.76],[44,40,0,215,0.78],
   ],
 };
 
-/** PARTICLE color ramps \u2014 bright accents above the field. */
 const THEME_PARTICLE_COLORS = {
   dark: [
-    [0,  200, 230, 255, 0.50],
-    [5,  170, 245, 245, 0.60],
-    [10, 220, 255, 210, 0.68],
-    [15, 255, 255, 170, 0.74],
-    [20, 255, 210, 130, 0.80],
-    [28, 255, 150, 150, 0.85],
-    [36, 255, 130, 220, 0.90],
+    [0,200,230,255,0.50],[5,170,245,245,0.60],[10,220,255,210,0.68],
+    [15,255,255,170,0.74],[20,255,210,130,0.80],[28,255,150,150,0.85],[36,255,130,220,0.90],
   ],
   light: [
-    [0,   50,  90, 180, 0.55],
-    [5,   40, 140, 170, 0.65],
-    [10,  60, 170,  70, 0.70],
-    [15, 180, 170,  20, 0.75],
-    [20, 220, 110,  20, 0.80],
-    [28, 200,  40,  40, 0.85],
-    [36, 160,  20, 100, 0.90],
+    [0,50,90,180,0.55],[5,40,140,170,0.65],[10,60,170,70,0.70],
+    [15,180,170,20,0.75],[20,220,110,20,0.80],[28,200,40,40,0.85],[36,160,20,100,0.90],
   ],
   beach: [
-    [0,  255, 230, 190, 0.50],
-    [5,  255, 195, 140, 0.60],
-    [10, 255, 155, 120, 0.68],
-    [15, 255, 115, 110, 0.74],
-    [20, 245,  80, 130, 0.80],
-    [28, 210,  60, 180, 0.85],
-    [36, 160,  50, 220, 0.90],
+    [0,255,230,190,0.50],[5,255,195,140,0.60],[10,255,155,120,0.68],
+    [15,255,115,110,0.74],[20,245,80,130,0.80],[28,210,60,180,0.85],[36,160,50,220,0.90],
   ],
 };
 
-/** Look up [speed, r, g, b, a] from a sorted ramp */
+// Pre-compute rgba strings for each ramp entry to avoid string concat per frame
+function buildStyleCache(ramp) {
+  return ramp.map(e => ({
+    speed: e[0],
+    style: `rgba(${e[1]},${e[2]},${e[3]},${e[4]})`,
+    glowStyle: `rgba(${e[1]},${e[2]},${e[3]},0.10)`,
+    key: `${e[1]},${e[2]},${e[3]},${e[4]}`,
+  }));
+}
+
+function lookupCached(speed, cache) {
+  for (let i = cache.length - 1; i >= 0; i--) {
+    if (speed >= cache[i].speed) return cache[i];
+  }
+  return cache[0];
+}
+
 function lookupColor(speed, ramp) {
   for (let i = ramp.length - 1; i >= 0; i--) {
     if (speed >= ramp[i][0]) return ramp[i];
@@ -124,27 +121,16 @@ function lookupColor(speed, ramp) {
   return ramp[0];
 }
 
-/** Build an rgba() CSS string from a ramp entry */
-function toRgba(entry) {
-  return `rgba(${entry[1]}, ${entry[2]}, ${entry[3]}, ${entry[4]})`;
-}
+function toRgba(e) { return `rgba(${e[1]},${e[2]},${e[3]},${e[4]})`; }
+function colorKey(e) { return `${e[1]},${e[2]},${e[3]},${e[4]}`; }
 
-// --- Wind Grid Data Structure ---
+// --- Wind Grid ---
 class GlobalWindGrid {
   constructor(data) {
-    const u = data[0];
-    const v = data[1];
-    const h = u.header;
-    this.lo1 = h.lo1;
-    this.lo2 = h.lo2;
-    this.la1 = h.la1;
-    this.la2 = h.la2;
-    this.dx = h.dx;
-    this.dy = h.dy;
-    this.nx = h.nx;
-    this.ny = h.ny;
-    this.uData = u.data;
-    this.vData = v.data;
+    const u = data[0], v = data[1], h = u.header;
+    this.lo1 = h.lo1; this.lo2 = h.lo2; this.la1 = h.la1; this.la2 = h.la2;
+    this.dx = h.dx; this.dy = h.dy; this.nx = h.nx; this.ny = h.ny;
+    this.uData = u.data; this.vData = v.data;
   }
 
   interpolate(lat, lng) {
@@ -153,22 +139,18 @@ class GlobalWindGrid {
     while (lon > this.lo2 + this.dx) lon -= 360;
     const fi = (lon - this.lo1) / this.dx;
     const fj = (this.la1 - lat) / this.dy;
-    const i = Math.floor(fi);
-    const j = Math.floor(fj);
+    const i = Math.floor(fi), j = Math.floor(fj);
     if (i < 0 || i >= this.nx - 1 || j < 0 || j >= this.ny - 1) return null;
-    const fx = fi - i;
-    const fy = fj - j;
+    const fx = fi - i, fy = fj - j;
     const p = j * this.nx + i;
-    const u = (1 - fx) * (1 - fy) * this.uData[p] + fx * (1 - fy) * this.uData[p + 1]
-            + (1 - fx) * fy * this.uData[p + this.nx] + fx * fy * this.uData[p + this.nx + 1];
-    const v = (1 - fx) * (1 - fy) * this.vData[p] + fx * (1 - fy) * this.vData[p + 1]
-            + (1 - fx) * fy * this.vData[p + this.nx] + fx * fy * this.vData[p + this.nx + 1];
-    return [u, v, Math.sqrt(u * u + v * v)];
+    const u = (1-fx)*(1-fy)*this.uData[p] + fx*(1-fy)*this.uData[p+1]
+            + (1-fx)*fy*this.uData[p+this.nx] + fx*fy*this.uData[p+this.nx+1];
+    const v = (1-fx)*(1-fy)*this.vData[p] + fx*(1-fy)*this.vData[p+1]
+            + (1-fx)*fy*this.vData[p+this.nx] + fx*fy*this.vData[p+this.nx+1];
+    return [u, v, Math.sqrt(u*u + v*v)];
   }
 }
 
-// ============================================================
-//  Main Component
 // ============================================================
 const WindParticleCanvas = ({ mapInstance, isActive }) => {
   const fieldRef = useRef(null);
@@ -177,22 +159,15 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   const windGridRef = useRef(null);
   const fieldTimerRef = useRef(null);
   const fieldOriginRef = useRef(null);
+  const isInteractingRef = useRef(false);
   const [gridLoaded, setGridLoaded] = useState(false);
   const { theme } = useTheme();
 
-  const particleRamp = useMemo(() => {
-    if (theme === 'light') return THEME_PARTICLE_COLORS.light;
-    if (theme === 'beach') return THEME_PARTICLE_COLORS.beach;
-    return THEME_PARTICLE_COLORS.dark;
-  }, [theme]);
+  const particleRamp = useMemo(() => THEME_PARTICLE_COLORS[theme] || THEME_PARTICLE_COLORS.dark, [theme]);
+  const fieldRamp = useMemo(() => THEME_FIELD_COLORS[theme] || THEME_FIELD_COLORS.dark, [theme]);
+  const particleStyleCache = useMemo(() => buildStyleCache(particleRamp), [particleRamp]);
 
-  const fieldRamp = useMemo(() => {
-    if (theme === 'light') return THEME_FIELD_COLORS.light;
-    if (theme === 'beach') return THEME_FIELD_COLORS.beach;
-    return THEME_FIELD_COLORS.dark;
-  }, [theme]);
-
-  // --- Fetch global wind grid data ONCE ---
+  // Fetch wind data once
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -200,167 +175,132 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
         const res = await fetch(GLOBAL_WIND_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (!cancelled) {
-          windGridRef.current = new GlobalWindGrid(data);
-          setGridLoaded(true);
-        }
-      } catch (err) {
-        console.warn('[Wind] Global grid fetch failed:', err);
-      }
+        if (!cancelled) { windGridRef.current = new GlobalWindGrid(data); setGridLoaded(true); }
+      } catch (err) { console.warn('[Wind] Grid fetch failed:', err); }
     })();
     return () => { cancelled = true; };
   }, []);
 
   // ==========================================================
-  //  LAYER 1: Color Field Heatmap (PADDED + FAST PROJECTION)
+  //  LAYER 1: Color Field (padded + fast projection + fillRect)
   // ==========================================================
   const renderColorField = useCallback(() => {
-    const map = mapInstance;
-    const canvas = fieldRef.current;
-    const grid = windGridRef.current;
+    const map = mapInstance, canvas = fieldRef.current, grid = windGridRef.current;
     if (!map || !canvas || !grid) return;
 
     const container = map.getContainer();
-    const w = container.clientWidth;
-    const h = container.clientHeight;
+    const w = container.clientWidth, h = container.clientHeight;
+    const padX = Math.round(w * FIELD_PAD), padY = Math.round(h * FIELD_PAD);
+    const rw = w + padX * 2, rh = h + padY * 2;
 
-    // --- Padded canvas: 1.6x viewport to prevent white space on pan ---
-    const padX = Math.round(w * FIELD_PAD);
-    const padY = Math.round(h * FIELD_PAD);
-    const rw = w + padX * 2;  // render width
-    const rh = h + padY * 2;  // render height
-
-    canvas.width = rw;
-    canvas.height = rh;
-    canvas.style.width = rw + 'px';
-    canvas.style.height = rh + 'px';
-    canvas.style.left = -padX + 'px';
-    canvas.style.top = -padY + 'px';
+    canvas.width = rw; canvas.height = rh;
+    canvas.style.width = rw + 'px'; canvas.style.height = rh + 'px';
+    canvas.style.left = -padX + 'px'; canvas.style.top = -padY + 'px';
 
     const ctx = canvas.getContext('2d');
     const ramp = fieldRamp;
-    const cols = Math.ceil(rw / FIELD_CELL_SIZE);
-    const rows = Math.ceil(rh / FIELD_CELL_SIZE);
-    const imgData = ctx.createImageData(rw, rh);
-    const pixels = imgData.data;
+    const cols = Math.ceil(rw / FIELD_CELL_SIZE), rows = Math.ceil(rh / FIELD_CELL_SIZE);
 
-    // --- FAST PROJECTION: row-based lat lookup + linear lng interpolation ---
-    // Instead of calling map.unproject() per cell (~8000 calls), we:
-    //   1. Compute lat for each ROW via unproject (only ~rows calls)
-    //   2. Compute lng range ONCE (Mercator is linear in x)
-    // This drops 8000+ unproject calls to ~100, making renders near-instant.
+    // Row-based fast projection
     const leftGeo = map.unproject([-padX, 0]);
     const rightGeo = map.unproject([w + padX, 0]);
-    const lngLeft = leftGeo.lng;
-    const lngSpan = rightGeo.lng - leftGeo.lng;
+    const lngLeft = leftGeo.lng, lngSpan = rightGeo.lng - leftGeo.lng;
 
-    // Pre-compute latitude for each row (one unproject per row)
     const rowLats = new Float64Array(rows);
     for (let row = 0; row < rows; row++) {
-      const vpY = (row + 0.5) * FIELD_CELL_SIZE - padY;
-      const geo = map.unproject([0, vpY]);
-      rowLats[row] = geo.lat;
+      rowLats[row] = map.unproject([0, (row + 0.5) * FIELD_CELL_SIZE - padY]).lat;
     }
 
+    // Color-grouped fillRect
+    const buckets = new Map();
     for (let row = 0; row < rows; row++) {
       const lat = rowLats[row];
       for (let col = 0; col < cols; col++) {
-        // Linear interpolation for longitude (exact in Mercator)
-        const t = (col + 0.5) / cols;
-        const lng = lngLeft + t * lngSpan;
-
+        const lng = lngLeft + ((col + 0.5) / cols) * lngSpan;
         const wind = grid.interpolate(lat, lng);
         if (!wind) continue;
-
-        const [, , speed] = wind;
-        const c = lookupColor(speed, ramp);
-        const r = c[1], g = c[2], b = c[3], a = Math.round(c[4] * 255);
-
-        const startX = col * FIELD_CELL_SIZE;
-        const startY = row * FIELD_CELL_SIZE;
-        const endX = Math.min(startX + FIELD_CELL_SIZE, rw);
-        const endY = Math.min(startY + FIELD_CELL_SIZE, rh);
-
-        for (let py = startY; py < endY; py++) {
-          for (let px = startX; px < endX; px++) {
-            const idx = (py * rw + px) * 4;
-            pixels[idx] = r;
-            pixels[idx + 1] = g;
-            pixels[idx + 2] = b;
-            pixels[idx + 3] = a;
-          }
-        }
+        const c = lookupColor(wind[2], ramp);
+        const key = colorKey(c);
+        if (!buckets.has(key)) buckets.set(key, { style: toRgba(c), rects: [] });
+        buckets.get(key).rects.push(col * FIELD_CELL_SIZE, row * FIELD_CELL_SIZE);
       }
     }
 
-    ctx.putImageData(imgData, 0, 0);
+    ctx.clearRect(0, 0, rw, rh);
+    for (const b of buckets.values()) {
+      ctx.fillStyle = b.style;
+      const r = b.rects;
+      for (let i = 0; i < r.length; i += 2) ctx.fillRect(r[i], r[i+1], FIELD_CELL_SIZE, FIELD_CELL_SIZE);
+    }
 
-    // --- PAN-SYNC: Record anchor for CSS transform tracking ---
     const center = map.getCenter();
     const centerPx = map.project([center.lng, center.lat]);
-    fieldOriginRef.current = {
-      lng: center.lng, lat: center.lat,
-      px: centerPx.x, py: centerPx.y,
-    };
+    fieldOriginRef.current = { lng: center.lng, lat: center.lat, px: centerPx.x, py: centerPx.y };
     canvas.style.transform = '';
   }, [mapInstance, fieldRamp]);
 
-  // --- PAN-SYNC: CSS-transform tracking during drag ---
-  // Only applies to the field canvas. Trail canvas self-positions via map.project().
+  // Pan-sync CSS transform
   const onMapMove = useCallback(() => {
-    const map = mapInstance;
-    const origin = fieldOriginRef.current;
+    const map = mapInstance, origin = fieldOriginRef.current;
     if (!map || !origin) return;
     try {
       const cur = map.project([origin.lng, origin.lat]);
-      const dx = cur.x - origin.px;
-      const dy = cur.y - origin.py;
       if (fieldRef.current) {
-        fieldRef.current.style.transform = `translate(${dx}px, ${dy}px)`;
+        fieldRef.current.style.transform = `translate(${cur.x - origin.px}px,${cur.y - origin.py}px)`;
       }
-    } catch (_) { /* map not ready */ }
+    } catch (_) {}
   }, [mapInstance]);
 
-  // Render field on load + throttled on viewport change + pan sync
+  // Event wiring for field
   useEffect(() => {
     const map = mapInstance;
     if (!map || !isActive || !gridLoaded) return;
-
     renderColorField();
 
     const onViewChange = () => {
-      clearTimeout(fieldTimerRef.current);
-      fieldTimerRef.current = setTimeout(renderColorField, FIELD_UPDATE_THROTTLE);
+      cancelAnimationFrame(fieldTimerRef.current);
+      fieldTimerRef.current = requestAnimationFrame(renderColorField);
     };
+    const onInteractStart = () => { isInteractingRef.current = true; };
+    const onInteractEnd = () => { isInteractingRef.current = false; };
 
     map.on('move', onMapMove);
     map.on('moveend', onViewChange);
     map.on('zoomend', onViewChange);
+    map.on('dragstart', onInteractStart);
+    map.on('dragend', onInteractEnd);
+    map.on('zoomstart', onInteractStart);
+    map.on('pitchstart', onInteractStart);
+    map.on('pitchend', onInteractEnd);
     window.addEventListener('resize', onViewChange);
 
     return () => {
       map.off('move', onMapMove);
       map.off('moveend', onViewChange);
       map.off('zoomend', onViewChange);
+      map.off('dragstart', onInteractStart);
+      map.off('dragend', onInteractEnd);
+      map.off('zoomstart', onInteractStart);
+      map.off('pitchstart', onInteractStart);
+      map.off('pitchend', onInteractEnd);
       window.removeEventListener('resize', onViewChange);
-      clearTimeout(fieldTimerRef.current);
+      cancelAnimationFrame(fieldTimerRef.current);
     };
   }, [mapInstance, isActive, gridLoaded, renderColorField, onMapMove]);
 
-  // Re-render field when theme changes
   useEffect(() => {
     if (isActive && gridLoaded && mapInstance) renderColorField();
   }, [fieldRamp, isActive, gridLoaded, mapInstance, renderColorField]);
 
   // ==========================================================
-  //  LAYER 2: Particle Trail Animation (SECONDARY)
+  //  LAYER 2: Particles (INLINE MERCATOR — zero map.project calls)
   // ==========================================================
   useEffect(() => {
-    const map = mapInstance;
-    const trailCanvas = trailRef.current;
+    const map = mapInstance, trailCanvas = trailRef.current;
     if (!map || !trailCanvas || !isActive || !gridLoaded) return;
 
     const tCtx = trailCanvas.getContext('2d');
+    const proj = new FastMercator();
     let particles = [];
 
     function resize() {
@@ -376,14 +316,14 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
 
     function seedParticle() {
       const c = map.getContainer();
-      return {
-        x: Math.random() * c.clientWidth,
-        y: Math.random() * c.clientHeight,
-        age: Math.floor(Math.random() * MAX_AGE),
-        lng: undefined,
-        lat: undefined,
-      };
+      const x = Math.random() * c.clientWidth;
+      const y = Math.random() * c.clientHeight;
+      const geo = proj.unproject(x, y);
+      return { x, y, age: Math.floor(Math.random() * MAX_AGE), lng: geo.lng, lat: geo.lat };
     }
+
+    // Snapshot projection for initial seeding
+    proj.sync(map);
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(seedParticle());
 
     let cachedPPD = 1;
@@ -391,46 +331,57 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     function updatePPD() {
       try {
         const center = map.getCenter();
-        const p1 = map.project([center.lng, center.lat]);
-        const p2 = map.project([center.lng + 1, center.lat]);
+        const p1 = proj.project(center.lng, center.lat);
+        const p2 = proj.project(center.lng + 1, center.lat);
         cachedPPD = Math.max(0.5, Math.abs(p2.x - p1.x));
-      } catch (e) {
-        cachedPPD = 1;
-      }
+      } catch (_) { cachedPPD = 1; }
     }
-    updatePPD();
 
     function draw() {
       const container = map.getContainer();
-      const w = container.clientWidth;
-      const h = container.clientHeight;
+      const w = container.clientWidth, h = container.clientHeight;
       const grid = windGridRef.current;
-      const ramp = particleRamp;
+      const cache = particleStyleCache;
 
       frameCount++;
+
+      // Sync projection state once per frame (replaces 10,500+ map.project calls)
+      proj.sync(map);
       if (frameCount % 30 === 0) updatePPD();
 
-      // Fade existing trails
+      // Pause during interaction — free main thread for smooth panning
+      if (isInteractingRef.current) {
+        tCtx.globalCompositeOperation = 'destination-in';
+        tCtx.globalAlpha = 1.0;
+        tCtx.fillStyle = 'rgba(0,0,0,0.85)';
+        tCtx.fillRect(0, 0, w, h);
+        tCtx.globalCompositeOperation = 'source-over';
+        tCtx.globalAlpha = 1.0;
+        animRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
+      // Fade trails
       tCtx.globalCompositeOperation = 'destination-in';
       tCtx.globalAlpha = 1.0;
-      tCtx.fillStyle = 'rgba(0, 0, 0, 0.90)';
+      tCtx.fillStyle = 'rgba(0,0,0,0.90)';
       tCtx.fillRect(0, 0, w, h);
       tCtx.globalCompositeOperation = 'source-over';
       tCtx.globalAlpha = 1.0;
 
       if (!grid) { animRef.current = requestAnimationFrame(draw); return; }
 
-      for (const p of particles) {
-        if (p.lng === undefined || p.lat === undefined) {
-          const geo = map.unproject([p.x, p.y]);
-          p.lng = geo.lng;
-          p.lat = geo.lat;
-        }
+      // Batched drawing with inline projection
+      const batches = new Map();
+
+      for (let pi = 0; pi < particles.length; pi++) {
+        const p = particles[pi];
 
         const wind = grid.interpolate(p.lat, p.lng);
         if (wind) {
           const [u, v, speed] = wind;
-          const prevPos = map.project([p.lng, p.lat]);
+          // Inline projection — pure arithmetic, no map.project()
+          const prev = proj.project(p.lng, p.lat);
 
           const targetPx = 1.0 + speed * 0.12;
           const degStep = targetPx / cachedPPD;
@@ -440,43 +391,48 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           p.lat -= (v / mag) * degStep;
           p.age++;
 
-          const newPos = map.project([p.lng, p.lat]);
-          const dx = newPos.x - prevPos.x;
-          const dy = newPos.y - prevPos.y;
-          const pixelDist = Math.sqrt(dx * dx + dy * dy);
+          const next = proj.project(p.lng, p.lat);
+          const dx = next.x - prev.x, dy = next.y - prev.y;
 
-          if (pixelDist < 0.5) continue;
-
-          const entry = lookupColor(speed, ramp);
-
-          // Glow halo for strong winds
-          if (speed > 12) {
-            tCtx.beginPath();
-            tCtx.moveTo(prevPos.x, prevPos.y);
-            tCtx.lineTo(newPos.x, newPos.y);
-            tCtx.lineWidth = LINE_WIDTH * 3.5;
-            tCtx.strokeStyle = `rgba(${entry[1]}, ${entry[2]}, ${entry[3]}, 0.10)`;
-            tCtx.stroke();
+          if (dx * dx + dy * dy >= 0.25) { // skip sqrt: compare squared
+            const entry = lookupCached(speed, cache);
+            if (!batches.has(entry.key)) {
+              batches.set(entry.key, { style: entry.style, glowStyle: entry.glowStyle, segs: [], glow: speed > 12 });
+            }
+            batches.get(entry.key).segs.push(prev.x, prev.y, next.x, next.y);
           }
 
-          // Core particle line
-          tCtx.beginPath();
-          tCtx.moveTo(prevPos.x, prevPos.y);
-          tCtx.lineTo(newPos.x, newPos.y);
-          tCtx.lineWidth = LINE_WIDTH;
-          tCtx.strokeStyle = toRgba(entry);
-          tCtx.stroke();
+          // Bounds check using already-computed next (eliminates redundant testPos)
+          if (p.age > MAX_AGE || next.x < -50 || next.x > w + 50 || next.y < -50 || next.y > h + 50) {
+            const geo = proj.unproject(Math.random() * w, Math.random() * h);
+            p.x = Math.random() * w; p.y = Math.random() * h;
+            p.lng = geo.lng; p.lat = geo.lat;
+            p.age = Math.floor(Math.random() * MAX_AGE);
+          }
         } else {
-          p.age = MAX_AGE + 1;
+          // Off-grid: reseed
+          const geo = proj.unproject(Math.random() * w, Math.random() * h);
+          p.x = Math.random() * w; p.y = Math.random() * h;
+          p.lng = geo.lng; p.lat = geo.lat;
+          p.age = Math.floor(Math.random() * MAX_AGE);
         }
+      }
 
-        if (p.lng !== undefined) {
-          const testPos = map.project([p.lng, p.lat]);
-          if (p.age > MAX_AGE || testPos.x < -50 || testPos.x > w + 50
-              || testPos.y < -50 || testPos.y > h + 50) {
-            Object.assign(p, seedParticle());
-          }
+      // Draw batched segments (single stroke per color)
+      for (const batch of batches.values()) {
+        const segs = batch.segs;
+        if (batch.glow) {
+          tCtx.beginPath();
+          for (let i = 0; i < segs.length; i += 4) { tCtx.moveTo(segs[i], segs[i+1]); tCtx.lineTo(segs[i+2], segs[i+3]); }
+          tCtx.lineWidth = LINE_WIDTH * 3.5;
+          tCtx.strokeStyle = batch.glowStyle;
+          tCtx.stroke();
         }
+        tCtx.beginPath();
+        for (let i = 0; i < segs.length; i += 4) { tCtx.moveTo(segs[i], segs[i+1]); tCtx.lineTo(segs[i+2], segs[i+3]); }
+        tCtx.lineWidth = LINE_WIDTH;
+        tCtx.strokeStyle = batch.style;
+        tCtx.stroke();
       }
 
       animRef.current = requestAnimationFrame(draw);
@@ -490,16 +446,13 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       window.removeEventListener('resize', resize);
       tCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
     };
-  }, [isActive, mapInstance, gridLoaded, particleRamp]);
+  }, [isActive, mapInstance, gridLoaded, particleStyleCache]);
 
-  // Clean up both canvases when layer deactivated
+  // Cleanup on deactivation
   useEffect(() => {
     if (!isActive) {
       [fieldRef, trailRef].forEach(ref => {
-        if (ref.current) {
-          const ctx = ref.current.getContext('2d');
-          ctx.clearRect(0, 0, ref.current.width, ref.current.height);
-        }
+        if (ref.current) ref.current.getContext('2d').clearRect(0, 0, ref.current.width, ref.current.height);
       });
     }
   }, [isActive]);
@@ -508,30 +461,16 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
 
   return (
     <>
-      {/* Layer 1: Padded color field (blurred, CSS-transform synced during pan) */}
-      <canvas
-        ref={fieldRef}
-        style={{
-          position: 'absolute',
-          pointerEvents: 'none',
-          zIndex: 4,
-          filter: `blur(${FIELD_BLUR_PX}px)`,
-          transition: 'opacity 0.6s ease-in-out',
-          opacity: gridLoaded ? 1 : 0,
-        }}
-      />
-      {/* Layer 2: Animated particle trails (self-positioning, no CSS transform) */}
-      <canvas
-        ref={trailRef}
-        style={{
-          position: 'absolute',
-          top: 0, left: 0, width: '100%', height: '100%',
-          pointerEvents: 'none',
-          zIndex: 5,
-          transition: 'opacity 0.6s ease-in-out',
-          opacity: gridLoaded ? 1 : 0,
-        }}
-      />
+      <canvas ref={fieldRef} style={{
+        position: 'absolute', pointerEvents: 'none', zIndex: 4,
+        filter: `blur(${FIELD_BLUR_PX}px)`, willChange: 'transform',
+        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 1 : 0,
+      }} />
+      <canvas ref={trailRef} style={{
+        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+        pointerEvents: 'none', zIndex: 5,
+        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 1 : 0,
+      }} />
     </>
   );
 };
