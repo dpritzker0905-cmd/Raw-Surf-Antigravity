@@ -29,7 +29,7 @@ const OM_MODEL_MAP = {
  */
 const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
-  wind:          'wind_speed_10m', // Heatmap magnitude (particles layered on top)
+  wind:          'wind_gusts_10m', // Heatmap magnitude (particles layered on top)
   pressure:      'pressure_msl',
   fog:           'visibility',
   swell_height:  null,  // Marine models don't have tile coverage yet
