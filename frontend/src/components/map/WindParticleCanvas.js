@@ -1,83 +1,123 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
- * WindParticleCanvas — Premium Global Animated Wind Overlay for MapLibre.
+ * WindParticleCanvas — Dual-layer wind visualization engine.
  *
- * Architecture:
- * - Fetches a static 1-degree resolution global wind grid (GFS snapshot).
- * - Renders animated particle trails that convey wind speed & direction.
- * - Land masses remain FULLY VISIBLE underneath — trails are thin, short-lived,
- *   and the canvas clears aggressively to prevent opacity buildup.
- * - Theme-aware color palettes for Dark, Light, and Beach modes.
+ * Layer 1 (Color Field): A smooth, semi-transparent heatmap showing wind speed
+ *   magnitude across the viewport. Rendered to an offscreen canvas with CSS blur,
+ *   updated only when the map viewport changes (not every frame).
  *
- * Design inspiration: Windy.com's transparent particle layer, but with
- * our own premium neon-glow aesthetic tuned per theme.
+ * Layer 2 (Particle Trails): Animated particles flowing with the wind field,
+ *   showing direction and relative speed. Uses PIXEL-SPACE movement to guarantee
+ *   visibility at ALL zoom levels, including fully-zoomed-out world view.
+ *
+ * Data source: Static 1-degree GFS wind grid (u/v components).
+ * Inspired by Windy.com but with theme-aware palettes and neon glow aesthetics.
  */
 
-const PARTICLE_COUNT = 2500;
-const MAX_AGE = 60;
-const LINE_WIDTH = 1.2;
-const SPEED_FACTOR = 2.8;
+// --- Configuration ---
+const PARTICLE_COUNT = 4000;
+const MAX_AGE = 80;
+const LINE_WIDTH = 1.3;
+const FIELD_CELL_SIZE = 8;          // Pixels per grid cell for color field (smaller = smoother)
+const FIELD_UPDATE_THROTTLE = 150;  // ms debounce for field redraws on map move
 const GLOBAL_WIND_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 
 /**
- * Theme-aware color ramps. Each theme uses a carefully curated palette
- * that remains highly visible against its base map style while staying
- * transparent enough to let geography show through.
- *
- * Format: [minSpeedKnots, 'rgba(r,g,b,a)']
+ * Theme-aware PARTICLE color ramps — vivid, semi-transparent.
+ * Format: [minSpeedKnots, r, g, b, alpha]
  */
-const THEME_COLOR_RAMPS = {
+const THEME_PARTICLE_COLORS = {
   dark: [
-    [0,  'rgba(100, 180, 255, 0.35)'],   // calm — soft sky blue
-    [4,  'rgba(80, 210, 230, 0.45)'],     // light — cyan
-    [8,  'rgba(50, 230, 200, 0.55)'],     // moderate — teal
-    [12, 'rgba(120, 255, 160, 0.6)'],     // fresh — green
-    [16, 'rgba(255, 255, 120, 0.65)'],    // strong — warm yellow
-    [20, 'rgba(255, 190, 80, 0.7)'],      // very strong — orange
-    [25, 'rgba(255, 120, 70, 0.75)'],     // gale — red-orange
-    [30, 'rgba(255, 60, 80, 0.8)'],       // storm — red
-    [40, 'rgba(200, 40, 120, 0.85)'],     // hurricane — magenta
+    [0,  100, 180, 255, 0.5],
+    [4,  80,  210, 230, 0.6],
+    [8,  50,  230, 200, 0.65],
+    [12, 120, 255, 160, 0.7],
+    [16, 255, 255, 120, 0.75],
+    [20, 255, 190, 80,  0.8],
+    [25, 255, 120, 70,  0.85],
+    [30, 255, 60,  80,  0.9],
+    [40, 200, 40,  120, 0.95],
   ],
   light: [
-    [0,  'rgba(30, 100, 180, 0.3)'],      // calm — deep blue
-    [4,  'rgba(20, 130, 160, 0.4)'],      // light — dark teal
-    [8,  'rgba(15, 140, 120, 0.5)'],      // moderate — forest teal
-    [12, 'rgba(40, 150, 60, 0.55)'],      // fresh — green
-    [16, 'rgba(180, 160, 20, 0.6)'],      // strong — olive gold
-    [20, 'rgba(220, 120, 20, 0.65)'],     // very strong — amber
-    [25, 'rgba(210, 70, 30, 0.7)'],       // gale — burnt orange
-    [30, 'rgba(180, 30, 30, 0.75)'],      // storm — crimson
-    [40, 'rgba(140, 20, 80, 0.8)'],       // hurricane — dark magenta
+    [0,  30,  100, 180, 0.45],
+    [4,  20,  130, 160, 0.55],
+    [8,  15,  140, 120, 0.6],
+    [12, 40,  150, 60,  0.65],
+    [16, 180, 160, 20,  0.7],
+    [20, 220, 120, 20,  0.75],
+    [25, 210, 70,  30,  0.8],
+    [30, 180, 30,  30,  0.85],
+    [40, 140, 20,  80,  0.9],
   ],
   beach: [
-    [0,  'rgba(255, 200, 140, 0.3)'],     // calm — warm sand
-    [4,  'rgba(255, 175, 100, 0.4)'],     // light — golden
-    [8,  'rgba(255, 140, 80, 0.5)'],      // moderate — sunset orange
-    [12, 'rgba(255, 105, 90, 0.55)'],     // fresh — coral
-    [16, 'rgba(240, 80, 110, 0.6)'],      // strong — pink-coral
-    [20, 'rgba(210, 60, 140, 0.65)'],     // very strong — magenta
-    [25, 'rgba(170, 50, 170, 0.7)'],      // gale — purple
-    [30, 'rgba(130, 40, 190, 0.75)'],     // storm — deep purple
-    [40, 'rgba(90, 30, 200, 0.8)'],       // hurricane — violet
+    [0,  255, 200, 140, 0.45],
+    [4,  255, 175, 100, 0.55],
+    [8,  255, 140, 80,  0.6],
+    [12, 255, 105, 90,  0.65],
+    [16, 240, 80,  110, 0.7],
+    [20, 210, 60,  140, 0.75],
+    [25, 170, 50,  170, 0.8],
+    [30, 130, 40,  190, 0.85],
+    [40, 90,  30,  200, 0.9],
   ],
 };
 
-function getWindColor(speed, colorRamp) {
-  for (let i = colorRamp.length - 1; i >= 0; i--) {
-    if (speed >= colorRamp[i][0]) return colorRamp[i][1];
+/**
+ * Theme-aware FIELD color ramps — very low opacity for background tint.
+ * Format: [minSpeedKnots, r, g, b, alpha]
+ */
+const THEME_FIELD_COLORS = {
+  dark: [
+    [0,  60,  120, 200, 0.06],
+    [4,  50,  160, 210, 0.10],
+    [8,  40,  190, 180, 0.14],
+    [12, 80,  210, 120, 0.18],
+    [16, 200, 210, 60,  0.22],
+    [20, 230, 160, 50,  0.26],
+    [25, 230, 100, 50,  0.30],
+    [30, 220, 50,  60,  0.34],
+    [40, 180, 30,  90,  0.38],
+  ],
+  light: [
+    [0,  20,  80,  160, 0.05],
+    [4,  15,  110, 150, 0.08],
+    [8,  10,  120, 110, 0.12],
+    [12, 30,  130, 50,  0.15],
+    [16, 160, 140, 20,  0.18],
+    [20, 200, 100, 20,  0.22],
+    [25, 190, 60,  25,  0.26],
+    [30, 160, 25,  25,  0.30],
+    [40, 120, 15,  70,  0.34],
+  ],
+  beach: [
+    [0,  240, 180, 120, 0.05],
+    [4,  240, 155, 85,  0.08],
+    [8,  240, 120, 65,  0.12],
+    [12, 240, 90,  75,  0.15],
+    [16, 220, 65,  95,  0.18],
+    [20, 195, 50,  125, 0.22],
+    [25, 155, 40,  155, 0.26],
+    [30, 115, 30,  175, 0.30],
+    [40, 75,  20,  185, 0.34],
+  ],
+};
+
+/** Look up [r, g, b, a] from a structured ramp */
+function lookupColor(speed, ramp) {
+  for (let i = ramp.length - 1; i >= 0; i--) {
+    if (speed >= ramp[i][0]) return ramp[i];
   }
-  return colorRamp[0][1];
+  return ramp[0];
 }
 
-/** Parse rgba string to extract base RGB for glow rendering */
-function parseRgba(rgbaStr) {
-  const m = rgbaStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (!m) return { r: 200, g: 200, b: 255 };
-  return { r: +m[1], g: +m[2], b: +m[3] };
+/** Build an rgba() string from a ramp entry */
+function toRgba(entry) {
+  return `rgba(${entry[1]}, ${entry[2]}, ${entry[3]}, ${entry[4]})`;
 }
 
+// --- Wind Grid Data Structure ---
 class GlobalWindGrid {
   constructor(data) {
     const u = data[0];
@@ -119,24 +159,32 @@ class GlobalWindGrid {
   }
 }
 
+// --- Main Component ---
 const WindParticleCanvas = ({ mapInstance, isActive }) => {
-  const trailRef = useRef(null);
+  const fieldRef = useRef(null);     // Color field canvas
+  const trailRef = useRef(null);     // Particle trail canvas
   const animRef = useRef(null);
   const windGridRef = useRef(null);
+  const fieldTimerRef = useRef(null);
   const [gridLoaded, setGridLoaded] = useState(false);
   const { theme } = useTheme();
 
-  // Resolve color ramp from theme
-  const colorRamp = useMemo(() => {
-    if (theme === 'light') return THEME_COLOR_RAMPS.light;
-    if (theme === 'beach') return THEME_COLOR_RAMPS.beach;
-    return THEME_COLOR_RAMPS.dark;
+  const particleRamp = useMemo(() => {
+    if (theme === 'light') return THEME_PARTICLE_COLORS.light;
+    if (theme === 'beach') return THEME_PARTICLE_COLORS.beach;
+    return THEME_PARTICLE_COLORS.dark;
   }, [theme]);
 
-  // Fetch global wind data ONLY ONCE
+  const fieldRamp = useMemo(() => {
+    if (theme === 'light') return THEME_FIELD_COLORS.light;
+    if (theme === 'beach') return THEME_FIELD_COLORS.beach;
+    return THEME_FIELD_COLORS.dark;
+  }, [theme]);
+
+  // --- Fetch global wind data ONCE ---
   useEffect(() => {
     let cancelled = false;
-    const fetchGlobal = async () => {
+    (async () => {
       try {
         const res = await fetch(GLOBAL_WIND_URL);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -148,12 +196,91 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       } catch (err) {
         console.warn('[Wind] Global fetch failed:', err);
       }
-    };
-    fetchGlobal();
+    })();
     return () => { cancelled = true; };
   }, []);
 
-  // Animation render loop
+  // --- COLOR FIELD RENDERING (Layer 1) ---
+  // Draws a smooth wind-speed heatmap using ImageData for performance.
+  // Only re-renders when the map viewport changes (not every frame).
+  const renderColorField = useCallback(() => {
+    const map = mapInstance;
+    const canvas = fieldRef.current;
+    const grid = windGridRef.current;
+    if (!map || !canvas || !grid) return;
+
+    const container = map.getContainer();
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext('2d');
+    const cols = Math.ceil(w / FIELD_CELL_SIZE);
+    const rows = Math.ceil(h / FIELD_CELL_SIZE);
+    const imgData = ctx.createImageData(w, h);
+    const pixels = imgData.data;
+
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const cx = (col + 0.5) * FIELD_CELL_SIZE;
+        const cy = (row + 0.5) * FIELD_CELL_SIZE;
+        const geo = map.unproject([cx, cy]);
+        const wind = grid.interpolate(geo.lat, geo.lng);
+        if (!wind) continue;
+
+        const [, , speed] = wind;
+        const c = lookupColor(speed, fieldRamp);
+        const r = c[1], g = c[2], b = c[3], a = Math.round(c[4] * 255);
+
+        // Fill the FIELD_CELL_SIZE x FIELD_CELL_SIZE block with this color
+        const startX = col * FIELD_CELL_SIZE;
+        const startY = row * FIELD_CELL_SIZE;
+        const endX = Math.min(startX + FIELD_CELL_SIZE, w);
+        const endY = Math.min(startY + FIELD_CELL_SIZE, h);
+
+        for (let py = startY; py < endY; py++) {
+          for (let px = startX; px < endX; px++) {
+            const idx = (py * w + px) * 4;
+            pixels[idx] = r;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = b;
+            pixels[idx + 3] = a;
+          }
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+  }, [mapInstance, fieldRamp]);
+
+  // Color field effect: render on load + throttled on map move
+  useEffect(() => {
+    const map = mapInstance;
+    if (!map || !isActive || !gridLoaded) return;
+
+    // Initial render
+    renderColorField();
+
+    // Throttled re-render on viewport change
+    const onViewChange = () => {
+      clearTimeout(fieldTimerRef.current);
+      fieldTimerRef.current = setTimeout(renderColorField, FIELD_UPDATE_THROTTLE);
+    };
+
+    map.on('moveend', onViewChange);
+    map.on('zoomend', onViewChange);
+    window.addEventListener('resize', onViewChange);
+
+    return () => {
+      map.off('moveend', onViewChange);
+      map.off('zoomend', onViewChange);
+      window.removeEventListener('resize', onViewChange);
+      clearTimeout(fieldTimerRef.current);
+    };
+  }, [mapInstance, isActive, gridLoaded, renderColorField]);
+
+  // --- PARTICLE ANIMATION (Layer 2) ---
   useEffect(() => {
     const map = mapInstance;
     const trailCanvas = trailRef.current;
@@ -185,22 +312,32 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     }
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(seedParticle());
 
+    // Cache pixelsPerDegree at the map center — updated every ~60 frames
+    let cachedPPD = 1;
+    let frameCount = 0;
+    function updatePPD() {
+      const center = map.getCenter();
+      const p1 = map.project([center.lng, center.lat]);
+      const p2 = map.project([center.lng + 1, center.lat]);
+      cachedPPD = Math.max(0.5, Math.abs(p2.x - p1.x));
+    }
+    updatePPD();
+
     function draw() {
-      const zoom = map.getZoom();
-      const zoomScale = SPEED_FACTOR * Math.pow(zoom / 7, 0.8);
       const container = map.getContainer();
       const w = container.clientWidth;
       const h = container.clientHeight;
       const grid = windGridRef.current;
-      const ramp = colorRamp;
+      const ramp = particleRamp;
 
-      // --- CRITICAL: Aggressive fade for map transparency ---
-      // Instead of destination-in (which accumulates), use a clear + redraw approach.
-      // We fade existing trails by painting a translucent rect over them.
-      // Lower alpha = faster fade = more transparent canvas = more map visible.
+      // Update pixelsPerDegree every 60 frames (once per second at 60fps)
+      frameCount++;
+      if (frameCount % 60 === 0) updatePPD();
+
+      // --- Fade existing trails ---
       tCtx.globalCompositeOperation = 'destination-in';
       tCtx.globalAlpha = 1.0;
-      tCtx.fillStyle = 'rgba(0, 0, 0, 0.82)';
+      tCtx.fillStyle = 'rgba(0, 0, 0, 0.92)';
       tCtx.fillRect(0, 0, w, h);
       tCtx.globalCompositeOperation = 'source-over';
       tCtx.globalAlpha = 1.0;
@@ -208,7 +345,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       if (!grid) { animRef.current = requestAnimationFrame(draw); return; }
 
       for (const p of particles) {
-        // Initialize geographic coordinates if not set
+        // Initialize geographic coordinates from pixel position
         if (p.lng === undefined || p.lat === undefined) {
           const geo = map.unproject([p.x, p.y]);
           p.lng = geo.lng;
@@ -218,48 +355,48 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
         const wind = grid.interpolate(p.lat, p.lng);
         if (wind) {
           const [u, v, speed] = wind;
-
-          // Get previous pixel position
           const prevPos = map.project([p.lng, p.lat]);
 
-          // Geographic step — velocity-scaled for dynamic streaks
-          const velocityScalar = Math.max(0.5, Math.min(1.8, speed / 12));
-          const degreeScale = 0.004 * zoomScale * velocityScalar;
+          // --- PIXEL-SPACE MOVEMENT ---
+          // Calculate movement in target pixels, then convert to degrees.
+          // This ensures particles move visibly at ANY zoom level.
+          const targetPixels = 0.8 + speed * 0.15;  // 0.8px base + speed-proportional
+          const degreesPerFrame = targetPixels / cachedPPD;
 
-          p.lng += u * degreeScale;
-          p.lat += v * degreeScale;
+          // Apply wind direction (normalize u/v to unit vector, scale by degrees)
+          const mag = Math.max(0.01, speed); // prevent division by zero
+          p.lng += (u / mag) * degreesPerFrame;
+          p.lat -= (v / mag) * degreesPerFrame; // negative because lat increases northward
+
           p.age++;
 
-          // Get new pixel position
           const newPos = map.project([p.lng, p.lat]);
-
-          // Skip if movement is too small (sub-pixel)
           const dx = newPos.x - prevPos.x;
           const dy = newPos.y - prevPos.y;
-          if (Math.abs(dx) < 0.3 && Math.abs(dy) < 0.3) continue;
+
+          // Skip sub-pixel movements
+          if (Math.abs(dx) < 0.4 && Math.abs(dy) < 0.4) continue;
 
           const angle = Math.atan2(dy, dx);
-          const colorStr = getWindColor(speed, ramp);
+          const entry = lookupColor(speed, ramp);
+          const colorStr = toRgba(entry);
 
-          // --- SUBTLE GLOW (thin, low alpha) ---
-          // Only draw glow for faster winds (speed > 8 kts) to avoid saturation
-          if (speed > 8) {
-            const { r, g, b } = parseRgba(colorStr);
+          // --- Subtle glow for strong winds ---
+          if (speed > 10) {
             tCtx.beginPath();
             tCtx.moveTo(prevPos.x, prevPos.y);
             tCtx.lineTo(newPos.x, newPos.y);
-            tCtx.lineWidth = LINE_WIDTH * 2.5;
-            tCtx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.12)`;
+            tCtx.lineWidth = LINE_WIDTH * 3;
+            tCtx.strokeStyle = `rgba(${entry[1]}, ${entry[2]}, ${entry[3]}, 0.15)`;
             tCtx.stroke();
           }
 
-          // --- CORE PARTICLE LINE ---
+          // --- Core particle stroke + arrowhead ---
           tCtx.beginPath();
           tCtx.moveTo(prevPos.x, prevPos.y);
           tCtx.lineTo(newPos.x, newPos.y);
 
-          // Subtle arrowhead for direction clarity
-          const arrowSize = 3 * (1 + zoomScale * 0.08);
+          const arrowSize = 3;
           tCtx.lineTo(
             newPos.x - arrowSize * Math.cos(angle - Math.PI / 6),
             newPos.y - arrowSize * Math.sin(angle - Math.PI / 6)
@@ -277,9 +414,9 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           p.age = MAX_AGE + 1;
         }
 
-        // Bounds check — recycle particles that leave the viewport or expire
+        // Recycle expired or out-of-bounds particles
         const testPos = map.project([p.lng, p.lat]);
-        if (p.age > MAX_AGE || testPos.x < -20 || testPos.x > w + 20 || testPos.y < -20 || testPos.y > h + 20) {
+        if (p.age > MAX_AGE || testPos.x < -30 || testPos.x > w + 30 || testPos.y < -30 || testPos.y > h + 30) {
           Object.assign(p, seedParticle());
         }
       }
@@ -295,25 +432,46 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       window.removeEventListener('resize', resize);
       tCtx.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
     };
-  }, [isActive, mapInstance, gridLoaded, colorRamp]);
+  }, [isActive, mapInstance, gridLoaded, particleRamp]);
+
+  // --- Clean up color field when deactivated ---
+  useEffect(() => {
+    if (!isActive && fieldRef.current) {
+      const ctx = fieldRef.current.getContext('2d');
+      ctx.clearRect(0, 0, fieldRef.current.width, fieldRef.current.height);
+    }
+  }, [isActive]);
 
   if (!isActive) return null;
 
+  const baseCanvasStyle = {
+    position: 'absolute',
+    top: 0, left: 0, width: '100%', height: '100%',
+    pointerEvents: 'none',
+    transition: 'opacity 0.8s ease-in-out',
+    opacity: gridLoaded ? 1 : 0,
+  };
+
   return (
-    <canvas
-      ref={trailRef}
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        zIndex: 5,
-        transition: 'opacity 0.8s ease-in-out',
-        opacity: gridLoaded ? 1 : 0,
-      }}
-    />
+    <>
+      {/* Layer 1: Wind speed color field (blurred for smooth gradients) */}
+      <canvas
+        ref={fieldRef}
+        style={{
+          ...baseCanvasStyle,
+          zIndex: 4,
+          filter: 'blur(10px)',
+        }}
+      />
+      {/* Layer 2: Animated particle trails */}
+      <canvas
+        ref={trailRef}
+        style={{
+          ...baseCanvasStyle,
+          zIndex: 5,
+        }}
+      />
+    </>
   );
 };
 
