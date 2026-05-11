@@ -37,8 +37,8 @@ const OM_MODEL_MAP = {
  */
 const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
-  wind:          'wind_speed_10m',
-  pressure:      'surface_pressure',
+  wind:          'wind_gusts_10m',
+  pressure:      'pressure_msl',
   swell_height:  null,  // Marine models don't have tile coverage yet
   swell_period:  null,
 };
@@ -80,7 +80,15 @@ const MapWebGL = ({
     if (activeLayer === 'radar' || activeLayer === 'satellite') return null;
     const variable = OM_VARIABLE_MAP[activeLayer];
     if (!variable) return null; // swell layers — no tile data
-    const model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+    
+    let model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+    
+    // Fallback: GFS does not support precipitation in the Open-Meteo spatial API.
+    // We seamlessly fallback to DWD ICON so the user still sees weather.
+    if (variable === 'precipitation' && model === 'ncep_gfs025') {
+      model = 'dwd_icon';
+    }
+    
     const darkParam = !isLight ? '&dark=true' : '';
     return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?variable=${variable}${darkParam}`;
   }, [activeLayers, activeModel, isLight]);
