@@ -29,7 +29,7 @@ const OM_MODEL_MAP = {
  */
 const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
-  wind:          'wind_u_component_10m',
+  wind:          'wind_speed_10m', // Heatmap magnitude (particles layered on top)
   pressure:      'pressure_msl',
   fog:           'visibility',
   swell_height:  null,  // Marine models don't have tile coverage yet
@@ -214,6 +214,78 @@ const MapWebGL = ({
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => getMapStyle(isLight, activeLayers?.includes('satellite')), [isLight, activeLayers]);
 
+  // --- RAW VELOCITY PARTICLE ENGINE & MARINE OVERLAYS ---
+  const mapRef = innerMapRef.current?.getMap();
+  const [marineData, setMarineData] = useState(null);
+
+  // 1. Wind Particle Animation (maplibre-wind)
+  useEffect(() => {
+    if (!mapRef) return;
+    const setupWindLayer = async () => {
+      if (activeLayers.includes('wind')) {
+        if (!mapRef.getLayer('wind-particles')) {
+          try {
+            const { WindLayer } = await import('@sakitam-gis/maplibre-wind');
+            if (mapRef.getLayer('wind-particles')) return;
+            // Fetch global raw U/V tensor array
+            const res = await fetch('https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json');
+            const data = await res.json();
+            const windLayer = new WindLayer('wind-particles', data, {
+              windOptions: {
+                velocityScale: 1 / 150,
+                paths: 3000,
+                colorScale: [
+                  "rgb(36,104,180)","rgb(60,157,194)","rgb(128,205,193)",
+                  "rgb(151,218,168)","rgb(198,231,181)","rgb(238,247,217)",
+                  "rgb(255,238,159)","rgb(252,217,125)","rgb(255,182,100)",
+                  "rgb(252,150,75)","rgb(250,112,52)","rgb(245,64,32)",
+                  "rgb(237,45,28)","rgb(220,24,32)","rgb(180,0,35)"
+                ],
+                lineWidth: 2,
+                generateParticleOption: false
+              },
+              zIndex: 150
+            });
+            mapRef.addLayer(windLayer);
+          } catch (e) { console.error('Wind particle init failed:', e); }
+        }
+      } else {
+        if (mapRef.getLayer('wind-particles')) mapRef.removeLayer('wind-particles');
+      }
+    };
+    if (mapRef.isStyleLoaded()) setupWindLayer();
+    else mapRef.once('styledata', setupWindLayer);
+  }, [activeLayers, mapRef]);
+
+  // 2. Fetch Live Marine Data (Waves)
+  useEffect(() => {
+    const needsMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
+    if (needsMarine && surfSpots?.length > 0 && !marineData) {
+      const targetSpots = surfSpots.slice(0, 100);
+      const lats = targetSpots.map(s => s.latitude).join(',');
+      const lons = targetSpots.map(s => s.longitude).join(',');
+      
+      fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`)
+        .then(res => res.json())
+        .then(data => {
+           const features = targetSpots.map((spot, i) => {
+             const spotData = Array.isArray(data) ? data[i] : data;
+             return {
+               type: 'Feature',
+               geometry: { type: 'Point', coordinates: [spot.longitude, spot.latitude] },
+               properties: {
+                 id: spot.id,
+                 wave_height: spotData?.current?.wave_height || 0,
+                 wave_period: spotData?.current?.wave_period || 0
+               }
+             };
+           });
+           setMarineData({ type: 'FeatureCollection', features });
+        })
+        .catch(console.error);
+    }
+  }, [activeLayers, surfSpots, marineData]);
+
   return (
     <Map
       ref={innerMapRef}
@@ -264,8 +336,8 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Open-Meteo Animated Weather Tiles (precipitation, wind, fog, pressure) */}
-      {/* Uses the om:// custom protocol — works for both live AND forecast time offsets */}
+      {/* Open-Meteo Animated Weather Tiles (precipitation, wind heatmap, fog, pressure) */}
+      {/* Uses the om:// custom protocol */}
       {omTileUrl && (
         <Source
           key={`om-weather-raster-${omTileUrl}`}
@@ -282,43 +354,33 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Wind Directional Arrows (Vector) */}
-      {omTileUrl && activeLayers.includes('wind') && (
-        <Source
-          key={`om-weather-vector-${omTileUrl}`}
-          id="om-weather-vector-source"
-          type="vector"
-          url={`${omTileUrl}&arrows=true`}
-        >
+      {/* Marine Wave Heatmap Layers */}
+      {marineData && (activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
+        <Source id="marine-source" type="geojson" data={marineData}>
           <Layer
-            id="om-weather-vector-layer"
-            type="line"
-            source-layer="wind-arrows"
+            id="marine-heatmap"
+            type="heatmap"
             paint={{
-              'line-color': [
-                'case',
-                ['boolean', ['>', ['to-number', ['get', 'value']], 25], false],
-                'rgba(0,0,0, 0.8)',
-                [
-                  'case',
-                  ['boolean', ['>', ['to-number', ['get', 'value']], 15], false],
-                  'rgba(0,0,0, 0.6)',
-                  [
-                    'case',
-                    ['boolean', ['>', ['to-number', ['get', 'value']], 10], false],
-                    'rgba(0,0,0, 0.4)',
-                    'rgba(0,0,0, 0.2)'
-                  ]
-                ]
+              'heatmap-weight': [
+                'interpolate', ['linear'], ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
+                0, 0,
+                activeLayers.includes('swell_height') ? 5 : 20, 1
               ],
-              'line-width': 2
+              'heatmap-intensity': 1,
+              'heatmap-color': [
+                'interpolate', ['linear'], ['heatmap-density'],
+                0, 'rgba(0,0,255,0)',
+                0.2, 'rgba(0,255,255,0.6)',
+                0.5, 'rgba(0,255,0,0.7)',
+                0.8, 'rgba(255,255,0,0.8)',
+                1, 'rgba(255,0,0,0.9)'
+              ],
+              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 15, 9, 45],
+              'heatmap-opacity': 0.75
             }}
-            layout={{ 'line-cap': 'round' }}
           />
         </Source>
       )}
-
-      {/* Wave/Swell layers — no raster tiles available yet, handled by data-card overlay */}
 
       {/* Spot Clusters */}
       {spotClusters.map(cluster => {

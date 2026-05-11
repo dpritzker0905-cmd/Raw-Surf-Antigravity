@@ -49,6 +49,8 @@ export const MapWeatherControls = ({
     { id: 'radar', label: 'Radar', icon: CloudRain, color: 'text-indigo-400' },
     { id: 'precipitation', label: 'Rain', icon: CloudRain, color: 'text-blue-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
+    { id: 'swell_height', label: 'Waves', icon: Waves, color: 'text-blue-300' },
+    { id: 'swell_period', label: 'Period', icon: Waves, color: 'text-cyan-400' },
     { id: 'fog', label: 'Fog', icon: Cloud, color: 'text-gray-400' },
     { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' }
   ];
@@ -61,6 +63,8 @@ export const MapWeatherControls = ({
 
   // Legend data per active layer
   const legendConfig = {
+    swell_height: { label: 'Waves (ft)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','2','4','8','12','20+'] },
+    swell_period: { label: 'Period (s)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','4','8','12','16','20+'] },
     fog: { label: 'Visibility (m)', gradient: 'from-gray-700 via-gray-400 to-transparent', stops: ['0','1k','5k','10k','24k'] },
     wind: { label: 'Wind (kts)', gradient: 'from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600', stops: ['0','5','10','20','30','50+'] },
     precipitation: { label: 'Rain (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
