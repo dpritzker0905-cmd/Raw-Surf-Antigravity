@@ -33,7 +33,8 @@ const OM_VARIABLE_MAP = {
   wind:          'wind_gusts_10m', // Heatmap magnitude (particles layered on top)
   pressure:      'pressure_msl',
   fog:           'visibility',
-  swell_height:  null,  // Marine models don't have tile coverage yet
+  satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
+  swell_height:  null,             // Marine models use heatmap from marine API, not OM tiles
   swell_period:  null,
 };
 
@@ -92,7 +93,7 @@ const MapWebGL = ({
     if (activeLayer === 'radar') { setOmTileUrl(null); return; }
     
     const variable = OM_VARIABLE_MAP[activeLayer];
-    if (!variable) { setOmTileUrl(null); return; } // swell layers — no tile data
+    if (!variable) { setOmTileUrl(null); return; } // swell layers use marine heatmap instead
     
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
@@ -111,26 +112,31 @@ const MapWebGL = ({
           };
         } catch (err) {
           console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-          MODEL_METADATA_CACHE[modelToCheck] = { variables: [], validTimes: [], referenceTime: null };
+          // Do NOT cache failed fetches — allow retry on next toggle
+          return { variables: [], validTimes: [], referenceTime: null };
         }
       }
       return MODEL_METADATA_CACHE[modelToCheck];
     };
 
-    /** Compute time_step param from timeOffsetHours using cached valid_times */
+    /** Compute time_step param from timeOffsetHours using cached valid_times.
+     *  The om:// protocol accepts:
+     *    - `current_time_1H`  → nearest timestep to now + 1h (default)
+     *    - An ISO-8601 timestamp from the valid_times array (e.g. `2026-05-12T12:00Z`)
+     */
     const computeTimeStep = (meta) => {
       if (timeOffsetHours === 0) return 'time_step=current_time_1H';
-      const { validTimes, referenceTime } = meta;
+      const { validTimes } = meta;
       if (!validTimes.length) return 'time_step=current_time_1H';
-      // Find the valid_times index closest to (now + offset)
+      // Find the valid_times ISO timestamp closest to (now + offset)
       const targetMs = Date.now() + timeOffsetHours * 3600000;
-      let closestIdx = 0;
+      let closestTs = validTimes[0];
       let minDiff = Infinity;
       for (let i = 0; i < validTimes.length; i++) {
         const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
-        if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+        if (diff < minDiff) { minDiff = diff; closestTs = validTimes[i]; }
       }
-      return `time_step=valid_times_${closestIdx}`;
+      return `time_step=${closestTs}`;
     };
 
     const resolveUrl = async () => {
@@ -139,11 +145,13 @@ const MapWebGL = ({
       let isValid = meta.variables.includes(variable);
       
       // Dynamic Fallback: if not supported by the primary model, fallback to DWD ICON, then GFS
-      if (!isValid && targetModel !== 'dwd_icon') {
+      // DWD ICON has: precipitation, cloud_cover, wind_gusts_10m, pressure_msl (but NOT visibility)
+      // GFS has: visibility, wind_gusts_10m, pressure_msl (but NOT precipitation, cloud_cover)
+      if (!isValid && finalModel !== 'dwd_icon') {
         meta = await fetchMetadata('dwd_icon');
         if (meta.variables.includes(variable)) { isValid = true; finalModel = 'dwd_icon'; }
       }
-      if (!isValid && targetModel !== 'ncep_gfs025') {
+      if (!isValid && finalModel !== 'ncep_gfs025') {
         meta = await fetchMetadata('ncep_gfs025');
         if (meta.variables.includes(variable)) { isValid = true; finalModel = 'ncep_gfs025'; }
       }

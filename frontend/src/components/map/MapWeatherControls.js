@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud } from 'lucide-react';
+import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
@@ -46,6 +46,7 @@ export const MapWeatherControls = ({
 
   const layers = [
     { id: 'radar', label: 'Radar', icon: CloudRain, color: 'text-indigo-400' },
+    { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-sky-400' },
     { id: 'precipitation', label: 'Rain', icon: CloudRain, color: 'text-blue-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
     { id: 'swell_height', label: 'Waves', icon: Waves, color: 'text-blue-300' },
@@ -62,6 +63,7 @@ export const MapWeatherControls = ({
 
   // Legend data per active layer
   const legendConfig = {
+    satellite: { label: 'Cloud Cover (%)', gradient: 'from-transparent via-gray-300 via-gray-400 to-white', stops: ['0','20','40','60','80','100'] },
     swell_height: { label: 'Waves (ft)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','2','4','8','12','20+'] },
     swell_period: { label: 'Period (s)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','4','8','12','16','20+'] },
     fog: { label: 'Visibility (m)', gradient: 'from-gray-700 via-gray-400 to-transparent', stops: ['0','1k','5k','10k','24k'] },
