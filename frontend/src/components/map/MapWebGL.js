@@ -42,6 +42,10 @@ const OM_VARIABLE_MAP = {
   swell_height:  null,  // Marine models don't have tile coverage yet
   swell_period:  null,
 };
+
+// Cache to prevent repetitive manifest fetching during layer toggles
+const MODEL_VARIABLES_CACHE = {};
+
 const MapWebGL = ({
   isLight,
   userLocation,
@@ -72,25 +76,66 @@ const MapWebGL = ({
   
   const [bounds, setBounds] = useState(null);
 
-  // Open-Meteo tile source URL — builds om:// URL for the active weather layer
-  const omTileUrl = useMemo(() => {
-    if (!activeLayers.length) return null;
+  // Open-Meteo tile source URL — built dynamically after checking model capabilities
+  const [omTileUrl, setOmTileUrl] = useState(null);
+
+  useEffect(() => {
+    if (!activeLayers.length) { setOmTileUrl(null); return; }
     const activeLayer = activeLayers[0];
+    
     // Radar + satellite use RainViewer, not Open-Meteo tiles
-    if (activeLayer === 'radar' || activeLayer === 'satellite') return null;
+    if (activeLayer === 'radar' || activeLayer === 'satellite') { setOmTileUrl(null); return; }
+    
     const variable = OM_VARIABLE_MAP[activeLayer];
-    if (!variable) return null; // swell layers — no tile data
+    if (!variable) { setOmTileUrl(null); return; } // swell layers — no tile data
     
-    let model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+    const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+    let isMounted = true;
     
-    // Fallback: GFS does not support precipitation in the Open-Meteo spatial API.
-    // We seamlessly fallback to DWD ICON so the user still sees weather.
-    if (variable === 'precipitation' && model === 'ncep_gfs025') {
-      model = 'dwd_icon';
-    }
+    const checkModel = async (modelToCheck) => {
+      if (!MODEL_VARIABLES_CACHE[modelToCheck]) {
+        try {
+          const res = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`);
+          if (!res.ok) throw new Error('Fetch failed');
+          const data = await res.json();
+          MODEL_VARIABLES_CACHE[modelToCheck] = data.variables || [];
+        } catch (err) {
+          console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
+          MODEL_VARIABLES_CACHE[modelToCheck] = [];
+        }
+      }
+      return MODEL_VARIABLES_CACHE[modelToCheck].includes(variable);
+    };
+
+    const resolveUrl = async () => {
+      let isValid = await checkModel(targetModel);
+      let finalModel = targetModel;
+      
+      // Dynamic Fallback: if not supported by the primary model, fallback to DWD ICON
+      if (!isValid && targetModel !== 'dwd_icon') {
+        const isFallbackValid = await checkModel('dwd_icon');
+        if (isFallbackValid) {
+          isValid = true;
+          finalModel = 'dwd_icon';
+        }
+      }
+      
+      if (isMounted) {
+        if (isValid) {
+          const darkParam = !isLight ? '&dark=true' : '';
+          const url = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?variable=${variable}${darkParam}`;
+          console.log('[MapWebGL] omTileUrl generated (validated):', url);
+          setOmTileUrl(url);
+        } else {
+          console.warn(`[MapWebGL] Variable ${variable} is unsupported by ${targetModel} and fallback dwd_icon. Skipping layer to prevent map crash.`);
+          setOmTileUrl(null);
+        }
+      }
+    };
     
-    const darkParam = !isLight ? '&dark=true' : '';
-    return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?variable=${variable}${darkParam}`;
+    resolveUrl();
+    
+    return () => { isMounted = false; };
   }, [activeLayers, activeModel, isLight]);
 
   // Sync ref to parent so useMapActions works
