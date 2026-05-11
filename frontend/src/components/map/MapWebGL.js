@@ -34,18 +34,22 @@ const MapWebGL = ({
   
   const [bounds, setBounds] = useState(null);
 
-  // RainViewer Radar Timestamp
-  const [radarTimestamp, setRadarTimestamp] = useState(null);
+  // RainViewer Radar — use `path` field (hash-based, not timestamp)
+  const [radarPath, setRadarPath] = useState(null);
   useEffect(() => {
     fetch('https://api.rainviewer.com/public/weather-maps.json')
       .then(r => r.json())
       .then(data => {
         if (data?.radar?.past?.length > 0) {
-          setRadarTimestamp(data.radar.past[data.radar.past.length - 1].time);
+          const latest = data.radar.past[data.radar.past.length - 1];
+          setRadarPath(latest.path);
         }
       })
       .catch(err => console.error('Failed to fetch RainViewer data', err));
   }, []);
+
+  // OpenWeatherMap API key from env
+  const owmKey = process.env.REACT_APP_OWM_API_KEY || '';
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -134,30 +138,30 @@ const MapWebGL = ({
       </Source>
 
       {/* --- WEATHER LAYERS --- */}
-      {/* Live Radar (RainViewer) */}
-      {activeLayers.includes('radar') && radarTimestamp && (
-        <Source id="radar-source" type="raster" tiles={[`https://tilecache.rainviewer.com/v2/radar/${radarTimestamp}/256/{z}/{x}/{y}/2/1_1.png`]} tileSize={256}>
+      {/* Live Radar (RainViewer — free, no key required) */}
+      {activeLayers.includes('radar') && radarPath && (
+        <Source id="radar-source" type="raster" tiles={[`https://tilecache.rainviewer.com${radarPath}/256/{z}/{x}/{y}/2/1_1.png`]} tileSize={256} maxzoom={7}>
           <Layer id="radar-layer" type="raster" paint={{ 'raster-opacity': 0.65 }} />
         </Source>
       )}
 
-      {/* Precipitation (OpenWeatherMap) */}
-      {activeLayers.includes('precipitation') && (
-        <Source id="precip-source" type="raster" tiles={[`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=9fd7a449d055dba26a982a3220f32aa2`]} tileSize={256}>
+      {/* Precipitation (OpenWeatherMap — requires valid API key) */}
+      {activeLayers.includes('precipitation') && owmKey && (
+        <Source id="precip-source" type="raster" tiles={[`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="precip-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
         </Source>
       )}
 
-      {/* Wind (OpenWeatherMap) */}
-      {activeLayers.includes('wind') && (
-        <Source id="wind-source" type="raster" tiles={[`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=9fd7a449d055dba26a982a3220f32aa2`]} tileSize={256}>
+      {/* Wind (OpenWeatherMap — requires valid API key) */}
+      {activeLayers.includes('wind') && owmKey && (
+        <Source id="wind-source" type="raster" tiles={[`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="wind-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
         </Source>
       )}
 
-      {/* Pressure (OpenWeatherMap) */}
-      {activeLayers.includes('pressure') && (
-        <Source id="pressure-source" type="raster" tiles={[`https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=9fd7a449d055dba26a982a3220f32aa2`]} tileSize={256}>
+      {/* Pressure (OpenWeatherMap — requires valid API key) */}
+      {activeLayers.includes('pressure') && owmKey && (
+        <Source id="pressure-source" type="raster" tiles={[`https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="pressure-layer" type="raster" paint={{ 'raster-opacity': 0.6 }} />
         </Source>
       )}

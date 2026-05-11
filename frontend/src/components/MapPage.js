@@ -148,7 +148,7 @@ const MapPageContent = () => {
 
   // Weather Mapping State
   const [activeModel, setActiveModel] = useState('GFS');
-  const [activeLayers, setActiveLayers] = useState(['swell']);
+  const [activeLayers, setActiveLayers] = useState([]);
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [showWeatherControls, setShowWeatherControls] = useState(false);
@@ -611,17 +611,24 @@ const MapPageContent = () => {
 
       {/* Mobile Weather Controls Overlay */}
       {showWeatherControls && (
-        <div className="absolute inset-x-4 top-40 z-[1000] md:hidden shadow-2xl">
-          <MapWeatherControls 
-            isDesktop={false}
-            activeModel={activeModel}
-            onModelChange={setActiveModel}
-            activeLayers={activeLayers}
-            onLayerToggle={toggleLayer}
-            userTier={user?.tier_id || 'tier_1'}
-            onUpgradeClick={handleUpgradeClick}
+        <>
+          {/* Backdrop — tap to dismiss */}
+          <div 
+            className="absolute inset-0 z-[999] bg-black/30 md:hidden"
+            onClick={() => setShowWeatherControls(false)}
           />
-        </div>
+          <div className="absolute inset-x-4 top-40 z-[1000] md:hidden shadow-2xl">
+            <MapWeatherControls 
+              isDesktop={false}
+              activeModel={activeModel}
+              onModelChange={setActiveModel}
+              activeLayers={activeLayers}
+              onLayerToggle={toggleLayer}
+              userTier={user?.tier_id || 'tier_1'}
+              onUpgradeClick={handleUpgradeClick}
+            />
+          </div>
+        </>
       )}
 
       {/* Timeline Slider (Shows if any layer is active) */}

@@ -68,7 +68,7 @@ export const MapWeatherControls = ({
   }
 
   return (
-    <div className={`${containerClass} hidden md:block`}>
+    <div className={`${containerClass} ${isDesktop ? 'hidden md:block' : 'block md:hidden'}`}>
       {isDesktop && (
         <button 
           onClick={() => setIsCollapsed(true)}
