@@ -3,6 +3,7 @@ import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
+import { useTheme } from '../../contexts/ThemeContext';
 import WindParticleCanvas from './WindParticleCanvas';
 
 // Ensure maplibre-gl CSS is present
@@ -61,6 +62,8 @@ const MapWebGL = ({
   timeOffsetHours = 0,
 }) => {
   const innerMapRef = useRef(null);
+  const { theme } = useTheme();
+  const isBeach = theme === 'beach';
   
   // Register Open-Meteo protocol safely on mount
   useEffect(() => {
@@ -83,7 +86,37 @@ const MapWebGL = ({
   const [bounds, setBounds] = useState(null);
 
   // Open-Meteo tile source URL — built dynamically after checking model capabilities
+  // Track the active weather variable for stable Source IDs
+  const activeWeatherVariable = useMemo(() => {
+    if (!activeLayers.length) return null;
+    return OM_VARIABLE_MAP[activeLayers[0]] || null;
+  }, [activeLayers]);
   const [omTileUrl, setOmTileUrl] = useState(null);
+
+  /** Fetch and cache model metadata (variables + valid_times) */
+  const fetchMetadata = useCallback(async (modelToCheck) => {
+    if (!MODEL_METADATA_CACHE[modelToCheck]) {
+      try {
+        const res = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`);
+        if (!res.ok) throw new Error('Fetch failed');
+        const data = await res.json();
+        MODEL_METADATA_CACHE[modelToCheck] = {
+          variables: data.variables || [],
+          validTimes: data.valid_times || [],
+          referenceTime: data.reference_time || null,
+        };
+      } catch (err) {
+        console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
+        return { variables: [], validTimes: [], referenceTime: null };
+      }
+    }
+    return MODEL_METADATA_CACHE[modelToCheck];
+  }, []);
+
+  // Pre-warm metadata cache on mount so layer toggles are instant
+  useEffect(() => {
+    ['ncep_gfs025', 'dwd_icon'].forEach(m => fetchMetadata(m));
+  }, [fetchMetadata]);
 
   useEffect(() => {
     if (!activeLayers.length) { setOmTileUrl(null); return; }
@@ -97,38 +130,12 @@ const MapWebGL = ({
     
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
-    
-    /** Fetch and cache model metadata (variables + valid_times) */
-    const fetchMetadata = async (modelToCheck) => {
-      if (!MODEL_METADATA_CACHE[modelToCheck]) {
-        try {
-          const res = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`);
-          if (!res.ok) throw new Error('Fetch failed');
-          const data = await res.json();
-          MODEL_METADATA_CACHE[modelToCheck] = {
-            variables: data.variables || [],
-            validTimes: data.valid_times || [],
-            referenceTime: data.reference_time || null,
-          };
-        } catch (err) {
-          console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-          // Do NOT cache failed fetches — allow retry on next toggle
-          return { variables: [], validTimes: [], referenceTime: null };
-        }
-      }
-      return MODEL_METADATA_CACHE[modelToCheck];
-    };
 
-    /** Compute time_step param from timeOffsetHours using cached valid_times.
-     *  The om:// protocol accepts:
-     *    - `current_time_1H`  → nearest timestep to now + 1h (default)
-     *    - An ISO-8601 timestamp from the valid_times array (e.g. `2026-05-12T12:00Z`)
-     */
+    /** Compute time_step param from timeOffsetHours using cached valid_times. */
     const computeTimeStep = (meta) => {
       if (timeOffsetHours === 0) return 'time_step=current_time_1H';
       const { validTimes } = meta;
       if (!validTimes.length) return 'time_step=current_time_1H';
-      // Find the valid_times ISO timestamp closest to (now + offset)
       const targetMs = Date.now() + timeOffsetHours * 3600000;
       let closestTs = validTimes[0];
       let minDiff = Infinity;
@@ -144,9 +151,7 @@ const MapWebGL = ({
       let finalModel = targetModel;
       let isValid = meta.variables.includes(variable);
       
-      // Dynamic Fallback: if not supported by the primary model, fallback to DWD ICON, then GFS
-      // DWD ICON has: precipitation, cloud_cover, wind_gusts_10m, pressure_msl (but NOT visibility)
-      // GFS has: visibility, wind_gusts_10m, pressure_msl (but NOT precipitation, cloud_cover)
+      // Dynamic Fallback chain: primary → DWD ICON → GFS → wave models
       if (!isValid && finalModel !== 'dwd_icon') {
         meta = await fetchMetadata('dwd_icon');
         if (meta.variables.includes(variable)) { isValid = true; finalModel = 'dwd_icon'; }
@@ -155,7 +160,6 @@ const MapWebGL = ({
         meta = await fetchMetadata('ncep_gfs025');
         if (meta.variables.includes(variable)) { isValid = true; finalModel = 'ncep_gfs025'; }
       }
-      // Wave models fallback
       if (!isValid) {
         meta = await fetchMetadata('gfs_wave');
         if (meta.variables.includes(variable)) { isValid = true; finalModel = 'gfs_wave'; }
@@ -181,7 +185,7 @@ const MapWebGL = ({
     resolveUrl();
     
     return () => { isMounted = false; };
-  }, [activeLayers, activeModel, isLight, timeOffsetHours]);
+  }, [activeLayers, activeModel, isLight, timeOffsetHours, fetchMetadata]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -248,6 +252,9 @@ const MapWebGL = ({
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => getMapStyle(isLight, false), [isLight]);
+
+  // Unique revision counter for marine data to force Source remount on data change
+  const marineRevision = useRef(0);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
   const [mapInstance, setMapInstance] = useState(null);
@@ -328,6 +335,7 @@ const MapWebGL = ({
         }).filter(Boolean);
 
         if (features.length > 0) {
+          marineRevision.current += 1;
           setMarineData({ type: 'FeatureCollection', features });
         }
       } catch (err) {
@@ -353,29 +361,54 @@ const MapWebGL = ({
     };
   }, [activeLayers, mapInstance]);
 
-  // Dynamically inject coastline/landmass borders after style loads
+  // Coastline border enhancement via OpenMapTiles country-boundary vector overlay
+  // The base map uses Mapbox raster tiles (no individual vector layers to modify),
+  // so we add a lightweight vector tile source with boundary lines on top.
   useEffect(() => {
     if (!mapInstance) return;
-    const updateCoastlines = () => {
+    const addCoastlines = () => {
       try {
         if (!mapInstance.getStyle()) return;
-        
-        const targetColor = isLight ? 'rgba(0,0,0,0.5)' : isBeach ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.25)';
-        
-        if (mapInstance.getLayer('coastline')) {
-          mapInstance.setPaintProperty('coastline', 'line-color', targetColor);
-          mapInstance.setPaintProperty('coastline', 'line-width', 1.5);
+        const lineColor = isLight ? 'rgba(0,0,0,0.45)' : isBeach ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)';
+        const lineWidth = 1.2;
+
+        // If layer already exists, just update paint properties
+        if (mapInstance.getLayer('coastline-overlay')) {
+          mapInstance.setPaintProperty('coastline-overlay', 'line-color', lineColor);
+          return;
         }
-        if (mapInstance.getLayer('water')) {
-          mapInstance.setPaintProperty('water', 'fill-outline-color', targetColor);
+
+        // Add OpenMapTiles vector source (free, no key required for low traffic)
+        if (!mapInstance.getSource('omtiles')) {
+          mapInstance.addSource('omtiles', {
+            type: 'vector',
+            url: 'https://demotiles.maplibre.org/tiles/tiles.json',
+          });
         }
-      } catch (e) {}
+
+        mapInstance.addLayer({
+          id: 'coastline-overlay',
+          type: 'line',
+          source: 'omtiles',
+          'source-layer': 'countries',
+          paint: {
+            'line-color': lineColor,
+            'line-width': lineWidth,
+            'line-opacity': 1,
+          },
+        });
+      } catch (e) { /* layer may already exist during hot reload */ }
     };
 
-    mapInstance.on('styledata', updateCoastlines);
-    updateCoastlines(); // Attempt immediate
-
-    return () => mapInstance.off('styledata', updateCoastlines);
+    // MapLibre fires 'styledata' after style loads; safe to add layers
+    if (mapInstance.isStyleLoaded()) {
+      addCoastlines();
+    } else {
+      mapInstance.once('styledata', addCoastlines);
+    }
+    // Also re-run on theme change in case style has reloaded
+    mapInstance.on('styledata', addCoastlines);
+    return () => mapInstance.off('styledata', addCoastlines);
   }, [mapInstance, isLight, isBeach]);
 
   return (
@@ -429,54 +462,52 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Open-Meteo Animated Weather Tiles (precipitation, wind heatmap, fog, pressure) */}
-      {/* Uses the om:// custom protocol */}
+      {/* Open-Meteo Animated Weather Tiles — stable Source ID, keyed on variable for clean swap */}
       {omTileUrl && (
         <Source
-          key={`om-weather-source-${omTileUrl}`}
-          id={`om-weather-source-${omTileUrl}`}
+          key={`om-${activeWeatherVariable}`}
+          id="om-weather-source"
           type="raster"
           url={omTileUrl}
           maxzoom={12}
         >
           <Layer
-            id={`om-weather-layer-${omTileUrl}`}
+            id="om-weather-layer"
             type="raster"
             paint={{ 'raster-opacity': 0.7, 'raster-fade-duration': 300 }}
           />
         </Source>
       )}
 
-      {/* Marine Wave Heatmap & Data Labels */}
+      {/* Marine Wave Heatmap & Data Labels — stable IDs, keyed on revision for clean data swap */}
       {marineData && (activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
         <Source 
-          key={`marine-src-${marineData.features.length}`} 
-          id={`marine-source-${marineData.features.length}`} 
+          key={`marine-src-${marineRevision.current}`}
+          id="marine-data-source"
           type="geojson" 
           data={marineData}
         >
           <Layer
-            id={`marine-heatmap-${marineData.features.length}`}
+            id="marine-heatmap-circles"
             type="circle"
             paint={{
               'circle-color': [
                 'interpolate', ['linear'],
                 ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
                 0, 'rgba(0,0,0,0)',
-                activeLayers.includes('swell_height') ? 0.5 : 4, '#93c5fd',   // blue-300
-                activeLayers.includes('swell_height') ? 1.5 : 8, '#22d3ee',   // cyan-400
-                activeLayers.includes('swell_height') ? 2.5 : 12, '#2563eb',  // blue-600
-                activeLayers.includes('swell_height') ? 3.5 : 16, '#9333ea',  // purple-600
-                activeLayers.includes('swell_height') ? 5.0 : 20, '#be123c'   // rose-700
+                activeLayers.includes('swell_height') ? 0.5 : 4, '#93c5fd',
+                activeLayers.includes('swell_height') ? 1.5 : 8, '#22d3ee',
+                activeLayers.includes('swell_height') ? 2.5 : 12, '#2563eb',
+                activeLayers.includes('swell_height') ? 3.5 : 16, '#9333ea',
+                activeLayers.includes('swell_height') ? 5.0 : 20, '#be123c'
               ],
-              // Radii scaled carefully to respect mobile WebGL MAX_POINT_SIZE limits while remaining highly visible
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 25, 4, 45, 8, 80, 12, 120],
-              'circle-blur': 0.6,
-              'circle-opacity': 0.75
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 30, 3, 50, 6, 80, 10, 120],
+              'circle-blur': 0.65,
+              'circle-opacity': 0.7
             }}
           />
           <Layer
-            id={`marine-labels-${marineData.features.length}`}
+            id="marine-data-labels"
             type="symbol"
             layout={{
               'text-field': [
@@ -486,11 +517,12 @@ const MapWebGL = ({
               ],
               'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
               'text-size': ['interpolate', ['linear'], ['zoom'], 0, 0, 2, 10, 6, 14, 10, 18],
-              'text-anchor': 'center'
+              'text-anchor': 'center',
+              'text-allow-overlap': true
             }}
             paint={{
               'text-color': '#ffffff',
-              'text-halo-color': 'rgba(0,0,0,0.6)',
+              'text-halo-color': 'rgba(0,0,0,0.7)',
               'text-halo-width': 1.5
             }}
           />
