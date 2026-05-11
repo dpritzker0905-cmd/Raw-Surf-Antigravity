@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { Play, Pause, ChevronRight, Lock } from 'lucide-react';
-import { Button } from '../ui/button';
+import { Play, Pause } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export const MapTimelineSlider = ({
   currentTimeOffset, // in hours from now
@@ -10,103 +10,114 @@ export const MapTimelineSlider = ({
   userTier = 'tier_1',
   onUpgradeClick
 }) => {
-  // Define max hours based on tier
-  const maxHours = useMemo(() => {
-    if (userTier === 'tier_3' || userTier === 'admin') return 14 * 24; // 14 days
-    if (userTier === 'tier_2') return 7 * 24; // 7 days
-    return 24; // 1 day
-  }, [userTier]);
-
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  
+  // Total max hours available to scroll
   const maxPossibleHours = 14 * 24;
 
   const handleSliderChange = (e) => {
-    const value = parseInt(e.target.value, 10);
-    if (value > maxHours) {
-      // Trigger upgrade if dragging into locked territory
-      if (onUpgradeClick) onUpgradeClick();
-      onTimeChange(maxHours);
-    } else {
-      onTimeChange(value);
-    }
+    onTimeChange(parseInt(e.target.value, 10));
   };
+
+  // Generate day labels (Now, +1d, +2d, ...)
+  const generateDays = () => {
+    const days = [];
+    for (let i = 0; i <= 14; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      const label = i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short' });
+      days.push({ offset: i * 24, label });
+    }
+    return days;
+  };
+
+  const days = generateDays();
 
   // Format the currently selected time
   const formatTime = (offsetHours) => {
-    if (offsetHours === 0) return 'Live / Now';
+    if (offsetHours === 0) return 'Live';
     const d = new Date();
     d.setHours(d.getHours() + offsetHours);
     const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-    const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const time = d.toLocaleTimeString('en-US', { hour: 'numeric' });
     return `${dayName} ${time}`;
   };
 
+  const sliderBg = isLight ? 'bg-white/90' : 'bg-black/80';
+  const textClass = isLight ? 'text-gray-900' : 'text-white';
+  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+
   return (
-    <div className="absolute bottom-20 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-2xl z-[1000]">
-      <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-xl shadow-2xl p-4 flex flex-col gap-3">
+    <div className={`absolute bottom-0 left-0 right-0 z-[1000] backdrop-blur-xl border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'} ${sliderBg}`}>
+      <div className="flex items-center w-full px-2 md:px-4 py-2 gap-2 md:gap-4 h-16">
         
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={onTogglePlay}
-              className="w-10 h-10 rounded-full bg-cyan-500 hover:bg-cyan-400 text-black flex items-center justify-center p-0"
-            >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
-            </Button>
-            <div className="flex flex-col">
-              <span className="text-white font-bold text-sm">{formatTime(currentTimeOffset)}</span>
-              <span className="text-gray-400 text-xs">
-                {currentTimeOffset > 0 ? `+${currentTimeOffset} hrs forecast` : 'Current conditions'}
-              </span>
-            </div>
+        {/* Play/Pause & Time Display */}
+        <div className="flex items-center gap-3 shrink-0 min-w-[120px]">
+          <button
+            onClick={onTogglePlay}
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform hover:scale-105 ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
+          >
+            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
+          </button>
+          <div className="flex flex-col hidden sm:flex">
+            <span className={`font-bold text-sm ${textClass}`}>{formatTime(currentTimeOffset)}</span>
+            <span className={`text-[10px] uppercase tracking-wider font-semibold ${textMuted}`}>
+              {currentTimeOffset === 0 ? 'Current' : 'Forecast'}
+            </span>
           </div>
-          
-          {maxHours < maxPossibleHours && (
-            <button
-              onClick={onUpgradeClick}
-              className="flex items-center gap-1 text-xs font-bold text-yellow-400 hover:text-yellow-300 transition-colors bg-yellow-400/10 px-3 py-1.5 rounded-full"
-            >
-              <Lock className="w-3 h-3" />
-              Unlock 14-Day
-              <ChevronRight className="w-3 h-3" />
-            </button>
-          )}
         </div>
 
-        <div className="relative pt-2 pb-1">
-          {/* Locked region visual overlay */}
-          {maxHours < maxPossibleHours && (
-            <div 
-              className="absolute h-1.5 top-3.5 bg-zinc-800 rounded-r-full overflow-hidden"
+        {/* Timeline Slider Area */}
+        <div className="flex-1 relative h-full flex flex-col justify-end pb-2">
+          
+          {/* Day Markers */}
+          <div className="absolute top-0 left-0 right-0 flex justify-between px-2">
+            {days.map((day, i) => (
+              <div 
+                key={i} 
+                className={`text-[10px] font-medium hidden md:block ${day.offset === 0 ? textClass : textMuted}`}
+                style={{ position: 'absolute', left: `${(day.offset / maxPossibleHours) * 100}%`, transform: 'translateX(-50%)' }}
+              >
+                {day.label}
+              </div>
+            ))}
+          </div>
+
+          <div className="relative mt-5">
+            {/* The actual range input */}
+            <input
+              type="range"
+              min="0"
+              max={maxPossibleHours}
+              step="3"
+              value={currentTimeOffset}
+              onChange={handleSliderChange}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer relative z-10"
               style={{
-                left: `${(maxHours / maxPossibleHours) * 100}%`,
-                right: 0
+                background: `linear-gradient(to right, #06b6d4 ${(currentTimeOffset / maxPossibleHours) * 100}%, ${isLight ? '#e5e7eb' : '#3f3f46'} ${(currentTimeOffset / maxPossibleHours) * 100}%)`
               }}
-            >
-              <div className="w-full h-full opacity-30" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.2) 5px, rgba(255,255,255,0.2) 10px)' }} />
-            </div>
-          )}
-
-          <input
-            type="range"
-            min="0"
-            max={maxPossibleHours}
-            step="3"
-            value={currentTimeOffset}
-            onChange={handleSliderChange}
-            className="w-full h-1.5 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-cyan-500 relative z-10"
-            style={{
-              background: `linear-gradient(to right, #06b6d4 ${(currentTimeOffset / maxPossibleHours) * 100}%, #3f3f46 ${(currentTimeOffset / maxPossibleHours) * 100}%)`
-            }}
-          />
-          
-          <div className="flex justify-between text-[10px] text-gray-500 font-medium mt-2 px-1">
-            <span>Now</span>
-            <span>+1 Day</span>
-            <span>+7 Days</span>
-            <span>+14 Days</span>
+            />
+            {/* Custom Thumb is tricky cross-browser via inline styles, but webkit CSS usually handles it if defined globally. 
+                Using tailwind accent color works for modern browsers. */}
+            <style>{`
+              input[type=range]::-webkit-slider-thumb {
+                appearance: none;
+                width: 16px;
+                height: 16px;
+                background: white;
+                border: 3px solid #06b6d4;
+                border-radius: 50%;
+                cursor: pointer;
+              }
+            `}</style>
           </div>
         </div>
         
+        {/* Mobile quick time display */}
+        <div className={`sm:hidden font-bold text-xs shrink-0 w-20 text-right ${textClass}`}>
+          {formatTime(currentTimeOffset)}
+        </div>
       </div>
     </div>
   );

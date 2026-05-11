@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { Lock } from 'lucide-react';
 import MapWebGL from './map/MapWebGL';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -162,6 +163,16 @@ const MapPageContent = () => {
     // Show a toast or trigger subscription modal
     toast.info("Upgrade your subscription to access this feature!");
   }, []);
+
+  const maxHoursForUser = useMemo(() => {
+    const tier = user?.tier_id || 'tier_1';
+    if (tier === 'tier_3' || tier === 'admin') return 14 * 24;
+    if (tier === 'tier_2') return 7 * 24;
+    return 24;
+  }, [user]);
+
+  const isLockedForecast = timeOffsetHours > maxHoursForUser;
+
   
   // Nearest spot (derived from user location)
   const nearestSpot = useMemo(() => 
@@ -450,14 +461,7 @@ const MapPageContent = () => {
 
   return (
     <div 
-      className={`fixed ${isLight ? 'bg-gray-50' : 'bg-black'} md:left-[200px]`}
-      style={{ 
-        top: '56px', // Below TopNav (TopNav is ~56px height on mobile)
-        left: 0, 
-        right: 0, 
-        bottom: 0,
-        zIndex: 50 // Below TopNav (z-100) but above other content
-      }}
+      className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50]`}
       data-testid="map-page-container"
     >
       {/* Map Container - Fill entire view */}
@@ -481,10 +485,24 @@ const MapPageContent = () => {
         />
       </div>
 
+      {isLockedForecast && (
+        <div className="absolute inset-0 z-[10] bg-black/60 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="bg-zinc-900/90 p-6 rounded-2xl border border-zinc-800 text-center pointer-events-auto max-w-sm mx-4">
+            <div className="w-16 h-16 bg-yellow-400/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-yellow-400" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Premium Forecast</h2>
+            <p className="text-gray-400 mb-6 text-sm">You've reached the end of your forecast. Upgrade to view conditions up to 14 days in advance.</p>
+            <button onClick={handleUpgradeClick} className="w-full bg-yellow-400 text-black font-bold py-3 px-4 rounded-xl hover:bg-yellow-500 transition-colors">
+              Unlock Extended Forecast
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* TOP RAIL */}
       <div 
-        className="absolute top-0 left-0 right-0 md:left-[200px] z-[1000] pointer-events-none" 
-        style={{ paddingTop: '16px' }}
+        className="absolute top-0 left-0 right-0 z-[1000] pointer-events-none pt-4" 
       >
         <div className="px-4">
           <MapHeader livePhotographerCount={livePhotographers.length} />

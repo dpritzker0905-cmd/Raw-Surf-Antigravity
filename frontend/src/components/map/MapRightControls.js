@@ -27,9 +27,7 @@ export const MapRightControls = ({
     <div
       className="absolute right-4 z-[1000] flex flex-col gap-2"
       style={{
-        top: currentUserShooting
-          ? 'calc(130px + env(safe-area-inset-top))'
-          : 'calc(max(96px, env(safe-area-inset-top) + 80px))',
+        bottom: '80px', // Place above the bottom timeline slider
       }}
     >
       {/* Low-accuracy location fix button */}
