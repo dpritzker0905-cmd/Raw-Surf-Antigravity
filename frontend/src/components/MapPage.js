@@ -121,18 +121,6 @@ const MapPageContent = () => {
     return null;
   }, [userLocation, ipLocation]);
 
-  // Open-Meteo 16-day forecast (weather + marine) — driven by map center & model
-  const {
-    forecastData,
-    marineData,
-    isLoading: forecastLoading,
-  } = useOpenMeteoForecast({
-    latitude: effectiveLocation?.lat || FLORIDA_CENTER.lat,
-    longitude: effectiveLocation?.lng || FLORIDA_CENTER.lng,
-    activeModel,
-    enabled: true,
-  });
-
   const {
     selectedSpot,
     setSelectedSpot,
@@ -166,6 +154,19 @@ const MapPageContent = () => {
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [showWeatherControls, setShowWeatherControls] = useState(false);
+
+  // Open-Meteo 16-day forecast (weather + marine) — driven by map center & model
+  // PLACEMENT: Must be AFTER activeModel useState (v30 hook placement rule)
+  const {
+    forecastData,
+    marineData,
+    isLoading: forecastLoading,
+  } = useOpenMeteoForecast({
+    latitude: effectiveLocation?.lat || FLORIDA_CENTER.lat,
+    longitude: effectiveLocation?.lng || FLORIDA_CENTER.lng,
+    activeModel,
+    enabled: true,
+  });
 
   // Radar animation state — driven by RainViewer past frames
   const [radarFrames, setRadarFrames] = useState([]);

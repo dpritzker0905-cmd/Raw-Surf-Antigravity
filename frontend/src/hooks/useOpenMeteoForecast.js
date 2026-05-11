@@ -49,9 +49,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    // Deduplicate: don't refetch for the same params
+    // Deduplicate: don't refetch for the same params (uses ref, not stale state)
     const fetchKey = `${latitude.toFixed(2)}_${longitude.toFixed(2)}_${activeModel}`;
-    if (fetchKey === lastFetchKey.current && forecastData) return;
+    if (fetchKey === lastFetchKey.current) return;
     lastFetchKey.current = fetchKey;
 
     // Abort previous in-flight request
