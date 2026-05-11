@@ -3,6 +3,7 @@ import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
+import WindParticleCanvas from './WindParticleCanvas';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -214,79 +215,71 @@ const MapWebGL = ({
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => getMapStyle(isLight, activeLayers?.includes('satellite')), [isLight, activeLayers]);
 
-  // --- RAW VELOCITY PARTICLE ENGINE & MARINE OVERLAYS ---
-  const mapRef = innerMapRef.current?.getMap();
+  // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
+  const [mapInstance, setMapInstance] = useState(null);
   const [marineData, setMarineData] = useState(null);
+  const marineLayerRef = useRef(null); // Track which layer triggered fetch
 
-  // 1. Wind Particle Animation (maplibre-wind)
+  // Capture the raw MapLibre instance once the map loads
   useEffect(() => {
-    if (!mapRef) return;
-    const setupWindLayer = async () => {
-      if (activeLayers.includes('wind')) {
-        if (!mapRef.getLayer('wind-particles')) {
-          try {
-            const { WindLayer } = await import('@sakitam-gis/maplibre-wind');
-            if (mapRef.getLayer('wind-particles')) return;
-            // Fetch global raw U/V tensor array
-            const res = await fetch('https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json');
-            const data = await res.json();
-            const windLayer = new WindLayer('wind-particles', data, {
-              windOptions: {
-                velocityScale: 1 / 150,
-                paths: 3000,
-                colorScale: [
-                  "rgb(36,104,180)","rgb(60,157,194)","rgb(128,205,193)",
-                  "rgb(151,218,168)","rgb(198,231,181)","rgb(238,247,217)",
-                  "rgb(255,238,159)","rgb(252,217,125)","rgb(255,182,100)",
-                  "rgb(252,150,75)","rgb(250,112,52)","rgb(245,64,32)",
-                  "rgb(237,45,28)","rgb(220,24,32)","rgb(180,0,35)"
-                ],
-                lineWidth: 2,
-                generateParticleOption: false
-              },
-              zIndex: 150
-            });
-            mapRef.addLayer(windLayer);
-          } catch (e) { console.error('Wind particle init failed:', e); }
-        }
-      } else {
-        if (mapRef.getLayer('wind-particles')) mapRef.removeLayer('wind-particles');
-      }
-    };
-    if (mapRef.isStyleLoaded()) setupWindLayer();
-    else mapRef.once('styledata', setupWindLayer);
-  }, [activeLayers, mapRef]);
+    const map = innerMapRef.current?.getMap?.();
+    if (map && !mapInstance) setMapInstance(map);
+  });
 
-  // 2. Fetch Live Marine Data (Waves)
+  // Clear marine cache when the active marine layer changes
+  useEffect(() => {
+    const currentMarineLayer = activeLayers.includes('swell_height') ? 'swell_height'
+      : activeLayers.includes('swell_period') ? 'swell_period' : null;
+    if (currentMarineLayer !== marineLayerRef.current) {
+      marineLayerRef.current = currentMarineLayer;
+      // Don't clear data — both metrics are fetched together
+    }
+  }, [activeLayers]);
+
+  // Fetch Live Marine Data (Waves + Period) for surfSpots
   useEffect(() => {
     const needsMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
-    if (needsMarine && surfSpots?.length > 0 && !marineData) {
-      const targetSpots = surfSpots.slice(0, 100);
-      const lats = targetSpots.map(s => s.latitude).join(',');
-      const lons = targetSpots.map(s => s.longitude).join(',');
-      
-      fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`)
-        .then(res => res.json())
-        .then(data => {
-           const features = targetSpots.map((spot, i) => {
-             const spotData = Array.isArray(data) ? data[i] : data;
-             return {
-               type: 'Feature',
-               geometry: { type: 'Point', coordinates: [spot.longitude, spot.latitude] },
-               properties: {
-                 id: spot.id,
-                 wave_height: spotData?.current?.wave_height || 0,
-                 wave_period: spotData?.current?.wave_period || 0
-               }
-             };
-           });
-           setMarineData({ type: 'FeatureCollection', features });
-        })
-        .catch(console.error);
-    }
+    if (!needsMarine || !surfSpots?.length || marineData) return;
+
+    // Filter to coastal spots only (have valid coords), limit to 50 to prevent URL overflow
+    const coastal = surfSpots.filter(s => s.latitude && s.longitude).slice(0, 50);
+    if (!coastal.length) return;
+
+    const lats = coastal.map(s => s.latitude).join(',');
+    const lons = coastal.map(s => s.longitude).join(',');
+
+    fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`)
+      .then(res => res.json())
+      .then(data => {
+        const arr = Array.isArray(data) ? data : [data];
+        const features = coastal.map((spot, i) => {
+          const wh = arr[i]?.current?.wave_height;
+          const wp = arr[i]?.current?.wave_period;
+          // Skip inland/invalid points that return null
+          if (wh == null && wp == null) return null;
+          return {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [spot.longitude, spot.latitude] },
+            properties: {
+              name: spot.name || '',
+              wave_height: wh ?? 0,
+              wave_period: wp ?? 0,
+            },
+          };
+        }).filter(Boolean);
+        setMarineData({ type: 'FeatureCollection', features });
+      })
+      .catch(err => console.error('[MapWebGL] Marine fetch failed:', err));
   }, [activeLayers, surfSpots, marineData]);
 
+  // Reset marine cache when marine layers are deactivated
+  useEffect(() => {
+    const hasMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
+    if (!hasMarine && marineData) setMarineData(null);
+  }, [activeLayers, marineData]);
+
   return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
     <Map
       ref={innerMapRef}
       mapLib={maplibregl}
@@ -354,30 +347,64 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Marine Wave Heatmap Layers */}
+      {/* Marine Wave Heatmap + Circle Labels */}
       {marineData && (activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
         <Source id="marine-source" type="geojson" data={marineData}>
+          {/* Heatmap glow layer */}
           <Layer
             id="marine-heatmap"
             type="heatmap"
             paint={{
               'heatmap-weight': [
-                'interpolate', ['linear'], ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
-                0, 0,
-                activeLayers.includes('swell_height') ? 5 : 20, 1
+                'interpolate', ['linear'],
+                ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
+                0, 0, activeLayers.includes('swell_height') ? 6 : 18, 1
               ],
-              'heatmap-intensity': 1,
+              'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 4, 1, 12, 3],
               'heatmap-color': [
                 'interpolate', ['linear'], ['heatmap-density'],
-                0, 'rgba(0,0,255,0)',
-                0.2, 'rgba(0,255,255,0.6)',
-                0.5, 'rgba(0,255,0,0.7)',
-                0.8, 'rgba(255,255,0,0.8)',
-                1, 'rgba(255,0,0,0.9)'
+                0,   'rgba(0,0,255,0)',
+                0.1, 'rgba(0,100,255,0.3)',
+                0.3, 'rgba(0,200,255,0.5)',
+                0.5, 'rgba(0,255,150,0.6)',
+                0.7, 'rgba(255,255,0,0.75)',
+                0.9, 'rgba(255,150,0,0.85)',
+                1,   'rgba(255,50,0,0.95)'
               ],
-              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 15, 9, 45],
-              'heatmap-opacity': 0.75
+              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 30, 6, 50, 10, 80, 14, 120],
+              'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.8, 14, 0.5]
             }}
+          />
+          {/* Circle label markers at high zoom */}
+          <Layer
+            id="marine-circles"
+            type="circle"
+            minzoom={8}
+            paint={{
+              'circle-radius': 16,
+              'circle-color': [
+                'interpolate', ['linear'],
+                ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
+                0, '#3288bd', 2, '#66c2a5', 4, '#fee08b', 6, '#f46d43', 10, '#d53e4f'
+              ],
+              'circle-stroke-width': 2,
+              'circle-stroke-color': 'rgba(255,255,255,0.8)',
+              'circle-opacity': 0.9
+            }}
+          />
+          <Layer
+            id="marine-labels"
+            type="symbol"
+            minzoom={8}
+            layout={{
+              'text-field': activeLayers.includes('swell_height')
+                ? ['concat', ['to-string', ['round', ['*', ['get', 'wave_height'], 3.281]]], 'ft']
+                : ['concat', ['to-string', ['round', ['get', 'wave_period']]], 's'],
+              'text-size': 10,
+              'text-font': ['Open Sans Bold'],
+              'text-allow-overlap': true,
+            }}
+            paint={{ 'text-color': '#ffffff', 'text-halo-color': '#000000', 'text-halo-width': 1 }}
           />
         </Source>
       )}
@@ -547,6 +574,9 @@ const MapWebGL = ({
         </Marker>
       ))}
     </Map>
+    {/* Wind Particle Canvas — overlays the map with animated directional flow */}
+    <WindParticleCanvas mapInstance={mapInstance} isActive={activeLayers.includes('wind')} />
+    </div>
   );
 };
 

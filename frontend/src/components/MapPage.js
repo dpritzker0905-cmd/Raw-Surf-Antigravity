@@ -36,6 +36,7 @@ import logger from '../utils/logger';
 import useDispatchTracking from '../hooks/useDispatchTracking';
 import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
 import { useMapSeo } from '../hooks/useMapSeo';
+import { useWeatherState } from '../hooks/useWeatherState';
 
 const MapPageContent = () => {
   const { user } = useAuth();
@@ -129,18 +130,23 @@ const MapPageContent = () => {
     setPulsingMarkers,
   } = useMapState();
 
-  // Weather Mapping State
-  const [activeModel, setActiveModel] = useState('GFS');
-  const [activeLayers, setActiveLayers] = useState([]);
-  const [timeOffsetHours, setTimeOffsetHours] = useState(0);
-  const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
-  const [showWeatherControls, setShowWeatherControls] = useState(false);
+  // Weather Mapping State — extracted into useWeatherState hook (v125 decomposition)
+  const {
+    activeModel, setActiveModel,
+    activeLayers,
+    timeOffsetHours, setTimeOffsetHours,
+    isPlayingTimeline, setIsPlayingTimeline,
+    showWeatherControls, setShowWeatherControls,
+    radarFrames, radarFrameIndex, setRadarFrameIndex,
+    isRadarOrSat,
+    maxHoursForUser, isLockedForecast,
+    toggleLayer,
+  } = useWeatherState({ user });
 
   // Open-Meteo 16-day forecast (weather + marine) — driven by map center & model
-  // PLACEMENT: Must be AFTER activeModel useState (v30 hook placement rule)
   const {
     forecastData,
-    marineData,
+    marineData: forecastMarineData,
     isLoading: forecastLoading,
   } = useOpenMeteoForecast({
     latitude: effectiveLocation?.lat || FLORIDA_CENTER.lat,
@@ -148,80 +154,6 @@ const MapPageContent = () => {
     activeModel,
     enabled: true,
   });
-
-  // Radar animation state — driven by RainViewer past frames
-  const [radarFrames, setRadarFrames] = useState([]);
-  const [radarFrameIndex, setRadarFrameIndex] = useState(0);
-  const radarIntervalRef = useRef(null);
-
-  // Fetch RainViewer frames once on mount
-  useEffect(() => {
-    fetch('https://api.rainviewer.com/public/weather-maps.json')
-      .then(r => r.json())
-      .then(data => {
-        const past = data?.radar?.past || [];
-        const nowcast = data?.radar?.nowcast || [];
-        const allFrames = [...past, ...nowcast];
-        if (allFrames.length > 0) {
-          setRadarFrames(allFrames);
-          setRadarFrameIndex(past.length > 0 ? past.length - 1 : 0);
-        }
-      })
-      .catch(err => logger.error('[MAP] RainViewer fetch failed:', err));
-  }, []);
-
-  // Animation intervals — cycles through frames/time when playing
-  const isRadarActive = activeLayers.includes('radar');
-  const isSatelliteActive = activeLayers.includes('satellite');
-  const isRadarOrSat = isRadarActive || isSatelliteActive;
-  // All weather layers are now animated (radar via frames, others via time offset)
-  const isAnimatedLayer = activeLayers.length > 0;
-
-  // Radar/Satellite frame animation
-  useEffect(() => {
-    if (isPlayingTimeline && isRadarOrSat && radarFrames.length > 1) {
-      radarIntervalRef.current = setInterval(() => {
-        setRadarFrameIndex(prev => (prev + 1) % radarFrames.length);
-      }, 800);
-    }
-    return () => {
-      if (radarIntervalRef.current) clearInterval(radarIntervalRef.current);
-    };
-  }, [isPlayingTimeline, isRadarOrSat, radarFrames.length]);
-
-  const maxHoursForUser = useMemo(() => {
-    const tier = user?.tier_id || 'tier_1';
-    if (tier === 'tier_3' || tier === 'admin') return 14 * 24;
-    if (tier === 'tier_2') return 7 * 24;
-    return 24;
-  }, [user]);
-
-  const isLockedForecast = timeOffsetHours > maxHoursForUser;
-
-  // Forecast time-step animation (non-radar layers: precipitation, wind, pressure, waves)
-  const forecastIntervalRef = useRef(null);
-  useEffect(() => {
-    if (isPlayingTimeline && !isRadarOrSat && activeLayers.length > 0) {
-      forecastIntervalRef.current = setInterval(() => {
-        setTimeOffsetHours(prev => {
-          const next = prev + 3; // step 3 hours per tick
-          return next > maxHoursForUser ? 0 : next; // loop back to Live
-        });
-      }, 1200);
-    }
-    return () => {
-      if (forecastIntervalRef.current) clearInterval(forecastIntervalRef.current);
-    };
-  }, [isPlayingTimeline, isRadarOrSat, activeLayers, maxHoursForUser]);
-
-  const toggleLayer = useCallback((layerId) => {
-    setActiveLayers(prev => 
-      prev.includes(layerId) ? [] : [layerId]
-    );
-    // Reset play state when switching layers
-    setIsPlayingTimeline(false);
-    setTimeOffsetHours(0);
-  }, []);
 
   const handleUpgradeClick = useCallback(() => {
     // Show a toast or trigger subscription modal
@@ -648,7 +580,7 @@ const MapPageContent = () => {
       {/* Timeline / Radar Scrubber (shows when any weather layer is active) */}
       {activeLayers.length > 0 && (
         <MapTimelineSlider
-          radarMode={isAnimatedLayer}
+          radarMode={isRadarOrSat}
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
           onRadarFrameChange={setRadarFrameIndex}
@@ -665,7 +597,7 @@ const MapPageContent = () => {
       {activeLayers.length > 0 && (
         <MapForecastOverlay
           forecastData={forecastData}
-          marineData={marineData}
+          marineData={forecastMarineData}
           activeLayer={activeLayers[0]}
           activeModel={activeModel}
           timeOffsetHours={timeOffsetHours}
