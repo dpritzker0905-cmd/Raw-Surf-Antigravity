@@ -24,13 +24,14 @@ import MapWeatherControls from './map/MapWeatherControls';
 import MapTimelineSlider from './map/MapTimelineSlider';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
-import { FLORIDA_CENTER } from './map/mapUtils';
+import { FLORIDA_CENTER, isValidLatLng, truncateCoord } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
 import { useIPGeolocation } from '../hooks/useIPGeolocation';
 import { useMapState } from '../hooks/useMapState';
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
+import { useRequestProState } from '../hooks/useRequestProState';
 import logger from '../utils/logger';
 import useDispatchTracking from '../hooks/useDispatchTracking';
 import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
@@ -234,24 +235,24 @@ const MapPageContent = () => {
     [userLocation, surfSpots, findNearestSpot]
   );
 
-  const [showRequestProModal, setShowRequestProModal] = useState(false);
-  const [requestProLoading, setRequestProLoading] = useState(false);
-  const [estimatedDuration, setEstimatedDuration] = useState(1);
-  const [inviteFriends, setInviteFriends] = useState(false);
-  const [pendingRequestPro, setPendingRequestPro] = useState(false);
-  const [requestProLocationLoading, setRequestProLocationLoading] = useState(false);
-  const [showRequestProSelfieModal, setShowRequestProSelfieModal] = useState(false);
-  const [boostHours, setBoostHours] = useState(0);
-  const [onDemandPhotographers, setOnDemandPhotographers] = useState([]);
-  const [requestProSelectedPro, setRequestProSelectedPro] = useState(null);
-  const [onDemandLoading, setOnDemandLoading] = useState(false);
-  
-  // Friend invite state for split sessions
-  const [friendsList, setFriendsList] = useState([]);
-  const [selectedFriends, setSelectedFriends] = useState([]);
-  const [friendsLoading, setFriendsLoading] = useState(false);
-  const [_showFriendPicker, setShowFriendPicker] = useState(false);
-  const [friendSearchQuery, setFriendSearchQuery] = useState('');
+  const {
+    showRequestProModal, setShowRequestProModal,
+    requestProLoading, setRequestProLoading,
+    estimatedDuration, setEstimatedDuration,
+    inviteFriends, setInviteFriends,
+    pendingRequestPro, setPendingRequestPro,
+    requestProLocationLoading, setRequestProLocationLoading,
+    showRequestProSelfieModal, setShowRequestProSelfieModal,
+    boostHours, setBoostHours,
+    onDemandPhotographers, setOnDemandPhotographers,
+    requestProSelectedPro, setRequestProSelectedPro,
+    onDemandLoading, setOnDemandLoading,
+    friendsList, setFriendsList,
+    selectedFriends, setSelectedFriends,
+    friendsLoading, setFriendsLoading,
+    _showFriendPicker, setShowFriendPicker,
+    friendSearchQuery, setFriendSearchQuery,
+  } = useRequestProState();
 
   const {
     friendsOnMap,
@@ -347,10 +348,6 @@ const MapPageContent = () => {
   // Setup Map page SEO meta tags
   useMapSeo();
 
-  useEffect(() => {
-    fetchOnDemandPros();
-  }, [showRequestProModal, userLocation]);
-
   const {
     fetchOnDemandPros,
     fetchFriends,
@@ -380,6 +377,10 @@ const MapPageContent = () => {
     setSelectedSpot,
     setUnifiedDrawerOpen,
   });
+
+  useEffect(() => {
+    fetchOnDemandPros();
+  }, [showRequestProModal, userLocation, fetchOnDemandPros]);
 
   useEffect(() => { fetchFriends(); }, [inviteFriends, user?.id]);
 
@@ -469,7 +470,7 @@ const MapPageContent = () => {
     hookHandleConditionsConfirm(data, surfSpots);
   }, [hookHandleConditionsConfirm, surfSpots]);
 
-  const currentUserShooting = livePhotographers.find(p => p.id === user?.id);
+  const currentUserShooting = (livePhotographers || []).find(p => p.id === user?.id);
   const handleStopLiveWrapper = useCallback(() => {
     handleStopLive(currentUserShooting);
   }, [handleStopLive, currentUserShooting]);

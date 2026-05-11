@@ -93,7 +93,7 @@ const MapPageModals = ({
       isOpen={showConditionsModal}
       onClose={closeConditionsModal}
       onConfirm={handleConditionsConfirm}
-      spotName={surfSpots.find(s => s.id === goLiveSpotId)?.name || 'Selected Spot'}
+      spotName={(surfSpots || []).find(s => s.id === goLiveSpotId)?.name || 'Selected Spot'}
       isLoading={goLiveLoading}
     />
 
