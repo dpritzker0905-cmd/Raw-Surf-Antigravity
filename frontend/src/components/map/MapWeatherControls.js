@@ -145,7 +145,7 @@ export const MapWeatherControls = ({
   // ==================== MOBILE LAYOUT ====================
   // Compact chip-row panel — NOT a full-screen overlay
   return (
-    <div className={`w-full rounded-t-2xl backdrop-blur-xl border-t ${bgClass} block md:hidden`}>
+    <div className={`w-full rounded-t-2xl backdrop-blur-xl border-t ${bgClass} block md:hidden`} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
       {/* Handle bar + header */}
       <div className="flex items-center justify-between px-4 pt-2 pb-1">
         <div className="flex items-center gap-3">

@@ -22,6 +22,7 @@ import { NearestSpotCard } from './map/NearestSpotCard';
 import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapTimelineSlider from './map/MapTimelineSlider';
+import MapForecastOverlay from './map/MapForecastOverlay';
 import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES, FLORIDA_CENTER } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -32,6 +33,7 @@ import { useMapState } from '../hooks/useMapState';
 import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
 import logger from '../utils/logger';
 import useDispatchTracking from '../hooks/useDispatchTracking';
+import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
 
 const MapPageContent = () => {
   const { user } = useAuth();
@@ -119,6 +121,18 @@ const MapPageContent = () => {
     return null;
   }, [userLocation, ipLocation]);
 
+  // Open-Meteo 16-day forecast (weather + marine) — driven by map center & model
+  const {
+    forecastData,
+    marineData,
+    isLoading: forecastLoading,
+  } = useOpenMeteoForecast({
+    latitude: effectiveLocation?.lat || FLORIDA_CENTER.lat,
+    longitude: effectiveLocation?.lng || FLORIDA_CENTER.lng,
+    activeModel,
+    enabled: true,
+  });
+
   const {
     selectedSpot,
     setSelectedSpot,
@@ -176,8 +190,10 @@ const MapPageContent = () => {
 
   // Radar animation interval — cycles frames when playing + radar active
   const isRadarActive = activeLayers.includes('radar');
+  const isSatelliteActive = activeLayers.includes('satellite');
+  const isAnimatedLayer = isRadarActive || isSatelliteActive;
   useEffect(() => {
-    if (isPlayingTimeline && isRadarActive && radarFrames.length > 1) {
+    if (isPlayingTimeline && isAnimatedLayer && radarFrames.length > 1) {
       radarIntervalRef.current = setInterval(() => {
         setRadarFrameIndex(prev => (prev + 1) % radarFrames.length);
       }, 800);
@@ -185,14 +201,14 @@ const MapPageContent = () => {
     return () => {
       if (radarIntervalRef.current) clearInterval(radarIntervalRef.current);
     };
-  }, [isPlayingTimeline, isRadarActive, radarFrames.length]);
+  }, [isPlayingTimeline, isAnimatedLayer, radarFrames.length]);
 
   const toggleLayer = useCallback((layerId) => {
     setActiveLayers(prev => 
       prev.includes(layerId) ? [] : [layerId]
     );
     // Reset radar animation state when switching layers
-    if (layerId !== 'radar') {
+    if (layerId !== 'radar' && layerId !== 'satellite') {
       setIsPlayingTimeline(false);
     }
   }, []);
@@ -521,6 +537,7 @@ const MapPageContent = () => {
           activeLayers={activeLayers}
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
+          timeOffsetHours={timeOffsetHours}
         />
       </div>
 
@@ -648,20 +665,20 @@ const MapPageContent = () => {
         onUpgradeClick={handleUpgradeClick}
       />
 
-      {/* Mobile Weather Controls — compact bottom-sheet, NOT mid-screen overlay */}
+      {/* Mobile Weather Controls — anchored ABOVE bottom nav bar */}
       {showWeatherControls && (
         <>
           <div 
             className="absolute inset-0 z-[999] bg-black/20 md:hidden"
             onClick={() => setShowWeatherControls(false)}
           />
-          <div className="absolute bottom-0 left-0 right-0 z-[1000] md:hidden shadow-2xl">
+          <div className="absolute left-0 right-0 z-[1000] md:hidden shadow-2xl" style={{ bottom: '64px' }}>
             <MapWeatherControls 
               isDesktop={false}
               activeModel={activeModel}
               onModelChange={setActiveModel}
               activeLayers={activeLayers}
-              onLayerToggle={toggleLayer}
+              onLayerToggle={(layerId) => { toggleLayer(layerId); setShowWeatherControls(false); }}
               userTier={user?.tier_id || 'tier_1'}
               onUpgradeClick={handleUpgradeClick}
               onClose={() => setShowWeatherControls(false)}
@@ -673,7 +690,7 @@ const MapPageContent = () => {
       {/* Timeline / Radar Scrubber (shows when any weather layer is active) */}
       {activeLayers.length > 0 && (
         <MapTimelineSlider
-          radarMode={isRadarActive}
+          radarMode={isAnimatedLayer}
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
           onRadarFrameChange={setRadarFrameIndex}
@@ -683,6 +700,18 @@ const MapPageContent = () => {
           onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
           userTier={user?.tier_id || 'tier_1'}
           onUpgradeClick={handleUpgradeClick}
+        />
+      )}
+
+      {/* Forecast Data Overlay — shows Open-Meteo data when layer active */}
+      {activeLayers.length > 0 && (
+        <MapForecastOverlay
+          forecastData={forecastData}
+          marineData={marineData}
+          activeLayer={activeLayers[0]}
+          activeModel={activeModel}
+          timeOffsetHours={timeOffsetHours}
+          isLoading={forecastLoading}
         />
       )}
 

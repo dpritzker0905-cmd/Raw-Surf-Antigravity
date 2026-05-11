@@ -23,6 +23,7 @@ const MapWebGL = ({
   activeLayers,
   radarFrameIndex,
   radarFrames,
+  timeOffsetHours = 0,
 }) => {
   const innerMapRef = useRef(null);
   const [viewState, setViewState] = useState({
@@ -37,6 +38,7 @@ const MapWebGL = ({
 
   // OpenWeatherMap API key from env
   const owmKey = process.env.REACT_APP_OWM_API_KEY || '';
+  const isLive = timeOffsetHours === 0;
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -148,40 +150,29 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Precipitation (OpenWeatherMap) */}
-      {activeLayers.includes('precipitation') && owmKey && (
+      {/* Precipitation (OpenWeatherMap — current conditions only) */}
+      {activeLayers.includes('precipitation') && owmKey && isLive && (
         <Source id="precip-source" type="raster" tiles={[`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="precip-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
         </Source>
       )}
 
-      {/* Wind (OpenWeatherMap) */}
-      {activeLayers.includes('wind') && owmKey && (
+      {/* Wind (OpenWeatherMap — current conditions only) */}
+      {activeLayers.includes('wind') && owmKey && isLive && (
         <Source id="wind-source" type="raster" tiles={[`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="wind-layer" type="raster" paint={{ 'raster-opacity': 0.7 }} />
         </Source>
       )}
 
-      {/* Pressure (OpenWeatherMap) */}
-      {activeLayers.includes('pressure') && owmKey && (
+      {/* Pressure (OpenWeatherMap — current conditions only) */}
+      {activeLayers.includes('pressure') && owmKey && isLive && (
         <Source id="pressure-source" type="raster" tiles={[`https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=${owmKey}`]} tileSize={256}>
           <Layer id="pressure-layer" type="raster" paint={{ 'raster-opacity': 0.6 }} />
         </Source>
       )}
 
-      {/* Swell Height (Placeholder — awaiting marine data pipeline) */}
-      {activeLayers.includes('swell_height') && (
-        <Source id="swell-height-placeholder" type="geojson" data={{ type: 'FeatureCollection', features: [] }}>
-          <Layer id="swell-height-layer" type="heatmap" paint={{'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(33,102,172,0)', 1, 'rgb(103,169,207)']}} />
-        </Source>
-      )}
-
-      {/* Swell Period (Placeholder — awaiting marine data pipeline) */}
-      {activeLayers.includes('swell_period') && (
-        <Source id="swell-period-placeholder" type="geojson" data={{ type: 'FeatureCollection', features: [] }}>
-          <Layer id="swell-period-layer" type="heatmap" paint={{'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(0,0,0,0)', 1, 'rgb(103,169,207)']}} />
-        </Source>
-      )}
+      {/* Wave/Swell layers use Open-Meteo data overlay (MapForecastOverlay) */}
+      {/* No tile source exists for free wave data — handled by JSON forecast panel */}
       {/* ---------------------------------- */}
 
       {/* Spot Clusters */}
