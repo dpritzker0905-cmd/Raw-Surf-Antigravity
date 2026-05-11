@@ -30,7 +30,7 @@ const OM_MODEL_MAP = {
  */
 const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
-  wind:          'wind_gusts_10m', // Heatmap magnitude (particles layered on top)
+  wind:          null,             // Raster disabled; canvas particle engine now paints its own dynamic color layer
   pressure:      'pressure_msl',
   fog:           'visibility',
   satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
@@ -422,11 +422,16 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Marine Wave Heatmap */}
+      {/* Marine Wave Heatmap & Data Labels */}
       {marineData && (activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
-        <Source id="marine-source" type="geojson" data={marineData}>
+        <Source 
+          key={`marine-src-${marineData.features.length}`} 
+          id={`marine-source-${marineData.features.length}`} 
+          type="geojson" 
+          data={marineData}
+        >
           <Layer
-            id="marine-heatmap"
+            id={`marine-heatmap-${marineData.features.length}`}
             type="circle"
             paint={{
               'circle-color': [
@@ -439,10 +444,28 @@ const MapWebGL = ({
                 activeLayers.includes('swell_height') ? 3.5 : 16, '#9333ea',  // purple-600
                 activeLayers.includes('swell_height') ? 5.0 : 20, '#be123c'   // rose-700
               ],
-              // Massive blurred circles to perfectly simulate an interpolating heatmap
               'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 70, 4, 160, 8, 350, 12, 600],
               'circle-blur': 0.8,
-              'circle-opacity': 0.65
+              'circle-opacity': 0.8
+            }}
+          />
+          <Layer
+            id={`marine-labels-${marineData.features.length}`}
+            type="symbol"
+            layout={{
+              'text-field': [
+                'concat',
+                ['to-string', ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period']],
+                activeLayers.includes('swell_height') ? 'm' : 's'
+              ],
+              'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+              'text-size': ['interpolate', ['linear'], ['zoom'], 0, 0, 2, 10, 6, 14, 10, 18],
+              'text-anchor': 'center'
+            }}
+            paint={{
+              'text-color': '#ffffff',
+              'text-halo-color': 'rgba(0,0,0,0.6)',
+              'text-halo-width': 1.5
             }}
           />
         </Source>

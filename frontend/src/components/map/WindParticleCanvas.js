@@ -163,8 +163,10 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             const prevPos = map.project([p.lng, p.lat]);
             
             // Geographic step (adjust based on speed and zoom scale)
-            // Convert u, v (m/s) to approximate degrees. Very rough approximation.
-            const degreeScale = 0.005 * zoomScale;
+            // Advanced: Velocity-scaled steps so fast winds create longer, dynamic streaks
+            const velocityScalar = Math.max(0.5, Math.min(2.0, speed / 10));
+            const degreeScale = 0.005 * zoomScale * velocityScalar;
+            
             p.lng += u * degreeScale;
             p.lat += v * degreeScale;
             p.age++;
@@ -175,6 +177,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             const angle = Math.atan2(newPos.y - prevPos.y, newPos.x - prevPos.x); 
             const arrowSize = 3 * (1 + zoomScale * 0.1); 
             
+            // Draw vector path
             tCtx.beginPath();
             tCtx.moveTo(prevPos.x, prevPos.y);
             tCtx.lineTo(newPos.x, newPos.y);
@@ -184,8 +187,19 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
             tCtx.moveTo(newPos.x, newPos.y);
             tCtx.lineTo(newPos.x - arrowSize * Math.cos(angle + Math.PI / 6), newPos.y - arrowSize * Math.sin(angle + Math.PI / 6));
             
+            const colorStr = getWindColor(speed);
+            
+            // Advanced Graphics: Neon Glow/Bloom Effect
+            // Base thick stroke with low alpha for the glow aura
+            tCtx.lineWidth = LINE_WIDTH * 3;
+            tCtx.globalAlpha = 0.3;
+            tCtx.strokeStyle = colorStr;
+            tCtx.stroke();
+            
+            // Core bright stroke
+            tCtx.globalAlpha = 1.0;
             tCtx.lineWidth = LINE_WIDTH;
-            tCtx.strokeStyle = getWindColor(speed);
+            tCtx.strokeStyle = colorStr;
             tCtx.stroke();
           } else {
             p.age = MAX_AGE + 1; // Kill if outside valid data
