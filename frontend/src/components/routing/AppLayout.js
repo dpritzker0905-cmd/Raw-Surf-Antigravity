@@ -226,7 +226,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
 
       {/* Page content */}
       <main
-        className={`${mainBgClass} ${showSidebar ? 'md:ml-[200px]' : ''} ${showSidebar && !isMapOpen ? 'lg:mr-[200px]' : ''} ${showTopNav ? 'pt-14 md:pt-0' : ''} ${showBottomNav ? 'pb-20 md:pb-0' : ''} transition-all duration-300 ${impersonationPadding} hide-scrollbar`}
+        className={`${mainBgClass} ${showSidebar ? 'md:ml-[200px]' : ''} ${showSidebar && !isMapOpen ? 'lg:mr-[200px]' : ''} ${showTopNav ? 'pt-14 md:pt-0' : ''} ${showBottomNav ? 'pb-20 md:pb-0' : ''} transition-all duration-300 ${impersonationPadding} show-scrollbar`}
         style={{ height: '100dvh', overflowY: 'auto', overflowX: 'hidden' }}
       >
         {children}

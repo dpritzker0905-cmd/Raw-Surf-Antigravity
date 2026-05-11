@@ -309,7 +309,6 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           /* desktop: float slightly above bottom edge */
           md:!bottom-4 md:!left-4 md:!right-4 md:rounded-2xl md:max-h-[78vh]
         `}
-        style={{ maxHeight: 'min(92dvh, 92vh)' }}
       >
         {/* -- Handle bar (mobile drag indicator) -- */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
@@ -376,10 +375,10 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           })}
         </div>
 
-        {/* -- Notification List ï¿½ no arbitrary cap, natural scroll -- */}
+        {/* -- Notification List no arbitrary cap, natural scroll -- */}
         {/* Best practice: show all items, let overflow-y-auto + max-h handle it */}
         {/* "View All" footer still available for full-page experience */}
-        <div className="overflow-y-auto flex-1 space-y-1.5 px-3 pb-2 min-h-0">
+        <div className="modal-body show-scrollbar flex-1 space-y-1.5 px-3 pb-2 min-h-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className={`animate-spin rounded-full h-6 w-6 border-b-2 ${colors.iconColor.replace('text-', 'border-')}`} />

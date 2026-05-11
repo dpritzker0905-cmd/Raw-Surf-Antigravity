@@ -320,6 +320,23 @@ async def websocket_presence(websocket: WebSocket, user_id: str):
     await ws_manager.connect(websocket, room=room)
     ws_manager.mark_online(user_id)
     
+    # Update last active timestamp in database
+    try:
+        from database import async_session_maker
+        from models import Profile
+        from sqlalchemy import update
+        from datetime import datetime, timezone
+        
+        async with async_session_maker() as db:
+            await db.execute(
+                update(Profile)
+                .where(Profile.id == user_id)
+                .values(updated_at=datetime.now(timezone.utc))
+            )
+            await db.commit()
+    except Exception as e:
+        logger.error(f"Error updating presence timestamp for {user_id}: {e}")
+    
     try:
         # Send initial confirmation + current online users
         online_ids = ws_manager.get_online_user_ids()

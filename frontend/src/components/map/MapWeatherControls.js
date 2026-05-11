@@ -54,8 +54,8 @@ export const MapWeatherControls = ({
   };
 
   const containerClass = isDesktop
-    ? `absolute top-24 right-2 z-[1000] backdrop-blur-xl border rounded-xl transition-all duration-300 ease-in-out ${bgClass} ${isCollapsed ? 'w-12 h-12 p-0 overflow-hidden flex items-center justify-center cursor-pointer' : 'w-64 p-4'}`
-    : `w-full rounded-xl p-4 backdrop-blur-xl border ${bgClass}`;
+    ? `absolute top-24 right-2 z-[1000] backdrop-blur-xl border rounded-xl transition-all duration-300 ease-in-out ${bgClass} ${isCollapsed ? 'w-12 h-12 p-0 overflow-hidden flex items-center justify-center cursor-pointer' : 'w-64 p-4 max-h-[calc(100vh-120px)] overflow-y-auto'}`
+    : `w-full max-h-[60vh] overflow-y-auto rounded-xl p-4 backdrop-blur-xl border ${bgClass}`;
 
   if (isDesktop && isCollapsed) {
     return (
