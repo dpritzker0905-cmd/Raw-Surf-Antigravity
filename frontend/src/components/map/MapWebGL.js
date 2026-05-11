@@ -7,19 +7,18 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { omProtocol } from '@openmeteo/weather-map-layer';
+
 // --- Open-Meteo Weather Tile Protocol ---
 // Registers the `om://` custom protocol for MapLibre at module level.
 // This enables raster weather tile overlays powered by Open-Meteo OMfiles
 // (precipitation, wind, pressure, cloud cover) for live AND forecast time offsets.
-let omProtocolRegistered = false;
-try {
-  const { omProtocol } = require('@openmeteo/weather-map-layer');
-  if (!omProtocolRegistered) {
+if (maplibregl.addProtocol) {
+  try {
     maplibregl.addProtocol('om', omProtocol);
-    omProtocolRegistered = true;
+  } catch (e) {
+    // Ignore if already registered (e.g. during fast refresh)
   }
-} catch (e) {
-  console.warn('[MapWebGL] @openmeteo/weather-map-layer not available:', e.message);
 }
 
 /**
@@ -151,6 +150,7 @@ const MapWebGL = ({
   return (
     <Map
       ref={innerMapRef}
+      mapLib={maplibregl}
       {...viewState}
       onMove={onMove}
       mapStyle={getMapStyle(isLight, activeLayers?.includes('satellite'))}

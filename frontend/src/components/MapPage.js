@@ -23,6 +23,7 @@ import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapTimelineSlider from './map/MapTimelineSlider';
 import MapForecastOverlay from './map/MapForecastOverlay';
+import { RequestProButton } from './map/RequestProButton';
 import { isValidLatLng, truncateCoord, TILE_LAYER_CONFIG, MAPBOX_TILES, FLORIDA_CENTER } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
@@ -34,6 +35,7 @@ import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
 import logger from '../utils/logger';
 import useDispatchTracking from '../hooks/useDispatchTracking';
 import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
+import { useMapSeo } from '../hooks/useMapSeo';
 
 const MapPageContent = () => {
   const { user } = useAuth();
@@ -364,30 +366,8 @@ const MapPageContent = () => {
     }
   }, [userLocation, pendingRequestPro]);
 
-  useEffect(() => {
-    const ogTags = [];
-    const setMeta = (property, content) => {
-      if (!content) return;
-      let tag = document.querySelector(`meta[property="${property}"]`);
-      if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('property', property);
-        document.head.appendChild(tag);
-        ogTags.push(tag);
-      }
-      tag.setAttribute('content', content);
-    };
-    document.title = 'Surf Map - Raw Surf';
-    setMeta('og:title', 'Surf Map - Raw Surf');
-    setMeta('og:description', 'Live surf spot map with real-time photographer locations, conditions, and on-demand booking on Raw Surf.');
-    setMeta('og:url', `${window.location.origin}/map`);
-    setMeta('og:type', 'website');
-    setMeta('og:site_name', 'Raw Surf');
-    return () => {
-      document.title = 'Raw Surf';
-      ogTags.forEach(tag => tag.remove());
-    };
-  }, []);
+  // Setup Map page SEO meta tags
+  useMapSeo();
 
   useEffect(() => {
     fetchOnDemandPros();
@@ -622,36 +602,15 @@ const MapPageContent = () => {
             onRequestGPS={getUserLocation}
             onDismiss={() => setShowIpBanner(false)}
           />
-          <div className="mt-2 pointer-events-auto">
-            <button
-              onClick={() => {
-                if (!userLocation) {
-                  setPendingRequestPro(true);
-                  setRequestProLocationLoading(true);
-                  setLocationDenied(false);
-                  getUserLocation();
-                } else {
-                  setShowRequestProModal(true);
-                }
-              }}
-              disabled={requestProLocationLoading}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all backdrop-blur-sm border border-cyan-500/50 ${
-                requestProLocationLoading 
-                  ? 'bg-cyan-600/50 text-white cursor-wait' 
-                  : 'bg-zinc-800/90 text-gray-300 hover:bg-zinc-700'
-              }`}
-              data-testid="request-pro-btn"
-            >
-              {requestProLocationLoading ? (
-                <span className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Finding location...
-                </span>
-              ) : (
-                'Request a 📸'
-              )}
-          </button>
-          </div>
+          <RequestProButton
+            userLocation={userLocation}
+            requestProLocationLoading={requestProLocationLoading}
+            setPendingRequestPro={setPendingRequestPro}
+            setRequestProLocationLoading={setRequestProLocationLoading}
+            setLocationDenied={setLocationDenied}
+            getUserLocation={getUserLocation}
+            setShowRequestProModal={setShowRequestProModal}
+          />
         </div>
       </div>
 
