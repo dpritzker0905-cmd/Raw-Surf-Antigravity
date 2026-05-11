@@ -34,8 +34,8 @@ const OM_VARIABLE_MAP = {
   pressure:      'pressure_msl',
   fog:           'visibility',
   satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
-  swell_height:  'wave_height',    // Global raster wave heatmap via gfs_wave
-  swell_period:  'wave_period',
+  swell_height:  null,             // Marine models use GeoJSON heatmap
+  swell_period:  null,
 };
 
 // Cache to prevent repetitive manifest fetching during layer toggles
@@ -251,11 +251,105 @@ const MapWebGL = ({
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
   const [mapInstance, setMapInstance] = useState(null);
+  const [marineData, setMarineData] = useState(null);
+  const isFetchingMarine = useRef(false);
+
   // Capture the raw MapLibre instance once the map loads
   useEffect(() => {
     const map = innerMapRef.current?.getMap?.();
     if (map && !mapInstance) setMapInstance(map);
   });
+
+  // Fetch dynamic, global marine data via batched API calls
+  useEffect(() => {
+    if (!mapInstance) return;
+    const hasMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
+    if (!hasMarine) {
+      if (marineData) setMarineData(null);
+      return;
+    }
+
+    const updateMarineGrid = async () => {
+      if (isFetchingMarine.current) return;
+      isFetchingMarine.current = true;
+      
+      try {
+        const bounds = mapInstance.getBounds();
+        const latMin = Math.max(-90, bounds.getSouth() - 5);
+        const latMax = Math.min(90, bounds.getNorth() + 5);
+        const lngMin = bounds.getWest() - 5;
+        const lngMax = bounds.getEast() + 5;
+
+        // 16x16 global grid
+        const latStep = Math.max(0.5, (latMax - latMin) / 16);
+        const lngStep = Math.max(0.5, (lngMax - lngMin) / 16);
+
+        const latSteps = [];
+        for (let lat = latMax; lat >= latMin; lat -= latStep) latSteps.push(Number(lat.toFixed(2)));
+        
+        const lngSteps = [];
+        for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
+          let normLng = lng;
+          while (normLng > 180) normLng -= 360;
+          while (normLng < -180) normLng += 360;
+          lngSteps.push(Number(normLng.toFixed(2)));
+        }
+
+        const allPoints = [];
+        for (const lat of latSteps) {
+          for (const lng of lngSteps) { allPoints.push({ lat, lng }); }
+        }
+
+        // Batch into chunks of 80 to bypass Open-Meteo limit
+        const BATCH_SIZE = 80;
+        const batches = [];
+        for (let i = 0; i < allPoints.length; i += BATCH_SIZE) {
+          batches.push(allPoints.slice(i, i + BATCH_SIZE));
+        }
+
+        const fetchBatch = async (batch) => {
+          const lats = batch.map(p => p.lat).join(',');
+          const lons = batch.map(p => p.lng).join(',');
+          const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`);
+          if (!res.ok) return [];
+          const data = await res.json();
+          return Array.isArray(data) ? data : [data];
+        };
+
+        const batchResults = await Promise.all(batches.map(fetchBatch));
+        const allResults = batchResults.flat();
+
+        const features = allPoints.map((pt, i) => {
+          const r = allResults[i];
+          if (!r || !r.current) return null;
+          const wh = r.current.wave_height;
+          const wp = r.current.wave_period;
+          if (wh == null && wp == null) return null; // Ignore land masses
+          return {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
+            properties: { wave_height: wh ?? 0, wave_period: wp ?? 0 },
+          };
+        }).filter(Boolean);
+
+        if (features.length > 0) {
+          setMarineData({ type: 'FeatureCollection', features });
+        }
+      } catch (err) {
+        console.warn('[MapWebGL] Global marine fetch failed:', err);
+      } finally {
+        isFetchingMarine.current = false;
+      }
+    };
+
+    updateMarineGrid();
+
+    // Re-fetch when map stops moving
+    mapInstance.on('moveend', updateMarineGrid);
+    return () => {
+      mapInstance.off('moveend', updateMarineGrid);
+    };
+  }, [activeLayers, mapInstance]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -322,6 +416,37 @@ const MapWebGL = ({
             id="om-weather-raster-layer"
             type="raster"
             paint={{ 'raster-opacity': 0.7, 'raster-fade-duration': 300 }}
+          />
+        </Source>
+      )}
+
+      {/* Marine Wave Heatmap */}
+      {marineData && (activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
+        <Source id="marine-source" type="geojson" data={marineData}>
+          <Layer
+            id="marine-heatmap"
+            type="heatmap"
+            paint={{
+              'heatmap-weight': [
+                'interpolate', ['linear'],
+                ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
+                0, 0.1, activeLayers.includes('swell_height') ? 4 : 14, 1
+              ],
+              'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 1, 1.2, 8, 3, 12, 4],
+              'heatmap-color': [
+                'interpolate', ['linear'], ['heatmap-density'],
+                0,   'rgba(0,0,255,0)',
+                0.1, 'rgba(0,100,255,0.4)',
+                0.3, 'rgba(0,200,255,0.6)',
+                0.5, 'rgba(0,255,150,0.7)',
+                0.7, 'rgba(255,255,0,0.8)',
+                0.9, 'rgba(255,150,0,0.9)',
+                1,   'rgba(255,50,0,0.95)'
+              ],
+              // Massive radius to interpolate point grid smoothly over entire oceans
+              'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 0, 60, 4, 100, 8, 160, 12, 200],
+              'heatmap-opacity': 0.8
+            }}
           />
         </Source>
       )}
