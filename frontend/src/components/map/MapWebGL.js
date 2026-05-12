@@ -5,6 +5,7 @@ import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import WindParticleCanvas from './WindParticleCanvas';
+import WaveParticleCanvas from './WaveParticleCanvas';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -719,6 +720,13 @@ const MapWebGL = ({
       hideColorField={activeLayers.includes('pressure')}
       particleColorOverride={activeLayers.includes('pressure') ? 'white' : null}
       activeModel={activeModel}
+      timeOffsetHours={timeOffsetHours}
+    />
+    {/* Wave Particle Canvas — animated directional wave-height visualization */}
+    <WaveParticleCanvas
+      mapInstance={mapInstance}
+      isActive={['waves','swell_1','swell_2','wind_waves'].some(l => activeLayers.includes(l))}
+      activeLayer={activeLayers.find(l => ['waves','swell_1','swell_2','wind_waves'].includes(l)) || 'waves'}
       timeOffsetHours={timeOffsetHours}
     />
     </div>

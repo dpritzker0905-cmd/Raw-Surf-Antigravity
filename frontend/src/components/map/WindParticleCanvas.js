@@ -272,53 +272,38 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lons = safePoints.map(p => p.lng).join(',');
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
-        const isLiveMode = timeOffsetHours === 0;
-        
-        let url;
-        if (isLiveMode) {
-          // LIVE: Use `current` endpoint — best_match model for observational accuracy
-          url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&timezone=auto`;
-        } else {
-          // FORECAST: Use hourly data with user-selected model
-          const targetDate = new Date();
-          targetDate.setHours(targetDate.getHours() + timeOffsetHours);
-          const dateStr = targetDate.toISOString().split('T')[0];
-          url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
-        }
+        // Always use hourly for grid queries — `current` doesn't guarantee full
+        // coverage across all 81 points (ocean/remote areas often return null).
+        // For live mode, use best_match which blends observations + forecast.
+        const targetDate = new Date();
+        if (timeOffsetHours > 0) targetDate.setHours(targetDate.getHours() + timeOffsetHours);
+        const dateStr = targetDate.toISOString().split('T')[0];
+        const modelStr = timeOffsetHours === 0 ? 'best_match' : modelParam;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelStr}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
         
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         
         const data = await res.json();
         const allResults = Array.isArray(data) ? data : [data];
-        
-        const targetTs = isLiveMode ? Date.now() : new Date(Date.now() + timeOffsetHours * 3600000).getTime();
+        const targetTs = Date.now() + timeOffsetHours * 3600000;
         
         const uData = new Float32Array(nx * ny);
         const vData = new Float32Array(nx * ny);
         
         for (let i = 0; i < safePoints.length; i++) {
           const r = allResults[i];
-          if (!r) continue;
+          if (!r || !r.hourly) continue;
           
-          let speed, dir;
-          if (isLiveMode && r.current) {
-            // LIVE: Extract from `current` object directly
-            speed = r.current.wind_speed_10m || 0;
-            dir = r.current.wind_direction_10m || 0;
-          } else if (r.hourly) {
-            // FORECAST: Find closest hourly time step
-            let closest = 0;
-            let minDiff = Infinity;
-            r.hourly.time.forEach((t, idx) => {
-              const diff = Math.abs(new Date(t).getTime() - targetTs);
-              if (diff < minDiff) { minDiff = diff; closest = idx; }
-            });
-            speed = r.hourly.wind_speed_10m[closest] || 0;
-            dir = r.hourly.wind_direction_10m[closest] || 0;
-          } else {
-            continue;
-          }
+          // Find closest hourly time step
+          let closest = 0;
+          let minDiff = Infinity;
+          r.hourly.time.forEach((t, idx) => {
+            const diff = Math.abs(new Date(t).getTime() - targetTs);
+            if (diff < minDiff) { minDiff = diff; closest = idx; }
+          });
+          const speed = r.hourly.wind_speed_10m?.[closest] || 0;
+          const dir = r.hourly.wind_direction_10m?.[closest] || 0;
           
           // Convert speed from km/h to m/s
           const speedMs = speed * 0.277778;
