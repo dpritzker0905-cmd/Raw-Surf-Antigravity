@@ -208,10 +208,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         const lons = safe.map(p => p.lng).join(',');
 
         const hourlyVars = `${vars.h},${vars.d},${vars.p}`;
-        const targetDate = new Date();
-        if (timeOffsetHours > 0) targetDate.setHours(targetDate.getHours() + timeOffsetHours);
-        const dateStr = targetDate.toISOString().split('T')[0];
-        const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&hourly=${hourlyVars}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+        const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&hourly=${hourlyVars}&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -229,7 +226,8 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           const times = r.hourly.time;
           let closest = 0, minD = Infinity;
           for (let t = 0; t < times.length; t++) {
-            const diff = Math.abs(new Date(times[t]).getTime() - targetTs);
+            // Append 'Z' because API returns UTC without 'Z'
+            const diff = Math.abs(new Date(times[t] + 'Z').getTime() - targetTs);
             if (diff < minD) { minD = diff; closest = t; }
           }
           const h = r.hourly[vars.h]?.[closest];
@@ -238,8 +236,8 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           hData[idx] = h;
           const rad = d * DEG2RAD;
           // Wave direction = direction waves come FROM; particles move in opposite direction
-          uData[idx] = Math.sin(rad) * Math.max(0.3, h * 0.4);
-          vData[idx] = Math.cos(rad) * Math.max(0.3, h * 0.4);
+          uData[idx] = -Math.sin(rad) * Math.max(0.3, h * 0.4);
+          vData[idx] = -Math.cos(rad) * Math.max(0.3, h * 0.4);
         }
 
         gridRef.current = new MarineWaveGrid(nx, ny, lngMin, lngMax, latMax, latMin, lngStep, latStep, hData, uData, vData);
@@ -374,7 +372,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
           pLng[i] += (u / mag) * degStep;
-          pLat[i] -= (v / mag) * degStep;
+          pLat[i] += (v / mag) * degStep;
           pAge[i]++;
 
           const next = proj.project(pLng[i], pLat[i]);

@@ -277,12 +277,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lons = safePoints.map(p => p.lng).join(',');
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
-        // Always use the selected global model for the animated grid, because 
-        // `best_match` often returns nulls over ocean areas, causing particles to freeze.
-        const targetDate = new Date();
-        if (timeOffsetHours > 0) targetDate.setHours(targetDate.getHours() + timeOffsetHours);
-        const dateStr = targetDate.toISOString().split('T')[0];
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&forecast_days=2`;
         
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -302,7 +297,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           let closest = 0;
           let minDiff = Infinity;
           r.hourly.time.forEach((t, idx) => {
-            const diff = Math.abs(new Date(t).getTime() - targetTs);
+            const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
             if (diff < minDiff) { minDiff = diff; closest = idx; }
           });
           const speed = r.hourly.wind_speed_10m?.[closest] || 0;
@@ -544,7 +539,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const mag = Math.max(0.01, speed);
 
           pLng[i] += (u / mag) * degStep;
-          pLat[i] -= (v / mag) * degStep;
+          pLat[i] += (v / mag) * degStep;
           pAge[i]++;
 
           // Project new position (reuses same result object)
