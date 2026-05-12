@@ -371,12 +371,14 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         const segs = batch.segs;
         tCtx.beginPath();
         for (let j = 0; j < segs.length; j += 4) { 
-          tCtx.moveTo(segs[j+2], segs[j+3]);
-          tCtx.arc(segs[j+2], segs[j+3], 1.2, 0, Math.PI * 2);
+          tCtx.moveTo(segs[j], segs[j+1]);
+          tCtx.lineTo(segs[j+2], segs[j+3]);
         }
-        tCtx.fillStyle = batch.style; tCtx.fill();
+        tCtx.lineWidth = 1.2;
+        tCtx.strokeStyle = batch.style; 
+        tCtx.stroke();
         if (batch.glow) {
-          tCtx.shadowColor = batch.glowStyle; tCtx.shadowBlur = 8; tCtx.fill();
+          tCtx.shadowColor = batch.glowStyle; tCtx.shadowBlur = 8; tCtx.stroke();
           tCtx.shadowBlur = 0;
         }
       }

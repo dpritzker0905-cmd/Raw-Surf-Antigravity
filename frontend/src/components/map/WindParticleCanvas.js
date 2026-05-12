@@ -258,8 +258,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
-        // Use ensemble API to bypass main API rate limit, but extract member01 to retain crisp variation (not ensemble mean)
-        const url = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs025&forecast_days=2`;
+        // Use marine API to fetch deterministic LIVE wind (bypasses main API 10k rate limit)
+        const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -282,10 +282,9 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
             if (diff < minDiff) { minDiff = diff; closest = idx; }
           });
 
-          // Extract deterministic speed and direction directly
-          // Read the deterministic member instead of the smoothed ensemble mean
-          const speedKmh = (r.hourly.wind_speed_10m_member01 || r.hourly.wind_speed_10m)?.[closest] ?? 0;
-          const dir = (r.hourly.wind_direction_10m_member01 || r.hourly.wind_direction_10m)?.[closest] ?? 0;
+          // Extract exact deterministic live data
+          const speedKmh = r.hourly.wind_speed_10m?.[closest] ?? 0;
+          const dir = r.hourly.wind_direction_10m?.[closest] ?? 0;
           const speed = speedKmh * 0.277778; // km/h → m/s
 
           // U (zonal) = -speed*sin(dir), V (meridional) = -speed*cos(dir)
