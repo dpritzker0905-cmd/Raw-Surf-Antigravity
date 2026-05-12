@@ -30,6 +30,7 @@ export const MapWeatherControls = ({
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isTimelineCollapsed, setIsTimelineCollapsed] = useState(false);
 
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
@@ -249,19 +250,27 @@ export const MapWeatherControls = ({
     if (!activeLayer) return null;
     return (
       <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none" style={{ bottom: '72px' }}>
-        <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} p-3 transition-all duration-300`}>
-          {legendConfig[activeLayer] && (
-            <div className="mb-2">
-              <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
-                <span>{legendConfig[activeLayer].label}</span>
+        <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${isTimelineCollapsed ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
+          <div 
+            className="flex justify-center items-center cursor-pointer pb-2 -mt-1"
+            onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+          >
+            <div className="w-10 h-1 bg-gray-500/40 rounded-full" />
+          </div>
+          <div className={`overflow-hidden transition-all duration-300 ${isTimelineCollapsed ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
+            {legendConfig[activeLayer] && (
+              <div className="mb-2">
+                <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
+                  <span>{legendConfig[activeLayer].label}</span>
+                </div>
+                <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
+                <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
+                  {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
+                </div>
               </div>
-              <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
-              <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
-                {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
-              </div>
-            </div>
-          )}
-          {renderTimeline(true)}
+            )}
+            {renderTimeline(true)}
+          </div>
         </div>
       </div>
     );
