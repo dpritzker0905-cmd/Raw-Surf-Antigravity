@@ -1,5 +1,16 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { LineLayer } from '@deck.gl/layers';
+
+// Lazy-load LineLayer to avoid Webpack TDZ (Temporal Dead Zone) crash.
+// deck.gl sub-packages have circular dependencies that break static imports
+// when bundled with create-react-app / craco.
+let _LineLayer = null;
+const getLineLayer = async () => {
+  if (!_LineLayer) {
+    const mod = await import('@deck.gl/layers');
+    _LineLayer = mod.LineLayer;
+  }
+  return _LineLayer;
+};
 
 /**
  * Viewport-scoped wind vector layer.
@@ -9,7 +20,15 @@ import { LineLayer } from '@deck.gl/layers';
 export function useGPUWindLayer({ active, mapBounds }) {
   const [arrows, setArrows] = useState([]);
   const [phase, setPhase] = useState(0);
+  const [LayerClass, setLayerClass] = useState(null);
   const fetchingRef = useRef(false);
+
+  // Lazy-load the LineLayer class once
+  useEffect(() => {
+    if (active && !LayerClass) {
+      getLineLayer().then(LC => setLayerClass(() => LC));
+    }
+  }, [active, LayerClass]);
 
   // Fetch wind vectors for current viewport only
   useEffect(() => {
@@ -86,10 +105,9 @@ export function useGPUWindLayer({ active, mapBounds }) {
   }, [active, arrows]);
 
   return useMemo(() => {
-    if (!active || !arrows.length) return null;
-    // Pulsing opacity creates a "flowing" effect
+    if (!active || !arrows.length || !LayerClass) return null;
     const pulse = 0.5 + 0.5 * Math.sin(phase * Math.PI / 180);
-    return new LineLayer({
+    return new LayerClass({
       id: 'gpu-wind-lines',
       data: arrows,
       getSourcePosition: d => d.from,
@@ -110,5 +128,5 @@ export function useGPUWindLayer({ active, mapBounds }) {
         getColor: [phase]
       }
     });
-  }, [active, arrows, phase]);
+  }, [active, arrows, phase, LayerClass]);
 }
