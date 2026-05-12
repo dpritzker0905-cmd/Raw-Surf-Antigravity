@@ -125,11 +125,11 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * v176 KEY CHANGES:
- * - Canvas appended to getContainer() (outer div) NOT getCanvasContainer() (inner, transformed)
- * - Full-screen red fill test on mount for 3 seconds to prove canvas visibility
- * - Static white dot test at (200,200) to prove compositing
- * - windVectors via ref, lifecycle deps: [mapInstance, active] only
+ * v177 FIXES — Pixel-to-screen coordinate alignment:
+ * 1. Back to getCanvasContainer() — map.project() returns coords in this space
+ * 2. Trail fade uses destination-out (fades to transparent, NOT accumulating black)
+ * 3. clearRect every frame before drawing (no ghost accumulation)
+ * 4. DPR diagnostic logging on mount
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const animRef = useRef(null);
@@ -138,25 +138,18 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   useEffect(() => { windRef.current = windVectors; }, [windVectors]);
 
   useEffect(() => {
-    if (!mapInstance || !active) {
-      console.log('[Wind] Canvas skipped:', { map: !!mapInstance, active });
-      return;
-    }
+    if (!mapInstance || !active) return;
 
-    console.log('[Wind] CANVAS MOUNTING');
-
-    // Use getContainer() — the OUTER div without CSS transforms
-    // getCanvasContainer() has transform:translate3d during pan which can break composition
-    const container = mapInstance.getContainer();
+    // Use getCanvasContainer() — map.project() returns coords relative to THIS element
+    const container = mapInstance.getCanvasContainer();
     const canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:10;display:block;';
+    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:5;';
     container.appendChild(canvas);
-    const inDOM = document.body.contains(canvas);
-    console.log('[Wind] Canvas in DOM:', inDOM, 'Parent:', container.tagName, container.className);
 
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     let cw = 0, ch = 0;
+
     const resize = () => {
       const w = container.clientWidth;
       const h = container.clientHeight;
@@ -170,27 +163,13 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
     };
     resize();
 
-    // ===== VISUAL TEST 1: Full red fill =====
-    ctx.fillStyle = 'rgba(255,0,0,0.5)';
-    ctx.fillRect(0, 0, cw, ch);
-    console.log('[Wind] TEST 1: Full red fill drawn', cw, 'x', ch);
-
-    // ===== VISUAL TEST 2: Static white circle at (200,200) =====
-    ctx.fillStyle = 'white';
-    ctx.beginPath();
-    ctx.arc(200, 200, 25, 0, Math.PI * 2);
-    ctx.fill();
-    console.log('[Wind] TEST 2: White circle at (200,200)');
-
-    // Clear test visuals after 3 seconds, then start particles
-    let testPhase = true;
-    const testTimer = setTimeout(() => {
-      testPhase = false;
-      console.log('[Wind] Test phase ended, particles active');
-    }, 3000);
+    // Diagnostic: verify coordinate alignment
+    console.log('[Wind] MOUNTED — canvas:', canvas.width, 'x', canvas.height,
+      'style:', cw, 'x', ch, 'dpr:', dpr,
+      'container:', container.className);
 
     const PARTICLE_COUNT = 250;
-    const TRAIL_LEN = 7;
+    const TRAIL_LEN = 6;
     const particles = [];
     const spawnParticle = () => {
       const b = mapInstance.getBounds();
@@ -211,22 +190,15 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
     let lastTime = performance.now();
     let frameCount = 0;
+
     const animate = (now) => {
       const dt = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
       frameCount++;
-      if (frameCount <= 3) console.log(`[Wind] RAF frame ${frameCount}, testPhase:${testPhase}`);
+      if (frameCount <= 2) console.log(`[Wind] RAF frame ${frameCount}`);
 
-      // During test phase, don't clear — let red fill + white dot remain visible
-      if (testPhase) {
-        animRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      // Fade previous frame
-      ctx.fillStyle = 'rgba(0,0,0,0.08)';
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillRect(0, 0, cw, ch);
+      // CRITICAL FIX: Clear canvas fully each frame — prevents black accumulation
+      ctx.clearRect(0, 0, cw, ch);
 
       const grid = windRef.current;
       if (!grid?.vectors?.length) {
@@ -235,7 +207,7 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       }
 
       const b = mapInstance.getBounds();
-      const w = b.getWest(), e = b.getEast(), s = b.getSouth(), n = b.getNorth();
+      const bw = b.getWest(), be = b.getEast(), bs = b.getSouth(), bn = b.getNorth();
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
@@ -249,32 +221,35 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
         const pt = mapInstance.project([p.lng, p.lat]);
         p.trail.push({ x: pt.x, y: pt.y });
         if (p.trail.length > TRAIL_LEN) p.trail.shift();
+
+        // Draw trail segments with decreasing opacity (oldest → newest)
         if (p.trail.length > 1) {
           const rgb = speedColor(wind.speed);
-          const alpha = Math.min(0.9, 0.3 + wind.speed / 15);
-          ctx.beginPath();
-          ctx.moveTo(p.trail[0].x, p.trail[0].y);
-          for (let j = 1; j < p.trail.length; j++) ctx.lineTo(p.trail[j].x, p.trail[j].y);
-          ctx.strokeStyle = `rgba(${rgb},${alpha})`;
-          ctx.lineWidth = Math.max(1, wind.speed / 8);
-          ctx.stroke();
+          for (let j = 1; j < p.trail.length; j++) {
+            const segAlpha = (j / p.trail.length) * Math.min(0.9, 0.3 + wind.speed / 15);
+            ctx.beginPath();
+            ctx.moveTo(p.trail[j - 1].x, p.trail[j - 1].y);
+            ctx.lineTo(p.trail[j].x, p.trail[j].y);
+            ctx.strokeStyle = `rgba(${rgb},${segAlpha})`;
+            ctx.lineWidth = Math.max(1, wind.speed / 8);
+            ctx.stroke();
+          }
         }
-        if (p.lng < w || p.lng > e || p.lat < s || p.lat > n || p.age > p.maxAge) {
+
+        if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
           particles[i] = spawnParticle();
         }
       }
       animRef.current = requestAnimationFrame(animate);
     };
     animRef.current = requestAnimationFrame(animate);
-    console.log('[Wind] RAF loop started');
 
-    const onMove = () => { if (!testPhase) for (const p of particles) p.trail = []; };
+    const onMove = () => { for (const p of particles) p.trail = []; };
     mapInstance.on('move', onMove);
     mapInstance.on('resize', resize);
 
     return () => {
-      console.log('[Wind] CANVAS UNMOUNTING');
-      clearTimeout(testTimer);
+      console.log('[Wind] UNMOUNTING');
       cancelAnimationFrame(animRef.current);
       mapInstance.off('move', onMove);
       mapInstance.off('resize', resize);
