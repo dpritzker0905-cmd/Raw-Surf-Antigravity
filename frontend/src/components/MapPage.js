@@ -149,6 +149,7 @@ const MapPageContent = () => {
   const {
     forecastData,
     marineData: forecastMarineData,
+    currentWeather,
     isLoading: forecastLoading,
   } = useOpenMeteoForecast({
     latitude: effectiveLocation?.lat || FLORIDA_CENTER.lat,
@@ -615,6 +616,7 @@ const MapPageContent = () => {
         <MapForecastOverlay
           forecastData={forecastData}
           marineData={forecastMarineData}
+          currentWeather={currentWeather}
           activeLayer={activeLayers[0]}
           activeModel={activeModel}
           timeOffsetHours={timeOffsetHours}

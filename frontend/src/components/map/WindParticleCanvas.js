@@ -22,7 +22,7 @@ const MAX_AGE = 90;
 const LINE_WIDTH = 1.0;
 const FIELD_CELL_SIZE = 14;
 const FIELD_BLUR_PX = 16;
-const FIELD_PAD = 0.5;
+const FIELD_PAD = 1.0;
 const DEG2RAD = Math.PI / 180;
 const PI = Math.PI;
 // Zoom interaction debouncing removed to keep particles continuously rendering during scroll-zoom
@@ -272,13 +272,19 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lons = safePoints.map(p => p.lng).join(',');
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
+        const isLiveMode = timeOffsetHours === 0;
         
-        // Target exact time
-        const targetDate = new Date();
-        targetDate.setHours(targetDate.getHours() + timeOffsetHours);
-        const dateStr = targetDate.toISOString().split('T')[0];
-        
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+        let url;
+        if (isLiveMode) {
+          // LIVE: Use `current` endpoint — best_match model for observational accuracy
+          url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&timezone=auto`;
+        } else {
+          // FORECAST: Use hourly data with user-selected model
+          const targetDate = new Date();
+          targetDate.setHours(targetDate.getHours() + timeOffsetHours);
+          const dateStr = targetDate.toISOString().split('T')[0];
+          url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+        }
         
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -286,24 +292,33 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const data = await res.json();
         const allResults = Array.isArray(data) ? data : [data];
         
-        const targetTs = targetDate.getTime();
+        const targetTs = isLiveMode ? Date.now() : new Date(Date.now() + timeOffsetHours * 3600000).getTime();
         
         const uData = new Float32Array(nx * ny);
         const vData = new Float32Array(nx * ny);
         
         for (let i = 0; i < safePoints.length; i++) {
           const r = allResults[i];
-          if (!r || !r.hourly) continue;
+          if (!r) continue;
           
-          let closest = 0;
-          let minDiff = Infinity;
-          r.hourly.time.forEach((t, idx) => {
-            const diff = Math.abs(new Date(t).getTime() - targetTs);
-            if (diff < minDiff) { minDiff = diff; closest = idx; }
-          });
-          
-          const speed = r.hourly.wind_speed_10m[closest] || 0; // km/h
-          const dir = r.hourly.wind_direction_10m[closest] || 0; // degrees
+          let speed, dir;
+          if (isLiveMode && r.current) {
+            // LIVE: Extract from `current` object directly
+            speed = r.current.wind_speed_10m || 0;
+            dir = r.current.wind_direction_10m || 0;
+          } else if (r.hourly) {
+            // FORECAST: Find closest hourly time step
+            let closest = 0;
+            let minDiff = Infinity;
+            r.hourly.time.forEach((t, idx) => {
+              const diff = Math.abs(new Date(t).getTime() - targetTs);
+              if (diff < minDiff) { minDiff = diff; closest = idx; }
+            });
+            speed = r.hourly.wind_speed_10m[closest] || 0;
+            dir = r.hourly.wind_direction_10m[closest] || 0;
+          } else {
+            continue;
+          }
           
           // Convert speed from km/h to m/s
           const speedMs = speed * 0.277778;
@@ -407,7 +422,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
     canvas.style.transform = '';
   }, [mapInstance, fieldRamp]);
 
-  // Pan-sync CSS transform
+  // Pan-sync CSS transform + threshold-based mid-pan re-render for mobile stability
+  const lastFieldCenter = useRef({ lng: 0, lat: 0 });
   const onMapMove = useCallback(() => {
     const map = mapInstance, origin = fieldOriginRef.current;
     if (!map || !origin) return;
@@ -416,8 +432,18 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
       if (fieldRef.current) {
         fieldRef.current.style.transform = `translate(${cur.x - origin.px}px,${cur.y - origin.py}px)`;
       }
+      // Threshold re-render: if panned >40% of viewport, re-render field immediately
+      const center = map.getCenter();
+      const container = map.getContainer();
+      const w = container.clientWidth;
+      const dxPx = Math.abs(cur.x - origin.px);
+      if (dxPx > w * 0.4) {
+        lastFieldCenter.current = { lng: center.lng, lat: center.lat };
+        cancelAnimationFrame(fieldTimerRef.current);
+        fieldTimerRef.current = requestAnimationFrame(renderColorField);
+      }
     } catch (_) {}
-  }, [mapInstance]);
+  }, [mapInstance, renderColorField]);
 
   // Event wiring for field + interaction state
   useEffect(() => {

@@ -8,11 +8,26 @@ import { useTheme } from '../../contexts/ThemeContext';
  *
  * Data source: Open-Meteo Weather & Marine APIs (GFS / ECMWF / ICON).
  * Shows numeric values for the currently selected layer + time offset.
- * Map tile visualization is handled by the om:// protocol in MapWebGL.
+ *
+ * V162: Consolidated wave dashboard — each swell component shows
+ * height + period + direction together (like Windy.com detail panels).
+ * Wind LIVE mode uses `current` observational data for accuracy.
  */
+
+/** Convert meters to feet */
+const mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
+
+/** Format compass direction from degrees */
+const degToCompass = (deg) => {
+  if (deg == null) return '';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+};
+
 export const MapForecastOverlay = ({
   forecastData,
   marineData,
+  currentWeather,
   activeLayer,
   activeModel,
   timeOffsetHours,
@@ -24,8 +39,6 @@ export const MapForecastOverlay = ({
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isLight = theme === 'light';
-
-  // Always show data readout when layer is active (tiles + numeric data)
 
   // Don't show when no data loaded yet
   if (!forecastData && !marineData) return null;
@@ -70,16 +83,33 @@ export const MapForecastOverlay = ({
   // Extract values
   const wx = forecastData?.hourly || {};
   const marine = marineData?.hourly || {};
+  const isLive = timeOffsetHours === 0;
+
+  // For LIVE mode, prefer `current` data for wind accuracy
+  const liveWind = currentWeather;
+  const windSpeed = isLive && liveWind?.wind_speed_10m != null
+    ? liveWind.wind_speed_10m : wx.wind_speed_10m?.[currentHourIndex];
+  const windDir = isLive && liveWind?.wind_direction_10m != null
+    ? liveWind.wind_direction_10m : wx.wind_direction_10m?.[currentHourIndex];
+  const windGusts = isLive && liveWind?.wind_gusts_10m != null
+    ? liveWind.wind_gusts_10m : wx.wind_gusts_10m?.[currentHourIndex];
 
   const precip = wx.precipitation?.[currentHourIndex];
-  const windSpeed = wx.wind_speed_10m?.[currentHourIndex];
-  const windDir = wx.wind_direction_10m?.[currentHourIndex];
   const pressure = wx.surface_pressure?.[currentHourIndex];
+
+  // Marine data extraction
   const waveHeight = marine.wave_height?.[marineHourIndex];
   const wavePeriod = marine.wave_period?.[marineHourIndex];
-  const swellHeight = marine.swell_wave_height?.[marineHourIndex];
-  const swellPeriod = marine.swell_wave_period?.[marineHourIndex];
-  const swellDir = marine.swell_wave_direction?.[marineHourIndex];
+  const waveDir = marine.wave_direction?.[marineHourIndex];
+  const swell1Height = marine.swell_wave_height?.[marineHourIndex];
+  const swell1Period = marine.swell_wave_period?.[marineHourIndex];
+  const swell1Dir = marine.swell_wave_direction?.[marineHourIndex];
+  const swell2Height = marine.secondary_swell_wave_height?.[marineHourIndex];
+  const swell2Period = marine.secondary_swell_wave_period?.[marineHourIndex];
+  const swell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex];
+  const windWaveHeight = marine.wind_wave_height?.[marineHourIndex];
+  const windWavePeriod = marine.wind_wave_period?.[marineHourIndex];
+  const windWaveDir = marine.wind_wave_direction?.[marineHourIndex];
 
   // Show relevant data based on activeLayer
   const cards = [];
@@ -88,29 +118,52 @@ export const MapForecastOverlay = ({
     cards.push({ icon: CloudRain, label: 'Precip', value: precip != null ? `${precip.toFixed(1)} mm/h` : '--', color: 'text-blue-400' });
     cards.push({ icon: Droplets, label: 'Prob', value: wx.precipitation_probability?.[currentHourIndex] != null ? `${wx.precipitation_probability[currentHourIndex]}%` : '--', color: 'text-indigo-400' });
   }
+
   if (activeLayer === 'wind') {
-    cards.push({ icon: Wind, label: 'Wind', value: windSpeed != null ? `${Math.round(windSpeed * 0.539957)} kts` : '--', color: 'text-teal-400' });
-    if (windDir != null) cards.push({ icon: ArrowUp, label: 'Dir', value: `${Math.round(windDir)}°`, color: 'text-teal-300', rotate: windDir });
+    const kts = windSpeed != null ? Math.round(windSpeed * 0.539957) : null;
+    cards.push({ icon: Wind, label: isLive ? 'Live Wind' : 'Wind', value: kts != null ? `${kts} kts` : '--', color: 'text-teal-400' });
+    if (windDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}°`, color: 'text-teal-300', rotate: windDir });
+    if (windGusts != null) cards.push({ icon: Wind, label: 'Gusts', value: `${Math.round(windGusts * 0.539957)} kts`, color: 'text-orange-400' });
   }
+
   if (activeLayer === 'pressure') {
     cards.push({ icon: Gauge, label: 'Pressure', value: pressure != null ? `${Math.round(pressure)} hPa` : '--', color: 'text-rose-400' });
   }
-  if (activeLayer === 'swell_height') {
-    const h = swellHeight ?? waveHeight;
-    cards.push({ icon: Waves, label: 'Wave Ht', value: h != null ? `${(h * 3.281).toFixed(1)} ft` : '--', color: 'text-blue-300' });
-    if (swellDir != null) cards.push({ icon: ArrowUp, label: 'Dir', value: `${Math.round(swellDir)}°`, color: 'text-blue-200', rotate: swellDir });
+
+  // --- Wave Dashboard: each component shows height + period + direction ---
+  if (activeLayer === 'waves') {
+    const hFt = mToFt(waveHeight);
+    cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-blue-300' });
+    if (wavePeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${wavePeriod.toFixed(1)}s`, color: 'text-blue-200' });
+    if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}°`, color: 'text-blue-200', rotate: waveDir });
   }
-  if (activeLayer === 'swell_period') {
-    const p = swellPeriod ?? wavePeriod;
-    cards.push({ icon: Waves, label: 'Period', value: p != null ? `${p.toFixed(1)}s` : '--', color: 'text-cyan-400' });
-    const h = swellHeight ?? waveHeight;
-    cards.push({ icon: Waves, label: 'Height', value: h != null ? `${(h * 3.281).toFixed(1)} ft` : '--', color: 'text-blue-300' });
+
+  if (activeLayer === 'swell_1') {
+    const hFt = mToFt(swell1Height);
+    cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-cyan-400' });
+    if (swell1Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
+    if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}°`, color: 'text-cyan-200', rotate: swell1Dir });
+  }
+
+  if (activeLayer === 'swell_2') {
+    const hFt = mToFt(swell2Height);
+    cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-purple-400' });
+    if (swell2Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell2Period.toFixed(1)}s`, color: 'text-purple-300' });
+    if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}°`, color: 'text-purple-200', rotate: swell2Dir });
+  }
+
+  if (activeLayer === 'wind_waves') {
+    const hFt = mToFt(windWaveHeight);
+    cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-emerald-400' });
+    if (windWavePeriod != null) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}s`, color: 'text-emerald-300' });
+    if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}°`, color: 'text-emerald-200', rotate: windWaveDir });
   }
 
   if (cards.length === 0) return null;
 
   const modelLabel = { GFS: 'GFS', EURO: 'ECMWF', ICON: 'ICON' }[activeModel] || activeModel;
   const forecastTimeLabel = (() => {
+    if (isLive) return 'Live Conditions';
     const d = new Date();
     d.setHours(d.getHours() + timeOffsetHours);
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' });
@@ -132,7 +185,7 @@ export const MapForecastOverlay = ({
       >
         <div>
           <div className={`text-[9px] uppercase tracking-wider font-bold ${textMuted}`}>
-            {modelLabel} Forecast
+            {isLive ? 'Live' : modelLabel} {isLive ? 'Now' : 'Forecast'}
           </div>
           <div className={`text-[10px] font-semibold ${textClass}`}>
             {forecastTimeLabel}

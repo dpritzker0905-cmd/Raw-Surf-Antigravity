@@ -67,8 +67,10 @@ export const MapWeatherControls = ({
     { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-sky-400' },
     { id: 'precipitation', label: 'Rain', icon: CloudRain, color: 'text-blue-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
-    { id: 'swell_height', label: 'Waves', icon: Waves, color: 'text-blue-300' },
-    { id: 'swell_period', label: 'Period', icon: Waves, color: 'text-cyan-400' },
+    { id: 'waves', label: 'Waves', icon: Waves, color: 'text-blue-300' },
+    { id: 'swell_1', label: 'Swell', icon: Waves, color: 'text-cyan-400' },
+    { id: 'swell_2', label: 'Swell 2', icon: Waves, color: 'text-purple-400' },
+    { id: 'wind_waves', label: 'Wind Sea', icon: Wind, color: 'text-emerald-400' },
     { id: 'fog', label: 'Fog', icon: Cloud, color: 'text-gray-400' },
     { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' }
   ];
@@ -81,8 +83,10 @@ export const MapWeatherControls = ({
 
   const legendConfig = {
     satellite: { label: 'Cloud Cover (%)', gradient: 'from-transparent via-gray-300 via-gray-400 to-white', stops: ['0','20','40','60','80','100'] },
-    swell_height: { label: 'Waves (ft)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','2','4','8','12','20+'] },
-    swell_period: { label: 'Period (s)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','4','8','12','16','20+'] },
+    waves: { label: 'Combined Waves (ft)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','2','4','8','12','20+'] },
+    swell_1: { label: 'Primary Swell (ft)', gradient: 'from-cyan-100 via-cyan-400 via-blue-500 via-indigo-600 to-violet-700', stops: ['0','2','4','8','12','20+'] },
+    swell_2: { label: 'Secondary Swell (ft)', gradient: 'from-purple-100 via-purple-400 via-fuchsia-500 via-pink-600 to-rose-700', stops: ['0','1','2','4','6','10+'] },
+    wind_waves: { label: 'Wind Sea (ft)', gradient: 'from-emerald-100 via-emerald-400 via-teal-500 via-cyan-600 to-blue-700', stops: ['0','1','2','4','6','10+'] },
     fog: { label: 'Low Clouds & Fog (%)', gradient: 'from-transparent via-gray-400 via-gray-300 to-white', stops: ['0','20','40','60','80','100'] },
     wind: { label: 'Wind (kts)', gradient: 'from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600', stops: ['0','5','10','20','30','50+'] },
     precipitation: { label: 'Rain (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },

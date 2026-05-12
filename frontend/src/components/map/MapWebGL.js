@@ -35,8 +35,10 @@ const OM_VARIABLE_MAP = {
   pressure:      'pressure_msl',
   fog:           'cloud_cover_low', // Better proxy for fog than visibility
   satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
-  swell_height:  null,             // Marine models use GeoJSON heatmap
-  swell_period:  null,
+  waves:         null,             // Marine models use GeoJSON heatmap
+  swell_1:       null,
+  swell_2:       null,
+  wind_waves:    null,
 };
 
 // Cache to prevent repetitive manifest fetching during layer toggles
@@ -281,7 +283,8 @@ const MapWebGL = ({
   // Heatmap rendering handles massive interpolation to display a beautiful global color map.
   useEffect(() => {
     if (!mapInstance) return;
-    const hasMarine = activeLayers.includes('swell_height') || activeLayers.includes('swell_period');
+    const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+    const hasMarine = MARINE_LAYERS.some(l => activeLayers.includes(l));
     if (!hasMarine) {
       if (marineData) setMarineData(null);
       return;
@@ -493,7 +496,7 @@ const MapWebGL = ({
       )}
 
       {/* Marine Wave Heatmap & Data Labels — stable IDs, keyed on revision for clean data swap */}
-      {marineData && (activeLayers.includes('swell_height') || activeLayers.includes('swell_period')) && (
+      {marineData && ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (
         <Source 
           key={`marine-src-${marineRevision.current}`}
           id="marine-data-source"
@@ -506,13 +509,13 @@ const MapWebGL = ({
             paint={{
               'circle-color': [
                 'interpolate', ['linear'],
-                ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period'],
+                ['get', 'wave_height'],
                 0, 'rgba(0,0,0,0)',
-                activeLayers.includes('swell_height') ? 0.5 : 4, '#93c5fd',
-                activeLayers.includes('swell_height') ? 1.5 : 8, '#22d3ee',
-                activeLayers.includes('swell_height') ? 2.5 : 12, '#2563eb',
-                activeLayers.includes('swell_height') ? 3.5 : 16, '#9333ea',
-                activeLayers.includes('swell_height') ? 5.0 : 20, '#be123c'
+                0.5, '#93c5fd',
+                1.5, '#22d3ee',
+                2.5, '#2563eb',
+                3.5, '#9333ea',
+                5.0, '#be123c'
               ],
               'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 30, 3, 50, 6, 80, 10, 120],
               'circle-blur': 0.65,
@@ -525,8 +528,8 @@ const MapWebGL = ({
             layout={{
               'text-field': [
                 'concat',
-                ['to-string', ['get', activeLayers.includes('swell_height') ? 'wave_height' : 'wave_period']],
-                activeLayers.includes('swell_height') ? 'm' : 's'
+                ['to-string', ['get', 'wave_height']],
+                'm'
               ],
               'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
               'text-size': ['interpolate', ['linear'], ['zoom'], 0, 0, 2, 10, 6, 14, 10, 18],

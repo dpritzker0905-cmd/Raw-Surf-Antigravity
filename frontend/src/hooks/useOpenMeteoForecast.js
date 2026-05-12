@@ -7,7 +7,8 @@ import logger from '../utils/logger';
  * - Free, no API key required
  * - Supports GFS, ECMWF (EURO), ICON model selection
  * - Weather: precipitation, wind, pressure up to 16 days
- * - Marine: wave height, swell height/period/direction up to 16 days
+ * - Marine: full swell decomposition (primary, secondary, wind waves) up to 16 days
+ * - LIVE mode: uses `current` endpoint for observational-level accuracy
  *
  * API Docs:
  *   Weather: https://open-meteo.com/en/docs
@@ -21,27 +22,43 @@ const MODEL_MAP = {
   ICON: 'icon_seamless',
 };
 
-// Weather variables we need
+// Weather variables — hourly forecast timeline
 const WEATHER_VARS = [
   'precipitation',
   'precipitation_probability',
   'wind_speed_10m',
   'wind_direction_10m',
+  'wind_gusts_10m',
   'surface_pressure',
 ].join(',');
 
-// Marine variables we need
+// Current weather variables — for LIVE (timeOffset=0) observational accuracy
+const CURRENT_WEATHER_VARS = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m';
+
+// Marine variables — full swell decomposition
+// Primary swell, secondary swell, wind waves + combined totals
 const MARINE_VARS = [
   'wave_height',
   'wave_period',
+  'wave_direction',
   'swell_wave_height',
   'swell_wave_period',
   'swell_wave_direction',
+  'secondary_swell_wave_height',
+  'secondary_swell_wave_period',
+  'secondary_swell_wave_direction',
+  'wind_wave_height',
+  'wind_wave_period',
+  'wind_wave_direction',
 ].join(',');
+
+// Current marine variables — for LIVE readout
+const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
   const [forecastData, setForecastData] = useState(null);
   const [marineData, setMarineData] = useState(null);
+  const [currentWeather, setCurrentWeather] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef(null);
   const lastFetchKey = useRef('');
@@ -64,12 +81,13 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const modelParam = MODEL_MAP[activeModel] || MODEL_MAP.GFS;
 
     try {
-      // Parallel fetch: weather + marine
+      // Parallel fetch: weather (hourly + current) + marine (hourly + current)
       const [wxRes, marineRes] = await Promise.allSettled([
         fetch(
           `https://api.open-meteo.com/v1/forecast?` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
           `&hourly=${WEATHER_VARS}` +
+          `&current=${CURRENT_WEATHER_VARS}` +
           `&models=${modelParam}` +
           `&forecast_days=16` +
           `&timezone=auto`,
@@ -79,6 +97,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           `https://marine-api.open-meteo.com/v1/marine?` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
           `&hourly=${MARINE_VARS}` +
+          `&current=${CURRENT_MARINE_VARS}` +
           `&forecast_days=16`,
           { signal: controller.signal }
         ),
@@ -87,6 +106,8 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       if (wxRes.status === 'fulfilled' && wxRes.value.ok) {
         const data = await wxRes.value.json();
         setForecastData(data);
+        // Extract current weather for LIVE mode accuracy
+        if (data.current) setCurrentWeather(data.current);
       } else {
         logger.warn('[OpenMeteo] Weather fetch failed:', wxRes.reason || wxRes.value?.status);
       }
@@ -118,7 +139,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     };
   }, []);
 
-  return { forecastData, marineData, isLoading, refetch: fetchForecast };
+  return { forecastData, marineData, currentWeather, isLoading, refetch: fetchForecast };
 };
 
 export default useOpenMeteoForecast;
