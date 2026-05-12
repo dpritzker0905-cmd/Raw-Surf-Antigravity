@@ -105,8 +105,8 @@ class MarineWaveGrid {
   }
   interpolate(lat, lng) {
     let lon = lng;
-    while (lon < this.lo1) lon += 360;
-    while (lon > this.lo2 + this.dx) lon -= 360;
+    lon = ((lon + 180) % 360 + 360) % 360 - 180;
+    if (lon === 180) lon = -180;
     const fi = (lon - this.lo1) / this.dx, fj = (this.la1 - lat) / this.dy;
     const i = Math.floor(fi), j = Math.floor(fj);
     if (i < 0 || i >= this.nx - 1 || j < 0 || j >= this.ny - 1) return null;
@@ -167,15 +167,14 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       isFetching.current = true;
       try {
         // Always global bounds — waves cover the whole ocean regardless of zoom
-        const latMin = -80, latMax = 80, lngMin = -180, lngMax = 180;
+        const latMin = -90, latMax = 90, lngMin = -180, lngMax = 180;
 
-        const nx = 9, ny = 9;
+        const nx = 10, ny = 10;
         const latStep = (latMax - latMin) / (ny - 1);
         const lngStep = (lngMax - lngMin) / (nx - 1);
 
         const pts = [];
         // Row-major order: latMax → latMin, lngMin → lngMax
-        // lngMin/lngMax are already clamped to [-180,180] so no normalization needed
         for (let j = 0; j < ny; j++) {
           const lat = latMax - j * latStep;
           for (let i = 0; i < nx; i++) {
@@ -183,9 +182,8 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
             pts.push({ lat: Number(lat.toFixed(2)), lng: Number(lng.toFixed(2)) });
           }
         }
-        const safe = pts.slice(0, 100);
-        const lats = safe.map(p => p.lat).join(',');
-        const lons = safe.map(p => p.lng).join(',');
+        const lats = pts.map(p => p.lat).join(',');
+        const lons = pts.map(p => p.lng).join(',');
 
         const hourlyVars = `${vars.h},${vars.d},${vars.p}`;
         const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&hourly=${hourlyVars}&forecast_days=2`;
@@ -200,13 +198,12 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         const uData = new Float32Array(nx * ny).fill(0);
         const vData = new Float32Array(nx * ny).fill(0);
 
-        for (let idx = 0; idx < safe.length; idx++) {
+        for (let idx = 0; idx < pts.length; idx++) {
           const r = all[idx];
           if (!r || !r.hourly) continue;
           const times = r.hourly.time;
           let closest = 0, minD = Infinity;
           for (let t = 0; t < times.length; t++) {
-            // Append 'Z' because API returns UTC without 'Z'
             const diff = Math.abs(new Date(times[t] + 'Z').getTime() - targetTs);
             if (diff < minD) { minD = diff; closest = t; }
           }
@@ -215,7 +212,6 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           if (h == null || d == null) continue;
           hData[idx] = h;
           const rad = d * DEG2RAD;
-          // Wave direction = direction waves come FROM; particles move in opposite direction
           uData[idx] = -Math.sin(rad) * Math.max(0.3, h * 0.4);
           vData[idx] = -Math.cos(rad) * Math.max(0.3, h * 0.4);
         }
@@ -231,9 +227,9 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
     };
 
     const debounced = () => { clearTimeout(timeoutId); timeoutId = setTimeout(fetchGrid, 3000); };
-    lastFetchMs.current = 0; // allow immediate first fetch
+    lastFetchMs.current = 0;
     fetchGrid();
-    mapInstance.on('zoomend', debounced); // zoom only, not pan
+    mapInstance.on('zoomend', debounced);
     return () => { clearTimeout(timeoutId); mapInstance.off('zoomend', debounced); };
   }, [isActive, mapInstance, activeLayer, timeOffsetHours]);
 
@@ -280,7 +276,6 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
     canvas.style.transform = '';
   }, [mapInstance, fieldRamp]);
 
-  // Pan-sync
   const onMove = useCallback(() => {
     const map = mapInstance, origin = fieldOriginRef.current;
     if (!map || !origin) return;
@@ -290,7 +285,6 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
     } catch (_) { /* ignore */ }
   }, [mapInstance]);
 
-  // Event wiring
   useEffect(() => {
     const map = mapInstance;
     if (!map || !isActive || !gridLoaded) return;
@@ -336,7 +330,6 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       frameCount++; proj.sync(map);
       if (frameCount % 30 === 0) updatePPD();
 
-      // Smooth slow fade for elegant organic wave lines
       tCtx.globalCompositeOperation = 'destination-in';
       tCtx.globalAlpha = 1.0; tCtx.fillStyle = 'rgba(0,0,0,0.92)'; tCtx.fillRect(0, 0, w, h);
       tCtx.globalCompositeOperation = 'source-over'; tCtx.globalAlpha = 1.0;
@@ -348,25 +341,22 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
 
       for (let i = 0; i < PARTICLE_COUNT; i++) {
         const wave = grid.interpolate(pLat[i], pLng[i]);
-        // Land masking: skip cells with no data or height below minimum (land/calm)
         if (wave && !isNaN(wave[0]) && wave[0] >= MIN_WAVE_HEIGHT) {
           const height = wave[0], u = wave[1], v = wave[2];
           const prev = proj.project(pLng[i], pLat[i]);
           const px0 = prev.x, py0 = prev.y;
           const speed = Math.sqrt(u * u + v * v);
-          // Scale movement to wave height — bigger waves move particles more
           const targetPx = Math.max(0.6, Math.min(speed * 0.25, 3.0));
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
           pLng[i] += (u / mag) * degStep;
-          // Correct: positive v = northward = lat increases
           pLat[i] += (v / mag) * degStep;
           pAge[i]++;
 
           const next = proj.project(pLng[i], pLat[i]);
           const px1 = next.x, py1 = next.y;
           const dx = px1 - px0, dy = py1 - py0;
-          if (dx * dx + dy * dy >= 0.1) {
+          if (dx * dx + dy * dy >= 0.01) {
             const entry = lookupCached(height, cache);
             if (!batches.has(entry.key)) batches.set(entry.key, { style: entry.style, glowStyle: entry.glowStyle, segs: [], glow: height > 3 });
             batches.get(entry.key).segs.push(px0, py0, px1, py1);
@@ -379,14 +369,16 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
 
       for (const batch of batches.values()) {
         const segs = batch.segs;
-        if (batch.glow) {
-          tCtx.beginPath();
-          for (let j = 0; j < segs.length; j += 4) { tCtx.moveTo(segs[j], segs[j+1]); tCtx.lineTo(segs[j+2], segs[j+3]); }
-          tCtx.lineWidth = LINE_WIDTH * 3.0; tCtx.strokeStyle = batch.glowStyle; tCtx.stroke();
-        }
         tCtx.beginPath();
-        for (let j = 0; j < segs.length; j += 4) { tCtx.moveTo(segs[j], segs[j+1]); tCtx.lineTo(segs[j+2], segs[j+3]); }
-        tCtx.lineWidth = LINE_WIDTH; tCtx.strokeStyle = batch.style; tCtx.stroke();
+        for (let j = 0; j < segs.length; j += 4) { 
+          tCtx.moveTo(segs[j+2], segs[j+3]);
+          tCtx.arc(segs[j+2], segs[j+3], 1.2, 0, Math.PI * 2);
+        }
+        tCtx.fillStyle = batch.style; tCtx.fill();
+        if (batch.glow) {
+          tCtx.shadowColor = batch.glowStyle; tCtx.shadowBlur = 8; tCtx.fill();
+          tCtx.shadowBlur = 0;
+        }
       }
       animRef.current = requestAnimationFrame(draw);
     }
@@ -412,12 +404,12 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       <canvas ref={fieldRef} style={{
         position: 'absolute', pointerEvents: 'none', zIndex: 4,
         filter: `blur(${FIELD_BLUR_PX}px)`, willChange: 'transform',
-        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 0.7 : 0, mixBlendMode: 'multiply'
+        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 0.7 : 0, mixBlendMode: 'screen'
       }} />
       <canvas ref={trailRef} style={{
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-        pointerEvents: 'none', zIndex: 5,
-        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 1 : 0,
+        pointerEvents: 'none', zIndex: 5, willChange: 'transform',
+        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 1 : 0, mixBlendMode: 'screen'
       }} />
     </>
   );
