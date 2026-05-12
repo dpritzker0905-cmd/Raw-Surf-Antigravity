@@ -171,23 +171,19 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         let latMin, latMax, lngMin, lngMax;
 
         if (zoom < 4) {
-          // Global view
+          // Global view — simple, always valid
           latMin = -80; latMax = 80;
           lngMin = -180; lngMax = 180;
         } else {
-          // Local view
+          // Local view — clamp to [-180,180] so grid header and point coords match
           const bounds = mapInstance.getBounds();
-          let w = bounds.getWest();
-          let e = bounds.getEast();
-          if (e < w) e += 360; // Handle dateline wrap
-          
           const latPad = Math.max(10, (bounds.getNorth() - bounds.getSouth()) * 1.5);
-          const lngPad = Math.max(15, (e - w) * 1.5);
-          
+          const lngPad = Math.max(15, (bounds.getEast() - bounds.getWest()) * 1.5);
           latMin = Math.max(-85, bounds.getSouth() - latPad);
           latMax = Math.min(85, bounds.getNorth() + latPad);
-          lngMin = w - lngPad;
-          lngMax = e + lngPad;
+          // Always clamp to [-180,180] — interpolator can't handle unnormalized bounds
+          lngMin = Math.max(-180, bounds.getWest() - lngPad);
+          lngMax = Math.min(180, bounds.getEast() + lngPad);
         }
 
         const nx = 9, ny = 9;
@@ -195,11 +191,12 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         const lngStep = (lngMax - lngMin) / (nx - 1);
 
         const pts = [];
+        // Row-major order: latMax → latMin, lngMin → lngMax
+        // lngMin/lngMax are already clamped to [-180,180] so no normalization needed
         for (let j = 0; j < ny; j++) {
           const lat = latMax - j * latStep;
           for (let i = 0; i < nx; i++) {
-            let lng = lngMin + i * lngStep;
-            while (lng > 180) lng -= 360; while (lng < -180) lng += 360;
+            const lng = lngMin + i * lngStep;
             pts.push({ lat: Number(lat.toFixed(2)), lng: Number(lng.toFixed(2)) });
           }
         }
@@ -372,7 +369,8 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
           pLng[i] += (u / mag) * degStep;
-          pLat[i] += (v / mag) * degStep;
+          // Wave v is 'towards south' (u=-sin, v=-cos for waves FROM dir)
+          pLat[i] -= (v / mag) * degStep;
           pAge[i]++;
 
           const next = proj.project(pLng[i], pLat[i]);

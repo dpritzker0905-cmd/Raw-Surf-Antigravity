@@ -235,23 +235,19 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         let latMin, latMax, lngMin, lngMax;
 
         if (zoom < 4) {
-          // Global view
+          // Global view — simple, always valid
           latMin = -80; latMax = 80;
           lngMin = -180; lngMax = 180;
         } else {
-          // Local view
+          // Local view — clamp to [-180,180] so grid header and point coords match
           const bounds = mapInstance.getBounds();
-          let w = bounds.getWest();
-          let e = bounds.getEast();
-          if (e < w) e += 360; // Handle dateline wrap
-          
           const latPad = Math.max(10, (bounds.getNorth() - bounds.getSouth()) * 1.5);
-          const lngPad = Math.max(15, (e - w) * 1.5);
-          
+          const lngPad = Math.max(15, (bounds.getEast() - bounds.getWest()) * 1.5);
           latMin = Math.max(-85, bounds.getSouth() - latPad);
           latMax = Math.min(85, bounds.getNorth() + latPad);
-          lngMin = w - lngPad;
-          lngMax = e + lngPad;
+          // Always clamp to [-180,180] — interpolator can't handle unnormalized bounds
+          lngMin = Math.max(-180, bounds.getWest() - lngPad);
+          lngMax = Math.min(180, bounds.getEast() + lngPad);
         }
 
         // Sparse 9x9 grid (81 points total, < 100 API limit)
@@ -261,15 +257,13 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lngStep = (lngMax - lngMin) / (nx - 1);
 
         const safePoints = [];
-        // Important: GlobalWindGrid expects points in row-major order starting from top-left (latMax to latMin)
+        // Row-major order: latMax → latMin, lngMin → lngMax
+        // lngMin/lngMax are already clamped to [-180,180] so no normalization needed
         for (let j = 0; j < ny; j++) {
           const lat = latMax - j * latStep;
           for (let i = 0; i < nx; i++) {
-            let lng = lngMin + i * lngStep;
-            let normLng = lng;
-            while (normLng > 180) normLng -= 360;
-            while (normLng < -180) normLng += 360;
-            safePoints.push({ lat: Number(lat.toFixed(2)), lng: Number(normLng.toFixed(2)) });
+            const lng = lngMin + i * lngStep;
+            safePoints.push({ lat: Number(lat.toFixed(2)), lng: Number(lng.toFixed(2)) });
           }
         }
 
@@ -539,7 +533,9 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const mag = Math.max(0.01, speed);
 
           pLng[i] += (u / mag) * degStep;
-          pLat[i] += (v / mag) * degStep;
+          // v is stored as 'towards south' (u=-sin, v=-cos for wind FROM dir)
+          // Mercator Y increases downward, so subtract v to move particles correctly
+          pLat[i] -= (v / mag) * degStep;
           pAge[i]++;
 
           // Project new position (reuses same result object)
