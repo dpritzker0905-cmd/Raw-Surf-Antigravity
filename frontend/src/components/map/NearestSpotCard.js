@@ -9,18 +9,26 @@ export const NearestSpotCard = ({
   nearestSpot,
   userLocation,
   onSpotSelect,
-  isHidden
+  isHidden,
+  hasActiveLayers,
+  isTimelineCollapsed
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   if (!nearestSpot || !userLocation) return null;
 
   const hiddenClass = isHidden ? 'hidden md:block' : '';
+  
+  // Calculate dynamic bottom spacing to avoid collision with forecast overlay and timeline
+  let bottomClass = 'bottom-24 md:bottom-24';
+  if (hasActiveLayers) {
+    bottomClass = isTimelineCollapsed ? 'bottom-[280px] md:bottom-[280px]' : 'bottom-[350px] md:bottom-[280px]';
+  }
 
   // Collapsed: show a small pill that can be re-expanded
   if (isCollapsed) {
     return (
-      <div className={`absolute bottom-24 left-4 z-[1000] pointer-events-auto ${hiddenClass}`}>
+      <div className={`absolute ${bottomClass} left-4 z-[1000] pointer-events-auto transition-all duration-300 ${hiddenClass}`}>
         <button
           onClick={() => setIsCollapsed(false)}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800/90 backdrop-blur-sm rounded-full shadow-lg border border-zinc-700/50 hover:bg-zinc-700/90 transition-colors"
@@ -38,7 +46,7 @@ export const NearestSpotCard = ({
 
   // Expanded: full info card
   return (
-    <div className={`absolute bottom-24 left-4 z-[1000] pointer-events-auto ${hiddenClass}`}>
+    <div className={`absolute ${bottomClass} left-4 z-[1000] pointer-events-auto transition-all duration-300 ${hiddenClass}`}>
       <div
         className="bg-zinc-800/95 backdrop-blur-sm rounded-lg shadow-lg border border-zinc-700/50 overflow-hidden max-w-[200px]"
         data-testid="nearest-spot-card"

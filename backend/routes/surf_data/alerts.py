@@ -283,13 +283,14 @@ async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
                 response = await client.get(OPEN_METEO_MARINE_URL, params={
                     "latitude": alert.spot.latitude,
                     "longitude": alert.spot.longitude,
-                    "current": "wave_height",
+                    "current": "wave_height,wave_period",
                     "timezone": "America/New_York"
                 })
                 
                 if response.status_code == 200:
                     data = response.json()
                     wave_height_m = data.get("current", {}).get("wave_height", 0)
+                    wave_period = data.get("current", {}).get("wave_period", 0)
                     wave_height_ft = wave_height_m * 3.28084 if wave_height_m else 0
                     
                     matches = True
@@ -307,10 +308,11 @@ async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
                             user_id=alert.user_id,
                             type="surf_alert",
                             title=f"🌊 {alert.spot.name} is firing!",
-                            body=f"Waves are {wave_height_ft:.1f}ft - perfect conditions!",
+                            body=f"Waves are {wave_height_ft:.1f}ft @ {wave_period}s - perfect conditions!",
                             data=json.dumps({
                                 "spot_id": alert.spot_id,
                                 "wave_height_ft": wave_height_ft,
+                                "wave_period": wave_period,
                                 "alert_id": alert.id,
                                 "type": "surf_alert"
                             })
@@ -321,7 +323,8 @@ async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
                             "alert_id": alert.id,
                             "user_id": alert.user_id,
                             "spot_name": alert.spot.name,
-                            "wave_height_ft": round(wave_height_ft, 1)
+                            "wave_height_ft": round(wave_height_ft, 1),
+                            "wave_period": wave_period
                         })
         except Exception as e:
             logger.error(f"Error checking alert {alert.id}: {str(e)}")

@@ -108,8 +108,11 @@ api_router.include_router(admin_p2_campaigns_router, tags=["Admin P2 Campaigns"]
 
 # ─── Include standalone routes ──────────────────────────────────────────────────
 from .strava import router as strava_router
+from .marine_tiles import router as marine_tiles_router
+
 api_router.include_router(health_router, tags=["Health"])
 api_router.include_router(strava_router, prefix="/strava", tags=["Strava"])
+api_router.include_router(marine_tiles_router, tags=["Marine Tiles"])
 
 
 @api_router.get("/")

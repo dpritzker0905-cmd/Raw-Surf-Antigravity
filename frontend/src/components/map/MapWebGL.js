@@ -4,13 +4,21 @@ import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
-import WindParticleCanvas from './WindParticleCanvas';
-import WaveParticleCanvas from './WaveParticleCanvas';
+import { useControl } from 'react-map-gl/maplibre';
+import { MapboxOverlay } from '@deck.gl/mapbox';
+import { useGPUWindLayer } from './GPUWindLayer';
+import { useGPUWaveLayer } from './GPUWaveLayer';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { omProtocol } from '@openmeteo/weather-map-layer';
+
+function DeckGLOverlay(props) {
+  const overlay = useControl(() => new MapboxOverlay(props));
+  overlay.setProps(props);
+  return null;
+}
 
 // --- Open-Meteo Weather Tile Protocol ---
 // The `om://` custom protocol is now registered inside the MapWebGL component via useEffect
@@ -70,6 +78,20 @@ const MapWebGL = ({
   const { theme } = useTheme();
   const isBeach = theme === 'beach';
   
+  // Instantiate the WebGL GPU layers unconditionally
+  const gpuWindLayer = useGPUWindLayer({
+    active: activeLayers.includes('wind') || activeLayers.includes('pressure'),
+    timeOffsetHours,
+    isLight
+  });
+  
+  const gpuWaveLayer = useGPUWaveLayer({
+    active: ['waves','swell_1','swell_2','wind_waves'].some(l => activeLayers.includes(l)),
+    activeLayer: activeLayers.find(l => ['waves','swell_1','swell_2','wind_waves'].includes(l)) || 'waves',
+    timeOffsetHours,
+    isLight
+  });
+
   // Register Open-Meteo protocol safely on mount
   useEffect(() => {
     if (maplibregl && maplibregl.addProtocol) {
@@ -712,23 +734,9 @@ const MapWebGL = ({
           </div>
         </Marker>
       ))}
+
+      <DeckGLOverlay layers={[gpuWindLayer, gpuWaveLayer].filter(Boolean)} interleaved={true} />
     </Map>
-    {/* Wind Particle Canvas — overlays the map with animated directional flow */}
-    <WindParticleCanvas 
-      mapInstance={mapInstance} 
-      isActive={activeLayers.includes('wind') || activeLayers.includes('pressure')} 
-      hideColorField={activeLayers.includes('pressure')}
-      particleColorOverride={activeLayers.includes('pressure') ? 'white' : null}
-      activeModel={activeModel}
-      timeOffsetHours={timeOffsetHours}
-    />
-    {/* Wave Particle Canvas — animated directional wave-height visualization */}
-    <WaveParticleCanvas
-      mapInstance={mapInstance}
-      isActive={['waves','swell_1','swell_2','wind_waves'].some(l => activeLayers.includes(l))}
-      activeLayer={activeLayers.find(l => ['waves','swell_1','swell_2','wind_waves'].includes(l)) || 'waves'}
-      timeOffsetHours={timeOffsetHours}
-    />
     </div>
   );
 };

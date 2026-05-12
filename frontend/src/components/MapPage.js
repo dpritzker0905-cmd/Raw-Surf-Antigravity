@@ -644,6 +644,8 @@ const MapPageContent = () => {
           nearestSpot={nearestSpot}
           userLocation={userLocation}
           isHidden={showWeatherControls}
+          hasActiveLayers={activeLayers.length > 0}
+          isTimelineCollapsed={isTimelineCollapsed}
           onSpotSelect={(spot) => {
             if (mapInstanceRef.current && spot.latitude && spot.longitude) {
               mapInstanceRef.current.flyTo({

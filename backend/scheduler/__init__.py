@@ -27,6 +27,7 @@ from .financial import (
 )
 from .metrics import aggregate_platform_metrics_task
 from .gallery import process_selection_deadline_expiry_task
+from .forecast import ingest_marine_forecast_task
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,13 @@ def start_scheduler():
     scheduler.add_job(
         check_credit_transaction_integrity_task, CronTrigger(hour=5, minute=0),
         id='credit_integrity_check', name='Check credit transactions for orphaned references',
+        replace_existing=True
+    )
+
+    # Global Forecast Ingestion Pipeline — Every 3 hours
+    scheduler.add_job(
+        ingest_marine_forecast_task, IntervalTrigger(hours=3),
+        id='ingest_marine_forecast', name='Ingest global marine and wind forecast data',
         replace_existing=True
     )
 
