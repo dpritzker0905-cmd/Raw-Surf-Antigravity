@@ -229,8 +229,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
     let timeoutId;
     const updateWindGrid = async () => {
       if (isFetchingWind.current) return;
-      // Rate-limit: don't re-fetch if data is < 45 seconds old
-      if (Date.now() - lastWindFetchMs.current < 45000) return;
+      // Rate-limit: don't re-fetch if data is < 5 minutes old
+      if (Date.now() - lastWindFetchMs.current < 300000) return;
       isFetchingWind.current = true;
       
       try {
@@ -253,15 +253,13 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           lngMax = Math.min(180, bounds.getEast() + lngPad);
         }
 
-        // Sparse 9x9 grid (81 points total, < 100 API limit)
-        const nx = 9;
-        const ny = 9;
+        // 5x5 = 25 points: far below rate-limit threshold, short URL
+        const nx = 5;
+        const ny = 5;
         const latStep = (latMax - latMin) / (ny - 1);
         const lngStep = (lngMax - lngMin) / (nx - 1);
 
         const safePoints = [];
-        // Row-major order: latMax → latMin, lngMin → lngMax
-        // lngMin/lngMax are already clamped to [-180,180] so no normalization needed
         for (let j = 0; j < ny; j++) {
           const lat = latMax - j * latStep;
           for (let i = 0; i < nx; i++) {
@@ -275,9 +273,9 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
         void modelParam; // reserved for model selection UI
-        // Switch to marine API (same domain as waves — proven not rate-limited).
-        // Supports wind_speed_10m + wind_direction_10m for global ocean grids.
-        const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&forecast_days=2`;
+        // Forecast API (NOT marine) — marine doesn't expose surface wind variables.
+        // 25-point grid is lightweight enough to avoid rate-limiting.
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -300,7 +298,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
             const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
             if (diff < minDiff) { minDiff = diff; closest = idx; }
           });
-          // Marine API returns km/h; convert to m/s for consistent grid units
+          // Forecast API returns km/h by default; convert to m/s
           const speedKmh = r.hourly.wind_speed_10m?.[closest] ?? 0;
           const dir = r.hourly.wind_direction_10m?.[closest] ?? 0;
           const speed = speedKmh * 0.277778; // km/h → m/s

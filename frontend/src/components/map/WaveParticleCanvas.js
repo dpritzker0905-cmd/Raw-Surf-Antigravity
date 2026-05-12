@@ -114,8 +114,10 @@ class MarineWaveGrid {
     const fx = fi - i, fy = fj - j;
     const a = (1-fx)*(1-fy), b = fx*(1-fy), c = (1-fx)*fy, d = fx*fy;
     
-    // Strict land masking: any NaN corner = land boundary, return null
-    if (isNaN(this.hData[p]) || isNaN(this.hData[p+1]) || isNaN(this.hData[p+this.nx]) || isNaN(this.hData[p+this.nx+1])) {
+    // Strict land masking: marine API returns 0 (not NaN) for land points.
+    // !(h > 0) catches both NaN and 0 — bilinear must not span land boundaries.
+    const h0=this.hData[p], h1=this.hData[p+1], h2=this.hData[p+this.nx], h3=this.hData[p+this.nx+1];
+    if (!(h0 > 0) || !(h1 > 0) || !(h2 > 0) || !(h3 > 0)) {
       return null;
     }
     
