@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // === FROZEN MOCK WIND DATA ===
-// Known-good dataset for Atlantic/Florida coast, proving rendering independently of API.
-// Wind from ESE ~15 km/h — realistic subtropical trade wind pattern.
+// Known-good dataset for proving rendering independently of API.
 function generateMockWind(bounds) {
   const { west, south, east, north } = bounds;
   const GRID = 6;
@@ -11,9 +10,8 @@ function generateMockWind(bounds) {
     for (let xi = 0; xi <= GRID; xi++) {
       const lat = south + (yi / GRID) * (north - south);
       const lng = west + (xi / GRID) * (east - west);
-      // Vary wind slightly across grid for visual realism
       const speed = 10 + Math.sin(lat * 0.5) * 5 + Math.cos(lng * 0.3) * 3;
-      const dir = 130 + Math.sin(lng * 0.2) * 20; // ESE with variation
+      const dir = 130 + Math.sin(lng * 0.2) * 20;
       const rad = dir * (Math.PI / 180);
       vectors.push({
         lat: +lat.toFixed(2), lng: +lng.toFixed(2), speed, direction: dir,
@@ -26,7 +24,7 @@ function generateMockWind(bounds) {
 
 /**
  * Viewport-scoped wind vector data hook.
- * Uses live API when available, falls back to frozen mock data on failure/rate-limit.
+ * Uses live API when available, falls back to frozen mock data on failure.
  */
 export function useWindVectorData({ active, mapBounds }) {
   const [windData, setWindData] = useState(null);
@@ -75,14 +73,13 @@ export function useWindVectorData({ active, mapBounds }) {
       });
       if (vectors.length > 0) {
         revisionRef.current += 1;
-        console.log(`[Wind] ${vectors.length} vectors from live API`);
+        console.log(`[Wind] ${vectors.length} live vectors`);
         setWindData({ vectors, bounds: { west, south, east, north }, grid: GRID });
       } else {
         throw new Error('Zero valid wind vectors');
       }
     } catch (err) {
-      // FALLBACK: use frozen mock data so rendering is never blocked by API
-      console.warn(`[Wind] API failed (${err.message}), using mock data`);
+      console.warn(`[Wind] API failed (${err.message}), using mock`);
       const mockBounds = bounds || { west: -82, south: 24, east: -76, north: 32 };
       revisionRef.current += 1;
       setWindData(generateMockWind(mockBounds));
@@ -129,31 +126,44 @@ function interpolateWind(windGrid, lng, lat) {
 
 /**
  * Canvas-based wind particle advection engine.
- * 
- * KEY FIX: Canvas is NOT resized every frame (resizing clears content on most browsers).
- * Trail effect uses semi-transparent clear instead of destination-in compositing.
- * z-index elevated to 5 to ensure visibility above MapLibre's internal canvas.
+ *
+ * CRITICAL LIFECYCLE FIX (v175):
+ * - windVectors stored in a REF, not as an effect dependency
+ * - Canvas lifecycle only depends on [mapInstance, active]
+ * - Data updates flow through ref without teardown/rebuild
+ * - Prevents React reconciliation from killing the animation loop
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const animRef = useRef(null);
+  const windRef = useRef(null);
 
+  // Keep wind data in a ref — updates do NOT restart the effect/canvas/RAF
   useEffect(() => {
-    if (!mapInstance || !windVectors?.vectors?.length || !active) return;
+    windRef.current = windVectors;
+  }, [windVectors]);
 
+  // Canvas lifecycle: ONLY depends on mapInstance + active
+  // This ensures canvas survives data updates without teardown
+  useEffect(() => {
+    if (!mapInstance || !active) {
+      console.log('[Wind] Canvas effect skipped:', { mapInstance: !!mapInstance, active });
+      return;
+    }
+
+    console.log('[Wind] CANVAS MOUNTING');
     const container = mapInstance.getCanvasContainer();
     const canvas = document.createElement('canvas');
-    // z-index 5 ensures above map tiles; pointer-events none allows map interaction through
     canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:5;display:block;';
     container.appendChild(canvas);
+    console.log('[Wind] Canvas appended to DOM, parent:', container.tagName);
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
 
-    // Size canvas ONCE (and on explicit resize events only)
     let cw = 0, ch = 0;
     const resize = () => {
       const w = container.clientWidth;
       const h = container.clientHeight;
-      if (w === cw && h === ch) return; // Skip if unchanged — prevents content wipe
+      if (w === cw && h === ch) return;
       cw = w; ch = h;
       canvas.width = w * dpr;
       canvas.height = h * dpr;
@@ -162,6 +172,13 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
+
+    // DEBUG: Draw static red circle to prove canvas is visible
+    ctx.fillStyle = 'red';
+    ctx.beginPath();
+    ctx.arc(60, 60, 15, 0, Math.PI * 2);
+    ctx.fill();
+    console.log('[Wind] Debug circle drawn at (60,60)');
 
     // Spawn particles across viewport
     const PARTICLE_COUNT = 250;
@@ -185,15 +202,26 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
     };
 
     let lastTime = performance.now();
+    let frameCount = 0;
     const animate = (now) => {
       const dt = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
+      frameCount++;
 
-      // Fade previous frame with semi-transparent black (trail effect)
-      // DO NOT use destination-in — it produces invisible canvas on first frames
+      // Log first few frames to prove RAF is running
+      if (frameCount <= 3) console.log(`[Wind] RAF frame ${frameCount}`);
+
+      // Fade previous frame
       ctx.fillStyle = 'rgba(0,0,0,0.08)';
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillRect(0, 0, cw, ch);
+
+      // Read wind data from ref (not from closure/dep)
+      const grid = windRef.current;
+      if (!grid?.vectors?.length) {
+        animRef.current = requestAnimationFrame(animate);
+        return;
+      }
 
       const b = mapInstance.getBounds();
       const w = b.getWest(), e = b.getEast(), s = b.getSouth(), n = b.getNorth();
@@ -202,7 +230,7 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
         const p = particles[i];
         p.age += dt;
 
-        const wind = interpolateWind(windVectors, p.lng, p.lat);
+        const wind = interpolateWind(grid, p.lng, p.lat);
         if (wind.speed > 0.1) {
           const scale = 0.0003 * dt * 60;
           p.lng += wind.u * scale;
@@ -224,7 +252,6 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
           ctx.stroke();
         }
 
-        // Respawn if out of viewport or aged out
         if (p.lng < w || p.lng > e || p.lat < s || p.lat > n || p.age > p.maxAge) {
           particles[i] = spawnParticle();
         }
@@ -232,21 +259,20 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       animRef.current = requestAnimationFrame(animate);
     };
     animRef.current = requestAnimationFrame(animate);
+    console.log('[Wind] RAF loop started');
 
-    // Clear trails on map move (prevents smearing)
     const onMove = () => { for (const p of particles) p.trail = []; };
     mapInstance.on('move', onMove);
     mapInstance.on('resize', resize);
 
-    console.log('[Wind] Particle canvas mounted, z-index:5, particles:', PARTICLE_COUNT);
-
     return () => {
+      console.log('[Wind] CANVAS UNMOUNTING');
       cancelAnimationFrame(animRef.current);
       mapInstance.off('move', onMove);
       mapInstance.off('resize', resize);
       if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
     };
-  }, [mapInstance, windVectors, active]);
+  }, [mapInstance, active]); // ← windVectors NOT a dependency
 
   return null;
 }

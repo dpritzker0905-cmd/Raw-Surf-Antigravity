@@ -578,7 +578,7 @@ const MapWebGL = ({
           ? 'swell_wave_height' : activeMarineLayer === 'wind_waves' ? 'wind_wave_height' : 'wave_height';
         return (
         <Source 
-          key={`marine-src-${marineRevision.current}-${activeMarineLayer}`}
+          key={`marine-${activeMarineLayer}`}
           id="marine-data-source"
           type="geojson" 
           data={marineData}
