@@ -251,7 +251,7 @@ export const MapWeatherControls = ({
     return (
       <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none" style={{ bottom: '72px' }}>
         <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${isTimelineCollapsed ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
-          <div className="flex justify-between items-center pb-2 -mt-2 px-8">
+          <div className="flex justify-center gap-24 items-center pb-2 -mt-2">
             <button 
               className="py-1 px-3 -mx-3 group cursor-pointer active:scale-95 transition-transform"
               onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
