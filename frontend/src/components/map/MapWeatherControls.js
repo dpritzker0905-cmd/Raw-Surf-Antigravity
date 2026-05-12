@@ -75,7 +75,7 @@ export const MapWeatherControls = ({
     satellite: { label: 'Cloud Cover (%)', gradient: 'from-transparent via-gray-300 via-gray-400 to-white', stops: ['0','20','40','60','80','100'] },
     swell_height: { label: 'Waves (ft)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','2','4','8','12','20+'] },
     swell_period: { label: 'Period (s)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','4','8','12','16','20+'] },
-    fog: { label: 'Visibility (m)', gradient: 'from-gray-700 via-gray-400 to-transparent', stops: ['0','1k','5k','10k','24k'] },
+    fog: { label: 'Low Clouds & Fog (%)', gradient: 'from-transparent via-gray-400 via-gray-300 to-white', stops: ['0','20','40','60','80','100'] },
     wind: { label: 'Wind (kts)', gradient: 'from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600', stops: ['0','5','10','20','30','50+'] },
     precipitation: { label: 'Rain (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
     radar: { label: 'Rain (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },

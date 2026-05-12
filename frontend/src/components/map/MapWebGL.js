@@ -33,7 +33,7 @@ const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
   wind:          null,             // Raster disabled; canvas particle engine now paints its own dynamic color layer
   pressure:      'pressure_msl',
-  fog:           'visibility',
+  fog:           'cloud_cover_low', // Better proxy for fog than visibility
   satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
   swell_height:  null,             // Marine models use GeoJSON heatmap
   swell_period:  null,
