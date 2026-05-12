@@ -114,16 +114,8 @@ class MarineWaveGrid {
     const fx = fi - i, fy = fj - j;
     const a = (1-fx)*(1-fy), b = fx*(1-fy), c = (1-fx)*fy, d = fx*fy;
     
-    // Smooth partial interpolation at land/ocean boundaries
+    // Strict land masking: any NaN corner = land boundary, return null
     if (isNaN(this.hData[p]) || isNaN(this.hData[p+1]) || isNaN(this.hData[p+this.nx]) || isNaN(this.hData[p+this.nx+1])) {
-      let sumH=0, sumU=0, sumV=0, w=0;
-      if (!isNaN(this.hData[p])) { sumH+=a*this.hData[p]; sumU+=a*this.uData[p]; sumV+=a*this.vData[p]; w+=a; }
-      if (!isNaN(this.hData[p+1])) { sumH+=b*this.hData[p+1]; sumU+=b*this.uData[p+1]; sumV+=b*this.vData[p+1]; w+=b; }
-      if (!isNaN(this.hData[p+this.nx])) { sumH+=c*this.hData[p+this.nx]; sumU+=c*this.uData[p+this.nx]; sumV+=c*this.vData[p+this.nx]; w+=c; }
-      if (!isNaN(this.hData[p+this.nx+1])) { sumH+=d*this.hData[p+this.nx+1]; sumU+=d*this.uData[p+this.nx+1]; sumV+=d*this.vData[p+this.nx+1]; w+=d; }
-      if (w > 0) {
-        this._r[0] = sumH/w; this._r[1] = sumU/w; this._r[2] = sumV/w; return this._r;
-      }
       return null;
     }
     
@@ -152,6 +144,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
   const fieldTimerRef = useRef(null);
   const fieldOriginRef = useRef(null);
   const isFetching = useRef(false);
+  const lastFetchMs = useRef(0); // rate-limit guard: max 1 fetch per 45s
   const [gridLoaded, setGridLoaded] = useState(false);
   const { theme } = useTheme();
 
@@ -166,6 +159,8 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
 
     const fetchGrid = async () => {
       if (isFetching.current) return;
+      // Rate-limit: don't re-fetch if data is < 45 seconds old
+      if (Date.now() - lastFetchMs.current < 45000) return;
       isFetching.current = true;
       try {
         const zoom = mapInstance.getZoom();
@@ -239,6 +234,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         }
 
         gridRef.current = new MarineWaveGrid(nx, ny, lngMin, lngMax, latMax, latMin, lngStep, latStep, hData, uData, vData);
+        lastFetchMs.current = Date.now();
       } catch (err) {
         console.warn('[WaveParticleCanvas] fetch failed:', err);
       } finally {
@@ -247,10 +243,11 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       }
     };
 
-    const debounced = () => { clearTimeout(timeoutId); timeoutId = setTimeout(fetchGrid, 1200); };
+    const debounced = () => { clearTimeout(timeoutId); timeoutId = setTimeout(fetchGrid, 3000); };
+    lastFetchMs.current = 0; // allow immediate first fetch
     fetchGrid();
-    mapInstance.on('moveend', debounced);
-    return () => { clearTimeout(timeoutId); mapInstance.off('moveend', debounced); };
+    mapInstance.on('zoomend', debounced); // zoom only, not pan
+    return () => { clearTimeout(timeoutId); mapInstance.off('zoomend', debounced); };
   }, [isActive, mapInstance, activeLayer, timeOffsetHours]);
 
   // --- Layer 1: Color Field ---

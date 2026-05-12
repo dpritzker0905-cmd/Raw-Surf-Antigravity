@@ -215,6 +215,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
   }, [particleRamp, particleColorOverride]);
 
   const isFetchingWind = useRef(false);
+  const lastWindFetchMs = useRef(0); // rate-limit guard: max 1 fetch per 45s
   const MODEL_MAP = {
     GFS:  'gfs_seamless',
     EURO: 'ecmwf_ifs025',
@@ -228,6 +229,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
     let timeoutId;
     const updateWindGrid = async () => {
       if (isFetchingWind.current) return;
+      // Rate-limit: don't re-fetch if data is < 45 seconds old
+      if (Date.now() - lastWindFetchMs.current < 45000) return;
       isFetchingWind.current = true;
       
       try {
@@ -316,28 +319,29 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         ];
 
         windGridRef.current = new GlobalWindGrid(gridData);
+        lastWindFetchMs.current = Date.now();
       } catch (err) {
         console.warn('[WindParticleCanvas] Dynamic grid fetch failed:', err);
       } finally {
         isFetchingWind.current = false;
-        // Always mark loaded so canvas shows (even if partial data)
         setGridLoaded(true);
       }
     };
 
     const debouncedUpdate = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateWindGrid, 1200); // 1.2s debounce
+      timeoutId = setTimeout(updateWindGrid, 3000); // 3s debounce
     };
 
-    // Initial fetch
+    // Initial fetch (no cooldown on first load)
+    lastWindFetchMs.current = 0;
     updateWindGrid();
 
-    // Re-fetch when map stops moving
-    mapInstance.on('moveend', debouncedUpdate);
+    // Only re-fetch on zoom change, not pan — panning doesn't need new API data
+    mapInstance.on('zoomend', debouncedUpdate);
     return () => {
       clearTimeout(timeoutId);
-      mapInstance.off('moveend', debouncedUpdate);
+      mapInstance.off('zoomend', debouncedUpdate);
     };
   }, [isActive, mapInstance, activeModel, timeOffsetHours]);
 
