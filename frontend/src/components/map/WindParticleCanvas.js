@@ -234,24 +234,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
       isFetchingWind.current = true;
       
       try {
-        const zoom = mapInstance.getZoom();
-        let latMin, latMax, lngMin, lngMax;
-
-        if (zoom < 4) {
-          // Global view — simple, always valid
-          latMin = -80; latMax = 80;
-          lngMin = -180; lngMax = 180;
-        } else {
-          // Local view — clamp to [-180,180] so grid header and point coords match
-          const bounds = mapInstance.getBounds();
-          const latPad = Math.max(10, (bounds.getNorth() - bounds.getSouth()) * 1.5);
-          const lngPad = Math.max(15, (bounds.getEast() - bounds.getWest()) * 1.5);
-          latMin = Math.max(-85, bounds.getSouth() - latPad);
-          latMax = Math.min(85, bounds.getNorth() + latPad);
-          // Always clamp to [-180,180] — interpolator can't handle unnormalized bounds
-          lngMin = Math.max(-180, bounds.getWest() - lngPad);
-          lngMax = Math.min(180, bounds.getEast() + lngPad);
-        }
+        // Always global bounds — wind field covers the whole planet, pan-sync CSS handles viewport
+        const latMin = -80, latMax = 80, lngMin = -180, lngMax = 180;
 
         // 5x5 = 25 points: far below rate-limit threshold, short URL
         const nx = 5;
@@ -271,11 +255,11 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
-        const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
-        void modelParam;
-        // ensemble-api has a SEPARATE rate-limit bucket from api.open-meteo.com.
-        // gfs025 = 0.25° global GFS model — available everywhere, no coastal gaps.
-        const url = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs025&forecast_days=2`;
+        // ERA5 archive API: independent rate-limit bucket, returns plain wind_speed_10m
+        // (ensemble API returns member-keyed arrays, not plain wind_speed_10m)
+        const archiveDate = new Date(Date.now() - 5 * 86400000);
+        const dateStr = archiveDate.toISOString().slice(0, 10);
+        const url = `https://archive-api.open-meteo.com/v1/era5?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&start_date=${dateStr}&end_date=${dateStr}`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -291,14 +275,9 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const r = allResults[i];
           if (!r || !r.hourly) continue;
           
-          // Find closest hourly time step
-          let closest = 0;
-          let minDiff = Infinity;
-          r.hourly.time.forEach((t, idx) => {
-            const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
-            if (diff < minDiff) { minDiff = diff; closest = idx; }
-          });
-          // Forecast API returns km/h by default; convert to m/s
+          // ERA5 archive: index = UTC hour of day (0-23 matches hourly array directly)
+          const closest = Math.min(new Date(targetTs).getUTCHours(), 23);
+          // ERA5 returns km/h; convert to m/s
           const speedKmh = r.hourly.wind_speed_10m?.[closest] ?? 0;
           const dir = r.hourly.wind_direction_10m?.[closest] ?? 0;
           const speed = speedKmh * 0.277778; // km/h → m/s

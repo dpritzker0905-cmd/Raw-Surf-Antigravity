@@ -114,14 +114,17 @@ class MarineWaveGrid {
     const fx = fi - i, fy = fj - j;
     const a = (1-fx)*(1-fy), b = fx*(1-fy), c = (1-fx)*fy, d = fx*fy;
     
-    // Land masking: -1 = confirmed land (API returned null).
-    // h=0 = calm ocean — allow through; draw loop MIN_WAVE_HEIGHT filter handles it.
+    // Partial bilinear: h>=0.05m = confirmed ocean; h<0.05 = land (null=-1 or zero=0 from API).
+    // Require >=25% ocean-weighted corners to show data; average only ocean corners.
+    const MIN_H = 0.05;
     const h0=this.hData[p], h1=this.hData[p+1], h2=this.hData[p+this.nx], h3=this.hData[p+this.nx+1];
-    if (h0 < 0 || h1 < 0 || h2 < 0 || h3 < 0) return null;
-    
-    this._r[0] = a*this.hData[p]+b*this.hData[p+1]+c*this.hData[p+this.nx]+d*this.hData[p+this.nx+1];
-    this._r[1] = a*this.uData[p]+b*this.uData[p+1]+c*this.uData[p+this.nx]+d*this.uData[p+this.nx+1];
-    this._r[2] = a*this.vData[p]+b*this.vData[p+1]+c*this.vData[p+this.nx]+d*this.vData[p+this.nx+1];
+    const ok0=h0>=MIN_H, ok1=h1>=MIN_H, ok2=h2>=MIN_H, ok3=h3>=MIN_H;
+    const oceanFrac = (ok0?a:0)+(ok1?b:0)+(ok2?c:0)+(ok3?d:0);
+    if (oceanFrac < 0.25) return null;
+    const inv = 1 / oceanFrac;
+    this._r[0] = ((ok0?h0*a:0)+(ok1?h1*b:0)+(ok2?h2*c:0)+(ok3?h3*d:0))*inv;
+    this._r[1] = ((ok0?this.uData[p]*a:0)+(ok1?this.uData[p+1]*b:0)+(ok2?this.uData[p+this.nx]*c:0)+(ok3?this.uData[p+this.nx+1]*d:0))*inv;
+    this._r[2] = ((ok0?this.vData[p]*a:0)+(ok1?this.vData[p+1]*b:0)+(ok2?this.vData[p+this.nx]*c:0)+(ok3?this.vData[p+this.nx+1]*d:0))*inv;
     return this._r;
   }
 }
