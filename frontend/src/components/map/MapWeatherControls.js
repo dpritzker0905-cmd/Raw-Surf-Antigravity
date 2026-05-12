@@ -9,6 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
  */
 export const MapWeatherControls = ({
   isDesktop = true,
+  isMobileExpanded = false,
   activeModel,
   onModelChange,
   activeLayers,
@@ -103,15 +104,15 @@ export const MapWeatherControls = ({
     : (currentTimeOffset / maxForecastHours) * 100;
 
   // Integrated Timeline UI block
-  const renderTimeline = () => {
+  const renderTimeline = (isMobile = false) => {
     if (!activeLayer) return null;
     return (
-      <div className={`mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
+      <div className={isMobile ? "" : `mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
         <div className="flex items-center gap-2">
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
-            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95 ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
+            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
             aria-label={isPlaying ? 'Pause' : 'Play'}
           >
             {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
@@ -139,7 +140,7 @@ export const MapWeatherControls = ({
                 const val = parseInt(e.target.value, 10);
                 isRadar ? onRadarFrameChange(val) : onTimeChange(val);
               }}
-              className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+              className="w-full h-2 rounded-full appearance-none cursor-pointer"
               style={{
                 background: `linear-gradient(to right, #06b6d4 ${progress}%, ${trackBg} ${progress}%)`
               }}
@@ -164,9 +165,9 @@ export const MapWeatherControls = ({
         </div>
         <style>{`
           input[type=range]::-webkit-slider-thumb {
-            appearance: none; width: 14px; height: 14px;
+            appearance: none; width: 16px; height: 16px;
             background: white; border: 2px solid #06b6d4;
-            border-radius: 50%; cursor: pointer;
+            border-radius: 50%; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
           }
         `}</style>
       </div>
@@ -243,65 +244,80 @@ export const MapWeatherControls = ({
   }
 
   // ==================== MOBILE LAYOUT ====================
-  return (
-    <div className={`w-full rounded-t-2xl backdrop-blur-xl border-t ${bgClass} block md:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.3)]`} style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-      <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-1 bg-gray-500/40 rounded-full" />
-          <span className={`text-[11px] font-bold uppercase tracking-wider ${textMuted}`}>Weather Controls</span>
+  if (!isMobileExpanded) {
+    // Collapsed mobile state: Just show timeline and legend floating above bottom nav
+    if (!activeLayer) return null;
+    return (
+      <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none" style={{ bottom: '72px' }}>
+        <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} p-3 transition-all duration-300`}>
+          {legendConfig[activeLayer] && (
+            <div className="mb-2">
+              <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
+                <span>{legendConfig[activeLayer].label}</span>
+              </div>
+              <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
+              <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
+                {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
+              </div>
+            </div>
+          )}
+          {renderTimeline(true)}
         </div>
-        {onClose && (
-          <button onClick={onClose} className={`p-1 rounded-full ${btnHover}`}>
-            <X className={`w-5 h-5 ${textMuted}`} />
-          </button>
-        )}
       </div>
+    );
+  }
 
-      <div className="flex gap-1.5 px-4 mb-3">
-        {models.map(m => (
-          <button
-            key={m.id}
-            onClick={() => handleModelClick(m)}
-            className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${activeModel === m.id ? 'bg-cyan-500 text-black' : `${chipBg} ${textMuted}`}`}
-          >
-            {m.label}{m.locked && <Lock className="w-3 h-3 ml-1 inline opacity-70" />}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
-        {layers.map(layer => {
-          const isActive = activeLayer === layer.id;
-          const Icon = layer.icon;
-          return (
-            <button
-              key={layer.id}
-              onClick={() => onLayerToggle(layer.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border whitespace-nowrap text-[12px] font-medium transition-all shrink-0 ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted}`} />
-              <span className={isActive ? textClass : textMuted}>{layer.label}</span>
+  // Expanded mobile state (Bottom Sheet)
+  return (
+    <>
+      <div className="absolute inset-0 z-[999] bg-black/40 backdrop-blur-sm md:hidden" onClick={onClose} />
+      <div className={`absolute left-0 right-0 z-[1000] md:hidden rounded-t-3xl backdrop-blur-xl border-t ${bgClass} shadow-[0_-20px_40px_rgba(0,0,0,0.4)]`} style={{ bottom: '64px' }}>
+        <div className="flex flex-col items-center pt-2 pb-1">
+          <div className="w-12 h-1.5 bg-gray-500/30 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-zinc-800/30">
+          <span className={`text-xs font-bold uppercase tracking-wider ${textClass}`}>Map Layers</span>
+          {onClose && (
+            <button onClick={onClose} className={`p-1.5 rounded-full ${btnHover} transition-colors`}>
+              <X className={`w-5 h-5 ${textMuted}`} />
             </button>
-          );
-        })}
-      </div>
+          )}
+        </div>
 
-      {activeLayer && legendConfig[activeLayer] && (
-        <div className="px-4 pb-1">
-          <div className={`text-[10px] ${textMuted} mb-1`}>{legendConfig[activeLayer].label}</div>
-          <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
-          <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
-            {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
+        <div className="px-5 py-4">
+          <div className={`text-[10px] font-bold uppercase tracking-wider ${textMuted} mb-2`}>Forecasting Model</div>
+          <div className="flex gap-2 mb-6">
+            {models.map(m => (
+              <button
+                key={m.id}
+                onClick={() => handleModelClick(m)}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${activeModel === m.id ? 'bg-cyan-500 text-black border-cyan-500 shadow-lg shadow-cyan-500/20' : `${chipBg} ${textMuted} border-transparent`}`}
+              >
+                {m.label}{m.locked && <Lock className="w-3.5 h-3.5 ml-1.5 inline opacity-70" />}
+              </button>
+            ))}
+          </div>
+
+          <div className={`text-[10px] font-bold uppercase tracking-wider ${textMuted} mb-2`}>Weather Overlays</div>
+          <div className="flex flex-wrap gap-2 pb-2">
+            {layers.map(layer => {
+              const isActive = activeLayer === layer.id;
+              const Icon = layer.icon;
+              return (
+                <button
+                  key={layer.id}
+                  onClick={() => onLayerToggle(layer.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all shrink-0 ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted}`} />
+                  <span className={isActive ? textClass : textMuted}>{layer.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
-      )}
-
-      {activeLayer && (
-        <div className="px-3">
-          {renderTimeline()}
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 

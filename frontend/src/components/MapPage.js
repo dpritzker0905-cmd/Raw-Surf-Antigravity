@@ -562,35 +562,26 @@ const MapPageContent = () => {
         onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
       />
 
-      {/* Mobile Weather Controls — anchored ABOVE bottom nav bar */}
-      {showWeatherControls && (
-        <>
-          <div 
-            className="absolute inset-0 z-[999] bg-black/20 md:hidden"
-            onClick={() => setShowWeatherControls(false)}
-          />
-          <div className="absolute left-0 right-0 z-[1000] md:hidden shadow-2xl" style={{ bottom: '64px' }}>
-            <MapWeatherControls 
-              isDesktop={false}
-              activeModel={activeModel}
-              onModelChange={setActiveModel}
-              activeLayers={activeLayers}
-              onLayerToggle={(layerId) => { toggleLayer(layerId); setShowWeatherControls(false); }}
-              userTier={user?.tier_id || 'tier_1'}
-              onUpgradeClick={handleUpgradeClick}
-              onClose={() => setShowWeatherControls(false)}
-              radarMode={isRadarOrSat}
-              radarFrames={radarFrames}
-              radarFrameIndex={radarFrameIndex}
-              onRadarFrameChange={setRadarFrameIndex}
-              currentTimeOffset={timeOffsetHours}
-              onTimeChange={setTimeOffsetHours}
-              isPlaying={isPlayingTimeline}
-              onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
-            />
-          </div>
-        </>
-      )}
+      {/* Mobile Weather Controls — anchors itself and handles expanded/collapsed state */}
+      <MapWeatherControls 
+        isDesktop={false}
+        isMobileExpanded={showWeatherControls}
+        activeModel={activeModel}
+        onModelChange={setActiveModel}
+        activeLayers={activeLayers}
+        onLayerToggle={(layerId) => { toggleLayer(layerId); setShowWeatherControls(false); }}
+        userTier={user?.tier_id || 'tier_1'}
+        onUpgradeClick={handleUpgradeClick}
+        onClose={() => setShowWeatherControls(false)}
+        radarMode={isRadarOrSat}
+        radarFrames={radarFrames}
+        radarFrameIndex={radarFrameIndex}
+        onRadarFrameChange={setRadarFrameIndex}
+        currentTimeOffset={timeOffsetHours}
+        onTimeChange={setTimeOffsetHours}
+        isPlaying={isPlayingTimeline}
+        onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
+      />
 
 
 
