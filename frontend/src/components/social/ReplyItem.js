@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Heart } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
+import { CommentText } from '../RichText';
 import { formatTimeAgo } from '../../utils/formatTime';
 
 const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
