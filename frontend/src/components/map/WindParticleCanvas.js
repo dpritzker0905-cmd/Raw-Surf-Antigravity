@@ -391,10 +391,10 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       proj.sync(map);
       if (frameCount % 30 === 0) updatePPD();
 
-      const isInteracting = isDraggingRef.current || isZoomingRef.current;
-
-      // During interaction: fade trails only, skip particle updates for smooth panning
-      if (isInteracting) {
+      // During zoom: fade trails only, skip particle updates to avoid scale ghosting.
+      // We allow updates during pan (drag) because the zero-allocation pipeline is fast
+      // enough to not block the main thread, keeping wind visible while panning.
+      if (isZoomingRef.current) {
         tCtx.globalCompositeOperation = 'destination-in';
         tCtx.globalAlpha = 1.0;
         tCtx.fillStyle = 'rgba(0,0,0,0.85)';
