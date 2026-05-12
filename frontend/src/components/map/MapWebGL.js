@@ -6,6 +6,7 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useControl } from 'react-map-gl/maplibre';
 import { MapboxOverlay } from '@deck.gl/mapbox';
+import { useGPUWindLayer } from './GPUWindLayer';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -76,11 +77,11 @@ const MapWebGL = ({
   const { theme } = useTheme();
   const isBeach = theme === 'beach';
   
-  // GPU layers disabled — wind now uses Open-Meteo raster tiles (same proven system as
-  // rain/pressure/fog/satellite); marine data uses the existing client-side GeoJSON fetch.
-  // This eliminates the fragile backend cache dependency that was causing empty data.
-  const gpuWindLayer = null;
-  const gpuWaveLayer = null;
+  // GPU wind vector layer — viewport-scoped fetching, animated directional particles
+  const gpuWindLayer = useGPUWindLayer({
+    active: activeLayers.includes('wind'),
+    mapBounds: bounds
+  });
 
   // Register Open-Meteo protocol safely on mount
   useEffect(() => {
@@ -345,7 +346,7 @@ const MapWebGL = ({
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
-        const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_period`);
+        const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         
         const data = await res.json();
@@ -354,13 +355,26 @@ const MapWebGL = ({
         const features = safePoints.map((pt, i) => {
           const r = allResults[i];
           if (!r || !r.current) return null;
-          const wh = r.current.wave_height;
-          const wp = r.current.wave_period;
-          if (wh == null && wp == null) return null; // Ignore land masses
+          const c = r.current;
+          const wh = c.wave_height;
+          const wp = c.wave_period;
+          const wd = c.wave_direction;
+          // NaN guard — reject any point where all values are null/NaN
+          if ((wh == null || isNaN(wh)) && (wp == null || isNaN(wp))) return null;
           return {
             type: 'Feature',
             geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
-            properties: { wave_height: wh ?? 0, wave_period: wp ?? 0 },
+            properties: {
+              wave_height: (wh != null && !isNaN(wh)) ? wh : 0,
+              wave_period: (wp != null && !isNaN(wp)) ? wp : 0,
+              wave_direction: (wd != null && !isNaN(wd)) ? wd : 0,
+              swell_wave_height: (c.swell_wave_height != null && !isNaN(c.swell_wave_height)) ? c.swell_wave_height : 0,
+              swell_wave_period: (c.swell_wave_period != null && !isNaN(c.swell_wave_period)) ? c.swell_wave_period : 0,
+              swell_wave_direction: (c.swell_wave_direction != null && !isNaN(c.swell_wave_direction)) ? c.swell_wave_direction : 0,
+              wind_wave_height: (c.wind_wave_height != null && !isNaN(c.wind_wave_height)) ? c.wind_wave_height : 0,
+              wind_wave_period: (c.wind_wave_period != null && !isNaN(c.wind_wave_period)) ? c.wind_wave_period : 0,
+              wind_wave_direction: (c.wind_wave_direction != null && !isNaN(c.wind_wave_direction)) ? c.wind_wave_direction : 0,
+            },
           };
         }).filter(Boolean);
 
@@ -513,10 +527,15 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Marine Wave Heatmap & Data Labels — stable IDs, keyed on revision for clean data swap */}
-      {marineData && ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (
+      {/* Marine Wave Heatmap & Data Labels — layer-aware property selection */}
+      {marineData && ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (() => {
+        // Select the correct data field based on active layer
+        const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l));
+        const heightProp = activeMarineLayer === 'swell_1' || activeMarineLayer === 'swell_2'
+          ? 'swell_wave_height' : activeMarineLayer === 'wind_waves' ? 'wind_wave_height' : 'wave_height';
+        return (
         <Source 
-          key={`marine-src-${marineRevision.current}`}
+          key={`marine-src-${marineRevision.current}-${activeMarineLayer}`}
           id="marine-data-source"
           type="geojson" 
           data={marineData}
@@ -527,11 +546,11 @@ const MapWebGL = ({
             paint={{
               'circle-color': [
                 'interpolate', ['linear'],
-                ['get', 'wave_height'],
+                ['get', heightProp],
                 0, 'rgba(0,0,0,0)',
-                0.5, '#93c5fd',
-                1.5, '#22d3ee',
-                2.5, '#2563eb',
+                0.3, '#93c5fd',
+                1.0, '#22d3ee',
+                2.0, '#2563eb',
                 3.5, '#9333ea',
                 5.0, '#be123c'
               ],
@@ -546,7 +565,7 @@ const MapWebGL = ({
             layout={{
               'text-field': [
                 'concat',
-                ['to-string', ['get', 'wave_height']],
+                ['to-string', ['get', heightProp]],
                 'm'
               ],
               'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
@@ -561,7 +580,8 @@ const MapWebGL = ({
             }}
           />
         </Source>
-      )}
+        );
+      })()}
 
 
 
@@ -730,7 +750,7 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      <DeckGLOverlay layers={[gpuWindLayer, gpuWaveLayer].filter(Boolean)} interleaved={true} />
+      <DeckGLOverlay layers={[gpuWindLayer].filter(Boolean)} interleaved={true} />
     </Map>
     </div>
   );
