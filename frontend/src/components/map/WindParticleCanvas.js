@@ -274,11 +274,11 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lons = safePoints.map(p => p.lng).join(',');
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
-        // Use the model param but WITHOUT models= for best_match fallback robustness.
-        // gfs_seamless can return 400 or non-array for mixed land/ocean grids.
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&forecast_days=1`;
-        void modelParam; // reserved for future per-model toggle
-        
+        void modelParam; // reserved for model selection UI
+        // Switch to marine API (same domain as waves — proven not rate-limited).
+        // Supports wind_speed_10m + wind_direction_10m for global ocean grids.
+        const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&forecast_days=2`;
+
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         
@@ -300,15 +300,17 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
             const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
             if (diff < minDiff) { minDiff = diff; closest = idx; }
           });
-          const speed = r.hourly.wind_speed_10m?.[closest] || 0;
-          const dir = r.hourly.wind_direction_10m?.[closest] || 0;
+          // Marine API returns km/h; convert to m/s for consistent grid units
+          const speedKmh = r.hourly.wind_speed_10m?.[closest] ?? 0;
+          const dir = r.hourly.wind_direction_10m?.[closest] ?? 0;
+          const speed = speedKmh * 0.277778; // km/h → m/s
 
-          // wind_speed_unit=ms means speed is already in m/s
-          // U (zonal) = -speed * sin(dir), V (meridional) = -speed * cos(dir)
+          // U (zonal) = -speed*sin(dir), V (meridional) = -speed*cos(dir)
+          // dir = direction wind blows FROM; negative encodes travel direction
           const rad = dir * Math.PI / 180;
           const u = -speed * Math.sin(rad);
           const v = -speed * Math.cos(rad);
-          
+
           uData[i] = u;
           vData[i] = v;
         }
@@ -526,7 +528,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
 
       for (let i = 0; i < PARTICLE_COUNT; i++) {
         const wind = grid.interpolate(pLat[i], pLng[i]);
-        if (wind) {
+        // isFinite guard: marine API returns NaN for inland cells — reseed those particles
+        if (wind && isFinite(wind[2]) && wind[2] >= 0) {
           const u = wind[0], v = wind[1], speed = wind[2];
 
           // Project previous position (reusable result — copy values immediately)
