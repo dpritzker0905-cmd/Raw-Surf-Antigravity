@@ -4,7 +4,7 @@ import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useWindVectorData } from './GPUWindLayer';
+import { useWindVectorData, WindParticleCanvas } from './GPUWindLayer';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -84,12 +84,14 @@ const MapWebGL = ({
     mapBounds: bounds
   });
 
-  // Register Open-Meteo protocol safely on mount (dynamic import avoids TDZ)
+  // Protocol registration — gated state prevents sources from mounting before ready
+  const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
     import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
       if (maplibregl && maplibregl.addProtocol) {
         try { maplibregl.addProtocol('om', omProtocol); } catch (e) {}
       }
+      setProtocolReady(true);
     });
   }, []);
 
@@ -324,10 +326,14 @@ const MapWebGL = ({
         const latMax = Math.min(80, bounds.getNorth() + 5);
         const lngMin = bounds.getWest() - 5;
         const lngMax = bounds.getEast() + 5;
-
-        // Sparse 8x8 global grid (64 points total)
-        const latStep = Math.max(1, (latMax - latMin) / 8);
-        const lngStep = Math.max(1, (lngMax - lngMin) / 8);
+        // Validate bounds before querying
+        if (latMax <= latMin || lngMax <= lngMin) {
+          console.warn('[Marine] Invalid bounds, skipping fetch');
+          return;
+        }
+        // Dense 10x10 grid (100 points) for coastal coverage
+        const latStep = Math.max(0.5, (latMax - latMin) / 10);
+        const lngStep = Math.max(0.5, (lngMax - lngMin) / 10);
 
         const latSteps = [];
         for (let lat = latMax; lat >= latMin; lat -= latStep) latSteps.push(Number(lat.toFixed(2)));
@@ -515,8 +521,8 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Open-Meteo Animated Weather Tiles — stable Source ID, keyed on variable for clean swap */}
-      {omTileUrl && (
+      {/* Open-Meteo Animated Weather Tiles — gated on protocol registration */}
+      {protocolReady && omTileUrl && (
         <Source
           key={omTileUrl}
           id="om-weather-source"
@@ -758,54 +764,12 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      {/* Wind Vector Arrows — directional lines + arrowhead symbols */}
-      {windData && activeLayers.includes('wind') && (
-        <Source
-          key={`wind-src-${windRevision.current}`}
-          id="wind-vector-source"
-          type="geojson"
-          data={windData}
-        >
-          {/* Flow lines colored by speed */}
-          <Layer
-            id="wind-vector-lines"
-            type="line"
-            filter={['==', ['get', 'type'], 'line']}
-            paint={{
-              'line-color': [
-                'interpolate', ['linear'], ['get', 'speed'],
-                0, '#64c8ff', 5, '#32ff96', 15, '#ffc800', 25, '#ff3232'
-              ],
-              'line-width': [
-                'interpolate', ['linear'], ['get', 'speed'],
-                0, 1.5, 10, 3, 25, 5
-              ],
-              'line-opacity': 0.9
-            }}
-            layout={{ 'line-cap': 'round' }}
-          />
-          {/* Arrowhead symbols at line tips — rotated to wind direction */}
-          <Layer
-            id="wind-arrow-heads"
-            type="symbol"
-            filter={['==', ['get', 'type'], 'arrow']}
-            layout={{
-              'icon-image': 'triangle-15',
-              'icon-size': ['interpolate', ['linear'], ['get', 'speed'], 0, 0.6, 15, 1.0, 25, 1.4],
-              'icon-rotate': ['get', 'direction'],
-              'icon-rotation-alignment': 'map',
-              'icon-allow-overlap': true
-            }}
-            paint={{
-              'icon-color': [
-                'interpolate', ['linear'], ['get', 'speed'],
-                0, '#64c8ff', 5, '#32ff96', 15, '#ffc800', 25, '#ff3232'
-              ],
-              'icon-opacity': 0.9
-            }}
-          />
-        </Source>
-      )}
+      {/* Wind Particle Advection Engine — canvas overlay with animated flow */}
+      <WindParticleCanvas
+        mapInstance={mapInstance}
+        windVectors={windData}
+        active={activeLayers.includes('wind')}
+      />
     </Map>
     </div>
   );
