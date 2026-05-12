@@ -166,24 +166,8 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       if (Date.now() - lastFetchMs.current < 45000) return;
       isFetching.current = true;
       try {
-        const zoom = mapInstance.getZoom();
-        let latMin, latMax, lngMin, lngMax;
-
-        if (zoom < 4) {
-          // Global view — simple, always valid
-          latMin = -80; latMax = 80;
-          lngMin = -180; lngMax = 180;
-        } else {
-          // Local view — clamp to [-180,180] so grid header and point coords match
-          const bounds = mapInstance.getBounds();
-          const latPad = Math.max(10, (bounds.getNorth() - bounds.getSouth()) * 1.5);
-          const lngPad = Math.max(15, (bounds.getEast() - bounds.getWest()) * 1.5);
-          latMin = Math.max(-85, bounds.getSouth() - latPad);
-          latMax = Math.min(85, bounds.getNorth() + latPad);
-          // Always clamp to [-180,180] — interpolator can't handle unnormalized bounds
-          lngMin = Math.max(-180, bounds.getWest() - lngPad);
-          lngMax = Math.min(180, bounds.getEast() + lngPad);
-        }
+        // Always global bounds — waves cover the whole ocean regardless of zoom
+        const latMin = -80, latMax = 80, lngMin = -180, lngMax = 180;
 
         const nx = 9, ny = 9;
         const latStep = (latMax - latMin) / (ny - 1);

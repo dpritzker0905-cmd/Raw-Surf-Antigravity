@@ -234,8 +234,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
       isFetchingWind.current = true;
       
       try {
-        // Always global bounds — wind field covers the whole planet, pan-sync CSS handles viewport
-        const latMin = -80, latMax = 80, lngMin = -180, lngMax = 180;
+        // Always global bounds — extend to ±85° to minimise arctic/antarctic gap
+        const latMin = -85, latMax = 85, lngMin = -180, lngMax = 180;
 
         // 5x5 = 25 points: far below rate-limit threshold, short URL
         const nx = 5;
@@ -255,11 +255,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
-        // ERA5 archive API: independent rate-limit bucket, returns plain wind_speed_10m
-        // (ensemble API returns member-keyed arrays, not plain wind_speed_10m)
-        const archiveDate = new Date(Date.now() - 5 * 86400000);
-        const dateStr = archiveDate.toISOString().slice(0, 10);
-        const url = `https://archive-api.open-meteo.com/v1/era5?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&start_date=${dateStr}&end_date=${dateStr}`;
+        // Ensemble API: separate rate-limit bucket from api.open-meteo.com, real-time forecast
+        const url = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs025&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -275,11 +272,26 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const r = allResults[i];
           if (!r || !r.hourly) continue;
           
-          // ERA5 archive: index = UTC hour of day (0-23 matches hourly array directly)
-          const closest = Math.min(new Date(targetTs).getUTCHours(), 23);
-          // ERA5 returns km/h; convert to m/s
-          const speedKmh = r.hourly.wind_speed_10m?.[closest] ?? 0;
-          const dir = r.hourly.wind_direction_10m?.[closest] ?? 0;
+          // Find closest forecast hour in returned time array
+          let closest = 0, minDiff = Infinity;
+          (r.hourly.time || []).forEach((t, idx) => {
+            const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
+            if (diff < minDiff) { minDiff = diff; closest = idx; }
+          });
+
+          // Compute ensemble mean speed + circular-mean direction across all 31 members
+          const keys = Object.keys(r.hourly);
+          let sSum = 0, sCnt = 0, snSum = 0, csSum = 0;
+          for (const k of keys) {
+            if (k.startsWith('wind_speed_10m_member')) {
+              sSum += (r.hourly[k][closest] ?? 0); sCnt++;
+            } else if (k.startsWith('wind_direction_10m_member')) {
+              const dv = (r.hourly[k][closest] ?? 0) * Math.PI / 180;
+              snSum += Math.sin(dv); csSum += Math.cos(dv);
+            }
+          }
+          const speedKmh = sCnt > 0 ? sSum / sCnt : 0;
+          const dir = (Math.atan2(snSum / (sCnt || 1), csSum / (sCnt || 1)) * 180 / Math.PI + 360) % 360;
           const speed = speedKmh * 0.277778; // km/h → m/s
 
           // U (zonal) = -speed*sin(dir), V (meridional) = -speed*cos(dir)
