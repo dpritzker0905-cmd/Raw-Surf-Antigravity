@@ -3,7 +3,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 /**
  * Viewport-scoped wind vector data hook.
  * Fetches wind speed/direction ONLY for the current map bbox.
- * Returns GeoJSON FeatureCollection for MapLibre-native rendering (no deck.gl).
+ * Returns GeoJSON with:
+ *   - LineString features for directional flow lines
+ *   - Point features at endpoints for arrowhead symbols
+ * All MapLibre-native rendering — no deck.gl.
  */
 export function useWindVectorData({ active, mapBounds }) {
   const [windData, setWindData] = useState(null);
@@ -48,19 +51,28 @@ export function useWindVectorData({ active, mapBounds }) {
         const dir = r.current.wind_direction_10m;
         if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) return;
 
-        // Create a line from origin to wind-direction endpoint
-        const rad = (dir - 180) * (Math.PI / 180);
-        const length = Math.max(0.02, speed * 0.04);
+        // Wind direction in meteorology = where wind comes FROM
+        // Arrow should point in the direction wind is GOING
+        const rad = (dir) * (Math.PI / 180);
+        const length = Math.max(0.03, speed * 0.05);
         const endLng = pt.lng + Math.sin(rad) * length;
-        const endLat = pt.lat + Math.cos(rad) * length;
+        const endLat = pt.lat - Math.cos(rad) * length;
 
+        // Flow line (animated via dash-array in MapLibre)
         features.push({
           type: 'Feature',
           geometry: {
             type: 'LineString',
             coordinates: [[pt.lng, pt.lat], [endLng, endLat]]
           },
-          properties: { speed, direction: dir }
+          properties: { speed, direction: dir, type: 'line' }
+        });
+
+        // Arrowhead point at the tip
+        features.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [endLng, endLat] },
+          properties: { speed, direction: dir, type: 'arrow' }
         });
       });
 

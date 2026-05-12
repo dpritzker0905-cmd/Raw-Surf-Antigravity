@@ -276,16 +276,30 @@ const MapWebGL = ({
   const [marineData, setMarineData] = useState(null);
   const isFetchingMarine = useRef(false);
 
-  // Capture the raw MapLibre instance once the map loads, then force a repaint
-  // so that om:// custom-protocol tile sources render without needing a user pan.
+  // Capture the raw MapLibre instance once the map loads, set initial bounds,
+  // and force a repaint so layers render without needing user pan/scroll.
   useEffect(() => {
     const map = innerMapRef.current?.getMap?.();
     if (map && !mapInstance) {
       setMapInstance(map);
-      // Force MapLibre to request tiles for custom protocols on initial mount
-      setTimeout(() => { try { map.resize(); } catch(e) {} }, 500);
+      // Set initial bounds so data hooks can fetch immediately
+      const b = map.getBounds();
+      setBounds({
+        west: b.getWest(), south: b.getSouth(),
+        east: b.getEast(), north: b.getNorth()
+      });
+      // Force render loop to paint custom-protocol tiles on mount
+      setTimeout(() => {
+        try { map.triggerRepaint(); } catch(e) {}
+      }, 300);
     }
   });
+
+  // Force MapLibre to repaint whenever visual state changes (layer toggle, data load, etc.)
+  useEffect(() => {
+    if (!mapInstance) return;
+    try { mapInstance.triggerRepaint(); } catch(e) {}
+  }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
   // Fetch dynamic, global marine data with strict 1.2s debounce
   // Uses a sparse 8x8 grid (64 points) to fit within a single Open-Meteo API call (<100 points).
@@ -381,11 +395,15 @@ const MapWebGL = ({
 
     const debouncedUpdate = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateMarineGrid, 1200); // 1.2s debounce prevents rate limit 429
+      timeoutId = setTimeout(updateMarineGrid, 1200);
     };
 
-    // Initial fetch
-    debouncedUpdate();
+    // Fire immediately on first load — do NOT wait for moveend
+    if (mapInstance.isStyleLoaded()) {
+      updateMarineGrid();
+    } else {
+      mapInstance.once('load', updateMarineGrid);
+    }
 
     // Re-fetch when map stops moving
     mapInstance.on('moveend', debouncedUpdate);
@@ -740,7 +758,7 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      {/* Wind Vector Arrows — MapLibre-native rendering */}
+      {/* Wind Vector Arrows — directional lines + arrowhead symbols */}
       {windData && activeLayers.includes('wind') && (
         <Source
           key={`wind-src-${windRevision.current}`}
@@ -748,28 +766,43 @@ const MapWebGL = ({
           type="geojson"
           data={windData}
         >
+          {/* Flow lines colored by speed */}
           <Layer
             id="wind-vector-lines"
             type="line"
+            filter={['==', ['get', 'type'], 'line']}
             paint={{
               'line-color': [
-                'interpolate', ['linear'],
-                ['get', 'speed'],
-                0, '#64c8ff',
-                5, '#32ff96',
-                15, '#ffc800',
-                25, '#ff3232'
+                'interpolate', ['linear'], ['get', 'speed'],
+                0, '#64c8ff', 5, '#32ff96', 15, '#ffc800', 25, '#ff3232'
               ],
               'line-width': [
-                'interpolate', ['linear'],
-                ['get', 'speed'],
-                0, 1,
-                10, 2.5,
-                25, 4
+                'interpolate', ['linear'], ['get', 'speed'],
+                0, 1.5, 10, 3, 25, 5
               ],
-              'line-opacity': 0.85
+              'line-opacity': 0.9
             }}
             layout={{ 'line-cap': 'round' }}
+          />
+          {/* Arrowhead symbols at line tips — rotated to wind direction */}
+          <Layer
+            id="wind-arrow-heads"
+            type="symbol"
+            filter={['==', ['get', 'type'], 'arrow']}
+            layout={{
+              'icon-image': 'triangle-15',
+              'icon-size': ['interpolate', ['linear'], ['get', 'speed'], 0, 0.6, 15, 1.0, 25, 1.4],
+              'icon-rotate': ['get', 'direction'],
+              'icon-rotation-alignment': 'map',
+              'icon-allow-overlap': true
+            }}
+            paint={{
+              'icon-color': [
+                'interpolate', ['linear'], ['get', 'speed'],
+                0, '#64c8ff', 5, '#32ff96', 15, '#ffc800', 25, '#ff3232'
+              ],
+              'icon-opacity': 0.9
+            }}
           />
         </Source>
       )}
