@@ -272,14 +272,12 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lons = safePoints.map(p => p.lng).join(',');
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
-        // Always use hourly for grid queries — `current` doesn't guarantee full
-        // coverage across all 81 points (ocean/remote areas often return null).
-        // For live mode, use best_match which blends observations + forecast.
+        // Always use the selected global model for the animated grid, because 
+        // `best_match` often returns nulls over ocean areas, causing particles to freeze.
         const targetDate = new Date();
         if (timeOffsetHours > 0) targetDate.setHours(targetDate.getHours() + timeOffsetHours);
         const dateStr = targetDate.toISOString().split('T')[0];
-        const modelStr = timeOffsetHours === 0 ? 'best_match' : modelParam;
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelStr}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
         
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
