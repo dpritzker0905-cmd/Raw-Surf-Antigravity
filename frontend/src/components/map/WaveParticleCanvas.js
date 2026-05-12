@@ -336,9 +336,9 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       frameCount++; proj.sync(map);
       if (frameCount % 30 === 0) updatePPD();
 
-      // Fast fade = short, distinct wave dashes (resembling wave crests)
+      // Smooth slow fade for elegant organic wave lines
       tCtx.globalCompositeOperation = 'destination-in';
-      tCtx.globalAlpha = 1.0; tCtx.fillStyle = 'rgba(0,0,0,0.85)'; tCtx.fillRect(0, 0, w, h);
+      tCtx.globalAlpha = 1.0; tCtx.fillStyle = 'rgba(0,0,0,0.92)'; tCtx.fillRect(0, 0, w, h);
       tCtx.globalCompositeOperation = 'source-over'; tCtx.globalAlpha = 1.0;
 
       if (!grid) { animRef.current = requestAnimationFrame(draw); return; }
@@ -369,14 +369,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           if (dx * dx + dy * dy >= 0.1) {
             const entry = lookupCached(height, cache);
             if (!batches.has(entry.key)) batches.set(entry.key, { style: entry.style, glowStyle: entry.glowStyle, segs: [], glow: height > 3 });
-            
-            // Draw perpendicular wave crests instead of flow arrows
-            const len = Math.sqrt(dx * dx + dy * dy);
-            const nx = -dy / len, ny = dx / len; // Perpendicular vector
-            const crestHalfLen = 3.5; // Width of the wave crest line
-            const cx = px1, cy = py1; // Center at current position
-            
-            batches.get(entry.key).segs.push(cx + nx * crestHalfLen, cy + ny * crestHalfLen, cx - nx * crestHalfLen, cy - ny * crestHalfLen);
+            batches.get(entry.key).segs.push(px0, py0, px1, py1);
           }
           if (pAge[i] > 25 || px1 < -50 || px1 > w + 50 || py1 < -50 || py1 > h + 50) pool.seedRandom(i, w, h, proj);
         } else {
@@ -419,7 +412,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       <canvas ref={fieldRef} style={{
         position: 'absolute', pointerEvents: 'none', zIndex: 4,
         filter: `blur(${FIELD_BLUR_PX}px)`, willChange: 'transform',
-        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 1 : 0,
+        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 0.7 : 0, mixBlendMode: 'multiply'
       }} />
       <canvas ref={trailRef} style={{
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',

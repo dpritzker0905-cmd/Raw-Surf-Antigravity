@@ -258,8 +258,9 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
-        // Use deterministic GFS for crisp variations (100 pts * 1 request = safe from 10k/day limit)
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs_seamless&forecast_days=2`;
+        // Use ensemble API (gfs025) which has a separate rate limit bucket.
+        // We request wind_speed_10m and wind_direction_10m to get the control member automatically.
+        const url = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs025&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
