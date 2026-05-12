@@ -2,8 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * Viewport-scoped wind vector data hook.
- * Fetches u/v wind components for the current map bbox.
- * Returns raw vector grid for the particle engine.
+ * Fetches wind speed/direction for the current map bbox.
+ * Returns structured grid for bilinear interpolation in the particle engine.
  */
 export function useWindVectorData({ active, mapBounds }) {
   const [windData, setWindData] = useState(null);
@@ -15,17 +15,17 @@ export function useWindVectorData({ active, mapBounds }) {
     fetchingRef.current = true;
     try {
       const { west, south, east, north } = bounds;
-      // Validate bounds
       if (north <= south || east === west) return;
-      const latStep = Math.max(0.5, (north - south) / 8);
-      const lngStep = Math.max(0.5, (east - west) / 8);
+      const GRID = 8;
+      const latStep = (north - south) / GRID;
+      const lngStep = (east - west) / GRID;
       const points = [];
-      for (let lat = south; lat <= north; lat += latStep) {
-        for (let lng = west; lng <= east; lng += lngStep) {
-          let n = lng;
-          while (n > 180) n -= 360;
-          while (n < -180) n += 360;
-          points.push({ lat: +lat.toFixed(2), lng: +n.toFixed(2) });
+      for (let yi = 0; yi <= GRID; yi++) {
+        for (let xi = 0; xi <= GRID; xi++) {
+          let lng = west + xi * lngStep;
+          while (lng > 180) lng -= 360;
+          while (lng < -180) lng += 360;
+          points.push({ lat: +(south + yi * latStep).toFixed(2), lng: +lng.toFixed(2) });
         }
       }
       const safe = points.slice(0, 80);
@@ -44,14 +44,20 @@ export function useWindVectorData({ active, mapBounds }) {
         const speed = r.current.wind_speed_10m;
         const dir = r.current.wind_direction_10m;
         if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) return;
-        vectors.push({ lat: pt.lat, lng: pt.lng, speed, direction: dir });
+        // Decompose into u/v components for proper interpolation
+        const rad = dir * (Math.PI / 180);
+        vectors.push({
+          lat: pt.lat, lng: pt.lng, speed, direction: dir,
+          u: -speed * Math.sin(rad), v: -speed * Math.cos(rad)
+        });
       });
       if (vectors.length > 0) {
         revisionRef.current += 1;
-        setWindData(vectors);
+        // Store grid metadata for bilinear interpolation
+        setWindData({ vectors, bounds: { west, south, east, north }, grid: GRID });
       }
     } catch (err) {
-      console.warn('[WindVectors] Viewport fetch failed:', err);
+      if (!err.message?.includes('429')) console.warn('[WindVectors] Fetch failed:', err);
     } finally {
       fetchingRef.current = false;
     }
@@ -59,7 +65,7 @@ export function useWindVectorData({ active, mapBounds }) {
 
   useEffect(() => {
     if (!active || !mapBounds) { setWindData(null); return; }
-    const timer = setTimeout(() => fetchWind(mapBounds), 1200);
+    const timer = setTimeout(() => fetchWind(mapBounds), 1500);
     return () => clearTimeout(timer);
   }, [active, mapBounds, fetchWind]);
 
@@ -67,59 +73,82 @@ export function useWindVectorData({ active, mapBounds }) {
 }
 
 /**
+ * Bilinear interpolation of u/v wind components at any lat/lng.
+ * Uses the structured grid to produce smooth, continuous velocity fields.
+ */
+function interpolateWind(windGrid, lng, lat) {
+  if (!windGrid?.vectors?.length) return { u: 0, v: 0, speed: 0 };
+  const { vectors, bounds, grid } = windGrid;
+  const { west, south, east, north } = bounds;
+
+  // Normalize position to grid coordinates [0, grid]
+  const gx = ((lng - west) / (east - west)) * grid;
+  const gy = ((lat - south) / (north - south)) * grid;
+  const cols = grid + 1;
+
+  // Grid cell indices
+  const xi = Math.max(0, Math.min(grid - 1, Math.floor(gx)));
+  const yi = Math.max(0, Math.min(grid - 1, Math.floor(gy)));
+  const fx = gx - xi;
+  const fy = gy - yi;
+
+  // Four corners of the grid cell
+  const idx = (y, x) => y * cols + x;
+  const get = (i) => vectors[i] || { u: 0, v: 0, speed: 0 };
+  const p00 = get(idx(yi, xi));
+  const p10 = get(idx(yi, xi + 1));
+  const p01 = get(idx(yi + 1, xi));
+  const p11 = get(idx(yi + 1, xi + 1));
+
+  // Bilinear interpolation of u and v components
+  const u = (1 - fx) * (1 - fy) * p00.u + fx * (1 - fy) * p10.u +
+            (1 - fx) * fy * p01.u + fx * fy * p11.u;
+  const v = (1 - fx) * (1 - fy) * p00.v + fx * (1 - fy) * p10.v +
+            (1 - fx) * fy * p01.v + fx * fy * p11.v;
+  const speed = Math.sqrt(u * u + v * v);
+  return { u, v, speed };
+}
+
+/**
  * Canvas-based wind particle advection engine.
- * Renders animated particles flowing along real wind velocity fields.
- * Particles move continuously, speed/direction driven by nearest vector data.
+ * Renders animated particles flowing along bilinearly-interpolated wind velocity fields.
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
-  const canvasRef = useRef(null);
   const animRef = useRef(null);
 
   useEffect(() => {
-    if (!mapInstance || !windVectors?.length || !active) return;
+    if (!mapInstance || !windVectors?.vectors?.length || !active) return;
 
     const container = mapInstance.getCanvasContainer();
     const canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:1;';
     container.appendChild(canvas);
-    canvasRef.current = canvas;
     const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
 
     const resize = () => {
-      canvas.width = container.clientWidth * (window.devicePixelRatio || 1);
-      canvas.height = container.clientHeight * (window.devicePixelRatio || 1);
+      canvas.width = container.clientWidth * dpr;
+      canvas.height = container.clientHeight * dpr;
       canvas.style.width = container.clientWidth + 'px';
       canvas.style.height = container.clientHeight + 'px';
-      ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
 
-    // Create particles — 4 per vector for good density
-    const PARTICLES_PER_VECTOR = 4;
-    const TRAIL_LENGTH = 6;
+    // Spawn particles distributed across the viewport
+    const PARTICLE_COUNT = 300;
+    const TRAIL_LEN = 8;
     const particles = [];
-    windVectors.forEach(v => {
-      for (let i = 0; i < PARTICLES_PER_VECTOR; i++) {
-        const rad = v.direction * (Math.PI / 180);
-        const maxDist = Math.max(0.3, v.speed * 0.06);
-        particles.push({
-          lng: v.lng + (Math.random() - 0.5) * maxDist,
-          lat: v.lat + (Math.random() - 0.5) * maxDist,
-          srcVec: v, rad, maxDist,
-          trail: [], age: Math.random() * 100
-        });
-      }
-    });
 
-    // Find nearest vector for a given position (simple nearest-neighbor)
-    const findNearest = (lng, lat) => {
-      let best = windVectors[0], bestDist = Infinity;
-      for (const v of windVectors) {
-        const d = (v.lng - lng) ** 2 + (v.lat - lat) ** 2;
-        if (d < bestDist) { bestDist = d; best = v; }
-      }
-      return best;
+    const spawnParticle = () => {
+      const b = mapInstance.getBounds();
+      return {
+        lng: b.getWest() + Math.random() * (b.getEast() - b.getWest()),
+        lat: b.getSouth() + Math.random() * (b.getNorth() - b.getSouth()),
+        trail: [], age: 0, maxAge: 4 + Math.random() * 6
+      };
     };
+    for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawnParticle());
 
     const speedColor = (speed) => {
       if (speed < 5) return [100, 200, 255];
@@ -133,62 +162,55 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       const dt = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
       resize();
-      // Fade previous frame for trail effect
-      ctx.fillStyle = 'rgba(0,0,0,0.92)';
+
+      // Fade for trail effect
+      ctx.fillStyle = 'rgba(0,0,0,0.93)';
       ctx.globalCompositeOperation = 'destination-in';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.globalCompositeOperation = 'source-over';
 
-      const bounds = mapInstance.getBounds();
-      const w = bounds.getWest(), e = bounds.getEast();
-      const s = bounds.getSouth(), n = bounds.getNorth();
+      const b = mapInstance.getBounds();
+      const w = b.getWest(), e = b.getEast(), s = b.getSouth(), n = b.getNorth();
 
-      particles.forEach(p => {
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
         p.age += dt;
-        // Advect particle by wind velocity
-        const v = findNearest(p.lng, p.lat);
-        const rad = v.direction * (Math.PI / 180);
-        const moveScale = v.speed * 0.003 * dt * 60;
-        p.lng += Math.sin(rad) * moveScale;
-        p.lat -= Math.cos(rad) * moveScale;
 
-        // Project to screen
+        // Bilinear interpolation — smooth continuous field
+        const wind = interpolateWind(windVectors, p.lng, p.lat);
+        if (wind.speed > 0.1) {
+          // u = east component, v = north component (m/s → degrees/frame)
+          const scale = 0.0003 * dt * 60;
+          p.lng += wind.u * scale;
+          p.lat += wind.v * scale;
+        }
+
         const pt = mapInstance.project([p.lng, p.lat]);
         p.trail.push({ x: pt.x, y: pt.y });
-        if (p.trail.length > TRAIL_LENGTH) p.trail.shift();
+        if (p.trail.length > TRAIL_LEN) p.trail.shift();
 
-        // Draw trail
+        // Draw trail with speed-based color
         if (p.trail.length > 1) {
-          const [r, g, b] = speedColor(v.speed);
-          const alpha = Math.min(0.8, v.speed / 15);
+          const [r, g, b_] = speedColor(wind.speed);
+          const alpha = Math.min(0.85, wind.speed / 12);
           ctx.beginPath();
           ctx.moveTo(p.trail[0].x, p.trail[0].y);
-          for (let i = 1; i < p.trail.length; i++) {
-            ctx.lineTo(p.trail[i].x, p.trail[i].y);
-          }
-          ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
-          ctx.lineWidth = Math.max(1, v.speed / 10);
+          for (let j = 1; j < p.trail.length; j++) ctx.lineTo(p.trail[j].x, p.trail[j].y);
+          ctx.strokeStyle = `rgba(${r},${g},${b_},${alpha})`;
+          ctx.lineWidth = Math.max(0.8, wind.speed / 8);
           ctx.stroke();
         }
 
-        // Respawn if out of viewport
-        if (p.lng < w || p.lng > e || p.lat < s || p.lat > n || p.age > 8) {
-          const src = windVectors[Math.floor(Math.random() * windVectors.length)];
-          p.lng = src.lng + (Math.random() - 0.5) * 0.3;
-          p.lat = src.lat + (Math.random() - 0.5) * 0.3;
-          p.srcVec = src;
-          p.trail = [];
-          p.age = 0;
+        // Respawn if out of bounds or aged out
+        if (p.lng < w || p.lng > e || p.lat < s || p.lat > n || p.age > p.maxAge) {
+          particles[i] = spawnParticle();
         }
-      });
-
+      }
       animRef.current = requestAnimationFrame(animate);
     };
-
     animRef.current = requestAnimationFrame(animate);
 
-    // Clear trails on map move to prevent visual smearing
-    const onMove = () => { particles.forEach(p => p.trail = []); };
+    const onMove = () => { for (const p of particles) p.trail = []; };
     mapInstance.on('move', onMove);
     mapInstance.on('resize', resize);
 

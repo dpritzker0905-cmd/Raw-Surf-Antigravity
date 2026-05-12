@@ -303,9 +303,8 @@ const MapWebGL = ({
     try { mapInstance.triggerRepaint(); } catch(e) {}
   }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
-  // Fetch dynamic, global marine data with strict 1.2s debounce
-  // Uses a sparse 8x8 grid (64 points) to fit within a single Open-Meteo API call (<100 points).
-  // Heatmap rendering handles massive interpolation to display a beautiful global color map.
+  // Fetch marine data — viewport-scoped with request revision ID to prevent stale overwrites
+  const marineRequestId = useRef(0);
   useEffect(() => {
     if (!mapInstance) return;
     const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
@@ -319,81 +318,85 @@ const MapWebGL = ({
     const updateMarineGrid = async () => {
       if (isFetchingMarine.current) return;
       isFetchingMarine.current = true;
-      
+      const thisRequest = ++marineRequestId.current;
+
       try {
-        const bounds = mapInstance.getBounds();
-        const latMin = Math.max(-80, bounds.getSouth() - 5);
-        const latMax = Math.min(80, bounds.getNorth() + 5);
-        const lngMin = bounds.getWest() - 5;
-        const lngMax = bounds.getEast() + 5;
-        // Validate bounds before querying
-        if (latMax <= latMin || lngMax <= lngMin) {
-          console.warn('[Marine] Invalid bounds, skipping fetch');
-          return;
-        }
-        // Dense 10x10 grid (100 points) for coastal coverage
+        const b = mapInstance.getBounds();
+        const latMin = Math.max(-80, b.getSouth() - 5);
+        const latMax = Math.min(80, b.getNorth() + 5);
+        const lngMin = b.getWest() - 5;
+        const lngMax = b.getEast() + 5;
+        if (latMax <= latMin || lngMax <= lngMin) return;
+
+        // 10x10 grid for coastal density
         const latStep = Math.max(0.5, (latMax - latMin) / 10);
         const lngStep = Math.max(0.5, (lngMax - lngMin) / 10);
-
         const latSteps = [];
-        for (let lat = latMax; lat >= latMin; lat -= latStep) latSteps.push(Number(lat.toFixed(2)));
-        
+        for (let lat = latMax; lat >= latMin; lat -= latStep) latSteps.push(+lat.toFixed(2));
         const lngSteps = [];
         for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
-          let normLng = lng;
-          while (normLng > 180) normLng -= 360;
-          while (normLng < -180) normLng += 360;
-          lngSteps.push(Number(normLng.toFixed(2)));
+          let n = lng;
+          while (n > 180) n -= 360;
+          while (n < -180) n += 360;
+          lngSteps.push(+n.toFixed(2));
         }
-
         const allPoints = [];
         for (const lat of latSteps) {
-          for (const lng of lngSteps) { allPoints.push({ lat, lng }); }
+          for (const lng of lngSteps) allPoints.push({ lat, lng });
         }
-
-        // Limit strictly to 95 points just to be safe (Open-Meteo limit is 100)
         const safePoints = allPoints.slice(0, 95);
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
         const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        
+
+        // Stale request guard — if a newer request started, discard this one
+        if (thisRequest !== marineRequestId.current) return;
+
         const data = await res.json();
         const allResults = Array.isArray(data) ? data : [data];
 
+        // Diagnostic: log field names and data quality
+        let validCount = 0, nanCount = 0, landCount = 0;
         const features = safePoints.map((pt, i) => {
           const r = allResults[i];
-          if (!r || !r.current) return null;
+          if (!r || !r.current) { landCount++; return null; }
           const c = r.current;
           const wh = c.wave_height;
-          const wp = c.wave_period;
-          const wd = c.wave_direction;
-          // NaN guard — reject any point where all values are null/NaN
-          if ((wh == null || isNaN(wh)) && (wp == null || isNaN(wp))) return null;
+          // Land points return null for all marine fields — skip
+          if (wh == null && c.swell_wave_height == null && c.wind_wave_height == null) {
+            landCount++;
+            return null;
+          }
+          // NaN propagation guard
+          const safe = (v) => (v != null && !isNaN(v)) ? v : 0;
+          if (isNaN(wh)) nanCount++;
+          validCount++;
           return {
             type: 'Feature',
             geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
             properties: {
-              wave_height: (wh != null && !isNaN(wh)) ? wh : 0,
-              wave_period: (wp != null && !isNaN(wp)) ? wp : 0,
-              wave_direction: (wd != null && !isNaN(wd)) ? wd : 0,
-              swell_wave_height: (c.swell_wave_height != null && !isNaN(c.swell_wave_height)) ? c.swell_wave_height : 0,
-              swell_wave_period: (c.swell_wave_period != null && !isNaN(c.swell_wave_period)) ? c.swell_wave_period : 0,
-              swell_wave_direction: (c.swell_wave_direction != null && !isNaN(c.swell_wave_direction)) ? c.swell_wave_direction : 0,
-              wind_wave_height: (c.wind_wave_height != null && !isNaN(c.wind_wave_height)) ? c.wind_wave_height : 0,
-              wind_wave_period: (c.wind_wave_period != null && !isNaN(c.wind_wave_period)) ? c.wind_wave_period : 0,
-              wind_wave_direction: (c.wind_wave_direction != null && !isNaN(c.wind_wave_direction)) ? c.wind_wave_direction : 0,
+              wave_height: safe(wh), wave_period: safe(c.wave_period), wave_direction: safe(c.wave_direction),
+              swell_wave_height: safe(c.swell_wave_height), swell_wave_period: safe(c.swell_wave_period), swell_wave_direction: safe(c.swell_wave_direction),
+              wind_wave_height: safe(c.wind_wave_height), wind_wave_period: safe(c.wind_wave_period), wind_wave_direction: safe(c.wind_wave_direction),
             },
           };
         }).filter(Boolean);
 
+        console.log(`[Marine] ${features.length} valid / ${landCount} land / ${nanCount} NaN / ${safePoints.length} total`);
+
+        // Stale request guard (second check after parse)
+        if (thisRequest !== marineRequestId.current) return;
+
         if (features.length > 0) {
           marineRevision.current += 1;
           setMarineData({ type: 'FeatureCollection', features });
+        } else {
+          console.warn('[Marine] Zero valid ocean points in viewport — all land?');
         }
       } catch (err) {
-        console.warn('[MapWebGL] Global marine sparse fetch failed:', err);
+        if (!err.message?.includes('429')) console.warn('[Marine] Fetch failed:', err);
       } finally {
         isFetchingMarine.current = false;
       }
@@ -401,7 +404,7 @@ const MapWebGL = ({
 
     const debouncedUpdate = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateMarineGrid, 1200);
+      timeoutId = setTimeout(updateMarineGrid, 2000); // 2s debounce to avoid 429
     };
 
     // Fire immediately on first load — do NOT wait for moveend
@@ -411,7 +414,6 @@ const MapWebGL = ({
       mapInstance.once('load', updateMarineGrid);
     }
 
-    // Re-fetch when map stops moving
     mapInstance.on('moveend', debouncedUpdate);
     return () => {
       clearTimeout(timeoutId);
