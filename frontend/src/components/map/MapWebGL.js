@@ -9,11 +9,9 @@ import { useWindVectorData } from './GPUWindLayer';
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { omProtocol } from '@openmeteo/weather-map-layer';
-
 // --- Open-Meteo Weather Tile Protocol ---
 // The `om://` custom protocol is now registered inside the MapWebGL component via useEffect
-// to prevent Webpack module-level TDZ (Temporal Dead Zone) ReferenceErrors during chunk initialization.
+// using a dynamic import to prevent Webpack TDZ ReferenceErrors during chunk initialization.
 
 /**
  * Map Open-Meteo model identifiers to their tile-server paths.
@@ -69,22 +67,6 @@ const MapWebGL = ({
   const { theme } = useTheme();
   const isBeach = theme === 'beach';
   
-  // Wind vector data — viewport-scoped, MapLibre-native rendering
-  const { windData, windRevision } = useWindVectorData({
-    active: activeLayers.includes('wind'),
-    mapBounds: bounds
-  });
-
-  // Register Open-Meteo protocol safely on mount
-  useEffect(() => {
-    if (maplibregl && maplibregl.addProtocol) {
-      try {
-        maplibregl.addProtocol('om', omProtocol);
-      } catch (e) {
-        // Ignore if already registered
-      }
-    }
-  }, []);
   const [viewState, setViewState] = useState({
     longitude: FLORIDA_CENTER.lng,
     latitude: FLORIDA_CENTER.lat,
@@ -94,6 +76,22 @@ const MapWebGL = ({
   });
   
   const [bounds, setBounds] = useState(null);
+
+  // Wind vector data — viewport-scoped, MapLibre-native rendering
+  // NOTE: Must be declared AFTER bounds state to avoid TDZ
+  const { windData, windRevision } = useWindVectorData({
+    active: activeLayers.includes('wind'),
+    mapBounds: bounds
+  });
+
+  // Register Open-Meteo protocol safely on mount (dynamic import avoids TDZ)
+  useEffect(() => {
+    import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
+      if (maplibregl && maplibregl.addProtocol) {
+        try { maplibregl.addProtocol('om', omProtocol); } catch (e) {}
+      }
+    });
+  }, []);
 
   // Open-Meteo tile source URL — built dynamically after checking model capabilities
   // Track the active weather variable for stable Source IDs
