@@ -429,7 +429,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
           const prev = proj.project(pLng[i], pLat[i]);
           const px0 = prev.x, py0 = prev.y;
 
-          const targetPx = 1.0 + speed * 0.12;
+          const targetPx = Math.max(0.5, speed * 0.45);
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
 

@@ -41,6 +41,7 @@ const OM_VARIABLE_MAP = {
 
 // Cache to prevent repetitive manifest fetching during layer toggles
 const MODEL_METADATA_CACHE = {};
+const MODEL_METADATA_PROMISES = {};
 
 const MapWebGL = ({
   isLight,
@@ -93,24 +94,31 @@ const MapWebGL = ({
   }, [activeLayers]);
   const [omTileUrl, setOmTileUrl] = useState(null);
 
-  /** Fetch and cache model metadata (variables + valid_times) */
+  /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
-    if (!MODEL_METADATA_CACHE[modelToCheck]) {
-      try {
-        const res = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`);
-        if (!res.ok) throw new Error('Fetch failed');
-        const data = await res.json();
-        MODEL_METADATA_CACHE[modelToCheck] = {
-          variables: data.variables || [],
-          validTimes: data.valid_times || [],
-          referenceTime: data.reference_time || null,
-        };
-      } catch (err) {
-        console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-        return { variables: [], validTimes: [], referenceTime: null };
-      }
+    if (MODEL_METADATA_CACHE[modelToCheck]) return MODEL_METADATA_CACHE[modelToCheck];
+
+    if (!MODEL_METADATA_PROMISES[modelToCheck]) {
+      MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`)
+        .then(res => {
+          if (!res.ok) throw new Error('Fetch failed');
+          return res.json();
+        })
+        .then(data => {
+          const result = {
+            variables: data.variables || [],
+            validTimes: data.valid_times || [],
+            referenceTime: data.reference_time || null,
+          };
+          MODEL_METADATA_CACHE[modelToCheck] = result;
+          return result;
+        })
+        .catch(err => {
+          console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
+          return { variables: [], validTimes: [], referenceTime: null };
+        });
     }
-    return MODEL_METADATA_CACHE[modelToCheck];
+    return MODEL_METADATA_PROMISES[modelToCheck];
   }, []);
 
   // Pre-warm metadata cache on mount so layer toggles are instant
