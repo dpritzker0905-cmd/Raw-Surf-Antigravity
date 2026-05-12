@@ -1,19 +1,19 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { TripsLayer } from '@deck.gl/geo-layers';
+import { LineLayer } from '@deck.gl/layers';
 
 /**
  * Viewport-scoped wind vector layer.
- * Fetches u/v wind data ONLY for the current map bbox — no global cache, no backend dependency.
- * Renders animated directional particles via GPU-accelerated TripsLayer.
+ * Fetches wind data ONLY for the current map bbox — no global cache, no backend dependency.
+ * Renders animated directional lines via GPU-accelerated LineLayer.
  */
 export function useGPUWindLayer({ active, mapBounds }) {
-  const [trips, setTrips] = useState([]);
-  const [time, setTime] = useState(0);
+  const [arrows, setArrows] = useState([]);
+  const [phase, setPhase] = useState(0);
   const fetchingRef = useRef(false);
 
   // Fetch wind vectors for current viewport only
   useEffect(() => {
-    if (!active || !mapBounds) { setTrips([]); return; }
+    if (!active || !mapBounds) { setArrows([]); return; }
     if (fetchingRef.current) return;
 
     const timer = setTimeout(async () => {
@@ -44,7 +44,7 @@ export function useGPUWindLayer({ active, mapBounds }) {
         const json = await res.json();
         const results = Array.isArray(json) ? json : [json];
 
-        const arrows = [];
+        const data = [];
         safe.forEach((pt, i) => {
           const r = results[i];
           if (!r?.current) return;
@@ -55,59 +55,60 @@ export function useGPUWindLayer({ active, mapBounds }) {
           const rad = (dir - 180) * (Math.PI / 180);
           const length = Math.max(0.02, speed * 0.04);
 
-          arrows.push({
-            path: [
-              [pt.lng, pt.lat],
-              [pt.lng + Math.sin(rad) * length, pt.lat + Math.cos(rad) * length]
-            ],
-            timestamps: [0, 100],
+          data.push({
+            from: [pt.lng, pt.lat],
+            to: [pt.lng + Math.sin(rad) * length, pt.lat + Math.cos(rad) * length],
             speed
           });
         });
 
-        setTrips(arrows);
+        setArrows(data);
       } catch (err) {
         console.warn('[GPUWindLayer] Viewport fetch failed:', err);
       } finally {
         fetchingRef.current = false;
       }
-    }, 1200); // Debounce to prevent rate limits
+    }, 1200);
 
     return () => clearTimeout(timer);
   }, [active, mapBounds]);
 
-  // Animation loop — GPU-driven, zero CPU math
+  // Animation phase loop — pulsing opacity for flow effect
   useEffect(() => {
-    if (!active || !trips.length) return;
+    if (!active || !arrows.length) return;
     let frame;
     const animate = () => {
-      setTime(t => (t + 1) % 100);
+      setPhase(t => (t + 2) % 360);
       frame = requestAnimationFrame(animate);
     };
     animate();
     return () => cancelAnimationFrame(frame);
-  }, [active, trips]);
+  }, [active, arrows]);
 
   return useMemo(() => {
-    if (!active || !trips.length) return null;
-    return new TripsLayer({
-      id: 'gpu-wind-trips',
-      data: trips,
-      getPath: d => d.path,
-      getTimestamps: d => d.timestamps,
+    if (!active || !arrows.length) return null;
+    // Pulsing opacity creates a "flowing" effect
+    const pulse = 0.5 + 0.5 * Math.sin(phase * Math.PI / 180);
+    return new LineLayer({
+      id: 'gpu-wind-lines',
+      data: arrows,
+      getSourcePosition: d => d.from,
+      getTargetPosition: d => d.to,
       getColor: d => {
         const s = d.speed;
-        if (s < 5) return [100, 200, 255, 180];
-        if (s < 15) return [50, 255, 150, 210];
-        if (s < 25) return [255, 200, 0, 230];
-        return [255, 50, 50, 255];
+        const a = Math.round(120 + 135 * pulse);
+        if (s < 5) return [100, 200, 255, a];
+        if (s < 15) return [50, 255, 150, a];
+        if (s < 25) return [255, 200, 0, a];
+        return [255, 50, 50, a];
       },
-      getWidth: d => Math.max(1, d.speed / 4),
-      currentTime: time,
-      trailLength: 40,
+      getWidth: d => Math.max(1.5, d.speed / 3),
+      widthUnits: 'pixels',
       widthMinPixels: 1,
-      widthMaxPixels: 5,
-      capRounded: true,
+      widthMaxPixels: 6,
+      updateTriggers: {
+        getColor: [phase]
+      }
     });
-  }, [active, trips, time]);
+  }, [active, arrows, phase]);
 }
