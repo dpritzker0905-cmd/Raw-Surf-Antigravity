@@ -338,7 +338,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
     };
 
     // Initial fetch
-    debouncedUpdate();
+    updateWindGrid();
 
     // Re-fetch when map stops moving
     mapInstance.on('moveend', debouncedUpdate);
@@ -427,7 +427,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         cancelAnimationFrame(fieldTimerRef.current);
         fieldTimerRef.current = requestAnimationFrame(renderColorField);
       }
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
   }, [mapInstance, renderColorField]);
 
   // Event wiring for field + interaction state

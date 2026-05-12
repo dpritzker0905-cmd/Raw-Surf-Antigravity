@@ -82,12 +82,12 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
     try {
       // Parallel fetch: weather (hourly + current) + marine (hourly + current)
-      const [wxRes, marineRes] = await Promise.allSettled([
+      // For accurate 'current' weather, we fetch `best_match` model separately
+      const [wxRes, marineRes, currentRes] = await Promise.allSettled([
         fetch(
           `https://api.open-meteo.com/v1/forecast?` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
           `&hourly=${WEATHER_VARS}` +
-          `&current=${CURRENT_WEATHER_VARS}` +
           `&models=${modelParam}` +
           `&forecast_days=16` +
           `&timezone=auto`,
@@ -101,13 +101,19 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           `&forecast_days=16`,
           { signal: controller.signal }
         ),
+        fetch(
+          `https://api.open-meteo.com/v1/forecast?` +
+          `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
+          `&current=${CURRENT_WEATHER_VARS}` +
+          `&models=best_match` +
+          `&timezone=auto`,
+          { signal: controller.signal }
+        )
       ]);
 
       if (wxRes.status === 'fulfilled' && wxRes.value.ok) {
         const data = await wxRes.value.json();
         setForecastData(data);
-        // Extract current weather for LIVE mode accuracy
-        if (data.current) setCurrentWeather(data.current);
       } else {
         logger.warn('[OpenMeteo] Weather fetch failed:', wxRes.reason || wxRes.value?.status);
       }
@@ -117,6 +123,11 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         setMarineData(data);
       } else {
         logger.warn('[OpenMeteo] Marine fetch failed:', marineRes.reason || marineRes.value?.status);
+      }
+
+      if (currentRes.status === 'fulfilled' && currentRes.value.ok) {
+        const currentData = await currentRes.value.json();
+        if (currentData.current) setCurrentWeather(currentData.current);
       }
     } catch (err) {
       if (err.name !== 'AbortError') {

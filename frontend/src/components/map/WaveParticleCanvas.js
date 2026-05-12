@@ -7,11 +7,11 @@ import { useTheme } from '../../contexts/ThemeContext';
  * Data: Open-Meteo Marine API (wave_height, wave_direction, wave_period).
  */
 
-const PARTICLE_COUNT = 1800;
-const MAX_AGE = 75;
-const LINE_WIDTH = 1.3;
-const FIELD_CELL_SIZE = 18;
-const FIELD_BLUR_PX = 22;
+const PARTICLE_COUNT = 3500;
+const MAX_AGE = 90;
+const LINE_WIDTH = 1.0;
+const FIELD_CELL_SIZE = 14;
+const FIELD_BLUR_PX = 16;
 const FIELD_PAD = 1.0;
 const DEG2RAD = Math.PI / 180;
 const PI = Math.PI;
@@ -54,19 +54,19 @@ class FastMercator {
 // --- Color Ramps (wave height in meters) ---
 const FIELD_COLORS = {
   dark: [
-    [0,10,30,80,0.15],[0.3,20,60,120,0.22],[0.6,30,100,160,0.28],[1,40,140,180,0.33],
-    [1.5,50,175,160,0.38],[2,70,190,100,0.42],[2.5,140,200,50,0.46],[3,210,190,30,0.50],
-    [4,240,140,25,0.54],[5,240,80,30,0.58],[7,200,30,60,0.62],[10,160,20,120,0.66],
+    [0,10,30,80,0.25],[0.3,20,60,120,0.35],[0.6,30,100,160,0.45],[1,40,140,180,0.55],
+    [1.5,50,175,160,0.65],[2,70,190,100,0.70],[2.5,140,200,50,0.75],[3,210,190,30,0.80],
+    [4,240,140,25,0.85],[5,240,80,30,0.90],[7,200,30,60,0.92],[10,160,20,120,0.95],
   ],
   light: [
-    [0,200,220,240,0.10],[0.3,160,200,230,0.18],[0.6,100,170,210,0.24],[1,60,145,190,0.30],
-    [1.5,40,130,170,0.35],[2,50,150,80,0.38],[2.5,110,165,30,0.42],[3,175,155,15,0.46],
-    [4,210,110,15,0.50],[5,210,55,20,0.54],[7,175,20,45,0.58],[10,130,10,90,0.62],
+    [0,200,220,240,0.20],[0.3,160,200,230,0.30],[0.6,100,170,210,0.40],[1,60,145,190,0.50],
+    [1.5,40,130,170,0.60],[2,50,150,80,0.65],[2.5,110,165,30,0.70],[3,175,155,15,0.75],
+    [4,210,110,15,0.80],[5,210,55,20,0.85],[7,175,20,45,0.90],[10,130,10,90,0.95],
   ],
   beach: [
-    [0,10,40,60,0.12],[0.3,20,70,90,0.20],[0.6,30,100,120,0.26],[1,40,130,140,0.32],
-    [1.5,50,150,130,0.36],[2,80,160,80,0.40],[2.5,130,170,40,0.44],[3,190,160,25,0.48],
-    [4,220,120,20,0.52],[5,220,65,25,0.56],[7,185,25,50,0.60],[10,140,15,100,0.64],
+    [0,10,40,60,0.22],[0.3,20,70,90,0.32],[0.6,30,100,120,0.42],[1,40,130,140,0.52],
+    [1.5,50,150,130,0.62],[2,80,160,80,0.68],[2.5,130,170,40,0.74],[3,190,160,25,0.80],
+    [4,220,120,20,0.85],[5,220,65,25,0.90],[7,185,25,50,0.92],[10,140,15,100,0.95],
   ],
 };
 
@@ -160,24 +160,36 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       isFetching.current = true;
       try {
         const bounds = mapInstance.getBounds();
-        const PAD = 10;
-        const latMin = Math.max(-80, bounds.getSouth() - PAD);
-        const latMax = Math.min(80, bounds.getNorth() + PAD);
-        const lngMin = bounds.getWest() - PAD;
-        const lngMax = bounds.getEast() + PAD;
-        const nx = 8, ny = 8;
-        const latStep = Math.max(0.5, (latMax - latMin) / (ny - 1));
-        const lngStep = Math.max(0.5, (lngMax - lngMin) / (nx - 1));
+        const viewLatMin = bounds.getSouth();
+        const viewLatMax = bounds.getNorth();
+        const viewLngMin = bounds.getWest();
+        const viewLngMax = bounds.getEast();
+
+        const PAD = 30;
+        const latRange = Math.max(60, viewLatMax - viewLatMin + PAD * 2);
+        const lngRange = Math.max(120, viewLngMax - viewLngMin + PAD * 2);
+        const centerLat = (viewLatMax + viewLatMin) / 2;
+        const centerLng = (viewLngMax + viewLngMin) / 2;
+
+        const latMin = Math.max(-85, centerLat - latRange / 2);
+        const latMax = Math.min(85, centerLat + latRange / 2);
+        const lngMin = centerLng - lngRange / 2;
+        const lngMax = centerLng + lngRange / 2;
+
+        const nx = 9, ny = 9;
+        const latStep = Math.max(0.01, (latMax - latMin) / (ny - 1));
+        const lngStep = Math.max(0.01, (lngMax - lngMin) / (nx - 1));
 
         const pts = [];
         for (let j = 0; j < ny; j++) {
+          const lat = latMax - j * latStep;
           for (let i = 0; i < nx; i++) {
             let lng = lngMin + i * lngStep;
             while (lng > 180) lng -= 360; while (lng < -180) lng += 360;
-            pts.push({ lat: Number((latMax - j * latStep).toFixed(2)), lng: Number(lng.toFixed(2)) });
+            pts.push({ lat: Number(lat.toFixed(2)), lng: Number(lng.toFixed(2)) });
           }
         }
-        const safe = pts.slice(0, 64);
+        const safe = pts.slice(0, 81);
         const lats = safe.map(p => p.lat).join(',');
         const lons = safe.map(p => p.lng).join(',');
 
@@ -224,7 +236,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
     };
 
     const debounced = () => { clearTimeout(timeoutId); timeoutId = setTimeout(fetchGrid, 1200); };
-    debounced();
+    fetchGrid();
     mapInstance.on('moveend', debounced);
     return () => { clearTimeout(timeoutId); mapInstance.off('moveend', debounced); };
   }, [isActive, mapInstance, activeLayer, timeOffsetHours]);
@@ -279,7 +291,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
     try {
       const cur = map.project([origin.lng, origin.lat]);
       if (fieldRef.current) fieldRef.current.style.transform = `translate(${cur.x-origin.px}px,${cur.y-origin.py}px)`;
-    } catch (_) {}
+    } catch (_) { /* ignore */ }
   }, [mapInstance]);
 
   // Event wiring
