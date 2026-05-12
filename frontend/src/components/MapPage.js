@@ -602,10 +602,10 @@ const MapPageContent = () => {
         radarFrames={radarFrames}
         radarFrameIndex={radarFrameIndex}
         onRadarFrameChange={setRadarFrameIndex}
-        currentTimeOffset={timeOffsetHours}
         onTimeChange={setTimeOffsetHours}
         isPlaying={isPlayingTimeline}
         onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
+        isImmersiveMode={isImmersiveMode}
       />
 
 
@@ -621,6 +621,7 @@ const MapPageContent = () => {
           isLoading={forecastLoading}
           isLockedForecast={isLockedForecast}
           isTimelineCollapsed={isTimelineCollapsed}
+          isImmersiveMode={isImmersiveMode}
         />
       )}
 

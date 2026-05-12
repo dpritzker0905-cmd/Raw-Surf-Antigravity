@@ -29,6 +29,7 @@ export const MapWeatherControls = ({
   onTogglePlay,
   isTimelineCollapsed = false,
   onTimelineCollapseToggle,
+  isImmersiveMode = false,
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -255,7 +256,7 @@ export const MapWeatherControls = ({
     // Collapsed mobile state: Just show timeline and legend floating above bottom nav
     if (!activeLayer) return null;
     return (
-      <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none" style={{ bottom: '72px' }}>
+      <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none transition-all duration-300" style={{ bottom: isImmersiveMode ? '16px' : '72px' }}>
         <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${collapsedState ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
           <div className="flex justify-center gap-24 items-center pb-2 -mt-2">
             <button 
