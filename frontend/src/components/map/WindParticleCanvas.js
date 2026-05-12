@@ -147,8 +147,11 @@ class GlobalWindGrid {
   /** Returns reusable Float64Array [u, v, speed] or null. Do NOT store reference. */
   interpolate(lat, lng) {
     let lon = lng;
-    while (lon < this.lo1) lon += 360;
-    while (lon > this.lo2 + this.dx) lon -= 360;
+    // Normalize lon to [-180, 180) to fix Pacific pan seam
+    lon = ((lon + 180) % 360 + 360) % 360 - 180;
+    // If exactly 180 and grid bounds at 180, wrap to -180
+    if (lon === 180) lon = -180;
+    
     const fi = (lon - this.lo1) / this.dx;
     const fj = (this.la1 - lat) / this.dy;
     const i = Math.floor(fi), j = Math.floor(fj);
@@ -234,12 +237,12 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
       isFetchingWind.current = true;
       
       try {
-        // Always global bounds — extend to ±85° to minimise arctic/antarctic gap
-        const latMin = -85, latMax = 85, lngMin = -180, lngMax = 180;
+        // Always global bounds — extend to ±90° for full coverage
+        const latMin = -90, latMax = 90, lngMin = -180, lngMax = 180;
 
-        // 5x5 = 25 points: far below rate-limit threshold, short URL
-        const nx = 5;
-        const ny = 5;
+        // 10x10 = 100 points: exactly at the limit of the Open-Meteo URL length/point limit
+        const nx = 10;
+        const ny = 10;
         const latStep = (latMax - latMin) / (ny - 1);
         const lngStep = (lngMax - lngMin) / (nx - 1);
 
@@ -255,8 +258,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
-        // Ensemble API: separate rate-limit bucket from api.open-meteo.com, real-time forecast
-        const url = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs025&forecast_days=2`;
+        // Use deterministic GFS for crisp variations (100 pts * 1 request = safe from 10k/day limit)
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs_seamless&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -279,19 +282,9 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
             if (diff < minDiff) { minDiff = diff; closest = idx; }
           });
 
-          // Compute ensemble mean speed + circular-mean direction across all 31 members
-          const keys = Object.keys(r.hourly);
-          let sSum = 0, sCnt = 0, snSum = 0, csSum = 0;
-          for (const k of keys) {
-            if (k.startsWith('wind_speed_10m_member')) {
-              sSum += (r.hourly[k][closest] ?? 0); sCnt++;
-            } else if (k.startsWith('wind_direction_10m_member')) {
-              const dv = (r.hourly[k][closest] ?? 0) * Math.PI / 180;
-              snSum += Math.sin(dv); csSum += Math.cos(dv);
-            }
-          }
-          const speedKmh = sCnt > 0 ? sSum / sCnt : 0;
-          const dir = (Math.atan2(snSum / (sCnt || 1), csSum / (sCnt || 1)) * 180 / Math.PI + 360) % 360;
+          // Extract deterministic speed and direction directly
+          const speedKmh = r.hourly.wind_speed_10m?.[closest] ?? 0;
+          const dir = r.hourly.wind_direction_10m?.[closest] ?? 0;
           const speed = speedKmh * 0.277778; // km/h → m/s
 
           // U (zonal) = -speed*sin(dir), V (meridional) = -speed*cos(dir)

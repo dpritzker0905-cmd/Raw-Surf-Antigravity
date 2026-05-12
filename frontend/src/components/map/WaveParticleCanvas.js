@@ -134,7 +134,7 @@ class ParticlePool {
   constructor(n) { this.count=n; this.lng=new Float64Array(n); this.lat=new Float64Array(n); this.age=new Float32Array(n); }
   seedRandom(i, w, h, proj) {
     const g = proj.unproject(Math.random()*w, Math.random()*h);
-    this.lng[i]=g.lng; this.lat[i]=g.lat; this.age[i]=Math.floor(Math.random()*MAX_AGE);
+    this.lng[i]=g.lng; this.lat[i]=g.lat; this.age[i]=Math.floor(Math.random()*25);
   }
 }
 
@@ -336,9 +336,9 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       frameCount++; proj.sync(map);
       if (frameCount % 30 === 0) updatePPD();
 
-      // Slow fade = long, organic wave trails (not sharp arrows)
+      // Fast fade = short, distinct wave dashes (resembling wave crests)
       tCtx.globalCompositeOperation = 'destination-in';
-      tCtx.globalAlpha = 1.0; tCtx.fillStyle = 'rgba(0,0,0,0.93)'; tCtx.fillRect(0, 0, w, h);
+      tCtx.globalAlpha = 1.0; tCtx.fillStyle = 'rgba(0,0,0,0.85)'; tCtx.fillRect(0, 0, w, h);
       tCtx.globalCompositeOperation = 'source-over'; tCtx.globalAlpha = 1.0;
 
       if (!grid) { animRef.current = requestAnimationFrame(draw); return; }
@@ -369,9 +369,16 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           if (dx * dx + dy * dy >= 0.1) {
             const entry = lookupCached(height, cache);
             if (!batches.has(entry.key)) batches.set(entry.key, { style: entry.style, glowStyle: entry.glowStyle, segs: [], glow: height > 3 });
-            batches.get(entry.key).segs.push(px0, py0, px1, py1);
+            
+            // Draw perpendicular wave crests instead of flow arrows
+            const len = Math.sqrt(dx * dx + dy * dy);
+            const nx = -dy / len, ny = dx / len; // Perpendicular vector
+            const crestHalfLen = 3.5; // Width of the wave crest line
+            const cx = px1, cy = py1; // Center at current position
+            
+            batches.get(entry.key).segs.push(cx + nx * crestHalfLen, cy + ny * crestHalfLen, cx - nx * crestHalfLen, cy - ny * crestHalfLen);
           }
-          if (pAge[i] > MAX_AGE || px1 < -50 || px1 > w + 50 || py1 < -50 || py1 > h + 50) pool.seedRandom(i, w, h, proj);
+          if (pAge[i] > 25 || px1 < -50 || px1 > w + 50 || py1 < -50 || py1 > h + 50) pool.seedRandom(i, w, h, proj);
         } else {
           pool.seedRandom(i, w, h, proj);
         }
