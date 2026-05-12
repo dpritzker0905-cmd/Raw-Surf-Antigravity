@@ -189,7 +189,7 @@ class ParticlePool {
 }
 
 // ============================================================
-const WindParticleCanvas = ({ mapInstance, isActive }) => {
+const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, particleColorOverride = null }) => {
   const fieldRef = useRef(null);
   const trailRef = useRef(null);
   const animRef = useRef(null);
@@ -202,7 +202,18 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
 
   const particleRamp = useMemo(() => THEME_PARTICLE_COLORS[theme] || THEME_PARTICLE_COLORS.dark, [theme]);
   const fieldRamp = useMemo(() => THEME_FIELD_COLORS[theme] || THEME_FIELD_COLORS.dark, [theme]);
-  const particleStyleCache = useMemo(() => buildStyleCache(particleRamp), [particleRamp]);
+  const particleStyleCache = useMemo(() => {
+    if (particleColorOverride === 'white') {
+      return buildStyleCache([
+        [0, 255, 255, 255, 0.35],
+        [5, 255, 255, 255, 0.50],
+        [10, 255, 255, 255, 0.65],
+        [15, 255, 255, 255, 0.80],
+        [20, 255, 255, 255, 0.95]
+      ]);
+    }
+    return buildStyleCache(particleRamp);
+  }, [particleRamp, particleColorOverride]);
 
   // Fetch wind data once
   useEffect(() => {
@@ -222,6 +233,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   //  LAYER 1: Color Field (padded + fast projection + fillRect)
   // ==========================================================
   const renderColorField = useCallback(() => {
+    if (hideColorField) return;
     const map = mapInstance, canvas = fieldRef.current, grid = windGridRef.current;
     if (!map || !canvas || !grid) return;
 
@@ -291,7 +303,7 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   // Event wiring for field + interaction state
   useEffect(() => {
     const map = mapInstance;
-    if (!map || !isActive || !gridLoaded) return;
+    if (!map || !isActive || !gridLoaded || hideColorField) return;
     renderColorField();
 
     const onViewChange = () => {
@@ -322,8 +334,8 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   }, [mapInstance, isActive, gridLoaded, renderColorField, onMapMove]);
 
   useEffect(() => {
-    if (isActive && gridLoaded && mapInstance) renderColorField();
-  }, [fieldRamp, isActive, gridLoaded, mapInstance, renderColorField]);
+    if (isActive && gridLoaded && mapInstance && !hideColorField) renderColorField();
+  }, [fieldRamp, isActive, gridLoaded, mapInstance, hideColorField, renderColorField]);
 
   // ==========================================================
   //  LAYER 2: Particles (Struct-of-Arrays + Inline Mercator)

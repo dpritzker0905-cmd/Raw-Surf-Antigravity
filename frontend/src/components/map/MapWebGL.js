@@ -482,7 +482,10 @@ const MapWebGL = ({
           <Layer
             id="om-weather-layer"
             type="raster"
-            paint={{ 'raster-opacity': 0.7, 'raster-fade-duration': 300 }}
+            paint={{ 
+              'raster-opacity': activeLayers.includes('pressure') ? 0.45 : 0.7, 
+              'raster-fade-duration': 300 
+            }}
           />
         </Source>
       )}
@@ -705,7 +708,12 @@ const MapWebGL = ({
       ))}
     </Map>
     {/* Wind Particle Canvas — overlays the map with animated directional flow */}
-    <WindParticleCanvas mapInstance={mapInstance} isActive={activeLayers.includes('wind')} />
+    <WindParticleCanvas 
+      mapInstance={mapInstance} 
+      isActive={activeLayers.includes('wind') || activeLayers.includes('pressure')} 
+      hideColorField={activeLayers.includes('pressure')}
+      particleColorOverride={activeLayers.includes('pressure') ? 'white' : null}
+    />
     </div>
   );
 };
