@@ -22,13 +22,13 @@ export const MapRightControls = ({
   onShowGPSGuide,
   showWeatherControls,
   onToggleWeatherControls,
+  activeLayers = [],
 }) => {
+  const bottomStyle = activeLayers.length > 0 ? 'bottom-[150px] md:bottom-20' : 'bottom-20';
+
   return (
     <div
-      className="absolute right-4 z-[1000] flex flex-col gap-2"
-      style={{
-        bottom: '80px', // Place above the bottom timeline slider
-      }}
+      className={`absolute right-4 z-[1000] flex flex-col gap-2 transition-all duration-300 ${bottomStyle}`}
     >
       {/* Low-accuracy location fix button */}
       {userLocation?.accuracy && userLocation.accuracy > 1000 && (

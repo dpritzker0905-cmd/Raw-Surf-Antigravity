@@ -541,6 +541,7 @@ const MapPageContent = () => {
         onShowGPSGuide={() => setShowGPSGuide(true)}
         showWeatherControls={showWeatherControls}
         onToggleWeatherControls={() => setShowWeatherControls(!showWeatherControls)}
+        activeLayers={activeLayers}
       />
 
       {/* Desktop Weather Controls */}
