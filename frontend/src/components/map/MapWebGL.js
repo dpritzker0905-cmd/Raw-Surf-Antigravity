@@ -4,20 +4,12 @@ import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useControl } from 'react-map-gl/maplibre';
-import { MapboxOverlay } from '@deck.gl/mapbox';
-import { useGPUWindLayer } from './GPUWindLayer';
+import { useWindVectorData } from './GPUWindLayer';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { omProtocol } from '@openmeteo/weather-map-layer';
-
-function DeckGLOverlay(props) {
-  const overlay = useControl(() => new MapboxOverlay(props));
-  overlay.setProps(props);
-  return null;
-}
 
 // --- Open-Meteo Weather Tile Protocol ---
 // The `om://` custom protocol is now registered inside the MapWebGL component via useEffect
@@ -77,8 +69,8 @@ const MapWebGL = ({
   const { theme } = useTheme();
   const isBeach = theme === 'beach';
   
-  // GPU wind vector layer — viewport-scoped fetching, animated directional particles
-  const gpuWindLayer = useGPUWindLayer({
+  // Wind vector data — viewport-scoped, MapLibre-native rendering
+  const { windData, windRevision } = useWindVectorData({
     active: activeLayers.includes('wind'),
     mapBounds: bounds
   });
@@ -750,7 +742,39 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      <DeckGLOverlay layers={[gpuWindLayer].filter(Boolean)} interleaved={true} />
+      {/* Wind Vector Arrows — MapLibre-native rendering */}
+      {windData && activeLayers.includes('wind') && (
+        <Source
+          key={`wind-src-${windRevision.current}`}
+          id="wind-vector-source"
+          type="geojson"
+          data={windData}
+        >
+          <Layer
+            id="wind-vector-lines"
+            type="line"
+            paint={{
+              'line-color': [
+                'interpolate', ['linear'],
+                ['get', 'speed'],
+                0, '#64c8ff',
+                5, '#32ff96',
+                15, '#ffc800',
+                25, '#ff3232'
+              ],
+              'line-width': [
+                'interpolate', ['linear'],
+                ['get', 'speed'],
+                0, 1,
+                10, 2.5,
+                25, 4
+              ],
+              'line-opacity': 0.85
+            }}
+            layout={{ 'line-cap': 'round' }}
+          />
+        </Source>
+      )}
     </Map>
     </div>
   );
