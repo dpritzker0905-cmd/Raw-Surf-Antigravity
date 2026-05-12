@@ -127,6 +127,8 @@ const MapPageContent = () => {
     setShowIpBanner,
     pulsingMarkers,
     setPulsingMarkers,
+    isImmersiveMode,
+    setIsImmersiveMode,
   } = useMapState();
 
   // Weather Mapping State — extracted into useWeatherState hook (v125 decomposition)
