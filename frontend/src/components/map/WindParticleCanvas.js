@@ -18,7 +18,7 @@ import { useTheme } from '../../contexts/ThemeContext';
  */
 
 const PARTICLE_COUNT = 3500;
-const MAX_AGE = 70;
+const MAX_AGE = 90;
 const LINE_WIDTH = 1.0;
 const FIELD_CELL_SIZE = 14;
 const FIELD_BLUR_PX = 16;
@@ -232,12 +232,24 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
       
       try {
         const bounds = mapInstance.getBounds();
-        const latMin = Math.max(-85, bounds.getSouth() - 5);
-        const latMax = Math.min(85, bounds.getNorth() + 5);
-        const lngMin = bounds.getWest() - 5;
-        const lngMax = bounds.getEast() + 5;
+        const viewLatMin = bounds.getSouth();
+        const viewLatMax = bounds.getNorth();
+        const viewLngMin = bounds.getWest();
+        const viewLngMax = bounds.getEast();
 
-        // Sparse 9x9 grid (81 points total, < 100 limit)
+        // Ensure global-scale coverage: minimum 60° lat × 120° lng with 30° padding
+        const PAD = 30;
+        const latRange = Math.max(60, viewLatMax - viewLatMin + PAD * 2);
+        const lngRange = Math.max(120, viewLngMax - viewLngMin + PAD * 2);
+        const centerLat = (viewLatMax + viewLatMin) / 2;
+        const centerLng = (viewLngMax + viewLngMin) / 2;
+
+        const latMin = Math.max(-85, centerLat - latRange / 2);
+        const latMax = Math.min(85, centerLat + latRange / 2);
+        const lngMin = centerLng - lngRange / 2;
+        const lngMax = centerLng + lngRange / 2;
+
+        // Sparse 9x9 grid (81 points total, < 100 API limit)
         const nx = 9;
         const ny = 9;
         const latStep = Math.max(0.01, (latMax - latMin) / (ny - 1));
@@ -513,7 +525,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const prev = proj.project(pLng[i], pLat[i]);
           const px0 = prev.x, py0 = prev.y;
 
-          const targetPx = Math.max(0.5, speed * 0.45);
+          const targetPx = Math.max(0.3, speed * 0.12);
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
 
