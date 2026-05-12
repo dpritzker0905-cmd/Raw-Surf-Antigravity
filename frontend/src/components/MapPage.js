@@ -429,6 +429,15 @@ const MapPageContent = () => {
       className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50]`}
       data-testid="map-page-container"
     >
+      {isImmersiveMode && (
+        <style>{`
+          [data-testid="bottom-nav"], .bottom-nav-container {
+            transform: translateY(100%);
+            opacity: 0;
+            pointer-events: none !important;
+          }
+        `}</style>
+      )}
       {/* Map Container - Fill entire view */}
       <div className="absolute inset-0 z-0" data-testid="map-container">
         <MapWebGL 
@@ -449,6 +458,12 @@ const MapPageContent = () => {
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
           timeOffsetHours={timeOffsetHours}
+          onMapClick={(e) => {
+            // Check if they clicked on the base map layer, not a marker/cluster
+            if (e.originalEvent && !e.originalEvent.defaultPrevented) {
+              setIsImmersiveMode(prev => !prev);
+            }
+          }}
         />
       </div>
 
@@ -469,7 +484,7 @@ const MapPageContent = () => {
 
       {/* TOP RAIL */}
       <div 
-        className="absolute top-0 left-0 right-0 z-[1000] pointer-events-none pt-4" 
+        className={`absolute top-0 left-0 right-0 z-[1000] pointer-events-none pt-4 transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0' : 'opacity-100'}`} 
       >
         <div className="px-4">
           <MapHeader livePhotographerCount={livePhotographers.length} />
@@ -525,25 +540,29 @@ const MapPageContent = () => {
         </div>
       </div>
 
-      <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={clearDispatch} />
+      <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={clearDispatch} />
+      </div>
 
-      <MapRightControls
-        userLocation={userLocation}
-        gpsLoading={gpsLoading}
-        locationDenied={locationDenied}
-        currentUserShooting={currentUserShooting}
-        showFeaturedPanel={showFeaturedPanel}
-        showFriendsOnMap={showFriendsOnMap}
-        friendsOnMap={friendsOnMap}
-        onGetLocation={getUserLocation}
-        onShowLocationPicker={() => setShowLocationPicker(true)}
-        onToggleFeatured={() => setShowFeaturedPanel(!showFeaturedPanel)}
-        onToggleFriends={() => setShowFriendsOnMap(!showFriendsOnMap)}
-        onShowGPSGuide={() => setShowGPSGuide(true)}
-        showWeatherControls={showWeatherControls}
-        onToggleWeatherControls={() => setShowWeatherControls(!showWeatherControls)}
-        activeLayers={activeLayers}
-      />
+      <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <MapRightControls
+          userLocation={userLocation}
+          gpsLoading={gpsLoading}
+          locationDenied={locationDenied}
+          currentUserShooting={currentUserShooting}
+          showFeaturedPanel={showFeaturedPanel}
+          showFriendsOnMap={showFriendsOnMap}
+          friendsOnMap={friendsOnMap}
+          onGetLocation={getUserLocation}
+          onShowLocationPicker={() => setShowLocationPicker(true)}
+          onToggleFeatured={() => setShowFeaturedPanel(!showFeaturedPanel)}
+          onToggleFriends={() => setShowFriendsOnMap(!showFriendsOnMap)}
+          onShowGPSGuide={() => setShowGPSGuide(true)}
+          showWeatherControls={showWeatherControls}
+          onToggleWeatherControls={() => setShowWeatherControls(!showWeatherControls)}
+          activeLayers={activeLayers}
+        />
+      </div>
 
       {/* Desktop Weather Controls */}
       <MapWeatherControls 
@@ -615,23 +634,25 @@ const MapPageContent = () => {
         />
       )}
 
-      <NearestSpotCard
-        nearestSpot={nearestSpot}
-        userLocation={userLocation}
-        isHidden={showWeatherControls}
-        onSpotSelect={(spot) => {
-          if (mapInstanceRef.current && spot.latitude && spot.longitude) {
-            mapInstanceRef.current.flyTo({
-              center: [spot.longitude, spot.latitude],
-              zoom: 14,
-              pitch: 45,
-              duration: 1000
-            });
-          }
-          setSelectedSpot(spot);
-          setUnifiedDrawerOpen(true);
-        }}
-      />
+      <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <NearestSpotCard
+          nearestSpot={nearestSpot}
+          userLocation={userLocation}
+          isHidden={showWeatherControls}
+          onSpotSelect={(spot) => {
+            if (mapInstanceRef.current && spot.latitude && spot.longitude) {
+              mapInstanceRef.current.flyTo({
+                center: [spot.longitude, spot.latitude],
+                zoom: 14,
+                pitch: 45,
+                duration: 1000
+              });
+            }
+            setSelectedSpot(spot);
+            setUnifiedDrawerOpen(true);
+          }}
+        />
+      </div>
 
       {bottomSheetOpen && selectedPhotographer && !showJumpInModal && (
         <PhotographerBottomSheet

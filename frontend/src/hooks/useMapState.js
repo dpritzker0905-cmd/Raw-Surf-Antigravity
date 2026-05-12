@@ -36,6 +36,9 @@ export const useMapState = () => {
   // Pulsing markers for visual feedback
   const [pulsingMarkers, setPulsingMarkers] = useState(new Set());
 
+  // Immersive mode state
+  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
+
   /**
    * Handle filter change
    */
@@ -143,6 +146,10 @@ export const useMapState = () => {
     setPulsingMarkers,
     addPulsingMarker,
     removePulsingMarker,
+    
+    // Immersive mode
+    isImmersiveMode,
+    setIsImmersiveMode,
     
     // Actions
     handleCloseUnifiedDrawer,

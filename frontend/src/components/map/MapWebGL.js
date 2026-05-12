@@ -61,6 +61,7 @@ const MapWebGL = ({
   radarFrameIndex,
   radarFrames,
   timeOffsetHours = 0,
+  onMapClick,
 }) => {
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
@@ -426,6 +427,7 @@ const MapWebGL = ({
       mapLib={maplibregl}
       {...viewState}
       onMove={onMove}
+      onClick={onMapClick}
       mapStyle={currentMapStyle}
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
