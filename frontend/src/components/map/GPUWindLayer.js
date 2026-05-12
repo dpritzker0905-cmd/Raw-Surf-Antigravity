@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TripsLayer } from '@deck.gl/geo-layers';
-import { API_BASE } from '../../../lib/apiClient';
+import { API_BASE } from '../../lib/apiClient';
 
 export function useGPUWindLayer({ active, timeOffsetHours = 0, isLight = true }) {
   const [data, setData] = useState([]);
