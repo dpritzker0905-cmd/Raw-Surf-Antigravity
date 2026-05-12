@@ -27,7 +27,7 @@ const FeaturedPhotographersPanel = ({
   return (
     <div className="absolute top-44 right-4 z-[1000] w-72 max-h-[60vh] overflow-y-auto">
       <div className={`${bgClass} backdrop-blur-sm rounded-lg border shadow-xl`}>
-        <div className={`p-3 border-b ${borderClass} flex items-center justify-between sticky top-0 ${headerBgClass}`}>
+        <div className={`p-3 border-b ${borderClass} flex items-center justify-between sticky top-0 z-10 ${headerBgClass}`}>
           <h3 className={`text-sm font-bold flex items-center gap-2 ${textClass}`}>
             <Camera className="w-4 h-4 text-yellow-400" />
             Featured Photographers
