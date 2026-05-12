@@ -271,7 +271,10 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lons = safePoints.map(p => p.lng).join(',');
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&forecast_days=2`;
+        // Use the model param but WITHOUT models= for best_match fallback robustness.
+        // gfs_seamless can return 400 or non-array for mixed land/ocean grids.
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&forecast_days=1`;
+        void modelParam; // reserved for future per-model toggle
         
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -296,15 +299,12 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           });
           const speed = r.hourly.wind_speed_10m?.[closest] || 0;
           const dir = r.hourly.wind_direction_10m?.[closest] || 0;
-          
-          // Convert speed from km/h to m/s
-          const speedMs = speed * 0.277778;
-          
-          // Mathematical wind direction (0° is wind from North -> vector towards South)
+
+          // wind_speed_unit=ms means speed is already in m/s
           // U (zonal) = -speed * sin(dir), V (meridional) = -speed * cos(dir)
           const rad = dir * Math.PI / 180;
-          const u = -speedMs * Math.sin(rad);
-          const v = -speedMs * Math.cos(rad);
+          const u = -speed * Math.sin(rad);
+          const v = -speed * Math.cos(rad);
           
           uData[i] = u;
           vData[i] = v;
@@ -316,11 +316,12 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         ];
 
         windGridRef.current = new GlobalWindGrid(gridData);
-        setGridLoaded(true);
       } catch (err) {
         console.warn('[WindParticleCanvas] Dynamic grid fetch failed:', err);
       } finally {
         isFetchingWind.current = false;
+        // Always mark loaded so canvas shows (even if partial data)
+        setGridLoaded(true);
       }
     };
 
@@ -533,9 +534,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const mag = Math.max(0.01, speed);
 
           pLng[i] += (u / mag) * degStep;
-          // v is stored as 'towards south' (u=-sin, v=-cos for wind FROM dir)
-          // Mercator Y increases downward, so subtract v to move particles correctly
-          pLat[i] -= (v / mag) * degStep;
+          // Correct: positive v = northward = lat increases (u=-sin, v=-cos encodes FROM direction)
+          pLat[i] += (v / mag) * degStep;
           pAge[i]++;
 
           // Project new position (reuses same result object)

@@ -8,11 +8,12 @@ import { useTheme } from '../../contexts/ThemeContext';
  */
 
 const PARTICLE_COUNT = 3500;
-const MAX_AGE = 90;
-const LINE_WIDTH = 1.0;
+const MAX_AGE = 140;       // longer life = longer trails
+const LINE_WIDTH = 1.4;   // slightly wider for organic wave look
 const FIELD_CELL_SIZE = 5;
 const FIELD_BLUR_PX = 8;
 const FIELD_PAD = 1.0;
+const MIN_WAVE_HEIGHT = 0.05; // below this = land/calm, skip particle
 const DEG2RAD = Math.PI / 180;
 const PI = Math.PI;
 
@@ -238,10 +239,12 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         }
 
         gridRef.current = new MarineWaveGrid(nx, ny, lngMin, lngMax, latMax, latMin, lngStep, latStep, hData, uData, vData);
-        setGridLoaded(true);
       } catch (err) {
         console.warn('[WaveParticleCanvas] fetch failed:', err);
-      } finally { isFetching.current = false; }
+      } finally {
+        isFetching.current = false;
+        setGridLoaded(true);
+      }
     };
 
     const debounced = () => { clearTimeout(timeoutId); timeoutId = setTimeout(fetchGrid, 1200); };
@@ -349,8 +352,9 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       frameCount++; proj.sync(map);
       if (frameCount % 30 === 0) updatePPD();
 
+      // Slow fade = long, organic wave trails (not sharp arrows)
       tCtx.globalCompositeOperation = 'destination-in';
-      tCtx.globalAlpha = 1.0; tCtx.fillStyle = 'rgba(0,0,0,0.88)'; tCtx.fillRect(0, 0, w, h);
+      tCtx.globalAlpha = 1.0; tCtx.fillStyle = 'rgba(0,0,0,0.93)'; tCtx.fillRect(0, 0, w, h);
       tCtx.globalCompositeOperation = 'source-over'; tCtx.globalAlpha = 1.0;
 
       if (!grid) { animRef.current = requestAnimationFrame(draw); return; }
@@ -360,23 +364,25 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
 
       for (let i = 0; i < PARTICLE_COUNT; i++) {
         const wave = grid.interpolate(pLat[i], pLng[i]);
-        if (wave && !isNaN(wave[0])) {
+        // Land masking: skip cells with no data or height below minimum (land/calm)
+        if (wave && !isNaN(wave[0]) && wave[0] >= MIN_WAVE_HEIGHT) {
           const height = wave[0], u = wave[1], v = wave[2];
           const prev = proj.project(pLng[i], pLat[i]);
           const px0 = prev.x, py0 = prev.y;
           const speed = Math.sqrt(u * u + v * v);
-          const targetPx = Math.max(0.8, speed * 0.3); // Increased minimum draw length
+          // Scale movement to wave height — bigger waves move particles more
+          const targetPx = Math.max(0.6, Math.min(speed * 0.25, 3.0));
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
           pLng[i] += (u / mag) * degStep;
-          // Wave v is 'towards south' (u=-sin, v=-cos for waves FROM dir)
-          pLat[i] -= (v / mag) * degStep;
+          // Correct: positive v = northward = lat increases
+          pLat[i] += (v / mag) * degStep;
           pAge[i]++;
 
           const next = proj.project(pLng[i], pLat[i]);
           const px1 = next.x, py1 = next.y;
           const dx = px1 - px0, dy = py1 - py0;
-          if (dx * dx + dy * dy >= 0.1) { // Lowered culling threshold to show low speeds
+          if (dx * dx + dy * dy >= 0.1) {
             const entry = lookupCached(height, cache);
             if (!batches.has(entry.key)) batches.set(entry.key, { style: entry.style, glowStyle: entry.glowStyle, segs: [], glow: height > 3 });
             batches.get(entry.key).segs.push(px0, py0, px1, py1);
@@ -392,7 +398,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         if (batch.glow) {
           tCtx.beginPath();
           for (let j = 0; j < segs.length; j += 4) { tCtx.moveTo(segs[j], segs[j+1]); tCtx.lineTo(segs[j+2], segs[j+3]); }
-          tCtx.lineWidth = LINE_WIDTH * 3.5; tCtx.strokeStyle = batch.glowStyle; tCtx.stroke();
+          tCtx.lineWidth = LINE_WIDTH * 3.0; tCtx.strokeStyle = batch.glowStyle; tCtx.stroke();
         }
         tCtx.beginPath();
         for (let j = 0; j < segs.length; j += 4) { tCtx.moveTo(segs[j], segs[j+1]); tCtx.lineTo(segs[j+2], segs[j+3]); }
