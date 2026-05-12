@@ -6,8 +6,6 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useControl } from 'react-map-gl/maplibre';
 import { MapboxOverlay } from '@deck.gl/mapbox';
-import { useGPUWindLayer } from './GPUWindLayer';
-import { useGPUWaveLayer } from './GPUWaveLayer';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -40,7 +38,7 @@ const OM_MODEL_MAP = {
  */
 const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
-  wind:          null,             // Raster disabled; canvas particle engine now paints its own dynamic color layer
+  wind:          'wind_gusts_10m', // GFS supports wind_gusts_10m as a raster tile variable
   pressure:      'pressure_msl',
   fog:           'cloud_cover_low', // Better proxy for fog than visibility
   satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
@@ -78,19 +76,11 @@ const MapWebGL = ({
   const { theme } = useTheme();
   const isBeach = theme === 'beach';
   
-  // Instantiate the WebGL GPU layers unconditionally
-  const gpuWindLayer = useGPUWindLayer({
-    active: activeLayers.includes('wind') || activeLayers.includes('pressure'),
-    timeOffsetHours,
-    isLight
-  });
-  
-  const gpuWaveLayer = useGPUWaveLayer({
-    active: ['waves','swell_1','swell_2','wind_waves'].some(l => activeLayers.includes(l)),
-    activeLayer: activeLayers.find(l => ['waves','swell_1','swell_2','wind_waves'].includes(l)) || 'waves',
-    timeOffsetHours,
-    isLight
-  });
+  // GPU layers disabled — wind now uses Open-Meteo raster tiles (same proven system as
+  // rain/pressure/fog/satellite); marine data uses the existing client-side GeoJSON fetch.
+  // This eliminates the fragile backend cache dependency that was causing empty data.
+  const gpuWindLayer = null;
+  const gpuWaveLayer = null;
 
   // Register Open-Meteo protocol safely on mount
   useEffect(() => {
@@ -295,10 +285,15 @@ const MapWebGL = ({
   const [marineData, setMarineData] = useState(null);
   const isFetchingMarine = useRef(false);
 
-  // Capture the raw MapLibre instance once the map loads
+  // Capture the raw MapLibre instance once the map loads, then force a repaint
+  // so that om:// custom-protocol tile sources render without needing a user pan.
   useEffect(() => {
     const map = innerMapRef.current?.getMap?.();
-    if (map && !mapInstance) setMapInstance(map);
+    if (map && !mapInstance) {
+      setMapInstance(map);
+      // Force MapLibre to request tiles for custom protocols on initial mount
+      setTimeout(() => { try { map.resize(); } catch(e) {} }, 500);
+    }
   });
 
   // Fetch dynamic, global marine data with strict 1.2s debounce
