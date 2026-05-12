@@ -715,6 +715,8 @@ const MapWebGL = ({
       isActive={activeLayers.includes('wind') || activeLayers.includes('pressure')} 
       hideColorField={activeLayers.includes('pressure')}
       particleColorOverride={activeLayers.includes('pressure') ? 'white' : null}
+      activeModel={activeModel}
+      timeOffsetHours={timeOffsetHours}
     />
     </div>
   );

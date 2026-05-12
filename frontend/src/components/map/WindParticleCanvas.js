@@ -23,7 +23,6 @@ const LINE_WIDTH = 1.0;
 const FIELD_CELL_SIZE = 14;
 const FIELD_BLUR_PX = 16;
 const FIELD_PAD = 0.5;
-const GLOBAL_WIND_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 const DEG2RAD = Math.PI / 180;
 const PI = Math.PI;
 // Zoom interaction debouncing removed to keep particles continuously rendering during scroll-zoom
@@ -189,7 +188,7 @@ class ParticlePool {
 }
 
 // ============================================================
-const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, particleColorOverride = null }) => {
+const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, particleColorOverride = null, activeModel = 'GFS', timeOffsetHours = 0 }) => {
   const fieldRef = useRef(null);
   const trailRef = useRef(null);
   const animRef = useRef(null);
@@ -215,19 +214,127 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
     return buildStyleCache(particleRamp);
   }, [particleRamp, particleColorOverride]);
 
-  // Fetch wind data once
+  const isFetchingWind = useRef(false);
+  const MODEL_MAP = {
+    GFS:  'gfs_seamless',
+    EURO: 'ecmwf_ifs025',
+    ICON: 'icon_seamless',
+  };
+
+  // Fetch dynamic, bounds-based wind data
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
+    if (!mapInstance || !isActive) return;
+
+    let timeoutId;
+    const updateWindGrid = async () => {
+      if (isFetchingWind.current) return;
+      isFetchingWind.current = true;
+      
       try {
-        const res = await fetch(GLOBAL_WIND_URL);
+        const bounds = mapInstance.getBounds();
+        const latMin = Math.max(-85, bounds.getSouth() - 5);
+        const latMax = Math.min(85, bounds.getNorth() + 5);
+        const lngMin = bounds.getWest() - 5;
+        const lngMax = bounds.getEast() + 5;
+
+        // Sparse 9x9 grid (81 points total, < 100 limit)
+        const nx = 9;
+        const ny = 9;
+        const latStep = Math.max(0.01, (latMax - latMin) / (ny - 1));
+        const lngStep = Math.max(0.01, (lngMax - lngMin) / (nx - 1));
+
+        const safePoints = [];
+        // Important: GlobalWindGrid expects points in row-major order starting from top-left (latMax to latMin)
+        for (let j = 0; j < ny; j++) {
+          const lat = latMax - j * latStep;
+          for (let i = 0; i < nx; i++) {
+            let lng = lngMin + i * lngStep;
+            let normLng = lng;
+            while (normLng > 180) normLng -= 360;
+            while (normLng < -180) normLng += 360;
+            safePoints.push({ lat: Number(lat.toFixed(2)), lng: Number(normLng.toFixed(2)) });
+          }
+        }
+
+        const lats = safePoints.map(p => p.lat).join(',');
+        const lons = safePoints.map(p => p.lng).join(',');
+
+        const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
+        
+        // Target exact time
+        const targetDate = new Date();
+        targetDate.setHours(targetDate.getHours() + timeOffsetHours);
+        const dateStr = targetDate.toISOString().split('T')[0];
+        
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=${modelParam}&start_date=${dateStr}&end_date=${dateStr}&timezone=auto`;
+        
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
         const data = await res.json();
-        if (!cancelled) { windGridRef.current = new GlobalWindGrid(data); setGridLoaded(true); }
-      } catch (err) { console.warn('[Wind] Grid fetch failed:', err); }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+        const allResults = Array.isArray(data) ? data : [data];
+        
+        const targetTs = targetDate.getTime();
+        
+        const uData = new Float32Array(nx * ny);
+        const vData = new Float32Array(nx * ny);
+        
+        for (let i = 0; i < safePoints.length; i++) {
+          const r = allResults[i];
+          if (!r || !r.hourly) continue;
+          
+          let closest = 0;
+          let minDiff = Infinity;
+          r.hourly.time.forEach((t, idx) => {
+            const diff = Math.abs(new Date(t).getTime() - targetTs);
+            if (diff < minDiff) { minDiff = diff; closest = idx; }
+          });
+          
+          const speed = r.hourly.wind_speed_10m[closest] || 0; // km/h
+          const dir = r.hourly.wind_direction_10m[closest] || 0; // degrees
+          
+          // Convert speed from km/h to m/s
+          const speedMs = speed * 0.277778;
+          
+          // Mathematical wind direction (0° is wind from North -> vector towards South)
+          // U (zonal) = -speed * sin(dir), V (meridional) = -speed * cos(dir)
+          const rad = dir * Math.PI / 180;
+          const u = -speedMs * Math.sin(rad);
+          const v = -speedMs * Math.cos(rad);
+          
+          uData[i] = u;
+          vData[i] = v;
+        }
+
+        const gridData = [
+          { header: { lo1: lngMin, lo2: lngMax, la1: latMax, la2: latMin, dx: lngStep, dy: latStep, nx, ny }, data: uData },
+          { header: { lo1: lngMin, lo2: lngMax, la1: latMax, la2: latMin, dx: lngStep, dy: latStep, nx, ny }, data: vData }
+        ];
+
+        windGridRef.current = new GlobalWindGrid(gridData);
+        setGridLoaded(true);
+      } catch (err) {
+        console.warn('[WindParticleCanvas] Dynamic grid fetch failed:', err);
+      } finally {
+        isFetchingWind.current = false;
+      }
+    };
+
+    const debouncedUpdate = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(updateWindGrid, 1200); // 1.2s debounce
+    };
+
+    // Initial fetch
+    debouncedUpdate();
+
+    // Re-fetch when map stops moving
+    mapInstance.on('moveend', debouncedUpdate);
+    return () => {
+      clearTimeout(timeoutId);
+      mapInstance.off('moveend', debouncedUpdate);
+    };
+  }, [isActive, mapInstance, activeModel, timeOffsetHours]);
 
   // ==========================================================
   //  LAYER 1: Color Field (padded + fast projection + fillRect)
