@@ -272,10 +272,10 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lons = safePoints.map(p => p.lng).join(',');
 
         const modelParam = MODEL_MAP[activeModel] || 'gfs_seamless';
-        void modelParam; // reserved for model selection UI
-        // Forecast API (NOT marine) — marine doesn't expose surface wind variables.
-        // 25-point grid is lightweight enough to avoid rate-limiting.
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&forecast_days=2`;
+        void modelParam;
+        // ensemble-api has a SEPARATE rate-limit bucket from api.open-meteo.com.
+        // gfs025 = 0.25° global GFS model — available everywhere, no coastal gaps.
+        const url = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs025&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

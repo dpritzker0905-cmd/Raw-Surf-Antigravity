@@ -114,12 +114,10 @@ class MarineWaveGrid {
     const fx = fi - i, fy = fj - j;
     const a = (1-fx)*(1-fy), b = fx*(1-fy), c = (1-fx)*fy, d = fx*fy;
     
-    // Strict land masking: marine API returns 0 (not NaN) for land points.
-    // !(h > 0) catches both NaN and 0 — bilinear must not span land boundaries.
+    // Land masking: -1 = confirmed land (API returned null).
+    // h=0 = calm ocean — allow through; draw loop MIN_WAVE_HEIGHT filter handles it.
     const h0=this.hData[p], h1=this.hData[p+1], h2=this.hData[p+this.nx], h3=this.hData[p+this.nx+1];
-    if (!(h0 > 0) || !(h1 > 0) || !(h2 > 0) || !(h3 > 0)) {
-      return null;
-    }
+    if (h0 < 0 || h1 < 0 || h2 < 0 || h3 < 0) return null;
     
     this._r[0] = a*this.hData[p]+b*this.hData[p+1]+c*this.hData[p+this.nx]+d*this.hData[p+this.nx+1];
     this._r[1] = a*this.uData[p]+b*this.uData[p+1]+c*this.uData[p+this.nx]+d*this.uData[p+this.nx+1];
@@ -211,7 +209,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         const all = Array.isArray(data) ? data : [data];
         const targetTs = Date.now() + timeOffsetHours * 3600000;
 
-        const hData = new Float32Array(nx * ny).fill(NaN);
+        const hData = new Float32Array(nx * ny).fill(-1); // -1 = land sentinel (null API return)
         const uData = new Float32Array(nx * ny).fill(0);
         const vData = new Float32Array(nx * ny).fill(0);
 
