@@ -251,11 +251,29 @@ export const MapWeatherControls = ({
     return (
       <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none" style={{ bottom: '72px' }}>
         <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${isTimelineCollapsed ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
-          <div 
-            className="flex justify-center items-center cursor-pointer pb-2 -mt-1"
-            onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
-          >
-            <div className="w-10 h-1 bg-gray-500/40 rounded-full" />
+          <div className="flex justify-between items-center pb-2 -mt-2 px-8">
+            <button 
+              className="py-1 px-3 -mx-3 group cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+              aria-label="Toggle timeline"
+            >
+              <svg viewBox="0 0 120 40" className="w-8 h-auto opacity-60 group-hover:opacity-100 transition-opacity duration-300" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 85 18 C 86 5, 95 2, 98 2 C 95 10, 95 16, 95 20 Z" className="fill-zinc-500 group-hover:fill-cyan-400 transition-colors duration-300" />
+                <path d="M 10 24 C 30 14, 90 14, 110 24 C 113 25, 113 27, 110 28 C 90 20, 30 20, 10 28 C 7 27, 7 25, 10 24 Z" className="fill-zinc-600 group-hover:fill-blue-500 transition-colors duration-300" />
+                <path d="M 10 26 C 30 17, 90 17, 110 26" className="stroke-zinc-800 group-hover:stroke-amber-600 transition-colors duration-300" strokeWidth="0.5" fill="none" />
+              </svg>
+            </button>
+            <button 
+              className="py-1 px-3 -mx-3 group cursor-pointer active:scale-95 transition-transform"
+              onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+              aria-label="Toggle timeline"
+            >
+              <svg viewBox="0 0 120 40" className="w-8 h-auto opacity-60 group-hover:opacity-100 transition-opacity duration-300 transform -scale-x-100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 85 18 C 86 5, 95 2, 98 2 C 95 10, 95 16, 95 20 Z" className="fill-zinc-500 group-hover:fill-cyan-400 transition-colors duration-300" />
+                <path d="M 10 24 C 30 14, 90 14, 110 24 C 113 25, 113 27, 110 28 C 90 20, 30 20, 10 28 C 7 27, 7 25, 10 24 Z" className="fill-zinc-600 group-hover:fill-blue-500 transition-colors duration-300" />
+                <path d="M 10 26 C 30 17, 90 17, 110 26" className="stroke-zinc-800 group-hover:stroke-amber-600 transition-colors duration-300" strokeWidth="0.5" fill="none" />
+              </svg>
+            </button>
           </div>
           <div className={`overflow-hidden transition-all duration-300 ${isTimelineCollapsed ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
             {legendConfig[activeLayer] && (
