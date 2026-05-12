@@ -404,12 +404,12 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       <canvas ref={fieldRef} style={{
         position: 'absolute', pointerEvents: 'none', zIndex: 4,
         filter: `blur(${FIELD_BLUR_PX}px)`, willChange: 'transform',
-        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 0.7 : 0, mixBlendMode: 'screen'
+        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 0.5 : 0
       }} />
       <canvas ref={trailRef} style={{
         position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
         pointerEvents: 'none', zIndex: 5, willChange: 'transform',
-        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 1 : 0, mixBlendMode: 'screen'
+        transition: 'opacity 0.6s ease-in-out', opacity: gridLoaded ? 1 : 0
       }} />
     </>
   );

@@ -258,9 +258,8 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
         const lats = safePoints.map(p => p.lat).join(',');
         const lons = safePoints.map(p => p.lng).join(',');
 
-        // Use deterministic GFS for crisp, accurate live wind variations.
-        // Rate limit note: Since this fetches from the client browser, the 10,000 req/day limit is per-user IP, which is safe.
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs_seamless&forecast_days=2`;
+        // Use ensemble API to bypass main API rate limit, but extract member01 to retain crisp variation (not ensemble mean)
+        const url = `https://ensemble-api.open-meteo.com/v1/ensemble?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&models=gfs025&forecast_days=2`;
 
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -284,8 +283,9 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           });
 
           // Extract deterministic speed and direction directly
-          const speedKmh = r.hourly.wind_speed_10m?.[closest] ?? 0;
-          const dir = r.hourly.wind_direction_10m?.[closest] ?? 0;
+          // Read the deterministic member instead of the smoothed ensemble mean
+          const speedKmh = (r.hourly.wind_speed_10m_member01 || r.hourly.wind_speed_10m)?.[closest] ?? 0;
+          const dir = (r.hourly.wind_direction_10m_member01 || r.hourly.wind_direction_10m)?.[closest] ?? 0;
           const speed = speedKmh * 0.277778; // km/h → m/s
 
           // U (zonal) = -speed*sin(dir), V (meridional) = -speed*cos(dir)
