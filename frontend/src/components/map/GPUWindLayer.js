@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 // === FROZEN MOCK WIND DATA ===
-// Known-good dataset for proving rendering independently of API.
 function generateMockWind(bounds) {
   const { west, south, east, north } = bounds;
   const GRID = 6;
@@ -24,7 +23,6 @@ function generateMockWind(bounds) {
 
 /**
  * Viewport-scoped wind vector data hook.
- * Uses live API when available, falls back to frozen mock data on failure.
  */
 export function useWindVectorData({ active, mapBounds }) {
   const [windData, setWindData] = useState(null);
@@ -98,7 +96,7 @@ export function useWindVectorData({ active, mapBounds }) {
 }
 
 /**
- * Bilinear interpolation of u/v wind components at any lat/lng.
+ * Bilinear interpolation of u/v wind components.
  */
 function interpolateWind(windGrid, lng, lat) {
   if (!windGrid?.vectors?.length) return { u: 0, v: 0, speed: 0 };
@@ -127,38 +125,37 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * CRITICAL LIFECYCLE FIX (v175):
- * - windVectors stored in a REF, not as an effect dependency
- * - Canvas lifecycle only depends on [mapInstance, active]
- * - Data updates flow through ref without teardown/rebuild
- * - Prevents React reconciliation from killing the animation loop
+ * v176 KEY CHANGES:
+ * - Canvas appended to getContainer() (outer div) NOT getCanvasContainer() (inner, transformed)
+ * - Full-screen red fill test on mount for 3 seconds to prove canvas visibility
+ * - Static white dot test at (200,200) to prove compositing
+ * - windVectors via ref, lifecycle deps: [mapInstance, active] only
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const animRef = useRef(null);
   const windRef = useRef(null);
 
-  // Keep wind data in a ref — updates do NOT restart the effect/canvas/RAF
-  useEffect(() => {
-    windRef.current = windVectors;
-  }, [windVectors]);
+  useEffect(() => { windRef.current = windVectors; }, [windVectors]);
 
-  // Canvas lifecycle: ONLY depends on mapInstance + active
-  // This ensures canvas survives data updates without teardown
   useEffect(() => {
     if (!mapInstance || !active) {
-      console.log('[Wind] Canvas effect skipped:', { mapInstance: !!mapInstance, active });
+      console.log('[Wind] Canvas skipped:', { map: !!mapInstance, active });
       return;
     }
 
     console.log('[Wind] CANVAS MOUNTING');
-    const container = mapInstance.getCanvasContainer();
+
+    // Use getContainer() — the OUTER div without CSS transforms
+    // getCanvasContainer() has transform:translate3d during pan which can break composition
+    const container = mapInstance.getContainer();
     const canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:5;display:block;';
+    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:10;display:block;';
     container.appendChild(canvas);
-    console.log('[Wind] Canvas appended to DOM, parent:', container.tagName);
+    const inDOM = document.body.contains(canvas);
+    console.log('[Wind] Canvas in DOM:', inDOM, 'Parent:', container.tagName, container.className);
+
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-
     let cw = 0, ch = 0;
     const resize = () => {
       const w = container.clientWidth;
@@ -173,14 +170,25 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
     };
     resize();
 
-    // DEBUG: Draw static red circle to prove canvas is visible
-    ctx.fillStyle = 'red';
-    ctx.beginPath();
-    ctx.arc(60, 60, 15, 0, Math.PI * 2);
-    ctx.fill();
-    console.log('[Wind] Debug circle drawn at (60,60)');
+    // ===== VISUAL TEST 1: Full red fill =====
+    ctx.fillStyle = 'rgba(255,0,0,0.5)';
+    ctx.fillRect(0, 0, cw, ch);
+    console.log('[Wind] TEST 1: Full red fill drawn', cw, 'x', ch);
 
-    // Spawn particles across viewport
+    // ===== VISUAL TEST 2: Static white circle at (200,200) =====
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(200, 200, 25, 0, Math.PI * 2);
+    ctx.fill();
+    console.log('[Wind] TEST 2: White circle at (200,200)');
+
+    // Clear test visuals after 3 seconds, then start particles
+    let testPhase = true;
+    const testTimer = setTimeout(() => {
+      testPhase = false;
+      console.log('[Wind] Test phase ended, particles active');
+    }, 3000);
+
     const PARTICLE_COUNT = 250;
     const TRAIL_LEN = 7;
     const particles = [];
@@ -207,16 +215,19 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       const dt = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
       frameCount++;
+      if (frameCount <= 3) console.log(`[Wind] RAF frame ${frameCount}, testPhase:${testPhase}`);
 
-      // Log first few frames to prove RAF is running
-      if (frameCount <= 3) console.log(`[Wind] RAF frame ${frameCount}`);
+      // During test phase, don't clear — let red fill + white dot remain visible
+      if (testPhase) {
+        animRef.current = requestAnimationFrame(animate);
+        return;
+      }
 
       // Fade previous frame
       ctx.fillStyle = 'rgba(0,0,0,0.08)';
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillRect(0, 0, cw, ch);
 
-      // Read wind data from ref (not from closure/dep)
       const grid = windRef.current;
       if (!grid?.vectors?.length) {
         animRef.current = requestAnimationFrame(animate);
@@ -229,18 +240,15 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
         p.age += dt;
-
         const wind = interpolateWind(grid, p.lng, p.lat);
         if (wind.speed > 0.1) {
           const scale = 0.0003 * dt * 60;
           p.lng += wind.u * scale;
           p.lat += wind.v * scale;
         }
-
         const pt = mapInstance.project([p.lng, p.lat]);
         p.trail.push({ x: pt.x, y: pt.y });
         if (p.trail.length > TRAIL_LEN) p.trail.shift();
-
         if (p.trail.length > 1) {
           const rgb = speedColor(wind.speed);
           const alpha = Math.min(0.9, 0.3 + wind.speed / 15);
@@ -251,7 +259,6 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
           ctx.lineWidth = Math.max(1, wind.speed / 8);
           ctx.stroke();
         }
-
         if (p.lng < w || p.lng > e || p.lat < s || p.lat > n || p.age > p.maxAge) {
           particles[i] = spawnParticle();
         }
@@ -261,18 +268,19 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
     animRef.current = requestAnimationFrame(animate);
     console.log('[Wind] RAF loop started');
 
-    const onMove = () => { for (const p of particles) p.trail = []; };
+    const onMove = () => { if (!testPhase) for (const p of particles) p.trail = []; };
     mapInstance.on('move', onMove);
     mapInstance.on('resize', resize);
 
     return () => {
       console.log('[Wind] CANVAS UNMOUNTING');
+      clearTimeout(testTimer);
       cancelAnimationFrame(animRef.current);
       mapInstance.off('move', onMove);
       mapInstance.off('resize', resize);
       if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
     };
-  }, [mapInstance, active]); // ← windVectors NOT a dependency
+  }, [mapInstance, active]);
 
   return null;
 }

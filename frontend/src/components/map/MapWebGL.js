@@ -305,26 +305,32 @@ const MapWebGL = ({
 
   // === FROZEN MOCK MARINE DATA ===
   // Known-good ocean points along Atlantic/Florida coast. Proves rendering without API.
+  // Includes Cape Canaveral forced test point (TEST 3) with exaggerated wave_height.
   const generateMockMarine = useCallback(() => {
     const oceanPts = [
+      [28.3922, -80.6077, 3.0],  // Cape Canaveral TEST POINT — must be visible
       [28.5,-79.5], [27.0,-79.0], [29.5,-79.8], [26.0,-78.5], [30.0,-79.5],
       [25.5,-79.0], [28.0,-78.0], [27.5,-77.5], [29.0,-78.5], [26.5,-78.0],
       [31.0,-79.0], [24.5,-79.5], [28.0,-76.0], [27.0,-76.5], [30.5,-78.0],
     ];
     return {
       type: 'FeatureCollection',
-      features: oceanPts.map(([lat, lng]) => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [lng, lat] },
-        properties: {
-          wave_height: 0.5 + Math.random() * 2, wave_period: 6 + Math.random() * 6,
-          wave_direction: 90 + Math.random() * 90,
-          swell_wave_height: 0.3 + Math.random() * 1.5, swell_wave_period: 8 + Math.random() * 6,
-          swell_wave_direction: 60 + Math.random() * 60,
-          wind_wave_height: 0.1 + Math.random() * 0.8, wind_wave_period: 3 + Math.random() * 4,
-          wind_wave_direction: 100 + Math.random() * 80,
-        },
-      }))
+      features: oceanPts.map(pt => {
+        const [lat, lng, forceHeight] = pt;
+        const wh = forceHeight || (0.5 + Math.random() * 2);
+        return {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lng, lat] },
+          properties: {
+            wave_height: wh, wave_period: 6 + Math.random() * 6,
+            wave_direction: 90 + Math.random() * 90,
+            swell_wave_height: wh * 0.7, swell_wave_period: 8 + Math.random() * 6,
+            swell_wave_direction: 60 + Math.random() * 60,
+            wind_wave_height: wh * 0.3, wind_wave_period: 3 + Math.random() * 4,
+            wind_wave_direction: 100 + Math.random() * 80,
+          },
+        };
+      })
     };
   }, []);
 
@@ -572,10 +578,11 @@ const MapWebGL = ({
 
       {/* Marine Wave Heatmap & Data Labels — layer-aware property selection */}
       {marineData && ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (() => {
-        // Select the correct data field based on active layer
         const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l));
         const heightProp = activeMarineLayer === 'swell_1' || activeMarineLayer === 'swell_2'
           ? 'swell_wave_height' : activeMarineLayer === 'wind_waves' ? 'wind_wave_height' : 'wave_height';
+        // TEST 3: Log marine data to confirm features reach MapLibre
+        console.log(`[Marine] Rendering ${marineData.features?.length} features, prop: ${heightProp}`);
         return (
         <Source 
           key={`marine-${activeMarineLayer}`}
@@ -590,16 +597,16 @@ const MapWebGL = ({
               'circle-color': [
                 'interpolate', ['linear'],
                 ['get', heightProp],
-                0, 'rgba(0,0,0,0)',
+                0, '#1e3a5f',
                 0.3, '#93c5fd',
                 1.0, '#22d3ee',
                 2.0, '#2563eb',
                 3.5, '#9333ea',
                 5.0, '#be123c'
               ],
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 30, 3, 50, 6, 80, 10, 120],
-              'circle-blur': 0.65,
-              'circle-opacity': 0.7
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 40, 3, 60, 6, 100, 10, 150],
+              'circle-blur': 0.55,
+              'circle-opacity': 0.8
             }}
           />
           <Layer
