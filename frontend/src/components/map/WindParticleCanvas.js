@@ -231,29 +231,34 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
       isFetchingWind.current = true;
       
       try {
-        const bounds = mapInstance.getBounds();
-        const viewLatMin = bounds.getSouth();
-        const viewLatMax = bounds.getNorth();
-        const viewLngMin = bounds.getWest();
-        const viewLngMax = bounds.getEast();
+        const zoom = mapInstance.getZoom();
+        let latMin, latMax, lngMin, lngMax;
 
-        // Ensure global-scale coverage: minimum 60° lat × 120° lng with 30° padding
-        const PAD = 30;
-        const latRange = Math.max(60, viewLatMax - viewLatMin + PAD * 2);
-        const lngRange = Math.max(120, viewLngMax - viewLngMin + PAD * 2);
-        const centerLat = (viewLatMax + viewLatMin) / 2;
-        const centerLng = (viewLngMax + viewLngMin) / 2;
-
-        const latMin = Math.max(-85, centerLat - latRange / 2);
-        const latMax = Math.min(85, centerLat + latRange / 2);
-        const lngMin = centerLng - lngRange / 2;
-        const lngMax = centerLng + lngRange / 2;
+        if (zoom < 4) {
+          // Global view
+          latMin = -80; latMax = 80;
+          lngMin = -180; lngMax = 180;
+        } else {
+          // Local view
+          const bounds = mapInstance.getBounds();
+          let w = bounds.getWest();
+          let e = bounds.getEast();
+          if (e < w) e += 360; // Handle dateline wrap
+          
+          const latPad = Math.max(10, (bounds.getNorth() - bounds.getSouth()) * 1.5);
+          const lngPad = Math.max(15, (e - w) * 1.5);
+          
+          latMin = Math.max(-85, bounds.getSouth() - latPad);
+          latMax = Math.min(85, bounds.getNorth() + latPad);
+          lngMin = w - lngPad;
+          lngMax = e + lngPad;
+        }
 
         // Sparse 9x9 grid (81 points total, < 100 API limit)
         const nx = 9;
         const ny = 9;
-        const latStep = Math.max(0.01, (latMax - latMin) / (ny - 1));
-        const lngStep = Math.max(0.01, (lngMax - lngMin) / (nx - 1));
+        const latStep = (latMax - latMin) / (ny - 1);
+        const lngStep = (lngMax - lngMin) / (nx - 1);
 
         const safePoints = [];
         // Important: GlobalWindGrid expects points in row-major order starting from top-left (latMax to latMin)
@@ -534,7 +539,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const prev = proj.project(pLng[i], pLat[i]);
           const px0 = prev.x, py0 = prev.y;
 
-          const targetPx = Math.max(0.3, speed * 0.12);
+          const targetPx = Math.max(0.8, speed * 0.2);
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
 
@@ -547,7 +552,7 @@ const WindParticleCanvas = ({ mapInstance, isActive, hideColorField = false, par
           const px1 = next.x, py1 = next.y;
           const dx = px1 - px0, dy = py1 - py0;
 
-          if (dx * dx + dy * dy >= 0.25) {
+          if (dx * dx + dy * dy >= 0.1) {
             const entry = lookupCached(speed, cache);
             if (!batches.has(entry.key)) {
               batches.set(entry.key, { style: entry.style, glowStyle: entry.glowStyle, segs: [], glow: speed > 12 });

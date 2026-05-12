@@ -167,27 +167,32 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
       if (isFetching.current) return;
       isFetching.current = true;
       try {
-        const bounds = mapInstance.getBounds();
-        const viewLatMin = bounds.getSouth();
-        const viewLatMax = bounds.getNorth();
-        const viewLngMin = bounds.getWest();
-        const viewLngMax = bounds.getEast();
+        const zoom = mapInstance.getZoom();
+        let latMin, latMax, lngMin, lngMax;
 
-        const viewLatRange = viewLatMax - viewLatMin;
-        const viewLngRange = viewLngMax - viewLngMin;
+        if (zoom < 4) {
+          // Global view
+          latMin = -80; latMax = 80;
+          lngMin = -180; lngMax = 180;
+        } else {
+          // Local view
+          const bounds = mapInstance.getBounds();
+          let w = bounds.getWest();
+          let e = bounds.getEast();
+          if (e < w) e += 360; // Handle dateline wrap
+          
+          const latPad = Math.max(10, (bounds.getNorth() - bounds.getSouth()) * 1.5);
+          const lngPad = Math.max(15, (e - w) * 1.5);
+          
+          latMin = Math.max(-85, bounds.getSouth() - latPad);
+          latMax = Math.min(85, bounds.getNorth() + latPad);
+          lngMin = w - lngPad;
+          lngMax = e + lngPad;
+        }
 
-        // Dynamic padding based on viewport size
-        const latPad = viewLatRange * 0.5;
-        const lngPad = viewLngRange * 0.5;
-
-        const latMin = Math.max(-85, viewLatMin - latPad);
-        const latMax = Math.min(85, viewLatMax + latPad);
-        const lngMin = viewLngMin - lngPad;
-        const lngMax = viewLngMax + lngPad;
-
-        const nx = 10, ny = 10;
-        const latStep = Math.max(0.01, (latMax - latMin) / (ny - 1));
-        const lngStep = Math.max(0.01, (lngMax - lngMin) / (nx - 1));
+        const nx = 9, ny = 9;
+        const latStep = (latMax - latMin) / (ny - 1);
+        const lngStep = (lngMax - lngMin) / (nx - 1);
 
         const pts = [];
         for (let j = 0; j < ny; j++) {
