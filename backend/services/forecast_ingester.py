@@ -38,13 +38,13 @@ async def ingest_global_model(model_type: str):
     logger.info(f"[Forecast Ingester] Starting global ingestion for {model_type}...")
     ensure_cache_dir()
 
-    # Generate global grid (10x10 degree resolution for performance)
-    # Lats: 90 to -90 (19 points)
-    # Lons: -180 to 170 (36 points)
-    # Total = 684 points -> 7 batches of 100
+    # Generate USA-centric grid (10x10 degree resolution for performance)
+    # Lats: 50 to 10
+    # Lons: -130 to -60
+    # Total = 40 points -> 1 batch
     points = []
-    for lat in range(90, -91, -10):
-        for lon in range(-180, 180, 10):
+    for lat in range(50, 9, -10):
+        for lon in range(-130, -50, 10):
             points.append({"lat": lat, "lon": lon})
 
     if model_type == 'wind':
@@ -80,7 +80,7 @@ async def ingest_global_model(model_type: str):
                 else:
                     aggregated_data.append(data)
             
-            await asyncio.sleep(0.5)  # Rate limit respect
+            await asyncio.sleep(2.0)  # Safe rate limit respect
 
     # Save to disk
     cache_file = CACHE_DIR / f"{model_type}_global.json"

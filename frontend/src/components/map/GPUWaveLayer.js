@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
+import { API_BASE } from '../../../lib/apiClient';
 
 export function useGPUWaveLayer({ active, activeLayer, timeOffsetHours = 0, isLight = true }) {
   const [data, setData] = useState([]);
 
   useEffect(() => {
     if (!active) return;
-    fetch('/api/tiles/marine')
+    fetch(`${API_BASE}/tiles/marine`)
       .then(res => res.json())
       .then(json => {
         if (!json.error) setData(json);

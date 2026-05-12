@@ -501,7 +501,7 @@ const MapWebGL = ({
       {/* Open-Meteo Animated Weather Tiles — stable Source ID, keyed on variable for clean swap */}
       {omTileUrl && (
         <Source
-          key={`om-${activeWeatherVariable}`}
+          key={omTileUrl}
           id="om-weather-source"
           type="raster"
           url={omTileUrl}

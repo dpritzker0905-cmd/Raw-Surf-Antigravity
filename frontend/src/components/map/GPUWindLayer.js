@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TripsLayer } from '@deck.gl/geo-layers';
+import { API_BASE } from '../../../lib/apiClient';
 
 export function useGPUWindLayer({ active, timeOffsetHours = 0, isLight = true }) {
   const [data, setData] = useState([]);
@@ -7,7 +8,7 @@ export function useGPUWindLayer({ active, timeOffsetHours = 0, isLight = true })
 
   useEffect(() => {
     if (!active) return;
-    fetch('/api/tiles/wind')
+    fetch(`${API_BASE}/tiles/wind`)
       .then(res => res.json())
       .then(json => {
         if (!json.error) setData(json);
