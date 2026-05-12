@@ -97,13 +97,17 @@ export const MapForecastOverlay = ({
   const precip = wx.precipitation?.[currentHourIndex];
   const pressure = wx.surface_pressure?.[currentHourIndex];
 
-  // Marine data extraction
-  const waveHeight = marine.wave_height?.[marineHourIndex];
-  const wavePeriod = marine.wave_period?.[marineHourIndex];
-  const waveDir = marine.wave_direction?.[marineHourIndex];
-  const swell1Height = marine.swell_wave_height?.[marineHourIndex];
-  const swell1Period = marine.swell_wave_period?.[marineHourIndex];
-  const swell1Dir = marine.swell_wave_direction?.[marineHourIndex];
+  // Marine data extraction (prefer 'current' data in live mode for accuracy)
+  const marineCurrent = marineData?.current || {};
+  const waveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : marine.wave_height?.[marineHourIndex];
+  const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : marine.wave_period?.[marineHourIndex];
+  const waveDir = isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : marine.wave_direction?.[marineHourIndex];
+  
+  const swell1Height = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : marine.swell_wave_height?.[marineHourIndex];
+  const swell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : marine.swell_wave_period?.[marineHourIndex];
+  const swell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : marine.swell_wave_direction?.[marineHourIndex];
+  
+  // Secondary swell and wind waves don't have current endpoints in our fetch
   const swell2Height = marine.secondary_swell_wave_height?.[marineHourIndex];
   const swell2Period = marine.secondary_swell_wave_period?.[marineHourIndex];
   const swell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex];

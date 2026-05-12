@@ -10,8 +10,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 const PARTICLE_COUNT = 3500;
 const MAX_AGE = 90;
 const LINE_WIDTH = 1.0;
-const FIELD_CELL_SIZE = 14;
-const FIELD_BLUR_PX = 16;
+const FIELD_CELL_SIZE = 5;
+const FIELD_BLUR_PX = 8;
 const FIELD_PAD = 1.0;
 const DEG2RAD = Math.PI / 180;
 const PI = Math.PI;
@@ -110,14 +110,22 @@ class MarineWaveGrid {
     const i = Math.floor(fi), j = Math.floor(fj);
     if (i < 0 || i >= this.nx - 1 || j < 0 || j >= this.ny - 1) return null;
     const p = j * this.nx + i;
-    // Skip if any corner is NaN (land)
-    if (isNaN(this.hData[p]) || isNaN(this.hData[p+1]) || isNaN(this.hData[p+this.nx]) || isNaN(this.hData[p+this.nx+1])) {
-      // Use nearest non-NaN point instead of interpolating
-      if (!isNaN(this.hData[p])) { this._r[0]=this.hData[p]; this._r[1]=this.uData[p]; this._r[2]=this.vData[p]; return this._r; }
-      return null;
-    }
     const fx = fi - i, fy = fj - j;
     const a = (1-fx)*(1-fy), b = fx*(1-fy), c = (1-fx)*fy, d = fx*fy;
+    
+    // Smooth partial interpolation at land/ocean boundaries
+    if (isNaN(this.hData[p]) || isNaN(this.hData[p+1]) || isNaN(this.hData[p+this.nx]) || isNaN(this.hData[p+this.nx+1])) {
+      let sumH=0, sumU=0, sumV=0, w=0;
+      if (!isNaN(this.hData[p])) { sumH+=a*this.hData[p]; sumU+=a*this.uData[p]; sumV+=a*this.vData[p]; w+=a; }
+      if (!isNaN(this.hData[p+1])) { sumH+=b*this.hData[p+1]; sumU+=b*this.uData[p+1]; sumV+=b*this.vData[p+1]; w+=b; }
+      if (!isNaN(this.hData[p+this.nx])) { sumH+=c*this.hData[p+this.nx]; sumU+=c*this.uData[p+this.nx]; sumV+=c*this.vData[p+this.nx]; w+=c; }
+      if (!isNaN(this.hData[p+this.nx+1])) { sumH+=d*this.hData[p+this.nx+1]; sumU+=d*this.uData[p+this.nx+1]; sumV+=d*this.vData[p+this.nx+1]; w+=d; }
+      if (w > 0) {
+        this._r[0] = sumH/w; this._r[1] = sumU/w; this._r[2] = sumV/w; return this._r;
+      }
+      return null;
+    }
+    
     this._r[0] = a*this.hData[p]+b*this.hData[p+1]+c*this.hData[p+this.nx]+d*this.hData[p+this.nx+1];
     this._r[1] = a*this.uData[p]+b*this.uData[p+1]+c*this.uData[p+this.nx]+d*this.uData[p+this.nx+1];
     this._r[2] = a*this.vData[p]+b*this.vData[p+1]+c*this.vData[p+this.nx]+d*this.vData[p+this.nx+1];
@@ -165,18 +173,19 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
         const viewLngMin = bounds.getWest();
         const viewLngMax = bounds.getEast();
 
-        const PAD = 30;
-        const latRange = Math.max(60, viewLatMax - viewLatMin + PAD * 2);
-        const lngRange = Math.max(120, viewLngMax - viewLngMin + PAD * 2);
-        const centerLat = (viewLatMax + viewLatMin) / 2;
-        const centerLng = (viewLngMax + viewLngMin) / 2;
+        const viewLatRange = viewLatMax - viewLatMin;
+        const viewLngRange = viewLngMax - viewLngMin;
 
-        const latMin = Math.max(-85, centerLat - latRange / 2);
-        const latMax = Math.min(85, centerLat + latRange / 2);
-        const lngMin = centerLng - lngRange / 2;
-        const lngMax = centerLng + lngRange / 2;
+        // Dynamic padding based on viewport size
+        const latPad = viewLatRange * 0.5;
+        const lngPad = viewLngRange * 0.5;
 
-        const nx = 9, ny = 9;
+        const latMin = Math.max(-85, viewLatMin - latPad);
+        const latMax = Math.min(85, viewLatMax + latPad);
+        const lngMin = viewLngMin - lngPad;
+        const lngMax = viewLngMax + lngPad;
+
+        const nx = 10, ny = 10;
         const latStep = Math.max(0.01, (latMax - latMin) / (ny - 1));
         const lngStep = Math.max(0.01, (lngMax - lngMin) / (nx - 1));
 
@@ -189,7 +198,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
             pts.push({ lat: Number(lat.toFixed(2)), lng: Number(lng.toFixed(2)) });
           }
         }
-        const safe = pts.slice(0, 81);
+        const safe = pts.slice(0, 100);
         const lats = safe.map(p => p.lat).join(',');
         const lons = safe.map(p => p.lng).join(',');
 
@@ -356,7 +365,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           const prev = proj.project(pLng[i], pLat[i]);
           const px0 = prev.x, py0 = prev.y;
           const speed = Math.sqrt(u * u + v * v);
-          const targetPx = Math.max(0.2, speed * 0.15);
+          const targetPx = Math.max(0.8, speed * 0.3); // Increased minimum draw length
           const degStep = targetPx / cachedPPD;
           const mag = Math.max(0.01, speed);
           pLng[i] += (u / mag) * degStep;
@@ -366,7 +375,7 @@ const WaveParticleCanvas = ({ mapInstance, isActive, activeLayer = 'waves', time
           const next = proj.project(pLng[i], pLat[i]);
           const px1 = next.x, py1 = next.y;
           const dx = px1 - px0, dy = py1 - py0;
-          if (dx * dx + dy * dy >= 0.25) {
+          if (dx * dx + dy * dy >= 0.1) { // Lowered culling threshold to show low speeds
             const entry = lookupCached(height, cache);
             if (!batches.has(entry.key)) batches.set(entry.key, { style: entry.style, glowStyle: entry.glowStyle, segs: [], glow: height > 3 });
             batches.get(entry.key).segs.push(px0, py0, px1, py1);
