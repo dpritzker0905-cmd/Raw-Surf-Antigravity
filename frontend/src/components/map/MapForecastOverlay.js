@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, ArrowUp, Droplets, Gauge } from 'lucide-react';
+import { Wind, Waves, CloudRain, Thermometer, ArrowUp, Droplets, Gauge, Lock } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
@@ -17,6 +17,7 @@ export const MapForecastOverlay = ({
   activeModel,
   timeOffsetHours,
   isLoading = false,
+  isLockedForecast = false,
 }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -129,7 +130,12 @@ export const MapForecastOverlay = ({
 
       {/* Data cards */}
       <div className="px-3 py-2 space-y-1.5">
-        {isLoading ? (
+        {isLockedForecast ? (
+          <div className={`text-[11px] font-bold ${textMuted} flex items-center gap-1.5 py-1`}>
+            <Lock className="w-3.5 h-3.5 text-yellow-500" />
+            <span className="text-yellow-500">Premium Only</span>
+          </div>
+        ) : isLoading ? (
           <div className={`text-xs ${textMuted} flex items-center gap-2`}>
             <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
             Loading…

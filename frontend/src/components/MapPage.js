@@ -603,6 +603,7 @@ const MapPageContent = () => {
           activeModel={activeModel}
           timeOffsetHours={timeOffsetHours}
           isLoading={forecastLoading}
+          isLockedForecast={isLockedForecast}
         />
       )}
 

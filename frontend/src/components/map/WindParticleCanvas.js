@@ -26,8 +26,7 @@ const FIELD_PAD = 0.5;
 const GLOBAL_WIND_URL = 'https://sakitam.oss-cn-beijing.aliyuncs.com/codepen/wind-layer/json/wind.json';
 const DEG2RAD = Math.PI / 180;
 const PI = Math.PI;
-// Debounce window: zoom interaction is considered "ended" after this many ms of no new zoom events
-const ZOOM_DEBOUNCE_MS = 150;
+// Zoom interaction debouncing removed to keep particles continuously rendering during scroll-zoom
 
 // --- Inline Mercator Projection ---
 // Snapshots map state once per frame, projects via pure arithmetic.
@@ -198,8 +197,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
   const fieldTimerRef = useRef(null);
   const fieldOriginRef = useRef(null);
   const isDraggingRef = useRef(false);
-  const zoomTimerRef = useRef(null);
-  const isZoomingRef = useRef(false);
   const [gridLoaded, setGridLoaded] = useState(false);
   const { theme } = useTheme();
 
@@ -306,26 +303,11 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
     const onDragStart = () => { isDraggingRef.current = true; };
     const onDragEnd = () => { isDraggingRef.current = false; };
 
-    // --- Zoom: debounced end (mouse wheel fires rapid zoomstart/zoomend pairs) ---
-    // Without debouncing, scroll-zoom causes isZooming to flicker true/false rapidly,
-    // which looks like particles "disappearing". The 150ms debounce keeps particles
-    // in reduced mode during continuous scroll, then resumes smoothly.
-    const onZoomStart = () => {
-      clearTimeout(zoomTimerRef.current);
-      isZoomingRef.current = true;
-    };
-    const onZoomEnd = () => {
-      clearTimeout(zoomTimerRef.current);
-      zoomTimerRef.current = setTimeout(() => { isZoomingRef.current = false; }, ZOOM_DEBOUNCE_MS);
-    };
-
     map.on('move', onMapMove);
     map.on('moveend', onViewChange);
     map.on('zoomend', onViewChange);
     map.on('dragstart', onDragStart);
     map.on('dragend', onDragEnd);
-    map.on('zoomstart', onZoomStart);
-    map.on('zoomend', onZoomEnd);
     window.addEventListener('resize', onViewChange);
 
     return () => {
@@ -334,11 +316,8 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       map.off('zoomend', onViewChange);
       map.off('dragstart', onDragStart);
       map.off('dragend', onDragEnd);
-      map.off('zoomstart', onZoomStart);
-      map.off('zoomend', onZoomEnd);
       window.removeEventListener('resize', onViewChange);
       cancelAnimationFrame(fieldTimerRef.current);
-      clearTimeout(zoomTimerRef.current);
     };
   }, [mapInstance, isActive, gridLoaded, renderColorField, onMapMove]);
 
@@ -391,20 +370,6 @@ const WindParticleCanvas = ({ mapInstance, isActive }) => {
       frameCount++;
       proj.sync(map);
       if (frameCount % 30 === 0) updatePPD();
-
-      // During zoom: fade trails only, skip particle updates to avoid scale ghosting.
-      // We allow updates during pan (drag) because the zero-allocation pipeline is fast
-      // enough to not block the main thread, keeping wind visible while panning.
-      if (isZoomingRef.current) {
-        tCtx.globalCompositeOperation = 'destination-in';
-        tCtx.globalAlpha = 1.0;
-        tCtx.fillStyle = 'rgba(0,0,0,0.85)';
-        tCtx.fillRect(0, 0, w, h);
-        tCtx.globalCompositeOperation = 'source-over';
-        tCtx.globalAlpha = 1.0;
-        animRef.current = requestAnimationFrame(draw);
-        return;
-      }
 
       // Fade existing trails
       tCtx.globalCompositeOperation = 'destination-in';
