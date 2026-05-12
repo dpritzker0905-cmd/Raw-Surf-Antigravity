@@ -140,6 +140,7 @@ const MapPageContent = () => {
     isRadarOrSat,
     maxHoursForUser, isLockedForecast,
     toggleLayer,
+    isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
 
   // Open-Meteo 16-day forecast (weather + marine) — driven by map center & model
@@ -567,6 +568,8 @@ const MapPageContent = () => {
       <MapWeatherControls 
         isDesktop={false}
         isMobileExpanded={showWeatherControls}
+        isTimelineCollapsed={isTimelineCollapsed}
+        onTimelineCollapseToggle={setIsTimelineCollapsed}
         activeModel={activeModel}
         onModelChange={setActiveModel}
         activeLayers={activeLayers}
@@ -596,6 +599,7 @@ const MapPageContent = () => {
           timeOffsetHours={timeOffsetHours}
           isLoading={forecastLoading}
           isLockedForecast={isLockedForecast}
+          isTimelineCollapsed={isTimelineCollapsed}
         />
       )}
 

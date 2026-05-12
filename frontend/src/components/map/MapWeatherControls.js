@@ -27,10 +27,16 @@ export const MapWeatherControls = ({
   onTimeChange,
   isPlaying = false,
   onTogglePlay,
+  isTimelineCollapsed = false,
+  onTimelineCollapseToggle,
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isTimelineCollapsed, setIsTimelineCollapsed] = useState(false);
+  // Remove local isTimelineCollapsed since we lift it up, or use the prop directly if provided.
+  const [localTimelineCollapsed, setLocalTimelineCollapsed] = useState(false);
+  
+  const collapsedState = onTimelineCollapseToggle ? isTimelineCollapsed : localTimelineCollapsed;
+  const setCollapsedState = onTimelineCollapseToggle || setLocalTimelineCollapsed;
 
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
@@ -250,11 +256,11 @@ export const MapWeatherControls = ({
     if (!activeLayer) return null;
     return (
       <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none" style={{ bottom: '72px' }}>
-        <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${isTimelineCollapsed ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
+        <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${collapsedState ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
           <div className="flex justify-center gap-24 items-center pb-2 -mt-2">
             <button 
               className="py-1 px-3 -mx-3 group cursor-pointer active:scale-95 transition-transform"
-              onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+              onClick={() => setCollapsedState(!collapsedState)}
               aria-label="Toggle timeline"
             >
               <svg viewBox="0 0 120 40" className="w-8 h-auto opacity-60 group-hover:opacity-100 transition-opacity duration-300" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -265,7 +271,7 @@ export const MapWeatherControls = ({
             </button>
             <button 
               className="py-1 px-3 -mx-3 group cursor-pointer active:scale-95 transition-transform"
-              onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+              onClick={() => setCollapsedState(!collapsedState)}
               aria-label="Toggle timeline"
             >
               <svg viewBox="0 0 120 40" className="w-8 h-auto opacity-60 group-hover:opacity-100 transition-opacity duration-300 transform -scale-x-100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -275,7 +281,7 @@ export const MapWeatherControls = ({
               </svg>
             </button>
           </div>
-          <div className={`overflow-hidden transition-all duration-300 ${isTimelineCollapsed ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
+          <div className={`overflow-hidden transition-all duration-300 ${collapsedState ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
             {legendConfig[activeLayer] && (
               <div className="mb-2">
                 <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>

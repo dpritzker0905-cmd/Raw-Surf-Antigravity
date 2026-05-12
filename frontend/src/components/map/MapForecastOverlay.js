@@ -18,6 +18,7 @@ export const MapForecastOverlay = ({
   timeOffsetHours,
   isLoading = false,
   isLockedForecast = false,
+  isTimelineCollapsed = false,
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -116,7 +117,7 @@ export const MapForecastOverlay = ({
 
   return (
     <div
-      className={`absolute bottom-[190px] md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
+      className={`absolute ${isTimelineCollapsed ? 'bottom-[120px]' : 'bottom-[190px]'} md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
     >
       {/* Header */}

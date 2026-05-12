@@ -15,6 +15,7 @@ export function useWeatherState({ user }) {
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [showWeatherControls, setShowWeatherControls] = useState(false);
+  const [isTimelineCollapsed, setIsTimelineCollapsed] = useState(false);
 
   // --- Radar animation state (RainViewer) ---
   const [radarFrames, setRadarFrames] = useState([]);
@@ -99,6 +100,8 @@ export function useWeatherState({ user }) {
     setIsPlayingTimeline,
     showWeatherControls,
     setShowWeatherControls,
+    isTimelineCollapsed,
+    setIsTimelineCollapsed,
     // Radar
     radarFrames,
     radarFrameIndex,
