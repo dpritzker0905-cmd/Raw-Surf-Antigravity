@@ -125,11 +125,11 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * v177 FIXES — Pixel-to-screen coordinate alignment:
- * 1. Back to getCanvasContainer() — map.project() returns coords in this space
- * 2. Trail fade uses destination-out (fades to transparent, NOT accumulating black)
- * 3. clearRect every frame before drawing (no ghost accumulation)
- * 4. DPR diagnostic logging on mount
+ * v178 FIXES:
+ * 1. Advection scale increased 10x — particles now move 2-5 pixels/frame (visible flow)
+ * 2. Trail persistence via destination-out (fades to TRANSPARENT not black)
+ * 3. Only draw trail HEAD each frame — trail body persists from previous frames
+ * 4. Combined: creates visible, flowing wind animation
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const animRef = useRef(null);
@@ -140,7 +140,6 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   useEffect(() => {
     if (!mapInstance || !active) return;
 
-    // Use getCanvasContainer() — map.project() returns coords relative to THIS element
     const container = mapInstance.getCanvasContainer();
     const canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:5;';
@@ -163,29 +162,25 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
     };
     resize();
 
-    // Diagnostic: verify coordinate alignment
-    console.log('[Wind] MOUNTED — canvas:', canvas.width, 'x', canvas.height,
-      'style:', cw, 'x', ch, 'dpr:', dpr,
-      'container:', container.className);
+    console.log('[Wind] MOUNTED — canvas:', cw, 'x', ch, 'dpr:', dpr);
 
-    const PARTICLE_COUNT = 250;
-    const TRAIL_LEN = 6;
+    const PARTICLE_COUNT = 300;
     const particles = [];
     const spawnParticle = () => {
       const b = mapInstance.getBounds();
       return {
         lng: b.getWest() + Math.random() * (b.getEast() - b.getWest()),
         lat: b.getSouth() + Math.random() * (b.getNorth() - b.getSouth()),
-        trail: [], age: 0, maxAge: 3 + Math.random() * 5
+        prevX: -1, prevY: -1, age: 0, maxAge: 2.5 + Math.random() * 4
       };
     };
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawnParticle());
 
     const speedColor = (speed) => {
-      if (speed < 5) return '100,200,255';
-      if (speed < 10) return '50,255,150';
-      if (speed < 20) return '255,200,0';
-      return '255,80,50';
+      if (speed < 5) return '120,210,255';
+      if (speed < 10) return '80,255,180';
+      if (speed < 20) return '255,220,50';
+      return '255,100,60';
     };
 
     let lastTime = performance.now();
@@ -195,10 +190,14 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       const dt = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
       frameCount++;
-      if (frameCount <= 2) console.log(`[Wind] RAF frame ${frameCount}`);
+      if (frameCount <= 2) console.log(`[Wind] RAF frame ${frameCount}, dt:${dt.toFixed(3)}`);
 
-      // CRITICAL FIX: Clear canvas fully each frame — prevents black accumulation
-      ctx.clearRect(0, 0, cw, ch);
+      // TRAIL PERSISTENCE: fade existing trails to TRANSPARENT using destination-out
+      // destination-out removes alpha from existing pixels — fades to transparent, NOT black
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = 'rgba(0,0,0,0.03)';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.globalCompositeOperation = 'source-over';
 
       const grid = windRef.current;
       if (!grid?.vectors?.length) {
@@ -213,29 +212,38 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
         const p = particles[i];
         p.age += dt;
         const wind = interpolateWind(grid, p.lng, p.lat);
+
         if (wind.speed > 0.1) {
-          const scale = 0.0003 * dt * 60;
+          // ADVECTION: scale factor calibrated for visible pixel movement
+          // At 15 km/h wind (u≈13), this produces ~3-4px movement per frame at zoom 7
+          const scale = 0.003 * dt * 60;
           p.lng += wind.u * scale;
           p.lat += wind.v * scale;
         }
-        const pt = mapInstance.project([p.lng, p.lat]);
-        p.trail.push({ x: pt.x, y: pt.y });
-        if (p.trail.length > TRAIL_LEN) p.trail.shift();
 
-        // Draw trail segments with decreasing opacity (oldest → newest)
-        if (p.trail.length > 1) {
-          const rgb = speedColor(wind.speed);
-          for (let j = 1; j < p.trail.length; j++) {
-            const segAlpha = (j / p.trail.length) * Math.min(0.9, 0.3 + wind.speed / 15);
+        const pt = mapInstance.project([p.lng, p.lat]);
+
+        // Draw line segment from previous position to current — creates flowing trail
+        if (p.prevX >= 0 && p.prevY >= 0) {
+          const dx = pt.x - p.prevX;
+          const dy = pt.y - p.prevY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          // Only draw if movement is reasonable (skip teleports from respawn)
+          if (dist > 0.5 && dist < 50) {
+            const rgb = speedColor(wind.speed);
+            const alpha = Math.min(0.95, 0.4 + wind.speed / 12);
             ctx.beginPath();
-            ctx.moveTo(p.trail[j - 1].x, p.trail[j - 1].y);
-            ctx.lineTo(p.trail[j].x, p.trail[j].y);
-            ctx.strokeStyle = `rgba(${rgb},${segAlpha})`;
-            ctx.lineWidth = Math.max(1, wind.speed / 8);
+            ctx.moveTo(p.prevX, p.prevY);
+            ctx.lineTo(pt.x, pt.y);
+            ctx.strokeStyle = `rgba(${rgb},${alpha})`;
+            ctx.lineWidth = Math.max(1, Math.min(3, wind.speed / 6));
             ctx.stroke();
           }
         }
+        p.prevX = pt.x;
+        p.prevY = pt.y;
 
+        // Respawn when out of bounds or aged out
         if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
           particles[i] = spawnParticle();
         }
@@ -244,7 +252,10 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
     };
     animRef.current = requestAnimationFrame(animate);
 
-    const onMove = () => { for (const p of particles) p.trail = []; };
+    // On map move, reset prev positions to avoid connecting old/new positions
+    const onMove = () => {
+      for (const p of particles) { p.prevX = -1; p.prevY = -1; }
+    };
     mapInstance.on('move', onMove);
     mapInstance.on('resize', resize);
 

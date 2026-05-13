@@ -304,30 +304,41 @@ const MapWebGL = ({
   }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
   // === FROZEN MOCK MARINE DATA ===
-  // Known-good ocean points along Atlantic/Florida coast. Proves rendering without API.
-  // Includes Cape Canaveral forced test point (TEST 3) with exaggerated wave_height.
+  // 40 ocean points across Atlantic, Gulf, and Caribbean — proves rendering at any viewport.
+  // Each marine variable has independent values so all 4 layer toggles produce visible features.
   const generateMockMarine = useCallback(() => {
+    // [lat, lng] — all verified ocean coordinates
     const oceanPts = [
-      [28.3922, -80.6077, 3.0],  // Cape Canaveral TEST POINT — must be visible
-      [28.5,-79.5], [27.0,-79.0], [29.5,-79.8], [26.0,-78.5], [30.0,-79.5],
-      [25.5,-79.0], [28.0,-78.0], [27.5,-77.5], [29.0,-78.5], [26.5,-78.0],
-      [31.0,-79.0], [24.5,-79.5], [28.0,-76.0], [27.0,-76.5], [30.5,-78.0],
+      // Atlantic Coast (Florida → Carolina)
+      [28.39, -80.10], [28.5, -79.5], [27.5, -79.2], [26.5, -79.0], [29.5, -79.8],
+      [30.5, -79.5], [31.5, -79.0], [32.5, -78.5], [25.5, -79.0], [24.5, -79.5],
+      // Gulf Stream / Offshore Atlantic
+      [28.0, -78.0], [27.0, -77.0], [29.0, -77.5], [26.0, -77.5], [30.0, -78.0],
+      [28.0, -76.0], [27.0, -76.0], [25.0, -77.0], [31.0, -77.5], [29.0, -76.5],
+      // Gulf of Mexico
+      [27.0, -83.0], [26.5, -84.0], [28.0, -85.0], [27.5, -86.0], [26.0, -85.5],
+      [29.0, -87.0], [28.5, -88.0], [27.0, -89.0], [26.0, -87.0], [25.5, -84.5],
+      // Caribbean / Bahamas
+      [24.0, -77.5], [23.0, -78.0], [22.5, -79.5], [24.5, -76.0], [23.5, -75.5],
+      // Deep Atlantic
+      [28.0, -73.0], [26.0, -72.0], [30.0, -74.0], [25.0, -74.0], [27.0, -71.0],
     ];
     return {
       type: 'FeatureCollection',
-      features: oceanPts.map(pt => {
-        const [lat, lng, forceHeight] = pt;
-        const wh = forceHeight || (0.5 + Math.random() * 2);
+      features: oceanPts.map(([lat, lng]) => {
+        const wh = 0.3 + Math.random() * 3;
+        const sh = 0.2 + Math.random() * 2;
+        const wwh = 0.1 + Math.random() * 1.2;
         return {
           type: 'Feature',
           geometry: { type: 'Point', coordinates: [lng, lat] },
           properties: {
-            wave_height: wh, wave_period: 6 + Math.random() * 6,
-            wave_direction: 90 + Math.random() * 90,
-            swell_wave_height: wh * 0.7, swell_wave_period: 8 + Math.random() * 6,
-            swell_wave_direction: 60 + Math.random() * 60,
-            wind_wave_height: wh * 0.3, wind_wave_period: 3 + Math.random() * 4,
-            wind_wave_direction: 100 + Math.random() * 80,
+            wave_height: wh, wave_period: 5 + Math.random() * 8,
+            wave_direction: 60 + Math.random() * 120,
+            swell_wave_height: sh, swell_wave_period: 8 + Math.random() * 8,
+            swell_wave_direction: 40 + Math.random() * 80,
+            wind_wave_height: wwh, wind_wave_period: 3 + Math.random() * 5,
+            wind_wave_direction: 90 + Math.random() * 100,
           },
         };
       })
