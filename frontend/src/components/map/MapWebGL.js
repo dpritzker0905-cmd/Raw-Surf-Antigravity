@@ -101,6 +101,10 @@ const MapWebGL = ({
     pitch: 0,
     bearing: 0
   });
+
+  const [mapInstance, setMapInstance] = useState(null);
+  const [marineData, setMarineData] = useState(null);
+  const marineRevision = useRef(0);
   
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
@@ -294,12 +298,7 @@ const MapWebGL = ({
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => getMapStyle(isLight, false), [isLight]);
 
-  // Unique revision counter for marine data to force Source remount on data change
-  const marineRevision = useRef(0);
-
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
-  const [mapInstance, setMapInstance] = useState(null);
-  const [marineData, setMarineData] = useState(null);
 
   // Capture the raw MapLibre instance once the map loads, set initial bounds,
   // and force a repaint so layers render without needing user pan/scroll.
