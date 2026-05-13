@@ -66,8 +66,8 @@ function generateMockMarine() {
   };
 }
 
-const USE_MOCK_WIND = true;
-const USE_MOCK_MARINE = true;
+const USE_MOCK_WIND = false;
+const USE_MOCK_MARINE = false;
 
 /**
  * Single Authority for fetching wind data.
