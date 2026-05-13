@@ -29,7 +29,7 @@ const OM_MODEL_MAP = {
  */
 const OM_VARIABLE_MAP = {
   precipitation: 'precipitation',
-  wind:          'wind_gusts_10m', // GFS supports wind_gusts_10m as a raster tile variable
+  wind:          null,             // Wind uses canvas particle engine, NOT raster tiles
   pressure:      'pressure_msl',
   fog:           'cloud_cover_low', // Better proxy for fog than visibility
   satellite:     'cloud_cover',    // Cloud cover tiles = satellite-style cloud visualization
