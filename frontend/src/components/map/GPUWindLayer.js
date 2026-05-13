@@ -125,11 +125,11 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * v178 FIXES:
- * 1. Advection scale increased 10x — particles now move 2-5 pixels/frame (visible flow)
- * 2. Trail persistence via destination-out (fades to TRANSPARENT not black)
- * 3. Only draw trail HEAD each frame — trail body persists from previous frames
- * 4. Combined: creates visible, flowing wind animation
+ * v179 FIXES:
+ * 1. ANIMATED RED TEST DOT — moves 2px/frame to prove RAF drives screen updates
+ * 2. try/catch in animate() prevents silent RAF loop death from exceptions
+ * 3. Frame counter logs every 60 frames to prove continuous execution
+ * 4. map.triggerRepaint() ensures MapLibre container composites correctly
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const animRef = useRef(null);
@@ -159,10 +159,10 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      console.log('[Wind] Resized:', cw, 'x', ch, 'dpr:', dpr);
     };
     resize();
-
-    console.log('[Wind] MOUNTED — canvas:', cw, 'x', ch, 'dpr:', dpr);
+    console.log('[Wind] MOUNTED');
 
     const PARTICLE_COUNT = 300;
     const particles = [];
@@ -185,74 +185,93 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
     let lastTime = performance.now();
     let frameCount = 0;
+    // Animated test dot — proves RAF is driving visible screen changes
+    let testDotX = 50;
 
     const animate = (now) => {
-      const dt = Math.min(50, now - lastTime) / 1000;
-      lastTime = now;
-      frameCount++;
-      if (frameCount <= 2) console.log(`[Wind] RAF frame ${frameCount}, dt:${dt.toFixed(3)}`);
+      try {
+        const dt = Math.min(50, now - lastTime) / 1000;
+        lastTime = now;
+        frameCount++;
 
-      // TRAIL PERSISTENCE: fade existing trails to TRANSPARENT using destination-out
-      // destination-out removes alpha from existing pixels — fades to transparent, NOT black
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.fillStyle = 'rgba(0,0,0,0.03)';
-      ctx.fillRect(0, 0, cw, ch);
-      ctx.globalCompositeOperation = 'source-over';
-
-      const grid = windRef.current;
-      if (!grid?.vectors?.length) {
-        animRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      const b = mapInstance.getBounds();
-      const bw = b.getWest(), be = b.getEast(), bs = b.getSouth(), bn = b.getNorth();
-
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        p.age += dt;
-        const wind = interpolateWind(grid, p.lng, p.lat);
-
-        if (wind.speed > 0.1) {
-          // ADVECTION: scale factor calibrated for visible pixel movement
-          // At 15 km/h wind (u≈13), this produces ~3-4px movement per frame at zoom 7
-          const scale = 0.003 * dt * 60;
-          p.lng += wind.u * scale;
-          p.lat += wind.v * scale;
+        // Log every 60 frames to prove loop continuity
+        if (frameCount % 60 === 1) {
+          console.log(`[Wind] Frame ${frameCount}, testDot:${testDotX.toFixed(0)}, hasData:${!!windRef.current}`);
         }
 
-        const pt = mapInstance.project([p.lng, p.lat]);
+        // === STEP 1: Clear canvas fully ===
+        ctx.clearRect(0, 0, cw, ch);
 
-        // Draw line segment from previous position to current — creates flowing trail
-        if (p.prevX >= 0 && p.prevY >= 0) {
-          const dx = pt.x - p.prevX;
-          const dy = pt.y - p.prevY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          // Only draw if movement is reasonable (skip teleports from respawn)
-          if (dist > 0.5 && dist < 50) {
-            const rgb = speedColor(wind.speed);
-            const alpha = Math.min(0.95, 0.4 + wind.speed / 12);
-            ctx.beginPath();
-            ctx.moveTo(p.prevX, p.prevY);
-            ctx.lineTo(pt.x, pt.y);
-            ctx.strokeStyle = `rgba(${rgb},${alpha})`;
-            ctx.lineWidth = Math.max(1, Math.min(3, wind.speed / 6));
-            ctx.stroke();
+        // === STEP 2: ANIMATED TEST DOT — red circle moves 2px/frame ===
+        // If this dot does NOT move, the RAF loop is not driving screen updates
+        testDotX += 2;
+        if (testDotX > cw) testDotX = 50;
+        ctx.fillStyle = 'rgba(255,50,50,0.9)';
+        ctx.beginPath();
+        ctx.arc(testDotX, 40, 8, 0, Math.PI * 2);
+        ctx.fill();
+        // Label
+        ctx.fillStyle = 'white';
+        ctx.font = '11px monospace';
+        ctx.fillText(`frame:${frameCount}`, testDotX + 12, 44);
+
+        // === STEP 3: Draw wind particles ===
+        const grid = windRef.current;
+        if (grid?.vectors?.length) {
+          const b = mapInstance.getBounds();
+          const bw = b.getWest(), be = b.getEast();
+          const bs = b.getSouth(), bn = b.getNorth();
+
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            p.age += dt;
+            const wind = interpolateWind(grid, p.lng, p.lat);
+
+            if (wind.speed > 0.1) {
+              const scale = 0.003 * dt * 60;
+              p.lng += wind.u * scale;
+              p.lat += wind.v * scale;
+            }
+
+            const pt = mapInstance.project([p.lng, p.lat]);
+
+            // Draw line segment from prev to current position
+            if (p.prevX >= 0 && p.prevY >= 0) {
+              const dx = pt.x - p.prevX;
+              const dy = pt.y - p.prevY;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > 0.3 && dist < 80) {
+                const rgb = speedColor(wind.speed);
+                const alpha = Math.min(0.95, 0.4 + wind.speed / 12);
+                ctx.beginPath();
+                ctx.moveTo(p.prevX, p.prevY);
+                ctx.lineTo(pt.x, pt.y);
+                ctx.strokeStyle = `rgba(${rgb},${alpha})`;
+                ctx.lineWidth = Math.max(1, Math.min(3, wind.speed / 6));
+                ctx.stroke();
+              }
+            }
+            p.prevX = pt.x;
+            p.prevY = pt.y;
+
+            // Respawn when out of bounds or aged out
+            if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
+              particles[i] = spawnParticle();
+            }
           }
         }
-        p.prevX = pt.x;
-        p.prevY = pt.y;
 
-        // Respawn when out of bounds or aged out
-        if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
-          particles[i] = spawnParticle();
-        }
+        // Force MapLibre to composite our overlay
+        mapInstance.triggerRepaint();
+
+      } catch (err) {
+        // CRITICAL: prevent RAF death from uncaught exceptions
+        console.error('[Wind] animate error:', err.message);
       }
       animRef.current = requestAnimationFrame(animate);
     };
     animRef.current = requestAnimationFrame(animate);
 
-    // On map move, reset prev positions to avoid connecting old/new positions
     const onMove = () => {
       for (const p of particles) { p.prevX = -1; p.prevY = -1; }
     };
