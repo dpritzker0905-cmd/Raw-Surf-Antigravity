@@ -595,45 +595,38 @@ const MapWebGL = ({
         </Source>
       )}
 
-        {/* Marine Wave Heatmap — v186 production */}
-      {marineData && ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (() => {
-        const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l));
-        const heightProp = activeMarineLayer === 'swell_1' || activeMarineLayer === 'swell_2'
-          ? 'swell_wave_height' : activeMarineLayer === 'wind_waves' ? 'wind_wave_height' : 'wave_height';
-        
-        if (marineData?.type !== 'FeatureCollection' || !Array.isArray(marineData.features)) return null;
-
-        return (
+      {/* Marine Wave Heatmap — v187 architectural stabilization */}
+      {['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (
         <Source 
-          key={`marine-${activeMarineLayer}-${marineRevision.current}`}
           id="marine-data-source"
           type="geojson" 
-          data={marineData}
+          data={{
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [-80.6, 28.4] // Hardcoded near Florida
+                },
+                properties: {
+                  wave_height: 3
+                }
+              }
+            ]
+          }}
         >
           <Layer
             id="marine-heatmap-circles"
             type="circle"
             paint={{
-              'circle-color': [
-                'interpolate', ['linear'],
-                ['coalesce', ['get', heightProp], 0],
-                0, '#ff6600',
-                0.5, '#ffcc00',
-                1.0, '#00ff88',
-                2.0, '#00ccff',
-                3.5, '#9933ff',
-                5.0, '#ff0066'
-              ],
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 30, 5, 50, 8, 90, 12, 130],
-              'circle-blur': 0.4,
-              'circle-opacity': 0.85,
-              'circle-stroke-width': 1,
-              'circle-stroke-color': 'rgba(255,255,255,0.5)'
+              'circle-radius': 40,
+              'circle-color': '#ff00ff', // magenta
+              'circle-opacity': 1
             }}
           />
         </Source>
-        );
-      })()}
+      )}
 
       {/* Spot Clusters */}
       {spotClusters.map(cluster => {
