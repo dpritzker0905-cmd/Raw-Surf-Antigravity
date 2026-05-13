@@ -5,23 +5,43 @@ import { fetchWindData } from './marineController';
 /**
  * Viewport-scoped wind vector data hook.
  */
-export function useWindVectorData({ active, mapBounds }) {
+export function useWindVectorData({ active, mapInstance }) {
   const [windData, setWindData] = useState(null);
   const revisionRef = useRef(0);
 
-  const updateWind = useCallback(async (bounds) => {
+  const updateWind = useCallback(async () => {
+    if (!mapInstance || !active) return;
+    if (mapInstance.isMoving() || mapInstance.isZooming()) return;
+
+    const b = mapInstance.getBounds();
+    const bounds = {
+      west: b.getWest(), south: b.getSouth(),
+      east: b.getEast(), north: b.getNorth()
+    };
     const data = await fetchWindData(bounds);
     if (data) {
       revisionRef.current += 1;
       setWindData(data);
     }
-  }, []);
+  }, [mapInstance, active]);
 
   useEffect(() => {
-    if (!active || !mapBounds) { setWindData(null); return; }
-    const timer = setTimeout(() => updateWind(mapBounds), 1500);
-    return () => clearTimeout(timer);
-  }, [active, mapBounds, updateWind]);
+    if (!active || !mapInstance) { setWindData(null); return; }
+    
+    let timer;
+    const handleMove = () => {
+      if (mapInstance.isMoving() || mapInstance.isZooming()) return;
+      clearTimeout(timer);
+      timer = setTimeout(updateWind, 1500);
+    };
+
+    handleMove(); // Initial fetch
+    mapInstance.on('moveend', handleMove);
+    return () => {
+      clearTimeout(timer);
+      mapInstance.off('moveend', handleMove);
+    };
+  }, [active, mapInstance, updateWind]);
 
   return { windData, windRevision: revisionRef };
 }

@@ -102,13 +102,10 @@ const MapWebGL = ({
     bearing: 0
   });
   
-  const [bounds, setBounds] = useState(null);
-
   // Wind vector data — viewport-scoped, MapLibre-native rendering
-  // NOTE: Must be declared AFTER bounds state to avoid TDZ
   const { windData, windRevision } = useWindVectorData({
     active: activeLayers.includes('wind'),
-    mapBounds: bounds
+    mapInstance
   });
 
   // Protocol registration — gated state prevents sources from mounting before ready
@@ -311,12 +308,6 @@ const MapWebGL = ({
     if (map && !mapInstance) {
       setMapInstance(map);
       
-      // Set initial bounds so data hooks can fetch immediately
-      const b = map.getBounds();
-      setBounds({
-        west: b.getWest(), south: b.getSouth(),
-        east: b.getEast(), north: b.getNorth()
-      });
       // Force render loop to paint custom-protocol tiles on mount
       setTimeout(() => {
         try { map.triggerRepaint(); } catch(e) {}
@@ -356,6 +347,9 @@ const MapWebGL = ({
 
     let timeoutId;
     const updateMarineGrid = async () => {
+      // Hard block: do not fetch if map is actively moving/zooming/animating
+      if (mapInstance.isMoving() || mapInstance.isZooming()) return;
+
       const b = mapInstance.getBounds();
       const bounds = {
         west: b.getWest(), south: b.getSouth(),
@@ -371,14 +365,18 @@ const MapWebGL = ({
     };
 
     const debouncedUpdate = () => {
+      // Hard block on the trigger itself
+      if (mapInstance.isMoving() || mapInstance.isZooming()) return;
       clearTimeout(timeoutId);
       timeoutId = setTimeout(updateMarineGrid, 1500);
     };
 
-    // Only fire the initial fetch once when the layer is activated, do not spam on effect re-runs
+    // Only fire the initial fetch once when the layer is activated
     debouncedUpdate();
 
+    // ONLY listen to moveend, which fires when animations settle
     mapInstance.on('moveend', debouncedUpdate);
+    
     return () => {
       clearTimeout(timeoutId);
       mapInstance.off('moveend', debouncedUpdate);
