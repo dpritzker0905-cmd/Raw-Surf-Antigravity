@@ -468,30 +468,37 @@ const MapWebGL = ({
       >
         <Layer
           id="marine-heatmap-circles"
-          type="circle"
+          type="heatmap"
           layout={{
             visibility: ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) ? 'visible' : 'none'
           }}
           paint={{
-            'circle-radius': [
+            'heatmap-weight': [
+              'interpolate', ['linear'], ['get', 'wave_height'],
+              0, 0,
+              8, 1
+            ],
+            'heatmap-intensity': [
               'interpolate', ['linear'], ['zoom'],
-              4, 15,
+              0, 1,
+              15, 3
+            ],
+            // VISUAL DEBUGGING: Pure blue interpolation for marine data
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(59, 130, 246, 0)',
+              0.2, 'rgba(59, 130, 246, 0.4)',
+              0.5, 'rgba(59, 130, 246, 0.7)',
+              0.8, 'rgba(59, 130, 246, 0.9)',
+              1, 'rgba(59, 130, 246, 1)'
+            ],
+            'heatmap-radius': [
+              'interpolate', ['linear'], ['zoom'],
+              4, 20,
               8, 40,
               12, 100
             ],
-            // VISUAL DEBUGGING: Pure blue interpolation for marine data
-            'circle-color': [
-              'interpolate',
-              ['linear'],
-              ['get', 'wave_height'],
-              0, 'rgba(59, 130, 246, 0)',
-              1, 'rgba(59, 130, 246, 0.5)',
-              3, 'rgba(59, 130, 246, 0.7)',
-              5, 'rgba(59, 130, 246, 0.8)',
-              8, 'rgba(59, 130, 246, 0.9)'
-            ],
-            'circle-blur': 0.8,
-            'circle-opacity': 0.9
+            'heatmap-opacity': 0.8
           }}
         />
       </Source>
