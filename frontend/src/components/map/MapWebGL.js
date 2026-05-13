@@ -611,24 +611,25 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Marine Wave Heatmap — v188 architectural stabilization */}
-      {['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (
-        <Source 
-          id="marine-data-source"
-          type="geojson" 
-          data={HARDCODED_MARINE_FEATURE}
-        >
-          <Layer
-            id="marine-heatmap-circles"
-            type="circle"
-            paint={{
-              'circle-radius': 40,
-              'circle-color': '#ff00ff', // magenta
-              'circle-opacity': 1
-            }}
-          />
-        </Source>
-      )}
+      {/* Marine Wave Heatmap — v189 persistent mounting */}
+      <Source 
+        id="marine-data-source"
+        type="geojson" 
+        data={HARDCODED_MARINE_FEATURE}
+      >
+        <Layer
+          id="marine-heatmap-circles"
+          type="circle"
+          layout={{
+            visibility: ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) ? 'visible' : 'none'
+          }}
+          paint={{
+            'circle-radius': 40,
+            'circle-color': '#ff00ff', // magenta
+            'circle-opacity': 1
+          }}
+        />
+      </Source>
 
       {/* Spot Clusters */}
       {spotClusters.map(cluster => {
@@ -795,12 +796,13 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      {/* Wind Particle Advection Engine — canvas overlay with animated flow */}
+      {/* Wind Particle Advection Engine — temporarily disabled for v189 isolation testing
       <WindParticleCanvas
         mapInstance={mapInstance}
         windVectors={windData}
         active={activeLayers.includes('wind')}
       />
+      */}
     </Map>
     </div>
   );
