@@ -1,6 +1,14 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
+
+// --- CRITICAL MAPLIBRE FIX ---
+// Force MapLibre to use the pre-minified worker from the CDN instead of the local
+// bundle. This completely bypasses the known Create-React-App Webpack 5 Terser bug 
+// where the inline ES2022 worker string gets mangled, causing 's is not defined' 
+// or 'bt is not defined' crashes during production builds.
+maplibregl.setWorkerUrl('https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl-worker.js');
+
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -301,9 +309,6 @@ const MapWebGL = ({
     if (map && !mapInstance) {
       setMapInstance(map);
       
-      // Global error diagnostic
-      map.on('error', e => console.error('[MAPLIBRE GLOBAL ERROR]', e));
-
       // Set initial bounds so data hooks can fetch immediately
       const b = map.getBounds();
       setBounds({

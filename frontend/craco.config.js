@@ -27,7 +27,6 @@ let webpackConfig = {
   webpack: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      'maplibre-gl$': 'maplibre-gl/dist/maplibre-gl.js',
     },
     configure: (webpackConfig) => {
 
