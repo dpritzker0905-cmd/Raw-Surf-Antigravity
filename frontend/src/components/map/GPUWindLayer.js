@@ -125,11 +125,15 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * v180 — RASTER TILE CONFLICT RESOLVED:
- * - OM_VARIABLE_MAP['wind'] set to null — no more static raster tiles masking particles
- * - Trail persistence via destination-out (fade to transparent)
- * - RAF loop with try/catch protection
- * - Test dot removed (RAF proven working in v179)
+ * v181 — MAXIMUM SIMPLICITY PARTICLE TEST:
+ * 1. clearRect every frame (proven to work with red dot test)
+ * 2. Draw particles as CIRCLES (not line segments) — maximum visibility
+ * 3. Hard test dot at top of screen (x += 2/frame)
+ * 4. Aggressive logging: particle positions, draw counts, data state
+ * 5. No destination-out, no compositing tricks, no trail persistence
+ *
+ * Goal: Determine if particles are visible and moving.
+ * Once confirmed, add trail persistence back.
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const animRef = useRef(null);
@@ -139,11 +143,13 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
   useEffect(() => {
     if (!mapInstance || !active) return;
+    console.log('[Wind] === EFFECT TRIGGERED === mapInstance:', !!mapInstance, 'active:', active);
 
     const container = mapInstance.getCanvasContainer();
     const canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:5;';
+    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
     container.appendChild(canvas);
+    console.log('[Wind] Canvas appended to:', container.className, 'inDOM:', document.body.contains(canvas));
 
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -159,112 +165,117 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      console.log('[Wind] Resize:', cw, 'x', ch, 'backing:', canvas.width, 'x', canvas.height);
     };
     resize();
-    console.log('[Wind] MOUNTED — canvas:', cw, 'x', ch, 'dpr:', dpr);
 
-    const PARTICLE_COUNT = 300;
+    // === PARTICLE POOL ===
+    const PARTICLE_COUNT = 200;
     const particles = [];
     const spawnParticle = () => {
       const b = mapInstance.getBounds();
       return {
         lng: b.getWest() + Math.random() * (b.getEast() - b.getWest()),
         lat: b.getSouth() + Math.random() * (b.getNorth() - b.getSouth()),
-        prevX: -1, prevY: -1, age: 0, maxAge: 2.5 + Math.random() * 4
+        age: 0, maxAge: 3 + Math.random() * 4
       };
     };
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawnParticle());
 
     const speedColor = (speed) => {
-      if (speed < 5) return '120,210,255';
-      if (speed < 10) return '80,255,180';
-      if (speed < 20) return '255,220,50';
-      return '255,100,60';
+      if (speed < 5) return '#78d2ff';
+      if (speed < 10) return '#50ffb4';
+      if (speed < 20) return '#ffdc32';
+      return '#ff6444';
     };
 
     let lastTime = performance.now();
     let frameCount = 0;
+    let testX = 30; // hard test dot
 
     const animate = (now) => {
       try {
         const dt = Math.min(50, now - lastTime) / 1000;
         lastTime = now;
         frameCount++;
-        if (frameCount % 120 === 1) {
-          console.log(`[Wind] Frame ${frameCount}, hasData:${!!windRef.current}`);
-        }
 
-        // Fade existing trails to TRANSPARENT (not black)
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0,0,0,0.04)';
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.globalCompositeOperation = 'source-over';
+        // === STEP 1: Clear entire canvas ===
+        ctx.clearRect(0, 0, cw, ch);
 
+        // === STEP 2: HARD TEST — animated red dot (no wind data needed) ===
+        testX += 2;
+        if (testX > cw - 10) testX = 30;
+        ctx.fillStyle = '#ff3333';
+        ctx.beginPath();
+        ctx.arc(testX, 30, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px monospace';
+        ctx.fillText(`F:${frameCount} D:${windRef.current ? 'YES' : 'NO'}`, testX + 10, 34);
+
+        // === STEP 3: Draw wind particles as circles ===
         const grid = windRef.current;
-        if (!grid?.vectors?.length) {
-          animRef.current = requestAnimationFrame(animate);
-          return;
-        }
+        let drawnCount = 0;
 
-        const b = mapInstance.getBounds();
-        const bw = b.getWest(), be = b.getEast();
-        const bs = b.getSouth(), bn = b.getNorth();
+        if (grid?.vectors?.length) {
+          const b = mapInstance.getBounds();
+          const bw = b.getWest(), be = b.getEast();
+          const bs = b.getSouth(), bn = b.getNorth();
 
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          p.age += dt;
-          const wind = interpolateWind(grid, p.lng, p.lat);
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            p.age += dt;
+            const wind = interpolateWind(grid, p.lng, p.lat);
 
-          if (wind.speed > 0.1) {
-            const scale = 0.003 * dt * 60;
-            p.lng += wind.u * scale;
-            p.lat += wind.v * scale;
-          }
+            // Move particle
+            if (wind.speed > 0.1) {
+              const scale = 0.003 * dt * 60;
+              p.lng += wind.u * scale;
+              p.lat += wind.v * scale;
+            }
 
-          const pt = mapInstance.project([p.lng, p.lat]);
+            // Project to screen coordinates
+            const pt = mapInstance.project([p.lng, p.lat]);
 
-          // Draw trail segment from previous to current position
-          if (p.prevX >= 0 && p.prevY >= 0) {
-            const dx = pt.x - p.prevX;
-            const dy = pt.y - p.prevY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist > 0.3 && dist < 80) {
-              const rgb = speedColor(wind.speed);
-              const alpha = Math.min(0.95, 0.4 + wind.speed / 12);
-              ctx.beginPath();
-              ctx.moveTo(p.prevX, p.prevY);
-              ctx.lineTo(pt.x, pt.y);
-              ctx.strokeStyle = `rgba(${rgb},${alpha})`;
-              ctx.lineWidth = Math.max(1, Math.min(3, wind.speed / 6));
-              ctx.stroke();
+            // Draw as CIRCLE — maximum visibility
+            ctx.fillStyle = speedColor(wind.speed);
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+            drawnCount++;
+
+            // Log first particle position on first few frames
+            if (frameCount <= 3 && i === 0) {
+              console.log(`[Wind] P0: lng=${p.lng.toFixed(3)} lat=${p.lat.toFixed(3)} → screen(${pt.x.toFixed(1)},${pt.y.toFixed(1)}) wind:${wind.speed.toFixed(1)}`);
+            }
+
+            // Respawn
+            if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
+              particles[i] = spawnParticle();
             }
           }
-          p.prevX = pt.x;
-          p.prevY = pt.y;
+        }
 
-          if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
-            particles[i] = spawnParticle();
-          }
+        // Log every 60 frames
+        if (frameCount % 60 === 1) {
+          console.log(`[Wind] Frame:${frameCount} drawn:${drawnCount} testX:${testX} data:${!!grid} canvas:${cw}x${ch}`);
         }
 
         mapInstance.triggerRepaint();
       } catch (err) {
-        console.error('[Wind] animate error:', err.message);
+        console.error('[Wind] animate error:', err.message, err.stack);
       }
       animRef.current = requestAnimationFrame(animate);
     };
+
     animRef.current = requestAnimationFrame(animate);
 
-    const onMove = () => {
-      for (const p of particles) { p.prevX = -1; p.prevY = -1; }
-    };
-    mapInstance.on('move', onMove);
+    const onMove = () => {}; // No trail state to reset with circle mode
     mapInstance.on('resize', resize);
 
     return () => {
-      console.log('[Wind] UNMOUNTING');
+      console.log('[Wind] === UNMOUNTING ===');
       cancelAnimationFrame(animRef.current);
-      mapInstance.off('move', onMove);
       mapInstance.off('resize', resize);
       if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
     };
