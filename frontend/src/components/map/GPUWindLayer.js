@@ -125,15 +125,14 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * v181 — MAXIMUM SIMPLICITY PARTICLE TEST:
- * 1. clearRect every frame (proven to work with red dot test)
- * 2. Draw particles as CIRCLES (not line segments) — maximum visibility
- * 3. Hard test dot at top of screen (x += 2/frame)
- * 4. Aggressive logging: particle positions, draw counts, data state
- * 5. No destination-out, no compositing tricks, no trail persistence
- *
- * Goal: Determine if particles are visible and moving.
- * Once confirmed, add trail persistence back.
+ * v182 — NUCLEAR DIAGNOSTIC:
+ * 1. INLINE mock data generated on mount — ZERO API dependency
+ * 2. 3 FIXED screen-position circles at (100,100), (300,200), (500,300)
+ *    — bypasses ALL data/projection — proves canvas draws
+ * 3. 200 projected particles as BIG 8px circles with white stroke
+ * 4. Test dot still present for RAF proof
+ * 5. If fixed circles visible but projected ones aren't → projection bug
+ *    If nothing visible → canvas/CSS bug
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const animRef = useRef(null);
@@ -142,14 +141,30 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   useEffect(() => { windRef.current = windVectors; }, [windVectors]);
 
   useEffect(() => {
-    if (!mapInstance || !active) return;
-    console.log('[Wind] === EFFECT TRIGGERED === mapInstance:', !!mapInstance, 'active:', active);
+    if (!mapInstance || !active) {
+      console.log('[Wind] SKIPPED — map:', !!mapInstance, 'active:', active);
+      return;
+    }
+    console.log('[Wind] === MOUNTING v182 ===');
+
+    // Generate mock data IMMEDIATELY — no API wait, no timeout
+    const b = mapInstance.getBounds();
+    const inlineMock = generateMockWind({
+      west: b.getWest(), south: b.getSouth(),
+      east: b.getEast(), north: b.getNorth()
+    });
+    console.log('[Wind] Inline mock:', inlineMock.vectors.length, 'vectors',
+      'sample u:', inlineMock.vectors[0]?.u?.toFixed(2),
+      'v:', inlineMock.vectors[0]?.v?.toFixed(2),
+      'speed:', inlineMock.vectors[0]?.speed?.toFixed(2));
 
     const container = mapInstance.getCanvasContainer();
     const canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
     container.appendChild(canvas);
-    console.log('[Wind] Canvas appended to:', container.className, 'inDOM:', document.body.contains(canvas));
+    console.log('[Wind] Canvas parent:', container.className,
+      'children:', container.childElementCount,
+      'inDOM:', document.body.contains(canvas));
 
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -165,33 +180,25 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      console.log('[Wind] Resize:', cw, 'x', ch, 'backing:', canvas.width, 'x', canvas.height);
     };
     resize();
+    console.log('[Wind] Canvas:', cw, 'x', ch, 'dpr:', dpr);
 
-    // === PARTICLE POOL ===
     const PARTICLE_COUNT = 200;
     const particles = [];
     const spawnParticle = () => {
-      const b = mapInstance.getBounds();
+      const mb = mapInstance.getBounds();
       return {
-        lng: b.getWest() + Math.random() * (b.getEast() - b.getWest()),
-        lat: b.getSouth() + Math.random() * (b.getNorth() - b.getSouth()),
+        lng: mb.getWest() + Math.random() * (mb.getEast() - mb.getWest()),
+        lat: mb.getSouth() + Math.random() * (mb.getNorth() - mb.getSouth()),
         age: 0, maxAge: 3 + Math.random() * 4
       };
     };
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawnParticle());
 
-    const speedColor = (speed) => {
-      if (speed < 5) return '#78d2ff';
-      if (speed < 10) return '#50ffb4';
-      if (speed < 20) return '#ffdc32';
-      return '#ff6444';
-    };
-
     let lastTime = performance.now();
     let frameCount = 0;
-    let testX = 30; // hard test dot
+    let testX = 30;
 
     const animate = (now) => {
       try {
@@ -199,80 +206,89 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
         lastTime = now;
         frameCount++;
 
-        // === STEP 1: Clear entire canvas ===
         ctx.clearRect(0, 0, cw, ch);
 
-        // === STEP 2: HARD TEST — animated red dot (no wind data needed) ===
+        // === TEST A: Red dot (2px/frame) — proves RAF ===
         testX += 2;
         if (testX > cw - 10) testX = 30;
         ctx.fillStyle = '#ff3333';
         ctx.beginPath();
-        ctx.arc(testX, 30, 6, 0, Math.PI * 2);
+        ctx.arc(testX, 25, 8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '12px monospace';
-        ctx.fillText(`F:${frameCount} D:${windRef.current ? 'YES' : 'NO'}`, testX + 10, 34);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 13px monospace';
+        ctx.fillText(`F:${frameCount}`, testX + 12, 30);
 
-        // === STEP 3: Draw wind particles as circles ===
-        const grid = windRef.current;
-        let drawnCount = 0;
+        // === TEST B: 3 FIXED screen-position circles — bypass ALL data ===
+        const fixedPts = [[100, 100, '#ff0'], [300, 200, '#0ff'], [500, 300, '#f0f']];
+        for (const [fx, fy, fc] of fixedPts) {
+          ctx.fillStyle = fc;
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(fx, fy, 15, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = '#000';
+          ctx.font = 'bold 11px monospace';
+          ctx.fillText(`${fx},${fy}`, fx - 18, fy + 4);
+        }
 
-        if (grid?.vectors?.length) {
-          const b = mapInstance.getBounds();
-          const bw = b.getWest(), be = b.getEast();
-          const bs = b.getSouth(), bn = b.getNorth();
+        // === TEST C: Wind particles as BIG circles ===
+        // Use inline mock if windRef is empty (ensures data on frame 1)
+        const grid = windRef.current || inlineMock;
+        const mb = mapInstance.getBounds();
+        const bw = mb.getWest(), be = mb.getEast();
+        const bs = mb.getSouth(), bn = mb.getNorth();
+        let drawn = 0;
 
-          for (let i = 0; i < particles.length; i++) {
-            const p = particles[i];
-            p.age += dt;
-            const wind = interpolateWind(grid, p.lng, p.lat);
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          p.age += dt;
+          const wind = interpolateWind(grid, p.lng, p.lat);
 
-            // Move particle
-            if (wind.speed > 0.1) {
-              const scale = 0.003 * dt * 60;
-              p.lng += wind.u * scale;
-              p.lat += wind.v * scale;
-            }
+          if (wind.speed > 0.1) {
+            const scale = 0.003 * dt * 60;
+            p.lng += wind.u * scale;
+            p.lat += wind.v * scale;
+          }
 
-            // Project to screen coordinates
-            const pt = mapInstance.project([p.lng, p.lat]);
+          const pt = mapInstance.project([p.lng, p.lat]);
 
-            // Draw as CIRCLE — maximum visibility
-            ctx.fillStyle = speedColor(wind.speed);
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
-            ctx.fill();
-            drawnCount++;
+          // BIG circle with white border — impossible to miss
+          const hue = Math.min(120, wind.speed * 8);
+          ctx.fillStyle = `hsl(${120 - hue}, 90%, 55%)`;
+          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          drawn++;
 
-            // Log first particle position on first few frames
-            if (frameCount <= 3 && i === 0) {
-              console.log(`[Wind] P0: lng=${p.lng.toFixed(3)} lat=${p.lat.toFixed(3)} → screen(${pt.x.toFixed(1)},${pt.y.toFixed(1)}) wind:${wind.speed.toFixed(1)}`);
-            }
+          if (frameCount <= 2 && i < 3) {
+            console.log(`[Wind] P${i}: (${p.lng.toFixed(2)},${p.lat.toFixed(2)}) → screen(${pt.x.toFixed(0)},${pt.y.toFixed(0)}) spd:${wind.speed.toFixed(1)}`);
+          }
 
-            // Respawn
-            if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
-              particles[i] = spawnParticle();
-            }
+          if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
+            particles[i] = spawnParticle();
           }
         }
 
-        // Log every 60 frames
         if (frameCount % 60 === 1) {
-          console.log(`[Wind] Frame:${frameCount} drawn:${drawnCount} testX:${testX} data:${!!grid} canvas:${cw}x${ch}`);
+          console.log(`[Wind] F:${frameCount} drawn:${drawn} testX:${testX} canvas:${cw}x${ch} grid:${grid.vectors.length}v`);
         }
 
         mapInstance.triggerRepaint();
       } catch (err) {
-        console.error('[Wind] animate error:', err.message, err.stack);
+        console.error('[Wind] CRASH:', err.message, err.stack);
       }
       animRef.current = requestAnimationFrame(animate);
     };
 
     animRef.current = requestAnimationFrame(animate);
 
-    const onMove = () => {}; // No trail state to reset with circle mode
     mapInstance.on('resize', resize);
-
     return () => {
       console.log('[Wind] === UNMOUNTING ===');
       cancelAnimationFrame(animRef.current);
