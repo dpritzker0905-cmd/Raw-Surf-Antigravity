@@ -595,19 +595,43 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Marine Wave Heatmap & Data Labels — layer-aware property selection */}
+        {/* Marine Wave Heatmap — v185 MAXIMUM VISIBILITY */}
       {marineData && ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (() => {
         const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l));
         const heightProp = activeMarineLayer === 'swell_1' || activeMarineLayer === 'swell_2'
           ? 'swell_wave_height' : activeMarineLayer === 'wind_waves' ? 'wind_wave_height' : 'wave_height';
-        // TEST 3: Log marine data to confirm features reach MapLibre
-        console.log(`[Marine] Rendering ${marineData.features?.length} features, prop: ${heightProp}`);
+        
+        // Validate GeoJSON shape for MapLibre
+        const isValid = marineData?.type === 'FeatureCollection' && Array.isArray(marineData.features);
+        const sampleFeature = marineData?.features?.[0];
+        const sampleVal = sampleFeature?.properties?.[heightProp];
+        const sampleCoords = sampleFeature?.geometry?.coordinates;
+        console.log(`[Marine] RENDER: ${marineData.features?.length} features, prop:${heightProp}, valid:${isValid}, sample:${sampleVal}, coords:${JSON.stringify(sampleCoords)}`);
+        
+        if (!isValid) {
+          console.error('[Marine] INVALID GeoJSON shape:', JSON.stringify(marineData).slice(0, 200));
+          return null;
+        }
+
+        // Inject a HARDCODED test point at Florida center to prove GeoJSON layers work
+        const testData = {
+          type: 'FeatureCollection',
+          features: [
+            ...marineData.features,
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [-80.2, 27.5] },
+              properties: { wave_height: 3.0, swell_wave_height: 2.5, wind_wave_height: 1.0, _test: true }
+            }
+          ]
+        };
+
         return (
         <Source 
-          key={`marine-${activeMarineLayer}`}
+          key={`marine-${activeMarineLayer}-${marineRevision.current}`}
           id="marine-data-source"
           type="geojson" 
-          data={marineData}
+          data={testData}
         >
           <Layer
             id="marine-heatmap-circles"
@@ -615,44 +639,23 @@ const MapWebGL = ({
             paint={{
               'circle-color': [
                 'interpolate', ['linear'],
-                ['get', heightProp],
-                0, '#1e3a5f',
-                0.3, '#93c5fd',
-                1.0, '#22d3ee',
-                2.0, '#2563eb',
-                3.5, '#9333ea',
-                5.0, '#be123c'
+                ['coalesce', ['get', heightProp], 0],
+                0, '#ff6600',
+                0.5, '#ffcc00',
+                1.0, '#00ff88',
+                2.0, '#00ccff',
+                3.5, '#9933ff',
+                5.0, '#ff0066'
               ],
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 40, 3, 60, 6, 100, 10, 150],
-              'circle-blur': 0.55,
-              'circle-opacity': 0.8
-            }}
-          />
-          <Layer
-            id="marine-data-labels"
-            type="symbol"
-            layout={{
-              'text-field': [
-                'concat',
-                ['to-string', ['get', heightProp]],
-                'm'
-              ],
-              'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-              'text-size': ['interpolate', ['linear'], ['zoom'], 0, 0, 2, 10, 6, 14, 10, 18],
-              'text-anchor': 'center',
-              'text-allow-overlap': true
-            }}
-            paint={{
-              'text-color': '#ffffff',
-              'text-halo-color': 'rgba(0,0,0,0.7)',
-              'text-halo-width': 1.5
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 20, 5, 40, 8, 80, 12, 120],
+              'circle-opacity': 0.9,
+              'circle-stroke-width': 2,
+              'circle-stroke-color': '#ffffff'
             }}
           />
         </Source>
         );
       })()}
-
-
 
       {/* Spot Clusters */}
       {spotClusters.map(cluster => {
