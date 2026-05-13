@@ -479,15 +479,16 @@ const MapWebGL = ({
               8, 40,
               12, 100
             ],
+            // VISUAL DEBUGGING: Pure blue interpolation for marine data
             'circle-color': [
               'interpolate',
               ['linear'],
               ['get', 'wave_height'],
-              0, 'rgba(0, 255, 255, 0)',
-              1, 'rgba(0, 255, 255, 0.5)',
-              3, 'rgba(0, 100, 255, 0.7)',
-              5, 'rgba(100, 0, 255, 0.8)',
-              8, 'rgba(255, 0, 100, 0.9)'
+              0, 'rgba(59, 130, 246, 0)',
+              1, 'rgba(59, 130, 246, 0.5)',
+              3, 'rgba(59, 130, 246, 0.7)',
+              5, 'rgba(59, 130, 246, 0.8)',
+              8, 'rgba(59, 130, 246, 0.9)'
             ],
             'circle-blur': 0.8,
             'circle-opacity': 0.9
@@ -502,7 +503,7 @@ const MapWebGL = ({
           return (
             <Marker key={cluster.id} longitude={lng} latitude={lat} anchor="center">
               <div 
-                className="w-10 h-10 rounded-full bg-cyan-500 bg-opacity-80 flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer"
+                className="w-10 h-10 rounded-full bg-orange-500 bg-opacity-80 flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   innerMapRef.current.flyTo({
