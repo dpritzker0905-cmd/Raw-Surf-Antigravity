@@ -492,14 +492,14 @@ const MapWebGL = ({
               0, 1,
               15, 3
             ],
-            // VISUAL DEBUGGING: Pure blue interpolation for marine data
+            // VISUAL TUNING: Oceanographic depth-to-storm interpolation
             'heatmap-color': [
               'interpolate', ['linear'], ['heatmap-density'],
-              0, 'rgba(59, 130, 246, 0)',
-              0.2, 'rgba(59, 130, 246, 0.4)',
-              0.5, 'rgba(59, 130, 246, 0.7)',
-              0.8, 'rgba(59, 130, 246, 0.9)',
-              1, 'rgba(59, 130, 246, 1)'
+              0, 'rgba(0, 0, 0, 0)',
+              0.2, 'rgba(14, 165, 233, 0.4)', // Tailwind sky-500
+              0.5, 'rgba(59, 130, 246, 0.7)', // Tailwind blue-500
+              0.8, 'rgba(139, 92, 246, 0.85)',// Tailwind violet-500
+              1, 'rgba(236, 72, 153, 0.95)'   // Tailwind pink-500
             ],
             'heatmap-radius': [
               'interpolate', ['linear'], ['zoom'],
