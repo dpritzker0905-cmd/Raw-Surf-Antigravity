@@ -577,7 +577,7 @@ const MapWebGL = ({
 
       {/* --- WEATHER LAYERS --- */}
 
-      {/* Live Radar (RainViewer — animated frames) */}
+      {/* Live Radar (RainViewer — animated frames) -- TEMPORARILY DISABLED for isolation
       {activeLayers.includes('radar') && radarTileUrl && (
         <Source
           key={`radar-${radarFrameIndex}`}
@@ -590,8 +590,9 @@ const MapWebGL = ({
           <Layer id="radar-layer" type="raster" paint={{ 'raster-opacity': 0.65 }} />
         </Source>
       )}
+      */}
 
-      {/* Open-Meteo Animated Weather Tiles — gated on protocol registration */}
+      {/* Open-Meteo Animated Weather Tiles — TEMPORARILY DISABLED for isolation
       {protocolReady && omTileUrl && (
         <Source
           key={omTileUrl}
@@ -610,6 +611,7 @@ const MapWebGL = ({
           />
         </Source>
       )}
+      */}
 
       {/* Marine Wave Heatmap — v189 persistent mounting */}
       <Source 
