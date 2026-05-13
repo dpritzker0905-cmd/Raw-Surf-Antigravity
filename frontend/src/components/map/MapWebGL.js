@@ -3,11 +3,10 @@ import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
 // --- CRITICAL MAPLIBRE FIX ---
-// Force MapLibre to use the pre-minified worker from the CDN instead of the local
-// bundle. This completely bypasses the known Create-React-App Webpack 5 Terser bug 
-// where the inline ES2022 worker string gets mangled, causing 's is not defined' 
-// or 'bt is not defined' crashes during production builds.
-maplibregl.setWorkerUrl('https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl-worker.js');
+// Force MapLibre to use the pre-minified worker from the local public directory.
+// This completely bypasses the Create-React-App Webpack 5 Terser minification bug
+// AND avoids the CORS SecurityError that occurs when loading workers from a CDN.
+maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
 
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
