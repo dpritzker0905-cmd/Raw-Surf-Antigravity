@@ -376,7 +376,8 @@ const MapWebGL = ({
   }, []);
 
   // Marine API Cache to prevent re-fetching the same grid coordinates
-  const marineCache = useRef(new Map());
+  // FIXED: Use window.Map to avoid shadowing the imported 'Map' React component from react-map-gl!
+  const marineCache = useRef(new window.Map());
 
   // Fetch marine data — with mock fallback to prove rendering independently of API
   const marineRequestId = useRef(0);
