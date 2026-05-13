@@ -595,43 +595,20 @@ const MapWebGL = ({
         </Source>
       )}
 
-        {/* Marine Wave Heatmap — v185 MAXIMUM VISIBILITY */}
+        {/* Marine Wave Heatmap — v186 production */}
       {marineData && ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (() => {
         const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l));
         const heightProp = activeMarineLayer === 'swell_1' || activeMarineLayer === 'swell_2'
           ? 'swell_wave_height' : activeMarineLayer === 'wind_waves' ? 'wind_wave_height' : 'wave_height';
         
-        // Validate GeoJSON shape for MapLibre
-        const isValid = marineData?.type === 'FeatureCollection' && Array.isArray(marineData.features);
-        const sampleFeature = marineData?.features?.[0];
-        const sampleVal = sampleFeature?.properties?.[heightProp];
-        const sampleCoords = sampleFeature?.geometry?.coordinates;
-        console.log(`[Marine] RENDER: ${marineData.features?.length} features, prop:${heightProp}, valid:${isValid}, sample:${sampleVal}, coords:${JSON.stringify(sampleCoords)}`);
-        
-        if (!isValid) {
-          console.error('[Marine] INVALID GeoJSON shape:', JSON.stringify(marineData).slice(0, 200));
-          return null;
-        }
-
-        // Inject a HARDCODED test point at Florida center to prove GeoJSON layers work
-        const testData = {
-          type: 'FeatureCollection',
-          features: [
-            ...marineData.features,
-            {
-              type: 'Feature',
-              geometry: { type: 'Point', coordinates: [-80.2, 27.5] },
-              properties: { wave_height: 3.0, swell_wave_height: 2.5, wind_wave_height: 1.0, _test: true }
-            }
-          ]
-        };
+        if (marineData?.type !== 'FeatureCollection' || !Array.isArray(marineData.features)) return null;
 
         return (
         <Source 
           key={`marine-${activeMarineLayer}-${marineRevision.current}`}
           id="marine-data-source"
           type="geojson" 
-          data={testData}
+          data={marineData}
         >
           <Layer
             id="marine-heatmap-circles"
@@ -647,10 +624,11 @@ const MapWebGL = ({
                 3.5, '#9933ff',
                 5.0, '#ff0066'
               ],
-              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 20, 5, 40, 8, 80, 12, 120],
-              'circle-opacity': 0.9,
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#ffffff'
+              'circle-radius': ['interpolate', ['linear'], ['zoom'], 0, 30, 5, 50, 8, 90, 12, 130],
+              'circle-blur': 0.4,
+              'circle-opacity': 0.85,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': 'rgba(255,255,255,0.5)'
             }}
           />
         </Source>

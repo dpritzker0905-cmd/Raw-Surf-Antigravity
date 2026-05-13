@@ -125,16 +125,12 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * v183 — REACT-MANAGED CANVAS:
- * Root cause of ALL previous invisibility: manually-created canvases via
- * document.createElement() were appended to getCanvasContainer(), which has a
- * DIFFERENT stacking context than react-map-gl's overlay container where
- * markers/sources/layers render. The manual canvas was behind MapLibre's
- * WebGL canvas or clipped by its container.
- *
- * Fix: Return <canvas> as JSX. react-map-gl renders children in its visible
- * overlay div. Canvas is now a proper React child — same stacking context as
- * markers, guaranteed visible.
+ * v186 — Production-ready:
+ * - React-managed canvas (v183 fix for stacking context)
+ * - Latitude clamped to [-85, 85] to prevent map.project() crash
+ * - Bounds check BEFORE projection (not after)
+ * - Diagnostic visuals removed (wind confirmed working)
+ * - Error logging throttled to prevent console flood
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
   const canvasRef = useRef(null);
@@ -147,7 +143,7 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
   useEffect(() => {
     if (!mapInstance || !active || !canvasRef.current) return;
-    console.log('[Wind] === STARTING v183 (React canvas) ===');
+    console.log('[Wind] === STARTING v186 ===');
 
     // Generate inline mock immediately — zero API dependency
     const b = mapInstance.getBounds();
@@ -169,14 +165,13 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      console.log('[Wind] Resize:', w, 'x', h, 'dpr:', dpr);
       return { w, h };
     };
     const dims = resize() || { w: 800, h: 600 };
     let cw = dims.w, ch = dims.h;
 
-    // Spawn particles
-    const PARTICLE_COUNT = 200;
+    // Spawn particles within current viewport
+    const PARTICLE_COUNT = 300;
     const spawn = () => {
       const mb = mapInstance.getBounds();
       return {
@@ -190,80 +185,73 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
     let lastTime = performance.now();
     let frameCount = 0;
-    let testX = 30;
+    let errorCount = 0;
 
     const animate = (now) => {
-      try {
-        const dt = Math.min(50, now - lastTime) / 1000;
-        lastTime = now;
-        frameCount++;
+      const dt = Math.min(50, now - lastTime) / 1000;
+      lastTime = now;
+      frameCount++;
 
-        ctx.clearRect(0, 0, cw, ch);
+      ctx.clearRect(0, 0, cw, ch);
 
-        // TEST A: Moving red dot — RAF proof
-        testX += 2;
-        if (testX > cw - 10) testX = 30;
-        ctx.fillStyle = '#ff3333';
-        ctx.beginPath();
-        ctx.arc(testX, 25, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 13px monospace';
-        ctx.fillText(`v183 F:${frameCount}`, testX + 12, 30);
+      const grid = windRef.current || inlineMockRef.current;
+      const particles = particlesRef.current;
 
-        // TEST B: Fixed circles — canvas visibility proof
-        for (const [fx, fy, fc] of [[100,100,'#ff0'],[300,200,'#0ff'],[500,300,'#f0f']]) {
-          ctx.fillStyle = fc;
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(fx, fy, 15, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        }
+      if (grid?.vectors?.length) {
+        const mb = mapInstance.getBounds();
+        const bw = mb.getWest(), be = mb.getEast();
+        const bs = mb.getSouth(), bn = mb.getNorth();
 
-        // TEST C: Wind particles
-        const grid = windRef.current || inlineMockRef.current;
-        const particles = particlesRef.current;
-        if (grid?.vectors?.length) {
-          const mb = mapInstance.getBounds();
-          const bw = mb.getWest(), be = mb.getEast();
-          const bs = mb.getSouth(), bn = mb.getNorth();
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          p.age += dt;
 
-          for (let i = 0; i < particles.length; i++) {
-            const p = particles[i];
-            p.age += dt;
-            const wind = interpolateWind(grid, p.lng, p.lat);
-            if (wind.speed > 0.1) {
-              const scale = 0.003 * dt * 60;
-              p.lng += wind.u * scale;
-              p.lat += wind.v * scale;
-            }
+          // Advect particle
+          const wind = interpolateWind(grid, p.lng, p.lat);
+          if (wind.speed > 0.1) {
+            const scale = 0.003 * dt * 60;
+            p.lng += wind.u * scale;
+            p.lat += wind.v * scale;
+          }
+
+          // CLAMP latitude to prevent map.project() crash (must be -90 to 90)
+          p.lat = Math.max(-85, Math.min(85, p.lat));
+          // WRAP longitude
+          while (p.lng > 180) p.lng -= 360;
+          while (p.lng < -180) p.lng += 360;
+
+          // Respawn if out of viewport or too old — BEFORE projection
+          if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
+            particles[i] = spawn();
+            continue;
+          }
+
+          // Project to screen coordinates (safe — lat is clamped)
+          try {
             const pt = mapInstance.project([p.lng, p.lat]);
             const hue = Math.min(120, wind.speed * 8);
             ctx.fillStyle = `hsl(${120 - hue}, 90%, 55%)`;
             ctx.strokeStyle = 'rgba(255,255,255,0.8)';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+            ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
-
-            if (frameCount <= 2 && i < 2) {
-              console.log(`[Wind] P${i}: (${p.lng.toFixed(2)},${p.lat.toFixed(2)}) → (${pt.x.toFixed(0)},${pt.y.toFixed(0)}) spd:${wind.speed.toFixed(1)}`);
+          } catch (e) {
+            // Throttle error logging — max 3 per session
+            if (errorCount < 3) {
+              console.warn('[Wind] project() error:', e.message, `lat:${p.lat} lng:${p.lng}`);
+              errorCount++;
             }
-            if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
-              particles[i] = spawn();
-            }
+            particles[i] = spawn();
           }
         }
-
-        if (frameCount % 60 === 1) {
-          console.log(`[Wind] F:${frameCount} grid:${grid?.vectors?.length || 0} canvas:${cw}x${ch}`);
-        }
-      } catch (err) {
-        console.error('[Wind] CRASH:', err.message);
       }
+
+      if (frameCount % 120 === 1) {
+        console.log(`[Wind] F:${frameCount} drawn:${particles.length} grid:${grid?.vectors?.length || 0}`);
+      }
+
       animRef.current = requestAnimationFrame(animate);
     };
     animRef.current = requestAnimationFrame(animate);
@@ -283,8 +271,6 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
   if (!active) return null;
 
-  // REACT-MANAGED CANVAS — rendered as a child of <Map>, placed in
-  // react-map-gl's visible overlay container (same stacking context as markers)
   return (
     <canvas
       ref={canvasRef}
