@@ -21,20 +21,43 @@ function generateMockWind(bounds) {
   return { vectors, bounds, grid: GRID };
 }
 
+// --- GLOBAL WIND CACHE & FETCH CONTROLLER ---
+// Prevents request storms and respects Open-Meteo rate limits
+const GLOBAL_WIND_CACHE = new window.Map();
+let globalWindRequestInFlight = false;
+let globalWindRequestId = 0;
+
 /**
  * Viewport-scoped wind vector data hook.
  */
 export function useWindVectorData({ active, mapBounds }) {
   const [windData, setWindData] = useState(null);
-  const fetchingRef = useRef(false);
   const revisionRef = useRef(0);
 
   const fetchWind = useCallback(async (bounds) => {
-    if (!bounds || fetchingRef.current) return;
-    fetchingRef.current = true;
+    if (!bounds || globalWindRequestInFlight) return;
+    
+    const { west, south, east, north } = bounds;
+    if (north <= south || east === west) return;
+
+    // STEP 3: Fixed cache key with low precision to group similar viewports
+    // 0.5 deg precision matching marine logic
+    const cacheKey = [
+      Math.round(south * 2),
+      Math.round(north * 2),
+      Math.round(west * 2),
+      Math.round(east * 2)
+    ].join('|');
+
+    if (GLOBAL_WIND_CACHE.has(cacheKey)) {
+      setWindData(GLOBAL_WIND_CACHE.get(cacheKey));
+      return;
+    }
+
+    globalWindRequestInFlight = true;
+    const thisRequest = ++globalWindRequestId;
+
     try {
-      const { west, south, east, north } = bounds;
-      if (north <= south || east === west) { fetchingRef.current = false; return; }
       const GRID = 8;
       const latStep = (north - south) / GRID;
       const lngStep = (east - west) / GRID;
@@ -47,13 +70,18 @@ export function useWindVectorData({ active, mapBounds }) {
           points.push({ lat: +(south + yi * latStep).toFixed(2), lng: +lng.toFixed(2) });
         }
       }
-      const safe = points.slice(0, 80);
+      
+      // Open-Meteo throttles hard on large coordinate lists
+      const safe = points.slice(0, 25);
       const lats = safe.map(p => p.lat).join(',');
       const lons = safe.map(p => p.lng).join(',');
+      
       const res = await fetch(
         `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1`
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (thisRequest !== globalWindRequestId) return;
+
       const json = await res.json();
       const results = Array.isArray(json) ? json : [json];
       const vectors = [];
@@ -69,20 +97,27 @@ export function useWindVectorData({ active, mapBounds }) {
           u: -speed * Math.sin(rad), v: -speed * Math.cos(rad)
         });
       });
+      
+      if (thisRequest !== globalWindRequestId) return;
+
       if (vectors.length > 0) {
         revisionRef.current += 1;
-        console.log(`[Wind] ${vectors.length} live vectors`);
-        setWindData({ vectors, bounds: { west, south, east, north }, grid: GRID });
+        const data = { vectors, bounds: { west, south, east, north }, grid: GRID };
+        GLOBAL_WIND_CACHE.set(cacheKey, data);
+        setWindData(data);
       } else {
         throw new Error('Zero valid wind vectors');
       }
     } catch (err) {
-      console.warn(`[Wind] API failed (${err.message}), using mock`);
-      const mockBounds = bounds || { west: -82, south: 24, east: -76, north: 32 };
-      revisionRef.current += 1;
-      setWindData(generateMockWind(mockBounds));
+      if (thisRequest === globalWindRequestId) {
+        const mockBounds = bounds || { west: -82, south: 24, east: -76, north: 32 };
+        revisionRef.current += 1;
+        const mockData = generateMockWind(mockBounds);
+        GLOBAL_WIND_CACHE.set(cacheKey, mockData);
+        setWindData(mockData);
+      }
     } finally {
-      fetchingRef.current = false;
+      globalWindRequestInFlight = false;
     }
   }, []);
 

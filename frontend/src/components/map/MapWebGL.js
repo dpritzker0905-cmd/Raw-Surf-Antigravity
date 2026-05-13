@@ -66,6 +66,12 @@ const OM_VARIABLE_MAP = {
 const MODEL_METADATA_CACHE = {};
 const MODEL_METADATA_PROMISES = {};
 
+// --- GLOBAL MARINE CACHE & FETCH CONTROLLER ---
+// Prevents unmount/remount request storms and coordinates across the application
+const GLOBAL_MARINE_CACHE = new window.Map();
+let globalMarineRequestInFlight = false;
+let globalMarineRequestId = 0;
+
 const MapWebGL = ({
   isLight,
   userLocation,
@@ -299,7 +305,6 @@ const MapWebGL = ({
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
   const [mapInstance, setMapInstance] = useState(null);
   const [marineData, setMarineData] = useState(null);
-  const isFetchingMarine = useRef(false);
 
   // Capture the raw MapLibre instance once the map loads, set initial bounds,
   // and force a repaint so layers render without needing user pan/scroll.
@@ -375,13 +380,6 @@ const MapWebGL = ({
     };
   }, []);
 
-  // Marine API Cache to prevent re-fetching the same grid coordinates
-  // FIXED: Use window.Map to avoid shadowing the imported 'Map' React component from react-map-gl!
-  const marineCache = useRef(new window.Map());
-
-  // Fetch marine data — with mock fallback to prove rendering independently of API
-  const marineRequestId = useRef(0);
-  
   // Use a stable string for activeLayers dependency to prevent infinite re-render loops from prop mutation
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -402,7 +400,7 @@ const MapWebGL = ({
 
     let timeoutId;
     const updateMarineGrid = async () => {
-      if (isFetchingMarine.current) return;
+      if (globalMarineRequestInFlight) return;
       
       const b = mapInstance.getBounds();
       // Only process reasonable bounds to avoid global fetching
@@ -412,16 +410,23 @@ const MapWebGL = ({
       const lngMax = b.getEast() + 5;
       if (latMax <= latMin || lngMax <= lngMin) return;
 
-      // Create a cache key from the viewport grid extent (rounded to 1 decimal to group minor pans)
-      const cacheKey = `${latMin.toFixed(1)}_${latMax.toFixed(1)}_${lngMin.toFixed(1)}_${lngMax.toFixed(1)}`;
-      if (marineCache.current.has(cacheKey)) {
-        const cachedData = marineCache.current.get(cacheKey);
-        setMarineData({ type: 'FeatureCollection', features: cachedData });
+      // STEP 3: Fixed cache key with low precision to group similar viewports
+      const zoom = Math.round(mapInstance.getZoom());
+      const cacheKey = [
+        Math.round(latMin * 2), // 0.5 deg precision
+        Math.round(latMax * 2),
+        Math.round(lngMin * 2),
+        Math.round(lngMax * 2),
+        zoom
+      ].join('|');
+
+      if (GLOBAL_MARINE_CACHE.has(cacheKey)) {
+        setMarineData({ type: 'FeatureCollection', features: GLOBAL_MARINE_CACHE.get(cacheKey) });
         return;
       }
 
-      isFetchingMarine.current = true;
-      const thisRequest = ++marineRequestId.current;
+      globalMarineRequestInFlight = true;
+      const thisRequest = ++globalMarineRequestId;
 
       try {
         // Decrease grid density drastically: from 10x10 to 5x5 to reduce payload size
@@ -472,25 +477,25 @@ const MapWebGL = ({
           };
         }).filter(Boolean);
 
-        if (thisRequest !== marineRequestId.current) return;
+        if (thisRequest !== globalMarineRequestId) return;
 
         if (features.length > 0) {
           marineRevision.current += 1;
-          marineCache.current.set(cacheKey, features);
+          GLOBAL_MARINE_CACHE.set(cacheKey, features);
           setMarineData({ type: 'FeatureCollection', features });
         } else {
           marineRevision.current += 1;
           const mock = generateMockMarine();
-          marineCache.current.set(cacheKey, mock.features);
+          GLOBAL_MARINE_CACHE.set(cacheKey, mock.features);
           setMarineData(mock);
         }
       } catch (err) {
-        if (thisRequest === marineRequestId.current) {
+        if (thisRequest === globalMarineRequestId) {
           marineRevision.current += 1;
           setMarineData(generateMockMarine());
         }
       } finally {
-        isFetchingMarine.current = false;
+        globalMarineRequestInFlight = false;
       }
     };
 
@@ -506,7 +511,7 @@ const MapWebGL = ({
     return () => {
       clearTimeout(timeoutId);
       mapInstance.off('moveend', debouncedUpdate);
-      isFetchingMarine.current = false;
+      globalMarineRequestInFlight = false;
     };
   }, [activeLayersKey, mapInstance, generateMockMarine]);
 
