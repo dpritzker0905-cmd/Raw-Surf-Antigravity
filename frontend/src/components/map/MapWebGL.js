@@ -375,21 +375,26 @@ const MapWebGL = ({
     };
   }, []);
 
+  // Marine API Cache to prevent re-fetching the same grid coordinates
+  const marineCache = useRef(new Map());
+
   // Fetch marine data — with mock fallback to prove rendering independently of API
   const marineRequestId = useRef(0);
+  
+  // Use a stable string for activeLayers dependency to prevent infinite re-render loops from prop mutation
+  const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
+
   useEffect(() => {
     if (!mapInstance) return;
     const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
-    const hasMarine = MARINE_LAYERS.some(l => activeLayers.includes(l));
+    const hasMarine = MARINE_LAYERS.some(l => activeLayersKey.includes(l));
     if (!hasMarine) {
       if (marineData) setMarineData(null);
       return;
     }
 
-    // INSTANT MOCK: Set mock data IMMEDIATELY so the layer renders on frame 1.
-    // The API call below will replace this with real data when it arrives.
     if (!marineData) {
-      console.log('[Marine] Instant mock load for', activeLayers.find(l => MARINE_LAYERS.includes(l)));
+      console.log('[Marine] Instant mock load for', MARINE_LAYERS.find(l => activeLayersKey.includes(l)));
       marineRevision.current += 1;
       setMarineData(generateMockMarine());
     }
@@ -397,36 +402,45 @@ const MapWebGL = ({
     let timeoutId;
     const updateMarineGrid = async () => {
       if (isFetchingMarine.current) return;
+      
+      const b = mapInstance.getBounds();
+      // Only process reasonable bounds to avoid global fetching
+      const latMin = Math.max(-80, b.getSouth() - 5);
+      const latMax = Math.min(80, b.getNorth() + 5);
+      const lngMin = b.getWest() - 5;
+      const lngMax = b.getEast() + 5;
+      if (latMax <= latMin || lngMax <= lngMin) return;
+
+      // Create a cache key from the viewport grid extent (rounded to 1 decimal to group minor pans)
+      const cacheKey = `${latMin.toFixed(1)}_${latMax.toFixed(1)}_${lngMin.toFixed(1)}_${lngMax.toFixed(1)}`;
+      if (marineCache.current.has(cacheKey)) {
+        const cachedData = marineCache.current.get(cacheKey);
+        setMarineData({ type: 'FeatureCollection', features: cachedData });
+        return;
+      }
+
       isFetchingMarine.current = true;
       const thisRequest = ++marineRequestId.current;
 
       try {
-        const b = mapInstance.getBounds();
-        const latMin = Math.max(-80, b.getSouth() - 5);
-        const latMax = Math.min(80, b.getNorth() + 5);
-        const lngMin = b.getWest() - 5;
-        const lngMax = b.getEast() + 5;
-        if (latMax <= latMin || lngMax <= lngMin) throw new Error('Invalid bounds');
-
-        // 10x10 grid
-        const latStep = Math.max(0.5, (latMax - latMin) / 10);
-        const lngStep = Math.max(0.5, (lngMax - lngMin) / 10);
-        const latSteps = [];
-        for (let lat = latMax; lat >= latMin; lat -= latStep) latSteps.push(+lat.toFixed(2));
-        const lngSteps = [];
-        for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
-          let n = lng;
-          while (n > 180) n -= 360;
-          while (n < -180) n += 360;
-          lngSteps.push(+n.toFixed(2));
+        // Decrease grid density drastically: from 10x10 to 5x5 to reduce payload size
+        const latStep = Math.max(1.0, (latMax - latMin) / 5);
+        const lngStep = Math.max(1.0, (lngMax - lngMin) / 5);
+        
+        const safePoints = [];
+        for (let lat = latMax; lat >= latMin; lat -= latStep) {
+          for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
+            let n = lng;
+            while (n > 180) n -= 360;
+            while (n < -180) n += 360;
+            safePoints.push({ lat: +lat.toFixed(2), lng: +n.toFixed(2) });
+          }
         }
-        const allPoints = [];
-        for (const lat of latSteps) {
-          for (const lng of lngSteps) allPoints.push({ lat, lng });
-        }
-        const safePoints = allPoints.slice(0, 95);
-        const lats = safePoints.map(p => p.lat).join(',');
-        const lons = safePoints.map(p => p.lng).join(',');
+        
+        // Cap to 25 points maximum to respect Open-Meteo rate limits
+        const cappedPoints = safePoints.slice(0, 25);
+        const lats = cappedPoints.map(p => p.lat).join(',');
+        const lons = cappedPoints.map(p => p.lng).join(',');
 
         const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -435,13 +449,9 @@ const MapWebGL = ({
         const data = await res.json();
         const allResults = Array.isArray(data) ? data : [data];
 
-        // Log raw field names from first valid result for debugging
-        const firstValid = allResults.find(r => r?.current);
-        if (firstValid) console.log('[Marine] API fields:', Object.keys(firstValid.current));
-
         let validCount = 0, landCount = 0;
         const safe = (v) => (v != null && !isNaN(v)) ? v : 0;
-        const features = safePoints.map((pt, i) => {
+        const features = cappedPoints.map((pt, i) => {
           const r = allResults[i];
           if (!r?.current) { landCount++; return null; }
           const c = r.current;
@@ -461,21 +471,19 @@ const MapWebGL = ({
           };
         }).filter(Boolean);
 
-        console.log(`[Marine] ${validCount} ocean / ${landCount} land / ${safePoints.length} total`);
         if (thisRequest !== marineRequestId.current) return;
 
         if (features.length > 0) {
           marineRevision.current += 1;
+          marineCache.current.set(cacheKey, features);
           setMarineData({ type: 'FeatureCollection', features });
         } else {
-          // Zero ocean points — use mock so layer isn't empty
-          console.warn('[Marine] All land in viewport, falling back to mock');
           marineRevision.current += 1;
-          setMarineData(generateMockMarine());
+          const mock = generateMockMarine();
+          marineCache.current.set(cacheKey, mock.features);
+          setMarineData(mock);
         }
       } catch (err) {
-        // FALLBACK: mock data so marine layers always render
-        console.warn(`[Marine] API failed (${err.message}), using mock data`);
         if (thisRequest === marineRequestId.current) {
           marineRevision.current += 1;
           setMarineData(generateMockMarine());
@@ -487,21 +495,19 @@ const MapWebGL = ({
 
     const debouncedUpdate = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateMarineGrid, 2000);
+      timeoutId = setTimeout(updateMarineGrid, 1500);
     };
 
-    if (mapInstance.isStyleLoaded()) {
-      updateMarineGrid();
-    } else {
-      mapInstance.once('load', updateMarineGrid);
-    }
+    // Only fire the initial fetch once when the layer is activated, do not spam on effect re-runs
+    debouncedUpdate();
 
     mapInstance.on('moveend', debouncedUpdate);
     return () => {
       clearTimeout(timeoutId);
       mapInstance.off('moveend', debouncedUpdate);
+      isFetchingMarine.current = false;
     };
-  }, [activeLayers, mapInstance, generateMockMarine]);
+  }, [activeLayersKey, mapInstance, generateMockMarine]);
 
   // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
   // The coastline layer has been migrated to declarative JSX below.
@@ -519,45 +525,6 @@ const MapWebGL = ({
       maxPitch={60}
       attributionControl={false}
     >
-      {/* V192: Guaranteed Render Test Point */}
-      <Source
-        id="debug-point"
-        type="geojson"
-        data={{
-          type: 'FeatureCollection',
-          features: [{
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: [-80.6, 28.4]
-            }
-          }]
-        }}
-      >
-        <Layer
-          id="debug-point-layer"
-          type="circle"
-          paint={{
-            'circle-radius': 10,
-            'circle-color': '#00ff00' // green to distinguish from magenta
-          }}
-        />
-      </Source>
-
-      {/* Coastline vector source — Declarative mounting to prevent MapLibre lifecycle crashes */}
-      <Source id="omtiles" type="vector" url="https://demotiles.maplibre.org/tiles/tiles.json">
-        <Layer 
-          id="coastline-overlay"
-          type="line"
-          source-layer="countries"
-          paint={{
-            'line-color': isLight ? 'rgba(0,0,0,0.45)' : isBeach ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)',
-            'line-width': 1.2,
-            'line-opacity': 1,
-          }}
-        />
-      </Source>
-
       {/* Geofence Visual Layer */}
       <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
         <Layer 
@@ -619,11 +586,11 @@ const MapWebGL = ({
       )}
       */}
 
-      {/* Marine Wave Heatmap — v189 persistent mounting */}
+      {/* Marine Wave Heatmap — visual representation of Open-Meteo grid */}
       <Source 
         id="marine-data-source"
         type="geojson" 
-        data={HARDCODED_MARINE_FEATURE}
+        data={marineData || HARDCODED_MARINE_FEATURE}
       >
         <Layer
           id="marine-heatmap-circles"
@@ -632,9 +599,24 @@ const MapWebGL = ({
             visibility: ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) ? 'visible' : 'none'
           }}
           paint={{
-            'circle-radius': 40,
-            'circle-color': '#ff00ff', // magenta
-            'circle-opacity': 1
+            'circle-radius': [
+              'interpolate', ['linear'], ['zoom'],
+              4, 15,
+              8, 40,
+              12, 100
+            ],
+            'circle-color': [
+              'interpolate',
+              ['linear'],
+              ['get', 'wave_height'],
+              0, 'rgba(0, 255, 255, 0)',
+              1, 'rgba(0, 255, 255, 0.5)',
+              3, 'rgba(0, 100, 255, 0.7)',
+              5, 'rgba(100, 0, 255, 0.8)',
+              8, 'rgba(255, 0, 100, 0.9)'
+            ],
+            'circle-blur': 0.8,
+            'circle-opacity': 0.9
           }}
         />
       </Source>
