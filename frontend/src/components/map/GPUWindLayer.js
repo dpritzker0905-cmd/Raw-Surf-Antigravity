@@ -125,68 +125,59 @@ function interpolateWind(windGrid, lng, lat) {
 /**
  * Canvas-based wind particle advection engine.
  *
- * v182 — NUCLEAR DIAGNOSTIC:
- * 1. INLINE mock data generated on mount — ZERO API dependency
- * 2. 3 FIXED screen-position circles at (100,100), (300,200), (500,300)
- *    — bypasses ALL data/projection — proves canvas draws
- * 3. 200 projected particles as BIG 8px circles with white stroke
- * 4. Test dot still present for RAF proof
- * 5. If fixed circles visible but projected ones aren't → projection bug
- *    If nothing visible → canvas/CSS bug
+ * v183 — REACT-MANAGED CANVAS:
+ * Root cause of ALL previous invisibility: manually-created canvases via
+ * document.createElement() were appended to getCanvasContainer(), which has a
+ * DIFFERENT stacking context than react-map-gl's overlay container where
+ * markers/sources/layers render. The manual canvas was behind MapLibre's
+ * WebGL canvas or clipped by its container.
+ *
+ * Fix: Return <canvas> as JSX. react-map-gl renders children in its visible
+ * overlay div. Canvas is now a proper React child — same stacking context as
+ * markers, guaranteed visible.
  */
 export function WindParticleCanvas({ mapInstance, windVectors, active }) {
+  const canvasRef = useRef(null);
   const animRef = useRef(null);
   const windRef = useRef(null);
+  const particlesRef = useRef([]);
+  const inlineMockRef = useRef(null);
 
   useEffect(() => { windRef.current = windVectors; }, [windVectors]);
 
   useEffect(() => {
-    if (!mapInstance || !active) {
-      console.log('[Wind] SKIPPED — map:', !!mapInstance, 'active:', active);
-      return;
-    }
-    console.log('[Wind] === MOUNTING v182 ===');
+    if (!mapInstance || !active || !canvasRef.current) return;
+    console.log('[Wind] === STARTING v183 (React canvas) ===');
 
-    // Generate mock data IMMEDIATELY — no API wait, no timeout
+    // Generate inline mock immediately — zero API dependency
     const b = mapInstance.getBounds();
-    const inlineMock = generateMockWind({
+    inlineMockRef.current = generateMockWind({
       west: b.getWest(), south: b.getSouth(),
       east: b.getEast(), north: b.getNorth()
     });
-    console.log('[Wind] Inline mock:', inlineMock.vectors.length, 'vectors',
-      'sample u:', inlineMock.vectors[0]?.u?.toFixed(2),
-      'v:', inlineMock.vectors[0]?.v?.toFixed(2),
-      'speed:', inlineMock.vectors[0]?.speed?.toFixed(2));
+    console.log('[Wind] Inline mock:', inlineMockRef.current.vectors.length, 'vectors');
 
-    const container = mapInstance.getCanvasContainer();
-    const canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
-    container.appendChild(canvas);
-    console.log('[Wind] Canvas parent:', container.className,
-      'children:', container.childElementCount,
-      'inDOM:', document.body.contains(canvas));
-
+    const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    let cw = 0, ch = 0;
 
     const resize = () => {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (w === cw && h === ch) return;
-      cw = w; ch = h;
+      const rect = canvas.parentElement?.getBoundingClientRect();
+      if (!rect) return;
+      const w = Math.round(rect.width);
+      const h = Math.round(rect.height);
       canvas.width = w * dpr;
       canvas.height = h * dpr;
-      canvas.style.width = w + 'px';
-      canvas.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      console.log('[Wind] Resize:', w, 'x', h, 'dpr:', dpr);
+      return { w, h };
     };
-    resize();
-    console.log('[Wind] Canvas:', cw, 'x', ch, 'dpr:', dpr);
+    const dims = resize() || { w: 800, h: 600 };
+    let cw = dims.w, ch = dims.h;
 
+    // Spawn particles
     const PARTICLE_COUNT = 200;
-    const particles = [];
-    const spawnParticle = () => {
+    const spawn = () => {
       const mb = mapInstance.getBounds();
       return {
         lng: mb.getWest() + Math.random() * (mb.getEast() - mb.getWest()),
@@ -194,7 +185,8 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
         age: 0, maxAge: 3 + Math.random() * 4
       };
     };
-    for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawnParticle());
+    particlesRef.current = [];
+    for (let i = 0; i < PARTICLE_COUNT; i++) particlesRef.current.push(spawn());
 
     let lastTime = performance.now();
     let frameCount = 0;
@@ -208,7 +200,7 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
         ctx.clearRect(0, 0, cw, ch);
 
-        // === TEST A: Red dot (2px/frame) — proves RAF ===
+        // TEST A: Moving red dot — RAF proof
         testX += 2;
         if (testX > cw - 10) testX = 30;
         ctx.fillStyle = '#ff3333';
@@ -217,11 +209,10 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
         ctx.fill();
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 13px monospace';
-        ctx.fillText(`F:${frameCount}`, testX + 12, 30);
+        ctx.fillText(`v183 F:${frameCount}`, testX + 12, 30);
 
-        // === TEST B: 3 FIXED screen-position circles — bypass ALL data ===
-        const fixedPts = [[100, 100, '#ff0'], [300, 200, '#0ff'], [500, 300, '#f0f']];
-        for (const [fx, fy, fc] of fixedPts) {
+        // TEST B: Fixed circles — canvas visibility proof
+        for (const [fx, fy, fc] of [[100,100,'#ff0'],[300,200,'#0ff'],[500,300,'#f0f']]) {
           ctx.fillStyle = fc;
           ctx.strokeStyle = '#fff';
           ctx.lineWidth = 3;
@@ -229,73 +220,83 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
           ctx.arc(fx, fy, 15, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
-          ctx.fillStyle = '#000';
-          ctx.font = 'bold 11px monospace';
-          ctx.fillText(`${fx},${fy}`, fx - 18, fy + 4);
         }
 
-        // === TEST C: Wind particles as BIG circles ===
-        // Use inline mock if windRef is empty (ensures data on frame 1)
-        const grid = windRef.current || inlineMock;
-        const mb = mapInstance.getBounds();
-        const bw = mb.getWest(), be = mb.getEast();
-        const bs = mb.getSouth(), bn = mb.getNorth();
-        let drawn = 0;
+        // TEST C: Wind particles
+        const grid = windRef.current || inlineMockRef.current;
+        const particles = particlesRef.current;
+        if (grid?.vectors?.length) {
+          const mb = mapInstance.getBounds();
+          const bw = mb.getWest(), be = mb.getEast();
+          const bs = mb.getSouth(), bn = mb.getNorth();
 
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          p.age += dt;
-          const wind = interpolateWind(grid, p.lng, p.lat);
+          for (let i = 0; i < particles.length; i++) {
+            const p = particles[i];
+            p.age += dt;
+            const wind = interpolateWind(grid, p.lng, p.lat);
+            if (wind.speed > 0.1) {
+              const scale = 0.003 * dt * 60;
+              p.lng += wind.u * scale;
+              p.lat += wind.v * scale;
+            }
+            const pt = mapInstance.project([p.lng, p.lat]);
+            const hue = Math.min(120, wind.speed * 8);
+            ctx.fillStyle = `hsl(${120 - hue}, 90%, 55%)`;
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
 
-          if (wind.speed > 0.1) {
-            const scale = 0.003 * dt * 60;
-            p.lng += wind.u * scale;
-            p.lat += wind.v * scale;
-          }
-
-          const pt = mapInstance.project([p.lng, p.lat]);
-
-          // BIG circle with white border — impossible to miss
-          const hue = Math.min(120, wind.speed * 8);
-          ctx.fillStyle = `hsl(${120 - hue}, 90%, 55%)`;
-          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          drawn++;
-
-          if (frameCount <= 2 && i < 3) {
-            console.log(`[Wind] P${i}: (${p.lng.toFixed(2)},${p.lat.toFixed(2)}) → screen(${pt.x.toFixed(0)},${pt.y.toFixed(0)}) spd:${wind.speed.toFixed(1)}`);
-          }
-
-          if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
-            particles[i] = spawnParticle();
+            if (frameCount <= 2 && i < 2) {
+              console.log(`[Wind] P${i}: (${p.lng.toFixed(2)},${p.lat.toFixed(2)}) → (${pt.x.toFixed(0)},${pt.y.toFixed(0)}) spd:${wind.speed.toFixed(1)}`);
+            }
+            if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
+              particles[i] = spawn();
+            }
           }
         }
 
         if (frameCount % 60 === 1) {
-          console.log(`[Wind] F:${frameCount} drawn:${drawn} testX:${testX} canvas:${cw}x${ch} grid:${grid.vectors.length}v`);
+          console.log(`[Wind] F:${frameCount} grid:${grid?.vectors?.length || 0} canvas:${cw}x${ch}`);
         }
-
-        mapInstance.triggerRepaint();
       } catch (err) {
-        console.error('[Wind] CRASH:', err.message, err.stack);
+        console.error('[Wind] CRASH:', err.message);
       }
       animRef.current = requestAnimationFrame(animate);
     };
-
     animRef.current = requestAnimationFrame(animate);
 
-    mapInstance.on('resize', resize);
+    const onResize = () => {
+      const d = resize();
+      if (d) { cw = d.w; ch = d.h; }
+    };
+    window.addEventListener('resize', onResize);
+
     return () => {
       console.log('[Wind] === UNMOUNTING ===');
       cancelAnimationFrame(animRef.current);
-      mapInstance.off('resize', resize);
-      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      window.removeEventListener('resize', onResize);
     };
   }, [mapInstance, active]);
 
-  return null;
+  if (!active) return null;
+
+  // REACT-MANAGED CANVAS — rendered as a child of <Map>, placed in
+  // react-map-gl's visible overlay container (same stacking context as markers)
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}
+    />
+  );
 }
