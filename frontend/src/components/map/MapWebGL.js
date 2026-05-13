@@ -489,55 +489,8 @@ const MapWebGL = ({
     };
   }, [activeLayers, mapInstance, generateMockMarine]);
 
-  // Coastline border enhancement via OpenMapTiles country-boundary vector overlay
-  // The base map uses Mapbox raster tiles (no individual vector layers to modify),
-  // so we add a lightweight vector tile source with boundary lines on top.
-  useEffect(() => {
-    if (!mapInstance) return;
-    const addCoastlines = () => {
-      try {
-        if (!mapInstance.getStyle()) return;
-        const lineColor = isLight ? 'rgba(0,0,0,0.45)' : isBeach ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)';
-        const lineWidth = 1.2;
-
-        // If layer already exists, just update paint properties
-        if (mapInstance.getLayer('coastline-overlay')) {
-          mapInstance.setPaintProperty('coastline-overlay', 'line-color', lineColor);
-          return;
-        }
-
-        // Add OpenMapTiles vector source (free, no key required for low traffic)
-        if (!mapInstance.getSource('omtiles')) {
-          mapInstance.addSource('omtiles', {
-            type: 'vector',
-            url: 'https://demotiles.maplibre.org/tiles/tiles.json',
-          });
-        }
-
-        mapInstance.addLayer({
-          id: 'coastline-overlay',
-          type: 'line',
-          source: 'omtiles',
-          'source-layer': 'countries',
-          paint: {
-            'line-color': lineColor,
-            'line-width': lineWidth,
-            'line-opacity': 1,
-          },
-        });
-      } catch (e) { /* layer may already exist during hot reload */ }
-    };
-
-    // MapLibre fires 'styledata' after style loads; safe to add layers
-    if (mapInstance.isStyleLoaded()) {
-      addCoastlines();
-    } else {
-      mapInstance.once('styledata', addCoastlines);
-    }
-    // Also re-run on theme change in case style has reloaded
-    mapInstance.on('styledata', addCoastlines);
-    return () => mapInstance.off('styledata', addCoastlines);
-  }, [mapInstance, isLight, isBeach]);
+  // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
+  // The coastline layer has been migrated to declarative JSX below.
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -552,6 +505,20 @@ const MapWebGL = ({
       maxPitch={60}
       attributionControl={false}
     >
+      {/* Coastline vector source — Declarative mounting to prevent MapLibre lifecycle crashes */}
+      <Source id="omtiles" type="vector" url="https://demotiles.maplibre.org/tiles/tiles.json">
+        <Layer 
+          id="coastline-overlay"
+          type="line"
+          source-layer="countries"
+          paint={{
+            'line-color': isLight ? 'rgba(0,0,0,0.45)' : isBeach ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.2)',
+            'line-width': 1.2,
+            'line-opacity': 1,
+          }}
+        />
+      </Source>
+
       {/* Geofence Visual Layer */}
       <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
         <Layer 
