@@ -66,11 +66,19 @@ function generateMockMarine() {
   };
 }
 
+const USE_MOCK_WIND = true;
+const USE_MOCK_MARINE = true;
+
 /**
  * Single Authority for fetching wind data.
  */
 export async function fetchWindData(bounds) {
   if (!bounds || windRequestInFlight) return null;
+  
+  if (USE_MOCK_WIND) {
+    const mockBounds = bounds || { west: -82, south: 24, east: -76, north: 32 };
+    return generateMockWind(mockBounds);
+  }
 
   const { west, south, east, north } = bounds;
   if (north <= south || east === west) return null;
@@ -151,6 +159,10 @@ export async function fetchWindData(bounds) {
  */
 export async function fetchMarineData(bounds, zoom) {
   if (!bounds || marineRequestInFlight) return null;
+
+  if (USE_MOCK_MARINE) {
+    return generateMockMarine();
+  }
 
   const latMin = Math.max(-80, bounds.south - 5);
   const latMax = Math.min(80, bounds.north + 5);
