@@ -66,11 +66,9 @@ const OM_VARIABLE_MAP = {
 const MODEL_METADATA_CACHE = {};
 const MODEL_METADATA_PROMISES = {};
 
-// --- GLOBAL MARINE CACHE & FETCH CONTROLLER ---
-// Prevents unmount/remount request storms and coordinates across the application
-const GLOBAL_MARINE_CACHE = new window.Map();
-let globalMarineRequestInFlight = false;
-let globalMarineRequestId = 0;
+import { fetchMarineData, getInstantMockMarine } from './marineController';
+
+// Removed inline GLOBAL_MARINE_CACHE as it's now in marineController.js
 
 const MapWebGL = ({
   isLight,
@@ -338,48 +336,6 @@ const MapWebGL = ({
     } catch(e) {}
   }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
-  // === FROZEN MOCK MARINE DATA ===
-  // 40 ocean points across Atlantic, Gulf, and Caribbean — proves rendering at any viewport.
-  // Each marine variable has independent values so all 4 layer toggles produce visible features.
-  const generateMockMarine = useCallback(() => {
-    // [lat, lng] — all verified ocean coordinates
-    const oceanPts = [
-      // Atlantic Coast (Florida → Carolina)
-      [28.39, -80.10], [28.5, -79.5], [27.5, -79.2], [26.5, -79.0], [29.5, -79.8],
-      [30.5, -79.5], [31.5, -79.0], [32.5, -78.5], [25.5, -79.0], [24.5, -79.5],
-      // Gulf Stream / Offshore Atlantic
-      [28.0, -78.0], [27.0, -77.0], [29.0, -77.5], [26.0, -77.5], [30.0, -78.0],
-      [28.0, -76.0], [27.0, -76.0], [25.0, -77.0], [31.0, -77.5], [29.0, -76.5],
-      // Gulf of Mexico
-      [27.0, -83.0], [26.5, -84.0], [28.0, -85.0], [27.5, -86.0], [26.0, -85.5],
-      [29.0, -87.0], [28.5, -88.0], [27.0, -89.0], [26.0, -87.0], [25.5, -84.5],
-      // Caribbean / Bahamas
-      [24.0, -77.5], [23.0, -78.0], [22.5, -79.5], [24.5, -76.0], [23.5, -75.5],
-      // Deep Atlantic
-      [28.0, -73.0], [26.0, -72.0], [30.0, -74.0], [25.0, -74.0], [27.0, -71.0],
-    ];
-    return {
-      type: 'FeatureCollection',
-      features: oceanPts.map(([lat, lng]) => {
-        const wh = 0.3 + Math.random() * 3;
-        const sh = 0.2 + Math.random() * 2;
-        const wwh = 0.1 + Math.random() * 1.2;
-        return {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [lng, lat] },
-          properties: {
-            wave_height: wh, wave_period: 5 + Math.random() * 8,
-            wave_direction: 60 + Math.random() * 120,
-            swell_wave_height: sh, swell_wave_period: 8 + Math.random() * 8,
-            swell_wave_direction: 40 + Math.random() * 80,
-            wind_wave_height: wwh, wind_wave_period: 3 + Math.random() * 5,
-            wind_wave_direction: 90 + Math.random() * 100,
-          },
-        };
-      })
-    };
-  }, []);
-
   // Use a stable string for activeLayers dependency to prevent infinite re-render loops from prop mutation
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -395,107 +351,22 @@ const MapWebGL = ({
     if (!marineData) {
       console.log('[Marine] Instant mock load for', MARINE_LAYERS.find(l => activeLayersKey.includes(l)));
       marineRevision.current += 1;
-      setMarineData(generateMockMarine());
+      setMarineData(getInstantMockMarine());
     }
 
     let timeoutId;
     const updateMarineGrid = async () => {
-      if (globalMarineRequestInFlight) return;
-      
       const b = mapInstance.getBounds();
-      // Only process reasonable bounds to avoid global fetching
-      const latMin = Math.max(-80, b.getSouth() - 5);
-      const latMax = Math.min(80, b.getNorth() + 5);
-      const lngMin = b.getWest() - 5;
-      const lngMax = b.getEast() + 5;
-      if (latMax <= latMin || lngMax <= lngMin) return;
+      const bounds = {
+        west: b.getWest(), south: b.getSouth(),
+        east: b.getEast(), north: b.getNorth()
+      };
+      const zoom = mapInstance.getZoom();
 
-      // STEP 3: Fixed cache key with low precision to group similar viewports
-      const zoom = Math.round(mapInstance.getZoom());
-      const cacheKey = [
-        Math.round(latMin * 2), // 0.5 deg precision
-        Math.round(latMax * 2),
-        Math.round(lngMin * 2),
-        Math.round(lngMax * 2),
-        zoom
-      ].join('|');
-
-      if (GLOBAL_MARINE_CACHE.has(cacheKey)) {
-        setMarineData({ type: 'FeatureCollection', features: GLOBAL_MARINE_CACHE.get(cacheKey) });
-        return;
-      }
-
-      globalMarineRequestInFlight = true;
-      const thisRequest = ++globalMarineRequestId;
-
-      try {
-        // Decrease grid density drastically: from 10x10 to 5x5 to reduce payload size
-        const latStep = Math.max(1.0, (latMax - latMin) / 5);
-        const lngStep = Math.max(1.0, (lngMax - lngMin) / 5);
-        
-        const safePoints = [];
-        for (let lat = latMax; lat >= latMin; lat -= latStep) {
-          for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
-            let n = lng;
-            while (n > 180) n -= 360;
-            while (n < -180) n += 360;
-            safePoints.push({ lat: +lat.toFixed(2), lng: +n.toFixed(2) });
-          }
-        }
-        
-        // Cap to 25 points maximum to respect Open-Meteo rate limits
-        const cappedPoints = safePoints.slice(0, 25);
-        const lats = cappedPoints.map(p => p.lat).join(',');
-        const lons = cappedPoints.map(p => p.lng).join(',');
-
-        const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        if (thisRequest !== marineRequestId.current) return;
-
-        const data = await res.json();
-        const allResults = Array.isArray(data) ? data : [data];
-
-        let validCount = 0, landCount = 0;
-        const safe = (v) => (v != null && !isNaN(v)) ? v : 0;
-        const features = cappedPoints.map((pt, i) => {
-          const r = allResults[i];
-          if (!r?.current) { landCount++; return null; }
-          const c = r.current;
-          if (c.wave_height == null && c.swell_wave_height == null && c.wind_wave_height == null) {
-            landCount++;
-            return null;
-          }
-          validCount++;
-          return {
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
-            properties: {
-              wave_height: safe(c.wave_height), wave_period: safe(c.wave_period), wave_direction: safe(c.wave_direction),
-              swell_wave_height: safe(c.swell_wave_height), swell_wave_period: safe(c.swell_wave_period), swell_wave_direction: safe(c.swell_wave_direction),
-              wind_wave_height: safe(c.wind_wave_height), wind_wave_period: safe(c.wind_wave_period), wind_wave_direction: safe(c.wind_wave_direction),
-            },
-          };
-        }).filter(Boolean);
-
-        if (thisRequest !== globalMarineRequestId) return;
-
-        if (features.length > 0) {
-          marineRevision.current += 1;
-          GLOBAL_MARINE_CACHE.set(cacheKey, features);
-          setMarineData({ type: 'FeatureCollection', features });
-        } else {
-          marineRevision.current += 1;
-          const mock = generateMockMarine();
-          GLOBAL_MARINE_CACHE.set(cacheKey, mock.features);
-          setMarineData(mock);
-        }
-      } catch (err) {
-        if (thisRequest === globalMarineRequestId) {
-          marineRevision.current += 1;
-          setMarineData(generateMockMarine());
-        }
-      } finally {
-        globalMarineRequestInFlight = false;
+      const data = await fetchMarineData(bounds, zoom);
+      if (data) {
+        marineRevision.current += 1;
+        setMarineData(data);
       }
     };
 
@@ -511,9 +382,8 @@ const MapWebGL = ({
     return () => {
       clearTimeout(timeoutId);
       mapInstance.off('moveend', debouncedUpdate);
-      globalMarineRequestInFlight = false;
     };
-  }, [activeLayersKey, mapInstance, generateMockMarine]);
+  }, [activeLayersKey, mapInstance]);
 
   // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
   // The coastline layer has been migrated to declarative JSX below.
