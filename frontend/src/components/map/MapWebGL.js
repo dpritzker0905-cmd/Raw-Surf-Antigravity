@@ -9,6 +9,22 @@ import { useWindVectorData, WindParticleCanvas } from './GPUWindLayer';
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+const HARDCODED_MARINE_FEATURE = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [-80.6, 28.4] // Hardcoded near Florida
+      },
+      properties: {
+        wave_height: 3
+      }
+    }
+  ]
+};
+
 // --- Open-Meteo Weather Tile Protocol ---
 // The `om://` custom protocol is now registered inside the MapWebGL component via useEffect
 // using a dynamic import to prevent Webpack TDZ ReferenceErrors during chunk initialization.
@@ -595,26 +611,12 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Marine Wave Heatmap — v187 architectural stabilization */}
+      {/* Marine Wave Heatmap — v188 architectural stabilization */}
       {['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) && (
         <Source 
           id="marine-data-source"
           type="geojson" 
-          data={{
-            type: 'FeatureCollection',
-            features: [
-              {
-                type: 'Feature',
-                geometry: {
-                  type: 'Point',
-                  coordinates: [-80.6, 28.4] // Hardcoded near Florida
-                },
-                properties: {
-                  wave_height: 3
-                }
-              }
-            ]
-          }}
+          data={HARDCODED_MARINE_FEATURE}
         >
           <Layer
             id="marine-heatmap-circles"

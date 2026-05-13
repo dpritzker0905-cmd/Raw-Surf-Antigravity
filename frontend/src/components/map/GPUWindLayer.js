@@ -215,6 +215,10 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
           }
 
           // CLAMP latitude to prevent map.project() crash (must be -90 to 90)
+          if (isNaN(p.lat) || isNaN(p.lng)) {
+            particles[i] = spawn();
+            continue;
+          }
           p.lat = Math.max(-85, Math.min(85, p.lat));
           // WRAP longitude
           while (p.lng > 180) p.lng -= 360;
