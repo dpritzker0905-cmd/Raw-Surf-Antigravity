@@ -241,13 +241,6 @@ const MapWebGL = ({
 
   const onMove = useCallback(evt => {
     setViewState(evt.viewState);
-    const mapBounds = evt.target.getBounds();
-    setBounds({
-      west: mapBounds.getWest(),
-      south: mapBounds.getSouth(),
-      east: mapBounds.getEast(),
-      north: mapBounds.getNorth()
-    });
   }, []);
 
   // Sync to effectiveLocation initially
