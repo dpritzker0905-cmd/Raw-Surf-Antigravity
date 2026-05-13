@@ -268,8 +268,16 @@ const MapWebGL = ({
     (filter === 'all' || filter === 'spots') ? surfSpots : [], 
   [filter, surfSpots]);
 
+  // Derive bounds for clustering directly from the map instance on each render
+  const currentBounds = mapInstance ? [
+    mapInstance.getBounds().getWest(),
+    mapInstance.getBounds().getSouth(),
+    mapInstance.getBounds().getEast(),
+    mapInstance.getBounds().getNorth()
+  ] : [-180, -85, 180, 85];
+
   const { clusters: spotClusters, supercluster } = useMarkerClustering(
-    spotsToCluster, bounds, viewState.zoom, clusteringOptions
+    spotsToCluster, currentBounds, viewState.zoom, clusteringOptions
   );
 
   const spotGeoJSON = useMemo(() => {
