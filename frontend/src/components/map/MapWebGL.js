@@ -300,6 +300,10 @@ const MapWebGL = ({
     const map = innerMapRef.current?.getMap?.();
     if (map && !mapInstance) {
       setMapInstance(map);
+      
+      // Global error diagnostic
+      map.on('error', e => console.error('[MAPLIBRE GLOBAL ERROR]', e));
+
       // Set initial bounds so data hooks can fetch immediately
       const b = map.getBounds();
       setBounds({
@@ -316,7 +320,13 @@ const MapWebGL = ({
   // Force MapLibre to repaint whenever visual state changes (layer toggle, data load, etc.)
   useEffect(() => {
     if (!mapInstance) return;
-    try { mapInstance.triggerRepaint(); } catch(e) {}
+    try { 
+      mapInstance.triggerRepaint(); 
+      // V192 Diagnostics
+      console.log('[MapWebGL] activeLayers:', activeLayers);
+      console.log('[MapWebGL] SOURCES:', mapInstance.getStyle()?.sources);
+      console.log('[MapWebGL] LAYERS:', mapInstance.getStyle()?.layers?.map(l => ({ id: l.id, source: l.source })));
+    } catch(e) {}
   }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
   // === FROZEN MOCK MARINE DATA ===
@@ -505,6 +515,31 @@ const MapWebGL = ({
       maxPitch={60}
       attributionControl={false}
     >
+      {/* V192: Guaranteed Render Test Point */}
+      <Source
+        id="debug-point"
+        type="geojson"
+        data={{
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [-80.6, 28.4]
+            }
+          }]
+        }}
+      >
+        <Layer
+          id="debug-point-layer"
+          type="circle"
+          paint={{
+            'circle-radius': 10,
+            'circle-color': '#00ff00' // green to distinguish from magenta
+          }}
+        />
+      </Source>
+
       {/* Coastline vector source — Declarative mounting to prevent MapLibre lifecycle crashes */}
       <Source id="omtiles" type="vector" url="https://demotiles.maplibre.org/tiles/tiles.json">
         <Layer 
