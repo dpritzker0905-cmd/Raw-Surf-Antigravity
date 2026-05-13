@@ -356,6 +356,14 @@ const MapWebGL = ({
       return;
     }
 
+    // INSTANT MOCK: Set mock data IMMEDIATELY so the layer renders on frame 1.
+    // The API call below will replace this with real data when it arrives.
+    if (!marineData) {
+      console.log('[Marine] Instant mock load for', activeLayers.find(l => MARINE_LAYERS.includes(l)));
+      marineRevision.current += 1;
+      setMarineData(generateMockMarine());
+    }
+
     let timeoutId;
     const updateMarineGrid = async () => {
       if (isFetchingMarine.current) return;
