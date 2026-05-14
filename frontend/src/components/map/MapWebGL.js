@@ -117,7 +117,8 @@ const MapWebGL = ({
   const activeMarineLayersRef = useRef(false);
   const manualMarineTriggerRef = useRef(null);
   const isCommittingDataRef = useRef(false);
-  const suppressMoveEndRef = useRef(false);
+  const isInternalMapUpdateRef = useRef(false);
+  const internalUpdateTimerRef = useRef(null);
   const lastUserInteractionRef = useRef(0);
   const lastStableCameraRef = useRef(null);
   
@@ -429,7 +430,7 @@ const MapWebGL = ({
           locks.lastTime = Date.now();
 
           isCommittingDataRef.current = true;
-          suppressMoveEndRef.current = true;
+          isInternalMapUpdateRef.current = true;
           
           setMarineData(prev => {
             if (JSON.stringify(prev) === JSON.stringify(data)) {
@@ -444,9 +445,10 @@ const MapWebGL = ({
           requestAnimationFrame(() => {
             isCommittingDataRef.current = false;
           });
-          setTimeout(() => {
-            suppressMoveEndRef.current = false;
-          }, 300);
+          clearTimeout(internalUpdateTimerRef.current);
+          internalUpdateTimerRef.current = setTimeout(() => {
+            isInternalMapUpdateRef.current = false;
+          }, 800);
         } else {
           console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
         }
@@ -495,8 +497,8 @@ const MapWebGL = ({
         return;
       }
 
-      if (suppressMoveEndRef.current) {
-        console.log("[Marine Trace] moveend ignored (post-render suppression)");
+      if (isInternalMapUpdateRef.current) {
+        console.log("[Marine Trace] moveend ignored (MapLibre source/style update in progress)");
         return;
       }
 
@@ -528,6 +530,17 @@ const MapWebGL = ({
     mapInstance.on('wheel', trackIntent);
     mapInstance.on('dragstart', trackIntent);
     mapInstance.on('zoomstart', trackIntent);
+
+    // MapLibre Internal Update Tracking
+    const onMapInternalUpdate = () => {
+      isInternalMapUpdateRef.current = true;
+      clearTimeout(internalUpdateTimerRef.current);
+      internalUpdateTimerRef.current = setTimeout(() => {
+        isInternalMapUpdateRef.current = false;
+      }, 500);
+    };
+    mapInstance.on('sourcedata', onMapInternalUpdate);
+    mapInstance.on('styledata', onMapInternalUpdate);
     
     mapInstance.on('moveend', onMoveEnd);
     
@@ -539,11 +552,14 @@ const MapWebGL = ({
     return () => {
       clearTimeout(timeoutId);
       if (moveEndBurstRef.timer) clearTimeout(moveEndBurstRef.timer);
+      if (internalUpdateTimerRef.current) clearTimeout(internalUpdateTimerRef.current);
       mapInstance.off('mousedown', trackIntent);
       mapInstance.off('touchstart', trackIntent);
       mapInstance.off('wheel', trackIntent);
       mapInstance.off('dragstart', trackIntent);
       mapInstance.off('zoomstart', trackIntent);
+      mapInstance.off('sourcedata', onMapInternalUpdate);
+      mapInstance.off('styledata', onMapInternalUpdate);
       mapInstance.off('moveend', onMoveEnd);
       manualMarineTriggerRef.current = null;
     };
