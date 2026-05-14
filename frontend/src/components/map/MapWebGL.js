@@ -13,6 +13,7 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
 import { useWeatherEngine } from './WeatherEngine';
+import { useMapRenderContract } from './useMapRenderContract';
 import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 
@@ -151,10 +152,13 @@ const MapWebGL = ({
   const [initialOmUrl, setInitialOmUrl] = useState(null);
   const [initialRadarUrl, setInitialRadarUrl] = useState(null);
 
-  // Raster Transaction Layer (v238) — serialized, abort-safe source mutations
-  const { queueRasterUpdate } = useRasterTransactions(mapInstance);
+  // v242: Global Render Contract — single source of truth for map readiness
+  const renderContract = useMapRenderContract(mapInstance);
 
-  // Marine Orchestrator (v238) — single-pipeline data fetching
+  // Raster Transaction Layer — now gated by render contract
+  const { queueRasterUpdate } = useRasterTransactions(mapInstance, renderContract);
+
+  // Marine Orchestrator — single-pipeline data fetching
   const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers });
 
   // Bootstrapping and Transacting Open-Meteo

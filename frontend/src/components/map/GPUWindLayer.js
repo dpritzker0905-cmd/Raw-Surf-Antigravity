@@ -98,11 +98,16 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     let errorCount = 0;
     let wasActive = false;
 
-    // v241: Interaction-aware throttle — reduce particle processing during drag/zoom
+    // v242: Interaction-aware throttle — reduce particle processing during drag/zoom
+    // 300ms debounce on idle to match render contract's INTERACTING→READY transition
     let isInteracting = false;
-    const onDragStart = () => { isInteracting = true; };
-    const onZoomStart = () => { isInteracting = true; };
-    const onIdle = () => { isInteracting = false; };
+    let idleTimer = null;
+    const onDragStart = () => { isInteracting = true; clearTimeout(idleTimer); };
+    const onZoomStart = () => { isInteracting = true; clearTimeout(idleTimer); };
+    const onIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => { isInteracting = false; }, 300);
+    };
     mapInstance.on('dragstart', onDragStart);
     mapInstance.on('zoomstart', onZoomStart);
     mapInstance.on('moveend', onIdle);
@@ -213,6 +218,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     return () => {
       console.log('[Wind] === UNMOUNTING ===');
       cancelAnimationFrame(animRef.current);
+      clearTimeout(idleTimer);
       window.removeEventListener('resize', onResize);
       mapInstance.off('dragstart', onDragStart);
       mapInstance.off('zoomstart', onZoomStart);
