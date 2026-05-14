@@ -152,6 +152,13 @@ const MapWebGL = ({
     return OM_VARIABLE_MAP[activeLayers[0]] || null;
   }, [activeLayers]);
   const [omTileUrl, setOmTileUrl] = useState(null);
+  const [activeOmTileUrl, setActiveOmTileUrl] = useState(null);
+
+  // Defer OM raster commits to prevent MapLibre AbortError spam during rapid variable/time changes
+  useEffect(() => {
+    const t = setTimeout(() => setActiveOmTileUrl(prev => omTileUrl === prev ? prev : omTileUrl), 120);
+    return () => clearTimeout(t);
+  }, [omTileUrl]);
 
   /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
@@ -318,6 +325,14 @@ const MapWebGL = ({
     // 2026 API: color=7 (Universal Blue), smooth=1, snow=0, max zoom=7
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
   }, [radarFrames, radarFrameIndex]);
+
+  const [activeRadarTileUrl, setActiveRadarTileUrl] = useState(null);
+
+  // Defer radar raster commits to prevent MapLibre AbortError spam during rapid timeline playback
+  useEffect(() => {
+    const t = setTimeout(() => setActiveRadarTileUrl(prev => radarTileUrl === prev ? prev : radarTileUrl), 120);
+    return () => clearTimeout(t);
+  }, [radarTileUrl]);
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => getMapStyle(isLight, false), [isLight]);
@@ -682,11 +697,11 @@ const MapWebGL = ({
       {/* --- WEATHER LAYERS --- */}
 
       {/* Live Radar (RainViewer — animated frames) */}
-      {radarTileUrl && (
+      {activeRadarTileUrl && (
         <Source
           id="radar-source"
           type="raster"
-          tiles={[radarTileUrl]}
+          tiles={[activeRadarTileUrl]}
           tileSize={256}
           maxzoom={7}
         >
@@ -700,11 +715,11 @@ const MapWebGL = ({
       )}
 
       {/* Open-Meteo Animated Weather Tiles */}
-      {protocolReady && omTileUrl && (
+      {protocolReady && activeOmTileUrl && (
         <Source
           id="om-weather-source"
           type="raster"
-          url={omTileUrl}
+          url={activeOmTileUrl}
           maxzoom={12}
         >
           <Layer
