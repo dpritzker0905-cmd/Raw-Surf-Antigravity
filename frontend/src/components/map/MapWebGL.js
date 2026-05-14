@@ -108,6 +108,12 @@ const MapWebGL = ({
   const [mapInstance, setMapInstance] = useState(null);
   const [marineData, setMarineData] = useState(null);
   const marineRevision = useRef(0);
+  const marineFetchLocksRef = useRef({
+    lastCenter: null,
+    lastZoom: null,
+    lastTime: 0,
+    isFetching: false
+  });
   
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
@@ -347,21 +353,18 @@ const MapWebGL = ({
     }
 
     let timeoutId;
-    let lastFetchCenter = null;
-    let lastFetchZoom = null;
-    let lastFetchTime = 0;
-    let isFetching = false;
+    const locks = marineFetchLocksRef.current;
 
     const updateMarineGrid = async () => {
       console.log('[Marine Trace] 1. updateMarineGrid triggered');
       
       // Hard block: concurrent fetch or rate limit
-      if (isFetching) {
+      if (locks.isFetching) {
         console.log('[Marine Trace] 2. aborted (already fetching)');
         return;
       }
       const now = Date.now();
-      if (now - lastFetchTime < 1200) {
+      if (now - locks.lastTime < 1200) {
         console.log('[Marine Trace] 2. aborted (rate limit, < 1200ms)');
         return;
       }
@@ -375,12 +378,13 @@ const MapWebGL = ({
       const center = mapInstance.getCenter();
       const zoom = mapInstance.getZoom();
 
-      // Prevent infinite loops from micro-jitter or container resizes
-      if (lastFetchCenter && 
-          Math.abs(lastFetchCenter.lat - center.lat) < 0.05 &&
-          Math.abs(lastFetchCenter.lng - center.lng) < 0.05 &&
-          Math.abs(lastFetchZoom - zoom) < 0.5) {
-        console.log('[Marine Trace] 2. aborted (map barely moved, ignoring jitter)');
+      // Prevent infinite loops from micro-jitter or container resizes,
+      // and decouple layer toggles from fetching by persisting this lock.
+      if (locks.lastCenter && 
+          Math.abs(locks.lastCenter.lat - center.lat) < 0.05 &&
+          Math.abs(locks.lastCenter.lng - center.lng) < 0.05 &&
+          Math.abs(locks.lastZoom - zoom) < 0.5) {
+        console.log('[Marine Trace] 2. aborted (viewport hash matched, skipping fetch)');
         return;
       }
 
@@ -391,15 +395,15 @@ const MapWebGL = ({
       };
 
       console.log('[Marine Trace] 3. calling fetchMarineData');
-      isFetching = true;
+      locks.isFetching = true;
       try {
         const data = await fetchMarineData(bounds, zoom);
         console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
         
         if (data) {
-          lastFetchCenter = center;
-          lastFetchZoom = zoom;
-          lastFetchTime = Date.now();
+          locks.lastCenter = center;
+          locks.lastZoom = zoom;
+          locks.lastTime = Date.now();
 
           setMarineData(prev => {
             if (JSON.stringify(prev) === JSON.stringify(data)) {
@@ -414,7 +418,7 @@ const MapWebGL = ({
           console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
         }
       } finally {
-        isFetching = false;
+        locks.isFetching = false;
       }
     };
 

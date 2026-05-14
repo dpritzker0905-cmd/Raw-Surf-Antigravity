@@ -177,8 +177,13 @@ export async function fetchMarineData(bounds, zoom) {
     Math.round(zoom)
   ].join('|');
 
+  const now = Date.now();
   if (MARINE_CACHE.has(cacheKey)) {
-    return { type: 'FeatureCollection', features: MARINE_CACHE.get(cacheKey) };
+    const cached = MARINE_CACHE.get(cacheKey);
+    // 5-minute TTL
+    if (now - cached.timestamp < 5 * 60 * 1000) {
+      return { type: 'FeatureCollection', features: cached.features };
+    }
   }
 
   marineRequestInFlight = true;
@@ -232,7 +237,7 @@ export async function fetchMarineData(bounds, zoom) {
     console.log(`[Marine Trace] Network Success: ${allResults.length} raw results -> ${features.length} valid features.`);
 
     if (features.length > 0) {
-      MARINE_CACHE.set(cacheKey, features);
+      MARINE_CACHE.set(cacheKey, { features, timestamp: Date.now() });
       return { type: 'FeatureCollection', features };
     } else {
       console.warn('[Marine Trace] Zero valid points returned from API, returning null');
