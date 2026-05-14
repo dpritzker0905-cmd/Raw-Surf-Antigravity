@@ -26,7 +26,10 @@ const HARDCODED_MARINE_FEATURE = {
         coordinates: [-80.6, 28.4] // Hardcoded near Florida
       },
       properties: {
-        wave_height: 3
+        wave_height: 0,
+        swell_wave_height: 0,
+        secondary_swell_wave_height: 0,
+        wind_wave_height: 0,
       }
     }
   ]

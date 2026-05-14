@@ -136,7 +136,7 @@ export async function fetchWindData(bounds) {
       });
     });
 
-    console.log(`[Wind Trace] Network Success: ${allResults.length} raw results -> ${vectors.length} valid vectors.`);
+    console.log(`[Wind Trace] Network Success: ${results.length} raw results -> ${vectors.length} valid vectors.`);
 
     if (vectors.length > 0) {
       const data = { vectors, bounds: { west, south, east, north }, grid: GRID };
