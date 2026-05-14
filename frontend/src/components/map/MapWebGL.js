@@ -148,6 +148,23 @@ const MapWebGL = ({
     if (!activeLayers.length) return null;
     return OM_VARIABLE_MAP[activeLayers[0]] || null;
   }, [activeLayers]);
+
+  // v246: Derived render type — drives which renderer pipeline is active
+  const activeRenderType = useMemo(() => {
+    const layer = activeLayers[0];
+    if (!layer) return 'none';
+    if (layer === 'radar') return 'radar';
+    if (layer === 'wind') return 'wind';
+    if (['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layer)) return 'marine';
+    if (OM_VARIABLE_MAP[layer]) return 'raster';
+    return 'none';
+  }, [activeLayers]);
+
+  // v246: Render pipeline trace — logs which renderer is bound to current layer
+  useEffect(() => {
+    const layer = activeLayers[0] || 'none';
+    console.log(`[Render Pipeline] Layer: ${layer} → Type: ${activeRenderType}`);
+  }, [activeLayers, activeRenderType]);
   const [omTileUrl, setOmTileUrl] = useState(null);
   const [initialOmUrl, setInitialOmUrl] = useState(null);
   const [initialRadarUrl, setInitialRadarUrl] = useState(null);
@@ -209,7 +226,9 @@ const MapWebGL = ({
     const activeLayer = activeLayers.find(l => OM_VARIABLE_MAP[l] && l !== 'radar');
     
     if (!activeLayer) {
-      // Do NOT set omTileUrl to null, keep it cached to prevent unmounting
+      // v246: Clear stale raster tiles when switching to non-raster layer (wind/waves/etc)
+      // This prevents old precipitation tiles from appearing briefly during transitions
+      setOmTileUrl(null);
       return;
     }
     
@@ -378,14 +397,12 @@ const MapWebGL = ({
     }
   });
 
-  // Force MapLibre to repaint whenever LAYERS change (toggle on/off).
-  // v244: Dependency is ONLY activeLayers — NOT data (marineData, windData, omTileUrl, radarTileUrl).
-  // Data changes update stable refs that the animation reads; they should NOT restart the clock.
-  // This was causing wind/wave animation resets on every marine fetch or raster URL change.
+  // v246: Layer-targeted animation clock.
+  // Only drives opacity on the ACTIVE renderer type. Does NOT touch other renderers.
+  // This prevents raster opacity being set when wind/marine is active, and vice versa.
   useEffect(() => {
     if (!mapInstance) return;
 
-    // Trigger synchronized transition for all weather layers
     weatherAnimRef.current = {
       active: true,
       start: performance.now(),
@@ -402,29 +419,27 @@ const MapWebGL = ({
         t = 1;
       }
 
-      // Shared easeOutCubic curve for unified "atmospheric system" feel
       const p = 1 - Math.pow(1 - t, 3);
 
-      // Apply shared progress to MapLibre native layers
+      // v246: Only animate the renderer that's actually active
       if (mapInstance.getStyle()) {
         try {
-          if (mapInstance.getLayer('marine-heatmap-circles')) {
+          if (activeRenderType === 'marine' && mapInstance.getLayer('marine-heatmap-circles')) {
             mapInstance.setPaintProperty('marine-heatmap-circles', 'heatmap-opacity', 0.8 * p);
           }
-          if (mapInstance.getLayer('om-weather-layer')) {
+          if (activeRenderType === 'raster' && mapInstance.getLayer('om-weather-layer')) {
             const baseOpacity = activeLayers.includes('pressure') ? 0.45 : 0.7;
             mapInstance.setPaintProperty('om-weather-layer', 'raster-opacity', baseOpacity * p);
           }
-          if (mapInstance.getLayer('radar-layer')) {
+          if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) {
             mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
           }
         } catch (e) {}
       }
 
-      // Apply shared progress to HTML canvas layers (Wind Engine)
-      const windCanvas = document.getElementById('wind-canvas-layer');
-      if (windCanvas) {
-        windCanvas.style.opacity = p;
+      if (activeRenderType === 'wind') {
+        const windCanvas = document.getElementById('wind-canvas-layer');
+        if (windCanvas) windCanvas.style.opacity = p;
       }
 
       if (t < 1) {
@@ -437,7 +452,7 @@ const MapWebGL = ({
     animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
 
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [mapInstance, activeLayers]); // v244: ONLY layer toggles restart animation
+  }, [mapInstance, activeLayers, activeRenderType]);
 
   // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
   // The coastline layer has been migrated to declarative JSX below.
