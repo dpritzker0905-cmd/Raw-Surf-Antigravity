@@ -349,9 +349,23 @@ const MapWebGL = ({
     let timeoutId;
     let lastFetchCenter = null;
     let lastFetchZoom = null;
+    let lastFetchTime = 0;
+    let isFetching = false;
 
     const updateMarineGrid = async () => {
       console.log('[Marine Trace] 1. updateMarineGrid triggered');
+      
+      // Hard block: concurrent fetch or rate limit
+      if (isFetching) {
+        console.log('[Marine Trace] 2. aborted (already fetching)');
+        return;
+      }
+      const now = Date.now();
+      if (now - lastFetchTime < 1200) {
+        console.log('[Marine Trace] 2. aborted (rate limit, < 1200ms)');
+        return;
+      }
+
       // Hard block: do not fetch if map is actively moving/zooming/animating
       if (mapInstance.isMoving() || mapInstance.isZooming()) {
         console.log('[Marine Trace] 2. aborted (map is moving/zooming)');
@@ -377,24 +391,30 @@ const MapWebGL = ({
       };
 
       console.log('[Marine Trace] 3. calling fetchMarineData');
-      const data = await fetchMarineData(bounds, zoom);
-      console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
-      
-      if (data) {
-        lastFetchCenter = center;
-        lastFetchZoom = zoom;
+      isFetching = true;
+      try {
+        const data = await fetchMarineData(bounds, zoom);
+        console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
+        
+        if (data) {
+          lastFetchCenter = center;
+          lastFetchZoom = zoom;
+          lastFetchTime = Date.now();
 
-        setMarineData(prev => {
-          if (JSON.stringify(prev) === JSON.stringify(data)) {
-            console.log('[Marine Trace] 5. setting marineData SKIPPED (data identical)');
-            return prev;
-          }
-          console.log('[Marine Trace] 5. setting marineData state');
-          marineRevision.current += 1;
-          return data;
-        });
-      } else {
-        console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
+          setMarineData(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(data)) {
+              console.log('[Marine Trace] 5. setting marineData SKIPPED (data identical)');
+              return prev;
+            }
+            console.log('[Marine Trace] 5. setting marineData state');
+            marineRevision.current += 1;
+            return data;
+          });
+        } else {
+          console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
+        }
+      } finally {
+        isFetching = false;
       }
     };
 
