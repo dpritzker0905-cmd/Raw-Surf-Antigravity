@@ -419,16 +419,20 @@ const MapWebGL = ({
   useEffect(() => {
     const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
     const hasMarine = MARINE_LAYERS.some(l => activeLayersKey.includes(l));
-    const previouslyHadMarine = activeMarineLayersRef.current;
     
-    activeMarineLayersRef.current = hasMarine;
+    const t = setTimeout(() => {
+      const previouslyHadMarine = activeMarineLayersRef.current;
+      activeMarineLayersRef.current = hasMarine;
 
-    if (!hasMarine) {
-      if (marineData) setMarineData(null);
-    } else if (hasMarine && !previouslyHadMarine) {
-      console.log('[Marine] Layer activated, triggering manual fetch...');
-      manualMarineTriggerRef.current?.();
-    }
+      if (!hasMarine) {
+        if (marineData) setMarineData(null);
+      } else if (hasMarine && !previouslyHadMarine) {
+        console.log('[Marine] Layer activated, triggering manual fetch...');
+        manualMarineTriggerRef.current?.();
+      }
+    }, 50);
+
+    return () => clearTimeout(t);
   }, [activeLayersKey]); // Deliberately omit marineData to prevent loops
 
   // Network Orchestrator: Purely viewport driven, zero knowledge of rendering
