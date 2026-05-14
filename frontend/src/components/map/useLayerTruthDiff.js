@@ -141,41 +141,33 @@ function diffLayerTruth(activeLayer, activeRenderType, mapInstance, windData, ma
 function logRenderSnapshot(activeLayer, activeRenderType, mapInstance, windData, marineData) {
   if (!mapInstance) return;
 
-  console.group('📸 RENDER SNAPSHOT');
+  // v246: Use string formatting for production console (prevents "Object" collapse)
+  const lines = [`📸 RENDER SNAPSHOT | ${activeLayer} → ${activeRenderType}`];
 
-  console.log('LAYER:', activeLayer, '→ TYPE:', activeRenderType);
-
-  // MapLibre layers
+  // MapLibre layer visibility
   try {
     const style = mapInstance.getStyle();
-    const layerIds = style?.layers?.map(l => l.id).filter(id =>
-      ['om-weather-layer', 'radar-layer', 'marine-heatmap-circles', 'spot-geofences-layer'].includes(id)
-    ) || [];
-    const layerVis = {};
-    layerIds.forEach(id => {
-      layerVis[id] = mapInstance.getLayoutProperty(id, 'visibility') || 'visible';
+    const checked = ['om-weather-layer', 'radar-layer', 'marine-heatmap-circles'];
+    const vis = checked.map(id => {
+      const exists = style?.layers?.find(l => l.id === id);
+      if (!exists) return `${id}:MISSING`;
+      const v = mapInstance.getLayoutProperty(id, 'visibility') || 'visible';
+      return `${id}:${v}`;
     });
-    console.log('MAP LAYERS:', layerVis);
+    lines.push(`MAP: ${vis.join(' | ')}`);
   } catch (e) {}
 
   // Wind state
   const windCanvas = document.getElementById('wind-canvas-layer');
-  console.log('WIND:', {
-    canvasExists: !!windCanvas,
-    canvasOpacity: windCanvas?.style?.opacity || 'N/A',
-    dataVectors: windData?.vectors?.length || 0,
-    grid: windData?.grid || 'N/A',
-  });
+  lines.push(`WIND: canvas=${!!windCanvas} opacity=${windCanvas?.style?.opacity || 'N/A'} vectors=${windData?.vectors?.length || 0} grid=${windData?.grid || 'N/A'}`);
 
   // Marine state
-  console.log('MARINE:', {
-    features: marineData?.features?.length || 0,
-    sampleKeys: marineData?.features?.[0]?.properties
-      ? Object.keys(marineData.features[0].properties)
-      : null,
-  });
+  const mKeys = marineData?.features?.[0]?.properties
+    ? Object.keys(marineData.features[0].properties).join(',')
+    : 'none';
+  lines.push(`MARINE: features=${marineData?.features?.length || 0} keys=[${mKeys}]`);
 
-  console.groupEnd();
+  console.log(lines.join('\n'));
 }
 
 /**

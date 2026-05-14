@@ -71,16 +71,31 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
     return () => clearInterval(tickInterval);
   }, [mapInstance]);
 
-  // We expose a manual refresh for layer toggles
+  // v246: Manual fetch trigger when wind layer is toggled ON but no data exists.
+  // This was previously a no-op (empty setTimeout body) — the root cause of WIND_DATA_EMPTY.
   useEffect(() => {
-    if (activeLayers.includes('wind') && !windData) {
-      // Small debounce to ensure map bounds are stable if they just loaded
-      const t = setTimeout(() => {
-        // We'll rely on the mount trigger or timer for now, but this is the hook for manual
-      }, 100);
-      return () => clearTimeout(t);
-    }
-  }, [activeLayers, windData]);
+    if (!mapInstance || !activeLayers.includes('wind') || windData) return;
+    
+    const t = setTimeout(async () => {
+      const b = mapInstance.getBounds();
+      if (!b) return;
+      const bounds = {
+        west: b.getWest(), south: b.getSouth(),
+        east: b.getEast(), north: b.getNorth()
+      };
+      console.log('[WeatherEngine] Manual fetch → wind layer toggled ON');
+      try {
+        const data = await fetchWindData(bounds);
+        if (data) {
+          windRevision.current += 1;
+          setWindData(data);
+        }
+      } catch (e) {
+        console.error('[WeatherEngine] Manual fetch failed:', e);
+      }
+    }, 200);
+    return () => clearTimeout(t);
+  }, [activeLayers, windData, mapInstance]);
 
   return { windData, windRevision };
 }

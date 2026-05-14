@@ -226,7 +226,19 @@ export async function fetchMarineData(bounds, zoom) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
-    const allResults = Array.isArray(data) ? data : [data];
+
+    // v246: Open-Meteo marine API returns flat object for multi-lat/lng queries,
+    // NOT an array. Normalize to always be per-point array.
+    let allResults;
+    if (Array.isArray(data)) {
+      allResults = data;
+    } else if (data?.current) {
+      // Single aggregated response — replicate for all grid points
+      allResults = cappedPoints.map(() => data);
+    } else {
+      console.warn('[Marine Trace] Unexpected API response shape:', Object.keys(data));
+      return null;
+    }
 
     const safe = (v) => (typeof v === "number" && isFinite(v)) ? v : 0;
     const features = cappedPoints.map((pt, i) => {
