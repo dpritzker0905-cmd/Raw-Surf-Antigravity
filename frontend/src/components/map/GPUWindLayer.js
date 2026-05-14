@@ -47,11 +47,14 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
   const particlesRef = useRef([]);
   const inlineMockRef = useRef(null);
 
+  const activeRef = useRef(active);
+
+  useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { windRef.current = data; }, [data, revision]);
 
   useEffect(() => {
-    if (!mapInstance || !active || !canvasRef.current) return;
-    console.log('[Wind] === STARTING v186 ===');
+    if (!mapInstance || !canvasRef.current) return;
+    console.log('[Wind] === STARTING PERSISTENT ENGINE ===');
 
     // We no longer inject inline mock data. We rely exclusively on the live fetch pipeline.
     inlineMockRef.current = null;
@@ -91,11 +94,20 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     let errorCount = 0;
 
     const animate = (now) => {
+      if (!activeRef.current) {
+        ctx.clearRect(0, 0, cw, ch);
+        animRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
       const dt = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
       frameCount++;
 
-      ctx.clearRect(0, 0, cw, ch);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.globalCompositeOperation = 'source-over';
 
       const grid = windRef.current || inlineMockRef.current;
       const particles = particlesRef.current;
@@ -174,9 +186,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', onResize);
     };
-  }, [mapInstance, active]);
-
-  if (!active) return null;
+  }, [mapInstance]); // Deliberately omitted 'active' to ensure persistence
 
   return (
     <canvas

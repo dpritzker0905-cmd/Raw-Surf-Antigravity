@@ -186,14 +186,15 @@ const MapWebGL = ({
   }, [fetchMetadata]);
 
   useEffect(() => {
-    if (!activeLayers.length) { setOmTileUrl(null); return; }
-    const activeLayer = activeLayers[0];
+    // Find the first active layer that uses Open-Meteo tiles
+    const activeLayer = activeLayers.find(l => OM_VARIABLE_MAP[l] && l !== 'radar');
     
-    // Radar uses RainViewer, not Open-Meteo tiles
-    if (activeLayer === 'radar') { setOmTileUrl(null); return; }
+    if (!activeLayer) {
+      // Do NOT set omTileUrl to null, keep it cached to prevent unmounting
+      return;
+    }
     
     const variable = OM_VARIABLE_MAP[activeLayer];
-    if (!variable) { setOmTileUrl(null); return; }
     
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
@@ -681,23 +682,26 @@ const MapWebGL = ({
       {/* --- WEATHER LAYERS --- */}
 
       {/* Live Radar (RainViewer — animated frames) */}
-      {activeLayers.includes('radar') && radarTileUrl && (
+      {radarTileUrl && (
         <Source
-          key={`radar-${radarFrameIndex}`}
           id="radar-source"
           type="raster"
           tiles={[radarTileUrl]}
           tileSize={256}
           maxzoom={7}
         >
-          <Layer id="radar-layer" type="raster" paint={{ 'raster-opacity': 0.65 }} />
+          <Layer 
+            id="radar-layer" 
+            type="raster" 
+            layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
+            paint={{ 'raster-opacity': 0.65 }} 
+          />
         </Source>
       )}
 
       {/* Open-Meteo Animated Weather Tiles */}
       {protocolReady && omTileUrl && (
         <Source
-          key={omTileUrl}
           id="om-weather-source"
           type="raster"
           url={omTileUrl}
@@ -706,6 +710,9 @@ const MapWebGL = ({
           <Layer
             id="om-weather-layer"
             type="raster"
+            layout={{ 
+              visibility: activeLayers.some(l => OM_VARIABLE_MAP[l] && l !== 'radar') ? 'visible' : 'none' 
+            }}
             paint={{ 
               'raster-opacity': activeLayers.includes('pressure') ? 0.45 : 0.7, 
               // Set raster-fade-duration to 0 to let our Shared Clock drive the transition
