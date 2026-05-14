@@ -13,6 +13,8 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
 import { useWeatherEngine } from './WeatherEngine';
+import { useRasterTransactions } from './useRasterTransactions';
+import { useMarineOrchestrator } from './useMarineOrchestrator';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -70,9 +72,7 @@ const OM_VARIABLE_MAP = {
 const MODEL_METADATA_CACHE = {};
 const MODEL_METADATA_PROMISES = {};
 
-import { fetchMarineData, getInstantMockMarine } from './marineController';
-
-// Removed inline GLOBAL_MARINE_CACHE as it's now in marineController.js
+// marineController is now consumed via useMarineOrchestrator hook
 
 const MapWebGL = ({
   isLight,
@@ -107,22 +107,6 @@ const MapWebGL = ({
   });
 
   const [mapInstance, setMapInstance] = useState(null);
-  const [marineData, setMarineData] = useState(null);
-  const marineRevision = useRef(0);
-  const marineFetchLocksRef = useRef({
-    lastHash: null,
-    lastTime: 0,
-    isFetching: false
-  });
-  const marineRequestIdRef = useRef(0);
-  const activeMarineLayersRef = useRef(false);
-  const manualMarineTriggerRef = useRef(null);
-  const isCommittingDataRef = useRef(false);
-  const isInternalMapUpdateRef = useRef(false);
-  const internalUpdateTimerRef = useRef(null);
-  const lastUserInteractionRef = useRef(0);
-  const lastStableCameraRef = useRef(null);
-  const lastInvocationRef = useRef({ source: null, time: 0 });
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -143,6 +127,18 @@ const MapWebGL = ({
       }
       setProtocolReady(true);
     });
+
+    // v239: Global AbortError suppression for MapLibre worker-level Promise rejections.
+    // These escape both try-catch and map.on('error') because they originate from
+    // internal worker message ports during tile-fetch cancellation.
+    const suppressAbortRejections = (event) => {
+      const reason = event?.reason;
+      if (reason?.name === 'AbortError' || reason?.message?.includes('aborted')) {
+        event.preventDefault(); // Suppress console error
+      }
+    };
+    window.addEventListener('unhandledrejection', suppressAbortRejections);
+    return () => window.removeEventListener('unhandledrejection', suppressAbortRejections);
   }, []);
 
   // Open-Meteo tile source URL — built dynamically after checking model capabilities
@@ -155,33 +151,11 @@ const MapWebGL = ({
   const [initialOmUrl, setInitialOmUrl] = useState(null);
   const [initialRadarUrl, setInitialRadarUrl] = useState(null);
 
-  const rasterTransactionQueue = useRef({
-    'om-weather-source': null,
-    'radar-source': null
-  });
+  // Raster Transaction Layer (v238) — serialized, abort-safe source mutations
+  const { queueRasterUpdate } = useRasterTransactions(mapInstance);
 
-  const queueRasterUpdate = useCallback((sourceId, url, isTilesArray = false) => {
-    if (!mapInstance) return;
-    
-    if (rasterTransactionQueue.current[sourceId]) {
-      clearTimeout(rasterTransactionQueue.current[sourceId]);
-    }
-
-    rasterTransactionQueue.current[sourceId] = setTimeout(() => {
-      try {
-        const source = mapInstance.getSource(sourceId);
-        if (!source) return;
-        
-        if (isTilesArray) {
-          if (source.setTiles) source.setTiles(url);
-        } else {
-          if (source.setUrl) source.setUrl(url);
-        }
-      } catch (e) {
-        console.warn(`[Raster Transaction] Failed to update ${sourceId}:`, e);
-      }
-    }, 150);
-  }, [mapInstance]);
+  // Marine Orchestrator (v238) — single-pipeline data fetching
+  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers });
 
   // Bootstrapping and Transacting Open-Meteo
   useEffect(() => {
@@ -382,6 +356,16 @@ const MapWebGL = ({
     const map = innerMapRef.current?.getMap?.();
     if (map && !mapInstance) {
       setMapInstance(map);
+
+      // v239: Suppress async AbortErrors from MapLibre's internal tile-fetch pipeline.
+      // These fire AFTER setUrl() returns (asynchronous Promise rejection inside workers),
+      // so the try-catch in useRasterTransactions cannot intercept them.
+      map.on('error', (e) => {
+        if (e?.error?.name === 'AbortError' || e?.error?.message?.includes('aborted')) {
+          return; // Swallow — this is expected during raster source transitions
+        }
+        console.error('[MapLibre Error]', e?.error || e);
+      });
       
       // Force render loop to paint custom-protocol tiles on mount
       setTimeout(() => {
@@ -449,256 +433,9 @@ const MapWebGL = ({
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
-  // Use a stable string for activeLayers dependency to prevent infinite re-render loops from prop mutation
-  const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
-
-  // Layer State Tracker: Decoupled from Fetch Orchestrator
-  useEffect(() => {
-    const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
-    const hasMarine = MARINE_LAYERS.some(l => activeLayersKey.includes(l));
-    
-    const t = setTimeout(() => {
-      const previouslyHadMarine = activeMarineLayersRef.current;
-      activeMarineLayersRef.current = hasMarine;
-
-      if (!hasMarine) {
-        if (marineData) setMarineData(null);
-      } else if (hasMarine && !previouslyHadMarine) {
-        console.log('[Marine] Layer activated, triggering manual fetch...');
-        manualMarineTriggerRef.current?.();
-      }
-    }, 50);
-
-    return () => clearTimeout(t);
-  }, [activeLayersKey]); // Deliberately omit marineData to prevent loops
-
-  // Network Orchestrator: Purely viewport driven, zero knowledge of rendering
-  useEffect(() => {
-    if (!mapInstance) return;
-
-    let timeoutId;
-    const locks = marineFetchLocksRef.current;
-
-    const updateMarineGrid = async (source = 'unknown') => {
-      if (isCommittingDataRef.current) {
-        console.log(`[Marine Trace] aborted (data commit in progress) source=${source}`);
-        return;
-      }
-
-      if (!activeMarineLayersRef.current) return;
-      const center = mapInstance.getCenter();
-      const zoom = mapInstance.getZoom();
-
-      const q = (v) => Number(v).toFixed(2);
-      const z = Math.round(zoom * 2) / 2;
-      const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}`;
-
-      // Absolute top-level gate: Viewport Hash Guard BEFORE any async logic or promise creation
-      if (locks.lastHash === viewportHash &&
-          (Date.now() - locks.lastTime < 5 * 60 * 1000)) { // Add 5m TTL to hash guard
-        console.log(`[Marine Trace] 2. aborted (viewport hash matched, skipping fetch) source=${source}`);
-        return;
-      }
-
-      console.log(`[Marine Trace] 1. updateMarineGrid triggered source=${source}`);
-      
-      // Hard block: concurrent fetch or rate limit
-      if (locks.isFetching) {
-        console.log(`[Marine Trace] 2. aborted (already fetching) source=${source}`);
-        return;
-      }
-      const now = Date.now();
-      if (now - locks.lastTime < 1200) {
-        console.log(`[Marine Trace] 2. aborted (rate limit, < 1200ms) source=${source}`);
-        return;
-      }
-
-      // Hard block: do not fetch if map is actively moving/zooming/animating
-      if (mapInstance.isMoving() || mapInstance.isZooming()) {
-        console.log(`[Marine Trace] 2. aborted (map is moving/zooming) source=${source}`);
-        return;
-      }
-
-      const b = mapInstance.getBounds();
-      const bounds = {
-        west: b.getWest(), south: b.getSouth(),
-        east: b.getEast(), north: b.getNorth()
-      };
-
-      const requestId = ++marineRequestIdRef.current;
-      console.log(`[Marine Trace] 3. calling fetchMarineData (req: ${requestId})`);
-      locks.isFetching = true;
-      try {
-        const data = await fetchMarineData(bounds, zoom);
-        
-        // Stale request discard
-        if (requestId !== marineRequestIdRef.current) {
-          console.log(`[Marine Trace] stale request discarded (req: ${requestId})`);
-          return;
-        }
-
-        console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
-        
-        if (data) {
-          locks.lastHash = viewportHash;
-          locks.lastTime = Date.now();
-
-          isCommittingDataRef.current = true;
-          isInternalMapUpdateRef.current = true;
-          
-          setMarineData(prev => {
-            if (JSON.stringify(prev) === JSON.stringify(data)) {
-              console.log('[Marine Trace] 5. setting marineData SKIPPED (data identical)');
-              return prev;
-            }
-            console.log('[Marine Trace] 5. setting marineData state');
-            marineRevision.current += 1;
-            return data;
-          });
-          
-          requestAnimationFrame(() => {
-            isCommittingDataRef.current = false;
-          });
-          clearTimeout(internalUpdateTimerRef.current);
-          internalUpdateTimerRef.current = setTimeout(() => {
-            isInternalMapUpdateRef.current = false;
-          }, 800);
-        } else {
-          console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
-        }
-      } finally {
-        locks.isFetching = false;
-      }
-    };
-
-    const scheduledRef = { current: false };
-
-    const enqueueMarineUpdate = (source) => {
-      const now = Date.now();
-      
-      if (source === 'manual') {
-        locks.manualFetchActiveUntil = now + 1500;
-      }
-      
-      if (source.includes('moveend') && now < (locks.manualFetchActiveUntil || 0)) {
-        console.log(`[Marine Trace] ingress ignored (${source} suppressed post-manual activation)`);
-        return;
-      }
-
-      // Hard Dedupe: Ignore identical triggers firing within 800ms
-      if (lastInvocationRef.current.source === source && now - lastInvocationRef.current.time < 800) {
-        console.log(`[Marine Trace] ingress ignored (duplicate ${source} trigger)`);
-        return;
-      }
-      lastInvocationRef.current = { source, time: now };
-
-      if (scheduledRef.current) return;
-      scheduledRef.current = true;
-      
-      requestAnimationFrame(() => {
-        scheduledRef.current = false;
-        clearTimeout(timeoutId);
-        // Stable Bounds Delay: let inertial map easing settle completely
-        timeoutId = setTimeout(() => {
-          if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
-            updateMarineGrid(source);
-          }
-        }, 150);
-      });
-    };
-
-    manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
-
-    const moveEndBurstRef = {
-      count: 0,
-      lastEventTime: 0,
-      timer: null
-    };
-
-    const onMoveEnd = () => {
-      console.count("MOVEEND FIRED");
-
-      moveEndBurstRef.count++;
-      moveEndBurstRef.lastEventTime = Date.now();
-      
-      clearTimeout(moveEndBurstRef.timer);
-
-      const isUserDriven = Date.now() - lastUserInteractionRef.current < 1500;
-      if (!isUserDriven) {
-        console.log("[Marine Trace] moveend ignored (internal map lifecycle)");
-        return;
-      }
-
-      if (isInternalMapUpdateRef.current) {
-        console.log("[Marine Trace] moveend ignored (MapLibre source/style update in progress)");
-        return;
-      }
-
-      const center = mapInstance.getCenter();
-      const zoom = mapInstance.getZoom();
-      const cameraHash = `${center.lng.toFixed(3)}:${center.lat.toFixed(3)}:${zoom.toFixed(2)}`;
-      if (lastStableCameraRef.current === cameraHash) {
-        // MapLibre fired moveend without actually moving the camera
-        return;
-      }
-      lastStableCameraRef.current = cameraHash;
-
-      moveEndBurstRef.timer = setTimeout(() => {
-        if (moveEndBurstRef.count > 1) {
-          enqueueMarineUpdate('moveend-burst-final');
-        } else {
-          enqueueMarineUpdate('moveend-single');
-        }
-        moveEndBurstRef.count = 0;
-      }, 250);
-    };
-
-    console.count("MOVEEND LISTENER ATTACHED");
-    
-    // User Intent Tracking
-    const trackIntent = () => { lastUserInteractionRef.current = Date.now(); };
-    mapInstance.on('mousedown', trackIntent);
-    mapInstance.on('touchstart', trackIntent);
-    mapInstance.on('wheel', trackIntent);
-    mapInstance.on('dragstart', trackIntent);
-    mapInstance.on('zoomstart', trackIntent);
-
-    // MapLibre Internal Update Tracking
-    const onMapInternalUpdate = () => {
-      isInternalMapUpdateRef.current = true;
-      clearTimeout(internalUpdateTimerRef.current);
-      internalUpdateTimerRef.current = setTimeout(() => {
-        isInternalMapUpdateRef.current = false;
-      }, 500);
-    };
-    mapInstance.on('sourcedata', onMapInternalUpdate);
-    mapInstance.on('styledata', onMapInternalUpdate);
-    
-    mapInstance.on('moveend', onMoveEnd);
-    
-    // Initial fetch if layers are already active on mount
-    if (activeMarineLayersRef.current) {
-      enqueueMarineUpdate('mount');
-    }
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (moveEndBurstRef.timer) clearTimeout(moveEndBurstRef.timer);
-      if (internalUpdateTimerRef.current) clearTimeout(internalUpdateTimerRef.current);
-      mapInstance.off('mousedown', trackIntent);
-      mapInstance.off('touchstart', trackIntent);
-      mapInstance.off('wheel', trackIntent);
-      mapInstance.off('dragstart', trackIntent);
-      mapInstance.off('zoomstart', trackIntent);
-      mapInstance.off('sourcedata', onMapInternalUpdate);
-      mapInstance.off('styledata', onMapInternalUpdate);
-      mapInstance.off('moveend', onMoveEnd);
-      manualMarineTriggerRef.current = null;
-    };
-  }, [mapInstance]); // Severed from activeLayersKey completely
-
   // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
   // The coastline layer has been migrated to declarative JSX below.
+  // Marine orchestration is now in useMarineOrchestrator hook (v238).
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
