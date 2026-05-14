@@ -362,9 +362,18 @@ const MapWebGL = ({
       const p = 1 - Math.pow(1 - t, 3);
 
       // Apply shared progress to MapLibre native layers
-      if (mapInstance.getStyle() && mapInstance.getLayer('marine-heatmap-circles')) {
+      if (mapInstance.getStyle()) {
         try {
-          mapInstance.setPaintProperty('marine-heatmap-circles', 'heatmap-opacity', 0.8 * p);
+          if (mapInstance.getLayer('marine-heatmap-circles')) {
+            mapInstance.setPaintProperty('marine-heatmap-circles', 'heatmap-opacity', 0.8 * p);
+          }
+          if (mapInstance.getLayer('om-weather-layer')) {
+            const baseOpacity = activeLayers.includes('pressure') ? 0.45 : 0.7;
+            mapInstance.setPaintProperty('om-weather-layer', 'raster-opacity', baseOpacity * p);
+          }
+          if (mapInstance.getLayer('radar-layer')) {
+            mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
+          }
         } catch (e) {}
       }
 
@@ -670,7 +679,7 @@ const MapWebGL = ({
 
       {/* --- WEATHER LAYERS --- */}
 
-      {/* Live Radar (RainViewer — animated frames) -- TEMPORARILY DISABLED for isolation
+      {/* Live Radar (RainViewer — animated frames) */}
       {activeLayers.includes('radar') && radarTileUrl && (
         <Source
           key={`radar-${radarFrameIndex}`}
@@ -683,9 +692,8 @@ const MapWebGL = ({
           <Layer id="radar-layer" type="raster" paint={{ 'raster-opacity': 0.65 }} />
         </Source>
       )}
-      */}
 
-      {/* Open-Meteo Animated Weather Tiles — TEMPORARILY DISABLED for isolation
+      {/* Open-Meteo Animated Weather Tiles */}
       {protocolReady && omTileUrl && (
         <Source
           key={omTileUrl}
@@ -699,12 +707,12 @@ const MapWebGL = ({
             type="raster"
             paint={{ 
               'raster-opacity': activeLayers.includes('pressure') ? 0.45 : 0.7, 
-              'raster-fade-duration': 300 
+              // Set raster-fade-duration to 0 to let our Shared Clock drive the transition
+              'raster-fade-duration': 0 
             }}
           />
         </Source>
       )}
-      */}
 
       {/* Marine Wave Heatmap — visual representation of Open-Meteo grid */}
       <Source 
