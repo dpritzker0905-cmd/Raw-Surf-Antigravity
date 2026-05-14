@@ -378,8 +378,10 @@ const MapWebGL = ({
     }
   });
 
-  // Force MapLibre to repaint whenever visual state changes (layer toggle, data load, etc.)
-  // We also trigger the shared weather animation clock here.
+  // Force MapLibre to repaint whenever LAYERS change (toggle on/off).
+  // v244: Dependency is ONLY activeLayers — NOT data (marineData, windData, omTileUrl, radarTileUrl).
+  // Data changes update stable refs that the animation reads; they should NOT restart the clock.
+  // This was causing wind/wave animation resets on every marine fetch or raster URL change.
   useEffect(() => {
     if (!mapInstance) return;
 
@@ -435,7 +437,7 @@ const MapWebGL = ({
     animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
 
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
+  }, [mapInstance, activeLayers]); // v244: ONLY layer toggles restart animation
 
   // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
   // The coastline layer has been migrated to declarative JSX below.

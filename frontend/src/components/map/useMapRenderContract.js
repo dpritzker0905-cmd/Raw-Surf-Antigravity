@@ -1,19 +1,19 @@
 import { useRef, useCallback, useEffect } from 'react';
 
 /**
- * useMapRenderContract (v242)
+ * useMapRenderContract (v244)
  *
  * SINGLE SOURCE OF TRUTH for map readiness state.
- * All subsystems (Raster TX, Marine Orchestrator, Wind Engine) key off this contract.
  *
  * State Machine:
  *   INIT → STYLE_LOADING → READY ↔ INTERACTING
  *
- * Rules:
- * 1. No source mutation unless state === READY
- * 2. INTERACTING blocks all commits (deferred to queue)
- * 3. Transitions are event-driven, not polled
- * 4. isMoving()/isZooming() is a HARD block independent of state
+ * v244 fixes:
+ * - Reference-counted interaction state using matched event pairs
+ *   (dragstart/dragend, zoomstart/zoomend) instead of dragstart→moveend
+ *   which caused READY/INTERACTING flapping.
+ * - moveend is now ONLY used for the post-inertia idle confirmation,
+ *   NOT as the primary unlock trigger.
  */
 
 const MAP_STATE = {
@@ -25,13 +25,11 @@ const MAP_STATE = {
 
 export function useMapRenderContract(mapInstance) {
   const stateRef = useRef(MAP_STATE.INIT);
-  const interactionResumeTimer = useRef(null);
+  const idleTimer = useRef(null);
   const onReadyCallbacks = useRef([]);
+  // v244: Reference-counted interaction tracking
+  const interactionCount = useRef(0);
 
-  /**
-   * Register a callback to fire when state transitions to READY.
-   * If already READY, fires immediately.
-   */
   const onReady = useCallback((cb) => {
     if (stateRef.current === MAP_STATE.READY) {
       cb();
@@ -46,47 +44,34 @@ export function useMapRenderContract(mapInstance) {
     cbs.forEach(cb => cb());
   }, []);
 
-  /**
-   * Query: can a source mutation be committed RIGHT NOW?
-   */
   const canCommit = useCallback(() => {
     if (!mapInstance) return false;
     if (stateRef.current !== MAP_STATE.READY) return false;
-    // Hard block: MapLibre is mid-animation/inertia
     if (mapInstance.isMoving?.() || mapInstance.isZooming?.()) return false;
     return true;
   }, [mapInstance]);
 
-  /**
-   * Query current state (for debug logging)
-   */
   const getState = useCallback(() => stateRef.current, []);
 
-  /**
-   * Lifecycle wiring — listens to MapLibre events and drives state transitions.
-   */
   useEffect(() => {
     if (!mapInstance) return;
 
     stateRef.current = MAP_STATE.STYLE_LOADING;
 
     const transitionToReady = () => {
-      if (stateRef.current === MAP_STATE.READY) return; // Idempotent
+      if (stateRef.current === MAP_STATE.READY) return;
       console.log(`[RenderContract] ${stateRef.current} → READY`);
       stateRef.current = MAP_STATE.READY;
       fireReadyCallbacks();
     };
 
-    // style.load → READY
     const onStyleLoad = () => transitionToReady();
     mapInstance.on('style.load', onStyleLoad);
 
-    // Immediate check (style may already be loaded)
     if (mapInstance.isStyleLoaded?.()) {
       transitionToReady();
     }
 
-    // Fallback poll (race condition: style.load fires before listener attaches)
     const fallbackTimer = setTimeout(() => {
       if (stateRef.current !== MAP_STATE.READY && mapInstance.isStyleLoaded?.()) {
         console.log('[RenderContract] Fallback poll → READY');
@@ -94,37 +79,50 @@ export function useMapRenderContract(mapInstance) {
       }
     }, 500);
 
-    // Interaction: READY → INTERACTING
-    const lockInteraction = () => {
+    // v244: Reference-counted interaction state
+    // Uses matched pairs: dragstart/dragend + zoomstart/zoomend
+    // moveend is ONLY for post-inertia idle confirmation
+    const incrementInteraction = () => {
+      interactionCount.current++;
+      clearTimeout(idleTimer.current);
       if (stateRef.current === MAP_STATE.READY) {
         stateRef.current = MAP_STATE.INTERACTING;
       }
-      clearTimeout(interactionResumeTimer.current);
     };
 
-    // moveend: INTERACTING → READY (after 300ms debounce for inertial settle)
-    const unlockInteraction = () => {
-      clearTimeout(interactionResumeTimer.current);
-      interactionResumeTimer.current = setTimeout(() => {
-        if (stateRef.current === MAP_STATE.INTERACTING) {
+    const decrementInteraction = () => {
+      interactionCount.current = Math.max(0, interactionCount.current - 1);
+      // Don't transition yet — wait for idle confirmation
+    };
+
+    // Post-inertia idle confirmation
+    // Only fires READY after ALL interactions have ended AND 300ms of settle
+    const confirmIdle = () => {
+      clearTimeout(idleTimer.current);
+      idleTimer.current = setTimeout(() => {
+        if (interactionCount.current === 0 && stateRef.current === MAP_STATE.INTERACTING) {
           stateRef.current = MAP_STATE.READY;
-          console.log('[RenderContract] INTERACTING → READY (idle)');
+          console.log('[RenderContract] INTERACTING → READY (idle confirmed)');
           fireReadyCallbacks();
         }
       }, 300);
     };
 
-    mapInstance.on('dragstart', lockInteraction);
-    mapInstance.on('zoomstart', lockInteraction);
-    mapInstance.on('moveend', unlockInteraction);
+    mapInstance.on('dragstart', incrementInteraction);
+    mapInstance.on('zoomstart', incrementInteraction);
+    mapInstance.on('dragend', decrementInteraction);
+    mapInstance.on('zoomend', decrementInteraction);
+    mapInstance.on('moveend', confirmIdle);
 
     return () => {
       mapInstance.off('style.load', onStyleLoad);
-      mapInstance.off('dragstart', lockInteraction);
-      mapInstance.off('zoomstart', lockInteraction);
-      mapInstance.off('moveend', unlockInteraction);
+      mapInstance.off('dragstart', incrementInteraction);
+      mapInstance.off('zoomstart', incrementInteraction);
+      mapInstance.off('dragend', decrementInteraction);
+      mapInstance.off('zoomend', decrementInteraction);
+      mapInstance.off('moveend', confirmIdle);
       clearTimeout(fallbackTimer);
-      clearTimeout(interactionResumeTimer.current);
+      clearTimeout(idleTimer.current);
     };
   }, [mapInstance, fireReadyCallbacks]);
 

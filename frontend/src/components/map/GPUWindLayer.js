@@ -98,35 +98,29 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     let errorCount = 0;
     let wasActive = false;
 
-    // v243: Wind lifecycle state — NEVER restart RAF, canvas, or particles on transitions.
-    // Only stride and trail opacity change. This prevents animation reset during INTERACTING.
+    // v244: Reference-counted interaction state — matches render contract.
+    // Uses matched pairs (dragstart/dragend, zoomstart/zoomend) to prevent
+    // getting stuck in THROTTLED. moveend only confirms idle.
     const WIND_RUNNING = 1;
     const WIND_THROTTLED = 2;
     let windState = WIND_RUNNING;
+    let windInteractionCount = 0;
     let idleTimer = null;
 
-    const onDragStart = () => {
-      if (windState !== WIND_THROTTLED) {
-        windState = WIND_THROTTLED;
-      }
-      clearTimeout(idleTimer);
-    };
-    const onZoomStart = () => {
-      if (windState !== WIND_THROTTLED) {
-        windState = WIND_THROTTLED;
-      }
-      clearTimeout(idleTimer);
-    };
+    const onDragStart = () => { windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
+    const onZoomStart = () => { windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
+    const onDragEnd = () => { windInteractionCount = Math.max(0, windInteractionCount - 1); };
+    const onZoomEnd = () => { windInteractionCount = Math.max(0, windInteractionCount - 1); };
     const onIdle = () => {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
-        if (windState === WIND_THROTTLED) {
-          windState = WIND_RUNNING;
-        }
+        if (windInteractionCount === 0) windState = WIND_RUNNING;
       }, 300);
     };
     mapInstance.on('dragstart', onDragStart);
     mapInstance.on('zoomstart', onZoomStart);
+    mapInstance.on('dragend', onDragEnd);
+    mapInstance.on('zoomend', onZoomEnd);
     mapInstance.on('moveend', onIdle);
 
     const animate = (now) => {
@@ -241,6 +235,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       window.removeEventListener('resize', onResize);
       mapInstance.off('dragstart', onDragStart);
       mapInstance.off('zoomstart', onZoomStart);
+      mapInstance.off('dragend', onDragEnd);
+      mapInstance.off('zoomend', onZoomEnd);
       mapInstance.off('moveend', onIdle);
     };
   }, [mapInstance]); // Deliberately omitted 'active' to ensure persistence
