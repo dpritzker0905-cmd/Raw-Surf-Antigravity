@@ -115,6 +115,8 @@ const MapWebGL = ({
     isFetching: false
   });
   const marineRequestIdRef = useRef(0);
+  const activeMarineLayersRef = useRef(false);
+  const manualMarineTriggerRef = useRef(null);
   
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
@@ -336,23 +338,31 @@ const MapWebGL = ({
   // Use a stable string for activeLayers dependency to prevent infinite re-render loops from prop mutation
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
+  // Layer State Tracker: Decoupled from Fetch Orchestrator
   useEffect(() => {
-    if (!mapInstance) return;
     const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
     const hasMarine = MARINE_LAYERS.some(l => activeLayersKey.includes(l));
+    const previouslyHadMarine = activeMarineLayersRef.current;
+    
+    activeMarineLayersRef.current = hasMarine;
+
     if (!hasMarine) {
       if (marineData) setMarineData(null);
-      return;
+    } else if (hasMarine && !previouslyHadMarine) {
+      console.log('[Marine] Layer activated, triggering manual fetch...');
+      manualMarineTriggerRef.current?.();
     }
+  }, [activeLayersKey]); // Deliberately omit marineData to prevent loops
 
-    if (!marineData) {
-      console.log('[Marine] Layer active, waiting for fetch...', MARINE_LAYERS.find(l => activeLayersKey.includes(l)));
-    }
+  // Network Orchestrator: Purely viewport driven, zero knowledge of rendering
+  useEffect(() => {
+    if (!mapInstance) return;
 
     let timeoutId;
     const locks = marineFetchLocksRef.current;
 
     const updateMarineGrid = async () => {
+      if (!activeMarineLayersRef.current) return;
       const center = mapInstance.getCenter();
       const zoom = mapInstance.getZoom();
 
@@ -428,23 +438,31 @@ const MapWebGL = ({
     };
 
     const debouncedUpdate = () => {
-      // Hard block on the trigger itself
-      if (mapInstance.isMoving() || mapInstance.isZooming()) return;
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(updateMarineGrid, 1500);
+      // Stable Bounds Delay: let inertial map easing settle completely
+      timeoutId = setTimeout(() => {
+        if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
+          updateMarineGrid();
+        }
+      }, 150);
     };
 
-    // Only fire the initial fetch once when the layer is activated
-    debouncedUpdate();
+    manualMarineTriggerRef.current = debouncedUpdate;
 
     // ONLY listen to moveend, which fires when animations settle
     mapInstance.on('moveend', debouncedUpdate);
     
+    // Initial fetch if layers are already active on mount
+    if (activeMarineLayersRef.current) {
+      debouncedUpdate();
+    }
+
     return () => {
       clearTimeout(timeoutId);
       mapInstance.off('moveend', debouncedUpdate);
+      manualMarineTriggerRef.current = null;
     };
-  }, [activeLayersKey, mapInstance]);
+  }, [mapInstance]); // Severed from activeLayersKey completely
 
   // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
   // The coastline layer has been migrated to declarative JSX below.
