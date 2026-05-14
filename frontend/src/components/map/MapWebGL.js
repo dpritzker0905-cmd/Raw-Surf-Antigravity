@@ -538,6 +538,16 @@ const MapWebGL = ({
 
     const enqueueMarineUpdate = (source) => {
       const now = Date.now();
+      
+      if (source === 'manual') {
+        locks.manualFetchActiveUntil = now + 1500;
+      }
+      
+      if (source.includes('moveend') && now < (locks.manualFetchActiveUntil || 0)) {
+        console.log(`[Marine Trace] ingress ignored (${source} suppressed post-manual activation)`);
+        return;
+      }
+
       // Hard Dedupe: Ignore identical triggers firing within 800ms
       if (lastInvocationRef.current.source === source && now - lastInvocationRef.current.time < 800) {
         console.log(`[Marine Trace] ingress ignored (duplicate ${source} trigger)`);

@@ -84,7 +84,7 @@ export const usePushNotifications = (userId) => {
 
       // Send subscription to server
       const subJson = subscription.toJSON();
-      await apiClient.post(`/push/subscribe`, {
+      await apiClient.post(`/push/subscribe?user_id=${encodeURIComponent(userId)}`, {
         endpoint: subJson.endpoint,
         p256dh_key: subJson.keys?.p256dh || '',
         auth_key: subJson.keys?.auth || '',
