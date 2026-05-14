@@ -109,14 +109,14 @@ const MapWebGL = ({
   const [marineData, setMarineData] = useState(null);
   const marineRevision = useRef(0);
   const marineFetchLocksRef = useRef({
-    lastCenter: null,
-    lastZoom: null,
+    lastHash: null,
     lastTime: 0,
     isFetching: false
   });
   const marineRequestIdRef = useRef(0);
   const activeMarineLayersRef = useRef(false);
   const manualMarineTriggerRef = useRef(null);
+  const isCommittingDataRef = useRef(false);
   
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
@@ -361,37 +361,43 @@ const MapWebGL = ({
     let timeoutId;
     const locks = marineFetchLocksRef.current;
 
-    const updateMarineGrid = async () => {
+    const updateMarineGrid = async (source = 'unknown') => {
+      if (isCommittingDataRef.current) {
+        console.log(`[Marine Trace] aborted (data commit in progress) source=${source}`);
+        return;
+      }
+
       if (!activeMarineLayersRef.current) return;
       const center = mapInstance.getCenter();
       const zoom = mapInstance.getZoom();
 
+      const q = (v) => Number(v).toFixed(2);
+      const z = Math.round(zoom * 2) / 2;
+      const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}`;
+
       // Absolute top-level gate: Viewport Hash Guard BEFORE any async logic or promise creation
-      if (locks.lastCenter && 
-          Math.abs(locks.lastCenter.lat - center.lat) < 0.05 &&
-          Math.abs(locks.lastCenter.lng - center.lng) < 0.05 &&
-          Math.abs(locks.lastZoom - zoom) < 0.5 &&
+      if (locks.lastHash === viewportHash &&
           (Date.now() - locks.lastTime < 5 * 60 * 1000)) { // Add 5m TTL to hash guard
-        console.log('[Marine Trace] 2. aborted (viewport hash matched, skipping fetch)');
+        console.log(`[Marine Trace] 2. aborted (viewport hash matched, skipping fetch) source=${source}`);
         return;
       }
 
-      console.log('[Marine Trace] 1. updateMarineGrid triggered');
+      console.log(`[Marine Trace] 1. updateMarineGrid triggered source=${source}`);
       
       // Hard block: concurrent fetch or rate limit
       if (locks.isFetching) {
-        console.log('[Marine Trace] 2. aborted (already fetching)');
+        console.log(`[Marine Trace] 2. aborted (already fetching) source=${source}`);
         return;
       }
       const now = Date.now();
       if (now - locks.lastTime < 1200) {
-        console.log('[Marine Trace] 2. aborted (rate limit, < 1200ms)');
+        console.log(`[Marine Trace] 2. aborted (rate limit, < 1200ms) source=${source}`);
         return;
       }
 
       // Hard block: do not fetch if map is actively moving/zooming/animating
       if (mapInstance.isMoving() || mapInstance.isZooming()) {
-        console.log('[Marine Trace] 2. aborted (map is moving/zooming)');
+        console.log(`[Marine Trace] 2. aborted (map is moving/zooming) source=${source}`);
         return;
       }
 
@@ -416,10 +422,10 @@ const MapWebGL = ({
         console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
         
         if (data) {
-          locks.lastCenter = center;
-          locks.lastZoom = zoom;
+          locks.lastHash = viewportHash;
           locks.lastTime = Date.now();
 
+          isCommittingDataRef.current = true;
           setMarineData(prev => {
             if (JSON.stringify(prev) === JSON.stringify(data)) {
               console.log('[Marine Trace] 5. setting marineData SKIPPED (data identical)');
@@ -428,6 +434,10 @@ const MapWebGL = ({
             console.log('[Marine Trace] 5. setting marineData state');
             marineRevision.current += 1;
             return data;
+          });
+          
+          requestAnimationFrame(() => {
+            isCommittingDataRef.current = false;
           });
         } else {
           console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
@@ -439,7 +449,7 @@ const MapWebGL = ({
 
     const scheduledRef = { current: false };
 
-    const scheduleMarineUpdate = () => {
+    const scheduleMarineUpdate = (source) => {
       if (scheduledRef.current) return;
       scheduledRef.current = true;
       
@@ -449,25 +459,30 @@ const MapWebGL = ({
         // Stable Bounds Delay: let inertial map easing settle completely
         timeoutId = setTimeout(() => {
           if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
-            updateMarineGrid();
+            updateMarineGrid(source);
           }
         }, 150);
       });
     };
 
-    manualMarineTriggerRef.current = scheduleMarineUpdate;
+    manualMarineTriggerRef.current = () => scheduleMarineUpdate('manual');
 
-    // ONLY listen to moveend, which fires when animations settle
-    mapInstance.on('moveend', scheduleMarineUpdate);
+    const onMoveEnd = () => {
+      console.count("MOVEEND FIRED");
+      scheduleMarineUpdate('moveend');
+    };
+
+    console.count("MOVEEND LISTENER ATTACHED");
+    mapInstance.on('moveend', onMoveEnd);
     
     // Initial fetch if layers are already active on mount
     if (activeMarineLayersRef.current) {
-      scheduleMarineUpdate();
+      scheduleMarineUpdate('mount');
     }
 
     return () => {
       clearTimeout(timeoutId);
-      mapInstance.off('moveend', scheduleMarineUpdate);
+      mapInstance.off('moveend', onMoveEnd);
       manualMarineTriggerRef.current = null;
     };
   }, [mapInstance]); // Severed from activeLayersKey completely
