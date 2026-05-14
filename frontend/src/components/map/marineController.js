@@ -209,7 +209,7 @@ export async function fetchMarineData(bounds, zoom) {
     const data = await res.json();
     const allResults = Array.isArray(data) ? data : [data];
 
-    const safe = (v) => (v != null && !isNaN(v)) ? v : 0;
+    const safe = (v) => (typeof v === "number" && isFinite(v)) ? v : 0;
     const features = cappedPoints.map((pt, i) => {
       const r = allResults[i];
       if (!r?.current) return null;

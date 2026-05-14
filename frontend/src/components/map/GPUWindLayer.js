@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 import { fetchWindData } from './marineController';
 
+let windIsFetching = false;
+let windLastFetch = 0;
+
 /**
  * Viewport-scoped wind vector data hook.
  */
@@ -13,15 +16,25 @@ export function useWindVectorData({ active, mapInstance }) {
     if (!mapInstance || !active) return;
     if (mapInstance.isMoving() || mapInstance.isZooming()) return;
 
-    const b = mapInstance.getBounds();
-    const bounds = {
-      west: b.getWest(), south: b.getSouth(),
-      east: b.getEast(), north: b.getNorth()
-    };
-    const data = await fetchWindData(bounds);
-    if (data) {
-      revisionRef.current += 1;
-      setWindData(data);
+    if (windIsFetching) return;
+    const now = Date.now();
+    if (now - windLastFetch < 2000) return;
+
+    windIsFetching = true;
+    try {
+      const b = mapInstance.getBounds();
+      const bounds = {
+        west: b.getWest(), south: b.getSouth(),
+        east: b.getEast(), north: b.getNorth()
+      };
+      const data = await fetchWindData(bounds);
+      if (data) {
+        windLastFetch = Date.now();
+        revisionRef.current += 1;
+        setWindData(data);
+      }
+    } finally {
+      windIsFetching = false;
     }
   }, [mapInstance, active]);
 
