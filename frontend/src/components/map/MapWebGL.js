@@ -123,6 +123,10 @@ const MapWebGL = ({
   const lastStableCameraRef = useRef(null);
   const lastInvocationRef = useRef({ source: null, time: 0 });
   
+  // Shared Weather Animation Controller
+  const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
+  const animFrameRef = useRef(null);
+  
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
     active: activeLayers.includes('wind'),
@@ -333,11 +337,53 @@ const MapWebGL = ({
   });
 
   // Force MapLibre to repaint whenever visual state changes (layer toggle, data load, etc.)
+  // We also trigger the shared weather animation clock here.
   useEffect(() => {
     if (!mapInstance) return;
-    try { 
-      mapInstance.triggerRepaint(); 
-    } catch(e) {}
+
+    // Trigger synchronized transition for all weather layers
+    weatherAnimRef.current = {
+      active: true,
+      start: performance.now(),
+      duration: 600,
+    };
+
+    const animateWeatherLayers = () => {
+      const anim = weatherAnimRef.current;
+      if (!anim.active) return;
+
+      let t = (performance.now() - anim.start) / anim.duration;
+      if (t >= 1) {
+        anim.active = false;
+        t = 1;
+      }
+
+      // Shared easeOutCubic curve for unified "atmospheric system" feel
+      const p = 1 - Math.pow(1 - t, 3);
+
+      // Apply shared progress to MapLibre native layers
+      if (mapInstance.getStyle() && mapInstance.getLayer('marine-heatmap-circles')) {
+        try {
+          mapInstance.setPaintProperty('marine-heatmap-circles', 'heatmap-opacity', 0.8 * p);
+        } catch (e) {}
+      }
+
+      // Apply shared progress to HTML canvas layers (Wind Engine)
+      const windCanvas = document.getElementById('wind-canvas-layer');
+      if (windCanvas) {
+        windCanvas.style.opacity = p;
+      }
+
+      if (t < 1) {
+        try { mapInstance.triggerRepaint(); } catch(e) {}
+        animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
+      }
+    };
+
+    cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
+
+    return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
   // Use a stable string for activeLayers dependency to prevent infinite re-render loops from prop mutation
@@ -702,6 +748,7 @@ const MapWebGL = ({
               8, 40,
               12, 100
             ],
+            // heatmap-opacity is driven synchronously by weatherAnimRef
             'heatmap-opacity': 0.8
           }}
         />

@@ -236,6 +236,7 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
 
   return (
     <canvas
+      id="wind-canvas-layer"
       ref={canvasRef}
       style={{
         position: 'absolute',
@@ -245,6 +246,9 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 10,
+        // Opacity is driven synchronously by MapWebGL.js shared weather animation clock
+        opacity: 0,
+        transition: 'none'
       }}
     />
   );
