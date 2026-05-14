@@ -50,7 +50,14 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
   const activeRef = useRef(active);
 
   useEffect(() => { activeRef.current = active; }, [active]);
-  useEffect(() => { windRef.current = data; }, [data, revision]);
+  useEffect(() => {
+    windRef.current = data;
+    // v245: Data pipeline diagnostic — helps debug "dots only, no animation"
+    if (data?.vectors?.length) {
+      const sample = data.vectors[0];
+      console.log(`[Wind] Data received: ${data.vectors.length} vectors, grid=${data.grid}, sample: u=${sample.u?.toFixed(2)} v=${sample.v?.toFixed(2)} speed=${sample.speed?.toFixed(1)}`);
+    }
+  }, [data, revision]);
 
   useEffect(() => {
     if (!mapInstance || !canvasRef.current) return;
@@ -98,19 +105,17 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     let errorCount = 0;
     let wasActive = false;
 
-    // v244: Reference-counted interaction state — matches render contract.
-    // Uses matched pairs (dragstart/dragend, zoomstart/zoomend) to prevent
-    // getting stuck in THROTTLED. moveend only confirms idle.
+    // v245: Reference-counted interaction — only USER gestures, not programmatic flyTo/easeTo
     const WIND_RUNNING = 1;
     const WIND_THROTTLED = 2;
     let windState = WIND_RUNNING;
     let windInteractionCount = 0;
     let idleTimer = null;
 
-    const onDragStart = () => { windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
-    const onZoomStart = () => { windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
-    const onDragEnd = () => { windInteractionCount = Math.max(0, windInteractionCount - 1); };
-    const onZoomEnd = () => { windInteractionCount = Math.max(0, windInteractionCount - 1); };
+    const onDragStart = (e) => { if (!e?.originalEvent) return; windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
+    const onZoomStart = (e) => { if (!e?.originalEvent) return; windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
+    const onDragEnd = (e) => { if (!e?.originalEvent) return; windInteractionCount = Math.max(0, windInteractionCount - 1); };
+    const onZoomEnd = (e) => { if (!e?.originalEvent) return; windInteractionCount = Math.max(0, windInteractionCount - 1); };
     const onIdle = () => {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {

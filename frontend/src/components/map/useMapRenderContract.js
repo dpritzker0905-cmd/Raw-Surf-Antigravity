@@ -82,7 +82,10 @@ export function useMapRenderContract(mapInstance) {
     // v244: Reference-counted interaction state
     // Uses matched pairs: dragstart/dragend + zoomstart/zoomend
     // moveend is ONLY for post-inertia idle confirmation
-    const incrementInteraction = () => {
+    // v245: Only user gestures trigger INTERACTING — NOT programmatic flyTo/easeTo
+    const incrementInteraction = (e) => {
+      // Programmatic animations (flyTo, easeTo) fire dragstart/zoomstart WITHOUT originalEvent
+      if (!e?.originalEvent) return;
       interactionCount.current++;
       clearTimeout(idleTimer.current);
       if (stateRef.current === MAP_STATE.READY) {
@@ -90,17 +93,21 @@ export function useMapRenderContract(mapInstance) {
       }
     };
 
-    const decrementInteraction = () => {
+    const decrementInteraction = (e) => {
+      if (!e?.originalEvent) return;
       interactionCount.current = Math.max(0, interactionCount.current - 1);
-      // Don't transition yet — wait for idle confirmation
     };
 
     // Post-inertia idle confirmation
-    // Only fires READY after ALL interactions have ended AND 300ms of settle
+    // Only fires READY after ALL interactions have ended AND map is truly still
     const confirmIdle = () => {
       clearTimeout(idleTimer.current);
       idleTimer.current = setTimeout(() => {
-        if (interactionCount.current === 0 && stateRef.current === MAP_STATE.INTERACTING) {
+        // Double-check: map must not be moving AND no outstanding interactions
+        if (interactionCount.current === 0 &&
+            stateRef.current === MAP_STATE.INTERACTING &&
+            !mapInstance.isMoving?.() &&
+            !mapInstance.isZooming?.()) {
           stateRef.current = MAP_STATE.READY;
           console.log('[RenderContract] INTERACTING → READY (idle confirmed)');
           fireReadyCallbacks();

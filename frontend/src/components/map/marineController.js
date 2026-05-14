@@ -121,7 +121,21 @@ export async function fetchWindData(bounds) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const json = await res.json();
-    const results = Array.isArray(json) ? json : [json];
+
+    // v245: Open-Meteo returns flat object for single lat/lng, array for multiple.
+    // Normalize to always be an array of per-point results.
+    let results;
+    if (Array.isArray(json)) {
+      results = json;
+    } else if (json?.current) {
+      // Single-point response — wrap in array for each grid point
+      // (API returns aggregated current for all points in one response)
+      results = safe.map(() => json);
+    } else {
+      console.warn('[Wind Trace] Unexpected API response shape:', Object.keys(json));
+      return null;
+    }
+
     const vectors = [];
     safe.forEach((pt, i) => {
       const r = results[i];
