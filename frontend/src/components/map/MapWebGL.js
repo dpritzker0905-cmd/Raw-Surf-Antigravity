@@ -117,6 +117,9 @@ const MapWebGL = ({
   const activeMarineLayersRef = useRef(false);
   const manualMarineTriggerRef = useRef(null);
   const isCommittingDataRef = useRef(false);
+  const suppressMoveEndRef = useRef(false);
+  const lastUserInteractionRef = useRef(0);
+  const lastStableCameraRef = useRef(null);
   
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
@@ -426,6 +429,8 @@ const MapWebGL = ({
           locks.lastTime = Date.now();
 
           isCommittingDataRef.current = true;
+          suppressMoveEndRef.current = true;
+          
           setMarineData(prev => {
             if (JSON.stringify(prev) === JSON.stringify(data)) {
               console.log('[Marine Trace] 5. setting marineData SKIPPED (data identical)');
@@ -439,6 +444,9 @@ const MapWebGL = ({
           requestAnimationFrame(() => {
             isCommittingDataRef.current = false;
           });
+          setTimeout(() => {
+            suppressMoveEndRef.current = false;
+          }, 300);
         } else {
           console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
         }
@@ -469,10 +477,40 @@ const MapWebGL = ({
 
     const onMoveEnd = () => {
       console.count("MOVEEND FIRED");
+
+      const isUserDriven = Date.now() - lastUserInteractionRef.current < 1500;
+      if (!isUserDriven) {
+        console.log("[Marine Trace] moveend ignored (internal map lifecycle)");
+        return;
+      }
+
+      if (suppressMoveEndRef.current) {
+        console.log("[Marine Trace] moveend ignored (post-render suppression)");
+        return;
+      }
+
+      const center = mapInstance.getCenter();
+      const zoom = mapInstance.getZoom();
+      const cameraHash = `${center.lng.toFixed(3)}:${center.lat.toFixed(3)}:${zoom.toFixed(2)}`;
+      if (lastStableCameraRef.current === cameraHash) {
+        // MapLibre fired moveend without actually moving the camera
+        return;
+      }
+      lastStableCameraRef.current = cameraHash;
+
       scheduleMarineUpdate('moveend');
     };
 
     console.count("MOVEEND LISTENER ATTACHED");
+    
+    // User Intent Tracking
+    const trackIntent = () => { lastUserInteractionRef.current = Date.now(); };
+    mapInstance.on('mousedown', trackIntent);
+    mapInstance.on('touchstart', trackIntent);
+    mapInstance.on('wheel', trackIntent);
+    mapInstance.on('dragstart', trackIntent);
+    mapInstance.on('zoomstart', trackIntent);
+    
     mapInstance.on('moveend', onMoveEnd);
     
     // Initial fetch if layers are already active on mount
@@ -482,6 +520,11 @@ const MapWebGL = ({
 
     return () => {
       clearTimeout(timeoutId);
+      mapInstance.off('mousedown', trackIntent);
+      mapInstance.off('touchstart', trackIntent);
+      mapInstance.off('wheel', trackIntent);
+      mapInstance.off('dragstart', trackIntent);
+      mapInstance.off('zoomstart', trackIntent);
       mapInstance.off('moveend', onMoveEnd);
       manualMarineTriggerRef.current = null;
     };
