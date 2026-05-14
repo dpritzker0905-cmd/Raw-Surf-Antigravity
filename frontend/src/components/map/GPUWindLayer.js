@@ -98,6 +98,15 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     let errorCount = 0;
     let wasActive = false;
 
+    // v241: Interaction-aware throttle — reduce particle processing during drag/zoom
+    let isInteracting = false;
+    const onDragStart = () => { isInteracting = true; };
+    const onZoomStart = () => { isInteracting = true; };
+    const onIdle = () => { isInteracting = false; };
+    mapInstance.on('dragstart', onDragStart);
+    mapInstance.on('zoomstart', onZoomStart);
+    mapInstance.on('moveend', onIdle);
+
     const animate = (now) => {
       if (!activeRef.current) {
         if (wasActive) {
@@ -131,10 +140,14 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       const particles = particlesRef.current;
 
       const mb = mapInstance.getBounds();
-        const bw = mb.getWest(), be = mb.getEast();
-        const bs = mb.getSouth(), bn = mb.getNorth();
+      const bw = mb.getWest(), be = mb.getEast();
+      const bs = mb.getSouth(), bn = mb.getNorth();
 
-        for (let i = 0; i < particles.length; i++) {
+      // v241: During interaction, process only every 4th particle (25% density)
+      // This frees main-thread time for pointer events, fixing 'sticky map' during pan
+      const stride = isInteracting ? 4 : 1;
+
+      for (let i = 0; i < particles.length; i += stride) {
           const p = particles[i];
           p.age += dt;
 
@@ -201,6 +214,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       console.log('[Wind] === UNMOUNTING ===');
       cancelAnimationFrame(animRef.current);
       window.removeEventListener('resize', onResize);
+      mapInstance.off('dragstart', onDragStart);
+      mapInstance.off('zoomstart', onZoomStart);
+      mapInstance.off('moveend', onIdle);
     };
   }, [mapInstance]); // Deliberately omitted 'active' to ensure persistence
 

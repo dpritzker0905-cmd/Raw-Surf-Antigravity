@@ -1,43 +1,59 @@
 import { useRef, useCallback, useEffect } from 'react';
 
 /**
- * useRasterTransactions (v240)
+ * useRasterTransactions (v241)
  *
- * Centralized raster source mutation controller with MAP READINESS LIFECYCLE.
+ * Centralized raster source mutation controller with:
+ * - Map readiness lifecycle (style.load flush)
+ * - Interaction lock (blocks commits during drag/zoom)
+ * - Dedup-guarded flush (prevents double-commit)
  *
- * Architecture (addresses ChatGPT v239 audit — "timing contracts are probabilistic"):
- * 1. Deduplicates: won't call setUrl if the URL hasn't changed
- * 2. Serializes: cancels pending updates before scheduling new ones
- * 3. Abort-safe: swallows MapLibre AbortError from cancelled internal fetches
- * 4. Style-safe: checks isStyleLoaded() before committing mutations
- * 5. Source-loading gate: defers mutation during active tile fetch
- * 6. NEW — Deferred Write Queue: stores writes that arrive before style.load
- * 7. NEW — Guaranteed Flush: style.load event drains the queue deterministically
- * 8. NEW — Fallback Poll: catches the case where style.load fires before listener attaches
+ * v241 fixes (per ChatGPT v240 audit):
+ * - Double-commit: flushQueue was called from 3 paths (immediate check, style.load,
+ *   fallback poll). Now guarded by a `flushedRef` flag.
+ * - Interaction lock: commits are blocked during dragstart→idle and zoomstart→idle.
+ *   Deferred writes replay automatically 150ms after interaction ends.
  */
 export function useRasterTransactions(mapInstance) {
   const pendingTimers = useRef({});
   const lastCommittedUrls = useRef({});
 
-  // v240: Deferred Write Queue — stores mutations that arrive before MAP_READY
+  // Deferred Write Queue
   const deferredQueue = useRef([]);
   const styleReadyRef = useRef(false);
+  const flushedRef = useRef(false); // v241: prevents double-flush
+
+  // v241: Interaction Lock — blocks commits during drag/zoom
+  const interactionLockedRef = useRef(false);
+  const interactionResumeTimer = useRef(null);
 
   /**
-   * Commit a single source mutation. Called ONLY when map is confirmed ready.
+   * Commit a single source mutation. Only when map is ready AND not interacting.
    * @private
    */
   const commitMutation = useCallback((sourceId, url, isTilesArray) => {
     if (!mapInstance) return false;
 
+    // v241: Hard block during interaction — return false to re-queue
+    if (interactionLockedRef.current) {
+      console.debug(`[Raster TX] Blocked ${sourceId} (interaction lock)`);
+      return false;
+    }
+
     try {
       const source = mapInstance.getSource(sourceId);
       if (!source) return false;
 
-      // Source-loading gate: don't interrupt an active tile-fetch pipeline
+      // Source-loading gate
       if (mapInstance.isSourceLoaded && !mapInstance.isSourceLoaded(sourceId)) {
         console.debug(`[Raster TX] Deferred ${sourceId} (source still loading)`);
-        return false; // Signal: retry needed
+        return false;
+      }
+
+      // Dedup check right before commit (prevents double-commit from flush races)
+      const urlKey = isTilesArray ? JSON.stringify(url) : url;
+      if (lastCommittedUrls.current[sourceId] === urlKey) {
+        return true; // Already committed — skip but don't retry
       }
 
       if (isTilesArray) {
@@ -46,122 +62,139 @@ export function useRasterTransactions(mapInstance) {
         if (source.setUrl) source.setUrl(url);
       }
 
-      const urlKey = isTilesArray ? JSON.stringify(url) : url;
       lastCommittedUrls.current[sourceId] = urlKey;
       console.debug(`[Raster TX] Committed ${sourceId}`);
       return true;
     } catch (e) {
       if (e?.name === 'AbortError' || e?.message?.includes('aborted')) {
-        console.debug(`[Raster TX] AbortError swallowed for ${sourceId} (expected)`);
-        return true; // Don't retry AbortErrors
+        console.debug(`[Raster TX] AbortError swallowed for ${sourceId}`);
+        return true;
       }
       console.warn(`[Raster TX] Failed to update ${sourceId}:`, e);
-      return true; // Don't retry unknown errors either
+      return true;
     }
   }, [mapInstance]);
 
   /**
-   * Flush the deferred write queue. Called on style.load and fallback poll.
+   * Flush the deferred write queue. Guarded against double-invocation.
    * @private
    */
   const flushQueue = useCallback(() => {
     if (!mapInstance || !deferredQueue.current.length) return;
+    if (interactionLockedRef.current) return; // Don't flush during interaction
 
     console.log(`[Raster TX] Flushing ${deferredQueue.current.length} deferred writes`);
     const retries = [];
 
     for (const entry of deferredQueue.current) {
       const ok = commitMutation(entry.sourceId, entry.url, entry.isTilesArray);
-      if (!ok) retries.push(entry); // Source still loading — re-queue
+      if (!ok) retries.push(entry);
     }
 
     deferredQueue.current = retries;
 
-    // If some entries couldn't commit (source loading), retry once more
     if (retries.length > 0) {
       setTimeout(flushQueue, 500);
     }
   }, [mapInstance, commitMutation]);
 
   /**
-   * v240: Map Readiness Lifecycle — subscribe to style.load for guaranteed flush.
+   * Map Readiness + Interaction Lock lifecycle.
    */
   useEffect(() => {
     if (!mapInstance) return;
 
-    // Check if style is already loaded (event may have fired before this effect runs)
-    if (mapInstance.isStyleLoaded?.()) {
-      styleReadyRef.current = true;
-      flushQueue();
-    }
-
-    const onStyleLoad = () => {
-      console.log('[Raster TX] style.load → MAP_READY, flushing queue');
+    // --- Style readiness (single-shot flush) ---
+    const tryInitialFlush = () => {
+      if (flushedRef.current) return; // Already flushed — prevent double-commit
+      flushedRef.current = true;
       styleReadyRef.current = true;
       flushQueue();
     };
 
+    if (mapInstance.isStyleLoaded?.()) {
+      tryInitialFlush();
+    }
+
+    const onStyleLoad = () => {
+      console.log('[Raster TX] style.load → MAP_READY');
+      tryInitialFlush();
+    };
     mapInstance.on('style.load', onStyleLoad);
 
-    // Fallback poll: in case style.load already fired before listener attached
+    // Fallback poll (race condition coverage)
     const fallbackTimer = setTimeout(() => {
-      if (!styleReadyRef.current && mapInstance.isStyleLoaded?.()) {
-        console.log('[Raster TX] Fallback poll → style was already loaded');
-        styleReadyRef.current = true;
-        flushQueue();
+      if (!flushedRef.current && mapInstance.isStyleLoaded?.()) {
+        console.log('[Raster TX] Fallback poll → flushing');
+        tryInitialFlush();
       }
     }, 500);
 
+    // --- v241: Interaction Lock ---
+    const lockInteraction = () => {
+      interactionLockedRef.current = true;
+      clearTimeout(interactionResumeTimer.current);
+    };
+
+    const unlockInteraction = () => {
+      // Debounce unlock — wait for inertial easing to settle
+      clearTimeout(interactionResumeTimer.current);
+      interactionResumeTimer.current = setTimeout(() => {
+        interactionLockedRef.current = false;
+        // Replay any writes that were blocked during interaction
+        if (deferredQueue.current.length > 0) {
+          console.log('[Raster TX] Interaction ended, replaying deferred writes');
+          flushQueue();
+        }
+      }, 150);
+    };
+
+    mapInstance.on('dragstart', lockInteraction);
+    mapInstance.on('zoomstart', lockInteraction);
+    mapInstance.on('moveend', unlockInteraction);
+
     return () => {
       mapInstance.off('style.load', onStyleLoad);
+      mapInstance.off('dragstart', lockInteraction);
+      mapInstance.off('zoomstart', lockInteraction);
+      mapInstance.off('moveend', unlockInteraction);
       clearTimeout(fallbackTimer);
+      clearTimeout(interactionResumeTimer.current);
     };
   }, [mapInstance, flushQueue]);
 
   /**
-   * Public API: Enqueue a serialized raster source update.
-   * @param {string} sourceId  - MapLibre source ID
-   * @param {string|string[]} url - URL string or tiles array
-   * @param {boolean} isTilesArray - true for setTiles(), false for setUrl()
+   * Public API: Enqueue a raster source update.
    */
   const queueRasterUpdate = useCallback((sourceId, url, isTilesArray = false) => {
     if (!mapInstance) return;
 
-    // Deduplicate: skip if we'd commit the exact same URL
     const urlKey = isTilesArray ? JSON.stringify(url) : url;
     if (lastCommittedUrls.current[sourceId] === urlKey) return;
 
-    // Cancel any pending timer for this source
     if (pendingTimers.current[sourceId]) {
       clearTimeout(pendingTimers.current[sourceId]);
     }
 
-    // If map style isn't ready yet, queue for deterministic flush
-    if (!styleReadyRef.current || !mapInstance.isStyleLoaded?.()) {
-      console.log(`[Raster TX] Queued ${sourceId} (style not ready)`);
-      // Replace any existing entry for this sourceId to avoid stale writes
+    // Queue if style not ready OR interaction locked
+    if (!styleReadyRef.current || !mapInstance.isStyleLoaded?.() || interactionLockedRef.current) {
+      console.log(`[Raster TX] Queued ${sourceId} (${interactionLockedRef.current ? 'interaction lock' : 'style not ready'})`);
       deferredQueue.current = deferredQueue.current.filter(e => e.sourceId !== sourceId);
       deferredQueue.current.push({ sourceId, url, isTilesArray });
       return;
     }
 
-    // Style is ready — schedule commit with settling delay
     pendingTimers.current[sourceId] = setTimeout(() => {
       pendingTimers.current[sourceId] = null;
       const ok = commitMutation(sourceId, url, isTilesArray);
       if (!ok) {
-        // Source still loading — defer with short retry
-        const retryTimer = setTimeout(() => {
-          commitMutation(sourceId, url, isTilesArray);
-        }, 400);
-        pendingTimers.current[sourceId] = retryTimer;
+        // Re-queue for next idle window
+        deferredQueue.current = deferredQueue.current.filter(e => e.sourceId !== sourceId);
+        deferredQueue.current.push({ sourceId, url, isTilesArray });
       }
     }, 200);
   }, [mapInstance, commitMutation]);
 
-  /**
-   * Cleanup all pending timers (call in effect cleanup)
-   */
   const cleanupTransactions = useCallback(() => {
     Object.values(pendingTimers.current).forEach(t => clearTimeout(t));
     pendingTimers.current = {};
