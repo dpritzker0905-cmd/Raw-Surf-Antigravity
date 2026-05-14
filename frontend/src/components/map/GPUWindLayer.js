@@ -60,7 +60,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     inlineMockRef.current = null;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const dpr = window.devicePixelRatio || 1;
 
     const resize = () => {
@@ -76,8 +76,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     const dims = resize() || { w: 800, h: 600 };
     let cw = dims.w, ch = dims.h;
 
-    // Spawn particles within current viewport
-    const PARTICLE_COUNT = 300;
+    // Adaptive particle count based on hardware / viewport size
+    const isMobile = window.innerWidth < 768;
+    const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
+    const PARTICLE_COUNT = isMobile ? (isWeak ? 300 : 800) : (isWeak ? 1500 : 3000);
+    console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (isMobile: ${isMobile}, cores: ${navigator.hardwareConcurrency})`);
+    
     const spawn = () => {
       const mb = mapInstance.getBounds();
       return {
@@ -92,13 +96,22 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     let lastTime = performance.now();
     let frameCount = 0;
     let errorCount = 0;
+    let wasActive = false;
 
     const animate = (now) => {
       if (!activeRef.current) {
-        ctx.clearRect(0, 0, cw, ch);
-        animRef.current = requestAnimationFrame(animate);
+        if (wasActive) {
+          ctx.clearRect(0, 0, cw, ch);
+          wasActive = false;
+        }
+        // Throttled RAF when dormant (check every 500ms instead of 16ms)
+        setTimeout(() => {
+          if (animRef.current) animRef.current = requestAnimationFrame(animate);
+        }, 500);
         return;
       }
+      
+      wasActive = true;
 
       const dt = Math.min(50, now - lastTime) / 1000;
       lastTime = now;
