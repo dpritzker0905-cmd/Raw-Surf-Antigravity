@@ -1,58 +1,80 @@
 import { useRef, useCallback } from 'react';
 
 /**
- * useRasterTransactions (v242)
+ * useRasterTransactions (v243)
  *
- * Raster source mutation controller. Depends on useMapRenderContract for all
- * readiness and interaction gating. This hook owns ONLY:
- * 1. URL deduplication
- * 2. Source-load state tracking (with 2s min retry delay)
- * 3. Deferred write queue (drained by contract onReady callback)
+ * Raster source mutation controller with:
+ * 1. Source-level single-flight locks (no concurrent mutations per sourceId)
+ * 2. Hard ingress dedup (silently drops during INTERACTING, no log spam)
+ * 3. Flush dedup via RAF token (only latest flush executes per frame cycle)
+ * 4. Source load state tracking with 2s min retry
  *
- * DELETED from v241:
- * - Ad-hoc style.load listener (now in contract)
- * - Ad-hoc interaction lock (now in contract)
- * - Fallback poll (now in contract)
- * - setTimeout-based retry loops (replaced by source load state tracking)
- * - flushedRef / tryInitialFlush (replaced by contract onReady)
+ * v243 fixes (per ChatGPT v242 runtime audit):
+ * - Ingress spam: silently deduplicates against deferred queue
+ * - Source race: each sourceId has a single-flight lock
+ * - Flush spam: token-guarded RAF ensures only latest flush runs
  */
 export function useRasterTransactions(mapInstance, renderContract) {
-  const pendingTimers = useRef({});
   const lastCommittedUrls = useRef({});
   const deferredQueue = useRef([]);
-
-  // v242: Source Load State — prevents infinite retry loops
+  const sourceLocks = useRef({});
+  const flushTokenRef = useRef(0);
+  const flushRegisteredRef = useRef(false);
   const sourceLoadState = useRef({});
-  const MIN_RETRY_DELAY = 2000; // ms — never retry a loading source faster than this
+  const MIN_RETRY_DELAY = 2000;
+  // Stable refs for cross-callback access
+  const renderContractRef = useRef(renderContract);
+  renderContractRef.current = renderContract;
+  const mapRef = useRef(mapInstance);
+  mapRef.current = mapInstance;
 
   /**
-   * Commit a single source mutation. ONLY called when contract.canCommit() is true.
+   * Add/replace entry in deferred queue (deduped by sourceId).
+   * Plain function — only accesses refs, safe from stale closure.
+   */
+  const addToQueue = (sourceId, url, isTilesArray) => {
+    deferredQueue.current = deferredQueue.current.filter(e => e.sourceId !== sourceId);
+    deferredQueue.current.push({ sourceId, url, isTilesArray });
+  };
+
+  /**
+   * Commit a single source mutation.
+   * Single-flight: if sourceId is mid-commit, queues the latest payload instead.
    * @private
    */
   const commitMutation = useCallback((sourceId, url, isTilesArray) => {
-    if (!mapInstance) return false;
+    const map = mapRef.current;
+    if (!map) return false;
+
+    // Single-flight gate
+    if (sourceLocks.current[sourceId]) {
+      sourceLocks.current[sourceId].queued = { sourceId, url, isTilesArray };
+      return true; // Queued payload will fire after current commit
+    }
 
     try {
-      const source = mapInstance.getSource(sourceId);
+      const source = map.getSource(sourceId);
       if (!source) return false;
 
       // Source-loading gate with rate-limited retry
-      if (mapInstance.isSourceLoaded && !mapInstance.isSourceLoaded(sourceId)) {
+      if (map.isSourceLoaded && !map.isSourceLoaded(sourceId)) {
         const loadState = sourceLoadState.current[sourceId];
         const now = Date.now();
         if (loadState && now - loadState.lastAttempt < MIN_RETRY_DELAY) {
-          return false; // Rate-limited — don't spam
+          return false;
         }
         sourceLoadState.current[sourceId] = { status: 'loading', lastAttempt: now };
-        console.debug(`[Raster TX] Deferred ${sourceId} (source loading, next retry in ${MIN_RETRY_DELAY}ms)`);
         return false;
       }
 
       // Hard dedup right before commit
       const urlKey = isTilesArray ? JSON.stringify(url) : url;
       if (lastCommittedUrls.current[sourceId] === urlKey) {
-        return true; // Already committed — skip
+        return true;
       }
+
+      // Lock this source
+      sourceLocks.current[sourceId] = { queued: null };
 
       if (isTilesArray) {
         if (source.setTiles) source.setTiles(url);
@@ -63,94 +85,121 @@ export function useRasterTransactions(mapInstance, renderContract) {
       lastCommittedUrls.current[sourceId] = urlKey;
       sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
       console.debug(`[Raster TX] Committed ${sourceId}`);
+
+      // Release lock, drain queued payload if any
+      const queued = sourceLocks.current[sourceId]?.queued;
+      sourceLocks.current[sourceId] = null;
+
+      if (queued) {
+        // Schedule via RAF — no synchronous recursion
+        requestAnimationFrame(() => {
+          if (renderContractRef.current?.canCommit()) {
+            commitMutation(queued.sourceId, queued.url, queued.isTilesArray);
+          } else {
+            addToQueue(queued.sourceId, queued.url, queued.isTilesArray);
+            scheduleFlush();
+          }
+        });
+      }
+
       return true;
     } catch (e) {
+      sourceLocks.current[sourceId] = null;
       if (e?.name === 'AbortError' || e?.message?.includes('aborted')) {
-        console.debug(`[Raster TX] AbortError swallowed for ${sourceId}`);
         return true;
       }
       sourceLoadState.current[sourceId] = { status: 'failed', lastAttempt: Date.now() };
       console.warn(`[Raster TX] Failed to update ${sourceId}:`, e);
       return true;
     }
-  }, [mapInstance]);
+  }, []); // No deps — uses only refs
 
   /**
-   * Flush the deferred write queue. ONLY called by contract onReady callback.
+   * Flush queue. Token-guarded: only the latest invocation within a frame cycle executes.
    * @private
    */
-  const flushQueue = useCallback(() => {
-    if (!mapInstance || !deferredQueue.current.length) return;
-    if (!renderContract?.canCommit()) return;
+  const doFlush = useCallback(() => {
+    const token = ++flushTokenRef.current;
+    flushRegisteredRef.current = false;
 
-    console.log(`[Raster TX] Flushing ${deferredQueue.current.length} deferred writes`);
-    const retries = [];
+    requestAnimationFrame(() => {
+      if (token !== flushTokenRef.current) return; // Stale
+      const map = mapRef.current;
+      const contract = renderContractRef.current;
+      if (!map || !deferredQueue.current.length) return;
+      if (!contract?.canCommit()) {
+        scheduleFlush();
+        return;
+      }
 
-    for (const entry of deferredQueue.current) {
-      const ok = commitMutation(entry.sourceId, entry.url, entry.isTilesArray);
-      if (!ok) retries.push(entry);
-    }
+      const entries = [...deferredQueue.current];
+      deferredQueue.current = [];
 
-    deferredQueue.current = retries;
+      const retries = [];
+      for (const entry of entries) {
+        const ok = commitMutation(entry.sourceId, entry.url, entry.isTilesArray);
+        if (!ok) retries.push(entry);
+      }
 
-    // If source-loading entries remain, schedule ONE retry after MIN_RETRY_DELAY
-    if (retries.length > 0) {
-      renderContract.onReady(() => {
-        setTimeout(flushQueue, MIN_RETRY_DELAY);
-      });
-    }
-  }, [mapInstance, commitMutation, renderContract]);
+      if (retries.length > 0) {
+        deferredQueue.current = retries;
+        setTimeout(() => scheduleFlush(), MIN_RETRY_DELAY);
+      }
+    });
+  }, [commitMutation]);
+
+  /**
+   * Schedule a flush on next READY transition. Idempotent — won't double-register.
+   */
+  const scheduleFlush = () => {
+    if (flushRegisteredRef.current) return;
+    flushRegisteredRef.current = true;
+    // Use ref to get latest contract
+    renderContractRef.current?.onReady(() => {
+      // Small yield to batch multiple onReady callbacks
+      setTimeout(() => doFlush(), 0);
+    });
+  };
 
   /**
    * Public API: Enqueue a raster source update.
    */
   const queueRasterUpdate = useCallback((sourceId, url, isTilesArray = false) => {
-    if (!mapInstance) return;
+    const map = mapRef.current;
+    if (!map) return;
 
     // Hard dedup at ingress
     const urlKey = isTilesArray ? JSON.stringify(url) : url;
     if (lastCommittedUrls.current[sourceId] === urlKey) return;
 
-    // Cancel any pending timer
-    if (pendingTimers.current[sourceId]) {
-      clearTimeout(pendingTimers.current[sourceId]);
+    // Dedup against queue (prevents repeated queuing of same URL)
+    const existing = deferredQueue.current.find(e => e.sourceId === sourceId);
+    if (existing) {
+      const existingKey = existing.isTilesArray ? JSON.stringify(existing.url) : existing.url;
+      if (existingKey === urlKey) return; // Already queued with same URL
     }
 
     // Can we commit right now?
-    if (renderContract?.canCommit()) {
-      pendingTimers.current[sourceId] = setTimeout(() => {
-        pendingTimers.current[sourceId] = null;
-
-        // Re-check contract (interaction may have started during 200ms settle)
-        if (!renderContract.canCommit()) {
-          deferredQueue.current = deferredQueue.current.filter(e => e.sourceId !== sourceId);
-          deferredQueue.current.push({ sourceId, url, isTilesArray });
-          renderContract.onReady(flushQueue);
-          return;
-        }
-
-        const ok = commitMutation(sourceId, url, isTilesArray);
-        if (!ok) {
-          deferredQueue.current = deferredQueue.current.filter(e => e.sourceId !== sourceId);
-          deferredQueue.current.push({ sourceId, url, isTilesArray });
-          renderContract.onReady(flushQueue);
-        }
-      }, 200);
+    const contract = renderContractRef.current;
+    if (contract?.canCommit()) {
+      const ok = commitMutation(sourceId, url, isTilesArray);
+      if (!ok) {
+        addToQueue(sourceId, url, isTilesArray);
+        scheduleFlush();
+      }
     } else {
-      // Queue and register for flush on next READY transition
-      const state = renderContract?.getState?.() || 'unknown';
-      console.log(`[Raster TX] Queued ${sourceId} (state: ${state})`);
-      deferredQueue.current = deferredQueue.current.filter(e => e.sourceId !== sourceId);
-      deferredQueue.current.push({ sourceId, url, isTilesArray });
-      renderContract?.onReady(flushQueue);
+      // Queue silently — no log spam
+      addToQueue(sourceId, url, isTilesArray);
+      scheduleFlush();
     }
-  }, [mapInstance, commitMutation, renderContract, flushQueue]);
+  }, [commitMutation]);
 
   const cleanupTransactions = useCallback(() => {
-    Object.values(pendingTimers.current).forEach(t => clearTimeout(t));
-    pendingTimers.current = {};
     deferredQueue.current = [];
     sourceLoadState.current = {};
+    sourceLocks.current = {};
+    flushTokenRef.current = 0;
+    flushRegisteredRef.current = false;
   }, []);
 
   return { queueRasterUpdate, cleanupTransactions };

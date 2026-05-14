@@ -98,15 +98,32 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     let errorCount = 0;
     let wasActive = false;
 
-    // v242: Interaction-aware throttle — reduce particle processing during drag/zoom
-    // 300ms debounce on idle to match render contract's INTERACTING→READY transition
-    let isInteracting = false;
+    // v243: Wind lifecycle state — NEVER restart RAF, canvas, or particles on transitions.
+    // Only stride and trail opacity change. This prevents animation reset during INTERACTING.
+    const WIND_RUNNING = 1;
+    const WIND_THROTTLED = 2;
+    let windState = WIND_RUNNING;
     let idleTimer = null;
-    const onDragStart = () => { isInteracting = true; clearTimeout(idleTimer); };
-    const onZoomStart = () => { isInteracting = true; clearTimeout(idleTimer); };
+
+    const onDragStart = () => {
+      if (windState !== WIND_THROTTLED) {
+        windState = WIND_THROTTLED;
+      }
+      clearTimeout(idleTimer);
+    };
+    const onZoomStart = () => {
+      if (windState !== WIND_THROTTLED) {
+        windState = WIND_THROTTLED;
+      }
+      clearTimeout(idleTimer);
+    };
     const onIdle = () => {
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => { isInteracting = false; }, 300);
+      idleTimer = setTimeout(() => {
+        if (windState === WIND_THROTTLED) {
+          windState = WIND_RUNNING;
+        }
+      }, 300);
     };
     mapInstance.on('dragstart', onDragStart);
     mapInstance.on('zoomstart', onZoomStart);
@@ -137,7 +154,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       lastTime = now;
       frameCount++;
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+      // v243: Trail opacity adjusts with state — lighter trail during throttle
+      // to reduce visual artifacts from stride-skipped particles
+      const trailOpacity = windState === WIND_THROTTLED ? 0.7 : 0.9;
+      ctx.fillStyle = `rgba(0, 0, 0, ${trailOpacity})`;
       ctx.globalCompositeOperation = 'destination-in';
       ctx.fillRect(0, 0, cw, ch);
       ctx.globalCompositeOperation = 'source-over';
@@ -148,9 +168,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       const bw = mb.getWest(), be = mb.getEast();
       const bs = mb.getSouth(), bn = mb.getNorth();
 
-      // v241: During interaction, process only every 4th particle (25% density)
-      // This frees main-thread time for pointer events, fixing 'sticky map' during pan
-      const stride = isInteracting ? 4 : 1;
+      // v243: Stride from lifecycle state — NEVER restart loop
+      const stride = windState === WIND_THROTTLED ? 4 : 1;
 
       for (let i = 0; i < particles.length; i += stride) {
           const p = particles[i];
