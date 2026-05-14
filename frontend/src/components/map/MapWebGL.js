@@ -344,6 +344,9 @@ const MapWebGL = ({
     }
 
     let timeoutId;
+    let lastFetchCenter = null;
+    let lastFetchZoom = null;
+
     const updateMarineGrid = async () => {
       console.log('[Marine Trace] 1. updateMarineGrid triggered');
       // Hard block: do not fetch if map is actively moving/zooming/animating
@@ -352,21 +355,41 @@ const MapWebGL = ({
         return;
       }
 
+      const center = mapInstance.getCenter();
+      const zoom = mapInstance.getZoom();
+
+      // Prevent infinite loops from micro-jitter or container resizes
+      if (lastFetchCenter && 
+          Math.abs(lastFetchCenter.lat - center.lat) < 0.05 &&
+          Math.abs(lastFetchCenter.lng - center.lng) < 0.05 &&
+          Math.abs(lastFetchZoom - zoom) < 0.5) {
+        console.log('[Marine Trace] 2. aborted (map barely moved, ignoring jitter)');
+        return;
+      }
+
       const b = mapInstance.getBounds();
       const bounds = {
         west: b.getWest(), south: b.getSouth(),
         east: b.getEast(), north: b.getNorth()
       };
-      const zoom = mapInstance.getZoom();
 
       console.log('[Marine Trace] 3. calling fetchMarineData');
       const data = await fetchMarineData(bounds, zoom);
       console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
       
       if (data) {
-        console.log('[Marine Trace] 5. setting marineData state');
-        marineRevision.current += 1;
-        setMarineData(data);
+        lastFetchCenter = center;
+        lastFetchZoom = zoom;
+
+        setMarineData(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(data)) {
+            console.log('[Marine Trace] 5. setting marineData SKIPPED (data identical)');
+            return prev;
+          }
+          console.log('[Marine Trace] 5. setting marineData state');
+          marineRevision.current += 1;
+          return data;
+        });
       } else {
         console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
       }
