@@ -161,10 +161,7 @@ const MapWebGL = ({
     return 'none';
   }, [activeLayers]);
 
-  // v246: Layer Truth Diff Engine — declared vs actual state comparison
-  const { issues: truthIssues } = useLayerTruthDiff({
-    mapInstance, activeLayers, activeRenderType, windData, marineData
-  });
+
   const [omTileUrl, setOmTileUrl] = useState(null);
   const [initialOmUrl, setInitialOmUrl] = useState(null);
   const [initialRadarUrl, setInitialRadarUrl] = useState(null);
@@ -177,6 +174,12 @@ const MapWebGL = ({
 
   // Marine Orchestrator — single-pipeline data fetching
   const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers });
+
+  // v246: Layer Truth Diff Engine — declared vs actual state comparison
+  // MUST be after all data source declarations (windData, marineData) to avoid TDZ
+  const { issues: truthIssues } = useLayerTruthDiff({
+    mapInstance, activeLayers, activeRenderType, windData, marineData
+  });
 
   // Bootstrapping and Transacting Open-Meteo
   useEffect(() => {
