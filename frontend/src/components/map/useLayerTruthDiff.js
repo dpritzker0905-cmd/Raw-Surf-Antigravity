@@ -86,6 +86,18 @@ function diffLayerTruth(activeLayer, activeRenderType, mapInstance, windData, ma
           hint: 'Layer exists but is hidden',
         });
       }
+
+      // v248: SOURCE_MISMATCH (Raster Bleed check)
+      const actualSource = mapLayer.source;
+      if (expected.sourceId && actualSource && actualSource !== expected.sourceId) {
+        issues.push({
+          layerId: activeLayer,
+          type: 'SOURCE_MISMATCH',
+          expected: expected.sourceId,
+          actual: actualSource,
+          hint: 'Render target identity collision (e.g. pressure showing fog)',
+        });
+      }
     }
   }
 
@@ -131,6 +143,28 @@ function diffLayerTruth(activeLayer, activeRenderType, mapInstance, windData, ma
       }
     }
   }
+
+  // v248: RASTER FLASH BUG DETECTOR (Concurrent visibility writes)
+  try {
+    const style = mapInstance.getStyle();
+    if (style && style.layers) {
+      // Find all layers using om-weather sources
+      const rasterLayers = style.layers.filter(l => l.source?.includes('om-weather'));
+      const visibleRasterLayers = rasterLayers.filter(l => {
+        const vis = mapInstance.getLayoutProperty(l.id, 'visibility');
+        // If undefined, Mapbox/MapLibre defaults to 'visible'
+        return vis !== 'none';
+      });
+
+      if (visibleRasterLayers.length > 1) {
+        issues.push({
+          layerId: activeLayer,
+          type: 'RASTER_LAYER_CONFLICT_FLASHING',
+          hint: `Multiple raster layers visible simultaneously (${visibleRasterLayers.map(l => l.id).join(', ')})`,
+        });
+      }
+    }
+  } catch (e) {}
 
   return issues;
 }
