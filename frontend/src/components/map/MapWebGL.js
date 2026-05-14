@@ -437,29 +437,37 @@ const MapWebGL = ({
       }
     };
 
-    const debouncedUpdate = () => {
-      clearTimeout(timeoutId);
-      // Stable Bounds Delay: let inertial map easing settle completely
-      timeoutId = setTimeout(() => {
-        if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
-          updateMarineGrid();
-        }
-      }, 150);
+    const scheduledRef = { current: false };
+
+    const scheduleMarineUpdate = () => {
+      if (scheduledRef.current) return;
+      scheduledRef.current = true;
+      
+      requestAnimationFrame(() => {
+        scheduledRef.current = false;
+        clearTimeout(timeoutId);
+        // Stable Bounds Delay: let inertial map easing settle completely
+        timeoutId = setTimeout(() => {
+          if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
+            updateMarineGrid();
+          }
+        }, 150);
+      });
     };
 
-    manualMarineTriggerRef.current = debouncedUpdate;
+    manualMarineTriggerRef.current = scheduleMarineUpdate;
 
     // ONLY listen to moveend, which fires when animations settle
-    mapInstance.on('moveend', debouncedUpdate);
+    mapInstance.on('moveend', scheduleMarineUpdate);
     
     // Initial fetch if layers are already active on mount
     if (activeMarineLayersRef.current) {
-      debouncedUpdate();
+      scheduleMarineUpdate();
     }
 
     return () => {
       clearTimeout(timeoutId);
-      mapInstance.off('moveend', debouncedUpdate);
+      mapInstance.off('moveend', scheduleMarineUpdate);
       manualMarineTriggerRef.current = null;
     };
   }, [mapInstance]); // Severed from activeLayersKey completely
