@@ -1,63 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-
-import { fetchWindData } from './marineController';
-
-let windIsFetching = false;
-let windLastFetch = 0;
-
-/**
- * Viewport-scoped wind vector data hook.
- */
-export function useWindVectorData({ active, mapInstance }) {
-  const [windData, setWindData] = useState(null);
-  const revisionRef = useRef(0);
-
-  const updateWind = useCallback(async () => {
-    if (!mapInstance || !active) return;
-    if (mapInstance.isMoving() || mapInstance.isZooming()) return;
-
-    if (windIsFetching) return;
-    const now = Date.now();
-    if (now - windLastFetch < 2000) return;
-
-    windIsFetching = true;
-    try {
-      const b = mapInstance.getBounds();
-      const bounds = {
-        west: b.getWest(), south: b.getSouth(),
-        east: b.getEast(), north: b.getNorth()
-      };
-      const data = await fetchWindData(bounds);
-      if (data) {
-        windLastFetch = Date.now();
-        revisionRef.current += 1;
-        setWindData(data);
-      }
-    } finally {
-      windIsFetching = false;
-    }
-  }, [mapInstance, active]);
-
-  useEffect(() => {
-    if (!active || !mapInstance) { setWindData(null); return; }
-    
-    let timer;
-    const handleMove = () => {
-      if (mapInstance.isMoving() || mapInstance.isZooming()) return;
-      clearTimeout(timer);
-      timer = setTimeout(updateWind, 1500);
-    };
-
-    handleMove(); // Initial fetch
-    mapInstance.on('moveend', handleMove);
-    return () => {
-      clearTimeout(timer);
-      mapInstance.off('moveend', handleMove);
-    };
-  }, [active, mapInstance, updateWind]);
-
-  return { windData, windRevision: revisionRef };
-}
+// Data fetching has been moved to WeatherEngine.js to decouple from MapLibre events.
+// This file now only handles the GPU/Canvas particle rendering.
 
 /**
  * Bilinear interpolation of u/v wind components.
@@ -96,14 +38,16 @@ function interpolateWind(windGrid, lng, lat) {
  * - Diagnostic visuals removed (wind confirmed working)
  * - Error logging throttled to prevent console flood
  */
-export function WindParticleCanvas({ mapInstance, windVectors, active }) {
+import { useEffect, useRef } from 'react';
+
+export function WindParticleCanvas({ mapInstance, active, data, revision }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const windRef = useRef(null);
   const particlesRef = useRef([]);
   const inlineMockRef = useRef(null);
 
-  useEffect(() => { windRef.current = windVectors; }, [windVectors]);
+  useEffect(() => { windRef.current = data; }, [data, revision]);
 
   useEffect(() => {
     if (!mapInstance || !active || !canvasRef.current) return;

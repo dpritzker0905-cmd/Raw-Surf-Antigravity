@@ -11,7 +11,8 @@ maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useWindVectorData, WindParticleCanvas } from './GPUWindLayer';
+import { WindParticleCanvas } from './GPUWindLayer';
+import { useWeatherEngine } from './WeatherEngine';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -127,9 +128,9 @@ const MapWebGL = ({
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
   const animFrameRef = useRef(null);
   
-  // Wind vector data — viewport-scoped, MapLibre-native rendering
-  const { windData, windRevision } = useWindVectorData({
-    active: activeLayers.includes('wind'),
+  // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
+  const { windData, windRevision } = useWeatherEngine({
+    activeLayers,
     mapInstance
   });
 
@@ -927,13 +928,13 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      {/* Wind Particle Advection Engine — temporarily disabled for v189 isolation testing
-      <WindParticleCanvas
-        mapInstance={mapInstance}
-        windVectors={windData}
+      {/* Wind Particle Advection Engine */}
+      <WindParticleCanvas 
+        mapInstance={mapInstance} 
         active={activeLayers.includes('wind')}
+        data={windData}
+        revision={windRevision.current}
       />
-      */}
     </Map>
     </div>
   );
