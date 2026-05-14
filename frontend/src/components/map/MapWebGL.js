@@ -475,8 +475,19 @@ const MapWebGL = ({
 
     manualMarineTriggerRef.current = () => scheduleMarineUpdate('manual');
 
+    const moveEndBurstRef = {
+      count: 0,
+      lastEventTime: 0,
+      timer: null
+    };
+
     const onMoveEnd = () => {
       console.count("MOVEEND FIRED");
+
+      moveEndBurstRef.count++;
+      moveEndBurstRef.lastEventTime = Date.now();
+      
+      clearTimeout(moveEndBurstRef.timer);
 
       const isUserDriven = Date.now() - lastUserInteractionRef.current < 1500;
       if (!isUserDriven) {
@@ -498,7 +509,14 @@ const MapWebGL = ({
       }
       lastStableCameraRef.current = cameraHash;
 
-      scheduleMarineUpdate('moveend');
+      moveEndBurstRef.timer = setTimeout(() => {
+        if (moveEndBurstRef.count > 1) {
+          scheduleMarineUpdate('moveend-burst-final');
+        } else {
+          scheduleMarineUpdate('moveend-single');
+        }
+        moveEndBurstRef.count = 0;
+      }, 250);
     };
 
     console.count("MOVEEND LISTENER ATTACHED");
@@ -520,6 +538,7 @@ const MapWebGL = ({
 
     return () => {
       clearTimeout(timeoutId);
+      if (moveEndBurstRef.timer) clearTimeout(moveEndBurstRef.timer);
       mapInstance.off('mousedown', trackIntent);
       mapInstance.off('touchstart', trackIntent);
       mapInstance.off('wheel', trackIntent);
