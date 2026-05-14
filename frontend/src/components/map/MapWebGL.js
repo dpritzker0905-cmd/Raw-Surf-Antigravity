@@ -114,6 +114,7 @@ const MapWebGL = ({
     lastTime: 0,
     isFetching: false
   });
+  const marineRequestIdRef = useRef(0);
   
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
@@ -329,10 +330,6 @@ const MapWebGL = ({
     if (!mapInstance) return;
     try { 
       mapInstance.triggerRepaint(); 
-      // V192 Diagnostics
-      console.log('[MapWebGL] activeLayers:', activeLayers);
-      console.log('[MapWebGL] SOURCES:', mapInstance.getStyle()?.sources);
-      console.log('[MapWebGL] LAYERS:', mapInstance.getStyle()?.layers?.map(l => ({ id: l.id, source: l.source })));
     } catch(e) {}
   }, [mapInstance, activeLayers, marineData, windData, omTileUrl, radarTileUrl]);
 
@@ -356,6 +353,19 @@ const MapWebGL = ({
     const locks = marineFetchLocksRef.current;
 
     const updateMarineGrid = async () => {
+      const center = mapInstance.getCenter();
+      const zoom = mapInstance.getZoom();
+
+      // Absolute top-level gate: Viewport Hash Guard BEFORE any async logic or promise creation
+      if (locks.lastCenter && 
+          Math.abs(locks.lastCenter.lat - center.lat) < 0.05 &&
+          Math.abs(locks.lastCenter.lng - center.lng) < 0.05 &&
+          Math.abs(locks.lastZoom - zoom) < 0.5 &&
+          (Date.now() - locks.lastTime < 5 * 60 * 1000)) { // Add 5m TTL to hash guard
+        console.log('[Marine Trace] 2. aborted (viewport hash matched, skipping fetch)');
+        return;
+      }
+
       console.log('[Marine Trace] 1. updateMarineGrid triggered');
       
       // Hard block: concurrent fetch or rate limit
@@ -375,29 +385,24 @@ const MapWebGL = ({
         return;
       }
 
-      const center = mapInstance.getCenter();
-      const zoom = mapInstance.getZoom();
-
-      // Prevent infinite loops from micro-jitter or container resizes,
-      // and decouple layer toggles from fetching by persisting this lock.
-      if (locks.lastCenter && 
-          Math.abs(locks.lastCenter.lat - center.lat) < 0.05 &&
-          Math.abs(locks.lastCenter.lng - center.lng) < 0.05 &&
-          Math.abs(locks.lastZoom - zoom) < 0.5) {
-        console.log('[Marine Trace] 2. aborted (viewport hash matched, skipping fetch)');
-        return;
-      }
-
       const b = mapInstance.getBounds();
       const bounds = {
         west: b.getWest(), south: b.getSouth(),
         east: b.getEast(), north: b.getNorth()
       };
 
-      console.log('[Marine Trace] 3. calling fetchMarineData');
+      const requestId = ++marineRequestIdRef.current;
+      console.log(`[Marine Trace] 3. calling fetchMarineData (req: ${requestId})`);
       locks.isFetching = true;
       try {
         const data = await fetchMarineData(bounds, zoom);
+        
+        // Stale request discard
+        if (requestId !== marineRequestIdRef.current) {
+          console.log(`[Marine Trace] stale request discarded (req: ${requestId})`);
+          return;
+        }
+
         console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
         
         if (data) {

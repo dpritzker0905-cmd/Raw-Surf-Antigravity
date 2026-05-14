@@ -55,6 +55,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
+  // Exclude realtime weather and marine physics APIs from SW interception entirely
+  if (
+    url.hostname.includes('open-meteo.com') || 
+    url.pathname.includes('/marine') || 
+    url.pathname.includes('/weather')
+  ) {
+    return; // Let the browser handle it natively without SW noise
+  }
+
   // Check if this is an API request we want to cache for offline
   const isOfflineAPI = OFFLINE_API_PATTERNS.some(pattern => url.pathname.includes(pattern));
   
