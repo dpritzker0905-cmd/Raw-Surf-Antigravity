@@ -96,13 +96,8 @@ export function WindParticleCanvas({ mapInstance, windVectors, active }) {
     if (!mapInstance || !active || !canvasRef.current) return;
     console.log('[Wind] === STARTING v186 ===');
 
-    // Generate inline mock immediately — zero API dependency
-    const b = mapInstance.getBounds();
-    inlineMockRef.current = generateMockWind({
-      west: b.getWest(), south: b.getSouth(),
-      east: b.getEast(), north: b.getNorth()
-    });
-    console.log('[Wind] Inline mock:', inlineMockRef.current.vectors.length, 'vectors');
+    // We no longer inject inline mock data. We rely exclusively on the live fetch pipeline.
+    inlineMockRef.current = null;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');

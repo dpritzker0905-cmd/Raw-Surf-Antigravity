@@ -144,11 +144,8 @@ export async function fetchWindData(bounds) {
       throw new Error('Zero valid wind vectors');
     }
   } catch (err) {
-    console.warn(`[Wind] API failed (${err.message}), using mock`);
-    const mockBounds = bounds || { west: -82, south: 24, east: -76, north: 32 };
-    const mockData = generateMockWind(mockBounds);
-    WIND_CACHE.set(cacheKey, mockData);
-    return mockData;
+    console.error(`[Wind] API fetch failed: ${err.message}`);
+    return null;
   } finally {
     windRequestInFlight = false;
   }
@@ -232,15 +229,12 @@ export async function fetchMarineData(bounds, zoom) {
       MARINE_CACHE.set(cacheKey, features);
       return { type: 'FeatureCollection', features };
     } else {
-      const mock = generateMockMarine();
-      MARINE_CACHE.set(cacheKey, mock.features);
-      return mock;
+      console.warn('[Marine] Zero valid points returned from API, returning null');
+      return null;
     }
   } catch (err) {
-    console.warn(`[Marine] API failed (${err.message}), using mock`);
-    const mock = generateMockMarine();
-    MARINE_CACHE.set(cacheKey, mock.features);
-    return mock;
+    console.error(`[Marine] API fetch failed: ${err.message}`);
+    return null;
   } finally {
     marineRequestInFlight = false;
   }

@@ -340,9 +340,7 @@ const MapWebGL = ({
     }
 
     if (!marineData) {
-      console.log('[Marine] Instant mock load for', MARINE_LAYERS.find(l => activeLayersKey.includes(l)));
-      marineRevision.current += 1;
-      setMarineData(getInstantMockMarine());
+      console.log('[Marine] Layer active, waiting for fetch...', MARINE_LAYERS.find(l => activeLayersKey.includes(l)));
     }
 
     let timeoutId;
