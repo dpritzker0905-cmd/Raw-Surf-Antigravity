@@ -135,16 +135,19 @@ export async function fetchWindData(bounds) {
         u: -speed * Math.sin(rad), v: -speed * Math.cos(rad)
       });
     });
-    
+
+    console.log(`[Wind Trace] Network Success: ${allResults.length} raw results -> ${vectors.length} valid vectors.`);
+
     if (vectors.length > 0) {
       const data = { vectors, bounds: { west, south, east, north }, grid: GRID };
       WIND_CACHE.set(cacheKey, data);
       return data;
     } else {
-      throw new Error('Zero valid wind vectors');
+      console.warn('[Wind Trace] Zero valid wind vectors');
+      return null;
     }
   } catch (err) {
-    console.error(`[Wind] API fetch failed: ${err.message}`);
+    console.error(`[Wind Trace] API fetch failed: ${err.message}`);
     return null;
   } finally {
     windRequestInFlight = false;
@@ -225,15 +228,17 @@ export async function fetchMarineData(bounds, zoom) {
       };
     }).filter(Boolean);
 
+    console.log(`[Marine Trace] Network Success: ${allResults.length} raw results -> ${features.length} valid features.`);
+
     if (features.length > 0) {
       MARINE_CACHE.set(cacheKey, features);
       return { type: 'FeatureCollection', features };
     } else {
-      console.warn('[Marine] Zero valid points returned from API, returning null');
+      console.warn('[Marine Trace] Zero valid points returned from API, returning null');
       return null;
     }
   } catch (err) {
-    console.error(`[Marine] API fetch failed: ${err.message}`);
+    console.error(`[Marine Trace] API fetch failed: ${err.message}`);
     return null;
   } finally {
     marineRequestInFlight = false;

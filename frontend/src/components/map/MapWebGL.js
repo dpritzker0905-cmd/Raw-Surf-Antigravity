@@ -345,8 +345,12 @@ const MapWebGL = ({
 
     let timeoutId;
     const updateMarineGrid = async () => {
+      console.log('[Marine Trace] 1. updateMarineGrid triggered');
       // Hard block: do not fetch if map is actively moving/zooming/animating
-      if (mapInstance.isMoving() || mapInstance.isZooming()) return;
+      if (mapInstance.isMoving() || mapInstance.isZooming()) {
+        console.log('[Marine Trace] 2. aborted (map is moving/zooming)');
+        return;
+      }
 
       const b = mapInstance.getBounds();
       const bounds = {
@@ -355,10 +359,16 @@ const MapWebGL = ({
       };
       const zoom = mapInstance.getZoom();
 
+      console.log('[Marine Trace] 3. calling fetchMarineData');
       const data = await fetchMarineData(bounds, zoom);
+      console.log('[Marine Trace] 4. fetchMarineData returned:', data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
+      
       if (data) {
+        console.log('[Marine Trace] 5. setting marineData state');
         marineRevision.current += 1;
         setMarineData(data);
+      } else {
+        console.log('[Marine Trace] 5. setting marineData SKIPPED (data is null)');
       }
     };
 
