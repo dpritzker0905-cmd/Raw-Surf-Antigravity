@@ -121,6 +121,7 @@ const MapWebGL = ({
   const internalUpdateTimerRef = useRef(null);
   const lastUserInteractionRef = useRef(0);
   const lastStableCameraRef = useRef(null);
+  const lastInvocationRef = useRef({ source: null, time: 0 });
   
   // Wind vector data — viewport-scoped, MapLibre-native rendering
   const { windData, windRevision } = useWindVectorData({
@@ -459,7 +460,15 @@ const MapWebGL = ({
 
     const scheduledRef = { current: false };
 
-    const scheduleMarineUpdate = (source) => {
+    const enqueueMarineUpdate = (source) => {
+      const now = Date.now();
+      // Hard Dedupe: Ignore identical triggers firing within 800ms
+      if (lastInvocationRef.current.source === source && now - lastInvocationRef.current.time < 800) {
+        console.log(`[Marine Trace] ingress ignored (duplicate ${source} trigger)`);
+        return;
+      }
+      lastInvocationRef.current = { source, time: now };
+
       if (scheduledRef.current) return;
       scheduledRef.current = true;
       
@@ -475,7 +484,7 @@ const MapWebGL = ({
       });
     };
 
-    manualMarineTriggerRef.current = () => scheduleMarineUpdate('manual');
+    manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
 
     const moveEndBurstRef = {
       count: 0,
@@ -513,9 +522,9 @@ const MapWebGL = ({
 
       moveEndBurstRef.timer = setTimeout(() => {
         if (moveEndBurstRef.count > 1) {
-          scheduleMarineUpdate('moveend-burst-final');
+          enqueueMarineUpdate('moveend-burst-final');
         } else {
-          scheduleMarineUpdate('moveend-single');
+          enqueueMarineUpdate('moveend-single');
         }
         moveEndBurstRef.count = 0;
       }, 250);
@@ -546,7 +555,7 @@ const MapWebGL = ({
     
     // Initial fetch if layers are already active on mount
     if (activeMarineLayersRef.current) {
-      scheduleMarineUpdate('mount');
+      enqueueMarineUpdate('mount');
     }
 
     return () => {
