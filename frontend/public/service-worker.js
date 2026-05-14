@@ -58,6 +58,9 @@ self.addEventListener('fetch', (event) => {
   // Exclude realtime weather and marine physics APIs from SW interception entirely
   if (
     url.hostname.includes('open-meteo.com') || 
+    url.hostname.includes('rainviewer') ||
+    url.hostname.includes('.om') ||
+    url.protocol.includes('om') ||
     url.pathname.includes('/marine') || 
     url.pathname.includes('/weather')
   ) {

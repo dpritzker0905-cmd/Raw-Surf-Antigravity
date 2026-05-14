@@ -110,6 +110,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
         }, 500);
         return;
       }
+      const grid = windRef.current || inlineMockRef.current;
+      if (!grid?.vectors?.length) {
+        lastTime = now;
+        animRef.current = requestAnimationFrame(animate);
+        return;
+      }
       
       wasActive = true;
 
@@ -122,11 +128,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       ctx.fillRect(0, 0, cw, ch);
       ctx.globalCompositeOperation = 'source-over';
 
-      const grid = windRef.current || inlineMockRef.current;
       const particles = particlesRef.current;
 
-      if (grid?.vectors?.length) {
-        const mb = mapInstance.getBounds();
+      const mb = mapInstance.getBounds();
         const bw = mb.getWest(), be = mb.getEast();
         const bs = mb.getSouth(), bn = mb.getNorth();
 
@@ -178,7 +182,6 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
             particles[i] = spawn();
           }
         }
-      }
 
       if (frameCount % 120 === 1) {
         console.log(`[Wind] F:${frameCount} drawn:${particles.length} grid:${grid?.vectors?.length || 0}`);
