@@ -152,13 +152,47 @@ const MapWebGL = ({
     return OM_VARIABLE_MAP[activeLayers[0]] || null;
   }, [activeLayers]);
   const [omTileUrl, setOmTileUrl] = useState(null);
-  const [activeOmTileUrl, setActiveOmTileUrl] = useState(null);
+  const [initialOmUrl, setInitialOmUrl] = useState(null);
+  const [initialRadarUrl, setInitialRadarUrl] = useState(null);
 
-  // Defer OM raster commits to prevent MapLibre AbortError spam during rapid variable/time changes
+  const rasterTransactionQueue = useRef({
+    'om-weather-source': null,
+    'radar-source': null
+  });
+
+  const queueRasterUpdate = useCallback((sourceId, url, isTilesArray = false) => {
+    if (!mapInstance) return;
+    
+    if (rasterTransactionQueue.current[sourceId]) {
+      clearTimeout(rasterTransactionQueue.current[sourceId]);
+    }
+
+    rasterTransactionQueue.current[sourceId] = setTimeout(() => {
+      try {
+        const source = mapInstance.getSource(sourceId);
+        if (!source) return;
+        
+        if (isTilesArray) {
+          if (source.setTiles) source.setTiles(url);
+        } else {
+          if (source.setUrl) source.setUrl(url);
+        }
+      } catch (e) {
+        console.warn(`[Raster Transaction] Failed to update ${sourceId}:`, e);
+      }
+    }, 150);
+  }, [mapInstance]);
+
+  // Bootstrapping and Transacting Open-Meteo
   useEffect(() => {
-    const t = setTimeout(() => setActiveOmTileUrl(prev => omTileUrl === prev ? prev : omTileUrl), 120);
-    return () => clearTimeout(t);
-  }, [omTileUrl]);
+    if (omTileUrl) {
+      if (!initialOmUrl) {
+        setInitialOmUrl(omTileUrl);
+      } else {
+        queueRasterUpdate('om-weather-source', omTileUrl, false);
+      }
+    }
+  }, [omTileUrl, initialOmUrl, queueRasterUpdate]);
 
   /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
@@ -326,13 +360,16 @@ const MapWebGL = ({
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
   }, [radarFrames, radarFrameIndex]);
 
-  const [activeRadarTileUrl, setActiveRadarTileUrl] = useState(null);
-
-  // Defer radar raster commits to prevent MapLibre AbortError spam during rapid timeline playback
+  // Bootstrapping and Transacting Radar
   useEffect(() => {
-    const t = setTimeout(() => setActiveRadarTileUrl(prev => radarTileUrl === prev ? prev : radarTileUrl), 120);
-    return () => clearTimeout(t);
-  }, [radarTileUrl]);
+    if (radarTileUrl) {
+      if (!initialRadarUrl) {
+        setInitialRadarUrl(radarTileUrl);
+      } else {
+        queueRasterUpdate('radar-source', [radarTileUrl], true);
+      }
+    }
+  }, [radarTileUrl, initialRadarUrl, queueRasterUpdate]);
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => getMapStyle(isLight, false), [isLight]);
@@ -711,11 +748,11 @@ const MapWebGL = ({
       {/* --- WEATHER LAYERS --- */}
 
       {/* Live Radar (RainViewer — animated frames) */}
-      {activeRadarTileUrl && (
+      {initialRadarUrl && (
         <Source
           id="radar-source"
           type="raster"
-          tiles={[activeRadarTileUrl]}
+          tiles={[initialRadarUrl]}
           tileSize={256}
           maxzoom={7}
         >
@@ -729,11 +766,11 @@ const MapWebGL = ({
       )}
 
       {/* Open-Meteo Animated Weather Tiles */}
-      {protocolReady && activeOmTileUrl && (
+      {protocolReady && initialOmUrl && (
         <Source
           id="om-weather-source"
           type="raster"
-          url={activeOmTileUrl}
+          url={initialOmUrl}
           maxzoom={12}
         >
           <Layer
