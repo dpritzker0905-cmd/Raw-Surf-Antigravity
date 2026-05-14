@@ -203,7 +203,7 @@ export async function fetchMarineData(bounds, zoom) {
     const lons = cappedPoints.map(p => p.lng).join(',');
 
     console.trace("[Marine Controller] Fetching Marine Data");
-    const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
+    const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
@@ -223,6 +223,7 @@ export async function fetchMarineData(bounds, zoom) {
         properties: {
           wave_height: safe(c.wave_height), wave_period: safe(c.wave_period), wave_direction: safe(c.wave_direction),
           swell_wave_height: safe(c.swell_wave_height), swell_wave_period: safe(c.swell_wave_period), swell_wave_direction: safe(c.swell_wave_direction),
+          secondary_swell_wave_height: safe(c.secondary_swell_wave_height), secondary_swell_wave_period: safe(c.secondary_swell_wave_period), secondary_swell_wave_direction: safe(c.secondary_swell_wave_direction),
           wind_wave_height: safe(c.wind_wave_height), wind_wave_period: safe(c.wind_wave_period), wind_wave_direction: safe(c.wind_wave_direction),
         },
       };

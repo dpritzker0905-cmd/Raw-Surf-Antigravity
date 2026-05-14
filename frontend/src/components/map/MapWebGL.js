@@ -514,7 +514,11 @@ const MapWebGL = ({
           }}
           paint={{
             'heatmap-weight': [
-              'interpolate', ['linear'], ['get', 'wave_height'],
+              'interpolate', ['linear'], 
+              ['get', activeLayers.includes('swell_1') ? 'swell_wave_height' : 
+                      activeLayers.includes('swell_2') ? 'secondary_swell_wave_height' :
+                      activeLayers.includes('wind_waves') ? 'wind_wave_height' : 
+                      'wave_height'],
               0, 0,
               8, 1
             ],
