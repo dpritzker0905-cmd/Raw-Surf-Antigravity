@@ -83,11 +83,10 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
     if (!mapInstance || !isWindActive || windData || isFetchingWindRef.current) return;
     
     const t = setTimeout(async () => {
-      const b = mapInstance.getBounds();
-      if (!b) return;
+      // v256: WIND DOMAIN FIX - Enforce global domain for manual toggle as well
       const bounds = {
-        west: b.getWest(), south: b.getSouth(),
-        east: b.getEast(), north: b.getNorth()
+        west: -180, south: -85,
+        east: 180, north: 85
       };
       console.log('[WeatherEngine] Manual fetch → wind layer toggled ON');
       isFetchingWindRef.current = true;

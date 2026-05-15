@@ -15,7 +15,8 @@ export const LAYER_REGISTRY = {
   satellite: {
     id: "satellite",
     type: "raster",
-    source: "ESRI_SATELLITE",
+    source: "ICON_CLOUD_COVER",
+    omVariable: "cloud_cover",
     category: "imagery"
   },
   pressure: {

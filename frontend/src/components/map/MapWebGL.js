@@ -227,14 +227,22 @@ const MapWebGL = ({
       const variablesToResolve = Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(k => [k, LAYER_REGISTRY[k].omVariable]);
 
       for (const [layerKey, variable] of variablesToResolve) {
-        let meta = await fetchMetadata(targetModel);
+        let layerModel = targetModel;
+        // v257: GFS map tiles lack precipitation and cloud_cover; fallback these specific variables to ICON
+        if (layerModel === 'ncep_gfs025' && (variable === 'precipitation' || variable === 'cloud_cover')) {
+          layerModel = 'dwd_icon';
+        }
+
+        let meta = await fetchMetadata(layerModel);
         if (meta.variables.includes(variable)) {
           const darkParam = !isLight ? '&dark=true' : '';
-          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${targetModel}/latest.json?${computeTimeStep(meta)}&variable=${variable}${darkParam}`;
+          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${variable}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
         } else if (window.__RASTER_DEBUG__?.failFast !== false) {
-          if (window.__RASTER_DEBUG__?.logMissingVariables) console.warn(`[Raster] MISSING VARIABLE: ${variable} in ${targetModel}`);
-          throw new Error("MISSING_RASTER_VARIABLE: " + variable);
+          if (window.__RASTER_DEBUG__?.logMissingVariables) console.warn(`[Raster] MISSING VARIABLE: ${variable} in ${layerModel}`);
+          if (activeLayers.includes(layerKey)) {
+            throw new Error("MISSING_RASTER_VARIABLE: " + variable);
+          }
         }
       }
 
@@ -461,14 +469,14 @@ const MapWebGL = ({
 
       {/* ESRI True Satellite Imagery */}
       <Source
-        id="satellite-source"
+        id="esri-satellite-source"
         type="raster"
         tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']}
         tileSize={256}
         maxzoom={19}
       >
         <Layer
-          id="satellite-layer"
+          id="esri-satellite-layer"
           type="raster"
           layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
           paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
