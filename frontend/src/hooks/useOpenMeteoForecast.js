@@ -90,7 +90,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           `&current=${CURRENT_WEATHER_VARS}` +
           `&models=${modelParam}` +
           `&forecast_days=16` +
-          `&timezone=auto`
+          `&wind_speed_unit=knots`
         ),
         fetch(
           `https://marine-api.open-meteo.com/v1/marine?` +

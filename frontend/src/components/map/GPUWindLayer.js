@@ -336,18 +336,39 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const pt = mapInstance.project([p.lng, p.lat]);
             if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) continue;
             
-            const alpha = Math.max(0.2, 1 - (p.age / p.maxAge));
+            // Base alpha based on age, fading out at the end
+            const ageRatio = p.age / p.maxAge;
+            const alpha = Math.max(0.1, 1 - Math.pow(ageRatio, 2));
+
             if (id === 'marine-canvas-layer') {
-              // Ocean aesthetic for waves: deep cyan to white crests
-              const lightness = Math.min(100, 50 + (wind.speed * 8)); 
-              ctx.strokeStyle = `hsla(195, 100%, ${lightness}%, ${alpha})`;
-              ctx.lineWidth = 2.5;
+              // Ocean aesthetic for waves: dynamic palette based on wave height (wind.speed represents height here)
+              // 0-1m: Light Blue, 1-2m: Cyan, 2-3m: Blue, 3-5m: Purple, 5m+: Red
+              let color = '';
+              const h = wind.speed; // height in meters
+              if (h < 1) color = `rgba(140, 200, 255, ${alpha})`;
+              else if (h < 2) color = `rgba(0, 220, 255, ${alpha})`;
+              else if (h < 3) color = `rgba(0, 100, 255, ${alpha})`;
+              else if (h < 5) color = `rgba(150, 50, 255, ${alpha})`;
+              else color = `rgba(255, 50, 50, ${alpha})`;
+              
+              ctx.strokeStyle = color;
+              ctx.lineWidth = Math.min(4, 2 + h * 0.5); // Thicker for larger waves
             } else {
-              // Heatmap aesthetic for wind
-              const hue = Math.min(120, wind.speed * 8);
-              ctx.strokeStyle = `hsla(${120 - hue}, 90%, 55%, ${alpha})`;
-              ctx.lineWidth = 1.2;
+              // Heatmap aesthetic for wind (Windy style)
+              // 0-5kts: Light Blue/Teal, 5-15kts: Green, 15-25kts: Yellow/Orange, 25kts+: Red/Magenta
+              let color = '';
+              const s = wind.speed; // speed in knots
+              if (s < 5) color = `rgba(100, 200, 255, ${alpha})`;
+              else if (s < 10) color = `rgba(0, 255, 150, ${alpha})`;
+              else if (s < 15) color = `rgba(150, 255, 50, ${alpha})`;
+              else if (s < 20) color = `rgba(255, 200, 0, ${alpha})`;
+              else if (s < 30) color = `rgba(255, 100, 0, ${alpha})`;
+              else color = `rgba(255, 0, 100, ${alpha})`;
+
+              ctx.strokeStyle = color;
+              ctx.lineWidth = Math.min(3, 1.2 + s * 0.05); // Thicker for stronger winds
             }
+            
             ctx.beginPath();
             if (prevScreen) {
               ctx.moveTo(prevScreen.x, prevScreen.y);

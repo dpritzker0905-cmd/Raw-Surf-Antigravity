@@ -135,7 +135,7 @@ export async function fetchWindData(bounds) {
     
     console.trace("[Marine Controller] Fetching Wind Data");
     const res = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1`
+      `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1&wind_speed_unit=knots`
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 

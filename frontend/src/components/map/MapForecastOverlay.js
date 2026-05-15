@@ -59,7 +59,8 @@ export const MapForecastOverlay = ({
     let closest = 0;
     let minDiff = Infinity;
     forecastData.hourly.time.forEach((t, i) => {
-      const diff = Math.abs(new Date(t).getTime() - targetTs);
+      // Append 'Z' to force JavaScript to parse the ISO string as UTC
+      const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
       if (diff < minDiff) { minDiff = diff; closest = i; }
     });
     return closest;
@@ -74,7 +75,8 @@ export const MapForecastOverlay = ({
     let closest = 0;
     let minDiff = Infinity;
     marineData.hourly.time.forEach((t, i) => {
-      const diff = Math.abs(new Date(t).getTime() - targetTs);
+      // Append 'Z' to force JavaScript to parse the ISO string as UTC
+      const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
       if (diff < minDiff) { minDiff = diff; closest = i; }
     });
     return closest;
@@ -125,10 +127,10 @@ export const MapForecastOverlay = ({
 
   if (activeLayer === 'wind') {
     if (windSpeed != null) {
-      const mph = windSpeed != null ? Math.round(windSpeed * 0.621371) : null;
-      cards.push({ icon: Wind, label: isLive ? 'Live Wind' : 'Wind', value: mph != null ? `${mph} mph` : '--', color: 'text-teal-400' });
+      const kts = windSpeed != null ? Math.round(windSpeed) : null;
+      cards.push({ icon: Wind, label: isLive ? 'Live Wind' : 'Wind', value: kts != null ? `${kts} kts` : '--', color: 'text-teal-400' });
       if (windDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}°`, color: 'text-teal-300', rotate: windDir });
-      if (windGusts != null) cards.push({ icon: Wind, label: 'Gusts', value: `${Math.round(windGusts * 0.621371)} mph`, color: 'text-orange-400' });
+      if (windGusts != null) cards.push({ icon: Wind, label: 'Gusts', value: `${Math.round(windGusts)} kts`, color: 'text-orange-400' });
     } else {
       // Forecast data unavailable — show placeholder so overlay stays visible
       cards.push({ icon: Wind, label: 'Wind', value: isLoading ? 'Loading…' : '--', color: 'text-gray-400' });
