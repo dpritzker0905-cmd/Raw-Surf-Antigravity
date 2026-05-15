@@ -39,8 +39,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
+  const prevActiveLayersRef = useRef('');
+
   // Layer State Tracker: Decoupled from Fetch Orchestrator
   useEffect(() => {
+    if (prevActiveLayersRef.current === activeLayersKey) return;
+    prevActiveLayersRef.current = activeLayersKey;
+
     const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
     const hasMarine = MARINE_LAYERS.some(l => activeLayersKey.includes(l));
 

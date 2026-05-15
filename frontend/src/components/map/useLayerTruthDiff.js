@@ -66,11 +66,13 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       const violations = validateSnapshot(snapshot);
       
       // Update React state for debug overlay without infinite loop
-      if (violations.length > 0) {
-         setIssues(violations);
-      } else {
-         setIssues([]);
-      }
+      // v249: Use functional state update to prevent breaking array identity
+      // when the issues list is empty, which causes React-Map-GL <Source> to thrash
+      setIssues(prev => {
+        if (prev.length === 0 && violations.length === 0) return prev;
+        if (JSON.stringify(prev) === JSON.stringify(violations)) return prev;
+        return violations;
+      });
       return snapshot;
     };
 

@@ -211,11 +211,23 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
               const scale = 0.01 * dt * 60;
               // PROPER MAP PROJECTION ADVECTION
               const screen = mapInstance.project([p.lng, p.lat]);
+              
+              if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
+                p.age = p.maxAge + 1;
+                continue;
+              }
+              
               // u/v are geographic wind speeds, scale them into mercator screen pixels
               // Note: mercator Y is inverted relative to north
               screen.x += wind.u * scale * 10;
               screen.y -= wind.v * scale * 10; 
+              
               const nextLngLat = mapInstance.unproject(screen);
+              if (!nextLngLat || !Number.isFinite(nextLngLat.lng) || !Number.isFinite(nextLngLat.lat)) {
+                p.age = p.maxAge + 1;
+                continue;
+              }
+              
               p.lng = nextLngLat.lng;
               p.lat = nextLngLat.lat;
             } catch (e) {

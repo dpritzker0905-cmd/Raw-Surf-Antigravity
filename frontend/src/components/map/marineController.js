@@ -259,7 +259,10 @@ export async function fetchMarineData(bounds, zoom) {
       return null;
     }
 
-    const safe = (v) => (typeof v === "number" && isFinite(v)) ? v : 0;
+    const safeNum = (v, fallback = 0) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : fallback;
+    };
     const features = cappedPoints.map((pt, i) => {
       const r = allResults[i];
       if (!r?.current) return null;
@@ -271,10 +274,10 @@ export async function fetchMarineData(bounds, zoom) {
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
         properties: {
-          wave_height: safe(c.wave_height), wave_period: safe(c.wave_period), wave_direction: safe(c.wave_direction),
-          swell_wave_height: safe(c.swell_wave_height), swell_wave_period: safe(c.swell_wave_period), swell_wave_direction: safe(c.swell_wave_direction),
-          secondary_swell_wave_height: safe(c.secondary_swell_wave_height), secondary_swell_wave_period: safe(c.secondary_swell_wave_period), secondary_swell_wave_direction: safe(c.secondary_swell_wave_direction),
-          wind_wave_height: safe(c.wind_wave_height), wind_wave_period: safe(c.wind_wave_period), wind_wave_direction: safe(c.wind_wave_direction),
+          wave_height: safeNum(c.wave_height), wave_period: safeNum(c.wave_period), wave_direction: safeNum(c.wave_direction),
+          swell_wave_height: safeNum(c.swell_wave_height), swell_wave_period: safeNum(c.swell_wave_period), swell_wave_direction: safeNum(c.swell_wave_direction),
+          secondary_swell_wave_height: safeNum(c.secondary_swell_wave_height), secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period), secondary_swell_wave_direction: safeNum(c.secondary_swell_wave_direction),
+          wind_wave_height: safeNum(c.wind_wave_height), wind_wave_period: safeNum(c.wind_wave_period), wind_wave_direction: safeNum(c.wind_wave_direction),
         },
       };
     }).filter(Boolean);
