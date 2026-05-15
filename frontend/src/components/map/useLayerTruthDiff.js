@@ -19,6 +19,7 @@ function groupBy(arr, keyFn) {
 export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType, windData, marineData }) {
   const [issues, setIssues] = useState([]);
   const historyRef = useRef([]);
+  const violationBufferRef = useRef([]);
   // Throttle render event to avoid 60fps getStyle() serialization penalty
   const lastRenderCheck = useRef(0);
 
@@ -141,7 +142,21 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       });
 
       if (violations.length) {
-        console.warn(`🚨 RENDER TRUTH VIOLATIONS [${s.label}]`, violations);
+        // v250: Batch violations to prevent console spam
+        violations.forEach(v => {
+          violationBufferRef.current.push(v);
+        });
+
+        if (violationBufferRef.current.length === violations.length) {
+          setTimeout(() => {
+            if (!violationBufferRef.current.length) return;
+            console.warn(`🚨 TRUTH VIOLATIONS BATCH:`, {
+              count: violationBufferRef.current.length,
+              items: [...violationBufferRef.current]
+            });
+            violationBufferRef.current = [];
+          }, 250);
+        }
       }
       
       return violations;

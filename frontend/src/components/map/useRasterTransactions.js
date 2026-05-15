@@ -76,11 +76,31 @@ export function useRasterTransactions(mapInstance, renderContract) {
       // Lock this source
       sourceLocks.current[sourceId] = { queued: null };
 
-      if (isTilesArray) {
-        if (source.setTiles) source.setTiles(url);
-      } else {
-        if (source.setUrl) source.setUrl(url);
+      // Get associated layer ID for this source to force atomic GPU transition
+      const layerId = sourceId === 'om-weather-source' ? 'om-weather-layer' : 
+                      sourceId === 'radar-source' ? 'radar-layer' : null;
+
+      // v250: Atomic Layer Transition Queue (fixes fog/pressure raster bleed)
+      // Hide layer -> wait 2 frames for GPU flush -> mutate source -> show layer
+      if (layerId) {
+        map.setLayoutProperty(layerId, 'visibility', 'none');
       }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!map.getStyle()) return;
+
+          if (isTilesArray) {
+            if (source.setTiles) source.setTiles(url);
+          } else {
+            if (source.setUrl) source.setUrl(url);
+          }
+
+          if (layerId) {
+            map.setLayoutProperty(layerId, 'visibility', 'visible');
+          }
+        });
+      });
 
       lastCommittedUrls.current[sourceId] = urlKey;
       sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };

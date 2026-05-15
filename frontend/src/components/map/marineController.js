@@ -96,21 +96,20 @@ export async function fetchWindData(bounds) {
   windRequestInFlight = true;
 
   try {
-    const GRID = 8;
+    // v250: Fix GRID size to match Open-Meteo 25-point limit (5x5 grid = GRID 4)
+    const GRID = 4;
     const latStep = (north - south) / GRID;
     const lngStep = (east - west) / GRID;
-    const points = [];
+    const safe = [];
     for (let yi = 0; yi <= GRID; yi++) {
       for (let xi = 0; xi <= GRID; xi++) {
         let lng = west + xi * lngStep;
         while (lng > 180) lng -= 360;
         while (lng < -180) lng += 360;
-        points.push({ lat: +(south + yi * latStep).toFixed(2), lng: +lng.toFixed(2) });
+        safe.push({ lat: +(south + yi * latStep).toFixed(2), lng: +lng.toFixed(2) });
       }
     }
     
-    // Cap at 25 points to prevent Open-Meteo 429 errors
-    const safe = points.slice(0, 25);
     const lats = safe.map(p => p.lat).join(',');
     const lons = safe.map(p => p.lng).join(',');
     
