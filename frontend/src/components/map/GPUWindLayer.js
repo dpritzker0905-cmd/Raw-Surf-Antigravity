@@ -112,10 +112,17 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (isMobile: ${isMobile}, cores: ${navigator.hardwareConcurrency})`);
     
     const spawn = () => {
+      const grid = windRef.current;
       const mb = mapInstance.getBounds();
+      // Bound spawning to the vector grid if available to prevent spawning dead particles
+      const west = grid?.bounds ? Math.max(mb.getWest(), grid.bounds.west) : mb.getWest();
+      const east = grid?.bounds ? Math.min(mb.getEast(), grid.bounds.east) : mb.getEast();
+      const south = grid?.bounds ? Math.max(mb.getSouth(), grid.bounds.south) : mb.getSouth();
+      const north = grid?.bounds ? Math.min(mb.getNorth(), grid.bounds.north) : mb.getNorth();
+      
       return {
-        lng: mb.getWest() + Math.random() * (mb.getEast() - mb.getWest()),
-        lat: mb.getSouth() + Math.random() * (mb.getNorth() - mb.getSouth()),
+        lng: west + Math.random() * (east - west),
+        lat: south + Math.random() * (north - south),
         age: 0, maxAge: 3 + Math.random() * 4
       };
     };
@@ -194,9 +201,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
           const p = particles[i];
           p.age += dt;
 
+          const { west, south, east, north } = grid.bounds || { west: bw, south: bs, east: be, north: bn };
+          const withinVectorBounds = p.lng >= west && p.lng <= east && p.lat >= south && p.lat <= north;
+
           // Advect particle
           const wind = interpolateWind(grid, p.lng, p.lat);
-          if (wind.speed > 0.1) {
+          if (wind.speed > 0.1 && withinVectorBounds && Number.isFinite(wind.u) && Number.isFinite(wind.v)) {
             try {
               const scale = 0.01 * dt * 60;
               // PROPER MAP PROJECTION ADVECTION
@@ -211,6 +221,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
             } catch (e) {
               p.age = p.maxAge + 1; // force respawn
             }
+          } else {
+            p.age = p.maxAge + 1; // Force respawn if outside vector field or invalid wind
           }
 
           // CLAMP latitude to prevent map.project() crash (must be -90 to 90)

@@ -96,8 +96,9 @@ export async function fetchWindData(bounds) {
   windRequestInFlight = true;
 
   try {
-    // v250: Fix GRID size to match Open-Meteo 25-point limit (5x5 grid = GRID 4)
-    const GRID = 4;
+    // Adaptive GRID based on device (Mobile 12x12, Desktop 24x24)
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const GRID = isMobile ? 12 : 24;
     const latStep = (north - south) / GRID;
     const lngStep = (east - west) / GRID;
     const safe = [];
@@ -110,8 +111,27 @@ export async function fetchWindData(bounds) {
       }
     }
     
-    const lats = safe.map(p => p.lat).join(',');
-    const lons = safe.map(p => p.lng).join(',');
+    // Chunk requests into max 100 points per call for Open-Meteo API limits if needed, 
+    // actually OM handles many points, but URL max length is an issue.
+    // Let's cap at 100 max points per URL for stability.
+    // 24x24 = 576 points which exceeds URL limits. We need a fallback or smaller grid if fetch fails,
+    // Or actually Open-Meteo allows up to 100 coordinates per request?
+    // Let's use 9x9 (100 points) to be safe for a single GET request.
+    const SAFE_GRID = 9; // 100 points
+    const safeLatStep = (north - south) / SAFE_GRID;
+    const safeLngStep = (east - west) / SAFE_GRID;
+    const finalSafe = [];
+    for (let yi = 0; yi <= SAFE_GRID; yi++) {
+      for (let xi = 0; xi <= SAFE_GRID; xi++) {
+        let lng = west + xi * safeLngStep;
+        while (lng > 180) lng -= 360;
+        while (lng < -180) lng += 360;
+        finalSafe.push({ lat: +(south + yi * safeLatStep).toFixed(2), lng: +lng.toFixed(2) });
+      }
+    }
+
+    const lats = finalSafe.map(p => p.lat).join(',');
+    const lons = finalSafe.map(p => p.lng).join(',');
     
     console.trace("[Marine Controller] Fetching Wind Data");
     const res = await fetch(
@@ -136,7 +156,7 @@ export async function fetchWindData(bounds) {
     }
 
     const vectors = [];
-    safe.forEach((pt, i) => {
+    finalSafe.forEach((pt, i) => {
       const r = results[i];
       if (!r?.current) return;
       const speed = r.current.wind_speed_10m;
@@ -152,7 +172,7 @@ export async function fetchWindData(bounds) {
     console.log(`[Wind Trace] Network Success: ${results.length} raw results -> ${vectors.length} valid vectors.`);
 
     if (vectors.length > 0) {
-      const data = { vectors, bounds: { west, south, east, north }, cols: GRID + 1, rows: GRID + 1 };
+      const data = { vectors, bounds: { west, south, east, north }, cols: SAFE_GRID + 1, rows: SAFE_GRID + 1 };
       WIND_CACHE.set(cacheKey, data);
       return data;
     } else {
@@ -202,21 +222,21 @@ export async function fetchMarineData(bounds, zoom) {
   marineRequestInFlight = true;
 
   try {
-    const latStep = Math.max(1.0, (latMax - latMin) / 5);
-    const lngStep = Math.max(1.0, (lngMax - lngMin) / 5);
+    // Adaptive GRID based on device (Mobile 12x12, Desktop 24x24)
+    // But Open-Meteo URL length limits constrain us to ~100 points
+    const SAFE_GRID = 9; // 10x10 = 100 points
+    const latStep = (latMax - latMin) / SAFE_GRID;
+    const lngStep = (lngMax - lngMin) / SAFE_GRID;
     
-    const safePoints = [];
+    const cappedPoints = [];
     for (let lat = latMax; lat >= latMin; lat -= latStep) {
       for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
         let n = lng;
         while (n > 180) n -= 360;
         while (n < -180) n += 360;
-        safePoints.push({ lat: +lat.toFixed(2), lng: +n.toFixed(2) });
+        cappedPoints.push({ lat: +lat.toFixed(2), lng: +n.toFixed(2) });
       }
     }
-    
-    // Cap at 25 points
-    const cappedPoints = safePoints.slice(0, 25);
     const lats = cappedPoints.map(p => p.lat).join(',');
     const lons = cappedPoints.map(p => p.lng).join(',');
 
