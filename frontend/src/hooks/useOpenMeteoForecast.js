@@ -79,24 +79,29 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       };
 
-      const [wxRes, marineRes] = await Promise.allSettled([
-        safeFetch(
-          `https://api.open-meteo.com/v1/forecast?` +
-          `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-          `&hourly=${WEATHER_VARS}` +
-          `&current=${CURRENT_WEATHER_VARS}` +
-          `&models=${modelParam}` +
-          `&forecast_days=16` +
-          `&wind_speed_unit=kn`
-        ),
-        safeFetch(
-          `https://marine-api.open-meteo.com/v1/marine?` +
-          `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-          `&hourly=${MARINE_VARS}` +
-          `&current=${CURRENT_MARINE_VARS}` +
-          `&forecast_days=16`
-        )
-      ]);
+      // Fetch weather immediately
+      const wxRes = await safeFetch(
+        `https://api.open-meteo.com/v1/forecast?` +
+        `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
+        `&hourly=${WEATHER_VARS}` +
+        `&current=${CURRENT_WEATHER_VARS}` +
+        `&models=${modelParam}` +
+        `&forecast_days=16` +
+        `&wind_speed_unit=kn`
+      ).then(r => ({ status: 'fulfilled', value: r }))
+       .catch(e => ({ status: 'rejected', reason: e }));
+
+      // Stagger marine call by 3s to avoid simultaneous 429 with grid engine
+      await new Promise(r => setTimeout(r, 3000));
+
+      const marineRes = await safeFetch(
+        `https://marine-api.open-meteo.com/v1/marine?` +
+        `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
+        `&hourly=${MARINE_VARS}` +
+        `&current=${CURRENT_MARINE_VARS}` +
+        `&forecast_days=16`
+      ).then(r => ({ status: 'fulfilled', value: r }))
+       .catch(e => ({ status: 'rejected', reason: e }));
 
       // Weather: preserve last valid on failure
       if (wxRes.status === 'fulfilled' && wxRes.value.ok) {

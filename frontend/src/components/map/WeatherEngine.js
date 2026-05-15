@@ -88,6 +88,7 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
       isFetching = true;
       try {
         console.log(`[WeatherEngine] Fetching wind (source: ${source})`);
+        console.log('[Wind Bounds]', bounds);
         const data = await fetchWindData(bounds, abortController.signal);
         
         if (data && data.vectors?.length > 0) {

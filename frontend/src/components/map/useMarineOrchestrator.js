@@ -37,6 +37,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
   const lastStableCameraRef = useRef(null);
   const lastInvocationRef = useRef({ source: null, time: 0 });
   const cooldownRetryRef = useRef(null);
+  const updateMarineGridRef = useRef(null);
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -88,8 +89,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       const z = Math.round(zoom * 2) / 2;
       const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}`;
 
-      // Viewport Hash Guard with 5m TTL
-      if (locks.lastHash === viewportHash &&
+      const isRetry = source === 'cooldown_retry' || source === 'delayed_retry';
+
+      // Viewport Hash Guard with 5m TTL (bypass for retries)
+      if (!isRetry && locks.lastHash === viewportHash &&
           (Date.now() - locks.lastTime < 5 * 60 * 1000)) {
         console.log(`[Marine Trace] 2. aborted (viewport hash matched) source=${source}`);
         return;
@@ -97,13 +100,16 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
 
       console.log(`[Marine Trace] 1. updateMarineGrid triggered source=${source}`);
 
-      // Hard block: concurrent fetch or rate limit
+      // Store ref for cooldown retry direct access
+      updateMarineGridRef.current = updateMarineGrid;
+
+      // Hard block: concurrent fetch or rate limit (bypass for retries)
       if (locks.isFetching) {
         console.log(`[Marine Trace] 2. aborted (already fetching) source=${source}`);
         return;
       }
       const now = Date.now();
-      if (now - locks.lastTime < 1200) {
+      if (!isRetry && now - locks.lastTime < 1200) {
         console.log(`[Marine Trace] 2. aborted (rate limit, < 1200ms) source=${source}`);
         return;
       }
@@ -179,9 +185,23 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
             console.log(`[Marine] Scheduling cooldown retry in ${Math.round(remaining / 1000)}s`);
             cooldownRetryRef.current = setTimeout(() => {
               cooldownRetryRef.current = null;
-              console.log('[Marine] Cooldown expired — retrying fetch');
-              enqueueMarineUpdate('cooldown_retry');
-            }, remaining + 2000); // 2s buffer after cooldown
+              console.log('[Marine] Cooldown expired — retrying fetch (DIRECT, bypassing gates)');
+              // Call updateMarineGrid DIRECTLY — bypass enqueueMarineUpdate gates
+              if (updateMarineGridRef.current && activeMarineLayersRef.current) {
+                updateMarineGridRef.current('cooldown_retry');
+              } else {
+                console.warn('[Marine] Cooldown retry skipped: no marine layers active');
+              }
+            }, remaining + 3000); // 3s buffer after cooldown
+          } else if (remaining <= 0 && !cooldownRetryRef.current) {
+            // No cooldown active but data is null — immediate retry in 5s
+            console.log('[Marine] No cooldown active but no data — scheduling retry in 5s');
+            cooldownRetryRef.current = setTimeout(() => {
+              cooldownRetryRef.current = null;
+              if (updateMarineGridRef.current && activeMarineLayersRef.current) {
+                updateMarineGridRef.current('delayed_retry');
+              }
+            }, 5000);
           }
         }
       } finally {
