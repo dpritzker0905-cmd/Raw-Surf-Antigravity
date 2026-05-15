@@ -18,6 +18,17 @@ import { LAYER_REGISTRY, resolveRasterSource } from './LayerRegistry';
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+window.__LRCM_EXEC_TRACE__ = [];
+export function trace(layer, fn, payload) {
+  window.__LRCM_EXEC_TRACE__.push({
+    layer,
+    fn,
+    payload,
+    stack: new Error().stack
+  });
+  return payload;
+}
+
 const EMPTY_MARINE_FC = { type: 'FeatureCollection', features: [] };
 
 /**
@@ -227,7 +238,8 @@ const MapWebGL = ({
         if (isValid) {
           const darkParam = !isLight ? '&dark=true' : '';
           const timeParam = computeTimeStep(meta);
-          newUrls[layerKey] = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?${timeParam}&variable=${variable}${darkParam}`;
+          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?${timeParam}&variable=${variable}${darkParam}`;
+          newUrls[layerKey] = trace(layerKey, 'resolveAllUrls', urlStr);
         } else {
           console.warn(`[Raster] Skipping variable '${variable}' for layer '${layerKey}' — not found in any model.`);
         }
@@ -318,7 +330,7 @@ const MapWebGL = ({
   }, [radarTileUrl, initialRadarUrl, queueRasterUpdate]);
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
-  const currentMapStyle = useMemo(() => getMapStyle(isLight, false), [isLight]);
+  const currentMapStyle = useMemo(() => trace('map', 'getMapStyle', getMapStyle(isLight, false)), [isLight]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 

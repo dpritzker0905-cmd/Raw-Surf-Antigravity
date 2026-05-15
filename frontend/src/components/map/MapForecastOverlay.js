@@ -118,7 +118,7 @@ export const MapForecastOverlay = ({
   // Show relevant data based on activeLayer
   const cards = [];
 
-  if (activeLayer === 'precipitation' || activeLayer === 'radar') {
+  if (activeLayer === 'rain' || activeLayer === 'radar') {
     cards.push({ icon: CloudRain, label: 'Precip', value: precip != null ? `${precip.toFixed(1)} mm/h` : '--', color: 'text-blue-400' });
     cards.push({ icon: Droplets, label: 'Prob', value: wx.precipitation_probability?.[currentHourIndex] != null ? `${wx.precipitation_probability[currentHourIndex]}%` : '--', color: 'text-indigo-400' });
   }

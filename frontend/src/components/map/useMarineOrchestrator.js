@@ -122,7 +122,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       console.log(`[Marine Trace] 3. calling fetchMarineData (req: ${requestId})`);
       locks.isFetching = true;
       try {
-        const data = await fetchMarineData(bounds, zoom);
+        let data = await fetchMarineData(bounds, zoom);
+        if (window.__LRCM_EXEC_TRACE__) {
+          data = window.__LRCM_EXEC_TRACE__.push({ layer: 'marine', fn: 'fetchMarineData', payload: data, stack: new Error().stack }) && data;
+        }
 
         // Stale request discard
         if (requestId !== marineRequestIdRef.current) {
