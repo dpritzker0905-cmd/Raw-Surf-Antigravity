@@ -100,14 +100,15 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
           });
         }
 
-        if (s.wind?.grid && s.wind?.vectors &&
-            s.wind.vectors.length !== s.wind.grid * s.wind.grid) {
+        if (s.wind?.cols && s.wind?.rows && s.wind?.vectors &&
+            s.wind.vectors.length !== s.wind.cols * s.wind.rows) {
           violations.push({
             layerId: "wind",
-            type: "WIND_GRID_MISMATCH",
-            grid: s.wind.grid,
+            type: "WIND_TOPOLOGY_INVALID",
+            cols: s.wind.cols,
+            rows: s.wind.rows,
             vectors: s.wind.vectors.length,
-            hint: "Vector array size does not match expected grid dimensions"
+            hint: "Vector array size does not match expected interpolation matrix dimensions"
           });
         }
       }
@@ -150,10 +151,19 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
         if (violationBufferRef.current.length === violations.length) {
           setTimeout(() => {
             if (!violationBufferRef.current.length) return;
-            console.warn(`🚨 TRUTH VIOLATIONS BATCH:`, {
-              count: violationBufferRef.current.length,
-              items: [...violationBufferRef.current]
+            console.groupCollapsed('🚨 TRUTH VIOLATIONS');
+            violationBufferRef.current.forEach(v => {
+              console.log({
+                type: v.type,
+                layer: v.layerId,
+                source: v.source,
+                epoch: v.epoch,
+                visible: v.visible,
+                details: v.hint,
+                ...v
+              });
             });
+            console.groupEnd();
             violationBufferRef.current = [];
           }, 250);
         }

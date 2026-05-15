@@ -73,12 +73,12 @@ self.addEventListener('fetch', (event) => {
   if (isOfflineAPI) {
     // Network-first with cache fallback for spot data
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request.clone())
         .then((response) => {
           // Clone the response for caching
           const responseClone = response.clone();
           caches.open(SPOT_CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
+            cache.put(event.request.clone(), responseClone);
             console.log('[ServiceWorker] Cached spot data:', url.pathname);
           });
           return response;
@@ -86,7 +86,7 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           // Network failed, try cache
           console.log('[ServiceWorker] Offline - serving from cache:', url.pathname);
-          const cachedResponse = await caches.match(event.request);
+          const cachedResponse = await caches.match(event.request.clone());
           if (cachedResponse) {
             return cachedResponse;
           }
@@ -109,20 +109,20 @@ self.addEventListener('fetch', (event) => {
   if (isGalleryMedia) {
     event.respondWith(
       caches.open(GALLERY_CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match(event.request);
+        const cached = await cache.match(event.request.clone());
         if (cached) {
           // Cache hit — serve from cache (works offline)
           // Also try network in background to refresh
-          fetch(event.request).then((networkResponse) => {
+          fetch(event.request.clone()).then((networkResponse) => {
             if (networkResponse && networkResponse.ok) {
-              cache.put(event.request, networkResponse.clone());
+              cache.put(event.request.clone(), networkResponse.clone());
             }
           }).catch(() => { /* offline, that's fine */ });
           return cached;
         }
         // Not cached — fetch normally
-        return fetch(event.request);
-      }).catch(() => fetch(event.request))
+        return fetch(event.request.clone());
+      }).catch(() => fetch(event.request.clone()))
     );
     return;
   }
@@ -130,7 +130,7 @@ self.addEventListener('fetch', (event) => {
   // For navigation requests (page loads), serve offline page when network fails
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(async () => {
+      fetch(event.request.clone()).catch(async () => {
         const cached = await caches.match('/offline.html');
         if (cached) return cached;
         return caches.match('/index.html');

@@ -162,8 +162,8 @@ const MapWebGL = ({
   }, [activeLayers]);
 
 
-  const [omTileUrl, setOmTileUrl] = useState(null);
-  const [initialOmUrl, setInitialOmUrl] = useState(null);
+  const [omTileUrls, setOmTileUrls] = useState({});
+  const [initialOmUrls, setInitialOmUrls] = useState({});
   const [initialRadarUrl, setInitialRadarUrl] = useState(null);
 
   // v242: Global Render Contract — single source of truth for map readiness
@@ -183,14 +183,16 @@ const MapWebGL = ({
 
   // Bootstrapping and Transacting Open-Meteo
   useEffect(() => {
-    if (omTileUrl) {
-      if (!initialOmUrl) {
-        setInitialOmUrl(omTileUrl);
-      } else {
-        queueRasterUpdate('om-weather-source', omTileUrl, false);
+    Object.keys(omTileUrls).forEach(layerKey => {
+      const url = omTileUrls[layerKey];
+      if (!initialOmUrls[layerKey]) {
+        setInitialOmUrls(prev => ({ ...prev, [layerKey]: url }));
+      } else if (initialOmUrls[layerKey] !== url) {
+        // v251: Mutating time step on dedicated source
+        queueRasterUpdate(`${layerKey}-source`, url, false);
       }
-    }
-  }, [omTileUrl, initialOmUrl, queueRasterUpdate]);
+    });
+  }, [omTileUrls, initialOmUrls, queueRasterUpdate]);
 
   /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
@@ -225,22 +227,11 @@ const MapWebGL = ({
   }, [fetchMetadata]);
 
   useEffect(() => {
-    // Find the first active layer that uses Open-Meteo tiles
-    const activeLayer = activeLayers.find(l => OM_VARIABLE_MAP[l] && l !== 'radar');
-    
-    if (!activeLayer) {
-      // v246: Clear stale raster tiles when switching to non-raster layer (wind/waves/etc)
-      // This prevents old precipitation tiles from appearing briefly during transitions
-      setOmTileUrl(null);
-      return;
-    }
-    
-    const variable = OM_VARIABLE_MAP[activeLayer];
-    
+    // v251: Generate URLs for ALL OM variables, decoupling from activeLayers.
+    // This allows dedicated static sources for each variable to prevent stale texture bleeds.
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
 
-    /** Compute time_step param from timeOffsetHours using cached valid_times. */
     const computeTimeStep = (meta) => {
       if (timeOffsetHours === 0) return 'time_step=current_time_1H';
       const { validTimes } = meta;
@@ -255,46 +246,49 @@ const MapWebGL = ({
       return `time_step=${closestTs}`;
     };
 
-    const resolveUrl = async () => {
-      let meta = await fetchMetadata(targetModel);
-      let finalModel = targetModel;
-      let isValid = meta.variables.includes(variable);
-      
-      // Dynamic Fallback chain: primary → DWD ICON → GFS → wave models
-      if (!isValid && finalModel !== 'dwd_icon') {
-        meta = await fetchMetadata('dwd_icon');
-        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'dwd_icon'; }
-      }
-      if (!isValid && finalModel !== 'ncep_gfs025') {
-        meta = await fetchMetadata('ncep_gfs025');
-        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'ncep_gfs025'; }
-      }
-      if (!isValid) {
-        meta = await fetchMetadata('gfs_wave');
-        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'gfs_wave'; }
-      }
-      if (!isValid) {
-        meta = await fetchMetadata('meteofrance_wave');
-        if (meta.variables.includes(variable)) { isValid = true; finalModel = 'meteofrance_wave'; }
-      }
-      
-      if (isMounted) {
+    const resolveAllUrls = async () => {
+      const newUrls = {};
+      const variablesToResolve = Object.entries(OM_VARIABLE_MAP).filter(([_, v]) => v !== null);
+
+      for (const [layerKey, variable] of variablesToResolve) {
+        let meta = await fetchMetadata(targetModel);
+        let finalModel = targetModel;
+        let isValid = meta.variables.includes(variable);
+        
+        // Dynamic Fallback chain: primary → DWD ICON → GFS → wave models
+        if (!isValid && finalModel !== 'dwd_icon') {
+          meta = await fetchMetadata('dwd_icon');
+          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'dwd_icon'; }
+        }
+        if (!isValid && finalModel !== 'ncep_gfs025') {
+          meta = await fetchMetadata('ncep_gfs025');
+          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'ncep_gfs025'; }
+        }
+        if (!isValid) {
+          meta = await fetchMetadata('gfs_wave');
+          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'gfs_wave'; }
+        }
+        if (!isValid) {
+          meta = await fetchMetadata('meteofrance_wave');
+          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'meteofrance_wave'; }
+        }
+        
         if (isValid) {
           const darkParam = !isLight ? '&dark=true' : '';
           const timeParam = computeTimeStep(meta);
-          const url = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?${timeParam}&variable=${variable}${darkParam}`;
-          setOmTileUrl(url);
-        } else {
-          console.warn(`[MapWebGL] Variable ${variable} unsupported across all models. Skipping tile layer.`);
-          setOmTileUrl(null);
+          newUrls[layerKey] = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?${timeParam}&variable=${variable}${darkParam}`;
         }
+      }
+
+      if (isMounted) {
+        setOmTileUrls(newUrls);
       }
     };
     
-    resolveUrl();
+    resolveAllUrls();
     
     return () => { isMounted = false; };
-  }, [activeLayers, activeModel, isLight, timeOffsetHours, fetchMetadata]);
+  }, [activeModel, isLight, timeOffsetHours, fetchMetadata]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -533,28 +527,29 @@ const MapWebGL = ({
         </Source>
       )}
 
-      {/* Open-Meteo Animated Weather Tiles */}
-      {protocolReady && initialOmUrl && (
+      {/* v251: Open-Meteo Independent Static Tile Sources */}
+      {protocolReady && Object.entries(initialOmUrls).map(([layerKey, url]) => (
         <Source
-          id="om-weather-source"
+          key={`${layerKey}-source`}
+          id={`${layerKey}-source`}
           type="raster"
-          url={initialOmUrl}
+          url={url}
           maxzoom={12}
         >
           <Layer
-            id="om-weather-layer"
+            id={`${layerKey}-layer`}
             type="raster"
             layout={{ 
-              visibility: activeLayers.some(l => OM_VARIABLE_MAP[l] && l !== 'radar') ? 'visible' : 'none' 
+              visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{ 
-              'raster-opacity': activeLayers.includes('pressure') ? 0.45 : 0.7, 
+              'raster-opacity': layerKey === 'pressure' ? 0.45 : 0.7, 
               // Set raster-fade-duration to 0 to let our Shared Clock drive the transition
               'raster-fade-duration': 0 
             }}
           />
         </Source>
-      )}
+      ))}
 
       {/* Marine Wave Heatmap — visual representation of Open-Meteo grid */}
       <Source 

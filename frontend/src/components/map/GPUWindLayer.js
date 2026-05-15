@@ -6,21 +6,38 @@
  */
 function interpolateWind(windGrid, lng, lat) {
   if (!windGrid?.vectors?.length) return { u: 0, v: 0, speed: 0 };
-  const { vectors, bounds, grid } = windGrid;
+  const { vectors, bounds, cols, rows } = windGrid;
   const { west, south, east, north } = bounds;
-  const gx = ((lng - west) / (east - west)) * grid;
-  const gy = ((lat - south) / (north - south)) * grid;
-  const cols = grid + 1;
-  const xi = Math.max(0, Math.min(grid - 1, Math.floor(gx)));
-  const yi = Math.max(0, Math.min(grid - 1, Math.floor(gy)));
+  
+  if (vectors.length !== cols * rows) {
+    console.warn(`[Wind] WIND_TOPOLOGY_INVALID: length=${vectors.length}, expected=${cols*rows}`);
+    return { u: 0, v: 0, speed: 0 };
+  }
+
+  const gx = ((lng - west) / (east - west)) * (cols - 1);
+  const gy = ((lat - south) / (north - south)) * (rows - 1);
+  const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
+  const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
   const fx = gx - xi;
   const fy = gy - yi;
+  
   const idx = (y, x) => y * cols + x;
-  const get = (i) => vectors[i] || { u: 0, v: 0, speed: 0 };
-  const p00 = get(idx(yi, xi));
-  const p10 = get(idx(yi, xi + 1));
-  const p01 = get(idx(yi + 1, xi));
-  const p11 = get(idx(yi + 1, xi + 1));
+  
+  const i00 = idx(yi, xi);
+  const i10 = idx(yi, xi + 1);
+  const i01 = idx(yi + 1, xi);
+  const i11 = idx(yi + 1, xi + 1);
+
+  if (i00 < 0 || i11 >= vectors.length) {
+    console.warn('[Wind] INTERPOLATION_OUT_OF_BOUNDS');
+    return { u: 0, v: 0, speed: 0 };
+  }
+
+  const p00 = vectors[i00];
+  const p10 = vectors[i10];
+  const p01 = vectors[i01];
+  const p11 = vectors[i11];
+
   const u = (1 - fx) * (1 - fy) * p00.u + fx * (1 - fy) * p10.u +
             (1 - fx) * fy * p01.u + fx * fy * p11.u;
   const v = (1 - fx) * (1 - fy) * p00.v + fx * (1 - fy) * p10.v +

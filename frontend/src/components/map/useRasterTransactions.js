@@ -77,8 +77,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
       sourceLocks.current[sourceId] = { queued: null };
 
       // Get associated layer ID for this source to force atomic GPU transition
-      const layerId = sourceId === 'om-weather-source' ? 'om-weather-layer' : 
-                      sourceId === 'radar-source' ? 'radar-layer' : null;
+      const layerId = sourceId.endsWith('-source') ? sourceId.replace('-source', '-layer') : null;
 
       // v250: Atomic Layer Transition Queue (fixes fog/pressure raster bleed)
       // Hide layer -> wait 2 frames for GPU flush -> mutate source -> show layer
