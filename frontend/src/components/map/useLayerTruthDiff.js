@@ -79,8 +79,11 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
     function validateSnapshot(s) {
       const violations = [];
 
-      // RULE 1: Only ONE overall raster layer visible at a time (excluding satellite and esri-satellite)
-      const visibleRasters = s.visibleRasterSources.filter(src => src !== 'satellite-source' && src !== 'esri-satellite-source');
+      // RULE 1: Only ONE overall weather raster layer visible at a time
+      // Filter to only our custom sources (they all end with '-source') and ignore the base satellite layer
+      const visibleRasters = s.visibleRasterSources.filter(src => 
+        typeof src === 'string' && src.endsWith('-source') && src !== 'satellite-source' && src !== 'esri-satellite-source'
+      );
       if (visibleRasters.length > 1) {
         violations.push({
           layerId: s.activeLayer,

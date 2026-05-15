@@ -215,6 +215,7 @@ export async function fetchMarineData(bounds, zoom) {
     const cached = MARINE_CACHE.get(cacheKey);
     // 5-minute TTL
     if (now - cached.timestamp < 5 * 60 * 1000) {
+      if (cached.payload) return cached.payload;
       return { type: 'FeatureCollection', features: cached.features };
     }
   }
@@ -229,12 +230,13 @@ export async function fetchMarineData(bounds, zoom) {
     const lngStep = (lngMax - lngMin) / SAFE_GRID;
     
     const cappedPoints = [];
-    for (let lat = latMax; lat >= latMin; lat -= latStep) {
-      for (let lng = lngMin; lng <= lngMax; lng += lngStep) {
-        let n = lng;
-        while (n > 180) n -= 360;
-        while (n < -180) n += 360;
-        cappedPoints.push({ lat: +lat.toFixed(2), lng: +n.toFixed(2) });
+    for (let yi = 0; yi <= SAFE_GRID; yi++) {
+      for (let xi = 0; xi <= SAFE_GRID; xi++) {
+        let lat = latMin + yi * latStep;
+        let lng = lngMin + xi * lngStep;
+        while (lng > 180) lng -= 360;
+        while (lng < -180) lng += 360;
+        cappedPoints.push({ lat: +lat.toFixed(2), lng: +lng.toFixed(2) });
       }
     }
     const lats = cappedPoints.map(p => p.lat).join(',');
@@ -263,32 +265,69 @@ export async function fetchMarineData(bounds, zoom) {
       const n = parseFloat(v);
       return Number.isFinite(n) ? n : fallback;
     };
-    const features = cappedPoints.map((pt, i) => {
+
+    const gridVectors = [];
+    const features = [];
+
+    cappedPoints.forEach((pt, i) => {
       const r = allResults[i];
-      if (!r?.current) return null;
-      // Hard coordinate validation — NaN/Infinity kills MapLibre symbol pipeline
-      if (!Number.isFinite(pt.lng) || !Number.isFinite(pt.lat)) return null;
-      const c = r.current;
-      if (c.wave_height == null && c.swell_wave_height == null && c.wind_wave_height == null) {
-        return null; // Land
+      if (!r?.current || !Number.isFinite(pt.lng) || !Number.isFinite(pt.lat)) {
+        // Missing data or land, push zero vector to maintain grid topology
+        gridVectors.push({ lat: pt.lat, lng: pt.lng, waves: {u:0,v:0,speed:0}, swell_1: {u:0,v:0,speed:0}, swell_2: {u:0,v:0,speed:0}, wind_waves: {u:0,v:0,speed:0} });
+        return;
       }
-      return {
+      const c = r.current;
+      const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
+      const s1_h = safeNum(c.swell_wave_height), s1_d = safeNum(c.swell_wave_direction);
+      const s2_h = safeNum(c.secondary_swell_wave_height), s2_d = safeNum(c.secondary_swell_wave_direction);
+      const ww_h = safeNum(c.wind_wave_height), ww_d = safeNum(c.wind_wave_direction);
+
+      if (w_h === 0 && s1_h === 0 && ww_h === 0) {
+        gridVectors.push({ lat: pt.lat, lng: pt.lng, waves: {u:0,v:0,speed:0}, swell_1: {u:0,v:0,speed:0}, swell_2: {u:0,v:0,speed:0}, wind_waves: {u:0,v:0,speed:0} });
+        return; // Land
+      }
+
+      const getUV = (speed, dir) => {
+        if (speed === 0) return { u: 0, v: 0, speed: 0 };
+        const rad = dir * (Math.PI / 180);
+        return { u: -speed * Math.sin(rad), v: -speed * Math.cos(rad), speed };
+      };
+
+      gridVectors.push({
+        lat: pt.lat, lng: pt.lng,
+        waves: getUV(w_h, w_d),
+        swell_1: getUV(s1_h, s1_d),
+        swell_2: getUV(s2_h, s2_d),
+        wind_waves: getUV(ww_h, ww_d)
+      });
+
+      features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
         properties: {
-          wave_height: safeNum(c.wave_height), wave_period: safeNum(c.wave_period), wave_direction: safeNum(c.wave_direction),
-          swell_wave_height: safeNum(c.swell_wave_height), swell_wave_period: safeNum(c.swell_wave_period), swell_wave_direction: safeNum(c.swell_wave_direction),
-          secondary_swell_wave_height: safeNum(c.secondary_swell_wave_height), secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period), secondary_swell_wave_direction: safeNum(c.secondary_swell_wave_direction),
-          wind_wave_height: safeNum(c.wind_wave_height), wind_wave_period: safeNum(c.wind_wave_period), wind_wave_direction: safeNum(c.wind_wave_direction),
+          wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
+          swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period), swell_wave_direction: s1_d,
+          secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period), secondary_swell_wave_direction: s2_d,
+          wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period), wind_wave_direction: ww_d,
         },
-      };
-    }).filter(Boolean);
+      });
+    });
 
     console.log(`[Marine Trace] Network Success: ${allResults.length} raw results -> ${features.length} valid features.`);
 
     if (features.length > 0) {
-      MARINE_CACHE.set(cacheKey, { features, timestamp: Date.now() });
-      return { type: 'FeatureCollection', features };
+      const marinePayload = { 
+        type: 'FeatureCollection', 
+        features, 
+        grid: {
+          vectors: gridVectors,
+          bounds: { west: lngMin, south: latMin, east: lngMax, north: latMax },
+          cols: SAFE_GRID + 1,
+          rows: SAFE_GRID + 1
+        }
+      };
+      MARINE_CACHE.set(cacheKey, { payload: marinePayload, timestamp: Date.now() });
+      return marinePayload;
     } else {
       console.warn('[Marine Trace] Zero valid points returned from API, returning null');
       return null;

@@ -148,6 +148,26 @@ const MapWebGL = ({
   // Marine Orchestrator — single-pipeline data fetching
   const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers });
 
+  const activeMarineLayer = useMemo(() => {
+    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
+  }, [activeLayers]);
+
+  const marineWindData = useMemo(() => {
+    if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
+    return {
+      bounds: marineData.grid.bounds,
+      cols: marineData.grid.cols,
+      rows: marineData.grid.rows,
+      vectors: marineData.grid.vectors.map(v => ({
+        lat: v.lat,
+        lng: v.lng,
+        u: v[activeMarineLayer]?.u || 0,
+        v: v[activeMarineLayer]?.v || 0,
+        speed: v[activeMarineLayer]?.speed || 0
+      }))
+    };
+  }, [marineData, activeMarineLayer]);
+
   // v246: Layer Truth Diff Engine — declared vs actual state comparison
   // MUST be after all data source declarations (windData, marineData) to avoid TDZ
   const { issues: truthIssues, rasterVisible } = useLayerTruthDiff({
@@ -371,9 +391,6 @@ const MapWebGL = ({
       const p = 1 - Math.pow(1 - t, 3);
       if (mapInstance.getStyle()) {
         try {
-          if (activeRenderType === 'marine') {
-            MARINE_LAYERS.forEach(l => { if (mapInstance.getLayer(l)) mapInstance.setPaintProperty(l, 'text-opacity', 0.9 * p); });
-          }
           if (activeRenderType === 'raster') {
             const lk = activeLayers[0], lid = `${lk}-layer`;
             if (lk && mapInstance.getLayer(lid)) {
@@ -385,21 +402,13 @@ const MapWebGL = ({
         } catch (e) {}
       }
       if (activeRenderType === 'wind') { const wc = document.getElementById('wind-canvas-layer'); if (wc) wc.style.opacity = p; }
+      if (activeRenderType === 'marine') { const mc = document.getElementById('marine-canvas-layer'); if (mc) mc.style.opacity = p; }
       if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) {} animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
     };
     cancelAnimationFrame(animFrameRef.current);
     animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers, activeRenderType]);
-  // Marine imperative source mutation — NEVER recreate source, only setData()
-  useEffect(() => {
-    if (!mapInstance) return;
-    const src = mapInstance.getSource('marine-data-source');
-    if (!src) return;
-    // Empty commit guard: never send empty/null data to MapLibre
-    if (!marineData?.features?.length) return;
-    try { src.setData(marineData); } catch (e) {}
-  }, [mapInstance, marineData]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -507,117 +516,14 @@ const MapWebGL = ({
         </Source>
       ))}
 
-      {/* Marine Wave Heatmap — independent layers for deterministic rendering */}
-      <Source 
-        id="marine-data-source"
-        type="geojson" 
-        data={EMPTY_MARINE_FC}
-      >
-        <Layer
-          id="marine-wave-height-layer"
-          type="symbol"
-          layout={{ 
-            visibility: activeLayers.includes('waves') ? 'visible' : 'none',
-            'text-field': '↑',
-            'text-rotate': ['get', 'wave_direction'],
-            'text-rotation-alignment': 'map',
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-            'text-size': 16
-          }}
-          filter={['>', ['get', 'wave_height'], 0]}
-          paint={{
-            'text-color': [
-              'interpolate', ['linear'], ['get', 'wave_height'],
-              0, 'rgba(14, 165, 233, 0.8)',
-              2, 'rgba(59, 130, 246, 0.9)',
-              4, 'rgba(139, 92, 246, 1)',
-              8, 'rgba(236, 72, 153, 1)'
-            ],
-            'text-halo-color': 'rgba(0,0,0,0.8)',
-            'text-halo-width': 1.5,
-            'text-opacity': 0.9
-          }}
-        />
-        <Layer
-          id="marine-swell-primary-layer"
-          type="symbol"
-          layout={{ 
-            visibility: activeLayers.includes('swell_1') ? 'visible' : 'none',
-            'text-field': '↑',
-            'text-rotate': ['get', 'swell_wave_direction'],
-            'text-rotation-alignment': 'map',
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-            'text-size': 16
-          }}
-          filter={['>', ['get', 'swell_wave_height'], 0]}
-          paint={{
-            'text-color': [
-              'interpolate', ['linear'], ['get', 'swell_wave_height'],
-              0, 'rgba(168, 85, 247, 0.8)',
-              2, 'rgba(217, 70, 239, 0.9)',
-              4, 'rgba(236, 72, 153, 1)',
-              8, 'rgba(244, 63, 94, 1)'
-            ],
-            'text-halo-color': 'rgba(0,0,0,0.8)',
-            'text-halo-width': 1.5,
-            'text-opacity': 0.9
-          }}
-        />
-        <Layer
-          id="marine-swell-secondary-layer"
-          type="symbol"
-          layout={{ 
-            visibility: activeLayers.includes('swell_2') ? 'visible' : 'none',
-            'text-field': '↑',
-            'text-rotate': ['get', 'secondary_swell_wave_direction'],
-            'text-rotation-alignment': 'map',
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-            'text-size': 16
-          }}
-          filter={['>', ['get', 'secondary_swell_wave_height'], 0]}
-          paint={{
-            'text-color': [
-              'interpolate', ['linear'], ['get', 'secondary_swell_wave_height'],
-              0, 'rgba(34, 197, 94, 0.8)',
-              2, 'rgba(16, 185, 129, 0.9)',
-              4, 'rgba(20, 184, 166, 1)',
-              8, 'rgba(6, 182, 212, 1)'
-            ],
-            'text-halo-color': 'rgba(0,0,0,0.8)',
-            'text-halo-width': 1.5,
-            'text-opacity': 0.9
-          }}
-        />
-        <Layer
-          id="marine-wind-wave-layer"
-          type="symbol"
-          layout={{ 
-            visibility: activeLayers.includes('wind_waves') ? 'visible' : 'none',
-            'text-field': '↑',
-            'text-rotate': ['get', 'wind_wave_direction'],
-            'text-rotation-alignment': 'map',
-            'text-allow-overlap': true,
-            'text-ignore-placement': true,
-            'text-size': 16
-          }}
-          filter={['>', ['get', 'wind_wave_height'], 0]}
-          paint={{
-            'text-color': [
-              'interpolate', ['linear'], ['get', 'wind_wave_height'],
-              0, 'rgba(245, 158, 11, 0.8)',
-              2, 'rgba(249, 115, 22, 0.9)',
-              4, 'rgba(239, 68, 68, 1)',
-              8, 'rgba(225, 29, 72, 1)'
-            ],
-            'text-halo-color': 'rgba(0,0,0,0.8)',
-            'text-halo-width': 1.5,
-            'text-opacity': 0.9
-          }}
-        />
-      </Source>
+      {/* Marine Vector Particle Engine */}
+      <WindParticleCanvas 
+        id="marine-canvas-layer"
+        mapInstance={mapInstance} 
+        active={!!activeMarineLayer}
+        data={marineWindData}
+        revision={marineData?.grid?.timestamp || Date.now()}
+      />
 
       {/* Spot Clusters */}
       {spotClusters.map(cluster => {

@@ -62,7 +62,7 @@ function interpolateWind(windGrid, lng, lat) {
  */
 import { useEffect, useRef } from 'react';
 
-export function WindParticleCanvas({ mapInstance, active, data, revision }) {
+export function WindParticleCanvas({ mapInstance, active, data, revision, id = "wind-canvas-layer" }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const windRef = useRef(null);
@@ -388,7 +388,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
 
   return (
     <canvas
-      id="wind-canvas-layer"
+      id={id}
       ref={canvasRef}
       style={{
         position: 'absolute',
