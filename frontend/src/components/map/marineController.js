@@ -111,13 +111,8 @@ export async function fetchWindData(bounds) {
       }
     }
     
-    // Chunk requests into max 100 points per call for Open-Meteo API limits if needed, 
-    // actually OM handles many points, but URL max length is an issue.
-    // Let's cap at 100 max points per URL for stability.
-    // 24x24 = 576 points which exceeds URL limits. We need a fallback or smaller grid if fetch fails,
-    // Or actually Open-Meteo allows up to 100 coordinates per request?
-    // Let's use 9x9 (100 points) to be safe for a single GET request.
-    const SAFE_GRID = 9; // 100 points
+    // Open-Meteo URL length limits constrain us. Let's use 7x7 grid (64 points)
+    const SAFE_GRID = 7; 
     const safeLatStep = (north - south) / SAFE_GRID;
     const safeLngStep = (east - west) / SAFE_GRID;
     const finalSafe = [];
@@ -198,11 +193,10 @@ export async function fetchMarineData(bounds, zoom) {
   }
 
   // Adaptive Snapping Algorithm:
-  // Dynamically scales the cache block size based on zoom level.
-  // This provides higher resolution wave grids when zoomed in,
-  // while ensuring cache stability against continuous map panning to prevent HTTP 429.
-  const snap = zoom > 8 ? 2 : zoom > 5 ? 5 : 10;
-  const padding = zoom > 8 ? 1 : zoom > 5 ? 3 : 5;
+  // Dynamically scales the cache block size. 
+  // We use massive 30-degree blocks to prevent HTTP 429 Too Many Requests when panning.
+  const snap = 30;
+  const padding = 15;
   
   const latMin = Math.max(-80, Math.floor((bounds.south - padding) / snap) * snap);
   const latMax = Math.min(80, Math.ceil((bounds.north + padding) / snap) * snap);
@@ -226,9 +220,8 @@ export async function fetchMarineData(bounds, zoom) {
   marineRequestInFlight = true;
 
   try {
-    // Adaptive GRID based on device (Mobile 12x12, Desktop 24x24)
-    // But Open-Meteo URL length limits constrain us to ~100 points
-    const SAFE_GRID = 9; // 10x10 = 100 points
+    // Open-Meteo URL length limits constrain us to 64 points
+    const SAFE_GRID = 7; 
     const latStep = (latMax - latMin) / SAFE_GRID;
     const lngStep = (lngMax - lngMin) / SAFE_GRID;
     

@@ -118,11 +118,11 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
 
       // RULE 3: marine must NEVER render empty when active
       if (["waves","swell_1","swell_2","wind_waves"].includes(s.activeLayer)) {
-        if (!s.marine?.features?.length) {
+        if (!s.marine?.grid?.vectors?.length) {
           violations.push({
             layerId: s.activeLayer,
             type: "MARINE_EMPTY_RENDER",
-            hint: "Marine layer active but GeoJSON features are empty"
+            hint: "Marine layer active but no vector data present"
           });
         }
       }

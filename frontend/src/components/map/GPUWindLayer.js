@@ -81,6 +81,92 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     }
   }, [data, revision]);
 
+  // Heatmap Overlay Engine: Dynamically creates a smoothly interpolated base map for wind/marine
+  useEffect(() => {
+    if (!mapInstance || !active || !data?.vectors?.length) return;
+    const isMarine = id === 'marine-canvas-layer';
+    const sourceId = `${id}-heatmap-source`;
+    const layerId = `${id}-heatmap-layer`;
+
+    const generateHeatmap = () => {
+      const oc = document.createElement('canvas');
+      oc.width = data.cols;
+      oc.height = data.rows;
+      const octx = oc.getContext('2d');
+      const imgData = octx.createImageData(data.cols, data.rows);
+
+      for(let y = 0; y < data.rows; y++) {
+        for(let x = 0; x < data.cols; x++) {
+           const vec = data.vectors[y * data.cols + x];
+           const imgY = data.rows - 1 - y; // Y=0 in data is South (bottom of map), so flip Y for image
+           const i = (imgY * data.cols + x) * 4;
+           if (!vec || isNaN(vec.speed) || vec.speed === 0) {
+             imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
+           } else {
+             const s = vec.speed;
+             let r, g, b, a = 180; // Base alpha for the raster base
+             if (isMarine) {
+               if (s < 0.5)      { r = 140; g = 200; b = 255; }
+               else if (s < 1.0) { r = 0;   g = 220; b = 255; }
+               else if (s < 2.0) { r = 0;   g = 100; b = 255; }
+               else if (s < 3.0) { r = 150; g = 50;  b = 255; }
+               else              { r = 255; g = 50;  b = 50;  }
+             } else {
+               if (s < 5)        { r = 100; g = 200; b = 255; }
+               else if (s < 10)  { r = 0;   g = 255; b = 150; }
+               else if (s < 15)  { r = 150; g = 255; b = 50;  }
+               else if (s < 20)  { r = 255; g = 200; b = 0;   }
+               else if (s < 30)  { r = 255; g = 100; b = 0;   }
+               else              { r = 255; g = 0;   b = 100; }
+             }
+             imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = a;
+           }
+        }
+      }
+      octx.putImageData(imgData, 0, 0);
+      return oc.toDataURL('image/png');
+    };
+
+    const dataUrl = generateHeatmap();
+    const { west, south, east, north } = data.bounds;
+    // MapLibre expects image coordinates as: NW, NE, SE, SW
+    const coordinates = [
+      [west, north], [east, north], [east, south], [west, south]
+    ];
+
+    if (!mapInstance.getSource(sourceId)) {
+      mapInstance.addSource(sourceId, {
+        type: 'image',
+        url: dataUrl,
+        coordinates
+      });
+      mapInstance.addLayer({
+        id: layerId,
+        type: 'raster',
+        source: sourceId,
+        paint: {
+          'raster-opacity': 0.65,
+          'raster-fade-duration': 300,
+          'raster-resampling': 'linear'
+        }
+      });
+    } else {
+      const source = mapInstance.getSource(sourceId);
+      if (source && source.updateImage) {
+        source.updateImage({ url: dataUrl, coordinates });
+      }
+    }
+  }, [mapInstance, data, revision]);
+
+  // Sync Heatmap Visibility
+  useEffect(() => {
+    if (!mapInstance) return;
+    const layerId = `${id}-heatmap-layer`;
+    if (mapInstance.getLayer(layerId)) {
+      mapInstance.setLayoutProperty(layerId, 'visibility', active ? 'visible' : 'none');
+    }
+  }, [mapInstance, active, id]);
+
   useEffect(() => {
     if (!mapInstance || !canvasRef.current) return;
     console.log('[Wind] === STARTING PERSISTENT ENGINE ===');
