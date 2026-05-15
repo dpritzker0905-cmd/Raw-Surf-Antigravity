@@ -197,5 +197,9 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
     };
   }, [mapInstance, activeLayers, activeRenderType, windData, marineData]);
 
-  return { issues };
+  // Export raster visibility from the latest snapshot
+  const latestSnapshot = historyRef.current[historyRef.current.length - 1];
+  const rasterVisible = latestSnapshot?.visibleRasterSources?.length > 0 || false;
+
+  return { issues, rasterVisible };
 }

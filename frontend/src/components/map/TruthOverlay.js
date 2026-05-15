@@ -5,10 +5,13 @@ import React from 'react';
  * Displays active layer state, data pipeline status, and truth violations.
  * Extract from MapWebGL.js to maintain LOC compliance.
  */
-const TruthOverlay = ({ activeLayers, activeRenderType, marineData, windData, truthIssues }) => (
+const TruthOverlay = ({ activeLayers, activeRenderType, marineData, windData, truthIssues, rasterVisible }) => (
   <div className="absolute top-4 left-4 z-50 bg-black/80 p-3 rounded text-xs text-white font-mono pointer-events-none">
     <div className="font-bold text-blue-400 mb-1 border-b border-gray-600 pb-1">v250 TRUTH ENGINE</div>
     <div className="text-cyan-400">Layer: {activeLayers[0] || 'none'} → {activeRenderType}</div>
+    {activeRenderType === 'raster' || activeRenderType === 'radar' ? (
+      <div className="text-purple-400">Raster/Satellite: {rasterVisible ? 'LOADED & VISIBLE' : 'none'}</div>
+    ) : null}
     <div className="text-blue-500">Marine: {marineData ? 'ON' : 'OFF'} ({marineData?.features?.length || 0} pts)</div>
     <div className="text-green-400">Wind: {activeLayers.includes('wind') ? 'ON' : 'OFF'} ({windData?.vectors?.length || 0} vec)</div>
     {truthIssues.length > 0 && (

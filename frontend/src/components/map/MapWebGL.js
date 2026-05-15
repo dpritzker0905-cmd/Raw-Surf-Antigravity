@@ -37,7 +37,6 @@ const OM_MODEL_MAP = {
  * MapLibre retry loops. Precipitation uses radar tiles (RainViewer) instead.
  */
 const OM_VARIABLE_MAP = {
-  precipitation: 'precipitation',    // GFS lacks this — fallback chain resolves to DWD ICON
   wind:          null,             // Wind uses canvas particle engine, NOT raster tiles
   pressure:      'pressure_msl',
   fog:           'cloud_cover_low', // Better proxy for fog than visibility
@@ -118,6 +117,7 @@ const MapWebGL = ({
     const layer = activeLayers[0];
     if (!layer) return 'none';
     if (layer === 'radar') return 'radar';
+    if (layer === 'satellite') return 'raster';
     if (layer === 'wind') return 'wind';
     if (['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layer)) return 'marine';
     if (OM_VARIABLE_MAP[layer]) return 'raster';
@@ -140,7 +140,7 @@ const MapWebGL = ({
 
   // v246: Layer Truth Diff Engine — declared vs actual state comparison
   // MUST be after all data source declarations (windData, marineData) to avoid TDZ
-  const { issues: truthIssues } = useLayerTruthDiff({
+  const { issues: truthIssues, rasterVisible } = useLayerTruthDiff({
     mapInstance, activeLayers, activeRenderType, windData, marineData
   });
 
@@ -409,6 +409,7 @@ const MapWebGL = ({
         marineData={marineData}
         windData={windData}
         truthIssues={truthIssues}
+        rasterVisible={rasterVisible}
       />
 
     <Map
@@ -520,7 +521,8 @@ const MapWebGL = ({
             'text-rotate': ['get', 'wave_direction'],
             'text-rotation-alignment': 'map',
             'text-allow-overlap': true,
-            'text-size': ['interpolate', ['linear'], ['get', 'wave_period'], 0, 12, 10, 18, 20, 26]
+            'text-ignore-placement': true,
+            'text-size': 16
           }}
           filter={['>', ['get', 'wave_height'], 0]}
           paint={{
@@ -545,7 +547,8 @@ const MapWebGL = ({
             'text-rotate': ['get', 'swell_wave_direction'],
             'text-rotation-alignment': 'map',
             'text-allow-overlap': true,
-            'text-size': ['interpolate', ['linear'], ['get', 'swell_wave_period'], 0, 12, 10, 18, 20, 26]
+            'text-ignore-placement': true,
+            'text-size': 16
           }}
           filter={['>', ['get', 'swell_wave_height'], 0]}
           paint={{
@@ -570,7 +573,8 @@ const MapWebGL = ({
             'text-rotate': ['get', 'secondary_swell_wave_direction'],
             'text-rotation-alignment': 'map',
             'text-allow-overlap': true,
-            'text-size': ['interpolate', ['linear'], ['get', 'secondary_swell_wave_period'], 0, 12, 10, 18, 20, 26]
+            'text-ignore-placement': true,
+            'text-size': 16
           }}
           filter={['>', ['get', 'secondary_swell_wave_height'], 0]}
           paint={{
@@ -595,7 +599,8 @@ const MapWebGL = ({
             'text-rotate': ['get', 'wind_wave_direction'],
             'text-rotation-alignment': 'map',
             'text-allow-overlap': true,
-            'text-size': ['interpolate', ['linear'], ['get', 'wind_wave_period'], 0, 12, 10, 18, 20, 26]
+            'text-ignore-placement': true,
+            'text-size': 16
           }}
           filter={['>', ['get', 'wind_wave_height'], 0]}
           paint={{

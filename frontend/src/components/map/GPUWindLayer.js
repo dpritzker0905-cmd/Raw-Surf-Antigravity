@@ -113,12 +113,13 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     
     const spawn = () => {
       const grid = windRef.current;
-      const mb = mapInstance.getBounds();
-      // Bound spawning to the vector grid if available to prevent spawning dead particles
-      const west = grid?.bounds ? Math.max(mb.getWest(), grid.bounds.west) : mb.getWest();
-      const east = grid?.bounds ? Math.min(mb.getEast(), grid.bounds.east) : mb.getEast();
-      const south = grid?.bounds ? Math.max(mb.getSouth(), grid.bounds.south) : mb.getSouth();
-      const north = grid?.bounds ? Math.min(mb.getNorth(), grid.bounds.north) : mb.getNorth();
+      // Spawn across the FULL GRID domain (world space), not viewport
+      // Particles represent a weather system, not a viewport effect
+      const gb = grid?.bounds;
+      const west = gb?.west ?? -180;
+      const east = gb?.east ?? 180;
+      const south = gb?.south ?? -85;
+      const north = gb?.north ?? 85;
       
       return {
         lng: west + Math.random() * (east - west),
@@ -242,10 +243,14 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
           while (p.lng > 180) p.lng -= 360;
           while (p.lng < -180) p.lng += 360;
 
-          // Respawn if out of viewport or too old
-          if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
+          // Respawn if too old or out of GRID bounds (world space)
+          const gb = grid.bounds || { west: -180, south: -85, east: 180, north: 85 };
+          if (p.age > p.maxAge || p.lng < gb.west || p.lng > gb.east || p.lat < gb.south || p.lat > gb.north) {
             particles[i] = spawn(); continue;
           }
+
+          // Only DRAW if particle is within viewport (cull, don't kill)
+          if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn) continue;
 
           // Draw wind trail line from prev → current position
           try {
