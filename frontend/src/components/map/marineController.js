@@ -17,9 +17,11 @@
 const MARINE_CACHE = new Map();
 const WIND_CACHE = new Map();
 
-// --- LAST KNOWN GOOD FIELDS ---
-let lastKnownGoodWind = null;
-let lastKnownGoodMarine = null;
+// --- LAST KNOWN GOOD FIELDS (never null — contract requirement) ---
+const EMPTY_WIND_FIELD = { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0, stale: true, source: 'empty' };
+const EMPTY_MARINE_FIELD = { type: 'FeatureCollection', features: [], grid: { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0 }, stale: true, source: 'empty' };
+let lastKnownGoodWind = EMPTY_WIND_FIELD;
+let lastKnownGoodMarine = EMPTY_MARINE_FIELD;
 
 // --- 429 COOLDOWN STATE ---
 let windCooldownUntil = 0;
@@ -69,7 +71,7 @@ function viewportCacheKey(bounds, prefix) {
  */
 function computeGridPoints(bounds) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const GRID = isMobile ? 5 : 7;
+  const GRID = isMobile ? 4 : 6; // Reduced per contract: stability > density
 
   const { west, south, east, north } = bounds;
   const latStep = (north - south) / GRID;
@@ -110,7 +112,10 @@ const getUV = (speed, dir) => {
 // ========================================================================
 export async function fetchWindData(bounds, signal) {
   if (!bounds) return lastKnownGoodWind;
-  if (windRequestInFlight) return lastKnownGoodWind;
+  if (windRequestInFlight) {
+    console.warn('[Wind] INFLIGHT_VIOLATION: request already active');
+    return lastKnownGoodWind;
+  }
 
   // 429 cooldown check
   if (isInCooldown('wind')) {
@@ -189,7 +194,9 @@ export async function fetchWindData(bounds, signal) {
         vectors,
         bounds: { west, south, east, north },
         cols: gridSize,
-        rows: gridSize
+        rows: gridSize,
+        stale: false,
+        source: 'network'
       };
       // Update caches
       WIND_CACHE.set(cacheKey, { data, timestamp: Date.now() });
@@ -214,7 +221,10 @@ export async function fetchWindData(bounds, signal) {
 // ========================================================================
 export async function fetchMarineData(bounds, zoom, signal) {
   if (!bounds) return lastKnownGoodMarine;
-  if (marineRequestInFlight) return lastKnownGoodMarine;
+  if (marineRequestInFlight) {
+    console.warn('[Marine] INFLIGHT_VIOLATION: request already active');
+    return lastKnownGoodMarine;
+  }
 
   // 429 cooldown check
   if (isInCooldown('marine')) {

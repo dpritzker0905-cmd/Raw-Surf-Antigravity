@@ -67,8 +67,8 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
       
       const active = activeLayersRef.current;
       if (!active.includes('wind')) {
-        // Don't clear windData — just stop fetching.
-        // Clearing triggers re-render cycles.
+        // Do NOT clear windData — hiding is done via canvas visibility.
+        // Clearing triggers re-render loops.
         return;
       }
 
@@ -90,10 +90,13 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
         console.log(`[WeatherEngine] Fetching wind (source: ${source})`);
         const data = await fetchWindData(bounds, abortController.signal);
         
-        if (data) {
+        if (data && data.vectors?.length > 0) {
           lastViewportHashRef.current = hash;
           windRevision.current += 1;
           setWindData(data);
+        } else if (data) {
+          // Data returned but empty — don't overwrite existing
+          console.warn('[WeatherEngine] Empty wind field returned, preserving last valid');
         }
       } catch (e) {
         if (e.name !== 'AbortError') {
@@ -140,7 +143,7 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
         };
         console.log('[WeatherEngine] Manual fetch: wind layer toggled ON');
         const data = await fetchWindData(bounds);
-        if (data) {
+        if (data && data.vectors?.length > 0) {
           windRevision.current += 1;
           setWindData(data);
         }

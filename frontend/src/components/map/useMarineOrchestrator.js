@@ -56,7 +56,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       if (!hasMarine) {
         // Don't clear marineData — layers are hidden via visibility:none.
         // Clearing would trigger a React re-render cycle on the Source.
-      } else if (hasMarine && !previouslyHadMarine) {
+      } else if (!previouslyHadMarine) {
+        // Only trigger manual fetch on FIRST activation, not re-renders
         console.log('[Marine] Layer activated, triggering manual fetch...');
         manualMarineTriggerRef.current?.();
       }
@@ -144,11 +145,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
           isInternalMapUpdateRef.current = true;
 
           setMarineData(prev => {
-            if (JSON.stringify(prev) === JSON.stringify(data)) {
-              console.log('[Marine Trace] 5. setting marineData SKIPPED (data identical)');
+            // NULL FIELD REJECTION: contract requirement
+            if (!data || !data.features?.length) {
+              console.error('[Marine] NULL_FIELD_VIOLATION: rejecting null/empty payload');
               return prev;
             }
-            console.log('[Marine Trace] 5. setting marineData state');
+            if (JSON.stringify(prev) === JSON.stringify(data)) {
+              return prev;
+            }
+            console.log('[Marine] Setting marineData state');
             marineRevision.current += 1;
             return data;
           });

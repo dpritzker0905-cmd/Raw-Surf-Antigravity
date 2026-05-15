@@ -62,12 +62,14 @@ function interpolateWind(windGrid, lng, lat) {
  */
 import { useEffect, useRef } from 'react';
 
+// --- SINGLETON REGISTRY: Prevents duplicate RAF loops ---
+const ACTIVE_ENGINES = new Set();
+
 export function WindParticleCanvas({ mapInstance, active, data, revision, id = "wind-canvas-layer" }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const windRef = useRef(null);
   const particlesRef = useRef([]);
-  const inlineMockRef = useRef(null);
 
   const activeRef = useRef(active);
 
@@ -172,34 +174,60 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
 
     const dataUrl = generateHeatmap();
     const { west, south, east, north } = data.bounds;
-    // MapLibre expects image coordinates as: NW, NE, SE, SW
     const coordinates = [
       [west, north], [east, north], [east, south], [west, south]
     ];
 
-    if (!mapInstance.getSource(sourceId)) {
-      mapInstance.addSource(sourceId, {
-        type: 'image',
-        url: dataUrl,
-        coordinates
-      });
-      mapInstance.addLayer({
-        id: layerId,
-        type: 'raster',
-        source: sourceId,
-        paint: {
-          'raster-opacity': 0.65,
-          'raster-fade-duration': 300,
-          'raster-resampling': 'linear'
+    // Priority 8: Convert data URL to Image to avoid postMessage clone errors.
+    // MapLibre's worker can't serialize Request objects for data: URLs.
+    const img = new Image();
+    img.onload = () => {
+      try {
+        if (!mapInstance.getSource(sourceId)) {
+          mapInstance.addSource(sourceId, {
+            type: 'canvas',
+            canvas: (() => {
+              // Create a named canvas for MapLibre's canvas source
+              const c = document.createElement('canvas');
+              c.width = 128;
+              c.height = 128;
+              c.id = `${sourceId}-canvas`;
+              const cCtx = c.getContext('2d');
+              cCtx.drawImage(img, 0, 0);
+              return c;
+            })(),
+            coordinates,
+            animate: false
+          });
+          mapInstance.addLayer({
+            id: layerId,
+            type: 'raster',
+            source: sourceId,
+            paint: {
+              'raster-opacity': 0.65,
+              'raster-fade-duration': 300,
+              'raster-resampling': 'linear'
+            }
+          });
+        } else {
+          // Update existing canvas source
+          const source = mapInstance.getSource(sourceId);
+          if (source) {
+            const existingCanvas = source.getCanvas?.();
+            if (existingCanvas) {
+              const ctx2 = existingCanvas.getContext('2d');
+              ctx2.clearRect(0, 0, 128, 128);
+              ctx2.drawImage(img, 0, 0);
+              source.play?.(); // Triggers a re-render
+            }
+          }
         }
-      });
-    } else {
-      const source = mapInstance.getSource(sourceId);
-      if (source && source.updateImage) {
-        source.updateImage({ url: dataUrl, coordinates });
+      } catch (e) {
+        // Silently handle race conditions during map style transitions
       }
-    }
-  }, [mapInstance, data, revision]);
+    };
+    img.src = dataUrl;
+  }, [mapInstance, data]);
 
   // Sync Heatmap Visibility
   useEffect(() => {
@@ -212,10 +240,14 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
 
   useEffect(() => {
     if (!mapInstance || !canvasRef.current) return;
-    console.log('[Wind] === STARTING PERSISTENT ENGINE ===');
 
-    // We no longer inject inline mock data. We rely exclusively on the live fetch pipeline.
-    inlineMockRef.current = null;
+    // SINGLETON GUARD: Prevent duplicate RAF loops
+    if (ACTIVE_ENGINES.has(id)) {
+      console.error(`[Wind] DUPLICATE_WIND_ENGINE: ${id} already running. Aborting duplicate.`);
+      return;
+    }
+    ACTIVE_ENGINES.add(id);
+    console.log(`[Wind] === STARTING ENGINE (${id}) ===`);
 
     // v3: Domain validation removed. Wind is now viewport-based per contract.
     // No global domain enforcement needed.
@@ -302,7 +334,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
         }, 500);
         return;
       }
-      const grid = windRef.current || inlineMockRef.current;
+      const grid = windRef.current;
       if (!grid?.vectors?.length) {
         lastTime = now;
         animRef.current = requestAnimationFrame(animate);
@@ -569,7 +601,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     window.addEventListener('resize', onResize);
 
     return () => {
-      console.log('[Wind] === UNMOUNTING ===');
+      console.log(`[Wind] === UNMOUNTING (${id}) ===`);
+      ACTIVE_ENGINES.delete(id);
       cancelAnimationFrame(animRef.current);
       clearTimeout(idleTimer);
       window.removeEventListener('resize', onResize);
