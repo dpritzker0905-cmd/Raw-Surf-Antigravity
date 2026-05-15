@@ -228,8 +228,8 @@ const MapWebGL = ({
 
       for (const [layerKey, variable] of variablesToResolve) {
         let layerModel = targetModel;
-        // v257: GFS map tiles lack precipitation and cloud_cover; fallback these specific variables to ICON
-        if (layerModel === 'ncep_gfs025' && (variable === 'precipitation' || variable === 'cloud_cover')) {
+        // v257: GFS map tiles lack precipitation, cloud_cover, and cloud_cover_low; fallback these specific variables to ICON
+        if (layerModel === 'ncep_gfs025' && (variable === 'precipitation' || variable === 'cloud_cover' || variable === 'cloud_cover_low')) {
           layerModel = 'dwd_icon';
         }
 
