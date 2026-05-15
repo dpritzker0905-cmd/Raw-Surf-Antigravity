@@ -81,8 +81,12 @@ export function useRasterTransactions(mapInstance, renderContract) {
 
       // v250: Atomic Layer Transition Queue (fixes fog/pressure raster bleed)
       // Hide layer -> wait 2 frames for GPU flush -> mutate source -> show layer
-      if (layerId) {
-        map.setLayoutProperty(layerId, 'visibility', 'none');
+      let originalVisibility = 'none';
+      if (layerId && map.getLayer(layerId)) {
+        originalVisibility = map.getLayoutProperty(layerId, 'visibility') || 'visible';
+        if (originalVisibility === 'visible') {
+          map.setLayoutProperty(layerId, 'visibility', 'none');
+        }
       }
 
       requestAnimationFrame(() => {
@@ -95,7 +99,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
             if (source.setUrl) source.setUrl(url);
           }
 
-          if (layerId) {
+          if (layerId && originalVisibility === 'visible' && map.getLayer(layerId)) {
             map.setLayoutProperty(layerId, 'visibility', 'visible');
           }
         });

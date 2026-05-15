@@ -89,9 +89,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     inlineMockRef.current = null;
 
     // 🔥 RUNTIME INVARIANT GUARD (FAIL FAST SYSTEM)
-    // Ensures wind is global, not viewport restricted
+    // Ensures wind is global, not viewport restricted. Marine layers are naturally viewport bounded.
     const validateDomain = setInterval(() => {
-      if (windRef.current && windRef.current.bounds) {
+      if (id === 'wind-canvas-layer' && windRef.current && windRef.current.bounds) {
         const { west, east, north, south } = windRef.current.bounds;
         const isGlobal = (east - west >= 350) && (north - south >= 160);
         if (!isGlobal) {
@@ -254,8 +254,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
                 p.age = p.maxAge + 1; continue;
               }
-              screen.x += wind.u * scale * 10;
-              screen.y -= wind.v * scale * 10; 
+              // Slower advection for dense water waves
+              const speedMultiplier = id === 'marine-canvas-layer' ? 3 : 10;
+              screen.x += wind.u * scale * speedMultiplier;
+              screen.y -= wind.v * scale * speedMultiplier; 
               const nextLngLat = mapInstance.unproject(screen);
               if (!nextLngLat || !Number.isFinite(nextLngLat.lng) || !Number.isFinite(nextLngLat.lat)) {
                 p.age = p.maxAge + 1; continue;
@@ -289,10 +291,18 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const pt = mapInstance.project([p.lng, p.lat]);
             if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) continue;
             
-            const hue = Math.min(120, wind.speed * 8);
             const alpha = Math.max(0.2, 1 - (p.age / p.maxAge));
-            ctx.strokeStyle = `hsla(${120 - hue}, 90%, 55%, ${alpha})`;
-            ctx.lineWidth = 1.2;
+            if (id === 'marine-canvas-layer') {
+              // Ocean aesthetic for waves: deep cyan to white crests
+              const lightness = Math.min(100, 50 + (wind.speed * 8)); 
+              ctx.strokeStyle = `hsla(195, 100%, ${lightness}%, ${alpha})`;
+              ctx.lineWidth = 2.5;
+            } else {
+              // Heatmap aesthetic for wind
+              const hue = Math.min(120, wind.speed * 8);
+              ctx.strokeStyle = `hsla(${120 - hue}, 90%, 55%, ${alpha})`;
+              ctx.lineWidth = 1.2;
+            }
             ctx.beginPath();
             if (prevScreen) {
               ctx.moveTo(prevScreen.x, prevScreen.y);
