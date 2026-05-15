@@ -266,6 +266,8 @@ export async function fetchMarineData(bounds, zoom) {
     const features = cappedPoints.map((pt, i) => {
       const r = allResults[i];
       if (!r?.current) return null;
+      // Hard coordinate validation — NaN/Infinity kills MapLibre symbol pipeline
+      if (!Number.isFinite(pt.lng) || !Number.isFinite(pt.lat)) return null;
       const c = r.current;
       if (c.wave_height == null && c.swell_wave_height == null && c.wind_wave_height == null) {
         return null; // Land

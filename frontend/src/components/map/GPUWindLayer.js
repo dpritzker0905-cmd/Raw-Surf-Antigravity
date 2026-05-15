@@ -182,11 +182,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       lastTime = now;
       frameCount++;
 
-      // v246: Trail decay fix — use simple fade to black to prevent endless streaking
-      const trailOpacity = windState === WIND_THROTTLED ? 0.1 : 0.03;
+      // Trail decay: erase old trails by removing alpha (keeps canvas transparent)
+      const trailOpacity = windState === WIND_THROTTLED ? 0.15 : 0.04;
+      ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0, 0, 0, ${trailOpacity})`;
-      ctx.globalCompositeOperation = 'source-over';
       ctx.fillRect(0, 0, cw, ch);
+      ctx.globalCompositeOperation = 'source-over';
 
       const particles = particlesRef.current;
 

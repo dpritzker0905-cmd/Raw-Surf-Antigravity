@@ -52,7 +52,7 @@ const OM_MODEL_MAP = {
  * MapLibre retry loops. Precipitation uses radar tiles (RainViewer) instead.
  */
 const OM_VARIABLE_MAP = {
-  precipitation: null,             // Uses radar tiles, NOT OM raster (variable not in tiles)
+  precipitation: 'precipitation',    // GFS lacks this — fallback chain resolves to DWD ICON
   wind:          null,             // Wind uses canvas particle engine, NOT raster tiles
   pressure:      'pressure_msl',
   fog:           'cloud_cover_low', // Better proxy for fog than visibility
@@ -132,7 +132,7 @@ const MapWebGL = ({
   const activeRenderType = useMemo(() => {
     const layer = activeLayers[0];
     if (!layer) return 'none';
-    if (layer === 'radar' || layer === 'precipitation') return 'radar';
+    if (layer === 'radar') return 'radar';
     if (layer === 'wind') return 'wind';
     if (['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layer)) return 'marine';
     if (OM_VARIABLE_MAP[layer]) return 'raster';
@@ -466,7 +466,7 @@ const MapWebGL = ({
           <Layer 
             id="radar-layer" 
             type="raster" 
-            layout={{ visibility: (activeLayers.includes('radar') || activeLayers.includes('precipitation')) ? 'visible' : 'none' }}
+            layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
             paint={{ 'raster-opacity': 0.65 }} 
           />
         </Source>
