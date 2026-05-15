@@ -9,6 +9,11 @@ function interpolateWind(windGrid, lng, lat) {
   const { vectors, bounds, cols, rows } = windGrid;
   const { west, south, east, north } = bounds;
   
+  if (!cols || !rows) {
+    console.error(`[Wind] WIND_TOPOLOGY_MISSING: Interpolation requires cols/rows metadata.`);
+    return { u: 0, v: 0, speed: 0 };
+  }
+
   if (vectors.length !== cols * rows) {
     console.warn(`[Wind] WIND_TOPOLOGY_INVALID: length=${vectors.length}, expected=${cols*rows}`);
     return { u: 0, v: 0, speed: 0 };
@@ -28,15 +33,15 @@ function interpolateWind(windGrid, lng, lat) {
   const i01 = idx(yi + 1, xi);
   const i11 = idx(yi + 1, xi + 1);
 
-  if (i00 < 0 || i11 >= vectors.length) {
-    console.warn('[Wind] INTERPOLATION_OUT_OF_BOUNDS');
-    return { u: 0, v: 0, speed: 0 };
-  }
-
   const p00 = vectors[i00];
   const p10 = vectors[i10];
   const p01 = vectors[i01];
   const p11 = vectors[i11];
+
+  if (p00 === undefined || p10 === undefined || p01 === undefined || p11 === undefined) {
+    if (Math.random() < 0.005) console.warn('[Wind] INTERPOLATION_NEIGHBOR_INVALID');
+    return { u: 0, v: 0, speed: 0 };
+  }
 
   const u = (1 - fx) * (1 - fy) * p00.u + fx * (1 - fy) * p10.u +
             (1 - fx) * fy * p01.u + fx * fy * p11.u;
@@ -72,7 +77,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     // v245: Data pipeline diagnostic — helps debug "dots only, no animation"
     if (data?.vectors?.length) {
       const sample = data.vectors[0];
-      console.log(`[Wind] Data received: ${data.vectors.length} vectors, grid=${data.grid}, sample: u=${sample.u?.toFixed(2)} v=${sample.v?.toFixed(2)} speed=${sample.speed?.toFixed(1)}`);
+      console.log(`[Wind] Data received: ${data.vectors.length} vectors, cols=${data.cols}, rows=${data.rows}, sample: u=${sample.u?.toFixed(2)} v=${sample.v?.toFixed(2)} speed=${sample.speed?.toFixed(1)}`);
     }
   }, [data, revision]);
 

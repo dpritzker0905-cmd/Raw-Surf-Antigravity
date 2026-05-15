@@ -551,49 +551,85 @@ const MapWebGL = ({
         </Source>
       ))}
 
-      {/* Marine Wave Heatmap — visual representation of Open-Meteo grid */}
+      {/* Marine Wave Heatmap — independent layers for deterministic rendering */}
       <Source 
         id="marine-data-source"
         type="geojson" 
         data={marineData || HARDCODED_MARINE_FEATURE}
       >
         <Layer
-          id="marine-heatmap-circles"
+          id="marine-wave-height-layer"
           type="heatmap"
-          layout={{
-            visibility: ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l)) ? 'visible' : 'none'
-          }}
+          layout={{ visibility: activeLayers.includes('waves') ? 'visible' : 'none' }}
           paint={{
-            'heatmap-weight': [
-              'interpolate', ['linear'], 
-              ['get', activeLayers.includes('swell_1') ? 'swell_wave_height' : 
-                      activeLayers.includes('swell_2') ? 'secondary_swell_wave_height' :
-                      activeLayers.includes('wind_waves') ? 'wind_wave_height' : 
-                      'wave_height'],
-              0, 0,
-              8, 1
-            ],
-            'heatmap-intensity': [
-              'interpolate', ['linear'], ['zoom'],
-              0, 1,
-              15, 3
-            ],
-            // VISUAL TUNING: Oceanographic depth-to-storm interpolation
+            'heatmap-weight': ['interpolate', ['linear'], ['get', 'wave_height'], 0, 0, 8, 1],
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
             'heatmap-color': [
               'interpolate', ['linear'], ['heatmap-density'],
               0, 'rgba(0, 0, 0, 0)',
-              0.2, 'rgba(14, 165, 233, 0.4)', // Tailwind sky-500
-              0.5, 'rgba(59, 130, 246, 0.7)', // Tailwind blue-500
-              0.8, 'rgba(139, 92, 246, 0.85)',// Tailwind violet-500
-              1, 'rgba(236, 72, 153, 0.95)'   // Tailwind pink-500
+              0.2, 'rgba(14, 165, 233, 0.4)',
+              0.5, 'rgba(59, 130, 246, 0.7)',
+              0.8, 'rgba(139, 92, 246, 0.85)',
+              1, 'rgba(236, 72, 153, 0.95)'
             ],
-            'heatmap-radius': [
-              'interpolate', ['linear'], ['zoom'],
-              4, 20,
-              8, 40,
-              12, 100
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 20, 8, 40, 12, 100],
+            'heatmap-opacity': 0.8
+          }}
+        />
+        <Layer
+          id="marine-swell-primary-layer"
+          type="heatmap"
+          layout={{ visibility: activeLayers.includes('swell_1') ? 'visible' : 'none' }}
+          paint={{
+            'heatmap-weight': ['interpolate', ['linear'], ['get', 'swell_wave_height'], 0, 0, 8, 1],
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(0, 0, 0, 0)',
+              0.2, 'rgba(168, 85, 247, 0.4)', // purple-500
+              0.5, 'rgba(217, 70, 239, 0.7)', // fuchsia-500
+              0.8, 'rgba(236, 72, 153, 0.85)',// pink-500
+              1, 'rgba(244, 63, 94, 0.95)'    // rose-500
             ],
-            // heatmap-opacity is driven synchronously by weatherAnimRef
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 20, 8, 40, 12, 100],
+            'heatmap-opacity': 0.8
+          }}
+        />
+        <Layer
+          id="marine-swell-secondary-layer"
+          type="heatmap"
+          layout={{ visibility: activeLayers.includes('swell_2') ? 'visible' : 'none' }}
+          paint={{
+            'heatmap-weight': ['interpolate', ['linear'], ['get', 'secondary_swell_wave_height'], 0, 0, 8, 1],
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(0, 0, 0, 0)',
+              0.2, 'rgba(34, 197, 94, 0.4)',  // green-500
+              0.5, 'rgba(16, 185, 129, 0.7)', // emerald-500
+              0.8, 'rgba(20, 184, 166, 0.85)',// teal-500
+              1, 'rgba(6, 182, 212, 0.95)'    // cyan-500
+            ],
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 20, 8, 40, 12, 100],
+            'heatmap-opacity': 0.8
+          }}
+        />
+        <Layer
+          id="marine-wind-wave-layer"
+          type="heatmap"
+          layout={{ visibility: activeLayers.includes('wind_waves') ? 'visible' : 'none' }}
+          paint={{
+            'heatmap-weight': ['interpolate', ['linear'], ['get', 'wind_wave_height'], 0, 0, 8, 1],
+            'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 0, 1, 15, 3],
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(0, 0, 0, 0)',
+              0.2, 'rgba(245, 158, 11, 0.4)', // amber-500
+              0.5, 'rgba(249, 115, 22, 0.7)', // orange-500
+              0.8, 'rgba(239, 68, 68, 0.85)', // red-500
+              1, 'rgba(225, 29, 72, 0.95)'    // rose-600
+            ],
+            'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 4, 15, 8, 30, 12, 80],
             'heatmap-opacity': 0.8
           }}
         />

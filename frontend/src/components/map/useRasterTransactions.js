@@ -103,7 +103,12 @@ export function useRasterTransactions(mapInstance, renderContract) {
 
       lastCommittedUrls.current[sourceId] = urlKey;
       sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
-      console.debug(`[Raster TX] Committed ${sourceId}`);
+      
+      console.log('[RASTER BINDING]', {
+        layerId,
+        sourceId,
+        tileUrl: url,
+      });
 
       // Release lock, drain queued payload if any
       const queued = sourceLocks.current[sourceId]?.queued;
