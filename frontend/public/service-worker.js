@@ -35,30 +35,47 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and enable navigation preload
 self.addEventListener('activate', (event) => {
   console.log('[ServiceWorker] Activate');
   event.waitUntil(
-    caches.keys().then((keyList) => {
-      return Promise.all(keyList.map((key) => {
+    (async () => {
+      // Enable navigation preload to prevent error flash during SW activation
+      if (self.registration.navigationPreload) {
+        await self.registration.navigationPreload.enable();
+      }
+      // Clean old caches
+      const keyList = await caches.keys();
+      await Promise.all(keyList.map((key) => {
         if (key !== CACHE_NAME && key !== SPOT_CACHE_NAME && key !== OFFLINE_CACHE_NAME && key !== GALLERY_CACHE_NAME && key !== FEED_CACHE_NAME) {
           console.log('[ServiceWorker] Removing old cache:', key);
           return caches.delete(key);
         }
       }));
-    })
+    })()
   );
   self.clients.claim();
 });
 
 // Fetch event - implement offline-first strategy for spots
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  // Guard: only intercept GET requests (POST/PUT can't be cloned safely)
+  if (event.request.method !== 'GET') return;
+
+  let url;
+  try {
+    url = new URL(event.request.url);
+  } catch (e) {
+    return; // Malformed URL — let browser handle
+  }
   
-  // Exclude realtime weather and marine physics APIs from SW interception entirely
+  // Exclude realtime weather, marine physics, and map tile APIs from SW interception
   if (
     url.hostname.includes('open-meteo.com') || 
     url.hostname.includes('rainviewer') ||
+    url.hostname.includes('tiles.') ||
+    url.hostname.includes('tile.') ||
+    url.hostname.includes('maplibre') ||
     url.hostname.includes('.om') ||
     url.protocol.includes('om') ||
     url.pathname.includes('/marine') || 
@@ -73,20 +90,24 @@ self.addEventListener('fetch', (event) => {
   if (isOfflineAPI) {
     // Network-first with cache fallback for spot data
     event.respondWith(
-      fetch(event.request.clone())
+      fetch(event.request)
         .then((response) => {
           // Clone the response for caching
           const responseClone = response.clone();
           caches.open(SPOT_CACHE_NAME).then((cache) => {
-            cache.put(event.request.clone(), responseClone);
-            console.log('[ServiceWorker] Cached spot data:', url.pathname);
+            try {
+              cache.put(event.request, responseClone);
+              console.log('[ServiceWorker] Cached spot data:', url.pathname);
+            } catch (e) {
+              // Clone failed during SW transition — ignore
+            }
           });
           return response;
         })
         .catch(async () => {
           // Network failed, try cache
           console.log('[ServiceWorker] Offline - serving from cache:', url.pathname);
-          const cachedResponse = await caches.match(event.request.clone());
+          const cachedResponse = await caches.match(event.request);
           if (cachedResponse) {
             return cachedResponse;
           }
@@ -109,32 +130,42 @@ self.addEventListener('fetch', (event) => {
   if (isGalleryMedia) {
     event.respondWith(
       caches.open(GALLERY_CACHE_NAME).then(async (cache) => {
-        const cached = await cache.match(event.request.clone());
+        const cached = await cache.match(event.request);
         if (cached) {
           // Cache hit — serve from cache (works offline)
           // Also try network in background to refresh
-          fetch(event.request.clone()).then((networkResponse) => {
+          fetch(event.request).then((networkResponse) => {
             if (networkResponse && networkResponse.ok) {
-              cache.put(event.request.clone(), networkResponse.clone());
+              try { cache.put(event.request, networkResponse.clone()); } catch (e) { /* sw transition */ }
             }
           }).catch(() => { /* offline, that's fine */ });
           return cached;
         }
         // Not cached — fetch normally
-        return fetch(event.request.clone());
-      }).catch(() => fetch(event.request.clone()))
+        return fetch(event.request);
+      }).catch(() => fetch(event.request))
     );
     return;
   }
 
-  // For navigation requests (page loads), serve offline page when network fails
+  // For navigation requests (page loads), use preload response or fetch
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request.clone()).catch(async () => {
-        const cached = await caches.match('/offline.html');
-        if (cached) return cached;
-        return caches.match('/index.html');
-      })
+      (async () => {
+        // Try navigation preload first (prevents error flash during SW activation)
+        try {
+          const preloadResponse = await event.preloadResponse;
+          if (preloadResponse) return preloadResponse;
+        } catch (e) { /* preload not available */ }
+        // Normal fetch with offline fallback
+        try {
+          return await fetch(event.request);
+        } catch (e) {
+          const cached = await caches.match('/offline.html');
+          if (cached) return cached;
+          return caches.match('/index.html');
+        }
+      })()
     );
     return;
   }
