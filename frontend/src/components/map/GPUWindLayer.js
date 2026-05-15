@@ -535,8 +535,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
                 p.age = p.maxAge + 1; continue;
               }
-              // Slower advection for dense water waves
-              const speedMultiplier = id === 'marine-canvas-layer' ? 3 : 10;
+              // Slower advection for dense water waves? No, wave height is 0-5m, wind is 0-30kt.
+              // To get visible streaks, marine multiplier must be much higher than wind.
+              const speedMultiplier = id === 'marine-canvas-layer' ? 50 : 10;
               screen.x += wind.u * scale * speedMultiplier;
               screen.y -= wind.v * scale * speedMultiplier; 
               const nextLngLat = mapInstance.unproject(screen);
@@ -588,7 +589,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               const h = wind.speed; // height in meters
               
               // B3: Velocity-based opacity and saturation
-              const heightAlpha = Math.min(3.0, 1.2 + (h / 2));
+              // Boost alpha heavily since heatmap is disabled
+              const heightAlpha = Math.min(4.0, 1.5 + (h / 1.5));
               const finalAlpha = Math.min(1.0, alpha * heightAlpha);
               
               let color = '';
@@ -599,25 +601,25 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               else color = `hsla(350, 100%, 65%, ${finalAlpha})`;
               
               ctx.strokeStyle = color;
-              ctx.lineWidth = Math.min(5, 2.5 + h * 0.8); // Thicker for larger waves
+              ctx.lineWidth = Math.min(6, 2.5 + h * 1.0); // Thicker for larger waves
             } else {
               // Heatmap aesthetic for wind (Windy style)
               const s = wind.speed; // speed in knots
               
-              // B3: Velocity-based opacity and saturation
-              const speedAlpha = Math.min(2.5, 0.8 + (s / 15));
+              // B3: Revert Wind alpha boost so it blends nicely with its heatmap
+              const speedAlpha = Math.min(1.2, 0.3 + (s / 35));
               const finalAlpha = Math.min(1.0, alpha * speedAlpha);
               
               let color = '';
-              if (s < 5) color = `hsla(200, 80%, 65%, ${finalAlpha})`;
-              else if (s < 10) color = `hsla(150, 90%, 55%, ${finalAlpha})`;
-              else if (s < 15) color = `hsla(70, 100%, 55%, ${finalAlpha})`;
-              else if (s < 20) color = `hsla(45, 100%, 55%, ${finalAlpha})`;
-              else if (s < 30) color = `hsla(15, 100%, 55%, ${finalAlpha})`;
-              else color = `hsla(330, 100%, 65%, ${finalAlpha})`;
+              if (s < 5) color = `hsla(200, 70%, 60%, ${finalAlpha})`;
+              else if (s < 10) color = `hsla(150, 80%, 50%, ${finalAlpha})`;
+              else if (s < 15) color = `hsla(70, 90%, 50%, ${finalAlpha})`;
+              else if (s < 20) color = `hsla(45, 100%, 50%, ${finalAlpha})`;
+              else if (s < 30) color = `hsla(15, 100%, 50%, ${finalAlpha})`;
+              else color = `hsla(330, 100%, 60%, ${finalAlpha})`;
 
               ctx.strokeStyle = color;
-              ctx.lineWidth = Math.min(4, 1.5 + s * 0.08); // Thicker for stronger winds
+              ctx.lineWidth = Math.min(3, 1.2 + s * 0.05); // Thicker for stronger winds
             }
             
             ctx.beginPath();

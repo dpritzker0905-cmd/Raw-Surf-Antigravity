@@ -401,8 +401,16 @@ const MapWebGL = ({
           if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
         } catch (e) {}
       }
-      if (activeRenderType === 'wind') { const wc = document.getElementById('wind-canvas-layer'); if (wc) wc.style.opacity = p; }
-      if (activeRenderType === 'marine') { const mc = document.getElementById('marine-canvas-layer'); if (mc) mc.style.opacity = p; }
+      if (activeLayers.includes('wind')) { 
+        const wc = document.getElementById('wind-canvas-layer'); 
+        if (wc) wc.style.opacity = p; 
+      }
+      
+      const hasMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
+      if (hasMarine) { 
+        const mc = document.getElementById('marine-canvas-layer'); 
+        if (mc) mc.style.opacity = p; 
+      }
       if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) {} animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
     };
     cancelAnimationFrame(animFrameRef.current);
