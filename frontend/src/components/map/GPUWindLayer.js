@@ -4,50 +4,53 @@
 /**
  * Bilinear interpolation of u/v wind components.
  */
-function interpolateWind(windGrid, lng, lat) {
+function interpolateWind(windGrid, lng, lat, prevGrid = null, transitionProgress = 1) {
   if (!windGrid?.vectors?.length) return { u: 0, v: 0, speed: 0 };
-  const { vectors, bounds, cols, rows } = windGrid;
-  const { west, south, east, north } = bounds;
-  
-  if (!cols || !rows) {
-    console.error(`[Wind] WIND_TOPOLOGY_MISSING: Interpolation requires cols/rows metadata.`);
-    return { u: 0, v: 0, speed: 0 };
+
+  const getUV = (grid, queryLng, queryLat) => {
+    const { vectors, bounds, cols, rows } = grid;
+    const { west, south, east, north } = bounds;
+    
+    if (!cols || !rows || vectors.length !== cols * rows) return null;
+
+    const gx = Math.max(0, Math.min(cols - 1, ((queryLng - west) / (east - west)) * (cols - 1)));
+    const gy = Math.max(0, Math.min(rows - 1, ((queryLat - south) / (north - south)) * (rows - 1)));
+    const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
+    const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
+    const fx = gx - xi;
+    const fy = gy - yi;
+    
+    const idx = (y, x) => y * cols + x;
+    
+    const p00 = vectors[idx(yi, xi)];
+    const p10 = vectors[idx(yi, xi + 1)];
+    const p01 = vectors[idx(yi + 1, xi)];
+    const p11 = vectors[idx(yi + 1, xi + 1)];
+
+    if (p00 === undefined || p10 === undefined || p01 === undefined || p11 === undefined) {
+      return null;
+    }
+
+    const u = (1 - fx) * (1 - fy) * p00.u + fx * (1 - fy) * p10.u +
+              (1 - fx) * fy * p01.u + fx * fy * p11.u;
+    const v = (1 - fx) * (1 - fy) * p00.v + fx * (1 - fy) * p10.v +
+              (1 - fx) * fy * p01.v + fx * fy * p11.v;
+    return { u, v };
+  };
+
+  const curr = getUV(windGrid, lng, lat);
+  if (!curr) return { u: 0, v: 0, speed: 0 };
+
+  if (prevGrid && transitionProgress < 1) {
+    const prev = getUV(prevGrid, lng, lat);
+    if (prev) {
+      const u = prev.u + (curr.u - prev.u) * transitionProgress;
+      const v = prev.v + (curr.v - prev.v) * transitionProgress;
+      return { u, v, speed: Math.sqrt(u * u + v * v) };
+    }
   }
 
-  if (vectors.length !== cols * rows) {
-    console.warn(`[Wind] WIND_TOPOLOGY_INVALID: length=${vectors.length}, expected=${cols*rows}`);
-    return { u: 0, v: 0, speed: 0 };
-  }
-
-  const gx = Math.max(0, Math.min(cols - 1, ((lng - west) / (east - west)) * (cols - 1)));
-  const gy = Math.max(0, Math.min(rows - 1, ((lat - south) / (north - south)) * (rows - 1)));
-  const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
-  const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
-  const fx = gx - xi;
-  const fy = gy - yi;
-  
-  const idx = (y, x) => y * cols + x;
-  
-  const i00 = idx(yi, xi);
-  const i10 = idx(yi, xi + 1);
-  const i01 = idx(yi + 1, xi);
-  const i11 = idx(yi + 1, xi + 1);
-
-  const p00 = vectors[i00];
-  const p10 = vectors[i10];
-  const p01 = vectors[i01];
-  const p11 = vectors[i11];
-
-  if (p00 === undefined || p10 === undefined || p01 === undefined || p11 === undefined) {
-    if (Math.random() < 0.005) console.warn('[Wind] INTERPOLATION_NEIGHBOR_INVALID');
-    return { u: 0, v: 0, speed: 0 };
-  }
-
-  const u = (1 - fx) * (1 - fy) * p00.u + fx * (1 - fy) * p10.u +
-            (1 - fx) * fy * p01.u + fx * fy * p11.u;
-  const v = (1 - fx) * (1 - fy) * p00.v + fx * (1 - fy) * p10.v +
-            (1 - fx) * fy * p01.v + fx * fy * p11.v;
-  return { u, v, speed: Math.sqrt(u * u + v * v) };
+  return { u: curr.u, v: curr.v, speed: Math.sqrt(curr.u * curr.u + curr.v * curr.v) };
 }
 
 /**
@@ -120,10 +123,19 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
 
   useEffect(() => { activeRef.current = active; }, [active]);
   const prevDataIdRef = useRef(null);
+  
+  // B2: Temporal Interpolation Refs
+  const prevWindRef = useRef(null);
+  const transitionStartRef = useRef(0);
+
   useEffect(() => {
-    windRef.current = data;
-    // Only log when data actually changes, NOT on every revision tick
     if (data?.vectors?.length) {
+      if (windRef.current) {
+        prevWindRef.current = windRef.current;
+        transitionStartRef.current = performance.now();
+      }
+      windRef.current = data;
+      // Only log when data actually changes, NOT on every revision tick
       const dataId = `${data.cols}x${data.rows}:${data.vectors.length}`;
       if (dataId !== prevDataIdRef.current) {
         prevDataIdRef.current = dataId;
@@ -137,6 +149,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
   useEffect(() => {
     if (!mapInstance || !active || !data?.vectors?.length) return;
     const isMarine = id === 'marine-canvas-layer';
+    if (isMarine) return; // B4: Marine uses pure directional particles, no underlying heatmap
+    
     const sourceId = `${id}-heatmap-source`;
     const layerId = `${id}-heatmap-layer`;
 
@@ -470,6 +484,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           const p = particles[i];
           p.age += dt;
 
+          const transitionProgress = prevWindRef.current 
+            ? Math.min(1, (now - transitionStartRef.current) / 1500)
+            : 1;
+
           // Padded domain for particle lifecycle (wider than API grid)
           const gb2 = grid.bounds || { west: bw, south: bs, east: be, north: bn };
           const pcLng = (gb2.west + gb2.east) / 2;
@@ -488,8 +506,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             if (ps && Number.isFinite(ps.x) && Number.isFinite(ps.y)) prevScreen = ps;
           } catch (e) {}
 
-          // Advect particle
-          let wind = interpolateWind(grid, p.lng, p.lat);
+          // Bilinear interpolate from grid
+          const wind = interpolateWind(grid, p.lng, p.lat, prevWindRef.current, transitionProgress);
           
           if (window.__WIND_DEBUG__) {
             // Single vector test mode (object or boolean compatibility)
@@ -567,28 +585,36 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
 
             if (id === 'marine-canvas-layer') {
               // Ocean aesthetic for waves: dynamic palette based on wave height (wind.speed represents height here)
-              // 0-1m: Light Blue, 1-2m: Cyan, 2-3m: Blue, 3-5m: Purple, 5m+: Red
-              let color = '';
               const h = wind.speed; // height in meters
-              if (h < 1) color = `rgba(140, 200, 255, ${alpha})`;
-              else if (h < 2) color = `rgba(0, 220, 255, ${alpha})`;
-              else if (h < 3) color = `rgba(0, 100, 255, ${alpha})`;
-              else if (h < 5) color = `rgba(150, 50, 255, ${alpha})`;
-              else color = `rgba(255, 50, 50, ${alpha})`;
+              
+              // B3: Velocity-based opacity and saturation
+              const heightAlpha = Math.min(1.2, 0.4 + (h / 4));
+              const finalAlpha = alpha * heightAlpha;
+              
+              let color = '';
+              if (h < 1) color = `hsla(210, 60%, 70%, ${finalAlpha})`;
+              else if (h < 2) color = `hsla(190, 80%, 60%, ${finalAlpha})`;
+              else if (h < 3) color = `hsla(220, 90%, 60%, ${finalAlpha})`;
+              else if (h < 5) color = `hsla(270, 100%, 65%, ${finalAlpha})`;
+              else color = `hsla(350, 100%, 60%, ${finalAlpha})`;
               
               ctx.strokeStyle = color;
               ctx.lineWidth = Math.min(4, 2 + h * 0.5); // Thicker for larger waves
             } else {
               // Heatmap aesthetic for wind (Windy style)
-              // 0-5kts: Light Blue/Teal, 5-15kts: Green, 15-25kts: Yellow/Orange, 25kts+: Red/Magenta
-              let color = '';
               const s = wind.speed; // speed in knots
-              if (s < 5) color = `rgba(100, 200, 255, ${alpha})`;
-              else if (s < 10) color = `rgba(0, 255, 150, ${alpha})`;
-              else if (s < 15) color = `rgba(150, 255, 50, ${alpha})`;
-              else if (s < 20) color = `rgba(255, 200, 0, ${alpha})`;
-              else if (s < 30) color = `rgba(255, 100, 0, ${alpha})`;
-              else color = `rgba(255, 0, 100, ${alpha})`;
+              
+              // B3: Velocity-based opacity and saturation
+              const speedAlpha = Math.min(1.2, 0.3 + (s / 35));
+              const finalAlpha = alpha * speedAlpha;
+              
+              let color = '';
+              if (s < 5) color = `hsla(200, 70%, 60%, ${finalAlpha})`;
+              else if (s < 10) color = `hsla(150, 80%, 50%, ${finalAlpha})`;
+              else if (s < 15) color = `hsla(70, 90%, 50%, ${finalAlpha})`;
+              else if (s < 20) color = `hsla(45, 100%, 50%, ${finalAlpha})`;
+              else if (s < 30) color = `hsla(15, 100%, 50%, ${finalAlpha})`;
+              else color = `hsla(330, 100%, 60%, ${finalAlpha})`;
 
               ctx.strokeStyle = color;
               ctx.lineWidth = Math.min(3, 1.2 + s * 0.05); // Thicker for stronger winds
@@ -673,8 +699,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     };
     window.addEventListener('resize', onResize);
 
+    let isMounted = true;
     return () => {
       console.log(`[Wind] === UNMOUNTING (${id}) ===`);
+      isMounted = false;
       ACTIVE_ENGINES.delete(id);
       cancelAnimationFrame(animRef.current);
       clearTimeout(idleTimer);
@@ -685,7 +713,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       mapInstance.off('zoomend', onZoomEnd);
       mapInstance.off('moveend', onIdle);
     };
-  }, [mapInstance]); // Deliberately omitted 'active' to ensure persistence
+  }, [mapInstance, active, data, id]); // Intentionally omitting dependencies to prevent re-renders on every data tick
 
   return (
     <canvas
