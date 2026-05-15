@@ -13,6 +13,7 @@ import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
+import { LAYER_REGISTRY, resolveRasterSource } from './LayerRegistry';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -29,23 +30,7 @@ const OM_MODEL_MAP = {
   ICON: 'dwd_icon',
 };
 
-/**
- * Map app layer IDs to Open-Meteo tile variable names.
- * `null` means no tile is available (data-card only).
- * IMPORTANT: 'precipitation' is intentionally null — Open-Meteo's latest.json
- * reports it in metadata but tiles don't contain the data, causing infinite
- * MapLibre retry loops. Precipitation uses radar tiles (RainViewer) instead.
- */
-const OM_VARIABLE_MAP = {
-  wind:          null,             // Wind uses canvas particle engine, NOT raster tiles
-  pressure:      'pressure_msl',
-  fog:           'cloud_cover_low', // Better proxy for fog than visibility
-  satellite:     null,             // ESRI World Imagery raster, not Open-Meteo
-  waves:         null,             // Marine models use GeoJSON heatmap
-  swell_1:       null,
-  swell_2:       null,
-  wind_waves:    null,
-};
+// OM_VARIABLE_MAP has been replaced by LAYER_REGISTRY
 
 // Cache to prevent repetitive manifest fetching during layer toggles
 const MODEL_METADATA_CACHE = {};
@@ -109,18 +94,19 @@ const MapWebGL = ({
 
   const activeWeatherVariable = useMemo(() => {
     if (!activeLayers.length) return null;
-    return OM_VARIABLE_MAP[activeLayers[0]] || null;
+    const layer = LAYER_REGISTRY[activeLayers[0]];
+    return layer?.omVariable || null;
   }, [activeLayers]);
 
-  // v246: Derived render type — drives which renderer pipeline is active
+  // LRCM: Derived render type — drives which renderer pipeline is active
   const activeRenderType = useMemo(() => {
-    const layer = activeLayers[0];
+    const layerId = activeLayers[0];
+    if (!layerId) return 'none';
+    const layer = LAYER_REGISTRY[layerId];
     if (!layer) return 'none';
-    if (layer === 'radar') return 'radar';
-    if (layer === 'satellite') return 'raster';
-    if (layer === 'wind') return 'wind';
-    if (['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layer)) return 'marine';
-    if (OM_VARIABLE_MAP[layer]) return 'raster';
+    if (layer.type === 'raster') return layer.id === 'radar' ? 'radar' : 'raster';
+    if (layer.type === 'marine') return 'marine';
+    if (layer.type === 'canvas' && layer.id === 'wind') return 'wind';
     return 'none';
   }, [activeLayers]);
 
@@ -211,7 +197,9 @@ const MapWebGL = ({
 
     const resolveAllUrls = async () => {
       const newUrls = {};
-      const variablesToResolve = Object.entries(OM_VARIABLE_MAP).filter(([_, v]) => v !== null);
+      const variablesToResolve = Object.keys(LAYER_REGISTRY)
+        .filter(k => LAYER_REGISTRY[k].omVariable)
+        .map(k => [k, LAYER_REGISTRY[k].omVariable]);
 
       for (const [layerKey, variable] of variablesToResolve) {
         let meta = await fetchMetadata(targetModel);

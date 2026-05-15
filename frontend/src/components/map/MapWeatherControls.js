@@ -63,7 +63,8 @@ export const MapWeatherControls = ({
   ];
 
   const layers = [
-    { id: 'radar', label: 'Rain', icon: CloudRain, color: 'text-indigo-400' },
+    { id: 'rain', label: 'Rain', icon: CloudRain, color: 'text-blue-400' },
+    { id: 'radar', label: 'Radar', icon: CloudRain, color: 'text-indigo-400' },
     { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-sky-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
     { id: 'waves', label: 'Waves', icon: Waves, color: 'text-blue-300' },
@@ -88,7 +89,8 @@ export const MapWeatherControls = ({
     wind_waves: { label: 'Wind Waves (ft)', gradient: 'from-emerald-100 via-emerald-400 via-teal-500 via-cyan-600 to-blue-700', stops: ['0','1','2','4','6','10+'] },
     fog: { label: 'Low Clouds & Fog (%)', gradient: 'from-transparent via-gray-400 via-gray-300 to-white', stops: ['0','20','40','60','80','100'] },
     wind: { label: 'Wind (kts)', gradient: 'from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600', stops: ['0','5','10','20','30','50+'] },
-    radar: { label: 'Rain (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
+    rain: { label: 'Rain Forecast (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
+    radar: { label: 'Live Radar (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
     pressure: { label: 'Pressure (hPa)', gradient: 'from-gray-100 via-blue-300 via-emerald-300 via-yellow-400 to-red-600', stops: ['980','990','1000','1010','1020','1030'] },
   };
 

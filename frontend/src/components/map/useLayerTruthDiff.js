@@ -79,16 +79,14 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
     function validateSnapshot(s) {
       const violations = [];
 
-      // RULE 1: only ONE raster source active at a time (unless it's different sources entirely, but we mostly reuse om-weather-source)
-      // Actually, rule 1 is specifically for catching multiple VISIBLE raster layers that shouldn't be.
-      // Let's refine this: If we have > 1 om-weather-source visible
-      const omSourcesVisible = s.visibleRasterSources.filter(src => src === 'om-weather-source');
-      if (omSourcesVisible.length > 1) {
+      // RULE 1: Only ONE overall raster layer visible at a time (excluding satellite)
+      const visibleRasters = s.visibleRasterSources.filter(src => src !== 'satellite-source');
+      if (visibleRasters.length > 1) {
         violations.push({
           layerId: s.activeLayer,
           type: "RASTER_OVERLAP",
-          sources: s.visibleRasterSources,
-          hint: "Multiple OM weather layers visible simultaneously"
+          sources: visibleRasters,
+          hint: "Multiple raster layers visible simultaneously"
         });
       }
 
