@@ -169,6 +169,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
     const enqueueMarineUpdate = (source) => {
       const now = Date.now();
 
+      // HARD GATE: If a fetch is already in-flight, reject immediately
+      if (locks.isFetching) return;
+
       // Manual activation: set suppression window
       if (source === 'manual') {
         locks.manualFetchActiveUntil = now + 1500;
@@ -176,15 +179,26 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
 
       // Suppress ALL moveend-derived triggers during manual activation window
       if (source.includes('moveend') && now < (locks.manualFetchActiveUntil || 0)) {
-        console.log(`[Marine Trace] ingress ignored (${source} suppressed post-manual activation)`);
         return;
       }
 
       // Hard Dedupe: Ignore identical triggers within 800ms
       if (lastInvocationRef.current.source === source && now - lastInvocationRef.current.time < 800) {
-        console.log(`[Marine Trace] ingress ignored (duplicate ${source} trigger)`);
         return;
       }
+
+      // Pre-check viewport hash at ingress to avoid scheduling a no-op
+      try {
+        const center = mapInstance.getCenter();
+        const zoom = mapInstance.getZoom();
+        const q = (v) => Number(v).toFixed(2);
+        const z = Math.round(zoom * 2) / 2;
+        const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}`;
+        if (locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) {
+          return;
+        }
+      } catch (e) { /* map not ready */ }
+
       lastInvocationRef.current = { source, time: now };
 
       if (scheduledRef.current) return;

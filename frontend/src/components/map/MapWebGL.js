@@ -1,11 +1,6 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-
-// --- CRITICAL MAPLIBRE FIX ---
-// Force MapLibre to use the pre-minified worker from the local public directory.
-// This completely bypasses the Create-React-App Webpack 5 Terser minification bug
-// AND avoids the CORS SecurityError that occurs when loading workers from a CDN.
 maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
 
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
@@ -37,9 +32,6 @@ const HARDCODED_MARINE_FEATURE = {
   ]
 };
 
-// --- Open-Meteo Weather Tile Protocol ---
-// The `om://` custom protocol is now registered inside the MapWebGL component via useEffect
-// using a dynamic import to prevent Webpack TDZ ReferenceErrors during chunk initialization.
 
 /**
  * Map Open-Meteo model identifiers to their tile-server paths.
@@ -54,9 +46,12 @@ const OM_MODEL_MAP = {
 /**
  * Map app layer IDs to Open-Meteo tile variable names.
  * `null` means no tile is available (data-card only).
+ * IMPORTANT: 'precipitation' is intentionally null — Open-Meteo's latest.json
+ * reports it in metadata but tiles don't contain the data, causing infinite
+ * MapLibre retry loops. Precipitation uses radar tiles (RainViewer) instead.
  */
 const OM_VARIABLE_MAP = {
-  precipitation: 'precipitation',
+  precipitation: null,             // Uses radar tiles, NOT OM raster (variable not in tiles)
   wind:          null,             // Wind uses canvas particle engine, NOT raster tiles
   pressure:      'pressure_msl',
   fog:           'cloud_cover_low', // Better proxy for fog than visibility
@@ -117,31 +112,20 @@ const MapWebGL = ({
     mapInstance
   });
 
-  // Protocol registration — gated state prevents sources from mounting before ready
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
     import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
-      if (maplibregl && maplibregl.addProtocol) {
-        try { maplibregl.addProtocol('om', omProtocol); } catch (e) {}
-      }
+      if (maplibregl?.addProtocol) { try { maplibregl.addProtocol('om', omProtocol); } catch (e) {} }
       setProtocolReady(true);
     });
-
-    // v239: Global AbortError suppression for MapLibre worker-level Promise rejections.
-    // These escape both try-catch and map.on('error') because they originate from
-    // internal worker message ports during tile-fetch cancellation.
     const suppressAbortRejections = (event) => {
       const reason = event?.reason;
-      if (reason?.name === 'AbortError' || reason?.message?.includes('aborted')) {
-        event.preventDefault(); // Suppress console error
-      }
+      if (reason?.name === 'AbortError' || reason?.message?.includes('aborted')) event.preventDefault();
     };
     window.addEventListener('unhandledrejection', suppressAbortRejections);
     return () => window.removeEventListener('unhandledrejection', suppressAbortRejections);
   }, []);
 
-  // Open-Meteo tile source URL — built dynamically after checking model capabilities
-  // Track the active weather variable for stable Source IDs
   const activeWeatherVariable = useMemo(() => {
     if (!activeLayers.length) return null;
     return OM_VARIABLE_MAP[activeLayers[0]] || null;
@@ -274,6 +258,8 @@ const MapWebGL = ({
           const darkParam = !isLight ? '&dark=true' : '';
           const timeParam = computeTimeStep(meta);
           newUrls[layerKey] = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?${timeParam}&variable=${variable}${darkParam}`;
+        } else {
+          console.warn(`[Raster] Skipping variable '${variable}' for layer '${layerKey}' — not found in any model.`);
         }
       }
 
@@ -390,92 +376,42 @@ const MapWebGL = ({
     }
   });
 
-  // v246: Layer-targeted animation clock.
-  // Only drives opacity on the ACTIVE renderer type. Does NOT touch other renderers.
-  // This prevents raster opacity being set when wind/marine is active, and vice versa.
   useEffect(() => {
     if (!mapInstance) return;
-
-    weatherAnimRef.current = {
-      active: true,
-      start: performance.now(),
-      duration: 600,
-    };
-
+    weatherAnimRef.current = { active: true, start: performance.now(), duration: 600 };
+    const MARINE_LAYERS = ['marine-wave-height-layer', 'marine-swell-primary-layer', 'marine-swell-secondary-layer', 'marine-wind-wave-layer'];
     const animateWeatherLayers = () => {
       const anim = weatherAnimRef.current;
       if (!anim.active) return;
-
       let t = (performance.now() - anim.start) / anim.duration;
-      if (t >= 1) {
-        anim.active = false;
-        t = 1;
-      }
-
+      if (t >= 1) { anim.active = false; t = 1; }
       const p = 1 - Math.pow(1 - t, 3);
-
-      // v246: Only animate the renderer that's actually active
       if (mapInstance.getStyle()) {
         try {
           if (activeRenderType === 'marine') {
-            ['marine-wave-height-layer', 'marine-swell-primary-layer', 'marine-swell-secondary-layer', 'marine-wind-wave-layer'].forEach(layer => {
-              if (mapInstance.getLayer(layer)) {
-                mapInstance.setPaintProperty(layer, 'text-opacity', 0.9 * p);
-              }
-            });
+            MARINE_LAYERS.forEach(l => { if (mapInstance.getLayer(l)) mapInstance.setPaintProperty(l, 'text-opacity', 0.9 * p); });
           }
           if (activeRenderType === 'raster') {
-            const layerKey = activeLayers[0];
-            const layerId = `${layerKey}-layer`;
-            if (layerKey && mapInstance.getLayer(layerId)) {
-              const baseOpacity = layerKey === 'pressure' ? 0.45 : layerKey === 'satellite' ? 1.0 : 0.7;
-              mapInstance.setPaintProperty(layerId, 'raster-opacity', baseOpacity * p);
+            const lk = activeLayers[0], lid = `${lk}-layer`;
+            if (lk && mapInstance.getLayer(lid)) {
+              const base = lk === 'pressure' ? 0.45 : lk === 'satellite' ? 1.0 : 0.7;
+              mapInstance.setPaintProperty(lid, 'raster-opacity', base * p);
             }
           }
-          if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) {
-            mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
-          }
+          if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
         } catch (e) {}
       }
-
-      if (activeRenderType === 'wind') {
-        const windCanvas = document.getElementById('wind-canvas-layer');
-        if (windCanvas) windCanvas.style.opacity = p;
-      }
-
-      if (t < 1) {
-        try { mapInstance.triggerRepaint(); } catch(e) {}
-        animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
-      }
+      if (activeRenderType === 'wind') { const wc = document.getElementById('wind-canvas-layer'); if (wc) wc.style.opacity = p; }
+      if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) {} animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
     };
-
     cancelAnimationFrame(animFrameRef.current);
     animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
-
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers, activeRenderType]);
 
-  // Removed manual MapLibre 'omtiles' layer mutation to prevent react-map-gl source lifecycle corruption.
-  // The coastline layer has been migrated to declarative JSX below.
-  // Marine orchestration is now in useMarineOrchestrator hook (v238).
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      {/* Visual Debugging Overlay */}
-      <div className="absolute top-4 left-4 z-50 bg-black/80 p-3 rounded text-xs text-white font-mono pointer-events-none">
-        <div className="font-bold text-blue-400 mb-1 border-b border-gray-600 pb-1">v246 TRUTH ENGINE</div>
-        <div className="text-cyan-400">Layer: {activeLayers[0] || 'none'} → {activeRenderType}</div>
-        <div className="text-blue-500">Marine: {marineData ? 'ON' : 'OFF'} ({marineData?.features?.length || 0} pts)</div>
-        <div className="text-green-400">Wind: {activeLayers.includes('wind') ? 'ON' : 'OFF'} ({windData?.vectors?.length || 0} vec)</div>
-        {truthIssues.length > 0 && (
-          <div className="mt-1 pt-1 border-t border-red-800">
-            <div className="text-red-400 font-bold">⚠ {truthIssues.length} violation{truthIssues.length > 1 ? 's' : ''}</div>
-            {truthIssues.slice(0, 3).map((issue, i) => (
-              <div key={i} className="text-red-300 text-[10px]">{issue.type}</div>
-            ))}
-          </div>
-        )}
-      </div>
 
     <Map
       ref={innerMapRef}
