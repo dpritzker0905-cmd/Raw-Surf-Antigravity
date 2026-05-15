@@ -588,36 +588,36 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               const h = wind.speed; // height in meters
               
               // B3: Velocity-based opacity and saturation
-              const heightAlpha = Math.min(1.2, 0.4 + (h / 4));
-              const finalAlpha = alpha * heightAlpha;
+              const heightAlpha = Math.min(3.0, 1.2 + (h / 2));
+              const finalAlpha = Math.min(1.0, alpha * heightAlpha);
               
               let color = '';
-              if (h < 1) color = `hsla(210, 60%, 70%, ${finalAlpha})`;
-              else if (h < 2) color = `hsla(190, 80%, 60%, ${finalAlpha})`;
-              else if (h < 3) color = `hsla(220, 90%, 60%, ${finalAlpha})`;
-              else if (h < 5) color = `hsla(270, 100%, 65%, ${finalAlpha})`;
-              else color = `hsla(350, 100%, 60%, ${finalAlpha})`;
+              if (h < 1) color = `hsla(210, 80%, 75%, ${finalAlpha})`;
+              else if (h < 2) color = `hsla(190, 90%, 65%, ${finalAlpha})`;
+              else if (h < 3) color = `hsla(220, 100%, 65%, ${finalAlpha})`;
+              else if (h < 5) color = `hsla(270, 100%, 70%, ${finalAlpha})`;
+              else color = `hsla(350, 100%, 65%, ${finalAlpha})`;
               
               ctx.strokeStyle = color;
-              ctx.lineWidth = Math.min(4, 2 + h * 0.5); // Thicker for larger waves
+              ctx.lineWidth = Math.min(5, 2.5 + h * 0.8); // Thicker for larger waves
             } else {
               // Heatmap aesthetic for wind (Windy style)
               const s = wind.speed; // speed in knots
               
               // B3: Velocity-based opacity and saturation
-              const speedAlpha = Math.min(1.2, 0.3 + (s / 35));
-              const finalAlpha = alpha * speedAlpha;
+              const speedAlpha = Math.min(2.5, 0.8 + (s / 15));
+              const finalAlpha = Math.min(1.0, alpha * speedAlpha);
               
               let color = '';
-              if (s < 5) color = `hsla(200, 70%, 60%, ${finalAlpha})`;
-              else if (s < 10) color = `hsla(150, 80%, 50%, ${finalAlpha})`;
-              else if (s < 15) color = `hsla(70, 90%, 50%, ${finalAlpha})`;
-              else if (s < 20) color = `hsla(45, 100%, 50%, ${finalAlpha})`;
-              else if (s < 30) color = `hsla(15, 100%, 50%, ${finalAlpha})`;
-              else color = `hsla(330, 100%, 60%, ${finalAlpha})`;
+              if (s < 5) color = `hsla(200, 80%, 65%, ${finalAlpha})`;
+              else if (s < 10) color = `hsla(150, 90%, 55%, ${finalAlpha})`;
+              else if (s < 15) color = `hsla(70, 100%, 55%, ${finalAlpha})`;
+              else if (s < 20) color = `hsla(45, 100%, 55%, ${finalAlpha})`;
+              else if (s < 30) color = `hsla(15, 100%, 55%, ${finalAlpha})`;
+              else color = `hsla(330, 100%, 65%, ${finalAlpha})`;
 
               ctx.strokeStyle = color;
-              ctx.lineWidth = Math.min(3, 1.2 + s * 0.05); // Thicker for stronger winds
+              ctx.lineWidth = Math.min(4, 1.5 + s * 0.08); // Thicker for stronger winds
             }
             
             ctx.beginPath();
@@ -713,7 +713,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       mapInstance.off('zoomend', onZoomEnd);
       mapInstance.off('moveend', onIdle);
     };
-  }, [mapInstance, active, data, id]); // Intentionally omitting dependencies to prevent re-renders on every data tick
+  }, [mapInstance]); // Deliberately omitted 'active', 'data', 'id' to ensure persistence across data updates
 
   return (
     <canvas
