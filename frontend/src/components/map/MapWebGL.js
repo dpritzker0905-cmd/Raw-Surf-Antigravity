@@ -91,14 +91,10 @@ const MapWebGL = ({
 }) => {
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
-  const isBeach = theme === 'beach';
   
   const [viewState, setViewState] = useState({
-    longitude: FLORIDA_CENTER.lng,
-    latitude: FLORIDA_CENTER.lat,
-    zoom: 7,
-    pitch: 0,
-    bearing: 0
+    longitude: FLORIDA_CENTER.lng, latitude: FLORIDA_CENTER.lat,
+    zoom: 7, pitch: 0, bearing: 0
   });
 
   const [mapInstance, setMapInstance] = useState(null);
@@ -136,7 +132,7 @@ const MapWebGL = ({
   const activeRenderType = useMemo(() => {
     const layer = activeLayers[0];
     if (!layer) return 'none';
-    if (layer === 'radar') return 'radar';
+    if (layer === 'radar' || layer === 'precipitation') return 'radar';
     if (layer === 'wind') return 'wind';
     if (['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layer)) return 'marine';
     if (OM_VARIABLE_MAP[layer]) return 'raster';
@@ -470,7 +466,7 @@ const MapWebGL = ({
           <Layer 
             id="radar-layer" 
             type="raster" 
-            layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
+            layout={{ visibility: (activeLayers.includes('radar') || activeLayers.includes('precipitation')) ? 'visible' : 'none' }}
             paint={{ 'raster-opacity': 0.65 }} 
           />
         </Source>
@@ -533,6 +529,7 @@ const MapWebGL = ({
             'text-allow-overlap': true,
             'text-size': ['interpolate', ['linear'], ['get', 'wave_period'], 0, 12, 10, 18, 20, 26]
           }}
+          filter={['>', ['get', 'wave_height'], 0]}
           paint={{
             'text-color': [
               'interpolate', ['linear'], ['get', 'wave_height'],
@@ -557,6 +554,7 @@ const MapWebGL = ({
             'text-allow-overlap': true,
             'text-size': ['interpolate', ['linear'], ['get', 'swell_wave_period'], 0, 12, 10, 18, 20, 26]
           }}
+          filter={['>', ['get', 'swell_wave_height'], 0]}
           paint={{
             'text-color': [
               'interpolate', ['linear'], ['get', 'swell_wave_height'],
@@ -581,6 +579,7 @@ const MapWebGL = ({
             'text-allow-overlap': true,
             'text-size': ['interpolate', ['linear'], ['get', 'secondary_swell_wave_period'], 0, 12, 10, 18, 20, 26]
           }}
+          filter={['>', ['get', 'secondary_swell_wave_height'], 0]}
           paint={{
             'text-color': [
               'interpolate', ['linear'], ['get', 'secondary_swell_wave_height'],
@@ -605,6 +604,7 @@ const MapWebGL = ({
             'text-allow-overlap': true,
             'text-size': ['interpolate', ['linear'], ['get', 'wind_wave_period'], 0, 12, 10, 18, 20, 26]
           }}
+          filter={['>', ['get', 'wind_wave_height'], 0]}
           paint={{
             'text-color': [
               'interpolate', ['linear'], ['get', 'wind_wave_height'],

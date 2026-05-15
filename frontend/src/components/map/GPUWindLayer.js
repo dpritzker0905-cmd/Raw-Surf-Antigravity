@@ -204,72 +204,69 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
           const { west, south, east, north } = grid.bounds || { west: bw, south: bs, east: be, north: bn };
           const withinVectorBounds = p.lng >= west && p.lng <= east && p.lat >= south && p.lat <= north;
 
+          // Store previous screen position for trail drawing
+          let prevScreen = null;
+          try {
+            const ps = mapInstance.project([p.lng, p.lat]);
+            if (ps && Number.isFinite(ps.x) && Number.isFinite(ps.y)) prevScreen = ps;
+          } catch (e) {}
+
           // Advect particle
           const wind = interpolateWind(grid, p.lng, p.lat);
           if (wind.speed > 0.1 && withinVectorBounds && Number.isFinite(wind.u) && Number.isFinite(wind.v)) {
             try {
               const scale = 0.01 * dt * 60;
-              // PROPER MAP PROJECTION ADVECTION
               const screen = mapInstance.project([p.lng, p.lat]);
-              
               if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
-                p.age = p.maxAge + 1;
-                continue;
+                p.age = p.maxAge + 1; continue;
               }
-              
-              // u/v are geographic wind speeds, scale them into mercator screen pixels
-              // Note: mercator Y is inverted relative to north
               screen.x += wind.u * scale * 10;
               screen.y -= wind.v * scale * 10; 
-              
               const nextLngLat = mapInstance.unproject(screen);
               if (!nextLngLat || !Number.isFinite(nextLngLat.lng) || !Number.isFinite(nextLngLat.lat)) {
-                p.age = p.maxAge + 1;
-                continue;
+                p.age = p.maxAge + 1; continue;
               }
-              
               p.lng = nextLngLat.lng;
               p.lat = nextLngLat.lat;
             } catch (e) {
-              p.age = p.maxAge + 1; // force respawn
+              p.age = p.maxAge + 1;
             }
           } else {
-            p.age = p.maxAge + 1; // Force respawn if outside vector field or invalid wind
+            p.age = p.maxAge + 1;
           }
 
-          // CLAMP latitude to prevent map.project() crash (must be -90 to 90)
-          if (isNaN(p.lat) || isNaN(p.lng)) {
-            particles[i] = spawn();
-            continue;
-          }
+          // CLAMP latitude to prevent map.project() crash
+          if (isNaN(p.lat) || isNaN(p.lng)) { particles[i] = spawn(); continue; }
           p.lat = Math.max(-85, Math.min(85, p.lat));
-          // WRAP longitude
           while (p.lng > 180) p.lng -= 360;
           while (p.lng < -180) p.lng += 360;
 
-          // Respawn if out of viewport or too old — BEFORE projection
+          // Respawn if out of viewport or too old
           if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn || p.age > p.maxAge) {
-            particles[i] = spawn();
-            continue;
+            particles[i] = spawn(); continue;
           }
 
-          // Project to screen coordinates (safe — lat is clamped)
+          // Draw wind trail line from prev → current position
           try {
             const pt = mapInstance.project([p.lng, p.lat]);
+            if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) continue;
+            
             const hue = Math.min(120, wind.speed * 8);
-            ctx.fillStyle = `hsl(${120 - hue}, 90%, 55%)`;
-            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-            ctx.lineWidth = 1.5;
+            const alpha = Math.max(0.2, 1 - (p.age / p.maxAge));
+            ctx.strokeStyle = `hsla(${120 - hue}, 90%, 55%, ${alpha})`;
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 4, 0, Math.PI * 2);
-            ctx.fill();
+            if (prevScreen) {
+              ctx.moveTo(prevScreen.x, prevScreen.y);
+              ctx.lineTo(pt.x, pt.y);
+            } else {
+              // No previous position — draw a dot seed
+              ctx.moveTo(pt.x - 0.5, pt.y);
+              ctx.lineTo(pt.x + 0.5, pt.y);
+            }
             ctx.stroke();
           } catch (e) {
-            // Throttle error logging — max 3 per session
-            if (errorCount < 3) {
-              console.warn('[Wind] project() error:', e.message, `lat:${p.lat} lng:${p.lng}`);
-              errorCount++;
-            }
+            if (errorCount < 3) { console.warn('[Wind] project() error:', e.message); errorCount++; }
             particles[i] = spawn();
           }
         }
