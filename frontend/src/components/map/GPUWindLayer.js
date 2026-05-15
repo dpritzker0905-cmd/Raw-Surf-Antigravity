@@ -72,14 +72,19 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
   const activeRef = useRef(active);
 
   useEffect(() => { activeRef.current = active; }, [active]);
+  const prevDataIdRef = useRef(null);
   useEffect(() => {
     windRef.current = data;
-    // v245: Data pipeline diagnostic — helps debug "dots only, no animation"
+    // Only log when data actually changes, NOT on every revision tick
     if (data?.vectors?.length) {
-      const sample = data.vectors[0];
-      console.log(`[Wind] Data received: ${data.vectors.length} vectors, cols=${data.cols}, rows=${data.rows}, sample: u=${sample.u?.toFixed(2)} v=${sample.v?.toFixed(2)} speed=${sample.speed?.toFixed(1)}`);
+      const dataId = `${data.cols}x${data.rows}:${data.vectors.length}`;
+      if (dataId !== prevDataIdRef.current) {
+        prevDataIdRef.current = dataId;
+        const sample = data.vectors[0];
+        console.log(`[Wind] Data updated: ${data.vectors.length} vectors, ${data.cols}x${data.rows}, sample: u=${sample.u?.toFixed(2)} v=${sample.v?.toFixed(2)} speed=${sample.speed?.toFixed(1)}`);
+      }
     }
-  }, [data, revision]);
+  }, [data]);
 
   // Heatmap Overlay Engine: Dynamically creates a smoothly interpolated base map for wind/marine
   useEffect(() => {
@@ -212,17 +217,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     // We no longer inject inline mock data. We rely exclusively on the live fetch pipeline.
     inlineMockRef.current = null;
 
-    // 🔥 RUNTIME INVARIANT GUARD (FAIL FAST SYSTEM)
-    // Ensures wind is global, not viewport restricted. Marine layers are naturally viewport bounded.
-    const validateDomain = setInterval(() => {
-      if (id === 'wind-canvas-layer' && windRef.current && windRef.current.bounds) {
-        const { west, east, north, south } = windRef.current.bounds;
-        const isGlobal = (east - west >= 350) && (north - south >= 160);
-        if (!isGlobal) {
-          throw new Error("WIND_DOMAIN_VIOLATION: viewport bounds detected");
-        }
-      }
-    }, 2000);
+    // v3: Domain validation removed. Wind is now viewport-based per contract.
+    // No global domain enforcement needed.
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -575,7 +571,6 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     return () => {
       console.log('[Wind] === UNMOUNTING ===');
       cancelAnimationFrame(animRef.current);
-      clearInterval(validateDomain);
       clearTimeout(idleTimer);
       window.removeEventListener('resize', onResize);
       mapInstance.off('dragstart', onDragStart);

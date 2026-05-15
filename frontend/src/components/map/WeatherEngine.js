@@ -2,22 +2,24 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData } from './marineController';
 
 /**
- * Unified Weather Data Engine (v230)
+ * Unified Weather Data Engine (v3.0.0)
  * 
- * RULE: WEATHER IS TIME-DRIVEN, NOT MAP-DRIVEN.
- * This completely decouples wind, radar, and satellite fetching from MapLibre lifecycle events.
- * It enforces that weather layers only refresh on:
- * 1. Time ticks (e.g. 5 min intervals)
- * 2. Manual layer toggle (ON/OFF)
- * 3. Forecast step changes
+ * Conforms to Marine Engine v3 runtime contract:
+ * - VIEWPORT-based fetching (NOT global domain)
+ * - Viewport hash deduplication
+ * - 429 cooldown respected (handled in marineController)
+ * - AbortController for inflight cancellation
+ * - Preserves last valid field (handled in marineController)
+ * - Only fetches on: mount, timer tick, manual toggle, significant viewport change
+ * - NEVER fetches on: render, theme change, animation frame, particle update
  */
 export function useWeatherEngine({ activeLayers, mapInstance }) {
   const [windData, setWindData] = useState(null);
   const windRevision = useRef(0);
   
   const activeLayersRef = useRef(activeLayers);
+  const lastViewportHashRef = useRef(null);
   
-  // Track manual toggles
   useEffect(() => {
     activeLayersRef.current = activeLayers;
   }, [activeLayers]);
@@ -26,78 +28,126 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
     if (!mapInstance) return;
 
     let isFetching = false;
+    let abortController = null;
+
+    /**
+     * Compute a viewport hash for deduplication.
+     * If the hash hasn't changed, skip the fetch.
+     */
+    const getViewportHash = () => {
+      try {
+        const center = mapInstance.getCenter();
+        const zoom = mapInstance.getZoom();
+        const q = (v) => Number(v).toFixed(1);
+        return `${q(center.lng)}:${q(center.lat)}:${Math.round(zoom)}`;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    /**
+     * Get the current viewport bounds from MapLibre.
+     */
+    const getViewportBounds = () => {
+      try {
+        const b = mapInstance.getBounds();
+        return {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
+      } catch (e) {
+        return null;
+      }
+    };
 
     const requestUpdate = async (source) => {
       if (isFetching) return;
       
       const active = activeLayersRef.current;
       if (!active.includes('wind')) {
-        setWindData(null);
+        // Don't clear windData — just stop fetching.
+        // Clearing triggers re-render cycles.
         return;
       }
 
+      // Viewport hash deduplication
+      const hash = getViewportHash();
+      if (hash && hash === lastViewportHashRef.current && source !== 'manual_toggle') {
+        return;
+      }
+
+      const bounds = getViewportBounds();
+      if (!bounds) return;
+
+      // Cancel previous inflight
+      if (abortController) abortController.abort();
+      abortController = new AbortController();
+
       isFetching = true;
       try {
-        // v255: WIND DOMAIN FIX - Enforce global domain, NEVER viewport bounds
-        const bounds = {
-          west: -180, south: -85,
-          east: 180, north: 85
-        };
-
-        console.log(`[WeatherEngine] tick -> fetching wind data (source: ${source})`);
-        let data = await fetchWindData(bounds);
-        if (window.__LRCM_EXEC_TRACE__) {
-          data = window.__LRCM_EXEC_TRACE__.push({ layer: 'wind', action: 'fetch', source: 'WeatherEngine', timestamp: Date.now(), payload: data, stack: new Error().stack }) && data;
-        }
+        console.log(`[WeatherEngine] Fetching wind (source: ${source})`);
+        const data = await fetchWindData(bounds, abortController.signal);
         
         if (data) {
-          console.log('[WeatherEngine] cache updated');
+          lastViewportHashRef.current = hash;
           windRevision.current += 1;
           setWindData(data);
         }
       } catch (e) {
-        console.error('[WeatherEngine] Fetch failed:', e);
+        if (e.name !== 'AbortError') {
+          console.error('[WeatherEngine] Fetch failed:', e);
+        }
       } finally {
         isFetching = false;
       }
     };
 
-    // Trigger on mount or when map is first ready
+    // Initial fetch on mount
     requestUpdate('mount');
 
-    // WEATHER TIME ENGINE: 5 minute API refresh interval
-    // This absolutely guarantees ZERO feedback loops with MapLibre's moveend or sourcedata events.
+    // Timer-based refresh: 5 minute intervals
     const tickInterval = setInterval(() => {
       requestUpdate('timer_tick');
     }, 5 * 60 * 1000);
 
-    return () => clearInterval(tickInterval);
+    return () => {
+      clearInterval(tickInterval);
+      if (abortController) abortController.abort();
+    };
   }, [mapInstance]);
 
-  // v246: Manual fetch trigger when wind layer is toggled ON but no data exists.
-  // This was previously a no-op (empty setTimeout body) — the root cause of WIND_DATA_EMPTY.
-  const isWindActive = useMemo(() => activeLayers.includes('wind'), [activeLayers.join(',')]);
+  // Manual toggle trigger: when wind is turned ON but no data exists
+  const isWindActive = useMemo(
+    () => activeLayers.includes('wind'),
+    [activeLayers.join(',')]
+  );
   const isFetchingWindRef = useRef(false);
 
   useEffect(() => {
     if (!mapInstance || !isWindActive || windData || isFetchingWindRef.current) return;
     
     const t = setTimeout(async () => {
-      // v256: WIND DOMAIN FIX - Enforce global domain for manual toggle as well
-      const bounds = {
-        west: -180, south: -85,
-        east: 180, north: 85
-      };
-      console.log('[WeatherEngine] Manual fetch → wind layer toggled ON');
       isFetchingWindRef.current = true;
       try {
+        const b = mapInstance.getBounds();
+        const bounds = {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
+        console.log('[WeatherEngine] Manual fetch: wind layer toggled ON');
         const data = await fetchWindData(bounds);
         if (data) {
           windRevision.current += 1;
           setWindData(data);
         }
       } catch (e) {
-        console.error('[WeatherEngine] Manual fetch failed:', e);
+        if (e.name !== 'AbortError') {
+          console.error('[WeatherEngine] Manual fetch failed:', e);
+        }
       } finally {
         isFetchingWindRef.current = false;
       }

@@ -216,7 +216,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
           if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
             updateMarineGrid(source);
           }
-        }, 150);
+        }, 300);
       });
     };
 
@@ -240,11 +240,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       if (lastStableCameraRef.current === cameraHash) return;
       lastStableCameraRef.current = cameraHash;
 
-      // Debounce burst: collapse all moveends within 250ms into ONE fetch
+      // v3 contract: 900ms debounce for moveend per rate limit protection
       clearTimeout(moveendDebounceRef.timer);
       moveendDebounceRef.timer = setTimeout(() => {
         enqueueMarineUpdate('moveend');
-      }, 250);
+      }, 900);
     };
 
     // User Intent Tracking
