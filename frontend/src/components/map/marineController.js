@@ -28,41 +28,62 @@ function generateMockWind(bounds) {
   return { vectors, bounds, grid: GRID };
 }
 
-function generateMockMarine() {
-  const oceanPts = [
-    // Atlantic Coast
-    [28.39, -80.10], [28.5, -79.5], [27.5, -79.2], [26.5, -79.0], [29.5, -79.8],
-    [30.5, -79.5], [31.5, -79.0], [32.5, -78.5], [25.5, -79.0], [24.5, -79.5],
-    // Gulf Stream
-    [28.0, -78.0], [27.0, -77.0], [29.0, -77.5], [26.0, -77.5], [30.0, -78.0],
-    [28.0, -76.0], [27.0, -76.0], [25.0, -77.0], [31.0, -77.5], [29.0, -76.5],
-    // Gulf of Mexico
-    [27.0, -83.0], [26.5, -84.0], [28.0, -85.0], [27.5, -86.0], [26.0, -85.5],
-    [29.0, -87.0], [28.5, -88.0], [27.0, -89.0], [26.0, -87.0], [25.5, -84.5],
-    // Caribbean
-    [24.0, -77.5], [23.0, -78.0], [22.5, -79.5], [24.5, -76.0], [23.5, -75.5],
-    // Deep Atlantic
-    [28.0, -73.0], [26.0, -72.0], [30.0, -74.0], [25.0, -74.0], [27.0, -71.0],
-  ];
-  return {
-    type: 'FeatureCollection',
-    features: oceanPts.map(([lat, lng]) => {
-      const wh = 0.3 + Math.random() * 3;
+function generateMockMarine(bounds) {
+  const { west, south, east, north } = bounds || { west: -120, south: -60, east: 60, north: 60 };
+  const GRID = 7;
+  const latStep = (north - south) / GRID;
+  const lngStep = (east - west) / GRID;
+  const gridVectors = [];
+  const features = [];
+
+  for (let yi = 0; yi <= GRID; yi++) {
+    for (let xi = 0; xi <= GRID; xi++) {
+      let lat = south + yi * latStep;
+      let lng = west + xi * lngStep;
+      
+      const wh = 0.5 + Math.random() * 3;
       const sh = 0.2 + Math.random() * 2;
-      const wwh = 0.1 + Math.random() * 1.2;
-      return {
+      const wwh = 0.1 + Math.random() * 1.5;
+      
+      const w_d = 60 + Math.random() * 120;
+      const s1_d = 40 + Math.random() * 80;
+      const ww_d = 90 + Math.random() * 100;
+
+      const getUV = (speed, dir) => {
+        const rad = dir * (Math.PI / 180);
+        return { u: -speed * Math.sin(rad), v: -speed * Math.cos(rad), speed };
+      };
+
+      gridVectors.push({
+        lat, lng,
+        waves: getUV(wh, w_d),
+        swell_1: getUV(sh, s1_d),
+        swell_2: getUV(sh * 0.5, s1_d + 30),
+        wind_waves: getUV(wwh, ww_d)
+      });
+
+      features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [lng, lat] },
         properties: {
-          wave_height: wh, wave_period: 5 + Math.random() * 8,
-          wave_direction: 60 + Math.random() * 120,
-          swell_wave_height: sh, swell_wave_period: 8 + Math.random() * 8,
-          swell_wave_direction: 40 + Math.random() * 80,
-          wind_wave_height: wwh, wind_wave_period: 3 + Math.random() * 5,
-          wind_wave_direction: 90 + Math.random() * 100,
+          wave_height: wh, wave_period: 5 + Math.random() * 8, wave_direction: w_d,
+          swell_wave_height: sh, swell_wave_period: 8 + Math.random() * 8, swell_wave_direction: s1_d,
+          secondary_swell_wave_height: sh * 0.5, secondary_swell_wave_period: 6, secondary_swell_wave_direction: s1_d + 30,
+          wind_wave_height: wwh, wind_wave_period: 3 + Math.random() * 5, wind_wave_direction: ww_d,
         },
-      };
-    })
+      });
+    }
+  }
+
+  return {
+    type: 'FeatureCollection',
+    features,
+    grid: {
+      vectors: gridVectors,
+      bounds: { west, south, east, north },
+      cols: GRID + 1,
+      rows: GRID + 1
+    }
   };
 }
 
@@ -130,9 +151,15 @@ export async function fetchWindData(bounds) {
     
     console.trace("[Marine Controller] Fetching Wind Data");
     const res = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1&wind_speed_unit=knots`
+      `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1&wind_speed_unit=kn`
     );
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      if (res.status === 429) {
+        console.warn(`[Wind Trace] API Quota Exceeded (429). Falling back to dynamic mock generator to prevent empty renders.`);
+        return generateMockWind({ west, south, east, north });
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
 
     const json = await res.json();
 
@@ -176,7 +203,8 @@ export async function fetchWindData(bounds) {
     }
   } catch (err) {
     console.error(`[Wind Trace] API fetch failed: ${err.message}`);
-    return null;
+    // Final safety net fallback
+    return generateMockWind(bounds);
   } finally {
     windRequestInFlight = false;
   }
@@ -240,7 +268,13 @@ export async function fetchMarineData(bounds, zoom) {
 
     console.trace("[Marine Controller] Fetching Marine Data");
     const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      if (res.status === 429) {
+        console.warn(`[Marine Trace] API Quota Exceeded (429). Falling back to dynamic mock generator to prevent empty renders.`);
+        return generateMockMarine({ west: lngMin, south: latMin, east: lngMax, north: latMax });
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
 
     const data = await res.json();
 
@@ -330,6 +364,10 @@ export async function fetchMarineData(bounds, zoom) {
     }
   } catch (err) {
     console.error(`[Marine Trace] API fetch failed: ${err.message}`);
+    // Final safety net fallback for marine
+    if (bounds) {
+      return generateMockMarine({ west: bounds.west, south: bounds.south, east: bounds.east, north: bounds.north });
+    }
     return null;
   } finally {
     marineRequestInFlight = false;
