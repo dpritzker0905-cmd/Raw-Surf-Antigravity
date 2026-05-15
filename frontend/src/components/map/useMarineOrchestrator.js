@@ -54,7 +54,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       activeMarineLayersRef.current = hasMarine;
 
       if (!hasMarine) {
-        if (marineData) setMarineData(null);
+        // Don't clear marineData — layers are hidden via visibility:none.
+        // Clearing would trigger a React re-render cycle on the Source.
       } else if (hasMarine && !previouslyHadMarine) {
         console.log('[Marine] Layer activated, triggering manual fetch...');
         manualMarineTriggerRef.current?.();
@@ -132,7 +133,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
         console.log('[Marine Trace] 4. fetchMarineData returned:',
           data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
 
-        if (data) {
+        if (data && data.features?.length > 0) {
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();
 

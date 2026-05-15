@@ -17,22 +17,7 @@ import TruthOverlay from './TruthOverlay';
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-const HARDCODED_MARINE_FEATURE = {
-  type: 'FeatureCollection',
-  features: [
-    {
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [-80.6, 28.4] },
-      properties: {
-        wave_height: 0, wave_period: 0, wave_direction: 0,
-        swell_wave_height: 0, swell_wave_period: 0, swell_wave_direction: 0,
-        secondary_swell_wave_height: 0, secondary_swell_wave_period: 0, secondary_swell_wave_direction: 0,
-        wind_wave_height: 0, wind_wave_period: 0, wind_wave_direction: 0,
-      }
-    }
-  ]
-};
-
+const EMPTY_MARINE_FC = { type: 'FeatureCollection', features: [] };
 
 /**
  * Map Open-Meteo model identifiers to their tile-server paths.
@@ -405,7 +390,15 @@ const MapWebGL = ({
     animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers, activeRenderType]);
-
+  // Marine imperative source mutation — NEVER recreate source, only setData()
+  useEffect(() => {
+    if (!mapInstance) return;
+    const src = mapInstance.getSource('marine-data-source');
+    if (!src) return;
+    // Empty commit guard: never send empty/null data to MapLibre
+    if (!marineData?.features?.length) return;
+    try { src.setData(marineData); } catch (e) {}
+  }, [mapInstance, marineData]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -516,7 +509,7 @@ const MapWebGL = ({
       <Source 
         id="marine-data-source"
         type="geojson" 
-        data={marineData || HARDCODED_MARINE_FEATURE}
+        data={EMPTY_MARINE_FC}
       >
         <Layer
           id="marine-wave-height-layer"
