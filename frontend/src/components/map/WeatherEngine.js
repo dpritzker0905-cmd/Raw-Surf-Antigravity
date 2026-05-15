@@ -38,10 +38,10 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
 
       isFetching = true;
       try {
-        const b = mapInstance.getBounds();
+        // v255: WIND DOMAIN FIX - Enforce global domain, NEVER viewport bounds
         const bounds = {
-          west: b.getWest(), south: b.getSouth(),
-          east: b.getEast(), north: b.getNorth()
+          west: -180, south: -85,
+          east: 180, north: 85
         };
 
         console.log(`[WeatherEngine] tick -> fetching wind data (source: ${source})`);

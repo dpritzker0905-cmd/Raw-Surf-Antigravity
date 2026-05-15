@@ -20,6 +20,7 @@ import { validateModelAccess, getUserTier } from './LayerAccessResolver';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 window.__LRCM_EXEC_TRACE__ = [];
+window.__RASTER_DEBUG__ = { failFast: true, logMissingVariables: true };
 export function trace(layer, action, source, payload) {
   window.__LRCM_EXEC_TRACE__.push({
     layer,
@@ -219,28 +220,21 @@ const MapWebGL = ({
     };
 
     const resolveAllUrls = async () => {
-      // FIREWALL: Validate access BEFORE fetch
-      try {
-        validateModelAccess(activeModel || 'GFS', userTier);
-      } catch (err) {
-        console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message);
-        return; // FAIL FAST
-      }
+      try { validateModelAccess(activeModel || 'GFS', userTier); } 
+      catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
       const newUrls = {};
-      const variablesToResolve = Object.keys(LAYER_REGISTRY)
-        .filter(k => LAYER_REGISTRY[k].omVariable)
-        .map(k => [k, LAYER_REGISTRY[k].omVariable]);
+      const variablesToResolve = Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(k => [k, LAYER_REGISTRY[k].omVariable]);
 
       for (const [layerKey, variable] of variablesToResolve) {
         let meta = await fetchMetadata(targetModel);
-        // Removed dynamic fallback chain to strictly comply with "NO SILENT FALLBACKS"
         if (meta.variables.includes(variable)) {
           const darkParam = !isLight ? '&dark=true' : '';
           const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${targetModel}/latest.json?${computeTimeStep(meta)}&variable=${variable}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
-        } else {
-          console.warn(`[Raster] Skipping variable '${variable}' for layer '${layerKey}' — not found in model ${targetModel}.`);
+        } else if (window.__RASTER_DEBUG__?.failFast !== false) {
+          if (window.__RASTER_DEBUG__?.logMissingVariables) console.warn(`[Raster] MISSING VARIABLE: ${variable} in ${targetModel}`);
+          throw new Error("MISSING_RASTER_VARIABLE: " + variable);
         }
       }
 

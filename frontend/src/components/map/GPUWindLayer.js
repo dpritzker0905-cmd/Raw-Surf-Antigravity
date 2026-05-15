@@ -88,6 +88,18 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     // We no longer inject inline mock data. We rely exclusively on the live fetch pipeline.
     inlineMockRef.current = null;
 
+    // 🔥 RUNTIME INVARIANT GUARD (FAIL FAST SYSTEM)
+    // Ensures wind is global, not viewport restricted
+    const validateDomain = setInterval(() => {
+      if (windRef.current && windRef.current.bounds) {
+        const { west, east, north, south } = windRef.current.bounds;
+        const isGlobal = (east - west >= 350) && (north - south >= 160);
+        if (!isGlobal) {
+          throw new Error("WIND_DOMAIN_VIOLATION: viewport bounds detected");
+        }
+      }
+    }, 2000);
+
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const dpr = window.devicePixelRatio || 1;
@@ -217,11 +229,13 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
           let wind = interpolateWind(grid, p.lng, p.lat);
           
           if (window.__WIND_DEBUG__) {
-            // Single vector test mode
-            if (window.__WIND_SINGLE_VECTOR__) {
-              wind = { u: 10, v: 0, speed: 10 };
+            // Single vector test mode (object or boolean compatibility)
+            if (window.__WIND_SINGLE_VECTOR__ || window.__WIND_DEBUG__.forceVector) {
+              const forceU = window.__WIND_DEBUG__.forceVector?.u ?? 10;
+              const forceV = window.__WIND_DEBUG__.forceVector?.v ?? 0;
+              wind = { u: forceU, v: forceV, speed: Math.sqrt(forceU*forceU + forceV*forceV) };
             }
-            if (p.age < dt * 2) {
+            if ((window.__WIND_DEBUG__.showSpawnPoints !== false) && p.age < dt * 2) {
                // Highlight spawn origin points
                try {
                  const sp = mapInstance.project([p.lng, p.lat]);
@@ -297,7 +311,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
 
       if (window.__WIND_DEBUG__) {
         // Draw debug grid overlay
-        if (grid && grid.cols && grid.rows && grid.bounds && frameCount % 10 === 0) {
+        if (window.__WIND_DEBUG__.logPerFrame !== false && grid && grid.cols && grid.rows && grid.bounds && frameCount % 10 === 0) {
            const cLng = (bw + be) / 2;
            const cLat = (bs + bn) / 2;
            const centerWind = interpolateWind(grid, cLng, cLat);
@@ -316,27 +330,31 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
         }
 
         // Velocity heat overlay and vector lines sampled across a grid
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
-        const stepX = (be - bw) / 10;
-        const stepY = (bn - bs) / 10;
-        for (let x = bw; x < be; x += stepX) {
-           for (let y = bs; y < bn; y += stepY) {
-              const pt = mapInstance.project([x, y]);
-              const w = interpolateWind(grid, x, y);
-              
-              // Magnitude Heat
-              ctx.beginPath();
-              ctx.arc(pt.x, pt.y, Math.min(20, w.speed * 2), 0, Math.PI * 2);
-              ctx.fill();
+        if (window.__WIND_DEBUG__.drawGrid !== false) {
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+          const stepX = (be - bw) / 10;
+          const stepY = (bn - bs) / 10;
+          for (let x = bw; x < be; x += stepX) {
+             for (let y = bs; y < bn; y += stepY) {
+                const pt = mapInstance.project([x, y]);
+                const w = interpolateWind(grid, x, y);
+                
+                // Magnitude Heat
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, Math.min(20, w.speed * 2), 0, Math.PI * 2);
+                ctx.fill();
 
-              // Vector lines
-              ctx.strokeStyle = 'cyan';
-              ctx.lineWidth = 1;
-              ctx.beginPath();
-              ctx.moveTo(pt.x, pt.y);
-              ctx.lineTo(pt.x + (w.u * 2), pt.y - (w.v * 2));
-              ctx.stroke();
-           }
+                // Vector lines
+                if (window.__WIND_DEBUG__.drawVectors !== false) {
+                  ctx.strokeStyle = 'cyan';
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  ctx.moveTo(pt.x, pt.y);
+                  ctx.lineTo(pt.x + (w.u * 2), pt.y - (w.v * 2));
+                  ctx.stroke();
+                }
+             }
+          }
         }
       }
 
@@ -357,6 +375,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
     return () => {
       console.log('[Wind] === UNMOUNTING ===');
       cancelAnimationFrame(animRef.current);
+      clearInterval(validateDomain);
       clearTimeout(idleTimer);
       window.removeEventListener('resize', onResize);
       mapInstance.off('dragstart', onDragStart);
