@@ -69,48 +69,13 @@ import { useEffect, useRef } from 'react';
 const ACTIVE_ENGINES = new Set();
 
 // --- VISUAL TUNING CONSTANTS ---
-const WIND_PADDING_FACTOR = 2.4; // Inflate spawn bounds for wider visual spread
-const WIND_PARTICLE_ALPHA = 0.22; // Global particle layer opacity (Windy-style)
-const HEATMAP_RESOLUTION = 256; // Upsampled heatmap resolution for smooth gradients
+const WIND_PADDING_FACTOR = 2.4;
+const WIND_PARTICLE_ALPHA = 0.35; // Slightly higher for dark particles to be visible
+const HEATMAP_RESOLUTION = 256;
 
-/** Smoothstep for edge fade attenuation (0→1 ramp) */
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
-}
-
-/**
- * Simple ocean heuristic — returns false for points likely over land.
- * Uses rough bounding boxes for major landmasses. Not pixel-perfect,
- * but prevents the worst land-bleeding in heatmap overlays.
- */
-function isLikelyOcean(lat, lng) {
-  // North America interior
-  if (lat > 25 && lat < 50 && lng > -125 && lng < -65) {
-    // East coast buffer
-    if (lng > -82 && lat > 25 && lat < 45) return false;
-    // Central US
-    if (lng > -105 && lng < -82 && lat > 28 && lat < 49) return false;
-    // West coast (keep coast pixels)
-    if (lng > -125 && lng < -115 && lat > 32 && lat < 49) return false;
-  }
-  // Mexico interior
-  if (lat > 15 && lat < 25 && lng > -105 && lng < -88) return false;
-  // Central America
-  if (lat > 7 && lat < 18 && lng > -92 && lng < -77) return false;
-  // South America interior
-  if (lat > -55 && lat < 12 && lng > -80 && lng < -35) {
-    if (lng > -75 && lng < -40 && lat > -35 && lat < 5) return false;
-  }
-  // Europe
-  if (lat > 36 && lat < 70 && lng > -10 && lng < 40) return false;
-  // Africa
-  if (lat > -35 && lat < 37 && lng > -18 && lng < 52) return false;
-  // Asia
-  if (lat > 10 && lat < 75 && lng > 40 && lng < 145) return false;
-  // Australia
-  if (lat > -45 && lat < -10 && lng > 112 && lng < 155) return false;
-  return true;
 }
 
 export function WindParticleCanvas({ mapInstance, active, data, revision, id = "wind-canvas-layer" }) {
@@ -145,11 +110,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     }
   }, [data]);
 
-  // Heatmap Overlay Engine: Dynamically creates a smoothly interpolated base map for wind/marine
+  // Wind Heatmap Overlay: Windy-style atmospheric velocity field
   useEffect(() => {
     if (!mapInstance || !active || !data?.vectors?.length) return;
-    const isMarine = id === 'marine-canvas-layer';
-    if (isMarine) return; // B4: Marine uses pure directional particles, no underlying heatmap
     
     const sourceId = `${id}-heatmap-source`;
     const layerId = `${id}-heatmap-layer`;
@@ -176,59 +139,39 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
            
            if (!vec || isNaN(vec.speed) || vec.speed < 0.05) {
              imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
-           } else if (isMarine && !isLikelyOcean(lat, lng)) {
-             // LAND MASK: Skip marine rendering over land
-             imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
            } else {
-             const s = vec.speed;
-             
-             const lerp = (a, b, t) => a + (b - a) * t;
-             const lerpColor = (c1, c2, t) => ({
-               r: Math.round(lerp(c1.r, c2.r, t)),
-               g: Math.round(lerp(c1.g, c2.g, t)),
-               b: Math.round(lerp(c1.b, c2.b, t))
-             });
-             
-             let scale;
-             if (isMarine) {
-               scale = [
-                 { s: 0.0, c: { r: 140, g: 200, b: 255 } },
-                 { s: 0.5, c: { r: 0,   g: 220, b: 255 } },
-                 { s: 1.0, c: { r: 0,   g: 100, b: 255 } },
-                 { s: 2.0, c: { r: 150, g: 50,  b: 255 } },
-                 { s: 3.0, c: { r: 255, g: 50,  b: 50  } },
-                 { s: 10.0, c: { r: 255, g: 0, b: 0 } }
-               ];
-             } else {
-               scale = [
-                 { s: 0,  c: { r: 100, g: 200, b: 255 } },
-                 { s: 5,  c: { r: 0,   g: 255, b: 150 } },
-                 { s: 10, c: { r: 150, g: 255, b: 50  } },
-                 { s: 15, c: { r: 255, g: 200, b: 0   } },
-                 { s: 20, c: { r: 255, g: 100, b: 0   } },
-                 { s: 30, c: { r: 255, g: 0,   b: 100 } },
-                 { s: 100, c: { r: 255, g: 0, b: 255 } }
-               ];
-             }
-
-             let r, g, b;
-             if (s <= scale[0].s) {
-               ({ r, g, b } = scale[0].c);
-             } else if (s >= scale[scale.length - 1].s) {
-               ({ r, g, b } = scale[scale.length - 1].c);
-             } else {
-               for (let j = 0; j < scale.length - 1; j++) {
-                 if (s >= scale[j].s && s < scale[j+1].s) {
-                   const t = (s - scale[j].s) / (scale[j+1].s - scale[j].s);
-                   ({ r, g, b } = lerpColor(scale[j].c, scale[j+1].c, t));
-                   break;
-                 }
-               }
-             }
-
-             // Marine: lower alpha for see-through overlay. Wind: standard density.
-             const pixelAlpha = isMarine ? 65 : 180;
-             imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = pixelAlpha;
+              const s = vec.speed;
+              const lerp = (a, b, t) => a + (b - a) * t;
+              const lerpColor = (c1, c2, t) => ({
+                r: Math.round(lerp(c1.r, c2.r, t)),
+                g: Math.round(lerp(c1.g, c2.g, t)),
+                b: Math.round(lerp(c1.b, c2.b, t))
+              });
+              const scale = [
+                { s: 0,  c: { r: 20,  g: 40,  b: 120 } },
+                { s: 2,  c: { r: 0,   g: 150, b: 200 } },
+                { s: 5,  c: { r: 0,   g: 200, b: 180 } },
+                { s: 10, c: { r: 80,  g: 200, b: 50  } },
+                { s: 15, c: { r: 240, g: 220, b: 0   } },
+                { s: 25, c: { r: 255, g: 120, b: 0   } },
+                { s: 35, c: { r: 220, g: 30,  b: 60  } },
+                { s: 50, c: { r: 180, g: 0,   b: 180 } }
+              ];
+              let r, g, b;
+              if (s <= scale[0].s) {
+                ({ r, g, b } = scale[0].c);
+              } else if (s >= scale[scale.length - 1].s) {
+                ({ r, g, b } = scale[scale.length - 1].c);
+              } else {
+                for (let j = 0; j < scale.length - 1; j++) {
+                  if (s >= scale[j].s && s < scale[j+1].s) {
+                    const t = (s - scale[j].s) / (scale[j+1].s - scale[j].s);
+                    ({ r, g, b } = lerpColor(scale[j].c, scale[j+1].c, t));
+                    break;
+                  }
+                }
+              }
+              imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = 180;
            }
         }
       }
@@ -535,11 +478,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
                 p.age = p.maxAge + 1; continue;
               }
-              // Slower advection for dense water waves? No, wave height is 0-5m, wind is 0-30kt.
-              // To get visible streaks, marine multiplier must be much higher than wind.
-              const speedMultiplier = id === 'marine-canvas-layer' ? 50 : 10;
-              screen.x += wind.u * scale * speedMultiplier;
-              screen.y -= wind.v * scale * speedMultiplier; 
+              // Wind-only advection
+              screen.x += wind.u * scale * 10;
+              screen.y -= wind.v * scale * 10; 
               const nextLngLat = mapInstance.unproject(screen);
               if (!nextLngLat || !Number.isFinite(nextLngLat.lng) || !Number.isFinite(nextLngLat.lat)) {
                 p.age = p.maxAge + 1; continue;
@@ -584,43 +525,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const fadeN = smoothstep(paddedN, paddedN - edgePadDeg, p.lat);
             alpha *= fadeW * fadeE * fadeS * fadeN * WIND_PARTICLE_ALPHA;
 
-            if (id === 'marine-canvas-layer') {
-              // Ocean aesthetic for waves: dynamic palette based on wave height (wind.speed represents height here)
-              const h = wind.speed; // height in meters
-              
-              // B3: Velocity-based opacity and saturation
-              // Boost alpha heavily since heatmap is disabled
-              const heightAlpha = Math.min(4.0, 1.5 + (h / 1.5));
-              const finalAlpha = Math.min(1.0, alpha * heightAlpha);
-              
-              let color = '';
-              if (h < 1) color = `hsla(210, 80%, 75%, ${finalAlpha})`;
-              else if (h < 2) color = `hsla(190, 90%, 65%, ${finalAlpha})`;
-              else if (h < 3) color = `hsla(220, 100%, 65%, ${finalAlpha})`;
-              else if (h < 5) color = `hsla(270, 100%, 70%, ${finalAlpha})`;
-              else color = `hsla(350, 100%, 65%, ${finalAlpha})`;
-              
-              ctx.strokeStyle = color;
-              ctx.lineWidth = Math.min(6, 2.5 + h * 1.0); // Thicker for larger waves
-            } else {
-              // Heatmap aesthetic for wind (Windy style)
-              const s = wind.speed; // speed in knots
-              
-              // B3: Revert Wind alpha boost so it blends nicely with its heatmap
-              const speedAlpha = Math.min(1.2, 0.3 + (s / 35));
-              const finalAlpha = Math.min(1.0, alpha * speedAlpha);
-              
-              let color = '';
-              if (s < 5) color = `hsla(200, 70%, 60%, ${finalAlpha})`;
-              else if (s < 10) color = `hsla(150, 80%, 50%, ${finalAlpha})`;
-              else if (s < 15) color = `hsla(70, 90%, 50%, ${finalAlpha})`;
-              else if (s < 20) color = `hsla(45, 100%, 50%, ${finalAlpha})`;
-              else if (s < 30) color = `hsla(15, 100%, 50%, ${finalAlpha})`;
-              else color = `hsla(330, 100%, 60%, ${finalAlpha})`;
-
-              ctx.strokeStyle = color;
-              ctx.lineWidth = Math.min(3, 1.2 + s * 0.05); // Thicker for stronger winds
-            }
+            // DARK directional particles — direction only, heatmap carries intensity
+            const s = wind.speed;
+            const speedAlpha = Math.min(1.0, 0.3 + (s / 25));
+            const finalAlpha = Math.min(0.7, alpha * speedAlpha);
+            ctx.strokeStyle = `rgba(15, 15, 25, ${finalAlpha})`;
+            ctx.lineWidth = Math.min(2.5, 1.0 + s * 0.04);
             
             ctx.beginPath();
             if (prevScreen) {

@@ -7,6 +7,7 @@ import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
+import { MarineParticleCanvas } from './GPUMarineLayer';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useRasterTransactions } from './useRasterTransactions';
@@ -524,15 +525,13 @@ const MapWebGL = ({
         </Source>
       ))}
 
-      {/* Marine Vector Particle Engine */}
-      <WindParticleCanvas 
+      {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
+      <MarineParticleCanvas 
         id="marine-canvas-layer"
         mapInstance={mapInstance} 
         active={!!activeMarineLayer}
         data={marineWindData}
         revision={marineData?.grid?.timestamp || Date.now()}
-        isMarine={true}
-        theme={theme}
       />
 
       {/* Spot Clusters */}
