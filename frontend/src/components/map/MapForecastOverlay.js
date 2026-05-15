@@ -40,9 +40,6 @@ export const MapForecastOverlay = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isLight = theme === 'light';
 
-  // Don't show when no data loaded yet
-  if (!forecastData && !marineData) return null;
-
   const bgClass = isLight
     ? 'bg-white/90 border-gray-200'
     : 'bg-zinc-900/90 border-zinc-800';
@@ -81,6 +78,9 @@ export const MapForecastOverlay = ({
     });
     return closest;
   }, [marineData, timeOffsetHours]);
+
+  // Don't show when no data loaded yet (AFTER all hooks — React Rules of Hooks)
+  if (!forecastData && !marineData) return null;
 
   // Extract values
   const wx = forecastData?.hourly || {};
