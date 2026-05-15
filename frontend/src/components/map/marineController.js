@@ -140,14 +140,15 @@ export async function fetchWindData(bounds) {
     for (let yi = 0; yi <= SAFE_GRID; yi++) {
       for (let xi = 0; xi <= SAFE_GRID; xi++) {
         let lng = west + xi * safeLngStep;
-        while (lng > 180) lng -= 360;
-        while (lng < -180) lng += 360;
-        finalSafe.push({ lat: +(south + yi * safeLatStep).toFixed(2), lng: +lng.toFixed(2) });
+        let reqLng = lng;
+        while (reqLng > 180) reqLng -= 360;
+        while (reqLng < -180) reqLng += 360;
+        finalSafe.push({ lat: +(south + yi * safeLatStep).toFixed(2), reqLng: +reqLng.toFixed(2), monotonicLng: +lng.toFixed(2) });
       }
     }
 
     const lats = finalSafe.map(p => p.lat).join(',');
-    const lons = finalSafe.map(p => p.lng).join(',');
+    const lons = finalSafe.map(p => p.reqLng).join(',');
     
     console.trace("[Marine Controller] Fetching Wind Data");
     const res = await fetch(
@@ -186,7 +187,7 @@ export async function fetchWindData(bounds) {
       if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) return;
       const rad = dir * (Math.PI / 180);
       vectors.push({
-        lat: pt.lat, lng: pt.lng, speed, direction: dir,
+        lat: pt.lat, lng: pt.monotonicLng, speed, direction: dir,
         u: -speed * Math.sin(rad), v: -speed * Math.cos(rad)
       });
     });
@@ -258,13 +259,14 @@ export async function fetchMarineData(bounds, zoom) {
       for (let xi = 0; xi <= SAFE_GRID; xi++) {
         let lat = latMin + yi * latStep;
         let lng = lngMin + xi * lngStep;
-        while (lng > 180) lng -= 360;
-        while (lng < -180) lng += 360;
-        cappedPoints.push({ lat: +lat.toFixed(2), lng: +lng.toFixed(2) });
+        let reqLng = lng;
+        while (reqLng > 180) reqLng -= 360;
+        while (reqLng < -180) reqLng += 360;
+        cappedPoints.push({ lat: +lat.toFixed(2), reqLng: +reqLng.toFixed(2), monotonicLng: +lng.toFixed(2) });
       }
     }
     const lats = cappedPoints.map(p => p.lat).join(',');
-    const lons = cappedPoints.map(p => p.lng).join(',');
+    const lons = cappedPoints.map(p => p.reqLng).join(',');
 
     console.trace("[Marine Controller] Fetching Marine Data");
     const res = await fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period`);
@@ -301,9 +303,9 @@ export async function fetchMarineData(bounds, zoom) {
 
     cappedPoints.forEach((pt, i) => {
       const r = allResults[i];
-      if (!r?.current || !Number.isFinite(pt.lng) || !Number.isFinite(pt.lat)) {
+      if (!r?.current || !Number.isFinite(pt.reqLng) || !Number.isFinite(pt.lat)) {
         // Missing data or land, push zero vector to maintain grid topology
-        gridVectors.push({ lat: pt.lat, lng: pt.lng, waves: {u:0,v:0,speed:0}, swell_1: {u:0,v:0,speed:0}, swell_2: {u:0,v:0,speed:0}, wind_waves: {u:0,v:0,speed:0} });
+        gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng, waves: {u:0,v:0,speed:0}, swell_1: {u:0,v:0,speed:0}, swell_2: {u:0,v:0,speed:0}, wind_waves: {u:0,v:0,speed:0} });
         return;
       }
       const c = r.current;
@@ -313,7 +315,7 @@ export async function fetchMarineData(bounds, zoom) {
       const ww_h = safeNum(c.wind_wave_height), ww_d = safeNum(c.wind_wave_direction);
 
       if (w_h === 0 && s1_h === 0 && ww_h === 0) {
-        gridVectors.push({ lat: pt.lat, lng: pt.lng, waves: {u:0,v:0,speed:0}, swell_1: {u:0,v:0,speed:0}, swell_2: {u:0,v:0,speed:0}, wind_waves: {u:0,v:0,speed:0} });
+        gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng, waves: {u:0,v:0,speed:0}, swell_1: {u:0,v:0,speed:0}, swell_2: {u:0,v:0,speed:0}, wind_waves: {u:0,v:0,speed:0} });
         return; // Land
       }
 
@@ -324,7 +326,7 @@ export async function fetchMarineData(bounds, zoom) {
       };
 
       gridVectors.push({
-        lat: pt.lat, lng: pt.lng,
+        lat: pt.lat, lng: pt.monotonicLng,
         waves: getUV(w_h, w_d),
         swell_1: getUV(s1_h, s1_d),
         swell_2: getUV(s2_h, s2_d),
@@ -333,7 +335,7 @@ export async function fetchMarineData(bounds, zoom) {
 
       features.push({
         type: 'Feature',
-        geometry: { type: 'Point', coordinates: [pt.lng, pt.lat] },
+        geometry: { type: 'Point', coordinates: [pt.monotonicLng, pt.lat] },
         properties: {
           wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
           swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period), swell_wave_direction: s1_d,

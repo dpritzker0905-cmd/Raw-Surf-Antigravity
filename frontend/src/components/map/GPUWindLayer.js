@@ -89,18 +89,26 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     const layerId = `${id}-heatmap-layer`;
 
     const generateHeatmap = () => {
+      const W = 128; // High resolution for smooth WebGL interpolation
+      const H = 128;
       const oc = document.createElement('canvas');
-      oc.width = data.cols;
-      oc.height = data.rows;
+      oc.width = W;
+      oc.height = H;
       const octx = oc.getContext('2d');
-      const imgData = octx.createImageData(data.cols, data.rows);
+      const imgData = octx.createImageData(W, H);
 
-      for(let y = 0; y < data.rows; y++) {
-        for(let x = 0; x < data.cols; x++) {
-           const vec = data.vectors[y * data.cols + x];
-           const imgY = data.rows - 1 - y; // Y=0 in data is South (bottom of map), so flip Y for image
-           const i = (imgY * data.cols + x) * 4;
-           if (!vec || isNaN(vec.speed) || vec.speed === 0) {
+      const { west, south, east, north } = data.bounds;
+
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+           const lng = west + (x / (W - 1)) * (east - west);
+           // Y=0 in image is top (north), Y=H-1 is bottom (south)
+           const lat = north - (y / (H - 1)) * (north - south);
+
+           const vec = interpolateWind(data, lng, lat);
+           const i = (y * W + x) * 4;
+           
+           if (!vec || isNaN(vec.speed) || vec.speed < 0.1) {
              imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
            } else {
              const s = vec.speed;
