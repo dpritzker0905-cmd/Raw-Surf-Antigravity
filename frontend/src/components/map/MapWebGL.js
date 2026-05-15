@@ -12,6 +12,7 @@ import { useMapRenderContract } from './useMapRenderContract';
 import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
+import TruthOverlay from './TruthOverlay';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -412,6 +413,14 @@ const MapWebGL = ({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+
+      <TruthOverlay
+        activeLayers={activeLayers}
+        activeRenderType={activeRenderType}
+        marineData={marineData}
+        windData={windData}
+        truthIssues={truthIssues}
+      />
 
     <Map
       ref={innerMapRef}
