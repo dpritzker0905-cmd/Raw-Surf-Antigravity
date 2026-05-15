@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { fetchMarineData } from './marineController';
+import { fetchMarineData, getRemainingCooldown } from './marineController';
 
 /**
  * useMarineOrchestrator (v238)
@@ -36,6 +36,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
   const lastUserInteractionRef = useRef(0);
   const lastStableCameraRef = useRef(null);
   const lastInvocationRef = useRef({ source: null, time: 0 });
+  const cooldownRetryRef = useRef(null);
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -135,7 +136,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
         }
 
         console.log('[Marine Trace] 4. fetchMarineData returned:',
-          data ? `Success (${data.features?.length || 0} pts)` : 'NULL');
+          data && data.features?.length > 0 ? `OK (${data.features.length} pts)` :
+          data ? `EMPTY (stale/sentinel)` : 'NULL (no data yet)');
+
+        // MARINE INPUT CHECK — diagnostic per ChatGPT Step 1
+        console.log('[MARINE INPUT CHECK]', {
+          exists: !!data,
+          hasFeatures: !!data?.features?.length,
+          featureCount: data?.features?.length || 0,
+          hasGrid: !!data?.grid?.vectors?.length,
+          gridCount: data?.grid?.vectors?.length || 0,
+          source: data?.source || 'unknown'
+        });
 
         if (data && data.features?.length > 0) {
           locks.lastHash = viewportHash;
@@ -145,11 +157,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
           isInternalMapUpdateRef.current = true;
 
           setMarineData(prev => {
-            // NULL FIELD REJECTION: contract requirement
-            if (!data || !data.features?.length) {
-              console.error('[Marine] NULL_FIELD_VIOLATION: rejecting null/empty payload');
-              return prev;
-            }
             if (JSON.stringify(prev) === JSON.stringify(data)) {
               return prev;
             }
@@ -165,6 +172,17 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
           internalUpdateTimerRef.current = setTimeout(() => {
             isInternalMapUpdateRef.current = false;
           }, 800);
+        } else {
+          // Data is null or empty — schedule a SINGLE retry after cooldown
+          const remaining = getRemainingCooldown('marine');
+          if (remaining > 0 && !cooldownRetryRef.current) {
+            console.log(`[Marine] Scheduling cooldown retry in ${Math.round(remaining / 1000)}s`);
+            cooldownRetryRef.current = setTimeout(() => {
+              cooldownRetryRef.current = null;
+              console.log('[Marine] Cooldown expired — retrying fetch');
+              enqueueMarineUpdate('cooldown_retry');
+            }, remaining + 2000); // 2s buffer after cooldown
+          }
         }
       } finally {
         locks.isFetching = false;

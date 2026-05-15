@@ -66,24 +66,35 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const modelParam = MODEL_MAP[activeModel] || MODEL_MAP.GFS;
 
     try {
+      // Helper: fetch with signal, retry without if service worker can't clone Request
+      const safeFetch = async (url) => {
+        try {
+          return await fetch(url, { signal: controller.signal });
+        } catch (e) {
+          if (e.name === 'DataCloneError' || e.message?.includes('could not be cloned')) {
+            logger.warn('[OpenMeteo] Service worker clone error, retrying without signal');
+            return await fetch(url);
+          }
+          throw e;
+        }
+      };
+
       const [wxRes, marineRes] = await Promise.allSettled([
-        fetch(
+        safeFetch(
           `https://api.open-meteo.com/v1/forecast?` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
           `&hourly=${WEATHER_VARS}` +
           `&current=${CURRENT_WEATHER_VARS}` +
           `&models=${modelParam}` +
           `&forecast_days=16` +
-          `&wind_speed_unit=kn`,
-          { signal: controller.signal }
+          `&wind_speed_unit=kn`
         ),
-        fetch(
+        safeFetch(
           `https://marine-api.open-meteo.com/v1/marine?` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
           `&hourly=${MARINE_VARS}` +
           `&current=${CURRENT_MARINE_VARS}` +
-          `&forecast_days=16`,
-          { signal: controller.signal }
+          `&forecast_days=16`
         )
       ]);
 

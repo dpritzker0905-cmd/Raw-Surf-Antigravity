@@ -17,11 +17,11 @@
 const MARINE_CACHE = new Map();
 const WIND_CACHE = new Map();
 
-// --- LAST KNOWN GOOD FIELDS (never null — contract requirement) ---
-const EMPTY_WIND_FIELD = { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0, stale: true, source: 'empty' };
-const EMPTY_MARINE_FIELD = { type: 'FeatureCollection', features: [], grid: { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0 }, stale: true, source: 'empty' };
-let lastKnownGoodWind = EMPTY_WIND_FIELD;
-let lastKnownGoodMarine = EMPTY_MARINE_FIELD;
+// --- LAST KNOWN GOOD FIELDS ---
+// Start null. Only populated after a SUCCESSFUL API response.
+// null means 'never had data' — callers must handle this.
+let lastKnownGoodWind = null;
+let lastKnownGoodMarine = null;
 
 // --- 429 COOLDOWN STATE ---
 let windCooldownUntil = 0;
@@ -51,6 +51,16 @@ function enterCooldown(domain) {
   if (domain === 'wind') windCooldownUntil = until;
   if (domain === 'marine') marineCooldownUntil = until;
   console.warn(`[${domain}] 429 cooldown activated for ${COOLDOWN_MS / 1000}s`);
+}
+
+/**
+ * Get remaining cooldown time for scheduling retries.
+ */
+export function getRemainingCooldown(domain) {
+  const now = Date.now();
+  if (domain === 'wind') return Math.max(0, windCooldownUntil - now);
+  if (domain === 'marine') return Math.max(0, marineCooldownUntil - now);
+  return 0;
 }
 
 /**
