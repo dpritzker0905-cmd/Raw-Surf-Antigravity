@@ -523,6 +523,8 @@ const MapWebGL = ({
         active={!!activeMarineLayer}
         data={marineWindData}
         revision={marineData?.grid?.timestamp || Date.now()}
+        isMarine={true}
+        theme={theme}
       />
 
       {/* Spot Clusters */}
@@ -696,6 +698,7 @@ const MapWebGL = ({
         active={activeLayers.includes('wind')}
         data={windData}
         revision={windRevision.current}
+        theme={theme}
       />
     </Map>
     </div>

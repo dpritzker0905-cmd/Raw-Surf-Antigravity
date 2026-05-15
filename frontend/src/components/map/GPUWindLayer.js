@@ -108,26 +108,56 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
            const vec = interpolateWind(data, lng, lat);
            const i = (y * W + x) * 4;
            
-           if (!vec || isNaN(vec.speed) || vec.speed < 0.1) {
+           if (!vec || isNaN(vec.speed) || vec.speed < 0.05) {
              imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
            } else {
              const s = vec.speed;
-             let r, g, b, a = 180; // Base alpha for the raster base
+             
+             const lerp = (a, b, t) => a + (b - a) * t;
+             const lerpColor = (c1, c2, t) => ({
+               r: Math.round(lerp(c1.r, c2.r, t)),
+               g: Math.round(lerp(c1.g, c2.g, t)),
+               b: Math.round(lerp(c1.b, c2.b, t))
+             });
+             
+             let scale;
              if (isMarine) {
-               if (s < 0.5)      { r = 140; g = 200; b = 255; }
-               else if (s < 1.0) { r = 0;   g = 220; b = 255; }
-               else if (s < 2.0) { r = 0;   g = 100; b = 255; }
-               else if (s < 3.0) { r = 150; g = 50;  b = 255; }
-               else              { r = 255; g = 50;  b = 50;  }
+               scale = [
+                 { s: 0.0, c: { r: 140, g: 200, b: 255 } },
+                 { s: 0.5, c: { r: 0,   g: 220, b: 255 } },
+                 { s: 1.0, c: { r: 0,   g: 100, b: 255 } },
+                 { s: 2.0, c: { r: 150, g: 50,  b: 255 } },
+                 { s: 3.0, c: { r: 255, g: 50,  b: 50  } },
+                 { s: 10.0, c: { r: 255, g: 0, b: 0 } }
+               ];
              } else {
-               if (s < 5)        { r = 100; g = 200; b = 255; }
-               else if (s < 10)  { r = 0;   g = 255; b = 150; }
-               else if (s < 15)  { r = 150; g = 255; b = 50;  }
-               else if (s < 20)  { r = 255; g = 200; b = 0;   }
-               else if (s < 30)  { r = 255; g = 100; b = 0;   }
-               else              { r = 255; g = 0;   b = 100; }
+               scale = [
+                 { s: 0,  c: { r: 100, g: 200, b: 255 } },
+                 { s: 5,  c: { r: 0,   g: 255, b: 150 } },
+                 { s: 10, c: { r: 150, g: 255, b: 50  } },
+                 { s: 15, c: { r: 255, g: 200, b: 0   } },
+                 { s: 20, c: { r: 255, g: 100, b: 0   } },
+                 { s: 30, c: { r: 255, g: 0,   b: 100 } },
+                 { s: 100, c: { r: 255, g: 0, b: 255 } }
+               ];
              }
-             imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = a;
+
+             let r, g, b;
+             if (s <= scale[0].s) {
+               ({ r, g, b } = scale[0].c);
+             } else if (s >= scale[scale.length - 1].s) {
+               ({ r, g, b } = scale[scale.length - 1].c);
+             } else {
+               for (let j = 0; j < scale.length - 1; j++) {
+                 if (s >= scale[j].s && s < scale[j+1].s) {
+                   const t = (s - scale[j].s) / (scale[j+1].s - scale[j].s);
+                   ({ r, g, b } = lerpColor(scale[j].c, scale[j+1].c, t));
+                   break;
+                 }
+               }
+             }
+
+             imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = 180;
            }
         }
       }
