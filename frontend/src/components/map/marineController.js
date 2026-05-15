@@ -197,18 +197,21 @@ export async function fetchMarineData(bounds, zoom) {
     return generateMockMarine();
   }
 
-  const latMin = Math.max(-80, bounds.south - 5);
-  const latMax = Math.min(80, bounds.north + 5);
-  const lngMin = bounds.west - 5;
-  const lngMax = bounds.east + 5;
+  // Adaptive Snapping Algorithm:
+  // Dynamically scales the cache block size based on zoom level.
+  // This provides higher resolution wave grids when zoomed in,
+  // while ensuring cache stability against continuous map panning to prevent HTTP 429.
+  const snap = zoom > 8 ? 2 : zoom > 5 ? 5 : 10;
+  const padding = zoom > 8 ? 1 : zoom > 5 ? 3 : 5;
+  
+  const latMin = Math.max(-80, Math.floor((bounds.south - padding) / snap) * snap);
+  const latMax = Math.min(80, Math.ceil((bounds.north + padding) / snap) * snap);
+  const lngMin = Math.floor((bounds.west - padding) / snap) * snap;
+  const lngMax = Math.ceil((bounds.east + padding) / snap) * snap;
   
   if (latMax <= latMin || lngMax <= lngMin) return null;
 
-  const cacheKey = [
-    Math.round(latMin * 2), Math.round(latMax * 2),
-    Math.round(lngMin * 2), Math.round(lngMax * 2),
-    Math.round(zoom)
-  ].join('|');
+  const cacheKey = `${latMin}|${latMax}|${lngMin}|${lngMax}|${snap}`;
 
   const now = Date.now();
   if (MARINE_CACHE.has(cacheKey)) {

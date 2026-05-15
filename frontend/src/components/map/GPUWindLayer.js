@@ -208,6 +208,51 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       const bw = mb.getWest(), be = mb.getEast();
       const bs = mb.getSouth(), bn = mb.getNorth();
 
+      // ----------------------------------------------------
+      // DEBUG HARNESS
+      // ----------------------------------------------------
+      if (window.__WIND_DEBUG__ && grid && grid.cols && grid.rows) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.fillStyle = 'white';
+        ctx.font = '10px monospace';
+        
+        for (let r = 0; r < grid.rows; r++) {
+          for (let c = 0; c < grid.cols; c++) {
+            const vec = grid.vectors[r * grid.cols + c];
+            if (!vec) continue;
+            const dLat = (grid.bounds.north - grid.bounds.south) / Math.max(1, grid.rows - 1);
+            const dLng = (grid.bounds.east - grid.bounds.west) / Math.max(1, grid.cols - 1);
+            const lat = grid.bounds.south + r * dLat;
+            const lng = grid.bounds.west + c * dLng;
+            
+            if (lng < bw || lng > be || lat < bs || lat > bn) continue;
+            
+            try {
+              const pt = mapInstance.project([lng, lat]);
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+              ctx.fill();
+              
+              ctx.beginPath();
+              ctx.moveTo(pt.x, pt.y);
+              ctx.lineTo(pt.x + vec.u * 10, pt.y - vec.v * 10);
+              ctx.stroke();
+              
+              if (window.__WIND_DEBUG__.showLabels) {
+                ctx.fillText(`u:${vec.u.toFixed(1)} v:${vec.v.toFixed(1)}`, pt.x + 5, pt.y - 5);
+              }
+            } catch(e) {}
+          }
+        }
+        frameRef.current = requestAnimationFrame(render);
+        return;
+      }
+      // ----------------------------------------------------
+
       // v243: Stride from lifecycle state — NEVER restart loop
       const stride = windState === WIND_THROTTLED ? 4 : 1;
 
