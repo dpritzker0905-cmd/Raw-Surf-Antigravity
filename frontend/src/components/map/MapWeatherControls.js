@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 
 /**
  * Compact weather controls — chip-based layer selector + integrated timeline.
@@ -54,12 +55,12 @@ export const MapWeatherControls = ({
   const chipActive = 'bg-cyan-500/20 border-cyan-500 ring-1 ring-cyan-500/30';
   const trackBg = isLight ? '#e5e7eb' : '#3f3f46';
 
-  const isBasicOrPremium = userTier === 'tier_2' || userTier === 'tier_3' || userTier === 'admin' || userTier === 'tier_4';
+  const allowedModels = getAllowedModels(userTier);
 
   const models = [
-    { id: 'GFS', label: 'GFS', locked: false },
-    { id: 'EURO', label: 'EURO', locked: !isBasicOrPremium },
-    { id: 'ICON', label: 'ICON', locked: !isBasicOrPremium }
+    { id: 'GFS', label: 'GFS', locked: !allowedModels.includes('GFS') },
+    { id: 'EURO', label: 'EURO', locked: !allowedModels.includes('EURO') },
+    { id: 'ICON', label: 'ICON', locked: !allowedModels.includes('ICON') }
   ];
 
   const layers = [
@@ -94,7 +95,8 @@ export const MapWeatherControls = ({
     pressure: { label: 'Pressure (hPa)', gradient: 'from-gray-100 via-blue-300 via-emerald-300 via-yellow-400 to-red-600', stops: ['980','990','1000','1010','1020','1030'] },
   };
 
-  const maxForecastHours = 14 * 24;
+  const maxForecastDays = resolveForecastWindow(userTier);
+  const maxForecastHours = maxForecastDays * 24;
   const isRadar = radarMode && radarFrames.length > 0;
   
   const formatTime = () => {

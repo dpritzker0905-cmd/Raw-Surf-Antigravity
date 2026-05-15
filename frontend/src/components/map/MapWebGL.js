@@ -14,15 +14,18 @@ import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import { LAYER_REGISTRY, resolveRasterSource } from './LayerRegistry';
+import { validateModelAccess, getUserTier } from './LayerAccessResolver';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 window.__LRCM_EXEC_TRACE__ = [];
-export function trace(layer, fn, payload) {
+export function trace(layer, action, source, payload) {
   window.__LRCM_EXEC_TRACE__.push({
     layer,
-    fn,
+    action,
+    source,
+    timestamp: Date.now(),
     payload,
     stack: new Error().stack
   });
@@ -67,6 +70,7 @@ const MapWebGL = ({
   radarFrameIndex,
   radarFrames,
   timeOffsetHours = 0,
+  userTier = 'tier_1',
   onMapClick,
 }) => {
   const innerMapRef = useRef(null);
@@ -108,6 +112,14 @@ const MapWebGL = ({
     const layer = LAYER_REGISTRY[activeLayers[0]];
     return layer?.omVariable || null;
   }, [activeLayers]);
+
+  useEffect(() => {
+    trace(activeLayers[0] || 'none', 'toggle_layer', 'MapWebGL', { activeLayers });
+  }, [activeLayers]);
+
+  useEffect(() => {
+    trace('all', 'select_model', 'MapWebGL', { activeModel });
+  }, [activeModel]);
 
   // LRCM: Derived render type — drives which renderer pipeline is active
   const activeRenderType = useMemo(() => {
@@ -207,6 +219,14 @@ const MapWebGL = ({
     };
 
     const resolveAllUrls = async () => {
+      // FIREWALL: Validate access BEFORE fetch
+      try {
+        validateModelAccess(activeModel || 'GFS', userTier);
+      } catch (err) {
+        console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message);
+        return; // FAIL FAST
+      }
+
       const newUrls = {};
       const variablesToResolve = Object.keys(LAYER_REGISTRY)
         .filter(k => LAYER_REGISTRY[k].omVariable)
@@ -214,34 +234,13 @@ const MapWebGL = ({
 
       for (const [layerKey, variable] of variablesToResolve) {
         let meta = await fetchMetadata(targetModel);
-        let finalModel = targetModel;
-        let isValid = meta.variables.includes(variable);
-        
-        // Dynamic Fallback chain: primary → DWD ICON → GFS → wave models
-        if (!isValid && finalModel !== 'dwd_icon') {
-          meta = await fetchMetadata('dwd_icon');
-          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'dwd_icon'; }
-        }
-        if (!isValid && finalModel !== 'ncep_gfs025') {
-          meta = await fetchMetadata('ncep_gfs025');
-          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'ncep_gfs025'; }
-        }
-        if (!isValid) {
-          meta = await fetchMetadata('gfs_wave');
-          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'gfs_wave'; }
-        }
-        if (!isValid) {
-          meta = await fetchMetadata('meteofrance_wave');
-          if (meta.variables.includes(variable)) { isValid = true; finalModel = 'meteofrance_wave'; }
-        }
-        
-        if (isValid) {
+        // Removed dynamic fallback chain to strictly comply with "NO SILENT FALLBACKS"
+        if (meta.variables.includes(variable)) {
           const darkParam = !isLight ? '&dark=true' : '';
-          const timeParam = computeTimeStep(meta);
-          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${finalModel}/latest.json?${timeParam}&variable=${variable}${darkParam}`;
-          newUrls[layerKey] = trace(layerKey, 'resolveAllUrls', urlStr);
+          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${targetModel}/latest.json?${computeTimeStep(meta)}&variable=${variable}${darkParam}`;
+          newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
         } else {
-          console.warn(`[Raster] Skipping variable '${variable}' for layer '${layerKey}' — not found in any model.`);
+          console.warn(`[Raster] Skipping variable '${variable}' for layer '${layerKey}' — not found in model ${targetModel}.`);
         }
       }
 
@@ -330,7 +329,7 @@ const MapWebGL = ({
   }, [radarTileUrl, initialRadarUrl, queueRasterUpdate]);
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
-  const currentMapStyle = useMemo(() => trace('map', 'getMapStyle', getMapStyle(isLight, false)), [isLight]);
+  const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(isLight, false)), [isLight]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 

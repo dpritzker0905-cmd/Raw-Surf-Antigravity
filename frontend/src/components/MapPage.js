@@ -461,6 +461,7 @@ const MapPageContent = () => {
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
           timeOffsetHours={timeOffsetHours}
+          userTier={user?.tier_id || 'tier_1'}
           onMapClick={(e) => {
             // Check if they clicked on the base map layer, not a marker/cluster
             if (e.originalEvent && !e.originalEvent.defaultPrevented) {

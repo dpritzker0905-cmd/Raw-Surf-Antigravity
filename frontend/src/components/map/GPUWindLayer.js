@@ -214,7 +214,25 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
           } catch (e) {}
 
           // Advect particle
-          const wind = interpolateWind(grid, p.lng, p.lat);
+          let wind = interpolateWind(grid, p.lng, p.lat);
+          
+          if (window.__WIND_DEBUG__) {
+            // Single vector test mode
+            if (window.__WIND_SINGLE_VECTOR__) {
+              wind = { u: 10, v: 0, speed: 10 };
+            }
+            if (p.age < dt * 2) {
+               // Highlight spawn origin points
+               try {
+                 const sp = mapInstance.project([p.lng, p.lat]);
+                 ctx.fillStyle = 'magenta';
+                 ctx.beginPath();
+                 ctx.arc(sp.x, sp.y, 3, 0, Math.PI * 2);
+                 ctx.fill();
+               } catch (e) {}
+            }
+          }
+
           if (wind.speed > 0.1 && withinVectorBounds && Number.isFinite(wind.u) && Number.isFinite(wind.v)) {
             try {
               const scale = 0.01 * dt * 60;
@@ -276,6 +294,51 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
             particles[i] = spawn();
           }
         }
+
+      if (window.__WIND_DEBUG__) {
+        // Draw debug grid overlay
+        if (grid && grid.cols && grid.rows && grid.bounds && frameCount % 10 === 0) {
+           const cLng = (bw + be) / 2;
+           const cLat = (bs + bn) / 2;
+           const centerWind = interpolateWind(grid, cLng, cLat);
+           const angleRad = Math.atan2(centerWind.v, centerWind.u);
+           const angleDeg = angleRad * (180 / Math.PI);
+
+           console.log(`[WIND DEBUG FRAME]
+- u: ${centerWind.u.toFixed(3)}
+- v: ${centerWind.v.toFixed(3)}
+- speed: ${centerWind.speed.toFixed(3)}
+- angle (rad): ${angleRad.toFixed(3)}
+- angle (deg): ${angleDeg.toFixed(1)}
+- grid cell: center
+- particle count: ${particles.length}
+- advection step delta: ${(dt * 60).toFixed(2)}`);
+        }
+
+        // Velocity heat overlay and vector lines sampled across a grid
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+        const stepX = (be - bw) / 10;
+        const stepY = (bn - bs) / 10;
+        for (let x = bw; x < be; x += stepX) {
+           for (let y = bs; y < bn; y += stepY) {
+              const pt = mapInstance.project([x, y]);
+              const w = interpolateWind(grid, x, y);
+              
+              // Magnitude Heat
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, Math.min(20, w.speed * 2), 0, Math.PI * 2);
+              ctx.fill();
+
+              // Vector lines
+              ctx.strokeStyle = 'cyan';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(pt.x, pt.y);
+              ctx.lineTo(pt.x + (w.u * 2), pt.y - (w.v * 2));
+              ctx.stroke();
+           }
+        }
+      }
 
       if (frameCount % 120 === 1) {
         console.log(`[Wind] F:${frameCount} drawn:${particles.length} grid:${grid?.vectors?.length || 0}`);

@@ -124,7 +124,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       try {
         let data = await fetchMarineData(bounds, zoom);
         if (window.__LRCM_EXEC_TRACE__) {
-          data = window.__LRCM_EXEC_TRACE__.push({ layer: 'marine', fn: 'fetchMarineData', payload: data, stack: new Error().stack }) && data;
+          data = window.__LRCM_EXEC_TRACE__.push({ layer: 'marine', action: 'fetch', source: 'useMarineOrchestrator', timestamp: Date.now(), payload: data, stack: new Error().stack }) && data;
         }
 
         // Stale request discard

@@ -47,7 +47,7 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
         console.log(`[WeatherEngine] tick -> fetching wind data (source: ${source})`);
         let data = await fetchWindData(bounds);
         if (window.__LRCM_EXEC_TRACE__) {
-          data = window.__LRCM_EXEC_TRACE__.push({ layer: 'wind', fn: 'fetchWindData', payload: data, stack: new Error().stack }) && data;
+          data = window.__LRCM_EXEC_TRACE__.push({ layer: 'wind', action: 'fetch', source: 'WeatherEngine', timestamp: Date.now(), payload: data, stack: new Error().stack }) && data;
         }
         
         if (data) {
