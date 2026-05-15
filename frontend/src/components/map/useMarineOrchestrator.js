@@ -38,6 +38,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
   const lastInvocationRef = useRef({ source: null, time: 0 });
   const cooldownRetryRef = useRef(null);
   const updateMarineGridRef = useRef(null);
+  const hasActivatedRef = useRef(false);
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -56,10 +57,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       activeMarineLayersRef.current = hasMarine;
 
       if (!hasMarine) {
-        // Don't clear marineData — layers are hidden via visibility:none.
-        // Clearing would trigger a React re-render cycle on the Source.
-      } else if (!previouslyHadMarine) {
+        // Reset activation guard when all marine layers disabled
+        hasActivatedRef.current = false;
+      } else if (!previouslyHadMarine && !hasActivatedRef.current) {
         // Only trigger manual fetch on FIRST activation, not re-renders
+        hasActivatedRef.current = true;
         console.log('[Marine] Layer activated, triggering manual fetch...');
         manualMarineTriggerRef.current?.();
       }

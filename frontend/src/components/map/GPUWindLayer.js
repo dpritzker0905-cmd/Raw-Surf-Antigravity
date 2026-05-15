@@ -66,7 +66,15 @@ import { useEffect, useRef } from 'react';
 const ACTIVE_ENGINES = new Set();
 
 // --- VISUAL TUNING CONSTANTS ---
-const WIND_PADDING_FACTOR = 1.6; // Inflate spawn bounds for wider visual spread
+const WIND_PADDING_FACTOR = 2.4; // Inflate spawn bounds for wider visual spread
+const WIND_PARTICLE_ALPHA = 0.22; // Global particle layer opacity (Windy-style)
+const HEATMAP_RESOLUTION = 256; // Upsampled heatmap resolution for smooth gradients
+
+/** Smoothstep for edge fade attenuation (0→1 ramp) */
+function smoothstep(edge0, edge1, x) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
 
 /**
  * Simple ocean heuristic — returns false for points likely over land.
@@ -133,8 +141,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     const layerId = `${id}-heatmap-layer`;
 
     const generateHeatmap = () => {
-      const W = 128; // High resolution for smooth WebGL interpolation
-      const H = 128;
+      const W = HEATMAP_RESOLUTION;
+      const H = HEATMAP_RESOLUTION;
       const oc = document.createElement('canvas');
       oc.width = W;
       oc.height = H;
@@ -402,7 +410,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0, 0, 0, ${trailOpacity})`;
       ctx.fillRect(0, 0, cw, ch);
-      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalCompositeOperation = 'screen';
 
       const particles = particlesRef.current;
 
@@ -462,8 +470,16 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           const p = particles[i];
           p.age += dt;
 
-          const { west, south, east, north } = grid.bounds || { west: bw, south: bs, east: be, north: bn };
-          const withinVectorBounds = p.lng >= west && p.lng <= east && p.lat >= south && p.lat <= north;
+          // Padded domain for particle lifecycle (wider than API grid)
+          const gb2 = grid.bounds || { west: bw, south: bs, east: be, north: bn };
+          const pcLng = (gb2.west + gb2.east) / 2;
+          const pcLat = (gb2.south + gb2.north) / 2;
+          const phW = (gb2.east - gb2.west) / 2 * WIND_PADDING_FACTOR;
+          const phH = (gb2.north - gb2.south) / 2 * WIND_PADDING_FACTOR;
+          const paddedW = Math.max(-180, pcLng - phW);
+          const paddedE = Math.min(180, pcLng + phW);
+          const paddedS = Math.max(-85, pcLat - phH);
+          const paddedN = Math.min(85, pcLat + phH);
 
           // Store previous screen position for trail drawing
           let prevScreen = null;
@@ -494,7 +510,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             }
           }
 
-          if (wind.speed > 0.1 && withinVectorBounds && Number.isFinite(wind.u) && Number.isFinite(wind.v)) {
+          if (wind.speed > 0.1 && Number.isFinite(wind.u) && Number.isFinite(wind.v)) {
             try {
               const scale = 0.01 * dt * 60;
               const screen = mapInstance.project([p.lng, p.lat]);
@@ -524,9 +540,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           while (p.lng > 180) p.lng -= 360;
           while (p.lng < -180) p.lng += 360;
 
-          // Respawn if too old or out of GRID bounds (world space)
-          const gb = grid.bounds || { west: -180, south: -85, east: 180, north: 85 };
-          if (p.age > p.maxAge || p.lng < gb.west || p.lng > gb.east || p.lat < gb.south || p.lat > gb.north) {
+          // Respawn if too old or out of PADDED bounds (wider than grid)
+          if (p.age > p.maxAge || p.lng < paddedW || p.lng > paddedE || p.lat < paddedS || p.lat > paddedN) {
             particles[i] = spawn(); continue;
           }
 
@@ -538,9 +553,17 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const pt = mapInstance.project([p.lng, p.lat]);
             if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) continue;
             
-            // Base alpha based on age, fading out at the end
+            // Base alpha from age + edge fade for soft viewport boundaries
             const ageRatio = p.age / p.maxAge;
-            const alpha = Math.max(0.1, 1 - Math.pow(ageRatio, 2));
+            let alpha = Math.max(0.1, 1 - Math.pow(ageRatio, 2));
+
+            // Edge fade: smoothstep attenuation near padded domain edges
+            const edgePadDeg = Math.max(1, (paddedE - paddedW) * 0.12);
+            const fadeW = smoothstep(paddedW, paddedW + edgePadDeg, p.lng);
+            const fadeE = smoothstep(paddedE, paddedE - edgePadDeg, p.lng);
+            const fadeS = smoothstep(paddedS, paddedS + edgePadDeg, p.lat);
+            const fadeN = smoothstep(paddedN, paddedN - edgePadDeg, p.lat);
+            alpha *= fadeW * fadeE * fadeS * fadeN * WIND_PARTICLE_ALPHA;
 
             if (id === 'marine-canvas-layer') {
               // Ocean aesthetic for waves: dynamic palette based on wave height (wind.speed represents height here)
