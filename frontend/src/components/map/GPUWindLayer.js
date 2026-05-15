@@ -19,8 +19,8 @@ function interpolateWind(windGrid, lng, lat) {
     return { u: 0, v: 0, speed: 0 };
   }
 
-  const gx = ((lng - west) / (east - west)) * (cols - 1);
-  const gy = ((lat - south) / (north - south)) * (rows - 1);
+  const gx = Math.max(0, Math.min(cols - 1, ((lng - west) / (east - west)) * (cols - 1)));
+  const gy = Math.max(0, Math.min(rows - 1, ((lat - south) / (north - south)) * (rows - 1)));
   const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
   const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
   const fx = gx - xi;
@@ -175,13 +175,11 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
       lastTime = now;
       frameCount++;
 
-      // v243: Trail opacity adjusts with state — lighter trail during throttle
-      // to reduce visual artifacts from stride-skipped particles
-      const trailOpacity = windState === WIND_THROTTLED ? 0.7 : 0.9;
+      // v246: Trail decay fix — use simple fade to black to prevent endless streaking
+      const trailOpacity = windState === WIND_THROTTLED ? 0.1 : 0.03;
       ctx.fillStyle = `rgba(0, 0, 0, ${trailOpacity})`;
-      ctx.globalCompositeOperation = 'destination-in';
-      ctx.fillRect(0, 0, cw, ch);
       ctx.globalCompositeOperation = 'source-over';
+      ctx.fillRect(0, 0, cw, ch);
 
       const particles = particlesRef.current;
 
@@ -199,9 +197,20 @@ export function WindParticleCanvas({ mapInstance, active, data, revision }) {
           // Advect particle
           const wind = interpolateWind(grid, p.lng, p.lat);
           if (wind.speed > 0.1) {
-            const scale = 0.003 * dt * 60;
-            p.lng += wind.u * scale;
-            p.lat += wind.v * scale;
+            try {
+              const scale = 0.01 * dt * 60;
+              // PROPER MAP PROJECTION ADVECTION
+              const screen = mapInstance.project([p.lng, p.lat]);
+              // u/v are geographic wind speeds, scale them into mercator screen pixels
+              // Note: mercator Y is inverted relative to north
+              screen.x += wind.u * scale * 10;
+              screen.y -= wind.v * scale * 10; 
+              const nextLngLat = mapInstance.unproject(screen);
+              p.lng = nextLngLat.lng;
+              p.lat = nextLngLat.lat;
+            } catch (e) {
+              p.age = p.maxAge + 1; // force respawn
+            }
           }
 
           // CLAMP latitude to prevent map.project() crash (must be -90 to 90)

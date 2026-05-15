@@ -151,15 +151,13 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
         if (violationBufferRef.current.length === violations.length) {
           setTimeout(() => {
             if (!violationBufferRef.current.length) return;
-            console.groupCollapsed('🚨 TRUTH VIOLATIONS');
+            console.groupCollapsed(`🚨 TRUTH VIOLATIONS (${violationBufferRef.current.length})`);
             violationBufferRef.current.forEach(v => {
-              console.log({
-                type: v.type,
+              console.log(v.type, {
                 layer: v.layerId,
-                source: v.source,
-                epoch: v.epoch,
-                visible: v.visible,
                 details: v.hint,
+                topology: v.topology,
+                source: v.source,
                 ...v
               });
             });
