@@ -36,6 +36,11 @@ let marinAbortController = null;
 let windRequestInFlight = false;
 let marineRequestInFlight = false;
 
+// --- BOOTSTRAP MODE ---
+// First-load safety: always accept first valid response regardless of quality
+let BOOTSTRAP_WIND = true;
+let BOOTSTRAP_MARINE = true;
+
 /**
  * Check if we are in 429 cooldown for a given domain.
  */
@@ -211,6 +216,10 @@ export async function fetchWindData(bounds, signal) {
       // Update caches
       WIND_CACHE.set(cacheKey, { data, timestamp: Date.now() });
       lastKnownGoodWind = data;
+      if (BOOTSTRAP_WIND) {
+        BOOTSTRAP_WIND = false;
+        console.log('[Wind] BOOTSTRAP complete \u2014 first valid data received');
+      }
       console.log(`[Wind] Fetch success: ${vectors.length} vectors, ${gridSize}x${gridSize} grid`);
       return data;
     } else {
@@ -374,6 +383,10 @@ export async function fetchMarineData(bounds, zoom, signal) {
       };
       MARINE_CACHE.set(cacheKey, { data: marinePayload, timestamp: Date.now() });
       lastKnownGoodMarine = marinePayload;
+      if (BOOTSTRAP_MARINE) {
+        BOOTSTRAP_MARINE = false;
+        console.log('[Marine] BOOTSTRAP complete \u2014 first valid data received');
+      }
       console.log(`[Marine] Fetch success: ${features.length} features, ${gridSize}x${gridSize} grid`);
       return marinePayload;
     } else {

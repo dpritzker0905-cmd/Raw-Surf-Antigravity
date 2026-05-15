@@ -65,6 +65,43 @@ import { useEffect, useRef } from 'react';
 // --- SINGLETON REGISTRY: Prevents duplicate RAF loops ---
 const ACTIVE_ENGINES = new Set();
 
+// --- VISUAL TUNING CONSTANTS ---
+const WIND_PADDING_FACTOR = 1.6; // Inflate spawn bounds for wider visual spread
+
+/**
+ * Simple ocean heuristic — returns false for points likely over land.
+ * Uses rough bounding boxes for major landmasses. Not pixel-perfect,
+ * but prevents the worst land-bleeding in heatmap overlays.
+ */
+function isLikelyOcean(lat, lng) {
+  // North America interior
+  if (lat > 25 && lat < 50 && lng > -125 && lng < -65) {
+    // East coast buffer
+    if (lng > -82 && lat > 25 && lat < 45) return false;
+    // Central US
+    if (lng > -105 && lng < -82 && lat > 28 && lat < 49) return false;
+    // West coast (keep coast pixels)
+    if (lng > -125 && lng < -115 && lat > 32 && lat < 49) return false;
+  }
+  // Mexico interior
+  if (lat > 15 && lat < 25 && lng > -105 && lng < -88) return false;
+  // Central America
+  if (lat > 7 && lat < 18 && lng > -92 && lng < -77) return false;
+  // South America interior
+  if (lat > -55 && lat < 12 && lng > -80 && lng < -35) {
+    if (lng > -75 && lng < -40 && lat > -35 && lat < 5) return false;
+  }
+  // Europe
+  if (lat > 36 && lat < 70 && lng > -10 && lng < 40) return false;
+  // Africa
+  if (lat > -35 && lat < 37 && lng > -18 && lng < 52) return false;
+  // Asia
+  if (lat > 10 && lat < 75 && lng > 40 && lng < 145) return false;
+  // Australia
+  if (lat > -45 && lat < -10 && lng > 112 && lng < 155) return false;
+  return true;
+}
+
 export function WindParticleCanvas({ mapInstance, active, data, revision, id = "wind-canvas-layer" }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -117,6 +154,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
            
            if (!vec || isNaN(vec.speed) || vec.speed < 0.05) {
              imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
+           } else if (isMarine && !isLikelyOcean(lat, lng)) {
+             // LAND MASK: Skip marine rendering over land
+             imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
            } else {
              const s = vec.speed;
              
@@ -164,7 +204,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
                }
              }
 
-             imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = 180;
+             // Marine: lower alpha for see-through overlay. Wind: standard density.
+             const pixelAlpha = isMarine ? 65 : 180;
+             imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = pixelAlpha;
            }
         }
       }
@@ -277,13 +319,21 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     
     const spawn = () => {
       const grid = windRef.current;
-      // Spawn across the FULL GRID domain (world space), not viewport
-      // Particles represent a weather system, not a viewport effect
+      // Spawn across PADDED GRID domain for wider visual spread
       const gb = grid?.bounds;
-      const west = gb?.west ?? -180;
-      const east = gb?.east ?? 180;
-      const south = gb?.south ?? -85;
-      const north = gb?.north ?? 85;
+      const rawW = gb?.west ?? -180;
+      const rawE = gb?.east ?? 180;
+      const rawS = gb?.south ?? -85;
+      const rawN = gb?.north ?? 85;
+      // Inflate bounds by padding factor for visual spread (rendering only)
+      const cLng = (rawW + rawE) / 2;
+      const cLat = (rawS + rawN) / 2;
+      const halfW = (rawE - rawW) / 2 * WIND_PADDING_FACTOR;
+      const halfH = (rawN - rawS) / 2 * WIND_PADDING_FACTOR;
+      const west = Math.max(-180, cLng - halfW);
+      const east = Math.min(180, cLng + halfW);
+      const south = Math.max(-85, cLat - halfH);
+      const north = Math.min(85, cLat + halfH);
       
       return {
         lng: west + Math.random() * (east - west),
