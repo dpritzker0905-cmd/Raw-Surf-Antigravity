@@ -541,26 +541,29 @@ const MapWebGL = ({
         </Source>
       ))}
 
-      {/* v3.5: Natural Earth land mask — pixel-perfect coastline masking */}
-      {/* Covers OM tile bleed over land with basemap-matching fill */}
-      <Source
-        id="land-mask-source"
-        type="geojson"
-        data="https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_land.geojson"
-      >
-        <Layer
-          id="land-mask-layer"
-          type="fill"
-          paint={{
-            'fill-color': isLight ? '#e8e0d8' : '#1a1a2e',
-            'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-              0, 0.92,
-              5, 0.88,
-              8, 0.0
-            ]
-          }}
-        />
-      </Source>
+      {/* v3.6: Land mask — only visible when weather overlays are active */}
+      {/* Prevents OM raster tile bleed over coastlines */}
+      {(activeLayers.length > 0) && (
+        <Source
+          id="land-mask-source"
+          type="geojson"
+          data="https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_land.geojson"
+        >
+          <Layer
+            id="land-mask-layer"
+            type="fill"
+            paint={{
+              'fill-color': isLight ? '#e8e0d8' : '#1a1a2e',
+              'fill-opacity': ['interpolate', ['linear'], ['zoom'],
+                0, 0.55,
+                4, 0.45,
+                7, 0.15,
+                9, 0.0
+              ]
+            }}
+          />
+        </Source>
+      )}
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
       <MarineParticleCanvas 
