@@ -78,12 +78,11 @@ function viewportCacheKey(bounds, prefix) {
 }
 
 /**
- * v3.5: Adaptive grid computation.
- * Global zoom (viewport > 100°): dense worldwide grid
- * Regional zoom: viewport-scoped grid
+ * v3.8.5: High-density adaptive grid computation.
+ * Regional zoom: 31×31 = 961 pts at ~0.25° spacing (GFS native resolution)
+ * Global zoom: 31×31 = 961 pts at ~5.5° spacing (cyclone-scale detail)
  *
- * v3.8.3: caller param — wind API supports 441 pts, marine API supports ~150 pts
- * (marine URL is longer due to 12+ query params, exceeding OM URL limit at 441 pts)
+ * caller param: wind supports 961 pts (POST), marine capped at 225 pts (GET URL limit)
  */
 function computeGridPoints(bounds, caller = 'wind') {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -91,21 +90,22 @@ function computeGridPoints(bounds, caller = 'wind') {
   const latSpan = bounds.north - bounds.south;
   const isGlobal = lngSpan > 100 || latSpan > 60;
 
-  // Global: denser worldwide grid. Regional: viewport grid.
   let west, south, east, north, GRID;
   if (isGlobal) {
     west = -180; east = 180; south = -85; north = 85;
-    // Marine API has longer URLs (12+ current params) → cap at 12×12 (169 pts)
-    // Wind API is shorter → 21×21 (441 pts) safe
     if (caller === 'marine') {
-      GRID = isMobile ? 7 : 11; // 12×12=144 (desktop), 8×8=64 (mobile)
+      GRID = isMobile ? 9 : 14; // 15×15=225 (desktop), 10×10=100 (mobile)
     } else {
-      GRID = isMobile ? 12 : 20; // 21×21=441 (desktop), 13×13=169 (mobile)
+      GRID = isMobile ? 20 : 30; // 31×31=961 (desktop), 21×21=441 (mobile)
     }
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
-    GRID = isMobile ? 5 : 8;
+    if (caller === 'marine') {
+      GRID = isMobile ? 7 : 12; // 13×13=169 (desktop)
+    } else {
+      GRID = isMobile ? 15 : 30; // 31×31=961 (desktop), 16×16=256 (mobile)
+    }
   }
 
   const latStep = (north - south) / GRID;
@@ -179,17 +179,30 @@ export async function fetchWindData(bounds, signal, hourOffset = 0) {
 
   try {
     const { points, gridSize } = computeGridPoints(bounds);
-    const lats = points.map(p => p.lat).join(',');
-    const lons = points.map(p => p.reqLng).join(',');
+    const lats = points.map(p => p.lat);
+    const lons = points.map(p => p.reqLng);
 
-    // v3.7: Use hourly forecast when looking ahead, current for live
+    // v3.8.5: Use POST to bypass URL length limit (supports 961 pts vs 441 with GET)
     const useHourly = hourOffset > 0;
     const forecastDays = Math.min(16, Math.ceil((hourOffset + 24) / 24));
-    const url = useHourly
-      ? `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&forecast_days=${forecastDays}&wind_speed_unit=kn`
-      : `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1&wind_speed_unit=kn`;
+    const body = {
+      latitude: lats,
+      longitude: lons,
+      wind_speed_unit: 'kn',
+      forecast_days: useHourly ? forecastDays : 1,
+    };
+    if (useHourly) {
+      body.hourly = ['wind_speed_10m', 'wind_direction_10m'];
+    } else {
+      body.current = ['wind_speed_10m', 'wind_direction_10m'];
+    }
 
-    const res = await fetch(url, { signal: fetchSignal });
+    const res = await fetch('https://api.open-meteo.com/v1/forecast', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: fetchSignal
+    });
 
     if (!res.ok) {
       if (res.status === 429) {

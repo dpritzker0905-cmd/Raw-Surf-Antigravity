@@ -20,6 +20,7 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
   const [issues, setIssues] = useState([]);
   const historyRef = useRef([]);
   const violationBufferRef = useRef([]);
+  const mountTimeRef = useRef(Date.now());
   // Throttle render event to avoid 60fps getStyle() serialization penalty
   const lastRenderCheck = useRef(0);
 
@@ -146,7 +147,9 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       });
 
       if (violations.length) {
-        // v250: Batch violations to prevent console spam
+        // v3.8.5: Suppress during bootstrap (first 3s) — data hasn't loaded yet
+        if (Date.now() - mountTimeRef.current < 3000) return violations;
+
         violations.forEach(v => {
           violationBufferRef.current.push(v);
         });
@@ -154,17 +157,11 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
         if (violationBufferRef.current.length === violations.length) {
           setTimeout(() => {
             if (!violationBufferRef.current.length) return;
-            console.groupCollapsed(`🚨 TRUTH VIOLATIONS (${violationBufferRef.current.length})`);
-            violationBufferRef.current.forEach(v => {
-              console.log(v.type, {
-                layer: v.layerId,
-                details: v.hint,
-                topology: v.topology,
-                source: v.source,
-                ...v
-              });
-            });
-            console.groupEnd();
+            // Downgraded from emoji console.groupCollapsed to quiet debug log
+            if (process.env.NODE_ENV === 'development') {
+              console.debug(`[TruthDiff] ${violationBufferRef.current.length} violation(s):`,
+                violationBufferRef.current.map(v => `${v.type}:${v.layerId}`));
+            }
             violationBufferRef.current = [];
           }, 250);
         }

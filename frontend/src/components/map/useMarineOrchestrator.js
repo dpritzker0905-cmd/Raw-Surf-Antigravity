@@ -335,11 +335,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     };
   }, [mapInstance]); // Severed from activeLayersKey completely
 
-  // v3.8.3: Re-fetch marine data when timeline offset changes
+  // v3.8.5: Re-fetch marine data when timeline offset CHANGES (not on mount)
   useEffect(() => {
+    const prev = timeOffsetRef.current;
     timeOffsetRef.current = timeOffsetHours;
+    // Skip mount (prev === timeOffsetHours) to prevent duplicate fetch
+    if (prev === timeOffsetHours) return;
     if (!mapInstance || !activeMarineLayersRef.current) return;
-    // Invalidate viewport hash to force refetch
     marineFetchLocksRef.current.lastHash = null;
     const t = setTimeout(() => {
       manualMarineTriggerRef.current?.();
