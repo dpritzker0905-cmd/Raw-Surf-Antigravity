@@ -8,6 +8,7 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
 import { MarineParticleCanvas } from './GPUMarineLayer';
+import { WebGLWindLayer } from './WebGLWindLayer';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useRasterTransactions } from './useRasterTransactions';
@@ -548,10 +549,9 @@ const MapWebGL = ({
                 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.65 : 0.7), 
               // v3.3: Linear resampling for smooth coastline edges (anti-aliasing)
               'raster-resampling': 'linear',
-              // Set raster-fade-duration to 0 to let our Shared Clock drive the transition
-              // v3.5: Enhanced color gradient — richer, more vibrant heatmap colors
-              'raster-contrast': 0.15,
-              'raster-saturation': 0.25,
+              // v3.8: Boosted color vibrancy — richer heatmap palettes closer to Windy
+              'raster-contrast': 0.22,
+              'raster-saturation': 0.40,
               'raster-fade-duration': 0 
             }}
           />
@@ -768,7 +768,15 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      {/* Wind Particle Advection Engine */}
+      {/* v3.8: WebGL GPU Wind Particle Engine (16k particles + trail fading) */}
+      <WebGLWindLayer
+        mapInstance={mapInstance}
+        active={activeLayers.includes('wind')}
+        data={windData}
+        revision={windRevision.current}
+      />
+
+      {/* Canvas2D Wind Overlay (directional indicators for readability) */}
       <WindParticleCanvas 
         mapInstance={mapInstance} 
         active={activeLayers.includes('wind')}

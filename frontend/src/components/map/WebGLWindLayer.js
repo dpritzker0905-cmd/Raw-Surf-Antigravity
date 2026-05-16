@@ -1,0 +1,132 @@
+/**
+ * WebGLWindLayer — MapLibre custom layer integration for GPU wind particles
+ *
+ * v3.8: React component wrapping WebGLWindEngine as a MapLibre CustomLayerInterface.
+ * Replaces Canvas2D GPUWindLayer when wind data is available.
+ *
+ * Props:
+ *   - mapInstance: MapLibre map ref
+ *   - active: boolean - whether wind layer is toggled on
+ *   - data: wind grid object { vectors, cols, rows, bounds }
+ *   - revision: cache-bust revision ID
+ */
+import { useEffect, useRef } from 'react';
+import WebGLWindEngine from './WebGLWindEngine';
+
+const LAYER_ID = 'webgl-wind-particles';
+
+/**
+ * Creates a MapLibre CustomLayerInterface that delegates rendering
+ * to the WebGLWindEngine.
+ */
+function createCustomLayer(engine, activeRef, mapRef) {
+  return {
+    id: LAYER_ID,
+    type: 'custom',
+    renderingMode: '2d',
+
+    onAdd(_map, gl) {
+      engine.init(gl);
+    },
+
+    render(gl, matrix) {
+      if (!activeRef.current) return;
+      const map = mapRef.current;
+      if (!map) return;
+
+      const canvas = map.getCanvas();
+      engine.render(gl, matrix, canvas.width, canvas.height);
+      // Request continuous repainting while active
+      map.triggerRepaint();
+    },
+
+    onRemove(_map, gl) {
+      engine.dispose(gl);
+    }
+  };
+}
+
+export function WebGLWindLayer({ mapInstance, active, data, revision }) {
+  const engineRef = useRef(null);
+  const activeRef = useRef(active);
+  const mapRef = useRef(mapInstance);
+  const layerAddedRef = useRef(false);
+
+  // Keep refs in sync
+  useEffect(() => { activeRef.current = active; }, [active]);
+  useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
+
+  // Initialize engine + add custom layer
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    const engine = new WebGLWindEngine();
+    engineRef.current = engine;
+
+    // Adjust particle count based on device
+    const isMobile = window.innerWidth < 768;
+    engine.particleRes = isMobile ? 64 : 128; // 4096 or 16384 particles
+
+    const customLayer = createCustomLayer(engine, activeRef, mapRef);
+
+    // Wait for style load before adding layer
+    const addLayer = () => {
+      if (layerAddedRef.current) return;
+      try {
+        if (mapInstance.getLayer(LAYER_ID)) {
+          mapInstance.removeLayer(LAYER_ID);
+        }
+        mapInstance.addLayer(customLayer);
+        layerAddedRef.current = true;
+        console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+      } catch (e) {
+        console.warn('[WebGLWind] Failed to add layer:', e.message);
+      }
+    };
+
+    if (mapInstance.isStyleLoaded()) {
+      addLayer();
+    } else {
+      mapInstance.once('styledata', addLayer);
+    }
+
+    return () => {
+      try {
+        if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
+          mapInstance.removeLayer(LAYER_ID);
+        }
+      } catch (e) { /* map may be disposed */ }
+      layerAddedRef.current = false;
+      engine.dispose(mapInstance.painter?.context?.gl);
+      engineRef.current = null;
+    };
+  }, [mapInstance]);
+
+  // Update wind data texture when data changes
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine || !data?.vectors?.length || !mapInstance) return;
+
+    try {
+      const gl = mapInstance.painter?.context?.gl;
+      if (gl) {
+        engine.setWindData(gl, data);
+        mapInstance.triggerRepaint();
+      }
+    } catch (e) {
+      console.warn('[WebGLWind] setWindData error:', e.message);
+    }
+  }, [data, mapInstance]);
+
+  // Trigger repaints when activated
+  useEffect(() => {
+    if (active && mapInstance) {
+      mapInstance.triggerRepaint();
+    }
+  }, [active, mapInstance]);
+
+  // No DOM element — this renders directly into MapLibre's WebGL context
+  return null;
+}
+
+export default WebGLWindLayer;

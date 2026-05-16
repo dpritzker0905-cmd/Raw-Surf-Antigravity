@@ -93,7 +93,7 @@ function computeGridPoints(bounds) {
   // v3.7: Increased density to reduce visible grid artifacts in particle advection
   let west, south, east, north, GRID;
   if (isGlobal) {
-    west = -180; east = 180; south = -78; north = 78;
+    west = -180; east = 180; south = -85; north = 85;
     GRID = isMobile ? 7 : 12; // 13x13 = 169 pts (URL safe for Open-Meteo)
   } else {
     west = bounds.west; east = bounds.east;

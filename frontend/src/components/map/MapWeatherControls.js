@@ -177,11 +177,70 @@ export const MapWeatherControls = ({
             {formatTime()}
           </div>
         </div>
+
+        {/* v3.8: Day tick labels beneath scrubber */}
+        {!isRadar && maxForecastHours > 24 && (
+          <div className="relative h-4 mt-1 mx-8" style={{ position: 'relative', height: 16, marginTop: 4 }}>
+            {/* Now indicator */}
+            <div style={{
+              position: 'absolute',
+              left: '0%',
+              top: 0,
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: '#06b6d4',
+                boxShadow: '0 0 6px #06b6d4',
+                animation: 'nowPulse 2s ease-in-out infinite'
+              }} />
+              <span style={{ fontSize: 8, color: '#06b6d4', fontWeight: 700, marginTop: 1 }}>Now</span>
+            </div>
+            {/* Day labels */}
+            {Array.from({ length: Math.min(Math.floor(maxForecastHours / 24), 7) }, (_, i) => {
+              const dayOffset = (i + 1) * 24;
+              const pct = (dayOffset / maxForecastHours) * 100;
+              if (pct > 100) return null;
+              const d = new Date();
+              d.setDate(d.getDate() + i + 1);
+              const label = i === 0 ? 'Tmrw' : d.toLocaleDateString('en-US', { weekday: 'short' });
+              return (
+                <div key={i} style={{
+                  position: 'absolute',
+                  left: `${pct}%`,
+                  top: 0,
+                  transform: 'translateX(-50%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center'
+                }}>
+                  <div style={{
+                    width: 1, height: 6,
+                    background: isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)'
+                  }} />
+                  <span style={{
+                    fontSize: 8,
+                    color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
+                    fontWeight: 600
+                  }}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <style>{`
           input[type=range]::-webkit-slider-thumb {
             appearance: none; width: 16px; height: 16px;
             background: white; border: 2px solid #06b6d4;
             border-radius: 50%; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          }
+          @keyframes nowPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.4); }
           }
         `}</style>
       </div>
