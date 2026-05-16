@@ -1,9 +1,9 @@
-/**
- * GPUMarineLayer.js — Marine-only renderer (v3.1)
+﻿/**
+ * GPUMarineLayer.js â€” Marine-only renderer (v3.1)
  *
  * Renders ocean energy fields (waves, swell, wind waves) with:
- * A) Scalar ocean heatmap — color mapped to wave HEIGHT (meters)
- * B) White foam/crest broken dashes — direction only, NOT velocity vectors
+ * A) Scalar ocean heatmap â€” color mapped to wave HEIGHT (meters)
+ * B) White foam/crest broken dashes â€” direction only, NOT velocity vectors
  *
  * This renderer is architecturally separated from GPUWindLayer.js.
  * Marine must NEVER visually resemble wind.
@@ -14,7 +14,7 @@ import { useEffect, useRef } from 'react';
 const ACTIVE_MARINE_ENGINES = new Set();
 
 // --- VISUAL TUNING ---
-const MARINE_PADDING_FACTOR = 2.4;
+// v3.3: Padding factor removed - particles now spawn at viewport bounds
 const MARINE_PARTICLE_ALPHA = 0.55;
 
 function smoothstep(edge0, edge1, x) {
@@ -54,7 +54,7 @@ function interpolateMarine(grid, lng, lat) {
 }
 
 /**
- * Simple ocean heuristic — returns false for points likely over land.
+ * Simple ocean heuristic â€” returns false for points likely over land.
  */
 function isLikelyOcean(lat, lng) {
   if (lat > 25 && lat < 50 && lng > -125 && lng < -65) {
@@ -131,15 +131,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     console.log(`[Marine] Spawning ${PARTICLE_COUNT} foam particles`);
 
     const spawn = () => {
-      const grid = dataRef.current;
-      const gb = grid?.bounds;
-      const rawW = gb?.west ?? -180, rawE = gb?.east ?? 180;
-      const rawS = gb?.south ?? -85, rawN = gb?.north ?? 85;
-      const cLng = (rawW + rawE) / 2, cLat = (rawS + rawN) / 2;
-      const halfW = (rawE - rawW) / 2 * MARINE_PADDING_FACTOR;
-      const halfH = (rawN - rawS) / 2 * MARINE_PADDING_FACTOR;
-      const west = Math.max(-180, cLng - halfW), east = Math.min(180, cLng + halfW);
-      const south = Math.max(-85, cLat - halfH), north = Math.min(85, cLat + halfH);
+      // v3.3: Spawn across FULL VIEWPORT for global particle coverage
+      const mb = mapInstance.getBounds();
+      const west = Math.max(-180, mb.getWest()), east = Math.min(180, mb.getEast());
+      const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
       // v3.2: Only spawn particles over ocean, retry up to 5 times
       for (let attempt = 0; attempt < 5; attempt++) {
         const lng = west + Math.random() * (east - west);
@@ -201,12 +196,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const mb = mapInstance.getBounds();
       const bw = mb.getWest(), be = mb.getEast(), bs = mb.getSouth(), bn = mb.getNorth();
 
-      const gb2 = grid.bounds || { west: bw, south: bs, east: be, north: bn };
-      const pcLng = (gb2.west + gb2.east) / 2, pcLat = (gb2.south + gb2.north) / 2;
-      const phW = (gb2.east - gb2.west) / 2 * MARINE_PADDING_FACTOR;
-      const phH = (gb2.north - gb2.south) / 2 * MARINE_PADDING_FACTOR;
-      const paddedW = Math.max(-180, pcLng - phW), paddedE = Math.min(180, pcLng + phW);
-      const paddedS = Math.max(-85, pcLat - phH), paddedN = Math.min(85, pcLat + phH);
+      // v3.3: Use viewport bounds for particle lifecycle (global coverage)
+      const paddedW = bw, paddedE = be, paddedS = bs, paddedN = bn;
 
       const stride = state === THROTTLED ? 4 : 1;
       const pts = particlesRef.current;
@@ -277,13 +268,13 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           if (alpha < 0.01) continue;
 
           // Wave direction for dash orientation
-          // Wave propagation direction � particles flow WITH energy movement (like Windy.com)
+          // Wave propagation direction — particles flow WITH energy movement (like Windy.com)
           const dirAngle = Math.atan2(-wave.v, wave.u) ;
           const halfDash = p.dashLen / 2;
           const dx = Math.cos(dirAngle) * halfDash;
           const dy = -Math.sin(dirAngle) * halfDash;
 
-          // White foam crest — broken dash, NOT continuous trail
+          // White foam crest â€” broken dash, NOT continuous trail
           ctx.strokeStyle = `rgba(230, 240, 255, ${alpha})`;
           ctx.lineWidth = Math.min(3, 1.2 + h * 0.4);
           ctx.lineCap = 'round';

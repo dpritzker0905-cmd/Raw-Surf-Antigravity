@@ -527,6 +527,8 @@ const MapWebGL = ({
             }}
             paint={{ 
               'raster-opacity': layerKey === 'pressure' ? 0.45 : 0.7, 
+              // v3.3: Linear resampling for smooth coastline edges (anti-aliasing)
+              'raster-resampling': 'linear',
               // Set raster-fade-duration to 0 to let our Shared Clock drive the transition
               'raster-fade-duration': 0 
             }}

@@ -69,7 +69,7 @@ import { useEffect, useRef } from 'react';
 const ACTIVE_ENGINES = new Set();
 
 // --- VISUAL TUNING CONSTANTS ---
-const WIND_PADDING_FACTOR = 2.4;
+// v3.3: Padding factor removed — particles now spawn at viewport bounds
 const WIND_PARTICLE_ALPHA = 0.35; // Slightly higher for dark particles to be visible
 const HEATMAP_RESOLUTION = 256;
 
@@ -153,22 +153,13 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (isMobile: ${isMobile}, cores: ${navigator.hardwareConcurrency})`);
     
     const spawn = () => {
-      const grid = windRef.current;
-      // Spawn across PADDED GRID domain for wider visual spread
-      const gb = grid?.bounds;
-      const rawW = gb?.west ?? -180;
-      const rawE = gb?.east ?? 180;
-      const rawS = gb?.south ?? -85;
-      const rawN = gb?.north ?? 85;
-      // Inflate bounds by padding factor for visual spread (rendering only)
-      const cLng = (rawW + rawE) / 2;
-      const cLat = (rawS + rawN) / 2;
-      const halfW = (rawE - rawW) / 2 * WIND_PADDING_FACTOR;
-      const halfH = (rawN - rawS) / 2 * WIND_PADDING_FACTOR;
-      const west = Math.max(-180, cLng - halfW);
-      const east = Math.min(180, cLng + halfW);
-      const south = Math.max(-85, cLat - halfH);
-      const north = Math.min(85, cLat + halfH);
+      // v3.3: Spawn across FULL VIEWPORT for global particle coverage
+      // Interpolation clamps to nearest grid edge for out-of-grid positions
+      const mb = mapInstance.getBounds();
+      const west = Math.max(-180, mb.getWest());
+      const east = Math.min(180, mb.getEast());
+      const south = Math.max(-85, mb.getSouth());
+      const north = Math.min(85, mb.getNorth());
       
       return {
         lng: west + Math.random() * (east - west),
@@ -301,16 +292,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             ? Math.min(1, (now - transitionStartRef.current) / 1500)
             : 1;
 
-          // Padded domain for particle lifecycle (wider than API grid)
-          const gb2 = grid.bounds || { west: bw, south: bs, east: be, north: bn };
-          const pcLng = (gb2.west + gb2.east) / 2;
-          const pcLat = (gb2.south + gb2.north) / 2;
-          const phW = (gb2.east - gb2.west) / 2 * WIND_PADDING_FACTOR;
-          const phH = (gb2.north - gb2.south) / 2 * WIND_PADDING_FACTOR;
-          const paddedW = Math.max(-180, pcLng - phW);
-          const paddedE = Math.min(180, pcLng + phW);
-          const paddedS = Math.max(-85, pcLat - phH);
-          const paddedN = Math.min(85, pcLat + phH);
+           // v3.3: Use viewport bounds for particle lifecycle (global coverage)
+           const paddedW = bw, paddedE = be, paddedS = bs, paddedN = bn;
 
           // Store previous screen position for trail drawing
           let prevScreen = null;
