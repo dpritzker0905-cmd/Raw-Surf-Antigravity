@@ -41,6 +41,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const marineRetryCountRef = useRef(0);
   const updateMarineGridRef = useRef(null);
   const hasActivatedRef = useRef(false);
+  const consecutiveFailuresRef = useRef(0); // v3.9: Circuit breaker
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -98,29 +99,38 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       // Viewport Hash Guard with 5m TTL (bypass for retries)
       if (!isRetry && locks.lastHash === viewportHash &&
           (Date.now() - locks.lastTime < 5 * 60 * 1000)) {
-        console.log(`[Marine Trace] 2. aborted (viewport hash matched) source=${source}`);
         return;
       }
 
-      console.log(`[Marine Trace] 1. updateMarineGrid triggered source=${source}`);
+      // v3.9: Reset circuit breaker when viewport actually changes
+      if (locks.lastHash !== viewportHash) {
+        consecutiveFailuresRef.current = 0;
+        marineRetryCountRef.current = 0;
+      }
+
+      // Trace logs silenced in production (v3.9)
 
       // Store ref for cooldown retry direct access
       updateMarineGridRef.current = updateMarineGrid;
 
       // Hard block: concurrent fetch or rate limit (bypass for retries)
       if (locks.isFetching) {
-        console.log(`[Marine Trace] 2. aborted (already fetching) source=${source}`);
+        // Silenced: already fetching
         return;
       }
       const now = Date.now();
       if (!isRetry && now - locks.lastTime < 1200) {
-        console.log(`[Marine Trace] 2. aborted (rate limit, < 1200ms) source=${source}`);
-        return;
+        return; // Rate limit — suppress log spam
+      }
+
+      // v3.9: Circuit breaker — stop after 3 consecutive failures
+      if (!isRetry && consecutiveFailuresRef.current >= 3) {
+        return; // Silently block until viewport changes
       }
 
       // Hard block: map is actively moving/zooming
       if (mapInstance.isMoving() || mapInstance.isZooming()) {
-        console.log(`[Marine Trace] 2. aborted (map is moving/zooming) source=${source}`);
+        // Silenced: map moving
         return;
       }
 
@@ -131,7 +141,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       };
 
       const requestId = ++marineRequestIdRef.current;
-      console.log(`[Marine Trace] 3. calling fetchMarineData (req: ${requestId})`);
+      // Silenced: fetchMarineData call
       locks.isFetching = true;
       try {
         let data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current);
@@ -141,25 +151,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
         // Stale request discard
         if (requestId !== marineRequestIdRef.current) {
-          console.log(`[Marine Trace] stale request discarded (req: ${requestId})`);
+          // Silenced: stale request
           return;
         }
 
-        console.log('[Marine Trace] 4. fetchMarineData returned:',
-          data && data.features?.length > 0 ? `OK (${data.features.length} pts)` :
-          data ? `EMPTY (stale/sentinel)` : 'NULL (no data yet)');
-
-        // MARINE INPUT CHECK — diagnostic per ChatGPT Step 1
-        console.log('[MARINE INPUT CHECK]', {
-          exists: !!data,
-          hasFeatures: !!data?.features?.length,
-          featureCount: data?.features?.length || 0,
-          hasGrid: !!data?.grid?.vectors?.length,
-          gridCount: data?.grid?.vectors?.length || 0,
-          source: data?.source || 'unknown'
-        });
+        // Silenced: fetchMarineData result trace
 
         if (data && data.features?.length > 0) {
+          consecutiveFailuresRef.current = 0; // Reset circuit breaker on success
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();
 
@@ -170,7 +169,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             if (JSON.stringify(prev) === JSON.stringify(data)) {
               return prev;
             }
-            console.log('[Marine] Setting marineData state');
+            // Silenced: marineData state set
             marineRevision.current += 1;
             return data;
           });
@@ -183,14 +182,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             isInternalMapUpdateRef.current = false;
           }, 800);
         } else {
-          // Data is null or empty — schedule retry with max attempt cap
+          // Data is null or empty — increment circuit breaker
+          consecutiveFailuresRef.current += 1;
+          if (consecutiveFailuresRef.current >= 3) {
+            console.warn('[Marine] Circuit breaker: 3 consecutive failures — stopping until viewport changes.');
+            return; // Don't schedule more retries
+          }
           const remaining = getRemainingCooldown('marine');
           marineRetryCountRef.current = (marineRetryCountRef.current || 0) + 1;
           if (marineRetryCountRef.current > 3) {
-            console.warn('[Marine] Max retries (3) reached — stopping. Next viewport change will retry.');
+            console.warn('[Marine] Max retries (3) reached — stopping.');
             marineRetryCountRef.current = 0;
           } else if (remaining > 0 && !cooldownRetryRef.current) {
-            console.log(`[Marine] Scheduling cooldown retry in ${Math.round(remaining / 1000)}s (attempt ${marineRetryCountRef.current}/3)`);
             cooldownRetryRef.current = setTimeout(() => {
               cooldownRetryRef.current = null;
               if (updateMarineGridRef.current && activeMarineLayersRef.current) {
@@ -198,7 +201,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               }
             }, remaining + 3000);
           } else if (remaining <= 0 && !cooldownRetryRef.current) {
-            console.log(`[Marine] No cooldown — retry in 5s (attempt ${marineRetryCountRef.current}/3)`);
             cooldownRetryRef.current = setTimeout(() => {
               cooldownRetryRef.current = null;
               if (updateMarineGridRef.current && activeMarineLayersRef.current) {

@@ -301,7 +301,7 @@ function initParticleTexture(gl, resolution) {
 
 export default class WebGLWindEngine {
   constructor() {
-    this.particleRes = 128; // 128x128 = 16,384 particles
+    this.particleRes = 256; // v3.9: 256x256 = 65,536 particles (up from 128²=16k)
     this.fadeOpacity = 0.985; // Trail persistence (higher = longer trails)
     this.speedFactor = 0.15; // Advection multiplier
     this.dropRate = 0.003;

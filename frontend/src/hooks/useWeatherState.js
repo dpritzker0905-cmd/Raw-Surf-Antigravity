@@ -65,14 +65,21 @@ export function useWeatherState({ user }) {
   }, [isPlayingTimeline, isRadarOrSat, radarFrames.length]);
 
   // --- Forecast time-step animation (non-radar layers) ---
+  // v3.9: Wind/marine need ~3s per fetch → 4s interval with 6h steps
+  // Raster-only layers (rain/fog/pressure/satellite) use faster 1.5s (no API call needed)
   useEffect(() => {
     if (isPlayingTimeline && !isRadarOrSat && activeLayers.length > 0) {
+      const activeLayer = activeLayers[0];
+      const isRasterOnly = ['rain', 'fog', 'pressure', 'satellite'].includes(activeLayer);
+      const stepHours = isRasterOnly ? 3 : 6;
+      const intervalMs = isRasterOnly ? 1500 : 4000;
+
       forecastIntervalRef.current = setInterval(() => {
         setTimeOffsetHours(prev => {
-          const next = prev + 3;
+          const next = prev + stepHours;
           return next > maxHoursForUser ? 0 : next;
         });
-      }, 1200);
+      }, intervalMs);
     }
     return () => {
       if (forecastIntervalRef.current) clearInterval(forecastIntervalRef.current);

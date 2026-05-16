@@ -59,17 +59,46 @@ function interpolateMarine(grid, lng, lat) {
 }
 
 /**
- * v3.6: Data-driven ocean detection — uses grid speed data.
- * If grid data says speed=0 at this point AND it's in a known land region,
- * reject. Otherwise allow the data to speak.
- * Falls back to crude heuristic only when no grid data is available.
+ * v3.9: Robust land rejection for marine particles.
+ * Uses a coarse continental bounding-box table to reject obvious land,
+ * then falls back to grid wave energy for coastal resolution.
  */
+const LAND_BOXES = [
+  // North America (excl. coasts) — conservative interior boxes
+  { s: 25, n: 50, w: -115, e: -75 },
+  // South America interior
+  { s: -55, n: 10, w: -75, e: -35 },
+  // Africa interior
+  { s: -35, n: 35, w: -15, e: 50 },
+  // Europe interior
+  { s: 36, n: 70, w: -10, e: 40 },
+  // Asia interior
+  { s: 10, n: 70, w: 40, e: 140 },
+  // Australia interior
+  { s: -40, n: -12, w: 115, e: 153 },
+  // Antarctica
+  { s: -90, n: -60, w: -180, e: 180 },
+];
+
 function isLikelyOcean(lat, lng, grid) {
-  // If we have grid data, check actual wave energy — zero speed = land or calm
+  // Normalize longitude
+  let nLng = lng;
+  while (nLng > 180) nLng -= 360;
+  while (nLng < -180) nLng += 360;
+
+  // Fast reject: if deep inside a continental bounding box, definitely land
+  for (const box of LAND_BOXES) {
+    // Shrink box by 2° to avoid rejecting actual coastline
+    if (lat > box.s + 2 && lat < box.n - 2 &&
+        nLng > box.w + 2 && nLng < box.e - 2) {
+      return false;
+    }
+  }
+
+  // Grid-based check: zero wave energy = land or calm ocean
   if (grid) {
     const wave = interpolateMarine(grid, lng, lat);
-    // Zero speed from ALL 4 bilinear neighbors = definitely land
-    if (wave.speed < 0.01 && wave.u === 0 && wave.v === 0) return false;
+    if (wave.speed < 0.05 && wave.u === 0 && wave.v === 0) return false;
   }
   return true;
 }

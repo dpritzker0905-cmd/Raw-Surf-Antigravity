@@ -2,17 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import logger from '../utils/logger';
 
 /**
- * Open-Meteo Weather + Marine forecast hook (v3.0.0).
+ * Open-Meteo Weather + Marine forecast hook (v3.9.0).
  *
- * Conforms to Marine Engine v3 runtime contract:
- * - NO mock data injection in production
- * - Preserves last valid data on failure
- * - Shows stale indicator via isStale flag
- * - 429 cooldown protection
+ * v3.9 CRITICAL FIX: This hook was the #1 cause of 429 rate limiting.
+ * - Old: fetched on every mapCenter change (per-pan) with .toFixed(1) dedup
+ * - New: 5s debounce + .toFixed(0) dedup (1° grid) + min 30s between fetches
  *
- * API Docs:
- *   Weather: https://open-meteo.com/en/docs
- *   Marine:  https://open-meteo.com/en/docs/marine-weather-api
+ * This prevents spot forecasts from consuming the entire Open-Meteo rate budget,
+ * which was blocking wind/marine grid fetches and breaking the forecast slider.
  */
 
 const MODEL_MAP = {
@@ -41,6 +38,10 @@ const MARINE_VARS = [
 
 const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
+// v3.9: Module-level rate limiter — shared across all instances
+let lastGlobalFetchTime = 0;
+const MIN_FETCH_INTERVAL = 30_000; // 30s between forecast fetches
+
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
   const [forecastData, setForecastData] = useState(null);
   const [marineData, setMarineData] = useState(null);
@@ -49,13 +50,23 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const [isStale, setIsStale] = useState(false);
   const abortRef = useRef(null);
   const lastFetchKey = useRef('');
+  const debounceRef = useRef(null);
 
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    const fetchKey = `${latitude.toFixed(1)}_${longitude.toFixed(1)}_${activeModel}`;
+    // v3.9: Coarser dedup grid (1° instead of 0.1°) — prevents 30+ fetches while panning
+    const fetchKey = `${latitude.toFixed(0)}_${longitude.toFixed(0)}_${activeModel}`;
     if (fetchKey === lastFetchKey.current) return;
+
+    // v3.9: Global rate limit — min 30s between any forecast fetch
+    const now = Date.now();
+    if (now - lastGlobalFetchTime < MIN_FETCH_INTERVAL) {
+      return; // Silently skip — grid engine needs the rate budget
+    }
+
     lastFetchKey.current = fetchKey;
+    lastGlobalFetchTime = now;
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -72,7 +83,6 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           return await fetch(url, { signal: controller.signal });
         } catch (e) {
           if (e.name === 'DataCloneError' || e.message?.includes('could not be cloned')) {
-            // Expected: SW can't clone AbortSignal requests, retry silently
             if (process.env.NODE_ENV === 'development') logger.debug?.('[OpenMeteo] SW clone retry');
             return await fetch(url);
           }
@@ -80,7 +90,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       };
 
-      // Fetch weather immediately
+      // Fetch weather
       const wxRes = await safeFetch(
         `https://api.open-meteo.com/v1/forecast?` +
         `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
@@ -114,7 +124,6 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         const status = wxRes.value?.status || wxRes.reason;
         logger.warn(`[OpenMeteo] Weather fetch failed (${status}). Preserving last valid data.`);
         setIsStale(true);
-        // Do NOT clear forecastData — preserve last valid field
       }
 
       // Marine: preserve last valid on failure
@@ -125,7 +134,6 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         const status = marineRes.value?.status || marineRes.reason;
         logger.warn(`[OpenMeteo] Marine fetch failed (${status}). Preserving last valid data.`);
         setIsStale(true);
-        // Do NOT clear marineData — preserve last valid field
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -137,8 +145,13 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     }
   }, [latitude, longitude, activeModel, enabled]);
 
+  // v3.9: 5s debounce instead of immediate fetch — lets the map settle
   useEffect(() => {
-    fetchForecast();
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchForecast();
+    }, 5000);
+    return () => clearTimeout(debounceRef.current);
   }, [fetchForecast]);
 
   useEffect(() => {

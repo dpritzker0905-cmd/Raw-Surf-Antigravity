@@ -26,7 +26,7 @@ let lastKnownGoodMarine = null;
 // --- 429 COOLDOWN STATE ---
 let windCooldownUntil = 0;
 let marineCooldownUntil = 0;
-const COOLDOWN_MS = 120000; // 2 minutes per contract
+const COOLDOWN_MS = 30000; // 30s — reduced from 120s (spot forecast rate-limited separately now)
 
 // --- INFLIGHT ABORT CONTROLLERS ---
 let windAbortController = null;
@@ -82,7 +82,7 @@ function viewportCacheKey(bounds, prefix) {
  * Regional zoom: 31×31 = 961 pts at ~0.25° spacing (GFS native resolution)
  * Global zoom: 31×31 = 961 pts at ~5.5° spacing (cyclone-scale detail)
  *
- * caller param: wind supports 961 pts (POST), marine capped at 225 pts (GET URL limit)
+ * caller param: wind uses full grid, marine capped at ±80 lat (API rejects polar regions)
  */
 function computeGridPoints(bounds, caller = 'wind') {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -92,10 +92,12 @@ function computeGridPoints(bounds, caller = 'wind') {
 
   let west, south, east, north, GRID;
   if (isGlobal) {
-    west = -180; east = 180; south = -85; north = 85;
     if (caller === 'marine') {
+      // v3.9: Marine API rejects lat > ±80 (polar ice = no ocean data)
+      west = -180; east = 180; south = -80; north = 80;
       GRID = isMobile ? 9 : 14; // 15×15=225 (desktop), 10×10=100 (mobile)
     } else {
+      west = -180; east = 180; south = -85; north = 85;
       GRID = isMobile ? 20 : 30; // 31×31=961 (desktop), 21×21=441 (mobile)
     }
   } else {
@@ -143,16 +145,15 @@ const getUV = (speed, dir) => {
 // WIND FETCH
 // v3.7: Accepts hourOffset for timeline-aware wind data
 // ========================================================================
-export async function fetchWindData(bounds, signal, hourOffset = 0) {
+export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false) {
   if (!bounds) return lastKnownGoodWind;
   if (windRequestInFlight) {
-    console.warn('[Wind] INFLIGHT_VIOLATION: request already active');
     return lastKnownGoodWind;
   }
 
-  // 429 cooldown check
-  if (isInCooldown('wind')) {
-    console.log('[Wind] In 429 cooldown, returning cached field');
+  // 429 cooldown check (bypassable by timeline scrub)
+  if (!forceFetch && isInCooldown('wind')) {
+    // Silenced: cooldown log
     return lastKnownGoodWind;
   }
 
@@ -231,8 +232,9 @@ export async function fetchWindData(bounds, signal, hourOffset = 0) {
       let speed, dir;
 
       if (useHourly && r?.hourly) {
-        // Pick the correct hour index from hourly arrays
-        const idx = Math.min(hourOffset, (r.hourly.wind_speed_10m?.length || 1) - 1);
+        // v3.9: Correct hourly index — OM arrays start at midnight UTC
+        const nowHour = new Date().getUTCHours();
+        const idx = Math.min(nowHour + hourOffset, (r.hourly.wind_speed_10m?.length || 1) - 1);
         speed = r.hourly.wind_speed_10m?.[idx];
         dir = r.hourly.wind_direction_10m?.[idx];
       } else if (r?.current) {
@@ -289,21 +291,22 @@ export async function fetchWindData(bounds, signal, hourOffset = 0) {
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
   if (!bounds) return lastKnownGoodMarine;
   if (marineRequestInFlight) {
-    console.warn('[Marine] INFLIGHT_VIOLATION: request already active');
+    // Silenced: inflight log
     return lastKnownGoodMarine;
   }
 
   // 429 cooldown check
   if (isInCooldown('marine')) {
-    console.log('[Marine] In 429 cooldown, returning cached field');
+    // Silenced: cooldown log
     return lastKnownGoodMarine;
   }
 
   // Snap bounds with moderate padding for cache reuse
   const snap = 10;
   const padding = 5;
-  const latMin = Math.max(-80, Math.floor((bounds.south - padding) / snap) * snap);
-  const latMax = Math.min(80, Math.ceil((bounds.north + padding) / snap) * snap);
+  // v3.9: Cap marine lat to ±70 with padding (API rejects polar regions)
+  const latMin = Math.max(-70, Math.floor((bounds.south - padding) / snap) * snap);
+  const latMax = Math.min(70, Math.ceil((bounds.north + padding) / snap) * snap);
   const lngMin = Math.floor((bounds.west - padding) / snap) * snap;
   const lngMax = Math.ceil((bounds.east + padding) / snap) * snap;
 
@@ -361,9 +364,12 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
     if (!res.ok) {
       if (res.status === 429) {
         enterCooldown('marine');
-        return lastKnownGoodMarine; // Preserve last valid field
+        return lastKnownGoodMarine;
       }
-      throw new Error(`HTTP ${res.status}`);
+      // v3.9: Return null on 400 so orchestrator retry cap kicks in
+      // (returning cached data bypassed the retry counter)
+      console.error(`[Marine] Fetch failed: HTTP ${res.status}`);
+      return null;
     }
 
     const data = await res.json();
@@ -386,8 +392,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
       const r = allResults[i];
       let c;
       if (useHourly && r?.hourly) {
-        // Pick the correct hour index from hourly arrays
-        const idx = Math.min(hourOffset, (r.hourly.wave_height?.length || 1) - 1);
+        // v3.9: Correct hourly index — OM arrays start at midnight UTC
+        const nowHour = new Date().getUTCHours();
+        const idx = Math.min(nowHour + hourOffset, (r.hourly.wave_height?.length || 1) - 1);
         c = {
           wave_height: r.hourly.wave_height?.[idx],
           wave_direction: r.hourly.wave_direction?.[idx],

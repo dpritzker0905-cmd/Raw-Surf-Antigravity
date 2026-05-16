@@ -540,25 +540,20 @@ const MapWebGL = ({
             layout={{ 
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
-            paint={{ 
-              // v3.4: Tuned opacity per type — marine lower for cleaner coastlines
-              'raster-opacity': layerKey === 'pressure' ? 0.45 
-                : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.65 : 0.7), 
-              // v3.3: Linear resampling for smooth coastline edges (anti-aliasing)
+            paint={{
+              'raster-opacity': layerKey === 'pressure' ? 0.5 : layerKey === 'fog' ? 0.55
+                : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.7 : 0.75),
               'raster-resampling': 'linear',
-              // v3.8.3: Per-variable color palettes — distinct hue per weather type
-              'raster-hue-rotate': layerKey === 'wind' ? -15        // Teal-green wind
-                : layerKey === 'waves' ? 25                         // Blue-ocean waves
-                : layerKey === 'swell' ? 30                         // Deep blue swell
-                : layerKey === 'swell2' ? 35                        // Purple secondary swell
-                : layerKey === 'wind_waves' ? -10                   // Green-teal wind waves
-                : layerKey === 'pressure' ? -40                     // Amber pressure
-                : layerKey === 'fog' ? 180                          // Desaturated fog
-                : 0,                                                // Neutral rain/radar
-              'raster-contrast': layerKey === 'pressure' ? 0.15 : 0.22,
-              'raster-saturation': layerKey === 'fog' ? -0.3 
-                : layerKey === 'pressure' ? 0.20 : 0.40,
-              'raster-fade-duration': 0 
+              'raster-hue-rotate': layerKey === 'wind' ? -20 : layerKey === 'waves' ? 30
+                : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
+                : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
+                : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 180 : 0,
+              'raster-contrast': layerKey === 'pressure' ? 0.20 : layerKey === 'fog' ? 0.15
+                : layerKey === 'satellite' ? 0.30 : 0.35,
+              'raster-saturation': layerKey === 'fog' ? -0.3 : layerKey === 'satellite' ? -0.15
+                : layerKey === 'pressure' ? 0.30 : 0.55,
+              'raster-brightness-min': layerKey === 'rain' ? 0.05 : 0,
+              'raster-fade-duration': 0
             }}
           />
         </Source>
