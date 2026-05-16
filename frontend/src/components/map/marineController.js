@@ -94,7 +94,8 @@ function computeGridPoints(bounds) {
   let west, south, east, north, GRID;
   if (isGlobal) {
     west = -180; east = 180; south = -85; north = 85;
-    GRID = isMobile ? 7 : 12; // 13x13 = 169 pts (URL safe for Open-Meteo)
+    // v3.8: Denser grid — 21x21=441 pts (desktop), 13x13=169 (mobile), URL safe
+    GRID = isMobile ? 12 : 20;
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
