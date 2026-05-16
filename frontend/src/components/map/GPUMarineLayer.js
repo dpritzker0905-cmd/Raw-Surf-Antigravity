@@ -16,7 +16,6 @@ const ACTIVE_MARINE_ENGINES = new Set();
 // --- VISUAL TUNING ---
 const MARINE_PADDING_FACTOR = 2.4;
 const MARINE_PARTICLE_ALPHA = 0.55;
-const HEATMAP_RESOLUTION = 256;
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
@@ -96,129 +95,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     }
   }, [data]);
 
-  // --- SCALAR OCEAN HEATMAP (color by wave HEIGHT) ---
-  useEffect(() => {
-    if (!mapInstance || !active || !data?.vectors?.length) return;
-    const sourceId = `${id}-heatmap-source`;
-    const layerId = `${id}-heatmap-layer`;
-
-    // Expand marine heatmap beyond data bounds for viewport coverage
-    const HEATMAP_PAD = 1.8;
-    const { west: dW, south: dS, east: dE, north: dN } = data.bounds;
-    const cLng = (dW + dE) / 2, cLat = (dS + dN) / 2;
-    const hW = (dE - dW) / 2 * HEATMAP_PAD, hH = (dN - dS) / 2 * HEATMAP_PAD;
-    const padW = Math.max(-180, cLng - hW), padE = Math.min(180, cLng + hW);
-    const padS = Math.max(-85, cLat - hH), padN = Math.min(85, cLat + hH);
-
-    const generateHeatmap = () => {
-      const W = HEATMAP_RESOLUTION, H = HEATMAP_RESOLUTION;
-      const oc = document.createElement('canvas');
-      oc.width = W; oc.height = H;
-      const octx = oc.getContext('2d');
-      const imgData = octx.createImageData(W, H);
-
-      // Ocean energy color scale (wave height in meters)
-      const scale = [
-        { s: 0.0, c: { r: 10,  g: 20,  b: 80  } },
-        { s: 0.5, c: { r: 20,  g: 60,  b: 150 } },
-        { s: 1.0, c: { r: 40,  g: 120, b: 210 } },
-        { s: 2.0, c: { r: 0,   g: 200, b: 220 } },
-        { s: 3.0, c: { r: 60,  g: 210, b: 90  } },
-        { s: 5.0, c: { r: 240, g: 220, b: 40  } },
-        { s: 8.0, c: { r: 255, g: 100, b: 30  } },
-        { s: 12,  c: { r: 220, g: 30,  b: 30  } }
-      ];
-
-      const lerp = (a, b, t) => a + (b - a) * t;
-      const lerpColor = (c1, c2, t) => ({
-        r: Math.round(lerp(c1.r, c2.r, t)),
-        g: Math.round(lerp(c1.g, c2.g, t)),
-        b: Math.round(lerp(c1.b, c2.b, t))
-      });
-
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const lng = padW + (x / (W - 1)) * (padE - padW);
-          const lat = padN - (y / (H - 1)) * (padN - padS);
-          const i = (y * W + x) * 4;
-
-          const vec = interpolateMarine(data, lng, lat);
-          if (!vec || isNaN(vec.speed) || vec.speed < 0.01) {
-            imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
-            continue;
-          }
-
-          const s = vec.speed;
-          let r, g, b;
-          if (s <= scale[0].s) {
-            ({ r, g, b } = scale[0].c);
-          } else if (s >= scale[scale.length - 1].s) {
-            ({ r, g, b } = scale[scale.length - 1].c);
-          } else {
-            for (let j = 0; j < scale.length - 1; j++) {
-              if (s >= scale[j].s && s < scale[j+1].s) {
-                const t = (s - scale[j].s) / (scale[j+1].s - scale[j].s);
-                ({ r, g, b } = lerpColor(scale[j].c, scale[j+1].c, t));
-                break;
-              }
-            }
-          }
-          imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = 160;
-        }
-      }
-      octx.putImageData(imgData, 0, 0);
-      return oc.toDataURL('image/png');
-    };
-
-    const dataUrl = generateHeatmap();
-    const coordinates = [[padW, padN], [padE, padN], [padE, padS], [padW, padS]];
-
-    const img = new Image();
-    img.onload = () => {
-      try {
-        if (!mapInstance.getSource(sourceId)) {
-          mapInstance.addSource(sourceId, {
-            type: 'canvas',
-            canvas: (() => {
-              const c = document.createElement('canvas');
-              c.width = HEATMAP_RESOLUTION; c.height = HEATMAP_RESOLUTION;
-              c.id = `${sourceId}-canvas`;
-              c.getContext('2d').drawImage(img, 0, 0, HEATMAP_RESOLUTION, HEATMAP_RESOLUTION);
-              return c;
-            })(),
-            coordinates,
-            animate: false
-          });
-          mapInstance.addLayer({
-            id: layerId, type: 'raster', source: sourceId,
-            paint: { 'raster-opacity': 0.6, 'raster-fade-duration': 300, 'raster-resampling': 'linear' }
-          });
-        } else {
-          const source = mapInstance.getSource(sourceId);
-          if (source) {
-            const ec = source.getCanvas?.();
-            if (ec) {
-              const ctx2 = ec.getContext('2d');
-              ctx2.clearRect(0, 0, HEATMAP_RESOLUTION, HEATMAP_RESOLUTION);
-              ctx2.drawImage(img, 0, 0, HEATMAP_RESOLUTION, HEATMAP_RESOLUTION);
-              source.setCoordinates?.(coordinates);
-              source.play?.();
-            }
-          }
-        }
-      } catch (e) { /* Race during style transitions */ }
-    };
-    img.src = dataUrl;
-  }, [mapInstance, data]);
-
-  // Sync heatmap visibility
-  useEffect(() => {
-    if (!mapInstance) return;
-    const layerId = `${id}-heatmap-layer`;
-    if (mapInstance.getLayer(layerId)) {
-      mapInstance.setLayoutProperty(layerId, 'visibility', active ? 'visible' : 'none');
-    }
-  }, [mapInstance, active, id]);
+  // v3.2: Marine heatmap overlay is now handled by OM raster tiles
+  // (wave_height, swell_wave_height, etc.) in MapWebGL.js via LAYER_REGISTRY.
+  // These tiles provide full global ocean coverage with built-in land masking.
+  // Only the particle animation engine below renders on this canvas.
 
   // --- MAIN FOAM PARTICLE ENGINE ---
   useEffect(() => {
@@ -260,14 +140,16 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const halfH = (rawN - rawS) / 2 * MARINE_PADDING_FACTOR;
       const west = Math.max(-180, cLng - halfW), east = Math.min(180, cLng + halfW);
       const south = Math.max(-85, cLat - halfH), north = Math.min(85, cLat + halfH);
-      return {
-        lng: west + Math.random() * (east - west),
-        lat: south + Math.random() * (north - south),
-        age: 0,
-        maxAge: 1.5 + Math.random() * 2.5,
-        dashLen: 4 + Math.random() * 10,
-        phase: Math.random()
-      };
+      // v3.2: Only spawn particles over ocean, retry up to 5 times
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const lng = west + Math.random() * (east - west);
+        const lat = south + Math.random() * (north - south);
+        if (isLikelyOcean(lat, lng)) {
+          return { lng, lat, age: 0, maxAge: 1.5 + Math.random() * 2.5, dashLen: 4 + Math.random() * 10, phase: Math.random() };
+        }
+      }
+      // Fallback: place at random ocean-ish position
+      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: 0, maxAge: 0.5, dashLen: 4, phase: 0 };
     };
 
     const particles = [];
@@ -355,6 +237,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
         // Clamp & wrap
         if (isNaN(p.lat) || isNaN(p.lng)) { pts[i] = spawn(); continue; }
+        // v3.2: Kill particles that drift over land
+        if (!isLikelyOcean(p.lat, p.lng)) { pts[i] = spawn(); continue; }
         p.lat = Math.max(-85, Math.min(85, p.lat));
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
@@ -393,8 +277,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           if (alpha < 0.01) continue;
 
           // Wave direction for dash orientation
-          // Crests are perpendicular to propagation direction (+90°)
-          const dirAngle = Math.atan2(-wave.v, wave.u) + Math.PI / 2;
+          // Wave propagation direction — particles flow WITH energy movement (like Windy.com)
+          const dirAngle = Math.atan2(-wave.v, wave.u) ;
           const halfDash = p.dashLen / 2;
           const dx = Math.cos(dirAngle) * halfDash;
           const dy = -Math.sin(dirAngle) * halfDash;

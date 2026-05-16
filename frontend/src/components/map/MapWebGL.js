@@ -217,7 +217,7 @@ const MapWebGL = ({
 
   // Pre-warm metadata cache on mount so layer toggles are instant
   useEffect(() => {
-    ['ncep_gfs025', 'dwd_icon'].forEach(m => fetchMetadata(m));
+    ['ncep_gfs025', 'dwd_icon', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
   useEffect(() => {
@@ -248,7 +248,9 @@ const MapWebGL = ({
       const variablesToResolve = Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(k => [k, LAYER_REGISTRY[k].omVariable]);
 
       for (const [layerKey, variable] of variablesToResolve) {
-        let layerModel = targetModel;
+        // v3.2: Marine layers use dedicated wave tile models, not atmospheric
+        const registryEntry = LAYER_REGISTRY[layerKey];
+        let layerModel = registryEntry?.omModel || targetModel;
         // v257: GFS map tiles lack precipitation, cloud_cover, and cloud_cover_low; fallback these specific variables to ICON
         if (layerModel === 'ncep_gfs025' && (variable === 'precipitation' || variable === 'cloud_cover' || variable === 'cloud_cover_low')) {
           layerModel = 'dwd_icon';
@@ -397,6 +399,13 @@ const MapWebGL = ({
             if (lk && mapInstance.getLayer(lid)) {
               const base = lk === 'pressure' ? 0.45 : lk === 'satellite' ? 1.0 : 0.7;
               mapInstance.setPaintProperty(lid, 'raster-opacity', base * p);
+            }
+          }
+          // v3.2: OM raster tiles for marine + wind layers (canvas particles overlay separately)
+          if (activeRenderType === 'marine' || activeRenderType === 'wind') {
+            const lk = activeLayers[0], lid = `${lk}-layer`;
+            if (lk && mapInstance.getLayer(lid)) {
+              mapInstance.setPaintProperty(lid, 'raster-opacity', 0.7 * p);
             }
           }
           if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);

@@ -37,30 +37,39 @@ export const LAYER_REGISTRY = {
     id: "wind",
     type: "canvas",
     source: "WIND_PARTICLES",
+    omVariable: "wind_gusts_10m",
     category: "model"
   },
   waves: {
     id: "waves",
     type: "marine",
     source: "MARINE_WAVES",
+    omVariable: "wave_height",
+    omModel: "ecmwf_wam025",
     category: "model"
   },
   swell_1: {
     id: "swell_1",
     type: "marine",
     source: "MARINE_SWELL1",
+    omVariable: "swell_wave_height",
+    omModel: "ncep_gfswave025",
     category: "model"
   },
   swell_2: {
     id: "swell_2",
     type: "marine",
     source: "MARINE_SWELL2",
+    omVariable: "secondary_swell_wave_height",
+    omModel: "ncep_gfswave025",
     category: "model"
   },
   wind_waves: {
     id: "wind_waves",
     type: "marine",
     source: "MARINE_WINDWAVES",
+    omVariable: "wind_wave_height",
+    omModel: "ncep_gfswave025",
     category: "model"
   }
 };
