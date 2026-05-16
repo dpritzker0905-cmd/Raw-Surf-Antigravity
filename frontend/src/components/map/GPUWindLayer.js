@@ -77,6 +77,9 @@ const ACTIVE_ENGINES = new Set();
 // v3.3: Padding factor removed — particles now spawn at viewport bounds
 const WIND_PARTICLE_ALPHA = 0.35; // Slightly higher for dark particles to be visible
 const HEATMAP_RESOLUTION = 256;
+// v3.7: Turbulence noise amplitude — higher = more deviation from pure interpolation
+// This breaks up the deterministic grid pattern visible at low zoom
+const TURBULENCE_AMP = 0.12; // fraction of interpolated speed added as noise
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
@@ -170,12 +173,17 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       const north = Math.min(85, mb.getNorth());
       
       const maxAge = 3 + Math.random() * 4;
+      // v3.7: Unique noise seed per particle for turbulence
+      const noiseSeed = Math.random() * Math.PI * 2;
+      const noiseFreq = 0.5 + Math.random() * 1.5;
       return {
         lng: west + Math.random() * (east - west),
         lat: south + Math.random() * (north - south),
         // v3.4: Pre-age on initial spawn so particles appear already distributed
         age: preAge ? Math.random() * maxAge * 0.8 : 0,
-        maxAge
+        maxAge,
+        noiseSeed,
+        noiseFreq
       };
     };
     particlesRef.current = [];
@@ -342,9 +350,14 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
                 p.age = p.maxAge + 1; continue;
               }
-              // Wind-only advection
-              screen.x += wind.u * scale * 10;
-              screen.y -= wind.v * scale * 10; 
+              // v3.7: Add turbulence noise to break grid pattern
+              // Sinusoidal offset unique per-particle, varies over time
+              const noisePhase = p.noiseSeed + p.age * p.noiseFreq;
+              const noiseU = Math.sin(noisePhase) * wind.speed * TURBULENCE_AMP;
+              const noiseV = Math.cos(noisePhase * 1.3) * wind.speed * TURBULENCE_AMP;
+              // Wind advection with turbulence
+              screen.x += (wind.u + noiseU) * scale * 10;
+              screen.y -= (wind.v + noiseV) * scale * 10;
               const nextLngLat = mapInstance.unproject(screen);
               if (!nextLngLat || !Number.isFinite(nextLngLat.lng) || !Number.isFinite(nextLngLat.lat)) {
                 p.age = p.maxAge + 1; continue;

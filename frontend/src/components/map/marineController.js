@@ -89,15 +89,16 @@ function computeGridPoints(bounds) {
   const latSpan = bounds.north - bounds.south;
   const isGlobal = lngSpan > 100 || latSpan > 60;
 
-  // Global: fixed worldwide grid. Regional: viewport grid.
+  // Global: denser worldwide grid. Regional: viewport grid.
+  // v3.7: Increased density to reduce visible grid artifacts in particle advection
   let west, south, east, north, GRID;
   if (isGlobal) {
     west = -180; east = 180; south = -78; north = 78;
-    GRID = isMobile ? 5 : 7; // 8x8 = 64 pts (URL safe)
+    GRID = isMobile ? 7 : 12; // 13x13 = 169 pts (URL safe for Open-Meteo)
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
-    GRID = isMobile ? 4 : 6;
+    GRID = isMobile ? 5 : 8;
   }
 
   const latStep = (north - south) / GRID;
