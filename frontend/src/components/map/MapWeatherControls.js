@@ -414,6 +414,24 @@ export const MapWeatherControls = ({
               );
             })}
           </div>
+
+          {/* Timeline in expanded view */}
+          {activeLayer && (
+            <div className={`mt-3 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
+              {legendConfig[activeLayer] && (
+                <div className="mb-2">
+                  <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>
+                    {legendConfig[activeLayer].label}
+                  </div>
+                  <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
+                  <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5`}>
+                    {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
+                  </div>
+                </div>
+              )}
+              {renderTimeline(true)}
+            </div>
+          )}
         </div>
       </div>
     </>

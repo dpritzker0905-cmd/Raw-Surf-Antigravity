@@ -38,9 +38,10 @@ const MARINE_VARS = [
 
 const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
-// v3.9: Module-level rate limiter — shared across all instances
+// v3.9.3: Module-level rate limiter — shared across all instances
+// 60s interval ensures spot forecasts don't starve the wind grid engine
 let lastGlobalFetchTime = 0;
-const MIN_FETCH_INTERVAL = 30_000; // 30s between forecast fetches
+const MIN_FETCH_INTERVAL = 60_000; // 60s between spot forecast fetches
 
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
   const [forecastData, setForecastData] = useState(null);
@@ -145,12 +146,12 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     }
   }, [latitude, longitude, activeModel, enabled]);
 
-  // v3.9: 5s debounce instead of immediate fetch — lets the map settle
+  // v3.9.3: 15s debounce — gives wind grid engine a head start on the rate limit
   useEffect(() => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForecast();
-    }, 5000);
+    }, 15000);
     return () => clearTimeout(debounceRef.current);
   }, [fetchForecast]);
 

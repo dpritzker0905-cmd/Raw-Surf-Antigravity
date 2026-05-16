@@ -182,22 +182,34 @@ function extractWindAtOffset(cache, hourOffset) {
 
 // ========================================================================
 // WIND FETCH
-// v3.9.1: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
+// v3.9.3: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
+// Logs every decision point. Returns null explicitly on first-load failure
+// so the caller (WeatherEngine) knows to retry.
 // ========================================================================
 export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false) {
-  if (!bounds) return lastKnownGoodWind;
-  if (windRequestInFlight) return lastKnownGoodWind;
+  if (!bounds) { console.log('[Wind] fetchWindData: no bounds'); return lastKnownGoodWind; }
 
-  // 429 cooldown check (bypassable by timeline scrub)
-  if (!forceFetch && isInCooldown('wind')) return lastKnownGoodWind;
+  // Inflight lock — but DON'T return null on first load, return lastKnownGood
+  if (windRequestInFlight) {
+    console.log('[Wind] fetchWindData: request already inflight, returning cached');
+    return lastKnownGoodWind;
+  }
+
+  // 429 cooldown check (bypassable by timeline forceFetch)
+  if (!forceFetch && isInCooldown('wind')) {
+    console.log(`[Wind] fetchWindData: in 429 cooldown, returning cached`);
+    return lastKnownGoodWind;
+  }
 
   const { west, south, east, north } = bounds;
   if (north <= south || east === west) return lastKnownGoodWind;
 
   // v3.9.1: Hourly cache — re-index locally instead of making new API call
   const viewHash = viewportCacheKey(bounds, 'wind');
-  if (hourOffset > 0 && windHourlyCache.hash === viewHash &&
+  if (windHourlyCache.hash === viewHash &&
       Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+    // Cache hit: extract data at the requested offset without API call
+    console.log(`[Wind] Cache HIT for offset=${hourOffset}h`);
     return extractWindAtOffset(windHourlyCache, hourOffset);
   }
 
@@ -205,7 +217,10 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   const cacheKey = viewportCacheKey(bounds, `wind_h${hourOffset}`);
   if (WIND_CACHE.has(cacheKey)) {
     const cached = WIND_CACHE.get(cacheKey);
-    if (Date.now() - cached.timestamp < 300000) return cached.data;
+    if (Date.now() - cached.timestamp < 300000) {
+      console.log('[Wind] Per-offset cache hit');
+      return cached.data;
+    }
   }
 
   if (windAbortController) windAbortController.abort();
@@ -218,8 +233,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
-    // v3.9.1: ALWAYS fetch hourly data for 3 days (72h) so timeline scrub
-    // never needs a separate API call. This is the critical 429 fix.
+    console.log(`[Wind] POST to Open-Meteo: ${points.length} grid points, forecast_days=3`);
+
     const body = {
       latitude: lats, longitude: lons,
       wind_speed_unit: 'kn',
@@ -235,7 +250,11 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     });
 
     if (!res.ok) {
-      if (res.status === 429) { enterCooldown('wind'); return lastKnownGoodWind; }
+      if (res.status === 429) {
+        enterCooldown('wind');
+        console.warn(`[Wind] 429 rate limited — cooldown active`);
+        return lastKnownGoodWind;
+      }
       throw new Error(`HTTP ${res.status}`);
     }
 
@@ -265,7 +284,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   } catch (err) {
     if (err.name === 'AbortError') return lastKnownGoodWind;
     console.error(`[Wind] Fetch failed: ${err.message}`);
-    return lastKnownGoodWind; // NEVER return null, preserve last valid
+    return lastKnownGoodWind;
   } finally {
     windRequestInFlight = false;
   }
