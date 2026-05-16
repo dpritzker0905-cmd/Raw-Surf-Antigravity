@@ -141,6 +141,22 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       };
 
       const requestId = ++marineRequestIdRef.current;
+      // v3.9.5: Check cooldown before fetch to prevent spam
+      const cooldownRemaining = getRemainingCooldown('marine');
+      if (!isRetry && cooldownRemaining > 0) {
+        // Schedule ONE retry after cooldown expires instead of spamming
+        if (!cooldownRetryRef.current) {
+          console.log(`[Marine] In cooldown (${Math.ceil(cooldownRemaining/1000)}s), scheduling retry`);
+          cooldownRetryRef.current = setTimeout(() => {
+            cooldownRetryRef.current = null;
+            if (updateMarineGridRef.current && activeMarineLayersRef.current) {
+              updateMarineGridRef.current('cooldown_retry');
+            }
+          }, cooldownRemaining + 2000);
+        }
+        locks.isFetching = false;
+        return;
+      }
       // Silenced: fetchMarineData call
       locks.isFetching = true;
       try {
