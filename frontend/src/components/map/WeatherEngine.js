@@ -189,8 +189,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       }
     }, 300);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeOffsetHours]);
+  }, [timeOffsetHours]); // eslint-disable-line
 
   return { windData, windRevision };
 }
