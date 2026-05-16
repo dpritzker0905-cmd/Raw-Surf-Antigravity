@@ -355,9 +355,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               const noisePhase = p.noiseSeed + p.age * p.noiseFreq;
               const noiseU = Math.sin(noisePhase) * wind.speed * TURBULENCE_AMP;
               const noiseV = Math.cos(noisePhase * 1.3) * wind.speed * TURBULENCE_AMP;
-              // Wind advection: u=east(+x), v=north(-y), scale 30x for visible motion
-              screen.x += (wind.u + noiseU) * scale * 30;
-              screen.y -= (wind.v + noiseV) * scale * 30;
+              // v3.8.6: Speed scale 15x — balanced between visible motion and trail persistence
+              screen.x += (wind.u + noiseU) * scale * 15;
+              screen.y -= (wind.v + noiseV) * scale * 15;
               const nextLngLat = mapInstance.unproject(screen);
               if (!nextLngLat || !Number.isFinite(nextLngLat.lng) || !Number.isFinite(nextLngLat.lat)) {
                 p.age = p.maxAge + 1; continue;

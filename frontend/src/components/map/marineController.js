@@ -333,23 +333,30 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
   try {
     const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
     const { points, gridSize } = computeGridPoints(snappedBounds, 'marine');
-    const lats = points.map(p => p.lat).join(',');
-    const lons = points.map(p => p.reqLng).join(',');
+    const lats = points.map(p => p.lat);
+    const lons = points.map(p => p.reqLng);
 
-    // v3.8.3: Use hourly forecast when looking ahead, current for live
+    // v3.8.6: POST to bypass URL length limit (225 pts × 12 vars was too long for GET)
     const useHourly = hourOffset > 0;
     const forecastDays = Math.min(16, Math.ceil((hourOffset + 24) / 24));
-    const marineVars = 'wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period' +
-      ',secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period' +
-      ',wind_wave_height,wind_wave_direction,wind_wave_period';
-    const timeParam = useHourly
-      ? `hourly=${marineVars}&forecast_days=${forecastDays}`
-      : `current=${marineVars}`;
+    const marineVarList = ['wave_height','wave_direction','wave_period',
+      'swell_wave_height','swell_wave_direction','swell_wave_period',
+      'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
+      'wind_wave_height','wind_wave_direction','wind_wave_period'];
+    const body = { latitude: lats, longitude: lons };
+    if (useHourly) {
+      body.hourly = marineVarList;
+      body.forecast_days = forecastDays;
+    } else {
+      body.current = marineVarList;
+    }
 
-    const res = await fetch(
-      `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&${timeParam}`,
-      { signal: fetchSignal }
-    );
+    const res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: fetchSignal
+    });
 
     if (!res.ok) {
       if (res.status === 429) {

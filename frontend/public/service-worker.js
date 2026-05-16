@@ -1,6 +1,6 @@
 // Raw Surf OS Service Worker for Push Notifications and Offline Mode
 // BUILD_VERSION is bumped on each deploy to auto-purge stale caches
-const BUILD_VERSION = '2026.05.05';
+const BUILD_VERSION = '2026.05.16';
 const CACHE_NAME = `rawsurf-v3-${BUILD_VERSION}`;
 const SPOT_CACHE_NAME = `rawsurf-spots-v1-${BUILD_VERSION}`;
 const OFFLINE_CACHE_NAME = `rawsurf-offline-v1-${BUILD_VERSION}`;
@@ -97,7 +97,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(SPOT_CACHE_NAME).then((cache) => {
             try {
               cache.put(event.request, responseClone);
-              console.log('[ServiceWorker] Cached spot data:', url.pathname);
+              // Silenced: was logging on every request (10+/session)
             } catch (e) {
               // Clone failed during SW transition — ignore
             }
