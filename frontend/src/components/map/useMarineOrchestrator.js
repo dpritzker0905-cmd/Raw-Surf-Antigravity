@@ -16,7 +16,7 @@ import { fetchMarineData, getRemainingCooldown } from './marineController';
  *
  * RULE: This hook has ZERO knowledge of rendering. It only manages data.
  */
-export function useMarineOrchestrator({ mapInstance, activeLayers }) {
+export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0 }) {
   const [marineData, setMarineData] = useState(null);
 
   // --- Refs (all internal to this hook) ---
@@ -36,6 +36,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
   const lastUserInteractionRef = useRef(0);
   const lastStableCameraRef = useRef(null);
   const lastInvocationRef = useRef({ source: null, time: 0 });
+  const timeOffsetRef = useRef(timeOffsetHours);
   const cooldownRetryRef = useRef(null);
   const updateMarineGridRef = useRef(null);
   const hasActivatedRef = useRef(false);
@@ -132,7 +133,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       console.log(`[Marine Trace] 3. calling fetchMarineData (req: ${requestId})`);
       locks.isFetching = true;
       try {
-        let data = await fetchMarineData(bounds, zoom);
+        let data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current);
         if (window.__LRCM_EXEC_TRACE__) {
           data = window.__LRCM_EXEC_TRACE__.push({ layer: 'marine', action: 'fetch', source: 'useMarineOrchestrator', timestamp: Date.now(), payload: data, stack: new Error().stack }) && data;
         }
@@ -333,6 +334,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers }) {
       manualMarineTriggerRef.current = null;
     };
   }, [mapInstance]); // Severed from activeLayersKey completely
+
+  // v3.8.3: Re-fetch marine data when timeline offset changes
+  useEffect(() => {
+    timeOffsetRef.current = timeOffsetHours;
+    if (!mapInstance || !activeMarineLayersRef.current) return;
+    // Invalidate viewport hash to force refetch
+    marineFetchLocksRef.current.lastHash = null;
+    const t = setTimeout(() => {
+      manualMarineTriggerRef.current?.();
+    }, 350);
+    return () => clearTimeout(t);
+  }, [timeOffsetHours, mapInstance]);
 
   return { marineData };
 }

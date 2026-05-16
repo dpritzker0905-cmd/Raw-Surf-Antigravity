@@ -72,7 +72,8 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           return await fetch(url, { signal: controller.signal });
         } catch (e) {
           if (e.name === 'DataCloneError' || e.message?.includes('could not be cloned')) {
-            logger.warn('[OpenMeteo] Service worker clone error, retrying without signal');
+            // Expected: SW can't clone AbortSignal requests, retry silently
+            if (process.env.NODE_ENV === 'development') logger.debug?.('[OpenMeteo] SW clone retry');
             return await fetch(url);
           }
           throw e;

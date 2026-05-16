@@ -272,7 +272,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0) {
 // ========================================================================
 // MARINE FETCH
 // ========================================================================
-export async function fetchMarineData(bounds, zoom, signal) {
+// v3.8.3: Accepts hourOffset for timeline-aware marine data
+export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
   if (!bounds) return lastKnownGoodMarine;
   if (marineRequestInFlight) {
     console.warn('[Marine] INFLIGHT_VIOLATION: request already active');
@@ -298,7 +299,7 @@ export async function fetchMarineData(bounds, zoom, signal) {
   // Cache-first
   const cacheKey = viewportCacheKey(
     { west: lngMin, south: latMin, east: lngMax, north: latMax },
-    'marine'
+    `marine_h${hourOffset}`
   );
   if (MARINE_CACHE.has(cacheKey)) {
     const cached = MARINE_CACHE.get(cacheKey);
@@ -322,11 +323,18 @@ export async function fetchMarineData(bounds, zoom, signal) {
     const lats = points.map(p => p.lat).join(',');
     const lons = points.map(p => p.reqLng).join(',');
 
+    // v3.8.3: Use hourly forecast when looking ahead, current for live
+    const useHourly = hourOffset > 0;
+    const forecastDays = Math.min(16, Math.ceil((hourOffset + 24) / 24));
+    const marineVars = 'wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period' +
+      ',secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period' +
+      ',wind_wave_height,wind_wave_direction,wind_wave_period';
+    const timeParam = useHourly
+      ? `hourly=${marineVars}&forecast_days=${forecastDays}`
+      : `current=${marineVars}`;
+
     const res = await fetch(
-      `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}` +
-      `&current=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period` +
-      `,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period` +
-      `,wind_wave_height,wind_wave_direction,wind_wave_period`,
+      `https://marine-api.open-meteo.com/v1/marine?latitude=${lats}&longitude=${lons}&${timeParam}`,
       { signal: fetchSignal }
     );
 
@@ -356,7 +364,28 @@ export async function fetchMarineData(bounds, zoom, signal) {
 
     points.forEach((pt, i) => {
       const r = allResults[i];
-      if (!r?.current || !Number.isFinite(pt.reqLng) || !Number.isFinite(pt.lat)) {
+      let c;
+      if (useHourly && r?.hourly) {
+        // Pick the correct hour index from hourly arrays
+        const idx = Math.min(hourOffset, (r.hourly.wave_height?.length || 1) - 1);
+        c = {
+          wave_height: r.hourly.wave_height?.[idx],
+          wave_direction: r.hourly.wave_direction?.[idx],
+          wave_period: r.hourly.wave_period?.[idx],
+          swell_wave_height: r.hourly.swell_wave_height?.[idx],
+          swell_wave_direction: r.hourly.swell_wave_direction?.[idx],
+          swell_wave_period: r.hourly.swell_wave_period?.[idx],
+          secondary_swell_wave_height: r.hourly.secondary_swell_wave_height?.[idx],
+          secondary_swell_wave_direction: r.hourly.secondary_swell_wave_direction?.[idx],
+          secondary_swell_wave_period: r.hourly.secondary_swell_wave_period?.[idx],
+          wind_wave_height: r.hourly.wind_wave_height?.[idx],
+          wind_wave_direction: r.hourly.wind_wave_direction?.[idx],
+          wind_wave_period: r.hourly.wind_wave_period?.[idx],
+        };
+      } else {
+        c = r?.current;
+      }
+      if (!c || !Number.isFinite(pt.reqLng) || !Number.isFinite(pt.lat)) {
         gridVectors.push({
           lat: pt.lat, lng: pt.monotonicLng,
           waves: { u: 0, v: 0, speed: 0 },
@@ -366,7 +395,6 @@ export async function fetchMarineData(bounds, zoom, signal) {
         });
         return;
       }
-      const c = r.current;
       const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
       const s1_h = safeNum(c.swell_wave_height), s1_d = safeNum(c.swell_wave_direction);
       const s2_h = safeNum(c.secondary_swell_wave_height), s2_d = safeNum(c.secondary_swell_wave_direction);

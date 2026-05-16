@@ -8,8 +8,8 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
 import { MarineParticleCanvas } from './GPUMarineLayer';
-// WebGLWindLayer disabled — feedback loop + uniformMatrix4fv errors (v3.8.3)
-// Will re-enable after stability pass. Canvas2D handles rendering.
+// v3.8.3: Re-enabled with fixes (matrix guard, FBO detach, copy-not-swap)
+import { WebGLWindLayer } from './WebGLWindLayer';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useRasterTransactions } from './useRasterTransactions';
@@ -48,13 +48,9 @@ const OM_MODEL_MAP = {
   ICON: 'dwd_icon',
 };
 
-// OM_VARIABLE_MAP has been replaced by LAYER_REGISTRY
-
 // Cache to prevent repetitive manifest fetching during layer toggles
 const MODEL_METADATA_CACHE = {};
 const MODEL_METADATA_PROMISES = {};
-
-// marineController is now consumed via useMarineOrchestrator hook
 
 const MapWebGL = ({
   isLight,
@@ -152,7 +148,7 @@ const MapWebGL = ({
   const { queueRasterUpdate } = useRasterTransactions(mapInstance, renderContract);
 
   // Marine Orchestrator — single-pipeline data fetching
-  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers });
+  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours });
 
   const activeMarineLayer = useMemo(() => {
     return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
@@ -778,7 +774,15 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      {/* Wind Particle Advection Engine (Canvas2D — v3.8.3) */}
+      {/* v3.8.3: WebGL GPU particles (16k + trails) — fixed matrix/FBO bugs */}
+      <WebGLWindLayer
+        mapInstance={mapInstance}
+        active={activeLayers.includes('wind')}
+        data={windData}
+        revision={windRevision.current}
+      />
+
+      {/* Canvas2D Wind Particles (4k — directional indicators) */}
       <WindParticleCanvas 
         mapInstance={mapInstance} 
         active={activeLayers.includes('wind')}
