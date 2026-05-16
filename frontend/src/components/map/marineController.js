@@ -13,6 +13,10 @@
  * - Last valid field preservation on failure
  */
 
+// --- PROXY CONFIG ---
+// v3.9.6: Route through Netlify serverless proxy to bypass client IP rate limits
+const PROXY_URL = '/api/weather-proxy';
+
 // --- CACHES ---
 const MARINE_CACHE = new Map();
 const WIND_CACHE = new Map();
@@ -286,7 +290,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
-    console.log(`[Wind] POST to Open-Meteo: ${points.length} grid points, forecast_days=3`);
+    console.log(`[Wind] POST via proxy: ${points.length} grid points, forecast_days=3`);
 
     const body = {
       latitude: lats, longitude: lons,
@@ -295,12 +299,28 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       forecast_days: 3
     };
 
-    const res = await fetch('https://api.open-meteo.com/v1/forecast', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: fetchSignal
-    });
+    // v3.9.6: Proxy-first, direct fallback
+    let res;
+    try {
+      res = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'wind', body }),
+        signal: fetchSignal
+      });
+      if (res.headers.get('X-Cache') === 'HIT') {
+        console.log(`[Wind] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
+      }
+    } catch (proxyErr) {
+      // Proxy unavailable (e.g. localhost dev) — fall back to direct API
+      console.log('[Wind] Proxy unavailable, direct API fallback');
+      res = await fetch('https://api.open-meteo.com/v1/forecast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: fetchSignal
+      });
+    }
 
     if (!res.ok) {
       if (res.status === 429) {
@@ -475,12 +495,27 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       'wind_wave_height','wind_wave_direction','wind_wave_period'];
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
 
-    const res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: fetchSignal
-    });
+    // v3.9.6: Proxy-first, direct fallback
+    let res;
+    try {
+      res = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'marine', body }),
+        signal: fetchSignal
+      });
+      if (res.headers.get('X-Cache') === 'HIT') {
+        console.log(`[Marine] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
+      }
+    } catch (proxyErr) {
+      console.log('[Marine] Proxy unavailable, direct API fallback');
+      res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: fetchSignal
+      });
+    }
 
     if (!res.ok) {
       if (res.status === 429) { enterCooldown('marine'); return lastKnownGoodMarine; }

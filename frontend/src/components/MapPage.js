@@ -153,6 +153,8 @@ const MapPageContent = () => {
   const forecastLat = mapCenter?.lat || effectiveLocation?.lat || FLORIDA_CENTER.lat;
   const forecastLng = mapCenter?.lng || effectiveLocation?.lng || FLORIDA_CENTER.lng;
   // v3.9.4: Disable spot forecast when weather layers active — they compete for rate limit
+  // v3.9.6: REGRESSION FIX — Re-enable. Spot forecast is only 1 weighted API call.
+  // The infobox depends on this data. The real rate-limit problem is the 441-point POST.
   const hasWeatherLayer = activeLayers.length > 0;
   const {
     forecastData,
@@ -163,7 +165,7 @@ const MapPageContent = () => {
     latitude: forecastLat,
     longitude: forecastLng,
     activeModel,
-    enabled: !hasWeatherLayer,
+    enabled: true,
   });
 
   const handleUpgradeClick = useCallback(() => {
