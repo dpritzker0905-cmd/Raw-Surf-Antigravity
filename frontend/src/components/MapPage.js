@@ -44,6 +44,9 @@ const MapPageContent = () => {
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
 
+  // v3.7: Track map center for forecast overlay — data tracks what user is looking at
+  const [mapCenter, setMapCenter] = useState(null);
+
   // User location hook - handles GPS and location-related state
   const {
     userLocation, locationDenied, gpsLoading, requestLocation, findNearestSpot,
@@ -145,15 +148,18 @@ const MapPageContent = () => {
     isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
 
-  // Open-Meteo 16-day forecast (weather + marine) — driven by map center & model
+  // Open-Meteo 16-day forecast (weather + marine) — driven by MAP CENTER & model
+  // v3.7: Uses map center instead of fixed user location for accurate readouts
+  const forecastLat = mapCenter?.lat || effectiveLocation?.lat || FLORIDA_CENTER.lat;
+  const forecastLng = mapCenter?.lng || effectiveLocation?.lng || FLORIDA_CENTER.lng;
   const {
     forecastData,
     marineData: forecastMarineData,
     currentWeather,
     isLoading: forecastLoading,
   } = useOpenMeteoForecast({
-    latitude: effectiveLocation?.lat || FLORIDA_CENTER.lat,
-    longitude: effectiveLocation?.lng || FLORIDA_CENTER.lng,
+    latitude: forecastLat,
+    longitude: forecastLng,
     activeModel,
     enabled: true,
   });
@@ -468,6 +474,7 @@ const MapPageContent = () => {
               setIsImmersiveMode(prev => !prev);
             }
           }}
+          onMapMoveEnd={(center) => setMapCenter(center)}
         />
       </div>
 

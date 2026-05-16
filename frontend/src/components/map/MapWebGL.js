@@ -74,6 +74,7 @@ const MapWebGL = ({
   timeOffsetHours = 0,
   userTier = 'tier_1',
   onMapClick,
+  onMapMoveEnd,
 }) => {
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
@@ -90,9 +91,11 @@ const MapWebGL = ({
   const animFrameRef = useRef(null);
   
   // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
+  // v3.7: Passes timeOffsetHours so wind data reflects the selected forecast hour
   const { windData, windRevision } = useWeatherEngine({
     activeLayers,
-    mapInstance
+    mapInstance,
+    timeOffsetHours
   });
 
   const [protocolReady, setProtocolReady] = useState(false);
@@ -290,6 +293,18 @@ const MapWebGL = ({
     setViewState(evt.viewState);
   }, []);
 
+  // v3.7: Debounced moveend callback to update map center for forecast overlay
+  const moveEndTimerRef = useRef(null);
+  const onMoveEnd = useCallback((evt) => {
+    if (onMapMoveEnd) {
+      clearTimeout(moveEndTimerRef.current);
+      moveEndTimerRef.current = setTimeout(() => {
+        const { latitude, longitude } = evt.viewState;
+        onMapMoveEnd({ lat: latitude, lng: longitude });
+      }, 800);
+    }
+  }, [onMapMoveEnd]);
+
   // Sync to effectiveLocation initially
   useEffect(() => {
     if (effectiveLocation && innerMapRef.current) {
@@ -445,6 +460,7 @@ const MapWebGL = ({
       mapLib={maplibregl}
       {...viewState}
       onMove={onMove}
+      onMoveEnd={onMoveEnd}
       onClick={onMapClick}
       mapStyle={currentMapStyle}
       style={{ width: '100%', height: '100%' }}
@@ -607,6 +623,7 @@ const MapWebGL = ({
             anchor="bottom"
             onClick={(e) => {
               e.originalEvent.stopPropagation();
+              e.originalEvent.preventDefault();
               if (onSpotClick) onSpotClick(cluster.spot);
               // Cinematic 3D swoop
               innerMapRef.current.flyTo({

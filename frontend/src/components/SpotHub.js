@@ -146,7 +146,7 @@ const SpotHub = () => {
   const userTier = user?.tier_id || user?.subscription_tier || 'free';
   const isPremium = ['premium', 'pro', 'gold', 'tier_3', 'admin'].includes(userTier);
   const isBasic = ['paid', 'basic', 'tier_2'].includes(userTier);
-  const forecastDaysAllowed = isPremium ? 14 : isBasic ? 7 : 1;
+  const forecastDaysAllowed = isPremium ? 14 : isBasic ? 7 : 3;
   
   // ============ HANDLERS FROM useSpotHubActions ============
   const {

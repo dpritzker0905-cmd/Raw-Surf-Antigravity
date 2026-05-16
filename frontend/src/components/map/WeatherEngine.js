@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData } from './marineController';
 
 /**
- * Unified Weather Data Engine (v3.0.0)
+ * Unified Weather Data Engine (v3.7.0)
  * 
  * Conforms to Marine Engine v3 runtime contract:
  * - VIEWPORT-based fetching (NOT global domain)
@@ -12,17 +12,25 @@ import { fetchWindData } from './marineController';
  * - Preserves last valid field (handled in marineController)
  * - Only fetches on: mount, timer tick, manual toggle, significant viewport change
  * - NEVER fetches on: render, theme change, animation frame, particle update
+ * 
+ * v3.7: Accepts timeOffsetHours — when user scrubs the timeline into the future,
+ *        we fetch hourly forecast data at the correct offset instead of `current`.
  */
-export function useWeatherEngine({ activeLayers, mapInstance }) {
+export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 0 }) {
   const [windData, setWindData] = useState(null);
   const windRevision = useRef(0);
   
   const activeLayersRef = useRef(activeLayers);
   const lastViewportHashRef = useRef(null);
+  const timeOffsetRef = useRef(timeOffsetHours);
   
   useEffect(() => {
     activeLayersRef.current = activeLayers;
   }, [activeLayers]);
+
+  useEffect(() => {
+    timeOffsetRef.current = timeOffsetHours;
+  }, [timeOffsetHours]);
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -32,14 +40,14 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
 
     /**
      * Compute a viewport hash for deduplication.
-     * If the hash hasn't changed, skip the fetch.
+     * Includes timeOffset so timeline changes trigger refetch.
      */
     const getViewportHash = () => {
       try {
         const center = mapInstance.getCenter();
         const zoom = mapInstance.getZoom();
         const q = (v) => Number(v).toFixed(1);
-        return `${q(center.lng)}:${q(center.lat)}:${Math.round(zoom)}`;
+        return `${q(center.lng)}:${q(center.lat)}:${Math.round(zoom)}:h${timeOffsetRef.current}`;
       } catch (e) {
         return null;
       }
@@ -67,14 +75,12 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
       
       const active = activeLayersRef.current;
       if (!active.includes('wind')) {
-        // Do NOT clear windData — hiding is done via canvas visibility.
-        // Clearing triggers re-render loops.
         return;
       }
 
       // Viewport hash deduplication
       const hash = getViewportHash();
-      if (hash && hash === lastViewportHashRef.current && source !== 'manual_toggle') {
+      if (hash && hash === lastViewportHashRef.current && source !== 'manual_toggle' && source !== 'time_change') {
         return;
       }
 
@@ -87,16 +93,14 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
 
       isFetching = true;
       try {
-        console.log(`[WeatherEngine] Fetching wind (source: ${source})`);
-        console.log('[Wind Bounds]', bounds);
-        const data = await fetchWindData(bounds, abortController.signal);
+        console.log(`[WeatherEngine] Fetching wind (source: ${source}, offset: ${timeOffsetRef.current}h)`);
+        const data = await fetchWindData(bounds, abortController.signal, timeOffsetRef.current);
         
         if (data && data.vectors?.length > 0) {
           lastViewportHashRef.current = hash;
           windRevision.current += 1;
           setWindData(data);
         } else if (data) {
-          // Data returned but empty — don't overwrite existing
           console.warn('[WeatherEngine] Empty wind field returned, preserving last valid');
         }
       } catch (e) {
@@ -143,7 +147,7 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
           north: Math.min(85, b.getNorth())
         };
         console.log('[WeatherEngine] Manual fetch: wind layer toggled ON');
-        const data = await fetchWindData(bounds);
+        const data = await fetchWindData(bounds, null, timeOffsetRef.current);
         if (data && data.vectors?.length > 0) {
           windRevision.current += 1;
           setWindData(data);
@@ -158,6 +162,35 @@ export function useWeatherEngine({ activeLayers, mapInstance }) {
     }, 200);
     return () => clearTimeout(t);
   }, [isWindActive, windData, mapInstance]);
+
+  // v3.7: Re-fetch when timeOffsetHours changes (timeline scrub)
+  useEffect(() => {
+    if (!mapInstance || !isWindActive) return;
+
+    const t = setTimeout(async () => {
+      try {
+        const b = mapInstance.getBounds();
+        const bounds = {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
+        console.log(`[WeatherEngine] Time offset changed to ${timeOffsetHours}h, refetching`);
+        const data = await fetchWindData(bounds, null, timeOffsetHours);
+        if (data && data.vectors?.length > 0) {
+          windRevision.current += 1;
+          setWindData(data);
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          console.error('[WeatherEngine] Time change fetch failed:', e);
+        }
+      }
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeOffsetHours]);
 
   return { windData, windRevision };
 }

@@ -53,7 +53,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    const fetchKey = `${latitude.toFixed(2)}_${longitude.toFixed(2)}_${activeModel}`;
+    const fetchKey = `${latitude.toFixed(1)}_${longitude.toFixed(1)}_${activeModel}`;
     if (fetchKey === lastFetchKey.current) return;
     lastFetchKey.current = fetchKey;
 

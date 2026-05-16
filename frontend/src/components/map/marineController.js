@@ -133,8 +133,9 @@ const getUV = (speed, dir) => {
 
 // ========================================================================
 // WIND FETCH
+// v3.7: Accepts hourOffset for timeline-aware wind data
 // ========================================================================
-export async function fetchWindData(bounds, signal) {
+export async function fetchWindData(bounds, signal, hourOffset = 0) {
   if (!bounds) return lastKnownGoodWind;
   if (windRequestInFlight) {
     console.warn('[Wind] INFLIGHT_VIOLATION: request already active');
@@ -150,8 +151,8 @@ export async function fetchWindData(bounds, signal) {
   const { west, south, east, north } = bounds;
   if (north <= south || east === west) return lastKnownGoodWind;
 
-  // Cache-first: check before any network request
-  const cacheKey = viewportCacheKey(bounds, 'wind');
+  // Cache-first: check before any network request (include hourOffset in key)
+  const cacheKey = viewportCacheKey(bounds, `wind_h${hourOffset}`);
   if (WIND_CACHE.has(cacheKey)) {
     const cached = WIND_CACHE.get(cacheKey);
     if (Date.now() - cached.timestamp < 300000) { // 5 min TTL
@@ -173,15 +174,19 @@ export async function fetchWindData(bounds, signal) {
     const lats = points.map(p => p.lat).join(',');
     const lons = points.map(p => p.reqLng).join(',');
 
-    const res = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1&wind_speed_unit=kn`,
-      { signal: fetchSignal }
-    );
+    // v3.7: Use hourly forecast when looking ahead, current for live
+    const useHourly = hourOffset > 0;
+    const forecastDays = Math.min(16, Math.ceil((hourOffset + 24) / 24));
+    const url = useHourly
+      ? `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=wind_speed_10m,wind_direction_10m&forecast_days=${forecastDays}&wind_speed_unit=kn`
+      : `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&current=wind_speed_10m,wind_direction_10m&forecast_days=1&wind_speed_unit=kn`;
+
+    const res = await fetch(url, { signal: fetchSignal });
 
     if (!res.ok) {
       if (res.status === 429) {
         enterCooldown('wind');
-        return lastKnownGoodWind; // Preserve last valid field
+        return lastKnownGoodWind;
       }
       throw new Error(`HTTP ${res.status}`);
     }
@@ -192,7 +197,7 @@ export async function fetchWindData(bounds, signal) {
     let results;
     if (Array.isArray(json)) {
       results = json;
-    } else if (json?.current) {
+    } else if (json?.current || json?.hourly) {
       results = points.map(() => json);
     } else {
       console.warn('[Wind] Unexpected API response shape');
@@ -202,9 +207,20 @@ export async function fetchWindData(bounds, signal) {
     const vectors = [];
     points.forEach((pt, i) => {
       const r = results[i];
-      if (!r?.current) return;
-      const speed = r.current.wind_speed_10m;
-      const dir = r.current.wind_direction_10m;
+      let speed, dir;
+
+      if (useHourly && r?.hourly) {
+        // Pick the correct hour index from hourly arrays
+        const idx = Math.min(hourOffset, (r.hourly.wind_speed_10m?.length || 1) - 1);
+        speed = r.hourly.wind_speed_10m?.[idx];
+        dir = r.hourly.wind_direction_10m?.[idx];
+      } else if (r?.current) {
+        speed = r.current.wind_speed_10m;
+        dir = r.current.wind_direction_10m;
+      } else {
+        return;
+      }
+
       if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) return;
       const rad = dir * (Math.PI / 180);
       vectors.push({
@@ -220,7 +236,8 @@ export async function fetchWindData(bounds, signal) {
         cols: gridSize,
         rows: gridSize,
         stale: false,
-        source: 'network'
+        source: 'network',
+        hourOffset
       };
       // Update caches
       WIND_CACHE.set(cacheKey, { data, timestamp: Date.now() });
@@ -229,7 +246,7 @@ export async function fetchWindData(bounds, signal) {
         BOOTSTRAP_WIND = false;
         console.log('[Wind] BOOTSTRAP complete \u2014 first valid data received');
       }
-      console.log(`[Wind] Fetch success: ${vectors.length} vectors, ${gridSize}x${gridSize} grid`);
+      console.log(`[Wind] Fetch success: ${vectors.length} vectors, ${gridSize}x${gridSize} grid, offset: ${hourOffset}h`);
       return data;
     } else {
       console.warn('[Wind] Zero valid vectors from API');

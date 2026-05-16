@@ -154,10 +154,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     // Adaptive particle count based on hardware / viewport size
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
-    // v3.6: Zoom-adaptive particle count — fewer at global zoom for visual clarity
+    // v3.7: Reduced particle density — half of v3.6 for cleaner visual
     const zoom = mapInstance.getZoom();
-    const baseCount = isMobile ? (isWeak ? 300 : 800) : (isWeak ? 1500 : 3000);
-    const PARTICLE_COUNT = zoom < 3 ? Math.round(baseCount * 0.35) : zoom < 5 ? Math.round(baseCount * 0.6) : baseCount;
+    const baseCount = isMobile ? (isWeak ? 200 : 400) : (isWeak ? 800 : 1500);
+    const PARTICLE_COUNT = zoom < 3 ? Math.round(baseCount * 0.25) : zoom < 5 ? Math.round(baseCount * 0.5) : baseCount;
     console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (zoom: ${zoom.toFixed(1)}, isMobile: ${isMobile})`);
     
     const spawn = (preAge = false) => {
@@ -394,7 +394,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const speedAlpha = Math.min(1.0, 0.3 + (s / 25));
             const finalAlpha = Math.min(0.7, alpha * speedAlpha);
             ctx.strokeStyle = `rgba(15, 15, 25, ${finalAlpha})`;
-            ctx.lineWidth = Math.min(2.5, 1.0 + s * 0.04);
+            ctx.lineWidth = Math.min(1.6, 0.5 + s * 0.025);
             
             ctx.beginPath();
             if (prevScreen) {
@@ -461,7 +461,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
         }
       }
 
-      if (frameCount % 120 === 1) {
+      if (frameCount % 1800 === 1) {
         console.log(`[Wind] F:${frameCount} drawn:${particles.length} grid:${grid?.vectors?.length || 0}`);
       }
 

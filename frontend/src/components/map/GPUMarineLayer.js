@@ -127,11 +127,11 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
-    // v3.6: Zoom-adaptive particle count — fewer at global zoom
+    // v3.7: Reduced marine particle density for cleaner visual
     const getParticleCount = () => {
       const zoom = mapInstance.getZoom();
-      const base = isMobile ? (isWeak ? 400 : 1000) : (isWeak ? 2000 : 4000);
-      if (zoom < 3) return Math.round(base * 0.3);
+      const base = isMobile ? (isWeak ? 200 : 500) : (isWeak ? 1000 : 2000);
+      if (zoom < 3) return Math.round(base * 0.25);
       if (zoom < 5) return Math.round(base * 0.5);
       return base;
     };
@@ -315,7 +315,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         }
       }
 
-      if (frameCount % 120 === 1) {
+      if (frameCount % 1800 === 1) {
         console.log(`[Marine] F:${frameCount} drawn:${pts.length} grid:${grid?.vectors?.length || 0}`);
       }
       animRef.current = requestAnimationFrame(animate);
