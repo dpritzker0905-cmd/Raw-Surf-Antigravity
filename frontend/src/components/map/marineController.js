@@ -249,9 +249,21 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   const viewHash = viewportCacheKey(bounds, 'wind');
   if (windHourlyCache.hash === viewHash &&
       Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
-    // Cache hit: extract data at the requested offset without API call
+    // Exact cache hit: extract data at the requested offset without API call
     console.log(`[Wind] Cache HIT for offset=${hourOffset}h`);
     return extractWindAtOffset(windHourlyCache, hourOffset);
+  }
+
+  // v3.9.5: Stale viewport fallback — if we have ANY cached data within TTL
+  // (e.g. from localStorage hydration with a different viewport), serve it
+  // rather than hitting the API (which may 429). Fresh data fetches in background.
+  if (windHourlyCache.hash && Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+    const staleData = extractWindAtOffset(windHourlyCache, hourOffset);
+    if (staleData && staleData.vectors.length > 0) {
+      console.log(`[Wind] Stale cache served (viewport mismatch) — ${staleData.vectors.length} vectors`);
+      lastKnownGoodWind = staleData;
+      // Don't return yet — let the fetch continue in background for fresh data
+    }
   }
 
   // Per-offset cache (covers initial load + exact re-visits)
@@ -428,6 +440,15 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     console.log(`[Marine] Cache HIT for offset=${hourOffset}h`);
     return extractMarineAtOffset(marineHourlyCache, hourOffset);
+  }
+
+  // v3.9.5: Stale viewport fallback for marine
+  if (marineHourlyCache.hash && Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+    const staleData = extractMarineAtOffset(marineHourlyCache, hourOffset);
+    if (staleData && staleData.features?.length > 0) {
+      console.log(`[Marine] Stale cache served (viewport mismatch) — ${staleData.features.length} features`);
+      lastKnownGoodMarine = staleData;
+    }
   }
 
   // Per-offset cache
