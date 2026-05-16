@@ -130,25 +130,41 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     const PARTICLE_COUNT = isMobile ? (isWeak ? 400 : 1000) : (isWeak ? 2000 : 4000);
     console.log(`[Marine] Spawning ${PARTICLE_COUNT} foam particles`);
 
-    const spawn = () => {
-      // v3.3: Spawn across FULL VIEWPORT for global particle coverage
+    const spawn = (preAge = false) => {
+      // v3.4: Spawn across viewport with DATA-DRIVEN density
+      // Particles concentrate where wave energy is highest
       const mb = mapInstance.getBounds();
       const west = Math.max(-180, mb.getWest()), east = Math.min(180, mb.getEast());
       const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
-      // v3.2: Only spawn particles over ocean, retry up to 5 times
-      for (let attempt = 0; attempt < 5; attempt++) {
+      const grid = dataRef.current;
+      for (let attempt = 0; attempt < 8; attempt++) {
         const lng = west + Math.random() * (east - west);
         const lat = south + Math.random() * (north - south);
-        if (isLikelyOcean(lat, lng)) {
-          return { lng, lat, age: 0, maxAge: 1.5 + Math.random() * 2.5, dashLen: 4 + Math.random() * 10, phase: Math.random() };
-        }
+        if (!isLikelyOcean(lat, lng)) continue;
+        // Check wave energy at this position — skip calm areas
+        const wave = grid ? interpolateMarine(grid, lng, lat) : null;
+        const spd = wave?.speed || 0;
+        // Reject calm water (speed < 0.15m) with high probability
+        if (spd < 0.15 && Math.random() > 0.1) continue;
+        // Scale lifetime by wave energy: big waves = long-lived particles
+        const energyScale = Math.min(1, spd / 3);
+        const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
+        return {
+          lng, lat,
+          age: preAge ? Math.random() * maxAge * 0.8 : 0,
+          maxAge,
+          dashLen: 4 + Math.random() * 10 * energyScale,
+          phase: Math.random(),
+          energy: energyScale // Store for alpha scaling
+        };
       }
-      // Fallback: place at random ocean-ish position
-      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: 0, maxAge: 0.5, dashLen: 4, phase: 0 };
+      // Fallback: short-lived particle
+      const maxAge = 0.3;
+      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 4, phase: 0, energy: 0 };
     };
 
     const particles = [];
-    for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawn());
+    for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawn(true));
     particlesRef.current = particles;
 
     let lastTime = performance.now();
@@ -260,10 +276,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           alpha *= smoothstep(paddedN, paddedN - edgePad, p.lat);
           alpha *= MARINE_PARTICLE_ALPHA;
 
-          // Height-based intensity boost
+          // v3.4: Data-driven intensity — particles fade in calm water
           const h = wave.speed;
-          alpha *= Math.min(1.5, 0.6 + h / 3);
-          alpha = Math.min(1.0, alpha);
+          const energyAlpha = p.energy !== undefined ? (0.15 + p.energy * 0.85) : Math.min(1.5, 0.6 + h / 3);
+          alpha *= energyAlpha; alpha = Math.min(1.0, alpha);
 
           if (alpha < 0.01) continue;
 

@@ -152,7 +152,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     const PARTICLE_COUNT = isMobile ? (isWeak ? 300 : 800) : (isWeak ? 1500 : 3000);
     console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (isMobile: ${isMobile}, cores: ${navigator.hardwareConcurrency})`);
     
-    const spawn = () => {
+    const spawn = (preAge = false) => {
       // v3.3: Spawn across FULL VIEWPORT for global particle coverage
       // Interpolation clamps to nearest grid edge for out-of-grid positions
       const mb = mapInstance.getBounds();
@@ -161,14 +161,17 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       const south = Math.max(-85, mb.getSouth());
       const north = Math.min(85, mb.getNorth());
       
+      const maxAge = 3 + Math.random() * 4;
       return {
         lng: west + Math.random() * (east - west),
         lat: south + Math.random() * (north - south),
-        age: 0, maxAge: 3 + Math.random() * 4
+        // v3.4: Pre-age on initial spawn so particles appear already distributed
+        age: preAge ? Math.random() * maxAge * 0.8 : 0,
+        maxAge
       };
     };
     particlesRef.current = [];
-    for (let i = 0; i < PARTICLE_COUNT; i++) particlesRef.current.push(spawn());
+    for (let i = 0; i < PARTICLE_COUNT; i++) particlesRef.current.push(spawn(true));
 
     let lastTime = performance.now();
     let frameCount = 0;

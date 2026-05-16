@@ -526,7 +526,9 @@ const MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{ 
-              'raster-opacity': layerKey === 'pressure' ? 0.45 : 0.7, 
+              // v3.4: Tuned opacity per type — marine lower for cleaner coastlines
+              'raster-opacity': layerKey === 'pressure' ? 0.45 
+                : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.65 : 0.7), 
               // v3.3: Linear resampling for smooth coastline edges (anti-aliasing)
               'raster-resampling': 'linear',
               // Set raster-fade-duration to 0 to let our Shared Clock drive the transition
