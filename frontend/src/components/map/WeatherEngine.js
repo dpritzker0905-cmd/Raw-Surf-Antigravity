@@ -170,6 +170,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     if (prevOffsetRef.current === timeOffsetHours) return; // Skip mount
     prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
+    console.log(`[WeatherEngine] Timeline scrub: ${timeOffsetHours}h (wind active: ${isWindActive})`);
 
     const t = setTimeout(async () => {
       try {

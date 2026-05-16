@@ -172,6 +172,8 @@ function extractWindAtOffset(cache, hourOffset) {
   });
 
   if (vectors.length === 0) return null;
+  const sample = vectors[0];
+  console.log(`[Wind] Timeline re-index: offset=${hourOffset}h, idx=${idx}, ${vectors.length} vectors, sample: speed=${sample.speed.toFixed(1)}`);
   return {
     vectors, bounds, cols: gridSize, rows: gridSize,
     stale: false, source: 'cache', hourOffset
