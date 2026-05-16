@@ -163,9 +163,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     return () => clearTimeout(t);
   }, [isWindActive, windData, mapInstance]);
 
-  // v3.9: Re-fetch when timeOffsetHours changes (timeline scrub)
-  // Uses forceFetch=true to bypass 429 cooldown — user explicitly requested this time
+  // v3.9.1: Re-index wind data when timeline offset changes
+  // Uses local hourly cache (extractWindAtOffset) — NO new API call needed
+  const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
+    if (prevOffsetRef.current === timeOffsetHours) return; // Skip mount
+    prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
 
     const t = setTimeout(async () => {
@@ -177,7 +180,6 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           east: b.getEast(),
           north: Math.min(85, b.getNorth())
         };
-        console.log(`[WeatherEngine] Time offset changed to ${timeOffsetHours}h, refetching`);
         const data = await fetchWindData(bounds, null, timeOffsetHours, true);
         if (data && data.vectors?.length > 0) {
           windRevision.current += 1;
@@ -188,7 +190,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           console.error('[WeatherEngine] Time change fetch failed:', e);
         }
       }
-    }, 800);
+    }, 300); // Reduced from 800ms — local cache is instant
     return () => clearTimeout(t);
   }, [timeOffsetHours]); // eslint-disable-line
 

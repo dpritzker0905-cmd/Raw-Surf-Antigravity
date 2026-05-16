@@ -78,9 +78,9 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
 
-    // v3.8.5: Increased particle density — 192² = 36864 desktop, 96² = 9216 mobile
+    // v3.9.1: Increased particle density — 256² = 65536 desktop, 128² = 16384 mobile
     const isMobile = window.innerWidth < 768;
-    engine.particleRes = isMobile ? 96 : 192; // 9216 or 36864 particles
+    engine.particleRes = isMobile ? 128 : 256; // 16384 or 65536 particles
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef);
 

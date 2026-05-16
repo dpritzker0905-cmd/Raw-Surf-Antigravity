@@ -17,6 +17,13 @@
 const MARINE_CACHE = new Map();
 const WIND_CACHE = new Map();
 
+// --- HOURLY DATA CACHE (pre-fetched for timeline scrub) ---
+// Stores full API responses keyed by viewport hash so timeline
+// changes re-index locally instead of making new API calls.
+let windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
+let marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
+const HOURLY_CACHE_TTL = 10 * 60 * 1000; // 10 min
+
 // --- LAST KNOWN GOOD FIELDS ---
 // Start null. Only populated after a SUCCESSFUL API response.
 // null means 'never had data' — callers must handle this.
@@ -95,7 +102,7 @@ function computeGridPoints(bounds, caller = 'wind') {
     if (caller === 'marine') {
       // v3.9: Marine API rejects lat > ±80 (polar ice = no ocean data)
       west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 9 : 14; // 15×15=225 (desktop), 10×10=100 (mobile)
+      GRID = isMobile ? 12 : 20; // 21×21=441 (desktop), 13×13=169 (mobile)
     } else {
       west = -180; east = 180; south = -85; north = 85;
       GRID = isMobile ? 20 : 30; // 31×31=961 (desktop), 21×21=441 (mobile)
@@ -104,7 +111,7 @@ function computeGridPoints(bounds, caller = 'wind') {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
     if (caller === 'marine') {
-      GRID = isMobile ? 7 : 12; // 13×13=169 (desktop)
+      GRID = isMobile ? 10 : 20; // 21×21=441 (desktop), 11×11=121 (mobile)
     } else {
       GRID = isMobile ? 15 : 30; // 31×31=961 (desktop), 16×16=256 (mobile)
     }
@@ -142,40 +149,66 @@ const getUV = (speed, dir) => {
 };
 
 // ========================================================================
+// EXTRACT WIND DATA AT A GIVEN HOUR OFFSET (from pre-fetched hourly cache)
+// This is the critical function that eliminates timeline API calls.
+// ========================================================================
+function extractWindAtOffset(cache, hourOffset) {
+  const { results, points, gridSize, bounds } = cache;
+  const nowHour = new Date().getUTCHours();
+  const idx = Math.min(nowHour + hourOffset, 71); // max 72h of data (index 0-71)
+
+  const vectors = [];
+  points.forEach((pt, i) => {
+    const r = results[i];
+    if (!r?.hourly) return;
+    const speed = r.hourly.wind_speed_10m?.[idx];
+    const dir = r.hourly.wind_direction_10m?.[idx];
+    if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) return;
+    const rad = dir * (Math.PI / 180);
+    vectors.push({
+      lat: pt.lat, lng: pt.monotonicLng, speed, direction: dir,
+      u: -speed * Math.sin(rad), v: -speed * Math.cos(rad)
+    });
+  });
+
+  if (vectors.length === 0) return null;
+  return {
+    vectors, bounds, cols: gridSize, rows: gridSize,
+    stale: false, source: 'cache', hourOffset
+  };
+}
+
+// ========================================================================
 // WIND FETCH
-// v3.7: Accepts hourOffset for timeline-aware wind data
+// v3.9.1: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
 // ========================================================================
 export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false) {
   if (!bounds) return lastKnownGoodWind;
-  if (windRequestInFlight) {
-    return lastKnownGoodWind;
-  }
+  if (windRequestInFlight) return lastKnownGoodWind;
 
   // 429 cooldown check (bypassable by timeline scrub)
-  if (!forceFetch && isInCooldown('wind')) {
-    // Silenced: cooldown log
-    return lastKnownGoodWind;
-  }
+  if (!forceFetch && isInCooldown('wind')) return lastKnownGoodWind;
 
   const { west, south, east, north } = bounds;
   if (north <= south || east === west) return lastKnownGoodWind;
 
-  // Cache-first: check before any network request (include hourOffset in key)
+  // v3.9.1: Hourly cache — re-index locally instead of making new API call
+  const viewHash = viewportCacheKey(bounds, 'wind');
+  if (hourOffset > 0 && windHourlyCache.hash === viewHash &&
+      Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+    return extractWindAtOffset(windHourlyCache, hourOffset);
+  }
+
+  // Per-offset cache (covers initial load + exact re-visits)
   const cacheKey = viewportCacheKey(bounds, `wind_h${hourOffset}`);
   if (WIND_CACHE.has(cacheKey)) {
     const cached = WIND_CACHE.get(cacheKey);
-    if (Date.now() - cached.timestamp < 300000) { // 5 min TTL
-      return cached.data;
-    }
+    if (Date.now() - cached.timestamp < 300000) return cached.data;
   }
 
-  // Cancel previous inflight request
-  if (windAbortController) {
-    windAbortController.abort();
-  }
+  if (windAbortController) windAbortController.abort();
   windAbortController = new AbortController();
   const fetchSignal = signal || windAbortController.signal;
-
   windRequestInFlight = true;
 
   try {
@@ -183,20 +216,14 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
-    // v3.8.5: Use POST to bypass URL length limit (supports 961 pts vs 441 with GET)
-    const useHourly = hourOffset > 0;
-    const forecastDays = Math.min(16, Math.ceil((hourOffset + 24) / 24));
+    // v3.9.1: ALWAYS fetch hourly data for 3 days (72h) so timeline scrub
+    // never needs a separate API call. This is the critical 429 fix.
     const body = {
-      latitude: lats,
-      longitude: lons,
+      latitude: lats, longitude: lons,
       wind_speed_unit: 'kn',
-      forecast_days: useHourly ? forecastDays : 1,
+      hourly: ['wind_speed_10m', 'wind_direction_10m'],
+      forecast_days: 3
     };
-    if (useHourly) {
-      body.hourly = ['wind_speed_10m', 'wind_direction_10m'];
-    } else {
-      body.current = ['wind_speed_10m', 'wind_direction_10m'];
-    }
 
     const res = await fetch('https://api.open-meteo.com/v1/forecast', {
       method: 'POST',
@@ -206,70 +233,28 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     });
 
     if (!res.ok) {
-      if (res.status === 429) {
-        enterCooldown('wind');
-        return lastKnownGoodWind;
-      }
+      if (res.status === 429) { enterCooldown('wind'); return lastKnownGoodWind; }
       throw new Error(`HTTP ${res.status}`);
     }
 
     const json = await res.json();
+    let results = Array.isArray(json) ? json
+      : (json?.hourly ? points.map(() => json) : null);
+    if (!results) { console.warn('[Wind] Unexpected API response shape'); return lastKnownGoodWind; }
 
-    // Normalize response (single vs multi-point)
-    let results;
-    if (Array.isArray(json)) {
-      results = json;
-    } else if (json?.current || json?.hourly) {
-      results = points.map(() => json);
-    } else {
-      console.warn('[Wind] Unexpected API response shape');
-      return lastKnownGoodWind;
-    }
+    // Cache the full hourly response for local timeline re-indexing
+    windHourlyCache = {
+      hash: viewHash, results, points, gridSize,
+      bounds: { west, south, east, north },
+      timestamp: Date.now()
+    };
 
-    const vectors = [];
-    points.forEach((pt, i) => {
-      const r = results[i];
-      let speed, dir;
-
-      if (useHourly && r?.hourly) {
-        // v3.9: Correct hourly index — OM arrays start at midnight UTC
-        const nowHour = new Date().getUTCHours();
-        const idx = Math.min(nowHour + hourOffset, (r.hourly.wind_speed_10m?.length || 1) - 1);
-        speed = r.hourly.wind_speed_10m?.[idx];
-        dir = r.hourly.wind_direction_10m?.[idx];
-      } else if (r?.current) {
-        speed = r.current.wind_speed_10m;
-        dir = r.current.wind_direction_10m;
-      } else {
-        return;
-      }
-
-      if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) return;
-      const rad = dir * (Math.PI / 180);
-      vectors.push({
-        lat: pt.lat, lng: pt.monotonicLng, speed, direction: dir,
-        u: -speed * Math.sin(rad), v: -speed * Math.cos(rad)
-      });
-    });
-
-    if (vectors.length > 0) {
-      const data = {
-        vectors,
-        bounds: { west, south, east, north },
-        cols: gridSize,
-        rows: gridSize,
-        stale: false,
-        source: 'network',
-        hourOffset
-      };
-      // Update caches
+    const data = extractWindAtOffset(windHourlyCache, hourOffset);
+    if (data) {
       WIND_CACHE.set(cacheKey, { data, timestamp: Date.now() });
       lastKnownGoodWind = data;
-      if (BOOTSTRAP_WIND) {
-        BOOTSTRAP_WIND = false;
-        console.log('[Wind] BOOTSTRAP complete \u2014 first valid data received');
-      }
-      console.log(`[Wind] Fetch success: ${vectors.length} vectors, ${gridSize}x${gridSize} grid, offset: ${hourOffset}h`);
+      if (BOOTSTRAP_WIND) { BOOTSTRAP_WIND = false; console.log('[Wind] BOOTSTRAP complete — first valid data received'); }
+      console.log(`[Wind] Fetch success: ${data.vectors.length} vectors, ${gridSize}x${gridSize} grid, offset: ${hourOffset}h`);
       return data;
     } else {
       console.warn('[Wind] Zero valid vectors from API');
@@ -285,74 +270,119 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 }
 
 // ========================================================================
-// MARINE FETCH
+// EXTRACT MARINE DATA AT A GIVEN HOUR OFFSET (from pre-fetched hourly cache)
 // ========================================================================
-// v3.8.3: Accepts hourOffset for timeline-aware marine data
+function extractMarineAtOffset(cache, hourOffset) {
+  const { results, points, gridSize, bounds } = cache;
+  const nowHour = new Date().getUTCHours();
+  const idx = Math.min(nowHour + hourOffset, 71);
+
+  const gridVectors = [];
+  const features = [];
+
+  points.forEach((pt, i) => {
+    const r = results[i];
+    if (!r?.hourly) {
+      gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
+        waves: { u: 0, v: 0, speed: 0 }, swell_1: { u: 0, v: 0, speed: 0 },
+        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 } });
+      return;
+    }
+    const c = {
+      wave_height: r.hourly.wave_height?.[idx], wave_direction: r.hourly.wave_direction?.[idx],
+      wave_period: r.hourly.wave_period?.[idx],
+      swell_wave_height: r.hourly.swell_wave_height?.[idx], swell_wave_direction: r.hourly.swell_wave_direction?.[idx],
+      swell_wave_period: r.hourly.swell_wave_period?.[idx],
+      secondary_swell_wave_height: r.hourly.secondary_swell_wave_height?.[idx],
+      secondary_swell_wave_direction: r.hourly.secondary_swell_wave_direction?.[idx],
+      secondary_swell_wave_period: r.hourly.secondary_swell_wave_period?.[idx],
+      wind_wave_height: r.hourly.wind_wave_height?.[idx], wind_wave_direction: r.hourly.wind_wave_direction?.[idx],
+      wind_wave_period: r.hourly.wind_wave_period?.[idx],
+    };
+    const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
+    const s1_h = safeNum(c.swell_wave_height), s1_d = safeNum(c.swell_wave_direction);
+    const s2_h = safeNum(c.secondary_swell_wave_height), s2_d = safeNum(c.secondary_swell_wave_direction);
+    const ww_h = safeNum(c.wind_wave_height), ww_d = safeNum(c.wind_wave_direction);
+
+    if (w_h === 0 && s1_h === 0 && ww_h === 0) {
+      gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
+        waves: { u: 0, v: 0, speed: 0 }, swell_1: { u: 0, v: 0, speed: 0 },
+        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 } });
+      return;
+    }
+
+    gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
+      waves: getUV(w_h, w_d), swell_1: getUV(s1_h, s1_d),
+      swell_2: getUV(s2_h, s2_d), wind_waves: getUV(ww_h, ww_d) });
+
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [pt.monotonicLng, pt.lat] },
+      properties: {
+        wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
+        swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period), swell_wave_direction: s1_d,
+        secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period), secondary_swell_wave_direction: s2_d,
+        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period), wind_wave_direction: ww_d,
+      },
+    });
+  });
+
+  if (features.length === 0) return null;
+  return {
+    type: 'FeatureCollection', features,
+    grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now() }
+  };
+}
+
+// ========================================================================
+// MARINE FETCH
+// v3.9.1: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
+// ========================================================================
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
   if (!bounds) return lastKnownGoodMarine;
-  if (marineRequestInFlight) {
-    // Silenced: inflight log
-    return lastKnownGoodMarine;
-  }
+  if (marineRequestInFlight) return lastKnownGoodMarine;
+  if (isInCooldown('marine')) return lastKnownGoodMarine;
 
-  // 429 cooldown check
-  if (isInCooldown('marine')) {
-    // Silenced: cooldown log
-    return lastKnownGoodMarine;
-  }
-
-  // Snap bounds with moderate padding for cache reuse
-  const snap = 10;
-  const padding = 5;
-  // v3.9: Cap marine lat to ±70 with padding (API rejects polar regions)
+  // Snap bounds
+  const snap = 10, padding = 5;
   const latMin = Math.max(-70, Math.floor((bounds.south - padding) / snap) * snap);
   const latMax = Math.min(70, Math.ceil((bounds.north + padding) / snap) * snap);
   const lngMin = Math.floor((bounds.west - padding) / snap) * snap;
   const lngMax = Math.ceil((bounds.east + padding) / snap) * snap;
-
   if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodMarine;
 
-  // Cache-first
-  const cacheKey = viewportCacheKey(
-    { west: lngMin, south: latMin, east: lngMax, north: latMax },
-    `marine_h${hourOffset}`
-  );
+  const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
+
+  // v3.9.1: Hourly cache — re-index locally
+  const viewHash = viewportCacheKey(snappedBounds, 'marine');
+  if (hourOffset > 0 && marineHourlyCache.hash === viewHash &&
+      Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+    return extractMarineAtOffset(marineHourlyCache, hourOffset);
+  }
+
+  // Per-offset cache
+  const cacheKey = viewportCacheKey(snappedBounds, `marine_h${hourOffset}`);
   if (MARINE_CACHE.has(cacheKey)) {
     const cached = MARINE_CACHE.get(cacheKey);
-    if (Date.now() - cached.timestamp < 300000) { // 5 min TTL
-      return cached.data;
-    }
+    if (Date.now() - cached.timestamp < 300000) return cached.data;
   }
 
-  // Cancel previous inflight
-  if (marinAbortController) {
-    marinAbortController.abort();
-  }
+  if (marinAbortController) marinAbortController.abort();
   marinAbortController = new AbortController();
   const fetchSignal = signal || marinAbortController.signal;
-
   marineRequestInFlight = true;
 
   try {
-    const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
     const { points, gridSize } = computeGridPoints(snappedBounds, 'marine');
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
-    // v3.8.6: POST to bypass URL length limit (225 pts × 12 vars was too long for GET)
-    const useHourly = hourOffset > 0;
-    const forecastDays = Math.min(16, Math.ceil((hourOffset + 24) / 24));
+    // v3.9.1: ALWAYS fetch hourly for 3 days (72h)
     const marineVarList = ['wave_height','wave_direction','wave_period',
       'swell_wave_height','swell_wave_direction','swell_wave_period',
       'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
       'wind_wave_height','wind_wave_direction','wind_wave_period'];
-    const body = { latitude: lats, longitude: lons };
-    if (useHourly) {
-      body.hourly = marineVarList;
-      body.forecast_days = forecastDays;
-    } else {
-      body.current = marineVarList;
-    }
+    const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
 
     const res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
       method: 'POST',
@@ -362,122 +392,29 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
     });
 
     if (!res.ok) {
-      if (res.status === 429) {
-        enterCooldown('marine');
-        return lastKnownGoodMarine;
-      }
-      // v3.9: Return null on 400 so orchestrator retry cap kicks in
-      // (returning cached data bypassed the retry counter)
+      if (res.status === 429) { enterCooldown('marine'); return lastKnownGoodMarine; }
       console.error(`[Marine] Fetch failed: HTTP ${res.status}`);
       return null;
     }
 
     const data = await res.json();
+    let allResults = Array.isArray(data) ? data
+      : (data?.hourly ? points.map(() => data) : null);
+    if (!allResults) { console.warn('[Marine] Unexpected API response shape'); return lastKnownGoodMarine; }
 
-    // Normalize
-    let allResults;
-    if (Array.isArray(data)) {
-      allResults = data;
-    } else if (data?.current) {
-      allResults = points.map(() => data);
-    } else {
-      console.warn('[Marine] Unexpected API response shape');
-      return lastKnownGoodMarine;
-    }
+    // Cache full hourly response
+    marineHourlyCache = {
+      hash: viewHash, results: allResults, points, gridSize,
+      bounds: snappedBounds, timestamp: Date.now()
+    };
 
-    const gridVectors = [];
-    const features = [];
-
-    points.forEach((pt, i) => {
-      const r = allResults[i];
-      let c;
-      if (useHourly && r?.hourly) {
-        // v3.9: Correct hourly index — OM arrays start at midnight UTC
-        const nowHour = new Date().getUTCHours();
-        const idx = Math.min(nowHour + hourOffset, (r.hourly.wave_height?.length || 1) - 1);
-        c = {
-          wave_height: r.hourly.wave_height?.[idx],
-          wave_direction: r.hourly.wave_direction?.[idx],
-          wave_period: r.hourly.wave_period?.[idx],
-          swell_wave_height: r.hourly.swell_wave_height?.[idx],
-          swell_wave_direction: r.hourly.swell_wave_direction?.[idx],
-          swell_wave_period: r.hourly.swell_wave_period?.[idx],
-          secondary_swell_wave_height: r.hourly.secondary_swell_wave_height?.[idx],
-          secondary_swell_wave_direction: r.hourly.secondary_swell_wave_direction?.[idx],
-          secondary_swell_wave_period: r.hourly.secondary_swell_wave_period?.[idx],
-          wind_wave_height: r.hourly.wind_wave_height?.[idx],
-          wind_wave_direction: r.hourly.wind_wave_direction?.[idx],
-          wind_wave_period: r.hourly.wind_wave_period?.[idx],
-        };
-      } else {
-        c = r?.current;
-      }
-      if (!c || !Number.isFinite(pt.reqLng) || !Number.isFinite(pt.lat)) {
-        gridVectors.push({
-          lat: pt.lat, lng: pt.monotonicLng,
-          waves: { u: 0, v: 0, speed: 0 },
-          swell_1: { u: 0, v: 0, speed: 0 },
-          swell_2: { u: 0, v: 0, speed: 0 },
-          wind_waves: { u: 0, v: 0, speed: 0 }
-        });
-        return;
-      }
-      const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
-      const s1_h = safeNum(c.swell_wave_height), s1_d = safeNum(c.swell_wave_direction);
-      const s2_h = safeNum(c.secondary_swell_wave_height), s2_d = safeNum(c.secondary_swell_wave_direction);
-      const ww_h = safeNum(c.wind_wave_height), ww_d = safeNum(c.wind_wave_direction);
-
-      if (w_h === 0 && s1_h === 0 && ww_h === 0) {
-        gridVectors.push({
-          lat: pt.lat, lng: pt.monotonicLng,
-          waves: { u: 0, v: 0, speed: 0 },
-          swell_1: { u: 0, v: 0, speed: 0 },
-          swell_2: { u: 0, v: 0, speed: 0 },
-          wind_waves: { u: 0, v: 0, speed: 0 }
-        });
-        return;
-      }
-
-      gridVectors.push({
-        lat: pt.lat, lng: pt.monotonicLng,
-        waves: getUV(w_h, w_d),
-        swell_1: getUV(s1_h, s1_d),
-        swell_2: getUV(s2_h, s2_d),
-        wind_waves: getUV(ww_h, ww_d)
-      });
-
-      features.push({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [pt.monotonicLng, pt.lat] },
-        properties: {
-          wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
-          swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period), swell_wave_direction: s1_d,
-          secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period), secondary_swell_wave_direction: s2_d,
-          wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period), wind_wave_direction: ww_d,
-        },
-      });
-    });
-
-    if (features.length > 0) {
-      const marinePayload = {
-        type: 'FeatureCollection',
-        features,
-        grid: {
-          vectors: gridVectors,
-          bounds: snappedBounds,
-          cols: gridSize,
-          rows: gridSize,
-          timestamp: Date.now()
-        }
-      };
-      MARINE_CACHE.set(cacheKey, { data: marinePayload, timestamp: Date.now() });
-      lastKnownGoodMarine = marinePayload;
-      if (BOOTSTRAP_MARINE) {
-        BOOTSTRAP_MARINE = false;
-        console.log('[Marine] BOOTSTRAP complete \u2014 first valid data received');
-      }
-      console.log(`[Marine] Fetch success: ${features.length} features, ${gridSize}x${gridSize} grid`);
-      return marinePayload;
+    const result = extractMarineAtOffset(marineHourlyCache, hourOffset);
+    if (result) {
+      MARINE_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
+      lastKnownGoodMarine = result;
+      if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; console.log('[Marine] BOOTSTRAP complete — first valid data received'); }
+      console.log(`[Marine] Fetch success: ${result.features.length} features, ${gridSize}x${gridSize} grid`);
+      return result;
     } else {
       console.warn('[Marine] Zero valid features from API');
       return lastKnownGoodMarine;
@@ -485,7 +422,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
   } catch (err) {
     if (err.name === 'AbortError') return lastKnownGoodMarine;
     console.error(`[Marine] Fetch failed: ${err.message}`);
-    return lastKnownGoodMarine; // NEVER return null, preserve last valid
+    return lastKnownGoodMarine;
   } finally {
     marineRequestInFlight = false;
   }
