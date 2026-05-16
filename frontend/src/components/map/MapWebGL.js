@@ -8,7 +8,8 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
 import { MarineParticleCanvas } from './GPUMarineLayer';
-import { WebGLWindLayer } from './WebGLWindLayer';
+// WebGLWindLayer disabled — feedback loop + uniformMatrix4fv errors (v3.8.3)
+// Will re-enable after stability pass. Canvas2D handles rendering.
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useRasterTransactions } from './useRasterTransactions';
@@ -549,9 +550,18 @@ const MapWebGL = ({
                 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.65 : 0.7), 
               // v3.3: Linear resampling for smooth coastline edges (anti-aliasing)
               'raster-resampling': 'linear',
-              // v3.8: Boosted color vibrancy — richer heatmap palettes closer to Windy
-              'raster-contrast': 0.22,
-              'raster-saturation': 0.40,
+              // v3.8.3: Per-variable color palettes — distinct hue per weather type
+              'raster-hue-rotate': layerKey === 'wind' ? -15        // Teal-green wind
+                : layerKey === 'waves' ? 25                         // Blue-ocean waves
+                : layerKey === 'swell' ? 30                         // Deep blue swell
+                : layerKey === 'swell2' ? 35                        // Purple secondary swell
+                : layerKey === 'wind_waves' ? -10                   // Green-teal wind waves
+                : layerKey === 'pressure' ? -40                     // Amber pressure
+                : layerKey === 'fog' ? 180                          // Desaturated fog
+                : 0,                                                // Neutral rain/radar
+              'raster-contrast': layerKey === 'pressure' ? 0.15 : 0.22,
+              'raster-saturation': layerKey === 'fog' ? -0.3 
+                : layerKey === 'pressure' ? 0.20 : 0.40,
               'raster-fade-duration': 0 
             }}
           />
@@ -768,15 +778,7 @@ const MapWebGL = ({
         </Marker>
       ))}
 
-      {/* v3.8: WebGL GPU Wind Particle Engine (16k particles + trail fading) */}
-      <WebGLWindLayer
-        mapInstance={mapInstance}
-        active={activeLayers.includes('wind')}
-        data={windData}
-        revision={windRevision.current}
-      />
-
-      {/* Canvas2D Wind Overlay (directional indicators for readability) */}
+      {/* Wind Particle Advection Engine (Canvas2D — v3.8.3) */}
       <WindParticleCanvas 
         mapInstance={mapInstance} 
         active={activeLayers.includes('wind')}

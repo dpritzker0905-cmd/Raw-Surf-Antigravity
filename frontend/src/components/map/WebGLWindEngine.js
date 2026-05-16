@@ -373,11 +373,12 @@ export default class WebGLWindEngine {
 
   /**
    * Render one frame: advect particles, draw trails, composite.
+   * v3.8.3: Fixed feedback loop, matrix null guard, GL state restoration.
    */
   render(gl, matrix, screenWidth, screenHeight) {
     if (!this._initialized || !this._windData) return;
+    if (!matrix || !matrix.length) return; // Guard: prevents 'no array' spam
 
-    // Ensure screen FBOs exist and are correct size
     if (!this.screenA || this._screenW !== screenWidth || this._screenH !== screenHeight) {
       if (this.screenA) {
         gl.deleteFramebuffer(this.screenA.fbo);
@@ -385,44 +386,36 @@ export default class WebGLWindEngine {
         gl.deleteFramebuffer(this.screenB.fbo);
         gl.deleteTexture(this.screenB.tex);
       }
-      this.screenA = createFBO(gl, gl.LINEAR, screenWidth, screenHeight);
-      this.screenB = createFBO(gl, gl.LINEAR, screenWidth, screenHeight);
+      this.screenA = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
+      this.screenB = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
       this._screenW = screenWidth;
       this._screenH = screenHeight;
     }
 
-    // Save MapLibre GL state
-    const prevProgram = gl.getParameter(gl.CURRENT_PROGRAM);
+    const prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
     const prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-
-    // MapLibre passes Float64Array — WebGL needs Float32Array
+    const prevBlend = gl.getParameter(gl.BLEND);
     const mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
 
     // === Step 1: Advect particles (ping-pong) ===
     gl.useProgram(this.advectProgram);
-
-    // Bind uniforms
     gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
     gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind'), 1);
     gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_min'), ...this._windData.uMin);
     gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_max'), ...this._windData.uMax);
-    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'),
-      this._windData.bounds ? 1 : 1, 1);
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_factor'), this.speedFactor);
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
 
-    // Bind particle state A as input, render to particle state B
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D,
       this.particleStateB, 0);
     gl.viewport(0, 0, this.particleRes, this.particleRes);
-
     bindTexture(gl, this.particleStateA, 0);
     bindTexture(gl, this._windData.texture, 1);
 
-    // Draw full-screen quad
     const advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.enableVertexAttribArray(advPosLoc);
@@ -430,25 +423,25 @@ export default class WebGLWindEngine {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.disableVertexAttribArray(advPosLoc);
 
-    // Swap particle states
+    // Detach texture from FBO before reading (prevents feedback loop)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
     const tmp = this.particleStateA;
     this.particleStateA = this.particleStateB;
     this.particleStateB = tmp;
 
-    // === Step 2: Fade previous screen (trail persistence) ===
+    // === Step 2: Fade screen A → screen B ===
     gl.useProgram(this.fadeProgram);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
     gl.viewport(0, 0, screenWidth, screenHeight);
-
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
     gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
     bindTexture(gl, this.screenA.tex, 0);
-
     const fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
     gl.enableVertexAttribArray(fadePosLoc);
     gl.vertexAttribPointer(fadePosLoc, 2, gl.FLOAT, false, 0, 0);
-
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -456,22 +449,17 @@ export default class WebGLWindEngine {
 
     // === Step 3: Draw particles onto screen B ===
     gl.useProgram(this.drawProgram);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
-
     gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
     gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
     gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), ...this._windData.uMin);
     gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), ...this._windData.uMax);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
-
     const b = this._windData.bounds;
     gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), b.west, b.south);
     gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), b.east, b.north);
-
     bindTexture(gl, this.particleStateA, 0);
     bindTexture(gl, this._windData.texture, 1);
-
     const idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
     gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
     gl.enableVertexAttribArray(idxLoc);
@@ -479,31 +467,35 @@ export default class WebGLWindEngine {
     gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
     gl.disableVertexAttribArray(idxLoc);
 
-    // Swap screen FBOs
-    const tmpScreen = this.screenA;
-    this.screenA = this.screenB;
-    this.screenB = tmpScreen;
-
-    // === Step 4: Composite to main framebuffer ===
+    // Copy screenB → screenA for next frame persistence (avoids swap feedback)
     gl.useProgram(this.screenProgram);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-    gl.viewport(0, 0, screenWidth, screenHeight);
-
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
     gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0);
-    bindTexture(gl, this.screenA.tex, 0);
-
-    const scrPosLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
+    bindTexture(gl, this.screenB.tex, 0);
+    const cpLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    gl.enableVertexAttribArray(scrPosLoc);
-    gl.vertexAttribPointer(scrPosLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(cpLoc);
+    gl.vertexAttribPointer(cpLoc, 2, gl.FLOAT, false, 0, 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.disableVertexAttribArray(scrPosLoc);
+    gl.disableVertexAttribArray(cpLoc);
 
-    gl.disable(gl.BLEND);
+    // === Step 4: Composite screen B to main framebuffer ===
+    gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+    gl.viewport(0, 0, screenWidth, screenHeight);
+    bindTexture(gl, this.screenB.tex, 0);
+    const scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    gl.enableVertexAttribArray(scrLoc);
+    gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.disableVertexAttribArray(scrLoc);
 
-    // Restore MapLibre state
-    gl.useProgram(prevProgram);
+    // Restore MapLibre GL state
+    if (!prevBlend) gl.disable(gl.BLEND);
+    gl.useProgram(prevProg);
   }
 
   /**

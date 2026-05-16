@@ -79,23 +79,29 @@ function viewportCacheKey(bounds, prefix) {
 
 /**
  * v3.5: Adaptive grid computation.
- * Global zoom (viewport > 100°): 8×8 grid covering full globe
- * Regional zoom: 7×7 grid across viewport
- * URL length safe — single request up to 64 points.
+ * Global zoom (viewport > 100°): dense worldwide grid
+ * Regional zoom: viewport-scoped grid
+ *
+ * v3.8.3: caller param — wind API supports 441 pts, marine API supports ~150 pts
+ * (marine URL is longer due to 12+ query params, exceeding OM URL limit at 441 pts)
  */
-function computeGridPoints(bounds) {
+function computeGridPoints(bounds, caller = 'wind') {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const lngSpan = bounds.east - bounds.west;
   const latSpan = bounds.north - bounds.south;
   const isGlobal = lngSpan > 100 || latSpan > 60;
 
   // Global: denser worldwide grid. Regional: viewport grid.
-  // v3.7: Increased density to reduce visible grid artifacts in particle advection
   let west, south, east, north, GRID;
   if (isGlobal) {
     west = -180; east = 180; south = -85; north = 85;
-    // v3.8: Denser grid — 21x21=441 pts (desktop), 13x13=169 (mobile), URL safe
-    GRID = isMobile ? 12 : 20;
+    // Marine API has longer URLs (12+ current params) → cap at 12×12 (169 pts)
+    // Wind API is shorter → 21×21 (441 pts) safe
+    if (caller === 'marine') {
+      GRID = isMobile ? 7 : 11; // 12×12=144 (desktop), 8×8=64 (mobile)
+    } else {
+      GRID = isMobile ? 12 : 20; // 21×21=441 (desktop), 13×13=169 (mobile)
+    }
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
@@ -312,7 +318,7 @@ export async function fetchMarineData(bounds, zoom, signal) {
 
   try {
     const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
-    const { points, gridSize } = computeGridPoints(snappedBounds);
+    const { points, gridSize } = computeGridPoints(snappedBounds, 'marine');
     const lats = points.map(p => p.lat).join(',');
     const lons = points.map(p => p.reqLng).join(',');
 
