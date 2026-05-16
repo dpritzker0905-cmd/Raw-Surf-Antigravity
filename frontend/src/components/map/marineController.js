@@ -78,27 +78,36 @@ function viewportCacheKey(bounds, prefix) {
 }
 
 /**
- * Compute grid points for a viewport. Adaptive resolution
- * capped by Open-Meteo URL length limits (~64 points max).
- * 
- * Desktop: 7x7 = 64 points (URL safe)
- * Mobile: 5x5 = 36 points
+ * v3.5: Adaptive grid computation.
+ * Global zoom (viewport > 100°): 8×8 grid covering full globe
+ * Regional zoom: 7×7 grid across viewport
+ * URL length safe — single request up to 64 points.
  */
 function computeGridPoints(bounds) {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const GRID = isMobile ? 4 : 6; // Reduced per contract: stability > density
+  const lngSpan = bounds.east - bounds.west;
+  const latSpan = bounds.north - bounds.south;
+  const isGlobal = lngSpan > 100 || latSpan > 60;
 
-  const { west, south, east, north } = bounds;
+  // Global: fixed worldwide grid. Regional: viewport grid.
+  let west, south, east, north, GRID;
+  if (isGlobal) {
+    west = -180; east = 180; south = -78; north = 78;
+    GRID = isMobile ? 5 : 7; // 8x8 = 64 pts (URL safe)
+  } else {
+    west = bounds.west; east = bounds.east;
+    south = bounds.south; north = bounds.north;
+    GRID = isMobile ? 4 : 6;
+  }
+
   const latStep = (north - south) / GRID;
   const lngStep = (east - west) / GRID;
-
   const points = [];
   for (let yi = 0; yi <= GRID; yi++) {
     for (let xi = 0; xi <= GRID; xi++) {
       let lat = south + yi * latStep;
       let lng = west + xi * lngStep;
       let reqLng = lng;
-      // Wrap for API request
       while (reqLng > 180) reqLng -= 360;
       while (reqLng < -180) reqLng += 360;
       points.push({
@@ -108,7 +117,7 @@ function computeGridPoints(bounds) {
       });
     }
   }
-  return { points, gridSize: GRID + 1 };
+  return { points, gridSize: GRID + 1, isGlobal };
 }
 
 const safeNum = (v, fallback = 0) => {
