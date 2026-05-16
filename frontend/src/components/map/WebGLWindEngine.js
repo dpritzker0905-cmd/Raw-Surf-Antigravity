@@ -395,6 +395,9 @@ export default class WebGLWindEngine {
     const prevProgram = gl.getParameter(gl.CURRENT_PROGRAM);
     const prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
 
+    // MapLibre passes Float64Array — WebGL needs Float32Array
+    const mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
+
     // === Step 1: Advect particles (ping-pong) ===
     gl.useProgram(this.advectProgram);
 
@@ -460,7 +463,7 @@ export default class WebGLWindEngine {
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
     gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), ...this._windData.uMin);
     gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), ...this._windData.uMax);
-    gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, matrix);
+    gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
 
     const b = this._windData.bounds;
     gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), b.west, b.south);
