@@ -1,6 +1,6 @@
 // Raw Surf OS Service Worker for Push Notifications and Offline Mode
 // BUILD_VERSION is bumped on each deploy to auto-purge stale caches
-const BUILD_VERSION = '2026.05.16.7';
+const BUILD_VERSION = '2026.05.16.8';
 const CACHE_NAME = `rawsurf-v3-${BUILD_VERSION}`;
 const SPOT_CACHE_NAME = `rawsurf-spots-v1-${BUILD_VERSION}`;
 const OFFLINE_CACHE_NAME = `rawsurf-offline-v1-${BUILD_VERSION}`;

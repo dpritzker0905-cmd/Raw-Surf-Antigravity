@@ -33,7 +33,7 @@ let lastKnownGoodMarine = null;
 // --- 429 COOLDOWN STATE ---
 let windCooldownUntil = 0;
 let marineCooldownUntil = 0;
-const COOLDOWN_MS = 30000; // 30s — reduced from 120s (spot forecast rate-limited separately now)
+const COOLDOWN_MS = 60000; // 60s — longer cooldown to let Open-Meteo rate limit recover
 
 // --- INFLIGHT ABORT CONTROLLERS ---
 let windAbortController = null;
@@ -359,10 +359,16 @@ function extractMarineAtOffset(cache, hourOffset) {
 // MARINE FETCH
 // v3.9.1: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
 // ========================================================================
-export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
+export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false) {
   if (!bounds) return lastKnownGoodMarine;
-  if (marineRequestInFlight) return lastKnownGoodMarine;
-  if (isInCooldown('marine')) return lastKnownGoodMarine;
+  if (marineRequestInFlight) {
+    console.log('[Marine] fetchMarineData: request inflight, returning cached');
+    return lastKnownGoodMarine;
+  }
+  if (!forceFetch && isInCooldown('marine')) {
+    console.log('[Marine] fetchMarineData: in cooldown, returning cached');
+    return lastKnownGoodMarine;
+  }
 
   // Snap bounds
   const snap = 10, padding = 5;
@@ -374,10 +380,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0) {
 
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
-  // v3.9.1: Hourly cache — re-index locally
+  // v3.9.3: Hourly cache — re-index locally (removed hourOffset>0 guard)
   const viewHash = viewportCacheKey(snappedBounds, 'marine');
-  if (hourOffset > 0 && marineHourlyCache.hash === viewHash &&
+  if (marineHourlyCache.hash === viewHash &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+    console.log(`[Marine] Cache HIT for offset=${hourOffset}h`);
     return extractMarineAtOffset(marineHourlyCache, hourOffset);
   }
 

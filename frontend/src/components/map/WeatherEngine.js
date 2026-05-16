@@ -2,20 +2,19 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown } from './marineController';
 
 /**
- * Unified Weather Data Engine (v3.9.3)
+ * Unified Weather Data Engine (v3.9.4)
  * 
- * v3.9.3 CRITICAL FIX:
- * - Added retry with exponential backoff (3 retries: 5s, 10s, 20s)
- * - Wind grid fetch now ALWAYS attempts on layer activation
- * - Aggressive console logging at EVERY decision point
- * - Eliminated silent return paths — every early exit is logged
+ * v3.9.4 FIXES:
+ * - Retry survives layer switches (effect depends on mapInstance only)
+ * - Removed timeline skip log spam (was firing on every slider tick)
+ * - Uses module-level retry scheduling so 429 recovery persists
  * - Timeline scrub uses local hourly cache (zero API calls)
  */
 export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 0 }) {
   const [windData, setWindData] = useState(null);
   const windRevision = useRef(0);
-  const retryTimerRef = useRef(null);
   const timeOffsetRef = useRef(timeOffsetHours);
+  const activeLayersRef = useRef(activeLayers);
 
   const isWindActive = useMemo(
     () => activeLayers.includes('wind'),
@@ -27,17 +26,20 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     timeOffsetRef.current = timeOffsetHours;
   }, [timeOffsetHours]);
 
-  // ===== PRIMARY DATA FETCH WITH RETRY =====
   useEffect(() => {
-    if (!mapInstance || !isWindActive) {
-      console.log(`[WeatherEngine] Skip: mapInstance=${!!mapInstance}, isWindActive=${isWindActive}`);
-      return;
-    }
+    activeLayersRef.current = activeLayers;
+  }, [activeLayers]);
+
+  // ===== PRIMARY DATA FETCH WITH RETRY =====
+  // Depends only on mapInstance so retries survive layer switches
+  useEffect(() => {
+    if (!mapInstance) return;
 
     let cancelled = false;
+    let retryTimer = null;
     let retryCount = 0;
-    const MAX_RETRIES = 4;
-    const RETRY_DELAYS = [0, 5000, 10000, 20000]; // immediate, then backoff
+    const MAX_RETRIES = 5;
+    const RETRY_DELAYS = [0, 8000, 15000, 30000, 60000];
 
     const getBounds = () => {
       try {
@@ -56,20 +58,25 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     const attemptFetch = async () => {
       if (cancelled) return;
 
-      const bounds = getBounds();
-      if (!bounds) {
-        console.warn('[WeatherEngine] No bounds available');
+      // Check if wind is currently active
+      if (!activeLayersRef.current.includes('wind')) {
+        // Wind not active — don't fetch, but watch for activation
+        retryTimer = setTimeout(attemptFetch, 2000);
         return;
       }
 
-      // Check if in 429 cooldown — wait and retry instead of giving up
+      const bounds = getBounds();
+      if (!bounds) {
+        retryTimer = setTimeout(attemptFetch, 3000);
+        return;
+      }
+
+      // Check if in 429 cooldown — wait and retry
       const cooldownMs = getRemainingCooldown('wind');
-      if (cooldownMs > 0 && retryCount < MAX_RETRIES) {
-        console.log(`[WeatherEngine] In 429 cooldown (${Math.ceil(cooldownMs/1000)}s remaining), retry #${retryCount + 1} in ${Math.ceil(cooldownMs/1000)}s`);
-        retryTimerRef.current = setTimeout(() => {
-          retryCount++;
-          attemptFetch();
-        }, cooldownMs + 1000);
+      if (cooldownMs > 0) {
+        const waitMs = cooldownMs + 2000;
+        console.log(`[WeatherEngine] 429 cooldown active (${Math.ceil(cooldownMs/1000)}s), waiting ${Math.ceil(waitMs/1000)}s`);
+        retryTimer = setTimeout(attemptFetch, waitMs);
         return;
       }
 
@@ -81,49 +88,50 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         if (cancelled) return;
         
         if (data && data.vectors?.length > 0) {
-          console.log(`[WeatherEngine] ✅ Wind data received: ${data.vectors.length} vectors`);
+          console.log(`[WeatherEngine] ✅ Wind data: ${data.vectors.length} vectors`);
           windRevision.current += 1;
           setWindData(data);
+          retryCount = 0; // Reset on success
+          // Schedule periodic refresh (5 min)
+          retryTimer = setTimeout(attemptFetch, 5 * 60 * 1000);
         } else {
-          console.warn(`[WeatherEngine] ❌ No wind data returned (attempt ${retryCount + 1})`);
-          // Schedule retry if we haven't exceeded max
-          if (retryCount < MAX_RETRIES - 1) {
-            retryCount++;
-            const delay = RETRY_DELAYS[retryCount] || 20000;
-            console.log(`[WeatherEngine] Scheduling retry #${retryCount + 1} in ${delay/1000}s`);
-            retryTimerRef.current = setTimeout(attemptFetch, delay);
+          retryCount++;
+          if (retryCount < MAX_RETRIES) {
+            const delay = RETRY_DELAYS[retryCount] || 60000;
+            console.log(`[WeatherEngine] ❌ No data (attempt ${retryCount}), retry in ${delay/1000}s`);
+            retryTimer = setTimeout(attemptFetch, delay);
+          } else {
+            console.warn(`[WeatherEngine] Max retries (${MAX_RETRIES}) exhausted`);
+            // Try again in 2 minutes
+            retryTimer = setTimeout(() => { retryCount = 0; attemptFetch(); }, 120000);
           }
         }
       } catch (e) {
         if (e.name === 'AbortError' || cancelled) return;
-        console.error(`[WeatherEngine] Fetch error (attempt ${retryCount + 1}):`, e.message);
-        if (retryCount < MAX_RETRIES - 1) {
-          retryCount++;
-          const delay = RETRY_DELAYS[retryCount] || 20000;
-          retryTimerRef.current = setTimeout(attemptFetch, delay);
+        retryCount++;
+        if (retryCount < MAX_RETRIES) {
+          const delay = RETRY_DELAYS[retryCount] || 60000;
+          console.error(`[WeatherEngine] Error: ${e.message}, retry in ${delay/1000}s`);
+          retryTimer = setTimeout(attemptFetch, delay);
         }
       }
     };
 
-    // Start fetching immediately
+    // Start the fetch loop
     attemptFetch();
 
     return () => {
       cancelled = true;
-      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [mapInstance, isWindActive]);
+  }, [mapInstance]); // Only mapInstance — retries survive layer switches
 
   // ===== TIMELINE SCRUB (local cache re-index, zero API calls) =====
   const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
     if (prevOffsetRef.current === timeOffsetHours) return;
     prevOffsetRef.current = timeOffsetHours;
-
-    if (!mapInstance || !isWindActive) {
-      console.log(`[WeatherEngine] Timeline skip: map=${!!mapInstance}, wind=${isWindActive}`);
-      return;
-    }
+    if (!mapInstance || !isWindActive) return; // Silent skip — no log spam
 
     console.log(`[WeatherEngine] 🕐 Timeline scrub: ${timeOffsetHours}h`);
 
@@ -136,14 +144,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           east: b.getEast(),
           north: Math.min(85, b.getNorth())
         };
-        // forceFetch=true to bypass cooldown, uses local cache when available
         const data = await fetchWindData(bounds, null, timeOffsetHours, true);
         if (data && data.vectors?.length > 0) {
           console.log(`[WeatherEngine] 🕐 Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
           windRevision.current += 1;
           setWindData(data);
-        } else {
-          console.warn(`[WeatherEngine] 🕐 No data for +${timeOffsetHours}h`);
         }
       } catch (e) {
         if (e.name !== 'AbortError') {
@@ -160,8 +165,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     if (!mapInstance || !isWindActive || !windData) return;
 
     const onMoveEnd = () => {
-      // Only refetch if we already have data (avoid double-fetch on mount)
-      const t = setTimeout(async () => {
+      setTimeout(async () => {
         try {
           const b = mapInstance.getBounds();
           const bounds = {
@@ -177,7 +181,6 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           }
         } catch (e) { /* ignore */ }
       }, 2000);
-      return () => clearTimeout(t);
     };
 
     mapInstance.on('moveend', onMoveEnd);

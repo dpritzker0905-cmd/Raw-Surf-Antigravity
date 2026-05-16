@@ -152,6 +152,8 @@ const MapPageContent = () => {
   // v3.7: Uses map center instead of fixed user location for accurate readouts
   const forecastLat = mapCenter?.lat || effectiveLocation?.lat || FLORIDA_CENTER.lat;
   const forecastLng = mapCenter?.lng || effectiveLocation?.lng || FLORIDA_CENTER.lng;
+  // v3.9.4: Disable spot forecast when weather layers active — they compete for rate limit
+  const hasWeatherLayer = activeLayers.length > 0;
   const {
     forecastData,
     marineData: forecastMarineData,
@@ -161,7 +163,7 @@ const MapPageContent = () => {
     latitude: forecastLat,
     longitude: forecastLng,
     activeModel,
-    enabled: true,
+    enabled: !hasWeatherLayer,
   });
 
   const handleUpgradeClick = useCallback(() => {
