@@ -611,6 +611,7 @@ const MapPageContent = () => {
         radarFrames={radarFrames}
         radarFrameIndex={radarFrameIndex}
         onRadarFrameChange={setRadarFrameIndex}
+        currentTimeOffset={timeOffsetHours}
         onTimeChange={setTimeOffsetHours}
         isPlaying={isPlayingTimeline}
         onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
