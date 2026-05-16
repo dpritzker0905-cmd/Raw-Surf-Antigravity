@@ -117,22 +117,26 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     const sourceId = `${id}-heatmap-source`;
     const layerId = `${id}-heatmap-layer`;
 
+    // Expand heatmap beyond data bounds — interpolation clamps at edges,
+    // producing a natural bleed so the heatmap fills the visible viewport.
+    const HEATMAP_PAD = 1.8;
+    const { west: dW, south: dS, east: dE, north: dN } = data.bounds;
+    const cLng = (dW + dE) / 2, cLat = (dS + dN) / 2;
+    const hW = (dE - dW) / 2 * HEATMAP_PAD, hH = (dN - dS) / 2 * HEATMAP_PAD;
+    const padW = Math.max(-180, cLng - hW), padE = Math.min(180, cLng + hW);
+    const padS = Math.max(-85, cLat - hH), padN = Math.min(85, cLat + hH);
+
     const generateHeatmap = () => {
-      const W = HEATMAP_RESOLUTION;
-      const H = HEATMAP_RESOLUTION;
+      const W = HEATMAP_RESOLUTION, H = HEATMAP_RESOLUTION;
       const oc = document.createElement('canvas');
-      oc.width = W;
-      oc.height = H;
+      oc.width = W; oc.height = H;
       const octx = oc.getContext('2d');
       const imgData = octx.createImageData(W, H);
 
-      const { west, south, east, north } = data.bounds;
-
       for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
-           const lng = west + (x / (W - 1)) * (east - west);
-           // Y=0 in image is top (north), Y=H-1 is bottom (south)
-           const lat = north - (y / (H - 1)) * (north - south);
+           const lng = padW + (x / (W - 1)) * (padE - padW);
+           const lat = padN - (y / (H - 1)) * (padN - padS);
 
            const vec = interpolateWind(data, lng, lat);
            const i = (y * W + x) * 4;
@@ -180,9 +184,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     };
 
     const dataUrl = generateHeatmap();
-    const { west, south, east, north } = data.bounds;
     const coordinates = [
-      [west, north], [east, north], [east, south], [west, south]
+      [padW, padN], [padE, padN], [padE, padS], [padW, padS]
     ];
 
     // Priority 8: Convert data URL to Image to avoid postMessage clone errors.
@@ -225,7 +228,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               const ctx2 = existingCanvas.getContext('2d');
               ctx2.clearRect(0, 0, 128, 128);
               ctx2.drawImage(img, 0, 0);
-              source.play?.(); // Triggers a re-render
+              source.setCoordinates?.(coordinates);
+              source.play?.();
             }
           }
         }

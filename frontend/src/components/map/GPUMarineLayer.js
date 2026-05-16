@@ -102,13 +102,20 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     const sourceId = `${id}-heatmap-source`;
     const layerId = `${id}-heatmap-layer`;
 
+    // Expand marine heatmap beyond data bounds for viewport coverage
+    const HEATMAP_PAD = 1.8;
+    const { west: dW, south: dS, east: dE, north: dN } = data.bounds;
+    const cLng = (dW + dE) / 2, cLat = (dS + dN) / 2;
+    const hW = (dE - dW) / 2 * HEATMAP_PAD, hH = (dN - dS) / 2 * HEATMAP_PAD;
+    const padW = Math.max(-180, cLng - hW), padE = Math.min(180, cLng + hW);
+    const padS = Math.max(-85, cLat - hH), padN = Math.min(85, cLat + hH);
+
     const generateHeatmap = () => {
       const W = HEATMAP_RESOLUTION, H = HEATMAP_RESOLUTION;
       const oc = document.createElement('canvas');
       oc.width = W; oc.height = H;
       const octx = oc.getContext('2d');
       const imgData = octx.createImageData(W, H);
-      const { west, south, east, north } = data.bounds;
 
       // Ocean energy color scale (wave height in meters)
       const scale = [
@@ -131,14 +138,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
       for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
-          const lng = west + (x / (W - 1)) * (east - west);
-          const lat = north - (y / (H - 1)) * (north - south);
+          const lng = padW + (x / (W - 1)) * (padE - padW);
+          const lat = padN - (y / (H - 1)) * (padN - padS);
           const i = (y * W + x) * 4;
-
-          if (!isLikelyOcean(lat, lng)) {
-            imgData.data[i] = 0; imgData.data[i+1] = 0; imgData.data[i+2] = 0; imgData.data[i+3] = 0;
-            continue;
-          }
 
           const vec = interpolateMarine(data, lng, lat);
           if (!vec || isNaN(vec.speed) || vec.speed < 0.01) {
@@ -161,7 +163,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
               }
             }
           }
-          imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = 120;
+          imgData.data[i] = r; imgData.data[i+1] = g; imgData.data[i+2] = b; imgData.data[i+3] = 160;
         }
       }
       octx.putImageData(imgData, 0, 0);
@@ -169,8 +171,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     };
 
     const dataUrl = generateHeatmap();
-    const { west, south, east, north } = data.bounds;
-    const coordinates = [[west, north], [east, north], [east, south], [west, south]];
+    const coordinates = [[padW, padN], [padE, padN], [padE, padS], [padW, padS]];
 
     const img = new Image();
     img.onload = () => {
@@ -200,6 +201,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
               const ctx2 = ec.getContext('2d');
               ctx2.clearRect(0, 0, HEATMAP_RESOLUTION, HEATMAP_RESOLUTION);
               ctx2.drawImage(img, 0, 0, HEATMAP_RESOLUTION, HEATMAP_RESOLUTION);
+              source.setCoordinates?.(coordinates);
               source.play?.();
             }
           }
@@ -391,7 +393,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           if (alpha < 0.01) continue;
 
           // Wave direction for dash orientation
-          const dirAngle = Math.atan2(-wave.v, wave.u);
+          // Crests are perpendicular to propagation direction (+90°)
+          const dirAngle = Math.atan2(-wave.v, wave.u) + Math.PI / 2;
           const halfDash = p.dashLen / 2;
           const dx = Math.cos(dirAngle) * halfDash;
           const dy = -Math.sin(dirAngle) * halfDash;
