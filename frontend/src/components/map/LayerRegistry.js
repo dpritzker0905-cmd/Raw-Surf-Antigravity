@@ -45,7 +45,7 @@ export const LAYER_REGISTRY = {
     type: "marine",
     source: "MARINE_WAVES",
     omVariable: "wave_height",
-    omModel: "ecmwf_wam025",
+    omModel: "ncep_gfswave025",
     category: "model"
   },
   swell_1: {
