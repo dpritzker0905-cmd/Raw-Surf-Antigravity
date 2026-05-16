@@ -20,24 +20,39 @@ const LAYER_ID = 'webgl-wind-particles';
  * to the WebGLWindEngine.
  */
 function createCustomLayer(engine, activeRef, mapRef) {
+  let errorCount = 0;
   return {
     id: LAYER_ID,
     type: 'custom',
     renderingMode: '2d',
 
     onAdd(_map, gl) {
-      engine.init(gl);
+      try {
+        engine.init(gl);
+      } catch (e) {
+        console.error('[WebGLWind] Init failed:', e.message);
+      }
     },
 
     render(gl, matrix) {
-      if (!activeRef.current) return;
+      if (!activeRef.current || errorCount > 3) return;
       const map = mapRef.current;
       if (!map) return;
 
-      const canvas = map.getCanvas();
-      engine.render(gl, matrix, canvas.width, canvas.height);
-      // Request continuous repainting while active
-      map.triggerRepaint();
+      try {
+        const canvas = map.getCanvas();
+        engine.render(gl, matrix, canvas.width, canvas.height);
+        // Request continuous repainting while active
+        map.triggerRepaint();
+      } catch (e) {
+        errorCount++;
+        if (errorCount <= 3) {
+          console.warn(`[WebGLWind] Render error (${errorCount}/3):`, e.message);
+        }
+        if (errorCount === 3) {
+          console.error('[WebGLWind] Too many errors, disabling GPU particles. Canvas2D fallback active.');
+        }
+      }
     },
 
     onRemove(_map, gl) {

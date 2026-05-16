@@ -210,6 +210,8 @@ function createTexture(gl, filter, data, width, height) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
   if (data instanceof Uint8Array) {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  } else if (data == null) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   } else {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
   }
@@ -218,9 +220,6 @@ function createTexture(gl, filter, data, width, height) {
 
 function createFBO(gl, filter, width, height) {
   const tex = createTexture(gl, filter, null, width, height);
-  // Manually create empty texture since null data
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   const fbo = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
@@ -353,6 +352,9 @@ export default class WebGLWindEngine {
     this.particleStateA = initParticleTexture(gl, this.particleRes);
     this.particleStateB = initParticleTexture(gl, this.particleRes);
 
+    // Persistent advection FBO (avoid creating/deleting every frame)
+    this.advFBO = gl.createFramebuffer();
+
     this._initialized = true;
     console.log(`[WebGLWind] Initialized: ${this.particleRes * this.particleRes} particles`);
   }
@@ -409,8 +411,7 @@ export default class WebGLWindEngine {
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
 
     // Bind particle state A as input, render to particle state B
-    const advFBO = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, advFBO);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D,
       this.particleStateB, 0);
     gl.viewport(0, 0, this.particleRes, this.particleRes);
@@ -425,8 +426,6 @@ export default class WebGLWindEngine {
     gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.disableVertexAttribArray(advPosLoc);
-
-    gl.deleteFramebuffer(advFBO);
 
     // Swap particle states
     const tmp = this.particleStateA;
@@ -515,6 +514,7 @@ export default class WebGLWindEngine {
     if (this.fadeProgram) gl.deleteProgram(this.fadeProgram);
     if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
     if (this.particleIndexBuffer) gl.deleteBuffer(this.particleIndexBuffer);
+    if (this.advFBO) gl.deleteFramebuffer(this.advFBO);
     if (this.particleStateA) gl.deleteTexture(this.particleStateA);
     if (this.particleStateB) gl.deleteTexture(this.particleStateB);
     if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
