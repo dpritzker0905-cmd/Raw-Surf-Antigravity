@@ -22,13 +22,53 @@ const WIND_CACHE = new Map();
 // changes re-index locally instead of making new API calls.
 let windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
 let marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
-const HOURLY_CACHE_TTL = 10 * 60 * 1000; // 10 min
+const HOURLY_CACHE_TTL = 30 * 60 * 1000; // 30 min (increased from 10 to reduce API calls)
+
+// --- PERSISTENT CACHE (localStorage) ---
+// Survives page reloads — eliminates 429s on revisit
+const LS_WIND_KEY = 'rawsurf_wind_cache_v1';
+const LS_MARINE_KEY = 'rawsurf_marine_cache_v1';
+
+function persistCache(key, cache) {
+  try {
+    const slim = { hash: cache.hash, results: cache.results, points: cache.points,
+      gridSize: cache.gridSize, bounds: cache.bounds, timestamp: cache.timestamp };
+    localStorage.setItem(key, JSON.stringify(slim));
+  } catch (e) { /* localStorage full or unavailable — ignore */ }
+}
+
+function hydrateCache(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached?.hash || !cached?.results || !cached?.timestamp) return null;
+    if (Date.now() - cached.timestamp > HOURLY_CACHE_TTL) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return cached;
+  } catch (e) { return null; }
+}
+
+// Hydrate from localStorage on module init
+const _hydratedWind = hydrateCache(LS_WIND_KEY);
+if (_hydratedWind) {
+  windHourlyCache = _hydratedWind;
+  console.log(`[Wind] Hydrated from localStorage: ${_hydratedWind.points?.length} pts, age ${Math.round((Date.now() - _hydratedWind.timestamp)/1000)}s`);
+}
+const _hydratedMarine = hydrateCache(LS_MARINE_KEY);
+if (_hydratedMarine) {
+  marineHourlyCache = _hydratedMarine;
+  console.log(`[Marine] Hydrated from localStorage: ${_hydratedMarine.points?.length} pts, age ${Math.round((Date.now() - _hydratedMarine.timestamp)/1000)}s`);
+}
 
 // --- LAST KNOWN GOOD FIELDS ---
-// Start null. Only populated after a SUCCESSFUL API response.
-// null means 'never had data' — callers must handle this.
-let lastKnownGoodWind = null;
-let lastKnownGoodMarine = null;
+// Pre-populated from localStorage hydrated cache if available
+let lastKnownGoodWind = _hydratedWind ? extractWindAtOffset(_hydratedWind, 0) : null;
+let lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarine, 0) : null;
+if (lastKnownGoodWind) console.log(`[Wind] Pre-populated lastKnownGood: ${lastKnownGoodWind.vectors.length} vectors`);
+if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${lastKnownGoodMarine.features?.length} features`);
 
 // --- 429 COOLDOWN STATE ---
 let windCooldownUntil = 0;
@@ -97,23 +137,24 @@ function computeGridPoints(bounds, caller = 'wind') {
   const latSpan = bounds.north - bounds.south;
   const isGlobal = lngSpan > 100 || latSpan > 60;
 
+  // v3.9.4: Reduced grid density — Open-Meteo weights POST requests by
+  // point count (961 pts ≈ 961 weighted calls, exceeding 600/min limit)
   let west, south, east, north, GRID;
   if (isGlobal) {
     if (caller === 'marine') {
-      // v3.9: Marine API rejects lat > ±80 (polar ice = no ocean data)
       west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 12 : 20; // 21×21=441 (desktop), 13×13=169 (mobile)
+      GRID = isMobile ? 10 : 16; // 17×17=289 (desktop), 11×11=121 (mobile)
     } else {
       west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 20 : 30; // 31×31=961 (desktop), 21×21=441 (mobile)
+      GRID = isMobile ? 14 : 20; // 21×21=441 (desktop), 15×15=225 (mobile)
     }
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
     if (caller === 'marine') {
-      GRID = isMobile ? 10 : 20; // 21×21=441 (desktop), 11×11=121 (mobile)
+      GRID = isMobile ? 8 : 16; // 17×17=289 (desktop), 9×9=81 (mobile)
     } else {
-      GRID = isMobile ? 15 : 30; // 31×31=961 (desktop), 16×16=256 (mobile)
+      GRID = isMobile ? 12 : 20; // 21×21=441 (desktop), 13×13=169 (mobile)
     }
   }
 
@@ -269,6 +310,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       bounds: { west, south, east, north },
       timestamp: Date.now()
     };
+    persistCache(LS_WIND_KEY, windHourlyCache);
 
     const data = extractWindAtOffset(windHourlyCache, hourOffset);
     if (data) {
@@ -435,6 +477,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       hash: viewHash, results: allResults, points, gridSize,
       bounds: snappedBounds, timestamp: Date.now()
     };
+    persistCache(LS_MARINE_KEY, marineHourlyCache);
 
     const result = extractMarineAtOffset(marineHourlyCache, hourOffset);
     if (result) {
