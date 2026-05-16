@@ -10,7 +10,7 @@
 const TIER_ACCESS = {
   free: {
     models: ['GFS'],
-    forecastDays: 1
+    forecastDays: 3
   },
   basic: {
     models: ['GFS', 'EURO', 'ICON'],

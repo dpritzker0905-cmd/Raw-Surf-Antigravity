@@ -13,7 +13,12 @@ function interpolateWind(windGrid, lng, lat, prevGrid = null, transitionProgress
     
     if (!cols || !rows || vectors.length !== cols * rows) return null;
 
-    const gx = Math.max(0, Math.min(cols - 1, ((queryLng - west) / (east - west)) * (cols - 1)));
+    // v3.6: Normalize longitude for wrap-aware interpolation
+    let nLng = queryLng;
+    while (nLng > 180) nLng -= 360;
+    while (nLng < -180) nLng += 360;
+
+    const gx = Math.max(0, Math.min(cols - 1, ((nLng - west) / (east - west)) * (cols - 1)));
     const gy = Math.max(0, Math.min(rows - 1, ((queryLat - south) / (north - south)) * (rows - 1)));
     const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
     const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
@@ -149,15 +154,18 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     // Adaptive particle count based on hardware / viewport size
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
-    const PARTICLE_COUNT = isMobile ? (isWeak ? 300 : 800) : (isWeak ? 1500 : 3000);
-    console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (isMobile: ${isMobile}, cores: ${navigator.hardwareConcurrency})`);
+    // v3.6: Zoom-adaptive particle count — fewer at global zoom for visual clarity
+    const zoom = mapInstance.getZoom();
+    const baseCount = isMobile ? (isWeak ? 300 : 800) : (isWeak ? 1500 : 3000);
+    const PARTICLE_COUNT = zoom < 3 ? Math.round(baseCount * 0.35) : zoom < 5 ? Math.round(baseCount * 0.6) : baseCount;
+    console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (zoom: ${zoom.toFixed(1)}, isMobile: ${isMobile})`);
     
     const spawn = (preAge = false) => {
-      // v3.3: Spawn across FULL VIEWPORT for global particle coverage
-      // Interpolation clamps to nearest grid edge for out-of-grid positions
+      // v3.6: Spawn across FULL visible viewport (no -180/180 clamp)
+      // World wrapping handled by lng normalization in interpolateWind
       const mb = mapInstance.getBounds();
-      const west = Math.max(-180, mb.getWest());
-      const east = Math.min(180, mb.getEast());
+      const west = mb.getWest();
+      const east = mb.getEast();
       const south = Math.max(-85, mb.getSouth());
       const north = Math.min(85, mb.getNorth());
       
@@ -494,7 +502,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        zIndex: 10,
+        zIndex: 5,
         // Opacity is driven synchronously by MapWebGL.js shared weather animation clock
         opacity: 0,
         transition: 'none'

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GPUMarineLayer.js â€” Marine-only renderer (v3.1)
  *
  * Renders ocean energy fields (waves, swell, wind waves) with:
@@ -31,7 +31,12 @@ function interpolateMarine(grid, lng, lat) {
   const { west, south, east, north } = bounds;
   if (!cols || !rows || vectors.length !== cols * rows) return { u: 0, v: 0, speed: 0 };
 
-  const gx = Math.max(0, Math.min(cols - 1, ((lng - west) / (east - west)) * (cols - 1)));
+  // v3.6: Normalize longitude for wrap-aware interpolation
+  let nLng = lng;
+  while (nLng > 180) nLng -= 360;
+  while (nLng < -180) nLng += 360;
+
+  const gx = Math.max(0, Math.min(cols - 1, ((nLng - west) / (east - west)) * (cols - 1)));
   const gy = Math.max(0, Math.min(rows - 1, ((lat - south) / (north - south)) * (rows - 1)));
   const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
   const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
@@ -54,23 +59,18 @@ function interpolateMarine(grid, lng, lat) {
 }
 
 /**
- * Simple ocean heuristic â€” returns false for points likely over land.
+ * v3.6: Data-driven ocean detection — uses grid speed data.
+ * If grid data says speed=0 at this point AND it's in a known land region,
+ * reject. Otherwise allow the data to speak.
+ * Falls back to crude heuristic only when no grid data is available.
  */
-function isLikelyOcean(lat, lng) {
-  if (lat > 25 && lat < 50 && lng > -125 && lng < -65) {
-    if (lng > -82 && lat > 25 && lat < 45) return false;
-    if (lng > -105 && lng < -82 && lat > 28 && lat < 49) return false;
-    if (lng > -125 && lng < -115 && lat > 32 && lat < 49) return false;
+function isLikelyOcean(lat, lng, grid) {
+  // If we have grid data, check actual wave energy — zero speed = land or calm
+  if (grid) {
+    const wave = interpolateMarine(grid, lng, lat);
+    // Zero speed from ALL 4 bilinear neighbors = definitely land
+    if (wave.speed < 0.01 && wave.u === 0 && wave.v === 0) return false;
   }
-  if (lat > 15 && lat < 25 && lng > -105 && lng < -88) return false;
-  if (lat > 7 && lat < 18 && lng > -92 && lng < -77) return false;
-  if (lat > -55 && lat < 12 && lng > -80 && lng < -35) {
-    if (lng > -75 && lng < -40 && lat > -35 && lat < 5) return false;
-  }
-  if (lat > 36 && lat < 70 && lng > -10 && lng < 40) return false;
-  if (lat > -35 && lat < 37 && lng > -18 && lng < 52) return false;
-  if (lat > 10 && lat < 75 && lng > 40 && lng < 145) return false;
-  if (lat > -45 && lat < -10 && lng > 112 && lng < 155) return false;
   return true;
 }
 
@@ -127,40 +127,49 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
-    const PARTICLE_COUNT = isMobile ? (isWeak ? 400 : 1000) : (isWeak ? 2000 : 4000);
-    console.log(`[Marine] Spawning ${PARTICLE_COUNT} foam particles`);
+    // v3.6: Zoom-adaptive particle count — fewer at global zoom
+    const getParticleCount = () => {
+      const zoom = mapInstance.getZoom();
+      const base = isMobile ? (isWeak ? 400 : 1000) : (isWeak ? 2000 : 4000);
+      if (zoom < 3) return Math.round(base * 0.3);
+      if (zoom < 5) return Math.round(base * 0.5);
+      return base;
+    };
+    const PARTICLE_COUNT = getParticleCount();
+    console.log(`[Marine] Spawning ${PARTICLE_COUNT} foam particles (zoom: ${mapInstance.getZoom().toFixed(1)})`);
 
     const spawn = (preAge = false) => {
-      // v3.4: Spawn across viewport with DATA-DRIVEN density
-      // Particles concentrate where wave energy is highest
+      // v3.6: Spawn across FULL visible viewport (no -180/180 clamp)
+      // Allows proper rendering when world wraps in MapLibre
       const mb = mapInstance.getBounds();
-      const west = Math.max(-180, mb.getWest()), east = Math.min(180, mb.getEast());
+      const west = mb.getWest(), east = mb.getEast();
       const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
       const grid = dataRef.current;
-      for (let attempt = 0; attempt < 8; attempt++) {
+      const zoom = mapInstance.getZoom();
+      for (let attempt = 0; attempt < 12; attempt++) {
         const lng = west + Math.random() * (east - west);
         const lat = south + Math.random() * (north - south);
-        if (!isLikelyOcean(lat, lng)) continue;
-        // Check wave energy at this position — skip calm areas
+        if (!isLikelyOcean(lat, lng, grid)) continue;
+        // Check wave energy — skip calm areas
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
         const spd = wave?.speed || 0;
-        // Reject calm water (speed < 0.15m) with high probability
-        if (spd < 0.15 && Math.random() > 0.1) continue;
-        // Scale lifetime by wave energy: big waves = long-lived particles
+        if (spd < 0.1 && Math.random() > 0.05) continue;
         const energyScale = Math.min(1, spd / 3);
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
+        // v3.6: Zoom-scaled dash length — smaller at global zoom
+        const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
         return {
           lng, lat,
           age: preAge ? Math.random() * maxAge * 0.8 : 0,
           maxAge,
-          dashLen: 4 + Math.random() * 10 * energyScale,
+          dashLen: (3 + Math.random() * 8 * energyScale) * zoomScale,
           phase: Math.random(),
-          energy: energyScale // Store for alpha scaling
+          energy: energyScale
         };
       }
-      // Fallback: short-lived particle
-      const maxAge = 0.3;
-      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 4, phase: 0, energy: 0 };
+      // Fallback: very short-lived, low-energy particle
+      const maxAge = 0.2;
+      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 0, energy: 0 };
     };
 
     const particles = [];
@@ -244,8 +253,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
         // Clamp & wrap
         if (isNaN(p.lat) || isNaN(p.lng)) { pts[i] = spawn(); continue; }
-        // v3.2: Kill particles that drift over land
-        if (!isLikelyOcean(p.lat, p.lng)) { pts[i] = spawn(); continue; }
+        // v3.6: Kill particles that drift over land (data-driven)
+        if (!isLikelyOcean(p.lat, p.lng, grid)) { pts[i] = spawn(); continue; }
         p.lat = Math.max(-85, Math.min(85, p.lat));
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
@@ -292,7 +301,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
           // White foam crest â€” broken dash, NOT continuous trail
           ctx.strokeStyle = `rgba(230, 240, 255, ${alpha})`;
-          ctx.lineWidth = Math.min(3, 1.2 + h * 0.4);
+          // v3.6: Zoom-scaled line width
+          const zScale = Math.max(0.4, Math.min(1.2, mapInstance.getZoom() / 6));
+          ctx.lineWidth = Math.min(3, (0.8 + h * 0.4) * zScale);
           ctx.lineCap = 'round';
 
           ctx.beginPath();
@@ -335,7 +346,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       style={{
         position: 'absolute', top: 0, left: 0,
         width: '100%', height: '100%',
-        pointerEvents: 'none', zIndex: 10,
+        pointerEvents: 'none', zIndex: 5,
         opacity: 0, transition: 'none'
       }}
     />

@@ -77,7 +77,7 @@ export const SURFER_PLANS = {
       gold_pass: false,
       features: [
         { text: 'Profile & social features', included: true },
-        { text: 'Live + 24hr surf forecast (GFS)', included: true, highlight: true },
+        { text: 'Live + 3-day surf forecast (GFS)', included: true, highlight: true },
         { text: 'Book photo sessions', included: true },
         { text: 'Find photographers within 1 mile', included: true, highlight: true },
         { text: '5GB photo storage', included: true },

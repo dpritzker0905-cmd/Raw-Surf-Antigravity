@@ -614,20 +614,31 @@ const MapWebGL = ({
               });
             }}
           >
-            <div className="relative cursor-pointer">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
-                !isWithinGeofence
-                  ? 'bg-zinc-800 border-2 border-zinc-600 opacity-60'
-                  : hasPhotographers 
-                    ? 'bg-gradient-to-r from-emerald-400 to-yellow-400' 
-                    : 'bg-zinc-700 border-2 border-zinc-500'
-              }`}>
-                <svg className={`w-4 h-4 ${hasPhotographers && isWithinGeofence ? 'text-black' : 'text-gray-300'}`} fill="currentColor" viewBox="0 0 24 24">
+            <div className="relative cursor-pointer" style={{ position: 'relative', zIndex: 10 }}>
+              <div 
+                className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
+                  !isWithinGeofence
+                    ? 'bg-zinc-800 border-2 border-zinc-600 opacity-60'
+                    : hasPhotographers 
+                      ? 'bg-gradient-to-r from-emerald-400 to-yellow-400' 
+                      : 'bg-zinc-700 border-2 border-zinc-500'
+                }`}
+                style={{ 
+                  width: 32, height: 32, borderRadius: '50%', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: !isWithinGeofence ? '#27272a' : hasPhotographers ? 'linear-gradient(to right, #34d399, #facc15)' : '#3f3f46',
+                  border: !isWithinGeofence || !hasPhotographers ? '2px solid #52525b' : 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+              >
+                <svg width="16" height="16" fill={hasPhotographers && isWithinGeofence ? '#000' : '#d4d4d8'} viewBox="0 0 24 24">
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
                 </svg>
               </div>
               {hasPhotographers && isWithinGeofence && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold animate-pulse motion-reduce:animate-none">
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold animate-pulse motion-reduce:animate-none"
+                  style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white', fontWeight: 'bold' }}
+                >
                   {cluster.active_photographers_count}
                 </div>
               )}
