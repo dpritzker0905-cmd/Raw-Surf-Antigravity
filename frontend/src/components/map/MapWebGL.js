@@ -8,8 +8,10 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
-// v3.8.3: Re-enabled with fixes (matrix guard, FBO detach, copy-not-swap)
-import { WebGLWindLayer } from './WebGLWindLayer';
+// v3.12.3: WebGLWindLayer disabled — MapLibre custom layer has WebGL state conflicts
+// that prevent reliable particle compositing. Canvas2D overlay (Ventusky technique) used instead.
+// import { WebGLWindLayer } from './WebGLWindLayer';
+import { WindParticleOverlay } from './WindParticleOverlay';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useRasterTransactions } from './useRasterTransactions';
@@ -642,14 +644,15 @@ var MapWebGL = ({
         mapRef={innerMapRef}
       />
 
-      {/* v3.12: SINGLE VISUAL AUTHORITY — WebGL GPU is the ONLY wind renderer.
-          Canvas2D WindParticleCanvas DISABLED to prevent dual rendering.
-          WebGLWindEngine handles all wind particles (16k + trails). */}
-      <WebGLWindLayer
+      {/* v3.12.3: Canvas2D wind particles (Ventusky technique).
+          WebGLWindLayer DISABLED — MapLibre custom layer had WebGL state conflicts
+          making particles invisible. Canvas2D overlay uses same proven architecture
+          as MarineParticleCanvas and Ventusky.com (5 stacked Canvas2D layers). */}
+      <WindParticleOverlay
+        id="wind-particle-overlay"
         mapInstance={mapInstance}
         active={activeLayers.includes('wind')}
         data={windData}
-        revision={windRevision.current}
       />
     </Map>
     </div>

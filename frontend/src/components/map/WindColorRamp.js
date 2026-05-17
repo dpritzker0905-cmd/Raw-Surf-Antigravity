@@ -129,3 +129,13 @@ export var COLOR_RAMP_DRAW_FS = [
 export function getDefaultRamp() {
   return DEFAULT_WIND_RAMP.map(function(stop) { return stop.slice(); });
 }
+
+/**
+ * v3.12.3: Convenience wrapper — sample default ramp at a given speed.
+ * Used by WindParticleOverlay for Canvas2D rendering.
+ * @param {number} speed - wind speed in m/s
+ * @returns {number[]} [r, g, b, a] in [0, 1]
+ */
+export function sampleColorRamp(speed) {
+  return sampleRamp(DEFAULT_WIND_RAMP, speed);
+}
