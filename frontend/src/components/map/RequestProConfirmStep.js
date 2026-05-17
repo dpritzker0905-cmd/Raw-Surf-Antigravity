@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-const RequestProConfirmStep = ({
+var RequestProConfirmStep = ({
   isDark, selectedPro, duration, totalCost,
   captainPayAmount, totalParticipants, isShared,
   hourlyRate, depositAmount, nearestSpot,

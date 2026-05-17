@@ -14,7 +14,7 @@ import { LocationPicker } from '../LocationPicker';
 import { isValidLatLng } from './mapUtils';
 import { toast } from 'sonner';
 
-const MapPageModals = ({
+var MapPageModals = ({
   // JumpIn
   showJumpInModal, setShowJumpInModal, selectedPhotographer,
   setBottomSheetOpen,

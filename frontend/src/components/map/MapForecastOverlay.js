@@ -15,16 +15,16 @@ import { useTheme } from '../../contexts/ThemeContext';
  */
 
 /** Convert meters to feet */
-const mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
+var mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
 
 /** Format compass direction from degrees */
-const degToCompass = (deg) => {
+var degToCompass = (deg) => {
   if (deg == null) return '';
   const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
   return dirs[Math.round(deg / 22.5) % 16];
 };
 
-export const MapForecastOverlay = ({
+export var MapForecastOverlay = ({
   forecastData,
   marineData,
   currentWeather,

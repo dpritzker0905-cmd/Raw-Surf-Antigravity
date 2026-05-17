@@ -4,13 +4,13 @@
  */
 import React from 'react';
 
-const BOOST_OPTIONS = [
+var BOOST_OPTIONS = [
   { hours: 1, credits: 5 },
   { hours: 2, credits: 10 },
   { hours: 4, credits: 20 }
 ];
 
-export const BoostSelector = ({ 
+export var BoostSelector = ({ 
   selectedHours = 0, 
   onSelect,
   _variant = 'default' // 'default' | 'compact'

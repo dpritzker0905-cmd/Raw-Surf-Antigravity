@@ -5,7 +5,7 @@ import { MapPin, ChevronDown, ChevronUp } from 'lucide-react';
  * Floating card showing the nearest surf spot relative to user's GPS location.
  * Positioned bottom-left on both mobile and desktop. Collapsible.
  */
-export const NearestSpotCard = ({
+export var NearestSpotCard = ({
   nearestSpot,
   userLocation,
   onSpotSelect,

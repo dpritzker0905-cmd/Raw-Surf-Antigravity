@@ -6,7 +6,7 @@ import { Button } from '../ui/button';
  * Right-side floating control panel on the map.
  * Contains GPS button, featured photographers toggle, and friends toggle.
  */
-export const MapRightControls = ({
+export var MapRightControls = ({
   userLocation,
   gpsLoading,
   locationDenied,

@@ -64,7 +64,7 @@ function interpolateMarine(grid, lng, lat) {
  * Uses a coarse continental bounding-box table to reject obvious land,
  * then falls back to grid wave energy for coastal resolution.
  */
-const LAND_BOXES = [
+var LAND_BOXES = [
   // North America (excl. coasts) — conservative interior boxes
   { s: 25, n: 50, w: -115, e: -75 },
   // South America interior

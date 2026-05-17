@@ -6,7 +6,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AlertCircle, Search, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
-export const MapFilterTabs = ({ 
+export var MapFilterTabs = ({ 
   filter, 
   onFilterChange, 
   locationDenied,

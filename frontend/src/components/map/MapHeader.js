@@ -4,7 +4,7 @@
  */
 import React from 'react';
 
-export const MapHeader = ({ livePhotographerCount = 0 }) => {
+export var MapHeader = ({ livePhotographerCount = 0 }) => {
   return (
     <div className="flex items-center justify-between mb-3 pointer-events-auto">
       <h1 

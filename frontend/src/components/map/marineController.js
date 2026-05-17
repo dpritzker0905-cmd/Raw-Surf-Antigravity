@@ -15,23 +15,23 @@
 
 // --- PROXY CONFIG ---
 // v3.9.6: Route through Netlify serverless proxy to bypass client IP rate limits
-const PROXY_URL = '/api/weather-proxy';
+var PROXY_URL = '/api/weather-proxy';
 
 // --- CACHES ---
-const MARINE_CACHE = new Map();
-const WIND_CACHE = new Map();
+var MARINE_CACHE = new Map();
+var WIND_CACHE = new Map();
 
 // --- HOURLY DATA CACHE (pre-fetched for timeline scrub) ---
 // Stores full API responses keyed by viewport hash so timeline
 // changes re-index locally instead of making new API calls.
-let windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
-let marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
-const HOURLY_CACHE_TTL = 30 * 60 * 1000; // 30 min (increased from 10 to reduce API calls)
+var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
+var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
+var HOURLY_CACHE_TTL = 30 * 60 * 1000; // 30 min (increased from 10 to reduce API calls)
 
 // --- PERSISTENT CACHE (localStorage) ---
 // Survives page reloads — eliminates 429s on revisit
-const LS_WIND_KEY = 'rawsurf_wind_cache_v1';
-const LS_MARINE_KEY = 'rawsurf_marine_cache_v1';
+var LS_WIND_KEY = 'rawsurf_wind_cache_v1';
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v1';
 
 function persistCache(key, cache) {
   try {
@@ -56,12 +56,12 @@ function hydrateCache(key) {
 }
 
 // Hydrate from localStorage on module init
-const _hydratedWind = hydrateCache(LS_WIND_KEY);
+var _hydratedWind = hydrateCache(LS_WIND_KEY);
 if (_hydratedWind) {
   windHourlyCache = _hydratedWind;
   console.log(`[Wind] Hydrated from localStorage: ${_hydratedWind.points?.length} pts, age ${Math.round((Date.now() - _hydratedWind.timestamp)/1000)}s`);
 }
-const _hydratedMarine = hydrateCache(LS_MARINE_KEY);
+var _hydratedMarine = hydrateCache(LS_MARINE_KEY);
 if (_hydratedMarine) {
   marineHourlyCache = _hydratedMarine;
   console.log(`[Marine] Hydrated from localStorage: ${_hydratedMarine.points?.length} pts, age ${Math.round((Date.now() - _hydratedMarine.timestamp)/1000)}s`);
@@ -69,28 +69,28 @@ if (_hydratedMarine) {
 
 // --- LAST KNOWN GOOD FIELDS ---
 // Pre-populated from localStorage hydrated cache if available
-let lastKnownGoodWind = _hydratedWind ? extractWindAtOffset(_hydratedWind, 0) : null;
-let lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarine, 0) : null;
+var lastKnownGoodWind = _hydratedWind ? extractWindAtOffset(_hydratedWind, 0) : null;
+var lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarine, 0) : null;
 if (lastKnownGoodWind) console.log(`[Wind] Pre-populated lastKnownGood: ${lastKnownGoodWind.vectors.length} vectors`);
 if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${lastKnownGoodMarine.features?.length} features`);
 
 // --- 429 COOLDOWN STATE ---
-let windCooldownUntil = 0;
-let marineCooldownUntil = 0;
-const COOLDOWN_MS = 60000; // 60s — longer cooldown to let Open-Meteo rate limit recover
+var windCooldownUntil = 0;
+var marineCooldownUntil = 0;
+var COOLDOWN_MS = 60000; // 60s — longer cooldown to let Open-Meteo rate limit recover
 
 // --- INFLIGHT ABORT CONTROLLERS ---
-let windAbortController = null;
-let marinAbortController = null;
+var windAbortController = null;
+var marinAbortController = null;
 
 // --- INFLIGHT LOCKS ---
-let windRequestInFlight = false;
-let marineRequestInFlight = false;
+var windRequestInFlight = false;
+var marineRequestInFlight = false;
 
 // --- BOOTSTRAP MODE ---
 // First-load safety: always accept first valid response regardless of quality
-let BOOTSTRAP_WIND = true;
-let BOOTSTRAP_MARINE = true;
+var BOOTSTRAP_WIND = true;
+var BOOTSTRAP_MARINE = true;
 
 /**
  * Check if we are in 429 cooldown for a given domain.
@@ -182,12 +182,12 @@ function computeGridPoints(bounds, caller = 'wind') {
   return { points, gridSize: GRID + 1, isGlobal };
 }
 
-const safeNum = (v, fallback = 0) => {
+var safeNum = (v, fallback = 0) => {
   const n = parseFloat(v);
   return Number.isFinite(n) ? n : fallback;
 };
 
-const getUV = (speed, dir) => {
+var getUV = (speed, dir) => {
   if (speed === 0) return { u: 0, v: 0, speed: 0 };
   const rad = dir * (Math.PI / 180);
   return { u: -speed * Math.sin(rad), v: -speed * Math.cos(rad), speed };

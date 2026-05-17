@@ -2,7 +2,7 @@ import React from 'react';
 import { MapPin, Camera } from 'lucide-react';
 import { Button } from '../ui/button';
 
-const DispatchTrackingPanel = ({ activeDispatch, onDismiss }) => {
+var DispatchTrackingPanel = ({ activeDispatch, onDismiss }) => {
   if (!activeDispatch || activeDispatch.status !== 'en_route') return null;
 
   return (

@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
 // --- Surfboard colour palette (matches OnDemandRequestDrawer) ----------------
-const SURFBOARD_COLORS = [
+var SURFBOARD_COLORS = [
   { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow - captain/you
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
@@ -21,7 +21,7 @@ const SURFBOARD_COLORS = [
   { fill: '#F87171', stroke: '#DC2626' }, // Red
 ];
 
-const RequestProCrewPanel = ({
+var RequestProCrewPanel = ({
   crewOpen, setCrewOpen,
   crewMembers, removeCrewMember,
   showAddCrewInput, setShowAddCrewInput,

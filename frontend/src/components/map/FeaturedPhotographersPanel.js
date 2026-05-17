@@ -3,7 +3,7 @@ import { Camera, X } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const FeaturedPhotographersPanel = ({
+var FeaturedPhotographersPanel = ({
   featuredPhotographers,
   onClose,
   onPhotographerSelect,

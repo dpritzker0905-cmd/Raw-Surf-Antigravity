@@ -8,7 +8,7 @@ import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
  * Mobile: renders as a slim bottom-sheet panel.
  * Desktop: renders as a collapsible sidebar card.
  */
-export const MapWeatherControls = ({
+export var MapWeatherControls = ({
   isDesktop = true,
   isMobileExpanded = false,
   activeModel,

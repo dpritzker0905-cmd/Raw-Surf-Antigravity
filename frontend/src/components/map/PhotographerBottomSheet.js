@@ -3,7 +3,7 @@ import { X, Users, MessageCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { getFullUrl } from '../../utils/media';
 
-const PhotographerBottomSheet = ({
+var PhotographerBottomSheet = ({
   selectedPhotographer,
   onClose,
   onJumpIn,

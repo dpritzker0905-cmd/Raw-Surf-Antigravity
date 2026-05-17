@@ -38,7 +38,7 @@ import RequestProCrewPanel from './RequestProCrewPanel';
 
 
 // --- Surfboard colour palette (matches OnDemandRequestDrawer) ----------------
-const SURFBOARD_COLORS = [
+var SURFBOARD_COLORS = [
   { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow - captain/you
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
@@ -49,7 +49,7 @@ const SURFBOARD_COLORS = [
 ];
 
 // --- Surfboard + avatar compound component -----------------------------------
-const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
+var SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
   const board = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
   return (
     <div className="relative group flex flex-col items-center">
@@ -104,7 +104,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, onRemove }) => {
 };
 
 // --- Empty seat (dashed surfboard) ------------------------------------------
-const EmptySeat = ({ onClick }) => (
+var EmptySeat = ({ onClick }) => (
   <div className="relative group cursor-pointer flex flex-col items-center" onClick={onClick}>
     <svg viewBox="0 0 60 100" className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
       <ellipse cx="30" cy="50" rx="12" ry="38" fill="none" stroke="#64748B" strokeWidth="2" strokeDasharray="6 4" />
@@ -120,7 +120,7 @@ const EmptySeat = ({ onClick }) => (
 );
 
 // --- Duration pills ----------------------------------------------------------
-const DURATIONS = [
+var DURATIONS = [
   { value: 0.5, label: '30m' },
   { value: 1,   label: '1h'  },
   { value: 2,   label: '2h'  },
@@ -128,14 +128,14 @@ const DURATIONS = [
 ];
 
 // --- Boost options -----------------------------------------------------------
-const BOOST_OPTIONS = [
+var BOOST_OPTIONS = [
   { hours: 1, credits: 5,  label: '1h' },
   { hours: 2, credits: 10, label: '2h' },
   { hours: 4, credits: 20, label: '4h' },
 ];
 
 // --- Main component -----------------------------------------------------------
-export const RequestProModal = ({
+export var RequestProModal = ({
   isOpen,
   onClose,
   // Auth / user

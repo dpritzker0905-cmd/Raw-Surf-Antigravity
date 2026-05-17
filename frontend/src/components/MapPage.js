@@ -37,7 +37,7 @@ import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
 import { useMapSeo } from '../hooks/useMapSeo';
 import { useWeatherState } from '../hooks/useWeatherState';
 
-const MapPageContent = () => {
+var MapPageContent = () => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const { theme } = useTheme();
@@ -759,7 +759,7 @@ const MapPageContent = () => {
   );
 };
 
-export const MapPage = () => (
+export var MapPage = () => (
   <MapErrorBoundary>
     <MapPageContent />
   </MapErrorBoundary>

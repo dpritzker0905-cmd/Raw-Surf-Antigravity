@@ -5,7 +5,7 @@ import { MapPin, X } from 'lucide-react';
  * IP-based location banner shown when GPS is unavailable.
  * Displays approximate city and offers GPS/dismiss controls.
  */
-export const IPLocationBanner = ({
+export var IPLocationBanner = ({
   showIpBanner,
   cityChanged,
   locationDenied,
