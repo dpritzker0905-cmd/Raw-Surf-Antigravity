@@ -165,6 +165,84 @@ function getForecastCacheStats() {
   return { size: _requestCache.size };
 }
 
+// ─── TYPED FIELD NORMALIZATION (GPU pipeline contract) ───────────────────────
+
+/**
+ * Normalize forecast into the standardized typed field format.
+ * This is the contract between providers and renderers:
+ *   provider → normalization → typed field → engine → renderer
+ *   NEVER: provider → renderer
+ *
+ * @param {Object} forecast - normalized forecast from normalizeForecast()
+ * @param {{ width: number, height: number, bounds: { north: number, south: number, east: number, west: number } }} grid
+ * @returns {{
+ *   u: Float32Array, v: Float32Array, scalar: Float32Array,
+ *   grid: { x: number, y: number },
+ *   timestep: number,
+ *   bounds: { north: number, south: number, east: number, west: number }
+ * }}
+ */
+function normalizeToTypedField(forecast, grid) {
+  var w = grid.width || 64;
+  var h = grid.height || 64;
+  var size = w * h;
+
+  var u = new Float32Array(size);
+  var v = new Float32Array(size);
+  var scalar = new Float32Array(size);
+
+  // Extract wind vectors if available
+  var wind = forecast.wind;
+  if (wind) {
+    if (wind.u && wind.u.length) {
+      // Already typed array or array — copy
+      for (var i = 0; i < Math.min(size, wind.u.length); i++) {
+        u[i] = wind.u[i] || 0;
+        v[i] = (wind.v && wind.v[i]) || 0;
+      }
+    } else if (typeof wind.speed === 'number' && typeof wind.direction === 'number') {
+      // Uniform field from single point
+      var rad = (wind.direction * Math.PI) / 180;
+      var uVal = -wind.speed * Math.sin(rad);
+      var vVal = -wind.speed * Math.cos(rad);
+      for (var j = 0; j < size; j++) { u[j] = uVal; v[j] = vVal; }
+    }
+  }
+
+  // Extract scalar field (wave height, rain, pressure)
+  var scalarSource = forecast.waves || forecast.rain || forecast.pressure;
+  if (scalarSource) {
+    if (scalarSource.data && scalarSource.data.length) {
+      for (var k = 0; k < Math.min(size, scalarSource.data.length); k++) {
+        scalar[k] = scalarSource.data[k] || 0;
+      }
+    } else if (typeof scalarSource.height === 'number') {
+      for (var m = 0; m < size; m++) scalar[m] = scalarSource.height;
+    }
+  }
+
+  return {
+    u: u,
+    v: v,
+    scalar: scalar,
+    grid: { x: w, y: h },
+    timestep: forecast.timestamp || Date.now(),
+    bounds: grid.bounds || { north: 90, south: -90, east: 180, west: -180 },
+  };
+}
+
+/**
+ * Fetch and normalize to typed field in one step.
+ * @param {{ lat: number, lon: number, model: string, timestep?: number }} request
+ * @param {{ width: number, height: number, bounds: Object }} grid
+ * @returns {Promise<Object>} typed field
+ */
+function fetchTypedField(request, grid) {
+  return fetchForecast(request).then(function(forecast) {
+    return normalizeToTypedField(forecast, grid);
+  });
+}
+
 export {
   fetchForecast,
   normalizeForecast,
@@ -172,5 +250,7 @@ export {
   fetchAllModels,
   clearForecastCache,
   getForecastCacheStats,
+  normalizeToTypedField,
+  fetchTypedField,
   MODEL_ENDPOINTS,
 };
