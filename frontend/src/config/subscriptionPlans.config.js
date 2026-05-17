@@ -42,7 +42,7 @@
 import { Shield, Zap, Crown, Camera, Sparkles } from 'lucide-react';
 
 // Helper to get commission rates from admin configuration or fall back to defaults
-const getCommissionRates = () => {
+var getCommissionRates = () => {
   try {
     const saved = localStorage.getItem('admin_commission_rates');
     if (saved) return JSON.parse(saved);
@@ -52,16 +52,16 @@ const getCommissionRates = () => {
   return { free: 25, tier_1: 25, tier_2: 20, tier_3: 15 };
 };
 
-const adminCommissionRates = getCommissionRates();
+var adminCommissionRates = getCommissionRates();
 
 // Stoked Credit conversion rate - SIMPLIFIED 1:1 RATIO
-export const CREDIT_TO_USD_RATE = 1; // 1 credit = $1.00
+export var CREDIT_TO_USD_RATE = 1; // 1 credit = $1.00
 
 // ============================================================
 // SURFER SUBSCRIPTION PLANS
 // ============================================================
 
-export const SURFER_PLANS = {
+export var SURFER_PLANS = {
   monthly: [
     {
       id: 'surfer_free',
@@ -207,7 +207,7 @@ export const SURFER_PLANS = {
 // GROM SUBSCRIPTION PLANS (Parent-managed)
 // ============================================================
 
-export const GROM_PLANS = {
+export var GROM_PLANS = {
   monthly: [
     {
       id: 'grom_free',
@@ -283,7 +283,7 @@ export const GROM_PLANS = {
 // PHOTOGRAPHER SUBSCRIPTION PLANS
 // ============================================================
 
-export const PHOTOGRAPHER_PLANS = {
+export var PHOTOGRAPHER_PLANS = {
   monthly: [
     {
       id: 'photographer_basic',
@@ -407,7 +407,7 @@ export const PHOTOGRAPHER_PLANS = {
 // Higher tier with lower commission, more features
 // ============================================================
 
-export const VERIFIED_PRO_PLANS = {
+export var VERIFIED_PRO_PLANS = {
   monthly: [
     {
       id: 'verified_pro_basic',
@@ -525,7 +525,7 @@ export const VERIFIED_PRO_PLANS = {
 // GROM PARENT SUBSCRIPTION PLANS (NEW - Surfer Hybrid at Premium)
 // ============================================================
 
-export const GROM_PARENT_PLANS = {
+export var GROM_PARENT_PLANS = {
   monthly: [
     {
       id: 'grom_parent_free',
@@ -603,7 +603,7 @@ export const GROM_PARENT_PLANS = {
 // HOBBYIST PHOTOGRAPHER PLANS (Contribution-Only, No Premium)
 // ============================================================
 
-export const HOBBYIST_PLANS = {
+export var HOBBYIST_PLANS = {
   monthly: [
     {
       id: 'hobbyist_free',
@@ -665,7 +665,7 @@ export const HOBBYIST_PLANS = {
  * @param {string} userType - 'surfer', 'grom', 'photographer', 'grom_parent', 'hobbyist'
  * @param {string} billingPeriod - 'monthly' or 'annual'
  */
-export const getPlans = (userType, billingPeriod = 'monthly') => {
+export var getPlans = (userType, billingPeriod = 'monthly') => {
   switch (userType) {
     case 'surfer':
       return SURFER_PLANS[billingPeriod] || SURFER_PLANS.monthly;
@@ -689,7 +689,7 @@ export const getPlans = (userType, billingPeriod = 'monthly') => {
  * Get a specific plan by ID
  * @param {string} planId - The plan ID (e.g., 'surfer_premium')
  */
-export const getPlanById = (planId) => {
+export var getPlanById = (planId) => {
   const allPlans = [
     ...SURFER_PLANS.monthly,
     ...SURFER_PLANS.annual,
@@ -709,7 +709,7 @@ export const getPlanById = (planId) => {
  * @param {string} tierId - The tier ID (e.g., 'tier_1', 'tier_2', 'tier_3')
  * @param {string} userType - 'surfer', 'grom', or 'photographer'
  */
-export const getPlanByTierId = (tierId, userType = 'surfer') => {
+export var getPlanByTierId = (tierId, userType = 'surfer') => {
   const plans = getPlans(userType, 'monthly');
   return plans.find(p => p.tier_id === tierId);
 };
@@ -718,7 +718,7 @@ export const getPlanByTierId = (tierId, userType = 'surfer') => {
  * Map subscription_tier string to tier_id
  * @param {string} subscriptionTier - The subscription tier string ('free', 'basic', 'premium')
  */
-export const subscriptionTierToTierId = (subscriptionTier) => {
+export var subscriptionTierToTierId = (subscriptionTier) => {
   const mapping = {
     'free': 'tier_1',
     'basic': 'tier_2',
@@ -731,17 +731,17 @@ export const subscriptionTierToTierId = (subscriptionTier) => {
  * Check if a plan has Gold-Pass feature
  * @param {string} tierId - The tier ID
  */
-export const hasGoldPass = (tierId) => {
+export var hasGoldPass = (tierId) => {
   return tierId === 'tier_3';
 };
 
 /**
  * Get Gold-Pass priority booking window in hours
  */
-export const GOLD_PASS_BOOKING_WINDOW_HOURS = 2;
+export var GOLD_PASS_BOOKING_WINDOW_HOURS = 2;
 
 // Export tier ID constants for consistency
-export const TIER_IDS = {
+export var TIER_IDS = {
   FREE: 'tier_1',
   BASIC: 'tier_2',
   PREMIUM: 'tier_3'

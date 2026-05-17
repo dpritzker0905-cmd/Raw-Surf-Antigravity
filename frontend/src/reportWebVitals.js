@@ -5,7 +5,7 @@
  *
  * Wired into index.js via: reportWebVitals(sendToAnalytics)
  */
-const reportWebVitals = (onPerfEntry) => {
+var reportWebVitals = (onPerfEntry) => {
   if (onPerfEntry && onPerfEntry instanceof Function) {
     import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB, onINP }) => {
       onCLS(onPerfEntry);
@@ -25,7 +25,7 @@ const reportWebVitals = (onPerfEntry) => {
  * Log vitals to console in development mode.
  * Can be replaced with an analytics endpoint in production.
  */
-export const logWebVitals = (metric) => {
+export var logWebVitals = (metric) => {
   const { name, value, rating } = metric;
   const color = rating === 'good' ? '#0cce6b' : rating === 'needs-improvement' ? '#ffa400' : '#ff4e42';
   

@@ -1,7 +1,7 @@
 // gpsWorker.js - Web Worker for offloading heavy GPS calculations
 
 // Haversine formula to calculate distance
-const getDistanceFromLatLonInMeters = (lat1, lon1, lat2, lon2) => {
+var getDistanceFromLatLonInMeters = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3; // Radius of the earth in m
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -13,10 +13,10 @@ const getDistanceFromLatLonInMeters = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-let lastPos = null;
-let distance = 0;
-let topSpeed = 0;
-let waveCount = 0;
+var lastPos = null;
+var distance = 0;
+var topSpeed = 0;
+var waveCount = 0;
 
 self.onmessage = function(e) {
   const { type, payload } = e.data;

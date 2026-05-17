@@ -13,7 +13,7 @@
 // ─── Individual Role Constants ────────────────────────────────────────────────
 // These values MUST match backend/models.py RoleEnum exactly
 
-export const ROLES = Object.freeze({
+export var ROLES = Object.freeze({
   // Surfer-side roles
   SURFER: 'Surfer',
   GROM: 'Grom',
@@ -44,21 +44,21 @@ export const ROLES = Object.freeze({
 // ─── Role Set Groupings ───────────────────────────────────────────────────────
 
 /** All surfer-type roles (not photographers or businesses) */
-export const SURFER_ROLES = [ROLES.SURFER, ROLES.GROM, ROLES.COMP_SURFER, ROLES.PRO];
+export var SURFER_ROLES = [ROLES.SURFER, ROLES.GROM, ROLES.COMP_SURFER, ROLES.PRO];
 
 /** All photographer-type roles (can shoot and sell photos) */
-export const PHOTOGRAPHER_ROLES = [ROLES.PHOTOGRAPHER, ROLES.APPROVED_PRO, ROLES.HOBBYIST];
+export var PHOTOGRAPHER_ROLES = [ROLES.PHOTOGRAPHER, ROLES.APPROVED_PRO, ROLES.HOBBYIST];
 
 /** Roles that are fully professional photographers (approved on platform) */
-export const PRO_PHOTOGRAPHER_ROLES = [ROLES.PHOTOGRAPHER, ROLES.APPROVED_PRO];
+export var PRO_PHOTOGRAPHER_ROLES = [ROLES.PHOTOGRAPHER, ROLES.APPROVED_PRO];
 
 /** Business account roles */
-export const BUSINESS_ROLES = [
+export var BUSINESS_ROLES = [
   ROLES.SCHOOL, ROLES.COACH, ROLES.RESORT,
   ROLES.WAVE_POOL, ROLES.SHOP, ROLES.SHAPER, ROLES.DESTINATION,
 ];
 
-export const ROLE_SETS = Object.freeze({
+export var ROLE_SETS = Object.freeze({
   /**
    * Roles with access to the Pro Lounge.
    * Note: Comp Surfer intentionally excluded.
@@ -116,49 +116,49 @@ export const ROLE_SETS = Object.freeze({
 // ─── Role Check Helpers ───────────────────────────────────────────────────────
 
 /** Returns true if the role has access to the Pro Lounge. */
-export const isProLevel = (role) => ROLE_SETS.PRO_LEVEL.includes(role);
+export var isProLevel = (role) => ROLE_SETS.PRO_LEVEL.includes(role);
 
 /** Returns true if the role is a commercial/business role. */
-export const isBusinessRole = (role) => ROLE_SETS.BUSINESS.includes(role);
+export var isBusinessRole = (role) => ROLE_SETS.BUSINESS.includes(role);
 
 /** Returns true if the role is a photographer-class role. */
-export const isPhotographerRole = (role) => ROLE_SETS.PHOTOGRAPHERS.includes(role);
+export var isPhotographerRole = (role) => ROLE_SETS.PHOTOGRAPHERS.includes(role);
 
 /** Returns true if the role is youth-gated (Grom or Grom Parent). */
-export const isYouthRole = (role) => ROLE_SETS.YOUTH.includes(role);
+export var isYouthRole = (role) => ROLE_SETS.YOUTH.includes(role);
 
 // ─── User-object helpers (used by lib/roles.js consumers) ─────────────────────
 
 /** Returns true if the user is any type of photographer (including Hobbyist). */
-export const isPhotographer = (user) => PHOTOGRAPHER_ROLES.includes(user?.role);
+export var isPhotographer = (user) => PHOTOGRAPHER_ROLES.includes(user?.role);
 
 /** Returns true if the user is a professional / approved photographer. */
-export const isProPhotographer = (user) => PRO_PHOTOGRAPHER_ROLES.includes(user?.role);
+export var isProPhotographer = (user) => PRO_PHOTOGRAPHER_ROLES.includes(user?.role);
 
 /** Returns true if the user is an Approved Pro (highest photographer tier). */
-export const isApprovedPro = (user) =>
+export var isApprovedPro = (user) =>
   user?.role === ROLES.APPROVED_PRO || user?.is_approved_pro === true;
 
 /** Returns true if the user is a surfer-type role. */
-export const isSurfer = (user) => SURFER_ROLES.includes(user?.role);
+export var isSurfer = (user) => SURFER_ROLES.includes(user?.role);
 
 /** Returns true if the user is a business account. */
-export const isBusiness = (user) => BUSINESS_ROLES.includes(user?.role);
+export var isBusiness = (user) => BUSINESS_ROLES.includes(user?.role);
 
 /** Returns true if the user is a Grom (minor account). */
-export const isGrom = (user) => user?.role === ROLES.GROM;
+export var isGrom = (user) => user?.role === ROLES.GROM;
 
 /** Returns true if the user has admin privileges. */
-export const isAdmin = (user) => user?.is_admin === true;
+export var isAdmin = (user) => user?.is_admin === true;
 
 /** Returns true if the user can stream (go live with video). */
-export const canStream = (user) => PHOTOGRAPHER_ROLES.includes(user?.role);
+export var canStream = (user) => PHOTOGRAPHER_ROLES.includes(user?.role);
 
 /** Returns true if the user can access on-demand dispatch/request flow. */
-export const canRequestPhotographer = (user) => isSurfer(user) || isBusiness(user);
+export var canRequestPhotographer = (user) => isSurfer(user) || isBusiness(user);
 
 /** Returns a user-friendly display name for a role string. */
-export const getRoleDisplayName = (role) => {
+export var getRoleDisplayName = (role) => {
   const displayNames = {
     [ROLES.SURFER]:       'Surfer',
     [ROLES.GROM]:         'Grom',

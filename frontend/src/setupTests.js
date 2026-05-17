@@ -4,7 +4,7 @@
 import '@testing-library/jest-dom';
 
 // Silence React 18 act() deprecation warnings since the project still uses CRA
-const originalError = console.error;
+var originalError = console.error;
 beforeAll(() => {
   console.error = (...args) => {
     if (typeof args[0] === 'string' && args[0].includes('act(')) return;

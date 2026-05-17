@@ -14,7 +14,7 @@
  */
 
 // ─── Quick-access row (top row, surf-first) ──────────────────────
-export const QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F64C}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F60E}', '\u{1F4AA}'];
+export var QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F64C}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F60E}', '\u{1F4AA}'];
 
 // ─── Reaction emojis for post/comment/message reactions ──────────
 // SYNC CONTRACT: Must match backend/routes/posts/schemas.py → VALID_REACTIONS
@@ -22,11 +22,11 @@ export const QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1
 // If you add/remove an emoji here, update VALID_REACTIONS in the backend too.
 // Curated for surf culture: Shaka, Wave, Surfer, Fire, 100, Heart,
 // Clap, Laugh, Stoked-face, Flexed-biceps.
-export const REACTION_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F602}', '\u{1F60E}', '\u{1F4AA}'];
+export var REACTION_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F602}', '\u{1F60E}', '\u{1F4AA}'];
 
 // ─── Primary categories (always visible) ─────────────────────────
 // Surf-first ordering, consistent across all pickers.
-export const EMOJI_CATEGORIES = {
+export var EMOJI_CATEGORIES = {
   'Surf & Ocean': [
     '\u{1F30A}', '\u{1F3C4}', '\u{1F3C4}\u{200D}\u{2642}\u{FE0F}', '\u{1F3C4}\u{200D}\u{2640}\u{FE0F}', '\u{1F919}', '\u{1F334}', '\u{2600}\u{FE0F}', '\u{1F41A}',
     '\u{1F988}', '\u{1F42C}', '\u{1F420}', '\u{1F3DD}\u{FE0F}', '\u{26F1}\u{FE0F}', '\u{1F305}', '\u{1F31E}', '\u{1F991}',
@@ -69,7 +69,7 @@ export const EMOJI_CATEGORIES = {
 
 // ─── Extended categories (collapsible "Show More" section) ────────
 // These appear when the user expands the picker.
-export const EXTENDED_EMOJI_CATEGORIES = {
+export var EXTENDED_EMOJI_CATEGORIES = {
   'Animals': [
     '\u{1F436}', '\u{1F431}', '\u{1F42D}', '\u{1F439}', '\u{1F430}', '\u{1F98A}', '\u{1F43B}', '\u{1F43C}',
     '\u{1F428}', '\u{1F42F}', '\u{1F981}', '\u{1F42E}', '\u{1F437}', '\u{1F438}', '\u{1F435}', '\u{1F414}',
@@ -116,13 +116,13 @@ export const EXTENDED_EMOJI_CATEGORIES = {
 };
 
 // ─── Convenience: all categories merged (for full-picker views) ──
-export const ALL_EMOJI_CATEGORIES = {
+export var ALL_EMOJI_CATEGORIES = {
   ...EMOJI_CATEGORIES,
   ...EXTENDED_EMOJI_CATEGORIES,
 };
 
 // ─── Category icons (for tab display in pickers) ─────────────────
-export const CATEGORY_ICONS = {
+export var CATEGORY_ICONS = {
   'Surf & Ocean': '\u{1F3C4}',
   'Reactions':    '\u{1F525}',
   'Faces':        '\u{1F600}',

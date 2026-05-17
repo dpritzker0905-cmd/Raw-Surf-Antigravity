@@ -21,7 +21,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
 
 // Supported languages - add new languages here
-const supportedLngs = ['en', 'es', 'pt'];
+var supportedLngs = ['en', 'es', 'pt'];
 
 i18n
   // Load translations from /public/locales

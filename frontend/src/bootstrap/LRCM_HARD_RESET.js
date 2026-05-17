@@ -1,28 +1,28 @@
-export const WindConfig = {
+export var WindConfig = {
   domainSource: "FULL_MODEL_GRID_WORLDSPACE",
   useViewportBounds: false
 };
 
-export const GPUWindLayerConfig = {
+export var GPUWindLayerConfig = {
   initOnce: true,
   allowReinit: false
 };
 
-export const MarineConfig = {
+export var MarineConfig = {
   allowRecreateSource: false,
   allowNullState: false
 };
 
-export const RasterConfig = {
+export var RasterConfig = {
   silentSkip: false
 };
 
-export const AccessConfig = {
+export var AccessConfig = {
   failFast: true,
   allowFallback: false
 };
 
-export const TruthEngineConfig = {
+export var TruthEngineConfig = {
   mode: "POST_RENDER_ONLY",
   canBlockRender: false
 };

@@ -12,7 +12,7 @@ import { getFullUrl } from '../utils/media';
  * Shows trending hashtags and recent searches when not actively searching
  * Respects bottom navigation - doesn't cover it
  */
-const SearchPage = () => {
+var SearchPage = () => {
   const navigate = useNavigate();
   const [trendingHashtags, setTrendingHashtags] = useState([]);
   const [recentSearches, setRecentSearches] = useState([]);
