@@ -153,7 +153,7 @@ var DRAW_FS = [
   'void main() {',
   '  float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);',
   '  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));',
-  '  gl_FragColor = color;',
+  '  gl_FragColor = vec4(color.rgb * color.a, 1.0);',
   '}',
 ].join('\n');
 
@@ -172,7 +172,10 @@ uniform float u_opacity;
 varying vec2 v_uv;
 void main() {
   vec4 color = texture2D(u_screen, v_uv);
-  gl_FragColor = vec4(color.rgb, color.a * u_opacity);
+  // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness.
+  // Black = transparent, bright = opaque. Creates proper vapor trail effect.
+  float brightness = max(color.r, max(color.g, color.b));
+  gl_FragColor = vec4(color.rgb, brightness * u_opacity);
 }`;
 
 var FADE_FS = `
@@ -182,7 +185,10 @@ uniform float u_fade;
 varying vec2 v_uv;
 void main() {
   vec4 color = texture2D(u_screen, v_uv);
-  gl_FragColor = vec4(color.rgb, color.a * u_fade);
+  // v3.12.2 CRITICAL FIX: Fade RGB, keep alpha=1.0 (mapbox/webgl-wind technique).
+  // Fading alpha causes compound decay → invisible trails.
+  // Fading RGB creates visible dimming → premultiplied blend makes black = transparent.
+  gl_FragColor = vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
 }`;
 
 // --- Utility Functions ---
@@ -406,11 +412,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
-  // Step 2: Fade screen A → screen B
+  // Step 2: Fade screen A → screen B (RGB fade, alpha=1.0)
   gl.useProgram(this.fadeProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  // v3.12.2: No blend for fade — shader outputs alpha=1.0, straight overwrite
+  gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
   bindTexture(gl, this.screenA.tex, 0);
@@ -418,11 +425,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(fadePosLoc);
   gl.vertexAttribPointer(fadePosLoc, 2, gl.FLOAT, false, 0, 0);
-  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(fadePosLoc);
 
   // Step 3: Draw particles onto screen B with color ramp
+  // v3.12.2: Re-enable blending — particles drawn ON TOP of faded trails
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.drawProgram);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
@@ -460,13 +469,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(cpLoc);
 
   // Step 4: Composite to main framebuffer
-  // v3.11.2r1: Premultiplied alpha blend — atmospheric glow WITHOUT white saturation
-  // Additive (SRC_ALPHA, ONE) caused white particles on light maps.
-  // Premultiplied (ONE, ONE_MINUS_SRC_ALPHA) preserves glow since FBO colors
-  // are already premultiplied from the fade/draw passes.
+  // v3.12.2: Standard alpha blend — screen shader derives alpha from trail brightness.
+  // RGB-fade FBO has alpha=1.0, but screen shader outputs brightness-derived alpha.
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   bindTexture(gl, this.screenB.tex, 0);
   var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
