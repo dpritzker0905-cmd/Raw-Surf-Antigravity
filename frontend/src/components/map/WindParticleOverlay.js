@@ -207,11 +207,12 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
         // Interpolate wind at current position
         var wind = interpolateWind(grid, p.lng, p.lat);
 
-        // World-coordinate advection
-        if (wind.speed > 0.5) {
+        // World-coordinate advection — AMPLIFIED for visual effect
+        // Real wind: 0.01px/frame. Amplify ×75 for Ventusky-style visible trails.
+        if (wind.speed > 0.3) {
           var latRad = p.lat * Math.PI / 180;
           var mercCorr = Math.max(0.1, Math.cos(latRad));
-          var speedScale = dt * 80;
+          var speedScale = dt * 6000;
           p.lng += wind.u * DEG_PER_METER / mercCorr * speedScale;
           p.lat += wind.v * DEG_PER_METER * speedScale;
         } else {
@@ -239,10 +240,10 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           var prev = mapInstance.project([p.prevLng, p.prevLat]);
           if (!curr || !prev || !Number.isFinite(curr.x) || !Number.isFinite(prev.x)) continue;
 
-          // Skip tiny movements
+          // Skip truly zero movements
           var dx = curr.x - prev.x, dy = curr.y - prev.y;
           var segLen = Math.sqrt(dx * dx + dy * dy);
-          if (segLen < 0.3) continue;
+          if (segLen < 0.05) continue;
           // Clamp extreme jumps (projection artifacts)
           if (segLen > 100) { pts[i] = spawnParticle(mapInstance, false); continue; }
 
