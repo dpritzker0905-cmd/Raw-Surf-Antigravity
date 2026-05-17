@@ -12,11 +12,11 @@ import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 
 // --- SINGLETON REGISTRY ---
-const ACTIVE_MARINE_ENGINES = new Set();
+var ACTIVE_MARINE_ENGINES = new Set();
 
 // --- VISUAL TUNING ---
 // v3.3: Padding factor removed - particles now spawn at viewport bounds
-const MARINE_PARTICLE_ALPHA = 0.55;
+var MARINE_PARTICLE_ALPHA = 0.55;
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));

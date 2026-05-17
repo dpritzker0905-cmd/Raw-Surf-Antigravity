@@ -23,7 +23,7 @@ This file is:
 // that MapWebGL.js and other consumers depend on.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const LAYER_REGISTRY = {
+export var LAYER_REGISTRY = {
   rain: {
     id: "rain",
     type: "raster",
@@ -125,7 +125,7 @@ export const LAYER_REGISTRY = {
  * @returns {string}
  */
 export function resolveRasterSource(layerId) {
-  const layer = LAYER_REGISTRY[layerId];
+  var layer = LAYER_REGISTRY[layerId];
   if (!layer) {
     throw new Error(`[LRCM] Unknown layer: ${layerId}`);
   }
@@ -161,7 +161,7 @@ export function resolveRasterSource(layerId) {
  * @property {Object} [config]
  */
 
-const _pluginRegistry = new Map();
+var _pluginRegistry = new Map();
 
 /**
  * Register a layer plugin (SAFE — no side effects).
@@ -194,13 +194,13 @@ export function getAllPlugins() {
  * @param {boolean} enabled
  */
 export function setPluginEnabled(id, enabled) {
-  const plugin = _pluginRegistry.get(id);
+  var plugin = _pluginRegistry.get(id);
   if (plugin) plugin.enabled = enabled;
 }
 
 /** @param {string} id */
 export function removeLayerPlugin(id) {
-  const plugin = _pluginRegistry.get(id);
+  var plugin = _pluginRegistry.get(id);
   if (plugin?.destroy) plugin.destroy();
   _pluginRegistry.delete(id);
 }

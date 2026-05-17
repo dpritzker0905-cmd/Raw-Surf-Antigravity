@@ -72,15 +72,15 @@ import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 
 // --- SINGLETON REGISTRY: Prevents duplicate RAF loops ---
-const ACTIVE_ENGINES = new Set();
+var ACTIVE_ENGINES = new Set();
 
 // --- VISUAL TUNING CONSTANTS ---
 // v3.3: Padding factor removed — particles now spawn at viewport bounds
-const WIND_PARTICLE_ALPHA = 0.35;
-const HEATMAP_RESOLUTION = 256;
+var WIND_PARTICLE_ALPHA = 0.35;
+var HEATMAP_RESOLUTION = 256;
 // v3.8.3: Reduced turbulence — particles follow true wind direction more closely
 // Lower = tighter flow lines (realistic), Higher = more dispersion (hides grid)
-const TURBULENCE_AMP = 0.06;
+var TURBULENCE_AMP = 0.06;
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));

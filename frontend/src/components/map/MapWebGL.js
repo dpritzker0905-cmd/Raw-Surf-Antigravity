@@ -22,7 +22,7 @@ import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // esl
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 // v3.9.7: Lazy init — moved from module-level to prevent TDZ in webpack concatenation
-let _mapLibreWorkerSet = false;
+var _mapLibreWorkerSet = false;
 function ensureMapLibreInit() {
   if (!_mapLibreWorkerSet) {
     maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
@@ -44,23 +44,23 @@ export function trace(layer, action, source, payload) {
   return payload;
 }
 
-const EMPTY_MARINE_FC = { type: 'FeatureCollection', features: [] };
+var EMPTY_MARINE_FC = { type: 'FeatureCollection', features: [] };
 
 /**
  * Map Open-Meteo model identifiers to their tile-server paths.
  * Used to construct om:// source URLs.
  */
-const OM_MODEL_MAP = {
+var OM_MODEL_MAP = {
   GFS:  'ncep_gfs025',
   EURO: 'ecmwf_ifs025',
   ICON: 'dwd_icon',
 };
 
 // Cache to prevent repetitive manifest fetching during layer toggles
-const MODEL_METADATA_CACHE = {};
-const MODEL_METADATA_PROMISES = {};
+var MODEL_METADATA_CACHE = {};
+var MODEL_METADATA_PROMISES = {};
 
-const MapWebGL = ({
+var MapWebGL = ({
   isLight,
   userLocation,
   effectiveLocation,

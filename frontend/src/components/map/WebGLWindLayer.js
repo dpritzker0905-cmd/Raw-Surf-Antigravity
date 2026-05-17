@@ -13,7 +13,7 @@
 import { useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
 
-const LAYER_ID = 'webgl-wind-particles';
+var LAYER_ID = 'webgl-wind-particles';
 
 /**
  * Creates a MapLibre CustomLayerInterface that delegates rendering
