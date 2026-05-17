@@ -131,6 +131,60 @@ function vorticity(field, x, y) {
   return (right.v - left.v) / 2 - (down.u - up.u) / 2;
 }
 
+// ─── TYPED ARRAY SUPPORT (GPU pipeline) ──────────────────────────────────────
+
+/**
+ * Sample wind from parallel Float32Arrays (GPU-friendly format).
+ * Used by WebGLWindEngine and particle-system.
+ *
+ * @param {Float32Array} u - u-component buffer
+ * @param {Float32Array} v - v-component buffer
+ * @param {number} x - column index
+ * @param {number} y - row index
+ * @param {number} width - grid width
+ * @returns {{ u: number, v: number }}
+ */
+function sampleTypedField(u, v, x, y, width) {
+  var ix = Math.floor(x);
+  var iy = Math.floor(y);
+  var i = iy * width + ix;
+  if (i < 0 || i >= u.length) return { u: 0, v: 0 };
+  return { u: u[i], v: v[i] };
+}
+
+/**
+ * Create empty typed array field pair.
+ * @param {number} width
+ * @param {number} height
+ * @returns {{ u: Float32Array, v: Float32Array, width: number, height: number }}
+ */
+function createTypedField(width, height) {
+  var size = width * height;
+  return { u: new Float32Array(size), v: new Float32Array(size), width: width, height: height };
+}
+
+/**
+ * Convert object-array field to typed arrays.
+ * @param {{ data: Array, width: number, height: number }} field
+ * @returns {{ u: Float32Array, v: Float32Array, width: number, height: number }}
+ */
+function fieldToTyped(field) {
+  var size = field.width * field.height;
+  var u = new Float32Array(size);
+  var v = new Float32Array(size);
+  for (var y = 0; y < field.height; y++) {
+    var row = field.data[y];
+    if (!row) continue;
+    for (var x = 0; x < field.width; x++) {
+      var idx = y * field.width + x;
+      var cell = row[x] || { u: 0, v: 0 };
+      u[idx] = cell.u;
+      v[idx] = cell.v;
+    }
+  }
+  return { u: u, v: v, width: field.width, height: field.height };
+}
+
 export {
   sampleField,
   magnitude,
@@ -139,4 +193,7 @@ export {
   combineFields,
   divergence,
   vorticity,
+  sampleTypedField,
+  createTypedField,
+  fieldToTyped,
 };

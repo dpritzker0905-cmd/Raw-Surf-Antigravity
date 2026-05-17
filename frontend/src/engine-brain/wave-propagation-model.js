@@ -122,10 +122,49 @@ function computeSurfQuality(height, period, direction, idealDirection) {
   return Math.round((hScore * 0.4 + pScore * 0.3 + dScore * 0.3) * 100);
 }
 
+// ─── TYPED ARRAY SUPPORT (GPU pipeline) ──────────────────────────────────────
+
+/**
+ * Propagate swell energy using Float32Array (zero-GC for GPU pipeline).
+ * @param {Float32Array} energyGrid
+ * @param {number} [decay=0.98]
+ * @returns {Float32Array} new decayed grid
+ */
+function propagateSwellTyped(energyGrid, decay) {
+  if (decay === undefined) decay = 0.98;
+  var out = new Float32Array(energyGrid.length);
+  for (var i = 0; i < energyGrid.length; i++) {
+    out[i] = energyGrid[i] * decay;
+  }
+  return out;
+}
+
+/**
+ * Advect particles through a wind/current field.
+ * Moves each particle by the vector at its position.
+ *
+ * @param {Array<{ x: number, y: number }>} particles
+ * @param {function(number, number): { u: number, v: number }} fieldSampler
+ * @param {number} [dt=1]
+ * @returns {Array<{ x: number, y: number }>}
+ */
+function advectParticles(particles, fieldSampler, dt) {
+  if (dt === undefined) dt = 1;
+  var result = [];
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var w = fieldSampler(p.x, p.y);
+    result.push({ x: p.x + w.u * dt, y: p.y + w.v * dt });
+  }
+  return result;
+}
+
 export {
   propagateSwell,
   computeWaveHeight,
   smoothDirection,
   estimatePeriod,
   computeSurfQuality,
+  propagateSwellTyped,
+  advectParticles,
 };
