@@ -208,10 +208,17 @@ function extractWindAtOffset(cache, hourOffset) {
   const vectors = [];
   points.forEach((pt, i) => {
     const r = results[i];
-    if (!r?.hourly) return;
+    if (!r?.hourly) {
+      // Always push a zero vector to maintain grid density (vectors.length === cols*rows)
+      vectors.push({ lat: pt.lat, lng: pt.monotonicLng, speed: 0, direction: 0, u: 0, v: 0 });
+      return;
+    }
     const speed = r.hourly.wind_speed_10m?.[idx];
     const dir = r.hourly.wind_direction_10m?.[idx];
-    if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) return;
+    if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) {
+      vectors.push({ lat: pt.lat, lng: pt.monotonicLng, speed: 0, direction: 0, u: 0, v: 0 });
+      return;
+    }
     const rad = dir * (Math.PI / 180);
     vectors.push({
       lat: pt.lat, lng: pt.monotonicLng, speed, direction: dir,
