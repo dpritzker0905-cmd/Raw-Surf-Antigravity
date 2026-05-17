@@ -1,7 +1,6 @@
 import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
 
 import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
@@ -22,9 +21,18 @@ import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // esl
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-window.__LRCM_EXEC_TRACE__ = [];
-window.__RASTER_DEBUG__ = { failFast: true, logMissingVariables: true };
+// v3.9.7: Lazy init — moved from module-level to prevent TDZ in webpack concatenation
+let _mapLibreWorkerSet = false;
+function ensureMapLibreInit() {
+  if (!_mapLibreWorkerSet) {
+    maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
+    if (!window.__LRCM_EXEC_TRACE__) window.__LRCM_EXEC_TRACE__ = [];
+    if (!window.__RASTER_DEBUG__) window.__RASTER_DEBUG__ = { failFast: true, logMissingVariables: true };
+    _mapLibreWorkerSet = true;
+  }
+}
 export function trace(layer, action, source, payload) {
+  if (!window.__LRCM_EXEC_TRACE__) window.__LRCM_EXEC_TRACE__ = [];
   window.__LRCM_EXEC_TRACE__.push({
     layer,
     action,
@@ -74,6 +82,8 @@ const MapWebGL = ({
   onMapClick,
   onMapMoveEnd,
 }) => {
+  // v3.9.7: Explicit init — never at import time
+  ensureMapLibreInit();
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
   
