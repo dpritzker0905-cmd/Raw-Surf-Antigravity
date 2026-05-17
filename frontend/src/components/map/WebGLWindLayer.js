@@ -35,7 +35,15 @@ function createCustomLayer(engine, activeRef, mapRef) {
     },
 
     render(gl, matrix) {
-      if (!activeRef.current || errorCount > 3) return;
+      if (!activeRef.current || errorCount > 3) {
+        // v3.11.2r1: Clear FBOs when deactivated to prevent trail residue
+        if (this._wasActive) {
+          engine.clearBuffers(gl);
+          this._wasActive = false;
+        }
+        return;
+      }
+      this._wasActive = true;
       const map = mapRef.current;
       if (!map) return;
 

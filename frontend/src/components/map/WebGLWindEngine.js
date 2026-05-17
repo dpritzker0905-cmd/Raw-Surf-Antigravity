@@ -310,12 +310,12 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function — TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.11.2: Visual amplification — Ventusky-level particle density + trail persistence
-  this.particleRes = 384; // 384² = 147,456 particles (was 256² = 65k)
-  this.fadeOpacity = 0.993; // Longer, more visible trails (was 0.985)
-  this.speedFactor = 0.25; // Stronger advection motion (was 0.15)
-  this.dropRate = 0.002; // Lower drop = longer particle life (was 0.003)
-  this.dropRateBump = 0.008; // Slightly less speed-based dropout
+  // v3.11.2r1: Balanced trail persistence (0.988 = ~4s decay vs 0.993 = 11s)
+  this.particleRes = 384; // 384² = 147,456 particles
+  this.fadeOpacity = 0.988; // Visible trails without infinite accumulation
+  this.speedFactor = 0.25;
+  this.dropRate = 0.002;
+  this.dropRateBump = 0.008;
   this._initialized = false;
   this._windData = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
@@ -459,18 +459,21 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(cpLoc);
 
-  // Step 4: Composite to main framebuffer with additive atmospheric glow
+  // Step 4: Composite to main framebuffer
+  // v3.11.2r1: Premultiplied alpha blend — atmospheric glow WITHOUT white saturation
+  // Additive (SRC_ALPHA, ONE) caused white particles on light maps.
+  // Premultiplied (ONE, ONE_MINUS_SRC_ALPHA) preserves glow since FBO colors
+  // are already premultiplied from the fade/draw passes.
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  // v3.11.2: Additive blending for atmospheric glow effect (Ventusky-style)
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   bindTexture(gl, this.screenB.tex, 0);
   var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  // Restore normal blending for subsequent MapLibre layers
+  // Restore standard blending for subsequent MapLibre layers
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.disableVertexAttribArray(scrLoc);
   if (!prevBlend) gl.disable(gl.BLEND);
@@ -494,5 +497,25 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   if (this.screenB) { gl.deleteFramebuffer(this.screenB.fbo); gl.deleteTexture(this.screenB.tex); }
   this._initialized = false;
   console.log('[WebGLWind] Disposed');
+};
+
+/**
+ * v3.11.2r1: Clear all framebuffers — called on layer deactivation
+ * to prevent stale trails from persisting across layer switches.
+ */
+WebGLWindEngine.prototype.clearBuffers = function(gl) {
+  if (!gl || !this._initialized) return;
+  try {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    console.log('[WebGLWind] Buffers cleared (layer switch)');
+  } catch (e) {
+    console.warn('[WebGLWind] clearBuffers error:', e.message);
+  }
 };
 

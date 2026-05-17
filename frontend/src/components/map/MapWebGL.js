@@ -411,6 +411,23 @@ var MapWebGL = ({
 
   useEffect(() => {
     if (!mapInstance) return;
+
+    // v3.11.2r1: Immediately reset canvas opacity for layers NOT in activeLayers
+    // This prevents stale particles from persisting visually after layer switch
+    const windActive = activeLayers.includes('wind');
+    const marineActive = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
+    const wc = document.getElementById('wind-canvas-layer');
+    const mc = document.getElementById('marine-canvas-layer');
+    if (!windActive && wc) {
+      wc.style.opacity = '0';
+      // Clear the canvas content to prevent flash on re-enable
+      try { wc.getContext('2d')?.clearRect(0, 0, wc.width, wc.height); } catch(e) {}
+    }
+    if (!marineActive && mc) {
+      mc.style.opacity = '0';
+      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) {}
+    }
+
     weatherAnimRef.current = { active: true, start: performance.now(), duration: 600 };
     const MARINE_LAYERS = ['marine-wave-height-layer', 'marine-swell-primary-layer', 'marine-swell-secondary-layer', 'marine-wind-wave-layer'];
     const animateWeatherLayers = () => {
@@ -438,16 +455,8 @@ var MapWebGL = ({
           if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
         } catch (e) { /* layer may have been removed */ }
       }
-      if (activeLayers.includes('wind')) { 
-        const wc = document.getElementById('wind-canvas-layer'); 
-        if (wc) wc.style.opacity = p; 
-      }
-      
-      const hasMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
-      if (hasMarine) { 
-        const mc = document.getElementById('marine-canvas-layer'); 
-        if (mc) mc.style.opacity = p; 
-      }
+      if (windActive && wc) wc.style.opacity = p;
+      if (marineActive && mc) mc.style.opacity = p;
       if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) { /* map disposed */ } animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
     };
     cancelAnimationFrame(animFrameRef.current);

@@ -223,8 +223,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const state = coordState === 2 ? 2 : 1;
       const THROTTLED = 2;
 
-      // Fast trail decay for foam (wispy, not streaming)
-      const trailFade = state === THROTTLED ? 0.3 : 0.12;
+      // v3.11.2r1: Slower trail decay for visible foam persistence (was 0.12/0.3)
+      const trailFade = state === THROTTLED ? 0.15 : 0.06;
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0, 0, 0, ${trailFade})`;
       ctx.fillRect(0, 0, cw, ch);
