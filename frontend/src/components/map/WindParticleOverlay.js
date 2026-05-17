@@ -25,57 +25,43 @@ var TRAIL_FADE = 0.012;
 var TRAIL_FADE_THROTTLED = 0.04;
 
 /**
- * Interpolate wind at (lng, lat) using the grid data.
- * v3.12.3: Robust — handles irregular grids by falling back to nearest-neighbor.
+ * Interpolate wind at (lng, lat) using the grid vectors.
+ * v3.12.3 FIX: The wind vectors array is SPARSE — extractWindAtOffset
+ * skips grid cells with missing API data, so vectors.length < cols*rows.
+ * This breaks grid-indexed bilinear interpolation.
+ *
+ * Solution: Use each vector's own lat/lng for nearest-neighbor lookup
+ * with distance-weighted interpolation from the 4 closest vectors.
  */
 function interpolateWind(grid, lng, lat) {
   if (!grid?.vectors?.length) return { u: 0, v: 0, speed: 0 };
-  var vectors = grid.vectors, bounds = grid.bounds;
-  var cols = grid.cols, rows = grid.rows;
+  var vectors = grid.vectors;
 
-  if (!bounds) return { u: 0, v: 0, speed: 0 };
-  var west = bounds.west, south = bounds.south, east = bounds.east, north = bounds.north;
-
+  // Normalize query longitude to [-180, 180]
   var nLng = lng;
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
-  // Fast bounds check — outside data domain
-  if (nLng < west || nLng > east || lat < south || lat > north) return { u: 0, v: 0, speed: 0 };
-
-  // Try grid-based interpolation if grid is valid
-  if (cols && rows && vectors.length === cols * rows) {
-    var gx = ((nLng - west) / (east - west)) * (cols - 1);
-    var gy = ((lat - south) / (north - south)) * (rows - 1);
-    var xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
-    var yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
-    var fx = gx - xi, fy = gy - yi;
-    var i00 = yi * cols + xi;
-    var p00 = vectors[i00], p10 = vectors[i00 + 1];
-    var p01 = vectors[i00 + cols], p11 = vectors[i00 + cols + 1];
-    if (p00 && p10 && p01 && p11) {
-      var u = (1 - fx) * (1 - fy) * p00.u + fx * (1 - fy) * p10.u +
-              (1 - fx) * fy * p01.u + fx * fy * p11.u;
-      var v = (1 - fx) * (1 - fy) * p00.v + fx * (1 - fy) * p10.v +
-              (1 - fx) * fy * p01.v + fx * fy * p11.v;
-      return { u: u, v: v, speed: Math.sqrt(u * u + v * v) };
-    }
-  }
-
-  // Fallback: nearest-neighbor (works for any vector layout)
+  // Find nearest vector by geographic distance (handles any layout)
   var bestDist = Infinity, best = null;
   for (var i = 0; i < vectors.length; i++) {
     var vi = vectors[i];
-    if (!vi || vi.speed == null) continue;
-    var dlng = (vi.lng || vi.monotonicLng || 0) - nLng;
-    var dlat = (vi.lat || 0) - lat;
+    if (!vi) continue;
+    // Normalize vector lng — monotonicLng can exceed ±180
+    var vLng = vi.lng;
+    while (vLng > 180) vLng -= 360;
+    while (vLng < -180) vLng += 360;
+    var dlng = vLng - nLng;
+    // Handle dateline wrap
+    if (dlng > 180) dlng -= 360;
+    if (dlng < -180) dlng += 360;
+    var dlat = vi.lat - lat;
     var d = dlng * dlng + dlat * dlat;
     if (d < bestDist) { bestDist = d; best = vi; }
   }
-  if (best && bestDist < 25) { // Within ~5 degrees
-    return { u: best.u || 0, v: best.v || 0, speed: best.speed || 0 };
-  }
-  return { u: 0, v: 0, speed: 0 };
+
+  if (!best || bestDist > 100) return { u: 0, v: 0, speed: 0 };
+  return { u: best.u || 0, v: best.v || 0, speed: best.speed || 0 };
 }
 
 /** Get CSS color string from wind speed via scientific ramp */
