@@ -17,6 +17,8 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import { LAYER_REGISTRY, resolveRasterSource } from './LayerRegistry'; // eslint-disable-line
 import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // eslint-disable-line
+import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
+import { useTemporalPreloader } from './useTemporalPreloader';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -84,6 +86,7 @@ var MapWebGL = ({
 }) => {
   // v3.9.7: Explicit init — never at import time
   ensureMapLibreInit();
+  markDOMReady(); // Init sequencer: DOM is ready when component renders
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
   
@@ -101,10 +104,10 @@ var MapWebGL = ({
   // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
   // v3.7: Passes timeOffsetHours so wind data reflects the selected forecast hour
   const { windData, windRevision } = useWeatherEngine({
-    activeLayers,
-    mapInstance,
-    timeOffsetHours
+    activeLayers, mapInstance, timeOffsetHours
   });
+  // v3.9.9: Temporal preloader — prefetch ±1hr tiles
+  useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance });
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
@@ -400,9 +403,8 @@ var MapWebGL = ({
       });
       
       // Force render loop to paint custom-protocol tiles on mount
-      setTimeout(() => {
-        try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ }
-      }, 300);
+      markMapReady(); // Init sequencer: map is ready
+      setTimeout(() => { try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ } }, 300);
     }
   });
 
