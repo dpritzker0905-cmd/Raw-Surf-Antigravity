@@ -18,7 +18,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
   const isWindActive = useMemo(
     () => activeLayers.includes('wind'),
-    // eslint-disable-next-line
+     
     [activeLayers.join(',')]
   );
 
@@ -157,7 +157,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       }
     }, 200);
     return () => clearTimeout(t);
-    // eslint-disable-next-line
+     
   }, [timeOffsetHours]);
 
   // ===== VIEWPORT CHANGE REFETCH =====
@@ -185,7 +185,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
     mapInstance.on('moveend', onMoveEnd);
     return () => mapInstance.off('moveend', onMoveEnd);
-  }, [mapInstance, isWindActive, !!windData]); // eslint-disable-line
+  }, [mapInstance, isWindActive, !!windData]);  
 
   return { windData, windRevision };
 }

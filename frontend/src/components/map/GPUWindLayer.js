@@ -292,10 +292,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               if (window.__WIND_DEBUG__.showLabels) {
                 ctx.fillText(`u:${vec.u.toFixed(1)} v:${vec.v.toFixed(1)}`, pt.x + 5, pt.y - 5);
               }
-            } catch(e) {}
+            } catch(e) { /* projection may fail near dateline */ }
           }
         }
-        frameRef.current = requestAnimationFrame(render);
+        animRef.current = requestAnimationFrame(animate);
         return;
       }
       // ----------------------------------------------------
@@ -319,10 +319,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           try {
             const ps = mapInstance.project([p.lng, p.lat]);
             if (ps && Number.isFinite(ps.x) && Number.isFinite(ps.y)) prevScreen = ps;
-          } catch (e) {}
+          } catch (e) { /* projection may fail near dateline */ }
 
           // Bilinear interpolate from grid
-          const wind = interpolateWind(grid, p.lng, p.lat, prevWindRef.current, transitionProgress);
+          let wind = interpolateWind(grid, p.lng, p.lat, prevWindRef.current, transitionProgress);
           
           if (window.__WIND_DEBUG__) {
             // Single vector test mode (object or boolean compatibility)
@@ -339,7 +339,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
                  ctx.beginPath();
                  ctx.arc(sp.x, sp.y, 3, 0, Math.PI * 2);
                  ctx.fill();
-               } catch (e) {}
+               } catch (e) { /* projection may fail near dateline */ }
             }
           }
 

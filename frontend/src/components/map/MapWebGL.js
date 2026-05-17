@@ -16,8 +16,8 @@ import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
-import { LAYER_REGISTRY, resolveRasterSource } from './LayerRegistry';
-import { validateModelAccess, getUserTier } from './LayerAccessResolver';
+import { LAYER_REGISTRY } from './LayerRegistry';
+import { validateModelAccess } from './LayerAccessResolver';
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -99,7 +99,7 @@ const MapWebGL = ({
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
     import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
-      if (maplibregl?.addProtocol) { try { maplibregl.addProtocol('om', omProtocol); } catch (e) {} }
+      if (maplibregl?.addProtocol) { try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ } }
       setProtocolReady(true);
     });
     const suppressAbortRejections = (event) => {
@@ -391,7 +391,7 @@ const MapWebGL = ({
       
       // Force render loop to paint custom-protocol tiles on mount
       setTimeout(() => {
-        try { map.triggerRepaint(); } catch(e) {}
+        try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ }
       }, 300);
     }
   });
@@ -423,7 +423,7 @@ const MapWebGL = ({
             }
           }
           if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
-        } catch (e) {}
+        } catch (e) { /* layer may have been removed */ }
       }
       if (activeLayers.includes('wind')) { 
         const wc = document.getElementById('wind-canvas-layer'); 
@@ -435,7 +435,7 @@ const MapWebGL = ({
         const mc = document.getElementById('marine-canvas-layer'); 
         if (mc) mc.style.opacity = p; 
       }
-      if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) {} animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
+      if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) { /* map disposed */ } animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
     };
     cancelAnimationFrame(animFrameRef.current);
     animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
