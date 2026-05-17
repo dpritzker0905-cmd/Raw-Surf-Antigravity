@@ -5,10 +5,10 @@
 
 
 // Colors
-export const ELECTRIC_CYAN = '#00CCFF';
+export var ELECTRIC_CYAN = '#00CCFF';
 
 // Default map center (Florida)
-export const FLORIDA_CENTER = { lat: 28.0, lng: -81.5 };
+export var FLORIDA_CENTER = { lat: 28.0, lng: -81.5 };
 
 // Re-exported from shared utility for backwards compatibility
 export { getErrorMessage } from '../../utils/errors';
@@ -16,7 +16,7 @@ export { getErrorMessage } from '../../utils/errors';
 /**
  * Debounce function for performance optimization
  */
-export const debounce = (func, wait) => {
+export var debounce = function(func, wait) {
   let timeout;
   return function executedFunction(...args) {
     const later = () => {
@@ -32,7 +32,7 @@ export const debounce = (func, wait) => {
  * Truncate coordinate to 5 decimal places
  * Returns null for invalid inputs (prevents NaN errors)
  */
-export const truncateCoord = (coord) => {
+export var truncateCoord = function(coord) {
   if (coord === null || coord === undefined || isNaN(coord)) {
     return null;
   }
@@ -43,7 +43,7 @@ export const truncateCoord = (coord) => {
  * Validate coordinates are valid for Leaflet
  * CRITICAL: Prevents "Invalid LatLng object: (NaN, NaN)" errors on Samsung
  */
-export const isValidLatLng = (lat, lng) => {
+export var isValidLatLng = function(lat, lng) {
   return lat !== null && lng !== null && 
          lat !== undefined && lng !== undefined &&
          !isNaN(lat) && !isNaN(lng) &&
@@ -56,13 +56,13 @@ export const isValidLatLng = (lat, lng) => {
  * Mapbox access token (public / publishable key)
  * Loaded from REACT_APP_MAPBOX_TOKEN env var
  */
-const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
+var MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
 
 /**
  * Mapbox tile URLs for light and dark themes
  * Uses raster tiles served from Mapbox Studio styles via Leaflet
  */
-export const MAPBOX_TILES = {
+export var MAPBOX_TILES = {
   dark:  `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
   light: `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
   satellite: `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
@@ -71,7 +71,7 @@ export const MAPBOX_TILES = {
 /**
  * Generate a MapLibre GL JS compatible style object using Mapbox raster tiles
  */
-export const getMapStyle = (isLight, isSatellite) => ({
+export var getMapStyle = function(isLight, isSatellite) { return ({
   version: 8,
   sources: {
     'raster-tiles': {
@@ -90,12 +90,12 @@ export const getMapStyle = (isLight, isSatellite) => ({
       maxzoom: 22
     }
   ]
-});
+}); };
 
 /**
  * Default tile layer configuration — Mapbox raster tiles via Leaflet
  */
-export const TILE_LAYER_CONFIG = {
+export var TILE_LAYER_CONFIG = {
   url: MAPBOX_TILES.dark,
   options: {
     maxZoom: 19,
@@ -121,7 +121,7 @@ export const TILE_LAYER_CONFIG = {
  * - touchZoom is left as true but the drift correction happens via the
  *   visualViewport resize listener in MapPage (invalidateSize on every fold/unfold).
  */
-export const DEFAULT_MAP_OPTIONS = {
+export var DEFAULT_MAP_OPTIONS = {
   minZoom: 2,
   zoomControl: false,
   attributionControl: false,
@@ -138,7 +138,7 @@ export const DEFAULT_MAP_OPTIONS = {
 /**
  * Cluster group options for spots
  */
-export const SPOT_CLUSTER_OPTIONS = {
+export var SPOT_CLUSTER_OPTIONS = {
   maxClusterRadius: 60,
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,
@@ -150,7 +150,7 @@ export const SPOT_CLUSTER_OPTIONS = {
 /**
  * Cluster group options for photographers
  */
-export const PHOTOGRAPHER_CLUSTER_OPTIONS = {
+export var PHOTOGRAPHER_CLUSTER_OPTIONS = {
   maxClusterRadius: 50,
   spiderfyOnMaxZoom: true,
   showCoverageOnHover: false,

@@ -7,7 +7,7 @@
  */
 
 // Define access rules per subscription tier
-const TIER_ACCESS = {
+var TIER_ACCESS = {
   free: {
     models: ['GFS'],
     forecastDays: 3

@@ -16,7 +16,7 @@ import { useRef, useCallback, useEffect } from 'react';
  *   NOT as the primary unlock trigger.
  */
 
-const MAP_STATE = {
+var MAP_STATE = {
   INIT: 'INIT',
   STYLE_LOADING: 'STYLE_LOADING',
   READY: 'READY',

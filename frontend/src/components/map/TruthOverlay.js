@@ -13,7 +13,7 @@ function getLayerTruth(layerId, rasterVisible) {
  * Displays active layer state, data pipeline status, and truth violations.
  * Extract from MapWebGL.js to maintain LOC compliance.
  */
-const TruthOverlay = ({ activeLayers, activeRenderType, marineData, windData, truthIssues, rasterVisible }) => {
+var TruthOverlay = ({ activeLayers, activeRenderType, marineData, windData, truthIssues, rasterVisible }) => {
   const layerId = activeLayers[0];
   const layer = LAYER_REGISTRY[layerId];
 
