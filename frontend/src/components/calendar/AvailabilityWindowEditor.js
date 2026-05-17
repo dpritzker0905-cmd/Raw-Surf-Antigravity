@@ -3,7 +3,7 @@ import { Check, X } from 'lucide-react';
 import { Label } from '../ui/label';
 import { FULL_DAYS, TIME_SLOTS } from './constants';
 
-export const AvailabilityWindowEditor = ({ 
+export var AvailabilityWindowEditor = ({ 
   windows, 
   onUpdate, 
   isLight 

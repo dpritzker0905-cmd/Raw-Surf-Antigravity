@@ -12,7 +12,7 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
 
-const SpotSetupPanel = ({
+var SpotSetupPanel = ({
   spot,
   sessionSettings,
   setSessionSettings,

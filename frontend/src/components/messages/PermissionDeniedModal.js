@@ -9,7 +9,7 @@ import React, { useCallback } from 'react';
 import { Settings, X, Shield, ChevronRight, Camera, Mic, RefreshCw } from 'lucide-react';
 import logger from '../../utils/logger';
 
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 export default function PermissionDeniedModal({ onRetry, onDismiss }) {

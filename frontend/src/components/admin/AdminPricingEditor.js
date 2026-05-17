@@ -23,7 +23,7 @@ import logger from '../../utils/logger';
 
 
 // Role display config - matches all RoleEnum values
-const ROLE_CONFIG = {
+var ROLE_CONFIG = {
   surfer: { label: 'Surfer', color: 'bg-cyan-500/20 text-cyan-400', icon: '🏄' },
   grom: { label: 'Grom', color: 'bg-yellow-500/20 text-yellow-400', icon: '🧒' },
   photographer: { label: 'Photographer', color: 'bg-purple-500/20 text-purple-400', icon: '📸' },
@@ -40,13 +40,13 @@ const ROLE_CONFIG = {
   destination: { label: 'Surf Destination', color: 'bg-rose-500/20 text-rose-400', icon: '🌴' }
 };
 
-const TIER_LABELS = {
+var TIER_LABELS = {
   tier_1: 'Free',
   tier_2: 'Basic',
   tier_3: 'Premium'
 };
 
-export const AdminPricingEditor = () => {
+export var AdminPricingEditor = () => {
   const { user } = useAuth();
   const [pricing, setPricing] = useState(null);
   const [originalPricing, setOriginalPricing] = useState(null);

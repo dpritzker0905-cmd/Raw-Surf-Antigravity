@@ -8,7 +8,7 @@ import { Navigation, ChevronRight, X, Smartphone } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle } from './ui/dialog';
 
-export const PermissionNudgeDrawer = ({ 
+export var PermissionNudgeDrawer = ({ 
   isOpen, 
   onClose, 
   onRetryLocation,

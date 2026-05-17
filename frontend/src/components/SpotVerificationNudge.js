@@ -18,7 +18,7 @@ import logger from '../utils/logger';
  * 
  * Allows photographers to verify pin accuracy or suggest relocation.
  */
-export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
+export var SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null); // null | 'loading' | 'voted' | 'hidden'

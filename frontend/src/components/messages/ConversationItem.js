@@ -15,7 +15,7 @@ import { getFullUrl, cacheBustUrl } from '../../utils/media';
 import { formatTimeAgo } from '../../utils/formatTime';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
-const getRoleIcon = (role, isAdmin = false) => {
+var getRoleIcon = (role, isAdmin = false) => {
   if (isAdmin) return { icon: Shield, color: 'text-red-500' };
   switch (role) {
     case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400' };
@@ -31,7 +31,7 @@ const getRoleIcon = (role, isAdmin = false) => {
 
 
 
-const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
+var ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
   const hasUnread = conversation.unread_count > 0 || conversation.is_manually_unread;
   const roleInfo = getRoleIcon(conversation.other_user_role);
   const RoleIcon = roleInfo.icon;

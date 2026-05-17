@@ -5,7 +5,7 @@ import { Award } from 'lucide-react';
  * Badge + XP display section — shared between Swell and Crew tabs.
  * Previously duplicated as identical JSX blocks in Profile.js.
  */
-export const BadgeSection = ({ gamificationStats }) => {
+export var BadgeSection = ({ gamificationStats }) => {
   if (!gamificationStats?.badges?.length && !gamificationStats?.total_xp) return null;
 
   return (

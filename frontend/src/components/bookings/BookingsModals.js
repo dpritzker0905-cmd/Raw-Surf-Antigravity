@@ -16,7 +16,7 @@ import { CrewPaymentModal } from '../CrewPaymentModal';
 import { JumpInSessionModal } from '../JumpInSessionModal';
 import InviteModalContent from './InviteModalContent';
 
-const BookingsModals = ({
+var BookingsModals = ({
   // Theme
   isLight,
   textPrimaryClass,

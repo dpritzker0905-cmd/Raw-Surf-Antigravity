@@ -13,14 +13,14 @@ import { Button } from '../ui/button';
 import { getFullUrl } from '../../utils/media';
 import { formatDuration } from '../../utils/formatTime';
 
-const getImageUrl = (url) => {
+var getImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('/api')) {
     return url;
   }
   return url;
 };
-const ActiveSessionCard = ({ 
+var ActiveSessionCard = ({ 
   session, 
   onMarkArrived, 
   onComplete, 

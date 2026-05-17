@@ -9,7 +9,7 @@ import apiClient from '../../lib/apiClient';
 /**
  * Meta Connections Card - Connect Facebook/Instagram for direct posting
  */
-export const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
+export var MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
   const [searchParams] = useSearchParams();
   const [metaStatus, setMetaStatus] = useState(null);
   const [loading, setLoading] = useState(true);

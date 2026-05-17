@@ -8,9 +8,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 
-const STORAGE_KEY = 'rawsurf_offline_queue';
+var STORAGE_KEY = 'rawsurf_offline_queue';
 
-const loadQueue = () => {
+var loadQueue = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -19,7 +19,7 @@ const loadQueue = () => {
   }
 };
 
-const saveQueue = (queue) => {
+var saveQueue = (queue) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
   } catch {
@@ -32,7 +32,7 @@ const saveQueue = (queue) => {
  * Replay a single queued action against the API.
  * Returns true if successful, false if should retry.
  */
-const replayAction = async (action) => {
+var replayAction = async (action) => {
   const { type, payload } = action;
 
   try {
@@ -77,7 +77,7 @@ const replayAction = async (action) => {
   }
 };
 
-export const useOfflineQueue = () => {
+export var useOfflineQueue = () => {
   const [queue, setQueue] = useState(loadQueue);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);

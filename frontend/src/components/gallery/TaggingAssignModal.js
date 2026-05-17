@@ -7,7 +7,7 @@ import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 
-const TaggingAssignModal = ({
+var TaggingAssignModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,

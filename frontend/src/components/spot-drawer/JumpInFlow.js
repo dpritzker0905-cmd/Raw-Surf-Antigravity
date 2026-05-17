@@ -14,7 +14,7 @@ import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 import { CAMERA_AUTHORIZED_KEY } from './SpotDrawerHelpers';
 
-const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
+var JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const { user, updateUser } = useAuth();
   const { getEffectiveRole, isGodMode, activePersona } = usePersona();
   const videoRef = useRef(null);

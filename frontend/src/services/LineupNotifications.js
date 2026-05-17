@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 // Notification sound (optional - using Web Audio API)
-const playNotificationSound = () => {
+var playNotificationSound = () => {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
@@ -41,7 +41,7 @@ const playNotificationSound = () => {
 };
 
 // Request browser notification permission
-export const requestNotificationPermission = async () => {
+export var requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
     logger.debug('Browser does not support notifications');
     return false;
@@ -60,7 +60,7 @@ export const requestNotificationPermission = async () => {
 };
 
 // Send browser push notification
-const sendPushNotification = (title, body, icon = '/favicon.ico') => {
+var sendPushNotification = (title, body, icon = '/favicon.ico') => {
   if (Notification.permission === 'granted') {
     try {
       const notification = new Notification(title, {
@@ -86,7 +86,7 @@ const sendPushNotification = (title, body, icon = '/favicon.ico') => {
 };
 
 // Notification type configurations
-const NOTIFICATION_CONFIG = {
+var NOTIFICATION_CONFIG = {
   // Session status changes
   session_opened: {
     icon: '🟢',
@@ -213,7 +213,7 @@ const NOTIFICATION_CONFIG = {
 };
 
 // Main notification handler
-export const handleLineupNotification = (type, data, options = {}) => {
+export var handleLineupNotification = (type, data, options = {}) => {
   const config = NOTIFICATION_CONFIG[type];
   
   if (!config) {
@@ -260,7 +260,7 @@ export const handleLineupNotification = (type, data, options = {}) => {
 };
 
 // Helper to process WebSocket lineup events
-export const processLineupWebSocketEvent = (event, currentUserId) => {
+export var processLineupWebSocketEvent = (event, currentUserId) => {
   const { type, data } = event;
   
   // Map WebSocket event types to notification types
@@ -291,7 +291,7 @@ export const processLineupWebSocketEvent = (event, currentUserId) => {
 };
 
 // Export notification types for external use
-export const LINEUP_NOTIFICATION_TYPES = Object.keys(NOTIFICATION_CONFIG);
+export var LINEUP_NOTIFICATION_TYPES = Object.keys(NOTIFICATION_CONFIG);
 
 export default {
   handleLineupNotification,

@@ -35,7 +35,7 @@ import { GenericPageSkeleton } from './ui/SkeletonVariants';
  * For Grom Parent users to manage their linked Grom children
  * Features: Linked Groms list, Activity monitoring, Spending controls, Safety settings, Age Verification
  */
-export const GromHQ = () => {
+export var GromHQ = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

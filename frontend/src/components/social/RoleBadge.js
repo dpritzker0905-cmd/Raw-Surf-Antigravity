@@ -1,7 +1,7 @@
 import React from 'react';
 import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
 
-const RoleBadge = ({ role }) => {
+var RoleBadge = ({ role }) => {
   const roleInfo = getExpandedRoleInfo(role);
   return (
     <span className={`text-sm ${roleInfo.color}`} title={roleInfo.label}>

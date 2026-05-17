@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { SelfieCapture } from '../SelfieCapture';
 import { toast } from 'sonner';
 
-export const BookingSelfieStep = ({ 
+export var BookingSelfieStep = ({ 
   selfieUrl, 
   setSelfieUrl, 
   setStep, 

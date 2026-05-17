@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 
 
 // Permission status enum
-const PermissionStatus = {
+var PermissionStatus = {
   PENDING: 'PENDING',
   REQUESTING: 'REQUESTING',
   GRANTED: 'GRANTED',
@@ -24,7 +24,7 @@ import { getErrorMessage } from '../utils/errors';
  * - Go live API calls
  * - End session flow
  */
-export const useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) => {
+export var useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) => {
   // State
   const [goLiveSpotId, setGoLiveSpotId] = useState(null);
   const [goLiveSessionSettings, setGoLiveSessionSettings] = useState({});

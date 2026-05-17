@@ -29,7 +29,7 @@ import { ROLES, ROLE_SETS } from '../../constants/roles';
 import { useNavigate } from 'react-router-dom';
 
 // Gear type options
-const GEAR_TYPES = [
+var GEAR_TYPES = [
   { id: 'all', label: 'All Gear', icon: Camera },
   { id: 'land', label: 'Land', icon: Camera, description: 'Beach/pier shots' },
   { id: 'water', label: 'Water', icon: Waves, description: 'In-water photography' },
@@ -37,7 +37,7 @@ const GEAR_TYPES = [
 ];
 
 // Skill level options
-const SKILL_LEVELS = [
+var SKILL_LEVELS = [
   { id: 'all', label: 'All Levels' },
   { id: 'hobbyist', label: 'Hobbyist' },
   { id: 'photographer', label: 'Photographer' },
@@ -45,7 +45,7 @@ const SKILL_LEVELS = [
 ];
 
 // Region options
-const REGIONS = [
+var REGIONS = [
   { id: 'all', label: 'All Regions' },
   { id: 'ny', label: 'New York', flag: '🗽' },
   { id: 'fl', label: 'Florida', flag: '🌴' },
@@ -59,7 +59,7 @@ const REGIONS = [
 ];
 
 // Sort options
-const SORT_OPTIONS = [
+var SORT_OPTIONS = [
   { id: 'rating', label: 'Highest Rated' },
   { id: 'price_asc', label: 'Price: Low ? High' },
   { id: 'price_desc', label: 'Price: High ? Low' },
@@ -68,7 +68,7 @@ const SORT_OPTIONS = [
 ];
 
 // Subscription tier radii for live badge visibility
-const TIER_RADIUS = {
+var TIER_RADIUS = {
   Free: 1,
   Basic: 5,
   Premium: 999999, // unlimited
@@ -77,7 +77,7 @@ const TIER_RADIUS = {
 /**
  * Enhanced Photographer Card Component with review snippets and live status
  */
-const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery, onSubscribe, theme, subscriptionTier, userLocation }) => {
+var DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery, onSubscribe, theme, subscriptionTier, userLocation }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -315,7 +315,7 @@ const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGalle
 /**
  * Filter Sheet Component (same pattern as existing PhotographerDirectory)
  */
-const DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme }) => {
+var DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const sheetBg = isLight ? 'bg-white border-gray-200' : isBeach ? 'bg-zinc-950 border-zinc-700' : 'bg-zinc-900 border-zinc-800';
@@ -421,7 +421,7 @@ const DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme
 /**
  * Main DirectoryTab Component
  */
-export const DirectoryTab = ({
+export var DirectoryTab = ({
   _user,
   theme,
   subscriptionTier = 'Free',

@@ -39,7 +39,7 @@ import { getFullUrl } from '../utils/media';
  * Session Entitlement Info Component
  * Shows credits remaining, tier info, and package type
  */
-const SessionEntitlementBanner = ({ 
+var SessionEntitlementBanner = ({ 
   _sessionInfo, 
   _isPaidAccount,
   creditsRemaining,
@@ -95,7 +95,7 @@ const SessionEntitlementBanner = ({
 /**
  * Match Confidence Badge
  */
-const ConfidenceBadge = ({ confidence, matchMethod }) => {
+var ConfidenceBadge = ({ confidence, matchMethod }) => {
   const getConfidenceColor = (conf) => {
     if (conf >= 0.9) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
     if (conf >= 0.7) return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
@@ -123,7 +123,7 @@ const ConfidenceBadge = ({ confidence, matchMethod }) => {
 /**
  * Single Match Card - Different views for Paid vs Free
  */
-const MatchCard = ({ 
+var MatchCard = ({ 
   match, 
   isPaidAccount, 
   isSelected,
@@ -284,7 +284,7 @@ const MatchCard = ({
 /**
  * Main AI Proposed Matches Component
  */
-const AIProposedMatches = ({ 
+var AIProposedMatches = ({ 
   sessionId,
   open, 
   onOpenChange, 
@@ -667,7 +667,7 @@ const AIProposedMatches = ({
 };
 
 // Add the Plus icon import that was used but not imported
-const Plus = ({ className }) => (
+var Plus = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 5v14M5 12h14" />
   </svg>

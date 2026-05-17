@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
 
-const useGalleryActions = ({
+var useGalleryActions = ({
   user,
   selectedGallery,
   selectedItems,

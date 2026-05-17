@@ -10,10 +10,10 @@ import { toast } from 'sonner';
  * - No progressive loading, no watchPosition, no complexity
  */
 
-const CACHE_KEY = 'user_gps_location';
-const CACHE_AGE = 5 * 60 * 1000; // 5 min
+var CACHE_KEY = 'user_gps_location';
+var CACHE_AGE = 5 * 60 * 1000; // 5 min
 
-export const useUserLocation = () => {
+export var useUserLocation = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [locationDenied, setLocationDenied] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);

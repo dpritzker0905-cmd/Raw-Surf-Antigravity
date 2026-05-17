@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import apiClient from '../../lib/apiClient';
 
-const DeleteAccountSection = ({ onDeleted }) => {
+var DeleteAccountSection = ({ onDeleted }) => {
   const [step, setStep] = useState('idle');
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);

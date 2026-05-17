@@ -25,7 +25,7 @@ import { useWebRTCMedia, getMediaStream } from './webrtc/useWebRTCMedia';
 // STUN + TURN servers for reliable NAT traversal
 // STUN alone fails ~15-20% of the time (symmetric NAT, mobile carriers, corporate networks)
 // TURN from Metered.ca (rawsurf app) + Google STUN
-const ICE_SERVERS = [
+var ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun.relay.metered.ca:80' },
   {
@@ -51,7 +51,7 @@ const ICE_SERVERS = [
 ];
 
 // Call states
-export const CALL_STATE = {
+export var CALL_STATE = {
   IDLE: 'idle',
   OUTGOING: 'outgoing',    // waiting for callee to answer
   INCOMING: 'incoming',     // ringing — waiting for user to accept/decline

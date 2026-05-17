@@ -23,7 +23,7 @@ import logger from '../../utils/logger';
  * - Failed payment recovery
  * - Tax reporting
  */
-export const AdminFinanceDashboard = () => {
+export var AdminFinanceDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('refunds');

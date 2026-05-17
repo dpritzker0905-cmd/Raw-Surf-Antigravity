@@ -5,7 +5,7 @@ import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 
-const PurchaseHistoryModal = ({ isOpen, onClose, userId }) => {
+var PurchaseHistoryModal = ({ isOpen, onClose, userId }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   

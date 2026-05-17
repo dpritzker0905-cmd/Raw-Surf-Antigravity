@@ -11,7 +11,7 @@ import { ROLES } from '../constants/roles';
 /**
  * Get credit usage options based on role
  */
-const getCreditOptions = (effectiveRole) => {
+var getCreditOptions = (effectiveRole) => {
   if (effectiveRole === ROLES.PRO) {
     return [
       { icon: Gift, title: "Pay It Forward", description: "Support other surfers", color: "pink", route: "/stoked" },
@@ -37,7 +37,7 @@ const getCreditOptions = (effectiveRole) => {
   ];
 };
 
-const colorMap = {
+var colorMap = {
   pink: { bg: 'bg-pink-500/20', text: 'text-pink-400', border: 'border-pink-500/30', hover: 'hover:bg-pink-500/10' },
   cyan: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30', hover: 'hover:bg-cyan-500/10' },
   purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30', hover: 'hover:bg-purple-500/10' },
@@ -45,7 +45,7 @@ const colorMap = {
   yellow: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/30', hover: 'hover:bg-yellow-500/10' },
 };
 
-export const StokedDrawer = ({ isOpen, onClose }) => {
+export var StokedDrawer = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();

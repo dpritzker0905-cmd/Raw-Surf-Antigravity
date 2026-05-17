@@ -25,7 +25,7 @@ import { getFullUrl } from '../../utils/media';
 /**
  * Connection Quality Indicator Component
  */
-export const ConnectionQualityBadge = ({ state, quality }) => {
+export var ConnectionQualityBadge = ({ state, quality }) => {
   const getConnectionInfo = () => {
     if (quality === 'poor') {
       return { icon: SignalLow, color: 'text-red-400', bg: 'bg-red-500/20', label: 'Poor Signal' };
@@ -69,7 +69,7 @@ export const ConnectionQualityBadge = ({ state, quality }) => {
  * Theme-aware color system using CSS variables
  * Maps to existing Raw Surf theme engine - NO hardcoded hex values
  */
-export const getThemeColors = (theme) => {
+export var getThemeColors = (theme) => {
   return {
     overlayBg: theme === 'light' 
       ? 'bg-white/70 backdrop-blur-md' 
@@ -114,7 +114,7 @@ export const getThemeColors = (theme) => {
  * Video Filter Panel - Surfer-optimized filters
  * Positioned on LEFT side to avoid collision with controls
  */
-export const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSelect, colors }) => {
+export var VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onPresetSelect, colors }) => {
   if (!isOpen) return null;
   
   const presets = [
@@ -215,7 +215,7 @@ export const VideoFilterPanel = ({ isOpen, onClose, filters, onFilterChange, onP
 /**
  * Emoji Burst Animation - Instagram/TikTok style floating emoji burst
  */
-export const EmojiBurst = ({ emoji, x, y, theme, id }) => {
+export var EmojiBurst = ({ emoji, x, y, theme, id }) => {
   const drift = useMemo(() => (Math.random() - 0.5) * 60, []);
   const glowClass = theme === 'dark' ? 'drop-shadow-[0_0_8px_rgba(255,255,255,0.6)]'
     : theme === 'beach' ? 'drop-shadow-[0_0_8px_rgba(251,146,60,0.7)]'
@@ -239,7 +239,7 @@ export const EmojiBurst = ({ emoji, x, y, theme, id }) => {
 /**
  * Live Comment Tile - Theme-aware styling with likes
  */
-export const CommentTile = React.memo(({ comment, colors, onReply, onLike, currentUserId }) => {
+export var CommentTile = React.memo(({ comment, colors, onReply, onLike, currentUserId }) => {
   const [liked, setLiked] = useState(comment.liked_by?.includes(currentUserId) || false);
   const [likeCount, setLikeCount] = useState(comment.likes || 0);
   
@@ -304,7 +304,7 @@ export const CommentTile = React.memo(({ comment, colors, onReply, onLike, curre
 /**
  * Live Comments Feed - Real-time with delta sync
  */
-export const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isExpanded, onToggleExpand, currentUserId }) => {
+export var LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeComment, isExpanded, onToggleExpand, currentUserId }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [sending, setSending] = useState(false);
@@ -434,7 +434,7 @@ export const LiveCommentsFeed = ({ streamId, colors, onSendComment, onLikeCommen
 /**
  * Quick Reaction Buttons - Surf-themed emoji reactions with haptic burst
  */
-export const QuickReactions = ({ onReact, colors }) => {
+export var QuickReactions = ({ onReact, colors }) => {
   const reactions = [
     { emoji: String.fromCodePoint(0x1F919), label: 'shaka' },
     { emoji: '\u{1F30A}', label: 'wave' },
@@ -459,7 +459,7 @@ export const QuickReactions = ({ onReact, colors }) => {
 /**
  * End Stream Confirmation Dialog - Theme-aware
  */
-export const EndStreamDialog = ({ isOpen, onConfirm, onCancel, duration, colors }) => {
+export var EndStreamDialog = ({ isOpen, onConfirm, onCancel, duration, colors }) => {
   if (!isOpen) return null;
 
   const formatDuration = (seconds) => {

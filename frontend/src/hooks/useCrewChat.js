@@ -4,8 +4,8 @@ import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { formatClockTime } from '../utils/formatTime';
 
-const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
-export const MAX_VOICE_DURATION = 30;
+var WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+export var MAX_VOICE_DURATION = 30;
 
 export default function useCrewChat({
   user, bookingId, inputValue, setInputValue, isSending, setIsSending,

@@ -14,7 +14,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 
-export const PostSessionSummary = ({
+export var PostSessionSummary = ({
   gallery,
   participants = [],
   onDistributeAll,

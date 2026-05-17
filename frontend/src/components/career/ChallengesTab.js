@@ -12,9 +12,9 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ChallengeCardSkeleton } from '../ui/SkeletonVariants';
 
-const TROPHY_EMOJI = ['🏆', '🥈', '🥉'];
+var TROPHY_EMOJI = ['🏆', '🥈', '🥉'];
 
-const formatTime = (seconds) => {
+var formatTime = (seconds) => {
   if (seconds <= 0) return 'Ended';
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
@@ -24,7 +24,7 @@ const formatTime = (seconds) => {
   return `${m}m`;
 };
 
-const ChallengesTab = ({ userId }) => {
+var ChallengesTab = ({ userId }) => {
   const [challenge, setChallenge] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [history, setHistory] = useState([]);

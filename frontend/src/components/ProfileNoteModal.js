@@ -9,7 +9,7 @@ import { Input } from './ui/input';
  * 24-hour ephemeral status notes.
  * Extracted from Profile.js to reduce god-component complexity.
  */
-export const ProfileNoteModal = ({
+export var ProfileNoteModal = ({
   isOpen,
   onClose,
   isOwnProfile,

@@ -23,7 +23,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-const useVirtualList = ({
+var useVirtualList = ({
   items = [],
   itemHeight = 300,
   overscan = 5,

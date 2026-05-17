@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ReactionPicker.js - Extracted from Feed.js (v61)
  * Emoji reaction picker overlay and backdrop.
  */
@@ -8,7 +8,7 @@ import { REACTION_EMOJIS } from '../../constants/emojis';
 
 // Reaction Picker Component - Anchored near the Shaka button, not screen center
 // Uses a 2-row grid on mobile so all 10 emojis fit without overflow
-const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
+var ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
   if (!show) return null;
 
   // Container width: 5 emojis per row at 44px each + 8px gaps + padding
@@ -66,7 +66,7 @@ const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
 };
 
 // Overlay backdrop for reaction picker - tapping outside closes the menu
-const ReactionOverlay = ({ show, onClose }) => {
+var ReactionOverlay = ({ show, onClose }) => {
   if (!show) return null;
   
   return (

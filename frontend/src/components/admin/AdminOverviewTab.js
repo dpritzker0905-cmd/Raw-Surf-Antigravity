@@ -14,7 +14,7 @@ import { Button } from '../ui/button';
  * Reusable stat card widget.
  * @param {Object} props - icon, label, value, subtext, color
  */
-const StatCard = ({ icon: Icon, label, value, subtext, color = 'cyan' }) => (
+var StatCard = ({ icon: Icon, label, value, subtext, color = 'cyan' }) => (
   <div className={`p-3 rounded-xl bg-${color}-500/10 border border-${color}-500/20`}>
     <div className="flex items-center gap-2 mb-1">
       <Icon className={`w-4 h-4 text-${color}-400`} />
@@ -33,7 +33,7 @@ const StatCard = ({ icon: Icon, label, value, subtext, color = 'cyan' }) => (
  * @param {string} props.textSecondary - Tailwind class for secondary text
  * @param {boolean} props.isLight - Whether the theme is light mode
  */
-const AdminOverviewTab = ({ stats, cardBgClass, textClass, textSecondary, isLight }) => {
+var AdminOverviewTab = ({ stats, cardBgClass, textClass, textSecondary, isLight }) => {
   const navigate = useNavigate();
 
   if (!stats) return null;

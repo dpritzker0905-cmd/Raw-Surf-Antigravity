@@ -20,13 +20,13 @@ import logger from '../utils/logger';
 
 
 // Ad type options
-const AD_TYPES = [
+var AD_TYPES = [
   { value: 'sponsored', label: 'Sponsored', description: 'Promote your business or service' },
   { value: 'promo', label: 'Promotion', description: 'Special offers and deals' },
 ];
 
 // Target role options
-const TARGET_ROLES = [
+var TARGET_ROLES = [
   { value: '', label: 'All Users' },
   { value: 'Surfer', label: 'Surfers' },
   { value: 'Photographer', label: 'Photographers' },
@@ -34,7 +34,7 @@ const TARGET_ROLES = [
   { value: 'School', label: 'Schools & Coaches' },
 ];
 
-export const CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
+export var CreateAdModal = ({ isOpen, onClose, onSuccess }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';

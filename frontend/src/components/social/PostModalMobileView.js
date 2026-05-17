@@ -19,7 +19,7 @@ import { formatTimeAgo } from '../../utils/formatTime';
 import { REACTION_EMOJIS } from '../../constants/emojis';
 import EmojiPicker from '../EmojiPicker';
 
-const PostModalMobileView = ({
+var PostModalMobileView = ({
   post, onClose, user, isLight,
   // Theme tokens (mobile)
   m, t,

@@ -11,7 +11,7 @@ import React from 'react';
 import { Radio, Calendar, ChevronRight, Zap, Lock, Sparkles } from 'lucide-react';
 import { Badge } from '../ui/badge';
 
-const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMatchCount }) => {
+var SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMatchCount }) => {
   return (
     <div className="space-y-3">
       {/* ============ LIVE SESSIONS - Direct Link ============ */}

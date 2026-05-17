@@ -12,7 +12,7 @@ import logger from '../utils/logger';
 
 
 // Audio notification for new surfer joins
-const useJoinChime = () => {
+var useJoinChime = () => {
   const audioRef = useRef(null);
   
   useEffect(() => {
@@ -34,7 +34,7 @@ const useJoinChime = () => {
 
 
 // Surfer Detail Modal - Enlarged photo and full info
-const SurferDetailModal = ({ 
+var SurferDetailModal = ({ 
   surfer, 
   isOpen, 
   onClose, 
@@ -203,7 +203,7 @@ const SurferDetailModal = ({
 };
 
 // Individual Surfer Card in the grid
-const SurferCard = ({ surfer, onClick, isLight, textPrimaryClass, textSecondaryClass }) => {
+var SurferCard = ({ surfer, onClick, isLight, textPrimaryClass, textSecondaryClass }) => {
   const displayImage = surfer.selfie_url || surfer.avatar_url;
   const isRecent = surfer.isRecent;
   
@@ -278,7 +278,7 @@ const SurferCard = ({ surfer, onClick, isLight, textPrimaryClass, textSecondaryC
 };
 
 // Main Surfer Roster Card Component
-export const SurferRosterCard = ({ 
+export var SurferRosterCard = ({ 
   photographerId, 
   isLive, 
   theme,

@@ -17,7 +17,7 @@ import { submitPurchaseRequest } from '../utils/gromPurchase';
 import { getFullUrl } from '../utils/media';
 
 
-const CATEGORY_ICONS = {
+var CATEGORY_ICONS = {
   camera: Camera,
   lens: Camera,
   housing: Package,
@@ -28,7 +28,7 @@ const CATEGORY_ICONS = {
   surf_accessories: Wrench
 };
 
-const CATEGORY_LABELS = {
+var CATEGORY_LABELS = {
   camera: 'Cameras',
   lens: 'Lenses',
   housing: 'Housings',
@@ -39,7 +39,7 @@ const CATEGORY_LABELS = {
   surf_accessories: 'Surf Gear'
 };
 
-export const GearHub = () => {
+export var GearHub = () => {
   const { user } = useAuth();
   const [gearItems, setGearItems] = useState([]);
   const [userProgress, setUserProgress] = useState(null);

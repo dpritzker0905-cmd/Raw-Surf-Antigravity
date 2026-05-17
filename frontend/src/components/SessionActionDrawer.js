@@ -24,7 +24,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 
-export const SessionActionDrawer = ({
+export var SessionActionDrawer = ({
   isOpen,
   onClose,
   booking,

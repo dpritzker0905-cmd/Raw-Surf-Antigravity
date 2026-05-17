@@ -13,7 +13,7 @@ import useFeedDataActions from './feed/useFeedDataActions';
 import useFeedReactionActions from './feed/useFeedReactionActions';
 import useFeedCheckInActions from './feed/useFeedCheckInActions';
 
-const useFeedActions = ({
+var useFeedActions = ({
   user, navigate, activeTab, selectedCountry, selectedState, selectedCity, posts,
   latestPostIdRef,
   isPhotographer,

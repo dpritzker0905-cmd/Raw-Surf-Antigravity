@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-const CheckInModal = ({
+var CheckInModal = ({
   open, onClose,
   checkInData, setCheckInData,
   checkInLoading, checkInReward,

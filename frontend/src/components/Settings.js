@@ -27,7 +27,7 @@ import { LegalSection } from './settings/LegalSection';
 
 
 
-export const Settings = () => {
+export var Settings = () => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const { getEffectiveRole, _activePersona } = usePersona();

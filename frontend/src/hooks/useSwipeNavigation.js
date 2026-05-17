@@ -17,7 +17,7 @@
  */
 import { useRef, useState, useCallback } from 'react';
 
-const useSwipeNavigation = ({ tabs, activeTab, setActiveTab }) => {
+var useSwipeNavigation = ({ tabs, activeTab, setActiveTab }) => {
   // Refs for tracking touch position
   const swipeStartXRef = useRef(0);
   const swipeStartYRef = useRef(0);

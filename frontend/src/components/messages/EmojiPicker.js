@@ -20,17 +20,17 @@ import {
  */
 
 // Build a DM-friendly category map: "Recent" quick-access row + all shared categories
-const DM_CATEGORIES = {
+var DM_CATEGORIES = {
   'Recent': QUICK_ACCESS_EMOJIS,
   ...ALL_EMOJI_CATEGORIES,
 };
 
-const CATEGORY_NAMES = Object.keys(DM_CATEGORIES);
+var CATEGORY_NAMES = Object.keys(DM_CATEGORIES);
 
 // Icon map with "Recent" added
-const TAB_ICONS = { Recent: '\u{1F550}', ...CATEGORY_ICONS };
+var TAB_ICONS = { Recent: '\u{1F550}', ...CATEGORY_ICONS };
 
-const EmojiPicker = ({ show, onSelect, onClose }) => {
+var EmojiPicker = ({ show, onSelect, onClose }) => {
   const [activeCategory, setActiveCategory] = useState('Recent');
   const tabsRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);

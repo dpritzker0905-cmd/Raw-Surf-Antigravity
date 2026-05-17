@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 
 
@@ -22,7 +22,7 @@ import { CrewStepPanel, CrewPaymentStepPanel } from './on-demand/OnDemandStepPan
 import { TimingStep, DurationStep, SplitChoiceStep, LocationStep } from './on-demand/OnDemandEarlySteps';
 
 // EmptySeat - placeholder for unfilled crew slots
-const EmptySeat = ({ index }) => (
+var EmptySeat = ({ index }) => (
   <div className='relative flex flex-col items-center opacity-50'>
     <div className='w-10 h-20 rounded-full border-2 border-dashed border-border/40 flex items-center justify-center'>
       <span className='text-xs text-muted-foreground'>+</span>
@@ -40,7 +40,7 @@ const EmptySeat = ({ index }) => (
 import useOnDemandBooking from '../hooks/useOnDemandBooking';
 
 // On-Demand Request Drawer Component
-export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
+export var OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
   const booking = useOnDemandBooking({ photographer, isOpen, onClose, onSuccess, userLocation, resumeDispatchId });
 
   // Destructure all values from the hook for JSX consumption
@@ -116,7 +116,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         {/* ============ STEP 0.5: LOCATION SELECTION (Extracted) ============ */}
         <LocationStep booking={booking} photographer={photographer} />
 
-        {/* Remaining location JSX removed â€” now in LocationStep */}
+        {/* Remaining location JSX removed — now in LocationStep */}
         
         {/* ============ STEP 1: DURATION SELECTION (Extracted) ============ */}
         <DurationStep booking={booking} photographer={photographer} />

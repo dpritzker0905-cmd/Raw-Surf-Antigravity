@@ -14,7 +14,7 @@
  *   </div>
  */
 
-export const getThemeTokens = (theme) => {
+export var getThemeTokens = (theme) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
 

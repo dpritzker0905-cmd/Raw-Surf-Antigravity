@@ -7,7 +7,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const useFeedCheckInActions = ({
+var useFeedCheckInActions = ({
   user, spots, nearestSpot, checkInData, streak,
   // State setters
   setCheckInData, setCheckInLoading, setCheckInReward,

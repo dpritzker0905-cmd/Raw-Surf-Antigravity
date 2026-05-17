@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useCallback } from 'react';
 
-const FOCUSABLE = [
+var FOCUSABLE = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled])',
   'textarea:not([disabled])', 'select:not([disabled])',
   '[tabindex]:not([tabindex="-1"])'

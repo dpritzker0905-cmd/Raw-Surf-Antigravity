@@ -21,7 +21,7 @@ import ReviewModal from '../ReviewModal';
 import SessionDetailDrawer from './SessionDetailDrawer';
 
 // ─── Session Type Icon ──────────────────────────────────────────────────────
-const SessionTypeConfig = {
+var SessionTypeConfig = {
   on_demand: { label: 'On-Demand', gradient: 'from-purple-500 to-indigo-500', icon: Send },
   scheduled: { label: 'Scheduled', gradient: 'from-amber-500 to-orange-500', icon: Calendar },
   live: { label: 'Live Session', gradient: 'from-cyan-500 to-blue-500', icon: Zap },
@@ -34,7 +34,7 @@ const SessionTypeConfig = {
  * - 'Expired'   = session date passed but was never started/completed (was Confirmed)
  * - 'Missed'    = session date passed but user never confirmed (was Pending)
  */
-const inferDisplayStatus = (booking) => {
+var inferDisplayStatus = (booking) => {
   if (booking.status === 'Completed') return 'Completed';
   if (booking.status === 'Pending') return 'Missed';
   return 'Expired'; // Confirmed that passed without being completed
@@ -44,7 +44,7 @@ const inferDisplayStatus = (booking) => {
  * Normalize a raw booking object (from /bookings/user) into the shape
  * that SessionDetailDrawer expects so all stats render correctly.
  */
-const normalizeBookingForDrawer = (booking) => ({
+var normalizeBookingForDrawer = (booking) => ({
   ...booking,
   // Map duration → duration_mins (bookings use `duration` in minutes)
   duration_mins: booking.duration_mins || booking.duration || 0,
@@ -68,7 +68,7 @@ const normalizeBookingForDrawer = (booking) => ({
   })),
 });
 
-export const PastTab = ({
+export var PastTab = ({
   pastBookings,
   theme,
   userId

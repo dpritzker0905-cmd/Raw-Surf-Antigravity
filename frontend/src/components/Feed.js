@@ -32,9 +32,9 @@ import FeedTabBar from './feed/FeedTabBar';
 import FeedActionBar from './feed/FeedActionBar';
 import FeedEmptyState from './feed/FeedEmptyState';
 // Tab order for the feed - used by swipe navigation and sliding indicator
-const FEED_TABS = ['for_you', 'waves', 'following'];
+var FEED_TABS = ['for_you', 'waves', 'following'];
 
-export const Feed = () => {
+export var Feed = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole, _isMasked } = usePersona();

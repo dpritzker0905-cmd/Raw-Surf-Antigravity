@@ -33,14 +33,14 @@ import PushNotificationPrompt from '../PushNotificationPrompt';
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 /** Renders ImpersonationBanner only when admin is viewing as another user. */
-const ImpersonationBannerWrapper = () => {
+var ImpersonationBannerWrapper = () => {
   const { impersonation, loading } = useAuth();
   if (loading || !impersonation) return null;
   return <ImpersonationBanner />;
 };
 
 /** Renders PersonaMaskBanner only for authenticated admins on non-public pages. */
-const PersonaMaskBannerWrapper = () => {
+var PersonaMaskBannerWrapper = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const publicRoutes = ['/', '/auth', '/auth/'];
@@ -50,7 +50,7 @@ const PersonaMaskBannerWrapper = () => {
 };
 
 /** Auto-subscribes to push notifications when user logs in and permission is granted. */
-const PushNotificationInit = () => {
+var PushNotificationInit = () => {
   const { user } = useAuth();
   const { isSupported, subscribe } = usePushNotifications(user?.id);
   useEffect(() => {
@@ -76,7 +76,7 @@ const PushNotificationInit = () => {
  *     route, immediately replace the history entry with /feed
  *     and navigate there — no setTimeout race conditions.
  */
-const BackButtonHandler = () => {
+var BackButtonHandler = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -120,7 +120,7 @@ const BackButtonHandler = () => {
 };
 
 /** Global WebRTC Call Manager — renders incoming call + in-call overlays. */
-const CallManager = () => {
+var CallManager = () => {
   const { user } = useAuth();
   const call = useWebRTCCall(user?.id, {
     name: user?.full_name || user?.username,
@@ -189,7 +189,7 @@ const CallManager = () => {
  * @param {boolean} hideNav - Hide both sidebar/top/bottom nav (used for auth pages)
  * @param {boolean} hideTopNav - Hide only the mobile TopNav (used for pages with custom headers)
  */
-const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
+var AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
   const { theme } = useTheme();
   const { impersonation } = useAuth();
   const location = useLocation();

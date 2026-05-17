@@ -34,7 +34,7 @@ import ReactionIcon from './social/ReactionIcon';
 
 
 
-const PostCard = ({
+var PostCard = ({
   post,
   user,
   isLight,

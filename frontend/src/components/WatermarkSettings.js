@@ -11,7 +11,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 
-const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
+var WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const { user } = useAuth();
   const isLight = theme === 'light';
   

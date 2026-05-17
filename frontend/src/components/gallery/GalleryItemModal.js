@@ -23,7 +23,7 @@ import { PriceSourceBadge } from './PriceSourceBadge';
 
 import { getErrorMessage } from '../../utils/errors';
 
-export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsCover }) => {
+export var GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsCover }) => {
   const { user } = useAuth();
   const [purchasing, setPurchasing] = useState(false);
   const [pricingInfo, setPricingInfo] = useState(null);

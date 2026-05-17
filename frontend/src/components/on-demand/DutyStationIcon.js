@@ -14,7 +14,7 @@ import logger from '../../utils/logger';
 import { ROLES } from '../../constants/roles';
 import { MODE_CONFIG, DutyStationDrawer } from '../DutyStationDrawer';
 
-const DutyStationIcon = ({ className }) => {
+var DutyStationIcon = ({ className }) => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const location = useLocation();

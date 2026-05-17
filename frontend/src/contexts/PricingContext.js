@@ -5,9 +5,9 @@ import logger from '../utils/logger';
 
 
 // Pricing Context for dynamic, reactive gallery pricing
-const PricingContext = createContext(null);
+var PricingContext = createContext(null);
 
-export const usePricing = () => {
+export var usePricing = () => {
   const context = useContext(PricingContext);
   if (!context) {
     throw new Error('usePricing must be used within a PricingProvider');
@@ -22,7 +22,7 @@ export const usePricing = () => {
  * 2. Session price (if viewing items from an active session)
  * 3. Base price (photographer's general gallery pricing)
  */
-export const calculateDisplayPrice = (mediaItem, sessionPricing, generalSettings, qualityTier = 'standard') => {
+export var calculateDisplayPrice = (mediaItem, sessionPricing, generalSettings, qualityTier = 'standard') => {
   // Rule 1: Custom price override takes priority
   if (mediaItem?.custom_price !== null && mediaItem?.custom_price !== undefined && mediaItem.custom_price > 0) {
     return {
@@ -95,7 +95,7 @@ export const calculateDisplayPrice = (mediaItem, sessionPricing, generalSettings
   };
 };
 
-export const PricingProvider = ({ children }) => {
+export var PricingProvider = ({ children }) => {
   const { user } = useAuth();
   const [generalSettings, setGeneralSettings] = useState(null);
   const [sessionPricing, setSessionPricing] = useState(null);

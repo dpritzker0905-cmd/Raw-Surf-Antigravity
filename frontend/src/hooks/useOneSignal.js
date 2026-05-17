@@ -8,9 +8,9 @@ import logger from '../utils/logger';
 
 
 // Dynamic import for OneSignal to avoid SSR issues
-let OneSignal = null;
+var OneSignal = null;
 
-export const useOneSignal = (userId, userEmail) => {
+export var useOneSignal = (userId, userEmail) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState('default');

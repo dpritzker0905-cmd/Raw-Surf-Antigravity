@@ -17,7 +17,7 @@ import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 
-export const TaggedPhotoModal = ({ 
+export var TaggedPhotoModal = ({ 
   isOpen, 
   onClose, 
   photo,  // The tagged photo item

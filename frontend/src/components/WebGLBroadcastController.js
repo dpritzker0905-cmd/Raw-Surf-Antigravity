@@ -5,7 +5,7 @@ import { Track } from 'livekit-client';
 import { WebGLVideoProcessor } from '../utils/WebGLFilterEngine';
 import logger from '../utils/logger';
 
-export const WebGLBroadcastController = ({ activeFilter, isCameraOff, isFrontCamera }) => {
+export var WebGLBroadcastController = ({ activeFilter, isCameraOff, isFrontCamera }) => {
   const room = useRoomContext();
   const { localParticipant } = useLocalParticipant();
   

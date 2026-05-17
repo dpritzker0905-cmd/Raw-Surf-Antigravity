@@ -15,7 +15,7 @@ import logger from '../../utils/logger';
 import { formatClockTime } from '../../utils/formatTime';
 
 // Must stay in sync with backend ALLOWED_REACTIONS in schemas.py
-const REACTIONS = [
+var REACTIONS = [
   '\u{2764}\u{FE0F}',   // ❤️ Red Heart
   '\u{1F525}',          // 🔥 Fire
   '\u{1F919}',          // 🤙 Call Me Hand (Shaka)
@@ -25,13 +25,13 @@ const REACTIONS = [
 ];
 
 // Format timestamp for message bubble - shared utility
-const formatTime = formatClockTime;
+var formatTime = formatClockTime;
 
 /**
  * Attempt to parse a post_share message's JSON content.
  * Returns null if it's a legacy plain-text share.
  */
-const parsePostShareData = (content) => {
+var parsePostShareData = (content) => {
   if (!content) return null;
   try {
     const data = JSON.parse(content);
@@ -44,7 +44,7 @@ const parsePostShareData = (content) => {
 };
 
 
-const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
+var MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
   const navigate = useNavigate();
   const [showReactions, setShowReactions] = useState(false);
   const [isHovered, setIsHovered] = useState(false);

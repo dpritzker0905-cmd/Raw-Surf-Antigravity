@@ -6,7 +6,7 @@ import { Users, MapPin, Calendar, Loader2,
   Link2
 } from 'lucide-react';
 
-const LinkSessionModal = ({
+var LinkSessionModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,

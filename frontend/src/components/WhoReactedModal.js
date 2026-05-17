@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { getFullUrl } from '../utils/media';
 import { useTheme } from '../contexts/ThemeContext';
 
-const WhoReactedModal = ({ isOpen, onClose, reactions = [], _postAuthorName, loading = false }) => {
+var WhoReactedModal = ({ isOpen, onClose, reactions = [], _postAuthorName, loading = false }) => {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const isLight = theme === 'light';

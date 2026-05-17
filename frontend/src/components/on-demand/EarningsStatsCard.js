@@ -1,5 +1,5 @@
-﻿/**
- * EarningsStatsCard — Daily earnings summary with streak tracking.
+/**
+ * EarningsStatsCard � Daily earnings summary with streak tracking.
  * 
  * Extracted from OnDemandSessionManager.js for maintainability.
  */
@@ -7,7 +7,7 @@ import React from 'react';
 import { Wallet, Flame } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-const EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, _sectionBg, borderClass }) => {
+var EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, _sectionBg, borderClass }) => {
   const hasStreak = (stats.streak || 0) >= 3;
   
   return (

@@ -24,7 +24,7 @@ import { getFullUrl } from '../utils/media';
  * Stoke Sponsor Dashboard - Photographers supporting Surfers
  * Features: Browse eligible surfers, make contributions, track impact
  */
-export const StokeSponsorDashboard = () => {
+export var StokeSponsorDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -305,7 +305,7 @@ export const StokeSponsorDashboard = () => {
 };
 
 // Contribute Modal Component
-const ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits, onSuccess }) => {
+var ContributeModal = ({ isOpen, onClose, surfer, photographerId, userCredits, onSuccess }) => {
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);

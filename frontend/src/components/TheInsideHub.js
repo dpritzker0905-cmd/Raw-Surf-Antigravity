@@ -25,7 +25,7 @@ import { GenericPageSkeleton } from './ui/SkeletonVariants';
  * The Inside - Career Hub for Grom (??) surfers
  * Features: Road to the Peak progress, Grom Series results, Stoke Sponsors, Grom-Friendly coaches
  */
-export const TheInsideHub = () => {
+export var TheInsideHub = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -534,7 +534,7 @@ export const TheInsideHub = () => {
 };
 
 // Add Result Form Component
-const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
+var AddResultForm = ({ userId, defaultTier, onSuccess }) => {
   const [formData, setFormData] = useState({
     event_name: '',
     event_date: '',
@@ -612,7 +612,7 @@ const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
 };
 
 // Add Stoke Sponsor Form
-const AddStokeSponsorForm = ({ userId, onSuccess }) => {
+var AddStokeSponsorForm = ({ userId, onSuccess }) => {
   const [formData, setFormData] = useState({
     sponsor_name: '',
     sponsor_type: 'stoke_sponsor'

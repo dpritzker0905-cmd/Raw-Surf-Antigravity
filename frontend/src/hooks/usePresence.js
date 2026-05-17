@@ -12,9 +12,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import logger from '../utils/logger';
 
-const WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://') || '';
+var WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://') || '';
 
-export const usePresence = (userId) => {
+export var usePresence = (userId) => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const wsRef = useRef(null);
   const heartbeatRef = useRef(null);

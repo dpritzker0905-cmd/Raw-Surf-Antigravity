@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Plus, Trash2, AlertTriangle, Search, RefreshCw, Loader2, Eye, X, Edit2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,7 +10,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-const NOAA_BUOYS = [
+var NOAA_BUOYS = [
   // Florida
   { id: '41009', name: 'Canaveral 20NM', region: 'FL', lat: 28.519, lon: -80.166 },
   { id: '41010', name: 'Canaveral 120NM', region: 'FL', lat: 28.878, lon: -78.485 },
@@ -56,7 +56,7 @@ const NOAA_BUOYS = [
   { id: '32012', name: 'West Colombia Basin', region: 'Pacific SA', lat: 8.075, lon: -84.046 }
 ];
 
-const NOAA_BUOY_REGIONS = {
+var NOAA_BUOY_REGIONS = {
   'Florida': NOAA_BUOYS.filter(b => b.region === 'FL'),
   'New York/NJ': NOAA_BUOYS.filter(b => b.region === 'NY' || b.region === 'NJ'),
   'North Carolina': NOAA_BUOYS.filter(b => b.region === 'NC'),
@@ -66,7 +66,7 @@ const NOAA_BUOY_REGIONS = {
   'Pacific': NOAA_BUOYS.filter(b => ['Pacific', 'American Samoa', 'Pacific SA', 'Costa Rica'].includes(b.region)),
 };
 
-export const AdminSpotEditor = () => {
+export var AdminSpotEditor = () => {
   const { user } = useAuth();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);

@@ -3,7 +3,7 @@ import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/Perso
 import { ChevronDown, Check, Eye, Shield } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 
-const PersonaSwitcher = () => {
+var PersonaSwitcher = () => {
   const { activePersona, setPersona, exitPersonaMode, isGodMode, isPersonaBarActive } = usePersona();
   const [isOpen, setIsOpen] = useState(false);
   

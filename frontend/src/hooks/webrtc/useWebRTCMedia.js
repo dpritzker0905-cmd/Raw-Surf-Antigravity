@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { logger } from '../../utils/logger';
 
 // Detect iOS for platform-specific permission guidance
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 /**

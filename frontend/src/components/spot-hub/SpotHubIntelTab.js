@@ -6,7 +6,7 @@ import React from 'react';
 import { Users, Waves, Wind, Clock, Calendar, Timer, TrendingUp, Compass, Brain, Loader2, BookOpen, ArrowRight } from 'lucide-react';
 import { Badge } from '../ui/badge';
 
-const SpotHubIntelTab = ({
+var SpotHubIntelTab = ({
   intelLoading, crowdPrediction, optimalTime,
   spot, isLight, navigate,
 }) => (

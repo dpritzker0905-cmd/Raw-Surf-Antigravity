@@ -5,7 +5,7 @@
 import React from 'react';
 import { MessageCircle, Mic } from 'lucide-react';
 
-const DispatchChatBlock = ({
+var DispatchChatBlock = ({
   photographerName, photographerId, chatUnreadCount,
   bgLatestMessage, userId,
   setShowSessionChat, isLight, textPrimary, textSecondary,

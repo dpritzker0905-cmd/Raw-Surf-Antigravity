@@ -18,7 +18,7 @@ import apiClient from '../lib/apiClient';
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const getNotifications = (userId) =>
+export var getNotifications = (userId) =>
   apiClient.get(`/notifications/${userId}`);
 
 /**
@@ -27,7 +27,7 @@ export const getNotifications = (userId) =>
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const getUnreadCount = (userId) =>
+export var getUnreadCount = (userId) =>
   apiClient.get(`/notifications/${userId}/unread-count`);
 
 // ── Mark read ─────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export const getUnreadCount = (userId) =>
  * @param {string} notificationId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const markRead = (notificationId) =>
+export var markRead = (notificationId) =>
   apiClient.post(`/notifications/${notificationId}/read`);
 
 /**
@@ -45,7 +45,7 @@ export const markRead = (notificationId) =>
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const markAllRead = (userId) =>
+export var markAllRead = (userId) =>
   apiClient.post(`/notifications/${userId}/read-all`);
 
 // ── Send ──────────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export const markAllRead = (userId) =>
  * @param {{ user_id: string, type: string, title: string, body: string, data?: object }} payload
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const sendNotification = (payload) =>
+export var sendNotification = (payload) =>
   apiClient.post('/notifications/send', payload);
 
 /**
@@ -64,7 +64,7 @@ export const sendNotification = (payload) =>
  * @param {{ photographer_id: string, message: string, [key: string]: any }} payload
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const sendPhotographerAlert = (payload) =>
+export var sendPhotographerAlert = (payload) =>
   apiClient.post('/notifications/photographer-alerts', payload);
 
 /**
@@ -72,7 +72,7 @@ export const sendPhotographerAlert = (payload) =>
  * @param {{ recipient_id: string, type: string, actor_id?: string, [key: string]: any }} payload
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const createNotification = (payload) =>
+export var createNotification = (payload) =>
   apiClient.post('/notifications', payload);
 
 // ── Preferences ───────────────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ export const createNotification = (payload) =>
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const getPreferences = (userId) =>
+export var getPreferences = (userId) =>
   apiClient.get(`/notifications/preferences`);
 
 /**
@@ -92,7 +92,7 @@ export const getPreferences = (userId) =>
  * @param {*}     value  - New value
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const updatePreference = (userId, key, value) =>
+export var updatePreference = (userId, key, value) =>
   apiClient.put(`/notifications/preferences`, { [key]: value });
 
 /**
@@ -101,7 +101,7 @@ export const updatePreference = (userId, key, value) =>
  * @param {object} preferences - Full preferences object
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const updateAllPreferences = (userId, preferences) =>
+export var updateAllPreferences = (userId, preferences) =>
   apiClient.put(`/notifications/preferences`, preferences);
 
 /**
@@ -109,7 +109,7 @@ export const updateAllPreferences = (userId, preferences) =>
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const getPreferencesByPath = (userId) =>
+export var getPreferencesByPath = (userId) =>
   apiClient.get(`/notifications/preferences/${userId}`);
 
 /**
@@ -119,7 +119,7 @@ export const getPreferencesByPath = (userId) =>
  * @param {*}     value
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const updatePreferenceByPath = (userId, key, value) =>
+export var updatePreferenceByPath = (userId, key, value) =>
   apiClient.put(`/notifications/preferences/${userId}`, { [key]: value });
 
 // ── GromHQ alert ──────────────────────────────────────────────────────────────
@@ -129,5 +129,5 @@ export const updatePreferenceByPath = (userId, key, value) =>
  * @param {string} alertId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const markAlertRead = (alertId) =>
+export var markAlertRead = (alertId) =>
   apiClient.post(`/notifications/${alertId}/read`);

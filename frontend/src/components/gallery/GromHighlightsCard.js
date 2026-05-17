@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 
-const GromHighlightsCard = ({
+var GromHighlightsCard = ({
   gromHighlights,
   linkedGroms,
   handleUntagGrom,

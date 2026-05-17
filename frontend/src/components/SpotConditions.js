@@ -13,7 +13,7 @@ import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 
 // Emoji constants — using String.fromCodePoint to prevent encoding corruption
-const E = {
+var E = {
   glassy: String.fromCodePoint(0x1F924),    // mirror/glassy
   clean: String.fromCodePoint(0x2728),       // sparkles
   fair: String.fromCodePoint(0x1F44C),       // ok hand
@@ -34,7 +34,7 @@ const E = {
 
 
 // Get subscription tier for forecast access
-const getForecastDays = (subscriptionTier) => {
+var getForecastDays = (subscriptionTier) => {
   if (!subscriptionTier || subscriptionTier === 'free') return 3;
   if (['basic', 'paid'].includes(subscriptionTier)) return 7;
   if (['premium', 'pro', 'gold'].includes(subscriptionTier)) return 10;
@@ -42,12 +42,12 @@ const getForecastDays = (subscriptionTier) => {
 };
 
 // Check if user has premium forecast access
-const hasPremiumForecast = (subscriptionTier) => {
+var hasPremiumForecast = (subscriptionTier) => {
   return subscriptionTier === 'premium' || subscriptionTier === 'pro' || subscriptionTier === 'gold';
 };
 
 // Conditions badge colors
-const conditionColors = {
+var conditionColors = {
   "Flat": "bg-gray-500",
   "Ankle High": "bg-blue-400",
   "Knee High": "bg-blue-500",
@@ -59,7 +59,7 @@ const conditionColors = {
   "Triple Overhead+": "bg-red-500"
 };
 
-export const SpotConditions = ({ spotId, spotName, compact = false }) => {
+export var SpotConditions = ({ spotId, spotName, compact = false }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const t = getThemeTokens(theme);

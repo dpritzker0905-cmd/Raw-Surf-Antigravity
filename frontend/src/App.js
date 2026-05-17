@@ -27,8 +27,8 @@ const MessagesPage                = React.lazy(() => import('./components/Messag
 const MapPage                     = React.lazy(() => import('./components/MapPage').then(m => ({ default: m.MapPage })));
 const GalleryPage                 = React.lazy(() => import('./components/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const UnifiedAdminConsole         = React.lazy(() => import('./components/UnifiedAdminConsole'));
-const PhotographerBookingsManager = React.lazy(() => import('./components/PhotographerBookingsManager').then(m => ({ default: m.PhotographerBookingsManager })));
-const PhotographerSessionsManager = React.lazy(() => import('./components/PhotographerSessionsManager').then(m => ({ default: m.PhotographerSessionsManager })));
+var PhotographerBookingsManager = React.lazy(() => import('./components/PhotographerBookingsManager').then(m => ({ default: m.PhotographerBookingsManager })));
+var PhotographerSessionsManager = React.lazy(() => import('./components/PhotographerSessionsManager').then(m => ({ default: m.PhotographerSessionsManager })));
 const OnDemandSessionManager      = React.lazy(() => import('./components/OnDemandSessionManager').then(m => ({ default: m.OnDemandSessionManager })));
 const ScheduledBookingDrawer      = React.lazy(() => import('./components/ScheduledBookingDrawer')); // used by bookings page
 
@@ -75,9 +75,9 @@ const SurfLog                     = React.lazy(() => import('./components/SurfLo
 const CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
 const DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
 const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
-const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
-const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
-const CareerPage = React.lazy(() => import('./components/CareerPage'));
+var PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
+var PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
+var CareerPage = React.lazy(() => import('./components/CareerPage'));
 
 import './App.css';
 
@@ -86,7 +86,7 @@ import { ensureAudioUnlocked } from './utils/audioUnlock';
 ensureAudioUnlocked();
 
 // ─── Full-screen loading spinner while lazy chunk loads ────────────────────────
-const PageLoader = () => (
+var PageLoader = () => (
   <div style={{
     display: 'flex',
     alignItems: 'center',
@@ -107,14 +107,14 @@ const PageLoader = () => (
 );
 
 // ─── Wrapper to apply Suspense + ErrorBoundary on every lazy route ─────────────
-const Lazy = ({ children }) => (
+var Lazy = ({ children }) => (
   <ErrorBoundary>
     <Suspense fallback={<PageLoader />}>{children}</Suspense>
   </ErrorBoundary>
 );
 
 // ─── Subscription-only gate ────────────────────────────────────────────────────
-const SubscriptionRoute = ({ children }) => {
+var SubscriptionRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/auth?tab=signup" replace />;

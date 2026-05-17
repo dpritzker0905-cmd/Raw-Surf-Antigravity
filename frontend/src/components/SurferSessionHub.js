@@ -35,7 +35,7 @@ import PhotographerHubContent from './session-hub/PhotographerHubContent';
 
 
 // Mobile Drawer Version
-const MobileSessionHub = ({ 
+var MobileSessionHub = ({ 
   children, 
   liveCount, 
   upcomingBookings, 
@@ -136,7 +136,7 @@ const MobileSessionHub = ({
 };
 
 // Desktop Popover Version
-const DesktopSessionHub = ({ 
+var DesktopSessionHub = ({ 
   children, 
   liveCount, 
   upcomingBookings, 
@@ -232,7 +232,7 @@ const DesktopSessionHub = ({
 };
 
 // Main Export - Responsive Container
-export const SurferSessionHub = ({ children, isPhotographer = false }) => {
+export var SurferSessionHub = ({ children, isPhotographer = false }) => {
   const { user } = useAuth();
   const [liveCount, setLiveCount] = useState(0);
   const [upcomingBookings, setUpcomingBookings] = useState(0);

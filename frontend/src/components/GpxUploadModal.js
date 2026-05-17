@@ -8,7 +8,7 @@ import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
 
 // Simplified Haversine for parser
-const getDistance = (lat1, lon1, lat2, lon2) => {
+var getDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3;
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -18,7 +18,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 };
 
-const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
+var GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isLight = theme === 'light';

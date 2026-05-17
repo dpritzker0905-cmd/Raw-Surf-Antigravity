@@ -26,7 +26,7 @@ import { getFolders, ShakaIcon } from './messages/messagesHelpers';
 
 
 // Main Component
-export const MessagesPage = () => {
+export var MessagesPage = () => {
   const { user } = useAuth();
   const { getEffectiveRole, isMasked, activePersona, isGodMode } = usePersona();
   const [searchParams, setSearchParams] = useSearchParams();

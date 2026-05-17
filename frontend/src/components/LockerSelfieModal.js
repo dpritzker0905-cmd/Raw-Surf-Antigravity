@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import SelfieCapture from './SelfieCapture';
 
 
-export const LockerSelfieModal = ({ isOpen, onClose, user, fetchClaimQueue, spotId = null, spotName = null, photographerId = null, photographerName = null }) => {
+export var LockerSelfieModal = ({ isOpen, onClose, user, fetchClaimQueue, spotId = null, spotName = null, photographerId = null, photographerName = null }) => {
   const [scanning, setScanning] = useState(false);
 
   const handleCapture = async (selfieUrl) => {

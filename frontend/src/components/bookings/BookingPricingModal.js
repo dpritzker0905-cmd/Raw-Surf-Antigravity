@@ -10,7 +10,7 @@ import { MapPin, Users, Camera, Check, X,
 import { toast } from 'sonner';
 import { NumericStepper } from '../ui/numeric-stepper';
 
-const BookingPricingModal = (props) => {
+var BookingPricingModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,

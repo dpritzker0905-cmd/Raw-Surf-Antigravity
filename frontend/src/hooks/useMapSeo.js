@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export const useMapSeo = () => {
+export var useMapSeo = () => {
   useEffect(() => {
     const ogTags = [];
     const setMeta = (property, content) => {

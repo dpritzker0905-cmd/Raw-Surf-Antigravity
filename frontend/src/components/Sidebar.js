@@ -13,7 +13,7 @@ import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { AdaptiveBackground } from './AdaptiveBackground';
 
-export const Sidebar = () => {
+export var Sidebar = () => {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole, isMasked, _activePersona, _isGodMode } = usePersona();

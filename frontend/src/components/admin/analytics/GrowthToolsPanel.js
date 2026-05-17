@@ -17,7 +17,7 @@ import { Switch } from '../../ui/switch';
 import { toast } from 'sonner';
 import apiClient from '../../../lib/apiClient';
 
-const GrowthToolsPanel = ({
+var GrowthToolsPanel = ({
   promoCodes,
   featureFlags,
   campaigns,

@@ -21,7 +21,7 @@ import EmojiPicker from './EmojiPicker';
 import MessageBubble from './MessageBubble';
 import { getFullUrl, cacheBustUrl } from '../../utils/media';
 
-const ChatViewPanel = ({
+var ChatViewPanel = ({
   // User
   user,
   // Conversation state

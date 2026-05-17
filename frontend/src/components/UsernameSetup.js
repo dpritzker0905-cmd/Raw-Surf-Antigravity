@@ -17,7 +17,7 @@ import { ROLES } from '../constants/roles';
 
 
 // Debounce hook
-const useDebounce = (value, delay) => {
+var useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   
   useEffect(() => {
@@ -31,7 +31,7 @@ const useDebounce = (value, delay) => {
   return debouncedValue;
 };
 
-const UsernameSetup = ({ onComplete, skipAllowed = false }) => {
+var UsernameSetup = ({ onComplete, skipAllowed = false }) => {
   const { user, refreshUser } = useAuth();
   const { isLight } = useTheme();
   const navigate = useNavigate();

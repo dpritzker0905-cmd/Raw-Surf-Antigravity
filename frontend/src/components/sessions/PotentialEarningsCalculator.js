@@ -2,7 +2,7 @@ import React from 'react';
 import { Calculator } from 'lucide-react';
 
 // Potential Earnings Calculator Component
-const PotentialEarningsCalculator = ({ 
+var PotentialEarningsCalculator = ({ 
   buyinPrice, 
   maxSurfers, 
   photoPrice, 

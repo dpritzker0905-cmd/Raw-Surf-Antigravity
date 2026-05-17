@@ -8,7 +8,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-export const useOnDemandRequests = ({ user, isPhotographer }) => {
+export var useOnDemandRequests = ({ user, isPhotographer }) => {
   const [activeOnDemandRequests, setActiveOnDemandRequests] = useState([]);
   const onDemandMarkersRef = useRef([]);
 

@@ -12,7 +12,7 @@ import { getFullUrl } from '../../utils/media';
 import { SocialAdCard } from '../SocialAdCard';
 import PostMediaPreview from './PostMediaPreview';
 
-const ExploreTrending = ({
+var ExploreTrending = ({
   trending,
   spotConditions,
   user,

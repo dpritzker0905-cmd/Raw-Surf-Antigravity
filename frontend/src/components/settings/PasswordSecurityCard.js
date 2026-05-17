@@ -10,7 +10,7 @@ import apiClient from '../../lib/apiClient';
  * PasswordSecurityCard - Allows authenticated users to change their password.
  * Uses current password as 2FA verification before accepting a new password.
  */
-export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, borderClass, cardBgClass, expandedSections, toggleSection }) => {
+export var PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, borderClass, cardBgClass, expandedSections, toggleSection }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

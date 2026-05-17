@@ -9,7 +9,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const useAdminConsoleActions = ({
+var useAdminConsoleActions = ({
   user,
   searchQuery,
   selectedUsers,

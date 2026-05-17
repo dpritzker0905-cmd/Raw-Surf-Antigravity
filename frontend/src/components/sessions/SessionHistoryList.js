@@ -12,7 +12,7 @@ import React from 'react';
 import { Radio, MapPin, Users } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 
-const SessionHistoryList = ({
+var SessionHistoryList = ({
   sessionHistory,
   isLight,
   textPrimaryClass,

@@ -37,7 +37,7 @@ import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
 
 
 // Conditions color mapping
-const conditionColors = {
+var conditionColors = {
   "Flat": { bg: "bg-gray-500", text: "text-gray-400" },
   "Ankle High": { bg: "bg-blue-400", text: "text-blue-400" },
   "Knee High": { bg: "bg-blue-500", text: "text-blue-400" },
@@ -50,7 +50,7 @@ const conditionColors = {
 };
 
 // Forecast day card - starts from TOMORROW (day 1 = tomorrow, not today)
-const ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
+var ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const rowBg = isLight ? 'bg-gray-100/80 shadow-inner' : 'bg-zinc-800/50';
@@ -89,7 +89,7 @@ import PhotographerRequestModal from './spot-hub/PhotographerRequestModal';
 /**
  * SpotHub Page - Compact surf spot view that fits within app layout
  */
-const SpotHub = () => {
+var SpotHub = () => {
   const { spotId } = useParams();
   const { theme } = useTheme();
   const t = getThemeTokens(theme);

@@ -8,7 +8,7 @@ export { default as ActiveSessionCard } from './ActiveSessionCard';
 export { default as EarningsStatsCard } from './EarningsStatsCard';
 
 // Re-export getImageUrl helper for any consumers
-const getImageUrl = (url) => {
+var getImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('/api')) {
     return `${process.env.REACT_APP_BACKEND_URL}${url}`;

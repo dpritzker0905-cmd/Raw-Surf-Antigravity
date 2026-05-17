@@ -36,7 +36,7 @@ import useCrewChat, { MAX_VOICE_DURATION } from '../hooks/useCrewChat';
 import { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent } from './messages/crewChatUtils';
 
 // Quick Actions for surf coordination - Expanded with more useful options
-const QUICK_ACTIONS = [
+var QUICK_ACTIONS = [
   // Status updates
   { id: 'omw', text: 'On my way! Ã°Å¸Ââ€ž', category: 'status', icon: 'Ã°Å¸Å¡â€”' },
   { id: 'late', text: 'Running 5 mins late', category: 'status', icon: 'Ã¢ÂÂ°' },

@@ -35,7 +35,7 @@ import OnDemandSettingsTab from './on-demand/OnDemandSettingsTab';
 import CancelSessionDialog from './on-demand/CancelSessionDialog';
 
 // ============ MAIN COMPONENT ============
-export const OnDemandSessionManager = () => {
+export var OnDemandSessionManager = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const location = useLocation();

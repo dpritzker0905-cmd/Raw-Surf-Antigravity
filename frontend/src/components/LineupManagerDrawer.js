@@ -44,7 +44,7 @@ import { getFullUrl } from '../utils/media';
 
 
 // Surfboard colors for each position
-const SURFBOARD_COLORS = [
+var SURFBOARD_COLORS = [
   { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow (captain)
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
@@ -61,7 +61,7 @@ import QuickActionsPanel from './lineup/QuickActionsPanel';
 import LineupCountdown from './lineup/LineupCountdown';
 import AutoFillPanel from './lineup/AutoFillPanel';
 
-export const LineupManagerDrawer = ({
+export var LineupManagerDrawer = ({
   isOpen,
   onClose,
   lineup,

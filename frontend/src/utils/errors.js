@@ -17,7 +17,7 @@
  * @param {string}       fallback Fallback text when no detail is found
  * @returns {string}
  */
-export const getErrorMessage = (error, fallback = 'An error occurred') => {
+export var getErrorMessage = (error, fallback = 'An error occurred') => {
   const detail = error?.response?.data?.detail;
   if (!detail) return error?.message || fallback;
   if (typeof detail === 'string') return detail;

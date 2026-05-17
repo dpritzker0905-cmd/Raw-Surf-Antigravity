@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-export const useOnDemandCrew = (user, baseSessionPrice, perSurferFee, step) => {
+export var useOnDemandCrew = (user, baseSessionPrice, perSurferFee, step) => {
   const [splitEnabled, setSplitEnabled] = useState(false);
   const [crewMembers, setCrewMembers] = useState([]);
   const [newCrewInput, setNewCrewInput] = useState('');

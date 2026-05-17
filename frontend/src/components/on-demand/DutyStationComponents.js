@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { MODE_CONFIG, LIVE_PROXIMITY_MILES, LIVE_PROXIMITY_METERS } from '../DutyStationDrawer';
 
 // Haversine distance calculation
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
+var calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -25,9 +25,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 };
 
-const metersToMiles = (m) => m / 1609.344;
+var metersToMiles = (m) => m / 1609.344;
 
-const GpsProximityCheck = ({ 
+var GpsProximityCheck = ({ 
   selectedSpot, 
   userLocation, 
   gpsAvailable,
@@ -161,7 +161,7 @@ const GpsProximityCheck = ({
   );
 };
 
-const OnDemandSpotSelector = ({ 
+var OnDemandSpotSelector = ({ 
   spots, 
   selectedSpots, 
   onToggleSpot, 
@@ -275,7 +275,7 @@ const OnDemandSpotSelector = ({
   );
 };
 
-const StatusCard = ({ 
+var StatusCard = ({ 
   mode, 
   isActive, 
   selectedSpot,
@@ -363,7 +363,7 @@ const StatusCard = ({
 /**
  * Mode Selector - Segmented control for switching between Live and On-Demand
  */
-const ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, liveActive, onDemandActive }) => {
+var ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, liveActive, onDemandActive }) => {
   const modes = showOnDemand ? ['live', 'onDemand'] : ['live'];
   
   if (!showOnDemand) return null;
@@ -412,7 +412,7 @@ const ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, live
 /**
  * GPS Warning Banner - Shows when GPS is unavailable
  */
-const GpsWarningBanner = ({ onConfirmAnyway }) => {
+var GpsWarningBanner = ({ onConfirmAnyway }) => {
   const [confirmed, setConfirmed] = useState(false);
   
   return (
@@ -466,7 +466,7 @@ const GpsWarningBanner = ({ onConfirmAnyway }) => {
 /**
  * Selected Spot Display with Deselect for Live Mode
  */
-const SelectedSpotDisplay = ({ spot, onDeselect }) => {
+var SelectedSpotDisplay = ({ spot, onDeselect }) => {
   if (!spot) return null;
   
   return (
@@ -499,7 +499,7 @@ const SelectedSpotDisplay = ({ spot, onDeselect }) => {
 /**
  * Stats Preview
  */
-const StatsPreview = ({ mode, stats }) => {
+var StatsPreview = ({ mode, stats }) => {
   const config = MODE_CONFIG[mode];
   
   return (
@@ -523,7 +523,7 @@ const StatsPreview = ({ mode, stats }) => {
 /**
  * Quick Actions
  */
-const QuickActions = ({ mode, onClose, nearbyShooters }) => {
+var QuickActions = ({ mode, onClose, nearbyShooters }) => {
   const navigate = useNavigate();
   
   return (

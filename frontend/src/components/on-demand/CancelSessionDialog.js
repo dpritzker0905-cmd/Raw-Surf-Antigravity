@@ -17,7 +17,7 @@ import {
 } from '../ui/alert-dialog';
 import { getFullUrl } from '../../utils/media';
 
-const CancelSessionDialog = ({
+var CancelSessionDialog = ({
   showCancelConfirm,
   setShowCancelConfirm,
   activeSession,

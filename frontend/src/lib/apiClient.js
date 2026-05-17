@@ -18,12 +18,12 @@ import axios from 'axios';
 import { toast } from 'sonner';
 
 /** Raw backend origin (no /api suffix) — for WebSocket and media URLs */
-export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+export var BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 
 /** Full /api base URL string — for edge cases that still need a bare string */
-export const API_BASE = `${BACKEND_URL}/api`;
+export var API_BASE = `${BACKEND_URL}/api`;
 
-const apiClient = axios.create({
+var apiClient = axios.create({
   baseURL: `${BACKEND_URL}/api`,
   timeout: 60000, // 60s — handles Render free-tier cold starts (30-60s warm-up)
   headers: {
@@ -56,7 +56,7 @@ apiClient.interceptors.request.use(
 );
 
 // ── Track whether we've already shown the session-expired message ────────────
-let _sessionExpiredShown = false;
+var _sessionExpiredShown = false;
 
 // ── Response interceptor — handle auth errors ────────────────────────────────
 apiClient.interceptors.response.use(

@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Image, Heart, MessageCircle, ChevronRight, Loader2 } from 'lucide-react';
 import PostMediaPreview from './PostMediaPreview';
 
-const ExplorePostsTab = ({
+var ExplorePostsTab = ({
   explorePosts,
   postsLoading,
   handlePostClick,

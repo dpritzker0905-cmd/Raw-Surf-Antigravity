@@ -18,7 +18,7 @@
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
-const useOptimisticAction = () => {
+var useOptimisticAction = () => {
   const pendingRef = useRef(new Set());
 
   /**

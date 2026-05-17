@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { User, Camera, Building2, MapPin, Zap, TrendingUp, Sparkles, BadgeCheck } from 'lucide-react';
 
-export const Home = () => {
+export var Home = () => {
   const navigate = useNavigate();
 
   const features = [

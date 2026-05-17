@@ -8,7 +8,7 @@ import ReplyItem from './ReplyItem';
 import { formatTimeAgo } from '../../utils/formatTime';
 import { REACTION_EMOJIS } from '../../constants/emojis';
 
-const CommentWithReaction = ({ 
+var CommentWithReaction = ({ 
   comment, 
   userId, 
   postId,

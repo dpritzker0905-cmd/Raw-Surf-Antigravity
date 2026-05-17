@@ -8,7 +8,7 @@ import logger from '../utils/logger';
  * SelfieCapture - Reusable camera capture component for surfer identification
  * Used in: JumpInSessionModal, OnDemandRequestDrawer, BookingSelfieModal
  */
-export const SelfieCapture = ({ 
+export var SelfieCapture = ({ 
   onCapture, 
   onSkip,
   title = "Take a Selfie",

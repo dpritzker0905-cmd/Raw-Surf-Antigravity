@@ -12,7 +12,7 @@ import logger from '../utils/logger';
  * BookingSelfieModal - Prompts surfers to take a selfie for scheduled bookings
  * Helps photographers identify surfers in their session photos
  */
-export const BookingSelfieModal = ({ 
+export var BookingSelfieModal = ({ 
   isOpen, 
   onClose, 
   booking,

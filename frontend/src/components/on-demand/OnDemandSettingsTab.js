@@ -13,7 +13,7 @@ import { Badge } from '../ui/badge';
 import { Switch } from '../ui/switch';
 import { NumericStepper } from '../ui/numeric-stepper';
 
-const OnDemandSettingsTab = ({
+var OnDemandSettingsTab = ({
   // Theme classes
   theme, isLight, cardBg, borderClass, textPrimary, textSecondary, sectionBg,
   // Pricing state

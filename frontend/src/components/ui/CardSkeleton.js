@@ -6,7 +6,7 @@ import React from 'react';
 import { Skeleton } from './skeleton';
 
 /** Horizontal card skeleton — booking / session style */
-export const BookingCardSkeleton = () => (
+export var BookingCardSkeleton = () => (
   <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card">
     <Skeleton className="w-14 h-14 rounded-xl shrink-0" />
     <div className="flex-1 space-y-2">
@@ -19,7 +19,7 @@ export const BookingCardSkeleton = () => (
 );
 
 /** Grid card skeleton — gallery / photo style */
-export const GalleryCardSkeleton = () => (
+export var GalleryCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full aspect-square" />
     <div className="p-3 space-y-2">
@@ -30,7 +30,7 @@ export const GalleryCardSkeleton = () => (
 );
 
 /** List of booking card skeletons */
-export const BookingListSkeleton = ({ count = 3 }) => (
+export var BookingListSkeleton = ({ count = 3 }) => (
   <div className="space-y-3">
     {Array.from({ length: count }).map((_, i) => (
       <BookingCardSkeleton key={i} />
@@ -39,7 +39,7 @@ export const BookingListSkeleton = ({ count = 3 }) => (
 );
 
 /** Grid of gallery card skeletons */
-export const GalleryGridSkeleton = ({ count = 6, cols = 2 }) => (
+export var GalleryGridSkeleton = ({ count = 6, cols = 2 }) => (
   <div className={`grid grid-cols-${cols} gap-3`}>
     {Array.from({ length: count }).map((_, i) => (
       <GalleryCardSkeleton key={i} />

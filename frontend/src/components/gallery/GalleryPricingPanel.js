@@ -12,7 +12,7 @@ import apiClient from '../../lib/apiClient';
 /**
  * PricingTierRow - Displays a single service tier with pricing details
  */
-const PricingTierRow = ({
+var PricingTierRow = ({
   label, emoji, color, photosIncluded, videosIncluded,
   buyinPrice, buyinLabel, photo, video,
   textSecondaryClass, textPrimaryClass, isActive,
@@ -66,7 +66,7 @@ const PricingTierRow = ({
 /**
  * GalleryPricingPanel - Full pricing card with session settings and per-tier rows
  */
-const GalleryPricingPanel = ({
+var GalleryPricingPanel = ({
   gallery, galleryId, pricing, user, showPricing,
   cardBgClass, textPrimaryClass, textSecondaryClass,
   setGallery, fetchSessionParticipants,

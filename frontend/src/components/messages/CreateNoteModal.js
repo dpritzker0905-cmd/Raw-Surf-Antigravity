@@ -8,9 +8,9 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
 
-const SURF_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '😎', '🌅', '🐚', '🦈', '☀️', '🌴', '✨'];
+var SURF_EMOJIS = ['🤙', '🌊', '🏄', '🔥', '💯', '😎', '🌅', '🐚', '🦈', '☀️', '🌴', '✨'];
 
-const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
+var CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
   const [noteText, setNoteText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef(null);

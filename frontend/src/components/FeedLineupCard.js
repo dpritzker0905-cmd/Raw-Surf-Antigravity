@@ -33,7 +33,7 @@ import logger from '../utils/logger';
 
 
 // Calculate time remaining
-const getTimeRemaining = (closesAt) => {
+var getTimeRemaining = (closesAt) => {
   if (!closesAt) return null;
   const now = new Date();
   const closes = new Date(closesAt);
@@ -48,7 +48,7 @@ const getTimeRemaining = (closesAt) => {
   return { expired: false, text: `${hours}h left`, urgent: hours < 24 };
 };
 
-export const FeedLineupCard = ({
+export var FeedLineupCard = ({
   lineup,
   user,
   isLight = false,

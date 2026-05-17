@@ -28,7 +28,7 @@ import logger from '../utils/logger';
  * - 1-click nudge for reminders via OneSignal
  */
 
-export const CrewHub = ({ 
+export var CrewHub = ({ 
   booking, 
   crewMembers: initialCrew = [], 
   totalPrice,

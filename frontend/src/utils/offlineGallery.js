@@ -8,8 +8,8 @@
  */
 import { logger } from './logger';
 
-const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
-const MAX_CACHE_BYTES = 500 * 1024 * 1024; // 500MB
+var GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
+var MAX_CACHE_BYTES = 500 * 1024 * 1024; // 500MB
 
 /**
  * Cache a media URL for offline viewing

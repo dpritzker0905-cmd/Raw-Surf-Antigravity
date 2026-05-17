@@ -18,9 +18,9 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { X, ZoomIn, ZoomOut, Check, RotateCcw } from 'lucide-react';
 import useFocusTrap from '../hooks/useFocusTrap';
 
-const OUTPUT_SIZE = 800; // Final avatar dimensions (800-800)
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 4;
+var OUTPUT_SIZE = 800; // Final avatar dimensions (800-800)
+var MIN_ZOOM = 1;
+var MAX_ZOOM = 4;
 
 export default function AvatarCropModal({ imageFile, onConfirm, onCancel }) {
   const canvasRef = useRef(null);

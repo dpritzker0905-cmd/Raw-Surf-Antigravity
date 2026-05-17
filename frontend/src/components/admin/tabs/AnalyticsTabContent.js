@@ -16,7 +16,7 @@ import apiClient from '../../../lib/apiClient';
 import logger from '../../../utils/logger';
 import { toast } from 'sonner';
 
-const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) => {
+var AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) => {
   const [financial, setFinancial] = useState(null);
   const [ecosystem, setEcosystem] = useState(null);
   const [priceImpact, setPriceImpact] = useState(null);

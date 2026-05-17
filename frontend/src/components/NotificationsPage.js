@@ -15,7 +15,7 @@ import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
 // -- Theme colour tokens -------------------------------------------------------
-const getThemeColors = (theme) => {
+var getThemeColors = (theme) => {
   if (theme === 'light') return {
     pageBg:        'bg-gray-50',
     headerBg:      'bg-white/95',
@@ -95,7 +95,7 @@ const getThemeColors = (theme) => {
 };
 
 // -- Notification type configs -------------------------------------------------
-const NOTIFICATION_CONFIG = {
+var NOTIFICATION_CONFIG = {
   session_join:                    { icon: Users,         color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   session_joined:                  { icon: Users,         color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   session_reminder:                { icon: Clock,         color: 'text-blue-400',    bgColor: 'bg-blue-500/20',    category: 'sessions' },
@@ -170,7 +170,7 @@ const NOTIFICATION_CONFIG = {
   default:                         { icon: Bell,          color: 'text-gray-400',    bgColor: 'bg-gray-500/20',    category: 'social' },
 };
 
-const BASE_TABS = [
+var BASE_TABS = [
   { id: 'all',      label: 'All',      icon: Bell,        color: 'text-white' },
   { id: 'alerts',   label: 'Alerts',   icon: Waves,       color: 'text-cyan-400' },
   { id: 'sessions', label: 'Sessions', icon: Camera,      color: 'text-emerald-400' },
@@ -178,9 +178,9 @@ const BASE_TABS = [
   { id: 'photos',   label: 'Photos',   icon: ImageIcon,   color: 'text-purple-400' },
   { id: 'social',   label: 'Social',   icon: Users,       color: 'text-yellow-400' },
 ];
-const ADMIN_TAB = { id: 'admin', label: 'Admin', icon: Shield, color: 'text-red-400' };
+var ADMIN_TAB = { id: 'admin', label: 'Admin', icon: Shield, color: 'text-red-400' };
 
-export const NotificationsPage = () => {
+export var NotificationsPage = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

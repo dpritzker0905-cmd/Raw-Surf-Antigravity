@@ -5,7 +5,7 @@
 import React from 'react';
 import { Grid3X3, List, Folder } from 'lucide-react';
 
-export const GalleryViewToggle = ({
+export var GalleryViewToggle = ({
   viewMode = 'grid',
   onViewChange,
   showFolders = false,

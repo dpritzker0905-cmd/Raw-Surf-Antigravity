@@ -7,7 +7,7 @@
 import React from 'react';
 import { Crown, Users } from 'lucide-react';
 
-const BookingSessionSummary = ({
+var BookingSessionSummary = ({
   selectedDate,
   selectedTime,
   selectedDuration,

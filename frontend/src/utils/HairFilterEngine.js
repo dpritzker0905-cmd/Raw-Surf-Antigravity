@@ -41,7 +41,7 @@ import platinumBobImg from '../assets/hair/platinum_bob.png';
  *   - e.g. 0.85 = hair width is at least 85% of faceHeight
  *   - Only used for long styles that drape past the jaw
  */
-export const HAIR_STYLES = {
+export var HAIR_STYLES = {
   // Male styles
   blonde_flow: {
     id: 'blonde_flow',
@@ -152,7 +152,7 @@ export const HAIR_STYLES = {
 };
 
 // ── MediaPipe Face Mesh Landmark Indices ──
-const LANDMARK = {
+var LANDMARK = {
   FOREHEAD_TOP: 10,     // Glabella area (between eyebrows — NOT top of skull!)
   CHIN: 152,            // Bottom of chin
   LEFT_TEMPLE: 234,     // Left side of face (upper)
@@ -165,13 +165,13 @@ const LANDMARK = {
 };
 
 // Anthropometric constants — tuned from real-world mobile testing
-const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
-const CROWN_OFFSET_RATIO = 0.25; // Crown is ~25% of face-height above landmark 10 (hairline)
+var HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
+var CROWN_OFFSET_RATIO = 0.25; // Crown is ~25% of face-height above landmark 10 (hairline)
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
  */
-const loadMediaPipe = () => {
+var loadMediaPipe = () => {
   return new Promise((resolve, reject) => {
     if (window.FaceMesh) {
       resolve(window.FaceMesh);

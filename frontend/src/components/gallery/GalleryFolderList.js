@@ -12,7 +12,7 @@ import { Button } from '../ui/button';
 import { SessionRosterCard } from './SessionRosterCard';
 import { getFullUrl } from '../../utils/media';
 
-export const GalleryFolderList = ({
+export var GalleryFolderList = ({
   galleries,
   isGromParent,
   user,

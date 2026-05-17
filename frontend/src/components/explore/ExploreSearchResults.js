@@ -10,7 +10,7 @@ import { getFullUrl } from '../../utils/media';
 import UserRoleBadge from './UserRoleBadge';
 import PostMediaPreview from './PostMediaPreview';
 
-const ExploreSearchResults = ({
+var ExploreSearchResults = ({
   isSearching,
   hasResults,
   searchQuery,

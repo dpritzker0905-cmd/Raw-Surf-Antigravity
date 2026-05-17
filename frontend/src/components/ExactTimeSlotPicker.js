@@ -14,7 +14,7 @@ import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
 
 // Session categories with time windows
-const SESSION_CATEGORIES = [
+var SESSION_CATEGORIES = [
   { 
     id: 'dawn_patrol', 
     label: 'Dawn Patrol', 
@@ -58,7 +58,7 @@ const SESSION_CATEGORIES = [
 ];
 
 // Duration options
-const DURATION_OPTIONS = [
+var DURATION_OPTIONS = [
   { value: 60, label: '1 hour' },
   { value: 120, label: '2 hours' },
   { value: 180, label: '3 hours' },
@@ -67,7 +67,7 @@ const DURATION_OPTIONS = [
 ];
 
 // Generate time slots in 15-minute increments
-const generateTimeSlots = (startHour, endHour) => {
+var generateTimeSlots = (startHour, endHour) => {
   const slots = [];
   for (let hour = startHour; hour < endHour; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
@@ -82,7 +82,7 @@ const generateTimeSlots = (startHour, endHour) => {
 };
 
 // Time slots by session category
-const TIME_SLOTS_BY_CATEGORY = {
+var TIME_SLOTS_BY_CATEGORY = {
   dawn_patrol: generateTimeSlots(5, 8),
   morning: generateTimeSlots(7, 11),
   midday: generateTimeSlots(11, 15),
@@ -93,7 +93,7 @@ const TIME_SLOTS_BY_CATEGORY = {
 /**
  * Calendar Component for date selection
  */
-const MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
+var MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -190,7 +190,7 @@ const MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
 /**
  * Main ExactTimeSlotPicker Component
  */
-export const ExactTimeSlotPicker = ({ 
+export var ExactTimeSlotPicker = ({ 
   selectedDate, 
   selectedTime, 
   selectedCategory,

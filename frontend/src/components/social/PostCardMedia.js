@@ -7,7 +7,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Play, ChevronLeft, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-const PostCardMedia = ({
+var PostCardMedia = ({
   post,
   user,
   isLight,

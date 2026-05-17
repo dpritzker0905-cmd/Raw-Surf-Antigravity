@@ -9,7 +9,7 @@ import { ArrowLeft, Mail, Lock, Eye, EyeOff, Check, Loader2 } from 'lucide-react
 import logger from '../utils/logger';
 
 
-export const ForgotPassword = () => {
+export var ForgotPassword = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -129,7 +129,7 @@ export const ForgotPassword = () => {
   );
 };
 
-export const ResetPassword = () => {
+export var ResetPassword = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   

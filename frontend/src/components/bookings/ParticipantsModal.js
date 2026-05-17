@@ -6,7 +6,7 @@ import { Badge } from '../ui/badge';
 
 import { getFullUrl } from '../../utils/media';
 
-const ParticipantsModal = (props) => {
+var ParticipantsModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,

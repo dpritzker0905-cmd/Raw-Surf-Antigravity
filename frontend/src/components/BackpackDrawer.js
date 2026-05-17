@@ -21,7 +21,7 @@ import { ROLES } from '../constants/roles';
  * 2. Credit Wallet - Purchase credits and balance
  * 3. Surf Alerts - Wave condition notifications
  */
-export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
+export var BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const navigate = useNavigate();

@@ -14,7 +14,7 @@ import logger from '../../utils/logger';
  * PhotographerRequestModal — Extracted from SpotHub.js
  * Request photographer coverage at a spot with no active photographers.
  */
-const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) => {
+var PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isLight = theme === 'light';

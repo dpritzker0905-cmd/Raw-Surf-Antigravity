@@ -10,7 +10,7 @@ import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
 import { useSearchParams } from 'react-router-dom';
 
-export const SubscriptionsTab = () => {
+export var SubscriptionsTab = () => {
   const { user, updateUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [subscriptions, setSubscriptions] = useState([]);

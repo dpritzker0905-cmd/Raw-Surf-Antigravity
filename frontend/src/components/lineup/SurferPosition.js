@@ -5,7 +5,7 @@ import { Badge } from '../ui/badge';
 
 
 // Surfboard colors for each position
-const SURFBOARD_COLORS = [
+var SURFBOARD_COLORS = [
   { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow (captain)
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
@@ -15,7 +15,7 @@ const SURFBOARD_COLORS = [
   { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
 ];
 
-const SurferPosition = ({ 
+var SurferPosition = ({ 
   member, 
   position, 
   isCaptain, 

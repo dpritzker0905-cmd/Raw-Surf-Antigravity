@@ -25,14 +25,14 @@ import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
 
 // --- Severity config ----------------------------------------------------------
-const SEVERITY_CONFIG = {
+var SEVERITY_CONFIG = {
   minor:    { color: 'blue',   label: 'Minor' },
   moderate: { color: 'yellow', label: 'Moderate' },
   severe:   { color: 'orange', label: 'Severe' },
   critical: { color: 'red',    label: 'Critical' },
 };
 
-const ViolationBanner = () => {
+var ViolationBanner = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const location = useLocation();

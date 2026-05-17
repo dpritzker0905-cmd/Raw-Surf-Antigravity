@@ -12,7 +12,7 @@ import { ROLES } from '../../constants/roles';
  * Being a Grom Parent is an AND: a Competitive Surfer can ALSO be a Grom Parent.
  * Enabling it gives access to GromHQ, parental controls, and Grom gallery management.
  */
-export const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
+export var GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [toggling, setToggling] = useState(false);

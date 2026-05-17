@@ -10,7 +10,7 @@ import { Badge } from '../ui/badge';
 import BrowseMode from './BrowseMode';
 import NearbyMode from './NearbyMode';
 
-const ExploreSurfSpotsTab = ({
+var ExploreSurfSpotsTab = ({
   locationHierarchy,
   discoveryMode,
   setDiscoveryMode,

@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../../ui/switch';
 import { Loader2 } from 'lucide-react';
 
-export const AdminP2Modals = ({
+export var AdminP2Modals = ({
   showCreatePromo, setShowCreatePromo, newPromo, setNewPromo, handleCreatePromo,
   showCreateFlag, setShowCreateFlag, newFlag, setNewFlag, handleCreateFlag,
   showCreateCampaign, setShowCreateCampaign, newCampaign, setNewCampaign, handleCreateCampaign,

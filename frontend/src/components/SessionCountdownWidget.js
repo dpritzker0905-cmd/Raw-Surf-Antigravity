@@ -12,14 +12,14 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 
 // Time category icons
-const getTimeIcon = (hour) => {
+var getTimeIcon = (hour) => {
   if (hour >= 5 && hour < 7) return <Sunrise className="w-4 h-4 text-orange-400" />;
   if (hour >= 7 && hour < 17) return <Sun className="w-4 h-4 text-yellow-400" />;
   return <Sunset className="w-4 h-4 text-pink-400" />;
 };
 
 // Format countdown display
-const formatCountdown = (ms) => {
+var formatCountdown = (ms) => {
   if (ms <= 0) return { text: 'Starting now!', urgent: true };
   
   const seconds = Math.floor(ms / 1000);
@@ -56,7 +56,7 @@ const formatCountdown = (ms) => {
 };
 
 // Individual Session Card
-const SessionCard = ({ booking, isLight, onViewDetails }) => {
+var SessionCard = ({ booking, isLight, onViewDetails }) => {
   const [countdown, setCountdown] = useState({ text: '--', urgent: false });
   
   const sessionDate = new Date(booking.session_date);
@@ -204,7 +204,7 @@ const SessionCard = ({ booking, isLight, onViewDetails }) => {
 };
 
 // Main Widget Component
-export const SessionCountdownWidget = ({ 
+export var SessionCountdownWidget = ({ 
   bookings = [], 
   isLight = false, 
   onViewDetails,

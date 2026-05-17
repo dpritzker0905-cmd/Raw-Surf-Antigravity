@@ -15,7 +15,7 @@ import {
 import { Badge } from '../ui/badge';
 import { getCountryFlag } from '../../utils/countryFlags';
 
-const ExploreConditionsTab = ({
+var ExploreConditionsTab = ({
   // Sub-tab state
   conditionsSubTab,
   handleConditionsSubTabChange,

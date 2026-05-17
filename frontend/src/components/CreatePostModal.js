@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { CreateAdModal } from './CreateAdModal';
 import logger from '../utils/logger';
 import MediaPreviewCarousel from './social/MediaPreviewCarousel';
-const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-const DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
+var DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+var DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
   <Select value={value} onValueChange={onChange}>
     <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white text-sm"><SelectValue placeholder={placeholder} /></SelectTrigger>
     <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -22,7 +22,7 @@ const DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
     </SelectContent>
   </Select>
 );
-const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
+var CreatePostModal = ({ isOpen, onClose, onCreated }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   

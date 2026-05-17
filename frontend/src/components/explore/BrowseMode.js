@@ -15,7 +15,7 @@ import { Badge } from '../ui/badge';
 import ExploreSpotCard from '../ExploreSpotCard';
 import { getCountryFlag } from '../../utils/countryFlags';
 
-const BrowseMode = ({
+var BrowseMode = ({
   // Location state
   selectedCountry,
   selectedState,

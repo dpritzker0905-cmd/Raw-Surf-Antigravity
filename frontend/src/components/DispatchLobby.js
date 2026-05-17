@@ -43,7 +43,7 @@ import DispatchSelfieSection from './on-demand/DispatchSelfieSection';
 // TimelineStep extracted to ./on-demand/DispatchTimeline.js
 
 // --- Main Component ---
-export const DispatchLobby = () => {
+export var DispatchLobby = () => {
   const { dispatchId } = useParams();
   const { state: navState } = useLocation();
   const { user } = useAuth();

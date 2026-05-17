@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { getFullUrl } from '../../utils/media';
 
-const GallerySessionPanel = ({
+var GallerySessionPanel = ({
   sessionInfo, sessionParticipants, totalGalleryItems,
   loadingParticipants, distributing,
   fetchSessionParticipants, handleDistributeAll,

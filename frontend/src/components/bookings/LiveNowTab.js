@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
 // Live Savings Badge Component (synced with Map drawer)
-const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
+var LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
   const savings = generalPrice - livePrice;
   const _savingsPercent = generalPrice > 0 ? Math.round((savings / generalPrice) * 100) : 0;
   
@@ -25,7 +25,7 @@ const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
   );
 };
 
-export const LiveNowTab = ({
+export var LiveNowTab = ({
   livePhotographers,
   subscriptionTier,
   trackingRadius,

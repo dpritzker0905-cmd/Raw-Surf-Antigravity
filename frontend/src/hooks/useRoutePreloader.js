@@ -11,7 +11,7 @@
 import { useCallback, useRef } from 'react';
 
 // Map route keys to their dynamic import functions
-const ROUTE_LOADERS = {
+var ROUTE_LOADERS = {
   feed: () => import('../components/Feed'),
   profile: () => import('../components/Profile'),
   messages: () => import('../components/MessagesPage'),
@@ -23,7 +23,7 @@ const ROUTE_LOADERS = {
   notifications: () => import('../components/NotificationsPage'),
 };
 
-const useRoutePreloader = () => {
+var useRoutePreloader = () => {
   // Track which routes we've already preloaded to avoid duplicate imports
   const preloadedRef = useRef(new Set());
 

@@ -6,9 +6,9 @@
  */
 import React, { useState, useEffect } from 'react';
 
-const CONSENT_KEY = 'raw-surf-cookie-consent';
+var CONSENT_KEY = 'raw-surf-cookie-consent';
 
-export const CookieConsentBanner = () => {
+export var CookieConsentBanner = () => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

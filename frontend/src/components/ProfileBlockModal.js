@@ -3,7 +3,7 @@ import { Ban, AlertTriangle, Flag, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 
-export const ProfileBlockModal = ({
+export var ProfileBlockModal = ({
   isOpen, onClose, profileName,
   blockReason, setBlockReason, blockNotes, setBlockNotes,
   blockLoading, onBlock,

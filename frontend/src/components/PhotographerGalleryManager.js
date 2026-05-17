@@ -41,7 +41,7 @@ import GalleryPricingPanel from './gallery/GalleryPricingPanel';
 
 
 
-export const PhotographerGalleryManager = () => {
+export var PhotographerGalleryManager = () => {
   const { galleryId } = useParams();
   const { user } = useAuth();
   const { theme } = useTheme();

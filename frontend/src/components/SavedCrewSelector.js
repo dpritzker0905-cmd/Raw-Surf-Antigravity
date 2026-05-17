@@ -19,7 +19,7 @@ import logger from '../utils/logger';
  * For Pro/Comp surfers to initiate beach sessions in under 5 seconds
  */
 
-export const SavedCrewSelector = ({ 
+export var SavedCrewSelector = ({ 
   onSelect,
   selectedCrew,
   currentMembers = [],

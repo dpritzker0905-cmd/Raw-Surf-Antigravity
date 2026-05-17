@@ -10,9 +10,9 @@
  */
 import { useRef, useState, useCallback, useEffect } from 'react';
 
-const THRESHOLD = 80;     // px to pull before triggering refresh
-const MAX_PULL = 120;     // max visual pull distance
-const RESISTANCE = 0.45;  // pull resistance factor
+var THRESHOLD = 80;     // px to pull before triggering refresh
+var MAX_PULL = 120;     // max visual pull distance
+var RESISTANCE = 0.45;  // pull resistance factor
 
 export function usePullToRefresh(onRefresh, { enabled = true } = {}) {
   const pullRef = useRef(null);

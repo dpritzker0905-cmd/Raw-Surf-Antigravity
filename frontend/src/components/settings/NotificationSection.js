@@ -8,7 +8,7 @@ import { MessageSquare, Heart, UserPlus, Camera, CalendarCheck,
  * Handles all push notification, email, sound/haptics, quiet hours,
  * and digest mode toggles.
  */
-export const NotificationSection = ({
+export var NotificationSection = ({
   notifPrefs,
   notifLoading,
   updateNotifPref,

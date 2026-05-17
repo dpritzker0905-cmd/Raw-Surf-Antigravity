@@ -15,7 +15,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const useSurferGalleryActions = ({
+var useSurferGalleryActions = ({
   user,
   galleryItems,
   selectedItems,

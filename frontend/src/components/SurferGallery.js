@@ -48,7 +48,7 @@ import PurchaseHistoryModal from './surfer-gallery/PurchaseHistoryModal';
 /**
  * Main Surfer Gallery Component
  */
-export const SurferGallery = () => {
+export var SurferGallery = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   

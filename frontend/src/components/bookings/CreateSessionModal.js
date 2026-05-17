@@ -14,7 +14,7 @@ import { Calendar } from '../ui/calendar';
 import { toast } from 'sonner';
 import { NumericStepper } from '../ui/numeric-stepper';
 
-const CreateSessionModal = (props) => {
+var CreateSessionModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,

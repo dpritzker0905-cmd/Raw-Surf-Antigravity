@@ -3,7 +3,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 
-export const usePushNotifications = (userId) => {
+export var usePushNotifications = (userId) => {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [permission, setPermission] = useState('default');

@@ -17,10 +17,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { toast } from 'sonner';
 
-const DISMISS_KEY = 'rs-push-prompt-dismissed';
-const DISMISS_EXPIRY = 7 * 24 * 60 * 60 * 1000; // Re-show after 7 days if not subscribed
+var DISMISS_KEY = 'rs-push-prompt-dismissed';
+var DISMISS_EXPIRY = 7 * 24 * 60 * 60 * 1000; // Re-show after 7 days if not subscribed
 
-const PushNotificationPrompt = () => {
+var PushNotificationPrompt = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { isSupported, isSubscribed, permission, subscribe } = usePushNotifications(user?.id);

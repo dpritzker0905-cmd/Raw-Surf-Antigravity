@@ -5,7 +5,7 @@
  */
 import React from 'react';
 
-const StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = false }) => {
+var StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = false }) => {
   const hasUnread = story.hasUnread;
   const hasNote = story.noteContent && story.noteContent.length > 0;
   const ringColor = hasNote 

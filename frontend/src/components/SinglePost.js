@@ -18,7 +18,7 @@ import { FeedPostSkeleton } from './ui/SkeletonVariants';
 import { getFullUrl } from '../utils/media';
 
 
-const SinglePost = () => {
+var SinglePost = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();

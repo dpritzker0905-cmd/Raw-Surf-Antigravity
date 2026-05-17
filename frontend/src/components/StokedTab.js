@@ -25,7 +25,7 @@ import { ROLES } from '../constants/roles';
 
 
 // Default stoke level for new/empty users
-const DEFAULT_STOKE_LEVEL = {
+var DEFAULT_STOKE_LEVEL = {
   current: { min: 0, name: "Rising Tide", emoji: "🌊", color: "blue" },
   next: { min: 100, name: "Wave Rider", emoji: "🏄", color: "cyan" },
   progress_percent: 0,
@@ -33,7 +33,7 @@ const DEFAULT_STOKE_LEVEL = {
 };
 
 // Default credit uses based on role
-const getDefaultCreditUses = (effectiveRole) => {
+var getDefaultCreditUses = (effectiveRole) => {
   if (effectiveRole === ROLES.GROM) {
     return [
       { icon: "🏄", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
@@ -67,7 +67,7 @@ const getDefaultCreditUses = (effectiveRole) => {
  * should see the Stoked tab (based on isStokedEligible). So we always show
  * the UI here, using default values if backend returns no data.
  */
-export const StokedTab = ({ userId, isOwnProfile }) => {
+export var StokedTab = ({ userId, isOwnProfile }) => {
   const navigate = useNavigate();
   const { getEffectiveRole } = usePersona();
   const [loading, setLoading] = useState(true);

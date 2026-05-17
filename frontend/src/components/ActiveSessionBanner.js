@@ -30,7 +30,7 @@ import {
 import useActiveSession from '../hooks/useActiveSession';
 
 // ── Status label map ──
-const STATUS_LABELS = {
+var STATUS_LABELS = {
   searching_for_pro: { captain: 'Finding Photographer...', crew: 'Waiting for Photographer...' },
   pending_payment:   { captain: 'Payment Pending', crew: 'Waiting for Captain to Pay' },
   accepted:          { captain: 'Photographer Confirmed!', crew: 'Photographer Confirmed!' },
@@ -40,7 +40,7 @@ const STATUS_LABELS = {
 };
 
 // ── Shared color config factory ──
-const getColorConfig = (isCrew, isLight) => isCrew
+var getColorConfig = (isCrew, isLight) => isCrew
   ? {
       barGradient: 'from-cyan-400 via-blue-500 to-cyan-400',
       bgExpanded: isLight ? 'bg-gradient-to-r from-cyan-50 to-blue-50' : 'bg-gradient-to-r from-cyan-950/80 to-blue-950/80',
@@ -59,7 +59,7 @@ const getColorConfig = (isCrew, isLight) => isCrew
     };
 
 // ── Status icon component ──
-const StatusIcon = ({ status, colorConfig }) => {
+var StatusIcon = ({ status, colorConfig }) => {
   if (['searching_for_pro', 'en_route'].includes(status)) {
     return <Radio className={`w-4 h-4 animate-pulse ${colorConfig.textAccent}`} />;
   }
@@ -74,7 +74,7 @@ const StatusIcon = ({ status, colorConfig }) => {
 // MOBILE BANNER — Sits above BottomNav
 // ═══════════════════════════════════════════════════════════════════════
 
-const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpanded, handleNavigate, statusLabel }) => {
+var MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpanded, handleNavigate, statusLabel }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
 
@@ -188,7 +188,7 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
 // zero gap. Sits OVER the header's border-b.
 // ═══════════════════════════════════════════════════════════════════════
 
-const TopNavLine = ({ colorConfig }) => {
+var TopNavLine = ({ colorConfig }) => {
   // The TopNav header: py-2.5 (20px) + icon row (~24px) + border-b (1px)
   // = ~45px below safe-area-inset-top. We position at 44px to overlap the
   // border-b, then the 3px line covers the border and touches content.
@@ -211,7 +211,7 @@ const TopNavLine = ({ colorConfig }) => {
 // Desktop session awareness is handled directly by Sidebar.js
 // ═══════════════════════════════════════════════════════════════════════
 
-export const ActiveSessionBanner = () => {
+export var ActiveSessionBanner = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme } = useTheme();

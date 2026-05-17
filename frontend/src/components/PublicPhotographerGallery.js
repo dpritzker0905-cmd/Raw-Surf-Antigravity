@@ -19,13 +19,13 @@ import { PhotographerAvailability } from './PhotographerAvailability';
 import { GalleryItemCard, QualityOption } from './gallery/GalleryItemCard';
 
 // Gallery View Modes
-const VIEW_MODES = {
+var VIEW_MODES = {
   GRID: 'grid',
   MASONRY: 'masonry',
   LIST: 'list'
 };
 
-export const PublicPhotographerGallery = () => {
+export var PublicPhotographerGallery = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { useEffect } from 'react';
 
-const useSessionActions = ({
+var useSessionActions = ({
   user, navigate, pricing, isHobbyist, isOnDemandActive, manualConfirm,
   endSessionLoading, debugInfo, streamRef,
   REQUIRED_DISTANCE_MILES, NEARBY_RADIUS_MILES, getCommissionRate,

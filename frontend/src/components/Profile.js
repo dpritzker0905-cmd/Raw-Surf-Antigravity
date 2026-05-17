@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 // Custom Surfboard Icon Component
-const SurfboardIcon = ({ className = "w-5 h-5" }) => (
+var SurfboardIcon = ({ className = "w-5 h-5" }) => (
   <svg 
     viewBox="0 0 24 24" 
     fill="none" 
@@ -63,7 +63,7 @@ import ProfileActionButtons from './profile/ProfileActionButtons';
 // Resolve relative /api/uploads/... paths to backend absolute URLs
 
 // Role badge component showing icon and label
-const ProfileRoleBadge = ({ role }) => {
+var ProfileRoleBadge = ({ role }) => {
   const roleInfo = getExpandedRoleInfo(role);
   return (
     <Badge className={`${roleInfo.bgColor} ${roleInfo.color} text-xs flex items-center gap-1`} data-testid="profile-role-badge">
@@ -73,7 +73,7 @@ const ProfileRoleBadge = ({ role }) => {
   );
 };
 
-export const Profile = () => {
+export var Profile = () => {
   const { user, logout, updateUser, loading: authLoading } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole, _isMasked } = usePersona();

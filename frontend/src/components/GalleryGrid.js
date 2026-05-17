@@ -12,7 +12,7 @@ import { getFullUrl } from '../utils/media';
  * - No hover-dependent interactions (mobile-friendly)
  */
 
-export const GalleryGridItem = ({
+export var GalleryGridItem = ({
   item,
   isSelected = false,
   bulkSelectMode = false,
@@ -210,7 +210,7 @@ export const GalleryGridItem = ({
   );
 };
 
-export const GalleryGrid = ({
+export var GalleryGrid = ({
   items = [],
   selectedItems = new Set(),
   bulkSelectMode = false,

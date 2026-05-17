@@ -17,7 +17,7 @@ import { Switch } from '../ui/switch';
 import { Input } from '../ui/input';
 import { TIME_WINDOWS, TIDE_STATES, SURF_CONDITIONS } from './surfAlertConstants';
 
-const SurfAlertModal = ({
+var SurfAlertModal = ({
   open,
   onOpenChange,
   isEditMode,

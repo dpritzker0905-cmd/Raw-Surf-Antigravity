@@ -11,7 +11,7 @@ import {
 import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
 
-const SessionStatusControl = ({ 
+var SessionStatusControl = ({ 
   booking, 
   isLight, 
   loading,

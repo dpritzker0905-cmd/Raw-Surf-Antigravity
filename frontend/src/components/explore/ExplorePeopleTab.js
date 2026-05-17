@@ -8,7 +8,7 @@ import { Search, MapPin, Users, Radio } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
-const ExplorePeopleTab = ({
+var ExplorePeopleTab = ({
   trending,
   isLight,
   setSearchQuery,

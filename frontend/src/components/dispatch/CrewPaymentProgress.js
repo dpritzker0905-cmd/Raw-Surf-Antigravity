@@ -35,7 +35,7 @@ import logger from '../../utils/logger';
 /**
  * Individual crew member chip showing payment status
  */
-const CrewMemberChip = ({ member, _isLight }) => {
+var CrewMemberChip = ({ member, _isLight }) => {
   const isPaid = member.paid;
   
   return (
@@ -98,7 +98,7 @@ const CrewMemberChip = ({ member, _isLight }) => {
 /**
  * Main CrewPaymentProgress component
  */
-export const CrewPaymentProgress = ({ 
+export var CrewPaymentProgress = ({ 
   dispatchId,
   bookingId,
   serviceType = 'dispatch', // 'dispatch' or 'booking'
@@ -339,7 +339,7 @@ export const CrewPaymentProgress = ({
 /**
  * Crew payment details (member list + actions)
  */
-const CrewPaymentDetails = ({
+var CrewPaymentDetails = ({
   crewMembers,
   unpaidMembers,
   unpaidAmount,

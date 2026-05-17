@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const useCreatePostActions = ({
+var useCreatePostActions = ({
   user, navigate, selectedSpot, caption, selectedFiles, previewUrls,
   captionRef, hashtagRef,
   allSpots, knownSpots, location,

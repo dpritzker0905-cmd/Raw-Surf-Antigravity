@@ -38,7 +38,7 @@ import {
  * Broadcaster Controls Component - Main broadcasting interface
  * Modern features: Connection quality, surfer video filters, comment likes
  */
-const BroadcasterControls = ({ 
+var BroadcasterControls = ({ 
   _onEnd, 
   onEndRequest, 
   streamDuration, 

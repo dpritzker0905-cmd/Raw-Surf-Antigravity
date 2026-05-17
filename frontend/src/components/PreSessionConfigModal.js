@@ -4,7 +4,7 @@ import { Watch, Smartphone, MapPin, ChevronRight, PenTool } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { LocationPicker } from './LocationPicker';
 
-const PreSessionConfigModal = ({ isOpen, onClose, onStartLive, onSyncWatch, onManualEntry }) => {
+var PreSessionConfigModal = ({ isOpen, onClose, onStartLive, onSyncWatch, onManualEntry }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const bg = isLight ? 'bg-white' : 'bg-zinc-900';

@@ -5,7 +5,7 @@
 import React from 'react';
 import { Users, Play, Sparkles } from 'lucide-react';
 
-const FeedEmptyState = ({ activeTab, textPrimaryClass, textSecondaryClass, onNavigateExplore }) => {
+var FeedEmptyState = ({ activeTab, textPrimaryClass, textSecondaryClass, onNavigateExplore }) => {
   if (activeTab === 'following') {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center px-6">

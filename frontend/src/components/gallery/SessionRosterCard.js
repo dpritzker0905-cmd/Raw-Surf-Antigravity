@@ -31,7 +31,7 @@ import logger from '../../utils/logger';
  *   - AI vs Manual tagging indicators
  *   - Video autoplay (muted) in thumbnails
  */
-export const SessionRosterCard = ({ 
+export var SessionRosterCard = ({ 
   roster = [], sessionType, itemCount = 0, compact = false,
   galleryId, photographerId, onRosterUpdate
 }) => {
@@ -121,7 +121,7 @@ export const SessionRosterCard = ({
 };
 
 // -- SURFER PANEL --
-const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
+var SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [selfieZoom, setSelfieZoom] = useState(false);
   const [taggedItems, setTaggedItems] = useState([]);
@@ -355,7 +355,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
 };
 
 // -- CREDIT ROW --
-const CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
+var CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
   const pct = included > 0 ? Math.min(100, (delivered / included) * 100) : 0;
   const isDone = remaining === 0 && delivered > 0;
   return (
@@ -379,7 +379,7 @@ const CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
 };
 
 // -- MINI PILL --
-const MiniPill = ({ icon, text, highlight }) => (
+var MiniPill = ({ icon, text, highlight }) => (
   <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{
     background: highlight ? `rgba(${highlight === 'purple' ? '139,92,246' : '6,182,212'},0.1)` : 'rgba(255,255,255,0.04)',
     border: `1px solid ${highlight ? `rgba(${highlight === 'purple' ? '139,92,246' : '6,182,212'},0.2)` : 'rgba(255,255,255,0.06)'}`
@@ -390,7 +390,7 @@ const MiniPill = ({ icon, text, highlight }) => (
 );
 
 // -- TAGGED ITEM THUMBNAIL (with video autoplay) --
-const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
+var TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
   const videoRef = useRef(null);
   const isVideo = item.media_type === 'video';
   const thumbUrl = getFullUrl(item.thumbnail_url || item.preview_url);

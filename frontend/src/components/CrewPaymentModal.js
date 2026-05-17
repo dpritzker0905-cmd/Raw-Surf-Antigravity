@@ -13,7 +13,7 @@ import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 
 
-export const CrewPaymentModal = ({ 
+export var CrewPaymentModal = ({ 
   invite, 
   isOpen, 
   onClose, 

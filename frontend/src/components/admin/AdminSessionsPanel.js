@@ -12,7 +12,7 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
-export const AdminSessionsPanel = ({
+export var AdminSessionsPanel = ({
   loadingPhotographers,
   filteredPhotographers,
   filteredSpots,

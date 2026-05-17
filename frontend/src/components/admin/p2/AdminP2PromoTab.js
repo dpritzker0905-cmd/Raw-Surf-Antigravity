@@ -6,7 +6,7 @@ import { Switch } from '../../ui/switch';
 import { Gift, Copy, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
-export const AdminP2PromoTab = ({
+export var AdminP2PromoTab = ({
   promoCodes,
   setShowCreatePromo,
   handleTogglePromo,

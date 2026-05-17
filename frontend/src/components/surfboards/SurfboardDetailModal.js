@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { toast } from 'sonner';
 import { BOARD_TYPES, FIN_SETUPS, CONDITIONS } from './constants';
 
-export const SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnProfile, userId }) => {
+export var SurfboardDetailModal = ({ isOpen, onClose, board, onEdit, onDelete, isOwnProfile, userId }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);

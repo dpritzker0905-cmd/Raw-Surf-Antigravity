@@ -19,13 +19,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 
 // Tenor API key - Google free tier (replace with env var if needed)
-const TENOR_API_KEY = process.env.REACT_APP_TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
-const TENOR_BASE = 'https://tenor.googleapis.com/v2';
-const GIF_LIMIT = 20;
-const MEDIA_FILTERS = 'gif,tinygif';
+var TENOR_API_KEY = process.env.REACT_APP_TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
+var TENOR_BASE = 'https://tenor.googleapis.com/v2';
+var GIF_LIMIT = 20;
+var MEDIA_FILTERS = 'gif,tinygif';
 
 /** Map a Tenor v2 result to a consistent GIF shape */
-const mapTenorResult = (g) => ({
+var mapTenorResult = (g) => ({
   id: g.id,
   title: g.content_description || 'GIF',
   images: {
@@ -41,7 +41,7 @@ const mapTenorResult = (g) => ({
   },
 });
 
-const GifPicker = ({ show, onSelect, onClose }) => {
+var GifPicker = ({ show, onSelect, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [gifs, setGifs] = useState([]);
   const [trendingGifs, setTrendingGifs] = useState([]);

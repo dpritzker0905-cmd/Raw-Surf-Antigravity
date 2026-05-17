@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl, cacheBustUrl } from '../utils/media';
 
-const useMessagesActions = ({
+var useMessagesActions = ({
   user,
   navigate,
   selectedConversation,

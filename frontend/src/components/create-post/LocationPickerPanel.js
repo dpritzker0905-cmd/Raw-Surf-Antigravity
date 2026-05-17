@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-const LocationPickerPanel = ({
+var LocationPickerPanel = ({
   // Toggle state
   showLocationPicker, setShowLocationPicker,
   // Hierarchy selection state

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const useExploreData = ({
+var useExploreData = ({
   searchQuery, activeTab, recentSearches,
   // State setters
   setTrending, setLoading, setSpotConditions,

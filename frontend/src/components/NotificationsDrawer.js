@@ -16,7 +16,7 @@ import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
 // -- Theme colour tokens (mirrors GoLiveModal pattern) ------------------------
-const getThemeColors = (theme) => {
+var getThemeColors = (theme) => {
   if (theme === 'light') return {
     bg:           'bg-white',
     border:       'border-gray-200',
@@ -96,7 +96,7 @@ const getThemeColors = (theme) => {
 };
 
 // Notification type configurations
-const NOTIFICATION_CONFIG = {
+var NOTIFICATION_CONFIG = {
   session_join:                    { icon: Users,        color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   session_joined:                  { icon: Users,        color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   session_reminder:                { icon: Clock,        color: 'text-blue-400',    bgColor: 'bg-blue-500/20',    category: 'sessions' },
@@ -162,7 +162,7 @@ const NOTIFICATION_CONFIG = {
   default:                         { icon: Bell,         color: 'text-gray-400',    bgColor: 'bg-gray-500/20',    category: 'social' },
 };
 
-const TABS = [
+var TABS = [
   { id: 'all',      label: 'All',      icon: Bell },
   { id: 'alerts',   label: 'Alerts',   icon: Waves },
   { id: 'sessions', label: 'Sessions', icon: Camera },
@@ -171,7 +171,7 @@ const TABS = [
   { id: 'social',   label: 'Social',   icon: Users },
 ];
 
-export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
+export var NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

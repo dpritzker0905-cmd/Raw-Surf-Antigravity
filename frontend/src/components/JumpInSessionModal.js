@@ -8,7 +8,7 @@ import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
 
 
-export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
+export var JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
   const { user, updateUser } = useAuth();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);

@@ -18,7 +18,7 @@ import logger from '../../utils/logger';
  * Admin control for ad frequency, approval queue, and variant management.
  */
 // Ad Controls Panel Component with Approval Queue
-const AdControlsPanel = ({ user }) => {
+var AdControlsPanel = ({ user }) => {
   const [config, setConfig] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [queue, setQueue] = useState(null);

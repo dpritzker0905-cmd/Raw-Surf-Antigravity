@@ -15,7 +15,7 @@ import { BookingCard } from '../BookingCard';
 import { BookingSelfieModal } from '../BookingSelfieModal';
 import { getFullUrl } from '../../utils/media';
 
-export const ScheduledTab = ({
+export var ScheduledTab = ({
   user,
   scheduledBookings,
   pendingInvites,

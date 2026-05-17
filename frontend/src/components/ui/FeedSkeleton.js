@@ -6,7 +6,7 @@
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-const PostSkeleton = () => (
+var PostSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     {/* Author row */}
     <div className="flex items-center gap-3">
@@ -32,7 +32,7 @@ const PostSkeleton = () => (
   </div>
 );
 
-export const FeedSkeleton = ({ count = 3 }) => (
+export var FeedSkeleton = ({ count = 3 }) => (
   <div className="space-y-4 px-1">
     {Array.from({ length: count }).map((_, i) => (
       <PostSkeleton key={i} />

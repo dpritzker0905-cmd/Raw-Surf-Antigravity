@@ -7,7 +7,7 @@ import { getFullUrl } from '../utils/media';
  * Handles photos, videos, check-ins, text posts, and photographer sessions.
  * Previously defined at the bottom of Profile.js.
  */
-export const MediaGridItem = ({ item, onClick, isPinned = false }) => {
+export var MediaGridItem = ({ item, onClick, isPinned = false }) => {
   if (!item) return null;
 
   const _checkMediaUrl = getFullUrl(item.media_url || item.image_url);

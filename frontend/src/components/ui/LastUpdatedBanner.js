@@ -10,7 +10,7 @@
 import React, { useMemo } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
 
-const formatElapsed = (ms) => {
+var formatElapsed = (ms) => {
   if (ms < 60_000) return 'just now';
   const mins = Math.floor(ms / 60_000);
   if (mins < 60) return `${mins} min${mins !== 1 ? 's' : ''} ago`;
@@ -18,7 +18,7 @@ const formatElapsed = (ms) => {
   return `${hrs} hr${hrs !== 1 ? 's' : ''} ago`;
 };
 
-const LastUpdatedBanner = ({
+var LastUpdatedBanner = ({
   lastUpdatedAt,
   isOnline = true,
   onRefresh,

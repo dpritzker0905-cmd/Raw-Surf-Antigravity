@@ -8,7 +8,7 @@ import React from 'react';
 import { Star, Sparkles } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
-const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
+var SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
   if (!spotOfTheDay || !spotOfTheDay.has_spot_of_the_day) return null;
   
   const getRatingColor = (rating) => {
@@ -77,7 +77,7 @@ const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {
 };
 
 // Live Savings Badge Component - Shows only when promotional pricing is active
-const LiveSavingsBadge = ({ generalPrice, livePrice, pricingMode = 'tiered', highResPrice, className = '' }) => {
+var LiveSavingsBadge = ({ generalPrice, livePrice, pricingMode = 'tiered', highResPrice, className = '' }) => {
   // Only show savings badge in promotional mode
   if (pricingMode !== 'promotional') return null;
   
@@ -96,7 +96,7 @@ const LiveSavingsBadge = ({ generalPrice, livePrice, pricingMode = 'tiered', hig
 };
 
 // Star Rating Component
-const StarRating = ({ rating, size = 'sm' }) => {
+var StarRating = ({ rating, size = 'sm' }) => {
   const stars = [];
   const sizeClass = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
   
@@ -112,7 +112,7 @@ const StarRating = ({ rating, size = 'sm' }) => {
 };
 
 // Reviews Carousel Component
-const ReviewsCarousel = ({ reviews }) => {
+var ReviewsCarousel = ({ reviews }) => {
   if (!reviews || reviews.length === 0) {
     return (
       <div className="text-center py-4 text-gray-500 text-sm">

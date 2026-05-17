@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { useEffect, useMemo } from 'react';
 
-const usePhotographerGalleryActions = ({
+var usePhotographerGalleryActions = ({
   user, gallery, selectedItems, editData, navigate, galleryId, setAiTagSuggestions,
   setAnalyzingPhoto,
   setAssigningItem,

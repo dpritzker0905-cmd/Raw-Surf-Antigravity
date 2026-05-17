@@ -6,10 +6,10 @@ import { Button } from '../ui/button';
 import logger from '../../utils/logger';
 
 // Alias for compatibility with internal code
-const isProRole = isProLevelRole;
+var isProRole = isProLevelRole;
 
 // Role icon helper (inline since it uses MessagesPage internal logic)
-const getRoleIcon = (role, isAdmin = false) => {
+var getRoleIcon = (role, isAdmin = false) => {
   if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: String.fromCodePoint(0x1F534) };
   switch (role) {
     case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: String.fromCodePoint(0x2B50) };
@@ -23,7 +23,7 @@ const getRoleIcon = (role, isAdmin = false) => {
   }
 };
 
-const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
+var ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [_suggestedUsers, setSuggestedUsers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);

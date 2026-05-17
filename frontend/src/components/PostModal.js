@@ -32,7 +32,7 @@ import PostModalMobileView from './social/PostModalMobileView';
 // Tap to play/pause, custom progress bar, volume slider, no native controls
 // ModalVideoPlayer, ImageCarousel, CommentItem extracted to ./social/PostModalComponents.js
 
-const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
+var PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

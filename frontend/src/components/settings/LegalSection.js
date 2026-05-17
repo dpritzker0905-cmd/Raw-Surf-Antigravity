@@ -11,7 +11,7 @@ import DeleteAccountSection from './DeleteAccountSection';
  * Handles Terms of Service viewing, acceptance history,
  * privacy policy, violation history, and account deletion.
  */
-export const LegalSection = ({
+export var LegalSection = ({
   userId,
   textPrimaryClass,
   textSecondaryClass,

@@ -20,7 +20,7 @@ import logger from '../../utils/logger';
  *   galleryId - the gallery to scan
  *   userId    - the requesting user's ID
  */
-export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
+export var FindMeModal = ({ open, onClose, galleryId, userId }) => {
   const [selfieUrl, setSelfieUrl] = useState('');
   const [selfieFile, setSelfieFile] = useState(null);
   const [selfiePreview, setSelfiePreview] = useState(null);

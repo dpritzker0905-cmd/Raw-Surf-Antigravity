@@ -12,10 +12,10 @@ import logger from '../utils/logger';
 
 
 // Use centralized config for subscription tiers
-const SURFER_TIERS_MONTHLY = SURFER_PLANS.monthly;
-const SURFER_TIERS_ANNUAL = SURFER_PLANS.annual;
+var SURFER_TIERS_MONTHLY = SURFER_PLANS.monthly;
+var SURFER_TIERS_ANNUAL = SURFER_PLANS.annual;
 
-export const SurferSubscription = () => {
+export var SurferSubscription = () => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);

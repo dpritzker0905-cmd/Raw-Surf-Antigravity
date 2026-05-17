@@ -18,7 +18,7 @@ import { getFullUrl } from '../utils/media';
  * GromLimitedFeed - Shows a limited preview feed for unlinked Groms
  * Displays up to 3 posts from other Groms only, with a CTA to complete parent linking
  */
-const GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
+var GromLimitedFeed = ({ gromStatus, _onCopyCode }) => {
   const { _user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';

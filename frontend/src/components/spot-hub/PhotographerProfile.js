@@ -13,7 +13,7 @@ import { Badge } from '../ui/badge';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
-const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
+var PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
   const [reviews, setReviews] = useState([]);
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -192,7 +192,7 @@ const PhotographerProfile = ({ photographer, onBack, onJumpIn }) => {
 };
 
 // Photographer Profile Content - SCROLLABLE CONTENT ONLY (for vaul drawer)
-const PhotographerProfileContent = ({ photographer }) => {
+var PhotographerProfileContent = ({ photographer }) => {
   const [reviews, setReviews] = useState([]);
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -332,7 +332,7 @@ const PhotographerProfileContent = ({ photographer }) => {
 };
 
 // LocalStorage key for camera permission persistence
-const CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
+var CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
 
 // Privacy Shield Upgrade CTA Component - High Intent Conversion Gate
 export { PhotographerProfile, PhotographerProfileContent };

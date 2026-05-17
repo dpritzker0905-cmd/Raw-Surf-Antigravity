@@ -83,13 +83,13 @@ if (typeof window !== 'undefined') {
 }
 
 // Loading fallback for translations
-const LoadingFallback = () => (
+var LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-black">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
   </div>
 );
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+var root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
     <Suspense fallback={<LoadingFallback />}>
       <App />

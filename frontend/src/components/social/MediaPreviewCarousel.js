@@ -6,7 +6,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 
-const MediaPreviewCarousel = ({
+var MediaPreviewCarousel = ({
   previewUrls,
   currentPreviewIndex,
   setCurrentPreviewIndex,

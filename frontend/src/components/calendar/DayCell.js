@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, GripVertical, Move } from 'lucide-react';
 
-export const DayCell = ({ date, isCurrentMonth, isToday, bookings, blockedDates, availabilityWindows,
+export var DayCell = ({ date, isCurrentMonth, isToday, bookings, blockedDates, availabilityWindows,
   onClick, isLight, isDragEnabled, onDragStart, onDragEnd, onDrop, draggedBooking, isDropTarget
 }) => {
   const dayNum = date.getDate();

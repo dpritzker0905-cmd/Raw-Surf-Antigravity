@@ -11,7 +11,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Clock, Star, Camera, Zap, Award } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 
-const TIER_CONFIG = {
+var TIER_CONFIG = {
   legend:      { label: 'Legend',      icon: '🏆', color: '#FFD700', bg: 'rgba(255,215,0,0.12)' },
   veteran:     { label: 'Veteran',     icon: '⭐', color: '#C084FC', bg: 'rgba(192,132,252,0.12)' },
   experienced: { label: 'Experienced', icon: '🏄', color: '#38BDF8', bg: 'rgba(56,189,248,0.12)' },
@@ -19,7 +19,7 @@ const TIER_CONFIG = {
   new:         { label: 'New',         icon: '🌊', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)' },
 };
 
-const CategoryBar = ({ label, value, maxValue = 5 }) => {
+var CategoryBar = ({ label, value, maxValue = 5 }) => {
   const pct = Math.min((value / maxValue) * 100, 100);
   return (
     <div className="flex items-center gap-2 text-xs">
@@ -35,7 +35,7 @@ const CategoryBar = ({ label, value, maxValue = 5 }) => {
   );
 };
 
-const TrustSignalBadges = ({ profileId, compact = false }) => {
+var TrustSignalBadges = ({ profileId, compact = false }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 

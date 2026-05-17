@@ -9,7 +9,7 @@ import { Waves, Wind, Navigation2 } from 'lucide-react';
 /**
  * Convert compass direction to degrees
  */
-const directionToDegrees = (direction) => {
+var directionToDegrees = (direction) => {
   const directions = {
     'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
     'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
@@ -22,7 +22,7 @@ const directionToDegrees = (direction) => {
 /**
  * Mini compass indicator with rotating arrow
  */
-export const DirectionCompass = ({ 
+export var DirectionCompass = ({ 
   degrees, 
   direction,
   type = 'wave', // 'wave' or 'wind'
@@ -111,7 +111,7 @@ export const DirectionCompass = ({
 /**
  * Combined wave direction display with height and period
  */
-export const WaveConditionsBadge = ({
+export var WaveConditionsBadge = ({
   waveHeightFt,
   wavePeriodSec,
   waveDirection,
@@ -152,7 +152,7 @@ export const WaveConditionsBadge = ({
 /**
  * Combined wind direction display with speed
  */
-export const WindConditionsBadge = ({
+export var WindConditionsBadge = ({
   windSpeedMph,
   windDirection,
   className = ''
@@ -184,7 +184,7 @@ export const WindConditionsBadge = ({
 /**
  * Full conditions panel with wave and wind
  */
-export const ConditionsPanel = ({
+export var ConditionsPanel = ({
   waveHeightFt,
   wavePeriodSec,
   waveDirection,

@@ -30,11 +30,11 @@ import BookingsModals from './bookings/BookingsModals';
 
 // Surfer-capable roles that can join sessions
 // Role IDs must match Auth.js signup roles exactly
-const SURFER_ROLES = ['Grom', 'Surfer', 'Comp Surfer', 'Pro', 'Hobbyist', 'Grom Parent'];
+var SURFER_ROLES = ['Grom', 'Surfer', 'Comp Surfer', 'Pro', 'Hobbyist', 'Grom Parent'];
 
 
 
-export const Bookings = () => {
+export var Bookings = () => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();

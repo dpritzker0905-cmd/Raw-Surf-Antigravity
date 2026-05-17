@@ -36,7 +36,7 @@ import logger from '../utils/logger';
 /**
  * Menu item component
  */
-const MenuItem = ({ 
+var MenuItem = ({ 
   icon: Icon, 
   label, 
   onClick, 
@@ -72,7 +72,7 @@ const MenuItem = ({
 /**
  * Divider component
  */
-const _MenuDivider = ({ isLight }) => (
+var _MenuDivider = ({ isLight }) => (
   <div className={`h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} my-1`} />
 );
 
@@ -88,7 +88,7 @@ import SharePostModal from './post-menu/SharePostModal';
 /**
  * Main Post Menu Component
  */
-export const PostMenu = ({ 
+export var PostMenu = ({ 
   post, 
   open, 
   onClose,

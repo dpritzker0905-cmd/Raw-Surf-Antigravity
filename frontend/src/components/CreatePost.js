@@ -24,7 +24,7 @@ import LocationPickerPanel from './create-post/LocationPickerPanel';
 import SessionConditionsPanel from './create-post/SessionConditionsPanel';
 
 
-export const CreatePost = () => {
+export var CreatePost = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

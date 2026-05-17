@@ -39,14 +39,14 @@ import logger from '../utils/logger';
 
 
 // Availability status types
-const AVAILABILITY_TYPES = {
+var AVAILABILITY_TYPES = {
   LIVE: 'live_shooting',
   ON_DEMAND: 'on_demand',
   BOOKING: 'scheduled_booking'
 };
 
 // Status display config
-const STATUS_CONFIG = {
+var STATUS_CONFIG = {
   [AVAILABILITY_TYPES.LIVE]: {
     label: 'Live Active Shooting',
     description: 'Photographer is currently shooting at a spot',
@@ -79,7 +79,7 @@ const STATUS_CONFIG = {
 /**
  * Availability status row with notification toggle
  */
-const AvailabilityRow = ({ 
+var AvailabilityRow = ({ 
   type, 
   isAvailable, 
   spotName,
@@ -192,7 +192,7 @@ const AvailabilityRow = ({
 /**
  * Main Photographer Availability Component
  */
-export const PhotographerAvailability = ({ 
+export var PhotographerAvailability = ({ 
   photographerId,
   photographerName,
   onWatchLive,

@@ -5,9 +5,9 @@
 import React from 'react';
 import { Play } from 'lucide-react';
 
-const FEED_TABS = ['for_you', 'waves', 'following'];
+var FEED_TABS = ['for_you', 'waves', 'following'];
 
-const FeedTabBar = ({ activeTab, setActiveTab, textPrimaryClass, textSecondaryClass, borderClass }) => {
+var FeedTabBar = ({ activeTab, setActiveTab, textPrimaryClass, textSecondaryClass, borderClass }) => {
   const activeTabIndex = FEED_TABS.indexOf(activeTab);
 
   return (

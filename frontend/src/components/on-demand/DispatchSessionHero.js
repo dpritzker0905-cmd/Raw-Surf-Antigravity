@@ -7,7 +7,7 @@ import { Camera, MessageCircle, Mic } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
-const DispatchSessionHero = ({
+var DispatchSessionHero = ({
   sessionActive, sessionElapsed,
   photographerName, photographerAvatarUrl,
   chatUnreadCount, setShowSessionChat,

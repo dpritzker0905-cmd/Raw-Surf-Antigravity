@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const useSpotHubActions = ({
+var useSpotHubActions = ({
   user,
   spotId,
   navigate,

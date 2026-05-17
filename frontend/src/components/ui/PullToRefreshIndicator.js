@@ -6,7 +6,7 @@
  */
 import React from 'react';
 
-export const PullToRefreshIndicator = ({ isPulling, progress, isRefreshing }) => {
+export var PullToRefreshIndicator = ({ isPulling, progress, isRefreshing }) => {
   if (!isPulling && !isRefreshing) return null;
 
   const rotation = progress * 360;

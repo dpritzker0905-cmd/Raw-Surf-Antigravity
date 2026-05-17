@@ -99,12 +99,12 @@ function generateRingbackTone() {
 }
 
 // ── PRE-GENERATE on module load (runs once at import time) ──────────
-const RING_URI = generateIncomingRing();
-const RINGBACK_URI = generateRingbackTone();
+var RING_URI = generateIncomingRing();
+var RINGBACK_URI = generateRingbackTone();
 
 // Pre-create Audio objects so they're decoded and ready
-let preloadedRing = null;
-let preloadedRingback = null;
+var preloadedRing = null;
+var preloadedRingback = null;
 
 try {
   preloadedRing = new Audio(RING_URI);
@@ -208,7 +208,7 @@ export function unlockAudioNow() {
  * Install global listeners to unlock audio on first user gesture.
  * Call this once from App.js on mount.
  */
-let listenersInstalled = false;
+var listenersInstalled = false;
 export function ensureAudioUnlocked() {
   if (listenersInstalled) return;
   listenersInstalled = true;

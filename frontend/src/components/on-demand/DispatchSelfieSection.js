@@ -6,7 +6,7 @@ import React from 'react';
 import { Camera, ChevronRight, Check } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-const DispatchSelfieSection = ({
+var DispatchSelfieSection = ({
   captainSelfieUploaded,
   selfieUrl,
   onShowSelfieModal,

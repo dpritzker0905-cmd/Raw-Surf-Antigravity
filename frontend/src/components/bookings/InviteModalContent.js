@@ -1,4 +1,4 @@
-﻿/**
+/**
  * InviteModalContent.js - Extracted from Bookings.js (v61)
  * Handles both handle-based user search invites and code sharing for session splitting.
  */
@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 
-const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSecondaryClass, onCopyCode, onClose, onRefresh }) => {
+var InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSecondaryClass, onCopyCode, onClose, onRefresh }) => {
   const [activeTab, setActiveTab] = useState('handle'); // 'handle' or 'code'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);

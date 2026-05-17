@@ -24,7 +24,7 @@ import { getFullUrl } from '../utils/media';
 
 
 // Photo Upload Component with Surfer Tagging
-export const PhotoUploadModal = ({ 
+export var PhotoUploadModal = ({ 
   isOpen, 
   onClose, 
   sessionId, 

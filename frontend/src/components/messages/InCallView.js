@@ -54,7 +54,7 @@ function ConnectionQualityBadge({ quality }) {
 }
 
 // -€â‚¬-€â‚¬ Filter Presets -‚¬â€ maps to WebGL shader keys in WebGLFilterEngine -€â‚¬-€â‚¬
-const FILTER_PRESETS = [
+var FILTER_PRESETS = [
   { name: 'None',         key: 'none',             icon: CircleDot, description: 'Original camera' },
   { name: 'Golden Hour',  key: 'goldenhour',        icon: Sunset,    description: 'Warm sunset vibes' },
   { name: 'Pipeline',     key: 'gopro',             icon: Waves,     description: 'Deep barrel shadows' },
@@ -65,7 +65,7 @@ const FILTER_PRESETS = [
 ];
 
 // -€â‚¬-€â‚¬ Theme colors for HairFilterPicker -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
-const CALL_COLORS = {
+var CALL_COLORS = {
   overlayBg: 'bg-black/80 backdrop-blur-xl',
   border: 'border-white/10',
   buttonBg: 'bg-white/5 hover:bg-white/10',
@@ -76,7 +76,7 @@ const CALL_COLORS = {
 };
 
 // -€â‚¬-€â‚¬ Filter Picker panel -€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬-€â‚¬
-const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
+var FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   if (!isOpen) return null;
   return (
     <div 

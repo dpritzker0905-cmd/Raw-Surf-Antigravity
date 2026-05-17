@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
  * - navigator.deviceMemory (RAM)
  * - navigator.hardwareConcurrency (CPU Cores)
  */
-export const useAdaptivePerformance = () => {
+export var useAdaptivePerformance = () => {
   const [shouldAnimate, setShouldAnimate] = useState(true);
 
   useEffect(() => {

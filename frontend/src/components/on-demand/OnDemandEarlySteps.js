@@ -13,7 +13,7 @@ import { getFullUrl } from '../../utils/media';
 import { Loader2 } from 'lucide-react';
 
 // ============ STEP 0: START TIME SELECTION ============
-export const TimingStep = ({ booking, photographer }) => {
+export var TimingStep = ({ booking, photographer }) => {
   const { step, setStep, startTimeOption, setStartTimeOption, isLight, textPrimary, textSecondary, isPro } = booking;
   if (step !== 'timing') return null;
 
@@ -107,7 +107,7 @@ export const TimingStep = ({ booking, photographer }) => {
 
 
 // ============ STEP 1: DURATION SELECTION ============
-export const DurationStep = ({ booking, photographer }) => {
+export var DurationStep = ({ booking, photographer }) => {
   const {
     step, setStep, startTimeOption, selectedSpot, customLocationName,
     isLight, textPrimary, textSecondary, isPro,
@@ -223,7 +223,7 @@ export const DurationStep = ({ booking, photographer }) => {
 
 
 // ============ STEP 1.5: SPLIT CHOICE ============
-export const SplitChoiceStep = ({ booking, photographer }) => {
+export var SplitChoiceStep = ({ booking, photographer }) => {
   const {
     step, setStep, isLight, textPrimary, textSecondary,
     splitEnabled, setSplitEnabled, crewMembers, setCrewMembers,
@@ -314,7 +314,7 @@ export const SplitChoiceStep = ({ booking, photographer }) => {
 
 
 // ============ STEP 0.5: LOCATION SELECTION ============
-export const LocationStep = ({ booking, photographer }) => {
+export var LocationStep = ({ booking, photographer }) => {
   const {
     step, setStep, isLight, textPrimary, textSecondary,
     startTimeOption, keyboardOpen, useCustomLocation,

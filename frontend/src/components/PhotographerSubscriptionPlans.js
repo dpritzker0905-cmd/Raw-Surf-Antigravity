@@ -21,7 +21,7 @@ import logger from '../utils/logger';
  * Embeddable component showing a photographer's subscription plans.
  * Surfers can subscribe directly from a photographer's profile.
  */
-export const PhotographerSubscriptionPlans = ({ photographerId, photographerName }) => {
+export var PhotographerSubscriptionPlans = ({ photographerId, photographerName }) => {
   const { user, updateUser } = useAuth();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);

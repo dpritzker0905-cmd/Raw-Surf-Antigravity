@@ -20,10 +20,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import useHapticFeedback from './useHapticFeedback';
 
-const OPEN_THRESHOLD = 40;   // px to pull before snapping open
-const CLOSE_THRESHOLD = 30;  // px to push up before snapping closed
-const MAX_DRAG = 160;        // max visual drag distance
-const RESISTANCE = 0.55;     // drag resistance factor
+var OPEN_THRESHOLD = 40;   // px to pull before snapping open
+var CLOSE_THRESHOLD = 30;  // px to push up before snapping closed
+var MAX_DRAG = 160;        // max visual drag distance
+var RESISTANCE = 0.55;     // drag resistance factor
 
 export function useTopNavPullDown() {
   const headerRef = useRef(null);

@@ -51,7 +51,7 @@ import ExploreSurfSpotsTab from './explore/ExploreSurfSpotsTab';
 // Role badge component for user results
 // UserRoleBadge extracted to ./explore/UserRoleBadge.js
 
-export const Explore = () => {
+export var Explore = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();

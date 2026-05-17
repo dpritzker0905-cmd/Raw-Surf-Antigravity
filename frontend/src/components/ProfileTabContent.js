@@ -16,7 +16,7 @@ import { SurfboardsTab } from './SurfboardsTab';
 import { ProfileReviewsSection } from './ProfileReviewsSection';
 import { MediaGridItem } from './MediaGridItem';
 
-const ProfileTabContent = ({
+var ProfileTabContent = ({
   activeTab,
   impactScore,
   isOwnProfile,

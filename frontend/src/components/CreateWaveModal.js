@@ -19,10 +19,10 @@ import {
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const MAX_DURATION = 60; // seconds
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+var MAX_DURATION = 60; // seconds
+var MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
+export var CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';

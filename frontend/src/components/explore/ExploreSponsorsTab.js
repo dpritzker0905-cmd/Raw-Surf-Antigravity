@@ -9,7 +9,7 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { getFullUrl } from '../../utils/media';
 
-const ExploreSponsorsTab = ({
+var ExploreSponsorsTab = ({
   leaderboard,
   leaderboardLoading,
   openSponsorCard,

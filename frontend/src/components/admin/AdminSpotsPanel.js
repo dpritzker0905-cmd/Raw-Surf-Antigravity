@@ -18,7 +18,7 @@ import { supabase } from '../../lib/supabase';
  * Global spot manager with full CRUD, precision pin map, and surf data import.
  */
 // Admin Spots Panel - Global Spot Manager
-const AdminSpotsPanel = ({ userId }) => {
+var AdminSpotsPanel = ({ userId }) => {
   const [stats, setStats] = useState(null);
   const [spots, setSpots] = useState([]);
   const [loading, setLoading] = useState(true);

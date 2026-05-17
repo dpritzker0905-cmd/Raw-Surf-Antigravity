@@ -42,7 +42,7 @@ import BroadcasterControls from './live/BroadcasterControls';
  * Phase machine: pre_live ? countdown ? live
  * No auto-start. User must explicitly press Go Live.
  */
-const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
+var GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const colors = useMemo(() => getThemeColors(theme), [theme]);

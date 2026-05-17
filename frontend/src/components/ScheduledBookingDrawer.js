@@ -43,7 +43,7 @@ import { BookingFooter } from './booking/BookingFooter';
 /**
  * Main Scheduled Booking Drawer Component
  */
-export const ScheduledBookingDrawer = ({
+export var ScheduledBookingDrawer = ({
   isOpen,
   onClose,
   photographer,

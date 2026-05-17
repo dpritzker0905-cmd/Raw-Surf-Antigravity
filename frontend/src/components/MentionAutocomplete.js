@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MentionAutocomplete - Dropdown for @mention suggestions
  * Shows when user types @ in a text input
  */
@@ -9,7 +9,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
-const MentionAutocomplete = forwardRef(({ 
+var MentionAutocomplete = forwardRef(({ 
   text, 
   cursorPosition,
   onSelect,
@@ -179,7 +179,7 @@ const MentionAutocomplete = forwardRef(({
               </div>
               {user.is_verified && (
                 <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                  <span className="text-white text-[8px]">✓</span>
+                  <span className="text-white text-[8px]">?</span>
                 </div>
               )}
             </button>
@@ -189,7 +189,7 @@ const MentionAutocomplete = forwardRef(({
       
       {/* Hint */}
       <div className="px-2 py-1.5 border-t border-zinc-800 text-[10px] text-zinc-500 flex items-center justify-between">
-        <span>↑↓ to navigate</span>
+        <span>?? to navigate</span>
         <span>Enter to select</span>
         <span>Esc to close</span>
       </div>

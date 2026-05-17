@@ -11,7 +11,7 @@ import React from 'react';
 import { Radio, MapPin, Calendar, ChevronRight, Zap, Play } from 'lucide-react';
 import { SpotSelector } from '../SpotSelector';
 
-const PhotographerHubContent = ({ 
+var PhotographerHubContent = ({ 
   onClose, 
   navigate, 
   liveCount, 

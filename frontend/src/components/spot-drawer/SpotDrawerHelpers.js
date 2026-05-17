@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
 // Drawer modes — shared constant
-export const DRAWER_MODE = {
+export var DRAWER_MODE = {
   REPORT: 'REPORT',
   SETUP: 'SETUP',
   JUMP_IN: 'JUMP_IN',
@@ -19,12 +19,12 @@ export const DRAWER_MODE = {
 };
 
 // LocalStorage key for camera permission persistence
-export const CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
+export var CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
 
 // =====================================
 // SPOT OF THE DAY BADGE COMPONENT
 // =====================================
-export const SpotOfTheDayBadge = React.memo(({ spotOfTheDay, onClick }) => {
+export var SpotOfTheDayBadge = React.memo(({ spotOfTheDay, onClick }) => {
   if (!spotOfTheDay || !spotOfTheDay.has_spot_of_the_day) return null;
   
   const getRatingColor = (rating) => {
@@ -93,7 +93,7 @@ export const SpotOfTheDayBadge = React.memo(({ spotOfTheDay, onClick }) => {
 });
 
 // Live Savings Badge Component - Shows only when promotional pricing is active
-export const LiveSavingsBadge = React.memo(({ generalPrice, livePrice, pricingMode = 'tiered', highResPrice, className = '' }) => {
+export var LiveSavingsBadge = React.memo(({ generalPrice, livePrice, pricingMode = 'tiered', highResPrice, className = '' }) => {
   if (pricingMode !== 'promotional') return null;
   const comparePrice = highResPrice || generalPrice;
   const savings = comparePrice - livePrice;
@@ -108,7 +108,7 @@ export const LiveSavingsBadge = React.memo(({ generalPrice, livePrice, pricingMo
 });
 
 // Star Rating Component
-export const StarRating = React.memo(({ rating, size = 'sm' }) => {
+export var StarRating = React.memo(({ rating, size = 'sm' }) => {
   const stars = [];
   const sizeClass = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
   
@@ -124,7 +124,7 @@ export const StarRating = React.memo(({ rating, size = 'sm' }) => {
 });
 
 // Reviews Carousel Component
-export const ReviewsCarousel = React.memo(({ reviews }) => {
+export var ReviewsCarousel = React.memo(({ reviews }) => {
   if (!reviews || reviews.length === 0) {
     return (
       <div className="text-center py-4 text-gray-500 text-sm">
@@ -158,7 +158,7 @@ export const ReviewsCarousel = React.memo(({ reviews }) => {
 });
 
 // Privacy Shield Upgrade CTA Component
-export const GeofenceUpgradeCTA = React.memo(({ distanceMiles, _visibilityRadius, activePhotographersCount = 0 }) => {
+export var GeofenceUpgradeCTA = React.memo(({ distanceMiles, _visibilityRadius, activePhotographersCount = 0 }) => {
   const navigate = useNavigate();
   
   return (

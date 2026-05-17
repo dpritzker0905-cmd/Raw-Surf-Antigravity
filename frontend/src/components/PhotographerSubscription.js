@@ -13,7 +13,7 @@ import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 
 
-export const PhotographerSubscription = () => {
+export var PhotographerSubscription = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, _updateUser } = useAuth();

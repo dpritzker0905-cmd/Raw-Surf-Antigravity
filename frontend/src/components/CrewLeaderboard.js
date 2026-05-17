@@ -39,7 +39,7 @@ import { getFullUrl } from '../utils/media';
 
 
 // Badge icon mapping
-const BADGE_ICONS = {
+var BADGE_ICONS = {
   frequent_flyers: '✈️',
   dawn_patrol: '🌅',
   sunset_crew: '🌇',
@@ -54,18 +54,18 @@ const BADGE_ICONS = {
   budget_bosses: '💵'
 };
 
-const TIER_COLORS = {
+var TIER_COLORS = {
   1: 'from-amber-600 to-amber-700',   // Bronze
   2: 'from-gray-300 to-gray-400',      // Silver
   3: 'from-yellow-400 to-yellow-500'   // Gold
 };
 
-const TIER_NAMES = ['Bronze', 'Silver', 'Gold'];
+var TIER_NAMES = ['Bronze', 'Silver', 'Gold'];
 
 /**
  * Badge Display Component
  */
-const BadgeCard = ({ badge, size = 'md' }) => {
+var BadgeCard = ({ badge, size = 'md' }) => {
   const sizeClasses = {
     sm: 'w-12 h-12 text-xl',
     md: 'w-16 h-16 text-2xl',
@@ -90,7 +90,7 @@ const BadgeCard = ({ badge, size = 'md' }) => {
 /**
  * Crew Card Component
  */
-const CrewCard = ({ crew, onClick, isLight }) => {
+var CrewCard = ({ crew, onClick, isLight }) => {
   const cardBg = isLight ? 'bg-white' : 'bg-zinc-800/50';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
@@ -165,7 +165,7 @@ const CrewCard = ({ crew, onClick, isLight }) => {
 /**
  * Leaderboard Entry Component
  */
-const LeaderboardEntry = ({ entry, isLight }) => {
+var LeaderboardEntry = ({ entry, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -227,7 +227,7 @@ const LeaderboardEntry = ({ entry, isLight }) => {
 /**
  * Main Crew Leaderboard Component
  */
-export const CrewLeaderboard = ({ 
+export var CrewLeaderboard = ({ 
   userId, 
   variant = 'full',  // 'full', 'compact', 'profile'
   showPrivacyControls = false

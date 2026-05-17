@@ -17,7 +17,7 @@ import { ROLES } from '../constants/roles';
 
 
 
-const IMPACT_LEVELS = {
+var IMPACT_LEVELS = {
   Legend: { emoji: '🏆', color: 'from-yellow-400 to-amber-600' },
   Champion: { emoji: '🥇', color: 'from-amber-400 to-orange-500' },
   Hero: { emoji: '🦸', color: 'from-purple-400 to-indigo-500' },
@@ -27,14 +27,14 @@ const IMPACT_LEVELS = {
   Starter: { emoji: '🌱', color: 'from-gray-400 to-zinc-500' }
 };
 
-const CAUSE_CATEGORIES = {
+var CAUSE_CATEGORIES = {
   ocean_conservation: { label: 'Ocean Conservation', color: 'bg-blue-500/20 text-blue-400' },
   environmental: { label: 'Environmental', color: 'bg-green-500/20 text-green-400' },
   youth_surfing: { label: 'Youth Surfing', color: 'bg-amber-500/20 text-amber-400' },
   community: { label: 'Community', color: 'bg-purple-500/20 text-purple-400' }
 };
 
-export const ImpactDashboard = () => {
+export var ImpactDashboard = () => {
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);

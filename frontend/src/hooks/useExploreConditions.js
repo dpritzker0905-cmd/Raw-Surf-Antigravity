@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
 
-const useExploreConditions = ({
+var useExploreConditions = ({
   user,
   locationHierarchy, userLocation, nearbyRadius,
   conditionsSubTab,

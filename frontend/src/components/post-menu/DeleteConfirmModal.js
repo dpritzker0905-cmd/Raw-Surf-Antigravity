@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
 
-const DeleteConfirmModal = ({ open, onClose, onConfirm, isLight }) => {
+var DeleteConfirmModal = ({ open, onClose, onConfirm, isLight }) => {
   const [loading, setLoading] = useState(false);
 
   const handleConfirm = async () => {

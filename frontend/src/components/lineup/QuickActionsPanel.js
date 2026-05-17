@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-const QuickActionsPanel = ({ 
+var QuickActionsPanel = ({ 
   lineup, 
   isCaptain, 
   isReady, 

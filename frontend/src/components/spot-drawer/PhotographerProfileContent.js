@@ -12,7 +12,7 @@ import { getFullUrl } from '../../utils/media';
 import { StarRating, ReviewsCarousel } from './SpotDrawerHelpers';
 
 // Photographer Profile Content - SCROLLABLE CONTENT ONLY (for vaul drawer)
-export const PhotographerProfileContent = React.memo(({ photographer }) => {
+export var PhotographerProfileContent = React.memo(({ photographer }) => {
   const [reviews, setReviews] = useState([]);
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +151,7 @@ export const PhotographerProfileContent = React.memo(({ photographer }) => {
 });
 
 // Full-page Photographer Profile (with header + footer) - Legacy version
-export const PhotographerProfile = React.memo(({ photographer, onBack, onJumpIn }) => {
+export var PhotographerProfile = React.memo(({ photographer, onBack, onJumpIn }) => {
   return (
     <div 
       className="relative bg-zinc-900" 

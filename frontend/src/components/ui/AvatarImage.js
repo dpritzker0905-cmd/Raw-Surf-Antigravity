@@ -9,7 +9,7 @@ import React, { useState, useCallback } from 'react';
  * When the image fails to load, it displays the user's initial (from `alt`)
  * inside a gradient circle, preventing the broken-image icon.
  */
-const AvatarImage = ({
+var AvatarImage = ({
   src,
   alt = '',
   className = '',

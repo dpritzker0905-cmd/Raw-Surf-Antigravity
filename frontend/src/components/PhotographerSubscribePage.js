@@ -24,7 +24,7 @@ import { ROLE_SETS } from '../constants/roles';
  * Shows the photographer's available plans with full details,
  * comparison layout, and inline payment. Premium look & feel.
  */
-export const PhotographerSubscribePage = () => {
+export var PhotographerSubscribePage = () => {
   const { photographerId } = useParams();
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();

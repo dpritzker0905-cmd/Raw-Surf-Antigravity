@@ -3,7 +3,7 @@ import { MapPin, Check, Anchor } from 'lucide-react';
 import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 
-export const SpotList = ({
+export var SpotList = ({
   userCoords,
   selectedState,
   selectedCountry,

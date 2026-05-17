@@ -23,7 +23,7 @@ import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
 
-const STATUS = {
+var STATUS = {
   QUEUED: 'queued',
   UPLOADING: 'uploading',
   DONE: 'done',
@@ -31,12 +31,12 @@ const STATUS = {
 };
 
 // Max sizes
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
-const MAX_IMAGE_SIZE = 50 * 1024 * 1024;  // 50MB
+var MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100MB
+var MAX_IMAGE_SIZE = 50 * 1024 * 1024;  // 50MB
 
 // Accepted MIME types matching backend ALLOWED_VIDEO_TYPES / ALLOWED_IMAGE_TYPES
-const ACCEPTED_VIDEO = ['video/mp4', 'video/quicktime', 'video/webm', 'video/mpeg', 'video/x-m4v'];
-const ACCEPTED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+var ACCEPTED_VIDEO = ['video/mp4', 'video/quicktime', 'video/webm', 'video/mpeg', 'video/x-m4v'];
+var ACCEPTED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 /**
  * Resolve the BASE price stored on each uploaded gallery item.
@@ -115,7 +115,7 @@ function validateFile(file) {
 }
 
 
-export const UploadPhotoModal = ({ 
+export var UploadPhotoModal = ({ 
   isOpen, 
   onClose, 
   onUploaded, 

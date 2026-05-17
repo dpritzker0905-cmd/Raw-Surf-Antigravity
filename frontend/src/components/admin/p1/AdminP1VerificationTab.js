@@ -8,7 +8,7 @@ import { UserCheck, Camera, Award, RefreshCw, Globe, Instagram, ChevronRight } f
 import { getFullUrl } from '../../../utils/media';
 import { StatusBadge } from './AdminP1Modals';
 
-const AdminP1VerificationTab = ({
+var AdminP1VerificationTab = ({
   verificationQueue,
   verificationFilter,
   setVerificationFilter,

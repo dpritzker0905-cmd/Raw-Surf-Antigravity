@@ -9,9 +9,9 @@
  */
 import { useState, useEffect } from 'react';
 
-let cachedResult = null;
+var cachedResult = null;
 
-const checkWebPSupport = () => {
+var checkWebPSupport = () => {
   return new Promise((resolve) => {
     if (cachedResult !== null) {
       resolve(cachedResult);
@@ -32,7 +32,7 @@ const checkWebPSupport = () => {
   });
 };
 
-const useWebPSupport = () => {
+var useWebPSupport = () => {
   const [supported, setSupported] = useState(cachedResult ?? false);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default useWebPSupport;
  * @param {Object} options - { width, quality, format }
  * @returns {string} Optimized URL with query params
  */
-export const getOptimizedImageUrl = (url, { width, quality = 80, format } = {}) => {
+export var getOptimizedImageUrl = (url, { width, quality = 80, format } = {}) => {
   if (!url) return url;
   // Don't modify data: or blob: URLs
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;

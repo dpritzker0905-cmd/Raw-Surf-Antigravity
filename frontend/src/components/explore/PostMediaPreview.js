@@ -8,7 +8,7 @@ import { Play, Image } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import ResponsiveImage from '../ui/ResponsiveImage';
 
-const PostMediaPreview = ({ post, isHoverScale = true }) => {
+var PostMediaPreview = ({ post, isHoverScale = true }) => {
   const mediaUrl = post?.media_url || post?.image_url || post?.thumbnail_url;
   const isVideo = post?.media_type === 'video' || (mediaUrl && typeof mediaUrl === 'string' && mediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) || post?.is_wave === true || typeof post?.view_count !== 'undefined';
   const thumbnailUrl = post?.thumbnail_url || (isVideo ? null : mediaUrl);

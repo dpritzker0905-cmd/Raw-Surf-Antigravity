@@ -12,13 +12,13 @@ import logger from '../utils/logger';
  * which was blocking wind/marine grid fetches and breaking the forecast slider.
  */
 
-const MODEL_MAP = {
+var MODEL_MAP = {
   GFS:  'gfs_seamless',
   EURO: 'ecmwf_ifs025',
   ICON: 'icon_seamless',
 };
 
-const WEATHER_VARS = [
+var WEATHER_VARS = [
   'precipitation',
   'precipitation_probability',
   'wind_speed_10m',
@@ -27,23 +27,23 @@ const WEATHER_VARS = [
   'surface_pressure',
 ].join(',');
 
-const CURRENT_WEATHER_VARS = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m';
+var CURRENT_WEATHER_VARS = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m';
 
-const MARINE_VARS = [
+var MARINE_VARS = [
   'wave_height', 'wave_period', 'wave_direction',
   'swell_wave_height', 'swell_wave_period', 'swell_wave_direction',
   'secondary_swell_wave_height', 'secondary_swell_wave_period', 'secondary_swell_wave_direction',
   'wind_wave_height', 'wind_wave_period', 'wind_wave_direction',
 ].join(',');
 
-const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
+var CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
 // v3.9.3: Module-level rate limiter — shared across all instances
 // 60s interval ensures spot forecasts don't starve the wind grid engine
-let lastGlobalFetchTime = 0;
-const MIN_FETCH_INTERVAL = 60_000; // 60s between spot forecast fetches
+var lastGlobalFetchTime = 0;
+var MIN_FETCH_INTERVAL = 60_000; // 60s between spot forecast fetches
 
-export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
+export var useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
   const [forecastData, setForecastData] = useState(null);
   const [marineData, setMarineData] = useState(null);
   const [currentWeather, setCurrentWeather] = useState(null);

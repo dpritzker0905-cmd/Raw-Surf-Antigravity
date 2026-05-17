@@ -24,7 +24,7 @@ import { GenericPageSkeleton } from './ui/SkeletonVariants';
  * The Peak - Career Hub for Pro-Elite (?+) and Competitive (??) surfers
  * Features: Competition Stats, Sponsorship Manager, Gold-Pass Booking, Elite Talent Feed
  */
-export const ThePeakHub = () => {
+export var ThePeakHub = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -447,7 +447,7 @@ export const ThePeakHub = () => {
 };
 
 // Add Competition Result Modal
-const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
+var AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
   const [formData, setFormData] = useState({
     event_name: '',
     event_date: '',
@@ -574,7 +574,7 @@ const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
 };
 
 // Add Sponsor Modal
-const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
+var AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
   const [formData, setFormData] = useState({
     sponsor_name: '',
     sponsor_type: 'brand',

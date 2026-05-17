@@ -38,7 +38,7 @@ import { ROLES } from '../constants/roles';
 
 
 // Gear type options
-const GEAR_TYPES = [
+var GEAR_TYPES = [
   { id: 'all', label: 'All Gear', icon: Camera },
   { id: 'land', label: 'Land', icon: Camera, description: 'Beach/pier shots' },
   { id: 'water', label: 'Water', icon: Waves, description: 'In-water photography' },
@@ -46,7 +46,7 @@ const GEAR_TYPES = [
 ];
 
 // Skill level options
-const SKILL_LEVELS = [
+var SKILL_LEVELS = [
   { id: 'all', label: 'All Levels' },
   { id: 'hobbyist', label: 'Hobbyist', color: 'blue' },
   { id: 'photographer', label: 'Photographer', color: 'green' },
@@ -54,7 +54,7 @@ const SKILL_LEVELS = [
 ];
 
 // Region/Peak options (expandable)
-const REGIONS = [
+var REGIONS = [
   { id: 'all', label: 'All Regions' },
   { id: 'ny', label: 'New York', flag: '🗽' },
   { id: 'fl', label: 'Florida', flag: '🌴' },
@@ -70,7 +70,7 @@ const REGIONS = [
 /**
  * Photographer Card Component
  */
-const PhotographerCard = ({ photographer, onSelect, isLight }) => {
+var PhotographerCard = ({ photographer, onSelect, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   const cardBg = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-800';
@@ -175,7 +175,7 @@ const PhotographerCard = ({ photographer, onSelect, isLight }) => {
 /**
  * Filter Sheet Component
  */
-const FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => {
+var FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => {
   const _textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -289,7 +289,7 @@ const FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => 
 /**
  * Main Photographer Directory Component
  */
-export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer }) => {
+export var PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer }) => {
   const { _user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

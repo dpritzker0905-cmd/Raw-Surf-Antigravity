@@ -21,7 +21,7 @@ import logger from '../../utils/logger';
  * - Revenue metrics by source
  * - User segment analysis
  */
-export const AdminAnalyticsDashboard = () => {
+export var AdminAnalyticsDashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');

@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 
-export const CreditWallet = () => {
+export var CreditWallet = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

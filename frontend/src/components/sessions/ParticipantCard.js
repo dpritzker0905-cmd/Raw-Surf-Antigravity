@@ -11,7 +11,7 @@ import {
 import { getFullUrl } from '../../utils/media';
 
 // Surfboard colors for visual consistency with LineupManagerDrawer
-const SURFBOARD_COLORS = [
+var SURFBOARD_COLORS = [
   { fill: '#22D3EE', stroke: '#0891B2' },
   { fill: '#F472B6', stroke: '#DB2777' },
   { fill: '#A78BFA', stroke: '#7C3AED' },
@@ -23,7 +23,7 @@ const SURFBOARD_COLORS = [
 
 export { SURFBOARD_COLORS };
 
-const ParticipantCard = ({ 
+var ParticipantCard = ({ 
   participant, 
   position, 
   canRemove, 

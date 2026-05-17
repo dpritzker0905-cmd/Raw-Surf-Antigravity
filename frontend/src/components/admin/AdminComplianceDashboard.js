@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 // --- Stat Card ----------------------------------------------------------------
-const StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
+var StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
   <div className={`p-3 rounded-xl bg-${color}-500/10 border border-${color}-500/20`}>
     <div className="flex items-center gap-2 mb-1">
       <Icon className={`w-4 h-4 text-${color}-400`} />
@@ -33,7 +33,7 @@ const StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
 );
 
 // --- Severity Badge -----------------------------------------------------------
-const SeverityBadge = ({ severity }) => {
+var SeverityBadge = ({ severity }) => {
   const config = {
     minor:    { bg: 'bg-blue-500/20',   text: 'text-blue-400',   label: 'Minor' },
     moderate: { bg: 'bg-yellow-500/20',  text: 'text-yellow-400', label: 'Moderate' },
@@ -49,7 +49,7 @@ const SeverityBadge = ({ severity }) => {
 };
 
 // --- Appeal Status Badge ------------------------------------------------------
-const AppealBadge = ({ status }) => {
+var AppealBadge = ({ status }) => {
   if (!status) return null;
   const config = {
     pending:  { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '? Pending' },
@@ -65,7 +65,7 @@ const AppealBadge = ({ status }) => {
 };
 
 // --- Violation Type Label -----------------------------------------------------
-const violationTypeLabel = (type) => {
+var violationTypeLabel = (type) => {
   const map = {
     location_fraud: '📍 Location Fraud',
     fake_reviews: '? Fake Reviews',
@@ -79,7 +79,7 @@ const violationTypeLabel = (type) => {
 };
 
 // --- Action Taken Label -------------------------------------------------------
-const actionLabel = (action) => {
+var actionLabel = (action) => {
   const map = {
     warning: '⚠️ Warning',
     suspension_7d: '🔒 7-Day Suspension',
@@ -96,7 +96,7 @@ const actionLabel = (action) => {
  * @param {string} props.textSecondary
  * @param {boolean} props.isLight
  */
-export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary, isLight }) => {
+export var AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary, isLight }) => {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviewingId, setReviewingId] = useState(null);

@@ -18,7 +18,7 @@ import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { formatTimeSlot } from '../utils/formatTime';
 
-export const GoldPassSlotCard = ({ 
+export var GoldPassSlotCard = ({ 
   slot, 
   hasGoldPass, 
   onBook, 

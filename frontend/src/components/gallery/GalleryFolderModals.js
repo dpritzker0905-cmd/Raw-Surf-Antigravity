@@ -19,7 +19,7 @@ import { getFullUrl } from '../../utils/media';
 /**
  * GalleryFolderModals - All folder management modals extracted from GalleryPage
  */
-export const GalleryFolderModals = ({
+export var GalleryFolderModals = ({
   // Gallery Pricing
   showGalleryPricingModal, setShowGalleryPricingModal,
   galleryPricing, setGalleryPricing,

@@ -12,7 +12,7 @@ import { AdaptiveBackground } from './AdaptiveBackground';
 /**
  * Animated Wave Home Icon - Simple Lucide Waves with gentle animation
  */
-const AnimatedWaveIcon = ({ isActive, isPressed, hasNewContent, className = '' }) => {
+var AnimatedWaveIcon = ({ isActive, isPressed, hasNewContent, className = '' }) => {
   const [frame, setFrame] = useState(0);
   
   useEffect(() => {
@@ -53,7 +53,7 @@ const AnimatedWaveIcon = ({ isActive, isPressed, hasNewContent, className = '' }
 /**
  * Home Wave Button - Wrapper component for proper hooks usage
  */
-const HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
+var HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
   const [isPressed, setIsPressed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -103,7 +103,7 @@ const HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
  * 
  * NOTE: Photo Tools, Backpack, Sessions moved to TopNav pull-down drawer
  */
-export const BottomNav = () => {
+export var BottomNav = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();

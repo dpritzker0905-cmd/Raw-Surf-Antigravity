@@ -6,13 +6,13 @@ import { Play, ShoppingCart, MapPin, Check, Star } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 
-const VIEW_MODES = {
+var VIEW_MODES = {
   GRID: 'grid',
   MASONRY: 'masonry',
   LIST: 'list'
 };
 
-export const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
+export var GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const itemCardBg = isLight ? 'bg-gray-100' : 'bg-zinc-800';
   
@@ -111,7 +111,7 @@ export const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick 
   );
 };
 
-export const QualityOption = ({ label, sublabel, price, selected, onClick, recommended, isLight }) => (
+export var QualityOption = ({ label, sublabel, price, selected, onClick, recommended, isLight }) => (
   <button
     onClick={onClick}
     className={`

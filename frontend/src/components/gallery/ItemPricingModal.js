@@ -6,7 +6,7 @@ import {
   DollarSign
 } from 'lucide-react';
 
-const ItemPricingModal = ({
+var ItemPricingModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,

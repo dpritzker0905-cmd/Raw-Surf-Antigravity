@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { CommentText } from '../RichText';
 import { formatTimeAgo } from '../../utils/formatTime';
 
-const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
+var ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
   const navigate = useNavigate();
   const [reactionCount, setReactionCount] = useState(reply.reaction_count || 0);
   const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);

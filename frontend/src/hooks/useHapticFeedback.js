@@ -18,7 +18,7 @@
  */
 import { useCallback } from 'react';
 
-const PATTERNS = {
+var PATTERNS = {
   light: [10],
   medium: [30],
   heavy: [50],
@@ -26,7 +26,7 @@ const PATTERNS = {
   error: [50, 30, 50, 30, 50],
 };
 
-const useHapticFeedback = () => {
+var useHapticFeedback = () => {
   return useCallback((type = 'medium') => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       const pattern = PATTERNS[type] || PATTERNS.medium;

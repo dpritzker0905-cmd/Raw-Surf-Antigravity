@@ -12,7 +12,7 @@
  * @param {string|Date} dateInput - ISO date string or Date object
  * @returns {string} Relative time string
  */
-export const formatTimeAgo = (dateInput) => {
+export var formatTimeAgo = (dateInput) => {
   if (!dateInput) return '';
   const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
   if (isNaN(date.getTime())) return '';
@@ -38,7 +38,7 @@ export const formatTimeAgo = (dateInput) => {
  * @param {string|Date} dateInput - ISO date string or Date object
  * @returns {string} Compact relative time string
  */
-export const formatTimeAgoCompact = (dateInput) => {
+export var formatTimeAgoCompact = (dateInput) => {
   if (!dateInput) return '';
   const date = new Date(dateInput);
   if (isNaN(date.getTime())) return '';
@@ -61,7 +61,7 @@ export const formatTimeAgoCompact = (dateInput) => {
  * @param {number} seconds - Duration in seconds
  * @returns {string} Formatted duration string (m:ss or h:mm:ss)
  */
-export const formatDuration = (seconds) => {
+export var formatDuration = (seconds) => {
   if (!seconds && seconds !== 0) return '0:00';
   const s = Math.floor(seconds);
   const hrs = Math.floor(s / 3600);
@@ -80,7 +80,7 @@ export const formatDuration = (seconds) => {
  * @param {number} seconds - Duration in seconds
  * @returns {string} Formatted duration string (mm:ss or hh:mm:ss)
  */
-export const formatDurationPadded = (seconds) => {
+export var formatDurationPadded = (seconds) => {
   if (!seconds && seconds !== 0) return '00:00';
   const s = Math.floor(seconds);
   const hrs = Math.floor(s / 3600);
@@ -99,7 +99,7 @@ export const formatDurationPadded = (seconds) => {
  * @param {string|Date} dateInput - ISO date string or Date object
  * @returns {string} Locale time string (e.g. "2:30 PM")
  */
-export const formatClockTime = (dateInput) => {
+export var formatClockTime = (dateInput) => {
   if (!dateInput) return '';
   const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
   if (isNaN(date.getTime())) return '';
@@ -113,7 +113,7 @@ export const formatClockTime = (dateInput) => {
  * @param {string} time - Time string in HH:MM format
  * @returns {string} Formatted 12h time (e.g. "2:30 PM")
  */
-export const formatTimeSlot = (time) => {
+export var formatTimeSlot = (time) => {
   if (!time) return '';
   const [hours, minutes] = time.split(':');
   const hour = parseInt(hours);

@@ -24,7 +24,7 @@ import { ROLES } from '../constants/roles';
  * Shows: Total Sessions Joined, XP Progress, Competitive Stats, Sponsorship Credits
  * Role-specific spending options: Cash Out (Pro), Travel (Comp), Gear (Grom)
  */
-export const StokedDashboard = () => {
+export var StokedDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();

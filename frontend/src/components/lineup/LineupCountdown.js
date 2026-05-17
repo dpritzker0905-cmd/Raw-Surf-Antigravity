@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const LineupCountdown = ({ closesAt, isLight }) => {
+var LineupCountdown = ({ closesAt, isLight }) => {
   const [timeLeft, setTimeLeft] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
   

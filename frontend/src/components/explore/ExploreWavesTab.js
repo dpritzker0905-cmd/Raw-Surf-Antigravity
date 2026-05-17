@@ -7,7 +7,7 @@ import React from 'react';
 import { Play, Heart, ChevronRight, Loader2, Film } from 'lucide-react';
 import PostMediaPreview from './PostMediaPreview';
 
-const ExploreWavesTab = ({
+var ExploreWavesTab = ({
   trendingWaves,
   recentWaves,
   wavesLoading,

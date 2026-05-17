@@ -24,7 +24,7 @@ import apiClient from '../../lib/apiClient';
 
 
 // Default discount tiers (can be overridden by photographer settings)
-const DEFAULT_DISCOUNT_TIERS = [
+var DEFAULT_DISCOUNT_TIERS = [
   { minItems: 3, discount: 0.10, label: '10% off' },
   { minItems: 5, discount: 0.15, label: '15% off' },
   { minItems: 10, discount: 0.20, label: '20% off' }
@@ -33,7 +33,7 @@ const DEFAULT_DISCOUNT_TIERS = [
 /**
  * Calculate discount based on item count and tiers
  */
-const calculateDiscount = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
+var calculateDiscount = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
   // Sort tiers by minItems descending to find the highest applicable tier
   const sortedTiers = [...tiers].sort((a, b) => b.minItems - a.minItems);
   
@@ -49,7 +49,7 @@ const calculateDiscount = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
 /**
  * Get next discount tier hint
  */
-const getNextTierHint = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
+var getNextTierHint = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
   const sortedTiers = [...tiers].sort((a, b) => a.minItems - b.minItems);
   
   for (const tier of sortedTiers) {
@@ -68,7 +68,7 @@ const getNextTierHint = (itemCount, tiers = DEFAULT_DISCOUNT_TIERS) => {
 /**
  * Selected item thumbnail chip
  */
-const SelectedItemChip = ({ item, onRemove }) => (
+var SelectedItemChip = ({ item, onRemove }) => (
   <div className="relative group">
     <div className="w-12 h-12 rounded-lg overflow-hidden border border-zinc-700">
       <img loading="lazy" decoding="async" 
@@ -89,7 +89,7 @@ const SelectedItemChip = ({ item, onRemove }) => (
 /**
  * Main BulkPurchaseBar component
  */
-export const BulkPurchaseBar = ({
+export var BulkPurchaseBar = ({
   selectedItems = [],
   onRemoveItem,
   onClearAll,
@@ -360,7 +360,7 @@ export const BulkPurchaseBar = ({
  * Multi-select mode toggle button
  * Shows in gallery header to enable/disable bulk selection
  */
-export const MultiSelectToggle = ({ 
+export var MultiSelectToggle = ({ 
   isActive, 
   onToggle, 
   selectedCount = 0 

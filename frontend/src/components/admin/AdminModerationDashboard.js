@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 
-const STATUS_STYLES = {
+var STATUS_STYLES = {
   open: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   under_review: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   awaiting_response: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
@@ -28,11 +28,11 @@ const STATUS_STYLES = {
   no_violation: 'bg-gray-500/20 text-muted-foreground border-gray-500/30',
   dismissed: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 };
-const PRIORITY_STYLES = { low: 'bg-gray-500/20 text-muted-foreground', normal: 'bg-blue-500/20 text-blue-400', high: 'bg-orange-500/20 text-orange-400', urgent: 'bg-red-500/20 text-red-400 animate-pulse' };
-const StatusBadge = ({ status }) => <Badge className={`text-xs ${STATUS_STYLES[status] || 'bg-zinc-500/20 text-zinc-400'}`}>{status?.replace(/_/g, ' ')}</Badge>;
-const PriorityBadge = ({ priority }) => <Badge className={`text-xs ${PRIORITY_STYLES[priority] || PRIORITY_STYLES.normal}`}>{priority}</Badge>;
+var PRIORITY_STYLES = { low: 'bg-gray-500/20 text-muted-foreground', normal: 'bg-blue-500/20 text-blue-400', high: 'bg-orange-500/20 text-orange-400', urgent: 'bg-red-500/20 text-red-400 animate-pulse' };
+var StatusBadge = ({ status }) => <Badge className={`text-xs ${STATUS_STYLES[status] || 'bg-zinc-500/20 text-zinc-400'}`}>{status?.replace(/_/g, ' ')}</Badge>;
+var PriorityBadge = ({ priority }) => <Badge className={`text-xs ${PRIORITY_STYLES[priority] || PRIORITY_STYLES.normal}`}>{priority}</Badge>;
 
-export const AdminModerationDashboard = () => {
+export var AdminModerationDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeSubTab, setActiveSubTab] = useState('disputes');

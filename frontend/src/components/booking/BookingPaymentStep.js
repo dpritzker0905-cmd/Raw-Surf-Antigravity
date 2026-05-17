@@ -9,7 +9,7 @@ import { Wallet, CreditCard, Check } from 'lucide-react';
 import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
 
-const BookingPaymentStep = ({
+var BookingPaymentStep = ({
   crewSplitEnabled,
   captainShare,
   totalPrice,

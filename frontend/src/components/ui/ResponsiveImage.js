@@ -33,7 +33,7 @@ function buildSrcSet(src, webpSupported) {
   return '';
 }
 
-export const ResponsiveImage = ({
+export var ResponsiveImage = ({
   src,
   alt = '',
   className = '',

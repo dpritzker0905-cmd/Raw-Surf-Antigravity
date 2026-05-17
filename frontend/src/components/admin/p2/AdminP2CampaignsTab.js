@@ -4,7 +4,7 @@ import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Bell, Plus, Users, Check, Eye, Send } from 'lucide-react';
 
-export const AdminP2CampaignsTab = ({
+export var AdminP2CampaignsTab = ({
   campaigns,
   setShowCreateCampaign,
   handleSendCampaign,

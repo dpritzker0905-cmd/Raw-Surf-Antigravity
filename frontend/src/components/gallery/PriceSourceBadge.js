@@ -13,7 +13,7 @@ import {
   TooltipTrigger,
 } from '../ui/tooltip';
 
-const PRICE_SOURCE_CONFIG = {
+var PRICE_SOURCE_CONFIG = {
   'free_from_buyin': { 
     label: 'Included Free', 
     color: 'bg-green-500 text-white', 
@@ -52,7 +52,7 @@ const PRICE_SOURCE_CONFIG = {
   }
 };
 
-export const PriceSourceBadge = ({ 
+export var PriceSourceBadge = ({ 
   source, 
   originalPrice, 
   currentPrice,
@@ -107,7 +107,7 @@ export const PriceSourceBadge = ({
  * PriceTierCard - Displays a pricing tier with source badge
  * Used in purchase modals for SmugMug-style tier selection
  */
-export const PriceTierCard = ({
+export var PriceTierCard = ({
   tier,
   label,
   price,
@@ -181,7 +181,7 @@ export const PriceTierCard = ({
  * QualityTierBadge - Shows service type quality limit at booking time
  * TICKET-001 extension for booking flow
  */
-export const QualityTierBadge = ({ serviceType, className = '' }) => {
+export var QualityTierBadge = ({ serviceType, className = '' }) => {
   const config = {
     'scheduled': {
       label: 'Pro Quality (4K)',

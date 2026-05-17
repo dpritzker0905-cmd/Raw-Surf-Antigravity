@@ -9,7 +9,7 @@ import { Button } from './ui/button';
  * Stoked Locked Page - For regular Surfers who haven't competed
  * Shows how to unlock the Stoked Sponsorship Engine
  */
-export const StokedLockedPage = () => {
+export var StokedLockedPage = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
 

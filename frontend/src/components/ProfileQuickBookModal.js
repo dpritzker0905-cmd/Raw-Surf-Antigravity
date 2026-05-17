@@ -11,7 +11,7 @@ import { getFullUrl } from '../utils/media';
  * with a photographer directly from their profile.
  * Extracted from Profile.js to reduce god-component complexity.
  */
-export const ProfileQuickBookModal = ({
+export var ProfileQuickBookModal = ({
   isOpen,
   onClose,
   profile,

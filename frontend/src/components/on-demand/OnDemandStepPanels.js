@@ -13,7 +13,7 @@ import SurfboardAvatar from './SurfboardAvatar';
 import { QualityTierBadge } from '../gallery/PriceSourceBadge';
 
 // Surfboard colors for crew visualization
-const SURFBOARD_COLORS = [
+var SURFBOARD_COLORS = [
   { fill: '#06b6d4', stroke: '#0891b2' },
   { fill: '#f97316', stroke: '#ea580c' },
   { fill: '#a855f7', stroke: '#9333ea' },
@@ -24,7 +24,7 @@ const SURFBOARD_COLORS = [
 ];
 
 // EmptySeat placeholder for unfilled crew slots
-const EmptySeat = ({ onClick, isLight }) => (
+var EmptySeat = ({ onClick, isLight }) => (
   <button onClick={onClick} className='relative flex flex-col items-center opacity-50 hover:opacity-80 transition-opacity' aria-label="Add crew member">
     <div className='w-10 h-20 rounded-full border-2 border-dashed border-border/40 flex items-center justify-center'>
       <Plus className='w-4 h-4 text-muted-foreground' />
@@ -33,7 +33,7 @@ const EmptySeat = ({ onClick, isLight }) => (
   </button>
 );
 
-export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, handleAddCrewMember, getFullUrl: getFullUrlFn }) => {
+export var CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, handleAddCrewMember, getFullUrl: getFullUrlFn }) => {
   const {
     step, setStep, isLight, textPrimary, textSecondary,
     user, recentBuddies, following, showAddCrewInput, setShowAddCrewInput,
@@ -287,7 +287,7 @@ export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, ha
   );
 };
 
-export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFullUrlFn }) => {
+export var CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFullUrlFn }) => {
   const {
     step, setStep, isLight, textPrimary, textSecondary,
     totalPrice, captainPayAmount, crewCoversAmount, totalParticipants, perPersonSplit,

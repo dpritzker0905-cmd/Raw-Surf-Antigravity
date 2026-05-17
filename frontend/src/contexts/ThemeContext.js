@@ -1,15 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
-const ThemeContext = createContext();
+var ThemeContext = createContext();
 
 // Theme color values for meta tag
-const THEME_COLORS = {
+var THEME_COLORS = {
   light: '#FFFFFF',
   dark: '#09090B',  // zinc-950
   beach: '#000000'  // pure black
 };
 
-export const ThemeProvider = ({ children }) => {
+export var ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('raw-surf-theme');
     if (saved) return saved;
@@ -58,7 +58,7 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-export const useTheme = () => {
+export var useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
     throw new Error('useTheme must be used within ThemeProvider');

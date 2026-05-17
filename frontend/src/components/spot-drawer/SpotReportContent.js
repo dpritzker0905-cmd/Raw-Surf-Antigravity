@@ -17,7 +17,7 @@ import { SpotVerificationNudge } from '../SpotVerificationNudge';
 import { SpotOfTheDayBadge, GeofenceUpgradeCTA } from './SpotDrawerHelpers';
 import { getFullUrl } from '../../utils/media';
 
-const SpotReportContent = ({
+var SpotReportContent = ({
   spot,
   user,
   isPhotographer,

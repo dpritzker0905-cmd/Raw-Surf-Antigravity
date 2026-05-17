@@ -7,7 +7,7 @@ import React from 'react';
 import { Lock, Crown, Camera, Check } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useNavigate } from 'react-router-dom';
-const GeofenceUpgradeCTA = ({ distanceMiles, _visibilityRadius, activePhotographersCount = 0 }) => {
+var GeofenceUpgradeCTA = ({ distanceMiles, _visibilityRadius, activePhotographersCount = 0 }) => {
   const navigate = useNavigate();
   
   return (

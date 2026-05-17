@@ -12,7 +12,7 @@ import { XPDisplay, BadgeRow } from './GamificationUI';
 import TrustSignalBadges from './ui/TrustSignalBadges';
 
 // Role badge component showing icon and label
-const ProfileRoleBadge = ({ role }) => {
+var ProfileRoleBadge = ({ role }) => {
   const roleInfo = getExpandedRoleInfo(role);
   return (
     <Badge className={`${roleInfo.bgColor} ${roleInfo.color} text-xs flex items-center gap-1`} data-testid="profile-role-badge">
@@ -27,7 +27,7 @@ const ProfileRoleBadge = ({ role }) => {
  * Renders the avatar, note bubble, name, username, stats row,
  * role badges, bio, social links, and action buttons.
  */
-export const ProfileHeader = ({
+export var ProfileHeader = ({
   profile,
   profileUserId,
   isOwnProfile,

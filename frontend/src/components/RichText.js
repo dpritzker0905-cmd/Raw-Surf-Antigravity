@@ -16,14 +16,14 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 
 // Regex patterns for matching
-const HASHTAG_REGEX = /#(\w+)/g;
-const MENTION_REGEX = /@(\w+)/g;
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+var HASHTAG_REGEX = /#(\w+)/g;
+var MENTION_REGEX = /@(\w+)/g;
+var URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 /**
  * Parse text and return array of segments with type information
  */
-const parseText = (text) => {
+var parseText = (text) => {
   if (!text) return [];
   
   const segments = [];
@@ -101,7 +101,7 @@ const parseText = (text) => {
  * RichText Component
  * Renders text with interactive hashtags and mentions
  */
-export const RichText = ({ 
+export var RichText = ({ 
   text, 
   className = '',
   hashtagClassName = 'text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer',
@@ -247,7 +247,7 @@ export const RichText = ({
  * Caption Component
  * Pre-styled for post captions with author name
  */
-export const Caption = ({
+export var Caption = ({
   authorName,
   authorId,
   text,
@@ -283,7 +283,7 @@ export const Caption = ({
  * CommentText Component
  * For rendering comment text with interactive elements
  */
-export const CommentText = ({
+export var CommentText = ({
   text,
   className = 'text-sm',
   textClass = 'text-foreground'

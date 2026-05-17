@@ -30,7 +30,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 // Quick replies for on-demand session coordination
-const SESSION_QUICK_REPLIES = [
+var SESSION_QUICK_REPLIES = [
   { id: 'omw', text: "On my way! 🏃", icon: '🏃' },
   { id: 'arrived', text: "Just arrived at the spot 📍", icon: '📍' },
   { id: 'parking', text: "Looking for parking 🅿️", icon: '🅿️' },
@@ -43,10 +43,10 @@ const SESSION_QUICK_REPLIES = [
   { id: 'thanks', text: "Thanks for the session! 🤙", icon: '🤙' },
 ];
 
-const MAX_VOICE_DURATION = 30; // seconds
+var MAX_VOICE_DURATION = 30; // seconds
 
 // ============ MESSAGE BUBBLE ============
-const MessageBubble = ({ message, isMine, isLight }) => {
+var MessageBubble = ({ message, isMine, isLight }) => {
   const bgMine = isLight
     ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
     : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white';
@@ -112,7 +112,7 @@ const MessageBubble = ({ message, isMine, isLight }) => {
 };
 
 // ============ MAIN COMPONENT ============
-export const SessionChatDrawer = ({
+export var SessionChatDrawer = ({
   isOpen,
   onClose,
   otherUserId,
@@ -599,7 +599,7 @@ export const SessionChatDrawer = ({
 
 // ============ FLOATING CHAT BUTTON ============
 // Mini FAB to open chat from the session view
-export const SessionChatFAB = ({
+export var SessionChatFAB = ({
   unreadCount = 0,
   onClick,
   isLight = false,

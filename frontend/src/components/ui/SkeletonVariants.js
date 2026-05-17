@@ -9,7 +9,7 @@ import React from 'react';
 import { Skeleton } from './skeleton';
 
 // ─── Feed Post Skeleton ───────────────────────────────────────────────────────
-export const FeedPostSkeleton = () => (
+export var FeedPostSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     {/* Header: avatar + name */}
     <div className="flex items-center gap-3 p-4">
@@ -36,7 +36,7 @@ export const FeedPostSkeleton = () => (
 );
 
 // ─── Spot/Explore Card Skeleton ───────────────────────────────────────────────
-export const SpotCardSkeleton = () => (
+export var SpotCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-40" />
     <div className="p-3 space-y-2">
@@ -52,7 +52,7 @@ export const SpotCardSkeleton = () => (
 );
 
 // ─── Profile Header Skeleton ──────────────────────────────────────────────────
-export const ProfileHeaderSkeleton = () => (
+export var ProfileHeaderSkeleton = () => (
   <div className="flex flex-col items-center space-y-4 py-6">
     <Skeleton className="w-24 h-24 rounded-full" />
     <Skeleton className="h-5 w-36 rounded" />
@@ -75,7 +75,7 @@ export const ProfileHeaderSkeleton = () => (
 );
 
 // ─── Message Thread Skeleton ──────────────────────────────────────────────────
-export const MessageThreadSkeleton = () => (
+export var MessageThreadSkeleton = () => (
   <div className="flex items-center gap-3 p-4 border-b border-border">
     <Skeleton className="w-12 h-12 rounded-full shrink-0" />
     <div className="flex-1 space-y-1.5">
@@ -87,7 +87,7 @@ export const MessageThreadSkeleton = () => (
 );
 
 // ─── Notification Item Skeleton ───────────────────────────────────────────────
-export const NotificationSkeleton = () => (
+export var NotificationSkeleton = () => (
   <div className="flex items-start gap-3 p-4 border-b border-border">
     <Skeleton className="w-10 h-10 rounded-full shrink-0" />
     <div className="flex-1 space-y-1.5">
@@ -99,7 +99,7 @@ export const NotificationSkeleton = () => (
 );
 
 // ─── Settings Row Skeleton ────────────────────────────────────────────────────
-export const SettingsRowSkeleton = () => (
+export var SettingsRowSkeleton = () => (
   <div className="flex items-center justify-between p-4 border-b border-border">
     <div className="flex items-center gap-3">
       <Skeleton className="w-8 h-8 rounded-lg" />
@@ -110,7 +110,7 @@ export const SettingsRowSkeleton = () => (
 );
 
 // ─── Leaderboard Row Skeleton ─────────────────────────────────────────────────
-export const LeaderboardRowSkeleton = () => (
+export var LeaderboardRowSkeleton = () => (
   <div className="flex items-center gap-3 p-3 rounded-xl bg-card/50">
     <Skeleton className="w-8 h-8 rounded-full" />
     <Skeleton className="w-10 h-10 rounded-full" />
@@ -123,7 +123,7 @@ export const LeaderboardRowSkeleton = () => (
 );
 
 // ─── Map Sidebar Skeleton ─────────────────────────────────────────────────────
-export const MapSidebarSkeleton = () => (
+export var MapSidebarSkeleton = () => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-40 rounded" />
     {Array.from({ length: 4 }).map((_, i) => (
@@ -139,7 +139,7 @@ export const MapSidebarSkeleton = () => (
 );
 
 // ─── Surf Log Entry Skeleton ──────────────────────────────────────────────────
-export const SurfLogSkeleton = () => (
+export var SurfLogSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center justify-between">
       <Skeleton className="h-4 w-28 rounded" />
@@ -163,7 +163,7 @@ export const SurfLogSkeleton = () => (
 );
 
 // ─── Alert/Forecast Card Skeleton ─────────────────────────────────────────────
-export const AlertCardSkeleton = () => (
+export var AlertCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-2">
     <div className="flex items-center gap-2">
       <Skeleton className="w-8 h-8 rounded-lg" />
@@ -179,7 +179,7 @@ export const AlertCardSkeleton = () => (
 );
 
 // ─── Booking Detail Skeleton ──────────────────────────────────────────────────
-export const BookingDetailSkeleton = () => (
+export var BookingDetailSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-48" />
     <div className="p-4 space-y-3">
@@ -201,7 +201,7 @@ export const BookingDetailSkeleton = () => (
 );
 
 // ─── Story Ring Skeleton ──────────────────────────────────────────────────────
-export const StoryRingSkeleton = () => (
+export var StoryRingSkeleton = () => (
   <div className="flex gap-3 overflow-hidden px-4 py-2">
     {Array.from({ length: 6 }).map((_, i) => (
       <div key={i} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -213,7 +213,7 @@ export const StoryRingSkeleton = () => (
 );
 
 // ─── Gear Hub Item Skeleton ───────────────────────────────────────────────────
-export const GearItemSkeleton = () => (
+export var GearItemSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full aspect-square" />
     <div className="p-3 space-y-2">
@@ -225,7 +225,7 @@ export const GearItemSkeleton = () => (
 );
 
 // ─── Challenge Card Skeleton ──────────────────────────────────────────────────
-export const ChallengeCardSkeleton = () => (
+export var ChallengeCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center gap-3">
       <Skeleton className="w-12 h-12 rounded-xl" />
@@ -243,7 +243,7 @@ export const ChallengeCardSkeleton = () => (
 );
 
 // ─── Compound List Skeletons ──────────────────────────────────────────────────
-export const FeedSkeleton = ({ count = 3 }) => (
+export var FeedSkeleton = ({ count = 3 }) => (
   <div className="space-y-4 p-4">
     <StoryRingSkeleton />
     {Array.from({ length: count }).map((_, i) => (
@@ -252,7 +252,7 @@ export const FeedSkeleton = ({ count = 3 }) => (
   </div>
 );
 
-export const MessageListSkeleton = ({ count = 6 }) => (
+export var MessageListSkeleton = ({ count = 6 }) => (
   <div>
     {Array.from({ length: count }).map((_, i) => (
       <MessageThreadSkeleton key={i} />
@@ -260,7 +260,7 @@ export const MessageListSkeleton = ({ count = 6 }) => (
   </div>
 );
 
-export const NotificationListSkeleton = ({ count = 8 }) => (
+export var NotificationListSkeleton = ({ count = 8 }) => (
   <div>
     {Array.from({ length: count }).map((_, i) => (
       <NotificationSkeleton key={i} />
@@ -268,7 +268,7 @@ export const NotificationListSkeleton = ({ count = 8 }) => (
   </div>
 );
 
-export const SpotGridSkeleton = ({ count = 6 }) => (
+export var SpotGridSkeleton = ({ count = 6 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
     {Array.from({ length: count }).map((_, i) => (
       <SpotCardSkeleton key={i} />
@@ -276,7 +276,7 @@ export const SpotGridSkeleton = ({ count = 6 }) => (
   </div>
 );
 
-export const SettingsListSkeleton = ({ count = 8 }) => (
+export var SettingsListSkeleton = ({ count = 8 }) => (
   <div>
     {Array.from({ length: count }).map((_, i) => (
       <SettingsRowSkeleton key={i} />
@@ -284,7 +284,7 @@ export const SettingsListSkeleton = ({ count = 8 }) => (
   </div>
 );
 
-export const LeaderboardSkeleton = ({ count = 10 }) => (
+export var LeaderboardSkeleton = ({ count = 10 }) => (
   <div className="space-y-2 p-4">
     {Array.from({ length: count }).map((_, i) => (
       <LeaderboardRowSkeleton key={i} />
@@ -293,7 +293,7 @@ export const LeaderboardSkeleton = ({ count = 10 }) => (
 );
 
 // ─── Gallery Page Skeleton ────────────────────────────────────────────────────
-export const GallerySkeleton = () => (
+export var GallerySkeleton = () => (
   <div className="space-y-4">
     <div className="flex items-center justify-between">
       <div className="space-y-2">
@@ -311,7 +311,7 @@ export const GallerySkeleton = () => (
 );
 
 // ─── Bookings List Skeleton ───────────────────────────────────────────────────
-export const BookingsSkeleton = ({ count = 4 }) => (
+export var BookingsSkeleton = ({ count = 4 }) => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-32 rounded" />
     {Array.from({ length: count }).map((_, i) => (
@@ -321,7 +321,7 @@ export const BookingsSkeleton = ({ count = 4 }) => (
 );
 
 // ─── Generic Page Skeleton (for hub/dashboard pages) ──────────────────────────
-export const GenericPageSkeleton = () => (
+export var GenericPageSkeleton = () => (
   <div className="p-4 max-w-4xl mx-auto space-y-4">
     <div className="flex items-center gap-3">
       <Skeleton className="w-10 h-10 rounded-xl" />

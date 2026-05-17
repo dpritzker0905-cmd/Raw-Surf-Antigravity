@@ -10,7 +10,7 @@ import { MapPin, Clock, DollarSign, Check, Bell, Gift,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => {
+var CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -42,7 +42,7 @@ const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => 
 };
 
 
-const BookingConfirmation = ({ 
+var BookingConfirmation = ({ 
   booking, 
   photographer, 
   onClose, 

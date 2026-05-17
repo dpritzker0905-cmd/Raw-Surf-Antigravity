@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { getFullUrl } from '../../utils/media';
 
-const conditionColors = {
+var conditionColors = {
   "Flat": { bg: "bg-gray-500" }, "Ankle High": { bg: "bg-blue-400" },
   "Knee High": { bg: "bg-blue-500" }, "Waist High": { bg: "bg-emerald-400" },
   "Chest High": { bg: "bg-emerald-500" }, "Head High": { bg: "bg-yellow-400" },
@@ -16,7 +16,7 @@ const conditionColors = {
   "Triple Overhead+": { bg: "bg-red-500" }
 };
 
-const SpotHubConditionsTab = ({
+var SpotHubConditionsTab = ({
   conditionReports, surfReports, spot,
   isLight, textPrimary, textSecondary,
   onReportConditionReport, onLightboxOpen,

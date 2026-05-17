@@ -16,9 +16,9 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const POLL_INTERVAL = 8000; // 8 seconds
+var POLL_INTERVAL = 8000; // 8 seconds
 
-export const useActiveSession = () => {
+export var useActiveSession = () => {
   const { user } = useAuth();
   const [activeSession, setActiveSession] = useState(null);
   const [loading, setLoading] = useState(true);

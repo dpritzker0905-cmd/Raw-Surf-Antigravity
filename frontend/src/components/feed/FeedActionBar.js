@@ -5,7 +5,7 @@
 import React from 'react';
 import { MapPin, Flame, Plus, Check } from 'lucide-react';
 
-const FeedActionBar = ({
+var FeedActionBar = ({
   streak,
   isLight,
   borderClass,

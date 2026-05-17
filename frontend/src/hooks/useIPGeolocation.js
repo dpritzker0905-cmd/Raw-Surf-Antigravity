@@ -9,10 +9,10 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const LAST_CITY_KEY = 'rawsurf_last_known_city';
-const LAST_COORDS_KEY = 'rawsurf_last_known_coords';
+var LAST_CITY_KEY = 'rawsurf_last_known_city';
+var LAST_COORDS_KEY = 'rawsurf_last_known_coords';
 
-export const useIPGeolocation = () => {
+export var useIPGeolocation = () => {
   const [ipLocation, setIpLocation] = useState(null);
   const [ipLoading, setIpLoading] = useState(false);
   const [ipError, setIpError] = useState(null);

@@ -19,7 +19,7 @@ import { ROLES } from '../constants/roles';
  *
  * Staggered reveal: Row 1 appears first, Row 2 follows 80ms later.
  */
-export const TopNavDrawerTray = ({ isOpen }) => {
+export var TopNavDrawerTray = ({ isOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();

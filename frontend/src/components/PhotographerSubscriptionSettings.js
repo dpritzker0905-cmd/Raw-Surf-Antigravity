@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
-const PhotographerSubscriptionSettings = () => {
+var PhotographerSubscriptionSettings = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 

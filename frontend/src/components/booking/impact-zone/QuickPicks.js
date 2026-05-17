@@ -1,7 +1,7 @@
 import React from 'react';
 import { Star, Anchor } from 'lucide-react';
 
-export const QuickPicks = ({
+export var QuickPicks = ({
   location,
   photographerHomeBreak,
   handleHomeBreakSelect,

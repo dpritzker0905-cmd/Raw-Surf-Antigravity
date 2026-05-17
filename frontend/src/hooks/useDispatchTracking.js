@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-const useDispatchTracking = ({ userId }) => {
+var useDispatchTracking = ({ userId }) => {
   const [activeDispatch, setActiveDispatch] = useState(null);
   const [activeDispatchId, setActiveDispatchId] = useState(null);
   const trackingIntervalRef = useRef(null);

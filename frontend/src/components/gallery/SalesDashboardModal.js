@@ -4,7 +4,7 @@ import { Badge } from '../ui/badge';
 import { Loader2, ShoppingBag, BarChart3
 } from 'lucide-react';
 
-const SalesDashboardModal = ({
+var SalesDashboardModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,

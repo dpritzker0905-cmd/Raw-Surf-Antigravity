@@ -21,20 +21,20 @@ import { ROLES } from '../../constants/roles';
  * Routes where Groms can see limited content without parent linking.
  * (e.g., the feed shows filtered content instead of a full block)
  */
-export const GROM_LIMITED_ACCESS_ROUTES = ['/feed'];
+export var GROM_LIMITED_ACCESS_ROUTES = ['/feed'];
 
 /**
  * Routes that groms can always access regardless of parent-linking status.
  * Profile, settings, theme, and GromHQ are always reachable.
  */
-export const GROM_ALWAYS_ALLOWED_ROUTES = [
+export var GROM_ALWAYS_ALLOWED_ROUTES = [
   '/profile',
   '/settings',
   '/theme',
   '/grom-hq',
 ];
 
-const ProtectedRoute = ({ children, bypassGromGate = false }) => {
+var ProtectedRoute = ({ children, bypassGromGate = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 

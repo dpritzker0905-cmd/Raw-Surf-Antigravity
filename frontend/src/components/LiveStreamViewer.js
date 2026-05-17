@@ -30,10 +30,10 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import useFocusTrap from '../hooks/useFocusTrap';
 
-const CONNECTION_TIMEOUT = 15000;
+var CONNECTION_TIMEOUT = 15000;
 
 // --- Theme colours (mirrors GoLiveModal.getThemeColors) -----------------------
-const getThemeColors = (theme) => {
+var getThemeColors = (theme) => {
   if (theme === 'light') return {
     overlayBg: 'bg-white/90',   border: 'border-gray-200',
     primaryText: 'text-gray-900', secondaryText: 'text-gray-600',
@@ -61,7 +61,7 @@ const getThemeColors = (theme) => {
 
 
 // --- Live Chat ----------------------------------------------------------------
-const ChatMessage = ({ message, isOwn }) => (
+var ChatMessage = ({ message, isOwn }) => (
   <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
     <Avatar className="w-7 h-7 flex-shrink-0">
       <AvatarImage src={getFullUrl(message.avatar_url)} />
@@ -74,7 +74,7 @@ const ChatMessage = ({ message, isOwn }) => (
   </div>
 );
 
-const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
+var LiveChat = ({ streamId, userId, userName, userAvatar }) => {
   const [comments, setComments]   = useState([]);
   const [newComment, setNewComment] = useState('');
   const [sending, setSending]     = useState(false);
@@ -157,7 +157,7 @@ const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
 };
 
 // --- Stream Unavailable -------------------------------------------------------
-const StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
+var StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
   <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
     <div className="text-center p-6 max-w-md">
       <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
@@ -180,7 +180,7 @@ const StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
 );
 
 // --- Viewer Room Content (inside LiveKitRoom) ---------------------------------
-const ViewerRoomContent = ({
+var ViewerRoomContent = ({
   broadcaster, onLeave, viewerCount, onViewProfile,
   streamId, userId, userName, userAvatar, colors
 }) => {
@@ -352,7 +352,7 @@ const ViewerRoomContent = ({
 };
 
 // --- Main LiveStreamViewer ----------------------------------------------------
-const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
+var LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();

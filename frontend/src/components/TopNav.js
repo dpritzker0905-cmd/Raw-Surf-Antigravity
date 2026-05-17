@@ -29,7 +29,7 @@ import { AdaptiveBackground } from './AdaptiveBackground';
  *   - Surfers/Groms:  Map (find spots & photographers)
  *   - Grom Parents:   GromHQ Shield (child monitoring)
  */
-export const TopNav = () => {
+export var TopNav = () => {
   const { user } = useAuth();
   const { getEffectiveRole, isGodMode, isPersonaBarActive } = usePersona();
   const navigate = useNavigate();

@@ -7,7 +7,7 @@ import { Calendar, Camera, ChevronDown, ChevronRight, Image, CalendarCheck, Radi
 import { ROLES } from '../constants/roles';
 import { AdaptiveBackground } from './AdaptiveBackground';
 
-export const RightSidebar = () => {
+export var RightSidebar = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();

@@ -19,7 +19,7 @@ import logger from '../utils/logger';
  * 
  * The 'Go Live' button is disabled until media is attached.
  */
-const ConditionsModal = ({ 
+var ConditionsModal = ({ 
   isOpen, 
   onClose, 
   onConfirm, 

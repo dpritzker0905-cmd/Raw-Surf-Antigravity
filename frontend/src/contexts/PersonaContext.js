@@ -4,7 +4,7 @@ import logger from '../utils/logger';
 import { ROLES, ROLE_SETS, isProLevel, isBusinessRole as _isBusinessRole } from '../constants/roles';
 
 // All available personas/roles in the system
-export const ALL_PERSONAS = [
+export var ALL_PERSONAS = [
   { id: ROLES.GOD, label: 'God Mode', icon: '🔴', description: 'Full admin access' },
   { id: ROLES.PRO, label: 'Verified Pro Surfer', icon: '⭐', description: 'Professional athlete' },
   { id: ROLES.APPROVED_PRO, label: 'Verified Pro Photographer', icon: '📸', description: 'Verified pro photographer' },
@@ -24,7 +24,7 @@ export const ALL_PERSONAS = [
 export { ROLES, ROLE_SETS };
 
 // Get expanded role info with proper icons
-export const getExpandedRoleInfo = (role, isAdmin = false) => {
+export var getExpandedRoleInfo = (role, isAdmin = false) => {
   if (isAdmin && role !== ROLES.GOD) {
     // Admin viewing as another role - keep admin indicator
     return { ...getRoleDetails(role), isAdminMasked: true };
@@ -32,7 +32,7 @@ export const getExpandedRoleInfo = (role, isAdmin = false) => {
   return getRoleDetails(role);
 };
 
-const getRoleDetails = (role) => {
+var getRoleDetails = (role) => {
   switch (role) {
     case ROLES.GOD:
       return { icon: '🔴', color: 'text-red-500', bgColor: 'bg-red-500/20', label: 'God Mode', priority: 0 };
@@ -67,14 +67,14 @@ const getRoleDetails = (role) => {
 // Check if role is Pro-level (for Pro Lounge access)
 // Note: Only Verified Pro Surfers ('Pro') and God Mode have access to Pro Lounge
 // 'Comp Surfer' (Competition Surfer) does NOT have Pro Lounge access
-export const isProLevelRole = (role) => isProLevel(role);
+export var isProLevelRole = (role) => isProLevel(role);
 
 // Check if role is Business/Photographer (for The Channel)
-export const isBusinessRole = (role) => _isBusinessRole(role);
+export var isBusinessRole = (role) => _isBusinessRole(role);
 
-const PersonaContext = createContext();
+var PersonaContext = createContext();
 
-export const PersonaProvider = ({ children }) => {
+export var PersonaProvider = ({ children }) => {
   const { user, loading: authLoading } = useAuth();
   
   // CRITICAL: Check for user in localStorage BEFORE initializing state
@@ -244,7 +244,7 @@ export const PersonaProvider = ({ children }) => {
   );
 };
 
-export const usePersona = () => {
+export var usePersona = () => {
   const context = useContext(PersonaContext);
   if (!context) {
     throw new Error('usePersona must be used within a PersonaProvider');

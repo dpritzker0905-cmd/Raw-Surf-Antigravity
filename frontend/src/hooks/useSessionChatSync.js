@@ -18,9 +18,9 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const POLL_INTERVAL = 5000; // 5 seconds
+var POLL_INTERVAL = 5000; // 5 seconds
 
-export const useSessionChatSync = ({
+export var useSessionChatSync = ({
   userId,
   otherUserId,
   otherUserName,

@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
-export const SessionPricingModal = ({
+export var SessionPricingModal = ({
   isOpen, onClose, pricing, setPricing, handleSavePricing,
   isLight, textPrimaryClass, textSecondaryClass, borderClass, inputBgClass
 }) => {
@@ -78,7 +78,7 @@ export const SessionPricingModal = ({
   );
 };
 
-export const GalleryCreatedModal = ({
+export var GalleryCreatedModal = ({
   isOpen, onClose, lastCreatedGallery, navigate,
   isLight, textPrimaryClass, textSecondaryClass, borderClass
 }) => {

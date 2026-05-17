@@ -24,7 +24,7 @@ import { FindMeModal } from './gallery/FindMeModal';
  * Accessed via /gallery/:username (shareable URL)
  * Resolves username ? profile ? galleries + stats
  */
-export const GalleryStorefront = () => {
+export var GalleryStorefront = () => {
   const { username } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();

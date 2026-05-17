@@ -13,9 +13,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { handleLineupNotification, processLineupWebSocketEvent } from '../services/LineupNotifications';
 import logger from '../utils/logger';
 
-const WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
+var WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://');
 
-export const useLineupWebSocket = (lineupId, userId, onUpdate) => {
+export var useLineupWebSocket = (lineupId, userId, onUpdate) => {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -140,7 +140,7 @@ export const useLineupWebSocket = (lineupId, userId, onUpdate) => {
  * - lineup_invite: You've been invited to a lineup
  * - status_changed: Session status changed
  */
-export const useUserWebSocket = (userId, onNotification) => {
+export var useUserWebSocket = (userId, onNotification) => {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef(null);
 

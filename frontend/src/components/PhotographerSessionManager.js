@@ -32,7 +32,7 @@ import SessionStatusControl from './sessions/SessionStatusControl';
 
 
 // Main Component
-export const PhotographerSessionManager = ({
+export var PhotographerSessionManager = ({
   isOpen,
   onClose,
   booking,

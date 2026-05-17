@@ -9,7 +9,7 @@
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 
-const useRequestProActions = ({
+var useRequestProActions = ({
   // Auth
   userId,
   user,

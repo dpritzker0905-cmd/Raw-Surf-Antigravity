@@ -23,7 +23,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 // Rating bar for breakdown
-const RatingBar = ({ stars, count, total, theme }) => {
+var RatingBar = ({ stars, count, total, theme }) => {
   const isLight = theme === 'light';
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
   
@@ -43,7 +43,7 @@ const RatingBar = ({ stars, count, total, theme }) => {
 };
 
 // Single review card
-const ReviewCard = ({ review, theme }) => {
+var ReviewCard = ({ review, theme }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const cardBg = isLight ? 'bg-gray-50 border-gray-200' : isBeach ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-800/50 border-zinc-700';
@@ -123,7 +123,7 @@ const ReviewCard = ({ review, theme }) => {
 /**
  * Main ProfileReviewsSection Component
  */
-export const ProfileReviewsSection = ({ profileUserId, isPhotographer = false, theme = 'dark' }) => {
+export var ProfileReviewsSection = ({ profileUserId, isPhotographer = false, theme = 'dark' }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';

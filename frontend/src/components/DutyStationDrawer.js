@@ -45,7 +45,7 @@ export { LIVE_PROXIMITY_MILES, LIVE_PROXIMITY_METERS, MODE_CONFIG, calculateDist
 /**
  * DutyStationDrawer - Main exported component
  */
-export const DutyStationDrawer = ({ isOpen, onClose }) => {
+export var DutyStationDrawer = ({ isOpen, onClose }) => {
   const _navigate = useNavigate();
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();

@@ -11,7 +11,7 @@ import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
 import { XPDisplay, BadgeRow } from '../GamificationUI';
 import TrustSignalBadges from '../ui/TrustSignalBadges';
 
-const ProfileRoleBadge = ({ role }) => {
+var ProfileRoleBadge = ({ role }) => {
   const roleInfo = getExpandedRoleInfo(role);
   return (
     <Badge className={`${roleInfo.bgColor} ${roleInfo.color} text-xs flex items-center gap-1`} data-testid="profile-role-badge">
@@ -21,7 +21,7 @@ const ProfileRoleBadge = ({ role }) => {
   );
 };
 
-const ProfileHeaderSection = ({
+var ProfileHeaderSection = ({
   profile, isOwnProfile, profileUserId, displayRole,
   contentStats, socialStats, streak, impactScore, gamificationStats,
   notesHook, avatarUploading, fileInputRef, handleAvatarUpload, setProfile,

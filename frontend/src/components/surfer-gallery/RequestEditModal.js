@@ -4,7 +4,7 @@ import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
 
-const RequestEditModal = ({ item, isOpen, onClose, onSubmit }) => {
+var RequestEditModal = ({ item, isOpen, onClose, onSubmit }) => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   

@@ -12,7 +12,7 @@ import {
 import { Button } from '../ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 
-export const GalleryPricingCard = ({
+export var GalleryPricingCard = ({
   pricingCollapsed, setPricingCollapsed,
   pricingTab, setPricingTab,
   galleryPricing,

@@ -15,7 +15,7 @@ import { formatDuration } from '../utils/formatTime';
  */
 
 // Custom hook for session timer
-const useSessionTimer = (startTime) => {
+var useSessionTimer = (startTime) => {
   const [elapsed, setElapsed] = useState(0);
   
   useEffect(() => {
@@ -39,10 +39,10 @@ const useSessionTimer = (startTime) => {
 };
 
 // Format seconds to HH:MM:SS or MM:SS - using shared utility
-const formatTime = formatDuration;
+var formatTime = formatDuration;
 
 // Soft Red Pulsing Live Indicator
-const PulsingLiveIndicator = () => (
+var PulsingLiveIndicator = () => (
   <div className="flex items-center gap-2">
     <span 
       className="w-2.5 h-2.5 rounded-full"
@@ -63,7 +63,7 @@ const PulsingLiveIndicator = () => (
 );
 
 // Main Map Live Indicator Component (Left side - Live status + Timer)
-export const MapLiveIndicator = ({ session, className = '' }) => {
+export var MapLiveIndicator = ({ session, className = '' }) => {
   const elapsed = useSessionTimer(session?.started_at);
   
   if (!session) return null;
@@ -102,7 +102,7 @@ export const MapLiveIndicator = ({ session, className = '' }) => {
  * - Left: Pulsing LIVE dot + Timer + Location
  * - Right: High-contrast End button
  */
-export const MapLiveFloatingIsland = ({ session, onEndSession, className = '' }) => {
+export var MapLiveFloatingIsland = ({ session, onEndSession, className = '' }) => {
   const elapsed = useSessionTimer(session?.started_at);
   
   if (!session) return null;
@@ -149,7 +149,7 @@ export const MapLiveFloatingIsland = ({ session, onEndSession, className = '' })
 };
 
 // Compact End Session Button (Top right corner)
-export const MapEndSessionButton = ({ onEndSession, className = '' }) => (
+export var MapEndSessionButton = ({ onEndSession, className = '' }) => (
   <Button aria-label="Square"
     onClick={onEndSession}
     size="sm"
@@ -162,7 +162,7 @@ export const MapEndSessionButton = ({ onEndSession, className = '' }) => (
 );
 
 // Combined export for convenience
-const MapLiveHUD = {
+var MapLiveHUD = {
   FloatingIsland: MapLiveFloatingIsland,
   Indicator: MapLiveIndicator,
   EndButton: MapEndSessionButton,

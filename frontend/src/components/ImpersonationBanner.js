@@ -13,7 +13,7 @@ import { Eye, EyeOff, UserCircle, X, Shield, AlertTriangle } from 'lucide-react'
 import { Button } from './ui/button';
 import { getFullUrl } from '../utils/media';
 
-const ImpersonationBanner = () => {
+var ImpersonationBanner = () => {
   const { 
     impersonation, 
     originalUser, 

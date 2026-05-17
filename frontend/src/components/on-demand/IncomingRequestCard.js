@@ -13,7 +13,7 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
-const getImageUrl = (url) => {
+var getImageUrl = (url) => {
   if (!url) return null;
   // If URL starts with /api, prepend the backend URL
   if (url.startsWith('/api')) {
@@ -22,7 +22,7 @@ const getImageUrl = (url) => {
   return url;
 };
 
-const IncomingRequestCard = ({ 
+var IncomingRequestCard = ({ 
   request, 
   onAccept, 
   onDecline, 

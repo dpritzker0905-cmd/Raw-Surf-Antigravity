@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
-const SharePostModal = ({ post, open, onClose, isLight }) => {
+var SharePostModal = ({ post, open, onClose, isLight }) => {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [metaStatus, setMetaStatus] = useState(null);

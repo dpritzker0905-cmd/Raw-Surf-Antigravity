@@ -13,7 +13,7 @@ import logger from './logger';
  * @param {Object} notification - The notification object with type and data fields
  * @returns {Object|null} - { route: string, state?: object } or null if no deep link
  */
-export const getNotificationDeepLink = (notification) => {
+export var getNotificationDeepLink = (notification) => {
   const { type, data: dataStr } = notification;
   let data = {};
   

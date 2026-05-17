@@ -43,7 +43,7 @@ import { PhotographerProfileContent } from './spot-drawer/PhotographerProfileCon
 import SpotReportContent from './spot-drawer/SpotReportContent';
 import SpotSetupPanel from './spot-drawer/SpotSetupPanel';
 
-const UnifiedSpotDrawer = ({
+var UnifiedSpotDrawer = ({
   spot,
   isOpen,
   onClose,

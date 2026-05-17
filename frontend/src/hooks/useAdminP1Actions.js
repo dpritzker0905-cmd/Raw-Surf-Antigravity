@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-const useAdminP1Actions = ({
+var useAdminP1Actions = ({
   // Auth context
   authStartImpersonation,
   authEndImpersonation,

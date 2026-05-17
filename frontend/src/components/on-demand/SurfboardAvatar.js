@@ -9,7 +9,7 @@ import { X, Crown } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
 // Surfboard color palette for crew visualization
-const SURFBOARD_COLORS = [
+var SURFBOARD_COLORS = [
   'from-cyan-400 to-blue-500',
   'from-pink-400 to-rose-500',
   'from-emerald-400 to-teal-500',
@@ -18,7 +18,7 @@ const SURFBOARD_COLORS = [
   'from-lime-400 to-green-500',
 ];
 
-const SurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => {
+var SurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => {
   const colorGradient = SURFBOARD_COLORS[index % SURFBOARD_COLORS.length];
 
   return (
@@ -71,7 +71,7 @@ const SurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => {
   );
 };
 
-const EmptySeat = ({ onClick, isLight }) => {
+var EmptySeat = ({ onClick, isLight }) => {
   return (
     <div className="flex flex-col items-center w-16 cursor-pointer group" onClick={onClick}>
       <div className={`w-10 h-20 rounded-full border-2 border-dashed ${

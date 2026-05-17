@@ -11,7 +11,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import { CommentText } from '../RichText';
 
-const ModalVideoPlayer = ({ src, poster, className = '' }) => {
+var ModalVideoPlayer = ({ src, poster, className = '' }) => {
   const videoRef = useRef(null);
   const progressRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -236,7 +236,7 @@ const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   );
 };
 
-const ImageCarousel = ({ images, mediaType }) => {
+var ImageCarousel = ({ images, mediaType }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
   // Handle single image/video
@@ -308,7 +308,7 @@ const ImageCarousel = ({ images, mediaType }) => {
   );
 };
 
-const CommentItem = ({ comment, userId, _onReact }) => {
+var CommentItem = ({ comment, userId, _onReact }) => {
   const navigate = useNavigate();
   const [liked, setLiked] = useState(comment.viewer_reaction !== null);
   const [likeCount, setLikeCount] = useState(comment.reaction_count || 0);

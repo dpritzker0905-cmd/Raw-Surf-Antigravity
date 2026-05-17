@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-export const TagAssignModal = ({
+export var TagAssignModal = ({
   showTagAssignModal, setShowTagAssignModal,
   selectedGallery, selectedItems, galleryItems,
   participantsLoading, participants, aiAutoTagLoading, handleAiAutoTag,
@@ -302,7 +302,7 @@ export const TagAssignModal = ({
   );
 };
 
-export const ThumbnailPickerModal = ({
+export var ThumbnailPickerModal = ({
   showThumbnailPicker, setShowThumbnailPicker,
   thumbnailPickerGallery, thumbnailPickerLoading, thumbnailPickerItems,
   handleSetThumbnail, settingThumbnail, handleClearThumbnail
@@ -388,7 +388,7 @@ export const ThumbnailPickerModal = ({
   );
 };
 
-export const LinkSessionModal = ({
+export var LinkSessionModal = ({
   showLinkSessionModal, setShowLinkSessionModal,
   linkSessionGallery, recentSessionsLoading, recentSessions,
   handleLinkSession, linkingSession

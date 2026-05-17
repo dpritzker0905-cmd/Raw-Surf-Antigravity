@@ -8,7 +8,7 @@ import { Label } from '../ui/label';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 
-const ReportPostModal = ({ post, open, onClose, isLight }) => {
+var ReportPostModal = ({ post, open, onClose, isLight }) => {
   const { user } = useAuth();
   const [reason, setReason] = useState('');
   const [description, setDescription] = useState('');

@@ -19,7 +19,7 @@ import apiClient from '../../lib/apiClient';
 import ReviewModal from '../ReviewModal';
 
 // --- Session Type Icon (small indicator, NOT a status badge) ----------------
-const SessionTypeIcon = ({ type }) => {
+var SessionTypeIcon = ({ type }) => {
   const config = {
     live_join: { label: 'Live', color: 'from-cyan-500 to-blue-500', icon: Zap },
     live: { label: 'Live', color: 'from-cyan-500 to-blue-500', icon: Zap },
@@ -37,7 +37,7 @@ const SessionTypeIcon = ({ type }) => {
 };
 
 // --- Outcome Badge (Completed / Expired / Missed) ---------------------------
-const OutcomeBadge = ({ session, isLight }) => {
+var OutcomeBadge = ({ session, isLight }) => {
   // Determine display status from session data
   const displayStatus = session._displayStatus || session.status || 'Completed';
   
@@ -70,7 +70,7 @@ const OutcomeBadge = ({ session, isLight }) => {
 };
 
 // --- Stat Pill --------------------------------------------------------------
-const StatPill = ({ icon: Icon, label, value, color = 'text-cyan-400', isLight }) => (
+var StatPill = ({ icon: Icon, label, value, color = 'text-cyan-400', isLight }) => (
   <div className={`flex flex-col items-center p-3 rounded-xl ${isLight ? 'bg-gray-50 border border-gray-200' : 'bg-white/5 border border-white/10'} backdrop-blur-sm`}>
     <Icon className={`w-5 h-5 ${color} mb-1`} />
     <span className={`text-lg font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{value}</span>
@@ -79,7 +79,7 @@ const StatPill = ({ icon: Icon, label, value, color = 'text-cyan-400', isLight }
 );
 
 // --- Price Row --------------------------------------------------------------
-const PriceRow = ({ label, price, isLight }) => {
+var PriceRow = ({ label, price, isLight }) => {
   if (price == null) return null;
   return (
     <div className="flex items-center justify-between py-2">
@@ -90,7 +90,7 @@ const PriceRow = ({ label, price, isLight }) => {
 };
 
 // --- Participant Row --------------------------------------------------------
-const ParticipantRow = ({ participant, isLight, isPhotographer, onReview, hasReviewed }) => (
+var ParticipantRow = ({ participant, isLight, isPhotographer, onReview, hasReviewed }) => (
   <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-white/5'}`}>
     <Avatar className={`w-10 h-10 border-2 ${isLight ? 'border-gray-200' : 'border-white/20'}`}>
       <AvatarImage src={getFullUrl(participant.avatar_url)} />
@@ -129,7 +129,7 @@ const ParticipantRow = ({ participant, isLight, isPhotographer, onReview, hasRev
 // Main Component
 // ---------------------------------------------------------------------------
 
-const SessionDetailDrawer = ({
+var SessionDetailDrawer = ({
   isOpen,
   onClose,
   session,
