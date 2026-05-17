@@ -5,22 +5,22 @@ import { ROLES, ROLE_SETS, isProLevel, isBusinessRole as _isBusinessRole } from 
 
 // All available personas/roles in the system
 export const ALL_PERSONAS = [
-  { id: ROLES.GOD, label: 'God Mode', icon: '=ƒö¦', description: 'Full admin access' },
-  { id: ROLES.PRO, label: 'Verified Pro Surfer', icon: 'G¡É', description: 'Professional athlete' },
-  { id: ROLES.APPROVED_PRO, label: 'Verified Pro Photographer', icon: '=ƒô+', description: 'Verified pro photographer' },
-  { id: ROLES.PHOTOGRAPHER, label: 'Regular Photographer', icon: '=ƒô+', description: 'Standard photographer' },
-  { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: '=ƒöì', description: 'Amateur/hobbyist' },
-  { id: ROLES.SHOP, label: 'Surf Shop', icon: '=ƒ¢ìn+Å', description: 'Retail business' },
-  { id: ROLES.SCHOOL, label: 'Surf School / Coach', icon: '=ƒî¼n+Å', description: 'Teaching/coaching' },
-  { id: ROLES.SHAPER, label: 'Shaper', icon: '=ƒ¢án+Å', description: 'Board shaper' },
-  { id: ROLES.RESORT, label: 'Resort / Retreat', icon: '=ƒî¦', description: 'Hospitality' },
-  { id: ROLES.SURFER, label: 'Regular Surfer', icon: '=ƒÅä', description: 'Standard surfer' },
-  { id: ROLES.COMP_SURFER, label: 'Competition Surfer', icon: '=ƒÅå', description: 'Competition level' },
-  { id: ROLES.GROM, label: 'Grom', icon: '=ƒÉú', description: 'Young surfer' },
-  { id: ROLES.GROM_PARENT, label: 'Grom Parent', icon: '=ƒæ¿GÇì=ƒæº', description: 'Parent of grom' },
+  { id: ROLES.GOD, label: 'God Mode', icon: '\u{1F534}', description: 'Full admin access' },
+  { id: ROLES.PRO, label: 'Verified Pro Surfer', icon: '\u{2B50}', description: 'Professional athlete' },
+  { id: ROLES.APPROVED_PRO, label: 'Verified Pro Photographer', icon: '\u{1F4F8}', description: 'Verified pro photographer' },
+  { id: ROLES.PHOTOGRAPHER, label: 'Regular Photographer', icon: '\u{1F4F7}', description: 'Standard photographer' },
+  { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: '\u{1F50D}', description: 'Amateur/hobbyist' },
+  { id: ROLES.SHOP, label: 'Surf Shop', icon: '\u{1F6CD}\u{FE0F}', description: 'Retail business' },
+  { id: ROLES.SCHOOL, label: 'Surf School / Coach', icon: '\u{1F32C}\u{FE0F}', description: 'Teaching/coaching' },
+  { id: ROLES.SHAPER, label: 'Shaper', icon: '\u{1F6E0}\u{FE0F}', description: 'Board shaper' },
+  { id: ROLES.RESORT, label: 'Resort / Retreat', icon: '\u{1F334}', description: 'Hospitality' },
+  { id: ROLES.SURFER, label: 'Regular Surfer', icon: '\u{1F3C4}', description: 'Standard surfer' },
+  { id: ROLES.COMP_SURFER, label: 'Competition Surfer', icon: '\u{1F3C6}', description: 'Competition level' },
+  { id: ROLES.GROM, label: 'Grom', icon: '\u{1F423}', description: 'Young surfer' },
+  { id: ROLES.GROM_PARENT, label: 'Grom Parent', icon: '\u{1F468}\u{200D}\u{1F467}', description: 'Parent of grom' },
 ];
 
-// Re-export for backward compatibility GÇö consumers that import from PersonaContext still work
+// Re-export for backward compatibility â€” consumers that import from PersonaContext still work
 export { ROLES, ROLE_SETS };
 
 // Get expanded role info with proper icons
@@ -35,32 +35,32 @@ export const getExpandedRoleInfo = (role, isAdmin = false) => {
 const getRoleDetails = (role) => {
   switch (role) {
     case ROLES.GOD:
-      return { icon: '=ƒö¦', color: 'text-red-500', bgColor: 'bg-red-500/20', label: 'God Mode', priority: 0 };
+      return { icon: '\u{1F534}', color: 'text-red-500', bgColor: 'bg-red-500/20', label: 'God Mode', priority: 0 };
     case ROLES.PRO:
-      return { icon: 'G¡É', color: 'text-amber-400', bgColor: 'bg-amber-400/20', label: 'Pro Surfer', priority: 1 };
+      return { icon: '\u{2B50}', color: 'text-amber-400', bgColor: 'bg-amber-400/20', label: 'Pro Surfer', priority: 1 };
     case ROLES.APPROVED_PRO:
-      return { icon: '=ƒô+', color: 'text-blue-400', bgColor: 'bg-blue-400/20', label: 'Pro Photographer', priority: 1 };
+      return { icon: '\u{1F4F8}', color: 'text-blue-400', bgColor: 'bg-blue-400/20', label: 'Pro Photographer', priority: 1 };
     case ROLES.PHOTOGRAPHER:
-      return { icon: '=ƒô+', color: 'text-purple-400', bgColor: 'bg-purple-400/20', label: 'Photographer', priority: 2 };
+      return { icon: '\u{1F4F7}', color: 'text-purple-400', bgColor: 'bg-purple-400/20', label: 'Photographer', priority: 2 };
     case ROLES.HOBBYIST:
-      return { icon: '=ƒöì', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
+      return { icon: '\u{1F50D}', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
     case ROLES.SHOP:
-      return { icon: '=ƒ¢ìn+Å', color: 'text-pink-400', bgColor: 'bg-pink-400/20', label: 'Surf Shop', priority: 2 };
+      return { icon: '\u{1F6CD}\u{FE0F}', color: 'text-pink-400', bgColor: 'bg-pink-400/20', label: 'Surf Shop', priority: 2 };
     case ROLES.SCHOOL:
-      return { icon: '=ƒî¼n+Å', color: 'text-teal-400', bgColor: 'bg-teal-400/20', label: 'Surf School', priority: 2 };
+      return { icon: '\u{1F32C}\u{FE0F}', color: 'text-teal-400', bgColor: 'bg-teal-400/20', label: 'Surf School', priority: 2 };
     case ROLES.SHAPER:
-      return { icon: '=ƒ¢án+Å', color: 'text-orange-400', bgColor: 'bg-orange-400/20', label: 'Shaper', priority: 2 };
+      return { icon: '\u{1F6E0}\u{FE0F}', color: 'text-orange-400', bgColor: 'bg-orange-400/20', label: 'Shaper', priority: 2 };
     case ROLES.RESORT:
-      return { icon: '=ƒî¦', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', label: 'Resort', priority: 2 };
+      return { icon: '\u{1F334}', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', label: 'Resort', priority: 2 };
     case ROLES.COMP_SURFER:
-      return { icon: '=ƒÅå', color: 'text-yellow-400', bgColor: 'bg-yellow-400/20', label: 'Comp Surfer', priority: 1 };
+      return { icon: '\u{1F3C6}', color: 'text-yellow-400', bgColor: 'bg-yellow-400/20', label: 'Comp Surfer', priority: 1 };
     case ROLES.GROM:
-      return { icon: '=ƒÉú', color: 'text-lime-400', bgColor: 'bg-lime-400/20', label: 'Grom', priority: 4 };
+      return { icon: '\u{1F423}', color: 'text-lime-400', bgColor: 'bg-lime-400/20', label: 'Grom', priority: 4 };
     case ROLES.GROM_PARENT:
-      return { icon: '=ƒæ¿GÇì=ƒæº', color: 'text-sky-400', bgColor: 'bg-sky-400/20', label: 'Grom Parent', priority: 3 };
+      return { icon: '\u{1F468}\u{200D}\u{1F467}', color: 'text-sky-400', bgColor: 'bg-sky-400/20', label: 'Grom Parent', priority: 3 };
     case ROLES.SURFER:
     default:
-      return { icon: '=ƒÅä', color: 'text-cyan-400', bgColor: 'bg-cyan-400/20', label: 'Surfer', priority: 4 };
+      return { icon: '\u{1F3C4}', color: 'text-cyan-400', bgColor: 'bg-cyan-400/20', label: 'Surfer', priority: 4 };
   }
 };
 

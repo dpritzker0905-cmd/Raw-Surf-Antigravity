@@ -1,13 +1,18 @@
 /**
- * Engine Bootstrap — Controlled Init Entry Point
+ * Engine Bootstrap v2 — Controlled Init Entry Point
  *
  * SAFE ENGINE START:
  *   - NO import-time execution
  *   - NO React coupling
  *   - Uses InitSequencer safety gate
- *   - Coordinates layer bootstrap → render loop start
+ *   - Coordinates: layer bootstrap → render loop start → forecast pipeline
  *
  * Call ONLY from MapWebGL.js onLoad callback (after MapLibre ready).
+ *
+ * v2 UPGRADES:
+ *   - Starts render-orchestrator v2 (fixed timestep loop)
+ *   - Wires forecast pipeline subscribers
+ *   - Binds GPU texture manager to WebGL context
  */
 
 import {
@@ -20,6 +25,8 @@ import {
   bootstrapCoreLayers,
   initPlugins
 } from '../components/map/LayerRegistry';
+import { startPluginRenderLoop, stopPluginRenderLoop } from './render-orchestrator';
+import { bindContext as bindGPUContext, destroyAll as destroyGPU } from './gpu-texture-manager';
 
 var _initialized = false;
 
@@ -29,6 +36,7 @@ var _initialized = false;
  * @param {Object} ctx
  * @param {HTMLCanvasElement} [ctx.canvas]
  * @param {*} ctx.mapInstance - MapLibre map instance
+ * @param {WebGLRenderingContext|WebGL2RenderingContext} [ctx.gl] - shared GL context
  * @param {Object} [ctx.config]
  */
 export function initEngine(ctx) {
@@ -38,25 +46,46 @@ export function initEngine(ctx) {
   assertSafeToInitEngine();
 
   _initialized = true;
-  console.log('[EngineBootstrap] Starting engine init...');
+  console.log('[EngineBootstrap v2] Starting engine init...');
 
-  // 1. Register all core layers from LAYER_REGISTRY (safe sync)
+  // 1. Bind GPU texture manager if GL context available
+  if (ctx.gl) {
+    bindGPUContext(ctx.gl);
+  }
+
+  // 2. Register all core layers from LAYER_REGISTRY (safe sync)
   bootstrapCoreLayers();
   markLayersReady();
 
-  // 2. Initialize plugins that need runtime context
+  // 3. Initialize plugins that need runtime context
   initPlugins({
     canvas: ctx.canvas,
     mapInstance: ctx.mapInstance,
+    gl: ctx.gl,
     config: ctx.config || {},
   });
 
-  // 3. Mark engine ready (resolves waitForEngineBoot promises)
+  // 4. Start the single render loop (fixed timestep v2)
+  startPluginRenderLoop();
+
+  // 5. Mark engine ready (resolves waitForEngineBoot promises)
   markEngineReady();
 
-  // 4. Boot complete
+  // 6. Boot complete
   markComplete();
-  console.log('[EngineBootstrap] Engine ready. All layers bootstrapped.');
+  console.log('[EngineBootstrap v2] Engine ready. Render loop started.');
+}
+
+/**
+ * Shutdown the engine cleanly.
+ * Call on component unmount / page navigation.
+ */
+export function shutdownEngine() {
+  if (!_initialized) return;
+  stopPluginRenderLoop();
+  destroyGPU();
+  _initialized = false;
+  console.log('[EngineBootstrap v2] Engine shutdown.');
 }
 
 /** @returns {boolean} */

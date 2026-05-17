@@ -104,6 +104,39 @@ export function advectParticleRK4(pos, field, dt) {
 }
 
 /**
+ * Bicubic interpolation of a 2D vector field (Catmull-Rom).
+ * Uses cubicWeights kernel for 4x4 neighborhood sampling.
+ * Higher quality than bilinear — smoother gradients for rendering.
+ *
+ * @param {WindField} field
+ * @param {number} x - fractional column index
+ * @param {number} y - fractional row index
+ * @returns {Vector}
+ */
+export function bicubicSample(field, x, y) {
+  var ix = Math.floor(x);
+  var iy = Math.floor(y);
+  var fx = x - ix;
+  var fy = y - iy;
+
+  var wx = cubicWeights(fx);
+  var wy = cubicWeights(fy);
+
+  var u = 0, v = 0;
+  for (var j = -1; j <= 2; j++) {
+    var cy = Math.max(0, Math.min(field.height - 1, iy + j));
+    for (var i = -1; i <= 2; i++) {
+      var cx = Math.max(0, Math.min(field.width - 1, ix + i));
+      var cell = field.data[cy]?.[cx] || { u: 0, v: 0 };
+      var w = wx[i + 1] * wy[j + 1];
+      u += cell.u * w;
+      v += cell.v * w;
+    }
+  }
+  return { u: u, v: v };
+}
+
+/**
  * Compute wind speed from vector components.
  * @param {number} u
  * @param {number} v
