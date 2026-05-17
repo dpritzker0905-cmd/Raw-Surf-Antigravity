@@ -76,10 +76,9 @@ var ACTIVE_ENGINES = new Set();
 
 // --- VISUAL TUNING CONSTANTS ---
 // v3.3: Padding factor removed — particles now spawn at viewport bounds
-var WIND_PARTICLE_ALPHA = 0.35;
+// v3.11.2: Visual amplification — particles must be IMMEDIATELY visible
+var WIND_PARTICLE_ALPHA = 0.55; // was 0.35 — much more visible now
 var HEATMAP_RESOLUTION = 256;
-// v3.8.3: Reduced turbulence — particles follow true wind direction more closely
-// Lower = tighter flow lines (realistic), Higher = more dispersion (hides grid)
 var TURBULENCE_AMP = 0.06;
 
 function smoothstep(edge0, edge1, x) {
@@ -152,11 +151,11 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     const dims = resize() || { w: 800, h: 600 };
     let cw = dims.w, ch = dims.h;
 
-    // Adaptive particle count based on hardware / viewport size
+    // v3.11.2: Doubled particle counts for visible density
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
     const zoom = mapInstance.getZoom();
-    const baseCount = isMobile ? (isWeak ? 1000 : 2000) : (isWeak ? 4000 : 8000);
+    const baseCount = isMobile ? (isWeak ? 2000 : 4000) : (isWeak ? 8000 : 16000);
     const PARTICLE_COUNT = zoom < 3 ? Math.round(baseCount * 0.3) : zoom < 5 ? Math.round(baseCount * 0.6) : baseCount;
     console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (zoom: ${zoom.toFixed(1)}, isMobile: ${isMobile})`);
     
@@ -369,12 +368,16 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const fadeN = smoothstep(paddedN, paddedN - edgePadDeg, p.lat);
             alpha *= fadeW * fadeE * fadeS * fadeN * WIND_PARTICLE_ALPHA;
 
-            // DARK directional particles — direction only, heatmap carries intensity
+            // v3.11.2: Luminous wind particles — bright cyan-white for visibility
             const s = wind.speed;
-            const speedAlpha = Math.min(1.0, 0.3 + (s / 25));
-            const finalAlpha = Math.min(0.7, alpha * speedAlpha);
-            ctx.strokeStyle = `rgba(15, 15, 25, ${finalAlpha})`;
-            ctx.lineWidth = Math.min(1.6, 0.5 + s * 0.025);
+            const speedAlpha = Math.min(1.0, 0.4 + (s / 20));
+            const finalAlpha = Math.min(0.85, alpha * speedAlpha);
+            // Cyan-white gradient: calm=soft cyan, strong=bright white
+            const r = Math.round(180 + s * 3);
+            const g = Math.round(220 + s * 1.5);
+            const b = 255;
+            ctx.strokeStyle = `rgba(${Math.min(255,r)}, ${Math.min(255,g)}, ${b}, ${finalAlpha})`;
+            ctx.lineWidth = Math.min(2.2, 0.7 + s * 0.04);
             
             ctx.beginPath();
             if (prevScreen) {

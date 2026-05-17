@@ -15,8 +15,8 @@ import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 var ACTIVE_MARINE_ENGINES = new Set();
 
 // --- VISUAL TUNING ---
-// v3.3: Padding factor removed - particles now spawn at viewport bounds
-var MARINE_PARTICLE_ALPHA = 0.55;
+// v3.11.2: Amplified for visible ocean energy animation
+var MARINE_PARTICLE_ALPHA = 0.72; // was 0.55
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
@@ -157,9 +157,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
+    // v3.11.2: Doubled marine particle counts for visible ocean animation
     const getParticleCount = () => {
       const zoom = mapInstance.getZoom();
-      const base = isMobile ? (isWeak ? 200 : 500) : (isWeak ? 1000 : 2000);
+      const base = isMobile ? (isWeak ? 400 : 1000) : (isWeak ? 2000 : 4000);
       if (zoom < 3) return Math.round(base * 0.25);
       if (zoom < 5) return Math.round(base * 0.5);
       return base;
@@ -311,10 +312,14 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const dy = -Math.sin(dirAngle) * halfDash;
 
           // White foam crest â€” broken dash, NOT continuous trail
-          ctx.strokeStyle = `rgba(230, 240, 255, ${alpha})`;
-          // v3.6: Zoom-scaled line width
-          const zScale = Math.max(0.4, Math.min(1.2, mapInstance.getZoom() / 6));
-          ctx.lineWidth = Math.min(3, (0.8 + h * 0.4) * zScale);
+          // v3.11.2: Energy-tinted foam — brighter, wider, with wave height color shift
+          const hEnergy = Math.min(1, h / 4);
+          const foamR = Math.round(210 + hEnergy * 45);
+          const foamG = Math.round(225 + hEnergy * 30);
+          const foamB = 255;
+          ctx.strokeStyle = `rgba(${foamR}, ${foamG}, ${foamB}, ${alpha})`;
+          const zScale = Math.max(0.5, Math.min(1.5, mapInstance.getZoom() / 6));
+          ctx.lineWidth = Math.min(4, (1.2 + h * 0.6) * zScale);
           ctx.lineCap = 'round';
 
           ctx.beginPath();

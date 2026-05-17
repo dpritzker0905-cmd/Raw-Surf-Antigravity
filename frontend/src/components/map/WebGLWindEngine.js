@@ -310,11 +310,12 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function — TDZ-immune) ---
 
 function WebGLWindEngine() {
-  this.particleRes = 256; // v3.9: 256x256 = 65,536 particles (up from 128²=16k)
-  this.fadeOpacity = 0.985; // Trail persistence (higher = longer trails)
-  this.speedFactor = 0.15; // Advection multiplier
-  this.dropRate = 0.003;
-  this.dropRateBump = 0.01;
+  // v3.11.2: Visual amplification — Ventusky-level particle density + trail persistence
+  this.particleRes = 384; // 384² = 147,456 particles (was 256² = 65k)
+  this.fadeOpacity = 0.993; // Longer, more visible trails (was 0.985)
+  this.speedFactor = 0.25; // Stronger advection motion (was 0.15)
+  this.dropRate = 0.002; // Lower drop = longer particle life (was 0.003)
+  this.dropRateBump = 0.008; // Slightly less speed-based dropout
   this._initialized = false;
   this._windData = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
@@ -458,15 +459,19 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(cpLoc);
 
-  // Step 4: Composite to main framebuffer
+  // Step 4: Composite to main framebuffer with additive atmospheric glow
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
+  // v3.11.2: Additive blending for atmospheric glow effect (Ventusky-style)
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
   bindTexture(gl, this.screenB.tex, 0);
   var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  // Restore normal blending for subsequent MapLibre layers
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.disableVertexAttribArray(scrLoc);
   if (!prevBlend) gl.disable(gl.BLEND);
   gl.useProgram(prevProg);

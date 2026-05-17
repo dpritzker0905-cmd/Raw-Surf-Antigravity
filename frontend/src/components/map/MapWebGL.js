@@ -554,17 +554,18 @@ var MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{
-              'raster-opacity': layerKey === 'pressure' ? 0.5 : layerKey === 'fog' ? 0.55
-                : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.7 : 0.75),
+              // v3.11.2: Amplified opacity + contrast for visible forecast layers
+              'raster-opacity': layerKey === 'pressure' ? 0.60 : layerKey === 'fog' ? 0.60
+                : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.80 : 0.85),
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? -20 : layerKey === 'waves' ? 30
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 180 : 0,
-              'raster-contrast': layerKey === 'pressure' ? 0.20 : layerKey === 'fog' ? 0.15
-                : layerKey === 'satellite' ? 0.30 : 0.35,
-              'raster-saturation': layerKey === 'fog' ? -0.3 : layerKey === 'satellite' ? -0.15
-                : layerKey === 'pressure' ? 0.30 : 0.55,
+              'raster-contrast': layerKey === 'pressure' ? 0.30 : layerKey === 'fog' ? 0.25
+                : layerKey === 'satellite' ? 0.35 : 0.50,
+              'raster-saturation': layerKey === 'fog' ? -0.2 : layerKey === 'satellite' ? -0.10
+                : layerKey === 'pressure' ? 0.45 : 0.70,
               'raster-brightness-min': layerKey === 'rain' ? 0.05 : 0,
               'raster-fade-duration': 0
             }}

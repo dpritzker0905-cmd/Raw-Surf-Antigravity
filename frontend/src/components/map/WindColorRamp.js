@@ -11,22 +11,23 @@
  */
 
 /**
- * Default wind speed → color ramp (Beaufort-inspired).
+ * v3.11.2: HDR-style wind speed color ramp (Ventusky-inspired).
  * Each stop: [speed_ms, r, g, b, a]
- * Speed in m/s. Colors from calm blue to hurricane red.
+ * Speed in m/s. Nonlinear alpha — even calm winds are softly visible.
+ * High speeds use vivid amber/magenta/purple for dramatic contrast.
  */
 var DEFAULT_WIND_RAMP = [
-  [0,    0.24, 0.35, 0.60, 0.10],  // Calm — muted blue-grey
-  [2,    0.30, 0.52, 0.75, 0.20],  // Light air — soft blue
-  [5,    0.20, 0.68, 0.82, 0.35],  // Light breeze — teal
-  [8,    0.22, 0.78, 0.55, 0.50],  // Gentle breeze — green-teal
-  [12,   0.45, 0.82, 0.30, 0.60],  // Moderate — lime green
-  [16,   0.80, 0.85, 0.15, 0.70],  // Fresh — yellow-green
-  [20,   0.95, 0.75, 0.10, 0.80],  // Strong — amber
-  [25,   0.95, 0.45, 0.08, 0.85],  // Near gale — orange
-  [30,   0.90, 0.20, 0.10, 0.90],  // Gale — red-orange
-  [40,   0.75, 0.05, 0.15, 0.95],  // Storm — deep red
-  [50,   0.55, 0.00, 0.40, 1.00],  // Hurricane — purple
+  [0,    0.15, 0.30, 0.65, 0.20],  // Calm — deep blue (visible, not invisible)
+  [2,    0.20, 0.50, 0.85, 0.35],  // Light air — ocean blue
+  [5,    0.10, 0.72, 0.92, 0.50],  // Light breeze — vivid cyan
+  [8,    0.10, 0.85, 0.65, 0.60],  // Gentle breeze — teal-green
+  [12,   0.40, 0.90, 0.25, 0.72],  // Moderate — vivid lime
+  [16,   0.90, 0.92, 0.10, 0.80],  // Fresh — electric yellow
+  [20,   1.00, 0.70, 0.05, 0.88],  // Strong — vivid amber
+  [25,   1.00, 0.40, 0.05, 0.92],  // Near gale — hot orange
+  [30,   0.95, 0.15, 0.10, 0.95],  // Gale — intense red
+  [40,   0.85, 0.05, 0.35, 0.98],  // Storm — magenta
+  [50,   0.60, 0.00, 0.55, 1.00],  // Hurricane — vivid purple
 ];
 
 /**
