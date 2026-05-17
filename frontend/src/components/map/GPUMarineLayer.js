@@ -9,7 +9,7 @@
  * Marine must NEVER visually resemble wind.
  */
 import { useEffect, useRef } from 'react';
-import { getAnimationCoordinator, STATE_THROTTLED } from './CanvasAnimationCoordinator';
+import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 
 // --- SINGLETON REGISTRY ---
 const ACTIVE_MARINE_ENGINES = new Set();
@@ -218,8 +218,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       wasActive = true;
       frameCount++;
 
-      // v3.9.7: Throttle state from coordinator
-      const state = coordState === STATE_THROTTLED ? 2 : 1;
+      // v3.9.7: Throttle state from coordinator (2 = throttled)
+      const state = coordState === 2 ? 2 : 1;
       const THROTTLED = 2;
 
       // Fast trail decay for foam (wispy, not streaming)

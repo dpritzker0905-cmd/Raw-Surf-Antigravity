@@ -69,7 +69,7 @@ function interpolateWind(windGrid, lng, lat, prevGrid = null, transitionProgress
  * - Error logging throttled to prevent console flood
  */
 import { useEffect, useRef } from 'react';
-import { getAnimationCoordinator, STATE_THROTTLED } from './CanvasAnimationCoordinator';
+import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 
 // --- SINGLETON REGISTRY: Prevents duplicate RAF loops ---
 const ACTIVE_ENGINES = new Set();
@@ -205,8 +205,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       
       wasActive = true;
       frameCount++;
-      // v3.9.7: Throttle state from coordinator replaces local windState
-      const windState = coordState === STATE_THROTTLED ? 2 : 1;
+      // v3.9.7: Throttle state from coordinator (2 = throttled)
+      const windState = coordState === 2 ? 2 : 1;
       const WIND_THROTTLED = 2;
 
       // Trail decay: erase old trails by removing alpha (keeps canvas transparent)
