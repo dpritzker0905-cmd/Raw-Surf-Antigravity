@@ -223,9 +223,9 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       const bs = mb.getSouth(), bn = mb.getNorth();
 
       // ----------------------------------------------------
-      // DEBUG HARNESS
+      // DEBUG HARNESS (dev-only — tree-shakes in production)
       // ----------------------------------------------------
-      if (window.__WIND_DEBUG__ && grid && grid.cols && grid.rows) {
+      if (process.env.NODE_ENV !== 'production' && window.__WIND_DEBUG__ && grid && grid.cols && grid.rows) {
         ctx.globalCompositeOperation = 'source-over';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = 'rgba(0,0,0,0.8)';
@@ -291,7 +291,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           // Bilinear interpolate from grid
           let wind = interpolateWind(grid, p.lng, p.lat, prevWindRef.current, transitionProgress);
           
-          if (window.__WIND_DEBUG__) {
+          if (process.env.NODE_ENV !== 'production' && window.__WIND_DEBUG__) {
             // Single vector test mode (object or boolean compatibility)
             if (window.__WIND_SINGLE_VECTOR__ || window.__WIND_DEBUG__.forceVector) {
               const forceU = window.__WIND_DEBUG__.forceVector?.u ?? 10;
@@ -392,7 +392,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           }
         }
 
-      if (window.__WIND_DEBUG__) {
+      if (process.env.NODE_ENV !== 'production' && window.__WIND_DEBUG__) {
         // Draw debug grid overlay
         if (window.__WIND_DEBUG__.logPerFrame !== false && grid && grid.cols && grid.rows && grid.bounds && frameCount % 10 === 0) {
            const cLng = (bw + be) / 2;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown } from './marineController';
+import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 
 /**
  * Unified Weather Data Engine (v3.9.4)
@@ -186,6 +187,14 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     mapInstance.on('moveend', onMoveEnd);
     return () => mapInstance.off('moveend', onMoveEnd);
   }, [mapInstance, isWindActive, !!windData]);  
+
+  // v3.11.1: Subscribe to forecast pipeline for downstream engine consumers
+  useEffect(() => {
+    var unsub = onForecastUpdate(function(field) {
+      console.log('[WeatherEngine] Pipeline update:', field?.source, field?.grid?.width + 'x' + field?.grid?.height);
+    });
+    return unsub;
+  }, []);
 
   return { windData, windRevision };
 }

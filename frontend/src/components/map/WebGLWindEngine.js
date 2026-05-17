@@ -75,7 +75,10 @@ void main() {
   float speed = length(wind);
 
   // Advect: move particle by wind velocity (normalized to [0,1] space)
-  vec2 offset = wind * u_speed_factor;
+  // v3.11.1: Mercator latitude correction — cos(lat) prevents polar distortion
+  float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] → [-π/2, π/2]
+  float merc_scale = max(0.1, cos(lat_rad));
+  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_factor;
   pos = pos + offset;
 
   // Respawn logic: randomly drop particles (more likely when slow)
@@ -137,7 +140,8 @@ void main() {
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
-  gl_PointSize = 1.0;
+  // v3.11.1: Adaptive point size — fast streams are thicker (Ventusky-style)
+  gl_PointSize = 1.0 + clamp(v_speed / 15.0, 0.0, 1.5);
 }`;
 
 // v3.9.8: Color ramp LUT replaces fixed dark shader
