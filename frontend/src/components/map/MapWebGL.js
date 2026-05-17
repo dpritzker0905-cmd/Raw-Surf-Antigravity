@@ -563,43 +563,54 @@ var MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{
-              // v3.11.2: Amplified opacity + contrast for visible forecast layers
-              'raster-opacity': layerKey === 'pressure' ? 0.60 : layerKey === 'fog' ? 0.60
-                : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.80 : 0.85),
+              // v3.11.3: Zoom-adaptive opacity — geography readable at low zoom,
+              // weather detail visible at high zoom. Marine tiles use lower opacity
+              // so coastlines remain visible beneath ocean scalar fields.
+              'raster-opacity': ['interpolate', ['linear'], ['zoom'],
+                2, layerKey === 'pressure' ? 0.40 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.50),
+                5, layerKey === 'pressure' ? 0.50 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.60 : 0.65),
+                8, layerKey === 'pressure' ? 0.55 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.70 : 0.75),
+                12, layerKey === 'pressure' ? 0.60 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : 0.80),
+              ],
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? -20 : layerKey === 'waves' ? 30
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 180 : 0,
-              'raster-contrast': layerKey === 'pressure' ? 0.30 : layerKey === 'fog' ? 0.25
-                : layerKey === 'satellite' ? 0.35 : 0.50,
+              // v3.11.3: Scientific contrast — enough to read data, not overpower land
+              'raster-contrast': layerKey === 'pressure' ? 0.25 : layerKey === 'fog' ? 0.20
+                : layerKey === 'satellite' ? 0.30 : 0.40,
               'raster-saturation': layerKey === 'fog' ? -0.2 : layerKey === 'satellite' ? -0.10
-                : layerKey === 'pressure' ? 0.45 : 0.70,
+                : layerKey === 'pressure' ? 0.35 : 0.55,
               'raster-brightness-min': layerKey === 'rain' ? 0.05 : 0,
-              'raster-fade-duration': 0
+              // v3.11.3: Smooth tile transitions — eliminates hard raster pops
+              'raster-fade-duration': 300
             }}
           />
         </Source>
       ))}
 
-      {/* v3.6: Land mask — only visible when weather overlays are active */}
-      {/* Prevents OM raster tile bleed over coastlines */}
+      {/* v3.11.3: Land mask — prevents ocean scalar fields from rendering over land */}
+      {/* Upgraded to 50m resolution for Florida/peninsula/island accuracy */}
       {(activeLayers.length > 0) && (
         <Source
           id="land-mask-source"
           type="geojson"
-          data="https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_land.geojson"
+          data="https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_land.geojson"
         >
           <Layer
             id="land-mask-layer"
             type="fill"
             paint={{
               'fill-color': isLight ? '#e8e0d8' : '#1a1a2e',
+              // v3.11.3: Stronger masking — marine layers need coastline integrity
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                0, 0.55,
-                4, 0.45,
-                7, 0.15,
-                9, 0.0
+                0, 0.75,
+                3, 0.70,
+                5, 0.55,
+                7, 0.35,
+                9, 0.15,
+                11, 0.0
               ]
             }}
           />

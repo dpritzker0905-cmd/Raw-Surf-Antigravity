@@ -60,46 +60,52 @@ function interpolateMarine(grid, lng, lat) {
 }
 
 /**
- * v3.9: Robust land rejection for marine particles.
- * Uses a coarse continental bounding-box table to reject obvious land,
+ * v3.11.3: Scientific land rejection for marine particles.
+ * Uses continental + peninsula bounding boxes to reject land,
  * then falls back to grid wave energy for coastal resolution.
  */
 var LAND_BOXES = [
-  // North America (excl. coasts) — conservative interior boxes
-  { s: 25, n: 50, w: -115, e: -75 },
-  // South America interior
-  { s: -55, n: 10, w: -75, e: -35 },
-  // Africa interior
-  { s: -35, n: 35, w: -15, e: 50 },
-  // Europe interior
-  { s: 36, n: 70, w: -10, e: 40 },
-  // Asia interior
-  { s: 10, n: 70, w: 40, e: 140 },
-  // Australia interior
-  { s: -40, n: -12, w: 115, e: 153 },
-  // Antarctica
-  { s: -90, n: -60, w: -180, e: 180 },
+  // Continental interiors
+  { s: 25, n: 50, w: -115, e: -75 },   // North America
+  { s: -55, n: 10, w: -75, e: -35 },   // South America
+  { s: -35, n: 35, w: -15, e: 50 },    // Africa
+  { s: 36, n: 70, w: -10, e: 40 },     // Europe
+  { s: 10, n: 70, w: 40, e: 140 },     // Asia
+  { s: -40, n: -12, w: 115, e: 153 },  // Australia
+  { s: -90, n: -60, w: -180, e: 180 }, // Antarctica
+  // Peninsulas & islands (fixes waves-through-land bugs)
+  { s: 24.5, n: 31, w: -88, e: -79.5 }, // Florida
+  { s: 23, n: 33, w: -117, e: -109 },   // Baja California
+  { s: 17, n: 22, w: -92, e: -86 },     // Yucatan
+  { s: 36, n: 47, w: 6, e: 19 },        // Italy
+  { s: 8, n: 35, w: 68, e: 90 },        // India/subcontinent
+  { s: 33, n: 43, w: 125, e: 130 },     // Korea
+  { s: 50, n: 60, w: -11, e: 2 },       // UK/Ireland
+  { s: 30, n: 46, w: 129, e: 146 },     // Japan
+  { s: 55, n: 72, w: 5, e: 32 },        // Scandinavia
+  { s: -26, n: -12, w: 43, e: 50 },     // Madagascar
+  { s: -48, n: -34, w: 165, e: 179 },   // New Zealand
+  { s: -9, n: 6, w: 95, e: 141 },       // Indonesia/Borneo
 ];
 
 function isLikelyOcean(lat, lng, grid) {
-  // Normalize longitude
   let nLng = lng;
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
-  // Fast reject: if deep inside a continental bounding box, definitely land
+  // Fast reject: if inside a land bounding box (1° margin for coastline tolerance)
   for (const box of LAND_BOXES) {
-    // Shrink box by 2° to avoid rejecting actual coastline
-    if (lat > box.s + 2 && lat < box.n - 2 &&
-        nLng > box.w + 2 && nLng < box.e - 2) {
+    if (lat > box.s + 1 && lat < box.n - 1 &&
+        nLng > box.w + 1 && nLng < box.e - 1) {
       return false;
     }
   }
 
-  // Grid-based check: zero wave energy = land or calm ocean
+  // Grid-based check: zero/near-zero wave energy = land or dead calm
+  // v3.11.3: Tighter threshold (0.02 vs 0.05) rejects more land-adjacent cells
   if (grid) {
     const wave = interpolateMarine(grid, lng, lat);
-    if (wave.speed < 0.05 && wave.u === 0 && wave.v === 0) return false;
+    if (wave.speed < 0.02 && Math.abs(wave.u) < 0.01 && Math.abs(wave.v) < 0.01) return false;
   }
   return true;
 }
@@ -228,7 +234,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0, 0, 0, ${trailFade})`;
       ctx.fillRect(0, 0, cw, ch);
-      ctx.globalCompositeOperation = 'screen';
+      // v3.11.3: source-over for scientific compositing (screen causes white foam)
+      ctx.globalCompositeOperation = 'source-over';
 
       const mb = mapInstance.getBounds();
       const bw = mb.getWest(), be = mb.getEast(), bs = mb.getSouth(), bn = mb.getNorth();

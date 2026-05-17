@@ -213,7 +213,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0, 0, 0, ${trailOpacity})`;
       ctx.fillRect(0, 0, cw, ch);
-      ctx.globalCompositeOperation = 'screen';
+      // v3.11.3: source-over for scientific compositing (screen causes white accumulation)
+      ctx.globalCompositeOperation = 'source-over';
 
       const particles = particlesRef.current;
 
@@ -368,16 +369,18 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const fadeN = smoothstep(paddedN, paddedN - edgePadDeg, p.lat);
             alpha *= fadeW * fadeE * fadeS * fadeN * WIND_PARTICLE_ALPHA;
 
-            // v3.11.2: Luminous wind particles — bright cyan-white for visibility
+            // v3.11.3: Atmospheric directional particles — coherent, not glowing
+            // Calm wind = subtle gray-blue, strong wind = warm amber-white
             const s = wind.speed;
-            const speedAlpha = Math.min(1.0, 0.4 + (s / 20));
-            const finalAlpha = Math.min(0.85, alpha * speedAlpha);
-            // Cyan-white gradient: calm=soft cyan, strong=bright white
-            const r = Math.round(180 + s * 3);
-            const g = Math.round(220 + s * 1.5);
-            const b = 255;
-            ctx.strokeStyle = `rgba(${Math.min(255,r)}, ${Math.min(255,g)}, ${b}, ${finalAlpha})`;
-            ctx.lineWidth = Math.min(2.2, 0.7 + s * 0.04);
+            const speedAlpha = Math.min(1.0, 0.35 + (s / 25));
+            const finalAlpha = Math.min(0.70, alpha * speedAlpha);
+            // Speed-based color: gray-blue → white → warm amber at high speed
+            const intensity = Math.min(1.0, s / 30);
+            const r = Math.round(120 + intensity * 135);
+            const g = Math.round(140 + intensity * 100);
+            const b = Math.round(180 + intensity * 50);
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${finalAlpha})`;
+            ctx.lineWidth = Math.min(1.8, 0.6 + s * 0.03);
             
             ctx.beginPath();
             if (prevScreen) {
