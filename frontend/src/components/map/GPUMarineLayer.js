@@ -253,19 +253,15 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // Interpolate wave vector at particle position
         const wave = interpolateMarine(grid, p.lng, p.lat);
 
-        // Slow advection (ocean drift, not atmospheric flow)
+        // v3.12: World-coordinate advection for marine (same as wind, but slower)
         if (wave.speed > 0.01 && Number.isFinite(wave.u) && Number.isFinite(wave.v)) {
-          try {
-            const scale = 0.003 * dt * 60; // Much slower than wind
-            const screen = mapInstance.project([p.lng, p.lat]);
-            if (!screen || !Number.isFinite(screen.x)) { p.age = p.maxAge + 1; continue; }
-            screen.x += wave.u * scale * 30;
-            screen.y -= wave.v * scale * 30;
-            const next = mapInstance.unproject(screen);
-            if (!next || !Number.isFinite(next.lng)) { p.age = p.maxAge + 1; continue; }
-            p.lng = next.lng;
-            p.lat = next.lat;
-          } catch (e) { p.age = p.maxAge + 1; }
+          const DEG_PER_METER = 1 / 111320;
+          const latRad = p.lat * Math.PI / 180;
+          const mercCorr = Math.max(0.1, Math.cos(latRad));
+          // Ocean drift is much slower than atmospheric flow
+          const speedScale = dt * 30;
+          p.lng += wave.u * DEG_PER_METER / mercCorr * speedScale;
+          p.lat += wave.v * DEG_PER_METER * speedScale;
         } else {
           p.age = p.maxAge + 1;
         }

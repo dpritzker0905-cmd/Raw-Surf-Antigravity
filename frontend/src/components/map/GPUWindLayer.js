@@ -76,10 +76,10 @@ var ACTIVE_ENGINES = new Set();
 
 // --- VISUAL TUNING CONSTANTS ---
 // v3.3: Padding factor removed — particles now spawn at viewport bounds
-// v3.11.2: Visual amplification — particles must be IMMEDIATELY visible
-var WIND_PARTICLE_ALPHA = 0.55; // was 0.35 — much more visible now
+// v3.12: Scientific atmospheric particles — visible but not overpowering
+var WIND_PARTICLE_ALPHA = 0.40; // Atmospheric transparency (was 0.55)
 var HEATMAP_RESOLUTION = 256;
-var TURBULENCE_AMP = 0.06;
+var TURBULENCE_AMP = 0.03; // Subtle natural variation (was 0.06)
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
@@ -311,29 +311,24 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           }
 
           if (wind.speed > 0.1 && Number.isFinite(wind.u) && Number.isFinite(wind.v)) {
-            try {
-              // v3.8.3: Increased speed scale 3x for visible flow + Mercator lat correction
-              const scale = 0.01 * dt * 60;
-              const screen = mapInstance.project([p.lng, p.lat]);
-              if (!screen || !Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
-                p.age = p.maxAge + 1; continue;
-              }
-              // Turbulence noise for natural flow
+              // v3.12: World-coordinate advection (Ventusky-style)
+              // Wind u/v are in m/s. Convert to degrees/second using:
+              //   1° latitude ≈ 111,320 m
+              //   1° longitude ≈ 111,320 * cos(lat) m
+              // This is zoom-independent and physically coherent.
+              const DEG_PER_METER = 1 / 111320;
+              const latRad = p.lat * Math.PI / 180;
+              const mercCorr = Math.max(0.1, Math.cos(latRad));
+
+              // Turbulence noise for natural flow (subtle, not chaotic)
               const noisePhase = p.noiseSeed + p.age * p.noiseFreq;
-              const noiseU = Math.sin(noisePhase) * wind.speed * TURBULENCE_AMP;
-              const noiseV = Math.cos(noisePhase * 1.3) * wind.speed * TURBULENCE_AMP;
-              // v3.8.6: Speed scale 15x — balanced between visible motion and trail persistence
-              screen.x += (wind.u + noiseU) * scale * 15;
-              screen.y -= (wind.v + noiseV) * scale * 15;
-              const nextLngLat = mapInstance.unproject(screen);
-              if (!nextLngLat || !Number.isFinite(nextLngLat.lng) || !Number.isFinite(nextLngLat.lat)) {
-                p.age = p.maxAge + 1; continue;
-              }
-              p.lng = nextLngLat.lng;
-              p.lat = nextLngLat.lat;
-            } catch (e) {
-              p.age = p.maxAge + 1;
-            }
+              const noiseU = Math.sin(noisePhase) * wind.speed * 0.03;
+              const noiseV = Math.cos(noisePhase * 1.3) * wind.speed * 0.03;
+
+              // Advance in lng/lat space directly
+              const speedScale = dt * 150; // Tuned for visual trail length
+              p.lng += (wind.u + noiseU) * DEG_PER_METER / mercCorr * speedScale;
+              p.lat += (wind.v + noiseV) * DEG_PER_METER * speedScale;
           } else {
             p.age = p.maxAge + 1;
           }
