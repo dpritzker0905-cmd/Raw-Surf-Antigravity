@@ -15,14 +15,14 @@
  */
 import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
-import { sampleColorRamp } from './WindColorRamp';
 
 // --- SINGLETON GUARD ---
 var ACTIVE_WIND_ENGINES = new Set();
 
 // --- VISUAL TUNING (Ventusky-parity) ---
-var TRAIL_FADE = 0.012;
-var TRAIL_FADE_THROTTLED = 0.04;
+// Slow fade = long vapor trails. Ventusky uses very persistent tails.
+var TRAIL_FADE = 0.008;
+var TRAIL_FADE_THROTTLED = 0.025;
 
 /**
  * Bilinear interpolation on the wind grid — O(1).
@@ -74,15 +74,16 @@ function interpolateWind(grid, lng, lat) {
   return { u: u, v: v, speed: Math.sqrt(u * u + v * v) };
 }
 
-/** Get CSS color string from wind speed via scientific ramp */
+/**
+ * Ventusky-style wind color: white/light trails with speed-based brightness.
+ * Higher wind speeds = brighter, more opaque white.
+ * Low speeds = faint, ghostly trails.
+ */
 function getWindColor(speed, alpha) {
-  var color = sampleColorRamp(speed);
-  if (!color) return 'rgba(150, 180, 220, ' + alpha + ')';
-  return 'rgba(' +
-    Math.round(color[0] * 255) + ', ' +
-    Math.round(color[1] * 255) + ', ' +
-    Math.round(color[2] * 255) + ', ' +
-    (alpha * color[3]).toFixed(3) + ')';
+  // Base brightness increases with wind speed (180-255 range)
+  var brightness = Math.min(255, Math.round(180 + speed * 5));
+  return 'rgba(' + brightness + ',' + brightness + ',' +
+    Math.min(255, brightness + 10) + ',' + alpha.toFixed(3) + ')';
 }
 
 /** Spawn particle at random viewport position */
@@ -92,7 +93,8 @@ function spawnParticle(mapInstance, preAge) {
   var south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
   var lng = west + Math.random() * (east - west);
   var lat = south + Math.random() * (north - south);
-  var maxAge = 4.0 + Math.random() * 8.0;
+  // Shorter max age = more turnover = denser flow appearance
+  var maxAge = 2.0 + Math.random() * 5.0;
   return { lng: lng, lat: lat, prevLng: lng, prevLat: lat,
     age: preAge ? Math.random() * maxAge * 0.6 : 0, maxAge: maxAge };
 }
@@ -247,24 +249,22 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           // Clamp extreme jumps (projection artifacts)
           if (segLen > 100) { pts[i] = spawnParticle(mapInstance, false); continue; }
 
-          // Age-based alpha
+          // Age-based alpha — smooth fade-in and fade-out
           var ageRatio = p.age / p.maxAge;
-          var fadeIn = Math.min(1, p.age / 0.5);
-          var fadeOut = 1 - Math.pow(ageRatio, 2.0);
+          var fadeIn = Math.min(1, p.age / 0.3);
+          var fadeOut = 1 - ageRatio * ageRatio;
           var alpha = fadeIn * fadeOut;
 
-          // Speed-based emphasis
-          var speedAlpha = 0.3 + Math.min(0.7, wind.speed / 25);
-          alpha *= speedAlpha;
-          alpha = Math.min(0.85, alpha);
-          if (alpha < 0.02) continue;
+          // Speed-based emphasis — faster wind = more visible
+          var speedFactor = Math.min(1, wind.speed / 20);
+          alpha *= (0.15 + speedFactor * 0.55);
+          if (alpha < 0.01) continue;
 
-          // Color from scientific ramp
+          // Ventusky-style: white vapor trails
           ctx.strokeStyle = getWindColor(wind.speed, alpha);
 
-          // Line width scales with speed
-          var zoomScale = Math.max(0.5, Math.min(2.0, mapInstance.getZoom() / 6));
-          ctx.lineWidth = Math.max(1, (1.0 + wind.speed * 0.08) * zoomScale);
+          // Thin consistent lines — Ventusky uses ~1px
+          ctx.lineWidth = 1;
           ctx.lineCap = 'round';
 
           ctx.beginPath();
