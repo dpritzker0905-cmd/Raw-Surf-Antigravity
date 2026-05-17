@@ -25,44 +25,45 @@ var TRAIL_FADE = 0.012;
 var TRAIL_FADE_THROTTLED = 0.04;
 
 /**
- * Bilinear interpolation on the wind grid.
- * v3.12.3 FIX: Grid is now DENSE — extractWindAtOffset pads missing cells
- * with zero vectors, so vectors.length === cols * rows always holds.
- * This gives O(1) lookup instead of the O(N) scan that was killing perf.
+ * Bilinear interpolation on the wind grid — O(1).
+ * Grid is DENSE (extractWindAtOffset pads missing cells with zeros).
+ *
+ * NO strict bounds rejection — grid points are snapped to .toFixed(2) but
+ * bounds are raw viewport floats, so edge points can fall outside bounds.
+ * Instead: CLAMP to grid domain (returns nearest-edge value for OOB queries).
  */
 function interpolateWind(grid, lng, lat) {
   if (!grid?.vectors?.length || !grid.bounds) return { u: 0, v: 0, speed: 0 };
   var vectors = grid.vectors, bounds = grid.bounds;
   var cols = grid.cols, rows = grid.rows;
-  if (!cols || !rows) return { u: 0, v: 0, speed: 0 };
+  if (!cols || !rows || cols < 2 || rows < 2) return { u: 0, v: 0, speed: 0 };
 
   var west = bounds.west, south = bounds.south;
   var east = bounds.east, north = bounds.north;
+  var lngSpan = east - west, latSpan = north - south;
+  if (lngSpan === 0 || latSpan === 0) return { u: 0, v: 0, speed: 0 };
 
-  // Normalize query lng to match grid domain
+  // Normalize query lng
   var nLng = lng;
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
-  // Bounds check
-  if (nLng < west || nLng > east || lat < south || lat > north) {
-    return { u: 0, v: 0, speed: 0 };
-  }
+  // Compute grid position — CLAMP instead of reject
+  var gx = ((nLng - west) / lngSpan) * (cols - 1);
+  var gy = ((lat - south) / latSpan) * (rows - 1);
+  gx = Math.max(0, Math.min(cols - 1.001, gx));
+  gy = Math.max(0, Math.min(rows - 1.001, gy));
 
-  // Grid-indexed bilinear interpolation — O(1)
-  var gx = ((nLng - west) / (east - west)) * (cols - 1);
-  var gy = ((lat - south) / (north - south)) * (rows - 1);
-  var xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
-  var yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
+  var xi = Math.floor(gx), yi = Math.floor(gy);
   var fx = gx - xi, fy = gy - yi;
   var i00 = yi * cols + xi;
 
-  // Dense grid guaranteed — safe direct index access
+  // Bounds safety
   if (i00 + cols + 1 >= vectors.length) {
-    // Edge case: last row/col
     var near = vectors[Math.min(i00, vectors.length - 1)];
     return near ? { u: near.u, v: near.v, speed: near.speed } : { u: 0, v: 0, speed: 0 };
   }
+
   var p00 = vectors[i00], p10 = vectors[i00 + 1];
   var p01 = vectors[i00 + cols], p11 = vectors[i00 + cols + 1];
 
