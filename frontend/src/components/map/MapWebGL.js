@@ -563,27 +563,27 @@ var MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{
-              // v3.12.1: Raster as BACKGROUND CONTEXT, not visual authority.
-              // Wind layer: very low opacity — GPU particles are the wind visual.
-              // Other layers: moderate opacity — land must remain readable.
+              // v3.12.2: Raster as PASTEL BACKGROUND — Ventusky-style watercolor.
+              // Wind: minimal opacity, GPU particles are the visual authority.
+              // Other: moderate, land always readable.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, layerKey === 'wind' ? 0.25 : layerKey === 'pressure' ? 0.30 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.35),
-                5, layerKey === 'wind' ? 0.30 : layerKey === 'pressure' ? 0.38 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.42 : 0.45),
-                8, layerKey === 'wind' ? 0.35 : layerKey === 'pressure' ? 0.45 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.50 : 0.55),
-                12, layerKey === 'wind' ? 0.40 : layerKey === 'pressure' ? 0.50 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.55 : 0.60),
+                2, layerKey === 'wind' ? 0.15 : layerKey === 'pressure' ? 0.25 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.25),
+                5, layerKey === 'wind' ? 0.20 : layerKey === 'pressure' ? 0.30 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.32),
+                8, layerKey === 'wind' ? 0.25 : layerKey === 'pressure' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.38),
+                12, layerKey === 'wind' ? 0.30 : layerKey === 'pressure' ? 0.40 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.42),
               ],
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 180 : 0,
-              // v3.12.1: Scientific contrast — data readable, NOT overpowering
-              'raster-contrast': layerKey === 'pressure' ? 0.15 : layerKey === 'fog' ? 0.10
-                : layerKey === 'satellite' ? 0.25 : 0.25,
-              'raster-saturation': layerKey === 'fog' ? -0.3 : layerKey === 'satellite' ? -0.15
-                : layerKey === 'pressure' ? 0.20 : 0.35,
+              // v3.12.2: Pastel contrast — Ventusky uses very low contrast
+              'raster-contrast': layerKey === 'wind' ? 0.08 : layerKey === 'pressure' ? 0.10
+                : layerKey === 'fog' ? 0.05 : layerKey === 'satellite' ? 0.20 : 0.15,
+              // v3.12.2: Heavy desaturation — pastel watercolor, not candy
+              'raster-saturation': layerKey === 'wind' ? 0.10 : layerKey === 'fog' ? -0.4
+                : layerKey === 'satellite' ? -0.15 : layerKey === 'pressure' ? 0.12 : 0.15,
               'raster-brightness-min': layerKey === 'rain' ? 0.05 : 0,
-              // v3.11.3: Smooth tile transitions — eliminates hard raster pops
               'raster-fade-duration': 300
             }}
           />

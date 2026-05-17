@@ -140,8 +140,8 @@ void main() {
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
-  // v3.12.1: Larger particles visible over raster background (Ventusky-scale)
-  gl_PointSize = 1.5 + clamp(v_speed / 10.0, 0.0, 2.5);
+  // v3.12.2: Ventusky-scale particles — visible flowing streams
+  gl_PointSize = 2.0 + clamp(v_speed / 8.0, 0.0, 3.0);
 }`;
 
 // v3.9.8: Color ramp LUT replaces fixed dark shader
@@ -310,12 +310,12 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function — TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.12.1: Longer trails visible over raster (0.992 ≈ 8s decay)
+  // v3.12.2: Ventusky-parity trails and motion
   this.particleRes = 384; // 384² = 147,456 particles
-  this.fadeOpacity = 0.992; // Visible flowing trails (was 0.988)
-  this.speedFactor = 0.35;  // Faster motion for visible flow (was 0.25)
-  this.dropRate = 0.002;
-  this.dropRateBump = 0.008;
+  this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
+  this.speedFactor = 0.40;  // Visible directional flow
+  this.dropRate = 0.0015;   // Particles live longer → continuous streams
+  this.dropRateBump = 0.006;
   this._initialized = false;
   this._windData = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
