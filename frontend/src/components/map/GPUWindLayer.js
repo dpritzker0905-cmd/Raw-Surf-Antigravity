@@ -69,6 +69,7 @@ function interpolateWind(windGrid, lng, lat, prevGrid = null, transitionProgress
  * - Error logging throttled to prevent console flood
  */
 import { useEffect, useRef } from 'react';
+import { getAnimationCoordinator, STATE_THROTTLED } from './CanvasAnimationCoordinator';
 
 // --- SINGLETON REGISTRY: Prevents duplicate RAF loops ---
 const ACTIVE_ENGINES = new Set();
@@ -126,16 +127,13 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
   useEffect(() => {
     if (!mapInstance || !canvasRef.current) return;
 
-    // SINGLETON GUARD: Prevent duplicate RAF loops
+    // SINGLETON GUARD: Prevent duplicate engines
     if (ACTIVE_ENGINES.has(id)) {
       console.error(`[Wind] DUPLICATE_WIND_ENGINE: ${id} already running. Aborting duplicate.`);
       return;
     }
     ACTIVE_ENGINES.add(id);
     console.log(`[Wind] === STARTING ENGINE (${id}) ===`);
-
-    // v3: Domain validation removed. Wind is now viewport-based per contract.
-    // No global domain enforcement needed.
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -157,15 +155,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     // Adaptive particle count based on hardware / viewport size
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
-    // v3.9: Boosted particle density for closer-to-Windy appearance
     const zoom = mapInstance.getZoom();
     const baseCount = isMobile ? (isWeak ? 1000 : 2000) : (isWeak ? 4000 : 8000);
     const PARTICLE_COUNT = zoom < 3 ? Math.round(baseCount * 0.3) : zoom < 5 ? Math.round(baseCount * 0.6) : baseCount;
     console.log(`[Wind] Spawning ${PARTICLE_COUNT} particles (zoom: ${zoom.toFixed(1)}, isMobile: ${isMobile})`);
     
     const spawn = (preAge = false) => {
-      // v3.6: Spawn across FULL visible viewport (no -180/180 clamp)
-      // World wrapping handled by lng normalization in interpolateWind
       const mb = mapInstance.getBounds();
       const west = mb.getWest();
       const east = mb.getEast();
@@ -173,13 +168,11 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       const north = Math.min(85, mb.getNorth());
       
       const maxAge = 3 + Math.random() * 4;
-      // v3.7: Unique noise seed per particle for turbulence
       const noiseSeed = Math.random() * Math.PI * 2;
       const noiseFreq = 0.5 + Math.random() * 1.5;
       return {
         lng: west + Math.random() * (east - west),
         lat: south + Math.random() * (north - south),
-        // v3.4: Pre-age on initial spawn so particles appear already distributed
         age: preAge ? Math.random() * maxAge * 0.8 : 0,
         maxAge,
         noiseSeed,
@@ -189,58 +182,32 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     particlesRef.current = [];
     for (let i = 0; i < PARTICLE_COUNT; i++) particlesRef.current.push(spawn(true));
 
-    let lastTime = performance.now();
     let frameCount = 0;
     let errorCount = 0;
     let wasActive = false;
 
-    // v245: Reference-counted interaction — only USER gestures, not programmatic flyTo/easeTo
-    const WIND_RUNNING = 1;
-    const WIND_THROTTLED = 2;
-    let windState = WIND_RUNNING;
-    let windInteractionCount = 0;
-    let idleTimer = null;
+    // v3.9.7: Phase 2 — register with shared CanvasAnimationCoordinator
+    // Interaction throttling is now handled by the coordinator (single source of truth)
+    const coordinator = getAnimationCoordinator();
+    coordinator.init(mapInstance);
 
-    const onDragStart = (e) => { if (!e?.originalEvent) return; windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
-    const onZoomStart = (e) => { if (!e?.originalEvent) return; windInteractionCount++; clearTimeout(idleTimer); windState = WIND_THROTTLED; };
-    const onDragEnd = (e) => { if (!e?.originalEvent) return; windInteractionCount = Math.max(0, windInteractionCount - 1); };
-    const onZoomEnd = (e) => { if (!e?.originalEvent) return; windInteractionCount = Math.max(0, windInteractionCount - 1); };
-    const onIdle = () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        if (windInteractionCount === 0) windState = WIND_RUNNING;
-      }, 300);
-    };
-    mapInstance.on('dragstart', onDragStart);
-    mapInstance.on('zoomstart', onZoomStart);
-    mapInstance.on('dragend', onDragEnd);
-    mapInstance.on('zoomend', onZoomEnd);
-    mapInstance.on('moveend', onIdle);
-
-    const animate = (now) => {
+    // v3.9.7: Tick function called by CanvasAnimationCoordinator (not self-scheduled)
+    const windTick = (now, dt, coordState) => {
       if (!activeRef.current) {
         if (wasActive) {
           ctx.clearRect(0, 0, cw, ch);
           wasActive = false;
         }
-        // Throttled RAF when dormant (check every 500ms instead of 16ms)
-        setTimeout(() => {
-          if (animRef.current) animRef.current = requestAnimationFrame(animate);
-        }, 500);
         return;
       }
       const grid = windRef.current;
-      if (!grid?.vectors?.length) {
-        lastTime = now;
-        animRef.current = requestAnimationFrame(animate);
-        return;
-      }
+      if (!grid?.vectors?.length) return;
       
       wasActive = true;
-
-      const dt = Math.min(50, now - lastTime) / 1000;
-      lastTime = now;
       frameCount++;
+      // v3.9.7: Throttle state from coordinator replaces local windState
+      const windState = coordState === STATE_THROTTLED ? 2 : 1;
+      const WIND_THROTTLED = 2;
 
       // Trail decay: erase old trails by removing alpha (keeps canvas transparent)
       const trailOpacity = windState === WIND_THROTTLED ? 0.15 : 0.04;
@@ -295,7 +262,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             } catch(e) { /* projection may fail near dateline */ }
           }
         }
-        animRef.current = requestAnimationFrame(animate);
+        // v3.9.7: No self-scheduling — coordinator handles RAF
         return;
       }
       // ----------------------------------------------------
@@ -478,9 +445,10 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
         console.log(`[Wind] F:${frameCount} drawn:${particles.length} grid:${grid?.vectors?.length || 0}`);
       }
 
-      animRef.current = requestAnimationFrame(animate);
     };
-    animRef.current = requestAnimationFrame(animate);
+
+    // v3.9.7: Register with shared coordinator instead of self-scheduling RAF
+    coordinator.register(id, windTick, () => activeRef.current);
 
     const onResize = () => {
       const d = resize();
@@ -488,19 +456,11 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     };
     window.addEventListener('resize', onResize);
 
-    let isMounted = true;
     return () => {
       console.log(`[Wind] === UNMOUNTING (${id}) ===`);
-      isMounted = false;
       ACTIVE_ENGINES.delete(id);
-      cancelAnimationFrame(animRef.current);
-      clearTimeout(idleTimer);
+      coordinator.unregister(id);
       window.removeEventListener('resize', onResize);
-      mapInstance.off('dragstart', onDragStart);
-      mapInstance.off('zoomstart', onZoomStart);
-      mapInstance.off('dragend', onDragEnd);
-      mapInstance.off('zoomend', onZoomEnd);
-      mapInstance.off('moveend', onIdle);
     };
   }, [mapInstance]); // Deliberately omitted 'active', 'data', 'id' to ensure persistence across data updates
 

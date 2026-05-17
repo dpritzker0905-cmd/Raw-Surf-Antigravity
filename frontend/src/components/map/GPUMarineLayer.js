@@ -9,6 +9,7 @@
  * Marine must NEVER visually resemble wind.
  */
 import { useEffect, useRef } from 'react';
+import { getAnimationCoordinator, STATE_THROTTLED } from './CanvasAnimationCoordinator';
 
 // --- SINGLETON REGISTRY ---
 const ACTIVE_MARINE_ENGINES = new Set();
@@ -156,7 +157,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
-    // v3.7: Reduced marine particle density for cleaner visual
     const getParticleCount = () => {
       const zoom = mapInstance.getZoom();
       const base = isMobile ? (isWeak ? 200 : 500) : (isWeak ? 1000 : 2000);
@@ -168,8 +168,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     console.log(`[Marine] Spawning ${PARTICLE_COUNT} foam particles (zoom: ${mapInstance.getZoom().toFixed(1)})`);
 
     const spawn = (preAge = false) => {
-      // v3.6: Spawn across FULL visible viewport (no -180/180 clamp)
-      // Allows proper rendering when world wraps in MapLibre
       const mb = mapInstance.getBounds();
       const west = mb.getWest(), east = mb.getEast();
       const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
@@ -179,13 +177,11 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const lng = west + Math.random() * (east - west);
         const lat = south + Math.random() * (north - south);
         if (!isLikelyOcean(lat, lng, grid)) continue;
-        // Check wave energy — skip calm areas
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
         const spd = wave?.speed || 0;
         if (spd < 0.1 && Math.random() > 0.05) continue;
         const energyScale = Math.min(1, spd / 3);
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
-        // v3.6: Zoom-scaled dash length — smaller at global zoom
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
         return {
           lng, lat,
@@ -196,7 +192,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           energy: energyScale
         };
       }
-      // Fallback: very short-lived, low-energy particle
       const maxAge = 0.2;
       return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 0, energy: 0 };
     };
@@ -205,40 +200,27 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(spawn(true));
     particlesRef.current = particles;
 
-    let lastTime = performance.now();
     let frameCount = 0;
     let wasActive = false;
 
-    // Interaction throttling
-    const RUNNING = 1, THROTTLED = 2;
-    let state = RUNNING, interactionCount = 0, idleTimer = null;
-    const onDragStart = (e) => { if (!e?.originalEvent) return; interactionCount++; clearTimeout(idleTimer); state = THROTTLED; };
-    const onZoomStart = (e) => { if (!e?.originalEvent) return; interactionCount++; clearTimeout(idleTimer); state = THROTTLED; };
-    const onDragEnd = (e) => { if (!e?.originalEvent) return; interactionCount = Math.max(0, interactionCount - 1); };
-    const onZoomEnd = (e) => { if (!e?.originalEvent) return; interactionCount = Math.max(0, interactionCount - 1); };
-    const onIdle = () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => { if (interactionCount === 0) state = RUNNING; }, 300);
-    };
-    mapInstance.on('dragstart', onDragStart);
-    mapInstance.on('zoomstart', onZoomStart);
-    mapInstance.on('dragend', onDragEnd);
-    mapInstance.on('zoomend', onZoomEnd);
-    mapInstance.on('moveend', onIdle);
+    // v3.9.7: Phase 2 — register with shared CanvasAnimationCoordinator
+    const coordinator = getAnimationCoordinator();
+    coordinator.init(mapInstance);
 
-    const animate = (now) => {
+    // v3.9.7: Tick function called by CanvasAnimationCoordinator
+    const marineTick = (now, dt, coordState) => {
       if (!activeRef.current) {
         if (wasActive) { ctx.clearRect(0, 0, cw, ch); wasActive = false; }
-        setTimeout(() => { if (animRef.current) animRef.current = requestAnimationFrame(animate); }, 500);
         return;
       }
       const grid = dataRef.current;
-      if (!grid?.vectors?.length) { lastTime = now; animRef.current = requestAnimationFrame(animate); return; }
+      if (!grid?.vectors?.length) return;
       wasActive = true;
-
-      const dt = Math.min(50, now - lastTime) / 1000;
-      lastTime = now;
       frameCount++;
+
+      // v3.9.7: Throttle state from coordinator
+      const state = coordState === STATE_THROTTLED ? 2 : 1;
+      const THROTTLED = 2;
 
       // Fast trail decay for foam (wispy, not streaming)
       const trailFade = state === THROTTLED ? 0.3 : 0.12;
@@ -344,12 +326,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         }
       }
 
-      if (frameCount % 1800 === 1) {
-        console.log(`[Marine] F:${frameCount} drawn:${pts.length} grid:${grid?.vectors?.length || 0}`);
-      }
-      animRef.current = requestAnimationFrame(animate);
     };
-    animRef.current = requestAnimationFrame(animate);
+
+    // v3.9.7: Register with shared coordinator instead of self-scheduling RAF
+    coordinator.register(id, marineTick, () => activeRef.current);
 
     const onResize = () => { const d = resize(); if (d) { cw = d.w; ch = d.h; } };
     window.addEventListener('resize', onResize);
@@ -357,14 +337,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     return () => {
       console.log(`[Marine] === UNMOUNTING (${id}) ===`);
       ACTIVE_MARINE_ENGINES.delete(id);
-      cancelAnimationFrame(animRef.current);
-      clearTimeout(idleTimer);
+      coordinator.unregister(id);
       window.removeEventListener('resize', onResize);
-      mapInstance.off('dragstart', onDragStart);
-      mapInstance.off('zoomstart', onZoomStart);
-      mapInstance.off('dragend', onDragEnd);
-      mapInstance.off('zoomend', onZoomEnd);
-      mapInstance.off('moveend', onIdle);
     };
   }, [mapInstance]);
 
