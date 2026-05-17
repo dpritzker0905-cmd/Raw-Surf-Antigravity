@@ -604,13 +604,15 @@ var MapWebGL = ({
             paint={{
               'fill-color': isLight ? '#e8e0d8' : '#1a1a2e',
               // v3.11.3: Stronger masking — marine layers need coastline integrity
+              // v3.12: Land mask NEVER fully disappears — maintains coastline integrity
               'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                0, 0.75,
-                3, 0.70,
-                5, 0.55,
-                7, 0.35,
-                9, 0.15,
-                11, 0.0
+                0, 0.80,
+                3, 0.72,
+                5, 0.58,
+                7, 0.40,
+                9, 0.25,
+                11, 0.15,
+                14, 0.10
               ]
             }}
           />
@@ -640,21 +642,14 @@ var MapWebGL = ({
         mapRef={innerMapRef}
       />
 
-      {/* v3.8.3: WebGL GPU particles (16k + trails) — fixed matrix/FBO bugs */}
+      {/* v3.12: SINGLE VISUAL AUTHORITY — WebGL GPU is the ONLY wind renderer.
+          Canvas2D WindParticleCanvas DISABLED to prevent dual rendering.
+          WebGLWindEngine handles all wind particles (16k + trails). */}
       <WebGLWindLayer
         mapInstance={mapInstance}
         active={activeLayers.includes('wind')}
         data={windData}
         revision={windRevision.current}
-      />
-
-      {/* Canvas2D Wind Particles (4k — directional indicators) */}
-      <WindParticleCanvas 
-        mapInstance={mapInstance} 
-        active={activeLayers.includes('wind')}
-        data={windData}
-        revision={windRevision.current}
-        theme={theme}
       />
     </Map>
     </div>
