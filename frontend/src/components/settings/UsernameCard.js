@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
-export var UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
+export const UsernameCard = ({ userId, _textPrimaryClass, textSecondaryClass, borderClass, cardBgClass }) => {
   const navigate = useNavigate();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);

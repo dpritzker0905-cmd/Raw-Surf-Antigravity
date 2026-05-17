@@ -15,7 +15,7 @@ import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';
 
 // Curated surf region data with coordinates for GPS fallback
-var SURF_REGIONS = {
+const SURF_REGIONS = {
   'United States': {
     'California': {
       'San Diego': { lat: 32.7157, lng: -117.1611 },
@@ -126,7 +126,7 @@ var SURF_REGIONS = {
   },
 };
 
-export var OnDemandTab = ({
+export const OnDemandTab = ({
   user,
   onDemandPhotographers,
   onDemandLoading,

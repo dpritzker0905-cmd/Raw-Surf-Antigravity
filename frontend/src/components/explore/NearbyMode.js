@@ -14,7 +14,7 @@ import { MapPin, Globe, Compass, Waves } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import ExploreSpotCard from '../ExploreSpotCard';
 
-var NearbyMode = ({
+const NearbyMode = ({
   userLocation,
   nearbySpots,
   nearbyLoading,

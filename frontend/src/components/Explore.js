@@ -51,7 +51,7 @@ import ExploreSurfSpotsTab from './explore/ExploreSurfSpotsTab';
 // Role badge component for user results
 // UserRoleBadge extracted to ./explore/UserRoleBadge.js
 
-export var Explore = () => {
+export const Explore = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -418,7 +418,7 @@ export var Explore = () => {
     { id: 'surfspots', label: 'Surf Spots', icon: Navigation },
   ], []);
 
-  // Swipe-to-navigate â€” shared hook for mobile tab switching
+  // Swipe-to-navigate GÇö shared hook for mobile tab switching
   const { contentRef: exploreContentRef, swipeHandlers, isAnimating, setIsAnimating } = useSwipeNavigation({
     tabs,
     activeTab,

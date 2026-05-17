@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { getFullUrl } from '../../utils/media';
 
-var SpotHubLivePulse = ({ livePulse, navigate, spotId }) => {
+const SpotHubLivePulse = ({ livePulse, navigate, spotId }) => {
   if (!livePulse?.pulse_active || !livePulse.live_photographers?.length) return null;
 
   return (

@@ -12,7 +12,7 @@ import logger from '../utils/logger';
  * RequestProSelfieModal - Surfer uploads identification selfie with surfboard
  * This appears after a Pro accepts their request, so the Pro knows who to find
  */
-export var RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }) => {
+export const RequestProSelfieModal = ({ dispatchId, isOpen, onClose, onSuccess }) => {
   const { user } = useAuth();
   const videoRef = useRef(null);
   const canvasRef = useRef(null);

@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
-var SharePostModal = ({ post, open, onClose, isLight }) => {
+const SharePostModal = ({ post, open, onClose, isLight }) => {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
   const [metaStatus, setMetaStatus] = useState(null);
@@ -23,7 +23,7 @@ var SharePostModal = ({ post, open, onClose, isLight }) => {
   const [dmSending, setDmSending] = useState(null); // user_id currently sending to
   const [dmSent, setDmSent] = useState(new Set()); // user_ids already sent to
   
-  // Emoji constants â€” using String.fromCodePoint to avoid encoding corruption
+  // Emoji constants GÇö using String.fromCodePoint to avoid encoding corruption
   const SHARE_ICONS = {
     wave: String.fromCodePoint(0x1F30A),
     camera: String.fromCodePoint(0x1F4F7),
@@ -96,7 +96,7 @@ var SharePostModal = ({ post, open, onClose, isLight }) => {
     }
   }, [open]);
 
-  // Send post as DM â€” encode full post metadata so the chat can render a rich card
+  // Send post as DM GÇö encode full post metadata so the chat can render a rich card
   const handleSendDm = async (recipientId, recipientName) => {
     if (!user?.id || !post?.id || dmSending) return;
     

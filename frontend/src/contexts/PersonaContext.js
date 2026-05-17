@@ -4,27 +4,27 @@ import logger from '../utils/logger';
 import { ROLES, ROLE_SETS, isProLevel, isBusinessRole as _isBusinessRole } from '../constants/roles';
 
 // All available personas/roles in the system
-export var ALL_PERSONAS = [
-  { id: ROLES.GOD, label: 'God Mode', icon: 'ðŸ”´', description: 'Full admin access' },
-  { id: ROLES.PRO, label: 'Verified Pro Surfer', icon: 'â­', description: 'Professional athlete' },
-  { id: ROLES.APPROVED_PRO, label: 'Verified Pro Photographer', icon: 'ðŸ“¸', description: 'Verified pro photographer' },
-  { id: ROLES.PHOTOGRAPHER, label: 'Regular Photographer', icon: 'ðŸ“·', description: 'Standard photographer' },
-  { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: 'ðŸ”', description: 'Amateur/hobbyist' },
-  { id: ROLES.SHOP, label: 'Surf Shop', icon: 'ðŸ›ï¸', description: 'Retail business' },
-  { id: ROLES.SCHOOL, label: 'Surf School / Coach', icon: 'ðŸŒ¬ï¸', description: 'Teaching/coaching' },
-  { id: ROLES.SHAPER, label: 'Shaper', icon: 'ðŸ› ï¸', description: 'Board shaper' },
-  { id: ROLES.RESORT, label: 'Resort / Retreat', icon: 'ðŸŒ´', description: 'Hospitality' },
-  { id: ROLES.SURFER, label: 'Regular Surfer', icon: 'ðŸ„', description: 'Standard surfer' },
-  { id: ROLES.COMP_SURFER, label: 'Competition Surfer', icon: 'ðŸ†', description: 'Competition level' },
-  { id: ROLES.GROM, label: 'Grom', icon: 'ðŸ£', description: 'Young surfer' },
-  { id: ROLES.GROM_PARENT, label: 'Grom Parent', icon: 'ðŸ‘¨â€ðŸ‘§', description: 'Parent of grom' },
+export const ALL_PERSONAS = [
+  { id: ROLES.GOD, label: 'God Mode', icon: '=ƒö¦', description: 'Full admin access' },
+  { id: ROLES.PRO, label: 'Verified Pro Surfer', icon: 'G¡É', description: 'Professional athlete' },
+  { id: ROLES.APPROVED_PRO, label: 'Verified Pro Photographer', icon: '=ƒô+', description: 'Verified pro photographer' },
+  { id: ROLES.PHOTOGRAPHER, label: 'Regular Photographer', icon: '=ƒô+', description: 'Standard photographer' },
+  { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: '=ƒöì', description: 'Amateur/hobbyist' },
+  { id: ROLES.SHOP, label: 'Surf Shop', icon: '=ƒ¢ìn+Å', description: 'Retail business' },
+  { id: ROLES.SCHOOL, label: 'Surf School / Coach', icon: '=ƒî¼n+Å', description: 'Teaching/coaching' },
+  { id: ROLES.SHAPER, label: 'Shaper', icon: '=ƒ¢án+Å', description: 'Board shaper' },
+  { id: ROLES.RESORT, label: 'Resort / Retreat', icon: '=ƒî¦', description: 'Hospitality' },
+  { id: ROLES.SURFER, label: 'Regular Surfer', icon: '=ƒÅä', description: 'Standard surfer' },
+  { id: ROLES.COMP_SURFER, label: 'Competition Surfer', icon: '=ƒÅå', description: 'Competition level' },
+  { id: ROLES.GROM, label: 'Grom', icon: '=ƒÉú', description: 'Young surfer' },
+  { id: ROLES.GROM_PARENT, label: 'Grom Parent', icon: '=ƒæ¿GÇì=ƒæº', description: 'Parent of grom' },
 ];
 
-// Re-export for backward compatibility â€” consumers that import from PersonaContext still work
+// Re-export for backward compatibility GÇö consumers that import from PersonaContext still work
 export { ROLES, ROLE_SETS };
 
 // Get expanded role info with proper icons
-export var getExpandedRoleInfo = (role, isAdmin = false) => {
+export const getExpandedRoleInfo = (role, isAdmin = false) => {
   if (isAdmin && role !== ROLES.GOD) {
     // Admin viewing as another role - keep admin indicator
     return { ...getRoleDetails(role), isAdminMasked: true };
@@ -32,49 +32,49 @@ export var getExpandedRoleInfo = (role, isAdmin = false) => {
   return getRoleDetails(role);
 };
 
-var getRoleDetails = (role) => {
+const getRoleDetails = (role) => {
   switch (role) {
     case ROLES.GOD:
-      return { icon: 'ðŸ”´', color: 'text-red-500', bgColor: 'bg-red-500/20', label: 'God Mode', priority: 0 };
+      return { icon: '=ƒö¦', color: 'text-red-500', bgColor: 'bg-red-500/20', label: 'God Mode', priority: 0 };
     case ROLES.PRO:
-      return { icon: 'â­', color: 'text-amber-400', bgColor: 'bg-amber-400/20', label: 'Pro Surfer', priority: 1 };
+      return { icon: 'G¡É', color: 'text-amber-400', bgColor: 'bg-amber-400/20', label: 'Pro Surfer', priority: 1 };
     case ROLES.APPROVED_PRO:
-      return { icon: 'ðŸ“¸', color: 'text-blue-400', bgColor: 'bg-blue-400/20', label: 'Pro Photographer', priority: 1 };
+      return { icon: '=ƒô+', color: 'text-blue-400', bgColor: 'bg-blue-400/20', label: 'Pro Photographer', priority: 1 };
     case ROLES.PHOTOGRAPHER:
-      return { icon: 'ðŸ“·', color: 'text-purple-400', bgColor: 'bg-purple-400/20', label: 'Photographer', priority: 2 };
+      return { icon: '=ƒô+', color: 'text-purple-400', bgColor: 'bg-purple-400/20', label: 'Photographer', priority: 2 };
     case ROLES.HOBBYIST:
-      return { icon: 'ðŸ”', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
+      return { icon: '=ƒöì', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
     case ROLES.SHOP:
-      return { icon: 'ðŸ›ï¸', color: 'text-pink-400', bgColor: 'bg-pink-400/20', label: 'Surf Shop', priority: 2 };
+      return { icon: '=ƒ¢ìn+Å', color: 'text-pink-400', bgColor: 'bg-pink-400/20', label: 'Surf Shop', priority: 2 };
     case ROLES.SCHOOL:
-      return { icon: 'ðŸŒ¬ï¸', color: 'text-teal-400', bgColor: 'bg-teal-400/20', label: 'Surf School', priority: 2 };
+      return { icon: '=ƒî¼n+Å', color: 'text-teal-400', bgColor: 'bg-teal-400/20', label: 'Surf School', priority: 2 };
     case ROLES.SHAPER:
-      return { icon: 'ðŸ› ï¸', color: 'text-orange-400', bgColor: 'bg-orange-400/20', label: 'Shaper', priority: 2 };
+      return { icon: '=ƒ¢án+Å', color: 'text-orange-400', bgColor: 'bg-orange-400/20', label: 'Shaper', priority: 2 };
     case ROLES.RESORT:
-      return { icon: 'ðŸŒ´', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', label: 'Resort', priority: 2 };
+      return { icon: '=ƒî¦', color: 'text-emerald-400', bgColor: 'bg-emerald-400/20', label: 'Resort', priority: 2 };
     case ROLES.COMP_SURFER:
-      return { icon: 'ðŸ†', color: 'text-yellow-400', bgColor: 'bg-yellow-400/20', label: 'Comp Surfer', priority: 1 };
+      return { icon: '=ƒÅå', color: 'text-yellow-400', bgColor: 'bg-yellow-400/20', label: 'Comp Surfer', priority: 1 };
     case ROLES.GROM:
-      return { icon: 'ðŸ£', color: 'text-lime-400', bgColor: 'bg-lime-400/20', label: 'Grom', priority: 4 };
+      return { icon: '=ƒÉú', color: 'text-lime-400', bgColor: 'bg-lime-400/20', label: 'Grom', priority: 4 };
     case ROLES.GROM_PARENT:
-      return { icon: 'ðŸ‘¨â€ðŸ‘§', color: 'text-sky-400', bgColor: 'bg-sky-400/20', label: 'Grom Parent', priority: 3 };
+      return { icon: '=ƒæ¿GÇì=ƒæº', color: 'text-sky-400', bgColor: 'bg-sky-400/20', label: 'Grom Parent', priority: 3 };
     case ROLES.SURFER:
     default:
-      return { icon: 'ðŸ„', color: 'text-cyan-400', bgColor: 'bg-cyan-400/20', label: 'Surfer', priority: 4 };
+      return { icon: '=ƒÅä', color: 'text-cyan-400', bgColor: 'bg-cyan-400/20', label: 'Surfer', priority: 4 };
   }
 };
 
 // Check if role is Pro-level (for Pro Lounge access)
 // Note: Only Verified Pro Surfers ('Pro') and God Mode have access to Pro Lounge
 // 'Comp Surfer' (Competition Surfer) does NOT have Pro Lounge access
-export var isProLevelRole = (role) => isProLevel(role);
+export const isProLevelRole = (role) => isProLevel(role);
 
 // Check if role is Business/Photographer (for The Channel)
-export var isBusinessRole = (role) => _isBusinessRole(role);
+export const isBusinessRole = (role) => _isBusinessRole(role);
 
-var PersonaContext = createContext();
+const PersonaContext = createContext();
 
-export var PersonaProvider = ({ children }) => {
+export const PersonaProvider = ({ children }) => {
   const { user, loading: authLoading } = useAuth();
   
   // CRITICAL: Check for user in localStorage BEFORE initializing state
@@ -244,7 +244,7 @@ export var PersonaProvider = ({ children }) => {
   );
 };
 
-export var usePersona = () => {
+export const usePersona = () => {
   const context = useContext(PersonaContext);
   if (!context) {
     throw new Error('usePersona must be used within a PersonaProvider');

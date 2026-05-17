@@ -1,5 +1,5 @@
 /**
- * PostModalMobileView â€” Extracted from PostModal.js (v77)
+ * PostModalMobileView GÇö Extracted from PostModal.js (v77)
  * Instagram-style fullscreen mobile post view with:
  * - Fullscreen image/video with double-tap shaka
  * - Bottom overlay with actions, caption, comments
@@ -19,7 +19,7 @@ import { formatTimeAgo } from '../../utils/formatTime';
 import { REACTION_EMOJIS } from '../../constants/emojis';
 import EmojiPicker from '../EmojiPicker';
 
-var PostModalMobileView = ({
+const PostModalMobileView = ({
   post, onClose, user, isLight,
   // Theme tokens (mobile)
   m, t,

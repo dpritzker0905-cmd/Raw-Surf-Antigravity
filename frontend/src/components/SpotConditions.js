@@ -12,8 +12,8 @@ import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 
-// Emoji constants â€” using String.fromCodePoint to prevent encoding corruption
-var E = {
+// Emoji constants GÇö using String.fromCodePoint to prevent encoding corruption
+const E = {
   glassy: String.fromCodePoint(0x1F924),    // mirror/glassy
   clean: String.fromCodePoint(0x2728),       // sparkles
   fair: String.fromCodePoint(0x1F44C),       // ok hand
@@ -34,7 +34,7 @@ var E = {
 
 
 // Get subscription tier for forecast access
-var getForecastDays = (subscriptionTier) => {
+const getForecastDays = (subscriptionTier) => {
   if (!subscriptionTier || subscriptionTier === 'free') return 3;
   if (['basic', 'paid'].includes(subscriptionTier)) return 7;
   if (['premium', 'pro', 'gold'].includes(subscriptionTier)) return 10;
@@ -42,12 +42,12 @@ var getForecastDays = (subscriptionTier) => {
 };
 
 // Check if user has premium forecast access
-var hasPremiumForecast = (subscriptionTier) => {
+const hasPremiumForecast = (subscriptionTier) => {
   return subscriptionTier === 'premium' || subscriptionTier === 'pro' || subscriptionTier === 'gold';
 };
 
 // Conditions badge colors
-var conditionColors = {
+const conditionColors = {
   "Flat": "bg-gray-500",
   "Ankle High": "bg-blue-400",
   "Knee High": "bg-blue-500",
@@ -59,7 +59,7 @@ var conditionColors = {
   "Triple Overhead+": "bg-red-500"
 };
 
-export var SpotConditions = ({ spotId, spotName, compact = false }) => {
+export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
@@ -158,7 +158,7 @@ export var SpotConditions = ({ spotId, spotName, compact = false }) => {
         spot_id: spotId,
         ...reportData
       });
-      toast.success('Report submitted! Thanks for sharing ðŸŒŠ');
+      toast.success('Report submitted! Thanks for sharing =ƒîè');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
       fetchTodaysReports();

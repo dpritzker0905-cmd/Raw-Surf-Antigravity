@@ -1,5 +1,5 @@
 /**
- * SessionHistoryList â€” Past session history for photographers.
+ * SessionHistoryList GÇö Past session history for photographers.
  * Extracted from PhotographerSessionsManager.js.
  * 
  * Features:
@@ -12,7 +12,7 @@ import React from 'react';
 import { Radio, MapPin, Users } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 
-var SessionHistoryList = ({
+const SessionHistoryList = ({
   sessionHistory,
   isLight,
   textPrimaryClass,
@@ -55,7 +55,7 @@ var SessionHistoryList = ({
                       <span className={`${textPrimaryClass} truncate`}>{session.location}</span>
                     </div>
                     <p className={`text-sm ${textSecondaryClass} mt-1`}>
-                      {new Date(session.started_at).toLocaleDateString()} Â· {session.duration_mins} mins
+                      {new Date(session.started_at).toLocaleDateString()} -+ {session.duration_mins} mins
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

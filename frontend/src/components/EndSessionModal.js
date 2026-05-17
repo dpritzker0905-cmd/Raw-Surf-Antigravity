@@ -16,7 +16,7 @@ import { formatTime } from './LiveStatusHUD';
  * 
  * Theme-aware: supports light, dark, and beach themes.
  */
-var EndSessionModal = ({ 
+const EndSessionModal = ({ 
   isOpen, 
   onClose, 
   onConfirm, 

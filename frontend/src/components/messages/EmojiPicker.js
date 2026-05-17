@@ -20,23 +20,23 @@ import {
  */
 
 // Build a DM-friendly category map: "Recent" quick-access row + all shared categories
-var DM_CATEGORIES = {
+const DM_CATEGORIES = {
   'Recent': QUICK_ACCESS_EMOJIS,
   ...ALL_EMOJI_CATEGORIES,
 };
 
-var CATEGORY_NAMES = Object.keys(DM_CATEGORIES);
+const CATEGORY_NAMES = Object.keys(DM_CATEGORIES);
 
 // Icon map with "Recent" added
-var TAB_ICONS = { Recent: '\u{1F550}', ...CATEGORY_ICONS };
+const TAB_ICONS = { Recent: '\u{1F550}', ...CATEGORY_ICONS };
 
-var EmojiPicker = ({ show, onSelect, onClose }) => {
+const EmojiPicker = ({ show, onSelect, onClose }) => {
   const [activeCategory, setActiveCategory] = useState('Recent');
   const tabsRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  // â”€â”€ Scroll-indicator state â”€â”€
+  // GöÇGöÇ Scroll-indicator state GöÇGöÇ
   const updateScrollIndicators = useCallback(() => {
     const el = tabsRef.current;
     if (!el) return;
@@ -78,7 +78,7 @@ var EmojiPicker = ({ show, onSelect, onClose }) => {
       className="absolute bottom-full left-0 mb-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl z-50 animate-in slide-in-from-bottom-2"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* â”€â”€ Category tabs: icon-only, scroll arrows on overflow â”€â”€ */}
+      {/* GöÇGöÇ Category tabs: icon-only, scroll arrows on overflow GöÇGöÇ */}
       <div className="relative border-b border-zinc-700">
         {/* Left scroll arrow */}
         {canScrollLeft && (
@@ -125,7 +125,7 @@ var EmojiPicker = ({ show, onSelect, onClose }) => {
         )}
       </div>
 
-      {/* â”€â”€ Emoji grid â”€â”€ */}
+      {/* GöÇGöÇ Emoji grid GöÇGöÇ */}
       <div className="p-2 grid grid-cols-8 gap-1 max-h-48 overflow-y-auto show-scrollbar">
         {(DM_CATEGORIES[activeCategory] || []).map((emoji, i) => (
           <button
@@ -138,7 +138,7 @@ var EmojiPicker = ({ show, onSelect, onClose }) => {
         ))}
       </div>
 
-      {/* â”€â”€ Footer â”€â”€ */}
+      {/* GöÇGöÇ Footer GöÇGöÇ */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-700">
         <span className="text-[11px] text-gray-500">{activeCategory}</span>
         <button onClick={onClose} className="text-xs text-gray-400 hover:text-white transition-colors">Close</button>

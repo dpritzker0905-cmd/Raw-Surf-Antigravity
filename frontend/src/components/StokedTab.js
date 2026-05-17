@@ -25,37 +25,37 @@ import { ROLES } from '../constants/roles';
 
 
 // Default stoke level for new/empty users
-var DEFAULT_STOKE_LEVEL = {
-  current: { min: 0, name: "Rising Tide", emoji: "ðŸŒŠ", color: "blue" },
-  next: { min: 100, name: "Wave Rider", emoji: "ðŸ„", color: "cyan" },
+const DEFAULT_STOKE_LEVEL = {
+  current: { min: 0, name: "Rising Tide", emoji: "=ƒîè", color: "blue" },
+  next: { min: 100, name: "Wave Rider", emoji: "=ƒÅä", color: "cyan" },
   progress_percent: 0,
   credits_to_next: 100
 };
 
 // Default credit uses based on role
-var getDefaultCreditUses = (effectiveRole) => {
+const getDefaultCreditUses = (effectiveRole) => {
   if (effectiveRole === ROLES.GROM) {
     return [
-      { icon: "ðŸ„", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
-      { icon: "ðŸ“š", title: "Surf Lessons", description: "Training with local coaches" },
-      { icon: "ðŸ†", title: "Competition Entry", description: "Local and regional contests" },
+      { icon: "=ƒÅä", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
+      { icon: "=ƒôÜ", title: "Surf Lessons", description: "Training with local coaches" },
+      { icon: "=ƒÅå", title: "Competition Entry", description: "Local and regional contests" },
     ];
   } else if (effectiveRole === ROLES.COMP_SURFER) {
     return [
-      { icon: "âœˆï¸", title: "Travel & Contests", description: "Competition travel expenses" },
-      { icon: "â­", title: "Pro Equipment", description: "High-performance gear" },
+      { icon: "G£ên+Å", title: "Travel & Contests", description: "Competition travel expenses" },
+      { icon: "G¡É", title: "Pro Equipment", description: "High-performance gear" },
     ];
   } else if (effectiveRole === ROLES.PRO) {
     return [
-      { icon: "ðŸ’°", title: "Cash Out", description: "Withdraw to your bank account" },
-      { icon: "ðŸ’", title: "Pay It Forward", description: "Support other surfers" },
-      { icon: "ðŸŽ–ï¸", title: "Premium Gear", description: "Top-tier equipment" },
+      { icon: "=ƒÆ¦", title: "Cash Out", description: "Withdraw to your bank account" },
+      { icon: "=ƒÆ¥", title: "Pay It Forward", description: "Support other surfers" },
+      { icon: "=ƒÄûn+Å", title: "Premium Gear", description: "Top-tier equipment" },
     ];
   }
   return [
-    { icon: "ðŸ„", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
-    { icon: "ðŸ“¸", title: "Photo Sessions", description: "Book pro photographers" },
-    { icon: "ðŸŽ“", title: "Coaching", description: "Level up your skills" },
+    { icon: "=ƒÅä", title: "Gear & Equipment", description: "Boards, wetsuits, and accessories" },
+    { icon: "=ƒô+", title: "Photo Sessions", description: "Book pro photographers" },
+    { icon: "=ƒÄô", title: "Coaching", description: "Level up your skills" },
   ];
 };
 
@@ -67,7 +67,7 @@ var getDefaultCreditUses = (effectiveRole) => {
  * should see the Stoked tab (based on isStokedEligible). So we always show
  * the UI here, using default values if backend returns no data.
  */
-export var StokedTab = ({ userId, isOwnProfile }) => {
+export const StokedTab = ({ userId, isOwnProfile }) => {
   const navigate = useNavigate();
   const { getEffectiveRole } = usePersona();
   const [loading, setLoading] = useState(true);
@@ -150,7 +150,7 @@ export var StokedTab = ({ userId, isOwnProfile }) => {
           <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-2xl p-6 border border-yellow-500/30">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="text-4xl">{stoke_level?.current?.emoji || 'ðŸ¤™'}</div>
+                <div className="text-4xl">{stoke_level?.current?.emoji || '=ƒñÖ'}</div>
                 <div>
                   <h3 className="text-white font-bold text-lg">{stoke_level?.current?.name || 'Rising Tide'}</h3>
                   <p className="text-yellow-400/80 text-sm">Stoke Level</p>

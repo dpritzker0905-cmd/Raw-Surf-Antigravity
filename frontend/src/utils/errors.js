@@ -9,15 +9,15 @@
  * Safely extract an error message from an API response.
  *
  * Handles the three shapes FastAPI may return for `detail`:
- *   - string        â†’ returned as-is
- *   - array of objs â†’ joined msg/message fields
- *   - object        â†’ msg/message field
+ *   - string        GåÆ returned as-is
+ *   - array of objs GåÆ joined msg/message fields
+ *   - object        GåÆ msg/message field
  *
  * @param {Error|Object} error    Axios error (or anything with response.data.detail)
  * @param {string}       fallback Fallback text when no detail is found
  * @returns {string}
  */
-export var getErrorMessage = (error, fallback = 'An error occurred') => {
+export const getErrorMessage = (error, fallback = 'An error occurred') => {
   const detail = error?.response?.data?.detail;
   if (!detail) return error?.message || fallback;
   if (typeof detail === 'string') return detail;

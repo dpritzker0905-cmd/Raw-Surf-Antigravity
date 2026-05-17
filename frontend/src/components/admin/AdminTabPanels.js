@@ -16,7 +16,7 @@ export { UsersTabContent, DropdownBadge } from './tabs/UsersTabContent';
 export { AnalyticsTabContent } from './tabs/AnalyticsTabContent';
 
 // --- StatCard (small, shared across multiple tabs) ---
-var StatCard = React.memo(({ icon: Icon, label, value, subtext, color }) => {
+const StatCard = React.memo(({ icon: Icon, label, value, subtext, color }) => {
   const colors = {
     cyan: 'text-cyan-400',
     blue: 'text-blue-400',
@@ -38,7 +38,7 @@ var StatCard = React.memo(({ icon: Icon, label, value, subtext, color }) => {
 });
 
 // --- UserDetailModal (small, used by UnifiedAdminConsole) ---
-var UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
+const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="bg-card border-border text-foreground max-w-md">

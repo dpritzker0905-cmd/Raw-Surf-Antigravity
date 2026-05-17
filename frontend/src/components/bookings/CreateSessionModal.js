@@ -14,7 +14,7 @@ import { Calendar } from '../ui/calendar';
 import { toast } from 'sonner';
 import { NumericStepper } from '../ui/numeric-stepper';
 
-var CreateSessionModal = (props) => {
+const CreateSessionModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,
@@ -38,7 +38,7 @@ var CreateSessionModal = (props) => {
     newCrewInput, setNewCrewInput, calculateCrewTotal, calculatePerPersonSplit
   } = props;
 
-  // Safe fallback â€” prevent crash if bookingPricing hasn't loaded yet
+  // Safe fallback GÇö prevent crash if bookingPricing hasn't loaded yet
   const safePricing = bookingPricing || {};
 
   return (

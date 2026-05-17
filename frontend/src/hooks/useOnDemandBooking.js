@@ -11,7 +11,7 @@ import useHapticFeedback from './useHapticFeedback';
 import { useOnDemandCrew } from './useOnDemandCrew';
 import { useOnDemandLocation } from './useOnDemandLocation';
 
-var useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLocation, resumeDispatchId }) => {
+const useOnDemandBooking = ({ photographer, isOpen, onClose, onSuccess, userLocation, resumeDispatchId }) => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

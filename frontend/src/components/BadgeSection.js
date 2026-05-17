@@ -2,10 +2,10 @@ import React from 'react';
 import { Award } from 'lucide-react';
 
 /**
- * Badge + XP display section â€” shared between Swell and Crew tabs.
+ * Badge + XP display section GÇö shared between Swell and Crew tabs.
  * Previously duplicated as identical JSX blocks in Profile.js.
  */
-export var BadgeSection = ({ gamificationStats }) => {
+export const BadgeSection = ({ gamificationStats }) => {
   if (!gamificationStats?.badges?.length && !gamificationStats?.total_xp) return null;
 
   return (
@@ -44,7 +44,7 @@ export var BadgeSection = ({ gamificationStats }) => {
               title={badge.description}
             >
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                {badge.icon_emoji || 'ğŸ†'}
+                {badge.icon_emoji || '=ƒÅå'}
               </div>
               <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
             </div>

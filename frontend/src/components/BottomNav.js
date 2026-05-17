@@ -12,7 +12,7 @@ import { AdaptiveBackground } from './AdaptiveBackground';
 /**
  * Animated Wave Home Icon - Simple Lucide Waves with gentle animation
  */
-var AnimatedWaveIcon = ({ isActive, isPressed, hasNewContent, className = '' }) => {
+const AnimatedWaveIcon = ({ isActive, isPressed, hasNewContent, className = '' }) => {
   const [frame, setFrame] = useState(0);
   
   useEffect(() => {
@@ -53,7 +53,7 @@ var AnimatedWaveIcon = ({ isActive, isPressed, hasNewContent, className = '' }) 
 /**
  * Home Wave Button - Wrapper component for proper hooks usage
  */
-var HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
+const HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
   const [isPressed, setIsPressed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -93,9 +93,9 @@ var HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
 };
 
 /**
- * Mobile Bottom Navigation v4.2 â€” Universal Layout for ALL Roles
+ * Mobile Bottom Navigation v4.2 GÇö Universal Layout for ALL Roles
  * 
- * Tab 1: Home - Global (Social Feed) â€” Animated Wave Icon
+ * Tab 1: Home - Global (Social Feed) GÇö Animated Wave Icon
  * Tab 2: Explore - Universal (Browse spots, photographers, trending)
  * Tab 3: Create Post - Center FAB (prominent, high-contrast)
  * Tab 4: Messages - HIGH-FREQUENCY THUMB ACCESS
@@ -103,7 +103,7 @@ var HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
  * 
  * NOTE: Photo Tools, Backpack, Sessions moved to TopNav pull-down drawer
  */
-export var BottomNav = () => {
+export const BottomNav = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -226,7 +226,7 @@ export var BottomNav = () => {
           onNavigate={handleNavigation}
         />
 
-        {/* Tab 2: Explore â€” Universal for ALL roles */}
+        {/* Tab 2: Explore GÇö Universal for ALL roles */}
         <button
           onClick={() => handleNavigation('/explore')}
           onMouseEnter={() => preload('explore')}

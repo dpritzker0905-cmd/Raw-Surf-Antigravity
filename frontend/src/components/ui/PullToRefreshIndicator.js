@@ -1,12 +1,12 @@
 /**
- * PullToRefreshIndicator â€” Visual indicator for pull-to-refresh gesture.
+ * PullToRefreshIndicator GÇö Visual indicator for pull-to-refresh gesture.
  *
  * Usage:
  *   <PullToRefreshIndicator isPulling={isPulling} progress={pullProgress} isRefreshing={isRefreshing} />
  */
 import React from 'react';
 
-export var PullToRefreshIndicator = ({ isPulling, progress, isRefreshing }) => {
+export const PullToRefreshIndicator = ({ isPulling, progress, isRefreshing }) => {
   if (!isPulling && !isRefreshing) return null;
 
   const rotation = progress * 360;

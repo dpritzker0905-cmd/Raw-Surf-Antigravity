@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 import useFocusTrap from '../../hooks/useFocusTrap';
 
-export var GalleryLightbox = ({
+export const GalleryLightbox = ({
   item,
   items = [],
   onClose,

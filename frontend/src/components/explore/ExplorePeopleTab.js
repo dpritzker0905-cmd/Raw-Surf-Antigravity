@@ -1,5 +1,5 @@
 /**
- * ExplorePeopleTab â€” Extracted from Explore.js
+ * ExplorePeopleTab GÇö Extracted from Explore.js
  * Renders the "People" tab with search prompts, role browsing, and live photographers.
  */
 import React from 'react';
@@ -8,7 +8,7 @@ import { Search, MapPin, Users, Radio } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
-var ExplorePeopleTab = ({
+const ExplorePeopleTab = ({
   trending,
   isLight,
   setSearchQuery,

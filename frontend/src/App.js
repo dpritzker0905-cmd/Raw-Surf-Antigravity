@@ -8,85 +8,85 @@ import { Toaster } from './components/ui/sonner';
 import AccessCodeScreen from './components/AccessCodeScreen';
 import CookieConsentBanner from './components/ui/CookieConsentBanner';
 
-// â”€â”€â”€ Routing utilities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇGöÇ Routing utilities GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 import ErrorBoundary from './components/routing/ErrorBoundary';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AppLayout from './components/routing/AppLayout';
 
-// â”€â”€â”€ Critical path (NOT lazy â€” loaded immediately) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇGöÇ Critical path (NOT lazy GÇö loaded immediately) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 import { Home } from './components/Home';
 import { Auth } from './components/Auth';
 import { ForgotPassword, ResetPassword } from './components/PasswordReset';
 
-// â”€â”€â”€ Route-split (lazy): loaded only when the user navigates there â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇGöÇ Route-split (lazy): loaded only when the user navigates there GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 // This splits the 1.09 MB bundle into smaller chunks for faster initial load
-var Feed                        = React.lazy(() => import('./components/Feed').then(m => ({ default: m.Feed })));
-var Profile                     = React.lazy(() => import('./components/Profile').then(m => ({ default: m.Profile })));
-var Settings                    = React.lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
-var MessagesPage                = React.lazy(() => import('./components/MessagesPage').then(m => ({ default: m.MessagesPage })));
-var MapPage                     = React.lazy(() => import('./components/MapPage').then(m => ({ default: m.MapPage })));
-var GalleryPage                 = React.lazy(() => import('./components/GalleryPage').then(m => ({ default: m.GalleryPage })));
-var UnifiedAdminConsole         = React.lazy(() => import('./components/UnifiedAdminConsole'));
-var PhotographerBookingsManager = React.lazy(() => import('./components/PhotographerBookingsManager').then(m => ({ default: m.PhotographerBookingsManager })));
-var PhotographerSessionsManager = React.lazy(() => import('./components/PhotographerSessionsManager').then(m => ({ default: m.PhotographerSessionsManager })));
-var OnDemandSessionManager      = React.lazy(() => import('./components/OnDemandSessionManager').then(m => ({ default: m.OnDemandSessionManager })));
-var ScheduledBookingDrawer      = React.lazy(() => import('./components/ScheduledBookingDrawer')); // used by bookings page
+const Feed                        = React.lazy(() => import('./components/Feed').then(m => ({ default: m.Feed })));
+const Profile                     = React.lazy(() => import('./components/Profile').then(m => ({ default: m.Profile })));
+const Settings                    = React.lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const MessagesPage                = React.lazy(() => import('./components/MessagesPage').then(m => ({ default: m.MessagesPage })));
+const MapPage                     = React.lazy(() => import('./components/MapPage').then(m => ({ default: m.MapPage })));
+const GalleryPage                 = React.lazy(() => import('./components/GalleryPage').then(m => ({ default: m.GalleryPage })));
+const UnifiedAdminConsole         = React.lazy(() => import('./components/UnifiedAdminConsole'));
+const PhotographerBookingsManager = React.lazy(() => import('./components/PhotographerBookingsManager').then(m => ({ default: m.PhotographerBookingsManager })));
+const PhotographerSessionsManager = React.lazy(() => import('./components/PhotographerSessionsManager').then(m => ({ default: m.PhotographerSessionsManager })));
+const OnDemandSessionManager      = React.lazy(() => import('./components/OnDemandSessionManager').then(m => ({ default: m.OnDemandSessionManager })));
+const ScheduledBookingDrawer      = React.lazy(() => import('./components/ScheduledBookingDrawer')); // used by bookings page
 
-// â”€â”€â”€ Medium-priority lazy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-var SurferSubscription          = React.lazy(() => import('./components/SurferSubscription').then(m => ({ default: m.SurferSubscription })));
-var PhotographerSubscription    = React.lazy(() => import('./components/PhotographerSubscription').then(m => ({ default: m.PhotographerSubscription })));
-var SubscriptionSuccess         = React.lazy(() => import('./components/SubscriptionSuccess').then(m => ({ default: m.SubscriptionSuccess })));
-var ProOnboarding               = React.lazy(() => import('./components/ProOnboarding').then(m => ({ default: m.ProOnboarding })));
-var Bookings                    = React.lazy(() => import('./components/Bookings').then(m => ({ default: m.Bookings })));
-var Explore                     = React.lazy(() => import('./components/Explore').then(m => ({ default: m.Explore })));
-var SurfAlerts                  = React.lazy(() => import('./components/SurfAlerts').then(m => ({ default: m.SurfAlerts })));
-var Credits                     = React.lazy(() => import('./components/Credits').then(m => ({ default: m.Credits })));
-var CreditWallet                = React.lazy(() => import('./components/CreditWallet').then(m => ({ default: m.CreditWallet })));
-var GearHub                     = React.lazy(() => import('./components/GearHub').then(m => ({ default: m.GearHub })));
-var ImpactDashboard             = React.lazy(() => import('./components/ImpactDashboard').then(m => ({ default: m.ImpactDashboard })));
-var EarningsDashboard           = React.lazy(() => import('./components/EarningsDashboard').then(m => ({ default: m.EarningsDashboard })));
-var PhotographerGalleryManager  = React.lazy(() => import('./components/PhotographerGalleryManager').then(m => ({ default: m.PhotographerGalleryManager })));
-var NotificationsPage           = React.lazy(() => import('./components/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
-var SinglePost                  = React.lazy(() => import('./components/SinglePost'));
-var PaymentSuccess              = React.lazy(() => import('./components/PaymentSuccess'));
-var BookingPaymentSuccess       = React.lazy(() => import('./components/BookingPaymentSuccess'));
-var DispatchPaymentSuccess      = React.lazy(() => import('./components/DispatchPaymentSuccess'));
-var XPLeaderboard               = React.lazy(() => import('./components/XPLeaderboard'));
-var ThePeakHub                  = React.lazy(() => import('./components/ThePeakHub'));
-var TheInsideHub                = React.lazy(() => import('./components/TheInsideHub'));
-var ImpactZoneHub               = React.lazy(() => import('./components/ImpactZoneHub'));
-var StokeSponsorDashboard       = React.lazy(() => import('./components/StokeSponsorDashboard'));
-var StokeSponsorLeaderboard     = React.lazy(() => import('./components/StokeSponsorLeaderboard'));
-var StokedDashboard             = React.lazy(() => import('./components/StokedDashboard'));
-var StokedLockedPage            = React.lazy(() => import('./components/StokedLockedPage'));
-var GromHQ                      = React.lazy(() => import('./components/GromHQ'));
-var GromManage                  = React.lazy(() => import('./components/GromManage'));
-var OnDemandSettingsPage        = React.lazy(() => import('./components/OnDemandSettingsPage'));
-var SpotHub                     = React.lazy(() => import('./components/SpotHub'));
-var CrewPaymentPage             = React.lazy(() => import('./components/CrewPaymentPage'));
-var CrewChat                    = React.lazy(() => import('./components/CrewChat'));
-var SurferGallery               = React.lazy(() => import('./components/SurferGallery'));
-var PublicPhotographerGallery   = React.lazy(() => import('./components/PublicPhotographerGallery').then(m => ({ default: m.PublicPhotographerGallery })));
-var GalleryStorefront           = React.lazy(() => import('./components/GalleryStorefront').then(m => ({ default: m.GalleryStorefront })));
-var UsernameSetup               = React.lazy(() => import('./components/UsernameSetup'));
-var ThemePage                   = React.lazy(() => import('./components/ThemePage').then(m => ({ default: m.ThemePage })));
-var SearchPage                  = React.lazy(() => import('./pages/SearchPage'));
-var SurfLog                     = React.lazy(() => import('./components/SurfLog'));
-var CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
-var DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
-var PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
-var PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
-var PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
-var CareerPage = React.lazy(() => import('./components/CareerPage'));
+// GöÇGöÇGöÇ Medium-priority lazy GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+const SurferSubscription          = React.lazy(() => import('./components/SurferSubscription').then(m => ({ default: m.SurferSubscription })));
+const PhotographerSubscription    = React.lazy(() => import('./components/PhotographerSubscription').then(m => ({ default: m.PhotographerSubscription })));
+const SubscriptionSuccess         = React.lazy(() => import('./components/SubscriptionSuccess').then(m => ({ default: m.SubscriptionSuccess })));
+const ProOnboarding               = React.lazy(() => import('./components/ProOnboarding').then(m => ({ default: m.ProOnboarding })));
+const Bookings                    = React.lazy(() => import('./components/Bookings').then(m => ({ default: m.Bookings })));
+const Explore                     = React.lazy(() => import('./components/Explore').then(m => ({ default: m.Explore })));
+const SurfAlerts                  = React.lazy(() => import('./components/SurfAlerts').then(m => ({ default: m.SurfAlerts })));
+const Credits                     = React.lazy(() => import('./components/Credits').then(m => ({ default: m.Credits })));
+const CreditWallet                = React.lazy(() => import('./components/CreditWallet').then(m => ({ default: m.CreditWallet })));
+const GearHub                     = React.lazy(() => import('./components/GearHub').then(m => ({ default: m.GearHub })));
+const ImpactDashboard             = React.lazy(() => import('./components/ImpactDashboard').then(m => ({ default: m.ImpactDashboard })));
+const EarningsDashboard           = React.lazy(() => import('./components/EarningsDashboard').then(m => ({ default: m.EarningsDashboard })));
+const PhotographerGalleryManager  = React.lazy(() => import('./components/PhotographerGalleryManager').then(m => ({ default: m.PhotographerGalleryManager })));
+const NotificationsPage           = React.lazy(() => import('./components/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
+const SinglePost                  = React.lazy(() => import('./components/SinglePost'));
+const PaymentSuccess              = React.lazy(() => import('./components/PaymentSuccess'));
+const BookingPaymentSuccess       = React.lazy(() => import('./components/BookingPaymentSuccess'));
+const DispatchPaymentSuccess      = React.lazy(() => import('./components/DispatchPaymentSuccess'));
+const XPLeaderboard               = React.lazy(() => import('./components/XPLeaderboard'));
+const ThePeakHub                  = React.lazy(() => import('./components/ThePeakHub'));
+const TheInsideHub                = React.lazy(() => import('./components/TheInsideHub'));
+const ImpactZoneHub               = React.lazy(() => import('./components/ImpactZoneHub'));
+const StokeSponsorDashboard       = React.lazy(() => import('./components/StokeSponsorDashboard'));
+const StokeSponsorLeaderboard     = React.lazy(() => import('./components/StokeSponsorLeaderboard'));
+const StokedDashboard             = React.lazy(() => import('./components/StokedDashboard'));
+const StokedLockedPage            = React.lazy(() => import('./components/StokedLockedPage'));
+const GromHQ                      = React.lazy(() => import('./components/GromHQ'));
+const GromManage                  = React.lazy(() => import('./components/GromManage'));
+const OnDemandSettingsPage        = React.lazy(() => import('./components/OnDemandSettingsPage'));
+const SpotHub                     = React.lazy(() => import('./components/SpotHub'));
+const CrewPaymentPage             = React.lazy(() => import('./components/CrewPaymentPage'));
+const CrewChat                    = React.lazy(() => import('./components/CrewChat'));
+const SurferGallery               = React.lazy(() => import('./components/SurferGallery'));
+const PublicPhotographerGallery   = React.lazy(() => import('./components/PublicPhotographerGallery').then(m => ({ default: m.PublicPhotographerGallery })));
+const GalleryStorefront           = React.lazy(() => import('./components/GalleryStorefront').then(m => ({ default: m.GalleryStorefront })));
+const UsernameSetup               = React.lazy(() => import('./components/UsernameSetup'));
+const ThemePage                   = React.lazy(() => import('./components/ThemePage').then(m => ({ default: m.ThemePage })));
+const SearchPage                  = React.lazy(() => import('./pages/SearchPage'));
+const SurfLog                     = React.lazy(() => import('./components/SurfLog'));
+const CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
+const DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
+const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
+const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
+const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
+const CareerPage = React.lazy(() => import('./components/CareerPage'));
 
 import './App.css';
 
-// â”€â”€â”€ Audio: Unlock AudioContext on first user gesture for reliable ringtones â”€â”€
+// GöÇGöÇGöÇ Audio: Unlock AudioContext on first user gesture for reliable ringtones GöÇGöÇ
 import { ensureAudioUnlocked } from './utils/audioUnlock';
 ensureAudioUnlocked();
 
-// â”€â”€â”€ Full-screen loading spinner while lazy chunk loads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-var PageLoader = () => (
+// GöÇGöÇGöÇ Full-screen loading spinner while lazy chunk loads GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+const PageLoader = () => (
   <div style={{
     display: 'flex',
     alignItems: 'center',
@@ -106,15 +106,15 @@ var PageLoader = () => (
   </div>
 );
 
-// â”€â”€â”€ Wrapper to apply Suspense + ErrorBoundary on every lazy route â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-var Lazy = ({ children }) => (
+// GöÇGöÇGöÇ Wrapper to apply Suspense + ErrorBoundary on every lazy route GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+const Lazy = ({ children }) => (
   <ErrorBoundary>
     <Suspense fallback={<PageLoader />}>{children}</Suspense>
   </ErrorBoundary>
 );
 
-// â”€â”€â”€ Subscription-only gate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-var SubscriptionRoute = ({ children }) => {
+// GöÇGöÇGöÇ Subscription-only gate GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+const SubscriptionRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/auth?tab=signup" replace />;
@@ -131,20 +131,20 @@ function App() {
         <AccessCodeScreen>
         <BrowserRouter>
           <Routes>
-            {/* â”€â”€ Public â”€â”€ */}
+            {/* GöÇGöÇ Public GöÇGöÇ */}
             <Route path="/" element={<Home />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* â”€â”€ Onboarding / Subscription (no nav) â”€â”€ */}
+            {/* GöÇGöÇ Onboarding / Subscription (no nav) GöÇGöÇ */}
             <Route path="/surfer-subscription" element={<SubscriptionRoute><Lazy><SurferSubscription /></Lazy></SubscriptionRoute>} />
             <Route path="/photographer-subscription" element={<SubscriptionRoute><Lazy><PhotographerSubscription /></Lazy></SubscriptionRoute>} />
             <Route path="/pro-onboarding" element={<SubscriptionRoute><Lazy><ProOnboarding /></Lazy></SubscriptionRoute>} />
             <Route path="/subscription/success" element={<SubscriptionRoute><Lazy><SubscriptionSuccess /></Lazy></SubscriptionRoute>} />
             <Route path="/setup-username" element={<SubscriptionRoute><Lazy><UsernameSetup skipAllowed={true} /></Lazy></SubscriptionRoute>} />
 
-            {/* â”€â”€ Protected App Routes â”€â”€ */}
+            {/* GöÇGöÇ Protected App Routes GöÇGöÇ */}
             <Route path="/feed" element={<ProtectedRoute><AppLayout><Lazy><Feed /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><AppLayout><Lazy><Explore /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><AppLayout hideTopNav={true}><Lazy><SearchPage /></Lazy></AppLayout></ProtectedRoute>} />

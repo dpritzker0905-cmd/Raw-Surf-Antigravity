@@ -19,7 +19,7 @@ import { toast } from 'sonner';
  * GPSSettingsGuide - Modal to help users enable precise GPS location
  * Also offers manual location selection as fallback
  */
-export var GPSSettingsGuide = ({ 
+export const GPSSettingsGuide = ({ 
   isOpen, 
   onClose, 
   onRetryLocation,

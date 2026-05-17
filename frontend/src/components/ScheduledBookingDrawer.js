@@ -43,7 +43,7 @@ import { BookingFooter } from './booking/BookingFooter';
 /**
  * Main Scheduled Booking Drawer Component
  */
-export var ScheduledBookingDrawer = ({
+export const ScheduledBookingDrawer = ({
   isOpen,
   onClose,
   photographer,
@@ -512,7 +512,7 @@ export var ScheduledBookingDrawer = ({
           {/* Step 4: Payment */}
           {step === 'payment' && (
             <div className="space-y-4 pb-4">
-              {/* Session Summary + Crew Payment â€” Extracted */}
+              {/* Session Summary + Crew Payment GÇö Extracted */}
               <BookingSessionSummary
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}

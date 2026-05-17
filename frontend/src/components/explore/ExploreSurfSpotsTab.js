@@ -1,5 +1,5 @@
 /**
- * ExploreSurfSpotsTab â€” Extracted from Explore.js
+ * ExploreSurfSpotsTab GÇö Extracted from Explore.js
  * Renders the "Surf Spots" tab with Browse/Nearby mode toggle,
  * BrowseMode and NearbyMode sub-components, and a Map View CTA.
  */
@@ -10,7 +10,7 @@ import { Badge } from '../ui/badge';
 import BrowseMode from './BrowseMode';
 import NearbyMode from './NearbyMode';
 
-var ExploreSurfSpotsTab = ({
+const ExploreSurfSpotsTab = ({
   locationHierarchy,
   discoveryMode,
   setDiscoveryMode,

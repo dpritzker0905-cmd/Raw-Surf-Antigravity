@@ -12,7 +12,7 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 
 // Ad content pool - rotates through these
-var AD_CONTENT = [
+const AD_CONTENT = [
   {
     id: 'upgrade_pro',
     type: 'upgrade',
@@ -49,11 +49,11 @@ var AD_CONTENT = [
 ];
 
 // Get a deterministic ad based on position
-var getAdForPosition = (position) => {
+const getAdForPosition = (position) => {
   return AD_CONTENT[position % AD_CONTENT.length];
 };
 
-export var SocialAdCard = ({ position = 0, onDismiss }) => {
+export const SocialAdCard = ({ position = 0, onDismiss }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -147,7 +147,7 @@ export var SocialAdCard = ({ position = 0, onDismiss }) => {
  * @param {boolean} isAdSupported - Whether user sees ads
  * @returns {Array} Posts with ad markers injected
  */
-export var injectAdsIntoPosts = (posts, isAdSupported) => {
+export const injectAdsIntoPosts = (posts, isAdSupported) => {
   if (!isAdSupported || !posts || posts.length === 0) {
     return posts.map(p => ({ ...p, isAd: false }));
   }

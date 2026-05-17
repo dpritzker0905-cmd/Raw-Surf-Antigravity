@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui
  * - Strict auth checks to prevent unauthorized access
  * - Minimizable mobile banner with tab showing persona name
  */
-var PersonaMaskBanner = () => {
+const PersonaMaskBanner = () => {
   const { user, loading: authLoading } = useAuth();
   const { 
     _isMasked, 

@@ -7,7 +7,7 @@ import {
   Image as ImageIcon, Video
 } from 'lucide-react';
 
-var GalleryPricingModal = ({
+const GalleryPricingModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,

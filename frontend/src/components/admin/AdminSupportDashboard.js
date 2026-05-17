@@ -21,7 +21,7 @@ import logger from '../../utils/logger';
  * - Ticket routing, prioritization, SLA tracking
  * - Response time metrics and CSAT tracking
  */
-export var AdminSupportDashboard = () => {
+export const AdminSupportDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);

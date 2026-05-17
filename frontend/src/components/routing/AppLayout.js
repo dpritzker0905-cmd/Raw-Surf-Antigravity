@@ -1,5 +1,5 @@
 /**
- * AppLayout.js â€” Responsive shell layout for authenticated users.
+ * AppLayout.js GÇö Responsive shell layout for authenticated users.
  *
  * Desktop: Sidebar on the left (200px), main content fills the rest.
  * Mobile: TopNav at top + BottomNav at bottom, main content in between.
@@ -30,17 +30,17 @@ import PermissionDeniedModal from '../messages/PermissionDeniedModal';
 import ViolationBanner from '../ViolationBanner';
 import PushNotificationPrompt from '../PushNotificationPrompt';
 
-// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇGöÇ Sub-components GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 
 /** Renders ImpersonationBanner only when admin is viewing as another user. */
-var ImpersonationBannerWrapper = () => {
+const ImpersonationBannerWrapper = () => {
   const { impersonation, loading } = useAuth();
   if (loading || !impersonation) return null;
   return <ImpersonationBanner />;
 };
 
 /** Renders PersonaMaskBanner only for authenticated admins on non-public pages. */
-var PersonaMaskBannerWrapper = () => {
+const PersonaMaskBannerWrapper = () => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const publicRoutes = ['/', '/auth', '/auth/'];
@@ -50,7 +50,7 @@ var PersonaMaskBannerWrapper = () => {
 };
 
 /** Auto-subscribes to push notifications when user logs in and permission is granted. */
-var PushNotificationInit = () => {
+const PushNotificationInit = () => {
   const { user } = useAuth();
   const { isSupported, subscribe } = usePushNotifications(user?.id);
   useEffect(() => {
@@ -66,7 +66,7 @@ var PushNotificationInit = () => {
  * when the user is authenticated. Redirects to /feed instead.
  *
  * In-app browsers (e.g. Facebook Messenger on Samsung) have very
- * shallow history stacks â€” one "back" press can exit the entire
+ * shallow history stacks GÇö one "back" press can exit the entire
  * app or land on the auth page, triggering an unintended logout.
  *
  * Strategy:
@@ -74,9 +74,9 @@ var PushNotificationInit = () => {
  *     pressing back once never exits past our SPA origin.
  *  2. On every popstate, if the destination is an auth/public
  *     route, immediately replace the history entry with /feed
- *     and navigate there â€” no setTimeout race conditions.
+ *     and navigate there GÇö no setTimeout race conditions.
  */
-var BackButtonHandler = () => {
+const BackButtonHandler = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -119,8 +119,8 @@ var BackButtonHandler = () => {
   return null;
 };
 
-/** Global WebRTC Call Manager â€” renders incoming call + in-call overlays. */
-var CallManager = () => {
+/** Global WebRTC Call Manager GÇö renders incoming call + in-call overlays. */
+const CallManager = () => {
   const { user } = useAuth();
   const call = useWebRTCCall(user?.id, {
     name: user?.full_name || user?.username,
@@ -171,7 +171,7 @@ var CallManager = () => {
           onReplaceVideoTrack={call.replaceVideoTrack}
         />
       )}
-      {/* Permission denied modal â€” guides user to Settings */}
+      {/* Permission denied modal GÇö guides user to Settings */}
       {call.permissionDenied && (
         <PermissionDeniedModal
           onRetry={call.retryAfterPermission}
@@ -182,14 +182,14 @@ var CallManager = () => {
   );
 };
 
-// â”€â”€â”€ Main AppLayout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇGöÇ Main AppLayout GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 
 /**
  * @param {React.ReactNode} children - Page content
  * @param {boolean} hideNav - Hide both sidebar/top/bottom nav (used for auth pages)
  * @param {boolean} hideTopNav - Hide only the mobile TopNav (used for pages with custom headers)
  */
-var AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
+const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
   const { theme } = useTheme();
   const { impersonation } = useAuth();
   const location = useLocation();
@@ -221,7 +221,7 @@ var AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       {showSidebar && <RightSidebar />}
       {showTopNav && <TopNav />}
 
-      {/* Violation awareness banner â€” appears below nav when user has strikes */}
+      {/* Violation awareness banner GÇö appears below nav when user has strikes */}
       <ViolationBanner />
 
       {/* Page content */}

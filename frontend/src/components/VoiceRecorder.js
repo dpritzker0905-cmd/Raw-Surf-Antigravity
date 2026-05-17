@@ -7,9 +7,9 @@ import { formatDuration } from '../utils/formatTime';
 
 
 // Supabase storage URL for voice notes
-var _SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
+const _SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
 
-export var VoiceRecorder = ({ 
+export const VoiceRecorder = ({ 
   onSend, 
   onCancel,
   conversationId,

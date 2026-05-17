@@ -12,7 +12,7 @@ import Supercluster from 'supercluster';
  * @param {number} zoom - Current map zoom level
  * @param {Object} options - Supercluster options (should be memoized by caller)
  */
-export var useMarkerClustering = (spots, bounds, zoom, options = {}) => {
+export const useMarkerClustering = (spots, bounds, zoom, options = {}) => {
   const [clusters, setClusters] = useState([]);
   const superclusterRef = useRef(null);
   

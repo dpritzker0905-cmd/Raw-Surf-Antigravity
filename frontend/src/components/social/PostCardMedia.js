@@ -1,5 +1,5 @@
 /**
- * PostCardMedia â€” Extracted from PostCard.js
+ * PostCardMedia GÇö Extracted from PostCard.js
  * Handles all media rendering: carousel (multi-slide), video (with autoplay/mute/retry),
  * and static image display. Includes double-tap-to-like shaka animation.
  */
@@ -7,7 +7,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Play, ChevronLeft, ChevronRight, RefreshCw, Volume2, Volume1, VolumeX } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-var PostCardMedia = ({
+const PostCardMedia = ({
   post,
   user,
   isLight,

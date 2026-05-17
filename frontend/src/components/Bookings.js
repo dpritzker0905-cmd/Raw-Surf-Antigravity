@@ -30,11 +30,11 @@ import BookingsModals from './bookings/BookingsModals';
 
 // Surfer-capable roles that can join sessions
 // Role IDs must match Auth.js signup roles exactly
-var SURFER_ROLES = ['Grom', 'Surfer', 'Comp Surfer', 'Pro', 'Hobbyist', 'Grom Parent'];
+const SURFER_ROLES = ['Grom', 'Surfer', 'Comp Surfer', 'Pro', 'Hobbyist', 'Grom Parent'];
 
 
 
-export var Bookings = () => {
+export const Bookings = () => {
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();
@@ -51,7 +51,7 @@ export var Bookings = () => {
   const dragStartXRef = useRef(0);
   const scrollStartRef = useRef(0);
 
-  // Swipe-to-navigate â€” uses shared hook (v81)
+  // Swipe-to-navigate GÇö uses shared hook (v81)
 
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
@@ -300,7 +300,7 @@ export var Bookings = () => {
           
           
           if (response.data.success) {
-            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! Ã°Å¸Â¤â„¢`, { duration: 5000 });
+            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! +¦++-ñGäó`, { duration: 5000 });
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
             // Refresh live sessions
@@ -418,7 +418,7 @@ export var Bookings = () => {
     { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw, count: 0 },
   ];
 
-  // Shared swipe hook (v81) â€” replaces inline touch handlers
+  // Shared swipe hook (v81) GÇö replaces inline touch handlers
   const { contentRef, swipeHandlers } = useSwipeNavigation({
     tabs,
     activeTab,
@@ -739,7 +739,7 @@ export var Bookings = () => {
         </div>
       </div>
 
-      {/* Modals & Drawers â€” Extracted to bookings/BookingsModals.js (v82) */}
+      {/* Modals & Drawers GÇö Extracted to bookings/BookingsModals.js (v82) */}
       <BookingsModals
         isLight={isLight}
         textPrimaryClass={textPrimaryClass}

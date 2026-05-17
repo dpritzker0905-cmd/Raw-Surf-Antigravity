@@ -1,5 +1,5 @@
 /**
- * CancelSessionDialog â€” Extracted from OnDemandSessionManager.js (v82)
+ * CancelSessionDialog GÇö Extracted from OnDemandSessionManager.js (v82)
  * Confirmation dialog for cancelling an active on-demand session.
  */
 import React from 'react';
@@ -17,7 +17,7 @@ import {
 } from '../ui/alert-dialog';
 import { getFullUrl } from '../../utils/media';
 
-var CancelSessionDialog = ({
+const CancelSessionDialog = ({
   showCancelConfirm,
   setShowCancelConfirm,
   activeSession,

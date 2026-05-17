@@ -1,5 +1,5 @@
 /**
- * LastUpdatedBanner â€” Thin status banner for cached / stale data.
+ * LastUpdatedBanner GÇö Thin status banner for cached / stale data.
  *
  * Shows when:
  *  - Device is offline
@@ -10,7 +10,7 @@
 import React, { useMemo } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
 
-var formatElapsed = (ms) => {
+const formatElapsed = (ms) => {
   if (ms < 60_000) return 'just now';
   const mins = Math.floor(ms / 60_000);
   if (mins < 60) return `${mins} min${mins !== 1 ? 's' : ''} ago`;
@@ -18,7 +18,7 @@ var formatElapsed = (ms) => {
   return `${hrs} hr${hrs !== 1 ? 's' : ''} ago`;
 };
 
-var LastUpdatedBanner = ({
+const LastUpdatedBanner = ({
   lastUpdatedAt,
   isOnline = true,
   onRefresh,
@@ -58,8 +58,8 @@ var LastUpdatedBanner = ({
       )}
       <span>
         {isOffline
-          ? `You're offline Â· Showing cached data${elapsed != null ? ` from ${formatElapsed(elapsed)}` : ''}`
-          : `Last updated ${formatElapsed(elapsed)} Â· Tap to refresh`
+          ? `You're offline -+ Showing cached data${elapsed != null ? ` from ${formatElapsed(elapsed)}` : ''}`
+          : `Last updated ${formatElapsed(elapsed)} -+ Tap to refresh`
         }
       </span>
     </button>

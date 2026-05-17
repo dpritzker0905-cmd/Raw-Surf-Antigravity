@@ -1,6 +1,6 @@
 /**
  * PhotographerProfileContent.js
- * Extracted from UnifiedSpotDrawer.js â€” Photographer profile views (scrollable content + full drawer).
+ * Extracted from UnifiedSpotDrawer.js GÇö Photographer profile views (scrollable content + full drawer).
  */
 import React, { useState, useEffect } from 'react';
 import { MapPin, Camera, ArrowLeft, Star, Loader2, Calendar, Users } from 'lucide-react';
@@ -12,7 +12,7 @@ import { getFullUrl } from '../../utils/media';
 import { StarRating, ReviewsCarousel } from './SpotDrawerHelpers';
 
 // Photographer Profile Content - SCROLLABLE CONTENT ONLY (for vaul drawer)
-export var PhotographerProfileContent = React.memo(({ photographer }) => {
+export const PhotographerProfileContent = React.memo(({ photographer }) => {
   const [reviews, setReviews] = useState([]);
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +151,7 @@ export var PhotographerProfileContent = React.memo(({ photographer }) => {
 });
 
 // Full-page Photographer Profile (with header + footer) - Legacy version
-export var PhotographerProfile = React.memo(({ photographer, onBack, onJumpIn }) => {
+export const PhotographerProfile = React.memo(({ photographer, onBack, onJumpIn }) => {
   return (
     <div 
       className="relative bg-zinc-900" 

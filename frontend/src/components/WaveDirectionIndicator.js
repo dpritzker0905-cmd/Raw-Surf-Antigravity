@@ -9,7 +9,7 @@ import { Waves, Wind, Navigation2 } from 'lucide-react';
 /**
  * Convert compass direction to degrees
  */
-var directionToDegrees = (direction) => {
+const directionToDegrees = (direction) => {
   const directions = {
     'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
     'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
@@ -22,7 +22,7 @@ var directionToDegrees = (direction) => {
 /**
  * Mini compass indicator with rotating arrow
  */
-export var DirectionCompass = ({ 
+export const DirectionCompass = ({ 
   degrees, 
   direction,
   type = 'wave', // 'wave' or 'wind'
@@ -65,7 +65,7 @@ export var DirectionCompass = ({
     <div className={`flex items-center gap-1.5 ${className}`}>
       <div 
         className={`${sizeConfig.container} ${colorConfig.bg} ${colorConfig.border} border rounded-full flex items-center justify-center relative`}
-        title={`${type === 'wave' ? 'Wave' : 'Wind'} direction: ${direction || `${rotationDegrees}Â°`}`}
+        title={`${type === 'wave' ? 'Wave' : 'Wind'} direction: ${direction || `${rotationDegrees}-¦`}`}
       >
         {/* Compass ring markers */}
         <div className="absolute inset-0">
@@ -111,7 +111,7 @@ export var DirectionCompass = ({
 /**
  * Combined wave direction display with height and period
  */
-export var WaveConditionsBadge = ({
+export const WaveConditionsBadge = ({
   waveHeightFt,
   wavePeriodSec,
   waveDirection,
@@ -152,7 +152,7 @@ export var WaveConditionsBadge = ({
 /**
  * Combined wind direction display with speed
  */
-export var WindConditionsBadge = ({
+export const WindConditionsBadge = ({
   windSpeedMph,
   windDirection,
   className = ''
@@ -184,7 +184,7 @@ export var WindConditionsBadge = ({
 /**
  * Full conditions panel with wave and wind
  */
-export var ConditionsPanel = ({
+export const ConditionsPanel = ({
   waveHeightFt,
   wavePeriodSec,
   waveDirection,

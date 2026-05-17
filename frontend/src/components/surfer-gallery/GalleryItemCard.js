@@ -9,7 +9,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from '../ui/dropdown-menu';
 
-var GalleryItemCard = ({ 
+const GalleryItemCard = ({ 
   item, 
   onVisibilityToggle, 
   onDownload, 

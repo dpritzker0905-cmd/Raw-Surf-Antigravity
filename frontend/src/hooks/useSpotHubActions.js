@@ -1,13 +1,13 @@
 /**
  * useSpotHubActions.js
- * Extracted from SpotHub.js â€” handler logic for spot detail pages.
+ * Extracted from SpotHub.js GÇö handler logic for spot detail pages.
  * v32: Rewritten to match actual SpotHub.js handler implementations.
  */
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useSpotHubActions = ({
+const useSpotHubActions = ({
   user,
   spotId,
   navigate,

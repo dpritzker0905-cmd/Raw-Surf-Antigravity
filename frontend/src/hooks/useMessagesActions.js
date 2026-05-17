@@ -1,6 +1,6 @@
 /**
  * useMessagesActions.js
- * Extracted from MessagesPage.js â€” API handler logic for messaging.
+ * Extracted from MessagesPage.js GÇö API handler logic for messaging.
  * 
  * Note: useCallback/useRef/useEffect-based handlers remain in the parent
  * component since they require React hook context. Only pure API handlers
@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl, cacheBustUrl } from '../utils/media';
 
-var useMessagesActions = ({
+const useMessagesActions = ({
   user,
   navigate,
   selectedConversation,

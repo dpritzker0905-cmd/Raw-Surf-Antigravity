@@ -1,6 +1,6 @@
 /**
  * ExploreSponsorsTab.js
- * Extracted from Explore.js â€” Top Sponsors leaderboard tab + Quick Card overlay.
+ * Extracted from Explore.js GÇö Top Sponsors leaderboard tab + Quick Card overlay.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +9,7 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { getFullUrl } from '../../utils/media';
 
-var ExploreSponsorsTab = ({
+const ExploreSponsorsTab = ({
   leaderboard,
   leaderboardLoading,
   openSponsorCard,

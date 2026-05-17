@@ -11,7 +11,7 @@ import { getThemeTokens } from '../utils/themeTokens';
  * - Subtle breathing animation on text
  * - Minimalist aesthetic
  */
-export var WaveLoader = () => {
+export const WaveLoader = () => {
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
 

@@ -8,7 +8,7 @@ import ReplyItem from './ReplyItem';
 import { formatTimeAgo } from '../../utils/formatTime';
 import { REACTION_EMOJIS } from '../../constants/emojis';
 
-var CommentWithReaction = ({ 
+const CommentWithReaction = ({ 
   comment, 
   userId, 
   postId,
@@ -37,7 +37,7 @@ var CommentWithReaction = ({
   const [localIsEdited, setLocalIsEdited] = useState(comment.is_edited || false);
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleReaction = async (emoji = 'ðŸ¤™') => {
+  const handleReaction = async (emoji = '=ƒñÖ') => {
     if (!userId) {
       toast.error('Please log in to react');
       return;
@@ -248,7 +248,7 @@ var CommentWithReaction = ({
         
         <div className="relative ml-auto">
           <button
-            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('ðŸ¤™')}
+            onClick={() => viewerReaction ? handleReaction(viewerReaction) : handleReaction('=ƒñÖ')}
             onContextMenu={(e) => { e.preventDefault(); setShowReactionPicker(true); }}
             disabled={loading}
             className={`p-1 rounded transition-all ${
@@ -256,7 +256,7 @@ var CommentWithReaction = ({
             } ${loading ? 'opacity-50' : ''}`}
             data-testid={`comment-like-${comment.id}`}
           >
-            {viewerReaction && viewerReaction !== 'ðŸ¤™' ? (
+            {viewerReaction && viewerReaction !== '=ƒñÖ' ? (
               <span className="text-sm">{viewerReaction}</span>
             ) : (
               <Heart className="w-3.5 h-3.5" fill={viewerReaction ? 'currentColor' : 'none'} />

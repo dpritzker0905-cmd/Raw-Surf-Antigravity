@@ -8,9 +8,9 @@ import { Lock, Loader2, Waves } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
-var ACCESS_CODE_KEY = 'site_access_code'; // Stores the actual code for re-validation
+const ACCESS_CODE_KEY = 'site_access_code'; // Stores the actual code for re-validation
 
-export var AccessCodeScreen = ({ children }) => {
+export const AccessCodeScreen = ({ children }) => {
   const [checking, setChecking] = useState(true);
   const [accessRequired, setAccessRequired] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);

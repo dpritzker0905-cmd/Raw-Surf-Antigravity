@@ -12,7 +12,7 @@ import { Switch } from '../ui/switch';
 import PotentialEarningsCalculator from './PotentialEarningsCalculator';
 import { Settings } from 'lucide-react';
 
-var SessionSettingsModal = ({
+const SessionSettingsModal = ({
   isOpen, onClose, sessionSettings, setSessionSettings, expandedSections,
   toggleSection, isHobbyist, causes, groms, commissionRate, hasSavings,
   liveSavings, handleSaveSettings, isLight, textPrimaryClass, textSecondaryClass,

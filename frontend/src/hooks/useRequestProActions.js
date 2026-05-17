@@ -1,6 +1,6 @@
 /**
  * useRequestProActions.js
- * Extracted from map/RequestProModal.js â€” crew management + submit handler.
+ * Extracted from map/RequestProModal.js GÇö crew management + submit handler.
  * v33: Rewritten from actual RequestProModal.js implementations.
  * 
  * Strategy: useCallback wrappers converted to plain functions.
@@ -9,7 +9,7 @@
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 
-var useRequestProActions = ({
+const useRequestProActions = ({
   // Auth
   userId,
   user,

@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from 'react';
 
-export var useMapState = () => {
+export const useMapState = () => {
   // Selection state
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [selectedPhotographer, setSelectedPhotographer] = useState(null);

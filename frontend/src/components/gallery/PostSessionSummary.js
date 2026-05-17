@@ -1,5 +1,5 @@
 /**
- * PostSessionSummary ï¿½ Photographer post-session action dashboard
+ * PostSessionSummary +�-+-+ Photographer post-session action dashboard
  * 
  * Shows for session galleries that ended recently (< 48 hours).
  * One-click distribute, AI match status, and distribution progress.
@@ -14,7 +14,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 
-export var PostSessionSummary = ({
+export const PostSessionSummary = ({
   gallery,
   participants = [],
   onDistributeAll,

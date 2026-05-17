@@ -13,7 +13,7 @@ import { Eye, EyeOff, UserCircle, X, Shield, AlertTriangle } from 'lucide-react'
 import { Button } from './ui/button';
 import { getFullUrl } from '../utils/media';
 
-var ImpersonationBanner = () => {
+const ImpersonationBanner = () => {
   const { 
     impersonation, 
     originalUser, 
@@ -51,7 +51,7 @@ var ImpersonationBanner = () => {
             )}
             <div className="hidden sm:block">
               <p className="text-sm font-semibold leading-tight">{targetUser.full_name || targetUser.email}</p>
-              <p className="text-xs opacity-80">{targetUser.role} â€¢ {targetUser.email}</p>
+              <p className="text-xs opacity-80">{targetUser.role} GÇó {targetUser.email}</p>
             </div>
           </div>
         </div>

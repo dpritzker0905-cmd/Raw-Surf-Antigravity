@@ -5,7 +5,7 @@
 import React from 'react';
 import { MessageCircle, Mic } from 'lucide-react';
 
-var DispatchChatBlock = ({
+const DispatchChatBlock = ({
   photographerName, photographerId, chatUnreadCount,
   bgLatestMessage, userId,
   setShowSessionChat, isLight, textPrimary, textSecondary,
@@ -69,8 +69,8 @@ var DispatchChatBlock = ({
                 chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
               }`}>
                 {bgLatestMessage.message_type === 'voice_note'
-                  ? 'ğŸ™ï¸ Voice note'
-                  : (bgLatestMessage.content || 'ğŸ“· Media')}
+                  ? '=ƒÄÖn+Å Voice note'
+                  : (bgLatestMessage.content || '=ƒô+ Media')}
               </p>
             </div>
           </button>

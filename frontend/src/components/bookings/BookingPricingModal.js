@@ -10,7 +10,7 @@ import { MapPin, Users, Camera, Check, X,
 import { toast } from 'sonner';
 import { NumericStepper } from '../ui/numeric-stepper';
 
-var BookingPricingModal = (props) => {
+const BookingPricingModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,
@@ -30,7 +30,7 @@ var BookingPricingModal = (props) => {
     handleSaveBookingPricing
   } = props;
 
-  // Safe fallback â€” prevent crash if bookingPricing hasn't loaded yet
+  // Safe fallback GÇö prevent crash if bookingPricing hasn't loaded yet
   const safePricing = bookingPricing || {};
 
   return (

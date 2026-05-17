@@ -18,7 +18,7 @@ import { FeedPostSkeleton } from './ui/SkeletonVariants';
 import { getFullUrl } from '../utils/media';
 
 
-var SinglePost = () => {
+const SinglePost = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -207,7 +207,7 @@ var SinglePost = () => {
     
     // Quick tap = toggle shaka reaction
     if (wasPressing) {
-      await handleReaction(postId, 'ðŸ¤™');
+      await handleReaction(postId, '=ƒñÖ');
     }
   };
   
@@ -265,7 +265,7 @@ var SinglePost = () => {
     }
   };
 
-  // Double-tap to like handler for PostCard â€” toggles shaka on/off
+  // Double-tap to like handler for PostCard GÇö toggles shaka on/off
   const handleDoubleTapLike = async (postId) => {
     if (!user?.id || inFlightRef.current) return;
     inFlightRef.current = true;

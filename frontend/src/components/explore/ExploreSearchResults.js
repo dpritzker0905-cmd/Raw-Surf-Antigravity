@@ -1,6 +1,6 @@
 /**
  * ExploreSearchResults.js
- * Extracted from Explore.js â€” Search results overlay showing users, spots, posts.
+ * Extracted from Explore.js GÇö Search results overlay showing users, spots, posts.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +10,7 @@ import { getFullUrl } from '../../utils/media';
 import UserRoleBadge from './UserRoleBadge';
 import PostMediaPreview from './PostMediaPreview';
 
-var ExploreSearchResults = ({
+const ExploreSearchResults = ({
   isSearching,
   hasResults,
   searchQuery,

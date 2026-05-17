@@ -23,7 +23,7 @@ import { PriceSourceBadge } from './PriceSourceBadge';
 
 import { getErrorMessage } from '../../utils/errors';
 
-export var GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsCover }) => {
+export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsCover }) => {
   const { user } = useAuth();
   const [purchasing, setPurchasing] = useState(false);
   const [pricingInfo, setPricingInfo] = useState(null);
@@ -109,8 +109,8 @@ export var GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsC
       } else {
         const accessType = response.data.access_type;
         const accessLabel = accessType === 'included' 
-          ? '· Full resolution (included in buy-in ??)' 
-          : '· Added to Locker';
+          ? '-+ Full resolution (included in buy-in ??)' 
+          : '-+ Added to Locker';
         toast.success(`? Tagged to ${surferName} ${accessLabel}`);
         
         // Mark as tagged in local state
@@ -514,13 +514,13 @@ export var GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsC
                           <p className="text-[11px] text-gray-400">
                             {isTagged ? (
                               <span className="text-emerald-400 font-medium">
-                                ? Tagged · {isAiMatch ? 'AI matched' : 'manually tagged'}
+                                ? Tagged -+ {isAiMatch ? 'AI matched' : 'manually tagged'}
                                 {matchConfidence ? ` (${Math.round(matchConfidence * 100)}%)` : ''}
                               </span>
                             ) : hasCredits ? (
-                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left · tap to tag</span>
+                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left -+ tap to tag</span>
                             ) : (
-                              <span>?? Extra item · tap to add to locker</span>
+                              <span>?? Extra item -+ tap to add to locker</span>
                             )}
                           </p>
                         </div>

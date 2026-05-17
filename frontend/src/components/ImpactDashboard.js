@@ -17,24 +17,24 @@ import { ROLES } from '../constants/roles';
 
 
 
-var IMPACT_LEVELS = {
-  Legend: { emoji: 'ðŸ†', color: 'from-yellow-400 to-amber-600' },
-  Champion: { emoji: 'ðŸ¥‡', color: 'from-amber-400 to-orange-500' },
-  Hero: { emoji: 'ðŸ¦¸', color: 'from-purple-400 to-indigo-500' },
-  Patron: { emoji: 'ðŸ’Ž', color: 'from-blue-400 to-cyan-500' },
-  Supporter: { emoji: 'ðŸŒŠ', color: 'from-green-400 to-emerald-500' },
-  Contributor: { emoji: 'ðŸ¤™', color: 'from-teal-400 to-cyan-500' },
-  Starter: { emoji: 'ðŸŒ±', color: 'from-gray-400 to-zinc-500' }
+const IMPACT_LEVELS = {
+  Legend: { emoji: '=ƒÅå', color: 'from-yellow-400 to-amber-600' },
+  Champion: { emoji: '=ƒÑç', color: 'from-amber-400 to-orange-500' },
+  Hero: { emoji: '=ƒª+', color: 'from-purple-400 to-indigo-500' },
+  Patron: { emoji: '=ƒÆÄ', color: 'from-blue-400 to-cyan-500' },
+  Supporter: { emoji: '=ƒîè', color: 'from-green-400 to-emerald-500' },
+  Contributor: { emoji: '=ƒñÖ', color: 'from-teal-400 to-cyan-500' },
+  Starter: { emoji: '=ƒî¦', color: 'from-gray-400 to-zinc-500' }
 };
 
-var CAUSE_CATEGORIES = {
+const CAUSE_CATEGORIES = {
   ocean_conservation: { label: 'Ocean Conservation', color: 'bg-blue-500/20 text-blue-400' },
   environmental: { label: 'Environmental', color: 'bg-green-500/20 text-green-400' },
   youth_surfing: { label: 'Youth Surfing', color: 'bg-amber-500/20 text-amber-400' },
   community: { label: 'Community', color: 'bg-purple-500/20 text-purple-400' }
 };
 
-export var ImpactDashboard = () => {
+export const ImpactDashboard = () => {
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);

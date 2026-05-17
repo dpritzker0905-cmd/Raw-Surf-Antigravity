@@ -8,11 +8,11 @@ import apiClient from '../../lib/apiClient';
 import { ROLES } from '../../constants/roles';
 
 /**
- * GromParentCard â€” Lets any non-Grom surfer opt in to Grom Parent mode.
+ * GromParentCard GÇö Lets any non-Grom surfer opt in to Grom Parent mode.
  * Being a Grom Parent is an AND: a Competitive Surfer can ALSO be a Grom Parent.
  * Enabling it gives access to GromHQ, parental controls, and Grom gallery management.
  */
-export var GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
+export const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [toggling, setToggling] = useState(false);
@@ -28,7 +28,7 @@ export var GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
       await apiClient.patch(`/profiles/${user.id}`, { is_grom_parent: newVal });
       updateUser({ ...user, is_grom_parent: newVal });
       if (newVal) {
-        toast.success('Grom Parent mode enabled â€” access GromHQ to link your child\'s account');
+        toast.success('Grom Parent mode enabled GÇö access GromHQ to link your child\'s account');
       } else {
         toast.success('Grom Parent mode disabled');
       }

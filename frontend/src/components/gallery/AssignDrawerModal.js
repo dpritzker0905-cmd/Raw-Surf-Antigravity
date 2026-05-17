@@ -5,7 +5,7 @@ import { Users, ArrowRight, UserPlus
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-var AssignDrawerModal = ({
+const AssignDrawerModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,

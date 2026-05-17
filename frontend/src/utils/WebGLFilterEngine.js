@@ -1,6 +1,6 @@
 // src/utils/WebGLFilterEngine.js
 
-var VERTEX_SHADER = `
+const VERTEX_SHADER = `
   attribute vec2 position;
   attribute vec2 texcoord;
   varying vec2 v_texcoord;
@@ -10,7 +10,7 @@ var VERTEX_SHADER = `
   }
 `;
 
-var FRAGMENT_SHADERS = {
+const FRAGMENT_SHADERS = {
   none: `
     precision highp float;
     varying vec2 v_texcoord;

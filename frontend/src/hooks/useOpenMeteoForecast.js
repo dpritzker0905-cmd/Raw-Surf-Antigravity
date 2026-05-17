@@ -6,19 +6,19 @@ import logger from '../utils/logger';
  *
  * v3.9 CRITICAL FIX: This hook was the #1 cause of 429 rate limiting.
  * - Old: fetched on every mapCenter change (per-pan) with .toFixed(1) dedup
- * - New: 5s debounce + .toFixed(0) dedup (1Â° grid) + min 30s between fetches
+ * - New: 5s debounce + .toFixed(0) dedup (1-¦ grid) + min 30s between fetches
  *
  * This prevents spot forecasts from consuming the entire Open-Meteo rate budget,
  * which was blocking wind/marine grid fetches and breaking the forecast slider.
  */
 
-var MODEL_MAP = {
+const MODEL_MAP = {
   GFS:  'gfs_seamless',
   EURO: 'ecmwf_ifs025',
   ICON: 'icon_seamless',
 };
 
-var WEATHER_VARS = [
+const WEATHER_VARS = [
   'precipitation',
   'precipitation_probability',
   'wind_speed_10m',
@@ -27,23 +27,23 @@ var WEATHER_VARS = [
   'surface_pressure',
 ].join(',');
 
-var CURRENT_WEATHER_VARS = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m';
+const CURRENT_WEATHER_VARS = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m';
 
-var MARINE_VARS = [
+const MARINE_VARS = [
   'wave_height', 'wave_period', 'wave_direction',
   'swell_wave_height', 'swell_wave_period', 'swell_wave_direction',
   'secondary_swell_wave_height', 'secondary_swell_wave_period', 'secondary_swell_wave_direction',
   'wind_wave_height', 'wind_wave_period', 'wind_wave_direction',
 ].join(',');
 
-var CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
+const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
-// v3.9.3: Module-level rate limiter â€” shared across all instances
+// v3.9.3: Module-level rate limiter GÇö shared across all instances
 // 60s interval ensures spot forecasts don't starve the wind grid engine
-var lastGlobalFetchTime = 0;
-var MIN_FETCH_INTERVAL = 60_000; // 60s between spot forecast fetches
+let lastGlobalFetchTime = 0;
+const MIN_FETCH_INTERVAL = 60_000; // 60s between spot forecast fetches
 
-export var useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
+export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
   const [forecastData, setForecastData] = useState(null);
   const [marineData, setMarineData] = useState(null);
   const [currentWeather, setCurrentWeather] = useState(null);
@@ -56,14 +56,14 @@ export var useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', e
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    // v3.9: Coarser dedup grid (1Â° instead of 0.1Â°) â€” prevents 30+ fetches while panning
+    // v3.9: Coarser dedup grid (1-¦ instead of 0.1-¦) GÇö prevents 30+ fetches while panning
     const fetchKey = `${latitude.toFixed(0)}_${longitude.toFixed(0)}_${activeModel}`;
     if (fetchKey === lastFetchKey.current) return;
 
-    // v3.9: Global rate limit â€” min 30s between any forecast fetch
+    // v3.9: Global rate limit GÇö min 30s between any forecast fetch
     const now = Date.now();
     if (now - lastGlobalFetchTime < MIN_FETCH_INTERVAL) {
-      return; // Silently skip â€” grid engine needs the rate budget
+      return; // Silently skip GÇö grid engine needs the rate budget
     }
 
     lastFetchKey.current = fetchKey;
@@ -146,7 +146,7 @@ export var useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', e
     }
   }, [latitude, longitude, activeModel, enabled]);
 
-  // v3.9.3: 15s debounce â€” gives wind grid engine a head start on the rate limit
+  // v3.9.3: 15s debounce GÇö gives wind grid engine a head start on the rate limit
   useEffect(() => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {

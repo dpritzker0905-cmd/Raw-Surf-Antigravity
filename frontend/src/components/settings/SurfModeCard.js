@@ -13,7 +13,7 @@ import { ROLES } from '../../constants/roles';
  * Competitive = behavioral label only. Pro = triggers WSL verification flow (existing backend route).
  * Legend = admin-assigned via elite_tier; shown read-only.
  */
-export var SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
+export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }) => {
   const { user, updateUser } = useAuth();
   const [surfMode, setSurfMode] = useState(user?.surf_mode || 'casual');
   const [saving, setSaving] = useState(false);
@@ -87,8 +87,8 @@ export var SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }
 
   // Only 2 selectable modes - Pro is not a surf mode you pick, it's verified status
   const modes = [
-    { id: 'casual',      label: 'Casual',      icon: 'ðŸ„' },
-    { id: 'competitive', label: 'Competitive', icon: 'ðŸ†' },
+    { id: 'casual',      label: 'Casual',      icon: '=ƒÅä' },
+    { id: 'competitive', label: 'Competitive', icon: '=ƒÅå' },
   ];
 
   // Pro section header label based on current state
@@ -227,7 +227,7 @@ export var SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass }
 
 
 /** Inline WSL verification form sub-component */
-var WslVerificationForm = ({ wslForm, setWslForm, onSubmit, submitting, textSecondaryClass }) => (
+const WslVerificationForm = ({ wslForm, setWslForm, onSubmit, submitting, textSecondaryClass }) => (
   <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
     <p className="text-yellow-600 dark:text-yellow-400 text-sm font-semibold flex items-center gap-1"><Star className="w-4 h-4" /> Apply for Pro Verification</p>
     <p className={`text-xs ${textSecondaryClass}`}>Submit your WSL credentials for review. Approval grants Verified Pro status.</p>

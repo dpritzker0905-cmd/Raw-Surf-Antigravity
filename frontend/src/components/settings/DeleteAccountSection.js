@@ -1,11 +1,11 @@
 /**
- * DeleteAccountSection ‚Äî GDPR Article 17 self-service data deletion.
+ * DeleteAccountSection G«ˆ GDPR Article 17 self-service data deletion.
  * Shows in Settings page. Requires confirmation before proceeding.
  */
 import React, { useState } from 'react';
 import apiClient from '../../lib/apiClient';
 
-var DeleteAccountSection = ({ onDeleted }) => {
+const DeleteAccountSection = ({ onDeleted }) => {
   const [step, setStep] = useState('idle');
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +40,7 @@ var DeleteAccountSection = ({ onDeleted }) => {
         borderRadius: 12,
         border: '1px solid rgba(239,68,68,0.15)'
       }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>‚úÖ</div>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>G£‡</div>
         <p style={{ color: '#f1f5f9', fontWeight: 600, margin: 0 }}>
           Account data deleted
         </p>
@@ -99,7 +99,7 @@ var DeleteAccountSection = ({ onDeleted }) => {
             color: '#fca5a5',
             lineHeight: 1.5
           }}>
-            ‚ö†Ô∏è This will permanently delete your posts, comments, follows, check-ins, and reviews.
+            G‹·n+≈ This will permanently delete your posts, comments, follows, check-ins, and reviews.
             Your profile will be anonymized. Type <strong>DELETE</strong> to confirm.
           </div>
           <input aria-label="Text input"

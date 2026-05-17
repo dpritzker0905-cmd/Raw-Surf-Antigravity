@@ -1,5 +1,5 @@
 // Board type options
-export var BOARD_TYPES = [
+export const BOARD_TYPES = [
   { value: 'shortboard', label: 'Shortboard' },
   { value: 'longboard', label: 'Longboard' },
   { value: 'funboard', label: 'Funboard' },
@@ -13,7 +13,7 @@ export var BOARD_TYPES = [
 ];
 
 // Fin setup options
-export var FIN_SETUPS = [
+export const FIN_SETUPS = [
   { value: 'thruster', label: 'Thruster (3 fin)' },
   { value: 'quad', label: 'Quad (4 fin)' },
   { value: 'twin', label: 'Twin Fin' },
@@ -24,7 +24,7 @@ export var FIN_SETUPS = [
 ];
 
 // Condition options
-export var CONDITIONS = [
+export const CONDITIONS = [
   { value: 'mint', label: 'Mint', color: 'text-green-400' },
   { value: 'excellent', label: 'Excellent', color: 'text-cyan-400' },
   { value: 'good', label: 'Good', color: 'text-blue-400' },

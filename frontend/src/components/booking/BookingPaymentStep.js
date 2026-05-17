@@ -1,5 +1,5 @@
 /**
- * BookingPaymentStep â€” Extracted from ScheduledBookingDrawer.js (v79)
+ * BookingPaymentStep GÇö Extracted from ScheduledBookingDrawer.js (v79)
  *
  * The payment method selection + credit slider + payment summary panel
  * for the scheduled booking flow.
@@ -9,7 +9,7 @@ import { Wallet, CreditCard, Check } from 'lucide-react';
 import { Label } from '../ui/label';
 import { Slider } from '../ui/slider';
 
-var BookingPaymentStep = ({
+const BookingPaymentStep = ({
   crewSplitEnabled,
   captainShare,
   totalPrice,

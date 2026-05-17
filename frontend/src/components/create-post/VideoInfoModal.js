@@ -2,7 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Video, HelpCircle, Clock, Music, VolumeX, Play } from 'lucide-react';
 
-var VideoInfoModal = ({ isOpen, onClose, isLight, textPrimaryClass, textSecondaryClass, borderClass }) => {
+const VideoInfoModal = ({ isOpen, onClose, isLight, textPrimaryClass, textSecondaryClass, borderClass }) => {
   return (
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="bg-background border-border text-foreground max-w-md w-[95vw] sm:w-full p-0 overflow-hidden sm:border sm:rounded-xl shadow-2xl flex flex-col max-h-[75vh] my-auto">

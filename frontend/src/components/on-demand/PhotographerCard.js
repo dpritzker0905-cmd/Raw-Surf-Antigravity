@@ -6,7 +6,7 @@ import React from 'react';
 import { Camera } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-var PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) => {
+const PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
   const accepted = ['accepted', 'en_route', 'arrived'].includes(status);

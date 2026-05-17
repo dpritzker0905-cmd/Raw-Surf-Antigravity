@@ -6,7 +6,7 @@ import { toast } from 'sonner';
  * useSessionTracker.js - Hook for tracking surf sessions with GPS.
  * Calculates distance paddled, top speed, and wave counts via velocity spikes.
  */
-export var useSessionTracker = (userId, spotId, isTracking) => {
+export const useSessionTracker = (userId, spotId, isTracking) => {
   const [metrics, setMetrics] = useState({
     distance: 0, // in meters
     topSpeed: 0, // in m/s
@@ -93,7 +93,7 @@ export var useSessionTracker = (userId, spotId, isTracking) => {
       
       if (error) throw error;
       
-      toast.success(`Session logged! Earned ${earnedXp} XP ğŸŒŠ`);
+      toast.success(`Session logged! Earned ${earnedXp} XP =ƒîè`);
       return data;
     } catch (err) {
       console.error(err);

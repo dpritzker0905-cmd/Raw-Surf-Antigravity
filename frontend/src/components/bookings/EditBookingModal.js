@@ -7,7 +7,7 @@ import { Textarea } from '../ui/textarea';
 
 
 
-var EditBookingModal = (props) => {
+const EditBookingModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,

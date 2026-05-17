@@ -24,7 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import logger from '../../utils/logger';
 
 
-export var GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
+export const GoldPassBookingsSection = ({ user, theme, onBookingComplete }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [slots, setSlots] = useState([]);

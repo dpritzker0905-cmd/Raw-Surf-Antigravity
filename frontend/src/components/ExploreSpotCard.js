@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getFullUrl } from '../utils/media';
 
 // Conditions color mapping
-var conditionColors = {
+const conditionColors = {
   "Flat": "bg-gray-500",
   "Ankle High": "bg-blue-400",
   "Knee High": "bg-blue-500",
@@ -27,7 +27,7 @@ var conditionColors = {
 };
 
 // Direction arrow component
-var DirectionArrow = ({ direction, className = "" }) => {
+const DirectionArrow = ({ direction, className = "" }) => {
   if (!direction && direction !== 0) return null;
   return (
     <div 
@@ -40,7 +40,7 @@ var DirectionArrow = ({ direction, className = "" }) => {
 };
 
 // Forecast day badge - index 0 is now Tomorrow (backend skips today)
-var ForecastDayBadge = ({ day, index, isLocked = false }) => {
+const ForecastDayBadge = ({ day, index, isLocked = false }) => {
   const dateObj = new Date(day.date);
   // index 0 = Tomorrow, index 1 = Day after tomorrow, etc.
   const dayName = index === 0 ? 'Tom' : index === 1 ? dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3) : dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
@@ -66,7 +66,7 @@ var ForecastDayBadge = ({ day, index, isLocked = false }) => {
   );
 };
 
-var ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
+const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
   const [imageError, setImageError] = useState(false);

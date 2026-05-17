@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useCreatePostActions = ({
+const useCreatePostActions = ({
   user, navigate, selectedSpot, caption, selectedFiles, previewUrls,
   captionRef, hashtagRef,
   allSpots, knownSpots, location,
@@ -429,7 +429,7 @@ var useCreatePostActions = ({
         );
 
         if (isVideo) {
-          // Videos go through server upload â€” use generous timeout for mobile
+          // Videos go through server upload GÇö use generous timeout for mobile
           const formData = new FormData();
           formData.append('file', file);
           formData.append('user_id', user.id);

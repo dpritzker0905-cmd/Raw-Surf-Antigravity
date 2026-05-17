@@ -7,7 +7,7 @@ import { Camera, MessageCircle, Mic } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
-var DispatchSessionHero = ({
+const DispatchSessionHero = ({
   sessionActive, sessionElapsed,
   photographerName, photographerAvatarUrl,
   chatUnreadCount, setShowSessionChat,
@@ -65,7 +65,7 @@ var DispatchSessionHero = ({
               {photographerName}
             </p>
             <p className={`text-sm ${isLight ? 'text-green-600' : 'text-green-400'}`}>
-              ðŸ“¸ Shooting your session now
+              =ƒô+ Shooting your session now
             </p>
           </div>
           <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">
@@ -111,7 +111,7 @@ var DispatchSessionHero = ({
         <p className={`text-xs text-center ${
           isLight ? 'text-green-600/70' : 'text-green-400/60'
         }`}>
-          Stay nearby Â· your photographer is capturing the action!
+          Stay nearby -+ your photographer is capturing the action!
         </p>
       </div>
     </div>

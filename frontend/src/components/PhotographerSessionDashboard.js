@@ -11,7 +11,7 @@ import logger from '../utils/logger';
 import { formatClockTime } from '../utils/formatTime';
 
 
-export var PhotographerSessionDashboard = ({ onClose }) => {
+export const PhotographerSessionDashboard = ({ onClose }) => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const navigate = useNavigate();

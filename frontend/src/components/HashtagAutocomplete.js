@@ -12,7 +12,7 @@ import logger from '../utils/logger';
  * - Keyboard navigation (up/down/enter/escape)
  * - Click to select
  */
-var HashtagAutocomplete = forwardRef(({ 
+const HashtagAutocomplete = forwardRef(({ 
   query, 
   onSelect, 
   hashIndex,

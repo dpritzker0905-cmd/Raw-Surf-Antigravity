@@ -1,52 +1,52 @@
-export var WindConfig = {
+export const WindConfig = {
   domainSource: "FULL_MODEL_GRID_WORLDSPACE",
   useViewportBounds: false
 };
 
-export var GPUWindLayerConfig = {
+export const GPUWindLayerConfig = {
   initOnce: true,
   allowReinit: false
 };
 
-export var MarineConfig = {
+export const MarineConfig = {
   allowRecreateSource: false,
   allowNullState: false
 };
 
-export var RasterConfig = {
+export const RasterConfig = {
   silentSkip: false
 };
 
-export var AccessConfig = {
+export const AccessConfig = {
   failFast: true,
   allowFallback: false
 };
 
-export var TruthEngineConfig = {
+export const TruthEngineConfig = {
   mode: "POST_RENDER_ONLY",
   canBlockRender: false
 };
 
 export function HARD_RESET_GIS_ENGINE() {
-  // üåê WIND RESET
+  // =ÉÓ… WIND RESET
   WindConfig.domainSource = "FULL_MODEL_GRID_WORLDSPACE";
   WindConfig.useViewportBounds = false;
 
   GPUWindLayerConfig.initOnce = true;
   GPUWindLayerConfig.allowReinit = false;
 
-  // üåä MARINE RESET
+  // =ÉÓË MARINE RESET
   MarineConfig.allowRecreateSource = false;
   MarineConfig.allowNullState = false;
 
-  // üåßÔ∏è RASTER RESET
+  // =ÉÓ∫n+≈ RASTER RESET
   RasterConfig.silentSkip = false;
 
-  // üîê ACCESS RESET
+  // =Éˆ… ACCESS RESET
   AccessConfig.failFast = true;
   AccessConfig.allowFallback = false;
 
-  // üß† TRUTH RESET
+  // =É∫· TRUTH RESET
   TruthEngineConfig.mode = "POST_RENDER_ONLY";
   TruthEngineConfig.canBlockRender = false;
 

@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
 
-var useExploreConditions = ({
+const useExploreConditions = ({
   user,
   locationHierarchy, userLocation, nearbyRadius,
   conditionsSubTab,
@@ -172,7 +172,7 @@ var useExploreConditions = ({
           };
           setUserLocation(newLocation);
           fetchConditionReports('All', newLocation, conditionsSubTab, null, { country: '', state: '', city: '' });
-          toast.success('π“ Showing nearby reports first');
+          toast.success('=ƒτμ Showing nearby reports first');
         },
         (error) => {
           logger.error('Geolocation error:', error);

@@ -29,7 +29,7 @@ import { ROLES, ROLE_SETS } from '../../constants/roles';
 import { useNavigate } from 'react-router-dom';
 
 // Gear type options
-var GEAR_TYPES = [
+const GEAR_TYPES = [
   { id: 'all', label: 'All Gear', icon: Camera },
   { id: 'land', label: 'Land', icon: Camera, description: 'Beach/pier shots' },
   { id: 'water', label: 'Water', icon: Waves, description: 'In-water photography' },
@@ -37,7 +37,7 @@ var GEAR_TYPES = [
 ];
 
 // Skill level options
-var SKILL_LEVELS = [
+const SKILL_LEVELS = [
   { id: 'all', label: 'All Levels' },
   { id: 'hobbyist', label: 'Hobbyist' },
   { id: 'photographer', label: 'Photographer' },
@@ -45,12 +45,12 @@ var SKILL_LEVELS = [
 ];
 
 // Region options
-var REGIONS = [
+const REGIONS = [
   { id: 'all', label: 'All Regions' },
-  { id: 'ny', label: 'New York', flag: 'ðŸ—½' },
-  { id: 'fl', label: 'Florida', flag: 'ðŸŒ´' },
-  { id: 'ca', label: 'California', flag: 'ðŸŒŠ' },
-  { id: 'hi', label: 'Hawaii', flag: 'ðŸŒº' },
+  { id: 'ny', label: 'New York', flag: '=ƒù+' },
+  { id: 'fl', label: 'Florida', flag: '=ƒî¦' },
+  { id: 'ca', label: 'California', flag: '=ƒîè' },
+  { id: 'hi', label: 'Hawaii', flag: '=ƒî¦' },
   { id: 'cr', label: 'Costa Rica', flag: '????' },
   { id: 'pr', label: 'Puerto Rico', flag: '????' },
   { id: 'mx', label: 'Mexico', flag: '????' },
@@ -59,7 +59,7 @@ var REGIONS = [
 ];
 
 // Sort options
-var SORT_OPTIONS = [
+const SORT_OPTIONS = [
   { id: 'rating', label: 'Highest Rated' },
   { id: 'price_asc', label: 'Price: Low ? High' },
   { id: 'price_desc', label: 'Price: High ? Low' },
@@ -68,7 +68,7 @@ var SORT_OPTIONS = [
 ];
 
 // Subscription tier radii for live badge visibility
-var TIER_RADIUS = {
+const TIER_RADIUS = {
   Free: 1,
   Basic: 5,
   Premium: 999999, // unlimited
@@ -77,7 +77,7 @@ var TIER_RADIUS = {
 /**
  * Enhanced Photographer Card Component with review snippets and live status
  */
-var DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery, onSubscribe, theme, subscriptionTier, userLocation }) => {
+const DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery, onSubscribe, theme, subscriptionTier, userLocation }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -315,7 +315,7 @@ var DirectoryPhotographerCard = ({ photographer, onSelect, onBook, onViewGallery
 /**
  * Filter Sheet Component (same pattern as existing PhotographerDirectory)
  */
-var DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme }) => {
+const DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const sheetBg = isLight ? 'bg-white border-gray-200' : isBeach ? 'bg-zinc-950 border-zinc-700' : 'bg-zinc-900 border-zinc-800';
@@ -421,7 +421,7 @@ var DirectoryFilterSheet = ({ isOpen, onClose, filters, onFiltersChange, theme }
 /**
  * Main DirectoryTab Component
  */
-export var DirectoryTab = ({
+export const DirectoryTab = ({
   _user,
   theme,
   subscriptionTier = 'Free',

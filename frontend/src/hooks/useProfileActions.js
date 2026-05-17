@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useProfileActions = ({
+const useProfileActions = ({
   user, navigate,
   profileUserId,
   profile,

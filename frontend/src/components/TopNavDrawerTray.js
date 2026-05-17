@@ -12,14 +12,14 @@ import { ROLES } from '../constants/roles';
 
 
 /**
- * TopNavDrawerTray â€” 2-row pull-down tray for the v4.2 navigation.
+ * TopNavDrawerTray GÇö 2-row pull-down tray for the v4.2 navigation.
  *
  * Row 1 (Universal):  Search | Settings | Backpack
  * Row 2 (Role-Based): varies per role (Map, Photo Tools, Sessions, Gallery, etc.)
  *
  * Staggered reveal: Row 1 appears first, Row 2 follows 80ms later.
  */
-export var TopNavDrawerTray = ({ isOpen }) => {
+export const TopNavDrawerTray = ({ isOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -178,7 +178,7 @@ export var TopNavDrawerTray = ({ isOpen }) => {
 
   return (
     <>
-      {/* Drawer Tray â€” slides in with staggered animation */}
+      {/* Drawer Tray GÇö slides in with staggered animation */}
       <div
         className="overflow-hidden transition-all duration-300 ease-out"
         style={{

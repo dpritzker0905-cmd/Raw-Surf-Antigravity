@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSessionTracker } from '../hooks/useSessionTracker';
 import { Waves, Navigation, Zap, Lock, Unlock, Pause, Play, Square, Trash2, X, AlertTriangle } from 'lucide-react';
 
-var LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) => {
+const LiveSessionDashboard = ({ userId, spotId, selectedBoard, onEndSession }) => {
   const [status, setStatus] = useState('LOCKED'); // 'LOCKED' | 'UNLOCKED' | 'PAUSED'
   const isTracking = status !== 'PAUSED';
   const { metrics } = useSessionTracker(userId, spotId, isTracking);

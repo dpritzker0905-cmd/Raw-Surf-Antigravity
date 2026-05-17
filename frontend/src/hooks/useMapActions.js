@@ -7,7 +7,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useMapActions = ({
+const useMapActions = ({
   user, mapInstanceRef, selectedSpot,
   trackingMarkersRef, userMarkerRef, userAccuracyCircleRef,
   livePhotographers, surfSpots, userLocation, effectiveLocation,

@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
-var GoLiveLocationModal = ({
+const GoLiveLocationModal = ({
   isOpen, onClose, sessionSettings, setSessionSettings, userLocation,
   nearbySpots, nearbySpotsLoading, surfSpots, spotSearchQuery, setSpotSearchQuery,
   distanceToSpot, setDistanceToSpot, setManualConfirm, manualConfirm,

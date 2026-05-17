@@ -6,10 +6,10 @@ import { Button } from '../ui/button';
 import logger from '../../utils/logger';
 
 // Alias for compatibility with internal code
-var isProRole = isProLevelRole;
+const isProRole = isProLevelRole;
 
 // Role icon helper (inline since it uses MessagesPage internal logic)
-var getRoleIcon = (role, isAdmin = false) => {
+const getRoleIcon = (role, isAdmin = false) => {
   if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: String.fromCodePoint(0x1F534) };
   switch (role) {
     case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: String.fromCodePoint(0x2B50) };
@@ -23,7 +23,7 @@ var getRoleIcon = (role, isAdmin = false) => {
   }
 };
 
-var ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
+const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [_suggestedUsers, setSuggestedUsers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -234,13 +234,13 @@ var ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     {user.username && (
                       <span className="text-sm text-muted-foreground">@{user.username}</span>
                     )}
-                    <span className="text-xs text-muted-foreground/70">{user.username ? 'Â·' : ''} {roleInfo.label}</span>
+                    <span className="text-xs text-muted-foreground/70">{user.username ? '+�-+' : ''} {roleInfo.label}</span>
                     {/* Follow status indicator */}
                     {user.isMutual && (
-                      <span className="text-xs text-emerald-400 ml-1">Â· Mutuals</span>
+                      <span className="text-xs text-emerald-400 ml-1">+�-+ Mutuals</span>
                     )}
                     {!user.isMutual && user.followsYou && (
-                      <span className="text-xs text-cyan-400 ml-1">Â· Follows you</span>
+                      <span className="text-xs text-cyan-400 ml-1">+�-+ Follows you</span>
                     )}
                   </div>
                 </div>

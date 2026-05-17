@@ -1,5 +1,5 @@
 /**
- * useEscapeKey â€” Reusable hook to close drawers/modals on Escape key press.
+ * useEscapeKey GÇö Reusable hook to close drawers/modals on Escape key press.
  *
  * Usage:
  *   useEscapeKey(isOpen, onClose);
@@ -11,7 +11,7 @@
  */
 import { useEffect } from 'react';
 
-var useEscapeKey = (isOpen, onClose) => {
+const useEscapeKey = (isOpen, onClose) => {
   useEffect(() => {
     if (!isOpen) return;
 

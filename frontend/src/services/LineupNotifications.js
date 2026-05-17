@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 // Notification sound (optional - using Web Audio API)
-var playNotificationSound = () => {
+const playNotificationSound = () => {
   try {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
@@ -41,7 +41,7 @@ var playNotificationSound = () => {
 };
 
 // Request browser notification permission
-export var requestNotificationPermission = async () => {
+export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
     logger.debug('Browser does not support notifications');
     return false;
@@ -60,7 +60,7 @@ export var requestNotificationPermission = async () => {
 };
 
 // Send browser push notification
-var sendPushNotification = (title, body, icon = '/favicon.ico') => {
+const sendPushNotification = (title, body, icon = '/favicon.ico') => {
   if (Notification.permission === 'granted') {
     try {
       const notification = new Notification(title, {
@@ -86,10 +86,10 @@ var sendPushNotification = (title, body, icon = '/favicon.ico') => {
 };
 
 // Notification type configurations
-var NOTIFICATION_CONFIG = {
+const NOTIFICATION_CONFIG = {
   // Session status changes
   session_opened: {
-    icon: 'ðŸŸ¢',
+    icon: '=ƒƒó',
     title: 'Session Opened',
     getMessage: (data) => `${data.session_name || 'A session'} is now open for new surfers!`,
     toastType: 'success',
@@ -97,7 +97,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   session_closed: {
-    icon: 'ðŸ”´',
+    icon: '=ƒö¦',
     title: 'Session Closed',
     getMessage: (data) => `${data.session_name || 'The session'} is now closed to new bookings`,
     toastType: 'info',
@@ -105,7 +105,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   session_locked: {
-    icon: 'ðŸ”’',
+    icon: '=ƒöÆ',
     title: 'Session Locked',
     getMessage: (data) => `${data.session_name || 'The session'} has been locked and finalized!`,
     toastType: 'warning',
@@ -115,7 +115,7 @@ var NOTIFICATION_CONFIG = {
   
   // Crew changes
   crew_joined: {
-    icon: 'ðŸ„',
+    icon: '=ƒÅä',
     title: 'New Crew Member!',
     getMessage: (data) => `${data.member_name || 'Someone'} joined ${data.session_name || 'your lineup'}!`,
     toastType: 'success',
@@ -123,7 +123,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   crew_left: {
-    icon: 'ðŸ‘‹',
+    icon: '=ƒæï',
     title: 'Crew Member Left',
     getMessage: (data) => `${data.member_name || 'Someone'} left ${data.session_name || 'the lineup'}`,
     toastType: 'info',
@@ -131,7 +131,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   crew_removed: {
-    icon: 'âŒ',
+    icon: 'G¥î',
     title: 'Removed from Lineup',
     getMessage: (data) => `You've been removed from ${data.session_name || 'a lineup'}`,
     toastType: 'error',
@@ -141,7 +141,7 @@ var NOTIFICATION_CONFIG = {
   
   // Payment notifications
   payment_received: {
-    icon: 'ðŸ’°',
+    icon: '=ƒÆ¦',
     title: 'Payment Received!',
     getMessage: (data) => `${data.member_name || 'A crew member'} paid $${data.amount || '0'} for ${data.session_name || 'the session'}`,
     toastType: 'success',
@@ -149,7 +149,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   payment_pending: {
-    icon: 'â³',
+    icon: 'GÅ¦',
     title: 'Payment Pending',
     getMessage: (data) => `Waiting for payment from ${data.member_name || 'crew members'}`,
     toastType: 'warning',
@@ -159,7 +159,7 @@ var NOTIFICATION_CONFIG = {
   
   // Invite notifications
   invite_received: {
-    icon: 'âœ‰ï¸',
+    icon: 'G£ën+Å',
     title: 'Lineup Invite!',
     getMessage: (data) => `${data.inviter_name || 'Someone'} invited you to join ${data.session_name || 'a session'}`,
     toastType: 'success',
@@ -167,7 +167,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   invite_accepted: {
-    icon: 'âœ…',
+    icon: 'G£à',
     title: 'Invite Accepted',
     getMessage: (data) => `${data.member_name || 'Someone'} accepted your invite to ${data.session_name || 'the session'}!`,
     toastType: 'success',
@@ -175,7 +175,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   invite_declined: {
-    icon: 'ðŸ˜ž',
+    icon: '=ƒÿP',
     title: 'Invite Declined',
     getMessage: (data) => `${data.member_name || 'Someone'} declined your invite`,
     toastType: 'info',
@@ -185,7 +185,7 @@ var NOTIFICATION_CONFIG = {
   
   // Session reminders
   session_reminder: {
-    icon: 'â°',
+    icon: 'GÅ¦',
     title: 'Session Reminder',
     getMessage: (data) => `Your session at ${data.location || 'the spot'} starts in ${data.time_until || '1 hour'}!`,
     toastType: 'info',
@@ -193,7 +193,7 @@ var NOTIFICATION_CONFIG = {
     sendPush: true
   },
   lineup_closing_soon: {
-    icon: 'âš ï¸',
+    icon: 'GÜán+Å',
     title: 'Lineup Closing Soon',
     getMessage: (data) => `Lineup for ${data.session_name || 'your session'} closes in ${data.time_until || '24 hours'}`,
     toastType: 'warning',
@@ -203,7 +203,7 @@ var NOTIFICATION_CONFIG = {
   
   // Session cancellation
   session_cancelled: {
-    icon: 'ðŸš«',
+    icon: '=ƒÜ½',
     title: 'Session Cancelled',
     getMessage: (data) => `${data.session_name || 'A session'} has been cancelled. ${data.refund_info || 'Refund processing.'}`,
     toastType: 'error',
@@ -213,7 +213,7 @@ var NOTIFICATION_CONFIG = {
 };
 
 // Main notification handler
-export var handleLineupNotification = (type, data, options = {}) => {
+export const handleLineupNotification = (type, data, options = {}) => {
   const config = NOTIFICATION_CONFIG[type];
   
   if (!config) {
@@ -260,7 +260,7 @@ export var handleLineupNotification = (type, data, options = {}) => {
 };
 
 // Helper to process WebSocket lineup events
-export var processLineupWebSocketEvent = (event, currentUserId) => {
+export const processLineupWebSocketEvent = (event, currentUserId) => {
   const { type, data } = event;
   
   // Map WebSocket event types to notification types
@@ -291,7 +291,7 @@ export var processLineupWebSocketEvent = (event, currentUserId) => {
 };
 
 // Export notification types for external use
-export var LINEUP_NOTIFICATION_TYPES = Object.keys(NOTIFICATION_CONFIG);
+export const LINEUP_NOTIFICATION_TYPES = Object.keys(NOTIFICATION_CONFIG);
 
 export default {
   handleLineupNotification,

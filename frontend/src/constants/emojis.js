@@ -1,5 +1,5 @@
 /**
- * Shared Emoji Data โ€” Single source of truth for all emoji pickers
+ * Shared Emoji Data Gว๖ Single source of truth for all emoji pickers
  *
  * Three consumers:
  *   1. components/EmojiPicker.js       (feed comments & captions)
@@ -10,23 +10,23 @@
  * Import from here instead.
  *
  * UNICODE COMPLIANCE (v99): All emoji use \u{XXXXX} ES2015+ escape sequences.
- * Raw multi-byte emoji corrupt during PowerShell/git operations (see rules.md ยง3).
+ * Raw multi-byte emoji corrupt during PowerShell/git operations (see rules.md -บ3).
  */
 
-// โ”€โ”€โ”€ Quick-access row (top row, surf-first) โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
-export var QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F64C}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F60E}', '\u{1F4AA}'];
+// G๖วG๖วG๖ว Quick-access row (top row, surf-first) G๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖ว
+export const QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F64C}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F60E}', '\u{1F4AA}'];
 
-// โ”€โ”€โ”€ Reaction emojis for post/comment/message reactions โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
-// SYNC CONTRACT: Must match backend/routes/posts/schemas.py โ’ VALID_REACTIONS
+// G๖วG๖วG๖ว Reaction emojis for post/comment/message reactions G๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖ว
+// SYNC CONTRACT: Must match backend/routes/posts/schemas.py Gๅฦ VALID_REACTIONS
 // Verified in-sync v103: both lists are 10 identical codepoints in the same order.
 // If you add/remove an emoji here, update VALID_REACTIONS in the backend too.
 // Curated for surf culture: Shaka, Wave, Surfer, Fire, 100, Heart,
 // Clap, Laugh, Stoked-face, Flexed-biceps.
-export var REACTION_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F602}', '\u{1F60E}', '\u{1F4AA}'];
+export const REACTION_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F602}', '\u{1F60E}', '\u{1F4AA}'];
 
-// โ”€โ”€โ”€ Primary categories (always visible) โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// G๖วG๖วG๖ว Primary categories (always visible) G๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖ว
 // Surf-first ordering, consistent across all pickers.
-export var EMOJI_CATEGORIES = {
+export const EMOJI_CATEGORIES = {
   'Surf & Ocean': [
     '\u{1F30A}', '\u{1F3C4}', '\u{1F3C4}\u{200D}\u{2642}\u{FE0F}', '\u{1F3C4}\u{200D}\u{2640}\u{FE0F}', '\u{1F919}', '\u{1F334}', '\u{2600}\u{FE0F}', '\u{1F41A}',
     '\u{1F988}', '\u{1F42C}', '\u{1F420}', '\u{1F3DD}\u{FE0F}', '\u{26F1}\u{FE0F}', '\u{1F305}', '\u{1F31E}', '\u{1F991}',
@@ -67,9 +67,9 @@ export var EMOJI_CATEGORIES = {
   ],
 };
 
-// โ”€โ”€โ”€ Extended categories (collapsible "Show More" section) โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
+// G๖วG๖วG๖ว Extended categories (collapsible "Show More" section) G๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖ว
 // These appear when the user expands the picker.
-export var EXTENDED_EMOJI_CATEGORIES = {
+export const EXTENDED_EMOJI_CATEGORIES = {
   'Animals': [
     '\u{1F436}', '\u{1F431}', '\u{1F42D}', '\u{1F439}', '\u{1F430}', '\u{1F98A}', '\u{1F43B}', '\u{1F43C}',
     '\u{1F428}', '\u{1F42F}', '\u{1F981}', '\u{1F42E}', '\u{1F437}', '\u{1F438}', '\u{1F435}', '\u{1F414}',
@@ -115,14 +115,14 @@ export var EXTENDED_EMOJI_CATEGORIES = {
   ],
 };
 
-// โ”€โ”€โ”€ Convenience: all categories merged (for full-picker views) โ”€โ”€
-export var ALL_EMOJI_CATEGORIES = {
+// G๖วG๖วG๖ว Convenience: all categories merged (for full-picker views) G๖วG๖ว
+export const ALL_EMOJI_CATEGORIES = {
   ...EMOJI_CATEGORIES,
   ...EXTENDED_EMOJI_CATEGORIES,
 };
 
-// โ”€โ”€โ”€ Category icons (for tab display in pickers) โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€โ”€
-export var CATEGORY_ICONS = {
+// G๖วG๖วG๖ว Category icons (for tab display in pickers) G๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖วG๖ว
+export const CATEGORY_ICONS = {
   'Surf & Ocean': '\u{1F3C4}',
   'Reactions':    '\u{1F525}',
   'Faces':        '\u{1F600}',

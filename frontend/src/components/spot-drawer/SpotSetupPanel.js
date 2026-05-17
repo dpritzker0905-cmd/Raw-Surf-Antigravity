@@ -1,5 +1,5 @@
 /**
- * SpotSetupPanel â€” Extracted from UnifiedSpotDrawer.js (v79)
+ * SpotSetupPanel GÇö Extracted from UnifiedSpotDrawer.js (v79)
  *
  * The Go-Live session setup form: buy-in price, photos included,
  * live photo price, max surfers, auto-accept toggle, and the
@@ -12,7 +12,7 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Switch } from '../ui/switch';
 
-var SpotSetupPanel = ({
+const SpotSetupPanel = ({
   spot,
   sessionSettings,
   setSessionSettings,

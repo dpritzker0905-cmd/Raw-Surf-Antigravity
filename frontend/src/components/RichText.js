@@ -16,14 +16,14 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 
 // Regex patterns for matching
-var HASHTAG_REGEX = /#(\w+)/g;
-var MENTION_REGEX = /@(\w+)/g;
-var URL_REGEX = /(https?:\/\/[^\s]+)/g;
+const HASHTAG_REGEX = /#(\w+)/g;
+const MENTION_REGEX = /@(\w+)/g;
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 /**
  * Parse text and return array of segments with type information
  */
-var parseText = (text) => {
+const parseText = (text) => {
   if (!text) return [];
   
   const segments = [];
@@ -101,7 +101,7 @@ var parseText = (text) => {
  * RichText Component
  * Renders text with interactive hashtags and mentions
  */
-export var RichText = ({ 
+export const RichText = ({ 
   text, 
   className = '',
   hashtagClassName = 'text-cyan-400 hover:text-cyan-300 hover:underline cursor-pointer',
@@ -152,7 +152,7 @@ export var RichText = ({
       const res = await apiClient.get(`/api/username/lookup/${encodeURIComponent(username)}`);
       navigate(`/profile/${res.data.id}`);
     } catch {
-      // Username not found â€” show toast instead of navigating to a dead route
+      // Username not found GÇö show toast instead of navigating to a dead route
       toast.error(`User @${username} not found`);
     }
   };
@@ -247,7 +247,7 @@ export var RichText = ({
  * Caption Component
  * Pre-styled for post captions with author name
  */
-export var Caption = ({
+export const Caption = ({
   authorName,
   authorId,
   text,
@@ -283,7 +283,7 @@ export var Caption = ({
  * CommentText Component
  * For rendering comment text with interactive elements
  */
-export var CommentText = ({
+export const CommentText = ({
   text,
   className = 'text-sm',
   textClass = 'text-foreground'

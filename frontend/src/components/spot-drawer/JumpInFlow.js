@@ -1,6 +1,6 @@
 /**
  * JumpInFlow.js
- * Extracted from UnifiedSpotDrawer.js â€” Complete Jump In session flow
+ * Extracted from UnifiedSpotDrawer.js GÇö Complete Jump In session flow
  * including camera preflight, selfie capture, payment selection, and success confirmation.
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -14,7 +14,7 @@ import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 import { CAMERA_AUTHORIZED_KEY } from './SpotDrawerHelpers';
 
-var JumpInFlow = ({ photographer, onBack, onSuccess }) => {
+const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const { user, updateUser } = useAuth();
   const { getEffectiveRole, isGodMode, activePersona } = usePersona();
   const videoRef = useRef(null);

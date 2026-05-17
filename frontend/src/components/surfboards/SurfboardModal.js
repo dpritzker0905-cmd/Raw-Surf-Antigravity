@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { BOARD_TYPES, FIN_SETUPS, CONDITIONS } from './constants';
 
-export var SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
+export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const isEditing = !!board?.id;

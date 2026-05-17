@@ -1,11 +1,11 @@
 /**
- * ProtectedRoute.js â€” Auth gate for authenticated-only routes.
+ * ProtectedRoute.js GÇö Auth gate for authenticated-only routes.
  *
  * Handles four cases:
- *   1. Auth still loading â†’ shows spinner
- *   2. No user â†’ redirects to /auth with `redirect` param for post-login return
- *   3. User hasn't accepted current ToS â†’ TosReacceptanceGate blocks with modal
- *   4. Grom user â†’ wraps in GromSafetyGate unless route is always-allowed
+ *   1. Auth still loading GåÆ shows spinner
+ *   2. No user GåÆ redirects to /auth with `redirect` param for post-login return
+ *   3. User hasn't accepted current ToS GåÆ TosReacceptanceGate blocks with modal
+ *   4. Grom user GåÆ wraps in GromSafetyGate unless route is always-allowed
  *
  * Hydrates from localStorage synchronously to avoid a flash to /auth
  * while AuthContext is resolving the async Supabase session.
@@ -21,20 +21,20 @@ import { ROLES } from '../../constants/roles';
  * Routes where Groms can see limited content without parent linking.
  * (e.g., the feed shows filtered content instead of a full block)
  */
-export var GROM_LIMITED_ACCESS_ROUTES = ['/feed'];
+export const GROM_LIMITED_ACCESS_ROUTES = ['/feed'];
 
 /**
  * Routes that groms can always access regardless of parent-linking status.
  * Profile, settings, theme, and GromHQ are always reachable.
  */
-export var GROM_ALWAYS_ALLOWED_ROUTES = [
+export const GROM_ALWAYS_ALLOWED_ROUTES = [
   '/profile',
   '/settings',
   '/theme',
   '/grom-hq',
 ];
 
-var ProtectedRoute = ({ children, bypassGromGate = false }) => {
+const ProtectedRoute = ({ children, bypassGromGate = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 

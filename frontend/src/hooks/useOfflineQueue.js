@@ -1,5 +1,5 @@
 /**
- * useOfflineQueue â€” Queues user actions when offline, auto-syncs on reconnect.
+ * useOfflineQueue GÇö Queues user actions when offline, auto-syncs on reconnect.
  *
  * Supported action types: 'reaction', 'comment', 'follow', 'save_post'
  * Uses localStorage key `rawsurf_offline_queue` for persistence across refreshes.
@@ -8,9 +8,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 
-var STORAGE_KEY = 'rawsurf_offline_queue';
+const STORAGE_KEY = 'rawsurf_offline_queue';
 
-var loadQueue = () => {
+const loadQueue = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -19,11 +19,11 @@ var loadQueue = () => {
   }
 };
 
-var saveQueue = (queue) => {
+const saveQueue = (queue) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
   } catch {
-    // localStorage full â€” drop oldest items
+    // localStorage full GÇö drop oldest items
     localStorage.removeItem(STORAGE_KEY);
   }
 };
@@ -32,7 +32,7 @@ var saveQueue = (queue) => {
  * Replay a single queued action against the API.
  * Returns true if successful, false if should retry.
  */
-var replayAction = async (action) => {
+const replayAction = async (action) => {
   const { type, payload } = action;
 
   try {
@@ -70,14 +70,14 @@ var replayAction = async (action) => {
   } catch (err) {
     // 4xx = permanent failure, don't retry
     if (err.response && err.response.status >= 400 && err.response.status < 500) {
-      console.warn(`[OfflineQueue] Dropping action (${type}) â€” ${err.response.status}`);
+      console.warn(`[OfflineQueue] Dropping action (${type}) GÇö ${err.response.status}`);
       return true;
     }
     return false; // Retry on 5xx / network errors
   }
 };
 
-export var useOfflineQueue = () => {
+export const useOfflineQueue = () => {
   const [queue, setQueue] = useState(loadQueue);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -101,7 +101,7 @@ export var useOfflineQueue = () => {
     if (isOnline && queue.length > 0 && !syncingRef.current) {
       flushQueue();
     }
-  }, [isOnline]); // flushQueue intentionally omitted â€” guarded by syncingRef
+  }, [isOnline]); // flushQueue intentionally omitted GÇö guarded by syncingRef
 
   const flushQueue = useCallback(async () => {
     if (syncingRef.current || queue.length === 0) return;
@@ -129,7 +129,7 @@ export var useOfflineQueue = () => {
     setIsSyncing(false);
 
     if (synced > 0) {
-      toast.success(`âœ… Synced ${synced} offline action${synced !== 1 ? 's' : ''}`);
+      toast.success(`G£à Synced ${synced} offline action${synced !== 1 ? 's' : ''}`);
     }
   }, [queue]);
 
@@ -148,7 +148,7 @@ export var useOfflineQueue = () => {
       return next;
     });
 
-    toast.info('ğŸ“¶ Saved offline â€” will sync when back online');
+    toast.info('=ƒô¦ Saved offline GÇö will sync when back online');
   }, []);
 
   return {

@@ -6,7 +6,7 @@ import React from 'react';
 import { Check, X, Folder, Copy, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-export var GalleryBulkActions = ({
+export const GalleryBulkActions = ({
   selectedCount,
   onMove,
   onCopy,

@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-var ProfileActionButtons = ({
+const ProfileActionButtons = ({
   isOwnProfile, profile, navigate,
   // Own-profile props
   setShowEditModal, toggleLive, isPhotographer,

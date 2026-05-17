@@ -1,11 +1,11 @@
 /**
- * HairFilterEngine â€” Real-time AR hair overlay using MediaPipe Face Mesh
+ * HairFilterEngine GÇö Real-time AR hair overlay using MediaPipe Face Mesh
  * 
  * Positioning algorithm (per AR best practices):
  * 1. MediaPipe landmark 10 is at the GLABELLA (between eyebrows), not the skull top
  * 2. Crown position is estimated: crownY = landmark10.y - (faceHeight * 0.5)
  *    because the cranium extends ~50% of face height above the glabella
- * 3. Head width â‰ˆ temple-to-temple * 1.3 (actual head is wider than face)
+ * 3. Head width Gëê temple-to-temple * 1.3 (actual head is wider than face)
  * 4. Hair sized relative to HEAD width (not face width)
  * 5. CSS scaleX(-1) on both video and canvas handles front-camera mirroring
  */
@@ -41,13 +41,13 @@ import platinumBobImg from '../assets/hair/platinum_bob.png';
  *   - e.g. 0.85 = hair width is at least 85% of faceHeight
  *   - Only used for long styles that drape past the jaw
  */
-export var HAIR_STYLES = {
+export const HAIR_STYLES = {
   // Male styles
   blonde_flow: {
     id: 'blonde_flow',
     name: 'Blonde Flow',
     category: 'male',
-    emoji: 'ðŸ„â€â™‚ï¸',
+    emoji: '=ƒÅäGÇìGÖén+Å',
     description: 'Long wavy blonde surfer hair',
     src: blondeFlowImg,
     scaleMultiplier: 1.5,
@@ -58,7 +58,7 @@ export var HAIR_STYLES = {
     id: 'brown_dreads',
     name: 'Brown Dreads',
     category: 'male',
-    emoji: 'ðŸŒ´',
+    emoji: '=ƒî¦',
     description: 'Thick brown dreadlocks',
     src: brownDreadsImg,
     scaleMultiplier: 1.6,
@@ -69,7 +69,7 @@ export var HAIR_STYLES = {
     id: 'messy_bun',
     name: 'Messy Bun',
     category: 'male',
-    emoji: 'ðŸ¤™',
+    emoji: '=ƒñÖ',
     description: 'Dark hair in messy top bun',
     src: messyBunImg,
     scaleMultiplier: 1.5,
@@ -79,7 +79,7 @@ export var HAIR_STYLES = {
     id: 'salt_sand',
     name: 'Salt & Sand',
     category: 'male',
-    emoji: 'â˜€ï¸',
+    emoji: 'GÿÇn+Å',
     description: 'Short bleached sandy buzz',
     src: saltSandImg,
     scaleMultiplier: 1.3,
@@ -89,7 +89,7 @@ export var HAIR_STYLES = {
     id: 'dark_shag',
     name: 'Dark Shag',
     category: 'male',
-    emoji: 'ðŸŒŠ',
+    emoji: '=ƒîè',
     description: 'Medium-length dark shaggy hair',
     src: darkShagImg,
     scaleMultiplier: 1.5,
@@ -100,7 +100,7 @@ export var HAIR_STYLES = {
     id: 'beach_waves',
     name: 'Beach Waves',
     category: 'female',
-    emoji: 'ðŸ§œâ€â™€ï¸',
+    emoji: '=ƒº£GÇìGÖÇn+Å',
     description: 'Long golden beach waves',
     src: beachWavesImg,
     scaleMultiplier: 1.6,
@@ -111,7 +111,7 @@ export var HAIR_STYLES = {
     id: 'braided_crown',
     name: 'Braided Crown',
     category: 'female',
-    emoji: 'ðŸŒº',
+    emoji: '=ƒî¦',
     description: 'Fishtail crown braid',
     src: braidedCrownImg,
     scaleMultiplier: 1.5,
@@ -121,7 +121,7 @@ export var HAIR_STYLES = {
     id: 'pink_tips',
     name: 'Pink Tips',
     category: 'female',
-    emoji: 'ðŸŒ¸',
+    emoji: '=ƒî+',
     description: 'Dark roots with pink ends',
     src: pinkTipsImg,
     scaleMultiplier: 1.5,
@@ -132,7 +132,7 @@ export var HAIR_STYLES = {
     id: 'curly_surf',
     name: 'Curly Surf',
     category: 'female',
-    emoji: 'ðŸ¦±',
+    emoji: '=ƒª¦',
     description: 'Big voluminous natural curls',
     src: curlySurfImg,
     scaleMultiplier: 1.6,
@@ -143,7 +143,7 @@ export var HAIR_STYLES = {
     id: 'platinum_bob',
     name: 'Platinum Bob',
     category: 'female',
-    emoji: 'âš¡',
+    emoji: 'GÜí',
     description: 'Short platinum blonde bob',
     src: platinumBobImg,
     scaleMultiplier: 1.3,
@@ -151,27 +151,27 @@ export var HAIR_STYLES = {
   },
 };
 
-// â”€â”€ MediaPipe Face Mesh Landmark Indices â”€â”€
-var LANDMARK = {
-  FOREHEAD_TOP: 10,     // Glabella area (between eyebrows â€” NOT top of skull!)
+// GöÇGöÇ MediaPipe Face Mesh Landmark Indices GöÇGöÇ
+const LANDMARK = {
+  FOREHEAD_TOP: 10,     // Glabella area (between eyebrows GÇö NOT top of skull!)
   CHIN: 152,            // Bottom of chin
   LEFT_TEMPLE: 234,     // Left side of face (upper)
   RIGHT_TEMPLE: 454,    // Right side of face (upper)
-  LEFT_JAW: 132,        // Left jawline â€” widest point of lower face
-  RIGHT_JAW: 361,       // Right jawline â€” widest point of lower face
+  LEFT_JAW: 132,        // Left jawline GÇö widest point of lower face
+  RIGHT_JAW: 361,       // Right jawline GÇö widest point of lower face
   LEFT_EYE_INNER: 133,
   RIGHT_EYE_INNER: 362,
   NOSE_BRIDGE: 6,       // Very stable center point
 };
 
-// Anthropometric constants â€” tuned from real-world mobile testing
-var HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
-var CROWN_OFFSET_RATIO = 0.25; // Crown is ~25% of face-height above landmark 10 (hairline)
+// Anthropometric constants GÇö tuned from real-world mobile testing
+const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
+const CROWN_OFFSET_RATIO = 0.25; // Crown is ~25% of face-height above landmark 10 (hairline)
 
 /**
  * Loads the MediaPipe Face Mesh library from CDN
  */
-var loadMediaPipe = () => {
+const loadMediaPipe = () => {
   return new Promise((resolve, reject) => {
     if (window.FaceMesh) {
       resolve(window.FaceMesh);
@@ -205,8 +205,8 @@ var loadMediaPipe = () => {
 /**
  * Process a loaded image to remove backgrounds and create real alpha transparency.
  * Handles TWO background types:
- *   1. Checkered pattern (gray/white alternating squares) â€” common in AI sprites
- *   2. Solid black (#000000) backgrounds â€” preferred for light-colored hair
+ *   1. Checkered pattern (gray/white alternating squares) GÇö common in AI sprites
+ *   2. Solid black (#000000) backgrounds GÇö preferred for light-colored hair
  * 
  * Strategy: Detect which background type dominates, then remove accordingly.
  */
@@ -220,7 +220,7 @@ function processImageAlpha(img) {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
   
-  // â”€â”€ Auto-detect background type by sampling corner pixels â”€â”€
+  // GöÇGöÇ Auto-detect background type by sampling corner pixels GöÇGöÇ
   const w = canvas.width;
   const corners = [
     0,                          // top-left
@@ -250,7 +250,7 @@ function processImageAlpha(img) {
     const colorRange = maxChannel - minChannel;
     
     if (isBlackBackground) {
-      // â”€â”€ BLACK BACKGROUND mode â”€â”€
+      // GöÇGöÇ BLACK BACKGROUND mode GöÇGöÇ
       // Remove dark pixels with low saturation (pure black/near-black)
       if (avg < 20 && colorRange < 15) {
         data[i + 3] = 0; // fully transparent
@@ -260,7 +260,7 @@ function processImageAlpha(img) {
         data[i + 3] = Math.round(255 * fade);
       }
     } else {
-      // â”€â”€ CHECKERED BACKGROUND mode â”€â”€
+      // GöÇGöÇ CHECKERED BACKGROUND mode GöÇGöÇ
       // Remove bright pixels with low color saturation (gray/white)
       if (avg > 145 && colorRange < 45) {
         data[i + 3] = 0;
@@ -465,12 +465,12 @@ export class HairFilterEngine {
     this._initPromise = null;
   }
   
-  // â”€â”€â”€ Internal Methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // GöÇGöÇGöÇ Internal Methods GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
   
   /**
    * Sync canvas buffer to VIDEO native resolution (not CSS display size).
    * The canvas CSS must use object-cover to match the video display scaling.
-   * This ensures MediaPipe coords (normalized 0-1) Ã— videoWidth/Height
+   * This ensures MediaPipe coords (normalized 0-1) +ù videoWidth/Height
    * map perfectly to the same positions as the video frame.
    */
   _syncCanvasSize() {
@@ -526,7 +526,7 @@ export class HairFilterEngine {
     
     const lm = results.multiFaceLandmarks[0];
     
-    const glabella = lm[LANDMARK.FOREHEAD_TOP]; // landmark 10 â€” between eyebrows
+    const glabella = lm[LANDMARK.FOREHEAD_TOP]; // landmark 10 GÇö between eyebrows
     const chin = lm[LANDMARK.CHIN];
     const leftTemple = lm[LANDMARK.LEFT_TEMPLE];
     const rightTemple = lm[LANDMARK.RIGHT_TEMPLE];
@@ -537,14 +537,14 @@ export class HairFilterEngine {
     
     if (!glabella || !chin || !leftTemple || !rightTemple) return;
     
-    // â”€â”€ Step 1: Measure face dimensions in canvas pixels â”€â”€
+    // GöÇGöÇ Step 1: Measure face dimensions in canvas pixels GöÇGöÇ
     // Temple width (upper face)
     const templeWidth = Math.sqrt(
       Math.pow((rightTemple.x - leftTemple.x) * width, 2) +
       Math.pow((rightTemple.y - leftTemple.y) * height, 2)
     );
     
-    // Jaw width (lower face) â€” for face-shape-adaptive sizing
+    // Jaw width (lower face) GÇö for face-shape-adaptive sizing
     let jawWidth = templeWidth; // fallback
     if (leftJaw && rightJaw) {
       jawWidth = Math.sqrt(
@@ -562,14 +562,14 @@ export class HairFilterEngine {
       Math.pow((chin.y - glabella.y) * height, 2)
     );
     
-    // â”€â”€ Step 2: Estimate HEAD dimensions (larger than face) â”€â”€
+    // GöÇGöÇ Step 2: Estimate HEAD dimensions (larger than face) GöÇGöÇ
     const headWidth = faceWidth * HEAD_WIDTH_RATIO;
     
-    // â”€â”€ Step 3: Estimate CROWN position â”€â”€
+    // GöÇGöÇ Step 3: Estimate CROWN position GöÇGöÇ
     // Crown is above landmark 10 by ~50% of the face height
     const crownOffsetPx = faceHeight * CROWN_OFFSET_RATIO;
     
-    // Use NOSE BRIDGE (landmark 6) for X center â€” most stable point on rigid
+    // Use NOSE BRIDGE (landmark 6) for X center GÇö most stable point on rigid
     // bone structure, stays centered even when head turns slightly
     const noseBridge = lm[LANDMARK.NOSE_BRIDGE];
     const centerX = noseBridge ? (noseBridge.x * width) : (((leftTemple.x + rightTemple.x) / 2) * width);
@@ -578,13 +578,13 @@ export class HairFilterEngine {
     const glabellaY = glabella.y * height;
     const crownY = glabellaY - crownOffsetPx;
     
-    // â”€â”€ Step 4: Head rotation angle â”€â”€
+    // GöÇGöÇ Step 4: Head rotation angle GöÇGöÇ
     const angle = Math.atan2(
       (rightEye.y - leftEye.y) * height,
       (rightEye.x - leftEye.x) * width
     );
     
-    // â”€â”€ Step 5: Smooth values â”€â”€
+    // GöÇGöÇ Step 5: Smooth values GöÇGöÇ
     // Include face center/dimensions for face masking
     const faceCenterX = centerX; // nose bridge X
     const faceCenterY = ((glabella.y + chin.y) / 2) * height;
@@ -650,8 +650,8 @@ export class HairFilterEngine {
     const drawY = crownY;
     
     // capPosition controls what fraction of the sprite is ABOVE the anchor.
-    // Long draping hair: low capPosition (0.10) â†’ 10% above, 90% below
-    // Short spiky hair: high capPosition (0.35) â†’ 35% above, 65% below
+    // Long draping hair: low capPosition (0.10) GåÆ 10% above, 90% below
+    // Short spiky hair: high capPosition (0.35) GåÆ 35% above, 65% below
     const capOffset = hairHeight * (style.capPosition || 0.20);
     
     // Draw with rotation matching head tilt
@@ -667,7 +667,7 @@ export class HairFilterEngine {
     );
     ctx.restore();
     
-    // â”€â”€ Face Mask: erase the face area so hair never covers the face â”€â”€
+    // GöÇGöÇ Face Mask: erase the face area so hair never covers the face GöÇGöÇ
     // Uses 'destination-out' compositing to punch a soft elliptical hole
     if (faceCenterX && faceCenterY && faceMaskW > 0 && faceMaskH > 0) {
       ctx.save();

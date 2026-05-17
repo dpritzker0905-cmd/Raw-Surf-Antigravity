@@ -1,9 +1,9 @@
 /**
- * ChallengesTab â€” Weekly challenges leaderboard + history for the Career hub.
+ * ChallengesTab GÇö Weekly challenges leaderboard + history for the Career hub.
  *
  * Connects to:
- *   GET /api/challenges/current   â€” active challenge + leaderboard
- *   GET /api/challenges/history   â€” past winners
+ *   GET /api/challenges/current   GÇö active challenge + leaderboard
+ *   GET /api/challenges/history   GÇö past winners
  *
  * Design: Glassmorphism trophy cards, gradient progress, rank badges.
  */
@@ -12,9 +12,9 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ChallengeCardSkeleton } from '../ui/SkeletonVariants';
 
-var TROPHY_EMOJI = ['ğŸ†', 'ğŸ¥ˆ', 'ğŸ¥‰'];
+const TROPHY_EMOJI = ['=ƒÅå', '=ƒÑê', '=ƒÑë'];
 
-var formatTime = (seconds) => {
+const formatTime = (seconds) => {
   if (seconds <= 0) return 'Ended';
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
@@ -24,7 +24,7 @@ var formatTime = (seconds) => {
   return `${m}m`;
 };
 
-var ChallengesTab = ({ userId }) => {
+const ChallengesTab = ({ userId }) => {
   const [challenge, setChallenge] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [history, setHistory] = useState([]);
@@ -82,7 +82,7 @@ var ChallengesTab = ({ userId }) => {
         textAlign: 'center',
         color: '#94a3b8'
       }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>ğŸ„</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>=ƒÅä</div>
         <p>{error}</p>
         <button
           onClick={fetchData}
@@ -128,7 +128,7 @@ var ChallengesTab = ({ userId }) => {
           }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span style={{ fontSize: 36 }}>{challenge.badge_emoji || 'ğŸ†'}</span>
+            <span style={{ fontSize: 36 }}>{challenge.badge_emoji || '=ƒÅå'}</span>
             <div>
               <h3 style={{
                 margin: 0,
@@ -154,7 +154,7 @@ var ChallengesTab = ({ userId }) => {
             borderRadius: 8,
             marginBottom: 8
           }}>
-            <span style={{ fontSize: 12, color: '#94a3b8' }}>â± Time remaining</span>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>GÅ¦ Time remaining</span>
             <span style={{
               fontSize: 14,
               fontWeight: 700,
@@ -215,7 +215,7 @@ var ChallengesTab = ({ userId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {leaderboard.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>ğŸŒŠ</div>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>=ƒîè</div>
               <p style={{ margin: 0, fontSize: 14 }}>No participants yet this week</p>
               <p style={{ margin: '4px 0 0', fontSize: 12 }}>Support a Grom to climb the leaderboard!</p>
             </div>
@@ -312,7 +312,7 @@ var ChallengesTab = ({ userId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {history.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>ğŸ“œ</div>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>=ƒô£</div>
               <p style={{ margin: 0, fontSize: 14 }}>No completed challenges yet</p>
             </div>
           ) : (

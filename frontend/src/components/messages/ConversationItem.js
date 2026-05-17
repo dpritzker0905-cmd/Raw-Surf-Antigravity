@@ -15,7 +15,7 @@ import { getFullUrl, cacheBustUrl } from '../../utils/media';
 import { formatTimeAgo } from '../../utils/formatTime';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
-var getRoleIcon = (role, isAdmin = false) => {
+const getRoleIcon = (role, isAdmin = false) => {
   if (isAdmin) return { icon: Shield, color: 'text-red-500' };
   switch (role) {
     case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400' };
@@ -31,7 +31,7 @@ var getRoleIcon = (role, isAdmin = false) => {
 
 
 
-var ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
+const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
   const hasUnread = conversation.unread_count > 0 || conversation.is_manually_unread;
   const roleInfo = getRoleIcon(conversation.other_user_role);
   const RoleIcon = roleInfo.icon;
@@ -52,9 +52,9 @@ var ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
   // Determine preview icon based on message type
   const getPreviewIcon = () => {
     const preview = conversation.last_message_preview || '';
-    if (preview.includes('ğŸ“·')) return <Camera className="w-4 h-4 text-gray-400" />;
-    if (preview.includes('ğŸ¬')) return <Play className="w-4 h-4 text-cyan-400" />;
-    if (preview.includes('ğŸ¤')) return <Mic className="w-4 h-4 text-gray-400" />;
+    if (preview.includes('=ƒô+')) return <Camera className="w-4 h-4 text-gray-400" />;
+    if (preview.includes('=ƒÄ¼')) return <Play className="w-4 h-4 text-cyan-400" />;
+    if (preview.includes('=ƒÄñ')) return <Mic className="w-4 h-4 text-gray-400" />;
     return null;
   };
 
@@ -87,7 +87,7 @@ var ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
             {conversation.other_user_name?.charAt(0)}
           </div>
         </div>
-        {/* Online indicator â€” real-time from presence WebSocket */}
+        {/* Online indicator GÇö real-time from presence WebSocket */}
         {isOnline && (
           <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
         )}
@@ -103,7 +103,7 @@ var ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
           {RoleIcon ? (
             <RoleIcon className={`w-4 h-4 ${roleInfo.color} flex-shrink-0`} />
           ) : (
-            <span className="text-sm flex-shrink-0">ğŸ„</span>
+            <span className="text-sm flex-shrink-0">=ƒÅä</span>
           )}
           {/* Request badge */}
           {isRequest && (
@@ -118,7 +118,7 @@ var ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
           </span>
           {conversation.last_message_at && (
             <span className="text-xs text-gray-500 flex-shrink-0">
-              Â· {formatTimeAgo(conversation.last_message_at)}
+              -+ {formatTimeAgo(conversation.last_message_at)}
             </span>
           )}
         </div>

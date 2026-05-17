@@ -6,7 +6,7 @@ import React from 'react';
 import { Check, Camera, Users, Radio, MapPin, Zap } from 'lucide-react';
 
 // --- Timeline Step ---
-var TimelineStep = ({ icon: Icon, label, sub, done, active, isLight }) => {
+const TimelineStep = ({ icon: Icon, label, sub, done, active, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
   return (
@@ -32,7 +32,7 @@ var TimelineStep = ({ icon: Icon, label, sub, done, active, isLight }) => {
   );
 };
 
-var DispatchTimeline = ({
+const DispatchTimeline = ({
   dispatch, captainSelfieUploaded, crewAllPaid,
   crewLineup, paidCount, photographerAccepted, eta,
   isLight, textPrimary,

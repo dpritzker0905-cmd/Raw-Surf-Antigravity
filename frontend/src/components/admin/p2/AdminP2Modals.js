@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../../ui/switch';
 import { Loader2 } from 'lucide-react';
 
-export var AdminP2Modals = ({
+export const AdminP2Modals = ({
   showCreatePromo, setShowCreatePromo, newPromo, setNewPromo, handleCreatePromo,
   showCreateFlag, setShowCreateFlag, newFlag, setNewFlag, handleCreateFlag,
   showCreateCampaign, setShowCreateCampaign, newCampaign, setNewCampaign, handleCreateCampaign,
@@ -159,7 +159,7 @@ export var AdminP2Modals = ({
               <Input
                 value={newCampaign.title}
                 onChange={(e) => setNewCampaign({ ...newCampaign, title: e.target.value })}
-                placeholder="ðŸ”¥ Don't miss out!"
+                placeholder="=ƒöÑ Don't miss out!"
                 className="bg-muted border-border mt-1"
               />
             </div>

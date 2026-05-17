@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
-var PhotographerSubscriptionSettings = () => {
+const PhotographerSubscriptionSettings = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -244,7 +244,7 @@ var PhotographerSubscriptionSettings = () => {
                 <div className="flex rounded-lg overflow-hidden border border-zinc-700">
                   {['weekly', 'monthly'].map(int => (
                     <button key={int} onClick={() => setNewPlan(p => ({ ...p, interval: int }))} className={`flex-1 py-2.5 text-sm font-semibold transition-all ${newPlan.interval === int ? 'bg-violet-500/20 text-violet-400' : 'bg-zinc-800 text-muted-foreground hover:bg-zinc-700'}`}>
-                      {int === 'weekly' ? 'ğŸ“… Weekly' : 'ğŸ“… Monthly'}
+                      {int === 'weekly' ? '=ƒôà Weekly' : '=ƒôà Monthly'}
                     </button>
                   ))}
                 </div>

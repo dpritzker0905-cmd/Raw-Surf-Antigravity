@@ -24,7 +24,7 @@ import logger from '../../utils/logger';
  * - Message templates
  * - Bulk email/notification campaigns
  */
-export var AdminCommunicationsDashboard = () => {
+export const AdminCommunicationsDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('announcements');

@@ -7,7 +7,7 @@ import { Folder, Image, Video, MapPin, Calendar, Edit3, Trash2 } from 'lucide-re
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
-export var GalleryFolderCard = ({ 
+export const GalleryFolderCard = ({ 
   folder, 
   onSelect, 
   onRename, 

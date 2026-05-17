@@ -1,5 +1,5 @@
 /**
- * notificationService.js â€” Centralized notification API abstractions.
+ * notificationService.js GÇö Centralized notification API abstractions.
  *
  * All in-app notification interactions go through this service.
  * Eliminates duplicate API calls scattered across NotificationsDrawer,
@@ -11,14 +11,14 @@
  */
 import apiClient from '../lib/apiClient';
 
-// â”€â”€ Read / fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Read / fetch GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 
 /**
  * Fetch all notifications for a user.
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var getNotifications = (userId) =>
+export const getNotifications = (userId) =>
   apiClient.get(`/notifications/${userId}`);
 
 /**
@@ -27,17 +27,17 @@ export var getNotifications = (userId) =>
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var getUnreadCount = (userId) =>
+export const getUnreadCount = (userId) =>
   apiClient.get(`/notifications/${userId}/unread-count`);
 
-// â”€â”€ Mark read â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Mark read GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 
 /**
  * Mark a single notification as read.
  * @param {string} notificationId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var markRead = (notificationId) =>
+export const markRead = (notificationId) =>
   apiClient.post(`/notifications/${notificationId}/read`);
 
 /**
@@ -45,10 +45,10 @@ export var markRead = (notificationId) =>
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var markAllRead = (userId) =>
+export const markAllRead = (userId) =>
   apiClient.post(`/notifications/${userId}/read-all`);
 
-// â”€â”€ Send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Send GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 
 /**
  * Send a notification to a user.
@@ -56,7 +56,7 @@ export var markAllRead = (userId) =>
  * @param {{ user_id: string, type: string, title: string, body: string, data?: object }} payload
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var sendNotification = (payload) =>
+export const sendNotification = (payload) =>
   apiClient.post('/notifications/send', payload);
 
 /**
@@ -64,7 +64,7 @@ export var sendNotification = (payload) =>
  * @param {{ photographer_id: string, message: string, [key: string]: any }} payload
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var sendPhotographerAlert = (payload) =>
+export const sendPhotographerAlert = (payload) =>
   apiClient.post('/notifications/photographer-alerts', payload);
 
 /**
@@ -72,17 +72,17 @@ export var sendPhotographerAlert = (payload) =>
  * @param {{ recipient_id: string, type: string, actor_id?: string, [key: string]: any }} payload
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var createNotification = (payload) =>
+export const createNotification = (payload) =>
   apiClient.post('/notifications', payload);
 
-// â”€â”€ Preferences â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Preferences GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 
 /**
  * Fetch notification preferences for a user.
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var getPreferences = (userId) =>
+export const getPreferences = (userId) =>
   apiClient.get(`/notifications/preferences`);
 
 /**
@@ -92,7 +92,7 @@ export var getPreferences = (userId) =>
  * @param {*}     value  - New value
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var updatePreference = (userId, key, value) =>
+export const updatePreference = (userId, key, value) =>
   apiClient.put(`/notifications/preferences`, { [key]: value });
 
 /**
@@ -101,7 +101,7 @@ export var updatePreference = (userId, key, value) =>
  * @param {object} preferences - Full preferences object
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var updateAllPreferences = (userId, preferences) =>
+export const updateAllPreferences = (userId, preferences) =>
   apiClient.put(`/notifications/preferences`, preferences);
 
 /**
@@ -109,7 +109,7 @@ export var updateAllPreferences = (userId, preferences) =>
  * @param {string} userId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var getPreferencesByPath = (userId) =>
+export const getPreferencesByPath = (userId) =>
   apiClient.get(`/notifications/preferences/${userId}`);
 
 /**
@@ -119,15 +119,15 @@ export var getPreferencesByPath = (userId) =>
  * @param {*}     value
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var updatePreferenceByPath = (userId, key, value) =>
+export const updatePreferenceByPath = (userId, key, value) =>
   apiClient.put(`/notifications/preferences/${userId}`, { [key]: value });
 
-// â”€â”€ GromHQ alert â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ GromHQ alert GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 
 /**
  * Mark a GromHQ alert notification as read.
  * @param {string} alertId
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export var markAlertRead = (alertId) =>
+export const markAlertRead = (alertId) =>
   apiClient.post(`/notifications/${alertId}/read`);

@@ -10,7 +10,7 @@ import React from 'react';
 import { Camera, Calendar, Image, Users } from 'lucide-react';
 
 // Helper function to get commission rate based on subscription tier
-export var getCommissionRate = (subscriptionTier) => {
+export const getCommissionRate = (subscriptionTier) => {
   // Check localStorage for admin-configured rates first
   const savedRates = localStorage.getItem('admin_commission_rates');
   if (savedRates) {
@@ -44,7 +44,7 @@ export var getCommissionRate = (subscriptionTier) => {
 };
 
 // Revenue Stream Colors
-export var STREAM_COLORS = {
+export const STREAM_COLORS = {
   live_sessions: { bg: 'from-cyan-500 to-blue-500', text: 'text-cyan-400', icon: Camera },
   request_pro: { bg: 'from-purple-500 to-pink-500', text: 'text-purple-400', icon: Users },
   regular_bookings: { bg: 'from-amber-500 to-orange-500', text: 'text-amber-400', icon: Calendar },
@@ -52,7 +52,7 @@ export var STREAM_COLORS = {
 };
 
 // Progress Ring Component for Gear Fund
-export var ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = 'cyan' }) => {
+export const ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = 'cyan' }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (progress / 100) * circumference;
@@ -91,7 +91,7 @@ export var ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = 'cya
 };
 
 // Revenue Bar Chart Component
-export var RevenueBarChart = ({ data, maxValue }) => {
+export const RevenueBarChart = ({ data, maxValue }) => {
   const streams = ['live_sessions', 'request_pro', 'regular_bookings', 'gallery_sales'];
   const labels = ['Live Sessions', 'Request Pro', 'Bookings', 'Gallery'];
   

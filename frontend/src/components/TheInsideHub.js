@@ -25,7 +25,7 @@ import { GenericPageSkeleton } from './ui/SkeletonVariants';
  * The Inside - Career Hub for Grom (??) surfers
  * Features: Road to the Peak progress, Grom Series results, Stoke Sponsors, Grom-Friendly coaches
  */
-export var TheInsideHub = () => {
+export const TheInsideHub = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -309,7 +309,7 @@ export var TheInsideHub = () => {
                       result.placing === 3 ? 'bg-amber-600 text-white' :
                       'bg-zinc-700 text-white'
                     }`}>
-                      {result.placing === 1 ? 'ğŸ¥‡' : result.placing === 2 ? 'ğŸ¥ˆ' : result.placing === 3 ? 'ğŸ¥‰' : result.placing}
+                      {result.placing === 1 ? '=ƒÑç' : result.placing === 2 ? '=ƒÑê' : result.placing === 3 ? '=ƒÑë' : result.placing}
                     </div>
                     <div>
                       <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
@@ -534,7 +534,7 @@ export var TheInsideHub = () => {
 };
 
 // Add Result Form Component
-var AddResultForm = ({ userId, defaultTier, onSuccess }) => {
+const AddResultForm = ({ userId, defaultTier, onSuccess }) => {
   const [formData, setFormData] = useState({
     event_name: '',
     event_date: '',
@@ -612,7 +612,7 @@ var AddResultForm = ({ userId, defaultTier, onSuccess }) => {
 };
 
 // Add Stoke Sponsor Form
-var AddStokeSponsorForm = ({ userId, onSuccess }) => {
+const AddStokeSponsorForm = ({ userId, onSuccess }) => {
   const [formData, setFormData] = useState({
     sponsor_name: '',
     sponsor_type: 'stoke_sponsor'

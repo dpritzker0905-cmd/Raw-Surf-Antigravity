@@ -1,5 +1,5 @@
 /**
- * useOptimisticAction â€” Hook for optimistic UI updates.
+ * useOptimisticAction GÇö Hook for optimistic UI updates.
  * Immediately updates the UI, then makes the API call.
  * Rolls back on failure with a toast notification.
  *
@@ -18,7 +18,7 @@
 import { useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
-var useOptimisticAction = () => {
+const useOptimisticAction = () => {
   const pendingRef = useRef(new Set());
 
   /**
@@ -35,12 +35,12 @@ var useOptimisticAction = () => {
     if (key && pendingRef.current.has(key)) return;
     if (key) pendingRef.current.add(key);
 
-    // Haptic feedback â€” light vibration on mobile for premium feel
+    // Haptic feedback GÇö light vibration on mobile for premium feel
     if (navigator.vibrate) {
       navigator.vibrate(8);
     }
 
-    // Optimistic update â€” instant UI change
+    // Optimistic update GÇö instant UI change
     onOptimistic?.();
 
     try {

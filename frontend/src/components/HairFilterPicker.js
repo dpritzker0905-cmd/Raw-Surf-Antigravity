@@ -15,7 +15,7 @@ import { HAIR_STYLES } from '../utils/HairFilterEngine';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Category definitions
-var CATEGORIES = [
+const CATEGORIES = [
   { id: 'male', label: 'Male', icon: String.fromCodePoint(0x1F3C4, 0x200D, 0x2642, 0xFE0F) },
   { id: 'female', label: 'Female', icon: String.fromCodePoint(0x1F3C4, 0x200D, 0x2640, 0xFE0F) },
 ];
@@ -23,7 +23,7 @@ var CATEGORIES = [
 /**
  * HairStyleCard \u{2014} Individual hair style option
  */
-var HairStyleCard = ({ style, isSelected, onSelect, colors }) => (
+const HairStyleCard = ({ style, isSelected, onSelect, colors }) => (
   <motion.button
     whileTap={{ scale: 0.92 }}
     onClick={() => onSelect(style.id)}
@@ -48,7 +48,7 @@ var HairStyleCard = ({ style, isSelected, onSelect, colors }) => (
 /**
  * Main HairFilterPicker Component
  */
-export var HairFilterPicker = ({
+export const HairFilterPicker = ({
   isOpen,
   onClose,
   activeStyleId,

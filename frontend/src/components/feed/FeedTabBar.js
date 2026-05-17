@@ -1,13 +1,13 @@
 /**
- * FeedTabBar â€” Extracted from Feed.js (v103)
+ * FeedTabBar GÇö Extracted from Feed.js (v103)
  * Three-tab strip (For You / Waves / Following) with sliding gradient indicator.
  */
 import React from 'react';
 import { Play } from 'lucide-react';
 
-var FEED_TABS = ['for_you', 'waves', 'following'];
+const FEED_TABS = ['for_you', 'waves', 'following'];
 
-var FeedTabBar = ({ activeTab, setActiveTab, textPrimaryClass, textSecondaryClass, borderClass }) => {
+const FeedTabBar = ({ activeTab, setActiveTab, textPrimaryClass, textSecondaryClass, borderClass }) => {
   const activeTabIndex = FEED_TABS.indexOf(activeTab);
 
   return (

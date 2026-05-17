@@ -20,11 +20,11 @@ import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
 import { FindMeModal } from './gallery/FindMeModal';
 
 /**
- * GalleryStorefront Ã¯Â¿Â½ Premium public photographer portfolio page
+ * GalleryStorefront +»-+-+ Premium public photographer portfolio page
  * Accessed via /gallery/:username (shareable URL)
  * Resolves username ? profile ? galleries + stats
  */
-export var GalleryStorefront = () => {
+export const GalleryStorefront = () => {
   const { username } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -119,7 +119,7 @@ export var GalleryStorefront = () => {
     const url = `${window.location.origin}/gallery/${username}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: `${photographer?.full_name} Ã¯Â¿Â½ Raw Surf`, url });
+        await navigator.share({ title: `${photographer?.full_name} +»-+-+ Raw Surf`, url });
       } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(url);
@@ -154,7 +154,7 @@ export var GalleryStorefront = () => {
       tag.setAttribute('content', content);
     };
 
-    const title = `${photographer.full_name} Ã¯Â¿Â½ Raw Surf Photography`;
+    const title = `${photographer.full_name} +»-+-+ Raw Surf Photography`;
     const desc = photographer.bio || `Browse surf photography by ${photographer.full_name} on Raw Surf`;
     const image = photographer.avatar_url ? getFullUrl(photographer.avatar_url) : null;
     const url = `${window.location.origin}/gallery/${username}`;
@@ -220,7 +220,7 @@ export var GalleryStorefront = () => {
 
   return (
     <div className={`min-h-screen ${pageBg} pb-24 md:pb-8`}>
-      {/* JSON-LD Structured Data for SEO Ã¯Â¿Â½ LocalBusiness for business accounts, Person for individuals */}
+      {/* JSON-LD Structured Data for SEO +»-+-+ LocalBusiness for business accounts, Person for individuals */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         '@context': 'https://schema.org',
         '@type': photographer.company_name ? 'LocalBusiness' : 'Person',
@@ -407,7 +407,7 @@ export var GalleryStorefront = () => {
               { label: 'Photos', value: stats.photo_count, icon: Camera, color: 'text-emerald-400' },
               { label: 'Followers', value: stats.follower_count, icon: Users, color: 'text-blue-400' },
               { label: 'Sessions', value: stats.session_count, icon: Calendar, color: 'text-yellow-400' },
-              { label: 'Rating', value: stats.avg_rating > 0 ? `${stats.avg_rating} ?` : 'Ã¯Â¿Â½', icon: Star, color: 'text-amber-400' },
+              { label: 'Rating', value: stats.avg_rating > 0 ? `${stats.avg_rating} ?` : '+»-+-+', icon: Star, color: 'text-amber-400' },
             ].map(({ label, value, icon: Icon, color }) => (
               <Card key={label} className={`${cardBg} ${borderColor}`}>
                 <CardContent className="p-3 text-center">
@@ -430,7 +430,7 @@ export var GalleryStorefront = () => {
                 <div className={`w-3 h-3 rounded-full ${stats.is_shooting ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
                 <div>
                   <p className={`font-semibold ${textPrimary}`}>
-                    {stats.is_shooting ? 'ðŸ“¸ Currently Shooting Live' : 'ðŸŸ¢ Available for On-Demand'}
+                    {stats.is_shooting ? '=ƒô+ Currently Shooting Live' : '=ƒƒó Available for On-Demand'}
                   </p>
                   <p className={`text-xs ${textSecondary}`}>
                     {stats.is_shooting ? 'Join the session now!' : 'Request a session at your spot'}

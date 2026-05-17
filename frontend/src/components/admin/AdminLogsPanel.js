@@ -5,7 +5,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 
-export var AdminLogsPanel = ({
+export const AdminLogsPanel = ({
   logs,
   cardBgClass,
   textClass,

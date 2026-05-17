@@ -21,7 +21,7 @@ import { ROLES } from '../constants/roles';
  * 2. Credit Wallet - Purchase credits and balance
  * 3. Surf Alerts - Wave condition notifications
  */
-export var BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
+export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const navigate = useNavigate();
@@ -233,7 +233,7 @@ export var BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
               );
             })}
 
-            {/* â”€â”€ YOUR PERKS â”€â”€ Role-Specific Section */}
+            {/* GöÇGöÇ YOUR PERKS GöÇGöÇ Role-Specific Section */}
             {getRolePerks().length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Your Perks</p>

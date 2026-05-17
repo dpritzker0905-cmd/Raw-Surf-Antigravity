@@ -1,5 +1,5 @@
 /**
- * SurferHubContent â€” Extracted from SurferSessionHub.js (v79)
+ * SurferHubContent GÇö Extracted from SurferSessionHub.js (v79)
  *
  * Navigation panel for surfer users:
  * - Live Sessions (browse active photographers)
@@ -11,7 +11,7 @@ import React from 'react';
 import { Radio, Calendar, ChevronRight, Zap, Lock, Sparkles } from 'lucide-react';
 import { Badge } from '../ui/badge';
 
-var SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMatchCount }) => {
+const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMatchCount }) => {
   return (
     <div className="space-y-3">
       {/* ============ LIVE SESSIONS - Direct Link ============ */}

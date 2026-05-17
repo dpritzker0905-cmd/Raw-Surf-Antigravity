@@ -11,7 +11,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import { CommentText } from '../RichText';
 
-var ModalVideoPlayer = ({ src, poster, className = '' }) => {
+const ModalVideoPlayer = ({ src, poster, className = '' }) => {
   const videoRef = useRef(null);
   const progressRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -236,7 +236,7 @@ var ModalVideoPlayer = ({ src, poster, className = '' }) => {
   );
 };
 
-var ImageCarousel = ({ images, mediaType }) => {
+const ImageCarousel = ({ images, mediaType }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   
   // Handle single image/video
@@ -308,7 +308,7 @@ var ImageCarousel = ({ images, mediaType }) => {
   );
 };
 
-var CommentItem = ({ comment, userId, _onReact }) => {
+const CommentItem = ({ comment, userId, _onReact }) => {
   const navigate = useNavigate();
   const [liked, setLiked] = useState(comment.viewer_reaction !== null);
   const [likeCount, setLikeCount] = useState(comment.reaction_count || 0);
@@ -322,7 +322,7 @@ var CommentItem = ({ comment, userId, _onReact }) => {
     try {
       const response = await apiClient.post(
         `/comments/${comment.id}/reactions`,
-        { emoji: 'ðŸ¤™' }
+        { emoji: '=ƒñÖ' }
       );
       
       if (response.data.action === 'added') {

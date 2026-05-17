@@ -2,7 +2,7 @@ import React from 'react';
 import { Calculator } from 'lucide-react';
 
 // Potential Earnings Calculator Component
-var PotentialEarningsCalculator = ({ 
+const PotentialEarningsCalculator = ({ 
   buyinPrice, 
   maxSurfers, 
   photoPrice, 
@@ -28,11 +28,11 @@ var PotentialEarningsCalculator = ({
       
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className={textSecondaryClass}>Buy-ins ({maxSurfers} Ã— ${buyinPrice})</span>
+          <span className={textSecondaryClass}>Buy-ins ({maxSurfers} +ù ${buyinPrice})</span>
           <span className="text-green-400 font-medium">${buyinEarnings}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className={textSecondaryClass}>Photo sales (est. {estimatedPhotosPerSurfer}/surfer Ã— ${photoPrice})</span>
+          <span className={textSecondaryClass}>Photo sales (est. {estimatedPhotosPerSurfer}/surfer +ù ${photoPrice})</span>
           <span className="text-cyan-400 font-medium">${photoEarnings}</span>
         </div>
         <div className={`pt-2 border-t ${isLight ? 'border-amber-200' : 'border-amber-500/30'}`}>

@@ -7,7 +7,7 @@ import { Textarea } from '../ui/textarea';
 import { Trash2
 } from 'lucide-react';
 
-var EditGalleryModal = ({
+const EditGalleryModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,

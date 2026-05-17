@@ -2,7 +2,7 @@ import React from 'react';
 import { Award, Sparkles, Camera, Heart, TrendingUp, Star, Zap } from 'lucide-react';
 
 // Badge configuration
-var BADGE_CONFIG = {
+const BADGE_CONFIG = {
   the_patron: {
     icon: Heart,
     label: 'The Patron',
@@ -34,7 +34,7 @@ var BADGE_CONFIG = {
 };
 
 // Tier configuration
-var TIER_CONFIG = {
+const TIER_CONFIG = {
   bronze: { border: 'border-amber-600', bg: 'bg-amber-600/20', label: 'Bronze' },
   silver: { border: 'border-gray-400', bg: 'bg-gray-400/20', label: 'Silver' },
   gold: { border: 'border-yellow-400', bg: 'bg-yellow-400/20', label: 'Gold' },
@@ -42,7 +42,7 @@ var TIER_CONFIG = {
 };
 
 // XP Display Component
-export var XPDisplay = ({ xp = 0, size = 'md', showLabel = true }) => {
+export const XPDisplay = ({ xp = 0, size = 'md', showLabel = true }) => {
   const sizeClasses = {
     sm: 'text-sm',
     md: 'text-lg',
@@ -59,7 +59,7 @@ export var XPDisplay = ({ xp = 0, size = 'md', showLabel = true }) => {
 };
 
 // Single Badge Icon Component
-export var BadgeIcon = ({ badgeType, tier = 'bronze', size = 'md', showTooltip = true }) => {
+export const BadgeIcon = ({ badgeType, tier = 'bronze', size = 'md', showTooltip = true }) => {
   const config = BADGE_CONFIG[badgeType];
   const tierConfig = TIER_CONFIG[tier];
   
@@ -93,7 +93,7 @@ export var BadgeIcon = ({ badgeType, tier = 'bronze', size = 'md', showTooltip =
 };
 
 // Badge Row Component (shows all earned badges)
-export var BadgeRow = ({ badges = [], size = 'sm', maxDisplay = 4 }) => {
+export const BadgeRow = ({ badges = [], size = 'sm', maxDisplay = 4 }) => {
   if (!badges || badges.length === 0) return null;
   
   const displayBadges = badges.slice(0, maxDisplay);
@@ -119,7 +119,7 @@ export var BadgeRow = ({ badges = [], size = 'sm', maxDisplay = 4 }) => {
 };
 
 // Profile Badge Section (detailed view)
-export var ProfileBadgeSection = ({ badges = [], totalXP = 0 }) => {
+export const ProfileBadgeSection = ({ badges = [], totalXP = 0 }) => {
   if (!badges || badges.length === 0) {
     return (
       <div className="text-center py-6 text-gray-500">
@@ -176,7 +176,7 @@ export var ProfileBadgeSection = ({ badges = [], totalXP = 0 }) => {
 };
 
 // Surfer Rating Badge (shown to photographers during booking)
-export var SurferRatingBadge = ({ punctuality, communication, totalSessions = 0 }) => {
+export const SurferRatingBadge = ({ punctuality, communication, totalSessions = 0 }) => {
   const avgRating = (punctuality + communication) / 2;
   
   return (
@@ -195,7 +195,7 @@ export var SurferRatingBadge = ({ punctuality, communication, totalSessions = 0 
 };
 
 // Achievement Unlocked Toast Component
-export var AchievementUnlockedToast = ({ badge }) => {
+export const AchievementUnlockedToast = ({ badge }) => {
   const config = BADGE_CONFIG[badge?.badge_type];
   if (!config) return null;
   

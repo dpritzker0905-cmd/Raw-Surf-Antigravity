@@ -39,7 +39,7 @@ import { getFullUrl } from '../utils/media';
  * Session Entitlement Info Component
  * Shows credits remaining, tier info, and package type
  */
-var SessionEntitlementBanner = ({ 
+const SessionEntitlementBanner = ({ 
   _sessionInfo, 
   _isPaidAccount,
   creditsRemaining,
@@ -95,7 +95,7 @@ var SessionEntitlementBanner = ({
 /**
  * Match Confidence Badge
  */
-var ConfidenceBadge = ({ confidence, matchMethod }) => {
+const ConfidenceBadge = ({ confidence, matchMethod }) => {
   const getConfidenceColor = (conf) => {
     if (conf >= 0.9) return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
     if (conf >= 0.7) return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
@@ -105,11 +105,11 @@ var ConfidenceBadge = ({ confidence, matchMethod }) => {
   
   const getMethodIcon = (method) => {
     switch (method) {
-      case 'face_match': return 'ðŸ‘¤';
-      case 'board_color': return 'ðŸ„';
-      case 'wetsuit': return 'ðŸ‘”';
-      case 'profile_photo': return 'ðŸ“·';
-      default: return 'ðŸ”';
+      case 'face_match': return '=ƒæñ';
+      case 'board_color': return '=ƒÅä';
+      case 'wetsuit': return '=ƒæö';
+      case 'profile_photo': return '=ƒô+';
+      default: return '=ƒöì';
     }
   };
   
@@ -123,7 +123,7 @@ var ConfidenceBadge = ({ confidence, matchMethod }) => {
 /**
  * Single Match Card - Different views for Paid vs Free
  */
-var MatchCard = ({ 
+const MatchCard = ({ 
   match, 
   isPaidAccount, 
   isSelected,
@@ -284,7 +284,7 @@ var MatchCard = ({
 /**
  * Main AI Proposed Matches Component
  */
-var AIProposedMatches = ({ 
+const AIProposedMatches = ({ 
   sessionId,
   open, 
   onOpenChange, 
@@ -667,7 +667,7 @@ var AIProposedMatches = ({
 };
 
 // Add the Plus icon import that was used but not imported
-var Plus = ({ className }) => (
+const Plus = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M12 5v14M5 12h14" />
   </svg>

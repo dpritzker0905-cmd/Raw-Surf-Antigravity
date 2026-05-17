@@ -28,7 +28,7 @@ import logger from '../../utils/logger';
 
 
 // Lineup status badges
-var STATUS_CONFIG = {
+const STATUS_CONFIG = {
   open: { label: 'Open', color: 'bg-green-500/20 text-green-400 border-green-500/30', icon: Unlock },
   filling: { label: 'Filling Up', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', icon: Users },
   ready: { label: 'Ready!', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30', icon: CheckCircle },
@@ -38,7 +38,7 @@ var STATUS_CONFIG = {
 };
 
 // Calculate time remaining until lineup closes
-var getTimeRemaining = (closesAt) => {
+const getTimeRemaining = (closesAt) => {
   if (!closesAt) return null;
   const now = new Date();
   const closes = new Date(closesAt);
@@ -56,7 +56,7 @@ var getTimeRemaining = (closesAt) => {
 };
 
 // Single Lineup Card component
-var LineupCard = ({ 
+const LineupCard = ({ 
   lineup, 
   user, 
   isLight, 
@@ -347,7 +347,7 @@ var LineupCard = ({
 };
 
 // Main LineupTab component
-export var LineupTab = ({
+export const LineupTab = ({
   user,
   theme,
   onOpenDirectory,

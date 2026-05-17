@@ -21,10 +21,10 @@ import { getFullUrl } from '../../../utils/media';
 import { toast } from 'sonner';
 
 // Aliased to match original usage (CheckCircle2 imported, used as CheckCircle in JSX)
-var CheckCircle = CheckCircle2;
+const CheckCircle = CheckCircle2;
 
 // Role options for dropdown
-var ROLE_OPTIONS = [
+const ROLE_OPTIONS = [
   { value: 'Grom', label: 'Grom' },
   { value: 'Surfer', label: 'Surfer' },
   { value: 'Comp Surfer', label: 'Comp Surfer' },
@@ -43,14 +43,14 @@ var ROLE_OPTIONS = [
 ];
 
 // Subscription tier options
-var SUBSCRIPTION_OPTIONS = [
+const SUBSCRIPTION_OPTIONS = [
   { value: 'free', label: 'Free' },
   { value: 'basic', label: 'Basic' },
   { value: 'premium', label: 'Premium' },
 ];
 
-// Dropdown Badge Component (co-located â€” used only by UsersTabContent)
-var DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
+// Dropdown Badge Component (co-located GÇö used only by UsersTabContent)
+const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -108,7 +108,7 @@ var DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
 };
 
 // Users Tab Content Component with editable badges and bulk actions
-var UsersTabContent = ({
+const UsersTabContent = ({
   users,
   searchQuery,
   setSearchQuery,

@@ -6,9 +6,9 @@
 
 /**
  * Returns a flag emoji for a given country name using Unicode escape sequences
- * (per project rules â€” raw emoji bytes corrupt during PowerShell/git operations)
+ * (per project rules GÇö raw emoji bytes corrupt during PowerShell/git operations)
  */
-export var getCountryFlag = (countryName) => {
+export const getCountryFlag = (countryName) => {
   const flags = {
     'USA': '\u{1F1FA}\u{1F1F8}',
     'United States': '\u{1F1FA}\u{1F1F8}',
@@ -91,7 +91,7 @@ export var getCountryFlag = (countryName) => {
 /**
  * Popular quick-access surf locations for the Explore surf spots tab
  */
-export var getPopularLocations = () => [
+export const getPopularLocations = () => [
   { label: `${getCountryFlag('USA')} Florida`, country: 'USA', state: 'Florida' },
   { label: `${getCountryFlag('USA')} California`, country: 'USA', state: 'California' },
   { label: `${getCountryFlag('USA')} Hawaii`, country: 'USA', state: 'Hawaii' },

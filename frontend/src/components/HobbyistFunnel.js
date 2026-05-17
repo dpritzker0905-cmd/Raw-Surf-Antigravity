@@ -31,7 +31,7 @@ import logger from '../utils/logger';
  * - Support Groms & Causes with their earnings
  * - Have ad-supported experience
  */
-export var HobbyistFunnel = ({ onBack, onComplete }) => {
+export const HobbyistFunnel = ({ onBack, onComplete }) => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);

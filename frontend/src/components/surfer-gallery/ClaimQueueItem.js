@@ -3,7 +3,7 @@ import { CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 
-var ClaimQueueItem = ({ item, onAction }) => (
+const ClaimQueueItem = ({ item, onAction }) => (
   <div className="p-3 bg-muted rounded-xl border border-purple-500/20">
     <div className="flex gap-3">
       <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">

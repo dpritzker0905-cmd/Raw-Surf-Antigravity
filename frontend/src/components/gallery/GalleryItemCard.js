@@ -1,18 +1,18 @@
 /**
- * GalleryItemCard & QualityOption â€” Extracted from PublicPhotographerGallery.js (v83)
+ * GalleryItemCard & QualityOption GÇö Extracted from PublicPhotographerGallery.js (v83)
  */
 import React, { useState } from 'react';
 import { Play, ShoppingCart, MapPin, Check, Star } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 
-var VIEW_MODES = {
+const VIEW_MODES = {
   GRID: 'grid',
   MASONRY: 'masonry',
   LIST: 'list'
 };
 
-export var GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
+export const GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const itemCardBg = isLight ? 'bg-gray-100' : 'bg-zinc-800';
   
@@ -111,7 +111,7 @@ export var GalleryItemCard = ({ item, isPurchased, viewMode, isLight, onClick })
   );
 };
 
-export var QualityOption = ({ label, sublabel, price, selected, onClick, recommended, isLight }) => (
+export const QualityOption = ({ label, sublabel, price, selected, onClick, recommended, isLight }) => (
   <button
     onClick={onClick}
     className={`

@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-var LocationPickerPanel = ({
+const LocationPickerPanel = ({
   // Toggle state
   showLocationPicker, setShowLocationPicker,
   // Hierarchy selection state
@@ -54,7 +54,7 @@ var LocationPickerPanel = ({
                   </span>
                   {nearestSpot && userLat && (
                     <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                      π“ {nearestSpot.distance}km
+                      =ƒτμ {nearestSpot.distance}km
                     </span>
                   )}
                 </div>
@@ -111,7 +111,7 @@ var LocationPickerPanel = ({
                     <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
                   </div>
 
-                  {/* Hierarchical Pickers: Country β†’ State β†’ City β†’ Spot */}
+                  {/* Hierarchical Pickers: Country GεΖ State GεΖ City GεΖ Spot */}
                   <div className="space-y-2">
                     {/* Country */}
                     <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setSelectedState(''); setSelectedCity(''); }}>

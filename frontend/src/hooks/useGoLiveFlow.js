@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 
 
 // Permission status enum
-var PermissionStatus = {
+const PermissionStatus = {
   PENDING: 'PENDING',
   REQUESTING: 'REQUESTING',
   GRANTED: 'GRANTED',
@@ -19,12 +19,12 @@ import { getErrorMessage } from '../utils/errors';
  * useGoLiveFlow - Custom hook for photographer go-live workflow
  * 
  * Manages:
- * - Permission flow (location â†’ conditions modal)
+ * - Permission flow (location GåÆ conditions modal)
  * - Session settings storage
  * - Go live API calls
  * - End session flow
  */
-export var useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) => {
+export const useGoLiveFlow = ({ userId, onGoLiveSuccess, onEndSessionSuccess }) => {
   // State
   const [goLiveSpotId, setGoLiveSpotId] = useState(null);
   const [goLiveSessionSettings, setGoLiveSessionSettings] = useState({});

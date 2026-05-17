@@ -9,7 +9,7 @@ import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { getFullUrl } from '../../utils/media';
 
-var SpotHubPhotographers = ({
+const SpotHubPhotographers = ({
   activePhotographers, navigate, handleOpenBookingModal,
   isWithinProximity, userTier,
   cardBg, rowBg, textPrimary, textSecondary,

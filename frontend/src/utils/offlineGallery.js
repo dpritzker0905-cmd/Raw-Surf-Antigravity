@@ -1,5 +1,5 @@
 /**
- * offlineGallery.js â€” Utility for caching purchased gallery photos offline
+ * offlineGallery.js GÇö Utility for caching purchased gallery photos offline
  * 
  * Allows surfers to save purchased photos for viewing without internet
  * (critical for beach/no-signal areas). Uses CacheStorage API.
@@ -8,8 +8,8 @@
  */
 import { logger } from './logger';
 
-var GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
-var MAX_CACHE_BYTES = 500 * 1024 * 1024; // 500MB
+const GALLERY_CACHE_NAME = 'rawsurf-gallery-offline-v1';
+const MAX_CACHE_BYTES = 500 * 1024 * 1024; // 500MB
 
 /**
  * Cache a media URL for offline viewing

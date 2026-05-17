@@ -32,9 +32,9 @@ import FeedTabBar from './feed/FeedTabBar';
 import FeedActionBar from './feed/FeedActionBar';
 import FeedEmptyState from './feed/FeedEmptyState';
 // Tab order for the feed - used by swipe navigation and sliding indicator
-var FEED_TABS = ['for_you', 'waves', 'following'];
+const FEED_TABS = ['for_you', 'waves', 'following'];
 
-export var Feed = () => {
+export const Feed = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole, _isMasked } = usePersona();
@@ -318,7 +318,7 @@ export var Feed = () => {
     return () => window.removeEventListener('feed:refresh', handleFeedRefresh);
   }, [handleFeedRefresh]);
 
-  // Stable reference for PostModal's onClose â€” prevents the history useEffect
+  // Stable reference for PostModal's onClose GÇö prevents the history useEffect
   // from re-firing when unrelated Feed state changes (e.g. reaction picker
   // toggling) cause a re-render with a new inline arrow function identity.
   const handleClosePostModal = useCallback(() => {

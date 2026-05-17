@@ -3,7 +3,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { calculateDistance, metersToMiles } from '../components/on-demand/dutyStationConstants';
 
-export var useDutyStationActions = ({
+export const useDutyStationActions = ({
   user,
   userLocation,
   radiusConfig,

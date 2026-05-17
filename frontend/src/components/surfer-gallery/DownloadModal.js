@@ -3,7 +3,7 @@ import { Download } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 
-var DownloadModal = ({ item, isOpen, onClose, onDownload, onPurchase }) => {
+const DownloadModal = ({ item, isOpen, onClose, onDownload, onPurchase }) => {
   if (!item) return null;
   
   const tiers = [

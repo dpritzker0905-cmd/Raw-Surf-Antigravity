@@ -19,17 +19,17 @@ import {
  */
 
 // Build unified category map with quick-access
-var ALL_CATEGORIES = {
+const ALL_CATEGORIES = {
   'Quick': QUICK_ACCESS_EMOJIS,
   ...ALL_EMOJI_CATEGORIES,
 };
-var CATEGORY_NAMES = Object.keys(ALL_CATEGORIES);
-var TAB_ICONS = { Quick: '\u{26A1}', ...CATEGORY_ICONS };
+const CATEGORY_NAMES = Object.keys(ALL_CATEGORIES);
+const TAB_ICONS = { Quick: '\u{26A1}', ...CATEGORY_ICONS };
 
 // -------------------------------------------------
 //  Shared: Icon-based category tab bar with scroll arrows
 // -------------------------------------------------
-var CategoryTabs = ({ active, onChange, size = 'sm' }) => {
+const CategoryTabs = ({ active, onChange, size = 'sm' }) => {
   const tabsRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -116,7 +116,7 @@ var CategoryTabs = ({ active, onChange, size = 'sm' }) => {
 // -------------------------------------------------
 //  Mobile Bottom Sheet Emoji Picker
 // -------------------------------------------------
-var MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
+const MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
   const [activeCategory, setActiveCategory] = useState('Quick');
   const [lastSelected, setLastSelected] = useState(null);
   const sheetRef = useRef(null);
@@ -223,7 +223,7 @@ var MobileEmojiSheet = ({ isOpen, onClose, onSelect }) => {
 // -------------------------------------------------
 //  Desktop Popover Emoji Picker
 // -------------------------------------------------
-var DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) => {
+const DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [activeCategory, setActiveCategory] = useState('Quick');
   const pickerRef = useRef(null);
 
@@ -279,7 +279,7 @@ var DesktopEmojiPopover = ({ isOpen, onClose, onSelect, position = 'above' }) =>
 // -------------------------------------------------
 //  Main Emoji Picker - auto-switches mobile/desktop
 // -------------------------------------------------
-var EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
+const EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -306,7 +306,7 @@ var EmojiPicker = ({ isOpen, onClose, onSelect, position = 'above' }) => {
 // -------------------------------------------------
 //  Comment Input with Emoji Picker
 // -------------------------------------------------
-export var CommentInputWithEmoji = ({
+export const CommentInputWithEmoji = ({
   value,
   onChange,
   onSubmit,
@@ -400,7 +400,7 @@ export var CommentInputWithEmoji = ({
 // -------------------------------------------------
 //  Textarea with Emoji Picker - for captions, edit post
 // -------------------------------------------------
-export var TextareaWithEmoji = ({
+export const TextareaWithEmoji = ({
   value,
   onChange,
   placeholder = "Write something...",

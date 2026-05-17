@@ -11,7 +11,7 @@
 import React from 'react';
 import { MapPin, Waves, Play } from 'lucide-react';
 
-var SpotConditionCard = ({ spot, conditions, onNavigate }) => {
+const SpotConditionCard = ({ spot, conditions, onNavigate }) => {
   const thumbnail = spot.thumbnail;
   const hasTaggedContent = thumbnail && thumbnail.media_url;
   

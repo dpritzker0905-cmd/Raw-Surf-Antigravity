@@ -1,21 +1,21 @@
 /**
  * useSurferGalleryActions.js
- * Extracted from SurferGallery.js â€” handler logic for the Locker page.
+ * Extracted from SurferGallery.js GÇö handler logic for the Locker page.
  * 
  * Extraction checklist (v30):
- * âœ… Step 1: JSX scan â€” zero JSX in extraction range (lines 716-921)
- * âœ… Step 2: Closure param audit â€” all state/setters listed
- * âœ… Step 3: Phantom param check â€” every param used in handler body
- * âœ… Step 4: React hooks scan â€” no React hooks needed (pure handlers)
- * âœ… Step 5: Utility/import scan â€” apiClient, toast, logger, getFullUrl
- * âœ… Step 6: Hook placement â€” called AFTER all useState declarations
- * âœ… Step 7: Cross-module export â€” no constants needed
+ * G£à Step 1: JSX scan GÇö zero JSX in extraction range (lines 716-921)
+ * G£à Step 2: Closure param audit GÇö all state/setters listed
+ * G£à Step 3: Phantom param check GÇö every param used in handler body
+ * G£à Step 4: React hooks scan GÇö no React hooks needed (pure handlers)
+ * G£à Step 5: Utility/import scan GÇö apiClient, toast, logger, getFullUrl
+ * G£à Step 6: Hook placement GÇö called AFTER all useState declarations
+ * G£à Step 7: Cross-module export GÇö no constants needed
  */
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useSurferGalleryActions = ({
+const useSurferGalleryActions = ({
   user,
   galleryItems,
   selectedItems,

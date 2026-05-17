@@ -29,7 +29,7 @@ import ConditionsModal from './ConditionsModal';
 import { ROLES } from '../constants/roles';
 import useDutyStationActions from '../hooks/useDutyStationActions';
 
-// Constants & geo utilities â€” extracted to on-demand/dutyStationConstants.js (v81)
+// Constants & geo utilities GÇö extracted to on-demand/dutyStationConstants.js (v81)
 import {
   LIVE_PROXIMITY_MILES,
   LIVE_PROXIMITY_METERS,
@@ -45,7 +45,7 @@ export { LIVE_PROXIMITY_MILES, LIVE_PROXIMITY_METERS, MODE_CONFIG, calculateDist
 /**
  * DutyStationDrawer - Main exported component
  */
-export var DutyStationDrawer = ({ isOpen, onClose }) => {
+export const DutyStationDrawer = ({ isOpen, onClose }) => {
   const _navigate = useNavigate();
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();

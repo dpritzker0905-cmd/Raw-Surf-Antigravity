@@ -1,14 +1,14 @@
 /**
- * CookieConsentBanner â€” EU-compliant cookie consent banner.
+ * CookieConsentBanner GÇö EU-compliant cookie consent banner.
  *
  * Shows on first visit, persists choice in localStorage.
  * Follows the project's glassmorphism design pattern with slide-up animation.
  */
 import React, { useState, useEffect } from 'react';
 
-var CONSENT_KEY = 'raw-surf-cookie-consent';
+const CONSENT_KEY = 'raw-surf-cookie-consent';
 
-export var CookieConsentBanner = () => {
+export const CookieConsentBanner = () => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export var CookieConsentBanner = () => {
       >
         {/* Icon + text */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-          <span style={{ fontSize: 24, lineHeight: 1 }}>ðŸª</span>
+          <span style={{ fontSize: 24, lineHeight: 1 }}>=ƒì¬</span>
           <div>
             <p style={{
               margin: 0,

@@ -1,5 +1,5 @@
 /**
- * SkeletonVariants â€” Domain-specific skeleton loaders for all major views.
+ * SkeletonVariants GÇö Domain-specific skeleton loaders for all major views.
  * Uses the base Skeleton primitive from ui/skeleton.jsx.
  *
  * Import what you need:
@@ -8,8 +8,8 @@
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-// â”€â”€â”€ Feed Post Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var FeedPostSkeleton = () => (
+// GöÇGöÇGöÇ Feed Post Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const FeedPostSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     {/* Header: avatar + name */}
     <div className="flex items-center gap-3 p-4">
@@ -35,8 +35,8 @@ export var FeedPostSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Spot/Explore Card Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var SpotCardSkeleton = () => (
+// GöÇGöÇGöÇ Spot/Explore Card Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const SpotCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-40" />
     <div className="p-3 space-y-2">
@@ -51,8 +51,8 @@ export var SpotCardSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Profile Header Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var ProfileHeaderSkeleton = () => (
+// GöÇGöÇGöÇ Profile Header Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const ProfileHeaderSkeleton = () => (
   <div className="flex flex-col items-center space-y-4 py-6">
     <Skeleton className="w-24 h-24 rounded-full" />
     <Skeleton className="h-5 w-36 rounded" />
@@ -74,8 +74,8 @@ export var ProfileHeaderSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Message Thread Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var MessageThreadSkeleton = () => (
+// GöÇGöÇGöÇ Message Thread Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const MessageThreadSkeleton = () => (
   <div className="flex items-center gap-3 p-4 border-b border-border">
     <Skeleton className="w-12 h-12 rounded-full shrink-0" />
     <div className="flex-1 space-y-1.5">
@@ -86,8 +86,8 @@ export var MessageThreadSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Notification Item Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var NotificationSkeleton = () => (
+// GöÇGöÇGöÇ Notification Item Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const NotificationSkeleton = () => (
   <div className="flex items-start gap-3 p-4 border-b border-border">
     <Skeleton className="w-10 h-10 rounded-full shrink-0" />
     <div className="flex-1 space-y-1.5">
@@ -98,8 +98,8 @@ export var NotificationSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Settings Row Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var SettingsRowSkeleton = () => (
+// GöÇGöÇGöÇ Settings Row Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const SettingsRowSkeleton = () => (
   <div className="flex items-center justify-between p-4 border-b border-border">
     <div className="flex items-center gap-3">
       <Skeleton className="w-8 h-8 rounded-lg" />
@@ -109,8 +109,8 @@ export var SettingsRowSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Leaderboard Row Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var LeaderboardRowSkeleton = () => (
+// GöÇGöÇGöÇ Leaderboard Row Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const LeaderboardRowSkeleton = () => (
   <div className="flex items-center gap-3 p-3 rounded-xl bg-card/50">
     <Skeleton className="w-8 h-8 rounded-full" />
     <Skeleton className="w-10 h-10 rounded-full" />
@@ -122,8 +122,8 @@ export var LeaderboardRowSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Map Sidebar Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var MapSidebarSkeleton = () => (
+// GöÇGöÇGöÇ Map Sidebar Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const MapSidebarSkeleton = () => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-40 rounded" />
     {Array.from({ length: 4 }).map((_, i) => (
@@ -138,8 +138,8 @@ export var MapSidebarSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Surf Log Entry Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var SurfLogSkeleton = () => (
+// GöÇGöÇGöÇ Surf Log Entry Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const SurfLogSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center justify-between">
       <Skeleton className="h-4 w-28 rounded" />
@@ -162,8 +162,8 @@ export var SurfLogSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Alert/Forecast Card Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var AlertCardSkeleton = () => (
+// GöÇGöÇGöÇ Alert/Forecast Card Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const AlertCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-2">
     <div className="flex items-center gap-2">
       <Skeleton className="w-8 h-8 rounded-lg" />
@@ -178,8 +178,8 @@ export var AlertCardSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Booking Detail Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var BookingDetailSkeleton = () => (
+// GöÇGöÇGöÇ Booking Detail Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const BookingDetailSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-48" />
     <div className="p-4 space-y-3">
@@ -200,8 +200,8 @@ export var BookingDetailSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Story Ring Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var StoryRingSkeleton = () => (
+// GöÇGöÇGöÇ Story Ring Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const StoryRingSkeleton = () => (
   <div className="flex gap-3 overflow-hidden px-4 py-2">
     {Array.from({ length: 6 }).map((_, i) => (
       <div key={i} className="flex flex-col items-center gap-1.5 shrink-0">
@@ -212,8 +212,8 @@ export var StoryRingSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Gear Hub Item Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var GearItemSkeleton = () => (
+// GöÇGöÇGöÇ Gear Hub Item Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const GearItemSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full aspect-square" />
     <div className="p-3 space-y-2">
@@ -224,8 +224,8 @@ export var GearItemSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Challenge Card Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var ChallengeCardSkeleton = () => (
+// GöÇGöÇGöÇ Challenge Card Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const ChallengeCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center gap-3">
       <Skeleton className="w-12 h-12 rounded-xl" />
@@ -242,8 +242,8 @@ export var ChallengeCardSkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Compound List Skeletons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var FeedSkeleton = ({ count = 3 }) => (
+// GöÇGöÇGöÇ Compound List Skeletons GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const FeedSkeleton = ({ count = 3 }) => (
   <div className="space-y-4 p-4">
     <StoryRingSkeleton />
     {Array.from({ length: count }).map((_, i) => (
@@ -252,7 +252,7 @@ export var FeedSkeleton = ({ count = 3 }) => (
   </div>
 );
 
-export var MessageListSkeleton = ({ count = 6 }) => (
+export const MessageListSkeleton = ({ count = 6 }) => (
   <div>
     {Array.from({ length: count }).map((_, i) => (
       <MessageThreadSkeleton key={i} />
@@ -260,7 +260,7 @@ export var MessageListSkeleton = ({ count = 6 }) => (
   </div>
 );
 
-export var NotificationListSkeleton = ({ count = 8 }) => (
+export const NotificationListSkeleton = ({ count = 8 }) => (
   <div>
     {Array.from({ length: count }).map((_, i) => (
       <NotificationSkeleton key={i} />
@@ -268,7 +268,7 @@ export var NotificationListSkeleton = ({ count = 8 }) => (
   </div>
 );
 
-export var SpotGridSkeleton = ({ count = 6 }) => (
+export const SpotGridSkeleton = ({ count = 6 }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
     {Array.from({ length: count }).map((_, i) => (
       <SpotCardSkeleton key={i} />
@@ -276,7 +276,7 @@ export var SpotGridSkeleton = ({ count = 6 }) => (
   </div>
 );
 
-export var SettingsListSkeleton = ({ count = 8 }) => (
+export const SettingsListSkeleton = ({ count = 8 }) => (
   <div>
     {Array.from({ length: count }).map((_, i) => (
       <SettingsRowSkeleton key={i} />
@@ -284,7 +284,7 @@ export var SettingsListSkeleton = ({ count = 8 }) => (
   </div>
 );
 
-export var LeaderboardSkeleton = ({ count = 10 }) => (
+export const LeaderboardSkeleton = ({ count = 10 }) => (
   <div className="space-y-2 p-4">
     {Array.from({ length: count }).map((_, i) => (
       <LeaderboardRowSkeleton key={i} />
@@ -292,8 +292,8 @@ export var LeaderboardSkeleton = ({ count = 10 }) => (
   </div>
 );
 
-// â”€â”€â”€ Gallery Page Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var GallerySkeleton = () => (
+// GöÇGöÇGöÇ Gallery Page Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const GallerySkeleton = () => (
   <div className="space-y-4">
     <div className="flex items-center justify-between">
       <div className="space-y-2">
@@ -310,8 +310,8 @@ export var GallerySkeleton = () => (
   </div>
 );
 
-// â”€â”€â”€ Bookings List Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var BookingsSkeleton = ({ count = 4 }) => (
+// GöÇGöÇGöÇ Bookings List Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const BookingsSkeleton = ({ count = 4 }) => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-32 rounded" />
     {Array.from({ length: count }).map((_, i) => (
@@ -320,8 +320,8 @@ export var BookingsSkeleton = ({ count = 4 }) => (
   </div>
 );
 
-// â”€â”€â”€ Generic Page Skeleton (for hub/dashboard pages) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export var GenericPageSkeleton = () => (
+// GöÇGöÇGöÇ Generic Page Skeleton (for hub/dashboard pages) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+export const GenericPageSkeleton = () => (
   <div className="p-4 max-w-4xl mx-auto space-y-4">
     <div className="flex items-center gap-3">
       <Skeleton className="w-10 h-10 rounded-xl" />

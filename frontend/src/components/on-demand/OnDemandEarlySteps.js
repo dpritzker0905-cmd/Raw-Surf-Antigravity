@@ -1,9 +1,9 @@
 /**
- * OnDemandEarlySteps.js â€” Extracted step panels for the On-Demand booking flow.
+ * OnDemandEarlySteps.js GÇö Extracted step panels for the On-Demand booking flow.
  *
  * Contains: TimingStep, LocationStep, DurationStep, SplitChoiceStep
  * All steps receive the `booking` object from useOnDemandBooking hook.
- * Extracted from OnDemandRequestDrawer.js (v59) to reduce file from 1,230â†’~700 lines.
+ * Extracted from OnDemandRequestDrawer.js (v59) to reduce file from 1,230GåÆ~700 lines.
  */
 import React from 'react';
 import { MapPin, Camera, Zap, Clock, ChevronRight, Plus, Check, Bell, Search, Navigation, History } from 'lucide-react';
@@ -13,7 +13,7 @@ import { getFullUrl } from '../../utils/media';
 import { Loader2 } from 'lucide-react';
 
 // ============ STEP 0: START TIME SELECTION ============
-export var TimingStep = ({ booking, photographer }) => {
+export const TimingStep = ({ booking, photographer }) => {
   const { step, setStep, startTimeOption, setStartTimeOption, isLight, textPrimary, textSecondary, isPro } = booking;
   if (step !== 'timing') return null;
 
@@ -107,7 +107,7 @@ export var TimingStep = ({ booking, photographer }) => {
 
 
 // ============ STEP 1: DURATION SELECTION ============
-export var DurationStep = ({ booking, photographer }) => {
+export const DurationStep = ({ booking, photographer }) => {
   const {
     step, setStep, startTimeOption, selectedSpot, customLocationName,
     isLight, textPrimary, textSecondary, isPro,
@@ -223,7 +223,7 @@ export var DurationStep = ({ booking, photographer }) => {
 
 
 // ============ STEP 1.5: SPLIT CHOICE ============
-export var SplitChoiceStep = ({ booking, photographer }) => {
+export const SplitChoiceStep = ({ booking, photographer }) => {
   const {
     step, setStep, isLight, textPrimary, textSecondary,
     splitEnabled, setSplitEnabled, crewMembers, setCrewMembers,
@@ -314,7 +314,7 @@ export var SplitChoiceStep = ({ booking, photographer }) => {
 
 
 // ============ STEP 0.5: LOCATION SELECTION ============
-export var LocationStep = ({ booking, photographer }) => {
+export const LocationStep = ({ booking, photographer }) => {
   const {
     step, setStep, isLight, textPrimary, textSecondary,
     startTimeOption, keyboardOpen, useCustomLocation,

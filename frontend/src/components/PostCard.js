@@ -34,7 +34,7 @@ import ReactionIcon from './social/ReactionIcon';
 
 
 
-var PostCard = ({
+const PostCard = ({
   post,
   user,
   isLight,
@@ -240,7 +240,7 @@ var PostCard = ({
         </div>
       )}
 
-      {/* Post Image/Video/Carousel â€” delegated to PostCardMedia */}
+      {/* Post Image/Video/Carousel GÇö delegated to PostCardMedia */}
       <PostCardMedia
         post={post}
         user={user}

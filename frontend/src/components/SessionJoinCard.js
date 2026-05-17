@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 
-export var SessionJoinCard = ({
+export const SessionJoinCard = ({
   post,
   user,
   isLight = false,

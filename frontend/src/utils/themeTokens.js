@@ -1,5 +1,5 @@
 /**
- * Theme Tokens â€” Single source of truth for all theme-aware CSS classes.
+ * Theme Tokens GÇö Single source of truth for all theme-aware CSS classes.
  *
  * Usage:
  *   import { getThemeTokens } from '../utils/themeTokens';
@@ -14,12 +14,12 @@
  *   </div>
  */
 
-export var getThemeTokens = (theme) => {
+export const getThemeTokens = (theme) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
 
   return {
-    // â”€â”€ Backgrounds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // GöÇGöÇ Backgrounds GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
     /** Full page / modal / drawer background */
     pageBg:    isLight ? 'bg-white'    : isBeach ? 'bg-amber-50'      : 'bg-zinc-900',
     /** Cards, panels, sections */
@@ -37,7 +37,7 @@ export var getThemeTokens = (theme) => {
     /** Glassmorphism card (translucent with border + shadow) */
     glassBg:   isLight ? 'bg-white/80 border-gray-200 shadow-sm' : isBeach ? 'bg-amber-50/80 border-amber-200' : 'bg-zinc-900/80 border-zinc-800',
 
-    // â”€â”€ Text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // GöÇGöÇ Text GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
     /** Headings, names, primary content */
     textPrimary:   isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white',
     /** Descriptions, subtitles, secondary info */
@@ -45,13 +45,13 @@ export var getThemeTokens = (theme) => {
     /** Timestamps, attributions, fine print */
     textMuted:     isLight ? 'text-gray-400' : isBeach ? 'text-amber-600' : 'text-gray-500',
 
-    // â”€â”€ Borders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // GöÇGöÇ Borders GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
     /** Standard border (cards, sections) */
     border:       isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-800',
     /** Lighter border (headers, dividers) */
     borderLight:  isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-700',
 
-    // â”€â”€ Interactive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // GöÇGöÇ Interactive GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
     /** Hover background for buttons/rows */
     hoverBg: isLight ? 'hover:bg-gray-100' : isBeach ? 'hover:bg-amber-100/50' : 'hover:bg-zinc-800/50',
     /** Avatar fallback bg */
@@ -59,7 +59,7 @@ export var getThemeTokens = (theme) => {
     /** Badge bg for non-premium */
     badgeBg: isLight ? 'bg-gray-200 text-gray-500' : isBeach ? 'bg-amber-200 text-amber-700' : 'bg-zinc-700 text-gray-400',
 
-    // â”€â”€ Raw booleans (for edge cases) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // GöÇGöÇ Raw booleans (for edge cases) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
     isLight,
     isBeach,
     isDark: !isLight && !isBeach,

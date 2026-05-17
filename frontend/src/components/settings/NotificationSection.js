@@ -4,11 +4,11 @@ import { MessageSquare, Heart, UserPlus, Camera, CalendarCheck,
 } from 'lucide-react';
 
 /**
- * NotificationSection â€” Extracted from Settings.js
+ * NotificationSection GÇö Extracted from Settings.js
  * Handles all push notification, email, sound/haptics, quiet hours,
  * and digest mode toggles.
  */
-export var NotificationSection = ({
+export const NotificationSection = ({
   notifPrefs,
   notifLoading,
   updateNotifPref,

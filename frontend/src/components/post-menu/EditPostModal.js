@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toast } from 'sonner';
 import { TextareaWithEmoji } from '../EmojiPicker';
 
-var EditPostModal = ({ post, open, onClose, onSave, isLight }) => {
+const EditPostModal = ({ post, open, onClose, onSave, isLight }) => {
   // Helper to extract date part from ISO datetime string
   const extractDatePart = (dateStr) => {
     if (!dateStr) return new Date().toISOString().split('T')[0];

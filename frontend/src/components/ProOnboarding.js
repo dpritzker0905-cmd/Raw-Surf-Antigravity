@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { toast } from 'sonner';
 import { ShieldCheck, Link2, Instagram, Globe, FileText, CheckCircle, Clock } from 'lucide-react';
 
-export var ProOnboarding = () => {
+export const ProOnboarding = () => {
   const navigate = useNavigate();
   const { user, submitProOnboarding } = useAuth();
   const [loading, setLoading] = useState(false);

@@ -17,7 +17,7 @@ import { SavedCrewSelector } from '../SavedCrewSelector';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 
-var DURATION_PRICES = {
+const DURATION_PRICES = {
   60: 1,
   120: 1.8,
   180: 2.5,
@@ -28,7 +28,7 @@ var DURATION_PRICES = {
 
 
 // SHARED SURFBOARD VISUALIZATION (mirrored from OnDemandRequestDrawer)
-var SCHED_BOARD_COLORS = [
+const SCHED_BOARD_COLORS = [
   { fill: '#FCD34D', stroke: '#F59E0B' }, // Yellow - captain
   { fill: '#22D3EE', stroke: '#0891B2' }, // Cyan
   { fill: '#F472B6', stroke: '#DB2777' }, // Pink
@@ -38,7 +38,7 @@ var SCHED_BOARD_COLORS = [
   { fill: '#60A5FA', stroke: '#2563EB' }, // Blue
 ];
 
-var SchedSurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => {
+const SchedSurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => {
   const color = SCHED_BOARD_COLORS[index % SCHED_BOARD_COLORS.length];
   return (
     <div className="relative group flex flex-col items-center">
@@ -88,7 +88,7 @@ var SchedSurfboardAvatar = ({ member, index, isCaptain, onRemove, isLight }) => 
   );
 };
 
-var SchedEmptySeat = ({ onClick, isLight }) => (
+const SchedEmptySeat = ({ onClick, isLight }) => (
   <div className="relative group cursor-pointer flex flex-col items-center" onClick={onClick}>
     <svg viewBox="0 0 60 100" className="absolute left-1/2 -translate-x-1/2 top-2 w-12 h-20 pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
       <ellipse cx="30" cy="50" rx="12" ry="38" fill="none" stroke="#64748B" strokeWidth="2" strokeDasharray="6 4" />
@@ -105,7 +105,7 @@ var SchedEmptySeat = ({ onClick, isLight }) => (
   </div>
 );
 
-var CrewSplitSection = ({
+const CrewSplitSection = ({
   user,
   enabled,
   onToggle,
@@ -540,7 +540,7 @@ var CrewSplitSection = ({
   );
 };
 
-var CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => {
+const CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -571,7 +571,7 @@ var CrossSellSuggestion = ({ type, _photographerName, onAction, isLight }) => {
   return null;
 };
 
-var BookingConfirmation = ({ 
+const BookingConfirmation = ({ 
   booking, 
   photographer, 
   onClose, 

@@ -1,11 +1,11 @@
 /**
- * FeedActionBar â€” Extracted from Feed.js (v103)
+ * FeedActionBar GÇö Extracted from Feed.js (v103)
  * Check-in button, streak counter, and create-post FAB.
  */
 import React from 'react';
 import { MapPin, Flame, Plus, Check } from 'lucide-react';
 
-var FeedActionBar = ({
+const FeedActionBar = ({
   streak,
   isLight,
   borderClass,

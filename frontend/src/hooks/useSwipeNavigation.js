@@ -1,5 +1,5 @@
 /**
- * useSwipeNavigation â€” Shared hook for swipe-to-navigate tab switching (v80)
+ * useSwipeNavigation GÇö Shared hook for swipe-to-navigate tab switching (v80)
  *
  * Extracted from Explore.js. Provides touch handlers and a content ref
  * for horizontal swipe navigation between tabs on mobile.
@@ -17,7 +17,7 @@
  */
 import { useRef, useState, useCallback } from 'react';
 
-var useSwipeNavigation = ({ tabs, activeTab, setActiveTab }) => {
+const useSwipeNavigation = ({ tabs, activeTab, setActiveTab }) => {
   // Refs for tracking touch position
   const swipeStartXRef = useRef(0);
   const swipeStartYRef = useRef(0);

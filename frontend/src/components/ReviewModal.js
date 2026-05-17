@@ -30,7 +30,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 // Star rating component with hover/tap animation
-var StarRating = ({ value, onChange, size = 'md', disabled = false, theme }) => {
+const StarRating = ({ value, onChange, size = 'md', disabled = false, theme }) => {
   const [hoverValue, setHoverValue] = useState(0);
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
@@ -75,7 +75,7 @@ var StarRating = ({ value, onChange, size = 'md', disabled = false, theme }) => 
 };
 
 // Category rating row
-var CategoryRating = ({ label, icon: Icon, value, onChange, theme }) => {
+const CategoryRating = ({ label, icon: Icon, value, onChange, theme }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const textClass = isLight ? 'text-gray-700' : isBeach ? 'text-gray-200' : 'text-gray-300';
@@ -92,7 +92,7 @@ var CategoryRating = ({ label, icon: Icon, value, onChange, theme }) => {
 };
 
 // Single person review card (used in multi-review mode)
-var PersonReviewCard = ({ person, review, onUpdate, index, theme }) => {
+const PersonReviewCard = ({ person, review, onUpdate, index, theme }) => {
   const isLight = theme === 'light';
   const isBeach = theme === 'beach';
   const cardBg = isLight ? 'bg-gray-50 border-gray-200' : isBeach ? 'bg-zinc-900 border-zinc-700' : 'bg-zinc-800/60 border-zinc-700';
@@ -147,7 +147,7 @@ var PersonReviewCard = ({ person, review, onUpdate, index, theme }) => {
 /**
  * Main ReviewModal Component
  */
-export var ReviewModal = ({
+export const ReviewModal = ({
   isOpen,
   onClose,
   // Review context

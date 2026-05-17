@@ -1,6 +1,6 @@
 /**
  * SpotReportContent.js
- * Extracted from UnifiedSpotDrawer.js â€” Report Mode JSX content
+ * Extracted from UnifiedSpotDrawer.js GÇö Report Mode JSX content
  * Includes: savings banner, spot of day, conditions, active photographers,
  * open bookings, tab navigation (reports/pro/community), and view hub CTA
  */
@@ -17,7 +17,7 @@ import { SpotVerificationNudge } from '../SpotVerificationNudge';
 import { SpotOfTheDayBadge, GeofenceUpgradeCTA } from './SpotDrawerHelpers';
 import { getFullUrl } from '../../utils/media';
 
-var SpotReportContent = ({
+const SpotReportContent = ({
   spot,
   user,
   isPhotographer,

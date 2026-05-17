@@ -1,5 +1,5 @@
 /**
- * AudioUnlock â€” Ringtone manager using HTML Audio elements.
+ * AudioUnlock GÇö Ringtone manager using HTML Audio elements.
  * 
  * WHY HTML Audio instead of AudioContext:
  * - AudioContext requires a user gesture AND .resume() to work
@@ -12,7 +12,7 @@
  * - This ensures the first call plays audio without delay
  */
 
-// â”€â”€ Generate a WAV file as a data URI from raw PCM samples â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Generate a WAV file as a data URI from raw PCM samples GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 function generateWavDataUri(samples, sampleRate = 22050) {
   const numChannels = 1;
   const bitsPerSample = 16;
@@ -57,7 +57,7 @@ function writeString(view, offset, str) {
   }
 }
 
-// â”€â”€ Generate ringtone samples â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Generate ringtone samples GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 function generateIncomingRing() {
   const sampleRate = 22050;
   const duration = 2.5;
@@ -66,7 +66,7 @@ function generateIncomingRing() {
   for (let i = 0; i < samples.length; i++) {
     const t = i / sampleRate;
     let amplitude = 0;
-    // Three short bursts for urgency â€” louder than before (0.6 vs 0.25)
+    // Three short bursts for urgency GÇö louder than before (0.6 vs 0.25)
     if (t < 0.35) amplitude = 0.6;
     else if (t >= 0.5 && t < 0.85) amplitude = 0.6;
     else if (t >= 1.0 && t < 1.35) amplitude = 0.6;
@@ -98,13 +98,13 @@ function generateRingbackTone() {
   return generateWavDataUri(samples, sampleRate);
 }
 
-// â”€â”€ PRE-GENERATE on module load (runs once at import time) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-var RING_URI = generateIncomingRing();
-var RINGBACK_URI = generateRingbackTone();
+// GöÇGöÇ PRE-GENERATE on module load (runs once at import time) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+const RING_URI = generateIncomingRing();
+const RINGBACK_URI = generateRingbackTone();
 
 // Pre-create Audio objects so they're decoded and ready
-var preloadedRing = null;
-var preloadedRingback = null;
+let preloadedRing = null;
+let preloadedRingback = null;
 
 try {
   preloadedRing = new Audio(RING_URI);
@@ -153,7 +153,7 @@ export function playRingtone(type = 'incoming') {
   playOnce();
   intervalId = setInterval(playOnce, interval);
 
-  // Vibration â€” always fire alongside audio for incoming calls
+  // Vibration GÇö always fire alongside audio for incoming calls
   // Aggressive pattern: long-short-long-short-long (feels like a real phone)
   let vibrateId = null;
   if (type === 'incoming' && navigator.vibrate) {
@@ -177,7 +177,7 @@ export function playRingtone(type = 'incoming') {
 }
 
 /**
- * Unlock audio on user gesture â€” plays a silent audio to warm up the pipeline.
+ * Unlock audio on user gesture GÇö plays a silent audio to warm up the pipeline.
  * Also loads our pre-created Audio objects so they're ready for instant playback.
  */
 export function unlockAudioNow() {
@@ -208,7 +208,7 @@ export function unlockAudioNow() {
  * Install global listeners to unlock audio on first user gesture.
  * Call this once from App.js on mount.
  */
-var listenersInstalled = false;
+let listenersInstalled = false;
 export function ensureAudioUnlocked() {
   if (listenersInstalled) return;
   listenersInstalled = true;

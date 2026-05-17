@@ -12,7 +12,7 @@ import { Badge } from './ui/badge';
 import logger from '../utils/logger';
 
 
-var BookingPaymentSuccess = () => {
+const BookingPaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();

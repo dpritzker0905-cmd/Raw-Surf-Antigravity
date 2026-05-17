@@ -1,7 +1,7 @@
 /**
  * AnalyticsTabContent.js
  * Extracted from AdminTabPanels.js (v43)
- * Platform Mission Control â€” financial, ecosystem, and price impact analytics
+ * Platform Mission Control GÇö financial, ecosystem, and price impact analytics
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -16,7 +16,7 @@ import apiClient from '../../../lib/apiClient';
 import logger from '../../../utils/logger';
 import { toast } from 'sonner';
 
-var AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) => {
+const AnalyticsTabContent = ({ user, cardBgClass, textClass, textSecondary }) => {
   const [financial, setFinancial] = useState(null);
   const [ecosystem, setEcosystem] = useState(null);
   const [priceImpact, setPriceImpact] = useState(null);

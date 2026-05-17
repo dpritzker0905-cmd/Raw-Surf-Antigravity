@@ -8,7 +8,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 
-export var SubscriptionSuccess = () => {
+export const SubscriptionSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { _user, updateUser } = useAuth();

@@ -9,7 +9,7 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 
-export var FindBuddiesTab = ({
+export const FindBuddiesTab = ({
   nearbyBookings,
   selectedSkillFilter,
   onSkillFilterChange,

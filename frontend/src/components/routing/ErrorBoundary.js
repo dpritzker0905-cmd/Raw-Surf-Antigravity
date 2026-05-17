@@ -1,5 +1,5 @@
 /**
- * ErrorBoundary.js â€” Production-ready React error boundary.
+ * ErrorBoundary.js GÇö Production-ready React error boundary.
  *
  * - Automatically recovers from ChunkLoadError (stale cache after deploy)
  *   by reloading the page once
@@ -10,11 +10,11 @@
  */
 import React from 'react';
 
-var IS_DEV = process.env.NODE_ENV === 'development' || 
+const IS_DEV = process.env.NODE_ENV === 'development' || 
   (typeof window !== 'undefined' && window.location.hostname.startsWith('dev--'));
 
 // Key to track if we've already attempted a reload for chunk errors
-var CHUNK_RELOAD_KEY = 'rawsurf_chunk_reload_attempted';
+const CHUNK_RELOAD_KEY = 'rawsurf_chunk_reload_attempted';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -49,12 +49,12 @@ class ErrorBoundary extends React.Component {
       const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY);
       if (!alreadyReloaded) {
         sessionStorage.setItem(CHUNK_RELOAD_KEY, 'true');
-        console.log('[ErrorBoundary] ChunkLoadError detected â€” reloading page to fetch fresh bundles');
+        console.log('[ErrorBoundary] ChunkLoadError detected GÇö reloading page to fetch fresh bundles');
         window.location.reload();
         return;
       }
       // If we already reloaded once and still failing, show the error screen
-      console.warn('[ErrorBoundary] ChunkLoadError persists after reload â€” showing error UI');
+      console.warn('[ErrorBoundary] ChunkLoadError persists after reload GÇö showing error UI');
     }
   }
 
@@ -88,7 +88,7 @@ class ErrorBoundary extends React.Component {
         textAlign: 'center'
       }}>
         {/* Wave icon */}
-        <div style={{ fontSize: 64, marginBottom: 16 }}>ðŸŒŠ</div>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>=ƒîè</div>
 
         <h1 style={{
           fontSize: IS_DEV ? 24 : 28,
@@ -104,7 +104,7 @@ class ErrorBoundary extends React.Component {
         <p style={{ color: '#94a3b8', marginBottom: 32, maxWidth: 400, lineHeight: 1.6 }}>
           {IS_DEV
             ? 'A component threw during render. See details below.'
-            : "We hit a snag in the wave. Try refreshing â€” most issues clear up quickly."}
+            : "We hit a snag in the wave. Try refreshing GÇö most issues clear up quickly."}
         </p>
 
         {/* Developer Stack Trace */}

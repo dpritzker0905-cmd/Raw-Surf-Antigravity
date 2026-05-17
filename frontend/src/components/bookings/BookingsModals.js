@@ -1,5 +1,5 @@
 /**
- * BookingsModals â€” Extracted from Bookings.js (v82)
+ * BookingsModals GÇö Extracted from Bookings.js (v82)
  * All modal/drawer overlays for the Bookings page in a single component.
  */
 import React from 'react';
@@ -16,7 +16,7 @@ import { CrewPaymentModal } from '../CrewPaymentModal';
 import { JumpInSessionModal } from '../JumpInSessionModal';
 import InviteModalContent from './InviteModalContent';
 
-var BookingsModals = ({
+const BookingsModals = ({
   // Theme
   isLight,
   textPrimaryClass,

@@ -5,7 +5,7 @@ import { Input } from '../ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { toast } from 'sonner';
 
-var ShareModal = ({ item, isOpen, onClose }) => {
+const ShareModal = ({ item, isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
   
   if (!item) return null;

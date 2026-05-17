@@ -17,7 +17,7 @@ import apiClient from '../../lib/apiClient';
 import logger from '../../utils/logger';
 
 // Photo tier configurations
-var PHOTO_TIERS = {
+const PHOTO_TIERS = {
   web: {
     label: 'Web',
     maxWidth: 800,
@@ -45,7 +45,7 @@ var PHOTO_TIERS = {
 };
 
 // Video tier configurations
-var VIDEO_TIERS = {
+const VIDEO_TIERS = {
   '720p': {
     label: '720p HD',
     resolution: '1280x720',
@@ -75,7 +75,7 @@ var VIDEO_TIERS = {
 /**
  * Zoom lens component for quality comparison
  */
-var ZoomLens = ({ imageRef, zoomPosition, zoomLevel = 2 }) => {
+const ZoomLens = ({ imageRef, zoomPosition, zoomLevel = 2 }) => {
   const [croppedImage, setCroppedImage] = useState(null);
   const lensSize = 150;
   
@@ -127,7 +127,7 @@ var ZoomLens = ({ imageRef, zoomPosition, zoomLevel = 2 }) => {
 /**
  * Tier comparison card
  */
-var TierComparisonCard = ({ 
+const TierComparisonCard = ({ 
   tier, 
   config, 
   price, 
@@ -238,7 +238,7 @@ var TierComparisonCard = ({
 /**
  * Main QualityComparisonModal component
  */
-export var QualityComparisonModal = ({ 
+export const QualityComparisonModal = ({ 
   open, 
   onOpenChange, 
   itemId,

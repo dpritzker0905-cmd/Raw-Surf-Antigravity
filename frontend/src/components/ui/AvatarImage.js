@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 
 /**
- * AvatarImage â€” A robust avatar <img> wrapper with automatic broken-image fallback.
+ * AvatarImage GÇö A robust avatar <img> wrapper with automatic broken-image fallback.
  *
  * Usage:
  *   <AvatarImage src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full" />
@@ -9,7 +9,7 @@ import React, { useState, useCallback } from 'react';
  * When the image fails to load, it displays the user's initial (from `alt`)
  * inside a gradient circle, preventing the broken-image icon.
  */
-var AvatarImage = ({
+const AvatarImage = ({
   src,
   alt = '',
   className = '',

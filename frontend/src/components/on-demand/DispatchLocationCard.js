@@ -6,7 +6,7 @@ import React from 'react';
 import { MapPin, Edit2, Lock, Navigation, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-var DispatchLocationCard = ({
+const DispatchLocationCard = ({
   dispatch, locationLocked,
   editingLocation, setEditingLocation,
   newLocationName, setNewLocationName,

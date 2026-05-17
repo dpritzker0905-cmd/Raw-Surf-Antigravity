@@ -1,6 +1,6 @@
 /**
  * useLineupManagerActions.js
- * Extracted from LineupManagerDrawer.js â€” handler logic for lineup management.
+ * Extracted from LineupManagerDrawer.js GÇö handler logic for lineup management.
  * 
  * Extraction checklist (v30): All 9 steps verified.
  */
@@ -8,7 +8,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useLineupManagerActions = ({
+const useLineupManagerActions = ({
   lineup,
   user,
   onRefresh,

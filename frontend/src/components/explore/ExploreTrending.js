@@ -1,6 +1,6 @@
 /**
  * ExploreTrending.js
- * Extracted from Explore.js â€” Trending section shown on the 'all' tab.
+ * Extracted from Explore.js GÇö Trending section shown on the 'all' tab.
  * Includes: Broadcasting Now, Popular Spots, Trending Posts, Ad Card, Empty State
  */
 import React from 'react';
@@ -12,7 +12,7 @@ import { getFullUrl } from '../../utils/media';
 import { SocialAdCard } from '../SocialAdCard';
 import PostMediaPreview from './PostMediaPreview';
 
-var ExploreTrending = ({
+const ExploreTrending = ({
   trending,
   spotConditions,
   user,

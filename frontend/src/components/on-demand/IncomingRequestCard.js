@@ -13,7 +13,7 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
-var getImageUrl = (url) => {
+const getImageUrl = (url) => {
   if (!url) return null;
   // If URL starts with /api, prepend the backend URL
   if (url.startsWith('/api')) {
@@ -22,7 +22,7 @@ var getImageUrl = (url) => {
   return url;
 };
 
-var IncomingRequestCard = ({ 
+const IncomingRequestCard = ({ 
   request, 
   onAccept, 
   onDecline, 
@@ -107,7 +107,7 @@ var IncomingRequestCard = ({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
-                    {request.requester_stance === 'goofy' ? '?? Goofy' : 'ðŸ¦¶ Regular'}
+                    {request.requester_stance === 'goofy' ? '?? Goofy' : '=ƒª¦ Regular'}
                   </span>
                 )}
               </div>
@@ -276,7 +276,7 @@ var IncomingRequestCard = ({
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
-                      {request.requester_stance === 'goofy' ? 'ðŸ¦¶ Goofy Foot' : 'ðŸ¦¶ Regular'}
+                      {request.requester_stance === 'goofy' ? '=ƒª¦ Goofy Foot' : '=ƒª¦ Regular'}
                     </span>
                   </div>
                 )}

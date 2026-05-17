@@ -17,7 +17,7 @@ import {
  * Download button with remaining count display
  * Shows X/5 downloads remaining with color-coded warnings
  */
-export var DownloadButton = ({
+export const DownloadButton = ({
   item,
   onDownload,
   disabled = false,
@@ -116,7 +116,7 @@ export var DownloadButton = ({
 /**
  * Compact download indicator for list/grid views
  */
-export var DownloadIndicator = ({ item, className = '' }) => {
+export const DownloadIndicator = ({ item, className = '' }) => {
   const maxDownloads = item.max_downloads || 5;
   const downloadCount = item.download_count || 0;
   const remaining = maxDownloads - downloadCount;
@@ -162,7 +162,7 @@ export var DownloadIndicator = ({ item, className = '' }) => {
  * Visibility toggle with Lock vs Globe icons
  * Shows clear visual distinction between private (Locker) and public (Sessions)
  */
-export var VisibilityToggle = ({
+export const VisibilityToggle = ({
   isPublic,
   onChange,
   disabled = false,
@@ -259,7 +259,7 @@ export var VisibilityToggle = ({
 /**
  * First-time visibility onboarding tooltip
  */
-export var VisibilityOnboarding = ({ onDismiss, className = '' }) => {
+export const VisibilityOnboarding = ({ onDismiss, className = '' }) => {
   return (
     <div 
       className={`p-4 rounded-lg bg-gradient-to-r from-cyan-500/10 to-green-500/10 border border-cyan-500/30 ${className}`}

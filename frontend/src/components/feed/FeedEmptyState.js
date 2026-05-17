@@ -1,11 +1,11 @@
 /**
- * FeedEmptyState â€” Extracted from Feed.js (v103)
+ * FeedEmptyState GÇö Extracted from Feed.js (v103)
  * Per-tab empty state illustrations (For You / Waves / Following).
  */
 import React from 'react';
 import { Users, Play, Sparkles } from 'lucide-react';
 
-var FeedEmptyState = ({ activeTab, textPrimaryClass, textSecondaryClass, onNavigateExplore }) => {
+const FeedEmptyState = ({ activeTab, textPrimaryClass, textSecondaryClass, onNavigateExplore }) => {
   if (activeTab === 'following') {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center px-6">

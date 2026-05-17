@@ -38,7 +38,7 @@ import CreateSessionModal from './bookings/CreateSessionModal';
 
 
 
-export var PhotographerBookingsManager = () => {
+export const PhotographerBookingsManager = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const _navigate = useNavigate();

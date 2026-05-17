@@ -1,9 +1,9 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 
-var AuthContext = createContext();
+const AuthContext = createContext();
 
-export var AuthProvider = ({ children }) => {
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   
@@ -68,7 +68,7 @@ export var AuthProvider = ({ children }) => {
       grom_competes
     });
     const userData = response.data;
-    // Token is included in signup response â€” store it inside the user object
+    // Token is included in signup response GÇö store it inside the user object
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     document.documentElement.classList.remove('no-god-mode');
@@ -256,7 +256,7 @@ export var AuthProvider = ({ children }) => {
   );
 };
 
-export var useAuth = () => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within AuthProvider');

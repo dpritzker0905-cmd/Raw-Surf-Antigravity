@@ -12,7 +12,7 @@ import logger from '../utils/logger';
  * - Featured photographers
  * - Auto-refresh polling
  */
-export var useMapData = (userId = null, userLocation = null) => {
+export const useMapData = (userId = null, userLocation = null) => {
   const [surfSpots, setSurfSpots] = useState([]);
   const [surfSpotsGeoJSON, setSurfSpotsGeoJSON] = useState({ type: 'FeatureCollection', features: [] });
   

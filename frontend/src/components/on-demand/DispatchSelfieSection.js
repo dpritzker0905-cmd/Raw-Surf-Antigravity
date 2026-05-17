@@ -1,12 +1,12 @@
 /**
- * DispatchSelfieSection â€” Extracted from DispatchLobby.js (v81)
+ * DispatchSelfieSection GÇö Extracted from DispatchLobby.js (v81)
  * Shows selfie prompt or confirmation in the dispatch lobby.
  */
 import React from 'react';
 import { Camera, ChevronRight, Check } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
-var DispatchSelfieSection = ({
+const DispatchSelfieSection = ({
   captainSelfieUploaded,
   selfieUrl,
   onShowSelfieModal,

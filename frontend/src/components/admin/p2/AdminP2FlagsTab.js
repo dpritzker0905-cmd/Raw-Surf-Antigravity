@@ -5,7 +5,7 @@ import { Badge } from '../../ui/badge';
 import { Switch } from '../../ui/switch';
 import { Flag as FlagIcon, Plus } from 'lucide-react';
 
-export var AdminP2FlagsTab = ({
+export const AdminP2FlagsTab = ({
   featureFlags,
   setShowCreateFlag,
   handleUpdateRollout,

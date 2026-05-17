@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getPreferencesByPath, updatePreferenceByPath } from '../services/notificationService';
 
-var useSettingsActions = ({
+const useSettingsActions = ({
   user, navigate, logout,
   setExpandedSections,
   setFriends,

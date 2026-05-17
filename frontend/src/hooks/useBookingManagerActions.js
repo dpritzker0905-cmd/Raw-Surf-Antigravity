@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { useEffect } from 'react';
 
-var useBookingManagerActions = ({
+const useBookingManagerActions = ({
   user, selectedBooking, bookings, crewMembers, editBooking,
   selectedDate, selectedTime, newBooking, newAvailability,
   weeklyGrid, availability, bookingPricing, newCrewInput, existingBookedSlots,

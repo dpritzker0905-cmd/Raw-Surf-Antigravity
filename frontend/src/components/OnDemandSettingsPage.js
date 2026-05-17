@@ -29,7 +29,7 @@ import { ROLES } from '../constants/roles';
  * - 16px side gutters (p-4)
  * - Bottom safe zone (pb-24)
  */
-export var OnDemandSettingsPage = () => {
+export const OnDemandSettingsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();

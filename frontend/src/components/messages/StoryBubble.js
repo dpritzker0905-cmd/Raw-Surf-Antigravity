@@ -1,11 +1,11 @@
 /**
- * StoryBubble â€” Instagram-style story/note bubble for the messages page.
+ * StoryBubble GÇö Instagram-style story/note bubble for the messages page.
  * Shows avatar with gradient ring, note overlay, and time remaining.
  * Extracted from MessagesPage.js for maintainability.
  */
 import React from 'react';
 
-var StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = false }) => {
+const StoryBubble = ({ story, onClick, isOwnNote = false, _showCreateOption = false }) => {
   const hasUnread = story.hasUnread;
   const hasNote = story.noteContent && story.noteContent.length > 0;
   const ringColor = hasNote 

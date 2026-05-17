@@ -40,7 +40,7 @@ import GoLiveLocationModal from './sessions/GoLiveLocationModal';
 import { SessionPricingModal, GalleryCreatedModal } from './sessions/SessionPricingModals';
 
 // Helper function to get commission rate based on subscription tier
-var getCommissionRate = (subscriptionTier) => {
+const getCommissionRate = (subscriptionTier) => {
   // Check localStorage for admin-configured rates first
   const savedRates = localStorage.getItem('admin_commission_rates');
   if (savedRates) {
@@ -73,7 +73,7 @@ var getCommissionRate = (subscriptionTier) => {
 };
 
 
-export var PhotographerSessionsManager = () => {
+export const PhotographerSessionsManager = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

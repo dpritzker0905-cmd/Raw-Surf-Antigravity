@@ -1,5 +1,5 @@
 /**
- * media.js â€” Shared media URL utilities
+ * media.js GÇö Shared media URL utilities
  *
  * Centralizes the `getFullUrl` helper that was previously duplicated
  * across 46+ components. All avatar images, post media, and gallery
@@ -25,10 +25,10 @@ import { BACKEND_URL } from '../lib/apiClient';
  * @param {string|null|undefined} url - The URL to resolve
  * @returns {string|null|undefined} The resolved absolute URL
  */
-export var getFullUrl = (url) => {
+export const getFullUrl = (url) => {
   if (!url) return url;
-  if (url.startsWith('data:')) return url;   // base64 data URIs â€” local only
-  if (url.startsWith('blob:')) return url;   // blob URLs â€” local object refs
+  if (url.startsWith('data:')) return url;   // base64 data URIs GÇö local only
+  if (url.startsWith('blob:')) return url;   // blob URLs GÇö local object refs
   if (url.startsWith('//')) return url;      // protocol-relative CDN URLs
   if (url.startsWith('http')) return url;    // absolute http/https URLs
   return `${BACKEND_URL || ''}${url}`;       // relative /api/uploads/... paths
@@ -38,7 +38,7 @@ export var getFullUrl = (url) => {
  * Safely appends a cache-busting query parameter to a URL.
  * Skips data: and blob: URIs since query params corrupt them.
  */
-export var cacheBustUrl = (url, bustValue) => {
+export const cacheBustUrl = (url, bustValue) => {
   if (!url) return url;
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;
   return `${url}${url.includes('?') ? '&' : '?'}v=${bustValue || Date.now()}`;
@@ -52,7 +52,7 @@ export var cacheBustUrl = (url, bustValue) => {
  * @param {string|null|undefined} fullUrl
  * @returns {string|null|undefined}
  */
-export var getThumbnailUrl = (thumbnailUrl, fullUrl) =>
+export const getThumbnailUrl = (thumbnailUrl, fullUrl) =>
   getFullUrl(thumbnailUrl || fullUrl);
 
 /**
@@ -62,16 +62,16 @@ export var getThumbnailUrl = (thumbnailUrl, fullUrl) =>
  * @param {Object} post - A post object with media_url and optional thumbnail_url
  * @returns {string|null|undefined}
  */
-export var getVideoPoster = (post) =>
+export const getVideoPoster = (post) =>
   getFullUrl(post?.thumbnail_url || post?.media_url);
 
-// â”€â”€ CDN / Supabase Image Transform helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ CDN / Supabase Image Transform helpers GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 // Supabase Storage supports on-the-fly image transforms via URL params.
 // See: https://supabase.com/docs/guides/storage/serving/image-transformations
-// These helpers are CDN-ready â€” they only modify Supabase-hosted URLs,
+// These helpers are CDN-ready GÇö they only modify Supabase-hosted URLs,
 // passing non-Supabase URLs through unchanged.
 
-var SUPABASE_STORAGE_HOST = 'supabase.co/storage/v1/object/public/';
+const SUPABASE_STORAGE_HOST = 'supabase.co/storage/v1/object/public/';
 
 /**
  * Returns a Supabase Image Transform URL with the given resize params.
@@ -85,7 +85,7 @@ var SUPABASE_STORAGE_HOST = 'supabase.co/storage/v1/object/public/';
  * @param {number} [opts.quality=75] - JPEG quality (1-100)
  * @returns {string|null}
  */
-export var getSupabaseResizedUrl = (url, { width, height, resize = 'cover', quality = 75 } = {}) => {
+export const getSupabaseResizedUrl = (url, { width, height, resize = 'cover', quality = 75 } = {}) => {
   if (!url || !url.includes(SUPABASE_STORAGE_HOST)) return url;
   // Supabase transform endpoint: replace /object/public/ with /render/image/public/
   const transformed = url.replace('/object/public/', '/render/image/public/');
@@ -101,7 +101,7 @@ export var getSupabaseResizedUrl = (url, { width, height, resize = 'cover', qual
  * Returns a CDN-optimized thumbnail URL for 3-column grid tiles (~120px).
  * Falls back to raw URL for non-Supabase sources.
  */
-export var getGridThumbnail = (thumbnailUrl, fullUrl) => {
+export const getGridThumbnail = (thumbnailUrl, fullUrl) => {
   const raw = thumbnailUrl || fullUrl;
   if (!raw) return null;
   const resolved = getFullUrl(raw);
@@ -112,7 +112,7 @@ export var getGridThumbnail = (thumbnailUrl, fullUrl) => {
  * Returns a CDN-optimized image URL for feed-sized posts (~600px).
  * Falls back to raw URL for non-Supabase sources.
  */
-export var getPostThumbnail = (thumbnailUrl, fullUrl) => {
+export const getPostThumbnail = (thumbnailUrl, fullUrl) => {
   const raw = thumbnailUrl || fullUrl;
   if (!raw) return null;
   const resolved = getFullUrl(raw);

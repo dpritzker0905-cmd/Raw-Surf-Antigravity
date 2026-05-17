@@ -22,7 +22,7 @@ import { ROLES } from '../constants/roles';
 /**
  * Area configurations for each tier
  */
-var AREA_CONFIG = {
+const AREA_CONFIG = {
   grom: {
     name: "The Inside",
     icon: Sparkles,  // Changed from Waves (now used for Home button)
@@ -92,7 +92,7 @@ var AREA_CONFIG = {
   }
 };
 
-var colorMap = {
+const colorMap = {
   cyan: { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/30', hover: 'hover:bg-cyan-500/10' },
   green: { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/30', hover: 'hover:bg-green-500/10' },
   purple: { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30', hover: 'hover:bg-purple-500/10' },
@@ -106,7 +106,7 @@ var colorMap = {
 /**
  * Get area type based on role
  */
-export var getAreaType = (role) => {
+export const getAreaType = (role) => {
   if (role === ROLES.GROM) return 'grom';
   if (role === ROLES.COMP_SURFER) return 'comp';
   if (role === ROLES.PRO) return 'pro';
@@ -117,14 +117,14 @@ export var getAreaType = (role) => {
 /**
  * Check if role has exclusive area access
  */
-export var hasExclusiveArea = (role) => {
+export const hasExclusiveArea = (role) => {
   return ['Grom', 'Comp Surfer', 'Pro', 'Grom Parent'].includes(role);
 };
 
 /**
  * Get icon component for the area
  */
-export var getAreaIcon = (role) => {
+export const getAreaIcon = (role) => {
   const areaType = getAreaType(role);
   if (!areaType) return null;
   return AREA_CONFIG[areaType].icon;
@@ -133,13 +133,13 @@ export var getAreaIcon = (role) => {
 /**
  * Get area color for the icon
  */
-export var getAreaColor = (role) => {
+export const getAreaColor = (role) => {
   const areaType = getAreaType(role);
   if (!areaType) return 'text-gray-400';
   return AREA_CONFIG[areaType].textColor;
 };
 
-export var ExclusiveAreaDrawer = ({ isOpen, onClose, onOpenChange, areaType }) => {
+export const ExclusiveAreaDrawer = ({ isOpen, onClose, onOpenChange, areaType }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [memberCount, setMemberCount] = useState(0);

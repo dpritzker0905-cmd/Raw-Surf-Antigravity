@@ -1,5 +1,5 @@
 /**
- * DutyStationIcon â€” Extracted from DutyStationDrawer.js (v79)
+ * DutyStationIcon GÇö Extracted from DutyStationDrawer.js (v79)
  *
  * TopNav icon button that shows a pulsing ring when a mode (Live or On-Demand)
  * is active, and opens the DutyStationDrawer on click.
@@ -14,7 +14,7 @@ import logger from '../../utils/logger';
 import { ROLES } from '../../constants/roles';
 import { MODE_CONFIG, DutyStationDrawer } from '../DutyStationDrawer';
 
-var DutyStationIcon = ({ className }) => {
+const DutyStationIcon = ({ className }) => {
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const location = useLocation();

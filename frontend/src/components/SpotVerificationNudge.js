@@ -18,7 +18,7 @@ import logger from '../utils/logger';
  * 
  * Allows photographers to verify pin accuracy or suggest relocation.
  */
-export var SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
+export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null); // null | 'loading' | 'voted' | 'hidden'
@@ -74,7 +74,7 @@ export var SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
       );
       
       if (response.data.is_now_community_verified) {
-        toast.success(`${spot.name} is now Community Verified! âœ…`);
+        toast.success(`${spot.name} is now Community Verified! G£à`);
       } else {
         toast.success('Thanks for verifying this spot!');
       }

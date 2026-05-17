@@ -10,13 +10,13 @@ import { toast } from 'sonner';
 import { CommentText } from '../RichText';
 import { formatTimeAgo } from '../../utils/formatTime';
 
-var ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
+const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
   const navigate = useNavigate();
   const [reactionCount, setReactionCount] = useState(reply.reaction_count || 0);
   const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);
   const [loading, setLoading] = useState(false);
 
-  const handleReaction = async (emoji = 'ðŸ¤™') => {
+  const handleReaction = async (emoji = '=ƒñÖ') => {
     if (!userId) {
       toast.error('Please log in to react');
       return;
@@ -67,7 +67,7 @@ var ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass,
           <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>
         )}
         <button aria-label="Like"
-          onClick={() => handleReaction('ðŸ¤™')}
+          onClick={() => handleReaction('=ƒñÖ')}
           disabled={loading}
           className={`ml-auto p-1 rounded transition-all ${
             viewerReaction ? 'text-red-500' : `${textSecondaryClass} hover:text-red-400`

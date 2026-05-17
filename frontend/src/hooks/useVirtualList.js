@@ -1,7 +1,7 @@
 /**
- * useVirtualList â€” Lightweight list virtualization hook.
+ * useVirtualList GÇö Lightweight list virtualization hook.
  * Only renders items visible in the viewport + a buffer zone.
- * No external dependencies â€” pure React implementation.
+ * No external dependencies GÇö pure React implementation.
  *
  * Usage:
  *   const { visibleItems, containerProps, totalHeight } = useVirtualList({
@@ -23,7 +23,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 
-var useVirtualList = ({
+const useVirtualList = ({
   items = [],
   itemHeight = 300,
   overscan = 5,

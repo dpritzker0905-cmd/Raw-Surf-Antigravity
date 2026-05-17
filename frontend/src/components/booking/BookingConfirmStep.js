@@ -1,7 +1,7 @@
 import React from 'react';
 import { Camera, Clock, MapPin, CheckCircle2 } from 'lucide-react';
 
-export var BookingConfirmStep = ({
+export const BookingConfirmStep = ({
   photographer,
   selectedDate,
   selectedTime,

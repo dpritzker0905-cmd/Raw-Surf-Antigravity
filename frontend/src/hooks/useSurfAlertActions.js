@@ -4,7 +4,7 @@ import logger from '../utils/logger';
 import { toast } from 'sonner';
 
 // Haversine distance formula (km)
-var calculateDistance = (lat1, lon1, lat2, lon2) => {
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -163,7 +163,7 @@ export default function useSurfAlertActions({
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Surf alert created! ðŸŒŠ');
+      toast.success('Surf alert created! =ƒîè');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -237,7 +237,7 @@ export default function useSurfAlertActions({
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Alert updated! âœ…');
+      toast.success('Alert updated! G£à');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -297,7 +297,7 @@ export default function useSurfAlertActions({
         recipient_identifier: shareRecipient.trim()
       });
       
-      toast.success(`Alert shared with ${shareRecipient}! ðŸ“¤`);
+      toast.success(`Alert shared with ${shareRecipient}! =ƒôñ`);
       setShowShareModal(false);
       setAlertToShare(null);
       setShareRecipient('');

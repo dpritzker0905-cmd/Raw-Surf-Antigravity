@@ -1,5 +1,5 @@
 /**
- * BookingSessionSummary â€” Extracted from ScheduledBookingDrawer.js (v80)
+ * BookingSessionSummary GÇö Extracted from ScheduledBookingDrawer.js (v80)
  *
  * Displays the session details summary and crew payment info within
  * the payment step of the booking flow.
@@ -7,7 +7,7 @@
 import React from 'react';
 import { Crown, Users } from 'lucide-react';
 
-var BookingSessionSummary = ({
+const BookingSessionSummary = ({
   selectedDate,
   selectedTime,
   selectedDuration,

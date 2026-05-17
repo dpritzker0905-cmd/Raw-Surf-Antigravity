@@ -1,16 +1,16 @@
 /**
- * useHapticFeedback â€” Trigger device vibration for premium mobile feel.
+ * useHapticFeedback GÇö Trigger device vibration for premium mobile feel.
  *
  * Uses the Vibration API (navigator.vibrate) which is supported on
  * Android Chrome, Samsung Internet, and Firefox. iOS Safari does NOT
  * support it, but the call is silently ignored.
  *
  * Patterns:
- *   - 'light'   â†’ 10ms  (subtle tap)
- *   - 'medium'  â†’ 30ms  (button press)
- *   - 'heavy'   â†’ 50ms  (confirm action)
- *   - 'success' â†’ [30, 50, 30]  (double-tap success)
- *   - 'error'   â†’ [50, 30, 50, 30, 50]  (triple warning)
+ *   - 'light'   GåÆ 10ms  (subtle tap)
+ *   - 'medium'  GåÆ 30ms  (button press)
+ *   - 'heavy'   GåÆ 50ms  (confirm action)
+ *   - 'success' GåÆ [30, 50, 30]  (double-tap success)
+ *   - 'error'   GåÆ [50, 30, 50, 30, 50]  (triple warning)
  *
  * Usage:
  *   const haptic = useHapticFeedback();
@@ -18,7 +18,7 @@
  */
 import { useCallback } from 'react';
 
-var PATTERNS = {
+const PATTERNS = {
   light: [10],
   medium: [30],
   heavy: [50],
@@ -26,7 +26,7 @@ var PATTERNS = {
   error: [50, 30, 50, 30, 50],
 };
 
-var useHapticFeedback = () => {
+const useHapticFeedback = () => {
   return useCallback((type = 'medium') => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       const pattern = PATTERNS[type] || PATTERNS.medium;

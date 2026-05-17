@@ -1,6 +1,6 @@
 /**
  * ProfileTabContent.js
- * Extracted from Profile.js â€” renders the tab content grid (swell, grom_overview,
+ * Extracted from Profile.js GÇö renders the tab content grid (swell, grom_overview,
  * stoked, crew, surfboards, reviews, and media grid tabs).
  * 
  * This extraction reduces the Profile.js render method by ~330 lines.
@@ -16,7 +16,7 @@ import { SurfboardsTab } from './SurfboardsTab';
 import { ProfileReviewsSection } from './ProfileReviewsSection';
 import { MediaGridItem } from './MediaGridItem';
 
-var ProfileTabContent = ({
+const ProfileTabContent = ({
   activeTab,
   impactScore,
   isOwnProfile,
@@ -42,7 +42,7 @@ var ProfileTabContent = ({
           {/* Impact Level */}
           <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl p-6 text-center border border-cyan-500/30">
             <div className="text-4xl mb-2">
-              {impactScore.impact_score?.level?.emoji || 'ðŸ¤™'}
+              {impactScore.impact_score?.level?.emoji || '=ƒñÖ'}
             </div>
             <p className="text-white font-bold text-xl mb-1">
               {impactScore.impact_score?.level?.name || 'Starter'}
@@ -100,7 +100,7 @@ var ProfileTabContent = ({
                   title={badge.description}
                 >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                    {badge.icon_emoji || 'ðŸ¤™'}
+                    {badge.icon_emoji || '=ƒñÖ'}
                   </div>
                   <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                 </div>
@@ -213,7 +213,7 @@ var ProfileTabContent = ({
                     title={badge.description}
                   >
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
-                      {badge.icon_emoji || 'ðŸ¤™'}
+                      {badge.icon_emoji || '=ƒñÖ'}
                     </div>
                     <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                   </div>

@@ -9,7 +9,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
-var MentionAutocomplete = forwardRef(({ 
+const MentionAutocomplete = forwardRef(({ 
   text, 
   cursorPosition,
   onSelect,

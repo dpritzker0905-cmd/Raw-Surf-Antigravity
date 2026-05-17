@@ -16,7 +16,7 @@ import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
 
 
-export var FollowersModal = ({ 
+export const FollowersModal = ({ 
   isOpen, 
   onClose, 
   userId, 

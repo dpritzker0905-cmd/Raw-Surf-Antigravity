@@ -18,7 +18,7 @@ import { Slider } from '../ui/slider';
 import { toast } from 'sonner';
 
 // Split-Pocket Setup Modal
-export var SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLight }) => {
+export const SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLight }) => {
   const [splitPercentage, setSplitPercentage] = useState(currentSplit || 0);
   const [gearFundEnabled, setGearFundEnabled] = useState(splitPercentage > 0);
   
@@ -138,7 +138,7 @@ export var SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLight 
 };
 
 // Gear Goal Setup Modal (for Hobbyists)
-export var GearGoalModal = ({ isOpen, onClose, currentGoal, onSave, isLight }) => {
+export const GearGoalModal = ({ isOpen, onClose, currentGoal, onSave, isLight }) => {
   const [goalName, setGoalName] = useState(currentGoal?.name || '');
   const [goalAmount, setGoalAmount] = useState(currentGoal?.amount || 500);
   

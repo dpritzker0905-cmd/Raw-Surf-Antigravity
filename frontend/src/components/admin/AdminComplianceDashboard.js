@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 // --- Stat Card ----------------------------------------------------------------
-var StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
+const StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
   <div className={`p-3 rounded-xl bg-${color}-500/10 border border-${color}-500/20`}>
     <div className="flex items-center gap-2 mb-1">
       <Icon className={`w-4 h-4 text-${color}-400`} />
@@ -33,7 +33,7 @@ var StatCard = ({ icon: Icon, label, value, color = 'cyan' }) => (
 );
 
 // --- Severity Badge -----------------------------------------------------------
-var SeverityBadge = ({ severity }) => {
+const SeverityBadge = ({ severity }) => {
   const config = {
     minor:    { bg: 'bg-blue-500/20',   text: 'text-blue-400',   label: 'Minor' },
     moderate: { bg: 'bg-yellow-500/20',  text: 'text-yellow-400', label: 'Moderate' },
@@ -49,7 +49,7 @@ var SeverityBadge = ({ severity }) => {
 };
 
 // --- Appeal Status Badge ------------------------------------------------------
-var AppealBadge = ({ status }) => {
+const AppealBadge = ({ status }) => {
   if (!status) return null;
   const config = {
     pending:  { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: '? Pending' },
@@ -65,26 +65,26 @@ var AppealBadge = ({ status }) => {
 };
 
 // --- Violation Type Label -----------------------------------------------------
-var violationTypeLabel = (type) => {
+const violationTypeLabel = (type) => {
   const map = {
-    location_fraud: 'ðŸ“ Location Fraud',
+    location_fraud: '=ƒôì Location Fraud',
     fake_reviews: '? Fake Reviews',
-    harassment: 'âš ï¸ Harassment',
-    spam: 'ðŸš« Spam',
-    impersonation: 'ðŸŽ­ Impersonation',
+    harassment: 'GÜán+Å Harassment',
+    spam: '=ƒÜ½ Spam',
+    impersonation: '=ƒÄ¡ Impersonation',
     copyright: '-? Copyright',
-    tos_violation: 'ðŸ“‹ ToS Violation',
+    tos_violation: '=ƒôï ToS Violation',
   };
   return map[type] || type?.replace(/_/g, ' ');
 };
 
 // --- Action Taken Label -------------------------------------------------------
-var actionLabel = (action) => {
+const actionLabel = (action) => {
   const map = {
-    warning: 'âš ï¸ Warning',
-    suspension_7d: 'ðŸ”’ 7-Day Suspension',
-    suspension_30d: 'ðŸ”’ 30-Day Suspension',
-    permanent_ban: 'ðŸš« Permanent Ban',
+    warning: 'GÜán+Å Warning',
+    suspension_7d: '=ƒöÆ 7-Day Suspension',
+    suspension_30d: '=ƒöÆ 30-Day Suspension',
+    permanent_ban: '=ƒÜ½ Permanent Ban',
   };
   return map[action] || action?.replace(/_/g, ' ');
 };
@@ -96,7 +96,7 @@ var actionLabel = (action) => {
  * @param {string} props.textSecondary
  * @param {boolean} props.isLight
  */
-export var AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary, isLight }) => {
+export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary, isLight }) => {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reviewingId, setReviewingId] = useState(null);
@@ -613,7 +613,7 @@ export var AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary, 
                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
                     : `${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
                 >
-                  {dt === 'tos' ? 'ðŸ“œ Terms of Service' : 'ðŸ”’ Privacy Policy'}
+                  {dt === 'tos' ? '=ƒô£ Terms of Service' : '=ƒöÆ Privacy Policy'}
                 </Button>
               ))}
             </div>

@@ -1,5 +1,5 @@
 /**
- * ResponsiveImage â€” Image component with srcSet support for bandwidth savings.
+ * ResponsiveImage GÇö Image component with srcSet support for bandwidth savings.
  *
  * Automatically generates srcSet from Supabase storage URLs or serves
  * single-source images with proper loading="lazy" and decoding="async".
@@ -33,7 +33,7 @@ function buildSrcSet(src, webpSupported) {
   return '';
 }
 
-export var ResponsiveImage = ({
+export const ResponsiveImage = ({
   src,
   alt = '',
   className = '',

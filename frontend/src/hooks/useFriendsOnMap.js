@@ -8,7 +8,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-export var useFriendsOnMap = ({ user, _mapInstanceRef }) => {
+export const useFriendsOnMap = ({ user, _mapInstanceRef }) => {
   const [friendsOnMap, setFriendsOnMap] = useState([]);
   const [showFriendsOnMap, setShowFriendsOnMap] = useState(true);
   const friendMarkersRef = useRef([]);

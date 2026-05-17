@@ -19,7 +19,7 @@ import useEscapeKey from '../hooks/useEscapeKey';
  * Photo Tools Drawer - Root category menu for photographers
  * Opens from bottom nav Tab 2 for photographer roles
  */
-export var PhotoToolsDrawer = ({ isOpen, onClose }) => {
+export const PhotoToolsDrawer = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();

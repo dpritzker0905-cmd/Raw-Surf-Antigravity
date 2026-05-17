@@ -13,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { CreateAdModal } from './CreateAdModal';
 import logger from '../utils/logger';
 import MediaPreviewCarousel from './social/MediaPreviewCarousel';
-var DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-var DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
+const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
   <Select value={value} onValueChange={onChange}>
     <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white text-sm"><SelectValue placeholder={placeholder} /></SelectTrigger>
     <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -22,7 +22,7 @@ var DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
     </SelectContent>
   </Select>
 );
-var CreatePostModal = ({ isOpen, onClose, onCreated }) => {
+const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   
@@ -248,7 +248,7 @@ var CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           } else {
             toast.error(detail || (isVideoFile ? 'Video upload failed. Please try again.' : 'Upload failed. Please try again.'));
           }
-          return; // Exit early â€” don't try to create post without media
+          return; // Exit early GÇö don't try to create post without media
         }
       }
 

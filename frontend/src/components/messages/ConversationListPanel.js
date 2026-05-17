@@ -13,7 +13,7 @@ import StoryBubble from './StoryBubble';
 import { getFolders } from './messagesHelpers';
 import logger from '../../utils/logger';
 
-var ConversationListPanel = ({
+const ConversationListPanel = ({
   // Pull to refresh
   msgPullRef, msgPulling, msgPullProgress, msgPtrRefreshing,
   // User & persona

@@ -8,7 +8,7 @@ import { REACTION_EMOJIS } from '../../constants/emojis';
 
 // Reaction Picker Component - Anchored near the Shaka button, not screen center
 // Uses a 2-row grid on mobile so all 10 emojis fit without overflow
-var ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
+const ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
   if (!show) return null;
 
   // Container width: 5 emojis per row at 44px each + 8px gaps + padding
@@ -66,7 +66,7 @@ var ReactionPicker = ({ show, onSelect, onClose, anchor }) => {
 };
 
 // Overlay backdrop for reaction picker - tapping outside closes the menu
-var ReactionOverlay = ({ show, onClose }) => {
+const ReactionOverlay = ({ show, onClose }) => {
   if (!show) return null;
   
   return (

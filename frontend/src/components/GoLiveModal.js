@@ -42,7 +42,7 @@ import BroadcasterControls from './live/BroadcasterControls';
  * Phase machine: pre_live ? countdown ? live
  * No auto-start. User must explicitly press Go Live.
  */
-var GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
+const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const colors = useMemo(() => getThemeColors(theme), [theme]);
@@ -228,7 +228,7 @@ var GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   // -- Initiate countdown then start stream --
   const handleGoLive = useCallback(() => {
     if (signalQuality === 'poor') {
-      toast.warning('ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Poor signal detected. Your stream may be unstable.');
+      toast.warning('+â-ó+à-í+é-á+â-»+é-++é-Å Poor signal detected. Your stream may be unstable.');
       // Don't block - let user decide
     }
     setPhase('countdown');

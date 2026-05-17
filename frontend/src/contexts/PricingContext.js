@@ -5,9 +5,9 @@ import logger from '../utils/logger';
 
 
 // Pricing Context for dynamic, reactive gallery pricing
-var PricingContext = createContext(null);
+const PricingContext = createContext(null);
 
-export var usePricing = () => {
+export const usePricing = () => {
   const context = useContext(PricingContext);
   if (!context) {
     throw new Error('usePricing must be used within a PricingProvider');
@@ -22,7 +22,7 @@ export var usePricing = () => {
  * 2. Session price (if viewing items from an active session)
  * 3. Base price (photographer's general gallery pricing)
  */
-export var calculateDisplayPrice = (mediaItem, sessionPricing, generalSettings, qualityTier = 'standard') => {
+export const calculateDisplayPrice = (mediaItem, sessionPricing, generalSettings, qualityTier = 'standard') => {
   // Rule 1: Custom price override takes priority
   if (mediaItem?.custom_price !== null && mediaItem?.custom_price !== undefined && mediaItem.custom_price > 0) {
     return {
@@ -95,7 +95,7 @@ export var calculateDisplayPrice = (mediaItem, sessionPricing, generalSettings, 
   };
 };
 
-export var PricingProvider = ({ children }) => {
+export const PricingProvider = ({ children }) => {
   const { user } = useAuth();
   const [generalSettings, setGeneralSettings] = useState(null);
   const [sessionPricing, setSessionPricing] = useState(null);
@@ -120,7 +120,7 @@ export var PricingProvider = ({ children }) => {
       const bk = res.data.booking_pricing || {};
 
       setGeneralSettings({
-        // â”€â”€ Gallery (general) pricing â”€â”€
+        // GöÇGöÇ Gallery (general) pricing GöÇGöÇ
         photo_price_web: res.data.photo_pricing?.web || 3,
         photo_price_standard: res.data.photo_pricing?.standard || 5,
         photo_price_high: res.data.photo_pricing?.high || 10,
@@ -128,7 +128,7 @@ export var PricingProvider = ({ children }) => {
         video_price_1080p: res.data.video_pricing?.['1080p'] || 15,
         video_price_4k: res.data.video_pricing?.['4k'] || 30,
 
-        // â”€â”€ Session-level metadata (included counts, buy-in, etc.) â”€â”€
+        // GöÇGöÇ Session-level metadata (included counts, buy-in, etc.) GöÇGöÇ
         on_demand_photo_price: sp.on_demand_photo_price || 10,
         on_demand_photos_included: sp.on_demand_photos_included || 3,
         on_demand_videos_included: sp.on_demand_videos_included || 0,
@@ -151,7 +151,7 @@ export var PricingProvider = ({ children }) => {
         group_discount_3_plus: sp.group_discount_3_plus || 0,
         group_discount_5_plus: sp.group_discount_5_plus || 0,
 
-        // â”€â”€ On-Demand independent resolution pricing â”€â”€
+        // GöÇGöÇ On-Demand independent resolution pricing GöÇGöÇ
         on_demand_price_web: od.photo_web || 5,
         on_demand_price_standard: od.photo_standard || 10,
         on_demand_price_high: od.photo_high || 18,
@@ -159,7 +159,7 @@ export var PricingProvider = ({ children }) => {
         on_demand_video_1080p: od.video_1080p || 20,
         on_demand_video_4k: od.video_4k || 40,
 
-        // â”€â”€ Live Session independent resolution pricing â”€â”€
+        // GöÇGöÇ Live Session independent resolution pricing GöÇGöÇ
         live_price_web: ls.photo_web || 3,
         live_price_standard: ls.photo_standard || 6,
         live_price_high: ls.photo_high || 12,
@@ -167,7 +167,7 @@ export var PricingProvider = ({ children }) => {
         live_video_1080p: ls.video_1080p || 15,
         live_video_4k: ls.video_4k || 30,
 
-        // â”€â”€ Booking independent resolution pricing â”€â”€
+        // GöÇGöÇ Booking independent resolution pricing GöÇGöÇ
         booking_price_web: bk.photo_web || 3,
         booking_price_standard: bk.photo_standard || 5,
         booking_price_high: bk.photo_high || 10,

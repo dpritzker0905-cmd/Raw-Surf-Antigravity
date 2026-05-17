@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../ui/card';
 import { DollarSign, TrendingUp, Percent, BarChart3 } from 'lucide-react';
 
-export var AdminP2RevenueTab = ({
+export const AdminP2RevenueTab = ({
   revenueData,
   funnelData,
   cohortData,

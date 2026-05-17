@@ -20,13 +20,13 @@ import { useTranslation } from 'react-i18next';
 import { useCallback } from 'react';
 
 // Supported languages with display names
-export var SUPPORTED_LANGUAGES = [
-  { code: 'en', name: 'English', flag: 'ðŸ‡ºðŸ‡¸', nativeName: 'English' },
-  { code: 'es', name: 'Spanish', flag: 'ðŸ‡ªðŸ‡¸', nativeName: 'EspaÃ±ol' },
-  { code: 'pt', name: 'Portuguese', flag: 'ðŸ‡§ðŸ‡·', nativeName: 'PortuguÃªs' },
+export const SUPPORTED_LANGUAGES = [
+  { code: 'en', name: 'English', flag: '=ƒç¦=ƒç+', nativeName: 'English' },
+  { code: 'es', name: 'Spanish', flag: '=ƒç¬=ƒç+', nativeName: 'Espa+¦ol' },
+  { code: 'pt', name: 'Portuguese', flag: '=ƒçº=ƒç+', nativeName: 'Portugu+¬s' },
 ];
 
-export var useLocale = (namespace = 'common') => {
+export const useLocale = (namespace = 'common') => {
   const { t, i18n } = useTranslation(namespace);
   
   // Current language code

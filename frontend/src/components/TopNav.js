@@ -14,13 +14,13 @@ import { AdaptiveBackground } from './AdaptiveBackground';
 
 
 /**
- * TopNav v4.2 â€” Ultra-Clean 2-Icon Header + Pull-Down Drawer
+ * TopNav v4.2 GÇö Ultra-Clean 2-Icon Header + Pull-Down Drawer
  *
- * VISIBLE (collapsed â€” ALL roles):
+ * VISIBLE (collapsed GÇö ALL roles):
  *   [Logo]                    [Role-Critical]  [Bell]
- *                   â•â•â•â•â•â•â•  (pull handle)
+ *                   GòÉGòÉGòÉGòÉGòÉGòÉGòÉ  (pull handle)
  *
- * EXPANDED (pull-down drawer â€” 2 rows):
+ * EXPANDED (pull-down drawer GÇö 2 rows):
  *   Row 1 (Universal):  Search | Settings | Backpack
  *   Row 2 (Role-Based): Map | Photo Tools | Sessions | Gallery (varies)
  *
@@ -29,7 +29,7 @@ import { AdaptiveBackground } from './AdaptiveBackground';
  *   - Surfers/Groms:  Map (find spots & photographers)
  *   - Grom Parents:   GromHQ Shield (child monitoring)
  */
-export var TopNav = () => {
+export const TopNav = () => {
   const { user } = useAuth();
   const { getEffectiveRole, isGodMode, isPersonaBarActive } = usePersona();
   const navigate = useNavigate();
@@ -154,7 +154,7 @@ export var TopNav = () => {
               </button>
             )}
 
-            {/* Notifications Bell â€” always visible */}
+            {/* Notifications Bell GÇö always visible */}
             <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               className={`transition-colors relative p-1 ${
@@ -173,7 +173,7 @@ export var TopNav = () => {
           </div>
         </div>
 
-        {/* Pull Handle â€” visual affordance for the drawer gesture */}
+        {/* Pull Handle GÇö visual affordance for the drawer gesture */}
         <button
           onClick={toggleDrawer}
           className="flex justify-center pb-1 pt-0.5 -mt-2 w-full group"

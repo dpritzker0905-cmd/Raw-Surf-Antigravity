@@ -1,6 +1,6 @@
 /**
  * ExploreConditionsTab.js
- * Extracted from Explore.js â€” Conditions/Reports tab with 3 sub-tabs:
+ * Extracted from Explore.js GÇö Conditions/Reports tab with 3 sub-tabs:
  * Today / Yesterday / Archives
  *
  * Includes: hierarchical location picker, nearby mode toggle,
@@ -15,7 +15,7 @@ import {
 import { Badge } from '../ui/badge';
 import { getCountryFlag } from '../../utils/countryFlags';
 
-var ExploreConditionsTab = ({
+const ExploreConditionsTab = ({
   // Sub-tab state
   conditionsSubTab,
   handleConditionsSubTabChange,

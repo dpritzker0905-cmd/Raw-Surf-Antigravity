@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-var CheckInModal = ({
+const CheckInModal = ({
   open, onClose,
   checkInData, setCheckInData,
   checkInLoading, checkInReward,
@@ -127,7 +127,7 @@ var CheckInModal = ({
                         <span className="font-medium">{nearestSpot.name}</span>
                         {' '}&mdash; {nearestSpot.distance}km away
                         {parseFloat(nearestSpot.distance) < 10
-                          ? ' - ðŸ“ Within range - you\'ll earn Passport XP!'
+                          ? ' - +�++Gǣ-� Within range - you\'ll earn Passport XP!'
                           : ' - Outside 10km check-in zone'}
                       </div>
                     )}
@@ -374,8 +374,8 @@ var CheckInModal = ({
                       <>
                         <Flame className="w-5 h-5 mr-2" />
                         {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
-                          ? 'Check In + Earn XP ðŸ„'
-                          : 'Check In & Keep Streak ðŸ”¥'}
+                          ? 'Check In + Earn XP +�++-�G�P'
+                          : 'Check In & Keep Streak +�++Gǥ-�'}
                       </>
                     )}
                   </Button>

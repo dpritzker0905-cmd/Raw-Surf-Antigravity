@@ -1,6 +1,6 @@
 /**
  * useAdminConsoleActions.js
- * Extracted from UnifiedAdminConsole.js â€” handler logic for admin operations.
+ * Extracted from UnifiedAdminConsole.js GÇö handler logic for admin operations.
  * 
  * Note: useCallback-wrapped handlers (fetchData, fetchSessionData) remain in
  * the parent component. Only pure API handlers are extracted here.
@@ -9,7 +9,7 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useAdminConsoleActions = ({
+const useAdminConsoleActions = ({
   user,
   searchQuery,
   selectedUsers,

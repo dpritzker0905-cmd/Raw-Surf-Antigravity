@@ -20,7 +20,7 @@ import SurfAlertModal from './alerts/SurfAlertModal';
 
 // Time window options
 import { TIME_WINDOWS, TIDE_STATES, SURF_CONDITIONS } from './alerts/surfAlertConstants';
-var calculateDistance = (lat1, lon1, lat2, lon2) => {
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 3959; // Earth's radius in miles
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -31,7 +31,7 @@ var calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-export var SurfAlerts = () => {
+export const SurfAlerts = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();

@@ -1,5 +1,5 @@
 /**
- * GifPicker.js â€” Tenor API-powered GIF picker for MessagesPage.
+ * GifPicker.js GÇö Tenor API-powered GIF picker for MessagesPage.
  *
  * Fully self-contained: no backend calls, no auth context.
  * Uses Tenor v2 API (Google) with free public key.
@@ -19,13 +19,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 
 // Tenor API key - Google free tier (replace with env var if needed)
-var TENOR_API_KEY = process.env.REACT_APP_TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
-var TENOR_BASE = 'https://tenor.googleapis.com/v2';
-var GIF_LIMIT = 20;
-var MEDIA_FILTERS = 'gif,tinygif';
+const TENOR_API_KEY = process.env.REACT_APP_TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
+const TENOR_BASE = 'https://tenor.googleapis.com/v2';
+const GIF_LIMIT = 20;
+const MEDIA_FILTERS = 'gif,tinygif';
 
 /** Map a Tenor v2 result to a consistent GIF shape */
-var mapTenorResult = (g) => ({
+const mapTenorResult = (g) => ({
   id: g.id,
   title: g.content_description || 'GIF',
   images: {
@@ -41,7 +41,7 @@ var mapTenorResult = (g) => ({
   },
 });
 
-var GifPicker = ({ show, onSelect, onClose }) => {
+const GifPicker = ({ show, onSelect, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [gifs, setGifs] = useState([]);
   const [trendingGifs, setTrendingGifs] = useState([]);
@@ -61,7 +61,7 @@ var GifPicker = ({ show, onSelect, onClose }) => {
     if (show && trendingGifs.length === 0) {
       fetchTrending();
     }
-  }, [show]); // intentionally omits fetchTrending from deps â€” only run once on first open
+  }, [show]); // intentionally omits fetchTrending from deps GÇö only run once on first open
 
   // Click-outside to close (respects scroll vs click distinction)
   useEffect(() => {
@@ -78,7 +78,7 @@ var GifPicker = ({ show, onSelect, onClose }) => {
     };
   }, [show, onClose]);
 
-  // Debounced search â€” 400ms delay with 2-char minimum
+  // Debounced search GÇö 400ms delay with 2-char minimum
   useEffect(() => {
     const id = setTimeout(() => {
       if (searchTerm.trim().length >= 2) {
@@ -108,7 +108,7 @@ var GifPicker = ({ show, onSelect, onClose }) => {
       }
       setTrendingNext(data.next || '');
     } catch (err) {
-      // Silent â€” picker just shows empty state
+      // Silent GÇö picker just shows empty state
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -199,7 +199,7 @@ var GifPicker = ({ show, onSelect, onClose }) => {
         </div>
       </div>
 
-      {/* GIF Grid â€” 2-column masonry with infinite scroll */}
+      {/* GIF Grid GÇö 2-column masonry with infinite scroll */}
       <div
         ref={gridRef}
         className="p-2 overflow-y-auto flex-1 overscroll-contain"

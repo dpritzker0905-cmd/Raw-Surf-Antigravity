@@ -2,11 +2,11 @@ import React from 'react';
 import { MapPin, Eye, EyeOff, Bell, User, Users } from 'lucide-react';
 
 /**
- * PrivacySection â€” Extracted from Settings.js
+ * PrivacySection GÇö Extracted from Settings.js
  * Handles all privacy-related toggles: Map Visibility, Ghost Mode,
  * Proximity Pings, Online Status, Private Account, Lineup Invites.
  */
-export var PrivacySection = ({
+export const PrivacySection = ({
   privacy,
   privacyLoading,
   updatePrivacySetting,

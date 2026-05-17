@@ -11,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent } from '../ui/card';
 import { getFullUrl } from '../../utils/media';
 
-var GallerySessionPanel = ({
+const GallerySessionPanel = ({
   sessionInfo, sessionParticipants, totalGalleryItems,
   loadingParticipants, distributing,
   fetchSessionParticipants, handleDistributeAll,
@@ -170,7 +170,7 @@ var GallerySessionPanel = ({
                     </Button>
                   ) : (
                     <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px] h-7">
-                      âœ… Delivered
+                      G£à Delivered
                     </Badge>
                   )}
                 </div>

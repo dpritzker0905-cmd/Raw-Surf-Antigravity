@@ -24,7 +24,7 @@ import { AdminP2FlagsTab } from './p2/AdminP2FlagsTab';
 import { AdminP2CampaignsTab } from './p2/AdminP2CampaignsTab';
 import { AdminP2Modals } from './p2/AdminP2Modals';
 
-export var AdminP2Dashboard = () => {
+export const AdminP2Dashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeSubTab, setActiveSubTab] = useState('revenue');

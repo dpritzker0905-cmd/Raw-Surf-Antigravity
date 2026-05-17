@@ -18,7 +18,7 @@ import { DayCell } from './calendar/DayCell';
 import { AvailabilityWindowEditor } from './calendar/AvailabilityWindowEditor';
 
 
-export var PhotographerAvailabilityCalendar = ({ photographerId }) => {
+export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   

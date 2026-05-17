@@ -11,7 +11,7 @@ import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-var ROLE_CONFIG = {
+const ROLE_CONFIG = {
   surfer: {
     title: 'Surfers',
     icon: User,
@@ -48,7 +48,7 @@ var ROLE_CONFIG = {
   }
 };
 
-export var Auth = () => {
+export const Auth = () => {
   const { signup, login } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();

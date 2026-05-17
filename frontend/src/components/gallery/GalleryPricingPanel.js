@@ -12,7 +12,7 @@ import apiClient from '../../lib/apiClient';
 /**
  * PricingTierRow - Displays a single service tier with pricing details
  */
-var PricingTierRow = ({
+const PricingTierRow = ({
   label, emoji, color, photosIncluded, videosIncluded,
   buyinPrice, buyinLabel, photo, video,
   textSecondaryClass, textPrimaryClass, isActive,
@@ -50,12 +50,12 @@ var PricingTierRow = ({
         )}
         {photo && (
           <span className={`text-[10px] ${textSecondaryClass}`}>
-            üì∑ ${photo}
+            =ÉÙ+ ${photo}
           </span>
         )}
         {video && (
           <span className={`text-[10px] ${textSecondaryClass}`}>
-            üé¨ ${video}
+            =Éƒº ${video}
           </span>
         )}
       </div>
@@ -66,7 +66,7 @@ var PricingTierRow = ({
 /**
  * GalleryPricingPanel - Full pricing card with session settings and per-tier rows
  */
-var GalleryPricingPanel = ({
+const GalleryPricingPanel = ({
   gallery, galleryId, pricing, user, showPricing,
   cardBgClass, textPrimaryClass, textSecondaryClass,
   setGallery, fetchSessionParticipants,
@@ -102,9 +102,9 @@ var GalleryPricingPanel = ({
               gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
               'border-zinc-500/50 text-zinc-400'
             }>
-              {gallery.session_settings.session_type === 'live' ? 'üì∏ Live Session' :
-               gallery.session_settings.session_type === 'booking' ? 'üìÖ Booking' :
-               gallery.session_settings.session_type === 'on_demand' ? '‚ö° On-Demand' : '‚úèÔ∏è Manual'}
+              {gallery.session_settings.session_type === 'live' ? '=ÉÙ+ Live Session' :
+               gallery.session_settings.session_type === 'booking' ? '=ÉÙ‡ Booking' :
+               gallery.session_settings.session_type === 'on_demand' ? 'G‹Ì On-Demand' : 'G£≈n+≈ Manual'}
             </Badge>
           )}
         </div>
@@ -118,7 +118,7 @@ var GalleryPricingPanel = ({
           }}>
             <div className="flex items-center justify-between mb-3">
               <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
-                This Session ‚Äî Included Content
+                This Session G«ˆ Included Content
               </h4>
               <span className="text-[10px] text-cyan-400/70">
                 {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}

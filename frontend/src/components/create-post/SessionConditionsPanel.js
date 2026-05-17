@@ -8,7 +8,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
-var SessionConditionsPanel = ({
+const SessionConditionsPanel = ({
   showSessionData, setShowSessionData,
   sessionDate, setSessionDate,
   sessionStartTime, setSessionStartTime,

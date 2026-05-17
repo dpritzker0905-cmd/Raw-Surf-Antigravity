@@ -21,7 +21,7 @@ import logger from '../../utils/logger';
  * - Background job status
  * - System alerts
  */
-export var AdminSystemDashboard = () => {
+export const AdminSystemDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);

@@ -16,7 +16,7 @@ import logger from '../utils/logger';
 /**
  * Single Wave Card - Full screen vertical video
  */
-var WaveCard = ({ 
+const WaveCard = ({ 
   wave, 
   isActive, 
   isMuted, 
@@ -345,7 +345,7 @@ var WaveCard = ({
 /**
  * WavesFeed - Main feed container with swipe navigation
  */
-export var WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
+export const WavesFeed = ({ feedType = 'for_you', onCreateWave }) => {
   const { user } = useAuth();
   const { _theme } = useTheme();
   const navigate = useNavigate();

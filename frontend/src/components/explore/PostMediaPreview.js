@@ -1,5 +1,5 @@
 /**
- * PostMediaPreview â€” Reusable media preview card for posts, waves, and videos.
+ * PostMediaPreview GÇö Reusable media preview card for posts, waves, and videos.
  * Shows video thumbnail with play badge, responsive image, or placeholder.
  * Extracted from Explore.js for reuse across explore grid, search results, etc.
  */
@@ -8,7 +8,7 @@ import { Play, Image } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 import ResponsiveImage from '../ui/ResponsiveImage';
 
-var PostMediaPreview = ({ post, isHoverScale = true }) => {
+const PostMediaPreview = ({ post, isHoverScale = true }) => {
   const mediaUrl = post?.media_url || post?.image_url || post?.thumbnail_url;
   const isVideo = post?.media_type === 'video' || (mediaUrl && typeof mediaUrl === 'string' && mediaUrl.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i)) || post?.is_wave === true || typeof post?.view_count !== 'undefined';
   const thumbnailUrl = post?.thumbnail_url || (isVideo ? null : mediaUrl);

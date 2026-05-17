@@ -21,7 +21,7 @@ import { SurfboardModal } from './surfboards/SurfboardModal';
 import { SurfboardDetailModal } from './surfboards/SurfboardDetailModal';
 
 // Main SurfboardsTab Component
-export var SurfboardsTab = ({ userId, isOwnProfile }) => {
+export const SurfboardsTab = ({ userId, isOwnProfile }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   

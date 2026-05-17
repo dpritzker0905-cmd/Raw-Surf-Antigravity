@@ -3,9 +3,9 @@
  * In production, debug logs are suppressed
  */
 
-var isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === 'development';
 
-export var logger = {
+export const logger = {
   debug: (...args) => {
     if (isDev) {
       console.log('[DEBUG]', ...args);

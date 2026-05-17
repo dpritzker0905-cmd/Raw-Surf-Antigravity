@@ -7,7 +7,7 @@ import { Check } from 'lucide-react';
 import { ALL_PERSONAS, getExpandedRoleInfo } from '../../contexts/PersonaContext';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 
-export var AdminPersonaPanel = ({
+export const AdminPersonaPanel = ({
   activePersona,
   handleSelectPersona,
   cardBgClass,

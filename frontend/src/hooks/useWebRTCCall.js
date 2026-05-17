@@ -1,5 +1,5 @@
 /**
- * useWebRTCCall â€” React hook for 1-on-1 audio/video calling via WebRTC.
+ * useWebRTCCall GÇö React hook for 1-on-1 audio/video calling via WebRTC.
  *
  * Architecture:
  *   - Signaling: useWebRTCSignaling (WebSocket lifecycle, reconnect, keepalive)
@@ -8,10 +8,10 @@
  *
  * Call Flow:
  *   1. Caller: startCall(targetUserId, 'audio'|'video')
- *   2. Callee: receives 'incoming_call' via WS â†’ shows IncomingCallModal
- *   3. Callee: answerCall() â†’ sends SDP answer
- *   4. Both: exchange ICE candidates â†’ P2P stream established
- *   5. Either: endCall() â†’ cleanup
+ *   2. Callee: receives 'incoming_call' via WS GåÆ shows IncomingCallModal
+ *   3. Callee: answerCall() GåÆ sends SDP answer
+ *   4. Both: exchange ICE candidates GåÆ P2P stream established
+ *   5. Either: endCall() GåÆ cleanup
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -25,7 +25,7 @@ import { useWebRTCMedia, getMediaStream } from './webrtc/useWebRTCMedia';
 // STUN + TURN servers for reliable NAT traversal
 // STUN alone fails ~15-20% of the time (symmetric NAT, mobile carriers, corporate networks)
 // TURN from Metered.ca (rawsurf app) + Google STUN
-var ICE_SERVERS = [
+const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun.relay.metered.ca:80' },
   {
@@ -51,17 +51,17 @@ var ICE_SERVERS = [
 ];
 
 // Call states
-export var CALL_STATE = {
+export const CALL_STATE = {
   IDLE: 'idle',
   OUTGOING: 'outgoing',    // waiting for callee to answer
-  INCOMING: 'incoming',     // ringing â€” waiting for user to accept/decline
+  INCOMING: 'incoming',     // ringing GÇö waiting for user to accept/decline
   CONNECTING: 'connecting', // SDP exchanged, waiting for ICE
   IN_CALL: 'in-call',       // media flowing
   ENDED: 'ended',           // call finished
 };
 
 export function useWebRTCCall(userId, userInfo = {}) {
-  // â”€â”€ Core State â”€â”€
+  // GöÇGöÇ Core State GöÇGöÇ
   const [callState, setCallState] = useState(CALL_STATE.IDLE);
   const [callType, setCallType] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -71,7 +71,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const [connectionQuality, setConnectionQuality] = useState('good');
   const [permissionDenied, setPermissionDenied] = useState(false);
 
-  // â”€â”€ Refs â”€â”€
+  // GöÇGöÇ Refs GöÇGöÇ
   const peerConnection = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -90,7 +90,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const remoteUserInfoRef = useRef(remoteUserInfo);
   useEffect(() => { remoteUserInfoRef.current = remoteUserInfo; }, [remoteUserInfo]);
 
-  // â”€â”€ Sub-Hooks â”€â”€
+  // GöÇGöÇ Sub-Hooks GöÇGöÇ
   const { sendSignaling, wsRef, connectSignaling } = useWebRTCSignaling(userId, handleSignalingMessage);
 
   const {
@@ -99,7 +99,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     replaceVideoTrack, resetMediaState,
   } = useWebRTCMedia({ localStreamRef, peerConnectionRef: peerConnection, setLocalStream });
 
-  // â”€â”€ Call Timer â”€â”€
+  // GöÇGöÇ Call Timer GöÇGöÇ
   const startCallTimer = () => {
     callStartTimeRef.current = Date.now();
     setCallDuration(0);
@@ -108,7 +108,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }, 1000);
   };
 
-  // â”€â”€ Connection Quality Monitor â”€â”€
+  // GöÇGöÇ Connection Quality Monitor GöÇGöÇ
   const startStatsMonitor = (pc) => {
     statsIntervalRef.current = setInterval(async () => {
       try {
@@ -127,7 +127,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }, 5000);
   };
 
-  // â”€â”€ Cleanup â”€â”€
+  // GöÇGöÇ Cleanup GöÇGöÇ
   const cleanup = useCallback(() => {
     localStreamRef.current?.getTracks().forEach(track => track.stop());
     localStreamRef.current = null;
@@ -155,7 +155,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     resetMediaState();
   }, [resetMediaState]);
 
-  // â”€â”€ Create Peer Connection â”€â”€
+  // GöÇGöÇ Create Peer Connection GöÇGöÇ
   const createPeerConnection = useCallback((isVideo = false) => {
     const pc = new RTCPeerConnection({
       iceServers: ICE_SERVERS,
@@ -197,7 +197,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
     };
 
-    // iOS Safari fallback â€” it doesn't always fire onconnectionstatechange
+    // iOS Safari fallback GÇö it doesn't always fire onconnectionstatechange
     pc.oniceconnectionstatechange = () => {
       console.debug('[WebRTC] ICE connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
@@ -232,7 +232,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     return pc;
   }, [sendSignaling, cleanup]);
 
-  // â”€â”€ Signaling Message Handler â”€â”€
+  // GöÇGöÇ Signaling Message Handler GöÇGöÇ
   function handleSignalingMessage(data) {
     switch (data.type) {
       case 'call_offer': {
@@ -339,7 +339,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }
   }
 
-  // â”€â”€ Start Call â”€â”€
+  // GöÇGöÇ Start Call GöÇGöÇ
   const startCall = useCallback(async (targetUserId, type = 'audio', targetUserInfo = {}) => {
     if (callState !== CALL_STATE.IDLE) {
       toast.error('Already in a call');
@@ -435,7 +435,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }
   }, [callState, userId, userInfo, facingMode, createPeerConnection, sendSignaling, wsRef, connectSignaling, cleanup]);
 
-  // â”€â”€ Answer Call â”€â”€
+  // GöÇGöÇ Answer Call GöÇGöÇ
   const answerCall = useCallback(async () => {
     if (callState !== CALL_STATE.INCOMING) return;
 
@@ -491,7 +491,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     }
   }, [callState, callType, facingMode, remoteUserInfo, userId, createPeerConnection, sendSignaling, cleanup]);
 
-  // â”€â”€ Decline Call â”€â”€
+  // GöÇGöÇ Decline Call GöÇGöÇ
   const declineCall = useCallback(() => {
     if (callStateRef.current !== CALL_STATE.INCOMING) {
       setCallState(CALL_STATE.IDLE);
@@ -505,7 +505,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     setRemoteUserInfo(null);
   }, [sendSignaling]);
 
-  // â”€â”€ End Call â”€â”€
+  // GöÇGöÇ End Call GöÇGöÇ
   const endCall = useCallback(() => {
     sendSignaling({ type: 'call_end', target_user_id: remoteUserInfo?.id });
     cleanup();

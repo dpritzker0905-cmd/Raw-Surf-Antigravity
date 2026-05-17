@@ -19,7 +19,7 @@ import logger from '../utils/logger';
 /**
  * GromManage - Activity monitoring and spending controls for a specific Grom
  */
-export var GromManage = () => {
+export const GromManage = () => {
   const { gromId } = useParams();
   const { user } = useAuth();
   const { theme } = useTheme();

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-export var useOnDemandLocation = (step, userLocation, photographer, user) => {
+export const useOnDemandLocation = (step, userLocation, photographer, user) => {
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [customLocationName, setCustomLocationName] = useState('');
   const [customLocationAddress, setCustomLocationAddress] = useState('');

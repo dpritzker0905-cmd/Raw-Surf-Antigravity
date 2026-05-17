@@ -22,7 +22,7 @@ import { CrewStepPanel, CrewPaymentStepPanel } from './on-demand/OnDemandStepPan
 import { TimingStep, DurationStep, SplitChoiceStep, LocationStep } from './on-demand/OnDemandEarlySteps';
 
 // EmptySeat - placeholder for unfilled crew slots
-var EmptySeat = ({ index }) => (
+const EmptySeat = ({ index }) => (
   <div className='relative flex flex-col items-center opacity-50'>
     <div className='w-10 h-20 rounded-full border-2 border-dashed border-border/40 flex items-center justify-center'>
       <span className='text-xs text-muted-foreground'>+</span>
@@ -40,7 +40,7 @@ var EmptySeat = ({ index }) => (
 import useOnDemandBooking from '../hooks/useOnDemandBooking';
 
 // On-Demand Request Drawer Component
-export var OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
+export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess, userLocation, _userCredits = 0, resumeDispatchId }) => {
   const booking = useOnDemandBooking({ photographer, isOpen, onClose, onSuccess, userLocation, resumeDispatchId });
 
   // Destructure all values from the hook for JSX consumption

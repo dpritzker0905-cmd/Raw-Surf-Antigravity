@@ -16,7 +16,7 @@ import { toast } from 'sonner';
  * - Quick "Snap Offshore" action
  * - Photographer relocation suggestions
  */
-export var AdminPrecisionQueue = () => {
+export const AdminPrecisionQueue = () => {
   const { user } = useAuth();
   const [queue, setQueue] = useState([]);
   const [suggestions, setSuggestions] = useState([]);

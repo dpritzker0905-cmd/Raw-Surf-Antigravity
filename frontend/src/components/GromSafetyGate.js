@@ -14,9 +14,9 @@ import { getFullUrl } from '../utils/media';
 
 
 // Create context to share Grom status across components
-var GromStatusContext = createContext(null);
+const GromStatusContext = createContext(null);
 
-export var useGromStatus = () => useContext(GromStatusContext);
+export const useGromStatus = () => useContext(GromStatusContext);
 
 /**
  * GromSafetyGate - Root-level protection for underage users
@@ -34,7 +34,7 @@ export var useGromStatus = () => useContext(GromStatusContext);
  * - On-Demand/Active Photography features
  * - Direct messaging
  */
-export var GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
+export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
   const { user, loading: authLoading } = useAuth();
   const _navigate = useNavigate();
   const location = useLocation();
@@ -123,7 +123,7 @@ export var GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
 /**
  * SafetyGateUI - The blocking UI shown to unlinked Groms
  */
-var SafetyGateUI = ({ gromStatus, onRefresh }) => {
+const SafetyGateUI = ({ gromStatus, onRefresh }) => {
   const [codeCopied, setCodeCopied] = useState(false);
 
   const copyGuardianCode = () => {
@@ -257,7 +257,7 @@ var SafetyGateUI = ({ gromStatus, onRefresh }) => {
 /**
  * Hook to check if current user can perform an action based on parental controls
  */
-export var useParentalControls = () => {
+export const useParentalControls = () => {
   const { user } = useAuth();
   const [controls, setControls] = useState(null);
   const [loading, setLoading] = useState(true);

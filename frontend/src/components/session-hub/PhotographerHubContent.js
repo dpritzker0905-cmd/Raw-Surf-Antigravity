@@ -1,17 +1,17 @@
 /**
- * PhotographerHubContent â€” Extracted from SurferSessionHub.js (v79)
+ * PhotographerHubContent GÇö Extracted from SurferSessionHub.js (v79)
  *
  * "Active Duty" console for photographers:
- * 1. Go On-Demand â€” Toggle availability with spot selection
- * 2. Go Live â€” Start active shooting session
- * 3. Other Shooters â€” See who's nearby
- * 4. Scheduled Sessions â€” Today's agenda only
+ * 1. Go On-Demand GÇö Toggle availability with spot selection
+ * 2. Go Live GÇö Start active shooting session
+ * 3. Other Shooters GÇö See who's nearby
+ * 4. Scheduled Sessions GÇö Today's agenda only
  */
 import React from 'react';
 import { Radio, MapPin, Calendar, ChevronRight, Zap, Play } from 'lucide-react';
 import { SpotSelector } from '../SpotSelector';
 
-var PhotographerHubContent = ({ 
+const PhotographerHubContent = ({ 
   onClose, 
   navigate, 
   liveCount, 

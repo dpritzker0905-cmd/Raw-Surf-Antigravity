@@ -1,7 +1,7 @@
 import React from 'react';
 import { Map as MapIcon, Loader2, Check } from 'lucide-react';
 
-export var LocationDropdowns = ({
+export const LocationDropdowns = ({
   isLight,
   textPrimary,
   textSecondary,

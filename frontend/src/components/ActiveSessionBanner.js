@@ -11,7 +11,7 @@
  *   Expanded:    Full context card with status, photographer, ETA, CTA.
  *
  * DESKTOP:
- *   Handled by Sidebar.js â€” pulsing text label under the Bookings nav item.
+ *   Handled by Sidebar.js GÇö pulsing text label under the Bookings nav item.
  *   (No separate desktop component needed here.)
  *
  * Color scheme:
@@ -29,18 +29,18 @@ import {
 } from 'lucide-react';
 import useActiveSession from '../hooks/useActiveSession';
 
-// â”€â”€ Status label map â”€â”€
-var STATUS_LABELS = {
+// GöÇGöÇ Status label map GöÇGöÇ
+const STATUS_LABELS = {
   searching_for_pro: { captain: 'Finding Photographer...', crew: 'Waiting for Photographer...' },
   pending_payment:   { captain: 'Payment Pending', crew: 'Waiting for Captain to Pay' },
   accepted:          { captain: 'Photographer Confirmed!', crew: 'Photographer Confirmed!' },
   en_route:          { captain: 'On The Way', crew: 'On The Way!' },
   arrived:           { captain: 'Photographer Arrived!', crew: 'Arrived!' },
-  in_session:        { captain: 'Session Active ðŸ“¸', crew: 'Session Active ðŸ“¸' },
+  in_session:        { captain: 'Session Active =ƒô+', crew: 'Session Active =ƒô+' },
 };
 
-// â”€â”€ Shared color config factory â”€â”€
-var getColorConfig = (isCrew, isLight) => isCrew
+// GöÇGöÇ Shared color config factory GöÇGöÇ
+const getColorConfig = (isCrew, isLight) => isCrew
   ? {
       barGradient: 'from-cyan-400 via-blue-500 to-cyan-400',
       bgExpanded: isLight ? 'bg-gradient-to-r from-cyan-50 to-blue-50' : 'bg-gradient-to-r from-cyan-950/80 to-blue-950/80',
@@ -58,8 +58,8 @@ var getColorConfig = (isCrew, isLight) => isCrew
       glow: 'shadow-amber-400/20',
     };
 
-// â”€â”€ Status icon component â”€â”€
-var StatusIcon = ({ status, colorConfig }) => {
+// GöÇGöÇ Status icon component GöÇGöÇ
+const StatusIcon = ({ status, colorConfig }) => {
   if (['searching_for_pro', 'en_route'].includes(status)) {
     return <Radio className={`w-4 h-4 animate-pulse ${colorConfig.textAccent}`} />;
   }
@@ -70,15 +70,15 @@ var StatusIcon = ({ status, colorConfig }) => {
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// MOBILE BANNER â€” Sits above BottomNav
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
+// MOBILE BANNER GÇö Sits above BottomNav
+// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
 
-var MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpanded, handleNavigate, statusLabel }) => {
+const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpanded, handleNavigate, statusLabel }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
 
-  // â”€â”€ Collapsed: thin pulsing bar â”€â”€
+  // GöÇGöÇ Collapsed: thin pulsing bar GöÇGöÇ
   if (!isExpanded) {
     return (
       <div
@@ -91,7 +91,7 @@ var MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpa
         <div
           className={`h-[5px] w-full bg-gradient-to-r ${colorConfig.barGradient} animate-[pulse_2.5s_ease-in-out_infinite]`}
         />
-        {/* Pull-up handles â€” positioned LEFT and RIGHT to avoid center Create button */}
+        {/* Pull-up handles GÇö positioned LEFT and RIGHT to avoid center Create button */}
         <div className="absolute left-16 -top-3 flex flex-col items-center">
           <div className={`w-8 h-3 rounded-t-lg ${isLight ? 'bg-white/90' : 'bg-zinc-900/90'} border border-b-0 ${colorConfig.border} flex items-center justify-center backdrop-blur-sm`}>
             <ChevronUp className={`w-3 h-3 ${colorConfig.textAccent}`} />
@@ -106,7 +106,7 @@ var MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpa
     );
   }
 
-  // â”€â”€ Expanded: full context card â”€â”€
+  // GöÇGöÇ Expanded: full context card GöÇGöÇ
   return (
     <div
       className="fixed left-0 right-0 z-[99] md:hidden"
@@ -140,7 +140,7 @@ var MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpa
                     ~{activeSession.eta} min
                   </span>
                 )}
-                {activeSession.eta && activeSession.locationName && <span>Â·</span>}
+                {activeSession.eta && activeSession.locationName && <span>-+</span>}
                 {activeSession.locationName && (
                   <>
                     <MapPin className="w-2.5 h-2.5 inline flex-shrink-0" />
@@ -182,13 +182,13 @@ var MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpa
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// TOPNAV NOTIFICATION LINE â€” Thin accent line at the very bottom of
+// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
+// TOPNAV NOTIFICATION LINE GÇö Thin accent line at the very bottom of
 // the header, positioned to touch the scrollable content below with
 // zero gap. Sits OVER the header's border-b.
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
 
-var TopNavLine = ({ colorConfig }) => {
+const TopNavLine = ({ colorConfig }) => {
   // The TopNav header: py-2.5 (20px) + icon row (~24px) + border-b (1px)
   // = ~45px below safe-area-inset-top. We position at 44px to overlap the
   // border-b, then the 3px line covers the border and touches content.
@@ -206,12 +206,12 @@ var TopNavLine = ({ colorConfig }) => {
 };
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// MAIN EXPORT â€” Orchestrates mobile-only sub-components
+// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
+// MAIN EXPORT GÇö Orchestrates mobile-only sub-components
 // Desktop session awareness is handled directly by Sidebar.js
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
 
-export var ActiveSessionBanner = () => {
+export const ActiveSessionBanner = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme } = useTheme();

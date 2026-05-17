@@ -11,10 +11,10 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 /**
- * PhotographerRequestModal â€” Extracted from SpotHub.js
+ * PhotographerRequestModal GÇö Extracted from SpotHub.js
  * Request photographer coverage at a spot with no active photographers.
  */
-var PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) => {
+const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const isLight = theme === 'light';

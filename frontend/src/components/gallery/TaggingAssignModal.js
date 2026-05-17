@@ -7,7 +7,7 @@ import { getFullUrl } from '../../utils/media';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 
-var TaggingAssignModal = ({
+const TaggingAssignModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,
@@ -163,7 +163,7 @@ var TaggingAssignModal = ({
                           </div>
                           <p className={`text-[10px] ${textSecondaryClass}`}>
                             {participant.items_distributed || 0} items in locker
-                            {participant.status && ` ï¿½ ${participant.status}`}
+                            {participant.status && ` +�-+-+ ${participant.status}`}
                           </p>
                         </div>
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${

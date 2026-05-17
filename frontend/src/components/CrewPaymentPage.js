@@ -41,7 +41,7 @@ import { getFullUrl } from '../utils/media';
  * - Pay now button
  */
 
-var CrewPaymentPage = () => {
+const CrewPaymentPage = () => {
   const { bookingId } = useParams();
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();

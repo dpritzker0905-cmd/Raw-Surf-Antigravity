@@ -19,7 +19,7 @@ import { CreateAdModal } from '../CreateAdModal';
 import logger from '../../utils/logger';
 
 
-export var AdCenterPanel = () => {
+export const AdCenterPanel = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const _navigate = useNavigate();

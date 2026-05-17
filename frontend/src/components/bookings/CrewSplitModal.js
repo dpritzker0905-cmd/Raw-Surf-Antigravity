@@ -8,7 +8,7 @@ import { Users,
   Link2, Copy, Send, Mail
 } from 'lucide-react';
 
-var CrewSplitModal = (props) => {
+const CrewSplitModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,

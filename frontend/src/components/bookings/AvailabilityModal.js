@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Calendar } from '../ui/calendar';
 
-var AvailabilityModal = (props) => {
+const AvailabilityModal = (props) => {
   // Destructure all needed props from parent
   const {
     showCreateModal, setShowCreateModal, showParticipantsModal, setShowParticipantsModal,

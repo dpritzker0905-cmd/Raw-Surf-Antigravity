@@ -11,7 +11,7 @@ import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 
-export var Credits = () => {
+export const Credits = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

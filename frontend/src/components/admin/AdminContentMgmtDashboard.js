@@ -28,7 +28,7 @@ import { getFullUrl } from '../../utils/media';
  * - Scheduled reports
  * - Changelog
  */
-export var AdminContentMgmtDashboard = () => {
+export const AdminContentMgmtDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState('featured');

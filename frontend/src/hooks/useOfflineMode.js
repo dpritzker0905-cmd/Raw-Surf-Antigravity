@@ -13,13 +13,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-var SPOTS_STORAGE_KEY = 'rawsurf_cached_spots';
-var NEARBY_SPOTS_KEY = 'rawsurf_nearby_spots';
-var FAVORITE_SPOTS_KEY = 'rawsurf_favorite_spots';
-var CACHE_TIMESTAMP_KEY = 'rawsurf_spots_cache_time';
-var AUTO_SYNC_KEY = 'rawsurf_auto_sync_enabled';
+const SPOTS_STORAGE_KEY = 'rawsurf_cached_spots';
+const NEARBY_SPOTS_KEY = 'rawsurf_nearby_spots';
+const FAVORITE_SPOTS_KEY = 'rawsurf_favorite_spots';
+const CACHE_TIMESTAMP_KEY = 'rawsurf_spots_cache_time';
+const AUTO_SYNC_KEY = 'rawsurf_auto_sync_enabled';
 
-export var useOfflineMode = () => {
+export const useOfflineMode = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [spotsCached, setSpotsCached] = useState(false);
   const [nearbyCached, setNearbyCached] = useState(false);

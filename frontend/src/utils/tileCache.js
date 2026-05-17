@@ -5,19 +5,19 @@ import logger from './logger';
  * No external dependencies - uses native browser APIs
  */
 
-var DB_NAME = 'leaflet_tile_cache';
-var DB_VERSION = 1;
-var STORE_NAME = 'tiles';
-var MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-var _MAX_CACHE_SIZE = 500; // Max tiles to keep
+const DB_NAME = 'leaflet_tile_cache';
+const DB_VERSION = 1;
+const STORE_NAME = 'tiles';
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const _MAX_CACHE_SIZE = 500; // Max tiles to keep
 
-var db = null;
-var dbPromise = null;
+let db = null;
+let dbPromise = null;
 
 /**
  * Initialize IndexedDB connection
  */
-var initDB = () => {
+const initDB = () => {
   if (dbPromise) return dbPromise;
   
   dbPromise = new Promise((resolve, _reject) => {
@@ -58,7 +58,7 @@ var initDB = () => {
  * @param {string} key - Tile URL or unique key
  * @returns {Promise<string|null>} - Data URL or null
  */
-export var getTile = async (key) => {
+export const getTile = async (key) => {
   const database = await initDB();
   if (!database) return null;
   
@@ -94,7 +94,7 @@ export var getTile = async (key) => {
  * @param {string} key - Tile URL or unique key
  * @param {string} dataUrl - Base64 data URL of tile
  */
-export var setTile = async (key, dataUrl) => {
+export const setTile = async (key, dataUrl) => {
   const database = await initDB();
   if (!database) return;
   
@@ -115,7 +115,7 @@ export var setTile = async (key, dataUrl) => {
 /**
  * Clear old tiles from cache
  */
-export var cleanupCache = async () => {
+export const cleanupCache = async () => {
   const database = await initDB();
   if (!database) return;
   
@@ -148,7 +148,7 @@ export var cleanupCache = async () => {
 /**
  * Get cache stats
  */
-export var getCacheStats = async () => {
+export const getCacheStats = async () => {
   const database = await initDB();
   if (!database) return { count: 0, size: 0 };
   
@@ -172,7 +172,7 @@ export var getCacheStats = async () => {
 /**
  * Clear all cached tiles
  */
-export var clearCache = async () => {
+export const clearCache = async () => {
   const database = await initDB();
   if (!database) return;
   

@@ -5,7 +5,7 @@
  */
 import React from 'react';
 
-var ShakaIcon = ({ filled, size = 28 }) => (
+const ShakaIcon = ({ filled, size = 28 }) => (
   <img loading="lazy" decoding="async"
     src="https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/1f919.svg"
     alt="shaka"

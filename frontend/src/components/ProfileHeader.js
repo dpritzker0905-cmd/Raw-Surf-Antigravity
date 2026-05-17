@@ -12,7 +12,7 @@ import { XPDisplay, BadgeRow } from './GamificationUI';
 import TrustSignalBadges from './ui/TrustSignalBadges';
 
 // Role badge component showing icon and label
-var ProfileRoleBadge = ({ role }) => {
+const ProfileRoleBadge = ({ role }) => {
   const roleInfo = getExpandedRoleInfo(role);
   return (
     <Badge className={`${roleInfo.bgColor} ${roleInfo.color} text-xs flex items-center gap-1`} data-testid="profile-role-badge">
@@ -23,11 +23,11 @@ var ProfileRoleBadge = ({ role }) => {
 };
 
 /**
- * ProfileHeader â€” Extracted from Profile.js
+ * ProfileHeader GÇö Extracted from Profile.js
  * Renders the avatar, note bubble, name, username, stats row,
  * role badges, bio, social links, and action buttons.
  */
-export var ProfileHeader = ({
+export const ProfileHeader = ({
   profile,
   profileUserId,
   isOwnProfile,
@@ -198,7 +198,7 @@ export var ProfileHeader = ({
               title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
             >
               <span className="text-[10px] font-bold text-zinc-300 group-hover/logo:text-cyan-400">
-                {profile.is_logo_avatar ? 'ðŸ¤™' : '???'}
+                {profile.is_logo_avatar ? '=ƒñÖ' : '???'}
               </span>
             </button>
           )}

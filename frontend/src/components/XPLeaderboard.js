@@ -13,7 +13,7 @@ import logger from '../utils/logger';
  * XP Leaderboard Component
  * Shows top XP earners in the community
  */
-export var XPLeaderboard = ({ compact = false, limit = 10 }) => {
+export const XPLeaderboard = ({ compact = false, limit = 10 }) => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState([]);

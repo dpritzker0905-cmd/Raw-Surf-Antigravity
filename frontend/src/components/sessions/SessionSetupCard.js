@@ -1,5 +1,5 @@
 /**
- * SessionSetupCard â€” Session configuration preview card for photographers.
+ * SessionSetupCard GÇö Session configuration preview card for photographers.
  * Extracted from PhotographerSessionsManager.js.
  * 
  * Shows current session settings: buy-in, photos/videos included,
@@ -12,7 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 
-var SessionSetupCard = ({
+const SessionSetupCard = ({
   sessionSettings,
   isLight,
   textPrimaryClass,

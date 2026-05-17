@@ -12,7 +12,7 @@ import CrewHub from './CrewHub';
  * BookingCard - Extracted from Bookings.js for modularity
  * Displays a single booking with status, payment info, and crew management
  */
-export var BookingCard = ({
+export const BookingCard = ({
   booking,
   user,
   theme = 'dark',

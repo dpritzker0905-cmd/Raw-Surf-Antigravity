@@ -1,5 +1,5 @@
 /**
- * useFeedDataActions â€” Extracted from useFeedActions.js (v77)
+ * useFeedDataActions GÇö Extracted from useFeedActions.js (v77)
  * Handles: post fetching, pagination, refresh, feed lineups,
  * upcoming sessions, live users, following, post CRUD
  */
@@ -8,7 +8,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-var useFeedDataActions = ({
+const useFeedDataActions = ({
   user, posts, latestPostIdRef, isPhotographer,
   postModalOpen, postMenuOpen,
   // State setters
@@ -30,7 +30,7 @@ var useFeedDataActions = ({
     try {
       const response = await apiClient.get('/posts', {
         params: { limit: 10 },
-        timeout: 8000  // 8s timeout â€” Render cold-starts can take up to 30s
+        timeout: 8000  // 8s timeout GÇö Render cold-starts can take up to 30s
       });
       // New paginated response format: { posts, next_cursor, has_more }
       const data = response.data;
@@ -324,7 +324,7 @@ var useFeedDataActions = ({
             author_avatar: null,
             media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
             media_type: 'image',
-            caption: 'Dawn patrol at its finest! ðŸŒŠ',
+            caption: 'Dawn patrol at its finest! =ƒîè',
             location: 'Pipeline, Hawaii',
             likes_count: 247,
             liked: false,
@@ -378,7 +378,7 @@ var useFeedDataActions = ({
             author_avatar: null,
             media_url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600',
             media_type: 'image',
-            caption: 'Dawn patrol at its finest! ðŸŒŠ',
+            caption: 'Dawn patrol at its finest! =ƒîè',
             location: 'Pipeline, Hawaii',
             likes_count: 247,
             liked: false,
@@ -392,7 +392,7 @@ var useFeedDataActions = ({
   };
 
   /**
-   * loadMorePosts â€” Infinite scroll: fetches the next page of posts using cursor-based pagination.
+   * loadMorePosts GÇö Infinite scroll: fetches the next page of posts using cursor-based pagination.
    * Appends new posts to the existing list without replacing. Deduplicates by post ID.
    */
   const loadMorePosts = async () => {
@@ -432,7 +432,7 @@ var useFeedDataActions = ({
       }
     } catch (error) {
       logger.error('Error loading more posts:', error);
-      // Don't show error toast â€” silently fail, user can scroll down again
+      // Don't show error toast GÇö silently fail, user can scroll down again
     } finally {
       loadingMoreRef.current = false;
     }

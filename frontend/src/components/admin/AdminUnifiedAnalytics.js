@@ -24,7 +24,7 @@ import logger from '../../utils/logger';
  * - Top performers
  * - Growth tools (promo codes, campaigns, feature flags)
  */
-export var AdminUnifiedAnalytics = () => {
+export const AdminUnifiedAnalytics = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [activeSubTab, setActiveSubTab] = useState('overview');

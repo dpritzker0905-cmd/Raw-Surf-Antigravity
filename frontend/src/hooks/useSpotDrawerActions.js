@@ -1,12 +1,12 @@
 /**
  * useSpotDrawerActions.js
- * Extracted from UnifiedSpotDrawer.js â€” handler logic for spot drawer data & actions.
+ * Extracted from UnifiedSpotDrawer.js GÇö handler logic for spot drawer data & actions.
  */
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useSpotDrawerActions = ({
+const useSpotDrawerActions = ({
   user,
   spotId,
   navigate,

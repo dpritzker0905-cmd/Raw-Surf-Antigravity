@@ -6,7 +6,7 @@ import React from 'react';
 import { X, ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '../ui/button';
 
-var PhotographerLightbox = ({
+const PhotographerLightbox = ({
   lightboxItem, setLightboxItem, filteredItems,
   handleOpenTagging,
 }) => {

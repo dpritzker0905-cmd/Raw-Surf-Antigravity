@@ -8,10 +8,10 @@ import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';
 
 /**
- * BookingTypeModal â€” Extracted from SpotHub.js
+ * BookingTypeModal GÇö Extracted from SpotHub.js
  * Let users choose between Live (Jump In), On-Demand, or Scheduled booking.
  */
-var BookingTypeModal = ({ isOpen, onClose, photographer, spotId, spotName, onSelectType }) => {
+const BookingTypeModal = ({ isOpen, onClose, photographer, spotId, spotName, onSelectType }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';

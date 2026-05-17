@@ -1,13 +1,13 @@
 /**
  * useAdminP1Actions.js
- * Extracted from AdminP1Dashboard.js â€” handler logic for admin compliance dashboard.
+ * Extracted from AdminP1Dashboard.js GÇö handler logic for admin compliance dashboard.
  * v33: Rewritten to exactly match AdminP1Dashboard.js handler implementations.
  */
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var useAdminP1Actions = ({
+const useAdminP1Actions = ({
   // Auth context
   authStartImpersonation,
   authEndImpersonation,

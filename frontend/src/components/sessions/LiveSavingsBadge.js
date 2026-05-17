@@ -3,7 +3,7 @@ import { Sparkles } from 'lucide-react';
 import { Badge } from '../ui/badge';
 
 // Live Savings Badge Component - Synced with UnifiedSpotDrawer
-var LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
+const LiveSavingsBadge = ({ generalPrice, livePrice, className = '' }) => {
   const savings = generalPrice - livePrice;
   const _savingsPercent = Math.round((savings / generalPrice) * 100);
   

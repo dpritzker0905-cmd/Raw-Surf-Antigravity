@@ -83,20 +83,20 @@ if (typeof window !== 'undefined') {
 }
 
 // Loading fallback for translations
-var LoadingFallback = () => (
+const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-black">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
   </div>
 );
 
-var root = ReactDOM.createRoot(document.getElementById("root"));
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
     <Suspense fallback={<LoadingFallback />}>
       <App />
     </Suspense>
 );
 
-// â”€â”€ Service Worker Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Service Worker Registration GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 // Enables offline caching, push notifications, and PWA installability.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -113,6 +113,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// â”€â”€ Core Web Vitals Monitoring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇ Core Web Vitals Monitoring GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 // Reports LCP, FID, CLS, TTFB, INP metrics. Logs in dev, ready for analytics.
 reportWebVitals(logWebVitals);

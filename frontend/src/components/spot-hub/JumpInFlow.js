@@ -16,9 +16,9 @@ import logger from '../../utils/logger';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePersona } from '../../contexts/PersonaContext';
 
-var CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
+const CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
 
-var JumpInFlow = ({ photographer, onBack, onSuccess }) => {
+const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const { user, updateUser } = useAuth();
   const { getEffectiveRole, isGodMode, activePersona } = usePersona();
   const videoRef = useRef(null);

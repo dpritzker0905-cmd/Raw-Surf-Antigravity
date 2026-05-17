@@ -1,7 +1,7 @@
 /**
  * CreateWaveModal - Upload short-form vertical video (max 60 seconds)
  * 
- * Streamlined 3-step flow: Select â†’ Compose â†’ Uploading
+ * Streamlined 3-step flow: Select GåÆ Compose GåÆ Uploading
  * Mobile-first: scrollable content, safe-area padding, no button cutoff
  */
 import React, { useState, useRef, useCallback } from 'react';
@@ -19,10 +19,10 @@ import {
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var MAX_DURATION = 60; // seconds
-var MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_DURATION = 60; // seconds
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-export var CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
+export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -228,7 +228,7 @@ export var CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
           </DialogTitle>
         </DialogHeader>
         
-        {/* Scrollable content area â€” prevents bottom-nav cutoff on mobile */}
+        {/* Scrollable content area GÇö prevents bottom-nav cutoff on mobile */}
         <div 
           className="p-4 flex-1 overflow-y-auto"
           style={{ paddingBottom: '24px' }}
@@ -274,7 +274,7 @@ export var CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           )}
           
-          {/* Step 2: Compose â€” Video preview + caption + location (merged from old preview + details) */}
+          {/* Step 2: Compose GÇö Video preview + caption + location (merged from old preview + details) */}
           {step === 'compose' && videoPreview && (
             <div className="space-y-3">
               {/* Compact video preview */}
@@ -425,7 +425,7 @@ export var CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
               )}
               
-              {/* Action button â€” single prominent CTA */}
+              {/* Action button GÇö single prominent CTA */}
               <Button
                 onClick={handleUpload}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white py-3 text-base font-semibold"

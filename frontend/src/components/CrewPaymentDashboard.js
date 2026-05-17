@@ -26,7 +26,7 @@ import logger from '../utils/logger';
  * - Payment lock until 100% verified
  */
 
-export var CrewPaymentDashboard = ({ booking, onUpdate }) => {
+export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';

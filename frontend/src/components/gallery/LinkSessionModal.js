@@ -6,7 +6,7 @@ import { Users, MapPin, Calendar, Loader2,
   Link2
 } from 'lucide-react';
 
-var LinkSessionModal = ({
+const LinkSessionModal = ({
   showPricingModal, setShowPricingModal, showEditModal, setShowEditModal,
   showTaggingModal, setShowTaggingModal, showItemPricingModal, setShowItemPricingModal,
   showSalesDashboard, setShowSalesDashboard, showClientActivity, setShowClientActivity,
@@ -84,9 +84,9 @@ var LinkSessionModal = ({
                             session.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
                             'border-orange-500/50 text-orange-400'
                           }`}>
-                            {session.session_type === 'live' ? 'π“Έ Live' :
-                             session.session_type === 'booking' ? 'π“… Booking' :
-                             'β΅ On-Demand'}
+                            {session.session_type === 'live' ? '=ƒτ+ Live' :
+                             session.session_type === 'booking' ? '=ƒτΰ Booking' :
+                             'Gάν On-Demand'}
                           </Badge>
                         )}
                       </div>

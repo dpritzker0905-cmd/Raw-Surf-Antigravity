@@ -32,7 +32,7 @@ import PostModalMobileView from './social/PostModalMobileView';
 // Tap to play/pause, custom progress bar, volume slider, no native controls
 // ModalVideoPlayer, ImageCarousel, CommentItem extracted to ./social/PostModalComponents.js
 
-var PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
+const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -129,7 +129,7 @@ var PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }
   // Trap focus within the modal for keyboard accessibility
   useFocusTrap(modalRef, isOpen);
   
-  // Double-tap to like handler √¢‚Ç¨‚Äù toggles shaka on/off (desktop click-based)
+  // Double-tap to like handler +ÛGÈºG«• toggles shaka on/off (desktop click-based)
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 400) {
@@ -214,7 +214,7 @@ var PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }
       window.history.pushState({ modal: 'post' }, '');
       
       const handlePopState = () => {
-        // Back button was pressed √¢‚Ç¨‚Äù close the modal WITHOUT calling history.back()
+        // Back button was pressed +ÛGÈºG«• close the modal WITHOUT calling history.back()
         closedByPopstateRef.current = true;
         onClose();
       };
@@ -331,7 +331,7 @@ var PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost }
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center"
     >
-      {/* Backdrop ‚Äî onMouseDown is the industry-standard close trigger.
+      {/* Backdrop G«ˆ onMouseDown is the industry-standard close trigger.
           Unlike onClick on the outer container, mouseDown on a dedicated
           backdrop layer can never be accidentally triggered by events
           originating inside the modal content or picker overlays. */}

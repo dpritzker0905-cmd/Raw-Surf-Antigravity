@@ -19,7 +19,7 @@ import logger from '../utils/logger';
  * Admin Competition Result Verification
  * Allows admins to verify/reject pending competition results
  */
-export var AdminCompetitionVerification = () => {
+export const AdminCompetitionVerification = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   

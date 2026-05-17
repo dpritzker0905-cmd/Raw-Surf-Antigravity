@@ -1,5 +1,5 @@
 /**
- * ParticipantCard â€” Extracted from PhotographerSessionManager.js (v77)
+ * ParticipantCard GÇö Extracted from PhotographerSessionManager.js (v77)
  * Displays a single session participant with surfboard color, avatar,
  * status badge, countdown timer, and selfie preview modal.
  */
@@ -11,7 +11,7 @@ import {
 import { getFullUrl } from '../../utils/media';
 
 // Surfboard colors for visual consistency with LineupManagerDrawer
-var SURFBOARD_COLORS = [
+const SURFBOARD_COLORS = [
   { fill: '#22D3EE', stroke: '#0891B2' },
   { fill: '#F472B6', stroke: '#DB2777' },
   { fill: '#A78BFA', stroke: '#7C3AED' },
@@ -23,7 +23,7 @@ var SURFBOARD_COLORS = [
 
 export { SURFBOARD_COLORS };
 
-var ParticipantCard = ({ 
+const ParticipantCard = ({ 
   participant, 
   position, 
   canRemove, 

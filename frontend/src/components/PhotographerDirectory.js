@@ -38,7 +38,7 @@ import { ROLES } from '../constants/roles';
 
 
 // Gear type options
-var GEAR_TYPES = [
+const GEAR_TYPES = [
   { id: 'all', label: 'All Gear', icon: Camera },
   { id: 'land', label: 'Land', icon: Camera, description: 'Beach/pier shots' },
   { id: 'water', label: 'Water', icon: Waves, description: 'In-water photography' },
@@ -46,7 +46,7 @@ var GEAR_TYPES = [
 ];
 
 // Skill level options
-var SKILL_LEVELS = [
+const SKILL_LEVELS = [
   { id: 'all', label: 'All Levels' },
   { id: 'hobbyist', label: 'Hobbyist', color: 'blue' },
   { id: 'photographer', label: 'Photographer', color: 'green' },
@@ -54,23 +54,23 @@ var SKILL_LEVELS = [
 ];
 
 // Region/Peak options (expandable)
-var REGIONS = [
+const REGIONS = [
   { id: 'all', label: 'All Regions' },
-  { id: 'ny', label: 'New York', flag: 'ðŸ—½' },
-  { id: 'fl', label: 'Florida', flag: 'ðŸŒ´' },
-  { id: 'ca', label: 'California', flag: 'ðŸŒŠ' },
-  { id: 'hi', label: 'Hawaii', flag: 'ðŸŒº' },
-  { id: 'cr', label: 'Costa Rica', flag: 'ðŸ‡¨ðŸ‡·' },
-  { id: 'pr', label: 'Puerto Rico', flag: 'ðŸ‡µðŸ‡·' },
-  { id: 'mx', label: 'Mexico', flag: 'ðŸ‡²ðŸ‡½' },
-  { id: 'id', label: 'Indonesia', flag: 'ðŸ‡®ðŸ‡©' },
-  { id: 'au', label: 'Australia', flag: 'ðŸ‡¦ðŸ‡º' },
+  { id: 'ny', label: 'New York', flag: '=ƒù+' },
+  { id: 'fl', label: 'Florida', flag: '=ƒî¦' },
+  { id: 'ca', label: 'California', flag: '=ƒîè' },
+  { id: 'hi', label: 'Hawaii', flag: '=ƒî¦' },
+  { id: 'cr', label: 'Costa Rica', flag: '=ƒç¿=ƒç+' },
+  { id: 'pr', label: 'Puerto Rico', flag: '=ƒç¦=ƒç+' },
+  { id: 'mx', label: 'Mexico', flag: '=ƒç¦=ƒç+' },
+  { id: 'id', label: 'Indonesia', flag: '=ƒç«=ƒç¬' },
+  { id: 'au', label: 'Australia', flag: '=ƒçª=ƒç¦' },
 ];
 
 /**
  * Photographer Card Component
  */
-var PhotographerCard = ({ photographer, onSelect, isLight }) => {
+const PhotographerCard = ({ photographer, onSelect, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   const cardBg = isLight ? 'bg-white border-gray-200' : 'bg-zinc-900 border-zinc-800';
@@ -175,7 +175,7 @@ var PhotographerCard = ({ photographer, onSelect, isLight }) => {
 /**
  * Filter Sheet Component
  */
-var FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => {
+const FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => {
   const _textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -289,7 +289,7 @@ var FilterSheet = ({ isOpen, onClose, filters, onFiltersChange, isLight }) => {
 /**
  * Main Photographer Directory Component
  */
-export var PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer }) => {
+export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer }) => {
   const { _user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

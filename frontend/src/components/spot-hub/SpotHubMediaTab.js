@@ -7,7 +7,7 @@ import { Camera, Users, Eye, Heart } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
 // Inline MediaItem (same as SpotHub original)
-var MediaItem = ({ item, onClick }) => (
+const MediaItem = ({ item, onClick }) => (
   <div onClick={onClick} className="relative aspect-square bg-zinc-800 rounded-lg overflow-hidden cursor-pointer group">
     <img loading="lazy" decoding="async"
       src={getFullUrl(item.thumbnail_url || item.media_url || item.image_url)} alt=""
@@ -25,7 +25,7 @@ var MediaItem = ({ item, onClick }) => (
   </div>
 );
 
-var SpotHubMediaTab = ({ type, posts, navigate }) => {
+const SpotHubMediaTab = ({ type, posts, navigate }) => {
   const isPro = type === 'pro';
   const Icon = isPro ? Camera : Users;
   const emptyLabel = isPro ? 'No pro photos tagged here' : 'No community posts tagged here';

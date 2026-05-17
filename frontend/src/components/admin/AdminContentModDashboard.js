@@ -22,7 +22,7 @@ import { getFullUrl } from '../../utils/media';
  * - Approve, reject, or escalate content
  * - Bulk moderation actions
  */
-export var AdminContentModDashboard = () => {
+export const AdminContentModDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [loading, setLoading] = useState(true);

@@ -23,7 +23,7 @@ import { DirectionCompass } from './WaveDirectionIndicator';
 import { getFullUrl } from '../utils/media';
 
 // Session label icons
-var SESSION_LABEL_ICONS = {
+const SESSION_LABEL_ICONS = {
   'Dawn Patrol': Sunrise,
   'Morning Glass': Sun,
   'Midday Session': Sun,
@@ -33,7 +33,7 @@ var SESSION_LABEL_ICONS = {
 };
 
 // Wind direction display
-var _WIND_ARROWS = {
+const _WIND_ARROWS = {
   'N': '?', 'NE': '?', 'E': '?', 'SE': '?',
   'S': '?', 'SW': '?', 'W': '?', 'NW': '?'
 };
@@ -41,7 +41,7 @@ var _WIND_ARROWS = {
 /**
  * Compact conditions badge with wave direction visualization
  */
-var ConditionsBadge = ({ waveHeight, waveDirection, waveDirectionDegrees, wavePeriod, windSpeed, windDirection, tide, tideHeight, isLight }) => {
+const ConditionsBadge = ({ waveHeight, waveDirection, waveDirectionDegrees, wavePeriod, windSpeed, windDirection, tide, tideHeight, isLight }) => {
   if (!waveHeight && !windSpeed && !tide) return null;
   
   return (
@@ -113,7 +113,7 @@ var ConditionsBadge = ({ waveHeight, waveDirection, waveDirectionDegrees, wavePe
 /**
  * Collaborators avatars row
  */
-var CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
+const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
   if (!collaborators || collaborators.length === 0) return null;
   
   const accepted = collaborators.filter(c => c.status === 'accepted');
@@ -155,7 +155,7 @@ var CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
 /**
  * Main Session Log Header Component
  */
-export var SessionLogHeader = ({
+export const SessionLogHeader = ({
   post,
   collaborators = [],
   onIWasThere,

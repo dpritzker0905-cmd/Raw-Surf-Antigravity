@@ -10,7 +10,7 @@ import { Input } from '../../ui/input';
 import { Badge } from '../../ui/badge';
 import { Avatar, AvatarFallback } from '../../ui/avatar';
 
-var AdminP1TestAccountsTab = ({
+const AdminP1TestAccountsTab = ({
   testAccounts, testAccountPassword, setTestAccountPassword,
   seedAllRoleAccounts, seedingAccounts,
   cleanupOldTestAccounts, actionLoading,

@@ -1,20 +1,20 @@
 /**
- * DutyStation constants and geo utilities â€” extracted from DutyStationDrawer (v81)
+ * DutyStation constants and geo utilities GÇö extracted from DutyStationDrawer (v81)
  */
 import { Radio, Zap } from 'lucide-react';
 
 // Distance constants
-export var LIVE_PROXIMITY_MILES = 0.2; // Must be within 0.2 miles to go live
-export var LIVE_PROXIMITY_METERS = LIVE_PROXIMITY_MILES * 1609.34;
+export const LIVE_PROXIMITY_MILES = 0.2; // Must be within 0.2 miles to go live
+export const LIVE_PROXIMITY_METERS = LIVE_PROXIMITY_MILES * 1609.34;
 
 // On-Demand radius by role (in miles)
-export var ON_DEMAND_RADIUS = {
+export const ON_DEMAND_RADIUS = {
   standard: { min: 10, max: 20 },  // Regular Photographer
   pro: { min: 10, max: 50 }        // Approved Pro
 };
 
 // Mode configurations with theming
-export var MODE_CONFIG = {
+export const MODE_CONFIG = {
   live: {
     id: 'live',
     label: 'Live',
@@ -56,7 +56,7 @@ export var MODE_CONFIG = {
 /**
  * Calculate distance between two coordinates in meters (Haversine formula)
  */
-export var calculateDistance = (lat1, lon1, lat2, lon2) => {
+export const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371000; // Earth's radius in meters
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -68,4 +68,4 @@ export var calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-export var metersToMiles = (meters) => meters / 1609.34;
+export const metersToMiles = (meters) => meters / 1609.34;

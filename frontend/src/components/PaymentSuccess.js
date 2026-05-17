@@ -10,7 +10,7 @@ import { Button } from './ui/button';
 import logger from '../utils/logger';
 
 
-var PaymentSuccess = () => {
+const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const sessionId = searchParams.get('session_id');

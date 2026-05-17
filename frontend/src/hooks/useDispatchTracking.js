@@ -1,5 +1,5 @@
 /**
- * useDispatchTracking â€” Extracted from MapPage.js (v80)
+ * useDispatchTracking GÇö Extracted from MapPage.js (v80)
  *
  * Manages active dispatch tracking state: checks for an active dispatch
  * on mount, polls for location updates when en_route, and sends the
@@ -9,7 +9,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
-var useDispatchTracking = ({ userId }) => {
+const useDispatchTracking = ({ userId }) => {
   const [activeDispatch, setActiveDispatch] = useState(null);
   const [activeDispatchId, setActiveDispatchId] = useState(null);
   const trackingIntervalRef = useRef(null);

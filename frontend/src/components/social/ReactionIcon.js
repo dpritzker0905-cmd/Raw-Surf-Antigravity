@@ -1,6 +1,6 @@
 import React from 'react';
 
-var ReactionIcon = ({ post, userId, isLiked, isPressing, userReactionOverride }) => {
+const ReactionIcon = ({ post, userId, isLiked, isPressing, userReactionOverride }) => {
   // Priority: explicit override (from PostModal's local state) > post.user_reaction > reactions array
   const userReaction = userReactionOverride !== undefined
     ? userReactionOverride

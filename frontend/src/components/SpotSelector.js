@@ -33,7 +33,7 @@ import { ROLES } from '../constants/roles';
  * - Searchable spot list
  */
 
-export var SpotSelector = ({ 
+export const SpotSelector = ({ 
   selectedSpot, 
   onSelectSpot, 
   photographerTier = 'standard',

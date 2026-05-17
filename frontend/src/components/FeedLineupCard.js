@@ -33,7 +33,7 @@ import logger from '../utils/logger';
 
 
 // Calculate time remaining
-var getTimeRemaining = (closesAt) => {
+const getTimeRemaining = (closesAt) => {
   if (!closesAt) return null;
   const now = new Date();
   const closes = new Date(closesAt);
@@ -48,7 +48,7 @@ var getTimeRemaining = (closesAt) => {
   return { expired: false, text: `${hours}h left`, urgent: hours < 24 };
 };
 
-export var FeedLineupCard = ({
+export const FeedLineupCard = ({
   lineup,
   user,
   isLight = false,
@@ -85,7 +85,7 @@ export var FeedLineupCard = ({
       });
       
       setJoined(true);
-      toast.success('You joined the lineup! ğŸ¤™');
+      toast.success('You joined the lineup! =ƒñÖ');
       onJoinSuccess?.(lineup);
     } catch (error) {
       logger.error('Join error:', error);

@@ -6,7 +6,7 @@
  * previews, and notification alerts update even when the drawer is closed.
  *
  * Architecture:
- * - Uses the existing check-thread â†’ conversation poll pattern
+ * - Uses the existing check-thread GåÆ conversation poll pattern
  * - Polls every 5s (aligned with dispatch polling cadence)
  * - Fires toast + audio when a new message arrives while the drawer is closed
  * - Exposes { unreadCount, latestMessage, conversationId } for inline UI
@@ -18,9 +18,9 @@ import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
-var POLL_INTERVAL = 5000; // 5 seconds
+const POLL_INTERVAL = 5000; // 5 seconds
 
-export var useSessionChatSync = ({
+export const useSessionChatSync = ({
   userId,
   otherUserId,
   otherUserName,
@@ -102,13 +102,13 @@ export var useSessionChatSync = ({
           ) {
             // Toast notification
             const preview = latestFromOther.message_type === 'voice_note'
-              ? 'ðŸŽ¤ Voice note'
-              : (latestFromOther.content?.slice(0, 60) || 'ðŸ“Ž Media');
+              ? '=ƒÄñ Voice note'
+              : (latestFromOther.content?.slice(0, 60) || '=ƒôÄ Media');
 
             toast.info(`${otherUserName || 'Session'}: ${preview}`, {
               id: `session-msg-${latestFromOther.id}`,
               duration: 4000,
-              icon: 'ðŸ’¬',
+              icon: '=ƒÆ¼',
             });
 
             // Audio alert
@@ -139,7 +139,7 @@ export var useSessionChatSync = ({
   // When drawer opens + closes, re-check for updates
   useEffect(() => {
     if (!drawerOpen && conversationId && userId) {
-      // Drawer just closed â€” re-sync to pick up any read receipts
+      // Drawer just closed GÇö re-sync to pick up any read receipts
       const resync = async () => {
         try {
           const res = await apiClient.get(

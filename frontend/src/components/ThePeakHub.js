@@ -24,7 +24,7 @@ import { GenericPageSkeleton } from './ui/SkeletonVariants';
  * The Peak - Career Hub for Pro-Elite (?+) and Competitive (??) surfers
  * Features: Competition Stats, Sponsorship Manager, Gold-Pass Booking, Elite Talent Feed
  */
-export var ThePeakHub = () => {
+export const ThePeakHub = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -196,7 +196,7 @@ export var ThePeakHub = () => {
                     result.placing === 3 ? 'bg-amber-600 text-white' :
                     'bg-zinc-700 text-white'
                   }`}>
-                    {result.placing === 1 ? 'ğŸ¥‡' : result.placing === 2 ? 'ğŸ¥ˆ' : result.placing === 3 ? 'ğŸ¥‰' : result.placing}
+                    {result.placing === 1 ? '=ƒÑç' : result.placing === 2 ? '=ƒÑê' : result.placing === 3 ? '=ƒÑë' : result.placing}
                   </div>
                   <div>
                     <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
@@ -447,7 +447,7 @@ export var ThePeakHub = () => {
 };
 
 // Add Competition Result Modal
-var AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
+const AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
   const [formData, setFormData] = useState({
     event_name: '',
     event_date: '',
@@ -574,7 +574,7 @@ var AddCompetitionResultModal = ({ isOpen, onClose, userId, onSuccess }) => {
 };
 
 // Add Sponsor Modal
-var AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
+const AddSponsorModal = ({ isOpen, onClose, userId, onSuccess }) => {
   const [formData, setFormData] = useState({
     sponsor_name: '',
     sponsor_type: 'brand',

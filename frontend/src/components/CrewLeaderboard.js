@@ -39,33 +39,33 @@ import { getFullUrl } from '../utils/media';
 
 
 // Badge icon mapping
-var BADGE_ICONS = {
-  frequent_flyers: 'âœˆï¸',
-  dawn_patrol: 'ðŸŒ…',
-  sunset_crew: 'ðŸŒ‡',
-  weekend_warriors: 'âš”ï¸',
-  squad_goals: 'ðŸŽ¯',
-  dynamic_duo: 'ðŸ‘«',
-  wolf_pack: 'ðŸº',
-  ride_or_die: 'ðŸ¤™',
-  variety_pack: 'ðŸŽ²',
-  local_legends: 'ðŸ†',
-  smart_splitters: 'ðŸ§ ',
-  budget_bosses: 'ðŸ’µ'
+const BADGE_ICONS = {
+  frequent_flyers: 'G£ên+Å',
+  dawn_patrol: '=ƒîà',
+  sunset_crew: '=ƒîç',
+  weekend_warriors: 'GÜön+Å',
+  squad_goals: '=ƒÄ»',
+  dynamic_duo: '=ƒæ½',
+  wolf_pack: '=ƒÉ¦',
+  ride_or_die: '=ƒñÖ',
+  variety_pack: '=ƒÄ¦',
+  local_legends: '=ƒÅå',
+  smart_splitters: '=ƒºá',
+  budget_bosses: '=ƒÆ¦'
 };
 
-var TIER_COLORS = {
+const TIER_COLORS = {
   1: 'from-amber-600 to-amber-700',   // Bronze
   2: 'from-gray-300 to-gray-400',      // Silver
   3: 'from-yellow-400 to-yellow-500'   // Gold
 };
 
-var TIER_NAMES = ['Bronze', 'Silver', 'Gold'];
+const TIER_NAMES = ['Bronze', 'Silver', 'Gold'];
 
 /**
  * Badge Display Component
  */
-var BadgeCard = ({ badge, size = 'md' }) => {
+const BadgeCard = ({ badge, size = 'md' }) => {
   const sizeClasses = {
     sm: 'w-12 h-12 text-xl',
     md: 'w-16 h-16 text-2xl',
@@ -77,7 +77,7 @@ var BadgeCard = ({ badge, size = 'md' }) => {
   return (
     <div className="flex flex-col items-center">
       <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br ${tierColor} flex items-center justify-center shadow-lg`}>
-        <span>{BADGE_ICONS[badge.badge_type] || 'ðŸ¤™'}</span>
+        <span>{BADGE_ICONS[badge.badge_type] || '=ƒñÖ'}</span>
       </div>
       <p className="text-xs font-medium mt-1 text-center">{badge.badge_name}</p>
       <Badge variant="outline" className="text-xs mt-0.5">
@@ -90,7 +90,7 @@ var BadgeCard = ({ badge, size = 'md' }) => {
 /**
  * Crew Card Component
  */
-var CrewCard = ({ crew, onClick, isLight }) => {
+const CrewCard = ({ crew, onClick, isLight }) => {
   const cardBg = isLight ? 'bg-white' : 'bg-zinc-800/50';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
@@ -165,7 +165,7 @@ var CrewCard = ({ crew, onClick, isLight }) => {
 /**
  * Leaderboard Entry Component
  */
-var LeaderboardEntry = ({ entry, isLight }) => {
+const LeaderboardEntry = ({ entry, isLight }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
   
@@ -227,7 +227,7 @@ var LeaderboardEntry = ({ entry, isLight }) => {
 /**
  * Main Crew Leaderboard Component
  */
-export var CrewLeaderboard = ({ 
+export const CrewLeaderboard = ({ 
   userId, 
   variant = 'full',  // 'full', 'compact', 'profile'
   showPrivacyControls = false

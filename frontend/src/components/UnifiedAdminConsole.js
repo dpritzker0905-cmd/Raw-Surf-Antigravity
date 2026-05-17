@@ -77,7 +77,7 @@ import { AdminLogsPanel } from './admin/AdminLogsPanel';
  * Unified Admin Console - Combines Admin Dashboard + God Mode
  * Single entry point for all admin functionality
  */
-var UnifiedAdminConsole = () => {
+const UnifiedAdminConsole = () => {
   const { user } = useAuth();
   const _userId = user?.id;
   const navigate = useNavigate();

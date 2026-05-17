@@ -1,5 +1,5 @@
 /**
- * useWebPSupport â€” Detects if the browser supports WebP format.
+ * useWebPSupport GÇö Detects if the browser supports WebP format.
  * Returns true if WebP is supported, enabling components to request
  * optimized image formats from the CDN/backend.
  *
@@ -9,9 +9,9 @@
  */
 import { useState, useEffect } from 'react';
 
-var cachedResult = null;
+let cachedResult = null;
 
-var checkWebPSupport = () => {
+const checkWebPSupport = () => {
   return new Promise((resolve) => {
     if (cachedResult !== null) {
       resolve(cachedResult);
@@ -32,7 +32,7 @@ var checkWebPSupport = () => {
   });
 };
 
-var useWebPSupport = () => {
+const useWebPSupport = () => {
   const [supported, setSupported] = useState(cachedResult ?? false);
 
   useEffect(() => {
@@ -45,14 +45,14 @@ var useWebPSupport = () => {
 export default useWebPSupport;
 
 /**
- * getOptimizedImageUrl â€” Returns an optimized image URL based on format support.
+ * getOptimizedImageUrl GÇö Returns an optimized image URL based on format support.
  * Can be used outside of React components.
  *
  * @param {string} url - Original image URL
  * @param {Object} options - { width, quality, format }
  * @returns {string} Optimized URL with query params
  */
-export var getOptimizedImageUrl = (url, { width, quality = 80, format } = {}) => {
+export const getOptimizedImageUrl = (url, { width, quality = 80, format } = {}) => {
   if (!url) return url;
   // Don't modify data: or blob: URLs
   if (url.startsWith('data:') || url.startsWith('blob:')) return url;

@@ -1,8 +1,8 @@
 /**
- * TrustSignalBadges â€” Social proof indicators for photographer profiles.
+ * TrustSignalBadges GÇö Social proof indicators for photographer profiles.
  *
  * Fetches data from /profiles/{id}/trust-signals and displays:
- *  - Verification badge (âœ“ Verified / âœ“ Approved Pro)
+ *  - Verification badge (G£ô Verified / G£ô Approved Pro)
  *  - Session tier (Legend / Veteran / Experienced etc.)
  *  - Average response time
  *  - Review breakdown with category stars
@@ -11,15 +11,15 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Clock, Star, Camera, Zap, Award } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 
-var TIER_CONFIG = {
-  legend:      { label: 'Legend',      icon: 'ðŸ†', color: '#FFD700', bg: 'rgba(255,215,0,0.12)' },
-  veteran:     { label: 'Veteran',     icon: 'â­', color: '#C084FC', bg: 'rgba(192,132,252,0.12)' },
-  experienced: { label: 'Experienced', icon: 'ðŸ„', color: '#38BDF8', bg: 'rgba(56,189,248,0.12)' },
-  established: { label: 'Established', icon: 'ðŸ“¸', color: '#34D399', bg: 'rgba(52,211,153,0.12)' },
-  new:         { label: 'New',         icon: 'ðŸŒŠ', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)' },
+const TIER_CONFIG = {
+  legend:      { label: 'Legend',      icon: '=ƒÅå', color: '#FFD700', bg: 'rgba(255,215,0,0.12)' },
+  veteran:     { label: 'Veteran',     icon: 'G¡É', color: '#C084FC', bg: 'rgba(192,132,252,0.12)' },
+  experienced: { label: 'Experienced', icon: '=ƒÅä', color: '#38BDF8', bg: 'rgba(56,189,248,0.12)' },
+  established: { label: 'Established', icon: '=ƒô+', color: '#34D399', bg: 'rgba(52,211,153,0.12)' },
+  new:         { label: 'New',         icon: '=ƒîè', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)' },
 };
 
-var CategoryBar = ({ label, value, maxValue = 5 }) => {
+const CategoryBar = ({ label, value, maxValue = 5 }) => {
   const pct = Math.min((value / maxValue) * 100, 100);
   return (
     <div className="flex items-center gap-2 text-xs">
@@ -35,7 +35,7 @@ var CategoryBar = ({ label, value, maxValue = 5 }) => {
   );
 };
 
-var TrustSignalBadges = ({ profileId, compact = false }) => {
+const TrustSignalBadges = ({ profileId, compact = false }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,7 @@ var TrustSignalBadges = ({ profileId, compact = false }) => {
         const res = await apiClient.get(`/profiles/${profileId}/trust-signals`);
         if (!cancelled) setData(res.data);
       } catch {
-        // Non-critical â€” silently fail
+        // Non-critical GÇö silently fail
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -62,7 +62,7 @@ var TrustSignalBadges = ({ profileId, compact = false }) => {
   const tier = TIER_CONFIG[data.session_tier] || TIER_CONFIG.new;
   const breakdown = data.review_breakdown || {};
 
-  // â”€â”€ COMPACT MODE (inline badges for cards / search results) â”€â”€
+  // GöÇGöÇ COMPACT MODE (inline badges for cards / search results) GöÇGöÇ
   if (compact) {
     return (
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -104,7 +104,7 @@ var TrustSignalBadges = ({ profileId, compact = false }) => {
     );
   }
 
-  // â”€â”€ FULL MODE (profile page) â”€â”€
+  // GöÇGöÇ FULL MODE (profile page) GöÇGöÇ
   return (
     <div
       className="rounded-xl border border-white/10 overflow-hidden"
@@ -121,12 +121,12 @@ var TrustSignalBadges = ({ profileId, compact = false }) => {
         <div className="flex items-center gap-1.5">
           {data.is_approved_pro && (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              âœ“ Approved Pro
+              G£ô Approved Pro
             </span>
           )}
           {data.is_verified && !data.is_approved_pro && (
             <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-              âœ“ Verified
+              G£ô Verified
             </span>
           )}
         </div>
@@ -151,12 +151,12 @@ var TrustSignalBadges = ({ profileId, compact = false }) => {
         <div className="flex flex-col items-center gap-0.5">
           <Clock className="w-4 h-4 text-amber-400" />
           <span className="text-lg font-bold text-white">
-            {data.avg_response_minutes != null ? `${data.avg_response_minutes}m` : 'â€”'}
+            {data.avg_response_minutes != null ? `${data.avg_response_minutes}m` : 'GÇö'}
           </span>
           <span className="text-[10px] text-gray-500 uppercase tracking-wider">Avg Response</span>
           {data.avg_response_minutes != null && data.avg_response_minutes <= 10 && (
             <span className="mt-0.5 px-1.5 py-px rounded-full text-[9px] font-bold bg-green-500/15 text-green-400">
-              âš¡ Lightning
+              GÜí Lightning
             </span>
           )}
         </div>
@@ -165,7 +165,7 @@ var TrustSignalBadges = ({ profileId, compact = false }) => {
         <div className="flex flex-col items-center gap-0.5">
           <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
           <span className="text-lg font-bold text-white">
-            {breakdown.overall > 0 ? breakdown.overall : 'â€”'}
+            {breakdown.overall > 0 ? breakdown.overall : 'GÇö'}
           </span>
           <span className="text-[10px] text-gray-500 uppercase tracking-wider">Rating</span>
           {breakdown.count > 0 && (

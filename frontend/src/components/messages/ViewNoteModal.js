@@ -11,13 +11,13 @@ import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 
 // Cache-bust avatar URL to prevent stale images
-var cacheBustUrl = (url) => {
+const cacheBustUrl = (url) => {
   if (!url) return url;
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}cb=${Date.now()}`;
 };
 
-var ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
+const ViewNoteModal = ({ isOpen, onClose, note, currentUserId, onReply }) => {
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   

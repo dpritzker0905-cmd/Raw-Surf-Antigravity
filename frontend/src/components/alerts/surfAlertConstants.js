@@ -4,7 +4,7 @@
  */
 import { Sunrise, Sun, Sunset, ArrowUp, ArrowDown, Minus } from 'lucide-react';
 
-var TIME_WINDOWS = [
+const TIME_WINDOWS = [
   { id: 'dawn', label: 'Dawn Patrol', icon: Sunrise, time: '5am - 8am', color: 'text-orange-400' },
   { id: 'morning', label: 'Morning', icon: Sun, time: '8am - 12pm', color: 'text-yellow-400' },
   { id: 'afternoon', label: 'Afternoon', icon: Sun, time: '12pm - 5pm', color: 'text-amber-400' },
@@ -12,7 +12,7 @@ var TIME_WINDOWS = [
 ];
 
 // Tide state options
-var TIDE_STATES = [
+const TIDE_STATES = [
   { id: 'low', label: 'Low Tide', icon: ArrowDown, color: 'text-cyan-400' },
   { id: 'mid', label: 'Mid Tide', icon: Minus, color: 'text-blue-400' },
   { id: 'high', label: 'High Tide', icon: ArrowUp, color: 'text-indigo-400' },
@@ -21,7 +21,7 @@ var TIDE_STATES = [
 ];
 
 // Surf condition options
-var SURF_CONDITIONS = [
+const SURF_CONDITIONS = [
   // Surface conditions
   { id: 'glassy', label: 'Glassy', description: 'Mirror-like surface', category: 'surface', emoji: '\u{1FA9E}' },
   { id: 'clean', label: 'Clean', description: 'Light texture, good shape', category: 'surface', emoji: '\u{2728}' },

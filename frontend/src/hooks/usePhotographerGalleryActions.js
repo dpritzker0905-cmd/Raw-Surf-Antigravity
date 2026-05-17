@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { useEffect, useMemo } from 'react';
 
-var usePhotographerGalleryActions = ({
+const usePhotographerGalleryActions = ({
   user, gallery, selectedItems, editData, navigate, galleryId, setAiTagSuggestions,
   setAnalyzingPhoto,
   setAssigningItem,
@@ -108,7 +108,7 @@ var usePhotographerGalleryActions = ({
         {}
       );
       const data = response.data;
-      toast.success(`ðŸ“¸ ${data.message}`);
+      toast.success(`=ƒô+ ${data.message}`);
       await fetchConditionsStatus();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to push conditions report');

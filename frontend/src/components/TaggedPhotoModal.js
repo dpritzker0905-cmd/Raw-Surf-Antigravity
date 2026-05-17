@@ -17,7 +17,7 @@ import { isGrom } from '../constants/roles';
 import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 
-export var TaggedPhotoModal = ({ 
+export const TaggedPhotoModal = ({ 
   isOpen, 
   onClose, 
   photo,  // The tagged photo item
@@ -151,7 +151,7 @@ export var TaggedPhotoModal = ({
       if (response.data.success) {
         setHasPurchased(true);
         if (response.data.subscription_covered) {
-          toast.success('Included with your subscription! ðŸ“¸ Added to gallery.');
+          toast.success('Included with your subscription! =ƒô+ Added to gallery.');
         } else {
           toast.success('Photo added to your gallery! You can now download it.');
         }

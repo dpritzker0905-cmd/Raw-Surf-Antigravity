@@ -27,7 +27,7 @@ import { LegalSection } from './settings/LegalSection';
 
 
 
-export var Settings = () => {
+export const Settings = () => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const { getEffectiveRole, _activePersona } = usePersona();
@@ -259,7 +259,7 @@ export var Settings = () => {
           </Card>
         )}
 
-        {/* Surf Mode â€” Competitive/Pro progression for non-Grom surfers */}
+        {/* Surf Mode GÇö Competitive/Pro progression for non-Grom surfers */}
         {isSurfer && !isGrom && (
           <SurfModeCard
             textPrimaryClass={textPrimaryClass}
@@ -268,7 +268,7 @@ export var Settings = () => {
           />
         )}
 
-        {/* Grom Parent â€” AND-able toggle for surfers who are also parents */}
+        {/* Grom Parent GÇö AND-able toggle for surfers who are also parents */}
         {isSurfer && !isGrom && (
           <GromParentCard
             textPrimaryClass={textPrimaryClass}
@@ -457,7 +457,7 @@ export var Settings = () => {
                   <span className={textPrimaryClass}>Spot Data Cache</span>
                   <p className={`text-xs ${textSecondaryClass}`}>
                     {spotsCached || nearbyCached 
-                      ? `${getCacheSize()} MB â€¢ Updated ${formatCacheTime()}` 
+                      ? `${getCacheSize()} MB GÇó Updated ${formatCacheTime()}` 
                       : 'Not cached'}
                   </p>
                 </div>
@@ -598,7 +598,7 @@ export var Settings = () => {
           )}
         </Card>
 
-        {/* Legal / Terms of Service â€” Self-contained component */}
+        {/* Legal / Terms of Service GÇö Self-contained component */}
         <LegalSection
           userId={user?.id}
           textPrimaryClass={textPrimaryClass}

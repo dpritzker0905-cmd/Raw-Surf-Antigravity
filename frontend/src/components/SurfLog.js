@@ -18,21 +18,21 @@ import LiveSessionDashboard from './LiveSessionDashboard';
 import GpxUploadModal from './GpxUploadModal';
 import { LocationPicker } from './LocationPicker';
 
-var MOODS = [
-  { id: 'stoked', label: 'Stoked', icon: 'ðŸ¤™', color: 'text-green-400' },
-  { id: 'happy', label: 'Happy', icon: 'ðŸ˜Š', color: 'text-yellow-400' },
-  { id: 'mellow', label: 'Mellow', icon: 'ðŸ˜Œ', color: 'text-blue-400' },
-  { id: 'frustrated', label: 'Frustrated', icon: 'ðŸ˜¤', color: 'text-orange-400' },
-  { id: 'exhausted', label: 'Exhausted', icon: 'ðŸ˜©', color: 'text-red-400' },
+const MOODS = [
+  { id: 'stoked', label: 'Stoked', icon: '=ƒñÖ', color: 'text-green-400' },
+  { id: 'happy', label: 'Happy', icon: '=ƒÿè', color: 'text-yellow-400' },
+  { id: 'mellow', label: 'Mellow', icon: '=ƒÿî', color: 'text-blue-400' },
+  { id: 'frustrated', label: 'Frustrated', icon: '=ƒÿñ', color: 'text-orange-400' },
+  { id: 'exhausted', label: 'Exhausted', icon: '=ƒÿ¬', color: 'text-red-400' },
 ];
 
-var CROWD_LEVELS = ['Empty', 'Light', 'Moderate', 'Crowded', 'Packed'];
-var TIDE_OPTIONS = ['Low', 'Rising', 'High', 'Falling'];
-var WIND_OPTIONS = ['Offshore', 'Cross-offshore', 'Cross-shore', 'Cross-onshore', 'Onshore', 'Calm'];
-var TIME_OPTIONS = ['Dawn Patrol', 'Morning', 'Midday', 'Afternoon', 'Sunset', 'Night'];
+const CROWD_LEVELS = ['Empty', 'Light', 'Moderate', 'Crowded', 'Packed'];
+const TIDE_OPTIONS = ['Low', 'Rising', 'High', 'Falling'];
+const WIND_OPTIONS = ['Offshore', 'Cross-offshore', 'Cross-shore', 'Cross-onshore', 'Onshore', 'Calm'];
+const TIME_OPTIONS = ['Dawn Patrol', 'Morning', 'Midday', 'Afternoon', 'Sunset', 'Night'];
 
 /* --- Stats Banner -------------------------------------------- */
-var StatsBanner = ({ stats, isLight }) => {
+const StatsBanner = ({ stats, isLight }) => {
   if (!stats || stats.total_sessions === 0) return null;
   const items = [
     { label: 'Sessions', value: stats.total_sessions, icon: Waves, gradient: 'from-cyan-500/20 to-blue-500/20', border: 'border-cyan-500/30' },
@@ -63,7 +63,7 @@ var StatsBanner = ({ stats, isLight }) => {
 };
 
 /* --- Entry Card ---------------------------------------------- */
-var EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
+const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
   const mood = MOODS.find(m => m.id === entry.mood);
   return (
     <div className={`p-4 rounded-xl border transition-all hover:scale-[1.01] hover:shadow-lg ${isLight ? 'bg-white border-gray-200 shadow-sm hover:shadow-gray-200/50' : 'bg-zinc-800/60 border-zinc-700 hover:border-zinc-600 hover:shadow-cyan-500/5'}`}>
@@ -111,7 +111,7 @@ var EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
 };
 
 /* --- Create / Edit Modal ------------------------------------- */
-var EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, prefillGear, prefillLocation }) => {
+const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, prefillGear, prefillLocation }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const bg = isLight ? 'bg-white' : 'bg-zinc-900';
@@ -167,7 +167,7 @@ var EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, pre
         toast.success('Entry updated');
       } else {
         await apiClient.post(`/surf-log/${userId}`, payload);
-        toast.success('Session logged! ðŸ¤™');
+        toast.success('Session logged! =ƒñÖ');
       }
       onSaved();
       onClose();
@@ -311,7 +311,7 @@ var EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, pre
 };
 
 /* --- Main SurfLog Page --------------------------------------- */
-var SurfLog = () => {
+const SurfLog = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -359,7 +359,7 @@ var SurfLog = () => {
         try {
           const res = await apiClient.get(`/strava/callback?code=${code}&state=${state}`);
           if (res.data.success) {
-            toast.success("Strava successfully connected! ðŸ¤™");
+            toast.success("Strava successfully connected! =ƒñÖ");
             // Clean up the URL
             window.history.replaceState({}, document.title, window.location.pathname);
           }

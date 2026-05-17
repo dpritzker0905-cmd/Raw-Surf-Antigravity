@@ -3,7 +3,7 @@ import { Waves } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { CONDITIONS } from './constants';
 
-export var SurfboardCard = ({ board, onClick, isLight }) => {
+export const SurfboardCard = ({ board, onClick, isLight }) => {
   const primaryPhoto = board.photo_urls?.[board.primary_photo_index || 0];
   const conditionInfo = CONDITIONS.find(c => c.value === board.condition);
   

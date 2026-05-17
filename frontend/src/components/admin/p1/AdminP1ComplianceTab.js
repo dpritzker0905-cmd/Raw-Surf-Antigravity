@@ -12,7 +12,7 @@ import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 
-var AdminP1ComplianceTab = ({
+const AdminP1ComplianceTab = ({
   complianceStats, complianceFilter, setComplianceFilter,
   locationFraudMapData, pendingAppeals, recentViolations,
   selectedAppeals, toggleAppealSelection, selectAllAppeals,

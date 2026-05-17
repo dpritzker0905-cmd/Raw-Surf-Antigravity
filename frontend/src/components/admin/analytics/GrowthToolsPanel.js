@@ -1,5 +1,5 @@
 /**
- * GrowthToolsPanel â€” Extracted from AdminUnifiedAnalytics.js (v81)
+ * GrowthToolsPanel GÇö Extracted from AdminUnifiedAnalytics.js (v81)
  * Promo Codes, Feature Flags, and Push Campaigns management.
  */
 import React, { useState } from 'react';
@@ -17,7 +17,7 @@ import { Switch } from '../../ui/switch';
 import { toast } from 'sonner';
 import apiClient from '../../../lib/apiClient';
 
-var GrowthToolsPanel = ({
+const GrowthToolsPanel = ({
   promoCodes,
   featureFlags,
   campaigns,
@@ -140,12 +140,12 @@ var GrowthToolsPanel = ({
                         <code className="font-bold text-foreground bg-muted px-2 py-0.5 rounded text-sm">{p.code}</code>
                         <p className="text-xs text-gray-500 mt-0.5">
                           {p.code_type === 'percentage' ? `${p.discount_value}% off` : `$${p.discount_value} off`}
-                          {p.campaign_name && ` Â· ${p.campaign_name}`}
+                          {p.campaign_name && ` -+ ${p.campaign_name}`}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">{p.current_uses}/{p.max_uses || 'âˆž'}</span>
+                      <span className="text-xs text-muted-foreground">{p.current_uses}/{p.max_uses || 'GêP'}</span>
                       <Switch checked={p.is_active} onCheckedChange={() => handleTogglePromo(p.id)} />
                     </div>
                   </CardContent>

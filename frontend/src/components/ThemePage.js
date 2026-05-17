@@ -3,7 +3,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { Moon, Sun, Waves, Check } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 
-export var ThemePage = () => {
+export const ThemePage = () => {
   const { theme, toggleTheme } = useTheme();
 
   // Theme-specific classes

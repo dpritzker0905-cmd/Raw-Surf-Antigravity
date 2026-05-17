@@ -4,7 +4,7 @@ import { getFullUrl } from '../../utils/media';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 
-var AutoFillPanel = ({ 
+const AutoFillPanel = ({ 
   suggestions, 
   spotsLeft, 
   onInvite, 

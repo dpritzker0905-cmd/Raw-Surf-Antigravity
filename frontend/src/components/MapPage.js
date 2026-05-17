@@ -345,6 +345,7 @@ var MapPageContent = () => {
   }, [isPhotographer]);
 
   useEffect(() => {
+    if (!supabase) return;
     const channel = supabase
       .channel('live-session-participants')
       .on(

@@ -30,10 +30,10 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import useFocusTrap from '../hooks/useFocusTrap';
 
-var CONNECTION_TIMEOUT = 15000;
+const CONNECTION_TIMEOUT = 15000;
 
 // --- Theme colours (mirrors GoLiveModal.getThemeColors) -----------------------
-var getThemeColors = (theme) => {
+const getThemeColors = (theme) => {
   if (theme === 'light') return {
     overlayBg: 'bg-white/90',   border: 'border-gray-200',
     primaryText: 'text-gray-900', secondaryText: 'text-gray-600',
@@ -61,7 +61,7 @@ var getThemeColors = (theme) => {
 
 
 // --- Live Chat ----------------------------------------------------------------
-var ChatMessage = ({ message, isOwn }) => (
+const ChatMessage = ({ message, isOwn }) => (
   <div className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
     <Avatar className="w-7 h-7 flex-shrink-0">
       <AvatarImage src={getFullUrl(message.avatar_url)} />
@@ -74,7 +74,7 @@ var ChatMessage = ({ message, isOwn }) => (
   </div>
 );
 
-var LiveChat = ({ streamId, userId, userName, userAvatar }) => {
+const LiveChat = ({ streamId, userId, userName, userAvatar }) => {
   const [comments, setComments]   = useState([]);
   const [newComment, setNewComment] = useState('');
   const [sending, setSending]     = useState(false);
@@ -157,7 +157,7 @@ var LiveChat = ({ streamId, userId, userName, userAvatar }) => {
 };
 
 // --- Stream Unavailable -------------------------------------------------------
-var StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
+const StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
   <div className="absolute inset-0 flex items-center justify-center bg-zinc-950">
     <div className="text-center p-6 max-w-md">
       <div className="w-20 h-20 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
@@ -180,7 +180,7 @@ var StreamUnavailable = ({ onBack, broadcasterName, onRetry }) => (
 );
 
 // --- Viewer Room Content (inside LiveKitRoom) ---------------------------------
-var ViewerRoomContent = ({
+const ViewerRoomContent = ({
   broadcaster, onLeave, viewerCount, onViewProfile,
   streamId, userId, userName, userAvatar, colors
 }) => {
@@ -188,7 +188,7 @@ var ViewerRoomContent = ({
   const [isChatOpen, setIsChatOpen]   = useState(true);
   const [emojiBursts, setEmojiBursts] = useState([]);
 
-  // â”€â”€ LiveKit DataChannel for real-time emoji reactions â”€â”€
+  // GöÇGöÇ LiveKit DataChannel for real-time emoji reactions GöÇGöÇ
   // Reactions are broadcast via LiveKit data messages on the 'reactions' topic.
   // This allows the broadcaster to see viewer reactions and vice versa.
   const onReactionReceived = useCallback((msg) => {
@@ -206,7 +206,7 @@ var ViewerRoomContent = ({
 
   const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
 
-  // Viewer reaction handler â€” local animation + DataChannel broadcast
+  // Viewer reaction handler GÇö local animation + DataChannel broadcast
   const handleReaction = useCallback((emoji) => {
     // Show locally immediately
     const id = Date.now() + Math.random();
@@ -303,7 +303,7 @@ var ViewerRoomContent = ({
 
           {/* Bottom controls - above mobile chat */}
           <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-4 sm:px-6 flex items-center justify-between pointer-events-none z-10">
-            {/* Quick Reactions â€” surf-themed emoji bar */}
+            {/* Quick Reactions GÇö surf-themed emoji bar */}
             <div className="pointer-events-auto">
               <QuickReactions onReact={handleReaction} colors={colors} />
             </div>
@@ -352,7 +352,7 @@ var ViewerRoomContent = ({
 };
 
 // --- Main LiveStreamViewer ----------------------------------------------------
-var LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
+const LiveStreamViewer = ({ isOpen, onClose, streamInfo }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useTheme();

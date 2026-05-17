@@ -12,7 +12,7 @@ import { LocationDropdowns } from './impact-zone/LocationDropdowns';
 import { QuickPicks } from './impact-zone/QuickPicks';
 import { SpotList } from './impact-zone/SpotList';
 
-var ImpactZonePicker = ({ 
+const ImpactZonePicker = ({ 
   location, 
   onLocationChange,
   onRangeValidation,

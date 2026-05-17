@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 /**
- * SessionRosterCard Ã¯Â¿Â½ Enhanced Surfer Delivery Tracker
+ * SessionRosterCard +»-+-+ Enhanced Surfer Delivery Tracker
  * 
  * Features:
  *   - Expandable surfer panels with selfie reference photo (zoomable)
@@ -31,7 +31,7 @@ import logger from '../../utils/logger';
  *   - AI vs Manual tagging indicators
  *   - Video autoplay (muted) in thumbnails
  */
-export var SessionRosterCard = ({ 
+export const SessionRosterCard = ({ 
   roster = [], sessionType, itemCount = 0, compact = false,
   galleryId, photographerId, onRosterUpdate
 }) => {
@@ -39,11 +39,11 @@ export var SessionRosterCard = ({
   if (!roster || roster.length === 0) return null;
 
   const sessionLabel = {
-    live: { text: 'Live Session', color: '#10b981', emoji: 'ðŸ“¸' },
-    booking: { text: 'Booking', color: '#3b82f6', emoji: 'ðŸ“¸' },
+    live: { text: 'Live Session', color: '#10b981', emoji: '=ƒô+' },
+    booking: { text: 'Booking', color: '#3b82f6', emoji: '=ƒô+' },
     on_demand: { text: 'On-Demand', color: '#f59e0b', emoji: '?' },
-    manual: { text: 'Manual', color: '#6b7280', emoji: 'ðŸ“¸' }
-  }[sessionType] || { text: 'Session', color: '#6b7280', emoji: 'ðŸ“¸' };
+    manual: { text: 'Manual', color: '#6b7280', emoji: '=ƒô+' }
+  }[sessionType] || { text: 'Session', color: '#6b7280', emoji: '=ƒô+' };
 
   // -- COMPACT MODE --
   if (compact) {
@@ -96,7 +96,7 @@ export var SessionRosterCard = ({
           <div className="text-left">
             <h4 className="text-sm font-semibold text-foreground">Session Roster</h4>
             <p className="text-[11px] text-muted-foreground">
-              {roster.length} surfer{roster.length !== 1 ? 's' : ''} Ã¯Â¿Â½ {sessionLabel.emoji} {sessionLabel.text}
+              {roster.length} surfer{roster.length !== 1 ? 's' : ''} +»-+-+ {sessionLabel.emoji} {sessionLabel.text}
             </p>
           </div>
         </div>
@@ -121,7 +121,7 @@ export var SessionRosterCard = ({
 };
 
 // -- SURFER PANEL --
-var SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
+const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
   const [panelOpen, setPanelOpen] = useState(false);
   const [selfieZoom, setSelfieZoom] = useState(false);
   const [taggedItems, setTaggedItems] = useState([]);
@@ -174,7 +174,7 @@ var SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
       );
       setTaggedItems(prev => prev.filter(i => i.gallery_item_id !== item.gallery_item_id));
       const type = item.media_type === 'video' ? 'video' : 'photo';
-      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' Ã¯Â¿Â½ credit restored' : ''}`);
+      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' +»-+-+ credit restored' : ''}`);
       if (onRosterUpdate) onRosterUpdate();
     } catch (err) {
       toast.error('Failed to untag item');
@@ -270,7 +270,7 @@ var SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                     delivered={items_delivered} included={photos_included} remaining={credits_remaining} color="#06b6d4" />
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <MiniPill icon={payment_method === 'credits' ? '?' : 'ðŸ“¸'}
+                  <MiniPill icon={payment_method === 'credits' ? '?' : '=ƒô+'}
                     text={amount_paid > 0 ? `$${amount_paid} paid` : 'Free'} />
                   <MiniPill icon={<Shield className="w-3 h-3" style={{ color: isComplete ? '#10b981' : '#f59e0b' }} />}
                     text={isComplete ? 'Fully delivered' : hasCredits ? `${credits_remaining} left` : 'Awaiting'} />
@@ -297,7 +297,7 @@ var SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                 </span>
                 {taggedItems.length > 0 && (
                   <span className="text-[10px] text-muted-foreground">
-                    {taggedItems.filter(i => i.media_type !== 'video').length} ?? Ã¯Â¿Â½ {taggedItems.filter(i => i.media_type === 'video').length} ??
+                    {taggedItems.filter(i => i.media_type !== 'video').length} ?? +»-+-+ {taggedItems.filter(i => i.media_type === 'video').length} ??
                   </span>
                 )}
               </div>
@@ -343,7 +343,7 @@ var SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                   {selfie_url ? '?? Session Selfie' : '?? Profile Photo'}
                 </span>
                 <span className="text-[10px] text-white/50">
-                  ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` Ã¯Â¿Â½ ?? ${videos_delivered}/${videos_included}` : ''}
+                  ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` +»-+-+ ?? ${videos_delivered}/${videos_included}` : ''}
                 </span>
               </div>
             </div>
@@ -355,7 +355,7 @@ var SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
 };
 
 // -- CREDIT ROW --
-var CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
+const CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
   const pct = included > 0 ? Math.min(100, (delivered / included) * 100) : 0;
   const isDone = remaining === 0 && delivered > 0;
   return (
@@ -379,7 +379,7 @@ var CreditRow = ({ icon, label, delivered, included, remaining, color }) => {
 };
 
 // -- MINI PILL --
-var MiniPill = ({ icon, text, highlight }) => (
+const MiniPill = ({ icon, text, highlight }) => (
   <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{
     background: highlight ? `rgba(${highlight === 'purple' ? '139,92,246' : '6,182,212'},0.1)` : 'rgba(255,255,255,0.04)',
     border: `1px solid ${highlight ? `rgba(${highlight === 'purple' ? '139,92,246' : '6,182,212'},0.2)` : 'rgba(255,255,255,0.06)'}`
@@ -390,14 +390,14 @@ var MiniPill = ({ icon, text, highlight }) => (
 );
 
 // -- TAGGED ITEM THUMBNAIL (with video autoplay) --
-var TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
+const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
   const videoRef = useRef(null);
   const isVideo = item.media_type === 'video';
   const thumbUrl = getFullUrl(item.thumbnail_url || item.preview_url);
   const videoUrl = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
   const accessColor = item.access_type === 'included' ? '#10b981' : item.access_type === 'pending_selection' ? '#f59e0b' : '#6b7280';
 
-  // Thumbnail-only in grid Ã¯Â¿Â½ no video autoplay to save bandwidth
+  // Thumbnail-only in grid +»-+-+ no video autoplay to save bandwidth
 
   return (
     <div className="relative flex-shrink-0 group">
@@ -412,7 +412,7 @@ var TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
         {/* Media type badge */}
         <div className="absolute bottom-0.5 left-0.5 text-[7px] px-1 py-0.5 rounded font-semibold"
           style={{ background: isVideo ? 'rgba(139,92,246,0.85)' : 'rgba(6,182,212,0.85)', color: 'white' }}>
-          {isVideo ? '?? Vid' : 'ðŸ“¸'}
+          {isVideo ? '?? Vid' : '=ƒô+'}
         </div>
         {/* Access indicator dot */}
         <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: accessColor, boxShadow: `0 0 4px ${accessColor}` }} />

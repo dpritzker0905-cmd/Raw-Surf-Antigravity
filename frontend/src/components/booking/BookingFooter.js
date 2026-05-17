@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronRight, ChevronLeft, Zap, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 
-export var BookingFooter = ({
+export const BookingFooter = ({
   step,
   isLight,
   handleNext,

@@ -15,7 +15,7 @@ import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
 // -- Theme colour tokens -------------------------------------------------------
-var getThemeColors = (theme) => {
+const getThemeColors = (theme) => {
   if (theme === 'light') return {
     pageBg:        'bg-gray-50',
     headerBg:      'bg-white/95',
@@ -95,7 +95,7 @@ var getThemeColors = (theme) => {
 };
 
 // -- Notification type configs -------------------------------------------------
-var NOTIFICATION_CONFIG = {
+const NOTIFICATION_CONFIG = {
   session_join:                    { icon: Users,         color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   session_joined:                  { icon: Users,         color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', category: 'sessions' },
   session_reminder:                { icon: Clock,         color: 'text-blue-400',    bgColor: 'bg-blue-500/20',    category: 'sessions' },
@@ -170,7 +170,7 @@ var NOTIFICATION_CONFIG = {
   default:                         { icon: Bell,          color: 'text-gray-400',    bgColor: 'bg-gray-500/20',    category: 'social' },
 };
 
-var BASE_TABS = [
+const BASE_TABS = [
   { id: 'all',      label: 'All',      icon: Bell,        color: 'text-white' },
   { id: 'alerts',   label: 'Alerts',   icon: Waves,       color: 'text-cyan-400' },
   { id: 'sessions', label: 'Sessions', icon: Camera,      color: 'text-emerald-400' },
@@ -178,9 +178,9 @@ var BASE_TABS = [
   { id: 'photos',   label: 'Photos',   icon: ImageIcon,   color: 'text-purple-400' },
   { id: 'social',   label: 'Social',   icon: Users,       color: 'text-yellow-400' },
 ];
-var ADMIN_TAB = { id: 'admin', label: 'Admin', icon: Shield, color: 'text-red-400' };
+const ADMIN_TAB = { id: 'admin', label: 'Admin', icon: Shield, color: 'text-red-400' };
 
-export var NotificationsPage = () => {
+export const NotificationsPage = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

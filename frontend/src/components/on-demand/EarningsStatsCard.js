@@ -7,7 +7,7 @@ import React from 'react';
 import { Wallet, Flame } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-var EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, _sectionBg, borderClass }) => {
+const EarningsStatsCard = ({ stats, cardBg, textPrimary, textSecondary, _sectionBg, borderClass }) => {
   const hasStreak = (stats.streak || 0) >= 3;
   
   return (

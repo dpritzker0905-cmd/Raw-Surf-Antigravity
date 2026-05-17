@@ -1,12 +1,12 @@
 /**
- * CardSkeleton â€” Generic shimmer placeholder for booking, gallery, and list cards.
+ * CardSkeleton GÇö Generic shimmer placeholder for booking, gallery, and list cards.
  * Uses the base Skeleton primitive from ui/skeleton.jsx.
  */
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-/** Horizontal card skeleton â€” booking / session style */
-export var BookingCardSkeleton = () => (
+/** Horizontal card skeleton GÇö booking / session style */
+export const BookingCardSkeleton = () => (
   <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card">
     <Skeleton className="w-14 h-14 rounded-xl shrink-0" />
     <div className="flex-1 space-y-2">
@@ -18,8 +18,8 @@ export var BookingCardSkeleton = () => (
   </div>
 );
 
-/** Grid card skeleton â€” gallery / photo style */
-export var GalleryCardSkeleton = () => (
+/** Grid card skeleton GÇö gallery / photo style */
+export const GalleryCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full aspect-square" />
     <div className="p-3 space-y-2">
@@ -30,7 +30,7 @@ export var GalleryCardSkeleton = () => (
 );
 
 /** List of booking card skeletons */
-export var BookingListSkeleton = ({ count = 3 }) => (
+export const BookingListSkeleton = ({ count = 3 }) => (
   <div className="space-y-3">
     {Array.from({ length: count }).map((_, i) => (
       <BookingCardSkeleton key={i} />
@@ -39,7 +39,7 @@ export var BookingListSkeleton = ({ count = 3 }) => (
 );
 
 /** Grid of gallery card skeletons */
-export var GalleryGridSkeleton = ({ count = 6, cols = 2 }) => (
+export const GalleryGridSkeleton = ({ count = 6, cols = 2 }) => (
   <div className={`grid grid-cols-${cols} gap-3`}>
     {Array.from({ length: count }).map((_, i) => (
       <GalleryCardSkeleton key={i} />

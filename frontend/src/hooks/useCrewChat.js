@@ -4,8 +4,8 @@ import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { formatClockTime } from '../utils/formatTime';
 
-var WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
-export var MAX_VOICE_DURATION = 30;
+const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
+export const MAX_VOICE_DURATION = 30;
 
 export default function useCrewChat({
   user, bookingId, inputValue, setInputValue, isSending, setIsSending,
@@ -393,13 +393,13 @@ export default function useCrewChat({
 
   // Get file icon based on type
   const getFileIcon = (fileType) => {
-    if (fileType?.includes('pdf')) return 'ğŸ“„';
-    if (fileType?.includes('word') || fileType?.includes('doc')) return 'ğŸ“';
-    if (fileType?.includes('excel') || fileType?.includes('sheet')) return 'ğŸ“Š';
-    if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return 'ğŸ“Š';
-    if (fileType?.includes('zip') || fileType?.includes('archive')) return 'ğŸ“¦';
-    if (fileType?.includes('text') || fileType?.includes('csv')) return 'ğŸ“ƒ';
-    return 'ğŸ“';
+    if (fileType?.includes('pdf')) return '=ƒôä';
+    if (fileType?.includes('word') || fileType?.includes('doc')) return '=ƒô¥';
+    if (fileType?.includes('excel') || fileType?.includes('sheet')) return '=ƒôè';
+    if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return '=ƒôè';
+    if (fileType?.includes('zip') || fileType?.includes('archive')) return '=ƒôª';
+    if (fileType?.includes('text') || fileType?.includes('csv')) return '=ƒôâ';
+    return '=ƒôÄ';
   };
 
   // Voice playback

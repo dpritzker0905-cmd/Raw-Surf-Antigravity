@@ -13,7 +13,7 @@ import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { AdaptiveBackground } from './AdaptiveBackground';
 
-export var Sidebar = () => {
+export const Sidebar = () => {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole, isMasked, _activePersona, _isGodMode } = usePersona();
@@ -201,7 +201,7 @@ export var Sidebar = () => {
               <>
                 <span className={`text-[10px] ${textSecondaryClass}`}>Your Role</span>
                 <div className="mt-0.5 flex items-center gap-1">
-                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || 'ğŸ¤™'}</span>
+                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '=ƒñÖ'}</span>
                   <span className={`text-[11px] font-medium ${getExpandedRoleInfo(user.role)?.color || 'text-cyan-400'}`}>
                     {getExpandedRoleInfo(user.role)?.label || user.role}
                   </span>
@@ -326,13 +326,13 @@ export var Sidebar = () => {
               }`}
             >
               {activeSession.status === 'in_session'
-                ? 'ğŸ“¸ Live Shooting Session Active'
+                ? '=ƒô+ Live Shooting Session Active'
                 : activeSession.status === 'searching_for_pro'
-                ? 'ğŸ” On-Demand Session Searching...'
+                ? '=ƒöì On-Demand Session Searching...'
                 : activeSession.status === 'en_route'
-                ? 'ğŸƒ Photographer On The Way'
+                ? '=ƒÅâ Photographer On The Way'
                 : activeSession.status === 'arrived'
-                ? 'ğŸ“ Photographer Arrived'
+                ? '=ƒôì Photographer Arrived'
                 : '? On-Demand Session Active'
               }
             </span>

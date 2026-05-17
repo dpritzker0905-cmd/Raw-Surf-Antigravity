@@ -36,34 +36,34 @@ import useCrewChat, { MAX_VOICE_DURATION } from '../hooks/useCrewChat';
 import { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent } from './messages/crewChatUtils';
 
 // Quick Actions for surf coordination - Expanded with more useful options
-var QUICK_ACTIONS = [
+const QUICK_ACTIONS = [
   // Status updates
-  { id: 'omw', text: 'On my way! ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â‚¬Å¾', category: 'status', icon: 'ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â‚¬â€' },
-  { id: 'late', text: 'Running 5 mins late', category: 'status', icon: 'ÃƒÂ¢Ã‚ÂÃ‚Â°' },
-  { id: 'arrived', text: 'Just arrived at the spot', category: 'status', icon: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â' },
-  { id: 'parking', text: 'Looking for parking', category: 'status', icon: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¦Ã‚Â¿ÃƒÂ¯Ã‚Â¸Ã‚Â' },
-  { id: 'paddling', text: 'Paddling out now!', category: 'status', icon: 'ÃƒÂ°Ã…Â¸Ã‚ÂÃ…Â ' },
-  { id: 'ready', text: 'Ready when you are! ÃƒÂ°Ã…Â¸Ã‚Â¤Ã¢â€Â¢', category: 'status', icon: 'ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦' },
+  { id: 'omw', text: 'On my way! +â-¦+à-++é-Å+óGé¼++', category: 'status', icon: '+â-¦+à-++à-í+óGé¼GÇ¥' },
+  { id: 'late', text: 'Running 5 mins late', category: 'status', icon: '+â-ó+é-Å+é-¦' },
+  { id: 'arrived', text: 'Just arrived at the spot', category: 'status', icon: '+â-¦+à-++óGé¼+ô+é-ì' },
+  { id: 'parking', text: 'Looking for parking', category: 'status', icon: '+â-¦+à-++óGé¼-ª+é-++â-»+é-++é-Å' },
+  { id: 'paddling', text: 'Paddling out now!', category: 'status', icon: '+â-¦+à-++é-Å+à-á' },
+  { id: 'ready', text: 'Ready when you are! +â-¦+à-++é-ñ+óGÇP-ó', category: 'status', icon: '+â-ó+àGÇ£+óGé¼-ª' },
 
   // Wave conditions
-  { id: 'pumping', text: 'Waves are pumping! ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â ', category: 'conditions', icon: 'ÃƒÂ°Ã…Â¸Ã…â€™Ã…Â ' },
-  { id: 'glassy', text: "It's glassy out here! ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥", category: 'conditions', icon: 'ÃƒÂ¢Ã…â€œÃ‚Â¨' },
-  { id: 'choppy', text: 'Getting a bit choppy', category: 'conditions', icon: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â¨' },
-  { id: 'crowded', text: 'Pretty crowded lineup', category: 'conditions', icon: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ‚Â¥' },
-  { id: 'uncrowded', text: 'Lineup is empty! ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â‚¬Â°', category: 'conditions', icon: 'ÃƒÂ°Ã…Â¸Ã‚ÂÃ¢â‚¬â€œÃƒÂ¯Ã‚Â¸Ã‚Â' },
-  { id: 'perfect', text: 'Conditions are PERFECT', category: 'conditions', icon: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬â„¢Ã‚Â¯' },
+  { id: 'pumping', text: 'Waves are pumping! +â-¦+à-++àGÇÖ+à-á', category: 'conditions', icon: '+â-¦+à-++àGÇÖ+à-á' },
+  { id: 'glassy', text: "It's glassy out here! +â-¦+à-++óGé¼-¥+é-Ñ", category: 'conditions', icon: '+â-ó+àGÇ£+é-¿' },
+  { id: 'choppy', text: 'Getting a bit choppy', category: 'conditions', icon: '+â-¦+à-++óGé¼Gäó+é-¿' },
+  { id: 'crowded', text: 'Pretty crowded lineup', category: 'conditions', icon: '+â-¦+à-++óGé¼-£+é-Ñ' },
+  { id: 'uncrowded', text: 'Lineup is empty! +â-¦+à-++à-++óGé¼-¦', category: 'conditions', icon: '+â-¦+à-++é-Å+óGé¼GÇ£+â-»+é-++é-Å' },
+  { id: 'perfect', text: 'Conditions are PERFECT', category: 'conditions', icon: '+â-¦+à-++óGé¼Gäó+é-»' },
 
   // Logistics
-  { id: 'gear', text: 'Bringing extra gear', category: 'logistics', icon: 'ÃƒÂ°Ã…Â¸Ã…Â½Ã¢â‚¬â„¢' },
-  { id: 'wax', text: 'Got extra wax if needed', category: 'logistics', icon: 'ÃƒÂ°Ã…Â¸Ã‚Â§Ã‚Â´' },
-  { id: 'drinks', text: 'Bringing drinks/snacks', category: 'logistics', icon: 'ÃƒÂ°Ã…Â¸Ã‚Â¥Ã‚Â¤' },
-  { id: 'camera', text: 'Camera is ready! ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¸', category: 'logistics', icon: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â·' },
+  { id: 'gear', text: 'Bringing extra gear', category: 'logistics', icon: '+â-¦+à-++à-++óGé¼Gäó' },
+  { id: 'wax', text: 'Got extra wax if needed', category: 'logistics', icon: '+â-¦+à-++é-º+é-¦' },
+  { id: 'drinks', text: 'Bringing drinks/snacks', category: 'logistics', icon: '+â-¦+à-++é-Ñ+é-ñ' },
+  { id: 'camera', text: 'Camera is ready! +â-¦+à-++óGé¼+ô+é-+', category: 'logistics', icon: '+â-¦+à-++óGé¼+ô+é-+' },
 
   // Vibes
-  { id: 'stoked', text: 'So stoked for this session!', category: 'vibes', icon: 'ÃƒÂ°Ã…Â¸Ã‚Â¤Ã‚Â©' },
-  { id: 'sunset', text: 'Staying for sunset ÃƒÂ°Ã…Â¸Ã…â€™Ã¢â‚¬Â¦', category: 'vibes', icon: 'ÃƒÂ°Ã…Â¸Ã…â€™Ã¢â‚¬Â¦' },
-  { id: 'thanks', text: 'Thanks for the session! ÃƒÂ°Ã…Â¸Ã‚Â¤Ã¢â€Â¢', category: 'vibes', icon: 'ÃƒÂ°Ã…Â¸Ã¢â€Â¢Ã‚Â' },
-  { id: 'again', text: "Let's do this again soon!", category: 'vibes', icon: 'ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ¢â‚¬Å¾' },
+  { id: 'stoked', text: 'So stoked for this session!', category: 'vibes', icon: '+â-¦+à-++é-ñ+é-¬' },
+  { id: 'sunset', text: 'Staying for sunset +â-¦+à-++àGÇÖ+óGé¼-ª', category: 'vibes', icon: '+â-¦+à-++àGÇÖ+óGé¼-ª' },
+  { id: 'thanks', text: 'Thanks for the session! +â-¦+à-++é-ñ+óGÇP-ó', category: 'vibes', icon: '+â-¦+à-++óGÇP-ó+é-Å' },
+  { id: 'again', text: "Let's do this again soon!", category: 'vibes', icon: '+â-¦+à-++óGé¼-¥+óGé¼++' },
 ];
 
 // Quick Action Categories with colors
@@ -415,9 +415,9 @@ export default function CrewChat() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{msg.file_name || 'File'}</p>
                       <p className={`text-xs ${isMe ? 'text-cyan-200' : 'text-zinc-400'}`}>
-                        {msg.file_size || 'Download'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Tap to open
+                        {msg.file_size || 'Download'} +â-ó+óGÇÜ-¼+é-ó Tap to open
                       </p>
-                      {msg.content && !msg.content.startsWith('ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â½') && (
+                      {msg.content && !msg.content.startsWith('+â-¦+à-++óGé¼+ô+à-+') && (
                         <p className="text-sm mt-1">{msg.content}</p>
                       )}
                     </div>

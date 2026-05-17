@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock } from 'lucide-react';
 
 
-var EphemeralCountdown = ({ createdAt }) => {
+const EphemeralCountdown = ({ createdAt }) => {
   const EPHEMERAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
   const calcRemaining = () => {

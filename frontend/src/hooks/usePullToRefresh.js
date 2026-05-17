@@ -1,18 +1,18 @@
 /**
- * usePullToRefresh — Mobile-native pull-to-refresh gesture handler.
+ * usePullToRefresh G�� Mobile-native pull-to-refresh gesture handler.
  *
  * Usage:
  *   const { pullRef, isPulling, pullProgress } = usePullToRefresh(fetchData);
- *   return <div ref={pullRef}>…scrollable content…</div>;
+ *   return <div ref={pullRef}>GǪscrollable contentGǪ</div>;
  *
  * Shows a visual indicator when user pulls down from the top of a scrollable area.
  * Triggers the onRefresh callback when released past the threshold.
  */
 import { useRef, useState, useCallback, useEffect } from 'react';
 
-var THRESHOLD = 80;     // px to pull before triggering refresh
-var MAX_PULL = 120;     // max visual pull distance
-var RESISTANCE = 0.45;  // pull resistance factor
+const THRESHOLD = 80;     // px to pull before triggering refresh
+const MAX_PULL = 120;     // max visual pull distance
+const RESISTANCE = 0.45;  // pull resistance factor
 
 export function usePullToRefresh(onRefresh, { enabled = true } = {}) {
   const pullRef = useRef(null);

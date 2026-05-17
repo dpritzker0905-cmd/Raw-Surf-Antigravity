@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { MODE_CONFIG, LIVE_PROXIMITY_MILES, LIVE_PROXIMITY_METERS } from '../DutyStationDrawer';
 
 // Haversine distance calculation
-var calculateDistance = (lat1, lon1, lat2, lon2) => {
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371e3;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -25,9 +25,9 @@ var calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 };
 
-var metersToMiles = (m) => m / 1609.344;
+const metersToMiles = (m) => m / 1609.344;
 
-var GpsProximityCheck = ({ 
+const GpsProximityCheck = ({ 
   selectedSpot, 
   userLocation, 
   gpsAvailable,
@@ -140,7 +140,7 @@ var GpsProximityCheck = ({
                 you can manually confirm.
               </p>
               <p className="text-red-400 text-xs mt-2 font-medium">
-                ‚ö†Ô∏è Warning: Going live when not at the spot may result in negative reviews, 
+                G‹·n+≈ Warning: Going live when not at the spot may result in negative reviews, 
                 selling suspension, or account action.
               </p>
               <Button aria-label="Confirm"
@@ -161,7 +161,7 @@ var GpsProximityCheck = ({
   );
 };
 
-var OnDemandSpotSelector = ({ 
+const OnDemandSpotSelector = ({ 
   spots, 
   selectedSpots, 
   onToggleSpot, 
@@ -275,7 +275,7 @@ var OnDemandSpotSelector = ({
   );
 };
 
-var StatusCard = ({ 
+const StatusCard = ({ 
   mode, 
   isActive, 
   selectedSpot,
@@ -363,7 +363,7 @@ var StatusCard = ({
 /**
  * Mode Selector - Segmented control for switching between Live and On-Demand
  */
-var ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, liveActive, onDemandActive }) => {
+const ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, liveActive, onDemandActive }) => {
   const modes = showOnDemand ? ['live', 'onDemand'] : ['live'];
   
   if (!showOnDemand) return null;
@@ -412,7 +412,7 @@ var ModeSelector = ({ selectedMode, onModeChange, showOnDemand, isActive, liveAc
 /**
  * GPS Warning Banner - Shows when GPS is unavailable
  */
-var GpsWarningBanner = ({ onConfirmAnyway }) => {
+const GpsWarningBanner = ({ onConfirmAnyway }) => {
   const [confirmed, setConfirmed] = useState(false);
   
   return (
@@ -466,7 +466,7 @@ var GpsWarningBanner = ({ onConfirmAnyway }) => {
 /**
  * Selected Spot Display with Deselect for Live Mode
  */
-var SelectedSpotDisplay = ({ spot, onDeselect }) => {
+const SelectedSpotDisplay = ({ spot, onDeselect }) => {
   if (!spot) return null;
   
   return (
@@ -499,7 +499,7 @@ var SelectedSpotDisplay = ({ spot, onDeselect }) => {
 /**
  * Stats Preview
  */
-var StatsPreview = ({ mode, stats }) => {
+const StatsPreview = ({ mode, stats }) => {
   const config = MODE_CONFIG[mode];
   
   return (
@@ -523,7 +523,7 @@ var StatsPreview = ({ mode, stats }) => {
 /**
  * Quick Actions
  */
-var QuickActions = ({ mode, onClose, nearbyShooters }) => {
+const QuickActions = ({ mode, onClose, nearbyShooters }) => {
   const navigate = useNavigate();
   
   return (

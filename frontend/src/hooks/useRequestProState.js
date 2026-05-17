@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export var useRequestProState = () => {
+export const useRequestProState = () => {
   const [showRequestProModal, setShowRequestProModal] = useState(false);
   const [requestProLoading, setRequestProLoading] = useState(false);
   const [estimatedDuration, setEstimatedDuration] = useState(1);

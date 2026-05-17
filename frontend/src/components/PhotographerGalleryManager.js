@@ -41,7 +41,7 @@ import GalleryPricingPanel from './gallery/GalleryPricingPanel';
 
 
 
-export var PhotographerGalleryManager = () => {
+export const PhotographerGalleryManager = () => {
   const { galleryId } = useParams();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -252,9 +252,9 @@ export var PhotographerGalleryManager = () => {
                   gallery.session_type === 'on_demand' ? 'border-orange-500/50 text-orange-400 text-[10px]' :
                   'border-zinc-500/50 text-zinc-400 text-[10px]'
                 }>
-                  {gallery.session_type === 'live' ? 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¸ Live Session' : 
-                   gallery.session_type === 'booking' ? 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ Booking' : 
-                   gallery.session_type === 'on_demand' ? 'ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã‚Â¡Ãƒâ€šÃ‚Â¡ On-Demand' : gallery.session_type}
+                  {gallery.session_type === 'live' ? '+â¦Æ+é-¦+âGÇª+é-++â-ó+óGÇÜ-¼+àGÇ£+âGÇÜ+é-+ Live Session' : 
+                   gallery.session_type === 'booking' ? '+â¦Æ+é-¦+âGÇª+é-++â-ó+óGÇÜ-¼+àGÇ£+â-ó+óGÇÜ-¼+é-ª Booking' : 
+                   gallery.session_type === 'on_demand' ? '+â¦Æ+é-ó+âGÇª+é-í+âGÇÜ+é-í On-Demand' : gallery.session_type}
                 </Badge>
               )}
               {gallery.session_type === 'manual' && (
@@ -289,7 +289,7 @@ export var PhotographerGalleryManager = () => {
                   const willPublish = !gallery?.is_public;
                   await apiClient.post(`/gallery/${galleryId}/publish?photographer_id=${user?.profile_id}`, { is_published: willPublish });
                   setGallery(prev => ({ ...prev, is_public: willPublish, is_featured: willPublish }));
-                  toast.success(willPublish ? 'ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¸ Gallery published to your Sessions tab!' : 'Gallery unpublished');
+                  toast.success(willPublish ? '+â¦Æ+é-¦+âGÇª+é-++â-ó+óGÇÜ-¼+àGÇ£+âGÇÜ+é-+ Gallery published to your Sessions tab!' : 'Gallery unpublished');
                 } catch (err) {
                   toast.error('Failed to publish gallery');
                 } finally {
@@ -318,7 +318,7 @@ export var PhotographerGalleryManager = () => {
                 Set Pricing
               </Button>
             )}
-            {/* Push to Spot Hub ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¯ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¿ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â½ requires linked surf spot AND live session */}
+            {/* Push to Spot Hub +â¦Æ+åGÇÖ+âGÇÜ+é-»+â¦Æ+óGé¼+í+âGÇÜ+é-++â¦Æ+óGé¼+í+âGÇÜ+é-+ requires linked surf spot AND live session */}
             {gallery?.surf_spot_id && (
               <Button
                 variant="outline"

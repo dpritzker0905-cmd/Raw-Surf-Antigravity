@@ -17,7 +17,7 @@ import { formatDuration } from '../utils/formatTime';
  */
 
 // Custom hook for session timer
-var useSessionTimer = (startTime) => {
+const useSessionTimer = (startTime) => {
   const [elapsed, setElapsed] = useState(0);
   
   useEffect(() => {
@@ -41,10 +41,10 @@ var useSessionTimer = (startTime) => {
 };
 
 // Format seconds to HH:MM:SS or MM:SS - using shared utility
-var formatTime = formatDuration;
+const formatTime = formatDuration;
 
 // Blinking Live Indicator Component
-var BlinkingLiveIndicator = ({ size = 'default' }) => {
+const BlinkingLiveIndicator = ({ size = 'default' }) => {
   const sizeClasses = {
     small: 'w-2 h-2',
     default: 'w-2.5 h-2.5',
@@ -71,7 +71,7 @@ var BlinkingLiveIndicator = ({ size = 'default' }) => {
 };
 
 // Compact Bar Version
-var LiveStatusBar = ({ 
+const LiveStatusBar = ({ 
   session, 
   onEndSession, 
   onExpand,
@@ -146,7 +146,7 @@ var LiveStatusBar = ({
 };
 
 // Expanded Panel Version
-var LiveStatusPanel = ({ 
+const LiveStatusPanel = ({ 
   session, 
   onEndSession,
   onCollapse,
@@ -274,7 +274,7 @@ var LiveStatusPanel = ({
 };
 
 // Main Component with toggle between bar and panel
-var LiveStatusHUD = ({ 
+const LiveStatusHUD = ({ 
   session, 
   onEndSession,
   onUploadPhotos,

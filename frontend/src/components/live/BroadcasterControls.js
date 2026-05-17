@@ -38,7 +38,7 @@ import {
  * Broadcaster Controls Component - Main broadcasting interface
  * Modern features: Connection quality, surfer video filters, comment likes
  */
-var BroadcasterControls = ({ 
+const BroadcasterControls = ({ 
   _onEnd, 
   onEndRequest, 
   streamDuration, 
@@ -146,7 +146,7 @@ var BroadcasterControls = ({
     // Throws on error so CommentTile can revert the optimistic update
   }, [streamId, userId]);
 
-  // â”€â”€ LiveKit DataChannel for real-time emoji reactions â”€â”€
+  // GöÇGöÇ LiveKit DataChannel for real-time emoji reactions GöÇGöÇ
   // Reactions received from viewers appear as floating emoji bursts on the broadcaster's screen.
   const onReactionReceived = useCallback((msg) => {
     try {
@@ -206,8 +206,8 @@ var BroadcasterControls = ({
           }
         }
       }
-      // All retries exhausted â€” non-fatal, hair filter simply won't work
-      logger.error('[HairFilter] All init attempts failed â€” MediaPipe CDN may be unreachable');
+      // All retries exhausted GÇö non-fatal, hair filter simply won't work
+      logger.error('[HairFilter] All init attempts failed GÇö MediaPipe CDN may be unreachable');
     };
     
     initWithRetry();

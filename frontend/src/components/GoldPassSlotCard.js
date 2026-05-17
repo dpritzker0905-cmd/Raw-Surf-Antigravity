@@ -18,7 +18,7 @@ import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { formatTimeSlot } from '../utils/formatTime';
 
-export var GoldPassSlotCard = ({ 
+export const GoldPassSlotCard = ({ 
   slot, 
   hasGoldPass, 
   onBook, 
@@ -46,7 +46,7 @@ export var GoldPassSlotCard = ({
     return () => clearInterval(interval);
   }, [isLocked, minutesRemaining]);
 
-  // Format time for display (HH:MM -> 7:00 AM) â€” shared utility
+  // Format time for display (HH:MM -> 7:00 AM) GÇö shared utility
   const formatTime = formatTimeSlot;
 
   // Format date

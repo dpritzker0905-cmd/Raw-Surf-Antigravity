@@ -7,11 +7,11 @@ import { CURRENT_TOS_VERSION } from '../../constants/tos';
 import DeleteAccountSection from './DeleteAccountSection';
 
 /**
- * LegalSection â€” Extracted from Settings.js
+ * LegalSection GÇö Extracted from Settings.js
  * Handles Terms of Service viewing, acceptance history,
  * privacy policy, violation history, and account deletion.
  */
-export var LegalSection = ({
+export const LegalSection = ({
   userId,
   textPrimaryClass,
   textSecondaryClass,

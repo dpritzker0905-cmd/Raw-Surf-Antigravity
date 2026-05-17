@@ -47,7 +47,7 @@ import useGalleryActions from '../hooks/useGalleryActions';
 import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 import { GallerySkeleton } from './ui/SkeletonVariants';
 
-export var GalleryPage = () => {
+export const GalleryPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { 

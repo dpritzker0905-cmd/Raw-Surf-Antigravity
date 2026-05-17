@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { getErrorMessage } from '../utils/errors';
 import logger from '../utils/logger';
 
-export var useRequestPro = ({ user, userLocation, getUserLocation }) => {
+export const useRequestPro = ({ user, userLocation, getUserLocation }) => {
   // Modal and loading states
   const [showRequestProModal, setShowRequestProModal] = useState(false);
   const [requestProLoading, setRequestProLoading] = useState(false);

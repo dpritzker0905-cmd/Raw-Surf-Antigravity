@@ -10,7 +10,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
-var NOAA_BUOYS = [
+const NOAA_BUOYS = [
   // Florida
   { id: '41009', name: 'Canaveral 20NM', region: 'FL', lat: 28.519, lon: -80.166 },
   { id: '41010', name: 'Canaveral 120NM', region: 'FL', lat: 28.878, lon: -78.485 },
@@ -56,7 +56,7 @@ var NOAA_BUOYS = [
   { id: '32012', name: 'West Colombia Basin', region: 'Pacific SA', lat: 8.075, lon: -84.046 }
 ];
 
-var NOAA_BUOY_REGIONS = {
+const NOAA_BUOY_REGIONS = {
   'Florida': NOAA_BUOYS.filter(b => b.region === 'FL'),
   'New York/NJ': NOAA_BUOYS.filter(b => b.region === 'NY' || b.region === 'NJ'),
   'North Carolina': NOAA_BUOYS.filter(b => b.region === 'NC'),
@@ -66,7 +66,7 @@ var NOAA_BUOY_REGIONS = {
   'Pacific': NOAA_BUOYS.filter(b => ['Pacific', 'American Samoa', 'Pacific SA', 'Costa Rica'].includes(b.region)),
 };
 
-export var AdminSpotEditor = () => {
+export const AdminSpotEditor = () => {
   const { user } = useAuth();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);

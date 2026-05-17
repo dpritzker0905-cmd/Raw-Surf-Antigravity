@@ -30,23 +30,23 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 // Quick replies for on-demand session coordination
-var SESSION_QUICK_REPLIES = [
-  { id: 'omw', text: "On my way! ðŸƒ", icon: 'ðŸƒ' },
-  { id: 'arrived', text: "Just arrived at the spot ðŸ“", icon: 'ðŸ“' },
-  { id: 'parking', text: "Looking for parking ðŸ…¿ï¸", icon: 'ðŸ…¿ï¸' },
-  { id: 'ready', text: "Ready when you are! ðŸ¤™", icon: 'ðŸ¤™' },
-  { id: 'where', text: "Where exactly are you?", icon: 'ðŸ“' },
+const SESSION_QUICK_REPLIES = [
+  { id: 'omw', text: "On my way! =ƒÅâ", icon: '=ƒÅâ' },
+  { id: 'arrived', text: "Just arrived at the spot =ƒôì", icon: '=ƒôì' },
+  { id: 'parking', text: "Looking for parking =ƒà+n+Å", icon: '=ƒà+n+Å' },
+  { id: 'ready', text: "Ready when you are! =ƒñÖ", icon: '=ƒñÖ' },
+  { id: 'where', text: "Where exactly are you?", icon: '=ƒôì' },
   { id: 'running_late', text: "Running a few minutes late ?", icon: '?' },
-  { id: 'looking', text: "I'm looking for you ðŸ‘€", icon: 'ðŸ‘€' },
-  { id: 'found', text: "Found you! Starting session ðŸ“¸", icon: 'ðŸ“¸' },
-  { id: 'waves', text: "Waves are looking good! ðŸŒŠ", icon: 'ðŸŒŠ' },
-  { id: 'thanks', text: "Thanks for the session! ðŸ¤™", icon: 'ðŸ¤™' },
+  { id: 'looking', text: "I'm looking for you =ƒæÇ", icon: '=ƒæÇ' },
+  { id: 'found', text: "Found you! Starting session =ƒô+", icon: '=ƒô+' },
+  { id: 'waves', text: "Waves are looking good! =ƒîè", icon: '=ƒîè' },
+  { id: 'thanks', text: "Thanks for the session! =ƒñÖ", icon: '=ƒñÖ' },
 ];
 
-var MAX_VOICE_DURATION = 30; // seconds
+const MAX_VOICE_DURATION = 30; // seconds
 
 // ============ MESSAGE BUBBLE ============
-var MessageBubble = ({ message, isMine, isLight }) => {
+const MessageBubble = ({ message, isMine, isLight }) => {
   const bgMine = isLight
     ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
     : 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white';
@@ -112,7 +112,7 @@ var MessageBubble = ({ message, isMine, isLight }) => {
 };
 
 // ============ MAIN COMPONENT ============
-export var SessionChatDrawer = ({
+export const SessionChatDrawer = ({
   isOpen,
   onClose,
   otherUserId,
@@ -599,7 +599,7 @@ export var SessionChatDrawer = ({
 
 // ============ FLOATING CHAT BUTTON ============
 // Mini FAB to open chat from the session view
-export var SessionChatFAB = ({
+export const SessionChatFAB = ({
   unreadCount = 0,
   onClick,
   isLight = false,

@@ -19,7 +19,7 @@ import logger from '../utils/logger';
  * LocationPicker - Allows users to manually select their location on a map
  * Used when GPS is inaccurate or denied
  */
-export var LocationPicker = ({ 
+export const LocationPicker = ({ 
   isOpen, 
   onClose, 
   onLocationSelected,

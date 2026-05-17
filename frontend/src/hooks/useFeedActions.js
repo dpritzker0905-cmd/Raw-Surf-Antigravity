@@ -1,5 +1,5 @@
 /**
- * useFeedActions.js â€” Orchestrator Hook (v77 decomposition)
+ * useFeedActions.js GÇö Orchestrator Hook (v77 decomposition)
  * 
  * Composes three domain-specific sub-hooks:
  *   - useFeedDataActions    (posts, pagination, follow, lineups, live)
@@ -13,7 +13,7 @@ import useFeedDataActions from './feed/useFeedDataActions';
 import useFeedReactionActions from './feed/useFeedReactionActions';
 import useFeedCheckInActions from './feed/useFeedCheckInActions';
 
-var useFeedActions = ({
+const useFeedActions = ({
   user, navigate, activeTab, selectedCountry, selectedState, selectedCity, posts,
   latestPostIdRef,
   isPhotographer,

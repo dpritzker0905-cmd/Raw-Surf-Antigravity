@@ -10,7 +10,7 @@ import { getFullUrl } from '../utils/media';
  * This is Instagram Live style - NOT photographers who are actively shooting at spots.
  * The red gradient ring indicates social broadcasting.
  */
-export var LivePhotographers = () => {
+export const LivePhotographers = () => {
   const [liveUsers, setLiveUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();

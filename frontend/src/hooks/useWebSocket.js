@@ -5,9 +5,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import logger from '../utils/logger';
 
-var WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://') || '';
+const WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://') || '';
 
-export var useWebSocket = (room, userId = null) => {
+export const useWebSocket = (room, userId = null) => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -117,7 +117,7 @@ export var useWebSocket = (room, userId = null) => {
 /**
  * useConditionsSync - Real-time conditions feed
  */
-export var useConditionsSync = (onNewCondition) => {
+export const useConditionsSync = (onNewCondition) => {
   const { isConnected, lastMessage, error } = useWebSocket('conditions');
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export var useConditionsSync = (onNewCondition) => {
 /**
  * useLiveStreamSync - Real-time live stream status
  */
-export var useLiveStreamSync = (onLiveUpdate) => {
+export const useLiveStreamSync = (onLiveUpdate) => {
   const { isConnected, lastMessage, error } = useWebSocket('live');
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export var useLiveStreamSync = (onLiveUpdate) => {
 /**
  * useEarningsSync - Real-time earnings updates for photographers
  */
-export var useEarningsSync = (userId, onEarningsUpdate) => {
+export const useEarningsSync = (userId, onEarningsUpdate) => {
   const { isConnected, lastMessage, error } = useWebSocket('earnings', userId);
 
   useEffect(() => {
@@ -165,7 +165,7 @@ export var useEarningsSync = (userId, onEarningsUpdate) => {
  * usePhotographerActivitySync - Real-time activity notifications for photographers
  * Receives events when surfers view, favorite, or purchase photos
  */
-export var usePhotographerActivitySync = (photographerId, onActivity) => {
+export const usePhotographerActivitySync = (photographerId, onActivity) => {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(null);
   const wsRef = useRef(null);

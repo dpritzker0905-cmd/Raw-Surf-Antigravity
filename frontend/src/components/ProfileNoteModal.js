@@ -9,7 +9,7 @@ import { Input } from './ui/input';
  * 24-hour ephemeral status notes.
  * Extracted from Profile.js to reduce god-component complexity.
  */
-export var ProfileNoteModal = ({
+export const ProfileNoteModal = ({
   isOpen,
   onClose,
   isOwnProfile,
@@ -74,17 +74,17 @@ export var ProfileNoteModal = ({
                 <p className="text-xs text-emerald-400 text-center">
                   Notes disappear after 24 hours
                 </p>
-                <Input aria-label="What's happening? ðŸŒŠ"
+                <Input aria-label="What's happening? =ƒîè"
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
-                  placeholder="What's happening? ðŸŒŠ"
+                  placeholder="What's happening? =ƒîè"
                   className="bg-zinc-800 border-zinc-700 text-white text-lg text-center h-14"
                   maxLength={60}
                   data-testid="note-input"
                 />
                 {/* Quick Emoji Picker */}
                 <div className="flex justify-center flex-wrap gap-2" data-testid="emoji-picker">
-                  {['ðŸ„', 'ðŸŒŠ', 'ðŸ¤™', 'ðŸ”¥', 'â˜€ï¸', 'ðŸš', 'ðŸ¦ˆ', 'ðŸŒ´', 'ðŸ’ª', 'ðŸŽ¯', 'ðŸ“¸', 'ðŸ†'].map((emoji) => (
+                  {['=ƒÅä', '=ƒîè', '=ƒñÖ', '=ƒöÑ', 'GÿÇn+Å', '=ƒÉÜ', '=ƒªê', '=ƒî¦', '=ƒÆ¬', '=ƒÄ»', '=ƒô+', '=ƒÅå'].map((emoji) => (
                     <button
                       key={emoji}
                       type="button"

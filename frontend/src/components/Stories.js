@@ -14,17 +14,17 @@ import useStoriesActions from '../hooks/useStoriesActions';
 
 // Story ring colors - Ring System
 // RED Ring: Active Social 'GO LIVE' broadcasts - Always at front
-var LIVE_RING = 'bg-gradient-to-r from-red-500 via-red-600 to-red-500 animate-pulse';
+const LIVE_RING = 'bg-gradient-to-r from-red-500 via-red-600 to-red-500 animate-pulse';
 // BLUE Ring: New, unseen Stories/Condition Reports
-var NEW_RING = 'bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400';
+const NEW_RING = 'bg-gradient-to-r from-cyan-400 via-blue-500 to-cyan-400';
 // Standard rings by type
-var PHOTOGRAPHER_RING = 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500';
-var SURFER_RING = 'bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500';
+const PHOTOGRAPHER_RING = 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500';
+const SURFER_RING = 'bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500';
 // CLEAR Ring: Viewed stories
-var VIEWED_RING = 'bg-zinc-600';
+const VIEWED_RING = 'bg-zinc-600';
 
 // Get ring color based on story state
-var getStoryRingColor = (authorGroup, isViewed = false) => {
+const getStoryRingColor = (authorGroup, isViewed = false) => {
   // RED ring for active live broadcasts (always front)
   if (authorGroup.is_live) return LIVE_RING;
   // CLEAR ring for viewed stories
@@ -35,7 +35,7 @@ var getStoryRingColor = (authorGroup, isViewed = false) => {
   return authorGroup.story_type === 'photographer' ? PHOTOGRAPHER_RING : SURFER_RING;
 };
 
-export var StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
+export const StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
   const { user } = useAuth();
   const scrollRef = useRef(null);
 
@@ -232,7 +232,7 @@ export var StoriesBar = ({ onCreateStory, onTierChange, selectedTier }) => {
   );
 };
 
-var StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
+const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
   const _isPhotographer = authorGroup.story_type === 'photographer';
   const _hasUnviewed = authorGroup.has_unviewed;
   const _isLive = authorGroup.is_live;
@@ -297,7 +297,7 @@ var StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
   );
 };
 
-var StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNavigate }) => {
+const StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNavigate }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -503,7 +503,7 @@ var StoryViewer = ({ authorGroup, viewerId, _viewerLocation, onClose, onNavigate
   );
 };
 
-export var CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
+export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
   const { user } = useAuth();
   const [mediaUrl, setMediaUrl] = useState('');
   const [mediaType, setMediaType] = useState('image');

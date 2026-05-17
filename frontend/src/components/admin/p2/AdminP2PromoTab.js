@@ -6,7 +6,7 @@ import { Switch } from '../../ui/switch';
 import { Gift, Copy, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
-export var AdminP2PromoTab = ({
+export const AdminP2PromoTab = ({
   promoCodes,
   setShowCreatePromo,
   handleTogglePromo,
@@ -58,7 +58,7 @@ export var AdminP2PromoTab = ({
                       {promo.code_type === 'percentage' ? `${promo.discount_value}% off` :
                        promo.code_type === 'fixed_amount' ? `$${promo.discount_value} off` :
                        `${promo.discount_value} free credits`}
-                      {promo.campaign_name && ` â€” ${promo.campaign_name}`}
+                      {promo.campaign_name && ` GÇö ${promo.campaign_name}`}
                     </p>
                   </div>
                 </div>
@@ -66,7 +66,7 @@ export var AdminP2PromoTab = ({
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <p className="text-sm text-foreground">
-                      {promo.current_uses} / {promo.max_uses || 'âˆž'} uses
+                      {promo.current_uses} / {promo.max_uses || 'GêP'} uses
                     </p>
                     {promo.valid_until && (
                       <p className="text-xs text-gray-500">

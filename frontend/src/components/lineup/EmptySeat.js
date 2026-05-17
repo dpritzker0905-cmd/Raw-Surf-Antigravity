@@ -1,6 +1,6 @@
 import React from 'react';
 
-var EmptySeat = ({ seatNumber, isLight, onClick }) => {
+const EmptySeat = ({ seatNumber, isLight, onClick }) => {
   const textSecondary = isLight ? 'text-gray-400' : 'text-gray-500';
   
   // Empty seat surfboard colors (desaturated/ghost colors)

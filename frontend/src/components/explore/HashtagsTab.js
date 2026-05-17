@@ -1,11 +1,11 @@
 /**
- * HashtagsTab â€” Trending hashtags discovery and post grid.
+ * HashtagsTab GÇö Trending hashtags discovery and post grid.
  * Extracted from Explore.js to reduce file size.
  * 
  * Features:
  * - Quick hashtag pill buttons (top 10)
  * - Ranked hashtag list with post counts
- * - Selected hashtag â†’ post grid view
+ * - Selected hashtag GåÆ post grid view
  * - Loading and empty states
  */
 import React from 'react';
@@ -13,7 +13,7 @@ import { Hash, X, ChevronRight, Loader2 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import PostMediaPreview from './PostMediaPreview';
 
-var HashtagsTab = ({
+const HashtagsTab = ({
   trendingHashtags,
   selectedHashtag,
   setSelectedHashtag,

@@ -7,11 +7,11 @@ import { NumericStepper } from './ui/numeric-stepper';
 import { getFullUrl } from '../utils/media';
 
 /**
- * Quick Book modal â€” lets surfers request on-demand or scheduled bookings
+ * Quick Book modal GÇö lets surfers request on-demand or scheduled bookings
  * with a photographer directly from their profile.
  * Extracted from Profile.js to reduce god-component complexity.
  */
-export var ProfileQuickBookModal = ({
+export const ProfileQuickBookModal = ({
   isOpen,
   onClose,
   profile,
@@ -74,7 +74,7 @@ export var ProfileQuickBookModal = ({
             <span className="text-2xl font-bold text-yellow-400">${quickBookTotal.toFixed(2)}</span>
           </div>
           <p className="text-sm text-gray-400">
-            ${quickBookHourlyRate}/hr Ã— {quickBookDuration} hr{quickBookDuration > 1 ? 's' : ''} = ${quickBookTotal.toFixed(2)}
+            ${quickBookHourlyRate}/hr +ù {quickBookDuration} hr{quickBookDuration > 1 ? 's' : ''} = ${quickBookTotal.toFixed(2)}
           </p>
         </div>
 

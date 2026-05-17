@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import { getFullUrl } from '../../utils/media';
 
-var InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSecondaryClass, onCopyCode, onClose, onRefresh }) => {
+const InviteModalContent = ({ booking, user, isLight, textPrimaryClass, textSecondaryClass, onCopyCode, onClose, onRefresh }) => {
   const [activeTab, setActiveTab] = useState('handle'); // 'handle' or 'code'
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);

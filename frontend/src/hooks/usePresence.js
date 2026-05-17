@@ -1,5 +1,5 @@
 /**
- * usePresence â€” Real-time online/offline presence tracking.
+ * usePresence GÇö Real-time online/offline presence tracking.
  * 
  * Connects to /ws/presence/{userId} and maintains a set of online user IDs.
  * Sends heartbeats every 30s to keep the user marked as online.
@@ -12,9 +12,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import logger from '../utils/logger';
 
-var WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://') || '';
+const WS_BASE = process.env.REACT_APP_BACKEND_URL?.replace('https://', 'wss://').replace('http://', 'ws://') || '';
 
-export var usePresence = (userId) => {
+export const usePresence = (userId) => {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const wsRef = useRef(null);
   const heartbeatRef = useRef(null);

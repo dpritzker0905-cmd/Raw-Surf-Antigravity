@@ -1,12 +1,12 @@
 /**
- * MediaPreviewCarousel â€” Extracted from CreatePostModal.js (v82)
+ * MediaPreviewCarousel GÇö Extracted from CreatePostModal.js (v82)
  * Handles image/video preview display with swipe, carousel navigation,
  * and thumbnail strip for multi-image posts.
  */
 import React from 'react';
 import { X } from 'lucide-react';
 
-var MediaPreviewCarousel = ({
+const MediaPreviewCarousel = ({
   previewUrls,
   currentPreviewIndex,
   setCurrentPreviewIndex,

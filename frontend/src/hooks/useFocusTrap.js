@@ -1,9 +1,9 @@
 /**
- * useFocusTrap — Traps keyboard focus inside a container element.
+ * useFocusTrap G�� Traps keyboard focus inside a container element.
  *
  * Usage:
  *   const trapRef = useFocusTrap(isOpen);
- *   return <div ref={trapRef}>…modal content…</div>;
+ *   return <div ref={trapRef}>GǪmodal contentGǪ</div>;
  *
  * When active:
  *   - Tab / Shift+Tab cycles through focusable children only
@@ -12,7 +12,7 @@
  */
 import { useEffect, useRef, useCallback } from 'react';
 
-var FOCUSABLE = [
+const FOCUSABLE = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled])',
   'textarea:not([disabled])', 'select:not([disabled])',
   '[tabindex]:not([tabindex="-1"])'

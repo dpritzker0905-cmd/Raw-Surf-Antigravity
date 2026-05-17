@@ -1,12 +1,12 @@
 /**
- * FeedSkeleton â€” Shimmer loading placeholders for the social feed.
+ * FeedSkeleton GÇö Shimmer loading placeholders for the social feed.
  * Uses the base Skeleton primitive from ui/skeleton.jsx.
  * Shows 3 post-shaped cards while feed data is being fetched.
  */
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-var PostSkeleton = () => (
+const PostSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     {/* Author row */}
     <div className="flex items-center gap-3">
@@ -32,7 +32,7 @@ var PostSkeleton = () => (
   </div>
 );
 
-export var FeedSkeleton = ({ count = 3 }) => (
+export const FeedSkeleton = ({ count = 3 }) => (
   <div className="space-y-4 px-1">
     {Array.from({ length: count }).map((_, i) => (
       <PostSkeleton key={i} />

@@ -1,5 +1,5 @@
 /**
- * GalleryFolderList â€” Extracted from GalleryPage.js
+ * GalleryFolderList GÇö Extracted from GalleryPage.js
  * Renders the grid of session/album folder cards with thumbnails,
  * session type badges, action buttons (rename/delete/thumbnail/link), and roster cards.
  */
@@ -12,7 +12,7 @@ import { Button } from '../ui/button';
 import { SessionRosterCard } from './SessionRosterCard';
 import { getFullUrl } from '../../utils/media';
 
-export var GalleryFolderList = ({
+export const GalleryFolderList = ({
   galleries,
   isGromParent,
   user,

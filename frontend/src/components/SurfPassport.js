@@ -12,7 +12,7 @@ import logger from '../utils/logger';
 
 
 // Badge definitions with icons and descriptions
-var BADGE_INFO = {
+const BADGE_INFO = {
   first_checkin: { icon: String.fromCodePoint(0x1F30A), name: 'First Wave', description: 'Your first check-in!' },
   explorer_10: { icon: String.fromCodePoint(0x1F9ED), name: 'Explorer', description: 'Visited 10 unique spots' },
   globetrotter_5: { icon: String.fromCodePoint(0x1F30D), name: 'Globetrotter', description: 'Surfed in 5 countries' },
@@ -23,13 +23,13 @@ var BADGE_INFO = {
 
 
 // Level names
-var LEVEL_NAMES = [
+const LEVEL_NAMES = [
   '', 'Grommet', 'Wave Rider', 'Swell Seeker', 'Barrel Hunter', 
   'Reef Master', 'Point Captain', 'Tube Legend', 'Ocean Sage', 
   'Surf Oracle', 'Wave God'
 ];
 
-export var SurfPassport = ({ isOpen, onClose }) => {
+export const SurfPassport = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

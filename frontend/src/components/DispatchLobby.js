@@ -43,7 +43,7 @@ import DispatchSelfieSection from './on-demand/DispatchSelfieSection';
 // TimelineStep extracted to ./on-demand/DispatchTimeline.js
 
 // --- Main Component ---
-export var DispatchLobby = () => {
+export const DispatchLobby = () => {
   const { dispatchId } = useParams();
   const { state: navState } = useLocation();
   const { user } = useAuth();
@@ -210,7 +210,7 @@ export var DispatchLobby = () => {
         // Photographer ACCEPTED
         if (['accepted', 'en_route'].includes(newStatus) && !acceptSoundPlayedRef.current) {
           acceptSoundPlayedRef.current = true;
-          toast.success('ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â¸ Photographer accepted! They\'re on their way.', {
+          toast.success('+â¦Æ+é-¦+âGÇª+é-++â-ó+óGÇÜ-¼+àGÇ£+âGÇÜ+é-+ Photographer accepted! They\'re on their way.', {
             id: 'photographer-accepted',
             duration: 6000,
           });
@@ -223,7 +223,7 @@ export var DispatchLobby = () => {
 
         // Photographer ARRIVED - notify the surfer
         if (newStatus === 'arrived') {
-          toast.success('ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒâ€šÃ‚Â Your photographer has arrived! Look for them at the spot.', {
+          toast.success('+â¦Æ+é-¦+âGÇª+é-++â-ó+óGÇÜ-¼+àGÇ£+âGÇÜ+é-ì Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
             duration: 8000,
           });
@@ -257,7 +257,7 @@ export var DispatchLobby = () => {
         const diff = newPaidCount - prevPaidCountRef.current;
         const newlyPaid = newCrew.filter(m => m.paid).slice(-diff);
         const names = newlyPaid.map(m => m.name || 'A crew member').join(', ');
-        toast.success(`${names} joined the session! ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚ÂÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾`, {
+        toast.success(`${names} joined the session! +â¦Æ+é-¦+âGÇª+é-++âGÇÜ+é-Å+â-ó+óGÇÜ-¼+à-+`, {
           id: `crew-paid-${newPaidCount}`,
           duration: 4000,
         });

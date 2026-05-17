@@ -1,5 +1,5 @@
 /**
- * SessionStatusControl â€” Extracted from PhotographerSessionManager.js (v77)
+ * SessionStatusControl GÇö Extracted from PhotographerSessionManager.js (v77)
  * Session open/close toggle, visibility settings, reservation controls,
  * and lock/cancel action buttons.
  */
@@ -11,7 +11,7 @@ import {
 import { Button } from '../ui/button';
 import { Loader2 } from 'lucide-react';
 
-var SessionStatusControl = ({ 
+const SessionStatusControl = ({ 
   booking, 
   isLight, 
   loading,

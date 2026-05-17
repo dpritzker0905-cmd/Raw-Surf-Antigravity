@@ -7,7 +7,7 @@ import { getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCh
 import { ROLES } from '../../constants/roles';
 
 // Role-based icon helper - uses expanded PersonaContext
-var getRoleIcon = (role, isAdmin = false) => {
+const getRoleIcon = (role, isAdmin = false) => {
   const _roleInfo = getExpandedRoleInfo(role, isAdmin);
   if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '\u{1F6E1}\u{FE0F}' };
   
@@ -36,13 +36,13 @@ var getRoleIcon = (role, isAdmin = false) => {
 };
 
 // Check if user is a Pro (for Pro Lounge access)
-var isProRole = (role) => isProLevelRole(role);
+const isProRole = (role) => isProLevelRole(role);
 
 // Check if user is Business/Photographer
-var isBusinessRole = (role) => isBusinessRoleCheck(role);
+const isBusinessRole = (role) => isBusinessRoleCheck(role);
 
 // Updated folder system with Pro Lounge and The Channel
-var getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked = false, isGromParentFlag = false) => {
+const getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked = false, isGromParentFlag = false) => {
   // Use effective role if God Mode is masking
   const roleToCheck = effectiveRole || userRole;
   // Pro Lounge access: ONLY for 'Pro' or 'God' roles
@@ -142,7 +142,7 @@ var getFolders = (userRole, _isAdmin = false, effectiveRole = null, _isMasked = 
 // GifPicker extracted to ./messages/GifPicker.js
 
 // Shaka SVG Icon Component
-var ShakaIcon = ({ className = "w-16 h-16" }) => (
+const ShakaIcon = ({ className = "w-16 h-16" }) => (
   <svg className={className} viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M20 44 C18 42 16 38 16 32 C16 26 18 22 22 20 L26 18 C28 17 30 18 30 20 L30 28" strokeLinecap="round" />
     <path d="M30 28 L30 16 C30 14 32 12 34 12 C36 12 38 14 38 16 L38 28" strokeLinecap="round" />

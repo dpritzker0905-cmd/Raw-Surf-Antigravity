@@ -15,23 +15,23 @@ import logger from '../../utils/logger';
 import { formatClockTime } from '../../utils/formatTime';
 
 // Must stay in sync with backend ALLOWED_REACTIONS in schemas.py
-var REACTIONS = [
-  '\u{2764}\u{FE0F}',   // â¤ï¸ Red Heart
-  '\u{1F525}',          // ğŸ”¥ Fire
-  '\u{1F919}',          // ğŸ¤™ Call Me Hand (Shaka)
-  '\u{1F602}',          // ğŸ˜‚ Face with Tears of Joy
-  '\u{1F30A}',          // ğŸŒŠ Wave
-  '\u{1F4AF}',          // ğŸ’¯ Hundred Points
+const REACTIONS = [
+  '\u{2764}\u{FE0F}',   // G¥ñn+Å Red Heart
+  '\u{1F525}',          // =ƒöÑ Fire
+  '\u{1F919}',          // =ƒñÖ Call Me Hand (Shaka)
+  '\u{1F602}',          // =ƒÿé Face with Tears of Joy
+  '\u{1F30A}',          // =ƒîè Wave
+  '\u{1F4AF}',          // =ƒÆ» Hundred Points
 ];
 
 // Format timestamp for message bubble - shared utility
-var formatTime = formatClockTime;
+const formatTime = formatClockTime;
 
 /**
  * Attempt to parse a post_share message's JSON content.
  * Returns null if it's a legacy plain-text share.
  */
-var parsePostShareData = (content) => {
+const parsePostShareData = (content) => {
   if (!content) return null;
   try {
     const data = JSON.parse(content);
@@ -44,7 +44,7 @@ var parsePostShareData = (content) => {
 };
 
 
-var MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
+const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
   const navigate = useNavigate();
   const [showReactions, setShowReactions] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -171,7 +171,7 @@ var MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     
     const mediaUrl = getMediaUrl(message.media_url);
 
-    // â”€â”€ Post Share Card â”€â”€
+    // GöÇGöÇ Post Share Card GöÇGöÇ
     if (message.message_type === 'post_share') {
       const shareData = parsePostShareData(message.content);
       if (shareData) {

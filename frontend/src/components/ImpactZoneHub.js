@@ -23,7 +23,7 @@ import { GenericPageSkeleton } from './ui/SkeletonVariants';
  * The Impact Zone - Career Hub for Competitive Surfers
  * Features: Competition Stats, Rankings, Contest Calendar, Heat Analysis, Comp Crew
  */
-export var ImpactZoneHub = () => {
+export const ImpactZoneHub = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();

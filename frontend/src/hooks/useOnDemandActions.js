@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { useCallback } from 'react';
 
-var useOnDemandActions = ({
+const useOnDemandActions = ({
   user, activeSession, selectedSpots,
   userLocation, nearbySpots, geoRadius, isOnline, isLiveShooting,
   baseRate, peakPricingEnabled, peakMultiplier, cancellationFeePct,

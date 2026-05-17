@@ -14,7 +14,7 @@ import { Badge } from './ui/badge';
 import { cn } from '../lib/utils';
 
 // Session categories with time windows
-var SESSION_CATEGORIES = [
+const SESSION_CATEGORIES = [
   { 
     id: 'dawn_patrol', 
     label: 'Dawn Patrol', 
@@ -58,7 +58,7 @@ var SESSION_CATEGORIES = [
 ];
 
 // Duration options
-var DURATION_OPTIONS = [
+const DURATION_OPTIONS = [
   { value: 60, label: '1 hour' },
   { value: 120, label: '2 hours' },
   { value: 180, label: '3 hours' },
@@ -67,7 +67,7 @@ var DURATION_OPTIONS = [
 ];
 
 // Generate time slots in 15-minute increments
-var generateTimeSlots = (startHour, endHour) => {
+const generateTimeSlots = (startHour, endHour) => {
   const slots = [];
   for (let hour = startHour; hour < endHour; hour++) {
     for (let minute = 0; minute < 60; minute += 15) {
@@ -82,7 +82,7 @@ var generateTimeSlots = (startHour, endHour) => {
 };
 
 // Time slots by session category
-var TIME_SLOTS_BY_CATEGORY = {
+const TIME_SLOTS_BY_CATEGORY = {
   dawn_patrol: generateTimeSlots(5, 8),
   morning: generateTimeSlots(7, 11),
   midday: generateTimeSlots(11, 15),
@@ -93,7 +93,7 @@ var TIME_SLOTS_BY_CATEGORY = {
 /**
  * Calendar Component for date selection
  */
-var MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
+const MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -190,7 +190,7 @@ var MiniCalendar = ({ selectedDate, onSelectDate, _minDate }) => {
 /**
  * Main ExactTimeSlotPicker Component
  */
-export var ExactTimeSlotPicker = ({ 
+export const ExactTimeSlotPicker = ({ 
   selectedDate, 
   selectedTime, 
   selectedCategory,
@@ -359,7 +359,7 @@ export var ExactTimeSlotPicker = ({
         <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-lg p-2">
           <h4 className={`font-medium text-xs ${textPrimary} mb-0.5`}>Summary</h4>
           <p className={`text-[10px] ${textSecondary}`}>
-            <strong className={textPrimary}>{categoryInfo?.label}</strong> â€¢ {formattedDate} â€¢ <strong className="text-yellow-400">{availableTimeSlots.find(s => s.value === selectedTime)?.label}</strong> â€¢ {DURATION_OPTIONS.find(d => d.value === selectedDuration)?.label}
+            <strong className={textPrimary}>{categoryInfo?.label}</strong> GÇó {formattedDate} GÇó <strong className="text-yellow-400">{availableTimeSlots.find(s => s.value === selectedTime)?.label}</strong> GÇó {DURATION_OPTIONS.find(d => d.value === selectedDuration)?.label}
           </p>
         </div>
       )}

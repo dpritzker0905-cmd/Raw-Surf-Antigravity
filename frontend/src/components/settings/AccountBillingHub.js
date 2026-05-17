@@ -41,7 +41,7 @@ import { getFullUrl } from '../../utils/media';
 /**
  * Get the appropriate plans based on user role
  */
-var getPlansForRole = (role) => {
+const getPlansForRole = (role) => {
   const photographerRoles = ['Photographer', 'Hobbyist', 'Approved Pro'];
   const gromRoles = ['Grom'];
   
@@ -57,7 +57,7 @@ var getPlansForRole = (role) => {
   return SURFER_PLANS.monthly;
 };
 
-export var AccountBillingHub = () => {
+export const AccountBillingHub = () => {
   const { user, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [accountData, setAccountData] = useState(null);

@@ -24,7 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { getFullUrl } from '../../utils/media';
 
-export var AdminP1Dashboard = () => {
+export const AdminP1Dashboard = () => {
   const { user, startImpersonation: authStartImpersonation, impersonation: authImpersonation, endImpersonation: authEndImpersonation } = useAuth();
   const { theme } = useTheme();
   const location = useLocation();

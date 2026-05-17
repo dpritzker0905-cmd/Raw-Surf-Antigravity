@@ -5,20 +5,20 @@
 import React from 'react';
 import { Badge } from '../ui/badge';
 
-var formatFileSize = (bytes) => {
+const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
   const getFileIcon = (fileType) => {
-    if (fileType?.includes('pdf')) return 'ðŸ“„';
-    if (fileType?.includes('word') || fileType?.includes('doc')) return 'ðŸ“';
-    if (fileType?.includes('excel') || fileType?.includes('sheet')) return 'ðŸ“Š';
-    if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return 'ðŸ“Š';
-    if (fileType?.includes('zip') || fileType?.includes('archive')) return 'ðŸ“¦';
-    if (fileType?.includes('text') || fileType?.includes('csv')) return 'ðŸ“ƒ';
-    return 'ðŸ“Ž';
+    if (fileType?.includes('pdf')) return '=ƒôä';
+    if (fileType?.includes('word') || fileType?.includes('doc')) return '=ƒô¥';
+    if (fileType?.includes('excel') || fileType?.includes('sheet')) return '=ƒôè';
+    if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return '=ƒôè';
+    if (fileType?.includes('zip') || fileType?.includes('archive')) return '=ƒôª';
+    if (fileType?.includes('text') || fileType?.includes('csv')) return '=ƒôâ';
+    return '=ƒôÄ';
   };
 
   const getTotalReactions = (reactions) => {

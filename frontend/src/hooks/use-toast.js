@@ -2,26 +2,26 @@
 // Inspired by react-hot-toast library
 import * as React from "react"
 
-var TOAST_LIMIT = 1
-var TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 1
+const TOAST_REMOVE_DELAY = 1000000
 
-var _actionTypes = {
+const _actionTypes = {
   ADD_TOAST: "ADD_TOAST",
   UPDATE_TOAST: "UPDATE_TOAST",
   DISMISS_TOAST: "DISMISS_TOAST",
   REMOVE_TOAST: "REMOVE_TOAST"
 }
 
-var count = 0
+let count = 0
 
 function genId() {
   count = (count + 1) % Number.MAX_SAFE_INTEGER
   return count.toString();
 }
 
-var toastTimeouts = new Map()
+const toastTimeouts = new Map()
 
-var addToRemoveQueue = (toastId) => {
+const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
     return
   }
@@ -37,7 +37,7 @@ var addToRemoveQueue = (toastId) => {
   toastTimeouts.set(toastId, timeout)
 }
 
-export var reducer = (state, action) => {
+export const reducer = (state, action) => {
   switch (action.type) {
     case "ADD_TOAST":
       return {
@@ -90,9 +90,9 @@ export var reducer = (state, action) => {
   }
 }
 
-var listeners = []
+const listeners = []
 
-var memoryState = { toasts: [] }
+let memoryState = { toasts: [] }
 
 function dispatch(action) {
   memoryState = reducer(memoryState, action)

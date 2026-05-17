@@ -23,7 +23,7 @@ import { getFullUrl } from '../../../utils/media';
 
 // --- Shared badge sub-components ---
 
-var StatusBadge = ({ status }) => {
+const StatusBadge = ({ status }) => {
   const styles = {
     pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
     under_review: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -42,7 +42,7 @@ var StatusBadge = ({ status }) => {
   );
 };
 
-var SeverityBadge = ({ severity }) => {
+const SeverityBadge = ({ severity }) => {
   const styles = {
     low: 'bg-gray-500/20 text-muted-foreground',
     medium: 'bg-yellow-500/20 text-yellow-400',
@@ -56,7 +56,7 @@ var SeverityBadge = ({ severity }) => {
 export { StatusBadge, SeverityBadge };
 
 // === Verification Detail Modal ===
-export var VerificationDetailModal = ({
+export const VerificationDetailModal = ({
   open, onOpenChange,
   selectedVerification,
   reviewStatus, setReviewStatus,
@@ -310,7 +310,7 @@ export var VerificationDetailModal = ({
 );
 
 // === Fraud Alert Detail Modal ===
-export var FraudAlertDetailModal = ({
+export const FraudAlertDetailModal = ({
   open, onOpenChange,
   selectedAlert,
   actionTaken, setActionTaken,
@@ -399,7 +399,7 @@ export var FraudAlertDetailModal = ({
 );
 
 // === Violation Detail Dialog ===
-export var ViolationDetailModal = ({
+export const ViolationDetailModal = ({
   open, onOpenChange,
   selectedViolation,
   appealNotes, setAppealNotes,

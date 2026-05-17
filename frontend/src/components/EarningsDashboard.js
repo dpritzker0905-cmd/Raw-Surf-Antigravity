@@ -21,7 +21,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 
 
-export var EarningsDashboard = () => {
+export const EarningsDashboard = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { getEffectiveRole } = usePersona();
@@ -54,28 +54,28 @@ export var EarningsDashboard = () => {
     
     switch (update.type) {
       case 'new_sale':
-        toast.success(`ğŸ’° New sale: +$${amount}`, { 
+        toast.success(`=ƒÆ¦ New sale: +$${amount}`, { 
           description: details.item_title ? `"${details.item_title}" purchased by ${details.buyer_name}` : undefined,
           duration: 5000 
         });
         setLoading(true);
         break;
       case 'booking_paid':
-        toast.success(`ğŸ’° Booking payment: +$${amount}`, {
+        toast.success(`=ƒÆ¦ Booking payment: +$${amount}`, {
           description: `${details.buyer_name} joined your session at ${details.booking_location}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'tip_received':
-        toast.success(`ğŸ’ Tip received: +$${amount}`, {
+        toast.success(`=ƒÆ¥ Tip received: +$${amount}`, {
           description: `From ${details.donor_name}`,
           duration: 5000
         });
         setLoading(true);
         break;
       case 'payout_complete':
-        toast.success(`âœ… Payout complete: $${amount} transferred`, { duration: 4000 });
+        toast.success(`G£à Payout complete: $${amount} transferred`, { duration: 4000 });
         setLoading(true);
         break;
       default:

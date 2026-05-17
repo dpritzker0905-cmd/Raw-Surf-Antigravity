@@ -1,13 +1,13 @@
 /**
  * ExplorePostsTab.js
- * Extracted from Explore.js â€” Posts tab with browse grid, hover overlays, and empty state.
+ * Extracted from Explore.js GÇö Posts tab with browse grid, hover overlays, and empty state.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Image, Heart, MessageCircle, ChevronRight, Loader2 } from 'lucide-react';
 import PostMediaPreview from './PostMediaPreview';
 
-var ExplorePostsTab = ({
+const ExplorePostsTab = ({
   explorePosts,
   postsLoading,
   handlePostClick,

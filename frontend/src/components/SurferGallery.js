@@ -48,7 +48,7 @@ import PurchaseHistoryModal from './surfer-gallery/PurchaseHistoryModal';
 /**
  * Main Surfer Gallery Component
  */
-export var SurferGallery = () => {
+export const SurferGallery = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
   
@@ -238,7 +238,7 @@ export var SurferGallery = () => {
               My Gallery
             </h1>
             <p className={`text-sm ${textSecondaryClass} mt-1`}>
-              Your private media locker â€¢ {stats.total || 0} items
+              Your private media locker GÇó {stats.total || 0} items
             </p>
           </div>
           

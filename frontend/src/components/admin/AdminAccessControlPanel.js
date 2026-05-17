@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
-export var AdminAccessControlPanel = ({
+export const AdminAccessControlPanel = ({
   siteSettings,
   setSiteSettings,
   savingSettings,

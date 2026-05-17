@@ -16,12 +16,12 @@ import logger from '../../utils/logger';
  * AdminAnalyticsDashboard - A/B Testing & Booking Conversion Analytics
  * 
  * Features:
- * - Conversion funnel tracking (Views â†’ Bookings â†’ Completed)
+ * - Conversion funnel tracking (Views GåÆ Bookings GåÆ Completed)
  * - A/B test variant comparison
  * - Revenue metrics by source
  * - User segment analysis
  */
-export var AdminAnalyticsDashboard = () => {
+export const AdminAnalyticsDashboard = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');

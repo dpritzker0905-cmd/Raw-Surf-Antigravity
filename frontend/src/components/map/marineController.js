@@ -13,6 +13,18 @@
  * - Last valid field preservation on failure
  */
 
+// --- UTILITY FUNCTIONS (must be above module-init code that calls them) ---
+var safeNum = (v, fallback = 0) => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+var getUV = (speed, dir) => {
+  if (speed === 0) return { u: 0, v: 0, speed: 0 };
+  const rad = dir * (Math.PI / 180);
+  return { u: -speed * Math.sin(rad), v: -speed * Math.cos(rad), speed };
+};
+
 // --- PROXY CONFIG ---
 // v3.9.6: Route through Netlify serverless proxy to bypass client IP rate limits
 var PROXY_URL = '/api/weather-proxy';
@@ -182,16 +194,7 @@ function computeGridPoints(bounds, caller = 'wind') {
   return { points, gridSize: GRID + 1, isGlobal };
 }
 
-var safeNum = (v, fallback = 0) => {
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : fallback;
-};
-
-var getUV = (speed, dir) => {
-  if (speed === 0) return { u: 0, v: 0, speed: 0 };
-  const rad = dir * (Math.PI / 180);
-  return { u: -speed * Math.sin(rad), v: -speed * Math.cos(rad), speed };
-};
+// safeNum and getUV are defined at top of file (above hydration code)
 
 // ========================================================================
 // EXTRACT WIND DATA AT A GIVEN HOUR OFFSET (from pre-fetched hourly cache)

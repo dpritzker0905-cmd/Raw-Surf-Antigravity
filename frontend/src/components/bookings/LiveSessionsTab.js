@@ -12,7 +12,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 
 
-export var LiveSessionsTab = ({
+export const LiveSessionsTab = ({
   liveSessions,
   onGoToLiveNow,
   onSessionLeft,

@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import { CURRENT_TOS_VERSION } from '../../constants/tos';
 
-var TosReacceptanceGate = ({ children }) => {
+const TosReacceptanceGate = ({ children }) => {
   const { user } = useAuth();
   const [status, setStatus] = useState('loading'); // 'loading' | 'accepted' | 'needs_acceptance'
   const [submitting, setSubmitting] = useState(false);
@@ -190,7 +190,7 @@ var TosReacceptanceGate = ({ children }) => {
 };
 
 /** Summary bullet item */
-var SummaryItem = ({ icon, text }) => (
+const SummaryItem = ({ icon, text }) => (
   <div className="flex items-start gap-2.5 text-sm text-zinc-300">
     <span className="text-cyan-400 mt-0.5 flex-shrink-0">{icon}</span>
     <span>{text}</span>

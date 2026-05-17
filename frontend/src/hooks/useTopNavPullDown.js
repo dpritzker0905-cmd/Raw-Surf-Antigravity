@@ -1,9 +1,9 @@
 /**
- * useTopNavPullDown â€” Touch gesture hook for the TopNav pull-down drawer.
+ * useTopNavPullDown GÇö Touch gesture hook for the TopNav pull-down drawer.
  *
  * Distinguishes between:
- *   - Pulling DOWN on the TopNav header â†’ opens the drawer
- *   - Pulling DOWN on page content â†’ native pull-to-refresh (usePullToRefresh)
+ *   - Pulling DOWN on the TopNav header GåÆ opens the drawer
+ *   - Pulling DOWN on page content GåÆ native pull-to-refresh (usePullToRefresh)
  *
  * How it avoids conflict:
  *   1. Only activates when touch starts INSIDE the TopNav header element
@@ -20,10 +20,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import useHapticFeedback from './useHapticFeedback';
 
-var OPEN_THRESHOLD = 40;   // px to pull before snapping open
-var CLOSE_THRESHOLD = 30;  // px to push up before snapping closed
-var MAX_DRAG = 160;        // max visual drag distance
-var RESISTANCE = 0.55;     // drag resistance factor
+const OPEN_THRESHOLD = 40;   // px to pull before snapping open
+const CLOSE_THRESHOLD = 30;  // px to push up before snapping closed
+const MAX_DRAG = 160;        // max visual drag distance
+const RESISTANCE = 0.55;     // drag resistance factor
 
 export function useTopNavPullDown() {
   const headerRef = useRef(null);
@@ -65,7 +65,7 @@ export function useTopNavPullDown() {
     const deltaY = (e.touches[0].clientY - startY.current) * RESISTANCE;
 
     if (!isOpen) {
-      // CLOSED â†’ pulling DOWN to open
+      // CLOSED GåÆ pulling DOWN to open
       if (deltaY <= 5) return; // ignore tiny movements & upward swipes
       isDragging.current = true;
 
@@ -81,7 +81,7 @@ export function useTopNavPullDown() {
         haptic('light');
       }
     } else {
-      // OPEN â†’ pushing UP to close
+      // OPEN GåÆ pushing UP to close
       if (deltaY >= -5) return;
       isDragging.current = true;
 

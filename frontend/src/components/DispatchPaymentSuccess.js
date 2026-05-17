@@ -14,7 +14,7 @@ import { RequestProSelfieModal } from './RequestProSelfieModal';
 import logger from '../utils/logger';
 
 
-var DispatchPaymentSuccess = () => {
+const DispatchPaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();

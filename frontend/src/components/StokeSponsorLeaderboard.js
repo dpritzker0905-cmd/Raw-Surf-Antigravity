@@ -20,7 +20,7 @@ import { getFullUrl } from '../utils/media';
  * Stoke Sponsor Leaderboard - Top photographers supporting surfers
  * Shows rankings, total contributions, and grom support percentages
  */
-export var StokeSponsorLeaderboard = ({ compact = false }) => {
+export const StokeSponsorLeaderboard = ({ compact = false }) => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   

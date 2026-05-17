@@ -13,7 +13,7 @@ import { getFullUrl } from '../utils/media';
  * GlobalSearchBar - Unified search component for desktop sidebar and mobile
  * Searches: Users, Spots, Posts, Hashtags
  */
-export var GlobalSearchBar = ({ 
+export const GlobalSearchBar = ({ 
   variant = 'desktop', // 'desktop' | 'mobile-icon' | 'mobile-expanded'
   onClose,
   onSearchStateChange,

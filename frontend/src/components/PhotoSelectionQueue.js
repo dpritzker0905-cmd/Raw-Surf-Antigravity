@@ -8,7 +8,7 @@ import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 
-var PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionComplete }) => {
+const PhotoSelectionQueue = ({ open, onOpenChange, theme = 'dark', onSelectionComplete }) => {
   const { user } = useAuth();
   const isLight = theme === 'light';
   
