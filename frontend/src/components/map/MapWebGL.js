@@ -16,8 +16,8 @@ import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
-import { LAYER_REGISTRY } from './LayerRegistry';
-import { validateModelAccess } from './LayerAccessResolver';
+import { LAYER_REGISTRY, resolveRasterSource } from './LayerRegistry'; // eslint-disable-line
+import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // eslint-disable-line
 
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
