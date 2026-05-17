@@ -140,8 +140,8 @@ void main() {
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
-  // v3.11.1: Adaptive point size — fast streams are thicker (Ventusky-style)
-  gl_PointSize = 1.0 + clamp(v_speed / 15.0, 0.0, 1.5);
+  // v3.12.1: Larger particles visible over raster background (Ventusky-scale)
+  gl_PointSize = 1.5 + clamp(v_speed / 10.0, 0.0, 2.5);
 }`;
 
 // v3.9.8: Color ramp LUT replaces fixed dark shader
@@ -310,10 +310,10 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function — TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.11.2r1: Balanced trail persistence (0.988 = ~4s decay vs 0.993 = 11s)
+  // v3.12.1: Longer trails visible over raster (0.992 ≈ 8s decay)
   this.particleRes = 384; // 384² = 147,456 particles
-  this.fadeOpacity = 0.988; // Visible trails without infinite accumulation
-  this.speedFactor = 0.25;
+  this.fadeOpacity = 0.992; // Visible flowing trails (was 0.988)
+  this.speedFactor = 0.35;  // Faster motion for visible flow (was 0.25)
   this.dropRate = 0.002;
   this.dropRateBump = 0.008;
   this._initialized = false;

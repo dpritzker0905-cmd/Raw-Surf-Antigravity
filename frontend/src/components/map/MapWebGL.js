@@ -563,25 +563,25 @@ var MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{
-              // v3.11.3: Zoom-adaptive opacity — geography readable at low zoom,
-              // weather detail visible at high zoom. Marine tiles use lower opacity
-              // so coastlines remain visible beneath ocean scalar fields.
+              // v3.12.1: Raster as BACKGROUND CONTEXT, not visual authority.
+              // Wind layer: very low opacity — GPU particles are the wind visual.
+              // Other layers: moderate opacity — land must remain readable.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, layerKey === 'pressure' ? 0.40 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.50),
-                5, layerKey === 'pressure' ? 0.50 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.60 : 0.65),
-                8, layerKey === 'pressure' ? 0.55 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.70 : 0.75),
-                12, layerKey === 'pressure' ? 0.60 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : 0.80),
+                2, layerKey === 'wind' ? 0.25 : layerKey === 'pressure' ? 0.30 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.35),
+                5, layerKey === 'wind' ? 0.30 : layerKey === 'pressure' ? 0.38 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.42 : 0.45),
+                8, layerKey === 'wind' ? 0.35 : layerKey === 'pressure' ? 0.45 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.50 : 0.55),
+                12, layerKey === 'wind' ? 0.40 : layerKey === 'pressure' ? 0.50 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.55 : 0.60),
               ],
               'raster-resampling': 'linear',
-              'raster-hue-rotate': layerKey === 'wind' ? -20 : layerKey === 'waves' ? 30
+              'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 180 : 0,
-              // v3.11.3: Scientific contrast — enough to read data, not overpower land
-              'raster-contrast': layerKey === 'pressure' ? 0.25 : layerKey === 'fog' ? 0.20
-                : layerKey === 'satellite' ? 0.30 : 0.40,
-              'raster-saturation': layerKey === 'fog' ? -0.2 : layerKey === 'satellite' ? -0.10
-                : layerKey === 'pressure' ? 0.35 : 0.55,
+              // v3.12.1: Scientific contrast — data readable, NOT overpowering
+              'raster-contrast': layerKey === 'pressure' ? 0.15 : layerKey === 'fog' ? 0.10
+                : layerKey === 'satellite' ? 0.25 : 0.25,
+              'raster-saturation': layerKey === 'fog' ? -0.3 : layerKey === 'satellite' ? -0.15
+                : layerKey === 'pressure' ? 0.20 : 0.35,
               'raster-brightness-min': layerKey === 'rain' ? 0.05 : 0,
               // v3.11.3: Smooth tile transitions — eliminates hard raster pops
               'raster-fade-duration': 300

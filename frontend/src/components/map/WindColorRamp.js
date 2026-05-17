@@ -18,17 +18,17 @@
  * Colors follow Beaufort/Ventusky convention: blue→cyan→green→yellow→red→purple.
  */
 var DEFAULT_WIND_RAMP = [
-  [0,    0.30, 0.40, 0.70, 0.08],  // Calm — barely visible (terrain shows through)
-  [2,    0.25, 0.50, 0.80, 0.15],  // Light air — faint blue
-  [5,    0.15, 0.65, 0.85, 0.30],  // Light breeze — soft cyan
-  [8,    0.15, 0.75, 0.60, 0.45],  // Gentle breeze — teal
+  [0,    0.47, 0.55, 0.70, 0.20],  // Calm — visible but subtle
+  [2,    0.35, 0.55, 0.80, 0.30],  // Light air — soft blue
+  [5,    0.25, 0.65, 0.85, 0.40],  // Light breeze — cyan
+  [8,    0.15, 0.75, 0.60, 0.50],  // Gentle breeze — teal
   [12,   0.35, 0.82, 0.30, 0.58],  // Moderate — green
-  [16,   0.75, 0.85, 0.15, 0.68],  // Fresh — yellow-green
-  [20,   0.95, 0.72, 0.08, 0.78],  // Strong — amber
-  [25,   0.95, 0.42, 0.06, 0.85],  // Near gale — orange
-  [30,   0.90, 0.18, 0.10, 0.90],  // Gale — red
-  [40,   0.78, 0.05, 0.30, 0.95],  // Storm — deep red-magenta
-  [50,   0.55, 0.00, 0.45, 1.00],  // Hurricane — purple
+  [16,   0.75, 0.85, 0.15, 0.63],  // Fresh — yellow-green
+  [20,   0.95, 0.72, 0.08, 0.67],  // Strong — amber
+  [25,   0.95, 0.42, 0.06, 0.70],  // Near gale — orange (MAX alpha)
+  [30,   0.90, 0.18, 0.10, 0.70],  // Gale — red
+  [40,   0.78, 0.05, 0.30, 0.70],  // Storm — magenta
+  [50,   0.55, 0.00, 0.45, 0.70],  // Hurricane — purple
 ];
 
 /**
