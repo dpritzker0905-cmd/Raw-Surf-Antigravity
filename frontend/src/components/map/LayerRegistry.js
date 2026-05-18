@@ -63,7 +63,10 @@ export var LAYER_REGISTRY = {
     id: "fog",
     type: "raster",
     source: "OM_FOG",
-    omVariable: "cloud_cover_low",
+    // v75: Changed from cloud_cover_low (shows all low clouds) to visibility.
+    // Only GFS tiles have visibility data. Low vis (<1km) = real fog.
+    omVariable: "visibility",
+    omModel: "ncep_gfs025",
     category: "model",
     renderMode: "maplibre",
     updateFrequency: 2,

@@ -240,15 +240,17 @@ var MapWebGL = ({
   }, [timeOffsetHours]);
 
   useEffect(() => {
-    // v73: Only resolve URLs for ACTIVE layers to prevent OOM from 9 simultaneous WASM decoders.
-    // Previously resolved ALL 9 variables, each creating a <Source> that triggers tile downloads.
+    // v75: Resolve raster URLs for ACTIVE layers only.
+    // Fixed: always use valid_times index (never current_time_1H) to prevent
+    // ECMWF 3-hourly 404s. Rain now routes per-model. Fog uses GFS visibility.
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
 
     const computeTimeStep = (meta) => {
-      if (debouncedTimeOffset === 0) return 'time_step=current_time_1H';
+      // v75: NEVER use current_time_1H — it generates T2000.om for ECMWF
+      // which only has T1800/T2100 files. Always snap to valid_times index.
       const { validTimes } = meta;
-      if (!validTimes.length) return 'time_step=current_time_1H';
+      if (!validTimes || !validTimes.length) return 'time_step=valid_times_0';
       const targetMs = Date.now() + debouncedTimeOffset * 3600000;
       let closestIdx = 0;
       let minDiff = Infinity;
@@ -256,9 +258,6 @@ var MapWebGL = ({
         const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
         if (diff < minDiff) { minDiff = diff; closestIdx = i; }
       }
-      // v73: Clamp to available range to prevent 404s on future timesteps
-      closestIdx = Math.min(closestIdx, validTimes.length - 1);
-      // om:// protocol requires valid_times_N index format, NOT raw timestamps
       return `time_step=valid_times_${closestIdx}`;
     };
 
@@ -266,32 +265,37 @@ var MapWebGL = ({
       try { validateModelAccess(activeModel || 'GFS', userTier); } 
       catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
-      const newUrls = {};
-      // v73: Only resolve variables for layers the user has ACTIVE — prevents OOM
-      const variablesToResolve = Object.keys(LAYER_REGISTRY)
+      // v75: Build resolution tasks for parallel execution
+      const tasks = Object.keys(LAYER_REGISTRY)
         .filter(k => LAYER_REGISTRY[k].omVariable && activeLayers.includes(k))
-        .map(k => [k, LAYER_REGISTRY[k].omVariable]);
+        .map(k => ({ layerKey: k, variable: LAYER_REGISTRY[k].omVariable, entry: LAYER_REGISTRY[k] }));
 
-      for (const [layerKey, variable] of variablesToResolve) {
-        // v3.2: Marine layers use dedicated wave tile models, not atmospheric
-        const registryEntry = LAYER_REGISTRY[layerKey];
-        let layerModel = registryEntry?.omModel || targetModel;
-        // v74: Rain/cloud/fog raster tiles ALWAYS use dwd_icon regardless of selected model.
-        // ICON has hourly data (vs ECMWF 3-hourly) and best real-time tile availability.
-        // ECMWF tiles frequently 404 because their 3-hourly grid misaligns with current time.
-        // User model selection only affects forecast chart data, not raster visualization.
-        if (variable === 'precipitation' || variable === 'cloud_cover' || variable === 'cloud_cover_low') {
-          layerModel = 'dwd_icon';
+      // v75: Model routing per-variable:
+      // - Layers with omModel in registry (marine, fog/visibility) use their pinned model
+      // - Rain: GFS lacks precipitation tiles → fallback to ICON; ICON/EURO use native
+      // - Cloud: GFS lacks cloud_cover tiles → fallback to ICON
+      const resolveModel = (entry, variable) => {
+        if (entry.omModel) return entry.omModel; // pinned (marine/fog)
+        let m = targetModel;
+        if (m === 'ncep_gfs025' && (variable === 'precipitation' || variable === 'cloud_cover')) {
+          m = 'dwd_icon'; // GFS tiles lack these variables
         }
+        return m;
+      };
 
-        let meta = await fetchMetadata(layerModel);
-        // Variable fallback: ECMWF doesn't have wind_gusts_10m — use wind_u_component_10m
+      // Parallel: pre-fetch all needed metadata simultaneously
+      const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
+      await Promise.all(models.map(m => fetchMetadata(m)));
+
+      const newUrls = {};
+      for (const { layerKey, variable, entry } of tasks) {
+        const layerModel = resolveModel(entry, variable);
+        const meta = await fetchMetadata(layerModel); // cache hit — already fetched above
         let resolvedVar = variable;
         if (!meta.variables.includes(variable)) {
           const VARIABLE_FALLBACKS = {
             'wind_gusts_10m': 'wind_u_component_10m',
-            // v71: cloud_cover_low is the best fog proxy; if missing, try cloud_cover
-            'cloud_cover_low': 'cloud_cover',
+            'visibility': 'cloud_cover_low', // if model lacks visibility, try cloud_cover_low
           };
           if (VARIABLE_FALLBACKS[variable] && meta.variables.includes(VARIABLE_FALLBACKS[variable])) {
             resolvedVar = VARIABLE_FALLBACKS[variable];
@@ -307,8 +311,6 @@ var MapWebGL = ({
 
       if (isMounted) {
         setOmTileUrls(prev => {
-          // v73: Merge — keep previously resolved URLs for still-active layers,
-          // remove URLs for layers no longer active
           const merged = {};
           for (const key of activeLayers) {
             if (newUrls[key]) merged[key] = newUrls[key];
@@ -599,14 +601,13 @@ var MapWebGL = ({
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 0 : 0,
-              // v74: Fog uses extreme contrast+brightness-min to filter thin clouds.
-              // Only dense >70% low cloud coverage renders visibly.
+              // v75: Fog (visibility) is inverted — low values = fog = should render opaque.
+              // Rain/cloud uses standard mapping where high values = precipitation.
               'raster-contrast': layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10
-                : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.55 : 0.10,
+                : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
               'raster-saturation': layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
-                : layerKey === 'fog' ? -0.40 : layerKey === 'pressure' ? 0.10 : 0.12,
-              'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03
-                : layerKey === 'fog' ? 0.35 : 0,
+                : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
+              'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
               'raster-fade-duration': 300
             }}
           />
