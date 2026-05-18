@@ -203,11 +203,12 @@ var MapWebGL = ({
       if (!initialOmUrls[layerKey]) {
         setInitialOmUrls(prev => ({ ...prev, [layerKey]: url }));
       } else if (initialOmUrls[layerKey] !== url) {
-        // v3.12.5: Log raster URL change for timeline debugging
+        // Only queue updates for ACTIVE layers — prevents flooding the
+        // transaction queue with inactive layer updates on every timeOffset change
         if (activeLayers.includes(layerKey)) {
           console.log(`[Raster] Updating ${layerKey} tile URL (timeOffset=${timeOffsetHours}h)`);
+          queueRasterUpdate(`${layerKey}-source`, url, false);
         }
-        queueRasterUpdate(`${layerKey}-source`, url, false);
       }
     });
   }, [omTileUrls, initialOmUrls, queueRasterUpdate, activeLayers, timeOffsetHours]);

@@ -76,67 +76,47 @@ export function useRasterTransactions(mapInstance, renderContract) {
       // Lock this source
       sourceLocks.current[sourceId] = { queued: null };
 
-      // Get associated layer ID for this source to force atomic GPU transition
-      const layerId = sourceId.endsWith('-source') ? sourceId.replace('-source', '-layer') : null;
-
-      // v250: Atomic Layer Transition Queue (fixes fog/pressure raster bleed)
-      // Hide layer -> wait 2 frames for GPU flush -> mutate source -> show layer
-      let originalVisibility = 'none';
-      if (layerId && map.getLayer(layerId)) {
-        originalVisibility = map.getLayoutProperty(layerId, 'visibility') || 'visible';
-        if (originalVisibility === 'visible') {
-          map.setLayoutProperty(layerId, 'visibility', 'none');
-        }
-      }
-
+      // Schedule the mutation — 1 RAF delay for GPU frame safety
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (!map.getStyle()) return;
+        if (!map.getStyle()) {
+          sourceLocks.current[sourceId] = null;
+          return;
+        }
 
-          try {
-            const src = map.getSource(sourceId);
-            if (!src) return;
-
-            if (isTilesArray) {
-              if (src.setTiles) src.setTiles(url);
-            } else {
-              if (src.setUrl) src.setUrl(url);
-            }
-            map.triggerRepaint();
-          } catch (innerErr) {
-            console.warn(`[Raster TX] setUrl failed for ${sourceId}:`, innerErr.message);
+        try {
+          const src = map.getSource(sourceId);
+          if (!src) {
+            sourceLocks.current[sourceId] = null;
+            return;
           }
 
-          if (layerId && originalVisibility === 'visible' && map.getLayer(layerId)) {
-            map.setLayoutProperty(layerId, 'visibility', 'visible');
-          }
-        });
-      });
-
-      lastCommittedUrls.current[sourceId] = urlKey;
-      sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
-      
-      console.log('[RASTER BINDING]', {
-        layerId,
-        sourceId,
-        tileUrl: url,
-      });
-
-      // Release lock, drain queued payload if any
-      const queued = sourceLocks.current[sourceId]?.queued;
-      sourceLocks.current[sourceId] = null;
-
-      if (queued) {
-        // Schedule via RAF — no synchronous recursion
-        requestAnimationFrame(() => {
-          if (renderContractRef.current?.canCommit()) {
-            commitMutation(queued.sourceId, queued.url, queued.isTilesArray);
+          if (isTilesArray) {
+            if (src.setTiles) src.setTiles(url);
           } else {
-            addToQueue(queued.sourceId, queued.url, queued.isTilesArray);
-            scheduleFlush();
+            if (src.setUrl) src.setUrl(url);
           }
-        });
-      }
+          map.triggerRepaint();
+          lastCommittedUrls.current[sourceId] = urlKey;
+          sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
+        } catch (innerErr) {
+          console.warn(`[Raster TX] setUrl failed for ${sourceId}:`, innerErr.message);
+        }
+
+        // Release lock INSIDE RAF — prevents race conditions
+        const queued = sourceLocks.current[sourceId]?.queued;
+        sourceLocks.current[sourceId] = null;
+
+        if (queued) {
+          requestAnimationFrame(() => {
+            if (renderContractRef.current?.canCommit()) {
+              commitMutation(queued.sourceId, queued.url, queued.isTilesArray);
+            } else {
+              addToQueue(queued.sourceId, queued.url, queued.isTilesArray);
+              scheduleFlush();
+            }
+          });
+        }
+      });
 
       return true;
     } catch (e) {

@@ -180,9 +180,10 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       if (!grid?.vectors?.length) return;
       wasActive = true;
 
-      // Redistribute particles when data source changes (model switch)
-      var dataId = (grid.source || '') + '_' + (grid.hourOffset || 0) + '_' + grid.vectors.length;
-      if (lastDataId !== null && lastDataId !== dataId) {
+      // Redistribute particles only when MODEL changes (GFS→EURO→ICON)
+      // NOT when bounds/vectors change from cache refresh — that causes cluster burst
+      var sourceModel = grid.source || 'GFS';
+      if (lastDataId !== null && lastDataId !== sourceModel) {
         var pts2 = particlesRef.current;
         for (var ri = 0; ri < pts2.length; ri++) {
           pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length);
@@ -190,7 +191,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
         ctx.clearRect(0, 0, cw, ch);
         warmedUp = false; // Re-warm on model switch
       }
-      lastDataId = dataId;
+      lastDataId = sourceModel;
 
       // Warm-up: simulate 30 steps without drawing to pre-advect particles
       // This makes particles appear already flowing when first rendered
