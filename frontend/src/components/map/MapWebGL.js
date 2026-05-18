@@ -256,13 +256,14 @@ var MapWebGL = ({
       const { validTimes } = meta;
       if (!validTimes.length) return 'time_step=current_time_1H';
       const targetMs = Date.now() + timeOffsetHours * 3600000;
-      let closestTs = validTimes[0];
+      let closestIdx = 0;
       let minDiff = Infinity;
       for (let i = 0; i < validTimes.length; i++) {
         const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
-        if (diff < minDiff) { minDiff = diff; closestTs = validTimes[i]; }
+        if (diff < minDiff) { minDiff = diff; closestIdx = i; }
       }
-      return `time_step=${closestTs}`;
+      // om:// protocol requires valid_times_N index format, NOT raw timestamps
+      return `time_step=valid_times_${closestIdx}`;
     };
 
     const resolveAllUrls = async () => {

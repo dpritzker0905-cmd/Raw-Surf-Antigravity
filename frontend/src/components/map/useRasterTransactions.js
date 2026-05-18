@@ -84,47 +84,22 @@ export function useRasterTransactions(mapInstance, renderContract) {
         }
 
         try {
-          if (!map.getSource(sourceId)) {
+          const src = map.getSource(sourceId);
+          if (!src) {
             sourceLocks.current[sourceId] = null;
             return;
           }
 
-          // om:// protocol caches state by variable only, NOT by time_step.
-          // setUrl() returns stale cached data. The only reliable fix is to
-          // remove + re-add the source and layers to force a fresh state.
-          const style = map.getStyle();
-          const allLayers = style?.layers || [];
-          const myLayers = allLayers.filter(l => l.source === sourceId);
-
-          // Find the layer AFTER our last layer to preserve z-ordering
-          const lastIdx = allLayers.findIndex(
-            l => l.id === myLayers[myLayers.length - 1]?.id
-          );
-          const beforeId = (lastIdx >= 0 && lastIdx + 1 < allLayers.length)
-            ? allLayers[lastIdx + 1].id : undefined;
-
-          // Remove layers (reverse order) then source
-          for (let i = myLayers.length - 1; i >= 0; i--) {
-            try { map.removeLayer(myLayers[i].id); } catch (_) { /* already removed */ }
+          if (isTilesArray) {
+            if (src.setTiles) src.setTiles(url);
+          } else {
+            if (src.setUrl) src.setUrl(url);
           }
-          try { map.removeSource(sourceId); } catch (_) { /* already removed */ }
-
-          // Re-add source with the new URL
-          const spec = { type: 'raster', maxzoom: 12 };
-          if (isTilesArray) spec.tiles = url;
-          else spec.url = url;
-          map.addSource(sourceId, spec);
-
-          // Re-add layers in original order at the correct position
-          for (const layer of myLayers) {
-            try { map.addLayer(layer, beforeId); } catch (_) { /* layer exists */ }
-          }
-
           map.triggerRepaint();
           lastCommittedUrls.current[sourceId] = urlKey;
           sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
         } catch (innerErr) {
-          console.warn(`[Raster TX] source swap failed for ${sourceId}:`, innerErr.message);
+          console.warn(`[Raster TX] setUrl failed for ${sourceId}:`, innerErr.message);
         }
 
         // Release lock INSIDE RAF — prevents race conditions
