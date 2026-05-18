@@ -158,7 +158,7 @@ var MapWebGL = ({
 
 
   const [omTileUrls, setOmTileUrls] = useState({});
-  const [initialOmUrls, setInitialOmUrls] = useState({});
+  // v69: initialOmUrls removed — React <Source> now reads omTileUrls directly
   const [initialRadarUrl, setInitialRadarUrl] = useState(null);
 
   // v242: Global Render Contract — single source of truth for map readiness
@@ -196,22 +196,9 @@ var MapWebGL = ({
     mapInstance, activeLayers, activeRenderType, windData, marineData
   });
 
-  // Bootstrapping and Transacting Open-Meteo
-  useEffect(() => {
-    Object.keys(omTileUrls).forEach(layerKey => {
-      const url = omTileUrls[layerKey];
-      if (!initialOmUrls[layerKey]) {
-        setInitialOmUrls(prev => ({ ...prev, [layerKey]: url }));
-      } else if (initialOmUrls[layerKey] !== url) {
-        // Only queue updates for ACTIVE layers — prevents flooding the
-        // transaction queue with inactive layer updates on every timeOffset change
-        if (activeLayers.includes(layerKey)) {
-          console.log(`[Raster] Updating ${layerKey} tile URL (timeOffset=${timeOffsetHours}h)`);
-          queueRasterUpdate(`${layerKey}-source`, url, false);
-        }
-      }
-    });
-  }, [omTileUrls, initialOmUrls, queueRasterUpdate, activeLayers, timeOffsetHours]);
+  // v69: React <Source url={omTileUrls[key]}> now handles URL updates declaratively.
+  // The old imperative queueRasterUpdate path is no longer needed — react-map-gl
+  // calls setUrl() internally when the url prop changes.
 
   /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
@@ -571,7 +558,7 @@ var MapWebGL = ({
       </Source>
 
       {/* v251: Open-Meteo Independent Static Tile Sources */}
-      {protocolReady && Object.entries(initialOmUrls).map(([layerKey, url]) => (
+      {protocolReady && Object.entries(omTileUrls).map(([layerKey, url]) => (
         <Source
           key={`${layerKey}-source`}
           id={`${layerKey}-source`}
