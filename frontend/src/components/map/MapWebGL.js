@@ -279,7 +279,7 @@ var MapWebGL = ({
 
         let meta = await fetchMetadata(layerModel);
         if (meta.variables.includes(variable)) {
-          const darkParam = !isLight ? '&dark=true' : '';
+          const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
           const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${variable}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
         } else if (window.__RASTER_DEBUG__?.failFast !== false) {
@@ -298,7 +298,7 @@ var MapWebGL = ({
     resolveAllUrls();
     
     return () => { isMounted = false; };
-  }, [activeModel, isLight, timeOffsetHours, fetchMetadata]);
+  }, [activeModel, theme, timeOffsetHours, fetchMetadata]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -569,61 +569,30 @@ var MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{
-              // v3.12.2: Raster as PASTEL BACKGROUND — Ventusky-style watercolor.
-              // Wind: minimal opacity, GPU particles are the visual authority.
-              // Other: moderate, land always readable.
+              // v3.12.4: Reduced opacity — no land mask, tiles visible everywhere.
+              // Wind: very subtle (particles are primary). Marine: ocean-emphasis.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, layerKey === 'wind' ? 0.15 : layerKey === 'pressure' ? 0.25 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.25),
-                5, layerKey === 'wind' ? 0.20 : layerKey === 'pressure' ? 0.30 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.32),
-                8, layerKey === 'wind' ? 0.25 : layerKey === 'pressure' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.38),
-                12, layerKey === 'wind' ? 0.30 : layerKey === 'pressure' ? 0.40 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.42),
+                2, layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.18 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.22 : 0.18),
+                5, layerKey === 'wind' ? 0.12 : layerKey === 'pressure' ? 0.22 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
+                8, layerKey === 'wind' ? 0.15 : layerKey === 'pressure' ? 0.25 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.32 : 0.28),
+                12, layerKey === 'wind' ? 0.18 : layerKey === 'pressure' ? 0.30 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.38 : 0.32),
               ],
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 180 : 0,
-              // v3.12.2: Pastel contrast — Ventusky uses very low contrast
-              'raster-contrast': layerKey === 'wind' ? 0.08 : layerKey === 'pressure' ? 0.10
-                : layerKey === 'fog' ? 0.05 : layerKey === 'satellite' ? 0.20 : 0.15,
-              // v3.12.2: Heavy desaturation — pastel watercolor, not candy
-              'raster-saturation': layerKey === 'wind' ? 0.10 : layerKey === 'fog' ? -0.4
-                : layerKey === 'satellite' ? -0.15 : layerKey === 'pressure' ? 0.12 : 0.15,
-              'raster-brightness-min': layerKey === 'rain' ? 0.05 : 0,
+              'raster-contrast': layerKey === 'wind' ? 0.05 : layerKey === 'pressure' ? 0.08
+                : layerKey === 'fog' ? 0.03 : layerKey === 'satellite' ? 0.15 : 0.10,
+              'raster-saturation': layerKey === 'wind' ? 0.08 : layerKey === 'fog' ? -0.3
+                : layerKey === 'satellite' ? -0.10 : layerKey === 'pressure' ? 0.10 : 0.12,
+              'raster-brightness-min': layerKey === 'rain' ? 0.03 : 0,
               'raster-fade-duration': 300
             }}
           />
         </Source>
       ))}
 
-      {/* v3.11.3: Land mask — prevents ocean scalar fields from rendering over land */}
-      {/* Upgraded to 50m resolution for Florida/peninsula/island accuracy */}
-      {(activeLayers.length > 0) && (
-        <Source
-          id="land-mask-source"
-          type="geojson"
-          data="https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_land.geojson"
-        >
-          <Layer
-            id="land-mask-layer"
-            type="fill"
-            paint={{
-              'fill-color': isLight ? '#e8e0d8' : '#1a1a2e',
-              // v3.11.3: Stronger masking — marine layers need coastline integrity
-              // v3.12: Land mask NEVER fully disappears — maintains coastline integrity
-              'fill-opacity': ['interpolate', ['linear'], ['zoom'],
-                0, 0.80,
-                3, 0.72,
-                5, 0.58,
-                7, 0.40,
-                9, 0.25,
-                11, 0.15,
-                14, 0.10
-              ]
-            }}
-          />
-        </Source>
-      )}
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
       <MarineParticleCanvas 

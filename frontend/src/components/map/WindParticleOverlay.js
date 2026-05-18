@@ -152,7 +152,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
     var isMobile = window.innerWidth < 768;
     var getCount = function() {
       var zoom = mapInstance.getZoom();
-      var base = isMobile ? 1500 : 3000;
+      var base = isMobile ? 1200 : 2500;
       if (zoom < 3) return Math.round(base * 0.4);
       if (zoom < 5) return Math.round(base * 0.6);
       if (zoom < 7) return base;
