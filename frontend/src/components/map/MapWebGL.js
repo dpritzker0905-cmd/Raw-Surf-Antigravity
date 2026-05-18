@@ -161,13 +161,17 @@ var MapWebGL = ({
   // v69: initialOmUrls removed — React <Source> now reads omTileUrls directly
   // v70: initialRadarUrl removed — React <Source> reads radarTileUrl directly
 
-  // v78: Land polygon for marine coastline masking (one-time fetch, ~200KB)
+  // v78: Land polygon for marine coastline masking (one-time fetch)
+  // 50m resolution (~500KB) gives proper bay/inlet/key coastline fidelity.
+  // Fallback to 110m (~200KB) if 50m fails. Both from CloudFront CDN.
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   useEffect(() => {
-    fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_land.geojson')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setLandGeoJSON(data); })
-      .catch(() => {}); // Silent fail — mask is cosmetic enhancement
+    const NE_50M = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_land.geojson';
+    const NE_110M = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_land.geojson';
+    fetch(NE_50M).then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setLandGeoJSON(data))
+      .catch(() => fetch(NE_110M).then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setLandGeoJSON(data); }).catch(() => {}));
   }, []);
 
   // v242: Global Render Contract — single source of truth for map readiness
