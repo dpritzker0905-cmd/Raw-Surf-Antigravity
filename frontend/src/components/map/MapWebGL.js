@@ -235,7 +235,7 @@ var MapWebGL = ({
   // v73: Debounced time offset to prevent OOM from rapid timeline scrubbing
   const [debouncedTimeOffset, setDebouncedTimeOffset] = useState(timeOffsetHours);
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedTimeOffset(timeOffsetHours), 300);
+    const timer = setTimeout(() => setDebouncedTimeOffset(timeOffsetHours), 80);
     return () => clearTimeout(timer);
   }, [timeOffsetHours]);
 
@@ -276,10 +276,11 @@ var MapWebGL = ({
         // v3.2: Marine layers use dedicated wave tile models, not atmospheric
         const registryEntry = LAYER_REGISTRY[layerKey];
         let layerModel = registryEntry?.omModel || targetModel;
-        // v71: Model-specific variable availability:
-        // GFS tiles lack precipitation, cloud_cover, cloud_cover_low → fallback to ICON
-        // ECMWF/ICON have these natively → use the user's selected model
-        if (layerModel === 'ncep_gfs025' && (variable === 'precipitation' || variable === 'cloud_cover' || variable === 'cloud_cover_low')) {
+        // v74: Rain/cloud/fog raster tiles ALWAYS use dwd_icon regardless of selected model.
+        // ICON has hourly data (vs ECMWF 3-hourly) and best real-time tile availability.
+        // ECMWF tiles frequently 404 because their 3-hourly grid misaligns with current time.
+        // User model selection only affects forecast chart data, not raster visualization.
+        if (variable === 'precipitation' || variable === 'cloud_cover' || variable === 'cloud_cover_low') {
           layerModel = 'dwd_icon';
         }
 
@@ -574,7 +575,7 @@ var MapWebGL = ({
           id={`${layerKey}-source`}
           type="raster"
           url={url}
-          maxzoom={12}
+          maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
         >
           <Layer
             id={`${layerKey}-layer`}
@@ -598,11 +599,14 @@ var MapWebGL = ({
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 0 : 0,
+              // v74: Fog uses extreme contrast+brightness-min to filter thin clouds.
+              // Only dense >70% low cloud coverage renders visibly.
               'raster-contrast': layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10
-                : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.20 : 0.10,
+                : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.55 : 0.10,
               'raster-saturation': layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
-                : layerKey === 'fog' ? -0.15 : layerKey === 'pressure' ? 0.10 : 0.12,
-              'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
+                : layerKey === 'fog' ? -0.40 : layerKey === 'pressure' ? 0.10 : 0.12,
+              'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03
+                : layerKey === 'fog' ? 0.35 : 0,
               'raster-fade-duration': 300
             }}
           />

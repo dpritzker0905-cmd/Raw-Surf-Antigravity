@@ -197,17 +197,23 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const energyScale = Math.min(1, spd / 3);
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
+        // v74: Add spawn jitter to break grid-cell center alignment
+        const jitter = 0.03; // ±0.03° random offset
+        const jLng = lng + (Math.random() - 0.5) * jitter * 2;
+        const jLat = lat + (Math.random() - 0.5) * jitter * 2;
         return {
-          lng, lat,
+          lng: jLng, lat: jLat,
           age: preAge ? Math.random() * maxAge * 0.8 : 0,
           maxAge,
           dashLen: (3 + Math.random() * 8 * energyScale) * zoomScale,
           phase: Math.random(),
-          energy: energyScale
+          energy: energyScale,
+          // v74: Per-particle noise seed for organic flow variation
+          noiseSeed: Math.random() * 100
         };
       }
       const maxAge = 0.2;
-      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 0, energy: 0 };
+      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 0, energy: 0, noiseSeed: Math.random() * 100 };
     };
 
     const particles = [];
@@ -268,10 +274,11 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const mercCorr = Math.max(0.1, Math.cos(latRad));
           // Ocean drift is much slower than atmospheric flow
           const speedScale = dt * 30;
-          // Turbulence: hash-based noise breaks bilinear interpolation grid lanes
-          const turbulence = 0.15 + 0.2 * p.energy; // stronger turbulence in high-energy zones
-          const noiseU = noise2D(p.lng * 10 + now * 0.001, p.lat * 10) * turbulence;
-          const noiseV = noise2D(p.lat * 10 + now * 0.001, p.lng * 10) * turbulence;
+          // v74: Tripled noise amplitude + per-particle seed to fully break grid-lane patterns
+          const turbulence = 0.40 + 0.40 * p.energy; // much stronger: was 0.15+0.2
+          const ns = p.noiseSeed || 0;
+          const noiseU = noise2D(p.lng * 10 + now * 0.0008 + ns, p.lat * 10) * turbulence;
+          const noiseV = noise2D(p.lat * 10 + now * 0.0008 + ns, p.lng * 10 + ns) * turbulence;
           p.lng += (wave.u + noiseU) * DEG_PER_METER / mercCorr * speedScale;
           p.lat += (wave.v + noiseV) * DEG_PER_METER * speedScale;
         } else {
