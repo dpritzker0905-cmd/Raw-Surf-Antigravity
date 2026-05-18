@@ -196,7 +196,7 @@ export var MapForecastOverlay = ({
       >
         <div>
           <div className={`text-[9px] uppercase tracking-wider font-bold ${textMuted}`}>
-            {isLive ? 'Live' : modelLabel} {isLive ? 'Now' : 'Forecast'}
+            {modelLabel} {isLive ? 'Live' : 'Forecast'}
           </div>
           <div className={`text-[10px] font-semibold ${textClass}`}>
             {forecastTimeLabel}

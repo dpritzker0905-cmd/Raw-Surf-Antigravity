@@ -2,14 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import logger from '../utils/logger';
 
 /**
- * Open-Meteo Weather + Marine forecast hook (v3.9.0).
+ * Open-Meteo Weather + Marine forecast hook (v3.12.5).
  *
- * v3.9 CRITICAL FIX: This hook was the #1 cause of 429 rate limiting.
- * - Old: fetched on every mapCenter change (per-pan) with .toFixed(1) dedup
- * - New: 5s debounce + .toFixed(0) dedup (1-¦ grid) + min 30s between fetches
- *
- * This prevents spot forecasts from consuming the entire Open-Meteo rate budget,
- * which was blocking wind/marine grid fetches and breaking the forecast slider.
+ * v3.12.5 FIXES:
+ * - Model switches bypass global rate limit (GFS->EURO updates instantly)
+ * - Debounce reduced to 3s initial, 500ms for model switches
+ * - forecast_days matches model capability (GFS: 16, ECMWF: 10, ICON: 7)
  */
 
 const MODEL_MAP = {
@@ -17,6 +15,8 @@ const MODEL_MAP = {
   EURO: 'ecmwf_ifs025',
   ICON: 'icon_seamless',
 };
+
+const MODEL_FORECAST_DAYS = { GFS: 16, EURO: 10, ICON: 7 };
 
 const WEATHER_VARS = [
   'precipitation',
@@ -38,10 +38,10 @@ const MARINE_VARS = [
 
 const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
-// v3.9.3: Module-level rate limiter GÇö shared across all instances
-// 60s interval ensures spot forecasts don't starve the wind grid engine
+// Module-level rate limiter shared across all instances
 let lastGlobalFetchTime = 0;
-const MIN_FETCH_INTERVAL = 60_000; // 60s between spot forecast fetches
+let lastGlobalModel = '';
+const MIN_FETCH_INTERVAL = 45_000;
 
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
   const [forecastData, setForecastData] = useState(null);
@@ -56,18 +56,19 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    // v3.9: Coarser dedup grid (1-¦ instead of 0.1-¦) GÇö prevents 30+ fetches while panning
     const fetchKey = `${latitude.toFixed(0)}_${longitude.toFixed(0)}_${activeModel}`;
     if (fetchKey === lastFetchKey.current) return;
 
-    // v3.9: Global rate limit GÇö min 30s between any forecast fetch
+    // Rate limit - bypass when model changes (user action, must be responsive)
     const now = Date.now();
-    if (now - lastGlobalFetchTime < MIN_FETCH_INTERVAL) {
-      return; // Silently skip GÇö grid engine needs the rate budget
+    const isModelSwitch = lastGlobalModel !== '' && lastGlobalModel !== activeModel;
+    if (!isModelSwitch && now - lastGlobalFetchTime < MIN_FETCH_INTERVAL) {
+      return;
     }
 
     lastFetchKey.current = fetchKey;
     lastGlobalFetchTime = now;
+    lastGlobalModel = activeModel;
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
@@ -76,6 +77,8 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     setIsLoading(true);
 
     const modelParam = MODEL_MAP[activeModel] || MODEL_MAP.GFS;
+    const forecastDays = MODEL_FORECAST_DAYS[activeModel] || 16;
+    console.log(`[Forecast] Fetching ${activeModel} (${modelParam}), ${forecastDays}d`);
 
     try {
       // Helper: fetch with signal, retry without if service worker can't clone Request
@@ -98,20 +101,20 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         `&hourly=${WEATHER_VARS}` +
         `&current=${CURRENT_WEATHER_VARS}` +
         `&models=${modelParam}` +
-        `&forecast_days=16` +
+        `&forecast_days=${forecastDays}` +
         `&wind_speed_unit=kn`
       ).then(r => ({ status: 'fulfilled', value: r }))
        .catch(e => ({ status: 'rejected', reason: e }));
 
-      // Stagger marine call by 3s to avoid simultaneous 429 with grid engine
-      await new Promise(r => setTimeout(r, 3000));
+      // Stagger marine call by 2s to avoid simultaneous 429
+      await new Promise(r => setTimeout(r, 2000));
 
       const marineRes = await safeFetch(
         `https://marine-api.open-meteo.com/v1/marine?` +
         `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
         `&hourly=${MARINE_VARS}` +
         `&current=${CURRENT_MARINE_VARS}` +
-        `&forecast_days=16`
+        `&forecast_days=${Math.min(forecastDays, 16)}`
       ).then(r => ({ status: 'fulfilled', value: r }))
        .catch(e => ({ status: 'rejected', reason: e }));
 
@@ -121,6 +124,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         setForecastData(data);
         if (data.current) setCurrentWeather(data.current);
         setIsStale(false);
+        console.log(`[Forecast] OK ${activeModel}: ${data.hourly?.wind_speed_10m?.length || 0}h records`);
       } else {
         const status = wxRes.value?.status || wxRes.reason;
         logger.warn(`[OpenMeteo] Weather fetch failed (${status}). Preserving last valid data.`);
@@ -146,12 +150,15 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     }
   }, [latitude, longitude, activeModel, enabled]);
 
-  // v3.9.3: 15s debounce GÇö gives wind grid engine a head start on the rate limit
+  // v3.12.5: Fast debounce for model switches (500ms), 3s for pan
+  const prevModelRef = useRef(activeModel);
   useEffect(() => {
     clearTimeout(debounceRef.current);
+    const isModelSwitch = prevModelRef.current !== activeModel;
+    prevModelRef.current = activeModel;
     debounceRef.current = setTimeout(() => {
       fetchForecast();
-    }, 15000);
+    }, isModelSwitch ? 500 : 3000);
     return () => clearTimeout(debounceRef.current);
   }, [fetchForecast]);
 
@@ -165,3 +172,4 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 };
 
 export default useOpenMeteoForecast;
+
