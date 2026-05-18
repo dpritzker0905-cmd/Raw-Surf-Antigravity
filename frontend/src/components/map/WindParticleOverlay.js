@@ -193,13 +193,17 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       }
       lastDataId = sourceModel;
 
-      // Warm-up: simulate 30 steps without drawing to pre-advect particles
-      // This makes particles appear already flowing when first rendered
+      // Warm-up: simulate steps without drawing to pre-advect particles.
+      // v78: Reduced from 30→15 steps and respawn OOB particles after warm-up
+      // to prevent clustering downwind (particles all blow the same direction).
       if (!warmedUp) {
         warmedUp = true;
         var pts3 = particlesRef.current;
         var DEG_PER_M = 1 / 111320;
-        for (var step = 0; step < 30; step++) {
+        var wmb = mapInstance.getBounds();
+        var wBW = wmb.getWest(), wBE = wmb.getEast();
+        var wBS = wmb.getSouth(), wBN = wmb.getNorth();
+        for (var step = 0; step < 15; step++) {
           for (var wi = 0; wi < pts3.length; wi++) {
             var wp = pts3[wi];
             var wWind = interpolateWind(grid, wp.lng, wp.lat);
@@ -220,7 +224,17 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
             while (wp.lng < -180) wp.lng += 360;
           }
         }
-        console.log('[WindOverlay] Warm-up complete: 30 simulation steps pre-advected');
+        // v78: Respawn particles that warm-up blew outside viewport —
+        // prevents density clustering on the downwind side
+        var respawned = 0;
+        for (var ri2 = 0; ri2 < pts3.length; ri2++) {
+          var rp = pts3[ri2];
+          if (rp.lng < wBW - 2 || rp.lng > wBE + 2 || rp.lat < wBS - 2 || rp.lat > wBN + 2) {
+            pts3[ri2] = spawnParticle(mapInstance, true, ri2, pts3.length);
+            respawned++;
+          }
+        }
+        console.log('[WindOverlay] Warm-up complete: 15 steps, ' + respawned + ' respawned');
       }
 
       var isThrottled = coordState === 2;

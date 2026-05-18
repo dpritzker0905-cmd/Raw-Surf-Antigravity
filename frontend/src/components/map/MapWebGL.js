@@ -161,6 +161,15 @@ var MapWebGL = ({
   // v69: initialOmUrls removed — React <Source> now reads omTileUrls directly
   // v70: initialRadarUrl removed — React <Source> reads radarTileUrl directly
 
+  // v78: Land polygon for marine coastline masking (one-time fetch, ~200KB)
+  const [landGeoJSON, setLandGeoJSON] = useState(null);
+  useEffect(() => {
+    fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_land.geojson')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setLandGeoJSON(data); })
+      .catch(() => {}); // Silent fail — mask is cosmetic enhancement
+  }, []);
+
   // v242: Global Render Contract — single source of truth for map readiness
   const renderContract = useMapRenderContract(mapInstance);
 
@@ -238,6 +247,11 @@ var MapWebGL = ({
 
   // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
   const loggedFallbacks = useRef(new Set());
+  // v78: rAF throttle — URL resolution runs at most once per animation frame.
+  // The slider thumb and time readout update instantly (React state is immediate),
+  // but the heavy metadata fetch only runs when the browser is ready to paint.
+  const rafRef = useRef(null);
+  const pendingResolve = useRef(null);
 
   useEffect(() => {
     // v76: Resolve raster URLs for ACTIVE layers.
@@ -352,9 +366,15 @@ var MapWebGL = ({
       }
     };
     
-    resolveAllUrls();
+    // v78: rAF throttle — during rapid slider dragging, only resolve once per frame.
+    // This prevents stacking dozens of async resolveAllUrls() during fast scrubbing.
+    pendingResolve.current = resolveAllUrls;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      if (pendingResolve.current) pendingResolve.current();
+    });
     
-    return () => { isMounted = false; };
+    return () => { isMounted = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [activeModel, theme, timeOffsetHours, fetchMetadata, activeLayers]);
 
   // Sync ref to parent so useMapActions works
@@ -645,35 +665,17 @@ var MapWebGL = ({
         </Source>
       ))}
 
-      {/* v77: Land mask — vector land polygons painted ABOVE marine rasters.
+      {/* v78: Land mask — Natural Earth GeoJSON land polygon painted ABOVE marine rasters.
           Covers raster cells that bleed onto land, creating clean Ventusky-like coastlines.
-          Uses Mapbox Streets v8 vector tiles (we already have a token). Only rendered
-          when a marine raster layer is active to avoid unnecessary tile downloads. */}
-      {!!activeMarineLayer && (
-        <Source
-          id="land-mask-source"
-          type="vector"
-          tiles={[`https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/{z}/{x}/{y}.vector.pbf?access_token=${process.env.REACT_APP_MAPBOX_TOKEN}`]}
-          maxzoom={14}
-        >
-          {/* Land base — covers all terrestrial areas above the marine raster */}
+          GeoJSON fetched once at mount (Natural Earth 110m, ~200KB) and cached in state. */}
+      {!!activeMarineLayer && landGeoJSON && (
+        <Source id="land-mask-source" type="geojson" data={landGeoJSON}>
           <Layer
             id="land-mask-fill"
             type="fill"
-            source-layer="land"
             paint={{
-              'fill-color': theme === 'dark' ? '#1a1a2e' : theme === 'beach' ? '#f0ead6' : '#e8e0d8',
-              'fill-opacity': 1.0,
-            }}
-          />
-          {/* Landuse — parks, forests, urban areas for textural fidelity */}
-          <Layer
-            id="land-mask-landuse"
-            type="fill"
-            source-layer="landuse"
-            paint={{
-              'fill-color': theme === 'dark' ? '#1d1d35' : theme === 'beach' ? '#e8e2cc' : '#ddd5c8',
-              'fill-opacity': 0.85,
+              'fill-color': theme === 'dark' ? '#1a1a2e' : theme === 'beach' ? '#0a0a0a' : '#e8e0d8',
+              'fill-opacity': 0.92,
             }}
           />
         </Source>
