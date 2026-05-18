@@ -95,6 +95,12 @@ export function useRasterTransactions(mapInstance, renderContract) {
           } else {
             if (src.setUrl) src.setUrl(url);
           }
+          // Force clear tile cache — setUrl() alone doesn't invalidate
+          // cached tiles for om:// protocol sources in MapLibre
+          try {
+            const sc = map.style?.sourceCaches?.[sourceId];
+            if (sc?.clearTiles) { sc.clearTiles(); sc.update(map.transform); }
+          } catch (_) { /* sourceCaches not available in this MapLibre version */ }
           map.triggerRepaint();
           lastCommittedUrls.current[sourceId] = urlKey;
           sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
