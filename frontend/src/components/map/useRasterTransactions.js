@@ -90,31 +90,32 @@ export function useRasterTransactions(mapInstance, renderContract) {
             return;
           }
 
+          // For om:// protocol: setUrl() triggers an ASYNC TileJSON fetch.
+          // We must wait for the new metadata to arrive before clearing
+          // the tile cache, otherwise tiles reload with OLD templates.
+          const clearAfterMetadata = (e) => {
+            if (e.sourceId !== sourceId || e.sourceDataType !== 'metadata') return;
+            map.off('sourcedata', clearAfterMetadata);
+            try {
+              const tm = map.style?.tileManagers?.[sourceId];
+              if (tm) {
+                tm.clearTiles();
+              } else if (map.style?._clearSource) {
+                map.style._clearSource(sourceId);
+              }
+            } catch (_) { /* tile manager not available */ }
+            map.triggerRepaint();
+          };
+          map.on('sourcedata', clearAfterMetadata);
+
+          // Safety: remove listener after 5s if metadata never arrives
+          setTimeout(() => map.off('sourcedata', clearAfterMetadata), 5000);
+
           if (isTilesArray) {
             if (src.setTiles) src.setTiles(url);
           } else {
             if (src.setUrl) src.setUrl(url);
           }
-          // Force clear tile cache + reload — setUrl() alone doesn't invalidate
-          // cached tiles for om:// protocol sources in MapLibre v5
-          try {
-            // v5.24: tileManagers[id] replaces sourceCaches[id]
-            if (map.style?._clearSource) {
-              map.style._clearSource(sourceId);
-              map.style._reloadSource(sourceId);
-            } else if (map.style?.tileManagers?.[sourceId]) {
-              const tm = map.style.tileManagers[sourceId];
-              tm.clearTiles();
-              if (tm.resume) tm.resume();
-              if (tm.reload) tm.reload();
-            } else if (map.style?.sourceCaches?.[sourceId]?.clearTiles) {
-              map.style.sourceCaches[sourceId].clearTiles();
-              map.style.sourceCaches[sourceId].update(map.transform);
-            }
-          } catch (cacheErr) {
-            console.warn(`[Raster TX] clearTiles failed for ${sourceId}:`, cacheErr.message);
-          }
-          map.triggerRepaint();
           lastCommittedUrls.current[sourceId] = urlKey;
           sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
         } catch (innerErr) {
