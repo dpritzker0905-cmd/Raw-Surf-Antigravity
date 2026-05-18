@@ -65,32 +65,43 @@ var MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
 export var MAPBOX_TILES = {
   dark:  `https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
   light: `https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+  beach: `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
   satellite: `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
 };
 
 /**
- * Generate a MapLibre GL JS compatible style object using Mapbox raster tiles
+ * Generate a MapLibre GL JS compatible style object.
+ * @param {string|boolean} themeOrLight - theme string ('light'/'dark'/'beach') or boolean isLight
+ * @param {boolean} isSatellite - use satellite imagery
  */
-export var getMapStyle = function(isLight, isSatellite) { return ({
-  version: 8,
-  sources: {
-    'raster-tiles': {
-      type: 'raster',
-      tiles: [isSatellite ? MAPBOX_TILES.satellite : (isLight ? MAPBOX_TILES.light : MAPBOX_TILES.dark)],
-      tileSize: 256,
-      attribution: '© Mapbox © OpenStreetMap'
-    }
-  },
-  layers: [
-    {
-      id: 'simple-tiles',
-      type: 'raster',
-      source: 'raster-tiles',
-      minzoom: 0,
-      maxzoom: 22
-    }
-  ]
-}); };
+export var getMapStyle = function(themeOrLight, isSatellite) {
+  var theme = typeof themeOrLight === 'boolean'
+    ? (themeOrLight ? 'light' : 'dark')
+    : (themeOrLight || 'dark');
+  var tileUrl = isSatellite
+    ? MAPBOX_TILES.satellite
+    : (MAPBOX_TILES[theme] || MAPBOX_TILES.dark);
+  return {
+    version: 8,
+    sources: {
+      'raster-tiles': {
+        type: 'raster',
+        tiles: [tileUrl],
+        tileSize: 256,
+        attribution: '© Mapbox © OpenStreetMap'
+      }
+    },
+    layers: [
+      {
+        id: 'simple-tiles',
+        type: 'raster',
+        source: 'raster-tiles',
+        minzoom: 0,
+        maxzoom: 22
+      }
+    ]
+  };
+};
 
 /**
  * Default tile layer configuration — Mapbox raster tiles via Leaflet

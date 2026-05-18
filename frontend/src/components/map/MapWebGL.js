@@ -105,9 +105,13 @@ var MapWebGL = ({
   const animFrameRef = useRef(null);
   
   // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
-  // v3.7: Passes timeOffsetHours so wind data reflects the selected forecast hour
+  // v3.12.4: Passes activeModel + tier-based forecastDays for multi-model support
+  const forecastDays = useMemo(() => {
+    var { resolveForecastWindow: rfw } = require('./LayerAccessResolver');
+    return rfw(userTier);
+  }, [userTier]);
   const { windData, windRevision } = useWeatherEngine({
-    activeLayers, mapInstance, timeOffsetHours
+    activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
   });
   // v3.9.9: Temporal preloader — prefetch ±1hr tiles
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance });
@@ -384,7 +388,7 @@ var MapWebGL = ({
   }, [radarTileUrl, initialRadarUrl, queueRasterUpdate]);
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
-  const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(isLight, false)), [isLight]);
+  const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 

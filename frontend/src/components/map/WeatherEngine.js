@@ -11,7 +11,7 @@ import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
  * - Uses module-level retry scheduling so 429 recovery persists
  * - Timeline scrub uses local hourly cache (zero API calls)
  */
-export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 0 }) {
+export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 0, activeModel = 'GFS', forecastDays = 3 }) {
   const [windData, setWindData] = useState(null);
   const windRevision = useRef(0);
   const timeOffsetRef = useRef(timeOffsetHours);
@@ -84,7 +84,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       console.log(`[WeatherEngine] Fetching wind (attempt ${retryCount + 1}/${MAX_RETRIES}, offset: ${timeOffsetRef.current}h)`);
       
       try {
-        const data = await fetchWindData(bounds, null, timeOffsetRef.current);
+        const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
         
         if (cancelled) return;
         
@@ -125,7 +125,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [mapInstance]); // Only mapInstance — retries survive layer switches
+  }, [mapInstance, activeModel, forecastDays]); // Refetch when model or forecast window changes
 
   // ===== TIMELINE SCRUB (local cache re-index, zero API calls) =====
   const prevOffsetRef = useRef(timeOffsetHours);
@@ -145,7 +145,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           east: b.getEast(),
           north: Math.min(85, b.getNorth())
         };
-        const data = await fetchWindData(bounds, null, timeOffsetHours, true);
+        const data = await fetchWindData(bounds, null, timeOffsetHours, true, forecastDays, activeModel);
         if (data && data.vectors?.length > 0) {
           console.log(`[WeatherEngine] 🕐 Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
           windRevision.current += 1;
@@ -175,7 +175,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             east: b.getEast(),
             north: Math.min(85, b.getNorth())
           };
-          const data = await fetchWindData(bounds, null, timeOffsetRef.current);
+          const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
           if (data && data.vectors?.length > 0) {
             windRevision.current += 1;
             setWindData(data);

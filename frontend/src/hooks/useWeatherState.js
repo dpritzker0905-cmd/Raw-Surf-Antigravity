@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { getUserTier, resolveForecastWindow } from '../components/map/LayerAccessResolver';
 import logger from '../utils/logger';
 
 /**
@@ -44,10 +45,8 @@ export function useWeatherState({ user }) {
 
   // --- Subscription-gated max forecast hours ---
   const maxHoursForUser = useMemo(() => {
-    const tier = user?.tier_id || 'tier_1';
-    if (tier === 'tier_3' || tier === 'admin') return 14 * 24; // 14 days
-    if (tier === 'tier_2') return 7 * 24;  // 7 days
-    return 3 * 24; // 3 days (day of + 2 days) for free users
+    const forecastDays = resolveForecastWindow(user);
+    return forecastDays * 24;
   }, [user]);
 
   const isLockedForecast = timeOffsetHours > maxHoursForUser;

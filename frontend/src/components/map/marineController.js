@@ -203,7 +203,9 @@ function computeGridPoints(bounds, caller = 'wind') {
 function extractWindAtOffset(cache, hourOffset) {
   const { results, points, gridSize, bounds } = cache;
   const nowHour = new Date().getUTCHours();
-  const idx = Math.min(nowHour + hourOffset, 71); // max 72h of data (index 0-71)
+  // Use actual data length instead of hardcoded 71 — supports 3/7/14 day forecasts
+  const maxIdx = results[0]?.hourly?.wind_speed_10m?.length ? results[0].hourly.wind_speed_10m.length - 1 : 71;
+  const idx = Math.min(nowHour + hourOffset, maxIdx);
 
   const vectors = [];
   points.forEach((pt, i) => {
@@ -241,7 +243,7 @@ function extractWindAtOffset(cache, hourOffset) {
 // Logs every decision point. Returns null explicitly on first-load failure
 // so the caller (WeatherEngine) knows to retry.
 // ========================================================================
-export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false) {
+export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null) {
   if (!bounds) { console.log('[Wind] fetchWindData: no bounds'); return lastKnownGoodWind; }
 
   // Inflight lock — but DON'T return null on first load, return lastKnownGood
@@ -269,14 +271,11 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   }
 
   // v3.9.5: Stale viewport fallback — if we have ANY cached data within TTL
-  // (e.g. from localStorage hydration with a different viewport), serve it
-  // rather than hitting the API (which may 429). Fresh data fetches in background.
   if (windHourlyCache.hash && Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const staleData = extractWindAtOffset(windHourlyCache, hourOffset);
     if (staleData && staleData.vectors.length > 0) {
       console.log(`[Wind] Stale cache served (viewport mismatch) — ${staleData.vectors.length} vectors`);
       lastKnownGoodWind = staleData;
-      // Don't return yet — let the fetch continue in background for fresh data
     }
   }
 
@@ -300,14 +299,21 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
-    console.log(`[Wind] POST via proxy: ${points.length} grid points, forecast_days=3`);
+    // Open-Meteo model identifiers
+    const OM_MODELS = { GFS: 'gfs_global', EURO: 'ecmwf_ifs025', ICON: 'icon_global' };
+
+    console.log(`[Wind] POST via proxy: ${points.length} grid points, forecast_days=${forecastDays}, model=${model || 'GFS'}`);
 
     const body = {
       latitude: lats, longitude: lons,
       wind_speed_unit: 'kn',
       hourly: ['wind_speed_10m', 'wind_direction_10m'],
-      forecast_days: 3
+      forecast_days: forecastDays
     };
+    // Add model parameter for EURO/ICON (GFS is Open-Meteo default)
+    if (model && model !== 'GFS' && OM_MODELS[model]) {
+      body.models = [OM_MODELS[model]];
+    }
 
     // v3.9.6: Proxy-first, direct fallback
     let res;
@@ -380,7 +386,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 function extractMarineAtOffset(cache, hourOffset) {
   const { results, points, gridSize, bounds } = cache;
   const nowHour = new Date().getUTCHours();
-  const idx = Math.min(nowHour + hourOffset, 71);
+  const maxIdx = results[0]?.hourly?.wave_height?.length ? results[0].hourly.wave_height.length - 1 : 71;
+  const idx = Math.min(nowHour + hourOffset, maxIdx);
 
   const gridVectors = [];
   const features = [];
