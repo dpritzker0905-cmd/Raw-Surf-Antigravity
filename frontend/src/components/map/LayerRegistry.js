@@ -18,10 +18,27 @@ This file is:
 ========================================================
 */
 
-// ─── BACKWARD-COMPATIBLE STATIC REGISTRY ────────────────────────────────────
-// Preserves the original LAYER_REGISTRY and resolveRasterSource exports
-// that MapWebGL.js and other consumers depend on.
+// ─── v76: MODEL ROUTING MAPS ────────────────────────────────────────────────
+// Maps the user's selected model (GFS/EURO/ICON) to the correct tile model
+// for each variable group. Built from live Open-Meteo tile metadata.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Rain/cloud: ncep_gfs025 lacks precipitation. ncep_gfs013 IS GFS with precipitation.
+export const PRECIP_MODEL_MAP = {
+  'GFS':  'ncep_gfs013',      // GFS 0.13° — HAS precipitation, hourly
+  'ICON': 'dwd_icon',         // ICON — HAS precipitation, hourly
+  'EURO': 'ecmwf_ifs025',     // ECMWF — HAS precipitation, 3-hourly (safe: valid_times_N)
+};
+
+// Marine waves: GFS Wave is the most complete (swell, wind_wave, secondary).
+// ECMWF WAM only has wave_height/period — no swell/wind_wave decomposition.
+export const MARINE_MODEL_MAP = {
+  'GFS':  'ncep_gfswave025',  // Full: wave, swell, wind_wave, secondary swell
+  'ICON': 'ncep_gfswave025',  // No ICON wave tiles exist — use GFS wave
+  'EURO': 'ecmwf_wam025',     // Limited: wave_height/period only
+};
+
+// ─── BACKWARD-COMPATIBLE STATIC REGISTRY ────────────────────────────────────
 
 export var LAYER_REGISTRY = {
   rain: {
@@ -85,7 +102,8 @@ export var LAYER_REGISTRY = {
     type: "marine",
     source: "MARINE_WAVES",
     omVariable: "wave_height",
-    omModel: "ncep_gfswave025",
+    // v76: No hardcoded omModel — resolved dynamically via MARINE_MODEL_MAP
+    omModelGroup: "marine",
     category: "model",
     renderMode: "canvas",
     updateFrequency: 1,
@@ -95,7 +113,7 @@ export var LAYER_REGISTRY = {
     type: "marine",
     source: "MARINE_SWELL1",
     omVariable: "swell_wave_height",
-    omModel: "ncep_gfswave025",
+    omModelGroup: "marine",
     category: "model",
     renderMode: "canvas",
     updateFrequency: 1,
@@ -105,7 +123,7 @@ export var LAYER_REGISTRY = {
     type: "marine",
     source: "MARINE_SWELL2",
     omVariable: "secondary_swell_wave_height",
-    omModel: "ncep_gfswave025",
+    omModelGroup: "marine",
     category: "model",
     renderMode: "canvas",
     updateFrequency: 1,
@@ -115,7 +133,7 @@ export var LAYER_REGISTRY = {
     type: "marine",
     source: "MARINE_WINDWAVES",
     omVariable: "wind_wave_height",
-    omModel: "ncep_gfswave025",
+    omModelGroup: "marine",
     category: "model",
     renderMode: "canvas",
     updateFrequency: 1,

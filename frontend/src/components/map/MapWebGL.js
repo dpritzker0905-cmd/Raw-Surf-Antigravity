@@ -18,7 +18,7 @@ import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
-import { LAYER_REGISTRY, resolveRasterSource } from './LayerRegistry'; // eslint-disable-line
+import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP } from './LayerRegistry'; // eslint-disable-line
 import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // eslint-disable-line
 import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
 import { useTemporalPreloader } from './useTemporalPreloader';
@@ -229,29 +229,25 @@ var MapWebGL = ({
 
   // Pre-warm metadata cache on mount so layer toggles are instant
   useEffect(() => {
-    ['ncep_gfs025', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
+    ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
-  // v73: Debounced time offset to prevent OOM from rapid timeline scrubbing
-  const [debouncedTimeOffset, setDebouncedTimeOffset] = useState(timeOffsetHours);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedTimeOffset(timeOffsetHours), 80);
-    return () => clearTimeout(timer);
-  }, [timeOffsetHours]);
+  // v76: Removed debounce — use timeOffsetHours directly.
+  // OOM was mitigated in v73 by only resolving active layers.
+  // The 80ms debounce ate slider responsiveness (autoplay worked but drag didn't).
 
   useEffect(() => {
-    // v75: Resolve raster URLs for ACTIVE layers only.
-    // Fixed: always use valid_times index (never current_time_1H) to prevent
-    // ECMWF 3-hourly 404s. Rain now routes per-model. Fog uses GFS visibility.
+    // v76: Resolve raster URLs for ACTIVE layers.
+    // Rain: per-model via PRECIP_MODEL_MAP (GFS→gfs013, ICON→dwd_icon, EURO→ecmwf)
+    // Marine: per-model via MARINE_MODEL_MAP (GFS/ICON→gfswave, EURO→ecmwf_wam)
+    // Timeline: always valid_times_N index (never current_time_1H)
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
 
     const computeTimeStep = (meta) => {
-      // v75: NEVER use current_time_1H — it generates T2000.om for ECMWF
-      // which only has T1800/T2100 files. Always snap to valid_times index.
       const { validTimes } = meta;
       if (!validTimes || !validTimes.length) return 'time_step=valid_times_0';
-      const targetMs = Date.now() + debouncedTimeOffset * 3600000;
+      const targetMs = Date.now() + timeOffsetHours * 3600000;
       let closestIdx = 0;
       let minDiff = Infinity;
       for (let i = 0; i < validTimes.length; i++) {
@@ -265,41 +261,58 @@ var MapWebGL = ({
       try { validateModelAccess(activeModel || 'GFS', userTier); } 
       catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
-      // v75: Build resolution tasks for parallel execution
       const tasks = Object.keys(LAYER_REGISTRY)
         .filter(k => LAYER_REGISTRY[k].omVariable && activeLayers.includes(k))
         .map(k => ({ layerKey: k, variable: LAYER_REGISTRY[k].omVariable, entry: LAYER_REGISTRY[k] }));
 
-      // v75: Model routing per-variable:
-      // - Layers with omModel in registry (marine, fog/visibility) use their pinned model
-      // - Rain: GFS lacks precipitation tiles → fallback to ICON; ICON/EURO use native
-      // - Cloud: GFS lacks cloud_cover tiles → fallback to ICON
+      // v76: Model routing uses the exported maps from LayerRegistry
       const resolveModel = (entry, variable) => {
-        if (entry.omModel) return entry.omModel; // pinned (marine/fog)
-        let m = targetModel;
-        if (m === 'ncep_gfs025' && (variable === 'precipitation' || variable === 'cloud_cover')) {
-          m = 'dwd_icon'; // GFS tiles lack these variables
+        // Pinned model (fog → GFS visibility)
+        if (entry.omModel) return entry.omModel;
+        // Marine layers → MARINE_MODEL_MAP
+        if (entry.omModelGroup === 'marine') {
+          return MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
         }
-        return m;
+        // Rain/cloud → PRECIP_MODEL_MAP (each model has its own precipitation tiles)
+        if (variable === 'precipitation' || variable === 'cloud_cover') {
+          return PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
+        }
+        // Default atmospheric
+        return targetModel;
       };
 
-      // Parallel: pre-fetch all needed metadata simultaneously
+      // Parallel metadata pre-fetch
       const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
       await Promise.all(models.map(m => fetchMetadata(m)));
 
       const newUrls = {};
       for (const { layerKey, variable, entry } of tasks) {
-        const layerModel = resolveModel(entry, variable);
-        const meta = await fetchMetadata(layerModel); // cache hit — already fetched above
+        let layerModel = resolveModel(entry, variable);
+        let meta = await fetchMetadata(layerModel);
         let resolvedVar = variable;
+        // Variable fallback chain
         if (!meta.variables.includes(variable)) {
           const VARIABLE_FALLBACKS = {
             'wind_gusts_10m': 'wind_u_component_10m',
-            'visibility': 'cloud_cover_low', // if model lacks visibility, try cloud_cover_low
+            'visibility': 'cloud_cover_low',
+            // v76: ECMWF WAM lacks swell/wind_wave → fallback to GFS wave
+            'swell_wave_height': null,
+            'secondary_swell_wave_height': null,
+            'wind_wave_height': null,
           };
-          if (VARIABLE_FALLBACKS[variable] && meta.variables.includes(VARIABLE_FALLBACKS[variable])) {
-            resolvedVar = VARIABLE_FALLBACKS[variable];
-            console.log(`[Raster] Variable fallback: ${variable} → ${resolvedVar} for ${layerModel}`);
+          if (variable in VARIABLE_FALLBACKS) {
+            if (VARIABLE_FALLBACKS[variable] && meta.variables.includes(VARIABLE_FALLBACKS[variable])) {
+              resolvedVar = VARIABLE_FALLBACKS[variable];
+              console.log(`[Raster] Variable fallback: ${variable} → ${resolvedVar} for ${layerModel}`);
+            } else if (entry.omModelGroup === 'marine') {
+              // ECMWF WAM lacks this var → fall back to GFS wave model
+              layerModel = 'ncep_gfswave025';
+              meta = await fetchMetadata(layerModel);
+              if (meta.variables.includes(variable)) {
+                resolvedVar = variable;
+                console.log(`[Raster] Marine model fallback: ${layerModel} for ${variable}`);
+              }
+            }
           }
         }
         if (meta.variables.includes(resolvedVar)) {
@@ -324,7 +337,7 @@ var MapWebGL = ({
     resolveAllUrls();
     
     return () => { isMounted = false; };
-  }, [activeModel, theme, debouncedTimeOffset, fetchMetadata, activeLayers]);
+  }, [activeModel, theme, timeOffsetHours, fetchMetadata, activeLayers]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
