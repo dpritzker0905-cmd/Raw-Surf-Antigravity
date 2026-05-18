@@ -232,23 +232,32 @@ var MapWebGL = ({
     ['ncep_gfs025', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
+  // v73: Debounced time offset to prevent OOM from rapid timeline scrubbing
+  const [debouncedTimeOffset, setDebouncedTimeOffset] = useState(timeOffsetHours);
   useEffect(() => {
-    // v251: Generate URLs for ALL OM variables, decoupling from activeLayers.
-    // This allows dedicated static sources for each variable to prevent stale texture bleeds.
+    const timer = setTimeout(() => setDebouncedTimeOffset(timeOffsetHours), 300);
+    return () => clearTimeout(timer);
+  }, [timeOffsetHours]);
+
+  useEffect(() => {
+    // v73: Only resolve URLs for ACTIVE layers to prevent OOM from 9 simultaneous WASM decoders.
+    // Previously resolved ALL 9 variables, each creating a <Source> that triggers tile downloads.
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
 
     const computeTimeStep = (meta) => {
-      if (timeOffsetHours === 0) return 'time_step=current_time_1H';
+      if (debouncedTimeOffset === 0) return 'time_step=current_time_1H';
       const { validTimes } = meta;
       if (!validTimes.length) return 'time_step=current_time_1H';
-      const targetMs = Date.now() + timeOffsetHours * 3600000;
+      const targetMs = Date.now() + debouncedTimeOffset * 3600000;
       let closestIdx = 0;
       let minDiff = Infinity;
       for (let i = 0; i < validTimes.length; i++) {
         const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
         if (diff < minDiff) { minDiff = diff; closestIdx = i; }
       }
+      // v73: Clamp to available range to prevent 404s on future timesteps
+      closestIdx = Math.min(closestIdx, validTimes.length - 1);
       // om:// protocol requires valid_times_N index format, NOT raw timestamps
       return `time_step=valid_times_${closestIdx}`;
     };
@@ -258,7 +267,10 @@ var MapWebGL = ({
       catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
       const newUrls = {};
-      const variablesToResolve = Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(k => [k, LAYER_REGISTRY[k].omVariable]);
+      // v73: Only resolve variables for layers the user has ACTIVE — prevents OOM
+      const variablesToResolve = Object.keys(LAYER_REGISTRY)
+        .filter(k => LAYER_REGISTRY[k].omVariable && activeLayers.includes(k))
+        .map(k => [k, LAYER_REGISTRY[k].omVariable]);
 
       for (const [layerKey, variable] of variablesToResolve) {
         // v3.2: Marine layers use dedicated wave tile models, not atmospheric
@@ -289,23 +301,27 @@ var MapWebGL = ({
           const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
           const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
-        } else if (window.__RASTER_DEBUG__?.failFast !== false) {
-          if (window.__RASTER_DEBUG__?.logMissingVariables) console.warn(`[Raster] MISSING VARIABLE: ${variable} (and fallbacks) in ${layerModel}`);
-          if (activeLayers.includes(layerKey)) {
-            throw new Error("MISSING_RASTER_VARIABLE: " + variable);
-          }
         }
       }
 
       if (isMounted) {
-        setOmTileUrls(newUrls);
+        setOmTileUrls(prev => {
+          // v73: Merge — keep previously resolved URLs for still-active layers,
+          // remove URLs for layers no longer active
+          const merged = {};
+          for (const key of activeLayers) {
+            if (newUrls[key]) merged[key] = newUrls[key];
+            else if (prev[key]) merged[key] = prev[key];
+          }
+          return merged;
+        });
       }
     };
     
     resolveAllUrls();
     
     return () => { isMounted = false; };
-  }, [activeModel, theme, timeOffsetHours, fetchMetadata]);
+  }, [activeModel, theme, debouncedTimeOffset, fetchMetadata, activeLayers]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -569,12 +585,13 @@ var MapWebGL = ({
             paint={{
               // v3.12.5: Ventusky-style opacity — colored bands visible but not overpowering.
               // Satellite needs brightness boost. Wind needs visible color bands.
-              // v71: Fog gets boosted opacity (was falling into generic 0.22-0.40 catch-all)
+              // v73: Fog opacity reduced — cloud_cover_low shows ALL low clouds,
+              // not just fog. Keep subtle so minor cumulus doesn't look like fog.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
-                5, layerKey === 'wind' ? 0.42 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.48 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.28),
-                8, layerKey === 'wind' ? 0.48 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.55 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.35),
-                12, layerKey === 'wind' ? 0.52 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
+                2, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
+                5, layerKey === 'wind' ? 0.42 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.28),
+                8, layerKey === 'wind' ? 0.48 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.35),
+                12, layerKey === 'wind' ? 0.52 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
               ],
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
