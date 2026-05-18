@@ -148,7 +148,7 @@ export var MapWeatherControls = ({
               type="range"
               min={0}
               max={isRadar ? Math.max(radarFrames.length - 1, 0) : maxForecastHours}
-              step={isRadar ? 1 : 3}
+              step={isRadar ? 1 : 1}
               value={isRadar ? radarFrameIndex : currentTimeOffset}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);

@@ -236,6 +236,9 @@ var MapWebGL = ({
   // OOM was mitigated in v73 by only resolving active layers.
   // The 80ms debounce ate slider responsiveness (autoplay worked but drag didn't).
 
+  // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
+  const loggedFallbacks = useRef(new Set());
+
   useEffect(() => {
     // v76: Resolve raster URLs for ACTIVE layers.
     // Rain: per-model via PRECIP_MODEL_MAP (GFS→gfs013, ICON→dwd_icon, EURO→ecmwf)
@@ -277,6 +280,11 @@ var MapWebGL = ({
         if (variable === 'precipitation' || variable === 'cloud_cover') {
           return PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
         }
+        // v77: Wind gusts on ECMWF tiles are unreliable at far-future 3h boundaries.
+        // Use wind_u_component_10m instead which is available at all time indices.
+        if (variable === 'wind_gusts_10m' && (activeModel === 'EURO')) {
+          return targetModel; // resolve normally, variable fallback handles the rest
+        }
         // Default atmospheric
         return targetModel;
       };
@@ -303,14 +311,24 @@ var MapWebGL = ({
           if (variable in VARIABLE_FALLBACKS) {
             if (VARIABLE_FALLBACKS[variable] && meta.variables.includes(VARIABLE_FALLBACKS[variable])) {
               resolvedVar = VARIABLE_FALLBACKS[variable];
-              console.log(`[Raster] Variable fallback: ${variable} → ${resolvedVar} for ${layerModel}`);
+              // v77: Log once per variable to prevent spam during slider scrubbing
+              const fbKey = `${variable}-${layerModel}`;
+              if (!loggedFallbacks.current.has(fbKey)) {
+                loggedFallbacks.current.add(fbKey);
+                console.log(`[Raster] Variable fallback: ${variable} → ${resolvedVar} for ${layerModel}`);
+              }
             } else if (entry.omModelGroup === 'marine') {
               // ECMWF WAM lacks this var → fall back to GFS wave model
               layerModel = 'ncep_gfswave025';
               meta = await fetchMetadata(layerModel);
               if (meta.variables.includes(variable)) {
                 resolvedVar = variable;
-                console.log(`[Raster] Marine model fallback: ${layerModel} for ${variable}`);
+                // v77: Log marine fallback once per variable only
+                const fbKey = `marine-${variable}`;
+                if (!loggedFallbacks.current.has(fbKey)) {
+                  loggedFallbacks.current.add(fbKey);
+                  console.log(`[Raster] Marine model fallback: ${layerModel} for ${variable}`);
+                }
               }
             }
           }
@@ -626,6 +644,40 @@ var MapWebGL = ({
           />
         </Source>
       ))}
+
+      {/* v77: Land mask — vector land polygons painted ABOVE marine rasters.
+          Covers raster cells that bleed onto land, creating clean Ventusky-like coastlines.
+          Uses Mapbox Streets v8 vector tiles (we already have a token). Only rendered
+          when a marine raster layer is active to avoid unnecessary tile downloads. */}
+      {!!activeMarineLayer && (
+        <Source
+          id="land-mask-source"
+          type="vector"
+          tiles={[`https://api.mapbox.com/v4/mapbox.mapbox-streets-v8/{z}/{x}/{y}.vector.pbf?access_token=${process.env.REACT_APP_MAPBOX_TOKEN}`]}
+          maxzoom={14}
+        >
+          {/* Land base — covers all terrestrial areas above the marine raster */}
+          <Layer
+            id="land-mask-fill"
+            type="fill"
+            source-layer="land"
+            paint={{
+              'fill-color': theme === 'dark' ? '#1a1a2e' : theme === 'beach' ? '#f0ead6' : '#e8e0d8',
+              'fill-opacity': 1.0,
+            }}
+          />
+          {/* Landuse — parks, forests, urban areas for textural fidelity */}
+          <Layer
+            id="land-mask-landuse"
+            type="fill"
+            source-layer="landuse"
+            paint={{
+              'fill-color': theme === 'dark' ? '#1d1d35' : theme === 'beach' ? '#e8e2cc' : '#ddd5c8',
+              'fill-opacity': 0.85,
+            }}
+          />
+        </Source>
+      )}
 
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
