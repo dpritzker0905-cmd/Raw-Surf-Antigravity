@@ -23,6 +23,12 @@ function smoothstep(edge0, edge1, x) {
   return t * t * (3 - 2 * t);
 }
 
+// v70: Simple hash-based noise to break grid-locked particle lanes
+function noise2D(x, y) {
+  const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return (n - Math.floor(n)) * 2 - 1; // range [-1, 1]
+}
+
 /**
  * Bilinear interpolation on marine grid.
  */
@@ -93,19 +99,20 @@ function isLikelyOcean(lat, lng, grid) {
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
-  // Fast reject: if inside a land bounding box (1° margin for coastline tolerance)
+  // Fast reject: if inside a land bounding box (0.3° margin for coastal tolerance)
+  // v70: Reduced from 1° to 0.3° to allow particles into coves, bays, and inlets
   for (const box of LAND_BOXES) {
-    if (lat > box.s + 1 && lat < box.n - 1 &&
-        nLng > box.w + 1 && nLng < box.e - 1) {
+    if (lat > box.s + 0.3 && lat < box.n - 0.3 &&
+        nLng > box.w + 0.3 && nLng < box.e - 0.3) {
       return false;
     }
   }
 
   // Grid-based check: zero/near-zero wave energy = land or dead calm
-  // v3.11.3: Tighter threshold (0.02 vs 0.05) rejects more land-adjacent cells
+  // v70: Lowered threshold from 0.02 to 0.005 for near-shore particle coverage
   if (grid) {
     const wave = interpolateMarine(grid, lng, lat);
-    if (wave.speed < 0.02 && Math.abs(wave.u) < 0.01 && Math.abs(wave.v) < 0.01) return false;
+    if (wave.speed < 0.005 && Math.abs(wave.u) < 0.003 && Math.abs(wave.v) < 0.003) return false;
   }
   return true;
 }
@@ -254,14 +261,19 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const wave = interpolateMarine(grid, p.lng, p.lat);
 
         // v3.12: World-coordinate advection for marine (same as wind, but slower)
+        // v70: Added turbulence noise to break grid-locked lane patterns
         if (wave.speed > 0.01 && Number.isFinite(wave.u) && Number.isFinite(wave.v)) {
           const DEG_PER_METER = 1 / 111320;
           const latRad = p.lat * Math.PI / 180;
           const mercCorr = Math.max(0.1, Math.cos(latRad));
           // Ocean drift is much slower than atmospheric flow
           const speedScale = dt * 30;
-          p.lng += wave.u * DEG_PER_METER / mercCorr * speedScale;
-          p.lat += wave.v * DEG_PER_METER * speedScale;
+          // Turbulence: hash-based noise breaks bilinear interpolation grid lanes
+          const turbulence = 0.15 + 0.2 * p.energy; // stronger turbulence in high-energy zones
+          const noiseU = noise2D(p.lng * 10 + now * 0.001, p.lat * 10) * turbulence;
+          const noiseV = noise2D(p.lat * 10 + now * 0.001, p.lng * 10) * turbulence;
+          p.lng += (wave.u + noiseU) * DEG_PER_METER / mercCorr * speedScale;
+          p.lat += (wave.v + noiseV) * DEG_PER_METER * speedScale;
         } else {
           p.age = p.maxAge + 1;
         }

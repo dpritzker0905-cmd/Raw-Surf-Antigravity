@@ -159,7 +159,7 @@ var MapWebGL = ({
 
   const [omTileUrls, setOmTileUrls] = useState({});
   // v69: initialOmUrls removed — React <Source> now reads omTileUrls directly
-  const [initialRadarUrl, setInitialRadarUrl] = useState(null);
+  // v70: initialRadarUrl removed — React <Source> reads radarTileUrl directly
 
   // v242: Global Render Contract — single source of truth for map readiness
   const renderContract = useMapRenderContract(mapInstance);
@@ -380,16 +380,7 @@ var MapWebGL = ({
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
   }, [radarFrames, radarFrameIndex]);
 
-  // Bootstrapping and Transacting Radar
-  useEffect(() => {
-    if (radarTileUrl) {
-      if (!initialRadarUrl) {
-        setInitialRadarUrl(radarTileUrl);
-      } else {
-        queueRasterUpdate('radar-source', [radarTileUrl], true);
-      }
-    }
-  }, [radarTileUrl, initialRadarUrl, queueRasterUpdate]);
+  // v70: Radar URL updates handled declaratively via React <Source tiles={[radarTileUrl]}>
 
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
@@ -524,11 +515,11 @@ var MapWebGL = ({
       {/* --- WEATHER LAYERS --- */}
 
       {/* Live Radar (RainViewer — animated frames) */}
-      {initialRadarUrl && (
+      {radarTileUrl && (
         <Source
           id="radar-source"
           type="raster"
-          tiles={[initialRadarUrl]}
+          tiles={[radarTileUrl]}
           tileSize={256}
           maxzoom={7}
         >
