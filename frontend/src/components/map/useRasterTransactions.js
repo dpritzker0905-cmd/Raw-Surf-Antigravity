@@ -93,23 +93,45 @@ export function useRasterTransactions(mapInstance, renderContract) {
         requestAnimationFrame(() => {
           if (!map.getStyle()) return;
 
-          if (isTilesArray) {
-            if (source.setTiles) source.setTiles(url);
-          } else {
-            if (source.setUrl) source.setUrl(url);
-          }
-
-          // v3.12.5: Force tile cache clear — MapLibre doesn't auto-refresh
-          // cached tiles when setUrl changes the om:// protocol parameters.
-          // Without this, timeline scrubbing shows stale raster tiles.
           try {
-            const sc = map.style?.sourceCaches?.[sourceId] || map.style?._sourceCaches?.[sourceId];
-            if (sc) {
-              sc.clearTiles();
-              sc.update(map.transform);
+            const source = map.getSource(sourceId);
+            if (!source) return;
+
+            if (isTilesArray) {
+              if (source.setTiles) source.setTiles(url);
+            } else {
+              // For om:// protocol: setUrl alone may not re-fetch tiles in MapLibre v5.
+              // Force a full source reload by removing and re-adding.
+              const sourceData = source.serialize();
+              const oldUrl = sourceData?.url;
+              if (oldUrl !== url) {
+                // Collect layer refs that use this source
+                const layersToRestore = [];
+                const style = map.getStyle();
+                if (style?.layers) {
+                  for (const l of style.layers) {
+                    if (l.source === sourceId) {
+                      layersToRestore.push({ ...l });
+                      try { map.removeLayer(l.id); } catch (_) {}
+                    }
+                  }
+                }
+                try { map.removeSource(sourceId); } catch (_) {}
+                map.addSource(sourceId, { ...sourceData, url });
+                for (const l of layersToRestore) {
+                  try { map.addLayer(l); } catch (_) {}
+                }
+              } else {
+                if (source.setUrl) source.setUrl(url);
+              }
             }
-            map.triggerRepaint();
-          } catch (cacheErr) { /* non-critical */ }
+          } catch (innerErr) {
+            // Fallback: try basic setUrl
+            try {
+              const src = map.getSource(sourceId);
+              if (src?.setUrl) src.setUrl(url);
+            } catch (_) {}
+          }
 
           if (layerId && originalVisibility === 'visible' && map.getLayer(layerId)) {
             map.setLayoutProperty(layerId, 'visibility', 'visible');

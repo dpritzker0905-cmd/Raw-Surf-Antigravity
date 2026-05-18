@@ -237,6 +237,14 @@ function extractWindAtOffset(cache, hourOffset) {
   };
 }
 
+/** Public accessor for the wind hourly cache (used by WeatherEngine timeline scrub) */
+export function getWindHourlyCache() {
+  return windHourlyCache;
+}
+
+/** Public re-index function for timeline scrub (zero API calls) */
+export { extractWindAtOffset };
+
 // ========================================================================
 // WIND FETCH
 // v3.9.3: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.

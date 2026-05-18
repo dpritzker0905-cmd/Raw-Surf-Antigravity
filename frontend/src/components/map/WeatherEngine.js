@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { fetchWindData, getRemainingCooldown } from './marineController';
+import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 
 /**
@@ -127,36 +127,34 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     };
   }, [mapInstance, activeModel, forecastDays]); // Refetch when model or forecast window changes
 
-  // ===== TIMELINE SCRUB (local cache re-index, zero API calls) =====
+  // ===== TIMELINE SCRUB (local cache re-index, ZERO API calls) =====
+  // Uses extractWindAtOffset directly on the cached hourly data.
+  // NEVER calls fetchWindData — that would trigger a POST and cause 429s.
   const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
     if (prevOffsetRef.current === timeOffsetHours) return;
     prevOffsetRef.current = timeOffsetHours;
-    if (!mapInstance || !isWindActive) return; // Silent skip — no log spam
+    if (!mapInstance || !isWindActive) return;
 
     console.log(`[WeatherEngine] 🕐 Timeline scrub: ${timeOffsetHours}h`);
 
-    const t = setTimeout(async () => {
+    const t = setTimeout(() => {
       try {
-        const b = mapInstance.getBounds();
-        const bounds = {
-          west: b.getWest(),
-          south: Math.max(-85, b.getSouth()),
-          east: b.getEast(),
-          north: Math.min(85, b.getNorth())
-        };
-        const data = await fetchWindData(bounds, null, timeOffsetHours, true, forecastDays, activeModel);
+        const cache = getWindHourlyCache();
+        if (!cache?.results?.length) {
+          console.log('[WeatherEngine] 🕐 No cached data for timeline re-index');
+          return;
+        }
+        const data = extractWindAtOffset(cache, timeOffsetHours);
         if (data && data.vectors?.length > 0) {
           console.log(`[WeatherEngine] 🕐 Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
           windRevision.current += 1;
           setWindData(data);
         }
       } catch (e) {
-        if (e.name !== 'AbortError') {
-          console.error('[WeatherEngine] Timeline fetch failed:', e.message);
-        }
+        console.error('[WeatherEngine] Timeline re-index failed:', e.message);
       }
-    }, 200);
+    }, 150);
     return () => clearTimeout(t);
      
   }, [timeOffsetHours]);

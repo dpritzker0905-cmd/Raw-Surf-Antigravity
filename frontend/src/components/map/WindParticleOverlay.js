@@ -86,21 +86,14 @@ function getWindColor(speed, alpha) {
     Math.min(255, brightness + 10) + ',' + alpha.toFixed(3) + ')';
 }
 
-/** Spawn particle within given bounds with optional grid-stratified placement */
-function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal, gridBounds) {
-  // Prefer grid bounds over viewport bounds for initial distribution
-  var west, east, south, north;
-  if (gridBounds) {
-    west = gridBounds.west; east = gridBounds.east;
-    south = Math.max(-85, gridBounds.south); north = Math.min(85, gridBounds.north);
-  } else {
-    var mb = mapInstance.getBounds();
-    west = mb.getWest(); east = mb.getEast();
-    south = Math.max(-85, mb.getSouth()); north = Math.min(85, mb.getNorth());
-  }
+/** Spawn particle at random viewport position with optional grid-stratified placement */
+function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal) {
+  var mb = mapInstance.getBounds();
+  var west = mb.getWest(), east = mb.getEast();
+  var south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
   var lng, lat;
   if (stratifyIdx != null && stratifyTotal > 0) {
-    var cols = Math.ceil(Math.sqrt(stratifyTotal * (east - west) / Math.max(1, north - south)));
+    var cols = Math.ceil(Math.sqrt(stratifyTotal * Math.max(1, east - west) / Math.max(1, north - south)));
     var rows = Math.ceil(stratifyTotal / cols);
     var ci = stratifyIdx % cols, ri = Math.floor(stratifyIdx / cols) % rows;
     var cellW = (east - west) / cols, cellH = (north - south) / rows;
@@ -173,8 +166,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
     }
     particlesRef.current = particles;
     var wasActive = false;
-    var lastDataId = null; // Track data changes to redistribute
-    var lastViewportKey = null; // Track viewport changes
+    var lastDataId = null;
     var coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
 
@@ -187,23 +179,16 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       if (!grid?.vectors?.length) return;
       wasActive = true;
 
-      // Redistribute particles when data source changes (model switch or first load)
-      // OR when viewport changes significantly (zoom step >= 2, center moves >= 10 deg)
+      // Redistribute particles when data source changes (model switch)
       var dataId = (grid.source || '') + '_' + (grid.hourOffset || 0) + '_' + grid.vectors.length;
-      var zoomBucket = Math.floor(mapInstance.getZoom() / 2);
-      var centerLng = Math.round(mapInstance.getCenter().lng / 10) * 10;
-      var centerLat = Math.round(mapInstance.getCenter().lat / 10) * 10;
-      var viewportKey = zoomBucket + '_' + centerLng + '_' + centerLat;
-      if ((lastDataId !== null && lastDataId !== dataId) || (lastViewportKey && lastViewportKey !== viewportKey)) {
+      if (lastDataId !== null && lastDataId !== dataId) {
         var pts2 = particlesRef.current;
-        var gb = grid.bounds;
         for (var ri = 0; ri < pts2.length; ri++) {
-          pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length, gb);
+          pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length);
         }
         ctx.clearRect(0, 0, cw, ch);
       }
       lastDataId = dataId;
-      lastViewportKey = viewportKey;
 
       var isThrottled = coordState === 2;
 
@@ -260,15 +245,13 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
         }
 
         // Sanity clamp
-        if (isNaN(p.lat) || isNaN(p.lng)) { pts[i] = spawnParticle(mapInstance, false, null, null, grid.bounds); continue; }
+        if (isNaN(p.lat) || isNaN(p.lng)) { pts[i] = spawnParticle(mapInstance, false); continue; }
         p.lat = Math.max(-85, Math.min(85, p.lat));
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
 
-        // Respawn if too old or far out of viewport — use grid bounds when available
-        var gb2 = grid.bounds;
         if (p.age > p.maxAge || p.lng < bw - 5 || p.lng > be + 5 || p.lat < bs - 5 || p.lat > bn + 5) {
-          pts[i] = spawnParticle(mapInstance, false, null, null, gb2); continue;
+          pts[i] = spawnParticle(mapInstance, false); continue;
         }
         // Skip drawing if outside visible bounds
         if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn) continue;
@@ -284,7 +267,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           var segLen = Math.sqrt(dx * dx + dy * dy);
           if (segLen < 0.05) continue;
           // Clamp extreme jumps (projection artifacts)
-          if (segLen > 100) { pts[i] = spawnParticle(mapInstance, false, null, null, grid.bounds); continue; }
+          if (segLen > 100) { pts[i] = spawnParticle(mapInstance, false); continue; }
 
           // Age-based alpha — smooth fade-in and fade-out
           var ageRatio = p.age / p.maxAge;
@@ -310,7 +293,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           ctx.stroke();
           drawnThisFrame++;
         } catch (e) {
-          pts[i] = spawnParticle(mapInstance, false, null, null, grid.bounds);
+          pts[i] = spawnParticle(mapInstance, false);
         }
       }
 
