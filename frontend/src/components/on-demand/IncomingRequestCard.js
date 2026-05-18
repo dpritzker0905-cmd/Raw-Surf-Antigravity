@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * IncomingRequestCard ? Displays an incoming on-demand session request.
  * Shows surfer info, location, earnings, crew details, and accept/decline actions.
  * 
@@ -107,7 +107,7 @@ const IncomingRequestCard = ({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
-                    {request.requester_stance === 'goofy' ? '?? Goofy' : '=ƒª¦ Regular'}
+ {request.requester_stance === 'goofy' ? '?? Goofy' : '= Regular'}
                   </span>
                 )}
               </div>
@@ -276,7 +276,7 @@ const IncomingRequestCard = ({
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
-                      {request.requester_stance === 'goofy' ? '=ƒª¦ Goofy Foot' : '=ƒª¦ Regular'}
+ {request.requester_stance === 'goofy' ? '= Goofy Foot' : '= Regular'}
                     </span>
                   </div>
                 )}

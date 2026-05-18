@@ -1,4 +1,4 @@
-import React from 'react';
+ï»¿import React from 'react';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
@@ -58,7 +58,7 @@ export const AdminP2PromoTab = ({
                       {promo.code_type === 'percentage' ? `${promo.discount_value}% off` :
                        promo.code_type === 'fixed_amount' ? `$${promo.discount_value} off` :
                        `${promo.discount_value} free credits`}
-                      {promo.campaign_name && ` GÇö ${promo.campaign_name}`}
+ {promo.campaign_name && ` G ${promo.campaign_name}`}
                     </p>
                   </div>
                 </div>
@@ -66,7 +66,7 @@ export const AdminP2PromoTab = ({
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <p className="text-sm text-foreground">
-                      {promo.current_uses} / {promo.max_uses || 'GêP'} uses
+ {promo.current_uses} / {promo.max_uses || 'GP'} uses
                     </p>
                     {promo.valid_until && (
                       <p className="text-xs text-gray-500">

@@ -1,5 +1,5 @@
-/**
- * ParticipantCard GÇö Extracted from PhotographerSessionManager.js (v77)
+ï»¿/**
+ * ParticipantCard G Extracted from PhotographerSessionManager.js (v77)
  * Displays a single session participant with surfboard color, avatar,
  * status badge, countdown timer, and selfie preview modal.
  */

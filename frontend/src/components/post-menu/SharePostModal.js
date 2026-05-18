@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Share2, UserCircle, ChevronDown, Loader2, Check, MessageSquareOff, Copy } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -23,7 +23,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
   const [dmSending, setDmSending] = useState(null); // user_id currently sending to
   const [dmSent, setDmSent] = useState(new Set()); // user_ids already sent to
   
-  // Emoji constants GÇö using String.fromCodePoint to avoid encoding corruption
+ // Emoji constants G using String.fromCodePoint to avoid encoding corruption
   const SHARE_ICONS = {
     wave: String.fromCodePoint(0x1F30A),
     camera: String.fromCodePoint(0x1F4F7),
@@ -96,7 +96,7 @@ const SharePostModal = ({ post, open, onClose, isLight }) => {
     }
   }, [open]);
 
-  // Send post as DM GÇö encode full post metadata so the chat can render a rich card
+ // Send post as DM G encode full post metadata so the chat can render a rich card
   const handleSendDm = async (recipientId, recipientName) => {
     if (!user?.id || !post?.id || dmSending) return;
     

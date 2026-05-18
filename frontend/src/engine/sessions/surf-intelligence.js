@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Surf Intelligence Engine (v2)
+ Raw Surf OS Surf Intelligence Engine (v2)
  SESSION + CROWD + WAVE SCORING + FORECAST CONNECTOR
 ====================================================
 
@@ -12,7 +12,7 @@ INTEGRATION LAYER that connects:
 - forecast-provider.js (engine/data)
 
 UPGRADE v2:
-- predictBestSurfWindow() — forecast-connected window finder
+- predictBestSurfWindow() forecast-connected window finder
 - onshore wind penalty in scoring
 - real-time crowd computation from 2-hour window
 - enhanced session insights with wind/crowd factors
@@ -26,7 +26,7 @@ import { scoreSession, scoreMultipleSessions } from '../../engine-brain/wave-sco
 import { computeCrowdPressure, predictDailyCongestion } from '../../engine-brain/crowd-prediction-model';
 import { findSurfWindow, classifyBreak, computeBreakQuality, classifyWindType } from '../../engine-brain/surf-break-model';
 
-// ─── SESSION STORE (in-memory snapshot cache) ────────────────────────────────
+// SESSION STORE (in-memory snapshot cache) 
 
 var _sessions = [];
 var _spotCache = {};
@@ -65,7 +65,7 @@ function getSessionsBySpot(spotId) {
   return filtered;
 }
 
-// ─── ENHANCED WAVE SCORING (v2) ──────────────────────────────────────────────
+// ENHANCED WAVE SCORING (v2) 
 
 /**
  * Compute wave score with onshore wind penalty.
@@ -103,11 +103,11 @@ function scoreToGradeLocal(score) {
   return 'F';
 }
 
-// ─── CROWD INTELLIGENCE (v2) ─────────────────────────────────────────────────
+// CROWD INTELLIGENCE (v2) 
 
 /**
  * Compute real-time crowd index from recent sessions (2-hour window).
- * More aggressive than the engine-brain model — for live UI display.
+ * More aggressive than the engine-brain model for live UI display.
  *
  * @param {Array} sessions
  * @returns {number} 0-100
@@ -122,11 +122,11 @@ function computeRealtimeCrowdIndex(sessions) {
   return Math.min(100, count * 15);
 }
 
-// ─── BEST SURF WINDOW PREDICTION (v2 NEW) ───────────────────────────────────
+// BEST SURF WINDOW PREDICTION (v2 NEW) 
 
 /**
  * Predict the best surf window by combining forecast quality with crowd prediction.
- * This is the COMPETITIVE MOAT — not just weather, but actionable timing.
+ * This is the COMPETITIVE MOAT not just weather, but actionable timing.
  *
  * @param {{
  *   forecast: Array<{ hour: number, waveHeight: number, swellDirection: number,
@@ -200,11 +200,11 @@ function predictBestSurfWindow(params) {
   // Recommendation
   var rec = '';
   if (bestTime && bestTime.score >= 70) {
-    rec = 'Excellent conditions at ' + bestTime.hour + ':00 — go surf!';
+ rec = 'Excellent conditions at ' + bestTime.hour + ':00 go surf!';
   } else if (bestTime && bestTime.score >= 50) {
-    rec = 'Decent window at ' + bestTime.hour + ':00 — conditions are OK';
+ rec = 'Decent window at ' + bestTime.hour + ':00 conditions are OK';
   } else {
-    rec = 'No great windows today — consider a rest day';
+ rec = 'No great windows today consider a rest day';
   }
 
   return {
@@ -256,7 +256,7 @@ function findContinuousWindows(scores, threshold) {
   return windows;
 }
 
-// ─── INTEGRATED INTELLIGENCE ─────────────────────────────────────────────────
+// INTEGRATED INTELLIGENCE 
 
 /**
  * Generate complete intelligence report for a surf spot.

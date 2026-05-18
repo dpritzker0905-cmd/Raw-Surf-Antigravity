@@ -1,5 +1,5 @@
-/**
- * useTemporalPreloader.js — Temporal Tile Preloading (±1hr)
+﻿/**
+ * useTemporalPreloader.js Temporal Tile Preloading (1hr)
  *
  * Prefetches raster tile manifests and first-viewport tiles for adjacent
  * time steps, so layer transitions feel instant when the user scrubs the
@@ -74,14 +74,14 @@ export function useTemporalPreloader({
         '/' + variable + '/' + targetHour +
         '/' + tileZ + '/' + tileX + '/' + tileY + '.png';
 
-      // Best-effort fetch — cache only, no state mutation
+ // Best-effort fetch cache only, no state mutation
       fetch(url, { signal: signal, mode: 'no-cors' })
         .then(function() {
           cacheRef.current.add(cacheKey);
         })
         .catch(function(e) {
           if (e.name !== 'AbortError') {
-            // Silent fail — preloading is best-effort
+ // Silent fail preloading is best-effort
           }
         });
     });

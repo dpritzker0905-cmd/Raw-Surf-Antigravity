@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { LAYER_REGISTRY } from './LayerRegistry';
 
 function getLayerTruth(layerId, rasterVisible) {
@@ -9,7 +9,7 @@ function getLayerTruth(layerId, rasterVisible) {
 }
 
 /**
- * TruthOverlay — Visual debugging HUD for the GIS renderer.
+ * TruthOverlay Visual debugging HUD for the GIS renderer.
  * Displays active layer state, data pipeline status, and truth violations.
  * Extract from MapWebGL.js to maintain LOC compliance.
  */
@@ -31,7 +31,7 @@ var TruthOverlay = ({ activeLayers, activeRenderType, marineData, windData, trut
       <div className="text-green-400">Wind: {activeLayers.includes('wind') ? 'ON' : 'OFF'} ({windData?.vectors?.length || 0} vec)</div>
       {truthIssues.length > 0 && (
         <div className="mt-1 pt-1 border-t border-red-800">
-          <div className="text-red-400 font-bold">⚠ {truthIssues.length} violation{truthIssues.length > 1 ? 's' : ''}</div>
+ <div className="text-red-400 font-bold"> {truthIssues.length} violation{truthIssues.length > 1 ? 's' : ''}</div>
           {truthIssues.slice(0, 3).map((issue, i) => (
             <div key={i} className="text-red-300 text-[10px]">{issue.type}</div>
           ))}

@@ -1,21 +1,21 @@
-/**
- * IndustryPluginRuntime.js — Surf Industry Plugin System
+﻿/**
+ * IndustryPluginRuntime.js Surf Industry Plugin System
  *
  * Runtime execution engine for industry role plugins.
  * Each plugin defines capabilities, permissions, and lifecycle hooks
  * for surf industry roles (School, Coach, Brand, etc.).
  *
  * RULES:
- *   - NO import-time side effects (all var/function — TDZ-immune)
+ * - NO import-time side effects (all var/function TDZ-immune)
  *   - Plugins register at runtime, not import time
  *   - Capability-based access (not hardcoded role checks)
- *   - Immutable core — plugins EXTEND, never modify engine
+ * - Immutable core plugins EXTEND, never modify engine
  */
 
-// ─── PLUGIN STORE ────────────────────────────────────────────────────────────
+// PLUGIN STORE 
 var _plugins = new Map();
-var _capabilities = new Map();  // capability → Set<pluginId>
-var _hooks = {};                // hookName → [{ pluginId, fn }]
+var _capabilities = new Map(); // capability Set<pluginId>
+var _hooks = {}; // hookName [{ pluginId, fn }]
 
 /**
  * @typedef {Object} IndustryPlugin
@@ -100,7 +100,7 @@ export function unregisterPlugin(pluginId) {
   _plugins.delete(pluginId);
 }
 
-// ─── CAPABILITY-BASED ACCESS ─────────────────────────────────────────────────
+// CAPABILITY-BASED ACCESS 
 
 /**
  * Check if ANY registered plugin provides a capability.
@@ -122,7 +122,7 @@ export function getProvidersOf(capability) {
   return set ? Array.from(set) : [];
 }
 
-// ─── HOOK EXECUTION ──────────────────────────────────────────────────────────
+// HOOK EXECUTION 
 
 /**
  * Execute all registered hooks for a given event.
@@ -149,7 +149,7 @@ export function executeHook(hookName, payload) {
   return results;
 }
 
-// ─── QUERY API ───────────────────────────────────────────────────────────────
+// QUERY API 
 
 /** @returns {IndustryPlugin|undefined} */
 export function getPlugin(id) { return _plugins.get(id); }
@@ -163,7 +163,7 @@ export function getAllCapabilities() { return Array.from(_capabilities.keys()); 
 /** @returns {number} */
 export function getPluginCount() { return _plugins.size; }
 
-// ─── BUILT-IN CAPABILITY CONSTANTS ───────────────────────────────────────────
+// BUILT-IN CAPABILITY CONSTANTS 
 // Use these as capability strings in plugin definitions.
 
 export var CAPABILITIES = {

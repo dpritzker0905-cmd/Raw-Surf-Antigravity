@@ -1,5 +1,5 @@
-/**
- * ExplorePeopleTab GÇö Extracted from Explore.js
+ï»¿/**
+ * ExplorePeopleTab G Extracted from Explore.js
  * Renders the "People" tab with search prompts, role browsing, and live photographers.
  */
 import React from 'react';

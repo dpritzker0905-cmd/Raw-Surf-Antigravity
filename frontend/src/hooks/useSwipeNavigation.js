@@ -1,5 +1,5 @@
-/**
- * useSwipeNavigation GÇö Shared hook for swipe-to-navigate tab switching (v80)
+ï»¿/**
+ * useSwipeNavigation G Shared hook for swipe-to-navigate tab switching (v80)
  *
  * Extracted from Explore.js. Provides touch handlers and a content ref
  * for horizontal swipe navigation between tabs on mobile.

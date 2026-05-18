@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+Ôªøimport React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { 
@@ -24,20 +24,20 @@ import logger from '../../utils/logger';
 
 // Role display config - matches all RoleEnum values
 const ROLE_CONFIG = {
-  surfer: { label: 'Surfer', color: 'bg-cyan-500/20 text-cyan-400', icon: '=É≈‰' },
-  grom: { label: 'Grom', color: 'bg-yellow-500/20 text-yellow-400', icon: '=É∫∆' },
-  photographer: { label: 'Photographer', color: 'bg-purple-500/20 text-purple-400', icon: '=ÉÙ+' },
+ surfer: { label: 'Surfer', color: 'bg-cyan-500/20 text-cyan-400', icon: '=' },
+ grom: { label: 'Grom', color: 'bg-yellow-500/20 text-yellow-400', icon: '=' },
+ photographer: { label: 'Photographer', color: 'bg-purple-500/20 text-purple-400', icon: '=+' },
   grom_parent: { label: 'Grom Parent', color: 'bg-blue-500/20 text-blue-400', icon: '?????' },
-  hobbyist: { label: 'Hobbyist', color: 'bg-indigo-500/20 text-indigo-400', icon: '=ÉÙ+' },
-  comp_surfer: { label: 'Competition Surfer', color: 'bg-amber-500/20 text-amber-400', icon: '=É≈Â' },
+ hobbyist: { label: 'Hobbyist', color: 'bg-indigo-500/20 text-indigo-400', icon: '=+' },
+ comp_surfer: { label: 'Competition Surfer', color: 'bg-amber-500/20 text-amber-400', icon: '=' },
   pro_surfer: { label: 'Pro Surfer', color: 'bg-gold-500/20 text-yellow-400', icon: '?' },
-  approved_pro_photographer: { label: 'Verified Pro Photographer', color: 'bg-blue-500/20 text-blue-400', icon: 'G°…' },
+ approved_pro_photographer: { label: 'Verified Pro Photographer', color: 'bg-blue-500/20 text-blue-400', icon: 'G' },
   surf_school: { label: 'Surf School / Coach', color: 'bg-teal-500/20 text-teal-400', icon: '???' },
   shop: { label: 'Surf Shop', color: 'bg-pink-500/20 text-pink-400', icon: '???' },
   shaper: { label: 'Shaper', color: 'bg-orange-500/20 text-orange-400', icon: '???' },
-  resort: { label: 'Resort / Retreat', color: 'bg-emerald-500/20 text-emerald-400', icon: '=É≈ø' },
-  wave_pool: { label: 'Wave Pool', color: 'bg-sky-500/20 text-sky-400', icon: '=ÉÓË' },
-  destination: { label: 'Surf Destination', color: 'bg-rose-500/20 text-rose-400', icon: '=ÉÓ¶' }
+ resort: { label: 'Resort / Retreat', color: 'bg-emerald-500/20 text-emerald-400', icon: '=' },
+ wave_pool: { label: 'Wave Pool', color: 'bg-sky-500/20 text-sky-400', icon: '=' },
+ destination: { label: 'Surf Destination', color: 'bg-rose-500/20 text-rose-400', icon: '=' }
 };
 
 const TIER_LABELS = {

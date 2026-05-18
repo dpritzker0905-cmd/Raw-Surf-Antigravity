@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+ï»¿import { useMemo } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
@@ -163,7 +163,7 @@ export default function useSurfAlertActions({
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Surf alert created! =ƒîè');
+ toast.success('Surf alert created! =');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -237,7 +237,7 @@ export default function useSurfAlertActions({
         notify_push: newAlert.notify_push
       });
       
-      toast.success('Alert updated! G£à');
+ toast.success('Alert updated! G');
       setShowCreateModal(false);
       resetNewAlert();
       fetchAlerts();
@@ -297,7 +297,7 @@ export default function useSurfAlertActions({
         recipient_identifier: shareRecipient.trim()
       });
       
-      toast.success(`Alert shared with ${shareRecipient}! =ƒôñ`);
+ toast.success(`Alert shared with ${shareRecipient}! =`);
       setShowShareModal(false);
       setAlertToShare(null);
       setShareRecipient('');

@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * ExactTimeSlotPicker - Precision time slot selection for scheduled bookings
  * Allows users to pick exact date + time (e.g., Tuesday at 6:45 AM)
  */
@@ -359,7 +359,7 @@ export const ExactTimeSlotPicker = ({
         <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-lg p-2">
           <h4 className={`font-medium text-xs ${textPrimary} mb-0.5`}>Summary</h4>
           <p className={`text-[10px] ${textSecondary}`}>
-            <strong className={textPrimary}>{categoryInfo?.label}</strong> GÇó {formattedDate} GÇó <strong className="text-yellow-400">{availableTimeSlots.find(s => s.value === selectedTime)?.label}</strong> GÇó {DURATION_OPTIONS.find(d => d.value === selectedDuration)?.label}
+ <strong className={textPrimary}>{categoryInfo?.label}</strong> G {formattedDate} G <strong className="text-yellow-400">{availableTimeSlots.find(s => s.value === selectedTime)?.label}</strong> G {DURATION_OPTIONS.find(d => d.value === selectedDuration)?.label}
           </p>
         </div>
       )}

@@ -1,5 +1,5 @@
-/**
- * Forecast Pipeline — Unified Multi-Model Orchestration
+﻿/**
+ * Forecast Pipeline Unified Multi-Model Orchestration
  *
  * Ties together:
  *   forecast-provider.js (fetch)
@@ -20,7 +20,7 @@
 import { fetchForecast, fetchBestAvailable, normalizeToTypedField } from './forecast-provider';
 import { normalizeModel } from './model-normalizers';
 
-// ─── PIPELINE STATE ──────────────────────────────────────────────────────────
+// PIPELINE STATE 
 const _subscribers = [];       // fn(normalizedField) callbacks
 let _lastField = null;         // Most recent normalized field
 let _activeFetch = null;       // Dedup in-flight fetches
@@ -67,7 +67,7 @@ function _notify(field) {
 }
 
 /**
- * Fetch → Normalize → Deliver pipeline.
+ * Fetch Normalize Deliver pipeline.
  * This is the SINGLE entry point for all forecast data.
  *
  * @param {{

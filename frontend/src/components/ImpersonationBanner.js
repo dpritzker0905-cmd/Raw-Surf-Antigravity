@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * ImpersonationBanner - Shows when admin is viewing as another user
  * 
  * Features:
@@ -51,7 +51,7 @@ const ImpersonationBanner = () => {
             )}
             <div className="hidden sm:block">
               <p className="text-sm font-semibold leading-tight">{targetUser.full_name || targetUser.email}</p>
-              <p className="text-xs opacity-80">{targetUser.role} GÇó {targetUser.email}</p>
+ <p className="text-xs opacity-80">{targetUser.role} G {targetUser.email}</p>
             </div>
           </div>
         </div>

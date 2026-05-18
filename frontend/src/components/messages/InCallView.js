@@ -1,7 +1,7 @@
-/**
- * InCallView -G«‹-º+ÛGÈº-• Premium active call overlay.
+Ôªø/**
+ * InCallView -G-+G- Premium active call overlay.
  * 
- * FILTER IMPLEMENTATION -G«‹-º+ÛGÈº-• Uses the SAME WebGL GPU shader pipeline as GoLive:
+ * FILTER IMPLEMENTATION -G-+G- Uses the SAME WebGL GPU shader pipeline as GoLive:
  *   - WebGLVideoProcessor from WebGLFilterEngine.js
  *   - Real GLSL fragment shaders running on the GPU
  *   - Hidden <video> feeds into WebGL <canvas> for filtered display
@@ -36,7 +36,7 @@ function formatDuration(seconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-// -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Connection Quality Badge -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º
+// -G-+G--G-+G- Connection Quality Badge -G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G-
 function ConnectionQualityBadge({ quality }) {
   const config = {
     good: { icon: Signal, color: 'text-green-400', bg: 'bg-green-500/20', label: 'Strong' },
@@ -53,7 +53,7 @@ function ConnectionQualityBadge({ quality }) {
   );
 }
 
-// -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Filter Presets -G«‹-º+ÛGÈº-• maps to WebGL shader keys in WebGLFilterEngine -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º
+// -G-+G--G-+G- Filter Presets -G-+G- maps to WebGL shader keys in WebGLFilterEngine -G-+G--G-+G-
 const FILTER_PRESETS = [
   { name: 'None',         key: 'none',             icon: CircleDot, description: 'Original camera' },
   { name: 'Golden Hour',  key: 'goldenhour',        icon: Sunset,    description: 'Warm sunset vibes' },
@@ -64,7 +64,7 @@ const FILTER_PRESETS = [
   { name: 'Cyber-Surf',   key: 'cyber',              icon: Zap,       description: 'Hyper-cold glitch lens' },
 ];
 
-// -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Theme colors for HairFilterPicker -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º
+// -G-+G--G-+G- Theme colors for HairFilterPicker -G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G-
 const CALL_COLORS = {
   overlayBg: 'bg-black/80 backdrop-blur-xl',
   border: 'border-white/10',
@@ -75,7 +75,7 @@ const CALL_COLORS = {
   accentBg: 'bg-cyan-500/20',
 };
 
-// -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Filter Picker panel -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º
+// -G-+G--G-+G- Filter Picker panel -G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G-
 const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   if (!isOpen) return null;
   return (
@@ -122,9 +122,9 @@ const FilterPicker = ({ isOpen, onClose, activeFilter, onSelectFilter }) => {
   );
 };
 
-// -GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…
+// -G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+-
 // MAIN COMPONENT
-// -GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…-GÈº-Û+È-…
+// -G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+--G-+-
 export default function InCallView({
   callType = 'audio',
   localStream,
@@ -160,7 +160,7 @@ export default function InCallView({
   const speakerOffRef = useRef(false); // ref for use in effects without re-triggering
   const controlsTimeoutRef = useRef(null);
 
-  // -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Attach local stream to hidden video element -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º
+ // -G-+G--G-+G- Attach local stream to hidden video element -G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G-
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -168,11 +168,11 @@ export default function InCallView({
     }
   }, [localStream]);
 
-  // -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Attach remote stream to video element -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º
+ // -G-+G--G-+G- Attach remote stream to video element -G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G--G-+G-
   // iOS Safari CRITICAL FIX:
-  //   1. Start the video element `muted` -G«‹-º+ÛGÈº-• iOS always allows muted autoplay
-  //   2. Call play() -G«‹-º+ÛGÈº-• succeeds because muted
-  //   3. Unmute AFTER play() resolves -G«‹-º+ÛGÈº-• audio now flows through WebRTC
+ // 1. Start the video element `muted` -G-+G- iOS always allows muted autoplay
+ // 2. Call play() -G-+G- succeeds because muted
+ // 3. Unmute AFTER play() resolves -G-+G- audio now flows through WebRTC
   //   Without this sequence, iOS Safari blocks play() with NotAllowedError
   //   because the user gesture context from answerCall() has expired by the
   //   time the remote stream arrives via ICE negotiation.
@@ -195,7 +195,7 @@ export default function InCallView({
     const tryPlay = () => {
       videoEl.play().then(() => {
         logger.debug('[InCallView] \u2705 Remote video playing (muted)');
-        // Now unmute to hear audio -G«‹-º+ÛGÈº-• this works even outside user gesture
+ // Now unmute to hear audio -G-+G- this works even outside user gesture
         // because the element is already playing
         setTimeout(() => {
           videoEl.muted = speakerOffRef.current;
@@ -483,9 +483,9 @@ export default function InCallView({
             </div>
           </div>
 
-          {/* Side buttons removed -G«‹-º+ÛGÈº-• filter/hair toggles moved to bottom bar for always-visible access */}
+ {/* Side buttons removed -G-+G- filter/hair toggles moved to bottom bar for always-visible access */}
 
-          {/* -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Local Video PIP -G«‹-º+ÛGÈº-• positioned top-right to avoid overlap with controls on iPhone 16 -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º */}
+ {/* -G-+G--G-+G- Local Video PIP -G-+G- positioned top-right to avoid overlap with controls on iPhone 16 -G-+G--G-+G- */}
           {callType === 'video' && localStream && (
             <div 
               className={`absolute transition-all duration-300 overflow-hidden shadow-2xl cursor-pointer z-10 ${
@@ -539,7 +539,7 @@ export default function InCallView({
             </div>
           )}
 
-          {/* -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Filter Picker Panel -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º */}
+ {/* -G-+G--G-+G- Filter Picker Panel -G-+G--G-+G- */}
           <FilterPicker
             isOpen={showFilters}
             onClose={() => setShowFilters(false)}
@@ -547,7 +547,7 @@ export default function InCallView({
             onSelectFilter={handleSelectFilter}
           />
 
-          {/* -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Hair Filter Picker Panel -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º */}
+ {/* -G-+G--G-+G- Hair Filter Picker Panel -G-+G--G-+G- */}
           {showHairPicker && (
             <div className="fixed left-3 top-20 bottom-auto z-[9999]" onClick={(e) => e.stopPropagation()}>
               <HairFilterPicker
@@ -561,7 +561,7 @@ export default function InCallView({
           )}
         </div>
 
-        {/* -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º Bottom Controls Bar -G«‹-º+ÛGÈº-• always visible, includes filter toggles -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º */}
+ {/* -G-+G--G-+G- Bottom Controls Bar -G-+G- always visible, includes filter toggles -G-+G--G-+G- */}
         <div 
           className="flex-shrink-0 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}
@@ -583,7 +583,7 @@ export default function InCallView({
               />
             )}
 
-            {/* Flip Camera -G«‹-º+ÛGÈº-• only shown during video calls when camera is on */}
+ {/* Flip Camera -G-+G- only shown during video calls when camera is on */}
             {callType === 'video' && !isCameraOff && onFlipCamera && (
               <ControlButton
                 onClick={onFlipCamera}
@@ -593,7 +593,7 @@ export default function InCallView({
               />
             )}
 
-            {/* Filter toggle -G«‹-º+ÛGÈº-• always visible in bottom bar */}
+ {/* Filter toggle -G-+G- always visible in bottom bar */}
             {callType === 'video' && (
               <ControlButton
                 onClick={() => { setShowFilters(f => !f); setShowHairPicker(false); }}
@@ -603,7 +603,7 @@ export default function InCallView({
               />
             )}
 
-            {/* Hair toggle -G«‹-º+ÛGÈº-• always visible in bottom bar */}
+ {/* Hair toggle -G-+G- always visible in bottom bar */}
             {callType === 'video' && (
               <ControlButton
                 onClick={() => { setShowHairPicker(h => !h); setShowFilters(false); }}
@@ -647,7 +647,7 @@ export default function InCallView({
 
       </div>
 
-      {/* -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º CSS Animations -GÈº-•+ÛG«‹-º-GÈº-•+ÛG«‹-º */}
+ {/* -G-+G--G-+G- CSS Animations -G-+G--G-+G- */}
       <style>{`
         @keyframes waveform {
           0% { height: 6px; }

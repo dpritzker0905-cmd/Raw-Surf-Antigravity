@@ -1,5 +1,5 @@
-/**
- * useRoutePreloader.test.js — Unit tests for the route preloader hook.
+﻿/**
+ * useRoutePreloader.test.js Unit tests for the route preloader hook.
  */
 import { renderHook, act } from '@testing-library/react';
 import useRoutePreloader from '../../hooks/useRoutePreloader';
@@ -44,6 +44,6 @@ describe('useRoutePreloader', () => {
       result.current('feed');
       result.current('feed');
     });
-    // No error should occur — dedup works via the ref set
+ // No error should occur dedup works via the ref set
   });
 });

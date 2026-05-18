@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * ExploreSponsorsTab.js
- * Extracted from Explore.js GÇö Top Sponsors leaderboard tab + Quick Card overlay.
+ * Extracted from Explore.js G Top Sponsors leaderboard tab + Quick Card overlay.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';

@@ -1,7 +1,7 @@
-import { useRef, useCallback } from 'react';
+﻿import { useRef, useCallback } from 'react';
 
 /**
- * useSwipeTabs — lightweight horizontal-swipe hook for tab navigation.
+ * useSwipeTabs lightweight horizontal-swipe hook for tab navigation.
  *
  * Only fires when the gesture is predominantly horizontal (|dx| > |dy| * 1.5)
  * so that normal vertical scrolling is never blocked.
@@ -41,7 +41,7 @@ export default function useSwipeTabs(tabs, activeTab, setActiveTab, options = {}
       if (Math.abs(dx) > Math.abs(dy) * 1.5) {
         swiping.current = true; // horizontal swipe confirmed
       } else {
-        locked.current = true;  // vertical scroll — bail out
+ locked.current = true; // vertical scroll bail out
         return;
       }
     }
@@ -61,10 +61,10 @@ export default function useSwipeTabs(tabs, activeTab, setActiveTab, options = {}
     if (currentIndex === -1) return;
 
     if (dx < -threshold && currentIndex < tabs.length - 1) {
-      // Swiped left → next tab
+ // Swiped left next tab
       setActiveTab(tabs[currentIndex + 1]);
     } else if (dx > threshold && currentIndex > 0) {
-      // Swiped right → previous tab
+ // Swiped right previous tab
       setActiveTab(tabs[currentIndex - 1]);
     }
 

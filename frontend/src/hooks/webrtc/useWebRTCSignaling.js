@@ -1,5 +1,5 @@
-/**
- * useWebRTCSignaling — WebSocket signaling layer for WebRTC calls.
+﻿/**
+ * useWebRTCSignaling WebSocket signaling layer for WebRTC calls.
  *
  * Handles:
  *   - WebSocket connection lifecycle (connect, reconnect, keepalive)
@@ -12,7 +12,7 @@ import { BACKEND_URL } from '../../lib/apiClient';
 import { logger } from '../../utils/logger';
 
 /**
- * useWebRTCSignaling — Manages the signaling WebSocket for WebRTC calls.
+ * useWebRTCSignaling Manages the signaling WebSocket for WebRTC calls.
  *
  * @param {string} userId - Current user's ID
  * @param {Function} onMessage - Callback for incoming signaling messages
@@ -29,7 +29,7 @@ export function useWebRTCSignaling(userId, onMessage) {
   // Keep the message handler ref up to date
   useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
 
-  // ── WebSocket Connection ──────────────────────────────────────────
+ // WebSocket Connection 
   const connectSignaling = useCallback(() => {
     if (!userId) return;
     
@@ -72,7 +72,7 @@ export function useWebRTCSignaling(userId, onMessage) {
         }, 20000);
       };
 
-      // Connection timeout — if WS hasn't opened in 8s, force close to trigger reconnect
+ // Connection timeout if WS hasn't opened in 8s, force close to trigger reconnect
       setTimeout(() => {
         if (ws.readyState === WebSocket.CONNECTING) {
           console.warn('[WebRTC] Signaling WS connection timeout (8s) \u{2014} forcing close');
@@ -95,9 +95,9 @@ export function useWebRTCSignaling(userId, onMessage) {
       ws.onclose = () => {
         console.debug('[WebRTC] Signaling WS closed');
         if (keepaliveRef.current) clearInterval(keepaliveRef.current);
-        // ALWAYS reconnect — the receiver must stay connected to receive incoming calls
+ // ALWAYS reconnect the receiver must stay connected to receive incoming calls
         const attempts = reconnectAttemptsRef.current || 0;
-        const delay = Math.min(2000 * Math.pow(1.5, attempts), 30000); // 2s → 3s → 4.5s → ... max 30s
+ const delay = Math.min(2000 * Math.pow(1.5, attempts), 30000); // 2s 3s 4.5s ... max 30s
         reconnectAttemptsRef.current = attempts + 1;
         console.debug(`[WebRTC] Reconnecting in ${delay}ms (attempt ${attempts + 1})`);
         reconnectTimerRef.current = setTimeout(() => connectSignaling(), delay);
@@ -123,7 +123,7 @@ export function useWebRTCSignaling(userId, onMessage) {
     };
   }, [connectSignaling]);
 
-  // ── Send Signaling Message ────────────────────────────────────────
+ // Send Signaling Message 
   const sendSignaling = useCallback((message) => {
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
 /**
@@ -64,7 +64,7 @@ export var NearestSpotCard = ({
             <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
           </button>
         </div>
-        {/* Body — clickable to navigate */}
+ {/* Body clickable to navigate */}
         <div
           className="px-3 pb-2.5 cursor-pointer hover:bg-zinc-700/50 transition-colors"
           onClick={() => onSpotSelect(nearestSpot)}

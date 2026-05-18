@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Forecast Provider
+ Raw Surf OS Forecast Provider
  UNIFIED GFS / ICON / EURO ABSTRACTION LAYER
 ====================================================
 
-This is a DATA ROUTER — not a renderer, not an engine.
+This is a DATA ROUTER not a renderer, not an engine.
 Provides a unified interface for fetching and normalizing
 forecast data from multiple meteorological models.
 
@@ -13,7 +13,7 @@ var/function only (TDZ-immune)
 ====================================================
 */
 
-// ─── MODEL ENDPOINTS ─────────────────────────────────────────────────────────
+// MODEL ENDPOINTS 
 
 var MODEL_ENDPOINTS = {
   GFS:  '/api/forecast/gfs',
@@ -21,7 +21,7 @@ var MODEL_ENDPOINTS = {
   EURO: '/api/forecast/euro',
 };
 
-// ─── REQUEST CACHE (prevents duplicate fetches) ──────────────────────────────
+// REQUEST CACHE (prevents duplicate fetches) 
 
 var _requestCache = new Map();
 var _cacheMaxAge = 5 * 60 * 1000; // 5 minutes
@@ -165,13 +165,13 @@ function getForecastCacheStats() {
   return { size: _requestCache.size };
 }
 
-// ─── TYPED FIELD NORMALIZATION (GPU pipeline contract) ───────────────────────
+// TYPED FIELD NORMALIZATION (GPU pipeline contract) 
 
 /**
  * Normalize forecast into the standardized typed field format.
  * This is the contract between providers and renderers:
- *   provider → normalization → typed field → engine → renderer
- *   NEVER: provider → renderer
+ * provider normalization typed field engine renderer
+ * NEVER: provider renderer
  *
  * @param {Object} forecast - normalized forecast from normalizeForecast()
  * @param {{ width: number, height: number, bounds: { north: number, south: number, east: number, west: number } }} grid
@@ -195,7 +195,7 @@ function normalizeToTypedField(forecast, grid) {
   var wind = forecast.wind;
   if (wind) {
     if (wind.u && wind.u.length) {
-      // Already typed array or array — copy
+ // Already typed array or array copy
       for (var i = 0; i < Math.min(size, wind.u.length); i++) {
         u[i] = wind.u[i] || 0;
         v[i] = (wind.v && wind.v[i]) || 0;

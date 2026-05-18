@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import { Waves, Clock, Compass, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, ArrowUp, ArrowDown, Droplets, Calendar, Lock, Crown } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -12,7 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 
-// Emoji constants GÇö using String.fromCodePoint to prevent encoding corruption
+// Emoji constants G using String.fromCodePoint to prevent encoding corruption
 const E = {
   glassy: String.fromCodePoint(0x1F924),    // mirror/glassy
   clean: String.fromCodePoint(0x2728),       // sparkles
@@ -158,7 +158,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         spot_id: spotId,
         ...reportData
       });
-      toast.success('Report submitted! Thanks for sharing =ƒîè');
+ toast.success('Report submitted! Thanks for sharing =');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
       fetchTodaysReports();

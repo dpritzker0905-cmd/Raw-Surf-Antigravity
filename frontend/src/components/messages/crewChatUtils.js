@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * crewChatUtils.js - Utility functions extracted from CrewChat.js.
  * Reduces CrewChat from 52.6KB to under 50KB.
  */
@@ -12,13 +12,13 @@ const formatFileSize = (bytes) => {
   };
 
   const getFileIcon = (fileType) => {
-    if (fileType?.includes('pdf')) return '=ƒôä';
-    if (fileType?.includes('word') || fileType?.includes('doc')) return '=ƒô¥';
-    if (fileType?.includes('excel') || fileType?.includes('sheet')) return '=ƒôè';
-    if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return '=ƒôè';
-    if (fileType?.includes('zip') || fileType?.includes('archive')) return '=ƒôª';
-    if (fileType?.includes('text') || fileType?.includes('csv')) return '=ƒôâ';
-    return '=ƒôÄ';
+ if (fileType?.includes('pdf')) return '=';
+ if (fileType?.includes('word') || fileType?.includes('doc')) return '=';
+ if (fileType?.includes('excel') || fileType?.includes('sheet')) return '=';
+ if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return '=';
+ if (fileType?.includes('zip') || fileType?.includes('archive')) return '=';
+ if (fileType?.includes('text') || fileType?.includes('csv')) return '=';
+ return '=';
   };
 
   const getTotalReactions = (reactions) => {

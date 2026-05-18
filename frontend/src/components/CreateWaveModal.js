@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * CreateWaveModal - Upload short-form vertical video (max 60 seconds)
  * 
- * Streamlined 3-step flow: Select GåÆ Compose GåÆ Uploading
+ * Streamlined 3-step flow: Select G Compose G Uploading
  * Mobile-first: scrollable content, safe-area padding, no button cutoff
  */
 import React, { useState, useRef, useCallback } from 'react';
@@ -228,7 +228,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
           </DialogTitle>
         </DialogHeader>
         
-        {/* Scrollable content area GÇö prevents bottom-nav cutoff on mobile */}
+ {/* Scrollable content area G prevents bottom-nav cutoff on mobile */}
         <div 
           className="p-4 flex-1 overflow-y-auto"
           style={{ paddingBottom: '24px' }}
@@ -274,7 +274,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           )}
           
-          {/* Step 2: Compose GÇö Video preview + caption + location (merged from old preview + details) */}
+ {/* Step 2: Compose G Video preview + caption + location (merged from old preview + details) */}
           {step === 'compose' && videoPreview && (
             <div className="space-y-3">
               {/* Compact video preview */}
@@ -425,7 +425,7 @@ export const CreateWaveModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
               )}
               
-              {/* Action button GÇö single prominent CTA */}
+ {/* Action button G single prominent CTA */}
               <Button
                 onClick={handleUpload}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white py-3 text-base font-semibold"

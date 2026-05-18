@@ -1,5 +1,5 @@
-/**
- * SkeletonVariants GÇö Domain-specific skeleton loaders for all major views.
+ï»¿/**
+ * SkeletonVariants G Domain-specific skeleton loaders for all major views.
  * Uses the base Skeleton primitive from ui/skeleton.jsx.
  *
  * Import what you need:
@@ -8,7 +8,7 @@
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-// GöÇGöÇGöÇ Feed Post Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Feed Post Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const FeedPostSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     {/* Header: avatar + name */}
@@ -35,7 +35,7 @@ export const FeedPostSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Spot/Explore Card Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Spot/Explore Card Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const SpotCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-40" />
@@ -51,7 +51,7 @@ export const SpotCardSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Profile Header Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Profile Header Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const ProfileHeaderSkeleton = () => (
   <div className="flex flex-col items-center space-y-4 py-6">
     <Skeleton className="w-24 h-24 rounded-full" />
@@ -74,7 +74,7 @@ export const ProfileHeaderSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Message Thread Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Message Thread Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const MessageThreadSkeleton = () => (
   <div className="flex items-center gap-3 p-4 border-b border-border">
     <Skeleton className="w-12 h-12 rounded-full shrink-0" />
@@ -86,7 +86,7 @@ export const MessageThreadSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Notification Item Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Notification Item Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const NotificationSkeleton = () => (
   <div className="flex items-start gap-3 p-4 border-b border-border">
     <Skeleton className="w-10 h-10 rounded-full shrink-0" />
@@ -98,7 +98,7 @@ export const NotificationSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Settings Row Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Settings Row Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const SettingsRowSkeleton = () => (
   <div className="flex items-center justify-between p-4 border-b border-border">
     <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ export const SettingsRowSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Leaderboard Row Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Leaderboard Row Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const LeaderboardRowSkeleton = () => (
   <div className="flex items-center gap-3 p-3 rounded-xl bg-card/50">
     <Skeleton className="w-8 h-8 rounded-full" />
@@ -122,7 +122,7 @@ export const LeaderboardRowSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Map Sidebar Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Map Sidebar Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const MapSidebarSkeleton = () => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-40 rounded" />
@@ -138,7 +138,7 @@ export const MapSidebarSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Surf Log Entry Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Surf Log Entry Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const SurfLogSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center justify-between">
@@ -162,7 +162,7 @@ export const SurfLogSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Alert/Forecast Card Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Alert/Forecast Card Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const AlertCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-2">
     <div className="flex items-center gap-2">
@@ -178,7 +178,7 @@ export const AlertCardSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Booking Detail Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Booking Detail Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const BookingDetailSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-48" />
@@ -200,7 +200,7 @@ export const BookingDetailSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Story Ring Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Story Ring Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const StoryRingSkeleton = () => (
   <div className="flex gap-3 overflow-hidden px-4 py-2">
     {Array.from({ length: 6 }).map((_, i) => (
@@ -212,7 +212,7 @@ export const StoryRingSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Gear Hub Item Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Gear Hub Item Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const GearItemSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full aspect-square" />
@@ -224,7 +224,7 @@ export const GearItemSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Challenge Card Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Challenge Card Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const ChallengeCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center gap-3">
@@ -242,7 +242,7 @@ export const ChallengeCardSkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Compound List Skeletons GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Compound List Skeletons GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const FeedSkeleton = ({ count = 3 }) => (
   <div className="space-y-4 p-4">
     <StoryRingSkeleton />
@@ -292,7 +292,7 @@ export const LeaderboardSkeleton = ({ count = 10 }) => (
   </div>
 );
 
-// GöÇGöÇGöÇ Gallery Page Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Gallery Page Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const GallerySkeleton = () => (
   <div className="space-y-4">
     <div className="flex items-center justify-between">
@@ -310,7 +310,7 @@ export const GallerySkeleton = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Bookings List Skeleton GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Bookings List Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 export const BookingsSkeleton = ({ count = 4 }) => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-32 rounded" />
@@ -320,7 +320,7 @@ export const BookingsSkeleton = ({ count = 4 }) => (
   </div>
 );
 
-// GöÇGöÇGöÇ Generic Page Skeleton (for hub/dashboard pages) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Generic Page Skeleton (for hub/dashboard pages) GGGGGGGGGGGGGGGGGGGGGGGGGG
 export const GenericPageSkeleton = () => (
   <div className="p-4 max-w-4xl mx-auto space-y-4">
     <div className="flex items-center gap-3">

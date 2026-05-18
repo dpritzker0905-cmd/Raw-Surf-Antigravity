@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+Ôªøimport React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -309,7 +309,7 @@ export const TheInsideHub = () => {
                       result.placing === 3 ? 'bg-amber-600 text-white' :
                       'bg-zinc-700 text-white'
                     }`}>
-                      {result.placing === 1 ? '=É—Á' : result.placing === 2 ? '=É—Í' : result.placing === 3 ? '=É—Î' : result.placing}
+ {result.placing === 1 ? '=' : result.placing === 2 ? '=' : result.placing === 3 ? '=' : result.placing}
                     </div>
                     <div>
                       <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>

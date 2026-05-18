@@ -1,11 +1,11 @@
-/**
- * WindParticleOverlay.js — Canvas2D Wind Particle System (v3.12.3)
+﻿/**
+ * WindParticleOverlay.js Canvas2D Wind Particle System (v3.12.3)
  *
  * Ventusky-style flowing wind trails using Canvas2D overlay.
  * Uses same proven architecture as MarineParticleCanvas:
  *   - Absolute-positioned canvas overlay on top of MapLibre
  *   - Trail persistence via destination-out compositing
- *   - World-coordinate advection (lng/lat → pixel projection)
+ * - World-coordinate advection (lng/lat pixel projection)
  *   - CanvasAnimationCoordinator for single RAF loop
  *
  * WHY Canvas2D instead of WebGL custom layer:
@@ -25,10 +25,10 @@ var TRAIL_FADE = 0.018;
 var TRAIL_FADE_THROTTLED = 0.05;
 
 /**
- * Bilinear interpolation on the wind grid — O(1).
+ * Bilinear interpolation on the wind grid O(1).
  * Grid is DENSE (extractWindAtOffset pads missing cells with zeros).
  *
- * NO strict bounds rejection — grid points are snapped to .toFixed(2) but
+ * NO strict bounds rejection grid points are snapped to .toFixed(2) but
  * bounds are raw viewport floats, so edge points can fall outside bounds.
  * Instead: CLAMP to grid domain (returns nearest-edge value for OOB queries).
  */
@@ -48,7 +48,7 @@ function interpolateWind(grid, lng, lat) {
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
-  // Compute grid position — CLAMP instead of reject
+ // Compute grid position CLAMP instead of reject
   var gx = ((nLng - west) / lngSpan) * (cols - 1);
   var gy = ((lat - south) / latSpan) * (rows - 1);
   gx = Math.max(0, Math.min(cols - 1.001, gx));
@@ -180,8 +180,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       if (!grid?.vectors?.length) return;
       wasActive = true;
 
-      // Redistribute particles only when MODEL changes (GFS→EURO→ICON)
-      // NOT when bounds/vectors change from cache refresh — that causes cluster burst
+ // Redistribute particles only when MODEL changes (GFSEUROICON)
+ // NOT when bounds/vectors change from cache refresh that causes cluster burst
       var sourceModel = grid.source || 'GFS';
       if (lastDataId !== null && lastDataId !== sourceModel) {
         var pts2 = particlesRef.current;
@@ -194,7 +194,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       lastDataId = sourceModel;
 
       // Warm-up: simulate steps without drawing to pre-advect particles.
-      // v78: Reduced from 30→15 steps and respawn OOB particles after warm-up
+ // v78: Reduced from 3015 steps and respawn OOB particles after warm-up
       // to prevent clustering downwind (particles all blow the same direction).
       if (!warmedUp) {
         warmedUp = true;
@@ -224,7 +224,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
             while (wp.lng < -180) wp.lng += 360;
           }
         }
-        // v78: Respawn particles that warm-up blew outside viewport —
+ // v78: Respawn particles that warm-up blew outside viewport 
         // prevents density clustering on the downwind side
         var respawned = 0;
         for (var ri2 = 0; ri2 < pts3.length; ri2++) {
@@ -277,8 +277,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
         // Interpolate wind at current position
         var wind = interpolateWind(grid, p.lng, p.lat);
 
-        // World-coordinate advection — AMPLIFIED for visual effect
-        // Real wind: 0.01px/frame. Amplify ×75 for Ventusky-style visible trails.
+ // World-coordinate advection AMPLIFIED for visual effect
+ // Real wind: 0.01px/frame. Amplify 75 for Ventusky-style visible trails.
         if (wind.speed > 0.3) {
           var latRad = p.lat * Math.PI / 180;
           var mercCorr = Math.max(0.1, Math.cos(latRad));
@@ -316,13 +316,13 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           // Clamp extreme jumps (projection artifacts)
           if (segLen > 100) { pts[i] = spawnParticle(mapInstance, false); continue; }
 
-          // Age-based alpha — smooth fade-in and fade-out
+ // Age-based alpha smooth fade-in and fade-out
           var ageRatio = p.age / p.maxAge;
           var fadeIn = Math.min(1, p.age / 0.3);
           var fadeOut = 1 - ageRatio * ageRatio;
           var alpha = fadeIn * fadeOut;
 
-          // Speed-based emphasis — faster wind = more visible
+ // Speed-based emphasis faster wind = more visible
           var speedFactor = Math.min(1, wind.speed / 20);
           alpha *= (0.08 + speedFactor * 0.35);
           if (alpha < 0.01) continue;
@@ -330,7 +330,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           // Ventusky-style: white vapor trails
           ctx.strokeStyle = getWindColor(wind.speed, alpha);
 
-          // Thin consistent lines — Ventusky uses ~1px
+ // Thin consistent lines Ventusky uses ~1px
           ctx.lineWidth = 1;
           ctx.lineCap = 'round';
 

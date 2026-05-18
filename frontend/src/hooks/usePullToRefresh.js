@@ -1,9 +1,9 @@
-/**
- * usePullToRefresh GÇö Mobile-native pull-to-refresh gesture handler.
+ï»¿/**
+ * usePullToRefresh G Mobile-native pull-to-refresh gesture handler.
  *
  * Usage:
  *   const { pullRef, isPulling, pullProgress } = usePullToRefresh(fetchData);
- *   return <div ref={pullRef}>GÇªscrollable contentGÇª</div>;
+ * return <div ref={pullRef}>Gscrollable contentG</div>;
  *
  * Shows a visual indicator when user pulls down from the top of a scrollable area.
  * Triggers the onRefresh callback when released past the threshold.

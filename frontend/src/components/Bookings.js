@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+ï»¿import React, { useEffect, useState, useRef } from 'react';
 import useSwipeNavigation from '../hooks/useSwipeNavigation';
 
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -51,7 +51,7 @@ export const Bookings = () => {
   const dragStartXRef = useRef(0);
   const scrollStartRef = useRef(0);
 
-  // Swipe-to-navigate GÇö uses shared hook (v81)
+ // Swipe-to-navigate G uses shared hook (v81)
 
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
@@ -300,7 +300,7 @@ export const Bookings = () => {
           
           
           if (response.data.success) {
-            toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! +¦++-ñGäó`, { duration: 5000 });
+ toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}! +++-G`, { duration: 5000 });
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
             // Refresh live sessions
@@ -418,7 +418,7 @@ export const Bookings = () => {
     { id: 'subscriptions', label: 'Subscriptions', icon: RefreshCw, count: 0 },
   ];
 
-  // Shared swipe hook (v81) GÇö replaces inline touch handlers
+ // Shared swipe hook (v81) G replaces inline touch handlers
   const { contentRef, swipeHandlers } = useSwipeNavigation({
     tabs,
     activeTab,
@@ -739,7 +739,7 @@ export const Bookings = () => {
         </div>
       </div>
 
-      {/* Modals & Drawers GÇö Extracted to bookings/BookingsModals.js (v82) */}
+ {/* Modals & Drawers G Extracted to bookings/BookingsModals.js (v82) */}
       <BookingsModals
         isLight={isLight}
         textPrimaryClass={textPrimaryClass}

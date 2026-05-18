@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Crowd Prediction Model
+ Raw Surf OS Crowd Prediction Model
  AGGREGATED SIGNAL-BASED CROWD DENSITY ESTIMATION
 ====================================================
 
@@ -69,7 +69,7 @@ function computeCrowdPressure(params) {
 }
 
 /**
- * Time-of-day factor — models typical surf crowd patterns.
+ * Time-of-day factor models typical surf crowd patterns.
  * @param {number} hour - 0-23
  * @returns {number} 0-1
  */
@@ -80,7 +80,7 @@ function getTimeFactor(hour) {
   if (hour >= 9 && hour <= 14) return 0.5;
   // After-work peak
   if (hour >= 15 && hour <= 18) return 0.7 + (hour - 15) * 0.05;
-  // Evening/night — low
+ // Evening/night low
   return 0.2;
 }
 
@@ -104,13 +104,13 @@ function classifyCrowd(index) {
  * @returns {string}
  */
 function getRecommendation(pressureIndex, currentHour) {
-  if (pressureIndex < 30) return 'Great time to surf — low crowd expected';
+ if (pressureIndex < 30) return 'Great time to surf low crowd expected';
   if (pressureIndex < 60) {
-    if (currentHour < 7) return 'Moderate crowd — you beat the rush';
-    return 'Moderate crowd — consider dawn patrol tomorrow';
+ if (currentHour < 7) return 'Moderate crowd you beat the rush';
+ return 'Moderate crowd consider dawn patrol tomorrow';
   }
-  if (currentHour >= 15) return 'High crowd — try early morning for fewer people';
-  return 'High crowd — consider alternative spots or off-peak hours';
+ if (currentHour >= 15) return 'High crowd try early morning for fewer people';
+ return 'High crowd consider alternative spots or off-peak hours';
 }
 
 /**

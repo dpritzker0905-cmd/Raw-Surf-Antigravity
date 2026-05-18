@@ -1,5 +1,5 @@
-/**
- * PostSessionSummary +»-+-+ Photographer post-session action dashboard
+ï»¿/**
+ * PostSessionSummary +-+-+ Photographer post-session action dashboard
  * 
  * Shows for session galleries that ended recently (< 48 hours).
  * One-click distribute, AI match status, and distribution progress.

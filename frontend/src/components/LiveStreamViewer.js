@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+ï»¿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X, Radio, Users, MessageCircle, Send, Loader2, WifiOff,
@@ -188,7 +188,7 @@ const ViewerRoomContent = ({
   const [isChatOpen, setIsChatOpen]   = useState(true);
   const [emojiBursts, setEmojiBursts] = useState([]);
 
-  // GöÇGöÇ LiveKit DataChannel for real-time emoji reactions GöÇGöÇ
+ // GG LiveKit DataChannel for real-time emoji reactions GG
   // Reactions are broadcast via LiveKit data messages on the 'reactions' topic.
   // This allows the broadcaster to see viewer reactions and vice versa.
   const onReactionReceived = useCallback((msg) => {
@@ -206,7 +206,7 @@ const ViewerRoomContent = ({
 
   const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
 
-  // Viewer reaction handler GÇö local animation + DataChannel broadcast
+ // Viewer reaction handler G local animation + DataChannel broadcast
   const handleReaction = useCallback((emoji) => {
     // Show locally immediately
     const id = Date.now() + Math.random();
@@ -303,7 +303,7 @@ const ViewerRoomContent = ({
 
           {/* Bottom controls - above mobile chat */}
           <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-4 sm:px-6 flex items-center justify-between pointer-events-none z-10">
-            {/* Quick Reactions GÇö surf-themed emoji bar */}
+ {/* Quick Reactions G surf-themed emoji bar */}
             <div className="pointer-events-auto">
               <QuickReactions onReact={handleReaction} colors={colors} />
             </div>

@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * AnalyticsTabContent.js
  * Extracted from AdminTabPanels.js (v43)
- * Platform Mission Control GÇö financial, ecosystem, and price impact analytics
+ * Platform Mission Control G financial, ecosystem, and price impact analytics
  */
 import React, { useState, useEffect } from 'react';
 import {

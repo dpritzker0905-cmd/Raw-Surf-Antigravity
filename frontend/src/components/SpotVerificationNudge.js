@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, MapPin, Loader2, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -74,7 +74,7 @@ export const SpotVerificationNudge = ({ spot, userLocation, _onClose }) => {
       );
       
       if (response.data.is_now_community_verified) {
-        toast.success(`${spot.name} is now Community Verified! G£à`);
+ toast.success(`${spot.name} is now Community Verified! G`);
       } else {
         toast.success('Thanks for verifying this spot!');
       }

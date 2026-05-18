@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Forecast Decode Worker
+ Raw Surf OS Forecast Decode Worker
  OFF-MAIN-THREAD DATA PROCESSING
 ====================================================
 
@@ -12,10 +12,10 @@ Heavy operations run here, NOT on UI thread:
 
 POSTMESSAGE API:
   { type: 'normalize', model: 'GFS', raw: {...}, bounds: {...} }
-  → { type: 'normalized', grid: NormalizedForecastGrid }
+ { type: 'normalized', grid: NormalizedForecastGrid }
 
   { type: 'interpolate', fieldA: Float32Array, fieldB: Float32Array, t: 0.5 }
-  → { type: 'interpolated', result: Float32Array }
+ { type: 'interpolated', result: Float32Array }
 
 ====================================================
 */
@@ -109,7 +109,7 @@ function workerMagnitude(u, v) {
   return result;
 }
 
-// ─── MESSAGE HANDLER ─────────────────────────────────────────────────────────
+// MESSAGE HANDLER 
 
 self.onmessage = function(e) {
   var msg = e.data;

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 
 
@@ -116,7 +116,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
         {/* ============ STEP 0.5: LOCATION SELECTION (Extracted) ============ */}
         <LocationStep booking={booking} photographer={photographer} />
 
-        {/* Remaining location JSX removed — now in LocationStep */}
+ {/* Remaining location JSX removed now in LocationStep */}
         
         {/* ============ STEP 1: DURATION SELECTION (Extracted) ============ */}
         <DurationStep booking={booking} photographer={photographer} />

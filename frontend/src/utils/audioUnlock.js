@@ -1,5 +1,5 @@
-/**
- * AudioUnlock GÇö Ringtone manager using HTML Audio elements.
+ï»¿/**
+ * AudioUnlock G Ringtone manager using HTML Audio elements.
  * 
  * WHY HTML Audio instead of AudioContext:
  * - AudioContext requires a user gesture AND .resume() to work
@@ -12,7 +12,7 @@
  * - This ensures the first call plays audio without delay
  */
 
-// GöÇGöÇ Generate a WAV file as a data URI from raw PCM samples GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG Generate a WAV file as a data URI from raw PCM samples GGGGGGGGGG
 function generateWavDataUri(samples, sampleRate = 22050) {
   const numChannels = 1;
   const bitsPerSample = 16;
@@ -57,7 +57,7 @@ function writeString(view, offset, str) {
   }
 }
 
-// GöÇGöÇ Generate ringtone samples GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG Generate ringtone samples GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 function generateIncomingRing() {
   const sampleRate = 22050;
   const duration = 2.5;
@@ -66,7 +66,7 @@ function generateIncomingRing() {
   for (let i = 0; i < samples.length; i++) {
     const t = i / sampleRate;
     let amplitude = 0;
-    // Three short bursts for urgency GÇö louder than before (0.6 vs 0.25)
+ // Three short bursts for urgency G louder than before (0.6 vs 0.25)
     if (t < 0.35) amplitude = 0.6;
     else if (t >= 0.5 && t < 0.85) amplitude = 0.6;
     else if (t >= 1.0 && t < 1.35) amplitude = 0.6;
@@ -98,7 +98,7 @@ function generateRingbackTone() {
   return generateWavDataUri(samples, sampleRate);
 }
 
-// GöÇGöÇ PRE-GENERATE on module load (runs once at import time) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG PRE-GENERATE on module load (runs once at import time) GGGGGGGGGG
 const RING_URI = generateIncomingRing();
 const RINGBACK_URI = generateRingbackTone();
 
@@ -153,7 +153,7 @@ export function playRingtone(type = 'incoming') {
   playOnce();
   intervalId = setInterval(playOnce, interval);
 
-  // Vibration GÇö always fire alongside audio for incoming calls
+ // Vibration G always fire alongside audio for incoming calls
   // Aggressive pattern: long-short-long-short-long (feels like a real phone)
   let vibrateId = null;
   if (type === 'incoming' && navigator.vibrate) {
@@ -177,7 +177,7 @@ export function playRingtone(type = 'incoming') {
 }
 
 /**
- * Unlock audio on user gesture GÇö plays a silent audio to warm up the pipeline.
+ * Unlock audio on user gesture G plays a silent audio to warm up the pipeline.
  * Also loads our pre-created Audio objects so they're ready for instant playback.
  */
 export function unlockAudioNow() {

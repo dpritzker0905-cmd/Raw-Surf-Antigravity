@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+ï»¿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   QUICK_ACCESS_EMOJIS,
@@ -36,7 +36,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  // GöÇGöÇ Scroll-indicator state GöÇGöÇ
+ // GG Scroll-indicator state GG
   const updateScrollIndicators = useCallback(() => {
     const el = tabsRef.current;
     if (!el) return;
@@ -78,7 +78,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
       className="absolute bottom-full left-0 mb-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-xl z-50 animate-in slide-in-from-bottom-2"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* GöÇGöÇ Category tabs: icon-only, scroll arrows on overflow GöÇGöÇ */}
+ {/* GG Category tabs: icon-only, scroll arrows on overflow GG */}
       <div className="relative border-b border-zinc-700">
         {/* Left scroll arrow */}
         {canScrollLeft && (
@@ -125,7 +125,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
         )}
       </div>
 
-      {/* GöÇGöÇ Emoji grid GöÇGöÇ */}
+ {/* GG Emoji grid GG */}
       <div className="p-2 grid grid-cols-8 gap-1 max-h-48 overflow-y-auto show-scrollbar">
         {(DM_CATEGORIES[activeCategory] || []).map((emoji, i) => (
           <button
@@ -138,7 +138,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
         ))}
       </div>
 
-      {/* GöÇGöÇ Footer GöÇGöÇ */}
+ {/* GG Footer GG */}
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-zinc-700">
         <span className="text-[11px] text-gray-500">{activeCategory}</span>
         <button onClick={onClose} className="text-xs text-gray-400 hover:text-white transition-colors">Close</button>

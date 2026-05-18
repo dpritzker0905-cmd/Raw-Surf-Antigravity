@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Rain Layer Plugin (v2)
+ Raw Surf OS Rain Layer Plugin (v2)
  CONTEXT-AWARE PRECIPITATION OVERLAY
 ====================================================
 

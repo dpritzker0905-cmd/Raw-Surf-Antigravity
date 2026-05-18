@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+﻿import { useState, useRef, useEffect, useMemo } from 'react';
 import { fetchMarineData, getRemainingCooldown } from './marineController';
 
 /**
@@ -8,11 +8,11 @@ import { fetchMarineData, getRemainingCooldown } from './marineController';
  * (manual toggle, moveend, mount) into one serialized update function.
  *
  * Architecture (addresses ChatGPT architectural audit):
- * 1. ONE enqueueUpdate function — all sources funnel through it
- * 2. Camera-hash dedup — won't fetch if viewport hasn't moved
- * 3. Post-manual suppression — blocks moveend-derived triggers for 1500ms
- * 4. Intent tracking — only user-driven moveend events trigger fetches
- * 5. Internal update tracking — ignores moveend caused by source/style mutations
+ * 1. ONE enqueueUpdate function all sources funnel through it
+ * 2. Camera-hash dedup won't fetch if viewport hasn't moved
+ * 3. Post-manual suppression blocks moveend-derived triggers for 1500ms
+ * 4. Intent tracking only user-driven moveend events trigger fetches
+ * 5. Internal update tracking ignores moveend caused by source/style mutations
  *
  * RULE: This hook has ZERO knowledge of rendering. It only manages data.
  */
@@ -120,10 +120,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       }
       const now = Date.now();
       if (!isRetry && now - locks.lastTime < 1200) {
-        return; // Rate limit — suppress log spam
+ return; // Rate limit suppress log spam
       }
 
-      // v3.9: Circuit breaker — stop after 3 consecutive failures
+ // v3.9: Circuit breaker stop after 3 consecutive failures
       if (!isRetry && consecutiveFailuresRef.current >= 3) {
         return; // Silently block until viewport changes
       }
@@ -198,16 +198,16 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             isInternalMapUpdateRef.current = false;
           }, 800);
         } else {
-          // Data is null or empty — increment circuit breaker
+ // Data is null or empty increment circuit breaker
           consecutiveFailuresRef.current += 1;
           if (consecutiveFailuresRef.current >= 3) {
-            console.warn('[Marine] Circuit breaker: 3 consecutive failures — stopping until viewport changes.');
+ console.warn('[Marine] Circuit breaker: 3 consecutive failures stopping until viewport changes.');
             return; // Don't schedule more retries
           }
           const remaining = getRemainingCooldown('marine');
           marineRetryCountRef.current = (marineRetryCountRef.current || 0) + 1;
           if (marineRetryCountRef.current > 3) {
-            console.warn('[Marine] Max retries (3) reached — stopping.');
+ console.warn('[Marine] Max retries (3) reached stopping.');
             marineRetryCountRef.current = 0;
           } else if (remaining > 0 && !cooldownRetryRef.current) {
             cooldownRetryRef.current = setTimeout(() => {

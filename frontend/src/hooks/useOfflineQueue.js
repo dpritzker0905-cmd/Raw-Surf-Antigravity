@@ -1,5 +1,5 @@
-/**
- * useOfflineQueue GÇö Queues user actions when offline, auto-syncs on reconnect.
+ï»¿/**
+ * useOfflineQueue G Queues user actions when offline, auto-syncs on reconnect.
  *
  * Supported action types: 'reaction', 'comment', 'follow', 'save_post'
  * Uses localStorage key `rawsurf_offline_queue` for persistence across refreshes.
@@ -23,7 +23,7 @@ const saveQueue = (queue) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
   } catch {
-    // localStorage full GÇö drop oldest items
+ // localStorage full G drop oldest items
     localStorage.removeItem(STORAGE_KEY);
   }
 };
@@ -70,7 +70,7 @@ const replayAction = async (action) => {
   } catch (err) {
     // 4xx = permanent failure, don't retry
     if (err.response && err.response.status >= 400 && err.response.status < 500) {
-      console.warn(`[OfflineQueue] Dropping action (${type}) GÇö ${err.response.status}`);
+ console.warn(`[OfflineQueue] Dropping action (${type}) G ${err.response.status}`);
       return true;
     }
     return false; // Retry on 5xx / network errors
@@ -101,7 +101,7 @@ export const useOfflineQueue = () => {
     if (isOnline && queue.length > 0 && !syncingRef.current) {
       flushQueue();
     }
-  }, [isOnline]); // flushQueue intentionally omitted GÇö guarded by syncingRef
+ }, [isOnline]); // flushQueue intentionally omitted G guarded by syncingRef
 
   const flushQueue = useCallback(async () => {
     if (syncingRef.current || queue.length === 0) return;
@@ -129,7 +129,7 @@ export const useOfflineQueue = () => {
     setIsSyncing(false);
 
     if (synced > 0) {
-      toast.success(`G£à Synced ${synced} offline action${synced !== 1 ? 's' : ''}`);
+ toast.success(`G Synced ${synced} offline action${synced !== 1 ? 's' : ''}`);
     }
   }, [queue]);
 
@@ -148,7 +148,7 @@ export const useOfflineQueue = () => {
       return next;
     });
 
-    toast.info('=ƒô¦ Saved offline GÇö will sync when back online');
+ toast.info('= Saved offline G will sync when back online');
   }, []);
 
   return {

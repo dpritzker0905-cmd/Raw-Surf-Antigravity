@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * DutyStationDrawer - Unified Photographer Duty Management
  * 
  * Features:
@@ -29,7 +29,7 @@ import ConditionsModal from './ConditionsModal';
 import { ROLES } from '../constants/roles';
 import useDutyStationActions from '../hooks/useDutyStationActions';
 
-// Constants & geo utilities GÇö extracted to on-demand/dutyStationConstants.js (v81)
+// Constants & geo utilities G extracted to on-demand/dutyStationConstants.js (v81)
 import {
   LIVE_PROXIMITY_MILES,
   LIVE_PROXIMITY_METERS,

@@ -52,9 +52,9 @@ const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
   // Determine preview icon based on message type
   const getPreviewIcon = () => {
     const preview = conversation.last_message_preview || '';
-    if (preview.includes('=ƒô+')) return <Camera className="w-4 h-4 text-gray-400" />;
-    if (preview.includes('=ƒÄ¼')) return <Play className="w-4 h-4 text-cyan-400" />;
-    if (preview.includes('=ƒÄñ')) return <Mic className="w-4 h-4 text-gray-400" />;
+ if (preview.includes('\u{1F4F7}')) return <Camera className="w-4 h-4 text-gray-400" />;
+ if (preview.includes('\u{1F3AC}')) return <Play className="w-4 h-4 text-cyan-400" />;
+ if (preview.includes('\u{1F3A4}')) return <Mic className="w-4 h-4 text-gray-400" />;
     return null;
   };
 
@@ -87,7 +87,7 @@ const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
             {conversation.other_user_name?.charAt(0)}
           </div>
         </div>
-        {/* Online indicator GÇö real-time from presence WebSocket */}
+ {/* Online indicator -- real-time from presence WebSocket */}
         {isOnline && (
           <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
         )}
@@ -103,7 +103,7 @@ const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
           {RoleIcon ? (
             <RoleIcon className={`w-4 h-4 ${roleInfo.color} flex-shrink-0`} />
           ) : (
-            <span className="text-sm flex-shrink-0">=ƒÅä</span>
+ <span className="text-sm flex-shrink-0">{'\u{1F4CC}'}</span>
           )}
           {/* Request badge */}
           {isRequest && (

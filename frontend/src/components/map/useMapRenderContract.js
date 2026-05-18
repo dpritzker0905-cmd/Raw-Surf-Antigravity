@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+﻿import { useRef, useCallback, useEffect } from 'react';
 
 /**
  * useMapRenderContract (v244)
@@ -6,11 +6,11 @@ import { useRef, useCallback, useEffect } from 'react';
  * SINGLE SOURCE OF TRUTH for map readiness state.
  *
  * State Machine:
- *   INIT → STYLE_LOADING → READY ↔ INTERACTING
+ * INIT STYLE_LOADING READY INTERACTING
  *
  * v244 fixes:
  * - Reference-counted interaction state using matched event pairs
- *   (dragstart/dragend, zoomstart/zoomend) instead of dragstart→moveend
+ * (dragstart/dragend, zoomstart/zoomend) instead of dragstartmoveend
  *   which caused READY/INTERACTING flapping.
  * - moveend is now ONLY used for the post-inertia idle confirmation,
  *   NOT as the primary unlock trigger.
@@ -60,7 +60,7 @@ export function useMapRenderContract(mapInstance) {
 
     const transitionToReady = () => {
       if (stateRef.current === MAP_STATE.READY) return;
-      console.log(`[RenderContract] ${stateRef.current} → READY`);
+ console.log(`[RenderContract] ${stateRef.current} READY`);
       stateRef.current = MAP_STATE.READY;
       fireReadyCallbacks();
     };
@@ -74,7 +74,7 @@ export function useMapRenderContract(mapInstance) {
 
     const fallbackTimer = setTimeout(() => {
       if (stateRef.current !== MAP_STATE.READY && mapInstance.isStyleLoaded?.()) {
-        console.log('[RenderContract] Fallback poll → READY');
+ console.log('[RenderContract] Fallback poll READY');
         transitionToReady();
       }
     }, 500);
@@ -82,7 +82,7 @@ export function useMapRenderContract(mapInstance) {
     // v244: Reference-counted interaction state
     // Uses matched pairs: dragstart/dragend + zoomstart/zoomend
     // moveend is ONLY for post-inertia idle confirmation
-    // v245: Only user gestures trigger INTERACTING — NOT programmatic flyTo/easeTo
+ // v245: Only user gestures trigger INTERACTING NOT programmatic flyTo/easeTo
     const incrementInteraction = (e) => {
       // Programmatic animations (flyTo, easeTo) fire dragstart/zoomstart WITHOUT originalEvent
       if (!e?.originalEvent) return;
@@ -109,7 +109,7 @@ export function useMapRenderContract(mapInstance) {
             !mapInstance.isMoving?.() &&
             !mapInstance.isZooming?.()) {
           stateRef.current = MAP_STATE.READY;
-          console.log('[RenderContract] INTERACTING → READY (idle confirmed)');
+ console.log('[RenderContract] INTERACTING READY (idle confirmed)');
           fireReadyCallbacks();
         }
       }, 300);

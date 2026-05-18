@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
+ï»¿import React, { useState, useCallback } from 'react';
 
 /**
- * AvatarImage GÇö A robust avatar <img> wrapper with automatic broken-image fallback.
+ * AvatarImage G A robust avatar <img> wrapper with automatic broken-image fallback.
  *
  * Usage:
  *   <AvatarImage src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full" />

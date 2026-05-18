@@ -1,4 +1,4 @@
-export const WindConfig = {
+ï»¿export const WindConfig = {
   domainSource: "FULL_MODEL_GRID_WORLDSPACE",
   useViewportBounds: false
 };
@@ -28,25 +28,25 @@ export const TruthEngineConfig = {
 };
 
 export function HARD_RESET_GIS_ENGINE() {
-  // =ƒîÉ WIND RESET
+ // = WIND RESET
   WindConfig.domainSource = "FULL_MODEL_GRID_WORLDSPACE";
   WindConfig.useViewportBounds = false;
 
   GPUWindLayerConfig.initOnce = true;
   GPUWindLayerConfig.allowReinit = false;
 
-  // =ƒîè MARINE RESET
+ // = MARINE RESET
   MarineConfig.allowRecreateSource = false;
   MarineConfig.allowNullState = false;
 
-  // =ƒîºn+Å RASTER RESET
+ // =n+ RASTER RESET
   RasterConfig.silentSkip = false;
 
-  // =ƒöÉ ACCESS RESET
+ // = ACCESS RESET
   AccessConfig.failFast = true;
   AccessConfig.allowFallback = false;
 
-  // =ƒºá TRUTH RESET
+ // = TRUTH RESET
   TruthEngineConfig.mode = "POST_RENDER_ONLY";
   TruthEngineConfig.canBlockRender = false;
 

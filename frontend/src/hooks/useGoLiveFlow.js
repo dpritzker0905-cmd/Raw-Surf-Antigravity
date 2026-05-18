@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+Ôªøimport { useState, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -19,7 +19,7 @@ import { getErrorMessage } from '../utils/errors';
  * useGoLiveFlow - Custom hook for photographer go-live workflow
  * 
  * Manages:
- * - Permission flow (location GÂ∆ conditions modal)
+ * - Permission flow (location G conditions modal)
  * - Session settings storage
  * - Go live API calls
  * - End session flow

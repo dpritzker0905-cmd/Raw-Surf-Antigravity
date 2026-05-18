@@ -1,9 +1,9 @@
-/**
- * BrowseMode GÇö Location-based spot discovery with cascading dropdowns.
+ï»¿/**
+ * BrowseMode G Location-based spot discovery with cascading dropdowns.
  * Extracted from Explore.js to reduce file size.
  * 
  * Features:
- * - Cascading Country GåÆ State GåÆ City dropdowns
+ * - Cascading Country G State G City dropdowns
  * - Spot name search within selected location
  * - Popular destinations quick-jump chips
  * - Breadcrumb navigation with clear button
@@ -217,7 +217,7 @@ const BrowseMode = ({
             <div className="flex items-center gap-2 text-xs text-cyan-400">
               <Waves className="w-4 h-4" />
               <span>
-                <strong>Today</strong> = Current Conditions GÇó <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
+ <strong>Today</strong> = Current Conditions G <strong>Forecast:</strong> 3 days free, 7 paid, 10 premium
               </span>
             </div>
           </div>

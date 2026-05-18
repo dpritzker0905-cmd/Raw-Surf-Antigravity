@@ -1,5 +1,5 @@
-/**
- * DispatchSelfieSection GÇö Extracted from DispatchLobby.js (v81)
+ï»¿/**
+ * DispatchSelfieSection G Extracted from DispatchLobby.js (v81)
  * Shows selfie prompt or confirmation in the dispatch lobby.
  */
 import React from 'react';

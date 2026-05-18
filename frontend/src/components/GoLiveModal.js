@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+ï»¿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Radio, CameraOff, AlertTriangle,
   RefreshCw, X, ArrowLeft, ChevronRight,
@@ -228,7 +228,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   // -- Initiate countdown then start stream --
   const handleGoLive = useCallback(() => {
     if (signalQuality === 'poor') {
-      toast.warning('+â-ó+à-í+é-á+â-»+é-++é-Å Poor signal detected. Your stream may be unstable.');
+ toast.warning('+-+-+-+-+-++- Poor signal detected. Your stream may be unstable.');
       // Don't block - let user decide
     }
     setPhase('countdown');

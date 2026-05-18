@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -151,7 +151,7 @@ export const TaggedPhotoModal = ({
       if (response.data.success) {
         setHasPurchased(true);
         if (response.data.subscription_covered) {
-          toast.success('Included with your subscription! =ƒô+ Added to gallery.');
+ toast.success('Included with your subscription! =+ Added to gallery.');
         } else {
           toast.success('Photo added to your gallery! You can now download it.');
         }

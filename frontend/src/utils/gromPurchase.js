@@ -1,5 +1,5 @@
-/**
- * gromPurchase.js — Utility for Grom purchase request flow
+﻿/**
+ * gromPurchase.js Utility for Grom purchase request flow
  * 
  * When a Grom tries to buy something, instead of blocking silently,
  * this sends a request to their parent for approval.
@@ -40,11 +40,11 @@ export async function submitPurchaseRequest({
     });
 
     if (res.data.already_pending) {
-      toast.info('🛒 Request already sent to your parent!', {
+ toast.info(' Request already sent to your parent!', {
         description: 'They\'ll see it in their Grom HQ dashboard.'
       });
     } else {
-      toast.success('🛒 Purchase request sent!', {
+ toast.success(' Purchase request sent!', {
         description: 'Your parent will approve or deny it in their Grom HQ.'
       });
     }
@@ -58,7 +58,7 @@ export async function submitPurchaseRequest({
     const detail = err.response?.data?.detail || 'Failed to send request';
     
     if (err.response?.status === 403) {
-      toast.error('🚫 Spending limit reached', { description: detail });
+ toast.error(' Spending limit reached', { description: detail });
     } else if (err.response?.status === 400) {
       toast.error('Cannot send request', { description: detail });
     } else {

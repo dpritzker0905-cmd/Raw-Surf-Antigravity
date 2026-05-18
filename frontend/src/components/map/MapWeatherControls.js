@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 
 /**
- * Compact weather controls — chip-based layer selector + integrated timeline.
+ * Compact weather controls chip-based layer selector + integrated timeline.
  * Mobile: renders as a slim bottom-sheet panel.
  * Desktop: renders as a collapsible sidebar card.
  */

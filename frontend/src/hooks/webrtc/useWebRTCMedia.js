@@ -1,11 +1,11 @@
-/**
- * useWebRTCMedia GÇö Media acquisition and track management for WebRTC calls.
+ï»¿/**
+ * useWebRTCMedia G Media acquisition and track management for WebRTC calls.
  *
  * Handles:
  *   - getUserMedia with iOS Safari sequential permission strategy
  *   - Mute/unmute audio
  *   - Camera on/off toggle with track re-acquisition
- *   - Camera flip (front Gåö rear) with device enumeration fallbacks
+ * - Camera flip (front G rear) with device enumeration fallbacks
  *   - Track replacement for WebGL filtered canvas streams
  */
 
@@ -36,7 +36,7 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
  *   Single { audio: true } request.
  */
 export async function getMediaStream(type = 'audio', facingMode = 'user') {
-  // GöÇGöÇ Pre-flight: Check if permissions are permanently denied GöÇGöÇ
+ // GG Pre-flight: Check if permissions are permanently denied GG
   // navigator.permissions.query is NOT available for camera/mic on Safari,
   // so we skip this check on iOS and rely on the getUserMedia error instead.
   if (!isIOS && navigator.permissions?.query) {
@@ -48,27 +48,27 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
       }
     } catch (e) {
       if (e._permanentlyDenied) throw e;
-      // permissions.query not supported for this name GÇö continue
+ // permissions.query not supported for this name G continue
     }
   }
 
-  // GöÇGöÇ Step 1: Always acquire audio first GöÇGöÇ
+ // GG Step 1: Always acquire audio first GG
   let audioStream;
   try {
-    logger.debug('[WebRTC] Step 1 GÇö requesting audio-onlyGÇª');
+ logger.debug('[WebRTC] Step 1 G requesting audio-onlyG');
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    logger.debug('[WebRTC] G£à Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
+ logger.debug('[WebRTC] G Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
   } catch (err) {
-    console.error('[WebRTC] G¥î Audio request failed:', err.name, err.message);
+ console.error('[WebRTC] G Audio request failed:', err.name, err.message);
     throw err; // No audio = no call possible
   }
 
-  // Audio-only call GÇö we're done
+ // Audio-only call G we're done
   if (type !== 'video') {
     return audioStream;
   }
 
-  // GöÇGöÇ Step 2: Acquire video separately (iOS needs its own prompt) GöÇGöÇ
+ // GG Step 2: Acquire video separately (iOS needs its own prompt) GG
   const videoConstraintChain = [
     { audio: false, video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode } },
     { audio: false, video: { facingMode } },
@@ -78,32 +78,32 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
   let videoStream = null;
   for (const constraints of videoConstraintChain) {
     try {
-      logger.debug('[WebRTC] Step 2 GÇö trying video with:', JSON.stringify(constraints));
+ logger.debug('[WebRTC] Step 2 G trying video with:', JSON.stringify(constraints));
       videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-      logger.debug('[WebRTC] G£à Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
+ logger.debug('[WebRTC] G Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
       break;
     } catch (err) {
       console.warn('[WebRTC] Video attempt failed:', constraints, err.name, err.message);
     }
   }
 
-  // GöÇGöÇ Step 3: Merge into a single MediaStream GöÇGöÇ
+ // GG Step 3: Merge into a single MediaStream GG
   if (videoStream) {
     const combined = new MediaStream();
     audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
     videoStream.getVideoTracks().forEach(t => combined.addTrack(t));
-    logger.debug('[WebRTC] G£à Combined stream:', combined.getAudioTracks().length, 'audio,', combined.getVideoTracks().length, 'video');
+ logger.debug('[WebRTC] G Combined stream:', combined.getAudioTracks().length, 'audio,', combined.getVideoTracks().length, 'video');
     return combined;
   }
 
-  // Video failed at all constraint levels GÇö fall back to audio-only
-  console.warn('[WebRTC] GÜán+Å All video attempts failed, falling back to audio-only');
+ // Video failed at all constraint levels G fall back to audio-only
+ console.warn('[WebRTC] Gn+ All video attempts failed, falling back to audio-only');
   toast('Camera unavailable \u{2014} continuing with audio only', { icon: '\u{1F4F9}' });
   return audioStream;
 }
 
 /**
- * useWebRTCMedia GÇö Hook for managing local media controls during a WebRTC call.
+ * useWebRTCMedia G Hook for managing local media controls during a WebRTC call.
  *
  * @param {Object} params
  * @param {React.MutableRefObject} params.localStreamRef - Ref to the current local MediaStream
@@ -115,7 +115,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [facingMode, setFacingMode] = useState('user');
 
-  // GöÇGöÇ Toggle Mute GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Toggle Mute GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
   const toggleMute = useCallback(() => {
     const stream = localStreamRef.current;
     if (!stream) return;
@@ -125,7 +125,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     setIsMuted(prev => !prev);
   }, [localStreamRef]);
 
-  // GöÇGöÇ Toggle Camera GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Toggle Camera GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
   // When turning OFF: disable the video track (fast, no renegotiation needed)
   // When turning ON: re-acquire camera via getUserMedia to get a fresh track,
   //   then replace it on the stream AND peer connection sender so InCallView's
@@ -135,13 +135,13 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     if (!stream) return;
 
     if (!isCameraOff) {
-      // GöÇGöÇ Turning camera OFF GöÇGöÇ
+ // GG Turning camera OFF GG
       stream.getVideoTracks().forEach(track => {
         track.enabled = false;
       });
       setIsCameraOff(true);
     } else {
-      // GöÇGöÇ Turning camera back ON GöÇGöÇ
+ // GG Turning camera back ON GG
       try {
         // Re-acquire a fresh video track from the camera hardware
         const freshMedia = await navigator.mediaDevices.getUserMedia({
@@ -193,7 +193,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     }
   }, [isCameraOff, localStreamRef, peerConnectionRef, setLocalStream]);
 
-  // GöÇGöÇ Flip Camera (Front Gåö Rear) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Flip Camera (Front G Rear) GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
   // Samsung S23 FE + many Android devices: must STOP the old camera
   // track BEFORE requesting a new one, otherwise the browser throws
   // OverconstrainedError or NotReadableError because the hardware
@@ -215,7 +215,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     // 2. Small delay for hardware release (critical on Samsung/Android)
     await new Promise(r => setTimeout(r, 300));
 
-    // 3. Try acquiring new camera GÇö cascade: ideal GåÆ plain string GåÆ deviceId
+ // 3. Try acquiring new camera G cascade: ideal G plain string G deviceId
     let freshVideoTrack = null;
 
     // Attempt 1: ideal facingMode (broadest compatibility)
@@ -279,7 +279,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     }
 
     if (!freshVideoTrack) {
-      // All attempts failed GÇö re-acquire the original camera so the user isn't left with no video
+ // All attempts failed G re-acquire the original camera so the user isn't left with no video
       try {
         const recovery = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 640 }, height: { ideal: 480 } },
@@ -321,7 +321,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     logger.debug(`[WebRTC] \u{2705} Camera flipped to ${newFacing}`);
   }, [isCameraOff, facingMode, localStreamRef, peerConnectionRef, setLocalStream]);
 
-  // GöÇGöÇ Replace Video Track (for WebGL filtered canvas stream) GöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Replace Video Track (for WebGL filtered canvas stream) GGGGGG
   const replaceVideoTrack = useCallback((newVideoTrack) => {
     const pc = peerConnectionRef.current;
     if (!pc || !newVideoTrack) return;

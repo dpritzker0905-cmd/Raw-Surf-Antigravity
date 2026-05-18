@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * OnDemandSessionCards.js
- * Re-export shim GÇö individual card components extracted to separate files (v81).
+ * Re-export shim G individual card components extracted to separate files (v81).
  * Maintains backward-compatible import path.
  */
 export { default as IncomingRequestCard } from './IncomingRequestCard';

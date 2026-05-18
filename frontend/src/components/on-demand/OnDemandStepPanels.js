@@ -1,5 +1,5 @@
-/**
- * OnDemandStepPanels.js GÇö Extracted from OnDemandRequestDrawer.js
+ï»¿/**
+ * OnDemandStepPanels.js G Extracted from OnDemandRequestDrawer.js
  * Crew and Crew Payment step panels (~466 lines).
  */
 import React from 'react';
@@ -55,7 +55,7 @@ export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, ha
             
             {/* Ocean Background with Surfboards */}
             <div className={`relative p-4 sm:p-6 rounded-2xl overflow-visible ${isLight ? 'bg-gradient-to-b from-cyan-100 via-blue-50 to-white' : 'bg-gradient-to-b from-cyan-900/30 via-blue-900/20 to-zinc-900'}`}>
-              {/* Wave pattern background GÇö pointer-events-none so quick-add pills remain clickable */}
+ {/* Wave pattern background G pointer-events-none so quick-add pills remain clickable */}
               <div className="absolute inset-0 opacity-20 overflow-hidden rounded-2xl pointer-events-none">
                 <svg viewBox="0 0 400 200" className="w-full h-full" preserveAspectRatio="none">
                   <path d="M0,100 Q50,80 100,100 T200,100 T300,100 T400,100 V200 H0 Z" fill="currentColor" className="text-cyan-500" opacity="0.3" />
@@ -143,7 +143,7 @@ export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, ha
                           ))}
                         </div>
                       ) : (
-                        <p className={`text-xs ${textSecondary}`}>No recent connections GÇö use the search to find crew members.</p>
+ <p className={`text-xs ${textSecondary}`}>No recent connections G use the search to find crew members.</p>
                       )}
                     </div>
                   );
@@ -168,7 +168,7 @@ export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, ha
                         autoFocus
                         data-testid="crew-search-input"
                       />
-                      {/* Autocomplete Dropdown GÇö API results OR inline following list */}
+ {/* Autocomplete Dropdown G API results OR inline following list */}
                       {(friendSearchResults.length > 0 || searchingFriends || (newCrewInput.length > 0 && !searchingFriends)) && (
                         <div 
                           className={`absolute top-full left-0 right-0 mt-1 rounded-xl shadow-2xl border ${isLight ? 'bg-white border-gray-200' : 'bg-zinc-800 border-zinc-600'}`}
@@ -319,11 +319,11 @@ export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFull
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span className={textSecondary}>Your Share (Captain) GÇö {totalPrice > 0 ? ((captainPayAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
+ <span className={textSecondary}>Your Share (Captain) G {totalPrice > 0 ? ((captainPayAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
                   <span className="font-medium text-yellow-400">${captainPayAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className={textSecondary}>Crew Covers GÇö {totalPrice > 0 ? ((crewCoversAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
+ <span className={textSecondary}>Crew Covers G {totalPrice > 0 ? ((crewCoversAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
                   <span className={textPrimary}>${crewCoversAmount.toFixed(2)}</span>
                 </div>
               </div>

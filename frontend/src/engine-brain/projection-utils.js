@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Projection Utilities
+ Raw Surf OS Projection Utilities
  WEB MERCATOR + COORDINATE TRANSFORMS
 ====================================================
 
-PURE MATH — NO engine, NO DOM
+PURE MATH NO engine, NO DOM
 var/function only (TDZ-immune)
 ====================================================
 */

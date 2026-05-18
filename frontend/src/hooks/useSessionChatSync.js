@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * useSessionChatSync.js
  *
  * Lightweight background sync hook for on-demand session chat.
@@ -6,7 +6,7 @@
  * previews, and notification alerts update even when the drawer is closed.
  *
  * Architecture:
- * - Uses the existing check-thread GåÆ conversation poll pattern
+ * - Uses the existing check-thread G conversation poll pattern
  * - Polls every 5s (aligned with dispatch polling cadence)
  * - Fires toast + audio when a new message arrives while the drawer is closed
  * - Exposes { unreadCount, latestMessage, conversationId } for inline UI
@@ -102,13 +102,13 @@ export const useSessionChatSync = ({
           ) {
             // Toast notification
             const preview = latestFromOther.message_type === 'voice_note'
-              ? '=ƒÄñ Voice note'
-              : (latestFromOther.content?.slice(0, 60) || '=ƒôÄ Media');
+ ? '= Voice note'
+ : (latestFromOther.content?.slice(0, 60) || '= Media');
 
             toast.info(`${otherUserName || 'Session'}: ${preview}`, {
               id: `session-msg-${latestFromOther.id}`,
               duration: 4000,
-              icon: '=ƒÆ¼',
+ icon: '=',
             });
 
             // Audio alert
@@ -139,7 +139,7 @@ export const useSessionChatSync = ({
   // When drawer opens + closes, re-check for updates
   useEffect(() => {
     if (!drawerOpen && conversationId && userId) {
-      // Drawer just closed GÇö re-sync to pick up any read receipts
+ // Drawer just closed G re-sync to pick up any read receipts
       const resync = async () => {
         try {
           const res = await apiClient.get(

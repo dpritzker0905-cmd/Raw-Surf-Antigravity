@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
 /**
- * useStoriesActions — Extracted handler logic from Stories.js (StoriesBar component)
+ * useStoriesActions Extracted handler logic from Stories.js (StoriesBar component)
  * Handles: story fetching, realtime subscription, live stream joining, location, tab management
  */
 export default function useStoriesActions({

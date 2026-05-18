@@ -1,4 +1,4 @@
-
+ï»¿
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -227,7 +227,7 @@ const useGalleryActions = ({
         {}
       );
       const data = response.data;
-      toast.success(`+¦++GÇ£-í ${data.message}`);
+ toast.success(`+++G- ${data.message}`);
       // Refresh status
       await fetchConditionsStatus(selectedGallery.id);
     } catch (error) {
@@ -474,7 +474,7 @@ const useGalleryActions = ({
         const tierMsg = hasCredits 
           ? `${Math.min(count, participant.photos_credit_remaining)} included (full-res)` 
           : 'as previews';
-        toast.success(`+ó+ôGÇª Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
+ toast.success(`++G Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
       } else if (skipped > 0) {
         toast.info(`All items already in ${surferName}'s Locker`);
       } else {
@@ -505,7 +505,7 @@ const useGalleryActions = ({
       );
       const total = response.data.total_distributed || 0;
       setDistributeProgress({ current: totalItems, total: totalItems });
-      toast.success(`+ó+ôGÇª Distributed ${total} locker items to all participants!`);
+ toast.success(`++G Distributed ${total} locker items to all participants!`);
       
       // Refresh to update counts
       await fetchParticipants(selectedGallery.id);
@@ -531,9 +531,9 @@ const useGalleryActions = ({
       const matched = response.data.matches_found || 0;
       const processed = response.data.items_processed || 0;
       if (matched > 0) {
-        toast.success(`+¦++-ñGÇô AI matched ${matched} items to surfers! (${processed} processed)`);
+ toast.success(`+++-G AI matched ${matched} items to surfers! (${processed} processed)`);
       } else {
-        toast.info(`+¦++-ñGÇô AI processed ${processed} items +óGé¼GÇ¥ no confident matches found. Try manual tagging.`);
+ toast.info(`+++-G AI processed ${processed} items +GG no confident matches found. Try manual tagging.`);
       }
       // Refresh gallery to show updated AI status
       if (selectedGallery) {
@@ -580,9 +580,9 @@ const useGalleryActions = ({
       if (alreadyTagged > 0) parts.push(`${alreadyTagged} already pending`);
       
       if (tagged > 0) {
-        toast.success(`+ó+ôGÇª ${parts.join(' +óGé¼-ó ')} +óGÇáGÇÖ ${surferName}`);
+ toast.success(`++G ${parts.join(' +G- ')} +GG ${surferName}`);
       } else {
-        toast.info(`${parts.join(' +óGé¼-ó ')} for ${surferName}`);
+ toast.info(`${parts.join(' +G- ')} for ${surferName}`);
       }
       // Refresh
       await fetchGalleryItems(selectedGallery.id);
@@ -687,7 +687,7 @@ const useGalleryActions = ({
         `/galleries/${thumbnailPickerGallery.id}/set-thumbnail?photographer_id=${user.id}`,
         { item_id: itemId }
       );
-      toast.success('+¦++GÇ£-+ Folder thumbnail updated!');
+ toast.success('+++G-+ Folder thumbnail updated!');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       // Clear broken cover cache for this gallery
@@ -710,7 +710,7 @@ const useGalleryActions = ({
       await apiClient.patch(
         `/galleries/${galleryId}/clear-thumbnail?photographer_id=${user.id}`
       );
-      toast.success('Thumbnail reset +óGé¼GÇ¥ will auto-select on next load');
+ toast.success('Thumbnail reset +GG will auto-select on next load');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       fetchGalleries();
@@ -726,7 +726,7 @@ const useGalleryActions = ({
         `/galleries/${selectedGallery.id}/set-thumbnail?photographer_id=${user.id}`,
         { item_id: itemId }
       );
-      toast.success('+¦++GÇ£-+ Set as folder cover!');
+ toast.success('+++G-+ Set as folder cover!');
       setBrokenCoverImages(prev => {
         const newSet = new Set(prev);
         newSet.delete(selectedGallery.id);
@@ -766,7 +766,7 @@ const useGalleryActions = ({
       );
       const typeLabel = session.session_type === 'live' ? 'Live Session' :
         session.session_type === 'booking' ? 'Booking' : 'On-Demand';
-      toast.success(`+ó+ôGÇª Folder linked to ${typeLabel}! Participants and distribution are now available.`);
+ toast.success(`++G Folder linked to ${typeLabel}! Participants and distribution are now available.`);
       setShowLinkSessionModal(false);
       setLinkSessionGallery(null);
       fetchGalleries();

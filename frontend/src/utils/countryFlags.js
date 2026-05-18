@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * countryFlags.js
  * Country flag emoji helper and popular surf location presets
  * Extracted from Explore.js for reusability and reduced file size
@@ -6,7 +6,7 @@
 
 /**
  * Returns a flag emoji for a given country name using Unicode escape sequences
- * (per project rules GÇö raw emoji bytes corrupt during PowerShell/git operations)
+ * (per project rules G raw emoji bytes corrupt during PowerShell/git operations)
  */
 export const getCountryFlag = (countryName) => {
   const flags = {

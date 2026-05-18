@@ -1,16 +1,16 @@
-/**
- * useHapticFeedback G«ˆ Trigger device vibration for premium mobile feel.
+Ôªø/**
+ * useHapticFeedback G Trigger device vibration for premium mobile feel.
  *
  * Uses the Vibration API (navigator.vibrate) which is supported on
  * Android Chrome, Samsung Internet, and Firefox. iOS Safari does NOT
  * support it, but the call is silently ignored.
  *
  * Patterns:
- *   - 'light'   GÂ∆ 10ms  (subtle tap)
- *   - 'medium'  GÂ∆ 30ms  (button press)
- *   - 'heavy'   GÂ∆ 50ms  (confirm action)
- *   - 'success' GÂ∆ [30, 50, 30]  (double-tap success)
- *   - 'error'   GÂ∆ [50, 30, 50, 30, 50]  (triple warning)
+ * - 'light' G 10ms (subtle tap)
+ * - 'medium' G 30ms (button press)
+ * - 'heavy' G 50ms (confirm action)
+ * - 'success' G [30, 50, 30] (double-tap success)
+ * - 'error' G [50, 30, 50, 30, 50] (triple warning)
  *
  * Usage:
  *   const haptic = useHapticFeedback();

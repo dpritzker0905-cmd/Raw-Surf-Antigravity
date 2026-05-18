@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AuthContext.test.js
  * Tests for the AuthProvider and useAuth hook.
  * Covers: login, signup, logout, updateUser, refreshUser, token storage, impersonation.
@@ -31,7 +31,7 @@ describe('AuthContext', () => {
     jest.clearAllMocks();
   });
 
-  // ── Initial state ────────────────────────────────────────────────────────────
+ // Initial state 
 
   describe('initial state', () => {
     it('starts with user=null and loading=false when no localStorage', async () => {
@@ -51,7 +51,7 @@ describe('AuthContext', () => {
     });
   });
 
-  // ── Login ────────────────────────────────────────────────────────────────────
+ // Login 
 
   describe('login', () => {
     it('stores user + token in localStorage after successful login', async () => {
@@ -88,7 +88,7 @@ describe('AuthContext', () => {
     });
   });
 
-  // ── Signup ───────────────────────────────────────────────────────────────────
+ // Signup 
 
   describe('signup', () => {
     it('stores user in localStorage and sets user state', async () => {
@@ -108,7 +108,7 @@ describe('AuthContext', () => {
     });
   });
 
-  // ── Logout ───────────────────────────────────────────────────────────────────
+ // Logout 
 
   describe('logout', () => {
     it('clears user state and removes all localStorage keys', async () => {
@@ -129,7 +129,7 @@ describe('AuthContext', () => {
     });
   });
 
-  // ── updateUser ───────────────────────────────────────────────────────────────
+ // updateUser 
 
   describe('updateUser', () => {
     it('merges updates into user state and localStorage', async () => {
@@ -149,7 +149,7 @@ describe('AuthContext', () => {
     });
   });
 
-  // ── refreshUser ──────────────────────────────────────────────────────────────
+ // refreshUser 
 
   describe('refreshUser', () => {
     it('fetches fresh profile and merges into user without losing token', async () => {
@@ -178,7 +178,7 @@ describe('AuthContext', () => {
     });
   });
 
-  // ── useAuth guard ──────────────────────────────────────────────────────────
+ // useAuth guard 
 
   describe('useAuth guard', () => {
     it('throws if useAuth is called outside AuthProvider', () => {

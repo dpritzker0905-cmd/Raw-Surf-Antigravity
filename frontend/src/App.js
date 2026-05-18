@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+ï»¿import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -8,17 +8,17 @@ import { Toaster } from './components/ui/sonner';
 import AccessCodeScreen from './components/AccessCodeScreen';
 import CookieConsentBanner from './components/ui/CookieConsentBanner';
 
-// GöÇGöÇGöÇ Routing utilities GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Routing utilities GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 import ErrorBoundary from './components/routing/ErrorBoundary';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AppLayout from './components/routing/AppLayout';
 
-// GöÇGöÇGöÇ Critical path (NOT lazy GÇö loaded immediately) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Critical path (NOT lazy G loaded immediately) GGGGGGGGGGGGGGGGGGGGGGGGGGGG
 import { Home } from './components/Home';
 import { Auth } from './components/Auth';
 import { ForgotPassword, ResetPassword } from './components/PasswordReset';
 
-// GöÇGöÇGöÇ Route-split (lazy): loaded only when the user navigates there GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Route-split (lazy): loaded only when the user navigates there GGGGGGGGGGGGG
 // This splits the 1.09 MB bundle into smaller chunks for faster initial load
 const Feed                        = React.lazy(() => import('./components/Feed').then(m => ({ default: m.Feed })));
 const Profile                     = React.lazy(() => import('./components/Profile').then(m => ({ default: m.Profile })));
@@ -32,7 +32,7 @@ const PhotographerSessionsManager = React.lazy(() => import('./components/Photog
 const OnDemandSessionManager      = React.lazy(() => import('./components/OnDemandSessionManager').then(m => ({ default: m.OnDemandSessionManager })));
 const ScheduledBookingDrawer      = React.lazy(() => import('./components/ScheduledBookingDrawer')); // used by bookings page
 
-// GöÇGöÇGöÇ Medium-priority lazy GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Medium-priority lazy GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 const SurferSubscription          = React.lazy(() => import('./components/SurferSubscription').then(m => ({ default: m.SurferSubscription })));
 const PhotographerSubscription    = React.lazy(() => import('./components/PhotographerSubscription').then(m => ({ default: m.PhotographerSubscription })));
 const SubscriptionSuccess         = React.lazy(() => import('./components/SubscriptionSuccess').then(m => ({ default: m.SubscriptionSuccess })));
@@ -81,11 +81,11 @@ const CareerPage = React.lazy(() => import('./components/CareerPage'));
 
 import './App.css';
 
-// GöÇGöÇGöÇ Audio: Unlock AudioContext on first user gesture for reliable ringtones GöÇGöÇ
+// GGG Audio: Unlock AudioContext on first user gesture for reliable ringtones GG
 import { ensureAudioUnlocked } from './utils/audioUnlock';
 ensureAudioUnlocked();
 
-// GöÇGöÇGöÇ Full-screen loading spinner while lazy chunk loads GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Full-screen loading spinner while lazy chunk loads GGGGGGGGGGGGGGGGGGGGGGGG
 const PageLoader = () => (
   <div style={{
     display: 'flex',
@@ -106,14 +106,14 @@ const PageLoader = () => (
   </div>
 );
 
-// GöÇGöÇGöÇ Wrapper to apply Suspense + ErrorBoundary on every lazy route GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Wrapper to apply Suspense + ErrorBoundary on every lazy route GGGGGGGGGGGGG
 const Lazy = ({ children }) => (
   <ErrorBoundary>
     <Suspense fallback={<PageLoader />}>{children}</Suspense>
   </ErrorBoundary>
 );
 
-// GöÇGöÇGöÇ Subscription-only gate GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Subscription-only gate GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 const SubscriptionRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
@@ -131,20 +131,20 @@ function App() {
         <AccessCodeScreen>
         <BrowserRouter>
           <Routes>
-            {/* GöÇGöÇ Public GöÇGöÇ */}
+ {/* GG Public GG */}
             <Route path="/" element={<Home />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* GöÇGöÇ Onboarding / Subscription (no nav) GöÇGöÇ */}
+ {/* GG Onboarding / Subscription (no nav) GG */}
             <Route path="/surfer-subscription" element={<SubscriptionRoute><Lazy><SurferSubscription /></Lazy></SubscriptionRoute>} />
             <Route path="/photographer-subscription" element={<SubscriptionRoute><Lazy><PhotographerSubscription /></Lazy></SubscriptionRoute>} />
             <Route path="/pro-onboarding" element={<SubscriptionRoute><Lazy><ProOnboarding /></Lazy></SubscriptionRoute>} />
             <Route path="/subscription/success" element={<SubscriptionRoute><Lazy><SubscriptionSuccess /></Lazy></SubscriptionRoute>} />
             <Route path="/setup-username" element={<SubscriptionRoute><Lazy><UsernameSetup skipAllowed={true} /></Lazy></SubscriptionRoute>} />
 
-            {/* GöÇGöÇ Protected App Routes GöÇGöÇ */}
+ {/* GG Protected App Routes GG */}
             <Route path="/feed" element={<ProtectedRoute><AppLayout><Lazy><Feed /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><AppLayout><Lazy><Explore /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><AppLayout hideTopNav={true}><Lazy><SearchPage /></Lazy></AppLayout></ProtectedRoute>} />

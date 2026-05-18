@@ -1,5 +1,5 @@
-/**
- * apiClient GÇö Shared Axios instance for all Raw Surf API calls.
+ï»¿/**
+ * apiClient G Shared Axios instance for all Raw Surf API calls.
  *
  * Usage:
  *   import apiClient from '../lib/apiClient';
@@ -17,21 +17,21 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 
-/** Raw backend origin (no /api suffix) GÇö for WebSocket and media URLs */
+/** Raw backend origin (no /api suffix) G for WebSocket and media URLs */
 export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
 
-/** Full /api base URL string GÇö for edge cases that still need a bare string */
+/** Full /api base URL string G for edge cases that still need a bare string */
 export const API_BASE = `${BACKEND_URL}/api`;
 
 const apiClient = axios.create({
   baseURL: `${BACKEND_URL}/api`,
-  timeout: 60000, // 60s GÇö handles Render free-tier cold starts (30-60s warm-up)
+ timeout: 60000, // 60s G handles Render free-tier cold starts (30-60s warm-up)
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// GöÇGöÇ Request interceptor GÇö inject auth token GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG Request interceptor G inject auth token GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 apiClient.interceptors.request.use(
   (config) => {
     // Inject Bearer token from stored user session
@@ -44,7 +44,7 @@ apiClient.interceptors.request.use(
         }
       }
     } catch {
-      // Malformed localStorage GÇö silently skip; 401 interceptor below will handle
+ // Malformed localStorage G silently skip; 401 interceptor below will handle
     }
 
     if (process.env.NODE_ENV === 'development') {
@@ -55,10 +55,10 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// GöÇGöÇ Track whether we've already shown the session-expired message GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG Track whether we've already shown the session-expired message GGGGGGGGGGGG
 let _sessionExpiredShown = false;
 
-// GöÇGöÇ Response interceptor GÇö handle auth errors GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG Response interceptor G handle auth errors GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 apiClient.interceptors.response.use(
   (response) => {
     // Reset session-expired flag on any successful response
@@ -79,16 +79,16 @@ apiClient.interceptors.response.use(
     const { status } = error.response;
     const url = error.config?.url || '';
 
-    // 401 GÇö token expired or invalid.
+ // 401 G token expired or invalid.
     // Do NOT redirect if already on /auth (avoids redirect loops).
-    // Do NOT redirect for admin-only endpoints GÇö let the admin console handle
+ // Do NOT redirect for admin-only endpoints G let the admin console handle
     // those errors gracefully via its own .catch() handlers. The admin console
     // fires 7+ parallel API calls on load; a single transient 401 (e.g. Render
     // cold-start timing) should NOT nuke the entire session.
     if (status === 401 && !_sessionExpiredShown) {
-      // Skip if this is an auth call itself (login/signup) GÇö let the caller handle it
+ // Skip if this is an auth call itself (login/signup) G let the caller handle it
       const isAuthCall = url.includes('/auth/login') || url.includes('/auth/signup');
-      // Skip admin-only endpoints GÇö the admin console handles these errors itself
+ // Skip admin-only endpoints G the admin console handles these errors itself
       const isAdminCall = url.includes('/admin/');
       if (!isAuthCall && !isAdminCall) {
         _sessionExpiredShown = true;
@@ -96,7 +96,7 @@ apiClient.interceptors.response.use(
         const isAlreadyOnAuth = currentPath.startsWith('/auth');
         const isOnAdmin = currentPath.startsWith('/admin');
         if (!isAlreadyOnAuth && !isOnAdmin) {
-          toast.error('Session expired GÇö please sign in again.', { duration: 4000 });
+ toast.error('Session expired G please sign in again.', { duration: 4000 });
           setTimeout(() => {
             // Clear ALL session data before redirecting
             ['raw-surf-user', 'raw-surf-user-original', 'impersonation_session',
@@ -109,7 +109,7 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 403 GÇö access forbidden (e.g., non-admin trying admin route)
+ // 403 G access forbidden (e.g., non-admin trying admin route)
     if (status === 403) {
       if (process.env.NODE_ENV === 'development') {
         console.warn('[apiClient] 403 Forbidden:', url);
@@ -117,13 +117,13 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // 429 GÇö rate limited (backend slowdown)
+ // 429 G rate limited (backend slowdown)
     if (status === 429) {
-      toast.error('Too many requests GÇö please wait a moment.', { duration: 3000 });
+ toast.error('Too many requests G please wait a moment.', { duration: 3000 });
       return Promise.reject(error);
     }
 
-    // 503 GÇö backend is down / starting up on Render free tier
+ // 503 G backend is down / starting up on Render free tier
     if (status === 503) {
       toast.error('Service temporarily unavailable. Please try again shortly.', { duration: 5000 });
       return Promise.reject(error);

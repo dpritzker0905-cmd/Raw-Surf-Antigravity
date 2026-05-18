@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+ï»¿import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
@@ -93,7 +93,7 @@ export const useSessionTracker = (userId, spotId, isTracking) => {
       
       if (error) throw error;
       
-      toast.success(`Session logged! Earned ${earnedXp} XP =ƒîè`);
+ toast.success(`Session logged! Earned ${earnedXp} XP =`);
       return data;
     } catch (err) {
       console.error(err);

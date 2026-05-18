@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+ï»¿import React, { useState } from 'react';
 import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { ChevronDown, Check, Eye, Shield } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
@@ -11,7 +11,7 @@ const PersonaSwitcher = () => {
   
   const currentRoleInfo = activePersona 
     ? getExpandedRoleInfo(activePersona) 
-    : { icon: '=ƒö¦', label: 'God Mode (Default)', color: 'text-red-500' };
+ : { icon: '=', label: 'God Mode (Default)', color: 'text-red-500' };
   
   // Handle selecting "God Mode (Default)" - exit persona mode completely
   const handleExitToDefault = () => {
@@ -57,7 +57,7 @@ const PersonaSwitcher = () => {
                   !activePersona && !isPersonaBarActive ? 'bg-red-500/10 border-l-2 border-red-500' : ''
                 }`}
               >
-                <span className="text-xl">=ƒö¦</span>
+ <span className="text-xl">=</span>
                 <div className="flex-1 text-left">
                   <span className="text-white font-medium">God Mode (Default)</span>
                   <p className="text-xs text-gray-400">Exit persona mode - full admin view</p>

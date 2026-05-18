@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+ï»¿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -18,13 +18,13 @@ import { ROLES } from '../constants/roles';
 
 
 const IMPACT_LEVELS = {
-  Legend: { emoji: '=ƒÅå', color: 'from-yellow-400 to-amber-600' },
-  Champion: { emoji: '=ƒÑç', color: 'from-amber-400 to-orange-500' },
-  Hero: { emoji: '=ƒª+', color: 'from-purple-400 to-indigo-500' },
-  Patron: { emoji: '=ƒÆÄ', color: 'from-blue-400 to-cyan-500' },
-  Supporter: { emoji: '=ƒîè', color: 'from-green-400 to-emerald-500' },
-  Contributor: { emoji: '=ƒñÖ', color: 'from-teal-400 to-cyan-500' },
-  Starter: { emoji: '=ƒî¦', color: 'from-gray-400 to-zinc-500' }
+ Legend: { emoji: '=', color: 'from-yellow-400 to-amber-600' },
+ Champion: { emoji: '=', color: 'from-amber-400 to-orange-500' },
+ Hero: { emoji: '=+', color: 'from-purple-400 to-indigo-500' },
+ Patron: { emoji: '=', color: 'from-blue-400 to-cyan-500' },
+ Supporter: { emoji: '=', color: 'from-green-400 to-emerald-500' },
+ Contributor: { emoji: '=', color: 'from-teal-400 to-cyan-500' },
+ Starter: { emoji: '=', color: 'from-gray-400 to-zinc-500' }
 };
 
 const CAUSE_CATEGORIES = {

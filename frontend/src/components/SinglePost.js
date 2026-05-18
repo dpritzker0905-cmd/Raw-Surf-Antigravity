@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * SinglePost - View a single post with full details
  * Used when navigating directly to /post/:postId
  */
@@ -207,7 +207,7 @@ const SinglePost = () => {
     
     // Quick tap = toggle shaka reaction
     if (wasPressing) {
-      await handleReaction(postId, '=ƒñÖ');
+ await handleReaction(postId, '=');
     }
   };
   
@@ -265,7 +265,7 @@ const SinglePost = () => {
     }
   };
 
-  // Double-tap to like handler for PostCard GÇö toggles shaka on/off
+ // Double-tap to like handler for PostCard G toggles shaka on/off
   const handleDoubleTapLike = async (postId) => {
     if (!user?.id || inFlightRef.current) return;
     inFlightRef.current = true;

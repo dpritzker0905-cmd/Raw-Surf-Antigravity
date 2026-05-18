@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * CheckInModal.js - Extracted from Feed.js (v60)
  * Self-contained GPS-based surf spot check-in modal with gamification rewards.
  */
@@ -127,7 +127,7 @@ const CheckInModal = ({
                         <span className="font-medium">{nearestSpot.name}</span>
                         {' '}&mdash; {nearestSpot.distance}km away
                         {parseFloat(nearestSpot.distance) < 10
-                          ? ' - +¦++GÇ£-ì Within range - you\'ll earn Passport XP!'
+ ? ' - +++G- Within range - you\'ll earn Passport XP!'
                           : ' - Outside 10km check-in zone'}
                       </div>
                     )}
@@ -374,8 +374,8 @@ const CheckInModal = ({
                       <>
                         <Flame className="w-5 h-5 mr-2" />
                         {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
-                          ? 'Check In + Earn XP +¦++-ÅGÇP'
-                          : 'Check In & Keep Streak +¦++GÇ¥-Ñ'}
+ ? 'Check In + Earn XP +++-GP'
+ : 'Check In & Keep Streak +++G-'}
                       </>
                     )}
                   </Button>

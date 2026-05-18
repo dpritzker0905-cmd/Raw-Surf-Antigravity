@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+﻿import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Lock } from 'lucide-react';
 import MapWebGL from './map/MapWebGL';
 import { useAuth } from '../contexts/AuthContext';
@@ -44,7 +44,7 @@ var MapPageContent = () => {
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
 
-  // v3.7: Track map center for forecast overlay — data tracks what user is looking at
+ // v3.7: Track map center for forecast overlay data tracks what user is looking at
   const [mapCenter, setMapCenter] = useState(null);
 
   // User location hook - handles GPS and location-related state
@@ -134,7 +134,7 @@ var MapPageContent = () => {
     setIsImmersiveMode,
   } = useMapState();
 
-  // Weather Mapping State — extracted into useWeatherState hook (v125 decomposition)
+ // Weather Mapping State extracted into useWeatherState hook (v125 decomposition)
   const {
     activeModel, setActiveModel,
     activeLayers,
@@ -148,12 +148,12 @@ var MapPageContent = () => {
     isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
 
-  // Open-Meteo 16-day forecast (weather + marine) — driven by MAP CENTER & model
+ // Open-Meteo 16-day forecast (weather + marine) driven by MAP CENTER & model
   // v3.7: Uses map center instead of fixed user location for accurate readouts
   const forecastLat = mapCenter?.lat || effectiveLocation?.lat || FLORIDA_CENTER.lat;
   const forecastLng = mapCenter?.lng || effectiveLocation?.lng || FLORIDA_CENTER.lng;
-  // v3.9.4: Disable spot forecast when weather layers active — they compete for rate limit
-  // v3.9.6: REGRESSION FIX — Re-enable. Spot forecast is only 1 weighted API call.
+ // v3.9.4: Disable spot forecast when weather layers active they compete for rate limit
+ // v3.9.6: REGRESSION FIX Re-enable. Spot forecast is only 1 weighted API call.
   // The infobox depends on this data. The real rate-limit problem is the 441-point POST.
   const hasWeatherLayer = activeLayers.length > 0;
   const {
@@ -329,7 +329,7 @@ var MapPageContent = () => {
 
   useEffect(() => { fetchFriends(); }, [inviteFriends, user?.id]);
 
-  // Dispatch tracking — extracted to useDispatchTracking hook (v80)
+ // Dispatch tracking extracted to useDispatchTracking hook (v80)
   const {
     activeDispatch,
     activeDispatchId,
@@ -599,7 +599,7 @@ var MapPageContent = () => {
         onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
       />
 
-      {/* Mobile Weather Controls — anchors itself and handles expanded/collapsed state */}
+ {/* Mobile Weather Controls anchors itself and handles expanded/collapsed state */}
       <MapWeatherControls 
         isDesktop={false}
         isMobileExpanded={showWeatherControls}
@@ -625,7 +625,7 @@ var MapPageContent = () => {
 
 
 
-      {/* Forecast Data Overlay — shows Open-Meteo data when layer active */}
+ {/* Forecast Data Overlay shows Open-Meteo data when layer active */}
       {activeLayers.length > 0 && (
         <MapForecastOverlay
           forecastData={forecastData}

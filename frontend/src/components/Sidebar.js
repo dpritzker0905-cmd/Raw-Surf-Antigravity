@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+ï»¿import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -201,7 +201,7 @@ export const Sidebar = () => {
               <>
                 <span className={`text-[10px] ${textSecondaryClass}`}>Your Role</span>
                 <div className="mt-0.5 flex items-center gap-1">
-                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '=ƒñÖ'}</span>
+ <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '='}</span>
                   <span className={`text-[11px] font-medium ${getExpandedRoleInfo(user.role)?.color || 'text-cyan-400'}`}>
                     {getExpandedRoleInfo(user.role)?.label || user.role}
                   </span>
@@ -326,13 +326,13 @@ export const Sidebar = () => {
               }`}
             >
               {activeSession.status === 'in_session'
-                ? '=ƒô+ Live Shooting Session Active'
+ ? '=+ Live Shooting Session Active'
                 : activeSession.status === 'searching_for_pro'
-                ? '=ƒöì On-Demand Session Searching...'
+ ? '= On-Demand Session Searching...'
                 : activeSession.status === 'en_route'
-                ? '=ƒÅâ Photographer On The Way'
+ ? '= Photographer On The Way'
                 : activeSession.status === 'arrived'
-                ? '=ƒôì Photographer Arrived'
+ ? '= Photographer Arrived'
                 : '? On-Demand Session Active'
               }
             </span>

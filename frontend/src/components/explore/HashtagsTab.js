@@ -1,11 +1,11 @@
-/**
- * HashtagsTab GÇö Trending hashtags discovery and post grid.
+ï»¿/**
+ * HashtagsTab G Trending hashtags discovery and post grid.
  * Extracted from Explore.js to reduce file size.
  * 
  * Features:
  * - Quick hashtag pill buttons (top 10)
  * - Ranked hashtag list with post counts
- * - Selected hashtag GåÆ post grid view
+ * - Selected hashtag G post grid view
  * - Loading and empty states
  */
 import React from 'react';

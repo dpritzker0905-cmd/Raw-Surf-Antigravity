@@ -1,5 +1,5 @@
-/**
- * WebGLWindLayer — MapLibre custom layer integration for GPU wind particles
+﻿/**
+ * WebGLWindLayer MapLibre custom layer integration for GPU wind particles
  *
  * v3.8: React component wrapping WebGLWindEngine as a MapLibre CustomLayerInterface.
  * Replaces Canvas2D GPUWindLayer when wind data is available.
@@ -86,7 +86,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
 
-    // v3.11.2: Increased particle density — 384² = 147k desktop, 192² = 37k mobile
+ // v3.11.2: Increased particle density 384 = 147k desktop, 192 = 37k mobile
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
@@ -148,7 +148,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
     }
   }, [active, mapInstance]);
 
-  // No DOM element — this renders directly into MapLibre's WebGL context
+ // No DOM element this renders directly into MapLibre's WebGL context
   return null;
 }
 

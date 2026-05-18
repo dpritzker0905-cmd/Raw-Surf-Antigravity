@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Forecast Model Normalizers
+ Raw Surf OS Forecast Model Normalizers
  GFS / ICON / EURO / RADAR / SATELLITE
 ====================================================
 
@@ -17,7 +17,7 @@ var/function only (TDZ-immune)
 ====================================================
 */
 
-// ─── SHARED NORMALIZATION HELPERS ────────────────────────────────────────────
+// SHARED NORMALIZATION HELPERS 
 
 /**
  * Create an empty normalized grid.
@@ -65,12 +65,12 @@ function copyToTyped(source, target) {
   }
 }
 
-// ─── GFS NORMALIZER ─────────────────────────────────────────────────────────
+// GFS NORMALIZER 
 
 /**
  * Normalize GFS (Global Forecast System) output.
  * GFS typically provides: u10m, v10m, t2m, precip, mslp
- * Resolution: 0.25° (~28km)
+ * Resolution: 0.25 (~28km)
  */
 function normalizeGFS(raw, bounds) {
   var w = raw.nx || raw.width || 360;
@@ -103,12 +103,12 @@ function normalizeGFS(raw, bounds) {
   return grid;
 }
 
-// ─── ICON NORMALIZER ─────────────────────────────────────────────────────────
+// ICON NORMALIZER 
 
 /**
  * Normalize DWD ICON output.
  * ICON provides: u, v, t_2m, rain_gsp, pmsl
- * Resolution: 0.125° (~13km) or 0.0625° (~7km) for ICON-EU
+ * Resolution: 0.125 (~13km) or 0.0625 (~7km) for ICON-EU
  */
 function normalizeICON(raw, bounds) {
   var w = raw.nx || raw.width || 720;
@@ -137,11 +137,11 @@ function normalizeICON(raw, bounds) {
   return grid;
 }
 
-// ─── EURO (ECMWF) NORMALIZER ─────────────────────────────────────────────────
+// EURO (ECMWF) NORMALIZER 
 
 /**
  * Normalize ECMWF / EURO output.
- * Resolution: 0.1° (~11km) for HRES, 0.25° for ENS
+ * Resolution: 0.1 (~11km) for HRES, 0.25 for ENS
  */
 function normalizeEURO(raw, bounds) {
   var w = raw.nx || raw.width || 900;
@@ -173,7 +173,7 @@ function normalizeEURO(raw, bounds) {
   return grid;
 }
 
-// ─── RADAR NORMALIZER ────────────────────────────────────────────────────────
+// RADAR NORMALIZER 
 
 /**
  * Normalize radar imagery (temporal raster field).
@@ -187,7 +187,7 @@ function normalizeRadar(raw, bounds) {
 
   if (bounds) grid.bounds = bounds;
 
-  // Radar has no wind — only scalar (reflectivity in dBZ)
+ // Radar has no wind only scalar (reflectivity in dBZ)
   if (raw.reflectivity || raw.data) {
     copyToTyped(raw.reflectivity || raw.data, grid.scalar);
   }
@@ -198,7 +198,7 @@ function normalizeRadar(raw, bounds) {
   return grid;
 }
 
-// ─── SATELLITE NORMALIZER ────────────────────────────────────────────────────
+// SATELLITE NORMALIZER 
 
 /**
  * Normalize satellite imagery (texture/tile field).
@@ -223,7 +223,7 @@ function normalizeSatellite(raw, bounds) {
   return grid;
 }
 
-// ─── AUTO NORMALIZER ─────────────────────────────────────────────────────────
+// AUTO NORMALIZER 
 
 /**
  * Route to the correct normalizer based on model name.

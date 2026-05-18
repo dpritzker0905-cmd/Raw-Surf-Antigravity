@@ -1,7 +1,7 @@
-/**
- * WindColorRamp.js — Color LUT for WebGL Wind Visualization
+﻿/**
+ * WindColorRamp.js Color LUT for WebGL Wind Visualization
  *
- * Generates a 1D texture lookup table (LUT) that maps wind speed → color.
+ * Generates a 1D texture lookup table (LUT) that maps wind speed color.
  * Used by WebGLWindEngine's draw fragment shader.
  *
  * RULES:
@@ -14,21 +14,21 @@
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
  * Each stop: [speed_ms, r, g, b, a]
  * Speed in m/s. Calm winds are nearly transparent so terrain shows through.
- * Alpha ramps nonlinearly — only moderate+ winds visually dominate.
- * Colors follow Beaufort/Ventusky convention: blue→cyan→green→yellow→red→purple.
+ * Alpha ramps nonlinearly only moderate+ winds visually dominate.
+ * Colors follow Beaufort/Ventusky convention: bluecyangreenyellowredpurple.
  */
 var DEFAULT_WIND_RAMP = [
-  [0,    0.60, 0.70, 0.85, 0.30],  // Calm — light blue-white, clearly visible
-  [2,    0.50, 0.65, 0.88, 0.38],  // Light air — bright blue
-  [5,    0.35, 0.72, 0.90, 0.45],  // Light breeze — cyan
-  [8,    0.20, 0.78, 0.70, 0.52],  // Gentle breeze — teal
-  [12,   0.35, 0.82, 0.35, 0.58],  // Moderate — green
-  [16,   0.75, 0.85, 0.15, 0.63],  // Fresh — yellow-green
-  [20,   0.95, 0.72, 0.08, 0.67],  // Strong — amber
-  [25,   0.95, 0.42, 0.06, 0.70],  // Near gale — orange (MAX alpha)
-  [30,   0.90, 0.18, 0.10, 0.70],  // Gale — red
-  [40,   0.78, 0.05, 0.30, 0.70],  // Storm — magenta
-  [50,   0.55, 0.00, 0.45, 0.70],  // Hurricane — purple
+ [0, 0.60, 0.70, 0.85, 0.30], // Calm light blue-white, clearly visible
+ [2, 0.50, 0.65, 0.88, 0.38], // Light air bright blue
+ [5, 0.35, 0.72, 0.90, 0.45], // Light breeze cyan
+ [8, 0.20, 0.78, 0.70, 0.52], // Gentle breeze teal
+ [12, 0.35, 0.82, 0.35, 0.58], // Moderate green
+ [16, 0.75, 0.85, 0.15, 0.63], // Fresh yellow-green
+ [20, 0.95, 0.72, 0.08, 0.67], // Strong amber
+ [25, 0.95, 0.42, 0.06, 0.70], // Near gale orange (MAX alpha)
+ [30, 0.90, 0.18, 0.10, 0.70], // Gale red
+ [40, 0.78, 0.05, 0.30, 0.70], // Storm magenta
+ [50, 0.55, 0.00, 0.45, 0.70], // Hurricane purple
 ];
 
 /**
@@ -67,11 +67,11 @@ export function sampleRamp(ramp, speed) {
 
 /**
  * Generate a 256-pixel 1D color ramp texture (RGBA8).
- * Maps normalized speed [0, 1] → color, where 1.0 = maxSpeed.
+ * Maps normalized speed [0, 1] color, where 1.0 = maxSpeed.
  *
  * @param {number} maxSpeed - max wind speed in m/s (typically 50)
  * @param {number[][]} [ramp] - custom color ramp, or defaults
- * @returns {Uint8Array} 256 × 1 RGBA data (1024 bytes)
+ * @returns {Uint8Array} 256 1 RGBA data (1024 bytes)
  */
 export function generateRampData(maxSpeed, ramp) {
   var stops = ramp || DEFAULT_WIND_RAMP;
@@ -131,7 +131,7 @@ export function getDefaultRamp() {
 }
 
 /**
- * v3.12.3: Convenience wrapper — sample default ramp at a given speed.
+ * v3.12.3: Convenience wrapper sample default ramp at a given speed.
  * Used by WindParticleOverlay for Canvas2D rendering.
  * @param {number} speed - wind speed in m/s
  * @returns {number[]} [r, g, b, a] in [0, 1]

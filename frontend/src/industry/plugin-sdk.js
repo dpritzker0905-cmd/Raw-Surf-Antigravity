@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Industry Plugin SDK
+ Raw Surf OS Industry Plugin SDK
  SURF ECOSYSTEM OPERATING SYSTEM LAYER
 ====================================================
 
@@ -11,7 +11,7 @@ var/function only (TDZ-immune)
 ====================================================
 */
 
-// ─── ROLE DEFINITIONS ────────────────────────────────────────────────────────
+// ROLE DEFINITIONS 
 
 var INDUSTRY_ROLES = {
   SURFER:             'surfer',
@@ -28,7 +28,7 @@ var INDUSTRY_ROLES = {
   COMPETITION_JUDGE:  'competition-judge',
 };
 
-// ─── SERVICE FLAGS ───────────────────────────────────────────────────────────
+// SERVICE FLAGS 
 
 var SERVICE_FLAGS = {
   BOOKINGS: 'bookings',
@@ -37,7 +37,7 @@ var SERVICE_FLAGS = {
   SOCIAL:   'social',
 };
 
-// ─── PLUGIN STORE ────────────────────────────────────────────────────────────
+// PLUGIN STORE 
 
 var _sdkPlugins = new Map();
 

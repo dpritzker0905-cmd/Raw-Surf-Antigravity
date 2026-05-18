@@ -1,5 +1,5 @@
-/**
- * MapMarkerLayers — Extracted from MapWebGL.js for LOC compliance.
+﻿/**
+ * MapMarkerLayers Extracted from MapWebGL.js for LOC compliance.
  *
  * Renders all interactive map markers:
  *   - Spot clusters (supercluster)

@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * useAdminP1Actions.js
- * Extracted from AdminP1Dashboard.js GÇö handler logic for admin compliance dashboard.
+ * Extracted from AdminP1Dashboard.js G handler logic for admin compliance dashboard.
  * v33: Rewritten to exactly match AdminP1Dashboard.js handler implementations.
  */
 import apiClient from '../lib/apiClient';

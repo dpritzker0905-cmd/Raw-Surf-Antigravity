@@ -1,5 +1,5 @@
-/**
- * roles.test.js — Tests for the centralized role constants.
+﻿/**
+ * roles.test.js Tests for the centralized role constants.
  *
  * Verifies that role strings match expected values, role sets contain
  * the right roles, and helper functions return correct results.

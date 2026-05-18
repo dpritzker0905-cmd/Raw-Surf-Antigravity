@@ -1,7 +1,7 @@
-/**
- * roles.js GÇö Centralized role and persona constants
+ï»¿/**
+ * roles.js G Centralized role and persona constants
  *
- * GÜí SINGLE SOURCE OF TRUTH for all role string literals.
+ * G SINGLE SOURCE OF TRUTH for all role string literals.
  * Values MUST match the backend RoleEnum values exactly.
  *
  * Usage:
@@ -10,7 +10,7 @@
  *   if (ROLE_SETS.PRO_LEVEL.includes(user.role)) { ... }
  */
 
-// GöÇGöÇGöÇ Individual Role Constants GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Individual Role Constants GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 // These values MUST match backend/models.py RoleEnum exactly
 
 export const ROLES = Object.freeze({
@@ -37,11 +37,11 @@ export const ROLES = Object.freeze({
   SHAPER: 'Shaper',
   DESTINATION: 'Destination',
 
-  // Admin / God Mode GÇö internal use only
+ // Admin / God Mode G internal use only
   GOD: 'God',
 });
 
-// GöÇGöÇGöÇ Role Set Groupings GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Role Set Groupings GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 /** All surfer-type roles (not photographers or businesses) */
 export const SURFER_ROLES = [ROLES.SURFER, ROLES.GROM, ROLES.COMP_SURFER, ROLES.PRO];
@@ -66,7 +66,7 @@ export const ROLE_SETS = Object.freeze({
   PRO_LEVEL: [ROLES.PRO, ROLES.GOD],
 
   /**
-   * Business / commercial roles GÇö access to The Channel.
+ * Business / commercial roles G access to The Channel.
    */
   BUSINESS: [
     ROLES.PHOTOGRAPHER,
@@ -87,7 +87,7 @@ export const ROLE_SETS = Object.freeze({
   PHOTOGRAPHERS: [ROLES.PHOTOGRAPHER, ROLES.APPROVED_PRO],
 
   /**
-   * Youth-level roles GÇö restricted access, parental controls apply.
+ * Youth-level roles G restricted access, parental controls apply.
    */
   YOUTH: [ROLES.GROM, ROLES.GROM_PARENT],
 
@@ -113,7 +113,7 @@ export const ROLE_SETS = Object.freeze({
   ],
 });
 
-// GöÇGöÇGöÇ Role Check Helpers GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Role Check Helpers GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 /** Returns true if the role has access to the Pro Lounge. */
 export const isProLevel = (role) => ROLE_SETS.PRO_LEVEL.includes(role);
@@ -127,7 +127,7 @@ export const isPhotographerRole = (role) => ROLE_SETS.PHOTOGRAPHERS.includes(rol
 /** Returns true if the role is youth-gated (Grom or Grom Parent). */
 export const isYouthRole = (role) => ROLE_SETS.YOUTH.includes(role);
 
-// GöÇGöÇGöÇ User-object helpers (used by lib/roles.js consumers) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG User-object helpers (used by lib/roles.js consumers) GGGGGGGGGGGGGGGGGGGGG
 
 /** Returns true if the user is any type of photographer (including Hobbyist). */
 export const isPhotographer = (user) => PHOTOGRAPHER_ROLES.includes(user?.role);

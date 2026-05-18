@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * DispatchSessionHero - Active session hero card with timer, photographer info, and comm buttons
  * Extracted from DispatchLobby.js for modularization (v74)
  */
@@ -65,7 +65,7 @@ const DispatchSessionHero = ({
               {photographerName}
             </p>
             <p className={`text-sm ${isLight ? 'text-green-600' : 'text-green-400'}`}>
-              =ƒô+ Shooting your session now
+ =+ Shooting your session now
             </p>
           </div>
           <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-xs flex-shrink-0">

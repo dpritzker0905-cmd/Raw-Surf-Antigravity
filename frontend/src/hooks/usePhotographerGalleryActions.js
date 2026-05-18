@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * usePhotographerGalleryActions.js - Extracted from PhotographerGalleryManager.js
  * Gallery management: upload, pricing, tagging, distribution.
  * ~466 lines, 27 handlers extracted.
@@ -108,7 +108,7 @@ const usePhotographerGalleryActions = ({
         {}
       );
       const data = response.data;
-      toast.success(`=ƒô+ ${data.message}`);
+ toast.success(`=+ ${data.message}`);
       await fetchConditionsStatus();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to push conditions report');

@@ -1,14 +1,14 @@
-/**
- * WebGLWindEngine — GPU-accelerated wind particle advection + trail fading
+﻿/**
+ * WebGLWindEngine GPU-accelerated wind particle advection + trail fading
  *
  * v3.8: Replaces Canvas2D particle loop with WebGL ping-pong framebuffer
  * architecture for 10-50x more particles with trail decay.
  *
  * Architecture:
- *   1. Wind vectors → GPU texture (RGBA encoding of u,v per grid cell)
- *   2. Particle positions → ping-pong framebuffers (read/write swap each frame)
- *   3. Advection shader: sample wind texture → move particle positions
- *   4. Trail texture: alpha-blend particles → fade previous frame (persistence)
+ * 1. Wind vectors GPU texture (RGBA encoding of u,v per grid cell)
+ * 2. Particle positions ping-pong framebuffers (read/write swap each frame)
+ * 3. Advection shader: sample wind texture move particle positions
+ * 4. Trail texture: alpha-blend particles fade previous frame (persistence)
  *   5. Final composite: render trail texture to screen canvas
  */
 
@@ -75,8 +75,8 @@ void main() {
   float speed = length(wind);
 
   // Advect: move particle by wind velocity (normalized to [0,1] space)
-  // v3.11.1: Mercator latitude correction — cos(lat) prevents polar distortion
-  float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] → [-π/2, π/2]
+ // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
+ float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] [-/2, /2]
   float merc_scale = max(0.1, cos(lat_rad));
   vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_factor;
   pos = pos + offset;
@@ -126,7 +126,7 @@ void main() {
   vec4 encoded = texture2D(u_particles, uv);
   vec2 pos = decodePos(encoded);
 
-  // Convert [0,1] → [lng, lat]
+ // Convert [0,1] [lng, lat]
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
 
@@ -140,7 +140,7 @@ void main() {
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
-  // v3.12.2: Ventusky-scale particles — visible flowing streams
+ // v3.12.2: Ventusky-scale particles visible flowing streams
   gl_PointSize = 2.0 + clamp(v_speed / 8.0, 0.0, 3.0);
 }`;
 
@@ -186,8 +186,8 @@ varying vec2 v_uv;
 void main() {
   vec4 color = texture2D(u_screen, v_uv);
   // v3.12.2 CRITICAL FIX: Fade RGB, keep alpha=1.0 (mapbox/webgl-wind technique).
-  // Fading alpha causes compound decay → invisible trails.
-  // Fading RGB creates visible dimming → premultiplied blend makes black = transparent.
+ // Fading alpha causes compound decay invisible trails.
+ // Fading RGB creates visible dimming premultiplied blend makes black = transparent.
   gl_FragColor = vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
 }`;
 
@@ -313,19 +313,19 @@ function initParticleTexture(gl, resolution) {
   return createTexture(gl, gl.NEAREST, data, resolution, resolution);
 }
 
-// --- Exported Constructor (var/function — TDZ-immune) ---
+// --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
   // v3.12.2: Ventusky-parity trails and motion
-  this.particleRes = 384; // 384² = 147,456 particles
+ this.particleRes = 384; // 384 = 147,456 particles
   this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
   this.speedFactor = 0.40;  // Visible directional flow
-  this.dropRate = 0.0015;   // Particles live longer → continuous streams
+ this.dropRate = 0.0015; // Particles live longer continuous streams
   this.dropRateBump = 0.006;
   this._initialized = false;
   this._windData = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
-  this._maxWindSpeed = 50; // m/s — maps to ramp max
+ this._maxWindSpeed = 50; // m/s maps to ramp max
 }
 export default WebGLWindEngine;
 
@@ -412,11 +412,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
-  // Step 2: Fade screen A → screen B (RGB fade, alpha=1.0)
+ // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
   gl.useProgram(this.fadeProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  // v3.12.2: No blend for fade — shader outputs alpha=1.0, straight overwrite
+ // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
@@ -429,7 +429,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(fadePosLoc);
 
   // Step 3: Draw particles onto screen B with color ramp
-  // v3.12.2: Re-enable blending — particles drawn ON TOP of faded trails
+ // v3.12.2: Re-enable blending particles drawn ON TOP of faded trails
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.drawProgram);
@@ -454,7 +454,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
   gl.disableVertexAttribArray(idxLoc);
 
-  // Copy screenB → screenA
+ // Copy screenB screenA
   gl.useProgram(this.screenProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -469,7 +469,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(cpLoc);
 
   // Step 4: Composite to main framebuffer
-  // v3.12.2: Standard alpha blend — screen shader derives alpha from trail brightness.
+ // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
   // RGB-fade FBO has alpha=1.0, but screen shader outputs brightness-derived alpha.
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
@@ -507,7 +507,7 @@ WebGLWindEngine.prototype.dispose = function(gl) {
 };
 
 /**
- * v3.11.2r1: Clear all framebuffers — called on layer deactivation
+ * v3.11.2r1: Clear all framebuffers called on layer deactivation
  * to prevent stale trails from persisting across layer switches.
  */
 WebGLWindEngine.prototype.clearBuffers = function(gl) {

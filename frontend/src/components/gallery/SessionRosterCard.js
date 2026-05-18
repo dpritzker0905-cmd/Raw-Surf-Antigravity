@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+ï»¿import React, { useState, useCallback, useRef } from 'react';
 import {
   Users,
   ChevronDown,
@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 /**
- * SessionRosterCard +»-+-+ Enhanced Surfer Delivery Tracker
+ * SessionRosterCard +-+-+ Enhanced Surfer Delivery Tracker
  * 
  * Features:
  *   - Expandable surfer panels with selfie reference photo (zoomable)
@@ -39,11 +39,11 @@ export const SessionRosterCard = ({
   if (!roster || roster.length === 0) return null;
 
   const sessionLabel = {
-    live: { text: 'Live Session', color: '#10b981', emoji: '=ƒô+' },
-    booking: { text: 'Booking', color: '#3b82f6', emoji: '=ƒô+' },
+ live: { text: 'Live Session', color: '#10b981', emoji: '=+' },
+ booking: { text: 'Booking', color: '#3b82f6', emoji: '=+' },
     on_demand: { text: 'On-Demand', color: '#f59e0b', emoji: '?' },
-    manual: { text: 'Manual', color: '#6b7280', emoji: '=ƒô+' }
-  }[sessionType] || { text: 'Session', color: '#6b7280', emoji: '=ƒô+' };
+ manual: { text: 'Manual', color: '#6b7280', emoji: '=+' }
+ }[sessionType] || { text: 'Session', color: '#6b7280', emoji: '=+' };
 
   // -- COMPACT MODE --
   if (compact) {
@@ -96,7 +96,7 @@ export const SessionRosterCard = ({
           <div className="text-left">
             <h4 className="text-sm font-semibold text-foreground">Session Roster</h4>
             <p className="text-[11px] text-muted-foreground">
-              {roster.length} surfer{roster.length !== 1 ? 's' : ''} +»-+-+ {sessionLabel.emoji} {sessionLabel.text}
+ {roster.length} surfer{roster.length !== 1 ? 's' : ''} +-+-+ {sessionLabel.emoji} {sessionLabel.text}
             </p>
           </div>
         </div>
@@ -174,7 +174,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
       );
       setTaggedItems(prev => prev.filter(i => i.gallery_item_id !== item.gallery_item_id));
       const type = item.media_type === 'video' ? 'video' : 'photo';
-      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' +»-+-+ credit restored' : ''}`);
+ toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' +-+-+ credit restored' : ''}`);
       if (onRosterUpdate) onRosterUpdate();
     } catch (err) {
       toast.error('Failed to untag item');
@@ -270,7 +270,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                     delivered={items_delivered} included={photos_included} remaining={credits_remaining} color="#06b6d4" />
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <MiniPill icon={payment_method === 'credits' ? '?' : '=ƒô+'}
+ <MiniPill icon={payment_method === 'credits' ? '?' : '=+'}
                     text={amount_paid > 0 ? `$${amount_paid} paid` : 'Free'} />
                   <MiniPill icon={<Shield className="w-3 h-3" style={{ color: isComplete ? '#10b981' : '#f59e0b' }} />}
                     text={isComplete ? 'Fully delivered' : hasCredits ? `${credits_remaining} left` : 'Awaiting'} />
@@ -297,7 +297,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                 </span>
                 {taggedItems.length > 0 && (
                   <span className="text-[10px] text-muted-foreground">
-                    {taggedItems.filter(i => i.media_type !== 'video').length} ?? +»-+-+ {taggedItems.filter(i => i.media_type === 'video').length} ??
+ {taggedItems.filter(i => i.media_type !== 'video').length} ?? +-+-+ {taggedItems.filter(i => i.media_type === 'video').length} ??
                   </span>
                 )}
               </div>
@@ -343,7 +343,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                   {selfie_url ? '?? Session Selfie' : '?? Profile Photo'}
                 </span>
                 <span className="text-[10px] text-white/50">
-                  ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` +»-+-+ ?? ${videos_delivered}/${videos_included}` : ''}
+ ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` +-+-+ ?? ${videos_delivered}/${videos_included}` : ''}
                 </span>
               </div>
             </div>
@@ -397,7 +397,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
   const videoUrl = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
   const accessColor = item.access_type === 'included' ? '#10b981' : item.access_type === 'pending_selection' ? '#f59e0b' : '#6b7280';
 
-  // Thumbnail-only in grid +»-+-+ no video autoplay to save bandwidth
+ // Thumbnail-only in grid +-+-+ no video autoplay to save bandwidth
 
   return (
     <div className="relative flex-shrink-0 group">
@@ -412,7 +412,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
         {/* Media type badge */}
         <div className="absolute bottom-0.5 left-0.5 text-[7px] px-1 py-0.5 rounded font-semibold"
           style={{ background: isVideo ? 'rgba(139,92,246,0.85)' : 'rgba(6,182,212,0.85)', color: 'white' }}>
-          {isVideo ? '?? Vid' : '=ƒô+'}
+ {isVideo ? '?? Vid' : '=+'}
         </div>
         {/* Access indicator dot */}
         <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: accessColor, boxShadow: `0 0 4px ${accessColor}` }} />

@@ -1,5 +1,5 @@
-/**
- * Particle System v2 — GPU-Ready Wind Visualization Engine
+﻿/**
+ * Particle System v2 GPU-Ready Wind Visualization Engine
  *
  * UPGRADES FROM v1:
  *   - RK4 particle advection (4th-order Runge-Kutta)
@@ -11,20 +11,20 @@
  *   - Streamline trail support
  *
  * RULES:
- *   - NO WebGL (pure CPU simulation — rendering is separate)
+ * - NO WebGL (pure CPU simulation rendering is separate)
  *   - NO DOM access
  *   - NO RAF (update is called by render-orchestrator)
  *   - ZERO allocations in the update loop
  *   - Pure data output: positions + metadata for renderer consumption
  */
 
-// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+// CONSTANTS 
 const DEFAULT_COUNT = 4000;
 const MIN_SPEED_THRESHOLD = 0.01;  // Below this speed, particle is "dead"
 const SPEED_SCALE = 0.00015;       // Converts m/s to world-space movement
 const TRAIL_LENGTH = 6;            // Number of previous positions to store
 
-// ─── BILINEAR INTERPOLATION ──────────────────────────────────────────────────
+// BILINEAR INTERPOLATION 
 /**
  * Sample a 2D vector field at continuous coordinates using bilinear interpolation.
  * Returns { u, v } or null if out of bounds.
@@ -65,7 +65,7 @@ function sampleField(uData, vData, cols, rows, x, y) {
   return { u, v };
 }
 
-// ─── PARTICLE POOL ───────────────────────────────────────────────────────────
+// PARTICLE POOL 
 /**
  * Create the particle pool. Pre-allocates all particles to avoid GC pressure.
  * Each particle stores position, velocity, age, and a trail ring buffer.
@@ -105,7 +105,7 @@ function respawn(p, width, height) {
   p.trailLen = 0;
 }
 
-// ─── RK4 ADVECTION ──────────────────────────────────────────────────────────
+// RK4 ADVECTION 
 /**
  * 4th-order Runge-Kutta integration for particle advection.
  * Produces smoother, more accurate particle paths than Euler integration.
@@ -137,7 +137,7 @@ function rk4Advect(uData, vData, cols, rows, x, y, dt) {
   };
 }
 
-// ─── PARTICLE SYSTEM CLASS ───────────────────────────────────────────────────
+// PARTICLE SYSTEM CLASS 
 /**
  * Advanced particle system with RK4 advection.
  *
@@ -201,7 +201,7 @@ ParticleSystem.prototype.update = function(dt) {
 
     // Map particle screen coords to field coords
     const fx = (p.x / w) * (cols - 1);
-    const fy = (1 - p.y / h) * (rows - 1); // Flip Y (screen → field)
+ const fy = (1 - p.y / h) * (rows - 1); // Flip Y (screen field)
 
     // RK4 advection
     const vel = rk4Advect(uData, vData, cols, rows, fx, fy, dt);

@@ -1,15 +1,15 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { Wind, Waves, CloudRain, Thermometer, ArrowUp, Droplets, Gauge, Lock, ChevronDown } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
- * Floating forecast data readout — renders alongside tile overlays when
+ * Floating forecast data readout renders alongside tile overlays when
  * a weather layer is active.
  *
  * Data source: Open-Meteo Weather & Marine APIs (GFS / ECMWF / ICON).
  * Shows numeric values for the currently selected layer + time offset.
  *
- * V162: Consolidated wave dashboard — each swell component shows
+ * V162: Consolidated wave dashboard each swell component shows
  * height + period + direction together (like Windy.com detail panels).
  * Wind LIVE mode uses `current` observational data for accuracy.
  */
@@ -79,7 +79,7 @@ export var MapForecastOverlay = ({
     return closest;
   }, [marineData, timeOffsetHours]);
 
-  // Don't show when no data loaded yet (AFTER all hooks — React Rules of Hooks)
+ // Don't show when no data loaded yet (AFTER all hooks React Rules of Hooks)
   if (!forecastData && !marineData) return null;
 
   // Extract values
@@ -129,11 +129,11 @@ export var MapForecastOverlay = ({
     if (windSpeed != null) {
       const kts = windSpeed != null ? Math.round(windSpeed) : null;
       cards.push({ icon: Wind, label: isLive ? 'Live Wind' : 'Wind', value: kts != null ? `${kts} kts` : '--', color: 'text-teal-400' });
-      if (windDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}°`, color: 'text-teal-300', rotate: windDir });
+ if (windDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}`, color: 'text-teal-300', rotate: windDir });
       if (windGusts != null) cards.push({ icon: Wind, label: 'Gusts', value: `${Math.round(windGusts)} kts`, color: 'text-orange-400' });
     } else {
-      // Forecast data unavailable — show placeholder so overlay stays visible
-      cards.push({ icon: Wind, label: 'Wind', value: isLoading ? 'Loading…' : '--', color: 'text-gray-400' });
+ // Forecast data unavailable show placeholder so overlay stays visible
+ cards.push({ icon: Wind, label: 'Wind', value: isLoading ? 'Loading' : '--', color: 'text-gray-400' });
     }
   }
 
@@ -146,28 +146,28 @@ export var MapForecastOverlay = ({
     const hFt = mToFt(waveHeight);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-blue-300' });
     if (wavePeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${wavePeriod.toFixed(1)}s`, color: 'text-blue-200' });
-    if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}°`, color: 'text-blue-200', rotate: waveDir });
+ if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}`, color: 'text-blue-200', rotate: waveDir });
   }
 
   if (activeLayer === 'swell_1') {
     const hFt = mToFt(swell1Height);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-cyan-400' });
     if (swell1Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
-    if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}°`, color: 'text-cyan-200', rotate: swell1Dir });
+ if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: swell1Dir });
   }
 
   if (activeLayer === 'swell_2') {
     const hFt = mToFt(swell2Height);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-purple-400' });
     if (swell2Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell2Period.toFixed(1)}s`, color: 'text-purple-300' });
-    if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}°`, color: 'text-purple-200', rotate: swell2Dir });
+ if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}`, color: 'text-purple-200', rotate: swell2Dir });
   }
 
   if (activeLayer === 'wind_waves') {
     const hFt = mToFt(windWaveHeight);
     cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-emerald-400' });
     if (windWavePeriod != null) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}s`, color: 'text-emerald-300' });
-    if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}°`, color: 'text-emerald-200', rotate: windWaveDir });
+ if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: windWaveDir });
   }
 
   if (cards.length === 0) return null;
@@ -216,7 +216,7 @@ export var MapForecastOverlay = ({
           ) : isLoading ? (
             <div className={`text-xs ${textMuted} flex items-center gap-2`}>
               <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-              Loading…
+ Loading
             </div>
           ) : (
             cards.map((card, i) => {

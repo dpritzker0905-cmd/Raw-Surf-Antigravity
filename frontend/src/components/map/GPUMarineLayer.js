@@ -1,9 +1,9 @@
-/**
- * GPUMarineLayer.js â€” Marine-only renderer (v3.1)
+﻿/**
+ * GPUMarineLayer.js Marine-only renderer (v3.1)
  *
  * Renders ocean energy fields (waves, swell, wind waves) with:
- * A) Scalar ocean heatmap â€” color mapped to wave HEIGHT (meters)
- * B) White foam/crest broken dashes â€” direction only, NOT velocity vectors
+ * A) Scalar ocean heatmap color mapped to wave HEIGHT (meters)
+ * B) White foam/crest broken dashes direction only, NOT velocity vectors
  *
  * This renderer is architecturally separated from GPUWindLayer.js.
  * Marine must NEVER visually resemble wind.
@@ -99,8 +99,8 @@ function isLikelyOcean(lat, lng, grid) {
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
-  // Fast reject: if inside a land bounding box (0.3° margin for coastal tolerance)
-  // v70: Reduced from 1° to 0.3° to allow particles into coves, bays, and inlets
+ // Fast reject: if inside a land bounding box (0.3 margin for coastal tolerance)
+ // v70: Reduced from 1 to 0.3 to allow particles into coves, bays, and inlets
   for (const box of LAND_BOXES) {
     if (lat > box.s + 0.3 && lat < box.n - 0.3 &&
         nLng > box.w + 0.3 && nLng < box.e - 0.3) {
@@ -198,7 +198,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
         // v74: Add spawn jitter to break grid-cell center alignment
-        const jitter = 0.03; // ±0.03° random offset
+ const jitter = 0.03; // 0.03 random offset
         const jLng = lng + (Math.random() - 0.5) * jitter * 2;
         const jLat = lat + (Math.random() - 0.5) * jitter * 2;
         return {
@@ -223,7 +223,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     let frameCount = 0;
     let wasActive = false;
 
-    // v3.9.7: Phase 2 — register with shared CanvasAnimationCoordinator
+ // v3.9.7: Phase 2 register with shared CanvasAnimationCoordinator
     const coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
 
@@ -319,7 +319,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           alpha *= smoothstep(paddedN, paddedN - edgePad, p.lat);
           alpha *= MARINE_PARTICLE_ALPHA;
 
-          // v3.4: Data-driven intensity — particles fade in calm water
+ // v3.4: Data-driven intensity particles fade in calm water
           const h = wave.speed;
           const energyAlpha = p.energy !== undefined ? (0.15 + p.energy * 0.85) : Math.min(1.5, 0.6 + h / 3);
           alpha *= energyAlpha; alpha = Math.min(1.0, alpha);
@@ -327,14 +327,14 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           if (alpha < 0.01) continue;
 
           // Wave direction for dash orientation
-          // Wave propagation direction — particles flow WITH energy movement (like Windy.com)
+ // Wave propagation direction particles flow WITH energy movement (like Windy.com)
           const dirAngle = Math.atan2(-wave.v, wave.u) ;
           const halfDash = p.dashLen / 2;
           const dx = Math.cos(dirAngle) * halfDash;
           const dy = -Math.sin(dirAngle) * halfDash;
 
-          // White foam crest â€” broken dash, NOT continuous trail
-          // v3.11.2: Energy-tinted foam — brighter, wider, with wave height color shift
+ // White foam crest broken dash, NOT continuous trail
+ // v3.11.2: Energy-tinted foam brighter, wider, with wave height color shift
           const hEnergy = Math.min(1, h / 4);
           const foamR = Math.round(210 + hEnergy * 45);
           const foamG = Math.round(225 + hEnergy * 30);

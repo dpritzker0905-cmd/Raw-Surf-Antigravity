@@ -1,9 +1,9 @@
-/**
- * ChallengesTab G«ˆ Weekly challenges leaderboard + history for the Career hub.
+Ôªø/**
+ * ChallengesTab G Weekly challenges leaderboard + history for the Career hub.
  *
  * Connects to:
- *   GET /api/challenges/current   G«ˆ active challenge + leaderboard
- *   GET /api/challenges/history   G«ˆ past winners
+ * GET /api/challenges/current G active challenge + leaderboard
+ * GET /api/challenges/history G past winners
  *
  * Design: Glassmorphism trophy cards, gradient progress, rank badges.
  */
@@ -12,7 +12,7 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ChallengeCardSkeleton } from '../ui/SkeletonVariants';
 
-const TROPHY_EMOJI = ['=É≈Â', '=É—Í', '=É—Î'];
+const TROPHY_EMOJI = ['=', '=', '='];
 
 const formatTime = (seconds) => {
   if (seconds <= 0) return 'Ended';
@@ -82,7 +82,7 @@ const ChallengesTab = ({ userId }) => {
         textAlign: 'center',
         color: '#94a3b8'
       }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>=É≈‰</div>
+ <div style={{ fontSize: 48, marginBottom: 12 }}>=</div>
         <p>{error}</p>
         <button
           onClick={fetchData}
@@ -128,7 +128,7 @@ const ChallengesTab = ({ userId }) => {
           }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span style={{ fontSize: 36 }}>{challenge.badge_emoji || '=É≈Â'}</span>
+ <span style={{ fontSize: 36 }}>{challenge.badge_emoji || '='}</span>
             <div>
               <h3 style={{
                 margin: 0,
@@ -154,7 +154,7 @@ const ChallengesTab = ({ userId }) => {
             borderRadius: 8,
             marginBottom: 8
           }}>
-            <span style={{ fontSize: 12, color: '#94a3b8' }}>G≈¶ Time remaining</span>
+ <span style={{ fontSize: 12, color: '#94a3b8' }}>G Time remaining</span>
             <span style={{
               fontSize: 14,
               fontWeight: 700,
@@ -215,7 +215,7 @@ const ChallengesTab = ({ userId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {leaderboard.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>=ÉÓË</div>
+ <div style={{ fontSize: 40, marginBottom: 8 }}>=</div>
               <p style={{ margin: 0, fontSize: 14 }}>No participants yet this week</p>
               <p style={{ margin: '4px 0 0', fontSize: 12 }}>Support a Grom to climb the leaderboard!</p>
             </div>
@@ -312,7 +312,7 @@ const ChallengesTab = ({ userId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {history.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
-              <div style={{ fontSize: 40, marginBottom: 8 }}>=ÉÙ£</div>
+ <div style={{ fontSize: 40, marginBottom: 8 }}>=</div>
               <p style={{ margin: 0, fontSize: 14 }}>No completed challenges yet</p>
             </div>
           ) : (

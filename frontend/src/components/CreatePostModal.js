@@ -1,4 +1,4 @@
-
+ï»¿
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
@@ -248,7 +248,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           } else {
             toast.error(detail || (isVideoFile ? 'Video upload failed. Please try again.' : 'Upload failed. Please try again.'));
           }
-          return; // Exit early GÇö don't try to create post without media
+ return; // Exit early G don't try to create post without media
         }
       }
 

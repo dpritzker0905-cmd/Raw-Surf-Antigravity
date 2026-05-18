@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * ActiveSessionBanner.js
  *
  * Multi-platform persistent session awareness component.
@@ -11,7 +11,7 @@
  *   Expanded:    Full context card with status, photographer, ETA, CTA.
  *
  * DESKTOP:
- *   Handled by Sidebar.js GÇö pulsing text label under the Bookings nav item.
+ * Handled by Sidebar.js G pulsing text label under the Bookings nav item.
  *   (No separate desktop component needed here.)
  *
  * Color scheme:
@@ -29,17 +29,17 @@ import {
 } from 'lucide-react';
 import useActiveSession from '../hooks/useActiveSession';
 
-// GöÇGöÇ Status label map GöÇGöÇ
+// GG Status label map GG
 const STATUS_LABELS = {
   searching_for_pro: { captain: 'Finding Photographer...', crew: 'Waiting for Photographer...' },
   pending_payment:   { captain: 'Payment Pending', crew: 'Waiting for Captain to Pay' },
   accepted:          { captain: 'Photographer Confirmed!', crew: 'Photographer Confirmed!' },
   en_route:          { captain: 'On The Way', crew: 'On The Way!' },
   arrived:           { captain: 'Photographer Arrived!', crew: 'Arrived!' },
-  in_session:        { captain: 'Session Active =ƒô+', crew: 'Session Active =ƒô+' },
+ in_session: { captain: 'Session Active =+', crew: 'Session Active =+' },
 };
 
-// GöÇGöÇ Shared color config factory GöÇGöÇ
+// GG Shared color config factory GG
 const getColorConfig = (isCrew, isLight) => isCrew
   ? {
       barGradient: 'from-cyan-400 via-blue-500 to-cyan-400',
@@ -58,7 +58,7 @@ const getColorConfig = (isCrew, isLight) => isCrew
       glow: 'shadow-amber-400/20',
     };
 
-// GöÇGöÇ Status icon component GöÇGöÇ
+// GG Status icon component GG
 const StatusIcon = ({ status, colorConfig }) => {
   if (['searching_for_pro', 'en_route'].includes(status)) {
     return <Radio className={`w-4 h-4 animate-pulse ${colorConfig.textAccent}`} />;
@@ -70,15 +70,15 @@ const StatusIcon = ({ status, colorConfig }) => {
 };
 
 
-// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
-// MOBILE BANNER GÇö Sits above BottomNav
-// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
+// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// MOBILE BANNER G Sits above BottomNav
+// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpanded, handleNavigate, statusLabel }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
 
-  // GöÇGöÇ Collapsed: thin pulsing bar GöÇGöÇ
+ // GG Collapsed: thin pulsing bar GG
   if (!isExpanded) {
     return (
       <div
@@ -91,7 +91,7 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
         <div
           className={`h-[5px] w-full bg-gradient-to-r ${colorConfig.barGradient} animate-[pulse_2.5s_ease-in-out_infinite]`}
         />
-        {/* Pull-up handles GÇö positioned LEFT and RIGHT to avoid center Create button */}
+ {/* Pull-up handles G positioned LEFT and RIGHT to avoid center Create button */}
         <div className="absolute left-16 -top-3 flex flex-col items-center">
           <div className={`w-8 h-3 rounded-t-lg ${isLight ? 'bg-white/90' : 'bg-zinc-900/90'} border border-b-0 ${colorConfig.border} flex items-center justify-center backdrop-blur-sm`}>
             <ChevronUp className={`w-3 h-3 ${colorConfig.textAccent}`} />
@@ -106,7 +106,7 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
     );
   }
 
-  // GöÇGöÇ Expanded: full context card GöÇGöÇ
+ // GG Expanded: full context card GG
   return (
     <div
       className="fixed left-0 right-0 z-[99] md:hidden"
@@ -182,11 +182,11 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
 };
 
 
-// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
-// TOPNAV NOTIFICATION LINE GÇö Thin accent line at the very bottom of
+// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// TOPNAV NOTIFICATION LINE G Thin accent line at the very bottom of
 // the header, positioned to touch the scrollable content below with
 // zero gap. Sits OVER the header's border-b.
-// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
+// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 const TopNavLine = ({ colorConfig }) => {
   // The TopNav header: py-2.5 (20px) + icon row (~24px) + border-b (1px)
@@ -206,10 +206,10 @@ const TopNavLine = ({ colorConfig }) => {
 };
 
 
-// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
-// MAIN EXPORT GÇö Orchestrates mobile-only sub-components
+// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// MAIN EXPORT G Orchestrates mobile-only sub-components
 // Desktop session awareness is handled directly by Sidebar.js
-// GòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉGòÉ
+// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 export const ActiveSessionBanner = () => {
   const navigate = useNavigate();

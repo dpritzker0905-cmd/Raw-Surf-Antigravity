@@ -1,4 +1,4 @@
-import React from 'react';
+ï»¿import React from 'react';
 import { Zap, CalendarClock, Camera, Clock, Calculator, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
@@ -7,7 +7,7 @@ import { NumericStepper } from './ui/numeric-stepper';
 import { getFullUrl } from '../utils/media';
 
 /**
- * Quick Book modal GÇö lets surfers request on-demand or scheduled bookings
+ * Quick Book modal G lets surfers request on-demand or scheduled bookings
  * with a photographer directly from their profile.
  * Extracted from Profile.js to reduce god-component complexity.
  */
@@ -74,7 +74,7 @@ export const ProfileQuickBookModal = ({
             <span className="text-2xl font-bold text-yellow-400">${quickBookTotal.toFixed(2)}</span>
           </div>
           <p className="text-sm text-gray-400">
-            ${quickBookHourlyRate}/hr +ù {quickBookDuration} hr{quickBookDuration > 1 ? 's' : ''} = ${quickBookTotal.toFixed(2)}
+ ${quickBookHourlyRate}/hr + {quickBookDuration} hr{quickBookDuration > 1 ? 's' : ''} = ${quickBookTotal.toFixed(2)}
           </p>
         </div>
 

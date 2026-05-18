@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 
 function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
@@ -147,7 +147,7 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       });
 
       if (violations.length) {
-        // v3.8.5: Suppress during bootstrap (first 3s) — data hasn't loaded yet
+ // v3.8.5: Suppress during bootstrap (first 3s) data hasn't loaded yet
         if (Date.now() - mountTimeRef.current < 3000) return violations;
 
         violations.forEach(v => {

@@ -1,5 +1,5 @@
-/**
- * useOptimisticAction.test.js — Unit tests for the optimistic UI hook.
+﻿/**
+ * useOptimisticAction.test.js Unit tests for the optimistic UI hook.
  */
 import { renderHook, act } from '@testing-library/react';
 import useOptimisticAction from '../../hooks/useOptimisticAction';

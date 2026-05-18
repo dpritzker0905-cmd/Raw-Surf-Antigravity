@@ -1,9 +1,9 @@
-/**
- * useFocusTrap GÇö Traps keyboard focus inside a container element.
+ï»¿/**
+ * useFocusTrap G Traps keyboard focus inside a container element.
  *
  * Usage:
  *   const trapRef = useFocusTrap(isOpen);
- *   return <div ref={trapRef}>GÇªmodal contentGÇª</div>;
+ * return <div ref={trapRef}>Gmodal contentG</div>;
  *
  * When active:
  *   - Tab / Shift+Tab cycles through focusable children only

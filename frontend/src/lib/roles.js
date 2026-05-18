@@ -1,7 +1,7 @@
-/**
- * lib/roles.js — Re-export shim
+﻿/**
+ * lib/roles.js Re-export shim
  *
- * ⚠️  DEPRECATED: This file now re-exports everything from the canonical
+ * DEPRECATED: This file now re-exports everything from the canonical
  * source at `../constants/roles.js`. All new code should import directly
  * from `../constants/roles` instead.
  *

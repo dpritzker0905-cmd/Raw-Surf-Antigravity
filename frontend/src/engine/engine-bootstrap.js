@@ -1,11 +1,11 @@
-/**
- * Engine Bootstrap v2 — Controlled Init Entry Point
+﻿/**
+ * Engine Bootstrap v2 Controlled Init Entry Point
  *
  * SAFE ENGINE START:
  *   - NO import-time execution
  *   - NO React coupling
  *   - Uses InitSequencer safety gate
- *   - Coordinates: layer bootstrap → render loop start → forecast pipeline
+ * - Coordinates: layer bootstrap render loop start forecast pipeline
  *
  * Call ONLY from MapWebGL.js onLoad callback (after MapLibre ready).
  *
@@ -42,7 +42,7 @@ var _initialized = false;
 export function initEngine(ctx) {
   if (_initialized) return;
 
-  // HARD SAFETY GATE — prevents "ge/be before initialization" crash class
+ // HARD SAFETY GATE prevents "ge/be before initialization" crash class
   assertSafeToInitEngine();
 
   _initialized = true;

@@ -1,5 +1,5 @@
-/**
- * EarningsStatsCard — Daily earnings summary with streak tracking.
+ï»¿/**
+ * EarningsStatsCard Daily earnings summary with streak tracking.
  * 
  * Extracted from OnDemandSessionManager.js for maintainability.
  */

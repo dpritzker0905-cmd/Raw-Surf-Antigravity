@@ -1,5 +1,5 @@
-/**
- * useFeedCheckInActions GÇö Extracted from useFeedActions.js (v77)
+ï»¿/**
+ * useFeedCheckInActions G Extracted from useFeedActions.js (v77)
  * Handles: check-in flow, GPS location, spot fetching, location hierarchy,
  * streak management, passport XP integration
  */
@@ -89,11 +89,11 @@ const useFeedCheckInActions = ({
 
       setNearestSpot(nearest);
       if (nearest && minDistance < 10) {
-        toast.success(`=ƒôì At ${nearest.name} (${nearest.distance}km) - GPS verified, you'll earn XP!`);
+ toast.success(`= At ${nearest.name} (${nearest.distance}km) - GPS verified, you'll earn XP!`);
       } else if (nearest) {
-        toast.success(`=ƒôì Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
+ toast.success(`= Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
       } else {
-        toast.success('=ƒôì Location detected - select your spot to earn XP');
+ toast.success('= Location detected - select your spot to earn XP');
       }
       setGpsLoading(false);
     };
@@ -136,7 +136,7 @@ const useFeedCheckInActions = ({
 
   const handleCheckIn = async () => {
     if (streak.checked_in_today) {
-      toast.info('You already checked in today! Keep the streak going tomorrow =ƒñÖ');
+ toast.info('You already checked in today! Keep the streak going tomorrow =');
       return;
     }
     // Lazy-load spots + location hierarchy on first check-in open
@@ -155,7 +155,7 @@ const useFeedCheckInActions = ({
 
     try {
       if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
-        // GPS path GåÆ Passport check-in (XP + stamps + badges)
+ // GPS path G Passport check-in (XP + stamps + badges)
         const passportResponse = await apiClient.post(`/passport/checkin`, {
           spot_id: spotId,
           latitude: checkInData.latitude,
@@ -205,7 +205,7 @@ const useFeedCheckInActions = ({
         });
 
       } else {
-        // Manual (non-GPS) path GåÆ legacy streak only, no passport XP
+ // Manual (non-GPS) path G legacy streak only, no passport XP
         const response = await apiClient.post(`/check-in`, {
           spot_id: spotId || null,
           spot_name: spotName,
@@ -224,7 +224,7 @@ const useFeedCheckInActions = ({
           checked_in_today: true
         });
 
-        toast.success(`Checked in! =ƒöÑ ${response.data.current_streak} day streak!`);
+ toast.success(`Checked in! = ${response.data.current_streak} day streak!`);
         // Close immediately for manual check-in
         setShowCheckInModal(false);
         setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });

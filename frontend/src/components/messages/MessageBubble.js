@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+ï»¿import React, { useState, useRef } from 'react';
 import {
   Reply,
   Check,
@@ -16,12 +16,12 @@ import { formatClockTime } from '../../utils/formatTime';
 
 // Must stay in sync with backend ALLOWED_REACTIONS in schemas.py
 const REACTIONS = [
-  '\u{2764}\u{FE0F}',   // G¥ñn+Å Red Heart
-  '\u{1F525}',          // =ƒöÑ Fire
-  '\u{1F919}',          // =ƒñÖ Call Me Hand (Shaka)
-  '\u{1F602}',          // =ƒÿé Face with Tears of Joy
-  '\u{1F30A}',          // =ƒîè Wave
-  '\u{1F4AF}',          // =ƒÆ» Hundred Points
+ '\u{2764}\u{FE0F}', // Gn+ Red Heart
+ '\u{1F525}', // = Fire
+ '\u{1F919}', // = Call Me Hand (Shaka)
+ '\u{1F602}', // = Face with Tears of Joy
+ '\u{1F30A}', // = Wave
+ '\u{1F4AF}', // = Hundred Points
 ];
 
 // Format timestamp for message bubble - shared utility
@@ -171,7 +171,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     
     const mediaUrl = getMediaUrl(message.media_url);
 
-    // GöÇGöÇ Post Share Card GöÇGöÇ
+ // GG Post Share Card GG
     if (message.message_type === 'post_share') {
       const shareData = parsePostShareData(message.content);
       if (shareData) {

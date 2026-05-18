@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 export var RequestProButton = ({
   userLocation,
@@ -36,7 +36,7 @@ export var RequestProButton = ({
             Finding location...
           </span>
         ) : (
-          'Request a 📸'
+ 'Request a '
         )}
       </button>
     </div>

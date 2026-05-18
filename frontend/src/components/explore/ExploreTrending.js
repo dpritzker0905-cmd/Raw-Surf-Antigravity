@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * ExploreTrending.js
- * Extracted from Explore.js GÇö Trending section shown on the 'all' tab.
+ * Extracted from Explore.js G Trending section shown on the 'all' tab.
  * Includes: Broadcasting Now, Popular Spots, Trending Posts, Ad Card, Empty State
  */
 import React from 'react';

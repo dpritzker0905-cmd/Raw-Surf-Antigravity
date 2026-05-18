@@ -1,5 +1,5 @@
-/**
- * GridParserWorker.js — Web Worker for Off-Thread Grid Data Parsing
+﻿/**
+ * GridParserWorker.js Web Worker for Off-Thread Grid Data Parsing
  *
  * Parses raw Open-Meteo / marine grid responses off the main thread.
  * Prevents long-running grid interpolation from blocking UI/RAF.
@@ -118,7 +118,7 @@ function parseMarineGrid(raw, heightVar, dirVar, periodVar, timeIndex) {
   };
 }
 
-// ─── WORKER MESSAGE HANDLER ──────────────────────────────────────────────────
+// WORKER MESSAGE HANDLER 
 
 self.onmessage = function(e) {
   var msg = e.data;

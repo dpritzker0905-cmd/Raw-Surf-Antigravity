@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Session Intelligence Service
+ Raw Surf OS Session Intelligence Service
  SUPABASE SIDECAR DATA ACCESS LAYER
 ====================================================
 
@@ -17,7 +17,7 @@ var/function only (TDZ-immune)
 ====================================================
 */
 
-// ─── SUPABASE CLIENT (injected at runtime, never at import) ──────────────────
+// SUPABASE CLIENT (injected at runtime, never at import) 
 
 var _supabase = null;
 
@@ -34,7 +34,7 @@ function getClient() {
   return _supabase;
 }
 
-// ─── SESSION ENRICHMENT ──────────────────────────────────────────────────────
+// SESSION ENRICHMENT 
 
 /**
  * Save AI scoring results for a session.
@@ -69,7 +69,7 @@ function getSessionEnrichment(sessionId) {
     .single();
 }
 
-// ─── SPOT ↔ SESSION LINKS ────────────────────────────────────────────────────
+// SPOT SESSION LINKS 
 
 /**
  * Link a session to a spot with conditions snapshot.
@@ -103,7 +103,7 @@ function getSpotSessions(spotId, limit) {
     .limit(limit);
 }
 
-// ─── SESSION MEDIA LINKS ─────────────────────────────────────────────────────
+// SESSION MEDIA LINKS 
 
 /**
  * Link existing media (photo/video) to a session.
@@ -131,7 +131,7 @@ function getSessionMedia(sessionId) {
     .order('created_at', { ascending: false });
 }
 
-// ─── ENGINE SNAPSHOTS ────────────────────────────────────────────────────────
+// ENGINE SNAPSHOTS 
 
 /**
  * Save engine/weather state at session time.
@@ -159,7 +159,7 @@ function getSessionSnapshots(sessionId) {
     .eq('session_id', sessionId);
 }
 
-// ─── SPOT FORECAST HISTORY ──────────────────────────────────────────────────
+// SPOT FORECAST HISTORY 
 
 /**
  * Save a forecast snapshot for a spot.

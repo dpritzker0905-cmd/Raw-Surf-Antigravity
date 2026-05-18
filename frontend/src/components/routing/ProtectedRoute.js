@@ -1,11 +1,11 @@
-/**
- * ProtectedRoute.js G«ˆ Auth gate for authenticated-only routes.
+Ôªø/**
+ * ProtectedRoute.js G Auth gate for authenticated-only routes.
  *
  * Handles four cases:
- *   1. Auth still loading GÂ∆ shows spinner
- *   2. No user GÂ∆ redirects to /auth with `redirect` param for post-login return
- *   3. User hasn't accepted current ToS GÂ∆ TosReacceptanceGate blocks with modal
- *   4. Grom user GÂ∆ wraps in GromSafetyGate unless route is always-allowed
+ * 1. Auth still loading G shows spinner
+ * 2. No user G redirects to /auth with `redirect` param for post-login return
+ * 3. User hasn't accepted current ToS G TosReacceptanceGate blocks with modal
+ * 4. Grom user G wraps in GromSafetyGate unless route is always-allowed
  *
  * Hydrates from localStorage synchronously to avoid a flash to /auth
  * while AuthContext is resolving the async Supabase session.

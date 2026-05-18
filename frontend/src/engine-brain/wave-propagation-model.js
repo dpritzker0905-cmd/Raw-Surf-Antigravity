@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Wave Propagation Model
+ Raw Surf OS Wave Propagation Model
  PURE SURF SCIENCE SIMULATION LAYER
 ====================================================
 
@@ -43,7 +43,7 @@ function propagateSwell(field, decay) {
 
 /**
  * Compute significant wave height from energy.
- * Hs = sqrt(energy) — simplified from Hs = 4*sqrt(m0)
+ * Hs = sqrt(energy) simplified from Hs = 4*sqrt(m0)
  *
  * @param {number} energy - spectral energy density
  * @returns {number} wave height in meters
@@ -122,7 +122,7 @@ function computeSurfQuality(height, period, direction, idealDirection) {
   return Math.round((hScore * 0.4 + pScore * 0.3 + dScore * 0.3) * 100);
 }
 
-// ─── TYPED ARRAY SUPPORT (GPU pipeline) ──────────────────────────────────────
+// TYPED ARRAY SUPPORT (GPU pipeline) 
 
 /**
  * Propagate swell energy using Float32Array (zero-GC for GPU pipeline).

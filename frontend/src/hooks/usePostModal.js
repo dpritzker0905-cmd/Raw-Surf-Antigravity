@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+﻿import { useRef, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
@@ -183,7 +183,7 @@ export default function usePostModal({
       setUserReaction({ emoji });
       setLiked(true); // Any active reaction = liked
       // Only increment if user didn't already have a reaction (swap = no count change).
-      // Check BOTH prevReaction and prevLiked — a PostLike-based shaka may not
+ // Check BOTH prevReaction and prevLiked a PostLike-based shaka may not
       // have set userReaction yet, but liked will be true.
       const hadExistingReaction = !!prevReaction || prevLiked;
       if (!hadExistingReaction) {
@@ -211,7 +211,7 @@ export default function usePostModal({
         setLiked(true);
       }
       // Propagate to parent (Feed) so card state stays in sync.
-      // IMPORTANT: Don't spread ...post here — the prop is a stale snapshot
+ // IMPORTANT: Don't spread ...post here the prop is a stale snapshot
       // from when the modal opened. Only send the changed fields so the Feed
       // merges them into its live state without overwriting other updates.
       const otherReactions = (post.reactions || []).filter(r => r.user_id !== user.id);

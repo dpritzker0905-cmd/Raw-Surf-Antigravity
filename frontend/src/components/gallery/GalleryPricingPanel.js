@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * GalleryPricingPanel - Session pricing summary and inline settings
  * Extracted from PhotographerGalleryManager.js for modularization (v74)
  */
@@ -50,12 +50,12 @@ const PricingTierRow = ({
         )}
         {photo && (
           <span className={`text-[10px] ${textSecondaryClass}`}>
-            =ƒô+ ${photo}
+ =+ ${photo}
           </span>
         )}
         {video && (
           <span className={`text-[10px] ${textSecondaryClass}`}>
-            =ƒÄ¼ ${video}
+ = ${video}
           </span>
         )}
       </div>
@@ -102,9 +102,9 @@ const GalleryPricingPanel = ({
               gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
               'border-zinc-500/50 text-zinc-400'
             }>
-              {gallery.session_settings.session_type === 'live' ? '=ƒô+ Live Session' :
-               gallery.session_settings.session_type === 'booking' ? '=ƒôà Booking' :
-               gallery.session_settings.session_type === 'on_demand' ? 'GÜí On-Demand' : 'G£Ån+Å Manual'}
+ {gallery.session_settings.session_type === 'live' ? '=+ Live Session' :
+ gallery.session_settings.session_type === 'booking' ? '= Booking' :
+ gallery.session_settings.session_type === 'on_demand' ? 'G On-Demand' : 'Gn+ Manual'}
             </Badge>
           )}
         </div>
@@ -118,7 +118,7 @@ const GalleryPricingPanel = ({
           }}>
             <div className="flex items-center justify-between mb-3">
               <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
-                This Session GÇö Included Content
+ This Session G Included Content
               </h4>
               <span className="text-[10px] text-cyan-400/70">
                 {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}

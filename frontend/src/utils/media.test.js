@@ -1,5 +1,5 @@
-/**
- * media.test.js — Tests for the shared media URL utility
+﻿/**
+ * media.test.js Tests for the shared media URL utility
  *
  * Covers all URL forms that getFullUrl must handle correctly.
  */

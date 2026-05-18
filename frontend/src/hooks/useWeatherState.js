@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getUserTier, resolveForecastWindow } from '../components/map/LayerAccessResolver';
 import logger from '../utils/logger';
 
 /**
- * useWeatherState — Manages all weather/forecast layer state for the Map.
+ * useWeatherState Manages all weather/forecast layer state for the Map.
  *
  * Extracted from MapPage.js to reduce its LOC and isolate weather logic.
  * Handles: model selection, layer toggling, radar frame animation,
@@ -29,7 +29,7 @@ export function useWeatherState({ user }) {
     fetch('https://api.rainviewer.com/public/weather-maps.json')
       .then(r => r.json())
       .then(data => {
-        // Nowcast discontinued Jan 2026 — only past frames available
+ // Nowcast discontinued Jan 2026 only past frames available
         const past = data?.radar?.past || [];
         if (past.length > 0) {
           setRadarFrames(past);
@@ -64,7 +64,7 @@ export function useWeatherState({ user }) {
   }, [isPlayingTimeline, isRadarOrSat, radarFrames.length]);
 
   // --- Forecast time-step animation (non-radar layers) ---
-  // v3.9: Wind/marine need ~3s per fetch → 4s interval with 6h steps
+ // v3.9: Wind/marine need ~3s per fetch 4s interval with 6h steps
   // Raster-only layers (rain/fog/pressure/satellite) use faster 1.5s (no API call needed)
   useEffect(() => {
     if (isPlayingTimeline && !isRadarOrSat && activeLayers.length > 0) {

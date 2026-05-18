@@ -1,16 +1,16 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Spot Hub Query Contract
+ Raw Surf OS Spot Hub Query Contract
  SINGLE AGGREGATION PIPELINE
 ====================================================
 
 This is the ONLY entry point for Spot Hub data.
 
 FLOW:
-  Supabase → session-intel-service → normalized forecast
-  → surf-intelligence-fusion → Spot Hub UI
+ Supabase session-intel-service normalized forecast
+ surf-intelligence-fusion Spot Hub UI
 
-NEVER: Supabase → Spot Hub directly
+NEVER: Supabase Spot Hub directly
 
 NO side effects, NO rendering, NO engine coupling
 var/function only (TDZ-immune)
@@ -26,7 +26,7 @@ import {
 
 import { composeSpotIntelligence } from '../surf-intelligence-fusion';
 
-// ─── MAIN QUERY ──────────────────────────────────────────────────────────────
+// MAIN QUERY 
 
 /**
  * Fetch and compose complete spot intelligence.
@@ -81,7 +81,7 @@ function getSpotHubData(params) {
 }
 
 /**
- * Lightweight version — only the intelligence score (no raw data).
+ * Lightweight version only the intelligence score (no raw data).
  * For map overlay badges and quick-view cards.
  *
  * @param {{ spotId: string, spotMetadata?: Object }} params
@@ -117,7 +117,7 @@ function getMultiSpotIntel(spots) {
   });
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// HELPERS 
 
 /**
  * Wrap Supabase query to safely handle errors.

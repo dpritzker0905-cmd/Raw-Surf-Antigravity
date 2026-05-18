@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Wave Height Color Ramp
+ Raw Surf OS Wave Height Color Ramp
  VISUALIZATION MAPPING FOR WAVE/SWELL DATA
 ====================================================
 
-PURE MATH — NO WebGL, NO DOM, NO engine
+PURE MATH NO WebGL, NO DOM, NO engine
 var/function only (TDZ-immune)
 ====================================================
 */
@@ -16,16 +16,16 @@ var/function only (TDZ-immune)
  * Each stop: [heightMeters, R, G, B, A]
  */
 var WAVE_HEIGHT_STOPS = [
-  [0.0,   20,  20,  80, 180],   // deep blue  — flat
-  [0.3,   40,  80, 160, 200],   // steel blue — ankle
-  [0.6,   60, 160, 200, 220],   // cyan       — knee
-  [1.0,   80, 200, 160, 230],   // teal       — waist
-  [1.5,  120, 220, 100, 240],   // green      — head high
-  [2.0,  200, 220,  60, 245],   // yellow     — overhead
-  [3.0,  240, 180,  40, 250],   // orange     — double
-  [4.0,  240, 100,  40, 252],   // red-orange — triple
-  [6.0,  220,  40,  40, 254],   // red        — XXL
-  [10.0, 180,  20, 100, 255],   // magenta    — extreme
+ [0.0, 20, 20, 80, 180], // deep blue flat
+ [0.3, 40, 80, 160, 200], // steel blue ankle
+ [0.6, 60, 160, 200, 220], // cyan knee
+ [1.0, 80, 200, 160, 230], // teal waist
+ [1.5, 120, 220, 100, 240], // green head high
+ [2.0, 200, 220, 60, 245], // yellow overhead
+ [3.0, 240, 180, 40, 250], // orange double
+ [4.0, 240, 100, 40, 252], // red-orange triple
+ [6.0, 220, 40, 40, 254], // red XXL
+ [10.0, 180, 20, 100, 255], // magenta extreme
 ];
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+ï»¿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -233,7 +233,7 @@ export const BackpackDrawer = ({ isOpen, onClose, onReopen }) => {
               );
             })}
 
-            {/* GöÇGöÇ YOUR PERKS GöÇGöÇ Role-Specific Section */}
+ {/* GG YOUR PERKS GG Role-Specific Section */}
             {getRolePerks().length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <p className="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Your Perks</p>

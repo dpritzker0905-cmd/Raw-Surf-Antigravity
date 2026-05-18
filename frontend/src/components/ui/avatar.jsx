@@ -1,4 +1,4 @@
-import * as React from "react"
+﻿import * as React from "react"
 import * as AvatarPrimitive from "@radix-ui/react-avatar"
 
 import { cn } from "../../lib/utils"
@@ -19,8 +19,8 @@ const AvatarImage = React.forwardRef(({ className, src, objectFit = "cover", ...
     return `${process.env.REACT_APP_BACKEND_URL || ''}${url}`;
   };
 
-  // objectFit: "cover" (default — fills circle, crops edges — best for headshots)
-  //            "contain" (fits entire image inside circle — best for logos)
+ // objectFit: "cover" (default fills circle, crops edges best for headshots)
+ // "contain" (fits entire image inside circle best for logos)
   const fitClass = objectFit === "contain" ? "object-contain" : "object-cover";
 
   return (

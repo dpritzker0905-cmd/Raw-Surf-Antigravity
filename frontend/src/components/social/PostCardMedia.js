@@ -1,5 +1,5 @@
-/**
- * PostCardMedia GÇö Extracted from PostCard.js
+ï»¿/**
+ * PostCardMedia G Extracted from PostCard.js
  * Handles all media rendering: carousel (multi-slide), video (with autoplay/mute/retry),
  * and static image display. Includes double-tap-to-like shaka animation.
  */

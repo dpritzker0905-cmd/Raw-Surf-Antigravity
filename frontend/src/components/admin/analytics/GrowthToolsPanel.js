@@ -1,5 +1,5 @@
-/**
- * GrowthToolsPanel GÇö Extracted from AdminUnifiedAnalytics.js (v81)
+ï»¿/**
+ * GrowthToolsPanel G Extracted from AdminUnifiedAnalytics.js (v81)
  * Promo Codes, Feature Flags, and Push Campaigns management.
  */
 import React, { useState } from 'react';
@@ -145,7 +145,7 @@ const GrowthToolsPanel = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground">{p.current_uses}/{p.max_uses || 'GêP'}</span>
+ <span className="text-xs text-muted-foreground">{p.current_uses}/{p.max_uses || 'GP'}</span>
                       <Switch checked={p.is_active} onCheckedChange={() => handleTogglePromo(p.id)} />
                     </div>
                   </CardContent>

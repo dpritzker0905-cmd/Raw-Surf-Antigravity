@@ -1,5 +1,5 @@
-/**
- * FeedSkeleton GÇö Shimmer loading placeholders for the social feed.
+ï»¿/**
+ * FeedSkeleton G Shimmer loading placeholders for the social feed.
  * Uses the base Skeleton primitive from ui/skeleton.jsx.
  * Shows 3 post-shaped cards while feed data is being fetched.
  */

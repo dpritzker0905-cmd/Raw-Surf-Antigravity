@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Marine Layer Plugins (v2)
+ Raw Surf OS Marine Layer Plugins (v2)
  WAVES, SWELL 1, SWELL 2, WIND WAVES
  CONTEXT-AWARE MARINE DATA FLOW
 ====================================================
@@ -18,7 +18,7 @@ UPGRADE v2:
 ====================================================
 */
 
-// ─── SHARED HELPERS ──────────────────────────────────────────────────────────
+// SHARED HELPERS 
 
 /**
  * Extract marine field from context by variable name.
@@ -74,7 +74,7 @@ function computeGridMean(grid) {
   return count > 0 ? sum / count : 0;
 }
 
-// ─── WAVES (SIGNIFICANT WAVE HEIGHT) ─────────────────────────────────────────
+// WAVES (SIGNIFICANT WAVE HEIGHT) 
 
 var WavesLayerPlugin = {
   id: 'waves-plugin',
@@ -93,7 +93,7 @@ var WavesLayerPlugin = {
     this._lastUpdate = 0;
     this._data = null;
     this._meanHeight = 0;
-    console.log('[WavesLayer] init — wave_height');
+ console.log('[WavesLayer] init wave_height');
   },
 
   update: function(dt) {
@@ -116,7 +116,7 @@ var WavesLayerPlugin = {
 
   render: function() {
     // GPUMarineLayer reads waveHeightField from context
-    // This plugin only coordinates data → no direct rendering
+ // This plugin only coordinates data no direct rendering
   },
 
   destroy: function() {
@@ -130,7 +130,7 @@ var WavesLayerPlugin = {
   },
 };
 
-// ─── SWELL 1 (PRIMARY SWELL) ────────────────────────────────────────────────
+// SWELL 1 (PRIMARY SWELL) 
 
 var Swell1LayerPlugin = {
   id: 'swell1-plugin',
@@ -151,7 +151,7 @@ var Swell1LayerPlugin = {
     this._data = null;
     this._meanHeight = 0;
     this._direction = null;
-    console.log('[Swell1Layer] init — swell_wave_height');
+ console.log('[Swell1Layer] init swell_wave_height');
   },
 
   update: function(dt) {
@@ -187,7 +187,7 @@ var Swell1LayerPlugin = {
   },
 };
 
-// ─── SWELL 2 (SECONDARY SWELL) ──────────────────────────────────────────────
+// SWELL 2 (SECONDARY SWELL) 
 
 var Swell2LayerPlugin = {
   id: 'swell2-plugin',
@@ -208,7 +208,7 @@ var Swell2LayerPlugin = {
     this._data = null;
     this._meanHeight = 0;
     this._direction = null;
-    console.log('[Swell2Layer] init — secondary_swell_wave_height');
+ console.log('[Swell2Layer] init secondary_swell_wave_height');
   },
 
   update: function(dt) {
@@ -244,7 +244,7 @@ var Swell2LayerPlugin = {
   },
 };
 
-// ─── WIND WAVES ──────────────────────────────────────────────────────────────
+// WIND WAVES 
 
 var WindWavesLayerPlugin = {
   id: 'wind-waves-plugin',
@@ -265,7 +265,7 @@ var WindWavesLayerPlugin = {
     this._data = null;
     this._meanHeight = 0;
     this._direction = null;
-    console.log('[WindWavesLayer] init — wind_wave_height');
+ console.log('[WindWavesLayer] init wind_wave_height');
   },
 
   update: function(dt) {

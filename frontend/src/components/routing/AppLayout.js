@@ -1,5 +1,5 @@
-/**
- * AppLayout.js GÇö Responsive shell layout for authenticated users.
+ï»¿/**
+ * AppLayout.js G Responsive shell layout for authenticated users.
  *
  * Desktop: Sidebar on the left (200px), main content fills the rest.
  * Mobile: TopNav at top + BottomNav at bottom, main content in between.
@@ -30,7 +30,7 @@ import PermissionDeniedModal from '../messages/PermissionDeniedModal';
 import ViolationBanner from '../ViolationBanner';
 import PushNotificationPrompt from '../PushNotificationPrompt';
 
-// GöÇGöÇGöÇ Sub-components GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Sub-components GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 /** Renders ImpersonationBanner only when admin is viewing as another user. */
 const ImpersonationBannerWrapper = () => {
@@ -66,7 +66,7 @@ const PushNotificationInit = () => {
  * when the user is authenticated. Redirects to /feed instead.
  *
  * In-app browsers (e.g. Facebook Messenger on Samsung) have very
- * shallow history stacks GÇö one "back" press can exit the entire
+ * shallow history stacks G one "back" press can exit the entire
  * app or land on the auth page, triggering an unintended logout.
  *
  * Strategy:
@@ -74,7 +74,7 @@ const PushNotificationInit = () => {
  *     pressing back once never exits past our SPA origin.
  *  2. On every popstate, if the destination is an auth/public
  *     route, immediately replace the history entry with /feed
- *     and navigate there GÇö no setTimeout race conditions.
+ * and navigate there G no setTimeout race conditions.
  */
 const BackButtonHandler = () => {
   const { user } = useAuth();
@@ -119,7 +119,7 @@ const BackButtonHandler = () => {
   return null;
 };
 
-/** Global WebRTC Call Manager GÇö renders incoming call + in-call overlays. */
+/** Global WebRTC Call Manager G renders incoming call + in-call overlays. */
 const CallManager = () => {
   const { user } = useAuth();
   const call = useWebRTCCall(user?.id, {
@@ -171,7 +171,7 @@ const CallManager = () => {
           onReplaceVideoTrack={call.replaceVideoTrack}
         />
       )}
-      {/* Permission denied modal GÇö guides user to Settings */}
+ {/* Permission denied modal G guides user to Settings */}
       {call.permissionDenied && (
         <PermissionDeniedModal
           onRetry={call.retryAfterPermission}
@@ -182,7 +182,7 @@ const CallManager = () => {
   );
 };
 
-// GöÇGöÇGöÇ Main AppLayout GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Main AppLayout GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 
 /**
  * @param {React.ReactNode} children - Page content
@@ -221,7 +221,7 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       {showSidebar && <RightSidebar />}
       {showTopNav && <TopNav />}
 
-      {/* Violation awareness banner GÇö appears below nav when user has strikes */}
+ {/* Violation awareness banner G appears below nav when user has strikes */}
       <ViolationBanner />
 
       {/* Page content */}

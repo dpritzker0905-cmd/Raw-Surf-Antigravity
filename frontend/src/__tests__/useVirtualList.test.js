@@ -1,5 +1,5 @@
-/**
- * useVirtualList.test.js — Unit tests for list virtualization hook.
+﻿/**
+ * useVirtualList.test.js Unit tests for list virtualization hook.
  */
 import { renderHook } from '@testing-library/react';
 import useVirtualList from '../../hooks/useVirtualList';
@@ -32,7 +32,7 @@ describe('useVirtualList', () => {
   it('reports isVirtualized correctly', () => {
     const containerRef = { current: null };
     
-    // 10 items — not worth virtualizing
+ // 10 items not worth virtualizing
     const { result: small } = renderHook(() => useVirtualList({
       items: Array(10).fill({}),
       itemHeight: 100,
@@ -40,7 +40,7 @@ describe('useVirtualList', () => {
     }));
     expect(small.current.isVirtualized).toBe(false);
 
-    // 100 items — worth virtualizing
+ // 100 items worth virtualizing
     const { result: large } = renderHook(() => useVirtualList({
       items: Array(100).fill({}),
       itemHeight: 100,

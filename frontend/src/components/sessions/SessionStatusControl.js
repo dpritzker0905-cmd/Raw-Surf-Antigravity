@@ -1,5 +1,5 @@
-/**
- * SessionStatusControl GÇö Extracted from PhotographerSessionManager.js (v77)
+ï»¿/**
+ * SessionStatusControl G Extracted from PhotographerSessionManager.js (v77)
  * Session open/close toggle, visibility settings, reservation controls,
  * and lock/cancel action buttons.
  */

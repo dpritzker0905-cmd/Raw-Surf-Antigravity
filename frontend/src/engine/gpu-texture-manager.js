@@ -1,5 +1,5 @@
-/**
- * GPU Texture Manager — Persistent GPU Resource Pool
+﻿/**
+ * GPU Texture Manager Persistent GPU Resource Pool
  *
  * Manages WebGL textures, framebuffers, and shared state across frames.
  * Prevents the #1 GPU performance killer: recreating resources per frame.
@@ -12,10 +12,10 @@
  *   - Frame-persistent: resources survive across renders
  */
 
-// ─── RESOURCE POOLS ──────────────────────────────────────────────────────────
-const _textures = new Map();      // name → { texture, width, height, format }
-const _framebuffers = new Map();  // name → { fb, colorTex }
-const _vaos = new Map();          // name → VAO
+// RESOURCE POOLS 
+const _textures = new Map(); // name { texture, width, height, format }
+const _framebuffers = new Map(); // name { fb, colorTex }
+const _vaos = new Map(); // name VAO
 let _gl = null;
 let _lostContextCount = 0;
 
@@ -25,7 +25,7 @@ let _lostContextCount = 0;
  */
 export function bindContext(gl) {
   if (_gl === gl) return;
-  // Context changed — purge all resources from old context
+ // Context changed purge all resources from old context
   if (_gl) destroyAll();
   _gl = gl;
   _lostContextCount = 0;
@@ -55,7 +55,7 @@ export function getTexture(name, width, height, opts = {}) {
 
   const existing = _textures.get(name);
   if (existing && existing.width === width && existing.height === height) {
-    // Reuse existing texture — optionally upload new data
+ // Reuse existing texture optionally upload new data
     if (opts.data) {
       gl.bindTexture(gl.TEXTURE_2D, existing.texture);
       gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height,

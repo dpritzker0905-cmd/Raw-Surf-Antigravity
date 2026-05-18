@@ -1,5 +1,5 @@
-/**
- * TrendingSection — Displays the Explore discovery feed.
+﻿/**
+ * TrendingSection Displays the Explore discovery feed.
  * Extracted from Explore.js to reduce monolith size.
  * 
  * Contains:

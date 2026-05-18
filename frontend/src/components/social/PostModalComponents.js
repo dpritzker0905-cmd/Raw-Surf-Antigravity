@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * PostModalComponents.js - Sub-components extracted from PostModal.js.
  * ModalVideoPlayer, ImageCarousel, CommentItem.
  */
@@ -322,7 +322,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
     try {
       const response = await apiClient.post(
         `/comments/${comment.id}/reactions`,
-        { emoji: '=ƒñÖ' }
+ { emoji: '=' }
       );
       
       if (response.data.action === 'added') {

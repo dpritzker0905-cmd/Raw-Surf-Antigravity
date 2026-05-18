@@ -1,4 +1,4 @@
-// Data fetching has been moved to WeatherEngine.js to decouple from MapLibre events.
+﻿// Data fetching has been moved to WeatherEngine.js to decouple from MapLibre events.
 // This file now only handles the GPU/Canvas particle rendering.
 
 /**
@@ -61,7 +61,7 @@ function interpolateWind(windGrid, lng, lat, prevGrid = null, transitionProgress
 /**
  * Canvas-based wind particle advection engine.
  *
- * v186 — Production-ready:
+ * v186 Production-ready:
  * - React-managed canvas (v183 fix for stacking context)
  * - Latitude clamped to [-85, 85] to prevent map.project() crash
  * - Bounds check BEFORE projection (not after)
@@ -75,8 +75,8 @@ import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 var ACTIVE_ENGINES = new Set();
 
 // --- VISUAL TUNING CONSTANTS ---
-// v3.3: Padding factor removed — particles now spawn at viewport bounds
-// v3.12: Scientific atmospheric particles — visible but not overpowering
+// v3.3: Padding factor removed particles now spawn at viewport bounds
+// v3.12: Scientific atmospheric particles visible but not overpowering
 var WIND_PARTICLE_ALPHA = 0.40; // Atmospheric transparency (was 0.55)
 var HEATMAP_RESOLUTION = 256;
 var TURBULENCE_AMP = 0.03; // Subtle natural variation (was 0.06)
@@ -185,7 +185,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     let errorCount = 0;
     let wasActive = false;
 
-    // v3.9.7: Phase 2 — register with shared CanvasAnimationCoordinator
+ // v3.9.7: Phase 2 register with shared CanvasAnimationCoordinator
     // Interaction throttling is now handled by the coordinator (single source of truth)
     const coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
@@ -223,7 +223,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
       const bs = mb.getSouth(), bn = mb.getNorth();
 
       // ----------------------------------------------------
-      // DEBUG HARNESS (dev-only — tree-shakes in production)
+ // DEBUG HARNESS (dev-only tree-shakes in production)
       // ----------------------------------------------------
       if (process.env.NODE_ENV !== 'production' && window.__WIND_DEBUG__ && grid && grid.cols && grid.rows) {
         ctx.globalCompositeOperation = 'source-over';
@@ -262,12 +262,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             } catch(e) { /* projection may fail near dateline */ }
           }
         }
-        // v3.9.7: No self-scheduling — coordinator handles RAF
+ // v3.9.7: No self-scheduling coordinator handles RAF
         return;
       }
       // ----------------------------------------------------
 
-      // v243: Stride from lifecycle state — NEVER restart loop
+ // v243: Stride from lifecycle state NEVER restart loop
       const stride = windState === WIND_THROTTLED ? 4 : 1;
 
       for (let i = 0; i < particles.length; i += stride) {
@@ -313,8 +313,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           if (wind.speed > 0.1 && Number.isFinite(wind.u) && Number.isFinite(wind.v)) {
               // v3.12: World-coordinate advection (Ventusky-style)
               // Wind u/v are in m/s. Convert to degrees/second using:
-              //   1° latitude ≈ 111,320 m
-              //   1° longitude ≈ 111,320 * cos(lat) m
+ // 1 latitude 111,320 m
+ // 1 longitude 111,320 * cos(lat) m
               // This is zoom-independent and physically coherent.
               const DEG_PER_METER = 1 / 111320;
               const latRad = p.lat * Math.PI / 180;
@@ -347,7 +347,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
           // Only DRAW if particle is within viewport (cull, don't kill)
           if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn) continue;
 
-          // Draw wind trail line from prev → current position
+ // Draw wind trail line from prev current position
           try {
             const pt = mapInstance.project([p.lng, p.lat]);
             if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) continue;
@@ -364,12 +364,12 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
             const fadeN = smoothstep(paddedN, paddedN - edgePadDeg, p.lat);
             alpha *= fadeW * fadeE * fadeS * fadeN * WIND_PARTICLE_ALPHA;
 
-            // v3.11.3: Atmospheric directional particles — coherent, not glowing
+ // v3.11.3: Atmospheric directional particles coherent, not glowing
             // Calm wind = subtle gray-blue, strong wind = warm amber-white
             const s = wind.speed;
             const speedAlpha = Math.min(1.0, 0.35 + (s / 25));
             const finalAlpha = Math.min(0.70, alpha * speedAlpha);
-            // Speed-based color: gray-blue → white → warm amber at high speed
+ // Speed-based color: gray-blue white warm amber at high speed
             const intensity = Math.min(1.0, s / 30);
             const r = Math.round(120 + intensity * 135);
             const g = Math.round(140 + intensity * 100);
@@ -382,7 +382,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
               ctx.moveTo(prevScreen.x, prevScreen.y);
               ctx.lineTo(pt.x, pt.y);
             } else {
-              // No previous position — draw a dot seed
+ // No previous position draw a dot seed
               ctx.moveTo(pt.x - 0.5, pt.y);
               ctx.lineTo(pt.x + 0.5, pt.y);
             }

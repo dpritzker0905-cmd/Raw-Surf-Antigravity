@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+ï»¿import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Hash, TrendingUp, Loader2 } from 'lucide-react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
@@ -204,7 +204,7 @@ const HashtagAutocomplete = forwardRef(({
       {/* Hint */}
       <div className="px-3 py-1.5 bg-muted/30 border-t border-border">
         <p className="text-[10px] text-muted-foreground">
-          ?? Navigate • Enter Select • Esc Close
+ ?? Navigate Enter Select Esc Close
         </p>
       </div>
     </div>

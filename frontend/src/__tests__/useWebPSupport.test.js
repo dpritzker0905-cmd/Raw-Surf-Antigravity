@@ -1,5 +1,5 @@
-/**
- * useWebPSupport.test.js — Unit tests for WebP detection hook.
+﻿/**
+ * useWebPSupport.test.js Unit tests for WebP detection hook.
  */
 import { renderHook } from '@testing-library/react';
 import useWebPSupport from '../../hooks/useWebPSupport';

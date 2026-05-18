@@ -1,4 +1,4 @@
-/**
+Ôªø/**
  * GalleryPageModals.js
  * Extracted folder management modals from GalleryPage.js
  * Includes: GalleryPricingModal, CreateFolderModal, RenameFolderModal,
@@ -60,7 +60,7 @@ export const GalleryFolderModals = ({
               Each service type has <strong>independent</strong> resolution pricing. Changes here update your photographer profile defaults.
             </p>
 
-            {/* +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº GALLERY (General) +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº */}
+ {/* +GG+GG+GG GALLERY (General) +GG+GG+GG */}
             <div className="p-4 rounded-lg bg-card border border-border">
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <Image className="w-4 h-4 text-cyan-400" /> Gallery \u{2014} General Pricing
@@ -95,7 +95,7 @@ export const GalleryFolderModals = ({
               </div>
             </div>
 
-            {/* +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº LIVE SESSION +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº */}
+ {/* +GG+GG+GG LIVE SESSION +GG+GG+GG */}
             <div className="p-4 rounded-lg border" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}>
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <Radio className="w-4 h-4 text-red-400" /> Live Session Pricing
@@ -140,7 +140,7 @@ export const GalleryFolderModals = ({
               </div>
             </div>
 
-            {/* +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº ON-DEMAND +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº */}
+ {/* +GG+GG+GG ON-DEMAND +GG+GG+GG */}
             <div className="p-4 rounded-lg border" style={{ background: 'rgba(16,185,129,0.05)', borderColor: 'rgba(16,185,129,0.2)' }}>
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <MapPin className="w-4 h-4 text-emerald-400" /> On-Demand Pricing
@@ -189,7 +189,7 @@ export const GalleryFolderModals = ({
               </div>
             </div>
 
-            {/* +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº BOOKING +ÛG«•GÈº+ÛG«•GÈº+ÛG«•GÈº */}
+ {/* +GG+GG+GG BOOKING +GG+GG+GG */}
             <div className="p-4 rounded-lg border" style={{ background: 'rgba(59,130,246,0.05)', borderColor: 'rgba(59,130,246,0.2)' }}>
               <h4 className="font-medium text-foreground mb-3 flex items-center gap-2 text-sm">
                 <Calendar className="w-4 h-4 text-blue-400" /> Booking Pricing

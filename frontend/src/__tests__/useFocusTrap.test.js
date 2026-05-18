@@ -1,5 +1,5 @@
-/**
- * useFocusTrap.test.js — Tests for the focus trap hook.
+﻿/**
+ * useFocusTrap.test.js Tests for the focus trap hook.
  */
 import { renderHook } from '@testing-library/react-hooks';
 import useFocusTrap from '../hooks/useFocusTrap';

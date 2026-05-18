@@ -1,4 +1,4 @@
-import React from 'react';
+ï»¿import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -84,9 +84,9 @@ const LinkSessionModal = ({
                             session.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
                             'border-orange-500/50 text-orange-400'
                           }`}>
-                            {session.session_type === 'live' ? '=ƒô+ Live' :
-                             session.session_type === 'booking' ? '=ƒôà Booking' :
-                             'GÜí On-Demand'}
+ {session.session_type === 'live' ? '=+ Live' :
+ session.session_type === 'booking' ? '= Booking' :
+ 'G On-Demand'}
                           </Badge>
                         )}
                       </div>

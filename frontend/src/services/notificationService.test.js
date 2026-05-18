@@ -1,4 +1,4 @@
-/**
+﻿/**
  * notificationService.test.js
  * Tests for the centralized notification service.
  * All tests mock apiClient to avoid network calls.
@@ -35,7 +35,7 @@ describe('notificationService', () => {
     apiClient.put.mockResolvedValue({ data: {} });
   });
 
-  // ── Read / Fetch ────────────────────────────────────────────────────────────
+ // Read / Fetch 
 
   describe('getNotifications', () => {
     it('calls GET /notifications/{userId}', async () => {
@@ -51,7 +51,7 @@ describe('notificationService', () => {
     });
   });
 
-  // ── Mark Read ───────────────────────────────────────────────────────────────
+ // Mark Read 
 
   describe('markRead', () => {
     it('calls POST /notifications/{notifId}/read', async () => {
@@ -67,7 +67,7 @@ describe('notificationService', () => {
     });
   });
 
-  // ── Send ────────────────────────────────────────────────────────────────────
+ // Send 
 
   describe('sendNotification', () => {
     it('calls POST /notifications/send with payload', async () => {
@@ -93,7 +93,7 @@ describe('notificationService', () => {
     });
   });
 
-  // ── Preferences ─────────────────────────────────────────────────────────────
+ // Preferences 
 
   describe('getPreferences', () => {
     it('calls GET /notifications/preferences?user_id={userId}', async () => {
@@ -130,7 +130,7 @@ describe('notificationService', () => {
     });
   });
 
-  // ── Error handling ──────────────────────────────────────────────────────────
+ // Error handling 
 
   describe('error propagation', () => {
     it('propagates API errors from getNotifications', async () => {

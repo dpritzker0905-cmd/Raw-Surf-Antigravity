@@ -1,5 +1,5 @@
-/**
- * ExploreSurfSpotsTab GÇö Extracted from Explore.js
+ï»¿/**
+ * ExploreSurfSpotsTab G Extracted from Explore.js
  * Renders the "Surf Spots" tab with Browse/Nearby mode toggle,
  * BrowseMode and NearbyMode sub-components, and a Map View CTA.
  */

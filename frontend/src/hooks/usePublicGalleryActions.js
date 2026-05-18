@@ -1,11 +1,11 @@
-import { useCallback, useMemo } from 'react';
+﻿import { useCallback, useMemo } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { isGrom } from '../constants/roles';
 
 /**
- * usePublicGalleryActions — Extracted handler logic from PublicPhotographerGallery.js
+ * usePublicGalleryActions Extracted handler logic from PublicPhotographerGallery.js
  * Handles: data fetching, purchasing, AI face match, swipe navigation, filtering/sorting
  */
 export default function usePublicGalleryActions({

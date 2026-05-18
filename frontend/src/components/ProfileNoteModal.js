@@ -1,4 +1,4 @@
-import React from 'react';
+ï»¿import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
@@ -74,17 +74,17 @@ export const ProfileNoteModal = ({
                 <p className="text-xs text-emerald-400 text-center">
                   Notes disappear after 24 hours
                 </p>
-                <Input aria-label="What's happening? =ƒîè"
+ <Input aria-label="What's happening? ="
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
-                  placeholder="What's happening? =ƒîè"
+ placeholder="What's happening? ="
                   className="bg-zinc-800 border-zinc-700 text-white text-lg text-center h-14"
                   maxLength={60}
                   data-testid="note-input"
                 />
                 {/* Quick Emoji Picker */}
                 <div className="flex justify-center flex-wrap gap-2" data-testid="emoji-picker">
-                  {['=ƒÅä', '=ƒîè', '=ƒñÖ', '=ƒöÑ', 'GÿÇn+Å', '=ƒÉÜ', '=ƒªê', '=ƒî¦', '=ƒÆ¬', '=ƒÄ»', '=ƒô+', '=ƒÅå'].map((emoji) => (
+ {['=', '=', '=', '=', 'Gn+', '=', '=', '=', '=', '=', '=+', '='].map((emoji) => (
                     <button
                       key={emoji}
                       type="button"

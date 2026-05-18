@@ -1,4 +1,4 @@
-import React, { Suspense } from "react";
+ï»¿import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
@@ -96,7 +96,7 @@ root.render(
     </Suspense>
 );
 
-// GöÇGöÇ Service Worker Registration GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG Service Worker Registration GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 // Enables offline caching, push notifications, and PWA installability.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -113,6 +113,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// GöÇGöÇ Core Web Vitals Monitoring GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GG Core Web Vitals Monitoring GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 // Reports LCP, FID, CLS, TTFB, INP metrics. Logs in dev, ready for analytics.
 reportWebVitals(logWebVitals);

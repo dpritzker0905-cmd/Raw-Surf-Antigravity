@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+ï»¿import React, { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { UploadCloud, FileType2, Loader2, CheckCircle2 } from 'lucide-react';
@@ -128,7 +128,7 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
       const res = await apiClient.get(`/strava/sync-recent?user_id=${userId}`);
       const metrics = res.data;
       onParsed(metrics);
-      toast.success("Strava data synced successfully! =ƒñÖ");
+ toast.success("Strava data synced successfully! =");
       onClose(); // Close modal on success
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to sync with Strava.");

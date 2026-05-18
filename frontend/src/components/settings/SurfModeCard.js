@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+Ôªøimport React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader2, ChevronDown, Trophy, Star, Send } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
@@ -87,8 +87,8 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
 
   // Only 2 selectable modes - Pro is not a surf mode you pick, it's verified status
   const modes = [
-    { id: 'casual',      label: 'Casual',      icon: '=É≈‰' },
-    { id: 'competitive', label: 'Competitive', icon: '=É≈Â' },
+ { id: 'casual', label: 'Casual', icon: '=' },
+ { id: 'competitive', label: 'Competitive', icon: '=' },
   ];
 
   // Pro section header label based on current state

@@ -1,4 +1,4 @@
-/**
+Ôªø/**
  * DutyStationComponents.js  Extracted sub-components from DutyStationDrawer.
  * GpsProximityCheck, OnDemandSpotSelector, StatusCard, ModeSelector,
  * GpsWarningBanner, SelectedSpotDisplay, StatsPreview, QuickActions.
@@ -140,7 +140,7 @@ const GpsProximityCheck = ({
                 you can manually confirm.
               </p>
               <p className="text-red-400 text-xs mt-2 font-medium">
-                G‹·n+≈ Warning: Going live when not at the spot may result in negative reviews, 
+ Gn+ Warning: Going live when not at the spot may result in negative reviews, 
                 selling suspension, or account action.
               </p>
               <Button aria-label="Confirm"

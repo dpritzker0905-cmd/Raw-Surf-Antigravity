@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Render Pipeline
+ Raw Surf OS Render Pipeline
  DATA -> SIMULATION -> RENDER TRANSFORM LAYER
 ====================================================
 
@@ -21,7 +21,7 @@ import { computeWaveHeight } from '../engine-brain/wave-propagation-model';
  * This is the bridge between engine-brain (pure math) and
  * the GPU/canvas renderers (WebGLWindEngine, GPUWindLayer, etc.).
  *
- * The render pipeline does NOT own a loop — it is CALLED by
+ * The render pipeline does NOT own a loop it is CALLED by
  * the render-orchestrator or CanvasAnimationCoordinator.
  *
  * @param {{

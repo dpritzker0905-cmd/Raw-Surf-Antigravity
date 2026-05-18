@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * ActiveSessionCard ? Shows the current active on-demand session.
  * Displays surfer info, timer, crew, chat preview, and session actions.
  * 
@@ -126,15 +126,15 @@ const ActiveSessionCard = ({
         {/* Surfer Identification Details */}
         {(session.requester_stance || session.requester_board_description) && (
           <div className={`p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20`}>
-            <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>=ƒöì Surfer Identification</p>
+ <p className={`text-[10px] font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>= Surfer Identification</p>
             <div className="flex flex-wrap items-center gap-2">
               {session.requester_stance && (
                 <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">
-                  {session.requester_stance === 'goofy' ? '=ƒª¦ Goofy Foot' : '=ƒª¦ Regular'}
+ {session.requester_stance === 'goofy' ? '= Goofy Foot' : '= Regular'}
                 </span>
               )}
               {session.requester_board_description && (
-                <span className={`text-xs font-medium ${textPrimary}`}>=ƒÅä {session.requester_board_description}</span>
+ <span className={`text-xs font-medium ${textPrimary}`}>= {session.requester_board_description}</span>
               )}
             </div>
           </div>
@@ -245,8 +245,8 @@ const ActiveSessionCard = ({
                 chatUnreadCount > 0 ? 'text-white font-medium' : 'text-zinc-400'
               }`}>
                 {chatLatestMessage.message_type === 'voice_note'
-                  ? '=ƒÄÖn+Å Voice note'
-                  : (chatLatestMessage.content || '=ƒô+ Media')}
+ ? '=n+ Voice note'
+ : (chatLatestMessage.content || '=+ Media')}
               </p>
             </div>
           </button>

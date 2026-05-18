@@ -1,9 +1,9 @@
-/**
- * OnDemandEarlySteps.js GÇö Extracted step panels for the On-Demand booking flow.
+ï»¿/**
+ * OnDemandEarlySteps.js G Extracted step panels for the On-Demand booking flow.
  *
  * Contains: TimingStep, LocationStep, DurationStep, SplitChoiceStep
  * All steps receive the `booking` object from useOnDemandBooking hook.
- * Extracted from OnDemandRequestDrawer.js (v59) to reduce file from 1,230GåÆ~700 lines.
+ * Extracted from OnDemandRequestDrawer.js (v59) to reduce file from 1,230G~700 lines.
  */
 import React from 'react';
 import { MapPin, Camera, Zap, Clock, ChevronRight, Plus, Check, Bell, Search, Navigation, History } from 'lucide-react';

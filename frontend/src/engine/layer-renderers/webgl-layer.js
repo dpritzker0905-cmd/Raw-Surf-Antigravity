@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — WebGL Layer Renderer
+ Raw Surf OS WebGL Layer Renderer
  SAFE ABSTRACTION LAYER (NO DIRECT GL INIT)
 ====================================================
 
@@ -14,7 +14,7 @@ RULES:
 */
 
 /**
- * WebGLLayerRenderer — safe abstraction for feeding processed
+ * WebGLLayerRenderer safe abstraction for feeding processed
  * simulation data into an existing WebGL pipeline.
  *
  * This does NOT replace WebGLWindEngine. It provides a clean
@@ -44,7 +44,7 @@ WebGLLayerRenderer.prototype._getUniform = function(name) {
 
 /**
  * Feed a processed RenderFrame into the GPU pipeline.
- * SAFE: reads frame data, sets uniforms — does NOT create resources.
+ * SAFE: reads frame data, sets uniforms does NOT create resources.
  *
  * @param {{ wind: Array, waves: Array, metadata: Object, timestamp: number }} frame
  */
@@ -83,7 +83,7 @@ WebGLLayerRenderer.prototype.setProgram = function(program) {
 };
 
 /**
- * Cleanup — does NOT delete GL context (not owned).
+ * Cleanup does NOT delete GL context (not owned).
  */
 WebGLLayerRenderer.prototype.dispose = function() {
   this._program = null;

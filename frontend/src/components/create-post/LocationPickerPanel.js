@@ -1,4 +1,4 @@
-/**
+Ôªø/**
  * LocationPickerPanel.js - Extracted from CreatePost.js (v61)
  * Hierarchical location/spot picker: Country > State > City > Spot.
  * 
@@ -54,7 +54,7 @@ const LocationPickerPanel = ({
                   </span>
                   {nearestSpot && userLat && (
                     <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
-                      =ÉÙÏ {nearestSpot.distance}km
+ = {nearestSpot.distance}km
                     </span>
                   )}
                 </div>
@@ -111,7 +111,7 @@ const LocationPickerPanel = ({
                     <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
                   </div>
 
-                  {/* Hierarchical Pickers: Country GÂ∆ State GÂ∆ City GÂ∆ Spot */}
+ {/* Hierarchical Pickers: Country G State G City G Spot */}
                   <div className="space-y-2">
                     {/* Country */}
                     <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setSelectedState(''); setSelectedCity(''); }}>

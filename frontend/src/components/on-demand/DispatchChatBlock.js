@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * DispatchChatBlock - Pre-arrival communication block with inline message preview
  * Extracted from DispatchLobby.js for modularization (v74)
  */
@@ -69,8 +69,8 @@ const DispatchChatBlock = ({
                 chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
               }`}>
                 {bgLatestMessage.message_type === 'voice_note'
-                  ? '=ƒÄÖn+Å Voice note'
-                  : (bgLatestMessage.content || '=ƒô+ Media')}
+ ? '=n+ Voice note'
+ : (bgLatestMessage.content || '=+ Media')}
               </p>
             </div>
           </button>

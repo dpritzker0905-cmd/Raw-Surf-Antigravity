@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Map utility functions and constants
  * Extracted from MapPage.js for better organization
  */
@@ -91,7 +91,7 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
         type: 'raster',
         tiles: [tileUrl],
         tileSize: 256,
-        attribution: '© Mapbox © OpenStreetMap'
+ attribution: ' Mapbox OpenStreetMap'
       }
     },
     layers: [
@@ -112,7 +112,7 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
 };
 
 /**
- * Default tile layer configuration — Mapbox raster tiles via Leaflet
+ * Default tile layer configuration Mapbox raster tiles via Leaflet
  */
 export var TILE_LAYER_CONFIG = {
   url: MAPBOX_TILES.dark,
@@ -120,13 +120,13 @@ export var TILE_LAYER_CONFIG = {
     maxZoom: 19,
     tileSize: 256,
     updateWhenIdle: false,
-    updateWhenZooming: false,   // wait for zoom to settle → smoother animation
+ updateWhenZooming: false, // wait for zoom to settle smoother animation
     keepBuffer: 2,              // default; 4 was too RAM-heavy on mobile
     updateInterval: 150,        // throttle tile requests during fast panning (ms)
     edgeBufferTiles: 2,         // pre-fetch 2 extra rows beyond viewport (requires EdgeBuffer plugin)
     crossOrigin: 'anonymous',
     detectRetina: false,        // already requesting @2x tiles from Mapbox
-    attribution: '© <a href="https://www.mapbox.com/about/maps/">Mapbox</a> © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+ attribution: ' <a href="https://www.mapbox.com/about/maps/">Mapbox</a> <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }
 };
 
@@ -134,7 +134,7 @@ export var TILE_LAYER_CONFIG = {
  * Default map options
  * 
  * ANDROID FOLDABLE FIX (Galaxy Z Fold 7 et al.):
- * - tap: false  — Leaflet's tap handler uses incorrect coordinate offsets on Android
+ * - tap: false Leaflet's tap handler uses incorrect coordinate offsets on Android
  *   when the visual viewport sits at a Y offset from the layout viewport (common on
  *   foldables due to status/nav bar chrome). This causes pinch-zoom to drift south.
  * - touchZoom is left as true but the drift correction happens via the

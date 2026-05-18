@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * AIProposedMatches - "Proposed Matches" Queue with Paid/Free Account Differentiation
  * 
  * Logic Override: Account Tier (Paid vs Free) controls the Review UX:
@@ -105,11 +105,11 @@ const ConfidenceBadge = ({ confidence, matchMethod }) => {
   
   const getMethodIcon = (method) => {
     switch (method) {
-      case 'face_match': return '=ƒæñ';
-      case 'board_color': return '=ƒÅä';
-      case 'wetsuit': return '=ƒæö';
-      case 'profile_photo': return '=ƒô+';
-      default: return '=ƒöì';
+ case 'face_match': return '=';
+ case 'board_color': return '=';
+ case 'wetsuit': return '=';
+ case 'profile_photo': return '=+';
+ default: return '=';
     }
   };
   

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Camera, X, Loader2, RefreshCcw, Sparkles, SlidersHorizontal, 
   CircleDot, Eye, Grid, Sunset, Waves, Moon, Zap, 
@@ -414,7 +414,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
   const handleSelectHairStyle = useCallback((styleId) => {
     setActiveHairStyle(styleId);
     setShowHairPicker(false); // Auto-close picker on selection
-    if (styleId) toast.success('Hair filter applied! ✨');
+ if (styleId) toast.success('Hair filter applied! ');
   }, []);
 
   if (!isOpen) return null;

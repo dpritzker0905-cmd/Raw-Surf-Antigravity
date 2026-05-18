@@ -1,7 +1,7 @@
-/**
- * useVirtualList GÇö Lightweight list virtualization hook.
+ï»¿/**
+ * useVirtualList G Lightweight list virtualization hook.
  * Only renders items visible in the viewport + a buffer zone.
- * No external dependencies GÇö pure React implementation.
+ * No external dependencies G pure React implementation.
  *
  * Usage:
  *   const { visibleItems, containerProps, totalHeight } = useVirtualList({

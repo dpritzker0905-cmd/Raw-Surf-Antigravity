@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * GalleryModals.js - Tag/Assign, Thumbnail Picker, and Link Session modals.
  * Extracted from GalleryPage.js.
  */
@@ -31,7 +31,7 @@ export const TagAssignModal = ({
               <DialogHeader>
                 <DialogTitle className="text-foreground flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-purple-400" />
-                  Tag & Assign GÇö {selectedGallery?.title || 'Gallery'}
+ Tag & Assign G {selectedGallery?.title || 'Gallery'}
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground">
                   {selectedItems.size > 0 
@@ -41,14 +41,14 @@ export const TagAssignModal = ({
               </DialogHeader>
               
               <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                {/* GöÇGöÇ Item Preview Strip GöÇGöÇ */}
+ {/* GG Item Preview Strip GG */}
                 <div className="rounded-lg p-2.5" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[11px] font-semibold text-purple-400">
-                      =ƒôª {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
+ = {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {galleryItems.filter(i => i.media_type !== 'video').length} =ƒô+ GÇó {galleryItems.filter(i => i.media_type === 'video').length} =ƒÄ¼
+ {galleryItems.filter(i => i.media_type !== 'video').length} =+ G {galleryItems.filter(i => i.media_type === 'video').length} =
                     </span>
                   </div>
                   <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -75,7 +75,7 @@ export const TagAssignModal = ({
                   </div>
                 </div>
     
-                {/* GöÇGöÇ Session Participants Section GöÇGöÇ */}
+ {/* GG Session Participants Section GG */}
                 {participantsLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
@@ -143,23 +143,23 @@ export const TagAssignModal = ({
                               </div>
                               {isFullyDistributed ? (
                                 <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
-                                  G£à All {p.items_distributed} items already delivered
+ G All {p.items_distributed} items already delivered
                                 </p>
                               ) : (
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   {p.items_distributed > 0 && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
-                                      =ƒôñ {p.items_distributed} sent
+ = {p.items_distributed} sent
                                     </span>
                                   )}
                                   {creditsToUse > 0 && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
-                                      =ƒÄƒn+Å {creditsToUse} included
+ =n+ {creditsToUse} included
                                     </span>
                                   )}
                                   {previewCount > 0 && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>
-                                      =ƒöÆ {previewCount} preview
+ = {previewCount} preview
                                     </span>
                                   )}
                                 </div>
@@ -169,7 +169,7 @@ export const TagAssignModal = ({
                             {/* Action */}
                             {isFullyDistributed ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] flex-shrink-0">
-                                G£ô Done
+ G Done
                               </Badge>
                             ) : (
                               <Button aria-label="Loader2" size="sm"
@@ -202,7 +202,7 @@ export const TagAssignModal = ({
                         ) : (
                           <Send className="w-3 h-3 mr-1" />
                         )}
-                        Tag All Items GåÆ All {participants.length} Participants
+ Tag All Items G All {participants.length} Participants
                       </Button>
                     )}
                   </div>
@@ -476,9 +476,9 @@ export const LinkSessionModal = ({
                               ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                               : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
                           }`}>
-                            {session.session_type === 'live' ? '=ƒƒó Live' :
-                             session.session_type === 'booking' ? '=ƒôà Booking' :
-                             'GÜí On-Demand'}
+ {session.session_type === 'live' ? '= Live' :
+ session.session_type === 'booking' ? '= Booking' :
+ 'G On-Demand'}
                           </Badge>
                           <Badge className={`text-[8px] px-1 py-0 ${
                             session.status === 'active' || session.status === 'shooting'

@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * SpotReportContent.js
- * Extracted from UnifiedSpotDrawer.js GÇö Report Mode JSX content
+ * Extracted from UnifiedSpotDrawer.js G Report Mode JSX content
  * Includes: savings banner, spot of day, conditions, active photographers,
  * open bookings, tab navigation (reports/pro/community), and view hub CTA
  */

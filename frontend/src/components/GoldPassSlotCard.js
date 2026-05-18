@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * GoldPassSlotCard - Booking slot card with Gold-Pass time-gate logic
  * 
  * Gold Pass = Premium subscription (tier_3) benefit
@@ -46,7 +46,7 @@ export const GoldPassSlotCard = ({
     return () => clearInterval(interval);
   }, [isLocked, minutesRemaining]);
 
-  // Format time for display (HH:MM -> 7:00 AM) GÇö shared utility
+ // Format time for display (HH:MM -> 7:00 AM) G shared utility
   const formatTime = formatTimeSlot;
 
   // Format date

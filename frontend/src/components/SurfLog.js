@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+ï»¿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Plus, Waves, Clock, MapPin, Star, Trash2, Edit3,
@@ -19,11 +19,11 @@ import GpxUploadModal from './GpxUploadModal';
 import { LocationPicker } from './LocationPicker';
 
 const MOODS = [
-  { id: 'stoked', label: 'Stoked', icon: '=ƒñÖ', color: 'text-green-400' },
-  { id: 'happy', label: 'Happy', icon: '=ƒÿè', color: 'text-yellow-400' },
-  { id: 'mellow', label: 'Mellow', icon: '=ƒÿî', color: 'text-blue-400' },
-  { id: 'frustrated', label: 'Frustrated', icon: '=ƒÿñ', color: 'text-orange-400' },
-  { id: 'exhausted', label: 'Exhausted', icon: '=ƒÿ¬', color: 'text-red-400' },
+ { id: 'stoked', label: 'Stoked', icon: '=', color: 'text-green-400' },
+ { id: 'happy', label: 'Happy', icon: '=', color: 'text-yellow-400' },
+ { id: 'mellow', label: 'Mellow', icon: '=', color: 'text-blue-400' },
+ { id: 'frustrated', label: 'Frustrated', icon: '=', color: 'text-orange-400' },
+ { id: 'exhausted', label: 'Exhausted', icon: '=', color: 'text-red-400' },
 ];
 
 const CROWD_LEVELS = ['Empty', 'Light', 'Moderate', 'Crowded', 'Packed'];
@@ -167,7 +167,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
         toast.success('Entry updated');
       } else {
         await apiClient.post(`/surf-log/${userId}`, payload);
-        toast.success('Session logged! =ƒñÖ');
+ toast.success('Session logged! =');
       }
       onSaved();
       onClose();
@@ -359,7 +359,7 @@ const SurfLog = () => {
         try {
           const res = await apiClient.get(`/strava/callback?code=${code}&state=${state}`);
           if (res.data.success) {
-            toast.success("Strava successfully connected! =ƒñÖ");
+ toast.success("Strava successfully connected! =");
             // Clean up the URL
             window.history.replaceState({}, document.title, window.location.pathname);
           }

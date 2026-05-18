@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * GallerySessionPanel - Session context panel with participant roster & distribution
  * Extracted from PhotographerGalleryManager.js for modularization (v74)
  */
@@ -170,7 +170,7 @@ const GallerySessionPanel = ({
                     </Button>
                   ) : (
                     <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px] h-7">
-                      G£à Delivered
+ G Delivered
                     </Badge>
                   )}
                 </div>

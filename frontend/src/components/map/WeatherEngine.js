@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+﻿import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 
@@ -61,7 +61,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
       // Check if wind is currently active
       if (!activeLayersRef.current.includes('wind')) {
-        // Wind not active — don't fetch, but watch for activation
+ // Wind not active don't fetch, but watch for activation
         retryTimer = setTimeout(attemptFetch, 2000);
         return;
       }
@@ -72,7 +72,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         return;
       }
 
-      // Check if in 429 cooldown — wait and retry
+ // Check if in 429 cooldown wait and retry
       const cooldownMs = getRemainingCooldown('wind');
       if (cooldownMs > 0) {
         const waitMs = cooldownMs + 2000;
@@ -89,7 +89,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         if (cancelled) return;
         
         if (data && data.vectors?.length > 0) {
-          console.log(`[WeatherEngine] ✅ Wind data: ${data.vectors.length} vectors`);
+ console.log(`[WeatherEngine] Wind data: ${data.vectors.length} vectors`);
           windRevision.current += 1;
           setWindData(data);
           retryCount = 0; // Reset on success
@@ -99,7 +99,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           retryCount++;
           if (retryCount < MAX_RETRIES) {
             const delay = RETRY_DELAYS[retryCount] || 60000;
-            console.log(`[WeatherEngine] ❌ No data (attempt ${retryCount}), retry in ${delay/1000}s`);
+ console.log(`[WeatherEngine] No data (attempt ${retryCount}), retry in ${delay/1000}s`);
             retryTimer = setTimeout(attemptFetch, delay);
           } else {
             console.warn(`[WeatherEngine] Max retries (${MAX_RETRIES}) exhausted`);
@@ -129,25 +129,25 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
   // ===== TIMELINE SCRUB (local cache re-index, ZERO API calls) =====
   // Uses extractWindAtOffset directly on the cached hourly data.
-  // NEVER calls fetchWindData — that would trigger a POST and cause 429s.
+ // NEVER calls fetchWindData that would trigger a POST and cause 429s.
   const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
     if (prevOffsetRef.current === timeOffsetHours) return;
     prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
 
-    console.log(`[WeatherEngine] 🕐 Timeline scrub: ${timeOffsetHours}h`);
+ console.log(`[WeatherEngine] Timeline scrub: ${timeOffsetHours}h`);
 
     const t = setTimeout(() => {
       try {
         const cache = getWindHourlyCache();
         if (!cache?.results?.length) {
-          console.log('[WeatherEngine] 🕐 No cached data for timeline re-index');
+ console.log('[WeatherEngine] No cached data for timeline re-index');
           return;
         }
         const data = extractWindAtOffset(cache, timeOffsetHours);
         if (data && data.vectors?.length > 0) {
-          console.log(`[WeatherEngine] 🕐 Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
+ console.log(`[WeatherEngine] Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
           windRevision.current += 1;
           setWindData(data);
         }

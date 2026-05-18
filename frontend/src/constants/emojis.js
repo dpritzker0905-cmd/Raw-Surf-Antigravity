@@ -1,5 +1,5 @@
-/**
- * Shared Emoji Data GÇö Single source of truth for all emoji pickers
+ï»¿/**
+ * Shared Emoji Data G Single source of truth for all emoji pickers
  *
  * Three consumers:
  *   1. components/EmojiPicker.js       (feed comments & captions)
@@ -10,21 +10,21 @@
  * Import from here instead.
  *
  * UNICODE COMPLIANCE (v99): All emoji use \u{XXXXX} ES2015+ escape sequences.
- * Raw multi-byte emoji corrupt during PowerShell/git operations (see rules.md -º3).
+ * Raw multi-byte emoji corrupt during PowerShell/git operations (see rules.md -3).
  */
 
-// GöÇGöÇGöÇ Quick-access row (top row, surf-first) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Quick-access row (top row, surf-first) GGGGGGGGGGGGGGGGGGGGGG
 export const QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F64C}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F60E}', '\u{1F4AA}'];
 
-// GöÇGöÇGöÇ Reaction emojis for post/comment/message reactions GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
-// SYNC CONTRACT: Must match backend/routes/posts/schemas.py GåÆ VALID_REACTIONS
+// GGG Reaction emojis for post/comment/message reactions GGGGGGGGGG
+// SYNC CONTRACT: Must match backend/routes/posts/schemas.py G VALID_REACTIONS
 // Verified in-sync v103: both lists are 10 identical codepoints in the same order.
 // If you add/remove an emoji here, update VALID_REACTIONS in the backend too.
 // Curated for surf culture: Shaka, Wave, Surfer, Fire, 100, Heart,
 // Clap, Laugh, Stoked-face, Flexed-biceps.
 export const REACTION_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F602}', '\u{1F60E}', '\u{1F4AA}'];
 
-// GöÇGöÇGöÇ Primary categories (always visible) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Primary categories (always visible) GGGGGGGGGGGGGGGGGGGGGGGGG
 // Surf-first ordering, consistent across all pickers.
 export const EMOJI_CATEGORIES = {
   'Surf & Ocean': [
@@ -67,7 +67,7 @@ export const EMOJI_CATEGORIES = {
   ],
 };
 
-// GöÇGöÇGöÇ Extended categories (collapsible "Show More" section) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Extended categories (collapsible "Show More" section) GGGGGGGG
 // These appear when the user expands the picker.
 export const EXTENDED_EMOJI_CATEGORIES = {
   'Animals': [
@@ -115,13 +115,13 @@ export const EXTENDED_EMOJI_CATEGORIES = {
   ],
 };
 
-// GöÇGöÇGöÇ Convenience: all categories merged (for full-picker views) GöÇGöÇ
+// GGG Convenience: all categories merged (for full-picker views) GG
 export const ALL_EMOJI_CATEGORIES = {
   ...EMOJI_CATEGORIES,
   ...EXTENDED_EMOJI_CATEGORIES,
 };
 
-// GöÇGöÇGöÇ Category icons (for tab display in pickers) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Category icons (for tab display in pickers) GGGGGGGGGGGGGGGGG
 export const CATEGORY_ICONS = {
   'Surf & Ocean': '\u{1F3C4}',
   'Reactions':    '\u{1F525}',

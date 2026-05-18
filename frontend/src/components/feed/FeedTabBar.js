@@ -1,5 +1,5 @@
-/**
- * FeedTabBar GÇö Extracted from Feed.js (v103)
+ï»¿/**
+ * FeedTabBar G Extracted from Feed.js (v103)
  * Three-tab strip (For You / Waves / Following) with sliding gradient indicator.
  */
 import React from 'react';

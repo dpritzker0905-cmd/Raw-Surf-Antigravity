@@ -1,4 +1,4 @@
-/**
+ο»Ώ/**
  * useExploreConditions.js - Extracted from Explore.js
  * Conditions, location hierarchy, surf spots, and archive data fetching.
  * 431 lines extracted.
@@ -172,7 +172,7 @@ const useExploreConditions = ({
           };
           setUserLocation(newLocation);
           fetchConditionReports('All', newLocation, conditionsSubTab, null, { country: '', state: '', city: '' });
-          toast.success('=ƒτμ Showing nearby reports first');
+ toast.success('= Showing nearby reports first');
         },
         (error) => {
           logger.error('Geolocation error:', error);

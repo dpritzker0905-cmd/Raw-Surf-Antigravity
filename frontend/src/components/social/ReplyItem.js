@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * ReplyItem.js - Individual reply/comment display component.
  * Extracted from PostCard.js to reduce God component size.
  */
@@ -16,7 +16,7 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
   const [viewerReaction, setViewerReaction] = useState(reply.viewer_reaction || null);
   const [loading, setLoading] = useState(false);
 
-  const handleReaction = async (emoji = '=ƒñÖ') => {
+ const handleReaction = async (emoji = '=') => {
     if (!userId) {
       toast.error('Please log in to react');
       return;
@@ -67,7 +67,7 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
           <span className="font-medium">{reactionCount} like{reactionCount !== 1 ? 's' : ''}</span>
         )}
         <button aria-label="Like"
-          onClick={() => handleReaction('=ƒñÖ')}
+ onClick={() => handleReaction('=')}
           disabled={loading}
           className={`ml-auto p-1 rounded transition-all ${
             viewerReaction ? 'text-red-500' : `${textSecondaryClass} hover:text-red-400`

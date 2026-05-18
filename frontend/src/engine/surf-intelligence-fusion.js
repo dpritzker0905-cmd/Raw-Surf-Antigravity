@@ -1,16 +1,16 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Spot Intelligence Fusion Layer
+ Raw Surf OS Spot Intelligence Fusion Layer
  DETERMINISTIC COMPOSITION CONTRACT
 ====================================================
 
 This is the SINGLE SOURCE OF TRUTH for spot intelligence.
-It COMPOSES outputs from existing systems — never duplicates.
+It COMPOSES outputs from existing systems never duplicates.
 
 INPUTS (all passed in, never fetched internally):
-  SOURCE A — REALITY: sessions, enrichment, spot links
-  SOURCE B — FORECAST: forecast history, tiles
-  SOURCE C — SIMULATION: engine-brain outputs
+ SOURCE A REALITY: sessions, enrichment, spot links
+ SOURCE B FORECAST: forecast history, tiles
+ SOURCE C SIMULATION: engine-brain outputs
 
 OUTPUT:
   spotIntelligence = { waveScore, crowdScore, consistencyScore,
@@ -28,7 +28,7 @@ RULES:
 ====================================================
 */
 
-// ─── MAIN COMPOSITION ────────────────────────────────────────────────────────
+// MAIN COMPOSITION 
 
 /**
  * Compose all intelligence sources into a single spot report.
@@ -82,7 +82,7 @@ function composeSpotIntelligence(sources) {
   };
 }
 
-// ─── WAVE SCORE ──────────────────────────────────────────────────────────────
+// WAVE SCORE 
 
 /**
  * Derive wave quality from engine simulation + spot metadata.
@@ -128,7 +128,7 @@ function computeWaveScore(engine, meta) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
-// ─── CROWD SCORE ─────────────────────────────────────────────────────────────
+// CROWD SCORE 
 
 /**
  * Compute crowd pressure from session density + forecast quality + time weighting.
@@ -165,7 +165,7 @@ function computeCrowdScore(links, forecastHistory, meta) {
   return Math.max(0, Math.min(100, Math.round(densityScore + qualityAttraction + histBaseline)));
 }
 
-// ─── FORECAST CONSISTENCY ────────────────────────────────────────────────────
+// FORECAST CONSISTENCY 
 
 /**
  * Measure how consistent forecast models are with each other.
@@ -202,11 +202,11 @@ function calculateForecastConsistency(tiles, forecastHistory) {
   return Math.max(0, Math.min(100, Math.round(100 - avgDiff * 20)));
 }
 
-// ─── FORECAST ACCURACY ───────────────────────────────────────────────────────
+// FORECAST ACCURACY 
 
 /**
  * Compare forecasted conditions vs actual session observations.
- * THIS IS THE CORE MOAT — not just weather, but verified accuracy.
+ * THIS IS THE CORE MOAT not just weather, but verified accuracy.
  *
  * @param {Array} sessions
  * @param {Array} enrichment
@@ -256,7 +256,7 @@ function findClosestForecast(timestamp, forecasts) {
   return bestDiff < 3 * 60 * 60 * 1000 ? best : null;
 }
 
-// ─── WEIGHTED SPOT INDEX ─────────────────────────────────────────────────────
+// WEIGHTED SPOT INDEX 
 
 /**
  * Compute overall spot quality index from all sub-scores.
@@ -273,7 +273,7 @@ function weightedSpotIndex(waveScore, crowdScore, consistencyScore, accuracyScor
   );
 }
 
-// ─── CONFIDENCE ──────────────────────────────────────────────────────────────
+// CONFIDENCE 
 
 /**
  * Calculate confidence level based on data availability.

@@ -1,5 +1,5 @@
-/**
- * useDispatchTracking GÇö Extracted from MapPage.js (v80)
+ï»¿/**
+ * useDispatchTracking G Extracted from MapPage.js (v80)
  *
  * Manages active dispatch tracking state: checks for an active dispatch
  * on mount, polls for location updates when en_route, and sends the

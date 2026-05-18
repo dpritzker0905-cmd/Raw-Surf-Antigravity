@@ -1,9 +1,9 @@
-import React from 'react';
+ï»¿import React from 'react';
 import { Play, Camera, MapPin, Grid3X3, Check, Pin } from 'lucide-react';
 import { getFullUrl } from '../utils/media';
 
 /**
- * Media grid item GÇö renders a single cell in the profile content grid.
+ * Media grid item G renders a single cell in the profile content grid.
  * Handles photos, videos, check-ins, text posts, and photographer sessions.
  * Previously defined at the bottom of Profile.js.
  */
@@ -90,7 +90,7 @@ export const MediaGridItem = ({ item, onClick, isPinned = false }) => {
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <div className="flex items-center gap-4 text-white text-sm">
-          {item.likes_count !== undefined && <span className="flex items-center gap-1">G¥ñn+Å {item.likes_count}</span>}
+ {item.likes_count !== undefined && <span className="flex items-center gap-1">Gn+ {item.likes_count}</span>}
           {item.tagged_by && <span className="flex items-center gap-1">Tagged by {item.tagged_by}</span>}
         </div>
       </div>

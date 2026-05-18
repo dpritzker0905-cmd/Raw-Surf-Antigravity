@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+﻿import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
@@ -8,7 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
-// v3.12.3: WebGLWindLayer disabled — MapLibre custom layer has WebGL state conflicts
+// v3.12.3: WebGLWindLayer disabled MapLibre custom layer has WebGL state conflicts
 // that prevent reliable particle compositing. Canvas2D overlay (Ventusky technique) used instead.
 // import { WebGLWindLayer } from './WebGLWindLayer';
 import { WindParticleOverlay } from './WindParticleOverlay';
@@ -26,7 +26,7 @@ import { useTemporalPreloader } from './useTemporalPreloader';
 // Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-// v3.9.7: Lazy init — moved from module-level to prevent TDZ in webpack concatenation
+// v3.9.7: Lazy init moved from module-level to prevent TDZ in webpack concatenation
 var _mapLibreWorkerSet = false;
 function ensureMapLibreInit() {
   if (!_mapLibreWorkerSet) {
@@ -87,7 +87,7 @@ var MapWebGL = ({
   onMapClick,
   onMapMoveEnd,
 }) => {
-  // v3.9.7: Explicit init — never at import time
+ // v3.9.7: Explicit init never at import time
   ensureMapLibreInit();
   markDOMReady(); // Init sequencer: DOM is ready when component renders
   const innerMapRef = useRef(null);
@@ -113,7 +113,7 @@ var MapWebGL = ({
   const { windData, windRevision } = useWeatherEngine({
     activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
   });
-  // v3.9.9: Temporal preloader — prefetch ±1hr tiles
+ // v3.9.9: Temporal preloader prefetch 1hr tiles
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance });
 
   const [protocolReady, setProtocolReady] = useState(false);
@@ -144,7 +144,7 @@ var MapWebGL = ({
     trace('all', 'select_model', 'MapWebGL', { activeModel });
   }, [activeModel]);
 
-  // LRCM: Derived render type — drives which renderer pipeline is active
+ // LRCM: Derived render type drives which renderer pipeline is active
   const activeRenderType = useMemo(() => {
     const layerId = activeLayers[0];
     if (!layerId) return 'none';
@@ -158,29 +158,17 @@ var MapWebGL = ({
 
 
   const [omTileUrls, setOmTileUrls] = useState({});
-  // v69: initialOmUrls removed — React <Source> now reads omTileUrls directly
-  // v70: initialRadarUrl removed — React <Source> reads radarTileUrl directly
+ // v69: initialOmUrls removed React <Source> now reads omTileUrls directly
+ // v70: initialRadarUrl removed React <Source> reads radarTileUrl directly
 
-  // v78: Land polygon for marine coastline masking (one-time fetch)
-  // 50m resolution (~500KB) gives proper bay/inlet/key coastline fidelity.
-  // Fallback to 110m (~200KB) if 50m fails. Both from CloudFront CDN.
-  const [landGeoJSON, setLandGeoJSON] = useState(null);
-  useEffect(() => {
-    const NE_50M = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_land.geojson';
-    const NE_110M = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_land.geojson';
-    fetch(NE_50M).then(r => r.ok ? r.json() : Promise.reject())
-      .then(data => setLandGeoJSON(data))
-      .catch(() => fetch(NE_110M).then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setLandGeoJSON(data); }).catch(() => {}));
-  }, []);
 
-  // v242: Global Render Contract — single source of truth for map readiness
+ // v242: Global Render Contract single source of truth for map readiness
   const renderContract = useMapRenderContract(mapInstance);
 
-  // Raster Transaction Layer — now gated by render contract
+ // Raster Transaction Layer now gated by render contract
   const { queueRasterUpdate } = useRasterTransactions(mapInstance, renderContract);
 
-  // Marine Orchestrator — single-pipeline data fetching
+ // Marine Orchestrator single-pipeline data fetching
   const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours });
 
   const activeMarineLayer = useMemo(() => {
@@ -203,14 +191,14 @@ var MapWebGL = ({
     };
   }, [marineData, activeMarineLayer]);
 
-  // v246: Layer Truth Diff Engine — declared vs actual state comparison
+ // v246: Layer Truth Diff Engine declared vs actual state comparison
   // MUST be after all data source declarations (windData, marineData) to avoid TDZ
   const { issues: truthIssues, rasterVisible } = useLayerTruthDiff({
     mapInstance, activeLayers, activeRenderType, windData, marineData
   });
 
   // v69: React <Source url={omTileUrls[key]}> now handles URL updates declaratively.
-  // The old imperative queueRasterUpdate path is no longer needed — react-map-gl
+ // The old imperative queueRasterUpdate path is no longer needed react-map-gl
   // calls setUrl() internally when the url prop changes.
 
   /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
@@ -245,13 +233,13 @@ var MapWebGL = ({
     ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
-  // v76: Removed debounce — use timeOffsetHours directly.
+ // v76: Removed debounce use timeOffsetHours directly.
   // OOM was mitigated in v73 by only resolving active layers.
   // The 80ms debounce ate slider responsiveness (autoplay worked but drag didn't).
 
   // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
   const loggedFallbacks = useRef(new Set());
-  // v78: rAF throttle — URL resolution runs at most once per animation frame.
+ // v78: rAF throttle URL resolution runs at most once per animation frame.
   // The slider thumb and time readout update instantly (React state is immediate),
   // but the heavy metadata fetch only runs when the browser is ready to paint.
   const rafRef = useRef(null);
@@ -259,8 +247,8 @@ var MapWebGL = ({
 
   useEffect(() => {
     // v76: Resolve raster URLs for ACTIVE layers.
-    // Rain: per-model via PRECIP_MODEL_MAP (GFS→gfs013, ICON→dwd_icon, EURO→ecmwf)
-    // Marine: per-model via MARINE_MODEL_MAP (GFS/ICON→gfswave, EURO→ecmwf_wam)
+ // Rain: per-model via PRECIP_MODEL_MAP (GFSgfs013, ICONdwd_icon, EUROecmwf)
+ // Marine: per-model via MARINE_MODEL_MAP (GFS/ICONgfswave, EUROecmwf_wam)
     // Timeline: always valid_times_N index (never current_time_1H)
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
@@ -288,13 +276,13 @@ var MapWebGL = ({
 
       // v76: Model routing uses the exported maps from LayerRegistry
       const resolveModel = (entry, variable) => {
-        // Pinned model (fog → GFS visibility)
+ // Pinned model (fog GFS visibility)
         if (entry.omModel) return entry.omModel;
-        // Marine layers → MARINE_MODEL_MAP
+ // Marine layers MARINE_MODEL_MAP
         if (entry.omModelGroup === 'marine') {
           return MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
         }
-        // Rain/cloud → PRECIP_MODEL_MAP (each model has its own precipitation tiles)
+ // Rain/cloud PRECIP_MODEL_MAP (each model has its own precipitation tiles)
         if (variable === 'precipitation' || variable === 'cloud_cover') {
           return PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
         }
@@ -321,7 +309,7 @@ var MapWebGL = ({
           const VARIABLE_FALLBACKS = {
             'wind_gusts_10m': 'wind_u_component_10m',
             'visibility': 'cloud_cover_low',
-            // v76: ECMWF WAM lacks swell/wind_wave → fallback to GFS wave
+ // v76: ECMWF WAM lacks swell/wind_wave fallback to GFS wave
             'swell_wave_height': null,
             'secondary_swell_wave_height': null,
             'wind_wave_height': null,
@@ -333,10 +321,10 @@ var MapWebGL = ({
               const fbKey = `${variable}-${layerModel}`;
               if (!loggedFallbacks.current.has(fbKey)) {
                 loggedFallbacks.current.add(fbKey);
-                console.log(`[Raster] Variable fallback: ${variable} → ${resolvedVar} for ${layerModel}`);
+ console.log(`[Raster] Variable fallback: ${variable} ${resolvedVar} for ${layerModel}`);
               }
             } else if (entry.omModelGroup === 'marine') {
-              // ECMWF WAM lacks this var → fall back to GFS wave model
+ // ECMWF WAM lacks this var fall back to GFS wave model
               layerModel = 'ncep_gfswave025';
               meta = await fetchMetadata(layerModel);
               if (meta.variables.includes(variable)) {
@@ -370,7 +358,7 @@ var MapWebGL = ({
       }
     };
     
-    // v78: rAF throttle — during rapid slider dragging, only resolve once per frame.
+ // v78: rAF throttle during rapid slider dragging, only resolve once per frame.
     // This prevents stacking dozens of async resolveAllUrls() during fast scrubbing.
     pendingResolve.current = resolveAllUrls;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -422,7 +410,7 @@ var MapWebGL = ({
     (filter === 'all' || filter === 'spots') ? surfSpots : [], 
   [filter, surfSpots]);
 
-  // Derive bounds for clustering — must be an object {west,south,east,north}
+ // Derive bounds for clustering must be an object {west,south,east,north}
   // to match useMarkerClustering's bbox extraction (NOT a flat array)
   const currentBounds = useMemo(() => {
     if (!mapInstance) return { west: -180, south: -85, east: 180, north: 85 };
@@ -476,7 +464,7 @@ var MapWebGL = ({
       // so the try-catch in useRasterTransactions cannot intercept them.
       map.on('error', (e) => {
         if (e?.error?.name === 'AbortError' || e?.error?.message?.includes('aborted')) {
-          return; // Swallow — this is expected during raster source transitions
+ return; // Swallow this is expected during raster source transitions
         }
         console.error('[MapLibre Error]', e?.error || e);
       });
@@ -591,7 +579,7 @@ var MapWebGL = ({
 
       {/* --- WEATHER LAYERS --- */}
 
-      {/* Live Radar (RainViewer — animated frames) */}
+ {/* Live Radar (RainViewer animated frames) */}
       {radarTileUrl && (
         <Source
           id="radar-source"
@@ -641,9 +629,9 @@ var MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{
-              // v3.12.5: Ventusky-style opacity — colored bands visible but not overpowering.
+ // v3.12.5: Ventusky-style opacity colored bands visible but not overpowering.
               // Satellite needs brightness boost. Wind needs visible color bands.
-              // v73: Fog opacity reduced — cloud_cover_low shows ALL low clouds,
+ // v73: Fog opacity reduced cloud_cover_low shows ALL low clouds,
               // not just fog. Keep subtle so minor cumulus doesn't look like fog.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
                 2, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
@@ -656,7 +644,7 @@ var MapWebGL = ({
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 0 : 0,
-              // v75: Fog (visibility) is inverted — low values = fog = should render opaque.
+ // v75: Fog (visibility) is inverted low values = fog = should render opaque.
               // Rain/cloud uses standard mapping where high values = precipitation.
               'raster-contrast': layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10
                 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
@@ -669,21 +657,6 @@ var MapWebGL = ({
         </Source>
       ))}
 
-      {/* v78: Land mask — Natural Earth GeoJSON land polygon painted ABOVE marine rasters.
-          Covers raster cells that bleed onto land, creating clean Ventusky-like coastlines.
-          GeoJSON fetched once at mount (Natural Earth 110m, ~200KB) and cached in state. */}
-      {!!activeMarineLayer && landGeoJSON && (
-        <Source id="land-mask-source" type="geojson" data={landGeoJSON}>
-          <Layer
-            id="land-mask-fill"
-            type="fill"
-            paint={{
-              'fill-color': theme === 'dark' ? '#1a1a2e' : theme === 'beach' ? '#0a0a0a' : '#e8e0d8',
-              'fill-opacity': 0.92,
-            }}
-          />
-        </Source>
-      )}
 
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
@@ -710,7 +683,7 @@ var MapWebGL = ({
       />
 
       {/* v3.12.3: Canvas2D wind particles (Ventusky technique).
-          WebGLWindLayer DISABLED — MapLibre custom layer had WebGL state conflicts
+ WebGLWindLayer DISABLED MapLibre custom layer had WebGL state conflicts
           making particles invisible. Canvas2D overlay uses same proven architecture
           as MarineParticleCanvas and Ventusky.com (5 stacked Canvas2D layers). */}
       <WindParticleOverlay

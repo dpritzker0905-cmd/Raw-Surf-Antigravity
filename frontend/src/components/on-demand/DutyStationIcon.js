@@ -1,5 +1,5 @@
-/**
- * DutyStationIcon GÇö Extracted from DutyStationDrawer.js (v79)
+ï»¿/**
+ * DutyStationIcon G Extracted from DutyStationDrawer.js (v79)
  *
  * TopNav icon button that shows a pulsing ring when a mode (Live or On-Demand)
  * is active, and opens the DutyStationDrawer on click.

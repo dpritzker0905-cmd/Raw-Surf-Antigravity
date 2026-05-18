@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+Ôªøimport React, { useState, useEffect, useCallback } from 'react';
 import { DollarSign, ShoppingCart, 
   Target, BarChart3, PieChart, RefreshCw, Loader2, Calendar,
   ArrowUpRight, ArrowDownRight, Eye, MousePointer, CreditCard
@@ -16,7 +16,7 @@ import logger from '../../utils/logger';
  * AdminAnalyticsDashboard - A/B Testing & Booking Conversion Analytics
  * 
  * Features:
- * - Conversion funnel tracking (Views GÂ∆ Bookings GÂ∆ Completed)
+ * - Conversion funnel tracking (Views G Bookings G Completed)
  * - A/B test variant comparison
  * - Revenue metrics by source
  * - User segment analysis

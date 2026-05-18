@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Turbulence Model
+ Raw Surf OS Turbulence Model
  WIND SIMULATION SUB-LAYER
 ====================================================
 
-PURE MATH — NO engine, NO rendering, NO DOM
+PURE MATH NO engine, NO rendering, NO DOM
 var/function only (TDZ-immune)
 ====================================================
 */

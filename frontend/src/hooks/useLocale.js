@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * useLocale - Custom hook for i18n functionality
  * 
  * Provides easy access to translation functions and language switching.
@@ -21,9 +21,9 @@ import { useCallback } from 'react';
 
 // Supported languages with display names
 export const SUPPORTED_LANGUAGES = [
-  { code: 'en', name: 'English', flag: '=ƒç¦=ƒç+', nativeName: 'English' },
-  { code: 'es', name: 'Spanish', flag: '=ƒç¬=ƒç+', nativeName: 'Espa+¦ol' },
-  { code: 'pt', name: 'Portuguese', flag: '=ƒçº=ƒç+', nativeName: 'Portugu+¬s' },
+ { code: 'en', name: 'English', flag: '==+', nativeName: 'English' },
+ { code: 'es', name: 'Spanish', flag: '==+', nativeName: 'Espa+ol' },
+ { code: 'pt', name: 'Portuguese', flag: '==+', nativeName: 'Portugu+s' },
 ];
 
 export const useLocale = (namespace = 'common') => {

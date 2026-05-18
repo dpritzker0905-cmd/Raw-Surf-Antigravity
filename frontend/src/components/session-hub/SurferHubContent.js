@@ -1,5 +1,5 @@
-/**
- * SurferHubContent GÇö Extracted from SurferSessionHub.js (v79)
+ï»¿/**
+ * SurferHubContent G Extracted from SurferSessionHub.js (v79)
  *
  * Navigation panel for surfer users:
  * - Live Sessions (browse active photographers)

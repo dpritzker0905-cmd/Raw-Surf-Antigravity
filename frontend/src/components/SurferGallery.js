@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * SurferGallery - "My Gallery" / "The Locker"
  * Private media collection for surfers with full controls
  * 
@@ -238,7 +238,7 @@ export const SurferGallery = () => {
               My Gallery
             </h1>
             <p className={`text-sm ${textSecondaryClass} mt-1`}>
-              Your private media locker GÇó {stats.total || 0} items
+ Your private media locker G {stats.total || 0} items
             </p>
           </div>
           

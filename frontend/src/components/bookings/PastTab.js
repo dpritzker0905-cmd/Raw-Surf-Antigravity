@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * PastTab - Completed session history for surfers
  * 
  * Features:
@@ -20,7 +20,7 @@ import apiClient from '../../lib/apiClient';
 import ReviewModal from '../ReviewModal';
 import SessionDetailDrawer from './SessionDetailDrawer';
 
-// GöÇGöÇGöÇ Session Type Icon GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+// GGG Session Type Icon GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 const SessionTypeConfig = {
   on_demand: { label: 'On-Demand', gradient: 'from-purple-500 to-indigo-500', icon: Send },
   scheduled: { label: 'Scheduled', gradient: 'from-amber-500 to-orange-500', icon: Calendar },
@@ -46,15 +46,15 @@ const inferDisplayStatus = (booking) => {
  */
 const normalizeBookingForDrawer = (booking) => ({
   ...booking,
-  // Map duration GåÆ duration_mins (bookings use `duration` in minutes)
+ // Map duration G duration_mins (bookings use `duration` in minutes)
   duration_mins: booking.duration_mins || booking.duration || 0,
-  // Session type GÇö bookings don't have this, infer from booking_type
+ // Session type G bookings don't have this, infer from booking_type
   session_type: booking.booking_type || booking.session_type || 'scheduled',
   // Surfer count from participants array or current_participants
   total_surfers: booking.current_participants || booking.participants?.length || 1,
-  // Pricing GÇö map booking fields for the drawer's PriceRow
+ // Pricing G map booking fields for the drawer's PriceRow
   buyin_price: booking.price_per_person || booking.total_price,
-  // Gallery data GÇö if the booking has associated gallery info
+ // Gallery data G if the booking has associated gallery info
   gallery_photo_count: booking.gallery_photo_count || 0,
   gallery_id: booking.gallery_id || null,
   // Display status for the OutcomeBadge in SessionDetailDrawer
@@ -251,7 +251,7 @@ export const PastTab = ({
                         <Badge variant="secondary" className={`text-[10px] font-semibold px-2 py-0.5 ${
                           isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/15 text-green-400 border border-green-500/20'
                         }`}>
-                          G£ô Completed
+ G Completed
                         </Badge>
                       );
                     } else if (displayStatus === 'Missed') {
@@ -304,12 +304,12 @@ export const PastTab = ({
                 )}
               </div>
               
-              {/* Review section GÇö only Completed sessions are reviewable */}
+ {/* Review section G only Completed sessions are reviewable */}
               <div className={`pt-2.5 border-t ${isLight ? 'border-gray-100' : isBeach ? 'border-zinc-800' : 'border-white/[0.06]'}`}>
                 {(() => {
                   const displayStatus = inferDisplayStatus(booking);
                   
-                  // Already reviewed GÇö show rating stars
+ // Already reviewed G show rating stars
                   if (hasReviewed) {
                     return (
                       <div className="flex items-center gap-2">
@@ -332,7 +332,7 @@ export const PastTab = ({
                     );
                   }
                   
-                  // Completed but not yet reviewed GÇö show review CTA
+ // Completed but not yet reviewed G show review CTA
                   if (displayStatus === 'Completed') {
                     return (
                       <Button
@@ -354,10 +354,10 @@ export const PastTab = ({
                     );
                   }
                   
-                  // Missed or Expired GÇö no review allowed
+ // Missed or Expired G no review allowed
                   return (
                     <p className={`text-xs ${textSecondary} italic`}>
-                      {displayStatus === 'Missed' ? 'Session not confirmed GÇö review unavailable' : 'Session expired GÇö review unavailable'}
+ {displayStatus === 'Missed' ? 'Session not confirmed G review unavailable' : 'Session expired G review unavailable'}
                     </p>
                   );
                 })()}

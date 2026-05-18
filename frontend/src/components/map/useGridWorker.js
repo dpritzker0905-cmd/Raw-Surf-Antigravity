@@ -1,5 +1,5 @@
-/**
- * useGridWorker.js — Main-thread interface for GridParserWorker
+﻿/**
+ * useGridWorker.js Main-thread interface for GridParserWorker
  *
  * Provides a React hook and factory function for off-thread grid parsing.
  *
@@ -75,7 +75,7 @@ export function useGridWorker() {
   useEffect(function() {
     workerRef.current = createGridWorker();
     return function() {
-      // Don't terminate shared worker — other components may use it
+ // Don't terminate shared worker other components may use it
     };
   }, []);
 

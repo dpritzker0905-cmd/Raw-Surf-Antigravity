@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * PostModal - Instagram-style post popup with image on left, details on right
  * Opens when clicking on a post in the feed
  */
@@ -129,7 +129,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
   // Trap focus within the modal for keyboard accessibility
   useFocusTrap(modalRef, isOpen);
   
-  // Double-tap to like handler +óGé¼GÇ¥ toggles shaka on/off (desktop click-based)
+ // Double-tap to like handler +GG toggles shaka on/off (desktop click-based)
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 400) {
@@ -214,7 +214,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
       window.history.pushState({ modal: 'post' }, '');
       
       const handlePopState = () => {
-        // Back button was pressed +óGé¼GÇ¥ close the modal WITHOUT calling history.back()
+ // Back button was pressed +GG close the modal WITHOUT calling history.back()
         closedByPopstateRef.current = true;
         onClose();
       };
@@ -331,7 +331,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center"
     >
-      {/* Backdrop GÇö onMouseDown is the industry-standard close trigger.
+ {/* Backdrop G onMouseDown is the industry-standard close trigger.
           Unlike onClick on the outer container, mouseDown on a dedicated
           backdrop layer can never be accidentally triggered by events
           originating inside the modal content or picker overlays. */}

@@ -1,5 +1,5 @@
-/**
- * SessionSetupCard GÇö Session configuration preview card for photographers.
+ï»¿/**
+ * SessionSetupCard G Session configuration preview card for photographers.
  * Extracted from PhotographerSessionsManager.js.
  * 
  * Shows current session settings: buy-in, photos/videos included,

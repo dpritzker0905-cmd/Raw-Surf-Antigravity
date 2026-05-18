@@ -1,4 +1,4 @@
-/**
+Ôªø/**
  * DispatchLobby.js
  *
  * Full-page "poker room" lobby for on-demand sessions.
@@ -210,7 +210,7 @@ export const DispatchLobby = () => {
         // Photographer ACCEPTED
         if (['accepted', 'en_route'].includes(newStatus) && !acceptSoundPlayedRef.current) {
           acceptSoundPlayedRef.current = true;
-          toast.success('+‚¶∆+È-¶+‚G«™+È-++‚-Û+ÛG«‹-º+‡G«£+‚G«‹+È-+ Photographer accepted! They\'re on their way.', {
+ toast.success('++-+G+-++-+G-+G+G+-+ Photographer accepted! They\'re on their way.', {
             id: 'photographer-accepted',
             duration: 6000,
           });
@@ -223,7 +223,7 @@ export const DispatchLobby = () => {
 
         // Photographer ARRIVED - notify the surfer
         if (newStatus === 'arrived') {
-          toast.success('+‚¶∆+È-¶+‚G«™+È-++‚-Û+ÛG«‹-º+‡G«£+‚G«‹+È-Ï Your photographer has arrived! Look for them at the spot.', {
+ toast.success('++-+G+-++-+G-+G+G+- Your photographer has arrived! Look for them at the spot.', {
             id: 'photographer-arrived',
             duration: 8000,
           });
@@ -257,7 +257,7 @@ export const DispatchLobby = () => {
         const diff = newPaidCount - prevPaidCountRef.current;
         const newlyPaid = newCrew.filter(m => m.paid).slice(-diff);
         const names = newlyPaid.map(m => m.name || 'A crew member').join(', ');
-        toast.success(`${names} joined the session! +‚¶∆+È-¶+‚G«™+È-++‚G«‹+È-≈+‚-Û+ÛG«‹-º+‡-+`, {
+ toast.success(`${names} joined the session! ++-+G+-++G+-+-+G-+-+`, {
           id: `crew-paid-${newPaidCount}`,
           duration: 4000,
         });

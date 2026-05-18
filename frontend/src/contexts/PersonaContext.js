@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import logger from '../utils/logger';
 import { ROLES, ROLE_SETS, isProLevel, isBusinessRole as _isBusinessRole } from '../constants/roles';
@@ -20,7 +20,7 @@ export const ALL_PERSONAS = [
   { id: ROLES.GROM_PARENT, label: 'Grom Parent', icon: '\u{1F468}\u{200D}\u{1F467}', description: 'Parent of grom' },
 ];
 
-// Re-export for backward compatibility — consumers that import from PersonaContext still work
+// Re-export for backward compatibility consumers that import from PersonaContext still work
 export { ROLES, ROLE_SETS };
 
 // Get expanded role info with proper icons

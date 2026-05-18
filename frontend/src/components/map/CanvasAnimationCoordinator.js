@@ -1,11 +1,11 @@
-/**
- * CanvasAnimationCoordinator.js — Phase 2 Render Orchestrator
+﻿/**
+ * CanvasAnimationCoordinator.js Phase 2 Render Orchestrator
  *
  * SINGLE requestAnimationFrame loop for ALL Canvas2D particle systems.
  *
  * v3.9.7 TDZ-SAFE:
  *   - Uses `var` and function declarations ONLY (no const/let/class at module level)
- *   - `var` and `function` are hoisted — immune to Temporal Dead Zone
+ * - `var` and `function` are hoisted immune to Temporal Dead Zone
  *   - Webpack ModuleConcatenationPlugin can reorder freely without TDZ crashes
  *
  * Architecture (per system-brain/render-loop-governance.md):
@@ -15,7 +15,7 @@
  *   - Consumers register tick callbacks, coordinator runs them
  */
 
-// ─── THROTTLE STATES (hoisted via var — TDZ-immune) ──────────────────────────
+// THROTTLE STATES (hoisted via var TDZ-immune) 
 // Coordinator passes these as numbers to tick callbacks.
 // Consumers compare against numbers directly (no import needed).
 var COORD_RUNNING = 1;
@@ -24,7 +24,7 @@ var COORD_DORMANT = 3;
 
 var _coordInstance = null;
 
-// ─── COORDINATOR (function constructor — hoisted, TDZ-immune) ────────────────
+// COORDINATOR (function constructor hoisted, TDZ-immune) 
 
 function CanvasAnimationCoordinator() {
   this._layers = new Map();
@@ -67,7 +67,7 @@ CanvasAnimationCoordinator.prototype.init = function(mapInstance) {
   mapInstance.on('dragend', this._onDragEnd);
   mapInstance.on('zoomend', this._onZoomEnd);
   mapInstance.on('moveend', this._onIdle);
-  console.log('[Coordinator] Initialized — single RAF for all Canvas2D layers');
+ console.log('[Coordinator] Initialized single RAF for all Canvas2D layers');
 };
 
 CanvasAnimationCoordinator.prototype.register = function(id, tickFn, isActiveFn) {
@@ -138,7 +138,7 @@ CanvasAnimationCoordinator.prototype._doAnimate = function(now) {
   this._lastTime = now;
   this._frameCount++;
 
-  // ─── FRAME BUDGET ENFORCEMENT (Phase 3) ─────────────────────────────────
+ // FRAME BUDGET ENFORCEMENT (Phase 3) 
   var frameStart = performance.now();
 
   // Tick all active layers
@@ -191,7 +191,7 @@ CanvasAnimationCoordinator.prototype._doAnimate = function(now) {
   this._rafId = requestAnimationFrame(this._animate);
 };
 
-// ─── SINGLETON ACCESSOR (function declaration — hoisted) ─────────────────────
+// SINGLETON ACCESSOR (function declaration hoisted) 
 
 export function getAnimationCoordinator() {
   if (!_coordInstance) _coordInstance = new CanvasAnimationCoordinator();
@@ -202,6 +202,6 @@ export function disposeAnimationCoordinator() {
   if (_coordInstance) { _coordInstance.dispose(); _coordInstance = null; }
 }
 
-// Export throttle state as numbers — consumers compare directly, no import needed
+// Export throttle state as numbers consumers compare directly, no import needed
 // Tick callbacks receive state as 3rd argument: tick(now, dt, state)
-// state === 1 → running, state === 2 → throttled, state === 3 → dormant
+// state === 1 running, state === 2 throttled, state === 3 dormant

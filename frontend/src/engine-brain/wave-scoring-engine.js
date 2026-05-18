@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Wave Scoring Engine
+ Raw Surf OS Wave Scoring Engine
  SESSION QUALITY SCORING FROM ENGINE-BRAIN OUTPUT
 ====================================================
 
-PURE MATH — derives scores from:
+PURE MATH derives scores from:
 - surf session logs
 - wave height data
 - swell direction alignment

@@ -1,5 +1,5 @@
-/**
- * MapPageModals — Extracted from MapPage.js (v83)
+﻿/**
+ * MapPageModals Extracted from MapPage.js (v83)
  * Consolidates overlay modals/drawers rendered on the map page.
  */
 import React from 'react';

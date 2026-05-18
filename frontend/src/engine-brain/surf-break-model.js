@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Surf Break Model
+ Raw Surf OS Surf Break Model
  SURF-SPECIFIC INTELLIGENCE LAYER
 ====================================================
 
-This is the competitive moat — what makes Raw Surf
+This is the competitive moat what makes Raw Surf
 NOT Windy / NOT Ventusky.
 
 PURE FUNCTIONAL MODEL ONLY
@@ -38,21 +38,21 @@ PURE FUNCTIONAL MODEL ONLY
 function computeBreakQuality(conditions) {
   var c = conditions;
 
-  // Swell/wind alignment — offshore wind = better
+ // Swell/wind alignment offshore wind = better
   var dirDiff = Math.abs(c.swellDirection - c.windDirection);
   if (dirDiff > 180) dirDiff = 360 - dirDiff;
   var swellScore = Math.max(0, 1 - dirDiff / 180);
 
-  // Height — peaks at 1-3m, caps at 1.0
+ // Height peaks at 1-3m, caps at 1.0
   var heightScore = Math.min(c.waveHeight / 3, 1);
 
-  // Wind penalty — stronger wind = worse (onshore degrades)
+ // Wind penalty stronger wind = worse (onshore degrades)
   var windPenalty = Math.min(c.windSpeed / 30, 1);
 
-  // Bathymetry — reef/point breaks score higher
+ // Bathymetry reef/point breaks score higher
   var bathy = c.bathymetryFactor !== undefined ? c.bathymetryFactor : 0.5;
 
-  // Tide influence (optional — modulates height effectiveness)
+ // Tide influence (optional modulates height effectiveness)
   var tideMod = 1.0;
   if (c.tide !== undefined) {
     // Mid-tide is generally best for most breaks
@@ -93,7 +93,7 @@ function classifyWindType(windDir, breakFacing) {
 }
 
 /**
- * Compute a "surfability window" — hours in a forecast where
+ * Compute a "surfability window" hours in a forecast where
  * conditions meet minimum thresholds.
  *
  * @param {Array<{ waveHeight: number, windSpeed: number, swellDirection: number, windDirection: number }>} hourlyForecast

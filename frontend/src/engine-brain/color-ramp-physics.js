@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Color Ramp Physics System
+ Raw Surf OS Color Ramp Physics System
  LUT-BASED SHADER COLOR MAPPING
 ====================================================
 
@@ -14,7 +14,7 @@ var/function only (TDZ-immune)
 ====================================================
 */
 
-// ─── CORE LUT INTERPOLATION ─────────────────────────────────────────────────
+// CORE LUT INTERPOLATION 
 
 /**
  * Sample a LUT at a normalized position [0-1].
@@ -71,7 +71,7 @@ function lutToTexture(lut, size) {
   return data;
 }
 
-// ─── PRESSURE RAMP ───────────────────────────────────────────────────────────
+// PRESSURE RAMP 
 
 /**
  * Atmospheric pressure color ramp (hPa).
@@ -79,14 +79,14 @@ function lutToTexture(lut, size) {
  * Range: 960-1050 hPa
  */
 var PRESSURE_LUT = [
-  { t: 0.00, r: 100, g: 0,   b: 180, a: 0.85 },  // 960 hPa — deep low
+ { t: 0.00, r: 100, g: 0, b: 180, a: 0.85 }, // 960 hPa deep low
   { t: 0.15, r: 40,  g: 60,  b: 200, a: 0.80 },   // 973.5
   { t: 0.30, r: 20,  g: 140, b: 200, a: 0.75 },   // 987
   { t: 0.45, r: 40,  g: 180, b: 140, a: 0.70 },   // 1000.5
-  { t: 0.55, r: 100, g: 200, b: 80,  a: 0.70 },   // 1009.5 — neutral
+ { t: 0.55, r: 100, g: 200, b: 80, a: 0.70 }, // 1009.5 neutral
   { t: 0.70, r: 220, g: 200, b: 40,  a: 0.75 },   // 1023
   { t: 0.85, r: 240, g: 140, b: 20,  a: 0.80 },   // 1036.5
-  { t: 1.00, r: 220, g: 40,  b: 20,  a: 0.85 },   // 1050 — strong high
+ { t: 1.00, r: 220, g: 40, b: 20, a: 0.85 }, // 1050 strong high
 ];
 
 function samplePressureRamp(hPa) {
@@ -94,21 +94,21 @@ function samplePressureRamp(hPa) {
   return sampleLUT(PRESSURE_LUT, t);
 }
 
-// ─── RAIN / PRECIPITATION RAMP ──────────────────────────────────────────────
+// RAIN / PRECIPITATION RAMP 
 
 /**
  * Precipitation intensity ramp (mm/hr).
  * Range: 0-50+ mm/hr
  */
 var RAIN_LUT = [
-  { t: 0.00, r: 0,   g: 0,   b: 0,   a: 0.0 },   // 0 mm — invisible
-  { t: 0.04, r: 120, g: 200, b: 240, a: 0.30 },   // 2 mm — light drizzle
-  { t: 0.10, r: 60,  g: 140, b: 220, a: 0.50 },   // 5 mm — light rain
-  { t: 0.20, r: 30,  g: 80,  b: 200, a: 0.65 },   // 10 mm — moderate
-  { t: 0.40, r: 20,  g: 200, b: 60,  a: 0.75 },   // 20 mm — heavy
-  { t: 0.60, r: 240, g: 220, b: 20,  a: 0.80 },   // 30 mm — very heavy
-  { t: 0.80, r: 240, g: 100, b: 20,  a: 0.85 },   // 40 mm — extreme
-  { t: 1.00, r: 200, g: 20,  b: 40,  a: 0.90 },   // 50+ mm — torrential
+ { t: 0.00, r: 0, g: 0, b: 0, a: 0.0 }, // 0 mm invisible
+ { t: 0.04, r: 120, g: 200, b: 240, a: 0.30 }, // 2 mm light drizzle
+ { t: 0.10, r: 60, g: 140, b: 220, a: 0.50 }, // 5 mm light rain
+ { t: 0.20, r: 30, g: 80, b: 200, a: 0.65 }, // 10 mm moderate
+ { t: 0.40, r: 20, g: 200, b: 60, a: 0.75 }, // 20 mm heavy
+ { t: 0.60, r: 240, g: 220, b: 20, a: 0.80 }, // 30 mm very heavy
+ { t: 0.80, r: 240, g: 100, b: 20, a: 0.85 }, // 40 mm extreme
+ { t: 1.00, r: 200, g: 20, b: 40, a: 0.90 }, // 50+ mm torrential
 ];
 
 function sampleRainRamp(mmPerHour) {
@@ -116,7 +116,7 @@ function sampleRainRamp(mmPerHour) {
   return sampleLUT(RAIN_LUT, t);
 }
 
-// ─── CLOUD COVER RAMP ────────────────────────────────────────────────────────
+// CLOUD COVER RAMP 
 
 /**
  * Cloud cover percentage ramp.
@@ -136,22 +136,22 @@ function sampleCloudRamp(percent) {
   return sampleLUT(CLOUD_LUT, t);
 }
 
-// ─── SWELL ENERGY RAMP ──────────────────────────────────────────────────────
+// SWELL ENERGY RAMP 
 
 /**
- * Swell energy density ramp (kJ/m²).
- * Derived from H² * T (height squared times period).
- * Range: 0-200+ kJ/m²
+ * Swell energy density ramp (kJ/m).
+ * Derived from H * T (height squared times period).
+ * Range: 0-200+ kJ/m
  */
 var SWELL_ENERGY_LUT = [
   { t: 0.00, r: 20,  g: 20,  b: 60,  a: 0.40 },   // calm
-  { t: 0.10, r: 30,  g: 60,  b: 120, a: 0.55 },   // 20 kJ — light swell
-  { t: 0.25, r: 20,  g: 120, b: 180, a: 0.65 },   // 50 kJ — moderate
-  { t: 0.40, r: 0,   g: 180, b: 160, a: 0.72 },   // 80 kJ — good swell
-  { t: 0.55, r: 40,  g: 200, b: 60,  a: 0.78 },   // 110 kJ — solid
-  { t: 0.70, r: 200, g: 200, b: 0,   a: 0.82 },   // 140 kJ — heavy
-  { t: 0.85, r: 240, g: 120, b: 0,   a: 0.88 },   // 170 kJ — very heavy
-  { t: 1.00, r: 220, g: 20,  b: 40,  a: 0.92 },   // 200+ kJ — massive
+ { t: 0.10, r: 30, g: 60, b: 120, a: 0.55 }, // 20 kJ light swell
+ { t: 0.25, r: 20, g: 120, b: 180, a: 0.65 }, // 50 kJ moderate
+ { t: 0.40, r: 0, g: 180, b: 160, a: 0.72 }, // 80 kJ good swell
+ { t: 0.55, r: 40, g: 200, b: 60, a: 0.78 }, // 110 kJ solid
+ { t: 0.70, r: 200, g: 200, b: 0, a: 0.82 }, // 140 kJ heavy
+ { t: 0.85, r: 240, g: 120, b: 0, a: 0.88 }, // 170 kJ very heavy
+ { t: 1.00, r: 220, g: 20, b: 40, a: 0.92 }, // 200+ kJ massive
 ];
 
 function sampleSwellEnergyRamp(kJPerM2) {
@@ -163,11 +163,11 @@ function sampleSwellEnergyRamp(kJPerM2) {
  * Compute swell energy from height (m) and period (s).
  */
 function computeSwellEnergy(height, period) {
-  // E ∝ H² * T (simplified ocean energy formula)
+ // E H * T (simplified ocean energy formula)
   return height * height * period;
 }
 
-// ─── FOG / VISIBILITY RAMP ──────────────────────────────────────────────────
+// FOG / VISIBILITY RAMP 
 
 /**
  * Fog density / visibility ramp.

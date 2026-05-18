@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+ï»¿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Radio, Clock, Mic, MicOff, Camera, CameraOff,
   RefreshCw, MessageCircle, Heart, Sparkles,
@@ -146,7 +146,7 @@ const BroadcasterControls = ({
     // Throws on error so CommentTile can revert the optimistic update
   }, [streamId, userId]);
 
-  // GöÇGöÇ LiveKit DataChannel for real-time emoji reactions GöÇGöÇ
+ // GG LiveKit DataChannel for real-time emoji reactions GG
   // Reactions received from viewers appear as floating emoji bursts on the broadcaster's screen.
   const onReactionReceived = useCallback((msg) => {
     try {
@@ -206,8 +206,8 @@ const BroadcasterControls = ({
           }
         }
       }
-      // All retries exhausted GÇö non-fatal, hair filter simply won't work
-      logger.error('[HairFilter] All init attempts failed GÇö MediaPipe CDN may be unreachable');
+ // All retries exhausted G non-fatal, hair filter simply won't work
+ logger.error('[HairFilter] All init attempts failed G MediaPipe CDN may be unreachable');
     };
     
     initWithRetry();

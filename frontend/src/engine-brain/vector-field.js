@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Vector Field Primitives
+ Raw Surf OS Vector Field Primitives
  SHARED OPERATIONS FOR WIND, CURRENT, SWELL FIELDS
 ====================================================
 
-PURE MATH — NO engine, NO rendering, NO DOM
+PURE MATH NO engine, NO rendering, NO DOM
 var/function only (TDZ-immune)
 ====================================================
 */
@@ -131,7 +131,7 @@ function vorticity(field, x, y) {
   return (right.v - left.v) / 2 - (down.u - up.u) / 2;
 }
 
-// ─── TYPED ARRAY SUPPORT (GPU pipeline) ──────────────────────────────────────
+// TYPED ARRAY SUPPORT (GPU pipeline) 
 
 /**
  * Sample wind from parallel Float32Arrays (GPU-friendly format).

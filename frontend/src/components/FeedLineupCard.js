@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * FeedLineupCard - Session lineup card that appears in the Feed
  * 
  * Shows open lineups from friends or nearby surfers
@@ -85,7 +85,7 @@ export const FeedLineupCard = ({
       });
       
       setJoined(true);
-      toast.success('You joined the lineup! =ƒñÖ');
+ toast.success('You joined the lineup! =');
       onJoinSuccess?.(lineup);
     } catch (error) {
       logger.error('Join error:', error);

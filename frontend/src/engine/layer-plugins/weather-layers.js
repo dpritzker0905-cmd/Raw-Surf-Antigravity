@@ -1,6 +1,6 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Weather Layer Plugins (v2)
+ Raw Surf OS Weather Layer Plugins (v2)
  RADAR, SATELLITE, PRESSURE, FOG
  CONTEXT-AWARE UPDATE/RENDER
 ====================================================
@@ -17,7 +17,7 @@ UPGRADE v2:
 ====================================================
 */
 
-// ─── RADAR LAYER ─────────────────────────────────────────────────────────────
+// RADAR LAYER 
 
 var RadarLayerPlugin = {
   id: 'radar-plugin',
@@ -81,7 +81,7 @@ var RadarLayerPlugin = {
   },
 };
 
-// ─── SATELLITE LAYER ─────────────────────────────────────────────────────────
+// SATELLITE LAYER 
 
 var SatelliteLayerPlugin = {
   id: 'satellite-plugin',
@@ -144,7 +144,7 @@ var SatelliteLayerPlugin = {
   },
 };
 
-// ─── PRESSURE LAYER ──────────────────────────────────────────────────────────
+// PRESSURE LAYER 
 
 var PressureLayerPlugin = {
   id: 'pressure-plugin',
@@ -227,7 +227,7 @@ function computeIsobarLevels(field) {
   return levels;
 }
 
-// ─── FOG LAYER ───────────────────────────────────────────────────────────────
+// FOG LAYER 
 
 var FogLayerPlugin = {
   id: 'fog-plugin',

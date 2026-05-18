@@ -1,4 +1,4 @@
-import React from 'react';
+ï»¿import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../ui/dialog';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -159,7 +159,7 @@ export const AdminP2Modals = ({
               <Input
                 value={newCampaign.title}
                 onChange={(e) => setNewCampaign({ ...newCampaign, title: e.target.value })}
-                placeholder="=ƒöÑ Don't miss out!"
+ placeholder="= Don't miss out!"
                 className="bg-muted border-border mt-1"
               />
             </div>

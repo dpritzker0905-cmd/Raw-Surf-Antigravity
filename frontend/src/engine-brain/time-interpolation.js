@@ -1,10 +1,10 @@
-/*
+﻿/*
 ====================================================
- Raw Surf OS — Time Interpolation Model
+ Raw Surf OS Time Interpolation Model
  TEMPORAL FORECAST SCRUBBING + BLENDING
 ====================================================
 
-PURE MATH — NO engine, NO DOM
+PURE MATH NO engine, NO DOM
 var/function only (TDZ-immune)
 ====================================================
 */

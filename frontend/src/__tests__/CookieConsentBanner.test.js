@@ -1,5 +1,5 @@
-/**
- * CookieConsentBanner.test.js — Tests for the cookie consent banner.
+﻿/**
+ * CookieConsentBanner.test.js Tests for the cookie consent banner.
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';

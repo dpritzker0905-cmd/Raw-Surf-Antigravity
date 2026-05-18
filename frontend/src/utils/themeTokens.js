@@ -1,5 +1,5 @@
-/**
- * Theme Tokens GÇö Single source of truth for all theme-aware CSS classes.
+ï»¿/**
+ * Theme Tokens G Single source of truth for all theme-aware CSS classes.
  *
  * Usage:
  *   import { getThemeTokens } from '../utils/themeTokens';
@@ -19,7 +19,7 @@ export const getThemeTokens = (theme) => {
   const isBeach = theme === 'beach';
 
   return {
-    // GöÇGöÇ Backgrounds GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Backgrounds GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
     /** Full page / modal / drawer background */
     pageBg:    isLight ? 'bg-white'    : isBeach ? 'bg-amber-50'      : 'bg-zinc-900',
     /** Cards, panels, sections */
@@ -37,7 +37,7 @@ export const getThemeTokens = (theme) => {
     /** Glassmorphism card (translucent with border + shadow) */
     glassBg:   isLight ? 'bg-white/80 border-gray-200 shadow-sm' : isBeach ? 'bg-amber-50/80 border-amber-200' : 'bg-zinc-900/80 border-zinc-800',
 
-    // GöÇGöÇ Text GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Text GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
     /** Headings, names, primary content */
     textPrimary:   isLight ? 'text-gray-900' : isBeach ? 'text-amber-900' : 'text-white',
     /** Descriptions, subtitles, secondary info */
@@ -45,13 +45,13 @@ export const getThemeTokens = (theme) => {
     /** Timestamps, attributions, fine print */
     textMuted:     isLight ? 'text-gray-400' : isBeach ? 'text-amber-600' : 'text-gray-500',
 
-    // GöÇGöÇ Borders GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Borders GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
     /** Standard border (cards, sections) */
     border:       isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-800',
     /** Lighter border (headers, dividers) */
     borderLight:  isLight ? 'border-gray-200' : isBeach ? 'border-amber-200' : 'border-zinc-700',
 
-    // GöÇGöÇ Interactive GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Interactive GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
     /** Hover background for buttons/rows */
     hoverBg: isLight ? 'hover:bg-gray-100' : isBeach ? 'hover:bg-amber-100/50' : 'hover:bg-zinc-800/50',
     /** Avatar fallback bg */
@@ -59,7 +59,7 @@ export const getThemeTokens = (theme) => {
     /** Badge bg for non-premium */
     badgeBg: isLight ? 'bg-gray-200 text-gray-500' : isBeach ? 'bg-amber-200 text-amber-700' : 'bg-zinc-700 text-gray-400',
 
-    // GöÇGöÇ Raw booleans (for edge cases) GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
+ // GG Raw booleans (for edge cases) GGGGGGGGGGGGGGGGGG
     isLight,
     isBeach,
     isDark: !isLight && !isBeach,

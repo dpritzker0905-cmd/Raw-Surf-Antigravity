@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * AdminComplianceDashboard.js - Compliance tab for the Unified Admin Console.
  *
  * Shows ToS violation stats, pending appeals queue, recent violations list,
@@ -67,13 +67,13 @@ const AppealBadge = ({ status }) => {
 // --- Violation Type Label -----------------------------------------------------
 const violationTypeLabel = (type) => {
   const map = {
-    location_fraud: '=ƒôì Location Fraud',
+ location_fraud: '= Location Fraud',
     fake_reviews: '? Fake Reviews',
-    harassment: 'GÜán+Å Harassment',
-    spam: '=ƒÜ½ Spam',
-    impersonation: '=ƒÄ¡ Impersonation',
+ harassment: 'Gn+ Harassment',
+ spam: '= Spam',
+ impersonation: '= Impersonation',
     copyright: '-? Copyright',
-    tos_violation: '=ƒôï ToS Violation',
+ tos_violation: '= ToS Violation',
   };
   return map[type] || type?.replace(/_/g, ' ');
 };
@@ -81,10 +81,10 @@ const violationTypeLabel = (type) => {
 // --- Action Taken Label -------------------------------------------------------
 const actionLabel = (action) => {
   const map = {
-    warning: 'GÜán+Å Warning',
-    suspension_7d: '=ƒöÆ 7-Day Suspension',
-    suspension_30d: '=ƒöÆ 30-Day Suspension',
-    permanent_ban: '=ƒÜ½ Permanent Ban',
+ warning: 'Gn+ Warning',
+ suspension_7d: '= 7-Day Suspension',
+ suspension_30d: '= 30-Day Suspension',
+ permanent_ban: '= Permanent Ban',
   };
   return map[action] || action?.replace(/_/g, ' ');
 };
@@ -613,7 +613,7 @@ export const AdminComplianceDashboard = ({ cardBgClass, textClass, textSecondary
                     ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
                     : `${isLight ? 'border-gray-300' : 'border-zinc-700'}`}
                 >
-                  {dt === 'tos' ? '=ƒô£ Terms of Service' : '=ƒöÆ Privacy Policy'}
+ {dt === 'tos' ? '= Terms of Service' : '= Privacy Policy'}
                 </Button>
               ))}
             </div>

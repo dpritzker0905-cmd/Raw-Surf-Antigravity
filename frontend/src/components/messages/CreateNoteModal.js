@@ -1,5 +1,5 @@
-/**
- * CreateNoteModal GÇö Modal for creating Instagram-style notes in Messages.
+ï»¿/**
+ * CreateNoteModal G Modal for creating Instagram-style notes in Messages.
  * Includes emoji picker, character limit, and mutual-followers notice.
  * Extracted from MessagesPage.js for maintainability.
  */
@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
 
-const SURF_EMOJIS = ['=ƒñÖ', '=ƒîè', '=ƒÅä', '=ƒöÑ', '=ƒÆ»', '=ƒÿÄ', '=ƒîà', '=ƒÉÜ', '=ƒªê', 'GÿÇn+Å', '=ƒî¦', 'G£¿'];
+const SURF_EMOJIS = ['=', '=', '=', '=', '=', '=', '=', '=', '=', 'Gn+', '=', 'G'];
 
 const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
   const [noteText, setNoteText] = useState('');
@@ -54,11 +54,11 @@ const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
         <p className="text-xs text-emerald-500 dark:text-emerald-400 mb-4 text-center">Notes disappear after 24 hours</p>
         
         <form onSubmit={handleSubmit}>
-          <Input aria-label="What's on your mind? =ƒñÖ"
+ <Input aria-label="What's on your mind? ="
             ref={inputRef}
             value={noteText}
             onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
-            placeholder="What's on your mind? =ƒñÖ"
+ placeholder="What's on your mind? ="
             className="bg-muted border-border text-foreground text-lg text-center h-14 mb-2"
             maxLength={60}
             data-testid="note-input"

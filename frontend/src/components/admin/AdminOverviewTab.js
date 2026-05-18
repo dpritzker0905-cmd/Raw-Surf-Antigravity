@@ -1,5 +1,5 @@
-/**
- * AdminOverviewTab.js GÇö Overview tab for the Unified Admin Console.
+ï»¿/**
+ * AdminOverviewTab.js G Overview tab for the Unified Admin Console.
  *
  * Shows platform stats, role distribution, and quick navigation links.
  * All data is passed via props from UnifiedAdminConsole.

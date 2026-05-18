@@ -1,5 +1,5 @@
-/**
- * PullToRefreshIndicator GÇö Visual indicator for pull-to-refresh gesture.
+ï»¿/**
+ * PullToRefreshIndicator G Visual indicator for pull-to-refresh gesture.
  *
  * Usage:
  *   <PullToRefreshIndicator isPulling={isPulling} progress={pullProgress} isRefreshing={isRefreshing} />

@@ -1,5 +1,5 @@
-/**
- * Tile Streaming System v2 — Geo-Spatial Forecast Tile Engine
+﻿/**
+ * Tile Streaming System v2 Geo-Spatial Forecast Tile Engine
  *
  * UPGRADES FROM v1:
  *   - Viewport-aware frustum culling
@@ -16,15 +16,15 @@
  *   - Tiles are PERSISTENT streaming simulation chunks
  */
 
-// ─── CONFIGURATION ───────────────────────────────────────────────────────────
+// CONFIGURATION 
 const MAX_CACHE_SIZE = 512;        // Max tiles in memory
 const TILE_TTL = 10 * 60 * 1000;  // 10 min default TTL
 const PREFETCH_RING = 1;           // Tiles to prefetch beyond viewport
 
-// ─── TILE CACHE (LRU) ───────────────────────────────────────────────────────
-const _tileCache = new Map();      // key → { tile, accessTime, loadTime }
-const _inflight = new Map();       // key → Promise
-const _temporalCache = new Map();  // key → Map<timestep, tileData>
+// TILE CACHE (LRU) 
+const _tileCache = new Map(); // key { tile, accessTime, loadTime }
+const _inflight = new Map(); // key Promise
+const _temporalCache = new Map(); // key Map<timestep, tileData>
 
 /**
  * Generate cache key from tile coordinates + optional temporal index.
@@ -95,7 +95,7 @@ function getPrefetchTiles(bounds, zoom) {
   return tiles;
 }
 
-// ─── LRU EVICTION ────────────────────────────────────────────────────────────
+// LRU EVICTION 
 function evictLRU() {
   if (_tileCache.size <= MAX_CACHE_SIZE) return;
   const excess = _tileCache.size - MAX_CACHE_SIZE;
@@ -196,7 +196,7 @@ function getTile(coord, opts) {
 }
 
 /**
- * Predictive prefetch — request tiles before the user pans there.
+ * Predictive prefetch request tiles before the user pans there.
  * @param {Array<{ z: number, x: number, y: number }>} coords
  * @param {object} [opts]
  */

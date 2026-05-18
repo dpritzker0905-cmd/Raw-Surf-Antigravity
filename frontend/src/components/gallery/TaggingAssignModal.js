@@ -1,4 +1,4 @@
-import React from 'react';
+ï»¿import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -163,7 +163,7 @@ const TaggingAssignModal = ({
                           </div>
                           <p className={`text-[10px] ${textSecondaryClass}`}>
                             {participant.items_distributed || 0} items in locker
-                            {participant.status && ` +»-+-+ ${participant.status}`}
+ {participant.status && ` +-+-+ ${participant.status}`}
                           </p>
                         </div>
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${

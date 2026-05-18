@@ -1,5 +1,5 @@
-/**
- * Render Orchestrator v2 — Fixed Timestep + Decoupled Render Architecture
+﻿/**
+ * Render Orchestrator v2 Fixed Timestep + Decoupled Render Architecture
  *
  * GAME ENGINE PATTERN:
  *   Simulation runs at a FIXED timestep (deterministic).
@@ -21,12 +21,12 @@
 import { getInitState } from './init-sequencer';
 import { updatePlugins, renderPlugins } from '../components/map/LayerRegistry';
 
-// ─── CONFIGURATION ───────────────────────────────────────────────────────────
+// CONFIGURATION 
 const FIXED_DT = 1 / 60;          // 16.67ms simulation step
 const MAX_FRAME_TIME = 0.1;        // Clamp to prevent spiral of death
 const MAX_UPDATES_PER_FRAME = 4;   // Safety: max simulation steps per render
 
-// ─── STATE ───────────────────────────────────────────────────────────────────
+// STATE 
 let _running = false;
 let _rafId = null;
 let _accumulator = 0;
@@ -37,7 +37,7 @@ let _fpsAccum = 0;
 let _fps = 0;
 let _lastFpsUpdate = 0;
 
-// ─── SUBSCRIBER SYSTEM ──────────────────────────────────────────────────────
+// SUBSCRIBER SYSTEM 
 // External systems (particle renderers, weather layers) register callbacks
 const _updateSubscribers = [];   // Called at fixed timestep: fn(dt, simTime)
 const _renderSubscribers = [];   // Called each frame: fn(alpha, simTime)
@@ -69,7 +69,7 @@ export function onRender(fn) {
 }
 
 /**
- * Core frame function — decoupled update/render loop.
+ * Core frame function decoupled update/render loop.
  */
 function frame(timestamp) {
   if (!_running) return;
@@ -88,7 +88,7 @@ function frame(timestamp) {
   // Clamp to prevent spiral of death (e.g. tab was in background)
   if (frameTime > MAX_FRAME_TIME) frameTime = MAX_FRAME_TIME;
 
-  // ── FIXED TIMESTEP SIMULATION ──────────────────────────────────────────
+ // FIXED TIMESTEP SIMULATION 
   _accumulator += frameTime;
   let updates = 0;
 
@@ -106,7 +106,7 @@ function frame(timestamp) {
     updates++;
   }
 
-  // ── RENDER (at display refresh rate) ───────────────────────────────────
+ // RENDER (at display refresh rate) 
   // alpha = how far between the last simulation step and the next
   // Used by renderers to interpolate between states for smooth visuals
   const alpha = _accumulator / FIXED_DT;
@@ -119,7 +119,7 @@ function frame(timestamp) {
     _renderSubscribers[i](alpha, _simTime);
   }
 
-  // ── FPS COUNTER ────────────────────────────────────────────────────────
+ // FPS COUNTER 
   _frameCount++;
   _fpsAccum += frameTime;
   if (timestamp - _lastFpsUpdate >= 1000) {

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+﻿import { useRef, useCallback } from 'react';
 
 /**
  * useRasterTransactions (v243)
@@ -30,7 +30,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
 
   /**
    * Add/replace entry in deferred queue (deduped by sourceId).
-   * Plain function — only accesses refs, safe from stale closure.
+ * Plain function only accesses refs, safe from stale closure.
    */
   const addToQueue = (sourceId, url, isTilesArray) => {
     deferredQueue.current = deferredQueue.current.filter(e => e.sourceId !== sourceId);
@@ -76,7 +76,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
       // Lock this source
       sourceLocks.current[sourceId] = { queued: null };
 
-      // Schedule the mutation — 1 RAF delay for GPU frame safety
+ // Schedule the mutation 1 RAF delay for GPU frame safety
       requestAnimationFrame(() => {
         if (!map.getStyle()) {
           sourceLocks.current[sourceId] = null;
@@ -102,7 +102,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
           console.warn(`[Raster TX] setUrl failed for ${sourceId}:`, innerErr.message);
         }
 
-        // Release lock INSIDE RAF — prevents race conditions
+ // Release lock INSIDE RAF prevents race conditions
         const queued = sourceLocks.current[sourceId]?.queued;
         sourceLocks.current[sourceId] = null;
 
@@ -128,7 +128,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
       console.warn(`[Raster TX] Failed to update ${sourceId}:`, e);
       return true;
     }
-  }, []); // No deps — uses only refs
+ }, []); // No deps uses only refs
 
   /**
    * Flush queue. Token-guarded: only the latest invocation within a frame cycle executes.
@@ -165,7 +165,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
   }, [commitMutation]);
 
   /**
-   * Schedule a flush on next READY transition. Idempotent — won't double-register.
+ * Schedule a flush on next READY transition. Idempotent won't double-register.
    */
   const scheduleFlush = () => {
     if (flushRegisteredRef.current) return;
@@ -204,7 +204,7 @@ export function useRasterTransactions(mapInstance, renderContract) {
         scheduleFlush();
       }
     } else {
-      // Queue silently — no log spam
+ // Queue silently no log spam
       addToQueue(sourceId, url, isTilesArray);
       scheduleFlush();
     }

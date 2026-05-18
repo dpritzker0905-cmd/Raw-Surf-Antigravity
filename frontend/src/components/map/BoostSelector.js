@@ -1,4 +1,4 @@
-/**
+﻿/**
  * BoostSelector - Priority boost selection for dispatch requests
  * Reusable component extracted from MapPage.js
  */
@@ -18,7 +18,7 @@ export var BoostSelector = ({
   return (
     <div className="p-4 bg-gradient-to-r from-orange-900/30 to-red-900/30 rounded-lg border border-orange-500/30">
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-lg">🚀</span>
+ <span className="text-lg"></span>
         <span className="text-orange-400 font-bold">Boost Your Request</span>
       </div>
       <p className="text-xs text-gray-400 mb-3">

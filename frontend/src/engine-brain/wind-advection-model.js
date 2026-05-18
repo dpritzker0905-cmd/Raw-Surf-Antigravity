@@ -1,5 +1,5 @@
-/**
- * Wind Advection Model — Pure Scientific Simulation Layer
+﻿/**
+ * Wind Advection Model Pure Scientific Simulation Layer
  *
  * PURE MATH ONLY:
  *   - NO WebGL
@@ -20,7 +20,7 @@
 
 /**
  * Bilinear interpolation of a 2D vector field.
- * Core physics primitive — used by all wind rendering systems.
+ * Core physics primitive used by all wind rendering systems.
  *
  * @param {WindField} field
  * @param {number} x - fractional column index
@@ -106,7 +106,7 @@ export function advectParticleRK4(pos, field, dt) {
 /**
  * Bicubic interpolation of a 2D vector field (Catmull-Rom).
  * Uses cubicWeights kernel for 4x4 neighborhood sampling.
- * Higher quality than bilinear — smoother gradients for rendering.
+ * Higher quality than bilinear smoother gradients for rendering.
  *
  * @param {WindField} field
  * @param {number} x - fractional column index

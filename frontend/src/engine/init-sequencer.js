@@ -1,17 +1,17 @@
-/**
- * Init Sequencer — Deterministic Engine Boot Order
+﻿/**
+ * Init Sequencer Deterministic Engine Boot Order
  *
  * GUARANTEES SAFE ORDERED BOOT:
- *   idle → dom-ready → map-ready → engine-ready → layers-ready → complete
+ * idle dom-ready map-ready engine-ready layers-ready complete
  *
  * RULES:
- *   - NO import-time side effects (all var/function — TDZ-immune)
+ * - NO import-time side effects (all var/function TDZ-immune)
  *   - NO engine access during render
  *   - NO React coupling
  *   - Engine MUST wait for map-ready before init
  */
 
-// ─── STATE (var = hoisted, TDZ-immune) ───────────────────────────────────────
+// STATE (var = hoisted, TDZ-immune) 
 var _state = 'idle';
 var _engineReadyResolver = null;
 var _mapReadyResolver = null;
@@ -84,7 +84,7 @@ export function markComplete() {
 }
 
 /**
- * HARD SAFETY CHECK — throws if engine tries to init too early.
+ * HARD SAFETY CHECK throws if engine tries to init too early.
  * Prevents the class of "Cannot access X before initialization" crashes.
  */
 export function assertSafeToInitEngine() {

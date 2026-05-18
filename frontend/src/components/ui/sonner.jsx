@@ -1,4 +1,4 @@
-import { useTheme } from "next-themes"
+﻿import { useTheme } from "next-themes"
 import { Toaster as Sonner, toast } from "sonner"
 import { useEffect } from "react"
 
@@ -42,7 +42,7 @@ const Toaster = ({
         },
         duration: 4000,
       }}
-      /* WCAG 4.1.3 — Screen reader announcements for toast notifications */
+ /* WCAG 4.1.3 Screen reader announcements for toast notifications */
       aria-label="Notifications"
       data-testid="toast-container"
       {...props} />

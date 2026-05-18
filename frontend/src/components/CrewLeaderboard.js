@@ -1,4 +1,4 @@
-/**
+ï»¿/**
  * CrewLeaderboard - Displays crew statistics, badges, and rankings
  * Shows on Profile page, "Stoked" section, and "The Inside" for competitive surfers
  */
@@ -40,18 +40,18 @@ import { getFullUrl } from '../utils/media';
 
 // Badge icon mapping
 const BADGE_ICONS = {
-  frequent_flyers: 'G£ên+Å',
-  dawn_patrol: '=ƒîà',
-  sunset_crew: '=ƒîç',
-  weekend_warriors: 'GÜön+Å',
-  squad_goals: '=ƒÄ»',
-  dynamic_duo: '=ƒæ½',
-  wolf_pack: '=ƒÉ¦',
-  ride_or_die: '=ƒñÖ',
-  variety_pack: '=ƒÄ¦',
-  local_legends: '=ƒÅå',
-  smart_splitters: '=ƒºá',
-  budget_bosses: '=ƒÆ¦'
+ frequent_flyers: 'Gn+',
+ dawn_patrol: '=',
+ sunset_crew: '=',
+ weekend_warriors: 'Gn+',
+ squad_goals: '=',
+ dynamic_duo: '=',
+ wolf_pack: '=',
+ ride_or_die: '=',
+ variety_pack: '=',
+ local_legends: '=',
+ smart_splitters: '=',
+ budget_bosses: '='
 };
 
 const TIER_COLORS = {
@@ -77,7 +77,7 @@ const BadgeCard = ({ badge, size = 'md' }) => {
   return (
     <div className="flex flex-col items-center">
       <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br ${tierColor} flex items-center justify-center shadow-lg`}>
-        <span>{BADGE_ICONS[badge.badge_type] || '=ƒñÖ'}</span>
+ <span>{BADGE_ICONS[badge.badge_type] || '='}</span>
       </div>
       <p className="text-xs font-medium mt-1 text-center">{badge.badge_name}</p>
       <Badge variant="outline" className="text-xs mt-0.5">
