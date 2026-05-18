@@ -99,6 +99,18 @@ export function useRasterTransactions(mapInstance, renderContract) {
             if (source.setUrl) source.setUrl(url);
           }
 
+          // v3.12.5: Force tile cache clear — MapLibre doesn't auto-refresh
+          // cached tiles when setUrl changes the om:// protocol parameters.
+          // Without this, timeline scrubbing shows stale raster tiles.
+          try {
+            const sc = map.style?.sourceCaches?.[sourceId] || map.style?._sourceCaches?.[sourceId];
+            if (sc) {
+              sc.clearTiles();
+              sc.update(map.transform);
+            }
+            map.triggerRepaint();
+          } catch (cacheErr) { /* non-critical */ }
+
           if (layerId && originalVisibility === 'visible' && map.getLayer(layerId)) {
             map.setLayoutProperty(layerId, 'visibility', 'visible');
           }
