@@ -29,11 +29,15 @@ var TIER_ACCESS = {
 export function getUserTier(userOrTier) {
   const tierString = typeof userOrTier === 'string' 
     ? userOrTier 
-    : (userOrTier?.subscriptionTier || 'tier_1');
+    : (userOrTier?.subscriptionTier || userOrTier?.subscription_tier || userOrTier?.tier_id || 'tier_1');
 
+  // Handle tier_id format (tier_1, tier_2, tier_3)
   if (tierString === 'tier_1') return 'free';
   if (tierString === 'tier_2') return 'basic';
   if (['tier_3', 'tier_4', 'admin'].includes(tierString)) return 'premium';
+
+  // Handle subscription_tier name format (free, basic, premium)
+  if (['free', 'basic', 'premium'].includes(tierString)) return tierString;
   
   return 'free'; // default fallback
 }

@@ -20,9 +20,9 @@ import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 var ACTIVE_WIND_ENGINES = new Set();
 
 // --- VISUAL TUNING (Ventusky-parity) ---
-// Slow fade = long vapor trails. Ventusky uses very persistent tails.
-var TRAIL_FADE = 0.008;
-var TRAIL_FADE_THROTTLED = 0.025;
+// Slow fade = long vapor trails. Must balance with particle count.
+var TRAIL_FADE = 0.018;
+var TRAIL_FADE_THROTTLED = 0.05;
 
 /**
  * Bilinear interpolation on the wind grid — O(1).
@@ -142,11 +142,11 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
     var isMobile = window.innerWidth < 768;
     var getCount = function() {
       var zoom = mapInstance.getZoom();
-      var base = isMobile ? 3000 : 8000;
+      var base = isMobile ? 1500 : 3000;
       if (zoom < 3) return Math.round(base * 0.4);
-      if (zoom < 5) return Math.round(base * 0.7);
+      if (zoom < 5) return Math.round(base * 0.6);
       if (zoom < 7) return base;
-      return Math.round(base * 1.2);
+      return Math.round(base * 1.1);
     };
     var PARTICLE_COUNT = getCount();
     console.log('[WindOverlay] Spawning ' + PARTICLE_COUNT + ' particles');
@@ -257,7 +257,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
 
           // Speed-based emphasis — faster wind = more visible
           var speedFactor = Math.min(1, wind.speed / 20);
-          alpha *= (0.15 + speedFactor * 0.55);
+          alpha *= (0.08 + speedFactor * 0.35);
           if (alpha < 0.01) continue;
 
           // Ventusky-style: white vapor trails

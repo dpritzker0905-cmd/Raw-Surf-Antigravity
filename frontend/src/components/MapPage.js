@@ -472,7 +472,7 @@ var MapPageContent = () => {
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
           timeOffsetHours={timeOffsetHours}
-          userTier={user?.tier_id || 'tier_1'}
+          userTier={user?.subscription_tier || user?.tier_id || 'tier_1'}
           onMapClick={(e) => {
             // Check if they clicked on the base map layer, not a marker/cluster
             if (e.originalEvent && !e.originalEvent.defaultPrevented) {
@@ -587,7 +587,7 @@ var MapPageContent = () => {
         onModelChange={setActiveModel}
         activeLayers={activeLayers}
         onLayerToggle={toggleLayer}
-        userTier={user?.tier_id || 'tier_1'}
+        userTier={user?.subscription_tier || user?.tier_id || 'tier_1'}
         onUpgradeClick={handleUpgradeClick}
         radarMode={isRadarOrSat}
         radarFrames={radarFrames}
@@ -609,7 +609,7 @@ var MapPageContent = () => {
         onModelChange={setActiveModel}
         activeLayers={activeLayers}
         onLayerToggle={(layerId) => { toggleLayer(layerId); setShowWeatherControls(false); }}
-        userTier={user?.tier_id || 'tier_1'}
+        userTier={user?.subscription_tier || user?.tier_id || 'tier_1'}
         onUpgradeClick={handleUpgradeClick}
         onClose={() => setShowWeatherControls(false)}
         radarMode={isRadarOrSat}
