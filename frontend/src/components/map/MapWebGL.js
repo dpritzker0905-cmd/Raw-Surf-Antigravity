@@ -203,11 +203,14 @@ var MapWebGL = ({
       if (!initialOmUrls[layerKey]) {
         setInitialOmUrls(prev => ({ ...prev, [layerKey]: url }));
       } else if (initialOmUrls[layerKey] !== url) {
-        // v251: Mutating time step on dedicated source
+        // v3.12.5: Log raster URL change for timeline debugging
+        if (activeLayers.includes(layerKey)) {
+          console.log(`[Raster] Updating ${layerKey} tile URL (timeOffset=${timeOffsetHours}h)`);
+        }
         queueRasterUpdate(`${layerKey}-source`, url, false);
       }
     });
-  }, [omTileUrls, initialOmUrls, queueRasterUpdate]);
+  }, [omTileUrls, initialOmUrls, queueRasterUpdate, activeLayers, timeOffsetHours]);
 
   /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
