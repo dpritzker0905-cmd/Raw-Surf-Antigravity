@@ -95,12 +95,25 @@ export function useRasterTransactions(mapInstance, renderContract) {
           } else {
             if (src.setUrl) src.setUrl(url);
           }
-          // Force clear tile cache — setUrl() alone doesn't invalidate
-          // cached tiles for om:// protocol sources in MapLibre
+          // Force clear tile cache + reload — setUrl() alone doesn't invalidate
+          // cached tiles for om:// protocol sources in MapLibre v5
           try {
-            const sc = map.style?.sourceCaches?.[sourceId];
-            if (sc?.clearTiles) { sc.clearTiles(); sc.update(map.transform); }
-          } catch (_) { /* sourceCaches not available in this MapLibre version */ }
+            // v5.24: tileManagers[id] replaces sourceCaches[id]
+            if (map.style?._clearSource) {
+              map.style._clearSource(sourceId);
+              map.style._reloadSource(sourceId);
+            } else if (map.style?.tileManagers?.[sourceId]) {
+              const tm = map.style.tileManagers[sourceId];
+              tm.clearTiles();
+              if (tm.resume) tm.resume();
+              if (tm.reload) tm.reload();
+            } else if (map.style?.sourceCaches?.[sourceId]?.clearTiles) {
+              map.style.sourceCaches[sourceId].clearTiles();
+              map.style.sourceCaches[sourceId].update(map.transform);
+            }
+          } catch (cacheErr) {
+            console.warn(`[Raster TX] clearTiles failed for ${sourceId}:`, cacheErr.message);
+          }
           map.triggerRepaint();
           lastCommittedUrls.current[sourceId] = urlKey;
           sourceLoadState.current[sourceId] = { status: 'ready', lastAttempt: Date.now() };
