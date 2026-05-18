@@ -94,43 +94,17 @@ export function useRasterTransactions(mapInstance, renderContract) {
           if (!map.getStyle()) return;
 
           try {
-            const source = map.getSource(sourceId);
-            if (!source) return;
+            const src = map.getSource(sourceId);
+            if (!src) return;
 
             if (isTilesArray) {
-              if (source.setTiles) source.setTiles(url);
+              if (src.setTiles) src.setTiles(url);
             } else {
-              // For om:// protocol: setUrl alone may not re-fetch tiles in MapLibre v5.
-              // Force a full source reload by removing and re-adding.
-              const sourceData = source.serialize();
-              const oldUrl = sourceData?.url;
-              if (oldUrl !== url) {
-                // Collect layer refs that use this source
-                const layersToRestore = [];
-                const style = map.getStyle();
-                if (style?.layers) {
-                  for (const l of style.layers) {
-                    if (l.source === sourceId) {
-                      layersToRestore.push({ ...l });
-                      try { map.removeLayer(l.id); } catch (_) {}
-                    }
-                  }
-                }
-                try { map.removeSource(sourceId); } catch (_) {}
-                map.addSource(sourceId, { ...sourceData, url });
-                for (const l of layersToRestore) {
-                  try { map.addLayer(l); } catch (_) {}
-                }
-              } else {
-                if (source.setUrl) source.setUrl(url);
-              }
+              if (src.setUrl) src.setUrl(url);
             }
+            map.triggerRepaint();
           } catch (innerErr) {
-            // Fallback: try basic setUrl
-            try {
-              const src = map.getSource(sourceId);
-              if (src?.setUrl) src.setUrl(url);
-            } catch (_) {}
+            console.warn(`[Raster TX] setUrl failed for ${sourceId}:`, innerErr.message);
           }
 
           if (layerId && originalVisibility === 'visible' && map.getLayer(layerId)) {

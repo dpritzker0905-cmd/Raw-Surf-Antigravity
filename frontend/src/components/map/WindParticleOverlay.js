@@ -167,6 +167,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
     particlesRef.current = particles;
     var wasActive = false;
     var lastDataId = null;
+    var warmedUp = false; // Track if we've done the initial warm-up
     var coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
 
@@ -187,8 +188,39 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length);
         }
         ctx.clearRect(0, 0, cw, ch);
+        warmedUp = false; // Re-warm on model switch
       }
       lastDataId = dataId;
+
+      // Warm-up: simulate 30 steps without drawing to pre-advect particles
+      // This makes particles appear already flowing when first rendered
+      if (!warmedUp) {
+        warmedUp = true;
+        var pts3 = particlesRef.current;
+        var DEG_PER_M = 1 / 111320;
+        for (var step = 0; step < 30; step++) {
+          for (var wi = 0; wi < pts3.length; wi++) {
+            var wp = pts3[wi];
+            var wWind = interpolateWind(grid, wp.lng, wp.lat);
+            if (wWind.speed > 0.3) {
+              var wLatRad = wp.lat * Math.PI / 180;
+              var wMerc = Math.max(0.1, Math.cos(wLatRad));
+              var wScale = 0.016 * 6000;
+              wp.lng += wWind.u * DEG_PER_M / wMerc * wScale;
+              wp.lat += wWind.v * DEG_PER_M * wScale;
+            } else {
+              wp.lng += (Math.random() - 0.5) * 0.002;
+              wp.lat += (Math.random() - 0.5) * 0.002;
+            }
+            wp.prevLng = wp.lng;
+            wp.prevLat = wp.lat;
+            wp.lat = Math.max(-85, Math.min(85, wp.lat));
+            while (wp.lng > 180) wp.lng -= 360;
+            while (wp.lng < -180) wp.lng += 360;
+          }
+        }
+        console.log('[WindOverlay] Warm-up complete: 30 simulation steps pre-advected');
+      }
 
       var isThrottled = coordState === 2;
 
