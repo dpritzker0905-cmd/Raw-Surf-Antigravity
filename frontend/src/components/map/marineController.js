@@ -36,7 +36,7 @@ var WIND_CACHE = new Map();
 // --- HOURLY DATA CACHE (pre-fetched for timeline scrub) ---
 // Stores full API responses keyed by viewport hash so timeline
 // changes re-index locally instead of making new API calls.
-var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
+var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
 var HOURLY_CACHE_TTL = 30 * 60 * 1000; // 30 min (increased from 10 to reduce API calls)
 
@@ -233,7 +233,7 @@ function extractWindAtOffset(cache, hourOffset) {
   console.log(`[Wind] Timeline re-index: offset=${hourOffset}h, idx=${idx}, ${vectors.length} vectors, sample: speed=${sample.speed.toFixed(1)}`);
   return {
     vectors, bounds, cols: gridSize, rows: gridSize,
-    stale: false, source: 'cache', hourOffset
+    stale: false, source: cache.model || 'GFS', hourOffset
   };
 }
 
@@ -262,16 +262,19 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   if (north <= south || east === west) return lastKnownGoodWind;
 
   // v3.9.1: Hourly cache — re-index locally instead of making new API call
-  const viewHash = viewportCacheKey(bounds, 'wind');
+  // Cache key now includes model so GFS/EURO/ICON don't collide
+  const viewHash = viewportCacheKey(bounds, `wind_${model || 'GFS'}`);
   if (windHourlyCache.hash === viewHash &&
+      windHourlyCache.model === (model || 'GFS') &&
       Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     // Exact cache hit: extract data at the requested offset without API call
-    console.log(`[Wind] Cache HIT for offset=${hourOffset}h`);
+    console.log(`[Wind] Cache HIT for offset=${hourOffset}h, model=${model || 'GFS'}`);
     return extractWindAtOffset(windHourlyCache, hourOffset);
   }
 
-  // v3.9.5: Stale viewport fallback — if we have ANY cached data within TTL
-  if (windHourlyCache.hash && Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+  // v3.9.5: Stale viewport fallback — only if same model
+  if (windHourlyCache.hash && windHourlyCache.model === (model || 'GFS') &&
+      Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const staleData = extractWindAtOffset(windHourlyCache, hourOffset);
     if (staleData && staleData.vectors.length > 0) {
       console.log(`[Wind] Stale cache served (viewport mismatch) — ${staleData.vectors.length} vectors`);
@@ -280,7 +283,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   }
 
   // Per-offset cache (covers initial load + exact re-visits)
-  const cacheKey = viewportCacheKey(bounds, `wind_h${hourOffset}`);
+  const cacheKey = viewportCacheKey(bounds, `wind_${model || 'GFS'}_h${hourOffset}`);
   if (WIND_CACHE.has(cacheKey)) {
     const cached = WIND_CACHE.get(cacheKey);
     if (Date.now() - cached.timestamp < 300000) {
@@ -356,7 +359,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     windHourlyCache = {
       hash: viewHash, results, points, gridSize,
       bounds: { west, south, east, north },
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      model: model || 'GFS'
     };
     persistCache(LS_WIND_KEY, windHourlyCache);
 

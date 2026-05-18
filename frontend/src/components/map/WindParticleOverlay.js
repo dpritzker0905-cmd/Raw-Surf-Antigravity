@@ -86,17 +86,27 @@ function getWindColor(speed, alpha) {
     Math.min(255, brightness + 10) + ',' + alpha.toFixed(3) + ')';
 }
 
-/** Spawn particle at random viewport position */
-function spawnParticle(mapInstance, preAge) {
+/** Spawn particle at random viewport position with optional grid-stratified placement */
+function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal) {
   var mb = mapInstance.getBounds();
   var west = mb.getWest(), east = mb.getEast();
   var south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
-  var lng = west + Math.random() * (east - west);
-  var lat = south + Math.random() * (north - south);
-  // Shorter max age = more turnover = denser flow appearance
+  var lng, lat;
+  if (stratifyIdx != null && stratifyTotal > 0) {
+    // Stratified: divide viewport into grid cells, then jitter within cell
+    var cols = Math.ceil(Math.sqrt(stratifyTotal * (east - west) / (north - south)));
+    var rows = Math.ceil(stratifyTotal / cols);
+    var ci = stratifyIdx % cols, ri = Math.floor(stratifyIdx / cols) % rows;
+    var cellW = (east - west) / cols, cellH = (north - south) / rows;
+    lng = west + (ci + Math.random()) * cellW;
+    lat = south + (ri + Math.random()) * cellH;
+  } else {
+    lng = west + Math.random() * (east - west);
+    lat = south + Math.random() * (north - south);
+  }
   var maxAge = 2.0 + Math.random() * 5.0;
   return { lng: lng, lat: lat, prevLng: lng, prevLat: lat,
-    age: preAge ? Math.random() * maxAge * 0.6 : 0, maxAge: maxAge };
+    age: preAge ? Math.random() * maxAge : 0, maxAge: maxAge };
 }
 
 export function WindParticleOverlay({ mapInstance, active, data, id }) {
@@ -153,10 +163,11 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
 
     var particles = [];
     for (var i = 0; i < PARTICLE_COUNT; i++) {
-      particles.push(spawnParticle(mapInstance, true));
+      particles.push(spawnParticle(mapInstance, true, i, PARTICLE_COUNT));
     }
     particlesRef.current = particles;
     var wasActive = false;
+    var lastDataId = null; // Track data changes to redistribute
     var coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
 
@@ -168,6 +179,17 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       var grid = dataRef.current;
       if (!grid?.vectors?.length) return;
       wasActive = true;
+
+      // Redistribute particles when data source changes (model switch or first load)
+      var dataId = (grid.source || '') + '_' + (grid.hourOffset || 0) + '_' + grid.vectors.length;
+      if (lastDataId !== null && lastDataId !== dataId) {
+        var pts2 = particlesRef.current;
+        for (var ri = 0; ri < pts2.length; ri++) {
+          pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length);
+        }
+        ctx.clearRect(0, 0, cw, ch);
+      }
+      lastDataId = dataId;
 
       var isThrottled = coordState === 2;
 
