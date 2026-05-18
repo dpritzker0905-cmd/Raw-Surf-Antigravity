@@ -238,7 +238,7 @@ var MapWebGL = ({
 
   // Pre-warm metadata cache on mount so layer toggles are instant
   useEffect(() => {
-    ['ncep_gfs025', 'dwd_icon', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
+    ['ncep_gfs025', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
   useEffect(() => {
@@ -278,12 +278,24 @@ var MapWebGL = ({
         }
 
         let meta = await fetchMetadata(layerModel);
-        if (meta.variables.includes(variable)) {
+        // Variable fallback: ECMWF doesn't have wind_gusts_10m — use wind_u_component_10m
+        let resolvedVar = variable;
+        if (!meta.variables.includes(variable)) {
+          const VARIABLE_FALLBACKS = {
+            'wind_gusts_10m': 'wind_u_component_10m',
+            'precipitation': 'snowfall_water_equivalent',
+          };
+          if (VARIABLE_FALLBACKS[variable] && meta.variables.includes(VARIABLE_FALLBACKS[variable])) {
+            resolvedVar = VARIABLE_FALLBACKS[variable];
+            console.log(`[Raster] Variable fallback: ${variable} → ${resolvedVar} for ${layerModel}`);
+          }
+        }
+        if (meta.variables.includes(resolvedVar)) {
           const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${variable}${darkParam}`;
+          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
         } else if (window.__RASTER_DEBUG__?.failFast !== false) {
-          if (window.__RASTER_DEBUG__?.logMissingVariables) console.warn(`[Raster] MISSING VARIABLE: ${variable} in ${layerModel}`);
+          if (window.__RASTER_DEBUG__?.logMissingVariables) console.warn(`[Raster] MISSING VARIABLE: ${variable} (and fallbacks) in ${layerModel}`);
           if (activeLayers.includes(layerKey)) {
             throw new Error("MISSING_RASTER_VARIABLE: " + variable);
           }
@@ -569,24 +581,24 @@ var MapWebGL = ({
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
             }}
             paint={{
-              // v3.12.4: Reduced opacity — no land mask, tiles visible everywhere.
-              // Wind: very subtle (particles are primary). Marine: ocean-emphasis.
+              // v3.12.5: Ventusky-style opacity — colored bands visible but not overpowering.
+              // Satellite needs brightness boost. Wind needs visible color bands.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.18 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.22 : 0.18),
-                5, layerKey === 'wind' ? 0.12 : layerKey === 'pressure' ? 0.22 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
-                8, layerKey === 'wind' ? 0.15 : layerKey === 'pressure' ? 0.25 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.32 : 0.28),
-                12, layerKey === 'wind' ? 0.18 : layerKey === 'pressure' ? 0.30 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.38 : 0.32),
+                2, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
+                5, layerKey === 'wind' ? 0.42 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.28),
+                8, layerKey === 'wind' ? 0.48 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.35),
+                12, layerKey === 'wind' ? 0.52 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
               ],
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 180 : 0,
-              'raster-contrast': layerKey === 'wind' ? 0.05 : layerKey === 'pressure' ? 0.08
-                : layerKey === 'fog' ? 0.03 : layerKey === 'satellite' ? 0.15 : 0.10,
-              'raster-saturation': layerKey === 'wind' ? 0.08 : layerKey === 'fog' ? -0.3
-                : layerKey === 'satellite' ? -0.10 : layerKey === 'pressure' ? 0.10 : 0.12,
-              'raster-brightness-min': layerKey === 'rain' ? 0.03 : 0,
+              'raster-contrast': layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10
+                : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.03 : 0.10,
+              'raster-saturation': layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
+                : layerKey === 'fog' ? -0.3 : layerKey === 'pressure' ? 0.10 : 0.12,
+              'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
               'raster-fade-duration': 300
             }}
           />
