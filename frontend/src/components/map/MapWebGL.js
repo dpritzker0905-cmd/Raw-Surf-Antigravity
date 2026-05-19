@@ -119,46 +119,9 @@ var MapWebGL = ({
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    import('@openmeteo/weather-map-layer').then((omLib) => {
-      const { omProtocol, defaultOmProtocolSettings } = omLib;
+    import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
       if (maplibregl?.addProtocol) {
-        // v86: Single om:// protocol with conditional marine clipping.
-        // Marine model tiles (gfswave, ecmwf_wam) get pixel-level coastline clipping;
-        // atmospheric tiles (gfs, icon, etc.) render unclipped everywhere.
-        const baseSettings = { ...defaultOmProtocolSettings };
-        const marineSettings = { ...defaultOmProtocolSettings };
-        const MARINE_MODELS = /gfswave|ecmwf_wam|era5_ocean|ww3/i;
-
-        // Smart handler: route marine tiles through clipped settings
-        const smartHandler = (params, ac) => {
-          const s = MARINE_MODELS.test(params.url) ? marineSettings : baseSettings;
-          return omProtocol(params, ac, s);
-        };
-        try { maplibregl.addProtocol('om', smartHandler); } catch (e) { /* already registered */ }
-
-        // Background: fetch NE 10m land → build water-only clipping mask
-        fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json')
-          .then(r => r.ok ? r.json() : null)
-          .then(landGeoJSON => {
-            if (!landGeoJSON?.features?.length) return;
-            const WORLD = [[-180.1, -85.1], [180.1, -85.1], [180.1, 85.1], [-180.1, 85.1], [-180.1, -85.1]];
-            const holes = [];
-            for (const f of landGeoJSON.features) {
-              const g = f.geometry;
-              if (!g) continue;
-              if (g.type === 'Polygon') {
-                for (const ring of g.coordinates) holes.push(ring);
-              } else if (g.type === 'MultiPolygon') {
-                for (const poly of g.coordinates) { for (const ring of poly) holes.push(ring); }
-              }
-            }
-            marineSettings.clippingOptions = {
-              geojson: { type: 'Polygon', coordinates: [WORLD, ...holes] },
-              fillRule: 'evenodd',
-            };
-            console.log('[OceanMask] Marine pixel-clipping active (NE 10m,', holes.length, 'land rings)');
-          })
-          .catch(err => console.warn('[OceanMask] Clipping data fetch failed:', err));
+        try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ }
       }
       setProtocolReady(true);
     });
