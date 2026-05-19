@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 
@@ -60,15 +60,13 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       if (cancelled) return;
 
       // Check if wind is currently active
-      if (!activeLayersRef.current.includes('wind')) {
- // Wind not active don't fetch, but watch for activation
-        retryTimer = setTimeout(attemptFetch, 2000);
-        return;
+      if (!isWindActive) {
+        return; // Return immediately to allow zero-overhead sleeping when wind is inactive
       }
 
       const bounds = getBounds();
       if (!bounds) {
-        retryTimer = setTimeout(attemptFetch, 3000);
+        retryTimer = setTimeout(attemptFetch, 1000); // Shorter retry window to capture bounds faster
         return;
       }
 
@@ -125,7 +123,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
     };
-  }, [mapInstance, activeModel, forecastDays]); // Refetch when model or forecast window changes
+  }, [mapInstance, activeModel, forecastDays, isWindActive]); // Refetch when model or forecast window changes
 
   // ===== TIMELINE SCRUB (local cache re-index, ZERO API calls) =====
   // Uses extractWindAtOffset directly on the cached hourly data.

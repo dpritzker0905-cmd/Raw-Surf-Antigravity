@@ -103,6 +103,7 @@ var MapWebGL = ({
   });
 
   const [mapInstance, setMapInstance] = useState(null);
+  const resolveTaskIdRef = useRef(0);
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -158,7 +159,7 @@ var MapWebGL = ({
     if (!layer) return 'none';
     if (layer.type === 'raster') return layer.id === 'radar' ? 'radar' : 'raster';
     if (layer.type === 'marine') return 'marine';
-    if (layer.type === 'canvas' && layer.id === 'wind') return 'wind';
+    if ((layer.type === 'canvas' || layer.type === 'particle') && layer.id === 'wind') return 'wind';
     return 'none';
   }, [activeLayers]);
 
@@ -258,8 +259,10 @@ var MapWebGL = ({
     // Timeline: always valid_times_N index (never current_time_1H)
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
+    const taskId = ++resolveTaskIdRef.current;
 
     const computeTimeStep = (meta) => {
+      if (!meta) return 'time_step=valid_times_0';
       const { validTimes } = meta;
       if (!validTimes || !validTimes.length) return 'time_step=valid_times_0';
       const targetMs = Date.now() + timeOffsetHours * 3600000;
@@ -304,11 +307,13 @@ var MapWebGL = ({
       // Parallel metadata pre-fetch
       const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
       await Promise.all(models.map(m => fetchMetadata(m)));
+      if (taskId !== resolveTaskIdRef.current) return;
 
       const newUrls = {};
       for (const { layerKey, variable, entry } of tasks) {
         let layerModel = resolveModel(entry, variable);
         let meta = await fetchMetadata(layerModel);
+        if (taskId !== resolveTaskIdRef.current) return;
         let resolvedVar = variable;
         // Variable fallback chain
         if (!meta.variables.includes(variable)) {
@@ -333,6 +338,7 @@ var MapWebGL = ({
  // ECMWF WAM lacks this var fall back to GFS wave model
               layerModel = 'ncep_gfswave025';
               meta = await fetchMetadata(layerModel);
+              if (taskId !== resolveTaskIdRef.current) return;
               if (meta.variables.includes(variable)) {
                 resolvedVar = variable;
                 // v77: Log marine fallback once per variable only
@@ -352,7 +358,7 @@ var MapWebGL = ({
         }
       }
 
-      if (isMounted) {
+      if (isMounted && taskId === resolveTaskIdRef.current) {
         setOmTileUrls(prev => {
           const merged = {};
           for (const key of activeLayers) {
@@ -712,6 +718,7 @@ var MapWebGL = ({
         mapInstance={mapInstance}
         active={!!activeMarineLayer}
         theme={theme}
+        beforeId={marineBeforeId}
       />
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}

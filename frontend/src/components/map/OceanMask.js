@@ -24,7 +24,8 @@ const MASK_BUFFER = 'ocean-mask-buffer';
 const MASK_FILL   = 'ocean-mask-fill';
 const MASK_LINE   = 'ocean-mask-line';
 const MASK_INLAND_WATERWAY = 'ocean-mask-inland-waterway';
-const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER, MASK_INLAND_WATERWAY];
+const MASK_INLAND_WATER = 'ocean-mask-inland-water';
+const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER, MASK_INLAND_WATERWAY, MASK_INLAND_WATER];
 
 const THEME_COLORS = {
   dark:  { fill: 'hsl(214, 17%, 31%)', line: 'rgba(0, 0, 0, 0.35)', lw: 1.2 },
@@ -68,7 +69,7 @@ function resolveFillColor(mapInstance, theme) {
   return tc.fill;
 }
 
-export function OceanMask({ mapInstance, active, theme }) {
+export function OceanMask({ mapInstance, active, theme, beforeId }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
@@ -104,6 +105,7 @@ export function OceanMask({ mapInstance, active, theme }) {
       const hasFill = !!mapInstance.getLayer(MASK_FILL);
       const hasLine = !!mapInstance.getLayer(MASK_LINE);
       const hasWaterway = !!mapInstance.getLayer(MASK_INLAND_WATERWAY);
+      const hasWater = !!mapInstance.getLayer(MASK_INLAND_WATER);
       const hasSrc  = !!mapInstance.getSource(MASK_SOURCE);
 
       if (active) {
@@ -113,17 +115,13 @@ export function OceanMask({ mapInstance, active, theme }) {
           });
         }
 
-        const beforeId = findInsertBefore(style);
+        const insertBeforeId = beforeId || findInsertBefore(style);
         const fillColor = resolveFillColor(mapInstance, theme);
 
         // Layer 1: WIDE coastline buffer with outward shift.
         // GFS marine tiles bleed 1-3 grid cells (~28-84km) past coastlines.
-        // At zoom 3: ~18px per cell → need 36px+ buffer
-        // At zoom 7: ~6px per cell → need 12px+ buffer
-        // At zoom 12+: sub-pixel → 6px is enough
-        // The line extends equally inward/outward from the polygon edge.
-        // The fill will cover the inward half anyway, so the effective
-        // coverage equals half the line-width on the ocean side.
+        // Shrink the width of MASK_BUFFER at mid-to-high zoom levels to prevent it from invading coastal waters.
+        // Use soft blur for a clean, premium transition where water meets the edge of land.
         if (!hasBuf) {
           mapInstance.addLayer({
             id: MASK_BUFFER,
@@ -132,24 +130,24 @@ export function OceanMask({ mapInstance, active, theme }) {
             paint: {
               'line-color': fillColor,
               'line-width': ['interpolate', ['exponential', 1.5], ['zoom'],
-                1, 6,
-                3, 10,
-                5, 16,
-                7, 20,
-                9, 12,
-                11, 6,
-                14, 2,
+                1, 3,
+                3, 4,
+                5, 4,
+                7, 3,
+                9, 2,
+                11, 1.5,
+                14, 0.8,
               ],
               'line-opacity': 1,
               'line-blur': ['interpolate', ['linear'], ['zoom'],
-                2, 2,
-                7, 1.5,
-                11, 1.0,
-                14, 0.2
+                2, 1.5,
+                7, 1.0,
+                11, 0.5,
+                14, 0.1
               ],
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-          }, beforeId || undefined);
+          }, insertBeforeId || undefined);
         } else {
           try { mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', fillColor); } catch (e) {}
         }
@@ -161,12 +159,40 @@ export function OceanMask({ mapInstance, active, theme }) {
             type: 'fill',
             source: MASK_SOURCE,
             paint: { 'fill-color': fillColor, 'fill-opacity': 1 },
-          }, beforeId || undefined);
+          }, insertBeforeId || undefined);
         } else {
           try { mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor); } catch (e) {}
         }
 
+        // Layer 3: Bring high-resolution inland water (lakes/reservoirs) back to top
+        if (!hasWater) {
+          let waterColor = 'hsl(197, 60%, 80%)';
+          try {
+            const baseWater = style?.layers?.find(l => l.id === 'water');
+            if (baseWater?.paint?.['fill-color']) {
+              waterColor = baseWater.paint['fill-color'];
+            }
+          } catch (e) {}
 
+          mapInstance.addLayer({
+            id: MASK_INLAND_WATER,
+            type: 'fill',
+            source: 'composite',
+            'source-layer': 'water',
+            filter: ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean']],
+            paint: {
+              'fill-color': waterColor,
+              'fill-opacity': 1.0
+            }
+          }, insertBeforeId || undefined);
+        } else {
+          try {
+            const baseWater = style?.layers?.find(l => l.id === 'water');
+            if (baseWater?.paint?.['fill-color']) {
+              mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', baseWater.paint['fill-color']);
+            }
+          } catch (e) {}
+        }
 
         // Layer 4: Bring high-resolution waterways (rivers/streams as lines) back to top
         if (!hasWaterway) {
@@ -192,7 +218,7 @@ export function OceanMask({ mapInstance, active, theme }) {
               ],
               'line-opacity': 1.0
             }
-          }, beforeId || undefined);
+          }, insertBeforeId || undefined);
         } else {
           try {
             const baseWaterway = style?.layers?.find(l => l.id === 'waterway');
@@ -217,7 +243,7 @@ export function OceanMask({ mapInstance, active, theme }) {
               'line-blur': 0.5,
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-          }, beforeId || undefined);
+          }, insertBeforeId || undefined);
         }
       } else {
         for (const lid of ALL_LAYERS) {
@@ -228,7 +254,7 @@ export function OceanMask({ mapInstance, active, theme }) {
     } finally {
       setTimeout(() => { syncingRef.current = false; }, 500);
     }
-  }, [mapInstance, maskData, active, theme, tc]);
+  }, [mapInstance, maskData, active, theme, tc, beforeId]);
 
   useEffect(() => { syncLayers(); }, [syncLayers]);
 
