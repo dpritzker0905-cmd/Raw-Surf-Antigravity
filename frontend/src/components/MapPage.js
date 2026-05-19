@@ -168,6 +168,7 @@ var MapPageContent = () => {
     longitude: forecastLng,
     activeModel,
     enabled: true,
+    isExplicit: !!(selectedSpot || longPressLocation),
   });
 
   const handleUpgradeClick = useCallback(() => {

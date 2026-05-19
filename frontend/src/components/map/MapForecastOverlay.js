@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, ArrowUp, Droplets, Gauge, Lock, ChevronDown, MapPin } from 'lucide-react';
+import { Wind, Waves, CloudRain, ArrowUp, Droplets, Gauge, Lock, ChevronDown, MapPin } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
@@ -76,8 +76,8 @@ export var MapForecastOverlay = ({
     return closest;
   }, [marineData, timeOffsetHours]);
 
- // Don't show when no data loaded yet (AFTER all hooks React Rules of Hooks)
-  if (!forecastData && !marineData) return null;
+  // Don't show when no data loaded yet (AFTER all hooks React Rules of Hooks)
+  if (!forecastData && !marineData && !isLoading) return null;
 
   const wx = forecastData?.hourly || {};
   const marine = marineData?.hourly || {};

@@ -1,3 +1,4 @@
+/* eslint-disable no-empty */
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
@@ -22,7 +23,9 @@ const MASK_SOURCE = 'ocean-mask-source';
 const MASK_BUFFER = 'ocean-mask-buffer';
 const MASK_FILL   = 'ocean-mask-fill';
 const MASK_LINE   = 'ocean-mask-line';
-const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER];
+const MASK_INLAND_WATER = 'ocean-mask-inland-water';
+const MASK_INLAND_WATERWAY = 'ocean-mask-inland-waterway';
+const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER, MASK_INLAND_WATER, MASK_INLAND_WATERWAY];
 
 const THEME_COLORS = {
   dark:  { fill: 'hsl(214, 17%, 31%)', line: 'rgba(0, 0, 0, 0.35)', lw: 1.2 },
@@ -101,6 +104,8 @@ export function OceanMask({ mapInstance, active, theme }) {
       const hasBuf  = !!mapInstance.getLayer(MASK_BUFFER);
       const hasFill = !!mapInstance.getLayer(MASK_FILL);
       const hasLine = !!mapInstance.getLayer(MASK_LINE);
+      const hasInland = !!mapInstance.getLayer(MASK_INLAND_WATER);
+      const hasWaterway = !!mapInstance.getLayer(MASK_INLAND_WATERWAY);
       const hasSrc  = !!mapInstance.getSource(MASK_SOURCE);
 
       if (active) {
@@ -129,16 +134,21 @@ export function OceanMask({ mapInstance, active, theme }) {
             paint: {
               'line-color': fillColor,
               'line-width': ['interpolate', ['exponential', 1.5], ['zoom'],
-                1, 8,
-                3, 16,
-                5, 28,
-                7, 36,
-                9, 24,
-                11, 14,
-                14, 8,
+                1, 6,
+                3, 10,
+                5, 16,
+                7, 20,
+                9, 12,
+                11, 6,
+                14, 2,
               ],
               'line-opacity': 1,
-              'line-blur': ['interpolate', ['linear'], ['zoom'], 2, 3, 7, 2, 12, 0],
+              'line-blur': ['interpolate', ['linear'], ['zoom'],
+                2, 2,
+                7, 1.5,
+                11, 1.0,
+                14, 0.2
+              ],
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
           }, beforeId || undefined);
@@ -158,7 +168,71 @@ export function OceanMask({ mapInstance, active, theme }) {
           try { mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor); } catch (e) {}
         }
 
-        // Layer 3: Thin coastline outline — aesthetic boundary
+        // Layer 3: Bring high-resolution inland water features back to top of the land fill
+        if (!hasInland) {
+          let waterColor = 'hsl(197, 15%, 43%)';
+          try {
+            const baseWater = style?.layers?.find(l => l.id === 'water');
+            if (baseWater?.paint?.['fill-color']) {
+              waterColor = baseWater.paint['fill-color'];
+            }
+          } catch (e) {}
+
+          mapInstance.addLayer({
+            id: MASK_INLAND_WATER,
+            type: 'fill',
+            source: 'composite',
+            'source-layer': 'water',
+            filter: ['!=', ['get', 'class'], 'ocean'],
+            paint: {
+              'fill-color': waterColor,
+              'fill-opacity': 1.0
+            }
+          }, beforeId || undefined);
+        } else {
+          try {
+            const baseWater = style?.layers?.find(l => l.id === 'water');
+            if (baseWater?.paint?.['fill-color']) {
+              mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', baseWater.paint['fill-color']);
+            }
+          } catch (e) {}
+        }
+
+        // Layer 4: Bring high-resolution waterways (rivers/streams as lines) back to top
+        if (!hasWaterway) {
+          let waterwayColor = 'hsl(197, 15%, 43%)';
+          try {
+            const baseWaterway = style?.layers?.find(l => l.id === 'waterway');
+            if (baseWaterway?.paint?.['line-color']) {
+              waterwayColor = baseWaterway.paint['line-color'];
+            }
+          } catch (e) {}
+
+          mapInstance.addLayer({
+            id: MASK_INLAND_WATERWAY,
+            type: 'line',
+            source: 'composite',
+            'source-layer': 'waterway',
+            paint: {
+              'line-color': waterwayColor,
+              'line-width': ['interpolate', ['linear'], ['zoom'],
+                8, 0.5,
+                13, 1.5,
+                18, 6
+              ],
+              'line-opacity': 1.0
+            }
+          }, beforeId || undefined);
+        } else {
+          try {
+            const baseWaterway = style?.layers?.find(l => l.id === 'waterway');
+            if (baseWaterway?.paint?.['line-color']) {
+              mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', baseWaterway.paint['line-color']);
+            }
+          } catch (e) {}
+        }
+
+        // Layer 5: Thin coastline outline — aesthetic boundary
         if (!hasLine) {
           mapInstance.addLayer({
             id: MASK_LINE,

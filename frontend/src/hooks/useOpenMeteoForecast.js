@@ -43,7 +43,7 @@ let lastGlobalFetchTime = 0;
 let lastGlobalModel = '';
 const MIN_FETCH_INTERVAL = 45_000;
 
-export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true }) => {
+export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false }) => {
   const [forecastData, setForecastData] = useState(null);
   const [marineData, setMarineData] = useState(null);
   const [currentWeather, setCurrentWeather] = useState(null);
@@ -56,13 +56,30 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    const fetchKey = `${latitude.toFixed(0)}_${longitude.toFixed(0)}_${activeModel}`;
+    const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}`;
     if (fetchKey === lastFetchKey.current) return;
 
     // Rate limit - bypass when model changes (user action, must be responsive)
     const now = Date.now();
     const isModelSwitch = lastGlobalModel !== '' && lastGlobalModel !== activeModel;
-    if (!isModelSwitch && now - lastGlobalFetchTime < MIN_FETCH_INTERVAL) {
+
+    let isCoordinateMoved = false;
+    if (lastFetchKey.current) {
+      const parts = lastFetchKey.current.split('_');
+      if (parts.length >= 2) {
+        const lastLat = parseFloat(parts[0]);
+        const lastLng = parseFloat(parts[1]);
+        if (!isNaN(lastLat) && !isNaN(lastLng)) {
+          const dist = Math.sqrt(Math.pow(latitude - lastLat, 2) + Math.pow(longitude - lastLng, 2));
+          if (dist > 0.0001) {
+            isCoordinateMoved = true;
+          }
+        }
+      }
+    }
+
+    const shouldBypassRateLimit = isModelSwitch || isExplicit || isCoordinateMoved;
+    if (!shouldBypassRateLimit && now - lastGlobalFetchTime < MIN_FETCH_INTERVAL) {
       return;
     }
 
@@ -75,6 +92,11 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     abortRef.current = controller;
 
     setIsLoading(true);
+    if (isCoordinateMoved || isExplicit) {
+      setForecastData(null);
+      setMarineData(null);
+      setCurrentWeather(null);
+    }
 
     const modelParam = MODEL_MAP[activeModel] || MODEL_MAP.GFS;
     const forecastDays = MODEL_FORECAST_DAYS[activeModel] || 16;
@@ -94,31 +116,30 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       };
 
-      // Fetch weather
-      const wxRes = await safeFetch(
-        `https://api.open-meteo.com/v1/forecast?` +
-        `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-        `&hourly=${WEATHER_VARS}` +
-        `&current=${CURRENT_WEATHER_VARS}` +
-        `&models=${modelParam}` +
-        `&forecast_days=${forecastDays}` +
-        `&wind_speed_unit=kn`
-      ).then(r => ({ status: 'fulfilled', value: r }))
-       .catch(e => ({ status: 'rejected', reason: e }));
+      // Fetch weather and marine in parallel
+      const [wxRes, marineRes] = await Promise.all([
+        safeFetch(
+          `https://api.open-meteo.com/v1/forecast?` +
+          `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
+          `&hourly=${WEATHER_VARS}` +
+          `&current=${CURRENT_WEATHER_VARS}` +
+          `&models=${modelParam}` +
+          `&forecast_days=${forecastDays}` +
+          `&wind_speed_unit=kn`
+        ).then(r => ({ status: 'fulfilled', value: r }))
+         .catch(e => ({ status: 'rejected', reason: e })),
 
-      // Stagger marine call by 2s to avoid simultaneous 429
-      await new Promise(r => setTimeout(r, 2000));
+        safeFetch(
+          `https://marine-api.open-meteo.com/v1/marine?` +
+          `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
+          `&hourly=${MARINE_VARS}` +
+          `&current=${CURRENT_MARINE_VARS}` +
+          `&forecast_days=${Math.min(forecastDays, 16)}`
+        ).then(r => ({ status: 'fulfilled', value: r }))
+         .catch(e => ({ status: 'rejected', reason: e }))
+      ]);
 
-      const marineRes = await safeFetch(
-        `https://marine-api.open-meteo.com/v1/marine?` +
-        `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-        `&hourly=${MARINE_VARS}` +
-        `&current=${CURRENT_MARINE_VARS}` +
-        `&forecast_days=${Math.min(forecastDays, 16)}`
-      ).then(r => ({ status: 'fulfilled', value: r }))
-       .catch(e => ({ status: 'rejected', reason: e }));
-
-      // Weather: preserve last valid on failure
+      // Weather:
       if (wxRes.status === 'fulfilled' && wxRes.value.ok) {
         const data = await wxRes.value.json();
         setForecastData(data);
@@ -127,40 +148,61 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         console.log(`[Forecast] OK ${activeModel}: ${data.hourly?.wind_speed_10m?.length || 0}h records`);
       } else {
         const status = wxRes.value?.status || wxRes.reason;
-        logger.warn(`[OpenMeteo] Weather fetch failed (${status}). Preserving last valid data.`);
+        logger.warn(`[OpenMeteo] Weather fetch failed (${status}).`);
         setIsStale(true);
+        if (isCoordinateMoved || isExplicit) {
+          setForecastData(null);
+          setCurrentWeather(null);
+        }
       }
 
-      // Marine: preserve last valid on failure
+      // Marine:
       if (marineRes.status === 'fulfilled' && marineRes.value.ok) {
         const data = await marineRes.value.json();
         setMarineData(data);
       } else {
         const status = marineRes.value?.status || marineRes.reason;
-        logger.warn(`[OpenMeteo] Marine fetch failed (${status}). Preserving last valid data.`);
+        const is400 = marineRes.value?.status === 400;
+        logger.warn(`[OpenMeteo] Marine fetch failed (${status}).`);
         setIsStale(true);
+        if (isCoordinateMoved || isExplicit || is400) {
+          setMarineData(null);
+        }
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
         logger.error('[OpenMeteo] Fetch error:', err);
         setIsStale(true);
+        if (isCoordinateMoved || isExplicit) {
+          setForecastData(null);
+          setCurrentWeather(null);
+          setMarineData(null);
+        }
       }
     } finally {
       setIsLoading(false);
     }
-  }, [latitude, longitude, activeModel, enabled]);
+  }, [latitude, longitude, activeModel, enabled, isExplicit]);
 
-  // v3.12.5: Fast debounce for model switches (500ms), 3s for pan
+  // v3.12.5: Fast debounce for model switches (500ms), 300ms for explicit spots/markers, 3s for pan
   const prevModelRef = useRef(activeModel);
+  const prevCoordsRef = useRef({ latitude, longitude });
+
   useEffect(() => {
     clearTimeout(debounceRef.current);
     const isModelSwitch = prevModelRef.current !== activeModel;
+    
     prevModelRef.current = activeModel;
+    prevCoordsRef.current = { latitude, longitude };
+
+    const useFastDebounce = isExplicit || isModelSwitch;
+    const debounceDuration = useFastDebounce ? 300 : 3000;
+
     debounceRef.current = setTimeout(() => {
       fetchForecast();
-    }, isModelSwitch ? 500 : 3000);
+    }, debounceDuration);
     return () => clearTimeout(debounceRef.current);
-  }, [fetchForecast]);
+  }, [fetchForecast, isExplicit, activeModel, latitude, longitude]);
 
   useEffect(() => {
     return () => {
