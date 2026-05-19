@@ -1,6 +1,6 @@
 [build]
   base = "frontend"
-  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
+  command = "node update-sw-version.js && npm install --legacy-peer-deps && CI=false npm run build"
   publish = "build"
 
 [build.environment]
@@ -11,34 +11,10 @@
 
 # Production (main branch) - only rebuild when frontend files actually changed
 [context.production]
-  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
   ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- frontend/src frontend/public netlify.toml"
 
 # Deploy previews (PRs) - always build
 [context.deploy-preview]
-  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
 
 # Dev branch - always build, gets stable URL at dev--rawsurf.netlify.app
 [context.dev]
-  command = "sed -i \"s/BUILD_VERSION = .*/BUILD_VERSION = '$(git rev-parse --short HEAD)';/\" public/service-worker.js && yarn install --ignore-engines && CI=false yarn build"
-
-# v3.9.6: Serverless function proxy — must be BEFORE the SPA catch-all
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-# SPA catch-all (must be LAST)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-# ── HTTP Headers ─────────────────────────────────────────────────────────
-# Explicitly allow camera, microphone, and display-capture for WebRTC.
-# Without this, some CDN/browser combos silently deny getUserMedia.
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Permissions-Policy = "camera=(self), microphone=(self), display-capture=(self), fullscreen=(self), geolocation=(self)"
-
