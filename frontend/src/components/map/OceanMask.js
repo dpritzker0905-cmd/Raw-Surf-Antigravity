@@ -14,8 +14,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
  *   This layer-based approach runs entirely in the GPU render pipeline.
  */
 
-// Natural Earth 10m land polygons — high coastline detail for barrier islands (~3MB)
-const NE_LAND_URL = 'https://geojson.xyz/naturalearth-3.3.0/ne_10m_land.geojson';
+// Natural Earth 10m land polygons via jsDelivr CDN (~4.6MB, high coastline detail)
+const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
 
 const MASK_SOURCE_ID = 'ocean-mask-source';
 const MASK_LAYER_ID = 'ocean-mask-layer';
