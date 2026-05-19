@@ -1,5 +1,5 @@
-﻿/**
- * FeedEmptyState G Extracted from Feed.js (v103)
+/**
+ * FeedEmptyState -- Extracted from Feed.js (v103)
  * Per-tab empty state illustrations (For You / Waves / Following).
  */
 import React from 'react';

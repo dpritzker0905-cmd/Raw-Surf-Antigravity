@@ -1,5 +1,5 @@
-﻿/**
- * GalleryFolderList G Extracted from GalleryPage.js
+/**
+ * GalleryFolderList -- Extracted from GalleryPage.js
  * Renders the grid of session/album folder cards with thumbnails,
  * session type badges, action buttons (rename/delete/thumbnail/link), and roster cards.
  */

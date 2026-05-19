@@ -1,9 +1,9 @@
-﻿/**
- * BrowseMode G Location-based spot discovery with cascading dropdowns.
+/**
+ * BrowseMode -- Location-based spot discovery with cascading dropdowns.
  * Extracted from Explore.js to reduce file size.
  * 
  * Features:
- * - Cascading Country G State G City dropdowns
+ * - Cascading Country -- State -- City dropdowns
  * - Spot name search within selected location
  * - Popular destinations quick-jump chips
  * - Breadcrumb navigation with clear button

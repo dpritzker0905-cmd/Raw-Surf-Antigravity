@@ -1,6 +1,6 @@
-﻿/**
+/**
  * ExplorePostsTab.js
- * Extracted from Explore.js G Posts tab with browse grid, hover overlays, and empty state.
+ * Extracted from Explore.js -- Posts tab with browse grid, hover overlays, and empty state.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';

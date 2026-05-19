@@ -1,5 +1,5 @@
-﻿/**
- * useFeedActions.js G Orchestrator Hook (v77 decomposition)
+/**
+ * useFeedActions.js -- Orchestrator Hook (v77 decomposition)
  * 
  * Composes three domain-specific sub-hooks:
  *   - useFeedDataActions    (posts, pagination, follow, lineups, live)

@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
@@ -118,10 +118,32 @@ var MapWebGL = ({
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
-      if (maplibregl?.addProtocol) { try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ } }
+    const NE_OCEAN = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_ocean.geojson';
+    Promise.all([
+      import('@openmeteo/weather-map-layer'),
+      fetch(NE_OCEAN).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([omModule, oceanGeoJSON]) => {
+      const { omProtocol, OMWeatherMapLayer } = omModule;
+      if (!maplibregl?.addProtocol) return;
+      // Standard protocol (wind, rain, fog, pressure) -- no clipping
+      try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ }
+      // v81: Marine-only protocol with ocean GeoJSON clipping.
+      // Clips raster tiles to ocean polygons at tile-generation level,
+      // eliminating coastline bleeding without a visible mask overlay.
+      if (oceanGeoJSON && OMWeatherMapLayer?.defaultOmProtocolSettings) {
+        try {
+          const marineSettings = { ...OMWeatherMapLayer.defaultOmProtocolSettings };
+          marineSettings.clippingOptions = { geojson: oceanGeoJSON };
+          maplibregl.addProtocol('om-marine', (params, abortController) => {
+            // MapLibre strips 'om-marine://' but we need the inner https:// URL
+            params.url = params.url.replace('om-marine://', 'om://');
+            return OMWeatherMapLayer.omProtocol(params, abortController, marineSettings);
+          });
+        } catch (e) { /* already registered */ }
+      }
       setProtocolReady(true);
     });
+
     const suppressAbortRejections = (event) => {
       const reason = event?.reason;
       if (reason?.name === 'AbortError' || reason?.message?.includes('aborted')) event.preventDefault();
@@ -341,7 +363,9 @@ var MapWebGL = ({
         }
         if (meta.variables.includes(resolvedVar)) {
           const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
+          // v81: Marine layers use om-marine:// (ocean-clipped), others use om://
+          const protocol = entry.type === 'marine' ? 'om-marine' : 'om';
+          const urlStr = `${protocol}://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
         }
       }

@@ -1,6 +1,6 @@
-﻿/**
+/**
  * useLineupManagerActions.js
- * Extracted from LineupManagerDrawer.js G handler logic for lineup management.
+ * Extracted from LineupManagerDrawer.js -- handler logic for lineup management.
  * 
  * Extraction checklist (v30): All 9 steps verified.
  */

@@ -1,5 +1,5 @@
-﻿/**
- * GoLive Sub-Components G Extracted from GoLiveModal.js (v46 decomposition)
+/**
+ * GoLive Sub-Components -- Extracted from GoLiveModal.js (v46 decomposition)
  * 
  * Components: ConnectionQualityBadge, VideoFilterPanel, EmojiBurst,
  *             CommentTile, LiveCommentsFeed, QuickReactions, EndStreamDialog

@@ -1,9 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { Play, Camera, MapPin, Grid3X3, Check, Pin } from 'lucide-react';
 import { getFullUrl } from '../utils/media';
 
 /**
- * Media grid item G renders a single cell in the profile content grid.
+ * Media grid item -- renders a single cell in the profile content grid.
  * Handles photos, videos, check-ins, text posts, and photographer sessions.
  * Previously defined at the bottom of Profile.js.
  */

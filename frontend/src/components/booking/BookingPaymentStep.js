@@ -1,5 +1,5 @@
-﻿/**
- * BookingPaymentStep G Extracted from ScheduledBookingDrawer.js (v79)
+/**
+ * BookingPaymentStep -- Extracted from ScheduledBookingDrawer.js (v79)
  *
  * The payment method selection + credit slider + payment summary panel
  * for the scheduled booking flow.

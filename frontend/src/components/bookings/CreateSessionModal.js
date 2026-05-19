@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -38,7 +38,7 @@ const CreateSessionModal = (props) => {
     newCrewInput, setNewCrewInput, calculateCrewTotal, calculatePerPersonSplit
   } = props;
 
- // Safe fallback G prevent crash if bookingPricing hasn't loaded yet
+ // Safe fallback -- prevent crash if bookingPricing hasn't loaded yet
   const safePricing = bookingPricing || {};
 
   return (

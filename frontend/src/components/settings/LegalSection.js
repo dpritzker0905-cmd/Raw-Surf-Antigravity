@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Clock, Check, Loader2, Shield, ChevronDown, AlertTriangle, Scale } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -7,7 +7,7 @@ import { CURRENT_TOS_VERSION } from '../../constants/tos';
 import DeleteAccountSection from './DeleteAccountSection';
 
 /**
- * LegalSection G Extracted from Settings.js
+ * LegalSection -- Extracted from Settings.js
  * Handles Terms of Service viewing, acceptance history,
  * privacy policy, violation history, and account deletion.
  */

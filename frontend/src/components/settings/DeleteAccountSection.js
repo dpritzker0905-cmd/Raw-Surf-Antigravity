@@ -1,5 +1,5 @@
-﻿/**
- * DeleteAccountSection G GDPR Article 17 self-service data deletion.
+/**
+ * DeleteAccountSection -- GDPR Article 17 self-service data deletion.
  * Shows in Settings page. Requires confirmation before proceeding.
  */
 import React, { useState } from 'react';

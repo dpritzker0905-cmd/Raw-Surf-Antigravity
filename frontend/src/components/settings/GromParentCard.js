@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Users, ChevronRight } from 'lucide-react';
@@ -8,7 +8,7 @@ import apiClient from '../../lib/apiClient';
 import { ROLES } from '../../constants/roles';
 
 /**
- * GromParentCard G Lets any non-Grom surfer opt in to Grom Parent mode.
+ * GromParentCard -- Lets any non-Grom surfer opt in to Grom Parent mode.
  * Being a Grom Parent is an AND: a Competitive Surfer can ALSO be a Grom Parent.
  * Enabling it gives access to GromHQ, parental controls, and Grom gallery management.
  */
@@ -28,7 +28,7 @@ export const GromParentCard = ({ textPrimaryClass, textSecondaryClass, cardBgCla
       await apiClient.patch(`/profiles/${user.id}`, { is_grom_parent: newVal });
       updateUser({ ...user, is_grom_parent: newVal });
       if (newVal) {
- toast.success('Grom Parent mode enabled G access GromHQ to link your child\'s account');
+ toast.success('Grom Parent mode enabled -- access GromHQ to link your child\'s account');
       } else {
         toast.success('Grom Parent mode disabled');
       }

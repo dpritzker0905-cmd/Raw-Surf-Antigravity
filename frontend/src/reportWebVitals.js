@@ -1,5 +1,5 @@
-﻿/**
- * Web Vitals G Core performance metric reporting.
+/**
+ * Web Vitals -- Core performance metric reporting.
  * Measures LCP, FID, CLS, TTFB, and INP.
  * Reports to console in dev, can be extended to analytics endpoint.
  *
@@ -16,7 +16,7 @@ const reportWebVitals = (onPerfEntry) => {
  // INP (Interaction to Next Paint) G newer metric replacing FID
       if (onINP) onINP(onPerfEntry);
     }).catch(() => {
- // web-vitals not installed G silent fallback
+ // web-vitals not installed -- silent fallback
     });
   }
 };

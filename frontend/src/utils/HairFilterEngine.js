@@ -1,11 +1,11 @@
-﻿/**
- * HairFilterEngine G Real-time AR hair overlay using MediaPipe Face Mesh
+/**
+ * HairFilterEngine -- Real-time AR hair overlay using MediaPipe Face Mesh
  * 
  * Positioning algorithm (per AR best practices):
  * 1. MediaPipe landmark 10 is at the GLABELLA (between eyebrows), not the skull top
  * 2. Crown position is estimated: crownY = landmark10.y - (faceHeight * 0.5)
  *    because the cranium extends ~50% of face height above the glabella
- * 3. Head width G temple-to-temple * 1.3 (actual head is wider than face)
+ * 3. Head width -- temple-to-temple * 1.3 (actual head is wider than face)
  * 4. Hair sized relative to HEAD width (not face width)
  * 5. CSS scaleX(-1) on both video and canvas handles front-camera mirroring
  */
@@ -153,18 +153,18 @@ export const HAIR_STYLES = {
 
 // GG MediaPipe Face Mesh Landmark Indices GG
 const LANDMARK = {
- FOREHEAD_TOP: 10, // Glabella area (between eyebrows G NOT top of skull!)
+ FOREHEAD_TOP: 10, // Glabella area (between eyebrows -- NOT top of skull!)
   CHIN: 152,            // Bottom of chin
   LEFT_TEMPLE: 234,     // Left side of face (upper)
   RIGHT_TEMPLE: 454,    // Right side of face (upper)
- LEFT_JAW: 132, // Left jawline G widest point of lower face
- RIGHT_JAW: 361, // Right jawline G widest point of lower face
+ LEFT_JAW: 132, // Left jawline -- widest point of lower face
+ RIGHT_JAW: 361, // Right jawline -- widest point of lower face
   LEFT_EYE_INNER: 133,
   RIGHT_EYE_INNER: 362,
   NOSE_BRIDGE: 6,       // Very stable center point
 };
 
-// Anthropometric constants G tuned from real-world mobile testing
+// Anthropometric constants -- tuned from real-world mobile testing
 const HEAD_WIDTH_RATIO = 1.8;    // Head/skull ~80% wider than temple-to-temple face landmarks
 const CROWN_OFFSET_RATIO = 0.25; // Crown is ~25% of face-height above landmark 10 (hairline)
 
@@ -206,7 +206,7 @@ const loadMediaPipe = () => {
  * Process a loaded image to remove backgrounds and create real alpha transparency.
  * Handles TWO background types:
  * 1. Checkered pattern (gray/white alternating squares) G common in AI sprites
- * 2. Solid black (#000000) backgrounds G preferred for light-colored hair
+ * 2. Solid black (#000000) backgrounds -- preferred for light-colored hair
  * 
  * Strategy: Detect which background type dominates, then remove accordingly.
  */
@@ -465,7 +465,7 @@ export class HairFilterEngine {
     this._initPromise = null;
   }
   
- // GGG Internal Methods GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+ // ---  Internal Methods ---
   
   /**
    * Sync canvas buffer to VIDEO native resolution (not CSS display size).
@@ -526,7 +526,7 @@ export class HairFilterEngine {
     
     const lm = results.multiFaceLandmarks[0];
     
- const glabella = lm[LANDMARK.FOREHEAD_TOP]; // landmark 10 G between eyebrows
+ const glabella = lm[LANDMARK.FOREHEAD_TOP]; // landmark 10 -- between eyebrows
     const chin = lm[LANDMARK.CHIN];
     const leftTemple = lm[LANDMARK.LEFT_TEMPLE];
     const rightTemple = lm[LANDMARK.RIGHT_TEMPLE];
@@ -569,7 +569,7 @@ export class HairFilterEngine {
     // Crown is above landmark 10 by ~50% of the face height
     const crownOffsetPx = faceHeight * CROWN_OFFSET_RATIO;
     
- // Use NOSE BRIDGE (landmark 6) for X center G most stable point on rigid
+ // Use NOSE BRIDGE (landmark 6) for X center -- most stable point on rigid
     // bone structure, stays centered even when head turns slightly
     const noseBridge = lm[LANDMARK.NOSE_BRIDGE];
     const centerX = noseBridge ? (noseBridge.x * width) : (((leftTemple.x + rightTemple.x) / 2) * width);

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GalleryModals.js - Tag/Assign, Thumbnail Picker, and Link Session modals.
  * Extracted from GalleryPage.js.
  */
@@ -202,7 +202,7 @@ export const TagAssignModal = ({
                         ) : (
                           <Send className="w-3 h-3 mr-1" />
                         )}
- Tag All Items G All {participants.length} Participants
+ Tag All Items -- All {participants.length} Participants
                       </Button>
                     )}
                   </div>

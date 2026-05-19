@@ -1,5 +1,5 @@
-﻿/**
- * CreateNoteModal G Modal for creating Instagram-style notes in Messages.
+/**
+ * CreateNoteModal -- Modal for creating Instagram-style notes in Messages.
  * Includes emoji picker, character limit, and mutual-followers notice.
  * Extracted from MessagesPage.js for maintainability.
  */

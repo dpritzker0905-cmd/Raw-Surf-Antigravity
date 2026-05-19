@@ -1,5 +1,5 @@
-﻿/**
- * CookieConsentBanner G EU-compliant cookie consent banner.
+/**
+ * CookieConsentBanner -- EU-compliant cookie consent banner.
  *
  * Shows on first visit, persists choice in localStorage.
  * Follows the project's glassmorphism design pattern with slide-up animation.

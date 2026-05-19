@@ -1,6 +1,6 @@
-﻿/**
+/**
  * useMessagesActions.js
- * Extracted from MessagesPage.js G API handler logic for messaging.
+ * Extracted from MessagesPage.js -- API handler logic for messaging.
  * 
  * Note: useCallback/useRef/useEffect-based handlers remain in the parent
  * component since they require React hook context. Only pure API handlers

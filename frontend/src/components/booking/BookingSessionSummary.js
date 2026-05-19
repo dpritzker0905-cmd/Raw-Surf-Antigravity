@@ -1,5 +1,5 @@
-﻿/**
- * BookingSessionSummary G Extracted from ScheduledBookingDrawer.js (v80)
+/**
+ * BookingSessionSummary -- Extracted from ScheduledBookingDrawer.js (v80)
  *
  * Displays the session details summary and crew payment info within
  * the payment step of the booking flow.

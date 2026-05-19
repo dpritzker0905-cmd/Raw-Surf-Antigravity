@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RichText - Renders text with clickable #hashtags and @mentions
  * 
  * Best practices from social media:
@@ -152,7 +152,7 @@ export const RichText = ({
       const res = await apiClient.get(`/api/username/lookup/${encodeURIComponent(username)}`);
       navigate(`/profile/${res.data.id}`);
     } catch {
- // Username not found G show toast instead of navigating to a dead route
+ // Username not found -- show toast instead of navigating to a dead route
       toast.error(`User @${username} not found`);
     }
   };

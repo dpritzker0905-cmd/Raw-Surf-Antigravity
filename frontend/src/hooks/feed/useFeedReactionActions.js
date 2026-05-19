@@ -1,5 +1,5 @@
-﻿/**
- * useFeedReactionActions G Extracted from useFeedActions.js (v77)
+/**
+ * useFeedReactionActions -- Extracted from useFeedActions.js (v77)
  * Handles: likes, shaka tap/hold, emoji reactions, save/bookmark, comments
  */
 import { useRef } from 'react';
@@ -39,7 +39,7 @@ const useFeedReactionActions = ({
     const wasLiked = currentPost?.liked;
     const oldCount = currentPost?.likes_count || 0;
     
- // Optimistic UI update G also clear user_reaction on unlike
+ // Optimistic UI update -- also clear user_reaction on unlike
     // (backend cross-table cleanup removes PostReaction too)
     setPosts(prevPosts => prevPosts.map(p =>
       p.id === postId
@@ -94,7 +94,7 @@ const useFeedReactionActions = ({
     longPressTriggeredRef.current = false;
     touchStartTimeRef.current = Date.now();
 
- // Capture anchor rect eagerly G React recycles the synthetic event,
+ // Capture anchor rect eagerly -- React recycles the synthetic event,
     // so e.currentTarget will be null by the time the timeout fires.
     const anchorRect = e.currentTarget?.getBoundingClientRect();
 
@@ -124,7 +124,7 @@ const useFeedReactionActions = ({
   // Fallback onClick for mobile browsers where pointerUp may not fire
   // (e.g., when touch is intercepted by scroll or context menu).
   const handleShakaClick = (postId) => {
- // Only act if pointerUp didn't already handle it G check elapsed time.
+ // Only act if pointerUp didn't already handle it -- check elapsed time.
     const elapsed = Date.now() - touchStartTimeRef.current;
     if (elapsed < 500 && !longPressTriggeredRef.current) {
       // PointerUp should have handled it, but if the like didn't go through
@@ -156,7 +156,7 @@ const useFeedReactionActions = ({
     const isChanging = hasExistingReaction && !isRemoving;
     const oldCount = targetPost?.likes_count || 0;
 
- // Optimistic update G include likes_count so the counter reacts instantly
+ // Optimistic update -- include likes_count so the counter reacts instantly
     setPosts(prevPosts => prevPosts.map(p => {
       if (p.id !== postId) return p;
       if (isRemoving) {

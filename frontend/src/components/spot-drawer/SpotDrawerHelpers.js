@@ -1,6 +1,6 @@
-﻿/**
+/**
  * SpotDrawerHelpers.js
- * Extracted from UnifiedSpotDrawer.js G Shared small UI components used by the spot drawer.
+ * Extracted from UnifiedSpotDrawer.js -- Shared small UI components used by the spot drawer.
  * Includes: SpotOfTheDayBadge, LiveSavingsBadge, StarRating, ReviewsCarousel, GeofenceUpgradeCTA, DRAWER_MODE
  */
 import React from 'react';
@@ -10,7 +10,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 
-// Drawer modes G shared constant
+// Drawer modes -- shared constant
 export const DRAWER_MODE = {
   REPORT: 'REPORT',
   SETUP: 'SETUP',

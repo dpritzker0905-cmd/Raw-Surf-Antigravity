@@ -1,5 +1,5 @@
-﻿/**
- * GrowthToolsPanel G Extracted from AdminUnifiedAnalytics.js (v81)
+/**
+ * GrowthToolsPanel -- Extracted from AdminUnifiedAnalytics.js (v81)
  * Promo Codes, Feature Flags, and Push Campaigns management.
  */
 import React, { useState } from 'react';

@@ -1,5 +1,5 @@
-﻿/**
- * ResponsiveImage G Image component with srcSet support for bandwidth savings.
+/**
+ * ResponsiveImage -- Image component with srcSet support for bandwidth savings.
  *
  * Automatically generates srcSet from Supabase storage URLs or serves
  * single-source images with proper loading="lazy" and decoding="async".

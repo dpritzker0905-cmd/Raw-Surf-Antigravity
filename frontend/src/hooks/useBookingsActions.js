@@ -1,15 +1,15 @@
-﻿/**
+/**
  * useBookingsActions.js
- * Extracted from Bookings.js G handler logic for the Bookings page.
+ * Extracted from Bookings.js -- handler logic for the Bookings page.
  * 
  * Extraction checklist (v30):
- * G Step 1: JSX scan G zero JSX in extraction range
- * G Step 2: Closure param audit G all state/setters listed
- * G Step 3: Phantom param check G every param used in handler body
- * G Step 4: React hooks scan G no React hooks needed (pure handlers)
- * G Step 5: Utility/import scan G apiClient, toast, logger
- * G Step 6: Hook placement G called AFTER all useState declarations
- * G Step 7: Cross-module export G SURFER_ROLES is local const, not needed
+ * G Step 1: JSX scan -- zero JSX in extraction range
+ * G Step 2: Closure param audit -- all state/setters listed
+ * G Step 3: Phantom param check -- every param used in handler body
+ * G Step 4: React hooks scan -- no React hooks needed (pure handlers)
+ * G Step 5: Utility/import scan -- apiClient, toast, logger
+ * G Step 6: Hook placement -- called AFTER all useState declarations
+ * G Step 7: Cross-module export -- SURFER_ROLES is local const, not needed
  */
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';

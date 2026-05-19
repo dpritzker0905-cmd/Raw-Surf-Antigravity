@@ -1,6 +1,6 @@
-﻿/**
+/**
  * useSpotHubActions.js
- * Extracted from SpotHub.js G handler logic for spot detail pages.
+ * Extracted from SpotHub.js -- handler logic for spot detail pages.
  * v32: Rewritten to match actual SpotHub.js handler implementations.
  */
 import apiClient from '../lib/apiClient';

@@ -1,5 +1,5 @@
-﻿/**
- * SurfboardAvatar G Crew member avatar with surfboard-shaped visualization.
+/**
+ * SurfboardAvatar -- Crew member avatar with surfboard-shaped visualization.
  * Extracted from OnDemandRequestDrawer.js.
  * 
  * Used in the crew formation step to show a beach-themed crew lineup.

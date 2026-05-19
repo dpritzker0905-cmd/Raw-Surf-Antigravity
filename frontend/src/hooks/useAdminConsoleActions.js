@@ -1,6 +1,6 @@
-﻿/**
+/**
  * useAdminConsoleActions.js
- * Extracted from UnifiedAdminConsole.js G handler logic for admin operations.
+ * Extracted from UnifiedAdminConsole.js -- handler logic for admin operations.
  * 
  * Note: useCallback-wrapped handlers (fetchData, fetchSessionData) remain in
  * the parent component. Only pure API handlers are extracted here.

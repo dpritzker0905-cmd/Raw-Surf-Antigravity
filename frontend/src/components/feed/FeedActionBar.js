@@ -1,5 +1,5 @@
-﻿/**
- * FeedActionBar G Extracted from Feed.js (v103)
+/**
+ * FeedActionBar -- Extracted from Feed.js (v103)
  * Check-in button, streak counter, and create-post FAB.
  */
 import React from 'react';

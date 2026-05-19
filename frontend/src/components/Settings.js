@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -259,7 +259,7 @@ export const Settings = () => {
           </Card>
         )}
 
- {/* Surf Mode G Competitive/Pro progression for non-Grom surfers */}
+ {/* Surf Mode -- Competitive/Pro progression for non-Grom surfers */}
         {isSurfer && !isGrom && (
           <SurfModeCard
             textPrimaryClass={textPrimaryClass}
@@ -268,7 +268,7 @@ export const Settings = () => {
           />
         )}
 
- {/* Grom Parent G AND-able toggle for surfers who are also parents */}
+ {/* Grom Parent -- AND-able toggle for surfers who are also parents */}
         {isSurfer && !isGrom && (
           <GromParentCard
             textPrimaryClass={textPrimaryClass}
@@ -457,7 +457,7 @@ export const Settings = () => {
                   <span className={textPrimaryClass}>Spot Data Cache</span>
                   <p className={`text-xs ${textSecondaryClass}`}>
                     {spotsCached || nearbyCached 
- ? `${getCacheSize()} MB G Updated ${formatCacheTime()}` 
+ ? `${getCacheSize()} MB -- Updated ${formatCacheTime()}` 
                       : 'Not cached'}
                   </p>
                 </div>
@@ -598,7 +598,7 @@ export const Settings = () => {
           )}
         </Card>
 
- {/* Legal / Terms of Service G Self-contained component */}
+ {/* Legal / Terms of Service -- Self-contained component */}
         <LegalSection
           userId={user?.id}
           textPrimaryClass={textPrimaryClass}

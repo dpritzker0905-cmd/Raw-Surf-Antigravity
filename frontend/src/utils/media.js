@@ -1,5 +1,5 @@
-﻿/**
- * media.js G Shared media URL utilities
+/**
+ * media.js -- Shared media URL utilities
  *
  * Centralizes the `getFullUrl` helper that was previously duplicated
  * across 46+ components. All avatar images, post media, and gallery
@@ -27,8 +27,8 @@ import { BACKEND_URL } from '../lib/apiClient';
  */
 export const getFullUrl = (url) => {
   if (!url) return url;
- if (url.startsWith('data:')) return url; // base64 data URIs G local only
- if (url.startsWith('blob:')) return url; // blob URLs G local object refs
+ if (url.startsWith('data:')) return url; // base64 data URIs -- local only
+ if (url.startsWith('blob:')) return url; // blob URLs -- local object refs
   if (url.startsWith('//')) return url;      // protocol-relative CDN URLs
   if (url.startsWith('http')) return url;    // absolute http/https URLs
   return `${BACKEND_URL || ''}${url}`;       // relative /api/uploads/... paths
@@ -68,7 +68,7 @@ export const getVideoPoster = (post) =>
 // GG CDN / Supabase Image Transform helpers GGGGGGGGGGGGGGGGGGGGGGGGG
 // Supabase Storage supports on-the-fly image transforms via URL params.
 // See: https://supabase.com/docs/guides/storage/serving/image-transformations
-// These helpers are CDN-ready G they only modify Supabase-hosted URLs,
+// These helpers are CDN-ready -- they only modify Supabase-hosted URLs,
 // passing non-Supabase URLs through unchanged.
 
 const SUPABASE_STORAGE_HOST = 'supabase.co/storage/v1/object/public/';

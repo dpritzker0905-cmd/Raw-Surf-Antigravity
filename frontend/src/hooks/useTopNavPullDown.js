@@ -1,9 +1,9 @@
-﻿/**
- * useTopNavPullDown G Touch gesture hook for the TopNav pull-down drawer.
+/**
+ * useTopNavPullDown -- Touch gesture hook for the TopNav pull-down drawer.
  *
  * Distinguishes between:
- * - Pulling DOWN on the TopNav header G opens the drawer
- * - Pulling DOWN on page content G native pull-to-refresh (usePullToRefresh)
+ * - Pulling DOWN on the TopNav header -- opens the drawer
+ * - Pulling DOWN on page content -- native pull-to-refresh (usePullToRefresh)
  *
  * How it avoids conflict:
  *   1. Only activates when touch starts INSIDE the TopNav header element
@@ -65,7 +65,7 @@ export function useTopNavPullDown() {
     const deltaY = (e.touches[0].clientY - startY.current) * RESISTANCE;
 
     if (!isOpen) {
- // CLOSED G pulling DOWN to open
+ // CLOSED -- pulling DOWN to open
       if (deltaY <= 5) return; // ignore tiny movements & upward swipes
       isDragging.current = true;
 
@@ -81,7 +81,7 @@ export function useTopNavPullDown() {
         haptic('light');
       }
     } else {
- // OPEN G pushing UP to close
+ // OPEN -- pushing UP to close
       if (deltaY >= -5) return;
       isDragging.current = true;
 

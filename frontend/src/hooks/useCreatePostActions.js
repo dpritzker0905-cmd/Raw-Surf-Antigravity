@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useCreatePostActions.js - Extracted from CreatePost.js
  * Post creation: media upload, compression, tag, spot selection.
  * 18 pure handlers.
@@ -429,7 +429,7 @@ const useCreatePostActions = ({
         );
 
         if (isVideo) {
- // Videos go through server upload G use generous timeout for mobile
+ // Videos go through server upload -- use generous timeout for mobile
           const formData = new FormData();
           formData.append('file', file);
           formData.append('user_id', user.id);

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Compass, Plus, MessageCircle, Waves } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -93,7 +93,7 @@ const HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
 };
 
 /**
- * Mobile Bottom Navigation v4.2 G Universal Layout for ALL Roles
+ * Mobile Bottom Navigation v4.2 -- Universal Layout for ALL Roles
  * 
  * Tab 1: Home - Global (Social Feed) G Animated Wave Icon
  * Tab 2: Explore - Universal (Browse spots, photographers, trending)
@@ -226,7 +226,7 @@ export const BottomNav = () => {
           onNavigate={handleNavigation}
         />
 
- {/* Tab 2: Explore G Universal for ALL roles */}
+ {/* Tab 2: Explore -- Universal for ALL roles */}
         <button
           onClick={() => handleNavigation('/explore')}
           onMouseEnter={() => preload('explore')}

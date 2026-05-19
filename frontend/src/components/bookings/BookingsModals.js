@@ -1,5 +1,5 @@
-﻿/**
- * BookingsModals G Extracted from Bookings.js (v82)
+/**
+ * BookingsModals -- Extracted from Bookings.js (v82)
  * All modal/drawer overlays for the Bookings page in a single component.
  */
 import React from 'react';

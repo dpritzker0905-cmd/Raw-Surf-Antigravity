@@ -1,0 +1,29 @@
+# Auto-detect text files and ensure LF line endings in the repo
+* text=auto eol=lf
+
+# Explicitly declare JS/JSX as text to prevent encoding corruption
+*.js text eol=lf encoding=utf-8
+*.jsx text eol=lf encoding=utf-8
+*.json text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Python backend
+*.py text eol=lf encoding=utf-8
+
+# Denote binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.mp4 binary
+*.webm binary

@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   Camera, MapPin, Flame, Radio, Heart, Trophy, Ban, Check, Loader2, UserPlus, UserMinus,
   Instagram, Globe, ExternalLink, Settings
@@ -23,7 +23,7 @@ const ProfileRoleBadge = ({ role }) => {
 };
 
 /**
- * ProfileHeader G Extracted from Profile.js
+ * ProfileHeader -- Extracted from Profile.js
  * Renders the avatar, note bubble, name, username, stats row,
  * role badges, bio, social links, and action buttons.
  */

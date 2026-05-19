@@ -1,6 +1,6 @@
-﻿/**
+/**
  * ExploreConditionsTab.js
- * Extracted from Explore.js G Conditions/Reports tab with 3 sub-tabs:
+ * Extracted from Explore.js -- Conditions/Reports tab with 3 sub-tabs:
  * Today / Yesterday / Archives
  *
  * Includes: hierarchical location picker, nearby mode toggle,

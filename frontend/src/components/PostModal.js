@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PostModal - Instagram-style post popup with image on left, details on right
  * Opens when clicking on a post in the feed
  */
@@ -331,7 +331,7 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center"
     >
- {/* Backdrop G onMouseDown is the industry-standard close trigger.
+ {/* Backdrop -- onMouseDown is the industry-standard close trigger.
           Unlike onClick on the outer container, mouseDown on a dedicated
           backdrop layer can never be accidentally triggered by events
           originating inside the modal content or picker overlays. */}

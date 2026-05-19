@@ -1,5 +1,5 @@
-﻿/**
- * SessionHistoryList G Past session history for photographers.
+/**
+ * SessionHistoryList -- Past session history for photographers.
  * Extracted from PhotographerSessionsManager.js.
  * 
  * Features:

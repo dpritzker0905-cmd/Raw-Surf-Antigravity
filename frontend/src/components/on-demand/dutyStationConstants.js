@@ -1,5 +1,5 @@
-﻿/**
- * DutyStation constants and geo utilities G extracted from DutyStationDrawer (v81)
+/**
+ * DutyStation constants and geo utilities -- extracted from DutyStationDrawer (v81)
  */
 import { Radio, Zap } from 'lucide-react';
 

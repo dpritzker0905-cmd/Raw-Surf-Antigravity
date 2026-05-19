@@ -1,5 +1,5 @@
-﻿/**
- * CancelSessionDialog G Extracted from OnDemandSessionManager.js (v82)
+/**
+ * CancelSessionDialog -- Extracted from OnDemandSessionManager.js (v82)
  * Confirmation dialog for cancelling an active on-demand session.
  */
 import React from 'react';

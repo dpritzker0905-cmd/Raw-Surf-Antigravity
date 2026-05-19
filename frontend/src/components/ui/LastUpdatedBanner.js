@@ -1,5 +1,5 @@
-﻿/**
- * LastUpdatedBanner G Thin status banner for cached / stale data.
+/**
+ * LastUpdatedBanner -- Thin status banner for cached / stale data.
  *
  * Shows when:
  *  - Device is offline

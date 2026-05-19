@@ -1,11 +1,11 @@
-﻿/**
- * useWebRTCMedia G Media acquisition and track management for WebRTC calls.
+/**
+ * useWebRTCMedia -- Media acquisition and track management for WebRTC calls.
  *
  * Handles:
  *   - getUserMedia with iOS Safari sequential permission strategy
  *   - Mute/unmute audio
  *   - Camera on/off toggle with track re-acquisition
- * - Camera flip (front G rear) with device enumeration fallbacks
+ * - Camera flip (front -- rear) with device enumeration fallbacks
  *   - Track replacement for WebGL filtered canvas streams
  */
 
@@ -48,14 +48,14 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
       }
     } catch (e) {
       if (e._permanentlyDenied) throw e;
- // permissions.query not supported for this name G continue
+ // permissions.query not supported for this name -- continue
     }
   }
 
  // GG Step 1: Always acquire audio first GG
   let audioStream;
   try {
- logger.debug('[WebRTC] Step 1 G requesting audio-onlyG');
+ logger.debug('[WebRTC] Step 1 -- requesting audio-onlyG');
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
  logger.debug('[WebRTC] G Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
   } catch (err) {
@@ -63,7 +63,7 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
     throw err; // No audio = no call possible
   }
 
- // Audio-only call G we're done
+ // Audio-only call -- we're done
   if (type !== 'video') {
     return audioStream;
   }
@@ -78,7 +78,7 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
   let videoStream = null;
   for (const constraints of videoConstraintChain) {
     try {
- logger.debug('[WebRTC] Step 2 G trying video with:', JSON.stringify(constraints));
+ logger.debug('[WebRTC] Step 2 -- trying video with:', JSON.stringify(constraints));
       videoStream = await navigator.mediaDevices.getUserMedia(constraints);
  logger.debug('[WebRTC] G Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
       break;
@@ -96,14 +96,14 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
     return combined;
   }
 
- // Video failed at all constraint levels G fall back to audio-only
+ // Video failed at all constraint levels -- fall back to audio-only
  console.warn('[WebRTC] Gn+ All video attempts failed, falling back to audio-only');
   toast('Camera unavailable \u{2014} continuing with audio only', { icon: '\u{1F4F9}' });
   return audioStream;
 }
 
 /**
- * useWebRTCMedia G Hook for managing local media controls during a WebRTC call.
+ * useWebRTCMedia -- Hook for managing local media controls during a WebRTC call.
  *
  * @param {Object} params
  * @param {React.MutableRefObject} params.localStreamRef - Ref to the current local MediaStream
@@ -193,7 +193,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     }
   }, [isCameraOff, localStreamRef, peerConnectionRef, setLocalStream]);
 
- // GG Flip Camera (Front G Rear) GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+ // GG Flip Camera (Front -- Rear) GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
   // Samsung S23 FE + many Android devices: must STOP the old camera
   // track BEFORE requesting a new one, otherwise the browser throws
   // OverconstrainedError or NotReadableError because the hardware
@@ -215,7 +215,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     // 2. Small delay for hardware release (critical on Samsung/Android)
     await new Promise(r => setTimeout(r, 300));
 
- // 3. Try acquiring new camera G cascade: ideal G plain string G deviceId
+ // 3. Try acquiring new camera -- cascade: ideal -- plain string -- deviceId
     let freshVideoTrack = null;
 
     // Attempt 1: ideal facingMode (broadest compatibility)
@@ -279,7 +279,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     }
 
     if (!freshVideoTrack) {
- // All attempts failed G re-acquire the original camera so the user isn't left with no video
+ // All attempts failed -- re-acquire the original camera so the user isn't left with no video
       try {
         const recovery = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 640 }, height: { ideal: 480 } },

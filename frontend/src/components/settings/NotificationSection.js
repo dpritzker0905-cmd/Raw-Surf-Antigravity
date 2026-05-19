@@ -1,10 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import { MessageSquare, Heart, UserPlus, Camera, CalendarCheck,
   DollarSign, Mail, VolumeX, Volume2, Activity, Clock
 } from 'lucide-react';
 
 /**
- * NotificationSection G Extracted from Settings.js
+ * NotificationSection -- Extracted from Settings.js
  * Handles all push notification, email, sound/haptics, quiet hours,
  * and digest mode toggles.
  */

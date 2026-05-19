@@ -1,5 +1,5 @@
-﻿/**
- * PostMediaPreview G Reusable media preview card for posts, waves, and videos.
+/**
+ * PostMediaPreview -- Reusable media preview card for posts, waves, and videos.
  * Shows video thumbnail with play badge, responsive image, or placeholder.
  * Extracted from Explore.js for reuse across explore grid, search results, etc.
  */

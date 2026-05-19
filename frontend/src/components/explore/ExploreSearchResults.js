@@ -1,6 +1,6 @@
-﻿/**
+/**
  * ExploreSearchResults.js
- * Extracted from Explore.js G Search results overlay showing users, spots, posts.
+ * Extracted from Explore.js -- Search results overlay showing users, spots, posts.
  */
 import React from 'react';
 import { useNavigate } from 'react-router-dom';

@@ -1,5 +1,5 @@
-﻿/**
- * AudioUnlock G Ringtone manager using HTML Audio elements.
+/**
+ * AudioUnlock -- Ringtone manager using HTML Audio elements.
  * 
  * WHY HTML Audio instead of AudioContext:
  * - AudioContext requires a user gesture AND .resume() to work
@@ -66,7 +66,7 @@ function generateIncomingRing() {
   for (let i = 0; i < samples.length; i++) {
     const t = i / sampleRate;
     let amplitude = 0;
- // Three short bursts for urgency G louder than before (0.6 vs 0.25)
+ // Three short bursts for urgency -- louder than before (0.6 vs 0.25)
     if (t < 0.35) amplitude = 0.6;
     else if (t >= 0.5 && t < 0.85) amplitude = 0.6;
     else if (t >= 1.0 && t < 1.35) amplitude = 0.6;
@@ -153,7 +153,7 @@ export function playRingtone(type = 'incoming') {
   playOnce();
   intervalId = setInterval(playOnce, interval);
 
- // Vibration G always fire alongside audio for incoming calls
+ // Vibration -- always fire alongside audio for incoming calls
   // Aggressive pattern: long-short-long-short-long (feels like a real phone)
   let vibrateId = null;
   if (type === 'incoming' && navigator.vibrate) {
@@ -177,7 +177,7 @@ export function playRingtone(type = 'incoming') {
 }
 
 /**
- * Unlock audio on user gesture G plays a silent audio to warm up the pipeline.
+ * Unlock audio on user gesture -- plays a silent audio to warm up the pipeline.
  * Also loads our pre-created Audio objects so they're ready for instant playback.
  */
 export function unlockAudioNow() {

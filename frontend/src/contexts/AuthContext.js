@@ -1,4 +1,4 @@
-﻿import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 
 const AuthContext = createContext();
@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
       grom_competes
     });
     const userData = response.data;
- // Token is included in signup response G store it inside the user object
+ // Token is included in signup response -- store it inside the user object
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     document.documentElement.classList.remove('no-god-mode');

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -14,13 +14,13 @@ import { AdaptiveBackground } from './AdaptiveBackground';
 
 
 /**
- * TopNav v4.2 G Ultra-Clean 2-Icon Header + Pull-Down Drawer
+ * TopNav v4.2 -- Ultra-Clean 2-Icon Header + Pull-Down Drawer
  *
- * VISIBLE (collapsed G ALL roles):
+ * VISIBLE (collapsed -- ALL roles):
  *   [Logo]                    [Role-Critical]  [Bell]
- * GGGGGGG (pull handle)
+ * --- --- (pull handle)
  *
- * EXPANDED (pull-down drawer G 2 rows):
+ * EXPANDED (pull-down drawer -- 2 rows):
  *   Row 1 (Universal):  Search | Settings | Backpack
  *   Row 2 (Role-Based): Map | Photo Tools | Sessions | Gallery (varies)
  *
@@ -154,7 +154,7 @@ export const TopNav = () => {
               </button>
             )}
 
- {/* Notifications Bell G always visible */}
+ {/* Notifications Bell -- always visible */}
             <button
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               className={`transition-colors relative p-1 ${
@@ -173,7 +173,7 @@ export const TopNav = () => {
           </div>
         </div>
 
- {/* Pull Handle G visual affordance for the drawer gesture */}
+ {/* Pull Handle -- visual affordance for the drawer gesture */}
         <button
           onClick={toggleDrawer}
           className="flex justify-center pb-1 pt-0.5 -mt-2 w-full group"

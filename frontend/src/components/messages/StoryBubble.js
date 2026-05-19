@@ -1,5 +1,5 @@
-﻿/**
- * StoryBubble G Instagram-style story/note bubble for the messages page.
+/**
+ * StoryBubble -- Instagram-style story/note bubble for the messages page.
  * Shows avatar with gradient ring, note overlay, and time remaining.
  * Extracted from MessagesPage.js for maintainability.
  */

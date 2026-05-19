@@ -1,6 +1,6 @@
-﻿/**
+/**
  * JumpInFlow.js
- * Extracted from UnifiedSpotDrawer.js G Complete Jump In session flow
+ * Extracted from UnifiedSpotDrawer.js -- Complete Jump In session flow
  * including camera preflight, selfie capture, payment selection, and success confirmation.
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';

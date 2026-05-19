@@ -1,11 +1,11 @@
-﻿/**
- * CardSkeleton G Generic shimmer placeholder for booking, gallery, and list cards.
+/**
+ * CardSkeleton -- Generic shimmer placeholder for booking, gallery, and list cards.
  * Uses the base Skeleton primitive from ui/skeleton.jsx.
  */
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-/** Horizontal card skeleton G booking / session style */
+/** Horizontal card skeleton -- booking / session style */
 export const BookingCardSkeleton = () => (
   <div className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card">
     <Skeleton className="w-14 h-14 rounded-xl shrink-0" />
@@ -18,7 +18,7 @@ export const BookingCardSkeleton = () => (
   </div>
 );
 
-/** Grid card skeleton G gallery / photo style */
+/** Grid card skeleton -- gallery / photo style */
 export const GalleryCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full aspect-square" />

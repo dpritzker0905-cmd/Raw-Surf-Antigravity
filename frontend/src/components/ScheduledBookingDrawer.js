@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ScheduledBookingDrawer - Complete booking flow for scheduled sessions
  * Integrates: ExactTimeSlotPicker, Impact Zone coordinates, Account Credit, Crew Split, Confirmation
  */
@@ -512,7 +512,7 @@ export const ScheduledBookingDrawer = ({
           {/* Step 4: Payment */}
           {step === 'payment' && (
             <div className="space-y-4 pb-4">
- {/* Session Summary + Crew Payment G Extracted */}
+ {/* Session Summary + Crew Payment -- Extracted */}
               <BookingSessionSummary
                 selectedDate={selectedDate}
                 selectedTime={selectedTime}

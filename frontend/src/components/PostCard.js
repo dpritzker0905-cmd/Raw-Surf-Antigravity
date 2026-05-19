@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PostCard - Extracted from Feed.js for better maintainability
  * Renders a single post in the feed with all interactions
  */
@@ -240,7 +240,7 @@ const PostCard = ({
         </div>
       )}
 
- {/* Post Image/Video/Carousel G delegated to PostCardMedia */}
+ {/* Post Image/Video/Carousel -- delegated to PostCardMedia */}
       <PostCardMedia
         post={post}
         user={user}

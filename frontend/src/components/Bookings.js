@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import useSwipeNavigation from '../hooks/useSwipeNavigation';
 
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -51,7 +51,7 @@ export const Bookings = () => {
   const dragStartXRef = useRef(0);
   const scrollStartRef = useRef(0);
 
- // Swipe-to-navigate G uses shared hook (v81)
+ // Swipe-to-navigate -- uses shared hook (v81)
 
   // Check if scroll arrows should show (desktop only)
   const updateArrows = () => {
@@ -739,7 +739,7 @@ export const Bookings = () => {
         </div>
       </div>
 
- {/* Modals & Drawers G Extracted to bookings/BookingsModals.js (v82) */}
+ {/* Modals & Drawers -- Extracted to bookings/BookingsModals.js (v82) */}
       <BookingsModals
         isLight={isLight}
         textPrimaryClass={textPrimaryClass}

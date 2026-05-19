@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Radio, Clock, Mic, MicOff, Camera, CameraOff,
   RefreshCw, MessageCircle, Heart, Sparkles,
@@ -206,8 +206,8 @@ const BroadcasterControls = ({
           }
         }
       }
- // All retries exhausted G non-fatal, hair filter simply won't work
- logger.error('[HairFilter] All init attempts failed G MediaPipe CDN may be unreachable');
+ // All retries exhausted -- non-fatal, hair filter simply won't work
+ logger.error('[HairFilter] All init attempts failed -- MediaPipe CDN may be unreachable');
     };
     
     initWithRetry();

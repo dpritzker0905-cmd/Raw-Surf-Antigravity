@@ -1,5 +1,5 @@
-﻿/**
- * SpotSetupPanel G Extracted from UnifiedSpotDrawer.js (v79)
+/**
+ * SpotSetupPanel -- Extracted from UnifiedSpotDrawer.js (v79)
  *
  * The Go-Live session setup form: buy-in price, photos included,
  * live photo price, max surfers, auto-accept toggle, and the

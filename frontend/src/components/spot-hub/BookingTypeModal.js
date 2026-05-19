@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Camera, MapPin, Radio, Zap, CalendarClock, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
@@ -8,7 +8,7 @@ import { getFullUrl } from '../../utils/media';
 import { ROLES } from '../../constants/roles';
 
 /**
- * BookingTypeModal G Extracted from SpotHub.js
+ * BookingTypeModal -- Extracted from SpotHub.js
  * Let users choose between Live (Jump In), On-Demand, or Scheduled booking.
  */
 const BookingTypeModal = ({ isOpen, onClose, photographer, spotId, spotName, onSelectType }) => {

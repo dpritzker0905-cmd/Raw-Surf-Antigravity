@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import useSwipeNavigation from '../hooks/useSwipeNavigation';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -418,7 +418,7 @@ export const Explore = () => {
     { id: 'surfspots', label: 'Surf Spots', icon: Navigation },
   ], []);
 
- // Swipe-to-navigate G shared hook for mobile tab switching
+ // Swipe-to-navigate -- shared hook for mobile tab switching
   const { contentRef: exploreContentRef, swipeHandlers, isAnimating, setIsAnimating } = useSwipeNavigation({
     tabs,
     activeTab,

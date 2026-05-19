@@ -1,5 +1,5 @@
-﻿/**
- * useRoutePreloader G Preloads React.lazy route chunks on hover/touch.
+/**
+ * useRoutePreloader -- Preloads React.lazy route chunks on hover/touch.
  * Eliminates perceived loading delay when navigating between high-traffic pages.
  *
  * Usage:
@@ -33,9 +33,9 @@ const useRoutePreloader = () => {
     const loader = ROUTE_LOADERS[routeKey];
     if (loader) {
       preloadedRef.current.add(routeKey);
- // Fire and forget G the browser will cache the chunk
+ // Fire and forget -- the browser will cache the chunk
       loader().catch(() => {
- // Silent failure G preload is best-effort
+ // Silent failure -- preload is best-effort
         preloadedRef.current.delete(routeKey);
       });
     }

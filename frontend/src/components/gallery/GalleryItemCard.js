@@ -1,5 +1,5 @@
-﻿/**
- * GalleryItemCard & QualityOption G Extracted from PublicPhotographerGallery.js (v83)
+/**
+ * GalleryItemCard & QualityOption -- Extracted from PublicPhotographerGallery.js (v83)
  */
 import React, { useState } from 'react';
 import { Play, ShoppingCart, MapPin, Check, Star } from 'lucide-react';

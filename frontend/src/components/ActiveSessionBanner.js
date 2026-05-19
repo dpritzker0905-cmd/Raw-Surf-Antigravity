@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ActiveSessionBanner.js
  *
  * Multi-platform persistent session awareness component.
@@ -11,7 +11,7 @@
  *   Expanded:    Full context card with status, photographer, ETA, CTA.
  *
  * DESKTOP:
- * Handled by Sidebar.js G pulsing text label under the Bookings nav item.
+ * Handled by Sidebar.js -- pulsing text label under the Bookings nav item.
  *   (No separate desktop component needed here.)
  *
  * Color scheme:
@@ -70,9 +70,9 @@ const StatusIcon = ({ status, colorConfig }) => {
 };
 
 
-// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
-// MOBILE BANNER G Sits above BottomNav
-// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- ---
+// MOBILE BANNER -- Sits above BottomNav
+// --- ---
 
 const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsExpanded, handleNavigate, statusLabel }) => {
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -91,7 +91,7 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
         <div
           className={`h-[5px] w-full bg-gradient-to-r ${colorConfig.barGradient} animate-[pulse_2.5s_ease-in-out_infinite]`}
         />
- {/* Pull-up handles G positioned LEFT and RIGHT to avoid center Create button */}
+ {/* Pull-up handles -- positioned LEFT and RIGHT to avoid center Create button */}
         <div className="absolute left-16 -top-3 flex flex-col items-center">
           <div className={`w-8 h-3 rounded-t-lg ${isLight ? 'bg-white/90' : 'bg-zinc-900/90'} border border-b-0 ${colorConfig.border} flex items-center justify-center backdrop-blur-sm`}>
             <ChevronUp className={`w-3 h-3 ${colorConfig.textAccent}`} />
@@ -182,11 +182,11 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
 };
 
 
-// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
-// TOPNAV NOTIFICATION LINE G Thin accent line at the very bottom of
+// --- ---
+// TOPNAV NOTIFICATION LINE -- Thin accent line at the very bottom of
 // the header, positioned to touch the scrollable content below with
 // zero gap. Sits OVER the header's border-b.
-// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- ---
 
 const TopNavLine = ({ colorConfig }) => {
   // The TopNav header: py-2.5 (20px) + icon row (~24px) + border-b (1px)
@@ -206,10 +206,10 @@ const TopNavLine = ({ colorConfig }) => {
 };
 
 
-// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
-// MAIN EXPORT G Orchestrates mobile-only sub-components
+// --- ---
+// MAIN EXPORT -- Orchestrates mobile-only sub-components
 // Desktop session awareness is handled directly by Sidebar.js
-// GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- ---
 
 export const ActiveSessionBanner = () => {
   const navigate = useNavigate();

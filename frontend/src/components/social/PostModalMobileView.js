@@ -1,5 +1,5 @@
-﻿/**
- * PostModalMobileView G Extracted from PostModal.js (v77)
+/**
+ * PostModalMobileView -- Extracted from PostModal.js (v77)
  * Instagram-style fullscreen mobile post view with:
  * - Fullscreen image/video with double-tap shaka
  * - Bottom overlay with actions, caption, comments

@@ -1,8 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Award } from 'lucide-react';
 
 /**
- * Badge + XP display section G shared between Swell and Crew tabs.
+ * Badge + XP display section -- shared between Swell and Crew tabs.
  * Previously duplicated as identical JSX blocks in Profile.js.
  */
 export const BadgeSection = ({ gamificationStats }) => {

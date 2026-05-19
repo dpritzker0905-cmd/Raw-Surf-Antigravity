@@ -1,4 +1,4 @@
-﻿/**
+/**
  * LocationPickerPanel.js - Extracted from CreatePost.js (v61)
  * Hierarchical location/spot picker: Country > State > City > Spot.
  * 
@@ -111,7 +111,7 @@ const LocationPickerPanel = ({
                     <div className={`flex-1 h-px ${isLight ? 'bg-gray-200' : 'bg-zinc-700'}`} />
                   </div>
 
- {/* Hierarchical Pickers: Country G State G City G Spot */}
+ {/* Hierarchical Pickers: Country -- State -- City -- Spot */}
                   <div className="space-y-2">
                     {/* Country */}
                     <Select value={selectedCountry} onValueChange={(val) => { setSelectedCountry(val); setSelectedState(''); setSelectedCity(''); }}>

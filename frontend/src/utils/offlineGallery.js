@@ -1,5 +1,5 @@
-﻿/**
- * offlineGallery.js G Utility for caching purchased gallery photos offline
+/**
+ * offlineGallery.js -- Utility for caching purchased gallery photos offline
  * 
  * Allows surfers to save purchased photos for viewing without internet
  * (critical for beach/no-signal areas). Uses CacheStorage API.

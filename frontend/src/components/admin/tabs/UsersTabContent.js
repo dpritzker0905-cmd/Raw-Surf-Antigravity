@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UsersTabContent.js
  * Extracted from AdminTabPanels.js (v43)
  * User management tab with editable badges, bulk actions, and modals
@@ -49,7 +49,7 @@ const SUBSCRIPTION_OPTIONS = [
   { value: 'premium', label: 'Premium' },
 ];
 
-// Dropdown Badge Component (co-located G used only by UsersTabContent)
+// Dropdown Badge Component (co-located -- used only by UsersTabContent)
 const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);

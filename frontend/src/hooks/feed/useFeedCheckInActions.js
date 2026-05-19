@@ -1,5 +1,5 @@
-﻿/**
- * useFeedCheckInActions G Extracted from useFeedActions.js (v77)
+/**
+ * useFeedCheckInActions -- Extracted from useFeedActions.js (v77)
  * Handles: check-in flow, GPS location, spot fetching, location hierarchy,
  * streak management, passport XP integration
  */
@@ -155,7 +155,7 @@ const useFeedCheckInActions = ({
 
     try {
       if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
- // GPS path G Passport check-in (XP + stamps + badges)
+ // GPS path -- Passport check-in (XP + stamps + badges)
         const passportResponse = await apiClient.post(`/passport/checkin`, {
           spot_id: spotId,
           latitude: checkInData.latitude,
@@ -205,7 +205,7 @@ const useFeedCheckInActions = ({
         });
 
       } else {
- // Manual (non-GPS) path G legacy streak only, no passport XP
+ // Manual (non-GPS) path -- legacy streak only, no passport XP
         const response = await apiClient.post(`/check-in`, {
           spot_id: spotId || null,
           spot_name: spotName,

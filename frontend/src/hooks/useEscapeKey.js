@@ -1,5 +1,5 @@
-﻿/**
- * useEscapeKey G Reusable hook to close drawers/modals on Escape key press.
+/**
+ * useEscapeKey -- Reusable hook to close drawers/modals on Escape key press.
  *
  * Usage:
  *   useEscapeKey(isOpen, onClose);

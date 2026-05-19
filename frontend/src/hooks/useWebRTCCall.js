@@ -1,5 +1,5 @@
-﻿/**
- * useWebRTCCall G React hook for 1-on-1 audio/video calling via WebRTC.
+/**
+ * useWebRTCCall -- React hook for 1-on-1 audio/video calling via WebRTC.
  *
  * Architecture:
  *   - Signaling: useWebRTCSignaling (WebSocket lifecycle, reconnect, keepalive)
@@ -8,9 +8,9 @@
  *
  * Call Flow:
  *   1. Caller: startCall(targetUserId, 'audio'|'video')
- * 2. Callee: receives 'incoming_call' via WS G shows IncomingCallModal
+ * 2. Callee: receives 'incoming_call' via WS -- shows IncomingCallModal
  * 3. Callee: answerCall() G sends SDP answer
- * 4. Both: exchange ICE candidates G P2P stream established
+ * 4. Both: exchange ICE candidates -- P2P stream established
  * 5. Either: endCall() G cleanup
  */
 
@@ -54,7 +54,7 @@ const ICE_SERVERS = [
 export const CALL_STATE = {
   IDLE: 'idle',
   OUTGOING: 'outgoing',    // waiting for callee to answer
- INCOMING: 'incoming', // ringing G waiting for user to accept/decline
+ INCOMING: 'incoming', // ringing -- waiting for user to accept/decline
   CONNECTING: 'connecting', // SDP exchanged, waiting for ICE
   IN_CALL: 'in-call',       // media flowing
   ENDED: 'ended',           // call finished
@@ -197,7 +197,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
     };
 
- // iOS Safari fallback G it doesn't always fire onconnectionstatechange
+ // iOS Safari fallback -- it doesn't always fire onconnectionstatechange
     pc.oniceconnectionstatechange = () => {
       console.debug('[WebRTC] ICE connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {

@@ -1,5 +1,5 @@
-﻿/**
- * SkeletonVariants G Domain-specific skeleton loaders for all major views.
+/**
+ * SkeletonVariants -- Domain-specific skeleton loaders for all major views.
  * Uses the base Skeleton primitive from ui/skeleton.jsx.
  *
  * Import what you need:
@@ -8,7 +8,7 @@
 import React from 'react';
 import { Skeleton } from './skeleton';
 
-// GGG Feed Post Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Feed Post Skeleton ---
 export const FeedPostSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     {/* Header: avatar + name */}
@@ -35,7 +35,7 @@ export const FeedPostSkeleton = () => (
   </div>
 );
 
-// GGG Spot/Explore Card Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Spot/Explore Card Skeleton ---
 export const SpotCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-40" />
@@ -51,7 +51,7 @@ export const SpotCardSkeleton = () => (
   </div>
 );
 
-// GGG Profile Header Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Profile Header Skeleton ---
 export const ProfileHeaderSkeleton = () => (
   <div className="flex flex-col items-center space-y-4 py-6">
     <Skeleton className="w-24 h-24 rounded-full" />
@@ -74,7 +74,7 @@ export const ProfileHeaderSkeleton = () => (
   </div>
 );
 
-// GGG Message Thread Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Message Thread Skeleton ---
 export const MessageThreadSkeleton = () => (
   <div className="flex items-center gap-3 p-4 border-b border-border">
     <Skeleton className="w-12 h-12 rounded-full shrink-0" />
@@ -86,7 +86,7 @@ export const MessageThreadSkeleton = () => (
   </div>
 );
 
-// GGG Notification Item Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Notification Item Skeleton ---
 export const NotificationSkeleton = () => (
   <div className="flex items-start gap-3 p-4 border-b border-border">
     <Skeleton className="w-10 h-10 rounded-full shrink-0" />
@@ -98,7 +98,7 @@ export const NotificationSkeleton = () => (
   </div>
 );
 
-// GGG Settings Row Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Settings Row Skeleton ---
 export const SettingsRowSkeleton = () => (
   <div className="flex items-center justify-between p-4 border-b border-border">
     <div className="flex items-center gap-3">
@@ -109,7 +109,7 @@ export const SettingsRowSkeleton = () => (
   </div>
 );
 
-// GGG Leaderboard Row Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Leaderboard Row Skeleton ---
 export const LeaderboardRowSkeleton = () => (
   <div className="flex items-center gap-3 p-3 rounded-xl bg-card/50">
     <Skeleton className="w-8 h-8 rounded-full" />
@@ -122,7 +122,7 @@ export const LeaderboardRowSkeleton = () => (
   </div>
 );
 
-// GGG Map Sidebar Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Map Sidebar Skeleton ---
 export const MapSidebarSkeleton = () => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-40 rounded" />
@@ -138,7 +138,7 @@ export const MapSidebarSkeleton = () => (
   </div>
 );
 
-// GGG Surf Log Entry Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Surf Log Entry Skeleton ---
 export const SurfLogSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center justify-between">
@@ -162,7 +162,7 @@ export const SurfLogSkeleton = () => (
   </div>
 );
 
-// GGG Alert/Forecast Card Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Alert/Forecast Card Skeleton ---
 export const AlertCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-2">
     <div className="flex items-center gap-2">
@@ -178,7 +178,7 @@ export const AlertCardSkeleton = () => (
   </div>
 );
 
-// GGG Booking Detail Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Booking Detail Skeleton ---
 export const BookingDetailSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full h-48" />
@@ -200,7 +200,7 @@ export const BookingDetailSkeleton = () => (
   </div>
 );
 
-// GGG Story Ring Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Story Ring Skeleton ---
 export const StoryRingSkeleton = () => (
   <div className="flex gap-3 overflow-hidden px-4 py-2">
     {Array.from({ length: 6 }).map((_, i) => (
@@ -224,7 +224,7 @@ export const GearItemSkeleton = () => (
   </div>
 );
 
-// GGG Challenge Card Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Challenge Card Skeleton ---
 export const ChallengeCardSkeleton = () => (
   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
     <div className="flex items-center gap-3">
@@ -242,7 +242,7 @@ export const ChallengeCardSkeleton = () => (
   </div>
 );
 
-// GGG Compound List Skeletons GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Compound List Skeletons ---
 export const FeedSkeleton = ({ count = 3 }) => (
   <div className="space-y-4 p-4">
     <StoryRingSkeleton />
@@ -310,7 +310,7 @@ export const GallerySkeleton = () => (
   </div>
 );
 
-// GGG Bookings List Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Bookings List Skeleton ---
 export const BookingsSkeleton = ({ count = 4 }) => (
   <div className="space-y-3 p-4">
     <Skeleton className="h-5 w-32 rounded" />

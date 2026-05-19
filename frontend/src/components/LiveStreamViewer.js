@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   X, Radio, Users, MessageCircle, Send, Loader2, WifiOff,
@@ -206,7 +206,7 @@ const ViewerRoomContent = ({
 
   const { send: sendReaction } = useDataChannel('reactions', onReactionReceived);
 
- // Viewer reaction handler G local animation + DataChannel broadcast
+ // Viewer reaction handler -- local animation + DataChannel broadcast
   const handleReaction = useCallback((emoji) => {
     // Show locally immediately
     const id = Date.now() + Math.random();
@@ -303,7 +303,7 @@ const ViewerRoomContent = ({
 
           {/* Bottom controls - above mobile chat */}
           <div className="absolute bottom-4 sm:bottom-4 left-0 right-0 px-4 sm:px-6 flex items-center justify-between pointer-events-none z-10">
- {/* Quick Reactions G surf-themed emoji bar */}
+ {/* Quick Reactions -- surf-themed emoji bar */}
             <div className="pointer-events-auto">
               <QuickReactions onReact={handleReaction} colors={colors} />
             </div>

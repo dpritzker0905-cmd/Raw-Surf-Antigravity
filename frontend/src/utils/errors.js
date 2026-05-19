@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Shared error-handling utilities.
  *
  * Extracts a human-readable message from Axios/FastAPI error responses.
@@ -9,9 +9,9 @@
  * Safely extract an error message from an API response.
  *
  * Handles the three shapes FastAPI may return for `detail`:
- * - string G returned as-is
- * - array of objs G joined msg/message fields
- * - object G msg/message field
+ * - string -- returned as-is
+ * - array of objs -- joined msg/message fields
+ * - object -- msg/message field
  *
  * @param {Error|Object} error    Axios error (or anything with response.data.detail)
  * @param {string}       fallback Fallback text when no detail is found

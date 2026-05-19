@@ -1,6 +1,6 @@
-﻿/**
+/**
  * ProfileTabContent.js
- * Extracted from Profile.js G renders the tab content grid (swell, grom_overview,
+ * Extracted from Profile.js -- renders the tab content grid (swell, grom_overview,
  * stoked, crew, surfboards, reviews, and media grid tabs).
  * 
  * This extraction reduces the Profile.js render method by ~330 lines.

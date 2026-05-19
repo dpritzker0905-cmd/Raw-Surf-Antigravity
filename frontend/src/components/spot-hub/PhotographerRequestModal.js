@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { MapPin, Bell, DollarSign, Send, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 /**
- * PhotographerRequestModal G Extracted from SpotHub.js
+ * PhotographerRequestModal -- Extracted from SpotHub.js
  * Request photographer coverage at a spot with no active photographers.
  */
 const PhotographerRequestModal = ({ isOpen, onClose, spot, spotId, onSuccess }) => {

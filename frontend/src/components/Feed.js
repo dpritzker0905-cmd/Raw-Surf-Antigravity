@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -318,7 +318,7 @@ export const Feed = () => {
     return () => window.removeEventListener('feed:refresh', handleFeedRefresh);
   }, [handleFeedRefresh]);
 
- // Stable reference for PostModal's onClose G prevents the history useEffect
+ // Stable reference for PostModal's onClose -- prevents the history useEffect
   // from re-firing when unrelated Feed state changes (e.g. reaction picker
   // toggling) cause a re-render with a new inline arrow function identity.
   const handleClosePostModal = useCallback(() => {

@@ -1,5 +1,5 @@
-﻿/**
- * Theme Tokens G Single source of truth for all theme-aware CSS classes.
+/**
+ * Theme Tokens -- Single source of truth for all theme-aware CSS classes.
  *
  * Usage:
  *   import { getThemeTokens } from '../utils/themeTokens';

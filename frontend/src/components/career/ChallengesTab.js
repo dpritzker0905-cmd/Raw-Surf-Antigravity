@@ -1,9 +1,9 @@
-﻿/**
- * ChallengesTab G Weekly challenges leaderboard + history for the Career hub.
+/**
+ * ChallengesTab -- Weekly challenges leaderboard + history for the Career hub.
  *
  * Connects to:
- * GET /api/challenges/current G active challenge + leaderboard
- * GET /api/challenges/history G past winners
+ * GET /api/challenges/current -- active challenge + leaderboard
+ * GET /api/challenges/history -- past winners
  *
  * Design: Glassmorphism trophy cards, gradient progress, rank badges.
  */

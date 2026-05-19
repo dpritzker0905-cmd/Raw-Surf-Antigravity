@@ -1,5 +1,5 @@
-﻿/**
- * usePresence G Real-time online/offline presence tracking.
+/**
+ * usePresence -- Real-time online/offline presence tracking.
  * 
  * Connects to /ws/presence/{userId} and maintains a set of online user IDs.
  * Sends heartbeats every 30s to keep the user marked as online.

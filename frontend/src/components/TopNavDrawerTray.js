@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -12,7 +12,7 @@ import { ROLES } from '../constants/roles';
 
 
 /**
- * TopNavDrawerTray G 2-row pull-down tray for the v4.2 navigation.
+ * TopNavDrawerTray -- 2-row pull-down tray for the v4.2 navigation.
  *
  * Row 1 (Universal):  Search | Settings | Backpack
  * Row 2 (Role-Based): varies per role (Map, Photo Tools, Sessions, Gallery, etc.)
@@ -178,7 +178,7 @@ export const TopNavDrawerTray = ({ isOpen }) => {
 
   return (
     <>
- {/* Drawer Tray G slides in with staggered animation */}
+ {/* Drawer Tray -- slides in with staggered animation */}
       <div
         className="overflow-hidden transition-all duration-300 ease-out"
         style={{

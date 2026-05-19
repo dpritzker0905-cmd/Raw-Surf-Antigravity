@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Zap, CalendarClock, Camera, Clock, Calculator, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
@@ -7,7 +7,7 @@ import { NumericStepper } from './ui/numeric-stepper';
 import { getFullUrl } from '../utils/media';
 
 /**
- * Quick Book modal G lets surfers request on-demand or scheduled bookings
+ * Quick Book modal -- lets surfers request on-demand or scheduled bookings
  * with a photographer directly from their profile.
  * Extracted from Profile.js to reduce god-component complexity.
  */

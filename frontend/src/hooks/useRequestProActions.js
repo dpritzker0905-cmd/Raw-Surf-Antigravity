@@ -1,6 +1,6 @@
-﻿/**
+/**
  * useRequestProActions.js
- * Extracted from map/RequestProModal.js G crew management + submit handler.
+ * Extracted from map/RequestProModal.js -- crew management + submit handler.
  * v33: Rewritten from actual RequestProModal.js implementations.
  * 
  * Strategy: useCallback wrappers converted to plain functions.

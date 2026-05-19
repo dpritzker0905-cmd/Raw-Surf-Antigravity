@@ -1,4 +1,4 @@
-﻿import React, { Suspense } from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -8,17 +8,17 @@ import { Toaster } from './components/ui/sonner';
 import AccessCodeScreen from './components/AccessCodeScreen';
 import CookieConsentBanner from './components/ui/CookieConsentBanner';
 
-// GGG Routing utilities GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Routing utilities ---
 import ErrorBoundary from './components/routing/ErrorBoundary';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AppLayout from './components/routing/AppLayout';
 
-// GGG Critical path (NOT lazy G loaded immediately) GGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// GGG Critical path (NOT lazy -- loaded immediately) GGGGGGGGGGGGGGGGGGGGGGGGGGGG
 import { Home } from './components/Home';
 import { Auth } from './components/Auth';
 import { ForgotPassword, ResetPassword } from './components/PasswordReset';
 
-// GGG Route-split (lazy): loaded only when the user navigates there GGGGGGGGGGGGG
+// ---  Route-split (lazy): loaded only when the user navigates there ---
 // This splits the 1.09 MB bundle into smaller chunks for faster initial load
 const Feed                        = React.lazy(() => import('./components/Feed').then(m => ({ default: m.Feed })));
 const Profile                     = React.lazy(() => import('./components/Profile').then(m => ({ default: m.Profile })));
@@ -32,7 +32,7 @@ const PhotographerSessionsManager = React.lazy(() => import('./components/Photog
 const OnDemandSessionManager      = React.lazy(() => import('./components/OnDemandSessionManager').then(m => ({ default: m.OnDemandSessionManager })));
 const ScheduledBookingDrawer      = React.lazy(() => import('./components/ScheduledBookingDrawer')); // used by bookings page
 
-// GGG Medium-priority lazy GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Medium-priority lazy ---
 const SurferSubscription          = React.lazy(() => import('./components/SurferSubscription').then(m => ({ default: m.SurferSubscription })));
 const PhotographerSubscription    = React.lazy(() => import('./components/PhotographerSubscription').then(m => ({ default: m.PhotographerSubscription })));
 const SubscriptionSuccess         = React.lazy(() => import('./components/SubscriptionSuccess').then(m => ({ default: m.SubscriptionSuccess })));
@@ -85,7 +85,7 @@ import './App.css';
 import { ensureAudioUnlocked } from './utils/audioUnlock';
 ensureAudioUnlocked();
 
-// GGG Full-screen loading spinner while lazy chunk loads GGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Full-screen loading spinner while lazy chunk loads ---
 const PageLoader = () => (
   <div style={{
     display: 'flex',
@@ -106,14 +106,14 @@ const PageLoader = () => (
   </div>
 );
 
-// GGG Wrapper to apply Suspense + ErrorBoundary on every lazy route GGGGGGGGGGGGG
+// ---  Wrapper to apply Suspense + ErrorBoundary on every lazy route ---
 const Lazy = ({ children }) => (
   <ErrorBoundary>
     <Suspense fallback={<PageLoader />}>{children}</Suspense>
   </ErrorBoundary>
 );
 
-// GGG Subscription-only gate GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// ---  Subscription-only gate ---
 const SubscriptionRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;

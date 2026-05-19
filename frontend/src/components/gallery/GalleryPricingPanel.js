@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GalleryPricingPanel - Session pricing summary and inline settings
  * Extracted from PhotographerGalleryManager.js for modularization (v74)
  */
@@ -118,7 +118,7 @@ const GalleryPricingPanel = ({
           }}>
             <div className="flex items-center justify-between mb-3">
               <h4 className={`text-xs font-bold uppercase tracking-wider ${textSecondaryClass}`}>
- This Session G Included Content
+ This Session -- Included Content
               </h4>
               <span className="text-[10px] text-cyan-400/70">
                 {gallery.session_settings.buyin_price > 0 ? `$${gallery.session_settings.buyin_price} buy-in` : 'Free'}

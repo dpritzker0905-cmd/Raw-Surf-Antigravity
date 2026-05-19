@@ -1,6 +1,6 @@
-﻿/**
+/**
  * PhotographerProfileContent.js
- * Extracted from UnifiedSpotDrawer.js G Photographer profile views (scrollable content + full drawer).
+ * Extracted from UnifiedSpotDrawer.js -- Photographer profile views (scrollable content + full drawer).
  */
 import React, { useState, useEffect } from 'react';
 import { MapPin, Camera, ArrowLeft, Star, Loader2, Calendar, Users } from 'lucide-react';

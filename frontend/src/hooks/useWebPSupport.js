@@ -1,5 +1,5 @@
-﻿/**
- * useWebPSupport G Detects if the browser supports WebP format.
+/**
+ * useWebPSupport -- Detects if the browser supports WebP format.
  * Returns true if WebP is supported, enabling components to request
  * optimized image formats from the CDN/backend.
  *
@@ -45,7 +45,7 @@ const useWebPSupport = () => {
 export default useWebPSupport;
 
 /**
- * getOptimizedImageUrl G Returns an optimized image URL based on format support.
+ * getOptimizedImageUrl -- Returns an optimized image URL based on format support.
  * Can be used outside of React components.
  *
  * @param {string} url - Original image URL

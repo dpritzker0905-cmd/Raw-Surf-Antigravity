@@ -1,5 +1,5 @@
-﻿/**
- * useHapticFeedback G Trigger device vibration for premium mobile feel.
+/**
+ * useHapticFeedback -- Trigger device vibration for premium mobile feel.
  *
  * Uses the Vibration API (navigator.vibrate) which is supported on
  * Android Chrome, Samsung Internet, and Firefox. iOS Safari does NOT

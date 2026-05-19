@@ -1,5 +1,5 @@
-﻿/**
- * ErrorBoundary.js G Production-ready React error boundary.
+/**
+ * ErrorBoundary.js -- Production-ready React error boundary.
  *
  * - Automatically recovers from ChunkLoadError (stale cache after deploy)
  *   by reloading the page once
@@ -49,12 +49,12 @@ class ErrorBoundary extends React.Component {
       const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY);
       if (!alreadyReloaded) {
         sessionStorage.setItem(CHUNK_RELOAD_KEY, 'true');
- console.log('[ErrorBoundary] ChunkLoadError detected G reloading page to fetch fresh bundles');
+ console.log('[ErrorBoundary] ChunkLoadError detected -- reloading page to fetch fresh bundles');
         window.location.reload();
         return;
       }
       // If we already reloaded once and still failing, show the error screen
- console.warn('[ErrorBoundary] ChunkLoadError persists after reload G showing error UI');
+ console.warn('[ErrorBoundary] ChunkLoadError persists after reload -- showing error UI');
     }
   }
 
@@ -104,7 +104,7 @@ class ErrorBoundary extends React.Component {
         <p style={{ color: '#94a3b8', marginBottom: 32, maxWidth: 400, lineHeight: 1.6 }}>
           {IS_DEV
             ? 'A component threw during render. See details below.'
- : "We hit a snag in the wave. Try refreshing G most issues clear up quickly."}
+ : "We hit a snag in the wave. Try refreshing -- most issues clear up quickly."}
         </p>
 
         {/* Developer Stack Trace */}

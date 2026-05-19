@@ -1,5 +1,5 @@
-﻿/**
- * useOfflineQueue G Queues user actions when offline, auto-syncs on reconnect.
+/**
+ * useOfflineQueue -- Queues user actions when offline, auto-syncs on reconnect.
  *
  * Supported action types: 'reaction', 'comment', 'follow', 'save_post'
  * Uses localStorage key `rawsurf_offline_queue` for persistence across refreshes.
@@ -23,7 +23,7 @@ const saveQueue = (queue) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
   } catch {
- // localStorage full G drop oldest items
+ // localStorage full -- drop oldest items
     localStorage.removeItem(STORAGE_KEY);
   }
 };
@@ -101,7 +101,7 @@ export const useOfflineQueue = () => {
     if (isOnline && queue.length > 0 && !syncingRef.current) {
       flushQueue();
     }
- }, [isOnline]); // flushQueue intentionally omitted G guarded by syncingRef
+ }, [isOnline]); // flushQueue intentionally omitted -- guarded by syncingRef
 
   const flushQueue = useCallback(async () => {
     if (syncingRef.current || queue.length === 0) return;
@@ -148,7 +148,7 @@ export const useOfflineQueue = () => {
       return next;
     });
 
- toast.info('= Saved offline G will sync when back online');
+ toast.info('= Saved offline -- will sync when back online');
   }, []);
 
   return {

@@ -1,5 +1,5 @@
-﻿/**
- * usePullToRefresh G Mobile-native pull-to-refresh gesture handler.
+/**
+ * usePullToRefresh -- Mobile-native pull-to-refresh gesture handler.
  *
  * Usage:
  *   const { pullRef, isPulling, pullProgress } = usePullToRefresh(fetchData);

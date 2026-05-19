@@ -1,5 +1,5 @@
-﻿/**
- * notificationService.js G Centralized notification API abstractions.
+/**
+ * notificationService.js -- Centralized notification API abstractions.
  *
  * All in-app notification interactions go through this service.
  * Eliminates duplicate API calls scattered across NotificationsDrawer,

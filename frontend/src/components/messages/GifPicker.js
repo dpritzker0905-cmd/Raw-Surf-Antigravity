@@ -1,5 +1,5 @@
-﻿/**
- * GifPicker.js G Tenor API-powered GIF picker for MessagesPage.
+/**
+ * GifPicker.js -- Tenor API-powered GIF picker for MessagesPage.
  *
  * Fully self-contained: no backend calls, no auth context.
  * Uses Tenor v2 API (Google) with free public key.
@@ -61,7 +61,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
     if (show && trendingGifs.length === 0) {
       fetchTrending();
     }
- }, [show]); // intentionally omits fetchTrending from deps G only run once on first open
+ }, [show]); // intentionally omits fetchTrending from deps -- only run once on first open
 
   // Click-outside to close (respects scroll vs click distinction)
   useEffect(() => {
@@ -78,7 +78,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
     };
   }, [show, onClose]);
 
- // Debounced search G 400ms delay with 2-char minimum
+ // Debounced search -- 400ms delay with 2-char minimum
   useEffect(() => {
     const id = setTimeout(() => {
       if (searchTerm.trim().length >= 2) {
@@ -108,7 +108,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
       }
       setTrendingNext(data.next || '');
     } catch (err) {
- // Silent G picker just shows empty state
+ // Silent -- picker just shows empty state
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -199,7 +199,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
         </div>
       </div>
 
- {/* GIF Grid G 2-column masonry with infinite scroll */}
+ {/* GIF Grid -- 2-column masonry with infinite scroll */}
       <div
         ref={gridRef}
         className="p-2 overflow-y-auto flex-1 overscroll-contain"

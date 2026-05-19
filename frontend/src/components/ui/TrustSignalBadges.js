@@ -1,5 +1,5 @@
-﻿/**
- * TrustSignalBadges G Social proof indicators for photographer profiles.
+/**
+ * TrustSignalBadges -- Social proof indicators for photographer profiles.
  *
  * Fetches data from /profiles/{id}/trust-signals and displays:
  * - Verification badge (G Verified / G Approved Pro)
@@ -48,7 +48,7 @@ const TrustSignalBadges = ({ profileId, compact = false }) => {
         const res = await apiClient.get(`/profiles/${profileId}/trust-signals`);
         if (!cancelled) setData(res.data);
       } catch {
- // Non-critical G silently fail
+ // Non-critical -- silently fail
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -1,5 +1,5 @@
-﻿/**
- * OnDemandEarlySteps.js G Extracted step panels for the On-Demand booking flow.
+/**
+ * OnDemandEarlySteps.js -- Extracted step panels for the On-Demand booking flow.
  *
  * Contains: TimingStep, LocationStep, DurationStep, SplitChoiceStep
  * All steps receive the `booking` object from useOnDemandBooking hook.
