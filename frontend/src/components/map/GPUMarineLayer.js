@@ -66,54 +66,35 @@ function interpolateMarine(grid, lng, lat) {
 }
 
 /**
- * v3.11.3: Scientific land rejection for marine particles.
- * Uses continental + peninsula bounding boxes to reject land,
- * then falls back to grid wave energy for coastal resolution.
+ * v86: Data-driven ocean detection — no hardcoded bounding boxes.
+ *
+ * Previous approach used large rectangular land boxes that prevented
+ * particles from appearing in bays, barrier island channels, and
+ * coastal coves. Now relies SOLELY on the GFS marine grid data:
+ *   - Wave energy > 0 at a point → ocean
+ *   - Wave energy ≈ 0 → land or dead calm (reject)
+ *
+ * The GFS grid inherently knows where water vs land is because
+ * its marine model only produces wave data over ocean cells.
  */
-var LAND_BOXES = [
-  // Continental interiors
-  { s: 25, n: 50, w: -115, e: -75 },   // North America
-  { s: -55, n: 10, w: -75, e: -35 },   // South America
-  { s: -35, n: 35, w: -15, e: 50 },    // Africa
-  { s: 36, n: 70, w: -10, e: 40 },     // Europe
-  { s: 10, n: 70, w: 40, e: 140 },     // Asia
-  { s: -40, n: -12, w: 115, e: 153 },  // Australia
-  { s: -90, n: -60, w: -180, e: 180 }, // Antarctica
-  // Peninsulas & islands (fixes waves-through-land bugs)
-  { s: 24.5, n: 31, w: -88, e: -79.5 }, // Florida
-  { s: 23, n: 33, w: -117, e: -109 },   // Baja California
-  { s: 17, n: 22, w: -92, e: -86 },     // Yucatan
-  { s: 36, n: 47, w: 6, e: 19 },        // Italy
-  { s: 8, n: 35, w: 68, e: 90 },        // India/subcontinent
-  { s: 33, n: 43, w: 125, e: 130 },     // Korea
-  { s: 50, n: 60, w: -11, e: 2 },       // UK/Ireland
-  { s: 30, n: 46, w: 129, e: 146 },     // Japan
-  { s: 55, n: 72, w: 5, e: 32 },        // Scandinavia
-  { s: -26, n: -12, w: 43, e: 50 },     // Madagascar
-  { s: -48, n: -34, w: 165, e: 179 },   // New Zealand
-  { s: -9, n: 6, w: 95, e: 141 },       // Indonesia/Borneo
-];
-
 function isLikelyOcean(lat, lng, grid) {
+  // Normalize longitude
   let nLng = lng;
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
- // Fast reject: if inside a land bounding box (0.15° margin for coastal tolerance)
- // v85: Reduced from 0.3° to 0.15° to allow particles in bays, barrier island channels
-  for (const box of LAND_BOXES) {
-    if (lat > box.s + 0.15 && lat < box.n - 0.15 &&
-        nLng > box.w + 0.15 && nLng < box.e - 0.15) {
-      return false;
-    }
-  }
+  // Latitude sanity
+  if (lat < -85 || lat > 85) return false;
 
-  // Grid-based check: zero/near-zero wave energy = land or dead calm
-  // v70: Lowered threshold from 0.02 to 0.005 for near-shore particle coverage
+  // Grid-based check: use actual wave energy data from GFS marine model
+  // GFS marine grid has zero energy over land cells — this IS the land mask
   if (grid) {
-    const wave = interpolateMarine(grid, lng, lat);
+    const wave = interpolateMarine(grid, nLng, lat);
+    // Threshold: near-zero energy = land or dead calm ocean
+    // 0.005 m/s is below any measurable wave energy
     if (wave.speed < 0.005 && Math.abs(wave.u) < 0.003 && Math.abs(wave.v) < 0.003) return false;
   }
+
   return true;
 }
 
