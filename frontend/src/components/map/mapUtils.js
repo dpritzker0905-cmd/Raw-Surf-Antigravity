@@ -95,6 +95,12 @@ export var mapboxTransformRequest = function(url, resourceType) {
     return { url: url.replace('mapbox://tiles/', 'https://api.mapbox.com/v4/') + '?access_token=' + MAPBOX_TOKEN };
   }
   if (url.startsWith('mapbox://sprites/')) {
+    const match = url.match(/mapbox:\/\/sprites\/(.+?)((?:@\d+x)?\.(?:json|png))$/);
+    if (match) {
+      const stylePath = match[1];
+      const suffix = match[2];
+      return { url: `https://api.mapbox.com/styles/v1/${stylePath}/sprite${suffix}?access_token=${MAPBOX_TOKEN}` };
+    }
     return { url: url.replace('mapbox://sprites/', 'https://api.mapbox.com/styles/v1/') + '/sprite?access_token=' + MAPBOX_TOKEN };
   }
   if (url.startsWith('mapbox://fonts/')) {

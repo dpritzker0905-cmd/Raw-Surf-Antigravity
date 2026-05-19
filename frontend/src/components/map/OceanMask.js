@@ -23,9 +23,8 @@ const MASK_SOURCE = 'ocean-mask-source';
 const MASK_BUFFER = 'ocean-mask-buffer';
 const MASK_FILL   = 'ocean-mask-fill';
 const MASK_LINE   = 'ocean-mask-line';
-const MASK_INLAND_WATER = 'ocean-mask-inland-water';
 const MASK_INLAND_WATERWAY = 'ocean-mask-inland-waterway';
-const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER, MASK_INLAND_WATER, MASK_INLAND_WATERWAY];
+const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER, MASK_INLAND_WATERWAY];
 
 const THEME_COLORS = {
   dark:  { fill: 'hsl(214, 17%, 31%)', line: 'rgba(0, 0, 0, 0.35)', lw: 1.2 },
@@ -104,7 +103,6 @@ export function OceanMask({ mapInstance, active, theme }) {
       const hasBuf  = !!mapInstance.getLayer(MASK_BUFFER);
       const hasFill = !!mapInstance.getLayer(MASK_FILL);
       const hasLine = !!mapInstance.getLayer(MASK_LINE);
-      const hasInland = !!mapInstance.getLayer(MASK_INLAND_WATER);
       const hasWaterway = !!mapInstance.getLayer(MASK_INLAND_WATERWAY);
       const hasSrc  = !!mapInstance.getSource(MASK_SOURCE);
 
@@ -168,35 +166,7 @@ export function OceanMask({ mapInstance, active, theme }) {
           try { mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor); } catch (e) {}
         }
 
-        // Layer 3: Bring high-resolution inland water features back to top of the land fill
-        if (!hasInland) {
-          let waterColor = 'hsl(197, 15%, 43%)';
-          try {
-            const baseWater = style?.layers?.find(l => l.id === 'water');
-            if (baseWater?.paint?.['fill-color']) {
-              waterColor = baseWater.paint['fill-color'];
-            }
-          } catch (e) {}
 
-          mapInstance.addLayer({
-            id: MASK_INLAND_WATER,
-            type: 'fill',
-            source: 'composite',
-            'source-layer': 'water',
-            filter: ['!=', ['get', 'class'], 'ocean'],
-            paint: {
-              'fill-color': waterColor,
-              'fill-opacity': 1.0
-            }
-          }, beforeId || undefined);
-        } else {
-          try {
-            const baseWater = style?.layers?.find(l => l.id === 'water');
-            if (baseWater?.paint?.['fill-color']) {
-              mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', baseWater.paint['fill-color']);
-            }
-          } catch (e) {}
-        }
 
         // Layer 4: Bring high-resolution waterways (rivers/streams as lines) back to top
         if (!hasWaterway) {
