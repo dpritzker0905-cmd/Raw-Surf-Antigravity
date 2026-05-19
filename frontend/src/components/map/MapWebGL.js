@@ -122,17 +122,20 @@ var MapWebGL = ({
     import('@openmeteo/weather-map-layer').then((omLib) => {
       const { omProtocol, defaultOmProtocolSettings } = omLib;
       if (maplibregl?.addProtocol) {
-        // v86: Register om:// protocol with NE 10m land clipping for pixel-perfect
-        // coastline masking. Tiles are clipped to water-only areas inside the worker,
-        // eliminating the blocky GFS grid-cell bleed on land that polygon masking can't fix.
-        const settings = { ...defaultOmProtocolSettings };
+        // v86: Two-protocol architecture:
+        //   om://        → atmospheric layers (rain, wind, fog, pressure) — NO clipping
+        //   om-marine://  → marine layers (waves, swell, wind_waves) — pixel-level clipping
+        try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ }
 
-        // Fetch NE 10m land polygons → build inverted water mask for clipping
+        // Marine protocol: starts unclipped, upgrades to pixel-clipped once NE 10m loads
+        const marineSettings = { ...defaultOmProtocolSettings };
+        try { maplibregl.addProtocol('om-marine', (p, ac) => omProtocol(p, ac, marineSettings)); } catch (e) { /* ok */ }
+
+        // Background: fetch NE 10m land → build water-only clipping mask → upgrade marine protocol
         fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json')
           .then(r => r.ok ? r.json() : null)
           .then(landGeoJSON => {
             if (!landGeoJSON?.features?.length) return;
-            // Build world polygon with land as holes = water-only clipping region
             const WORLD = [[-180.1, -85.1], [180.1, -85.1], [180.1, 85.1], [-180.1, 85.1], [-180.1, -85.1]];
             const holes = [];
             for (const f of landGeoJSON.features) {
@@ -144,20 +147,16 @@ var MapWebGL = ({
                 for (const poly of g.coordinates) { for (const ring of poly) holes.push(ring); }
               }
             }
-            settings.clippingOptions = {
+            marineSettings.clippingOptions = {
               geojson: { type: 'Polygon', coordinates: [WORLD, ...holes] },
               fillRule: 'evenodd',
             };
-            // Re-register protocol with clipping (removes old, adds new)
-            try { maplibregl.removeProtocol('om'); } catch (e) { /* ok */ }
-            try { maplibregl.addProtocol('om', (params, ac) => omProtocol(params, ac, settings)); } catch (e) { /* ok */ }
-            console.log('[OceanMask] Pixel-level clipping active (NE 10m,', holes.length, 'land rings)');
+            // Re-register marine protocol with pixel clipping
+            try { maplibregl.removeProtocol('om-marine'); } catch (e) { /* ok */ }
+            try { maplibregl.addProtocol('om-marine', (p, ac) => omProtocol(p, ac, marineSettings)); } catch (e) { /* ok */ }
+            console.log('[OceanMask] Marine pixel-clipping active (NE 10m,', holes.length, 'land rings)');
           })
           .catch(err => console.warn('[OceanMask] Clipping data fetch failed:', err));
-
-        // Register immediately (without clipping) so tiles load fast,
-        // then re-register with clipping once land data arrives
-        try { maplibregl.addProtocol('om', (params, ac) => omProtocol(params, ac, settings)); } catch (e) { /* already registered */ }
       }
       setProtocolReady(true);
     });
@@ -381,7 +380,9 @@ var MapWebGL = ({
         }
         if (meta.variables.includes(resolvedVar)) {
           const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
+          // v86: Marine layers use om-marine:// protocol (pixel-clipped to water)
+          const proto = entry.omModelGroup === 'marine' ? 'om-marine' : 'om';
+          const urlStr = `${proto}://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
         }
       }
