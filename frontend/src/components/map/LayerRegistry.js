@@ -1,4 +1,4 @@
-﻿/* 
+/* 
 ========================================================
  Raw Surf OS Layer Registry
  SAFE PLUGIN-BASED GEOSPATIAL LAYER SYSTEM
@@ -92,7 +92,7 @@ export var LAYER_REGISTRY = {
     id: "wind",
     type: "particle",
     source: "WIND_PARTICLES",
-    omVariable: "wind_gusts_10m",
+    omVariable: "wind_speed_10m",
     category: "model",
     renderMode: "webgl",
     updateFrequency: 1,

@@ -48,9 +48,10 @@ function buildLandMask(landGeoJSON) {
 
 function findInsertBefore(style) {
   for (const l of style?.layers || []) {
-    if (['land-structure-polygon', 'land-structure-line',
+    if (['landuse', 'national-park', 'park', 'natural', 'wood', 'glacier', 'sand', 'pitch',
+         'land-structure-polygon', 'land-structure-line',
          'building-outline', 'building'].includes(l.id) ||
-        l.id.startsWith('tunnel-') || l.id.startsWith('road-')) {
+        l.id.startsWith('tunnel-') || l.id.startsWith('road-') || l.id.startsWith('landuse')) {
       return l.id;
     }
   }
@@ -129,21 +130,21 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
             source: MASK_SOURCE,
             paint: {
               'line-color': fillColor,
-              'line-width': ['interpolate', ['exponential', 1.5], ['zoom'],
-                1, 3,
-                3, 4,
-                5, 4,
-                7, 3,
-                9, 2,
-                11, 1.5,
-                14, 0.8,
+              'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
+                1, 5,
+                3, 8,
+                5, 12,
+                7, 16,
+                9, 20,
+                11, 24,
+                14, 28,
               ],
               'line-opacity': 1,
               'line-blur': ['interpolate', ['linear'], ['zoom'],
-                2, 1.5,
-                7, 1.0,
-                11, 0.5,
-                14, 0.1
+                2, 2.0,
+                7, 1.5,
+                11, 1.0,
+                14, 0.5
               ],
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -244,6 +245,27 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
           }, insertBeforeId || undefined);
+        }
+
+        // Dynamically move vector layers matching landuse etc. above MASK_FILL/MASK_BUFFER and below MASK_LINE
+        try {
+          if (mapInstance.getLayer(MASK_LINE)) {
+            const currentStyle = mapInstance.getStyle();
+            if (currentStyle && currentStyle.layers) {
+              for (const l of currentStyle.layers) {
+                const id = l.id;
+                const isLandFeature = ['landuse', 'national-park', 'landcover', 'park', 'natural', 'wood'].some(pat => id.toLowerCase().includes(pat));
+                const isMaskLayer = ALL_LAYERS.includes(id);
+                if (isLandFeature && !isMaskLayer) {
+                  try {
+                    mapInstance.moveLayer(id, MASK_LINE);
+                  } catch (e) {}
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[OceanMask] Error rearranging vector land layers:', e);
         }
       } else {
         for (const lid of ALL_LAYERS) {

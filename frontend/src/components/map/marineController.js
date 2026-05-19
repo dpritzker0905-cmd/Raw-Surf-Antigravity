@@ -1,4 +1,4 @@
-﻿/**
+/**
  * marineController.js v3.0.0
  *
  * Authoritative fetch layer for wind and marine data.
@@ -28,6 +28,22 @@ var getUV = (speed, dir) => {
 // --- PROXY CONFIG ---
 // v3.9.6: Route through Netlify serverless proxy to bypass client IP rate limits
 var PROXY_URL = '/api/weather-proxy';
+
+function findClosestHourIndex(timeArray, targetMs) {
+  if (!timeArray || !timeArray.length) return 0;
+  let closestIdx = 0;
+  let minDiff = Infinity;
+  for (let i = 0; i < timeArray.length; i++) {
+    const timeStr = timeArray[i];
+    const ms = new Date(timeStr.endsWith('Z') ? timeStr : timeStr + 'Z').getTime();
+    const diff = Math.abs(ms - targetMs);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestIdx = i;
+    }
+  }
+  return closestIdx;
+}
 
 // --- CACHES ---
 var MARINE_CACHE = new Map();
@@ -202,10 +218,11 @@ function computeGridPoints(bounds, caller = 'wind') {
 // ========================================================================
 function extractWindAtOffset(cache, hourOffset) {
   const { results, points, gridSize, bounds } = cache;
-  const nowHour = new Date().getUTCHours();
- // Use actual data length instead of hardcoded 71 supports 3/7/14 day forecasts
-  const maxIdx = results[0]?.hourly?.wind_speed_10m?.length ? results[0].hourly.wind_speed_10m.length - 1 : 71;
-  const idx = Math.min(nowHour + hourOffset, maxIdx);
+  const timeArray = results[0]?.hourly?.time;
+  const targetMs = Date.now() + hourOffset * 3600000;
+  const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+
+  const speedUnit = results[0]?.hourly_units?.wind_speed_10m || 'km/h';
 
   const vectors = [];
   points.forEach((pt, i) => {
@@ -215,12 +232,21 @@ function extractWindAtOffset(cache, hourOffset) {
       vectors.push({ lat: pt.lat, lng: pt.monotonicLng, speed: 0, direction: 0, u: 0, v: 0 });
       return;
     }
-    const speed = r.hourly.wind_speed_10m?.[idx];
+    let speed = r.hourly.wind_speed_10m?.[idx];
     const dir = r.hourly.wind_direction_10m?.[idx];
     if (speed == null || dir == null || isNaN(speed) || isNaN(dir)) {
       vectors.push({ lat: pt.lat, lng: pt.monotonicLng, speed: 0, direction: 0, u: 0, v: 0 });
       return;
     }
+    // Mathematically normalize wind speed to knots
+    if (speedUnit === 'km/h') {
+      speed = speed * 0.539957;
+    } else if (speedUnit === 'm/s') {
+      speed = speed * 1.943844;
+    } else if (speedUnit === 'mph') {
+      speed = speed * 0.868976;
+    }
+
     const rad = dir * (Math.PI / 180);
     vectors.push({
       lat: pt.lat, lng: pt.monotonicLng, speed, direction: dir,
@@ -242,8 +268,12 @@ export function getWindHourlyCache() {
   return windHourlyCache;
 }
 
+export function getMarineHourlyCache() {
+  return marineHourlyCache;
+}
+
 /** Public re-index function for timeline scrub (zero API calls) */
-export { extractWindAtOffset };
+export { extractWindAtOffset, extractMarineAtOffset };
 
 // ========================================================================
 // WIND FETCH
@@ -311,7 +341,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const lons = points.map(p => p.reqLng);
 
     // Open-Meteo model identifiers
-    const OM_MODELS = { GFS: 'gfs_global', EURO: 'ecmwf_ifs025', ICON: 'icon_global' };
+    const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs025', ICON: 'icon_seamless' };
 
     console.log(`[Wind] POST via proxy: ${points.length} grid points, forecast_days=${forecastDays}, model=${model || 'GFS'}`);
 
@@ -321,8 +351,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       hourly: ['wind_speed_10m', 'wind_direction_10m'],
       forecast_days: forecastDays
     };
-    // Add model parameter for EURO/ICON (GFS is Open-Meteo default)
-    if (model && model !== 'GFS' && OM_MODELS[model]) {
+    // Add explicit model parameter (enforce global GFS/EURO/ICON explicitly)
+    if (model && OM_MODELS[model]) {
       body.models = [OM_MODELS[model]];
     }
 
@@ -397,9 +427,9 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 // ========================================================================
 function extractMarineAtOffset(cache, hourOffset) {
   const { results, points, gridSize, bounds } = cache;
-  const nowHour = new Date().getUTCHours();
-  const maxIdx = results[0]?.hourly?.wave_height?.length ? results[0].hourly.wave_height.length - 1 : 71;
-  const idx = Math.min(nowHour + hourOffset, maxIdx);
+  const timeArray = results[0]?.hourly?.time;
+  const targetMs = Date.now() + hourOffset * 3600000;
+  const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
 
   const gridVectors = [];
   const features = [];

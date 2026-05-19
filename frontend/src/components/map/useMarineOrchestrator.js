@@ -1,5 +1,5 @@
-﻿import { useState, useRef, useEffect, useMemo } from 'react';
-import { fetchMarineData, getRemainingCooldown } from './marineController';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset } from './marineController';
 
 /**
  * useMarineOrchestrator (v238)
@@ -353,13 +353,30 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     };
   }, [mapInstance]); // Severed from activeLayersKey completely
 
-  // v3.8.5: Re-fetch marine data when timeline offset CHANGES (not on mount)
+  // v3.8.5: Re-fetch marine data or re-index locally when timeline offset CHANGES (not on mount)
   useEffect(() => {
     const prev = timeOffsetRef.current;
     timeOffsetRef.current = timeOffsetHours;
     // Skip mount (prev === timeOffsetHours) to prevent duplicate fetch
     if (prev === timeOffsetHours) return;
     if (!mapInstance || !activeMarineLayersRef.current) return;
+
+    // 1. Try instant local cache re-index first
+    try {
+      const cache = getMarineHourlyCache();
+      if (cache?.results?.length) {
+        const data = extractMarineAtOffset(cache, timeOffsetHours);
+        if (data) {
+          console.log(`[Marine Orchestrator] Instant local timeline re-index: +${timeOffsetHours}h`);
+          setMarineData(data);
+          return; // Skip API fetch entirely!
+        }
+      }
+    } catch (e) {
+      console.warn('[Marine Orchestrator] Local timeline re-index failed:', e.message);
+    }
+
+    // 2. Fall back to fetch if cache is unavailable or empty
     marineFetchLocksRef.current.lastHash = null;
     const t = setTimeout(() => {
       manualMarineTriggerRef.current?.();
