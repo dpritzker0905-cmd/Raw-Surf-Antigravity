@@ -3,8 +3,8 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 /**
  * OceanMask — Clips marine raster layers to ocean boundaries.
  *
- * Architecture: Uses Natural Earth 50m land polygons to create an inverted
- * mask (world minus land = ocean). Rendered as a MapLibre `fill` layer
+ * Architecture: Uses Natural Earth 10m land polygons (via jsDelivr CDN)
+ * to create land-filling polygons. Rendered as a MapLibre `fill` layer
  * positioned ABOVE marine raster tiles, painting land areas with the map
  * background color. This makes marine raster data appear only over ocean.
  *
