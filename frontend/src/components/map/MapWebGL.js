@@ -122,16 +122,21 @@ var MapWebGL = ({
     import('@openmeteo/weather-map-layer').then((omLib) => {
       const { omProtocol, defaultOmProtocolSettings } = omLib;
       if (maplibregl?.addProtocol) {
-        // v86: Two-protocol architecture:
-        //   om://        → atmospheric layers (rain, wind, fog, pressure) — NO clipping
-        //   om-marine://  → marine layers (waves, swell, wind_waves) — pixel-level clipping
-        try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ }
-
-        // Marine protocol: starts unclipped, upgrades to pixel-clipped once NE 10m loads
+        // v86: Single om:// protocol with conditional marine clipping.
+        // Marine model tiles (gfswave, ecmwf_wam) get pixel-level coastline clipping;
+        // atmospheric tiles (gfs, icon, etc.) render unclipped everywhere.
+        const baseSettings = { ...defaultOmProtocolSettings };
         const marineSettings = { ...defaultOmProtocolSettings };
-        try { maplibregl.addProtocol('om-marine', (p, ac) => omProtocol(p, ac, marineSettings)); } catch (e) { /* ok */ }
+        const MARINE_MODELS = /gfswave|ecmwf_wam|era5_ocean|ww3/i;
 
-        // Background: fetch NE 10m land → build water-only clipping mask → upgrade marine protocol
+        // Smart handler: route marine tiles through clipped settings
+        const smartHandler = (params, ac) => {
+          const s = MARINE_MODELS.test(params.url) ? marineSettings : baseSettings;
+          return omProtocol(params, ac, s);
+        };
+        try { maplibregl.addProtocol('om', smartHandler); } catch (e) { /* already registered */ }
+
+        // Background: fetch NE 10m land → build water-only clipping mask
         fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json')
           .then(r => r.ok ? r.json() : null)
           .then(landGeoJSON => {
@@ -151,9 +156,6 @@ var MapWebGL = ({
               geojson: { type: 'Polygon', coordinates: [WORLD, ...holes] },
               fillRule: 'evenodd',
             };
-            // Re-register marine protocol with pixel clipping
-            try { maplibregl.removeProtocol('om-marine'); } catch (e) { /* ok */ }
-            try { maplibregl.addProtocol('om-marine', (p, ac) => omProtocol(p, ac, marineSettings)); } catch (e) { /* ok */ }
             console.log('[OceanMask] Marine pixel-clipping active (NE 10m,', holes.length, 'land rings)');
           })
           .catch(err => console.warn('[OceanMask] Clipping data fetch failed:', err));
@@ -380,9 +382,7 @@ var MapWebGL = ({
         }
         if (meta.variables.includes(resolvedVar)) {
           const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-          // v86: Marine layers use om-marine:// protocol (pixel-clipped to water)
-          const proto = entry.omModelGroup === 'marine' ? 'om-marine' : 'om';
-          const urlStr = `${proto}://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
+          const urlStr = `om://https://map-tiles.open-meteo.com/data_spatial/${layerModel}/latest.json?${computeTimeStep(meta)}&variable=${resolvedVar}${darkParam}`;
           newUrls[layerKey] = trace(layerKey, 'resolve_raster', 'MapWebGL', urlStr);
         }
       }
