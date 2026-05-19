@@ -1,136 +1,110 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 /**
- * OceanMask v2 — Dynamic vector-tile coastline clipping for marine rasters.
+ * OceanMask v3 — Hybrid coastline clipping for marine rasters.
  *
- * Architecture: Extracts water polygons from the Mapbox `composite` vector
- * tile source (OSM-resolution coastlines), then builds an inverted mask:
- * a world-covering polygon with water areas punched out as holes.
- * Rendered as a MapLibre `fill` layer positioned ABOVE marine rasters,
- * painting LAND with the map background color while leaving ocean transparent.
+ * Architecture: Two-tier masking system:
+ *   1. PRIMARY: Natural Earth 10m land polygons (jsDelivr CDN, ~4.6MB)
+ *      — covers 95%+ of global coastlines with high detail
+ *   2. SUPPLEMENTARY: Mapbox `composite` vector tile layers (landuse/landcover)
+ *      — adds coverage for barrier islands, narrow peninsulas, and other
+ *        features missing from NE 10m at high zoom levels
  *
- * v86: Replaces static NE 10m GeoJSON approach. Dynamic extraction gives
- * barrier islands, narrow peninsulas, lagoons, and other features that
- * Natural Earth 10m data omits.
+ * Both layers paint land areas with the map background color, positioned
+ * ABOVE marine rasters but BELOW roads/labels/buildings.
  */
 
-const MASK_SOURCE_ID = 'ocean-mask-source';
-const MASK_LAYER_ID  = 'ocean-mask-layer';
+// Natural Earth 10m land polygons via jsDelivr CDN
+const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
 
-// Performance caps
-const MAX_RINGS       = 600;
-const REBUILD_DELAY   = 200;  // ms debounce on moveend
-const SETTLE_DELAY    = 800;  // ms wait for tiles to finish loading
+const MASK_SOURCE_ID  = 'ocean-mask-source';
+const MASK_LAYER_ID   = 'ocean-mask-layer';
+const SUPP_LAYER_PREFIX = 'ocean-mask-supp';
 
-// World-covering outer ring (counterclockwise per RFC 7946)
-const WORLD_RING = [
-  [-180.1, -85.1], [180.1, -85.1], [180.1, 85.1], [-180.1, 85.1], [-180.1, -85.1]
-];
-
-// Theme-aware land fill colors (must match base map background exactly)
+// Theme-aware land fill colors (must EXACTLY match base map background)
 const LAND_COLORS = {
-  dark:  'hsl(214, 17%, 31%)',   // Navigation Night
-  light: 'hsl(0, 0%, 100%)',     // Navigation Day
-  beach: 'hsl(31, 24%, 91%)',    // Outdoors
+  dark:  'hsl(214, 17%, 31%)',   // Navigation Night background
+  light: 'hsl(0, 0%, 100%)',     // Navigation Day background
+  beach: 'hsl(31, 24%, 91%)',    // Outdoors background
 };
 
-const EMPTY_FC = { type: 'FeatureCollection', features: [] };
-
-/* ------------------------------------------------------------------ */
-/*  Geometry helpers                                                   */
-/* ------------------------------------------------------------------ */
+/**
+ * Supplementary vector-tile layers from the Mapbox `composite` source.
+ * These cover land features that NE 10m misses (barrier islands, parks,
+ * airports, buildings). Each entry creates a fill layer painted with
+ * the background color, positioned alongside the primary NE 10m mask.
+ */
+const SUPP_LAYERS = [
+  { id: `${SUPP_LAYER_PREFIX}-landuse`,    sourceLayer: 'landuse',    minzoom: 5 },
+  { id: `${SUPP_LAYER_PREFIX}-landcover`,  sourceLayer: 'landcover',  minzoom: 0, maxzoom: 8 },
+  { id: `${SUPP_LAYER_PREFIX}-building`,   sourceLayer: 'building',   minzoom: 13 },
+];
 
 /**
- * Compute signed area of a ring using the shoelace formula.
- * Positive = clockwise in lon/lat space, Negative = counterclockwise.
+ * Build a GeoJSON FeatureCollection from NE 10m land polygons.
+ * Returns raw land features — no inversion needed.
  */
-function signedArea(ring) {
-  let area = 0;
-  for (let i = 0, len = ring.length - 1; i < len; i++) {
-    area += (ring[i + 1][0] - ring[i][0]) * (ring[i + 1][1] + ring[i][1]);
-  }
-  return area;
-}
+function buildLandMask(landGeoJSON) {
+  if (!landGeoJSON?.features?.length) return null;
 
-/** Ensure a ring winds clockwise (GeoJSON hole convention). */
-function ensureClockwise(ring) {
-  return signedArea(ring) < 0 ? ring.slice().reverse() : ring;
-}
-
-/**
- * Extract water polygon outer rings from the Mapbox `composite` vector
- * tile source. Returns clockwise-wound rings for use as polygon holes.
- */
-function extractWaterRings(mapInstance) {
-  let features;
-  try {
-    features = mapInstance.querySourceFeatures('composite', {
-      sourceLayer: 'water',
-    });
-  } catch (e) {
-    return [];
-  }
-  if (!features?.length) return [];
-
-  const rings = [];
-  for (const f of features) {
-    if (rings.length >= MAX_RINGS) break;
-    const geom = f.geometry;
+  const polygons = [];
+  for (const feature of landGeoJSON.features) {
+    const geom = feature.geometry;
     if (!geom) continue;
-
-    if (geom.type === 'Polygon') {
-      const outer = geom.coordinates[0];
-      if (outer?.length >= 4) rings.push(ensureClockwise(outer));
-    } else if (geom.type === 'MultiPolygon') {
-      for (const poly of geom.coordinates) {
-        if (rings.length >= MAX_RINGS) break;
-        const outer = poly[0];
-        if (outer?.length >= 4) rings.push(ensureClockwise(outer));
-      }
+    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+      polygons.push({ type: 'Feature', geometry: geom, properties: {} });
     }
   }
-  return rings;
+  return { type: 'FeatureCollection', features: polygons };
 }
 
 /**
- * Build an inverted mask GeoJSON: world polygon with water holes.
- * Result: fills LAND (world minus water) with background color,
- * leaving ocean areas transparent so marine rasters show through.
+ * Find the layer id to insert mask layers BEFORE.
+ * Target: after marine rasters, before land-structure/roads/labels.
  */
-function buildInvertedMask(waterRings) {
-  if (!waterRings.length) return null;
-
-  return {
-    type: 'FeatureCollection',
-    features: [{
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'Polygon',
-        coordinates: [WORLD_RING, ...waterRings],
-      },
-    }],
-  };
+function findInsertionPoint(style) {
+  const layers = style?.layers || [];
+  for (const l of layers) {
+    if (['land-structure-polygon', 'land-structure-line',
+         'building-outline', 'building'].includes(l.id) ||
+        l.id.startsWith('tunnel-') || l.id.startsWith('road-')) {
+      return l.id;
+    }
+  }
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
 /*  React component                                                    */
 /* ------------------------------------------------------------------ */
 
-/**
- * OceanMask component — imperative layer management for the land mask.
- *
- * Props:
- *   mapInstance  — raw MapLibre map object
- *   active       — whether any marine layer is currently active
- *   theme        — 'dark' | 'light' | 'beach'
- */
 export function OceanMask({ mapInstance, active, theme }) {
-  const layerAddedRef   = useRef(false);
-  const rebuildTimerRef = useRef(null);
-  const settleTimerRef  = useRef(null);
+  const [maskData, setMaskData] = useState(null);
+  const fetchedRef   = useRef(false);
+  const layerAddedRef = useRef(false);
+  const suppAddedRef  = useRef(false);
 
-  // Resolve fill color from active style or theme fallback
+  // ─── Fetch NE 10m land polygons once ───
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    fetch(NE_LAND_URL)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(geojson => {
+        const mask = buildLandMask(geojson);
+        if (mask) setMaskData(mask);
+      })
+      .catch(err => {
+        console.warn('[OceanMask] Failed to fetch land polygons:', err);
+        fetchedRef.current = false; // Allow retry
+      });
+  }, []);
+
+  // ─── Resolve fill color from active style or theme fallback ───
   const fillColor = useMemo(() => {
     if (mapInstance) {
       try {
@@ -142,61 +116,67 @@ export function OceanMask({ mapInstance, active, theme }) {
     return LAND_COLORS[theme] || LAND_COLORS.dark;
   }, [mapInstance, theme]);
 
-  // Rebuild the mask from current vector tile water features
-  const rebuildMask = useCallback(() => {
-    if (!mapInstance || !active) return;
-    try {
-      const source = mapInstance.getSource(MASK_SOURCE_ID);
-      if (!source) return;
-
-      const rings = extractWaterRings(mapInstance);
-      const mask = buildInvertedMask(rings);
-      if (mask) {
-        source.setData(mask);
-      }
-    } catch (e) {
-      console.warn('[OceanMask] Rebuild error:', e);
-    }
-  }, [mapInstance, active]);
-
-  // Debounced rebuild for viewport changes
-  const debouncedRebuild = useCallback(() => {
-    clearTimeout(rebuildTimerRef.current);
-    rebuildTimerRef.current = setTimeout(rebuildMask, REBUILD_DELAY);
-  }, [rebuildMask]);
-
-  // Add or remove the mask layer
-  const syncLayer = useCallback(() => {
+  // ─── Sync supplementary vector-tile layers ───
+  const syncSuppLayers = useCallback((beforeId) => {
     if (!mapInstance) return;
+
+    if (active) {
+      for (const cfg of SUPP_LAYERS) {
+        if (mapInstance.getLayer(cfg.id)) {
+          // Update color on existing layer
+          try { mapInstance.setPaintProperty(cfg.id, 'fill-color', fillColor); }
+          catch (e) { /* ok */ }
+          continue;
+        }
+        try {
+          mapInstance.addLayer({
+            id: cfg.id,
+            type: 'fill',
+            source: 'composite',
+            'source-layer': cfg.sourceLayer,
+            minzoom: cfg.minzoom || 0,
+            ...(cfg.maxzoom ? { maxzoom: cfg.maxzoom } : {}),
+            paint: {
+              'fill-color': fillColor,
+              'fill-opacity': 1,
+            },
+          }, beforeId || undefined);
+        } catch (e) {
+          // Source layer might not exist in this style
+        }
+      }
+      suppAddedRef.current = true;
+    } else {
+      for (const cfg of SUPP_LAYERS) {
+        if (mapInstance.getLayer(cfg.id)) {
+          try { mapInstance.removeLayer(cfg.id); } catch (e) { /* ok */ }
+        }
+      }
+      suppAddedRef.current = false;
+    }
+  }, [mapInstance, active, fillColor]);
+
+  // ─── Sync primary NE 10m mask layer ───
+  const syncLayer = useCallback(() => {
+    if (!mapInstance || !maskData) return;
+
     const style = mapInstance.getStyle?.();
     if (!style) return;
 
     const sourceExists = !!mapInstance.getSource(MASK_SOURCE_ID);
     const layerExists  = !!mapInstance.getLayer(MASK_LAYER_ID);
+    const beforeId = findInsertionPoint(style);
 
     if (active) {
-      // Ensure source exists
       if (!sourceExists) {
         mapInstance.addSource(MASK_SOURCE_ID, {
           type: 'geojson',
-          data: EMPTY_FC,
+          data: maskData,
+          tolerance: 0.375,
         });
       }
 
-      // Ensure layer exists
       if (!layerExists) {
-        // Position: AFTER marine rasters, BEFORE land-structure/roads/labels
-        const layers = style.layers || [];
-        let beforeId = null;
-        for (const l of layers) {
-          if (['land-structure-polygon', 'land-structure-line',
-               'building-outline', 'building'].includes(l.id) ||
-              l.id.startsWith('tunnel-') || l.id.startsWith('road-')) {
-            beforeId = l.id;
-            break;
-          }
-        }
-
         mapInstance.addLayer({
           id: MASK_LAYER_ID,
           type: 'fill',
@@ -206,21 +186,16 @@ export function OceanMask({ mapInstance, active, theme }) {
             'fill-opacity': 1,
           },
         }, beforeId || undefined);
-
         layerAddedRef.current = true;
       } else {
-        // Update paint if theme changed
-        try {
-          mapInstance.setPaintProperty(MASK_LAYER_ID, 'fill-color', fillColor);
-        } catch (e) { /* layer may be transitioning */ }
+        try { mapInstance.setPaintProperty(MASK_LAYER_ID, 'fill-color', fillColor); }
+        catch (e) { /* transitioning */ }
       }
 
-      // Build mask immediately, then again after tiles settle
-      rebuildMask();
-      clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = setTimeout(rebuildMask, SETTLE_DELAY);
+      // Add supplementary vector-tile layers
+      syncSuppLayers(beforeId);
     } else {
-      // Remove the layer when no marine layer is active
+      // Remove primary
       if (layerExists) {
         try { mapInstance.removeLayer(MASK_LAYER_ID); } catch (e) { /* ok */ }
         layerAddedRef.current = false;
@@ -228,36 +203,18 @@ export function OceanMask({ mapInstance, active, theme }) {
       if (sourceExists) {
         try { mapInstance.removeSource(MASK_SOURCE_ID); } catch (e) { /* ok */ }
       }
+      // Remove supplementary
+      syncSuppLayers(null);
     }
-  }, [mapInstance, active, fillColor, rebuildMask]);
+  }, [mapInstance, maskData, active, fillColor, syncSuppLayers]);
 
   // Run sync whenever dependencies change
-  useEffect(() => {
-    syncLayer();
-  }, [syncLayer]);
+  useEffect(() => { syncLayer(); }, [syncLayer]);
 
-  // Rebuild mask on viewport changes and tile loads
-  useEffect(() => {
-    if (!mapInstance || !active) return;
-
-    mapInstance.on('moveend', debouncedRebuild);
-    mapInstance.on('idle', rebuildMask);
-
-    return () => {
-      mapInstance.off('moveend', debouncedRebuild);
-      mapInstance.off('idle', rebuildMask);
-      clearTimeout(rebuildTimerRef.current);
-      clearTimeout(settleTimerRef.current);
-    };
-  }, [mapInstance, active, debouncedRebuild, rebuildMask]);
-
-  // Re-sync on style changes (theme switch causes full style reload)
+  // Re-sync on map style changes (theme switch causes full style reload)
   useEffect(() => {
     if (!mapInstance) return;
-    const handler = () => {
-      // Small delay to let the new style fully load
-      setTimeout(syncLayer, 200);
-    };
+    const handler = () => setTimeout(syncLayer, 200);
     mapInstance.on('styledata', handler);
     return () => mapInstance.off('styledata', handler);
   }, [mapInstance, syncLayer]);
@@ -268,10 +225,13 @@ export function OceanMask({ mapInstance, active, theme }) {
       if (!mapInstance) return;
       try { mapInstance.removeLayer(MASK_LAYER_ID); } catch (e) { /* ok */ }
       try { mapInstance.removeSource(MASK_SOURCE_ID); } catch (e) { /* ok */ }
+      for (const cfg of SUPP_LAYERS) {
+        try { mapInstance.removeLayer(cfg.id); } catch (e) { /* ok */ }
+      }
     };
   }, [mapInstance]);
 
-  return null; // Imperative-only, no JSX
+  return null;
 }
 
 export default OceanMask;
