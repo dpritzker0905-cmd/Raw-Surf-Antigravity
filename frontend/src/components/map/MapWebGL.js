@@ -5,7 +5,6 @@ import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
-import { WindParticleCanvas } from './GPUWindLayer';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
 // v3.12.3: WebGLWindLayer disabled MapLibre custom layer has WebGL state conflicts
@@ -20,7 +19,7 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import { OceanMask } from './OceanMask';
 import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP } from './LayerRegistry'; // eslint-disable-line
-import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // eslint-disable-line
+import { validateModelAccess, resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
 import { useTemporalPreloader } from './useTemporalPreloader';
 
@@ -112,8 +111,7 @@ var MapWebGL = ({
   // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
   // v3.12.4: Passes activeModel + tier-based forecastDays for multi-model support
   const forecastDays = useMemo(() => {
-    var { resolveForecastWindow: rfw } = require('./LayerAccessResolver');
-    return rfw(userTier);
+    return resolveForecastWindow(userTier);
   }, [userTier]);
   const { windData, windRevision } = useWeatherEngine({
     activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
@@ -535,11 +533,11 @@ var MapWebGL = ({
     if (!windActive && wc) {
       wc.style.opacity = '0';
       // Clear the canvas content to prevent flash on re-enable
-      try { wc.getContext('2d')?.clearRect(0, 0, wc.width, wc.height); } catch(e) {}
+      try { wc.getContext('2d')?.clearRect(0, 0, wc.width, wc.height); } catch(e) { /* ignore context errors */ }
     }
     if (!marineActive && mc) {
       mc.style.opacity = '0';
-      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) {}
+      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) { /* ignore context errors */ }
     }
 
     weatherAnimRef.current = { active: true, start: performance.now(), duration: 600 };

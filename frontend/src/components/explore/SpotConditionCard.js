@@ -110,8 +110,8 @@ const SpotConditionCard = ({ spot, conditions, onNavigate }) => {
             )}
             <span className="text-[10px] text-muted-foreground truncate">
               {['PHOTOGRAPHER', 'APPROVED_PRO', 'HOBBYIST'].includes(thumbnail.contributor_role?.toUpperCase()) 
-                ? ' + String.fromCodePoint(0x1F4F8) + '' 
-                : ' + String.fromCodePoint(0x1F3C4) + ''} {thumbnail.contributor_name}
+                ? String.fromCodePoint(0x1F4F8) 
+                : String.fromCodePoint(0x1F3C4)} {thumbnail.contributor_name}
             </span>
           </div>
         )}

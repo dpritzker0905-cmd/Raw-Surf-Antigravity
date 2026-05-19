@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
 import { API_BASE } from '../../lib/apiClient';
 
