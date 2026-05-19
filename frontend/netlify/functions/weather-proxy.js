@@ -23,34 +23,54 @@ function getCacheKey(type, body) {
   return `${type}_${hash}`;
 }
 
-export default async (req) => {
+exports.handler = async function(event, context) {
   // CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
       },
-    });
+      body: ''
+    };
   }
 
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'POST only' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({ error: 'POST only' })
+    };
   }
 
   try {
-    const { type, body } = await req.json();
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Missing body' })
+      };
+    }
+
+    const { type, body } = JSON.parse(event.body);
 
     if (!type || !body) {
-      return new Response(JSON.stringify({ error: 'Missing type or body' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return {
+        statusCode: 400,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: 'Missing type or body' })
+      };
     }
 
     // Determine target URL
@@ -60,10 +80,14 @@ export default async (req) => {
     };
     const targetUrl = urls[type];
     if (!targetUrl) {
-      return new Response(JSON.stringify({ error: `Unknown type: ${type}` }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return {
+        statusCode: 400,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ error: `Unknown type: ${type}` })
+      };
     }
 
     // Check cache
@@ -71,15 +95,16 @@ export default async (req) => {
     const cached = cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       console.log(`[weather-proxy] Cache HIT for ${type} (age: ${Math.round((Date.now() - cached.timestamp) / 1000)}s)`);
-      return new Response(JSON.stringify(cached.data), {
-        status: 200,
+      return {
+        statusCode: 200,
         headers: {
           'Content-Type': 'application/json',
           'X-Cache': 'HIT',
           'X-Cache-Age': String(Math.round((Date.now() - cached.timestamp) / 1000)),
           'Access-Control-Allow-Origin': '*',
         },
-      });
+        body: JSON.stringify(cached.data)
+      };
     }
 
     // Forward to Open-Meteo
@@ -93,13 +118,14 @@ export default async (req) => {
     if (!apiRes.ok) {
       const errorText = await apiRes.text();
       console.error(`[weather-proxy] Open-Meteo error: ${apiRes.status} ${errorText}`);
-      return new Response(JSON.stringify({ error: `Open-Meteo ${apiRes.status}`, detail: errorText }), {
-        status: apiRes.status,
+      return {
+        statusCode: apiRes.status,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
         },
-      });
+        body: JSON.stringify({ error: `Open-Meteo ${apiRes.status}`, detail: errorText })
+      };
     }
 
     const data = await apiRes.json();
@@ -113,26 +139,24 @@ export default async (req) => {
     }
 
     console.log(`[weather-proxy] Success: ${type}, cached as ${cacheKey}`);
-    return new Response(JSON.stringify(data), {
-      status: 200,
+    return {
+      statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
         'X-Cache': 'MISS',
         'Access-Control-Allow-Origin': '*',
       },
-    });
+      body: JSON.stringify(data)
+    };
   } catch (err) {
     console.error(`[weather-proxy] Error:`, err);
-    return new Response(JSON.stringify({ error: 'Proxy error', message: err.message }), {
-      status: 500,
+    return {
+      statusCode: 500,
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*',
       },
-    });
+      body: JSON.stringify({ error: 'Proxy error', message: err.message })
+    };
   }
-};
-
-export const config = {
-  path: '/api/weather-proxy',
 };
