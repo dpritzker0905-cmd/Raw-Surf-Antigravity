@@ -121,58 +121,33 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
 /**
  * Find the correct insertion layer for marine rasters in a Mapbox vector style.
  *
- * Strategy: Place marine rasters BELOW all land layers but ABOVE the background.
- *   land (bg) → [MARINE RASTERS HERE] → landcover → landuse → water(transparent) → roads → labels
+ * Strategy: Marine rasters go ABOVE the water fill layer. Then OceanMask
+ * (a separate imperative layer) covers any coastline bleed on land areas.
+ *   water → [MARINE RASTERS HERE] → [OceanMask] → land-structure → roads → labels
  *
- * Then make the `water` layer semi-transparent so the marine raster colors show
- * through ocean/lake areas, while landcover/landuse/parks remain OPAQUE and block
- * the marine raster on land.
- *
- * Returns the `landcover` layer id (the first fill layer after background).
+ * Returns the id of the first layer AFTER the `water` fill (typically land-structure-polygon).
  */
 export var findMarineInsertionLayer = function(mapInstance) {
   if (!mapInstance) return null;
   var style = mapInstance.getStyle?.();
   if (!style?.layers) return null;
 
-  // In Mapbox nav styles: land[bg] → landcover[fill] → national-park → landuse → water
-  // We want the first fill layer after the background — that's 'landcover'.
+  // Find the first layer after the water fill
+  var afterWater = false;
   for (var layer of style.layers) {
-    if (layer.type === 'fill') return layer.id;  // First fill = landcover
+    if (layer.id === 'water' || layer.id === 'water-depth' || layer.id === 'wetland') {
+      afterWater = true;
+      continue;
+    }
+    if (afterWater && (layer.type === 'fill' || layer.type === 'line')) return layer.id;
+  }
+
+  // Fallback: known layer IDs
+  var knownIds = ['land-structure-polygon', 'building-outline', 'building'];
+  for (var layer2 of style.layers) {
+    if (knownIds.includes(layer2.id)) return layer2.id;
   }
   return null;
-};
-
-/**
- * Configure the vector style's water layer for marine raster pass-through.
- * Makes the water fill semi-transparent so marine rasters placed below it
- * are visible over ocean/lake areas.
- *
- * @param {object} mapInstance — MapLibre GL map instance
- * @param {boolean} marineActive — whether any marine layer is active
- * @param {string} theme — current theme (dark/light/beach)
- */
-export var configureWaterTransparency = function(mapInstance, marineActive, theme) {
-  if (!mapInstance) return;
-  try {
-    var style = mapInstance.getStyle?.();
-    if (!style?.layers) return;
-
-    // Check if water layer exists in the style
-    var hasWater = style.layers.some(function(l) { return l.id === 'water'; });
-    if (!hasWater) return;
-
-    if (marineActive) {
-      // Make water semi-transparent so marine raster shows through
-      // Use low opacity so wave colors are vivid but water tint is still visible
-      mapInstance.setPaintProperty('water', 'fill-opacity', 0.25);
-    } else {
-      // Restore to fully opaque when no marine layer is active
-      mapInstance.setPaintProperty('water', 'fill-opacity', 1.0);
-    }
-  } catch (e) {
-    // Style not ready or layer not found — silent fail
-  }
 };
 
 /**

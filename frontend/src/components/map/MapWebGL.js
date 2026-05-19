@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
+import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
@@ -18,6 +18,7 @@ import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
+import { OceanMask } from './OceanMask';
 import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP } from './LayerRegistry'; // eslint-disable-line
 import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // eslint-disable-line
 import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
@@ -453,8 +454,8 @@ var MapWebGL = ({
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
 
-  // v85: Find the landcover layer — marine rasters insert BELOW it (above background).
-  // Then make the water layer semi-transparent so raster colors show through ocean.
+  // v85: Find the first layer after water for marine raster insertion.
+  // Marine rasters sit above water fills, then OceanMask covers land bleed.
   const [marineBeforeId, setMarineBeforeId] = useState(null);
   useEffect(() => {
     if (!mapInstance) return;
@@ -466,11 +467,6 @@ var MapWebGL = ({
     onStyleData();
     return () => mapInstance.off('styledata', onStyleData);
   }, [mapInstance]);
-
-  // v85: Toggle water layer transparency when marine layers activate/deactivate
-  useEffect(() => {
-    configureWaterTransparency(mapInstance, !!activeMarineLayer, theme);
-  }, [mapInstance, activeMarineLayer, theme]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 
@@ -681,6 +677,14 @@ var MapWebGL = ({
         </Source>
       ))}
 
+      {/* v85: OceanMask — covers marine raster coastline bleed on land.
+           In the vector base map, this sits ABOVE marine rasters but BELOW
+           roads/labels/buildings, so land detail is preserved. */}
+      <OceanMask
+        mapInstance={mapInstance}
+        active={!!activeMarineLayer}
+        theme={theme}
+      />
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
       <MarineParticleCanvas 

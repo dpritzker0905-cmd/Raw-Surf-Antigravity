@@ -129,12 +129,16 @@ export function OceanMask({ mapInstance, active, theme }) {
 
       // Ensure layer exists
       if (!layerExists) {
-        // Find the first marker/label layer to insert BEFORE it
-        // This positions the mask ABOVE raster tiles but BELOW markers
+        // v85: Position the mask AFTER marine rasters but BEFORE land-structure.
+        // In vector styles: water → [marine rasters] → [THIS MASK] → land-structure → roads → labels
+        // The mask covers marine raster bleed on land. Roads/labels render ON TOP.
         const layers = style.layers || [];
         let beforeId = null;
+        // Find the first layer after water that's part of the land/road/label stack
         for (const l of layers) {
-          if (l.type === 'symbol' || l.type === 'circle' || l.id.includes('marker')) {
+          if (l.id === 'land-structure-polygon' || l.id === 'land-structure-line' ||
+              l.id === 'building-outline' || l.id === 'building' ||
+              l.id.startsWith('tunnel-') || l.id.startsWith('road-')) {
             beforeId = l.id;
             break;
           }
