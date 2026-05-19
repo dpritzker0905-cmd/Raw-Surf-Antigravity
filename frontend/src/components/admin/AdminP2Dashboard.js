@@ -3,18 +3,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import apiClient from '../../lib/apiClient';
 import {
-  DollarSign, TrendingUp, Percent, Gift, Flag as FlagIcon, Bell, BarChart3,
-  Loader2, Plus, Check, Copy, Send,
-  Users, Eye
+  DollarSign, Gift, Flag as FlagIcon, Bell,
+  Loader2
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
-import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Switch } from '../ui/switch';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 

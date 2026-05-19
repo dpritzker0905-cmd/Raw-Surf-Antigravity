@@ -192,7 +192,7 @@ const SpotHub = () => {
       const pulseInterval = setInterval(fetchLivePulse, 30000);
       return () => clearInterval(pulseInterval);
     }
-    // eslint-disable-next-line
+     
   }, [spotId, user?.id]);
   
   // Bidirectional Map Timeline Sync: Scroll to the correct forecast day based on timeOffset

@@ -20,7 +20,7 @@ POSTMESSAGE API:
 ====================================================
 */
 
-/* eslint-disable no-restricted-globals */
+ 
 
 /**
  * Normalize forecast data off-thread.

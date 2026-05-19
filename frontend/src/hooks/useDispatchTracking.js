@@ -23,7 +23,9 @@ const useDispatchTracking = ({ userId }) => {
         if (response.data && response.data.status === 'en_route') {
           setActiveDispatch(response.data);
         }
-      } catch (e) {}
+      } catch (e) {
+        logger.debug('Error checking active dispatch on mount:', e);
+      }
     };
     
     checkActiveDispatch();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { getUserTier, resolveForecastWindow } from '../components/map/LayerAccessResolver';
+import { resolveForecastWindow } from '../components/map/LayerAccessResolver';
 import logger from '../utils/logger';
 
 /**

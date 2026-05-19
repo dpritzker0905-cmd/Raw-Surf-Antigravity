@@ -466,7 +466,7 @@ export const DirectoryTab = ({
   useEffect(() => {
     const tid = setTimeout(() => fetchPhotographers(), searchQuery.length > 0 ? 350 : 0);
     return () => clearTimeout(tid);
-  }, [filters, searchQuery, sortBy]); // eslint-disable-line
+  }, [filters, searchQuery, sortBy]);  
   
   const fetchPhotographers = useCallback(async () => {
     setLoading(true);

@@ -219,7 +219,7 @@ export const Bookings = () => {
     if (user?.id) {
       fetchData();
     }
-  }, [user?.id, location.key]); // eslint-disable-line
+  }, [user?.id, location.key]);  
 
   // Fetch on-demand photographers when On-Demand tab is selected
   useEffect(() => {
@@ -497,7 +497,7 @@ export const Bookings = () => {
           <div className="relative">
             {/* Scrollable tab strip with orange underline indicator */}
             <div
-              ref={tabScrollRef} role="tablist" aria-label="Booking sections"
+              ref={tabScrollRef} role="tablist" aria-label="Booking sections" tabIndex={0}
               onScroll={updateArrows}
               onMouseDown={(e) => {
                 isDraggingRef.current = true;

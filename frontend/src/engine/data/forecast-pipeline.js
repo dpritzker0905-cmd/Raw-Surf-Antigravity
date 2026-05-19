@@ -18,7 +18,6 @@
  */
 
 import { fetchForecast, fetchBestAvailable, normalizeToTypedField } from './forecast-provider';
-import { normalizeModel } from './model-normalizers';
 
 // PIPELINE STATE 
 const _subscribers = [];       // fn(normalizedField) callbacks

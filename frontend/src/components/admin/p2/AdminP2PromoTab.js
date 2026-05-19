@@ -1,7 +1,6 @@
 ﻿import React from 'react';
 import { Card, CardContent } from '../../ui/card';
 import { Button } from '../../ui/button';
-import { Badge } from '../../ui/badge';
 import { Switch } from '../../ui/switch';
 import { Gift, Copy, Plus } from 'lucide-react';
 import { toast } from 'sonner';

@@ -317,7 +317,7 @@ export const PhotographerDirectory = ({ isOpen, onClose, onSelectPhotographer })
       return () => clearTimeout(tid);
     }
     // intentionally omitting fetchPhotographers from deps - it reads filters/searchQuery from closure
-  }, [isOpen, filters, searchQuery]); // eslint-disable-line
+  }, [isOpen, filters, searchQuery]);  
   
   const fetchPhotographers = async () => {
     setLoading(true);

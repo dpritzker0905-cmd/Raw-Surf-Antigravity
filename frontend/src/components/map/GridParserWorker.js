@@ -15,7 +15,7 @@
  *   - Pure data transformation
  */
 
-/* eslint-disable no-restricted-globals */
+ 
 
 /**
  * Parse raw Open-Meteo hourly response into a vector grid.

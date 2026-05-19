@@ -19,7 +19,6 @@ var/function only (TDZ-immune)
 
 import {
   getSpotSessions,
-  getSessionEnrichment,
   getSessionSnapshots,
   getSpotForecastHistory,
 } from '../data/session-intel-service';
