@@ -17,9 +17,6 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 // Natural Earth 10m land polygons — high coastline detail for barrier islands (~3MB)
 const NE_LAND_URL = 'https://geojson.xyz/naturalearth-3.3.0/ne_10m_land.geojson';
 
-// World bounding box (outer ring for inverted polygon)
-const WORLD_RING = [[-180, 90], [180, 90], [180, -90], [-180, -90], [-180, 90]];
-
 const MASK_SOURCE_ID = 'ocean-mask-source';
 const MASK_LAYER_ID = 'ocean-mask-layer';
 
@@ -31,41 +28,29 @@ const LAND_COLORS = {
 };
 
 /**
- * Build an inverted GeoJSON polygon: world exterior with land polygons as holes.
- * Result: a polygon that covers ONLY land areas (the inverse of ocean).
+ * Build a GeoJSON FeatureCollection of land polygons for the land mask.
+ * Result: fills LAND areas with the theme background color, hiding marine
+ * raster bleed on coastlines while leaving ocean areas uncovered (visible).
+ *
+ * v85: Fixed — previous version inverted the mask (world-minus-land = ocean fill),
+ * which covered marine rasters on water instead of land.
  */
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
 
-  // Collect all land polygon rings as holes in the world polygon
+  // Return the raw land polygons directly — no world-ring inversion needed.
+  // Each land feature will be filled with the background color to mask bleed.
   const polygons = [];
   for (const feature of landGeoJSON.features) {
     const geom = feature.geometry;
     if (!geom) continue;
 
-    if (geom.type === 'Polygon') {
-      // Each polygon's outer ring becomes a hole
+    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
       polygons.push({
         type: 'Feature',
-        geometry: {
-          type: 'Polygon',
-          // World ring as outer, land ring as inner (hole)
-          coordinates: [WORLD_RING, ...geom.coordinates]
-        },
+        geometry: geom,
         properties: {}
       });
-    } else if (geom.type === 'MultiPolygon') {
-      // Each sub-polygon becomes its own masked feature
-      for (const poly of geom.coordinates) {
-        polygons.push({
-          type: 'Feature',
-          geometry: {
-            type: 'Polygon',
-            coordinates: [WORLD_RING, ...poly]
-          },
-          properties: {}
-        });
-      }
     }
   }
 
