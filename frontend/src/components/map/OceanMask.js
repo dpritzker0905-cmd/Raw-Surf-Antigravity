@@ -14,8 +14,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
  *   This layer-based approach runs entirely in the GPU render pipeline.
  */
 
-// Natural Earth 50m land polygons — good coastline detail without excessive size (~800KB)
-const NE_LAND_URL = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_50m_land.geojson';
+// Natural Earth 10m land polygons — high coastline detail for barrier islands (~3MB)
+const NE_LAND_URL = 'https://geojson.xyz/naturalearth-3.3.0/ne_10m_land.geojson';
 
 // World bounding box (outer ring for inverted polygon)
 const WORLD_RING = [[-180, 90], [180, 90], [180, -90], [-180, -90], [-180, 90]];
@@ -123,7 +123,8 @@ export function OceanMask({ mapInstance, active, theme }) {
       if (!sourceExists) {
         mapInstance.addSource(MASK_SOURCE_ID, {
           type: 'geojson',
-          data: maskData
+          data: maskData,
+          tolerance: 0.25,  // v85: Lower tolerance for sharper polygon edges at high zoom
         });
       }
 
