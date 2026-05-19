@@ -135,8 +135,12 @@ var MapWebGL = ({
           const marineSettings = { ...OMWeatherMapLayer.defaultOmProtocolSettings };
           marineSettings.clippingOptions = { geojson: oceanGeoJSON };
           maplibregl.addProtocol('om-marine', (params, abortController) => {
-            // MapLibre strips 'om-marine://' but we need the inner https:// URL
-            params.url = params.url.replace('om-marine://', 'om://');
+            // MapLibre mangles URLs: 'om-marine://https://...' becomes
+            // 'om-marine://https//...' (strips inner colon). Fix both cases.
+            params.url = params.url
+              .replace('om-marine://', '')
+              .replace('https//', 'https://');
+            params.url = 'om://' + params.url;
             return OMWeatherMapLayer.omProtocol(params, abortController, marineSettings);
           });
         } catch (e) { /* already registered */ }
