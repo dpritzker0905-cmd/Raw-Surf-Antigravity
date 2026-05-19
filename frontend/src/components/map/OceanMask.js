@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 /**
  * OceanMask — Clips marine raster layers to ocean boundaries.
@@ -20,11 +20,12 @@ const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geoj
 const MASK_SOURCE_ID = 'ocean-mask-source';
 const MASK_LAYER_ID = 'ocean-mask-layer';
 
-// Theme-aware land fill colors (must match base map land tones)
+// Theme-aware land fill colors (must EXACTLY match base map background)
+// These are the `background-color` values from the Mapbox navigation styles.
 const LAND_COLORS = {
-  dark: '#1a1c20',   // Navigation Night land tone
-  light: '#e8e0d8',  // Navigation Day land tone
-  beach: '#e5ddd0',  // Outdoors land tone
+  dark: 'hsl(214, 17%, 31%)',   // Navigation Night background
+  light: 'hsl(0, 0%, 100%)',    // Navigation Day background
+  beach: 'hsl(31, 24%, 91%)',   // Outdoors background
 };
 
 /**
@@ -90,8 +91,17 @@ export function OceanMask({ mapInstance, active, theme }) {
       });
   }, []);
 
-  // Resolve the fill color based on current theme
-  const fillColor = LAND_COLORS[theme] || LAND_COLORS.dark;
+  // Resolve the fill color: prefer reading from the active style for exact match
+  const fillColor = useMemo(() => {
+    if (mapInstance) {
+      try {
+        const style = mapInstance.getStyle?.();
+        const bg = style?.layers?.find(l => l.type === 'background');
+        if (bg?.paint?.['background-color']) return bg.paint['background-color'];
+      } catch (e) { /* style not ready */ }
+    }
+    return LAND_COLORS[theme] || LAND_COLORS.dark;
+  }, [mapInstance, theme]);
 
   // Add/remove the mask layer imperatively when conditions change
   const syncLayer = useCallback(() => {
