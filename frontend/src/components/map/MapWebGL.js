@@ -465,9 +465,11 @@ var MapWebGL = ({
   // v85: Find the first layer after water for marine raster insertion.
   // Marine rasters sit above water fills, then OceanMask covers land bleed.
   const [marineBeforeId, setMarineBeforeId] = useState(null);
+  const [maskBufferExists, setMaskBufferExists] = useState(false);
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
+      setMaskBufferExists(!!mapInstance.getLayer('ocean-mask-buffer'));
       var id = findMarineInsertionLayer(mapInstance);
       if (id) setMarineBeforeId(id);
     };
@@ -677,7 +679,11 @@ var MapWebGL = ({
         >
           <Layer
             id={`${layerKey}-layer`}
-            beforeId={LAYER_REGISTRY[layerKey]?.type === 'marine' && marineBeforeId ? marineBeforeId : undefined}
+            beforeId={
+              LAYER_REGISTRY[layerKey]?.type === 'marine'
+                ? (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId)
+                : undefined
+            }
             type="raster"
             layout={{ 
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
