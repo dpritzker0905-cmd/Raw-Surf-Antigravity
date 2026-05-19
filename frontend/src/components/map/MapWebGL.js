@@ -7,9 +7,6 @@ import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
-// v3.12.3: WebGLWindLayer disabled MapLibre custom layer has WebGL state conflicts
-// that prevent reliable particle compositing. Canvas2D overlay (Ventusky technique) used instead.
-// import { WebGLWindLayer } from './WebGLWindLayer';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
@@ -23,10 +20,8 @@ import { validateModelAccess, resolveForecastWindow } from './LayerAccessResolve
 import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
 import { useTemporalPreloader } from './useTemporalPreloader';
 
-// Ensure maplibre-gl CSS is present
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-// v3.9.7: Lazy init moved from module-level to prevent TDZ in webpack concatenation
 var _mapLibreWorkerSet = false;
 function ensureMapLibreInit() {
   if (!_mapLibreWorkerSet) {
@@ -240,14 +235,8 @@ var MapWebGL = ({
     ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
- // v76: Removed debounce use timeOffsetHours directly.
-  // OOM was mitigated in v73 by only resolving active layers.
-  // The 80ms debounce ate slider responsiveness (autoplay worked but drag didn't).
-
   // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
   const loggedFallbacks = useRef(new Set());
- // v78: rAF throttle URL resolution runs at most once per animation frame.
-  // The slider thumb and time readout update instantly (React state is immediate),
   // but the heavy metadata fetch only runs when the browser is ready to paint.
   const rafRef = useRef(null);
   const pendingResolve = useRef(null);
@@ -315,12 +304,11 @@ var MapWebGL = ({
         let meta = await fetchMetadata(layerModel);
         if (taskId !== resolveTaskIdRef.current) return;
         let resolvedVar = variable;
-        // Variable fallback chain
         if (!meta.variables.includes(variable)) {
           const VARIABLE_FALLBACKS = {
+            'wind_speed_10m': 'wind_gusts_10m',
             'wind_gusts_10m': 'wind_u_component_10m',
             'visibility': 'cloud_cover_low',
- // v76: ECMWF WAM lacks swell/wind_wave fallback to GFS wave
             'swell_wave_height': null,
             'secondary_swell_wave_height': null,
             'wind_wave_height': null,
@@ -328,20 +316,17 @@ var MapWebGL = ({
           if (variable in VARIABLE_FALLBACKS) {
             if (VARIABLE_FALLBACKS[variable] && meta.variables.includes(VARIABLE_FALLBACKS[variable])) {
               resolvedVar = VARIABLE_FALLBACKS[variable];
-              // v77: Log once per variable to prevent spam during slider scrubbing
               const fbKey = `${variable}-${layerModel}`;
               if (!loggedFallbacks.current.has(fbKey)) {
                 loggedFallbacks.current.add(fbKey);
- console.log(`[Raster] Variable fallback: ${variable} ${resolvedVar} for ${layerModel}`);
+                console.log(`[Raster] Variable fallback: ${variable} -> ${resolvedVar} for ${layerModel}`);
               }
             } else if (entry.omModelGroup === 'marine') {
- // ECMWF WAM lacks this var fall back to GFS wave model
               layerModel = 'ncep_gfswave025';
               meta = await fetchMetadata(layerModel);
               if (taskId !== resolveTaskIdRef.current) return;
               if (meta.variables.includes(variable)) {
                 resolvedVar = variable;
-                // v77: Log marine fallback once per variable only
                 const fbKey = `marine-${variable}`;
                 if (!loggedFallbacks.current.has(fbKey)) {
                   loggedFallbacks.current.add(fbKey);

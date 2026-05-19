@@ -46,7 +46,11 @@ function buildLandMask(landGeoJSON) {
 }
 
 function findInsertBefore(style) {
-  for (const l of style?.layers || []) {
+  const layers = style?.layers || [];
+  const waterIdx = layers.findIndex(l => l.id === 'water' || l.id === 'water-depth' || l.id === 'wetland');
+  const startIndex = waterIdx !== -1 ? waterIdx + 1 : 0;
+  for (let i = startIndex; i < layers.length; i++) {
+    const l = layers[i];
     if (['landuse', 'national-park', 'park', 'natural', 'wood', 'glacier', 'sand', 'pitch',
          'land-structure-polygon', 'land-structure-line',
          'building-outline', 'building'].includes(l.id) ||
@@ -151,7 +155,10 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
             console.error('[OceanMask] Failed to add MASK_BUFFER:', e);
           }
         } else {
-          try { mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', fillColor); } catch (e) {}
+          try {
+            if (insertBeforeId) mapInstance.moveLayer(MASK_BUFFER, insertBeforeId);
+            mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', fillColor);
+          } catch (e) {}
         }
 
         // Layer 2: NE 10m land fill
@@ -167,7 +174,10 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
             console.error('[OceanMask] Failed to add MASK_FILL:', e);
           }
         } else {
-          try { mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor); } catch (e) {}
+          try {
+            if (insertBeforeId) mapInstance.moveLayer(MASK_FILL, insertBeforeId);
+            mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
+          } catch (e) {}
         }
 
         // Layer 3: Bring high-resolution inland water (lakes/reservoirs) back to top
@@ -202,6 +212,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
+            if (insertBeforeId) mapInstance.moveLayer(MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
           } catch (e) {}
         }
@@ -242,6 +253,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
+            if (insertBeforeId) mapInstance.moveLayer(MASK_INLAND_WATERWAY, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
           } catch (e) {}
         }
@@ -266,6 +278,10 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           } catch (e) {
             console.error('[OceanMask] Failed to add MASK_LINE:', e);
           }
+        } else {
+          try {
+            if (insertBeforeId) mapInstance.moveLayer(MASK_LINE, insertBeforeId);
+          } catch (e) {}
         }
 
         // v90: Strictly force active marine raster layers BELOW the MASK_BUFFER layer
