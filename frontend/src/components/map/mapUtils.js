@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Map utility functions and constants
  * Extracted from MapPage.js for better organization
  */
@@ -59,8 +59,7 @@ export var isValidLatLng = function(lat, lng) {
 var MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
 
 /**
- * Mapbox tile URLs for light and dark themes
- * Uses raster tiles served from Mapbox Studio styles via Leaflet
+ * Mapbox raster tile URLs (kept for TILE_LAYER_CONFIG / legacy Leaflet)
  */
 export var MAPBOX_TILES = {
   dark:  `https://api.mapbox.com/styles/v1/mapbox/navigation-night-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
@@ -70,7 +69,44 @@ export var MAPBOX_TILES = {
 };
 
 /**
- * Generate a MapLibre GL JS compatible style object.
+ * Mapbox VECTOR style URLs (v84: used as MapLibre GL base map).
+ * Vector styles render land, water, roads as separate layers — marine rasters
+ * are inserted between water and land for natural coastline clipping.
+ */
+var MAPBOX_VECTOR_STYLES = {
+  dark:      `https://api.mapbox.com/styles/v1/mapbox/navigation-night-v1?access_token=${MAPBOX_TOKEN}`,
+  light:     `https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1?access_token=${MAPBOX_TOKEN}`,
+  beach:     `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12?access_token=${MAPBOX_TOKEN}`,
+  satellite: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`,
+};
+
+/**
+ * transformRequest — Converts mapbox:// protocol URLs to HTTPS for MapLibre.
+ * MapLibre doesn't natively resolve mapbox:// URIs; this translates tile,
+ * sprite, glyph, and source URLs to their HTTPS equivalents with the access token.
+ */
+export var mapboxTransformRequest = function(url, resourceType) {
+  if (!url || !url.startsWith('mapbox://')) return { url: url };
+  // mapbox://mapbox.mapbox-streets-v8 → tile source
+  if (url.startsWith('mapbox://styles/')) {
+    return { url: url.replace('mapbox://styles/', 'https://api.mapbox.com/styles/v1/') + '?access_token=' + MAPBOX_TOKEN };
+  }
+  if (url.startsWith('mapbox://tiles/')) {
+    return { url: url.replace('mapbox://tiles/', 'https://api.mapbox.com/v4/') + '?access_token=' + MAPBOX_TOKEN };
+  }
+  if (url.startsWith('mapbox://sprites/')) {
+    return { url: url.replace('mapbox://sprites/', 'https://api.mapbox.com/styles/v1/') + '/sprite?access_token=' + MAPBOX_TOKEN };
+  }
+  if (url.startsWith('mapbox://fonts/')) {
+    return { url: url.replace('mapbox://fonts/', 'https://api.mapbox.com/fonts/v1/') + '?access_token=' + MAPBOX_TOKEN };
+  }
+  // Generic mapbox:// → api.mapbox.com/v4/ (vector tile sources)
+  return { url: url.replace('mapbox://', 'https://api.mapbox.com/v4/') + '.json?secure&access_token=' + MAPBOX_TOKEN };
+};
+
+/**
+ * Generate a MapLibre GL JS compatible style.
+ * v84: Returns Mapbox VECTOR style URL for proper layer ordering.
  * @param {string|boolean} themeOrLight - theme string ('light'/'dark'/'beach') or boolean isLight
  * @param {boolean} isSatellite - use satellite imagery
  */
@@ -78,37 +114,31 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
   var theme = typeof themeOrLight === 'boolean'
     ? (themeOrLight ? 'light' : 'dark')
     : (themeOrLight || 'dark');
-  var tileUrl = isSatellite
-    ? MAPBOX_TILES.satellite
-    : (MAPBOX_TILES[theme] || MAPBOX_TILES.dark);
-  // Contrast boost per theme for better ocean/land separation
-  var contrastMap = { dark: 0.1, light: 0.15, beach: 0.05 };
-  var contrast = contrastMap[theme] || 0;
-  return {
-    version: 8,
-    sources: {
-      'raster-tiles': {
-        type: 'raster',
-        tiles: [tileUrl],
-        tileSize: 256,
- attribution: ' Mapbox OpenStreetMap'
-      }
-    },
-    layers: [
-      {
-        id: 'simple-tiles',
-        type: 'raster',
-        source: 'raster-tiles',
-        minzoom: 0,
-        maxzoom: 22,
-        paint: {
-          'raster-contrast': contrast,
-          'raster-brightness-min': theme === 'dark' ? 0.05 : 0,
-          'raster-saturation': theme === 'beach' ? 0.2 : 0
-        }
-      }
-    ]
-  };
+  if (isSatellite) return MAPBOX_VECTOR_STYLES.satellite;
+  return MAPBOX_VECTOR_STYLES[theme] || MAPBOX_VECTOR_STYLES.dark;
+};
+
+/**
+ * Find the first land-related layer in a Mapbox vector style.
+ * Marine rasters should be inserted BEFORE this layer (above water, below land).
+ * Returns null if no suitable layer found (fallback: add at top).
+ */
+export var findLandLayerId = function(mapInstance) {
+  if (!mapInstance) return null;
+  var style = mapInstance.getStyle?.();
+  if (!style?.layers) return null;
+  // Common Mapbox vector style land layer patterns (ordered by priority)
+  var landPatterns = ['landcover', 'landuse', 'land-structure', 'hillshade', 'national-park'];
+  for (var layer of style.layers) {
+    for (var pat of landPatterns) {
+      if (layer.id.includes(pat)) return layer.id;
+    }
+  }
+  // Fallback: find first non-water fill layer
+  for (var layer2 of style.layers) {
+    if (layer2.type === 'fill' && !layer2.id.includes('water')) return layer2.id;
+  }
+  return null;
 };
 
 /**

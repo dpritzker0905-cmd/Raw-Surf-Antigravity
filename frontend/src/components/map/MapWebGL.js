@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import { getMapStyle, FLORIDA_CENTER } from './mapUtils';
+import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findLandLayerId } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
@@ -18,7 +18,6 @@ import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
-import { OceanMask } from './OceanMask';
 import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP } from './LayerRegistry'; // eslint-disable-line
 import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // eslint-disable-line
 import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
@@ -454,6 +453,21 @@ var MapWebGL = ({
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
 
+  // v84: Find the first land layer in the vector style to insert marine rasters BEFORE it.
+  // This positions OM tiles above water but below land — natural coastline clipping.
+  const [landBeforeId, setLandBeforeId] = useState(null);
+  useEffect(() => {
+    if (!mapInstance) return;
+    const onStyleData = () => {
+      var id = findLandLayerId(mapInstance);
+      if (id) setLandBeforeId(id);
+    };
+    mapInstance.on('styledata', onStyleData);
+    // Also run immediately if style already loaded
+    onStyleData();
+    return () => mapInstance.off('styledata', onStyleData);
+  }, [mapInstance]);
+
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 
   // Capture the raw MapLibre instance once the map loads, set initial bounds,
@@ -554,6 +568,7 @@ var MapWebGL = ({
       onMoveEnd={onMoveEnd}
       onClick={onMapClick}
       mapStyle={currentMapStyle}
+      transformRequest={mapboxTransformRequest}
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
       attributionControl={false}
@@ -628,6 +643,7 @@ var MapWebGL = ({
         >
           <Layer
             id={`${layerKey}-layer`}
+            beforeId={LAYER_REGISTRY[layerKey]?.type === 'marine' && landBeforeId ? landBeforeId : undefined}
             type="raster"
             layout={{ 
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
@@ -661,14 +677,6 @@ var MapWebGL = ({
         </Source>
       ))}
 
-      {/* v83: Ocean Mask -- clips marine rasters to ocean boundaries using
-           inverted NE 50m land polygons. Rendered ABOVE raster tiles, paints
-           land areas with theme-matched fill to hide coastline bleed. */}
-      <OceanMask
-        mapInstance={mapInstance}
-        active={!!activeMarineLayer}
-        theme={theme}
-      />
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
       <MarineParticleCanvas 
