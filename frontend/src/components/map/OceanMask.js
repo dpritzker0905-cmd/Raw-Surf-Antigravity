@@ -17,10 +17,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
  */
 
 const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
-const NE_LAKES_URL = 'https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_10m_lakes.geojson';
 
 const MASK_SOURCE = 'ocean-mask-source';
-const LAKES_SOURCE = 'ocean-mask-lakes-source';
 const MASK_BUFFER = 'ocean-mask-buffer';
 const MASK_FILL   = 'ocean-mask-fill';
 const MASK_LINE   = 'ocean-mask-line';
@@ -61,19 +59,11 @@ function findInsertBefore(style) {
 
 function resolveFillColor(mapInstance, theme) {
   const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
-  if (mapInstance) {
-    try {
-      const style = mapInstance.getStyle?.();
-      const bg = style?.layers?.find(l => l.type === 'background');
-      if (bg?.paint?.['background-color']) return bg.paint['background-color'];
-    } catch (e) { /* style not ready */ }
-  }
   return tc.fill;
 }
 
 export function OceanMask({ mapInstance, active, theme, beforeId }) {
   const [maskData, setMaskData] = useState(null);
-  const [lakesData, setLakesData] = useState(null);
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
 
@@ -92,17 +82,6 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         }
       })
       .catch(err => { console.warn('[OceanMask] Land fetch failed:', err); fetchedRef.current = false; });
-
-    // Fetch lakes data
-    fetch(NE_LAKES_URL)
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then(geojson => {
-        if (geojson?.features) {
-          setLakesData(geojson);
-          console.log('[OceanMask] Loaded NE 10m lakes:', geojson.features.length, 'lake features');
-        }
-      })
-      .catch(err => { console.warn('[OceanMask] Lakes fetch failed:', err); });
   }, []);
 
   const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
@@ -131,16 +110,6 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
             });
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);
-          }
-        }
-
-        if (lakesData && !mapInstance.getSource(LAKES_SOURCE)) {
-          try {
-            mapInstance.addSource(LAKES_SOURCE, {
-              type: 'geojson', data: lakesData, tolerance: 0.375,
-            });
-          } catch (e) {
-            console.error('[OceanMask] Failed to add lakes source:', e);
           }
         }
 
@@ -202,35 +171,39 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         }
 
         // Layer 3: Bring high-resolution inland water (lakes/reservoirs) back to top
-        // Use our fetched lakes dataset to render inland lakes reliably.
+        // Dynamically resolve source and source-layer from base style's 'water' layer
+        let waterSource = 'composite';
+        let waterSourceLayer = 'water';
         let waterColor = 'hsl(197, 60%, 80%)';
         try {
-          const baseWater = style?.layers?.find(l => l.id === 'water');
-          if (baseWater && baseWater.paint?.['fill-color']) {
-            waterColor = baseWater.paint['fill-color'];
+          const baseWater = style?.layers?.find(l => l.id === 'water' || l.id === 'water-depth' || l.id === 'wetland');
+          if (baseWater) {
+            if (baseWater.source) waterSource = baseWater.source;
+            if (baseWater['source-layer']) waterSourceLayer = baseWater['source-layer'];
+            if (baseWater.paint?.['fill-color']) waterColor = baseWater.paint['fill-color'];
           }
         } catch (e) {}
 
-        if (lakesData && mapInstance.getSource(LAKES_SOURCE)) {
-          if (!hasWater) {
-            try {
-              mapInstance.addLayer({
-                id: MASK_INLAND_WATER,
-                type: 'fill',
-                source: LAKES_SOURCE,
-                paint: {
-                  'fill-color': waterColor,
-                  'fill-opacity': 1.0
-                }
-              }, insertBeforeId || undefined);
-            } catch (e) {
-              console.warn('[OceanMask] Failed to add MASK_INLAND_WATER:', e);
-            }
-          } else {
-            try {
-              mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-            } catch (e) {}
+        if (!hasWater) {
+          try {
+            mapInstance.addLayer({
+              id: MASK_INLAND_WATER,
+              type: 'fill',
+              source: waterSource,
+              'source-layer': waterSourceLayer,
+              filter: ['all', ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
+              paint: {
+                'fill-color': waterColor,
+                'fill-opacity': 1.0
+              }
+            }, insertBeforeId || undefined);
+          } catch (e) {
+            console.warn('[OceanMask] Failed to add MASK_INLAND_WATER:', e);
           }
+        } else {
+          try {
+            mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
+          } catch (e) {}
         }
 
         // Layer 4: Bring high-resolution waterways (rivers/streams as lines) back to top
@@ -336,12 +309,11 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           if (mapInstance.getLayer(lid)) { try { mapInstance.removeLayer(lid); } catch (e) {} }
         }
         if (hasSrc) { try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {} }
-        if (mapInstance.getSource(LAKES_SOURCE)) { try { mapInstance.removeSource(LAKES_SOURCE); } catch (e) {} }
       }
     } finally {
       setTimeout(() => { syncingRef.current = false; }, 500);
     }
-  }, [mapInstance, maskData, lakesData, active, theme, tc, beforeId]);
+  }, [mapInstance, maskData, active, theme, tc, beforeId]);
 
   useEffect(() => { syncLayers(); }, [syncLayers]);
 
@@ -357,7 +329,6 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
       if (!mapInstance) return;
       for (const lid of ALL_LAYERS) { try { mapInstance.removeLayer(lid); } catch (e) {} }
       try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
-      try { mapInstance.removeSource(LAKES_SOURCE); } catch (e) {}
     };
   }, [mapInstance]);
 

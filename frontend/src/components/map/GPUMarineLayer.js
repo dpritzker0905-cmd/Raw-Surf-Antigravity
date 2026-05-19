@@ -254,7 +254,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const latRad = p.lat * Math.PI / 180;
           const mercCorr = Math.max(0.1, Math.cos(latRad));
           // Ocean drift is much slower than atmospheric flow
-          const speedScale = dt * 30;
+          const speedScale = dt * 3000;
           // v74: Tripled noise amplitude + per-particle seed to fully break grid-lane patterns
           const turbulence = 0.40 + 0.40 * p.energy; // much stronger: was 0.15+0.2
           const ns = p.noiseSeed || 0;

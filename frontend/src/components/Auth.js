@@ -49,7 +49,7 @@ const ROLE_CONFIG = {
 };
 
 export const Auth = () => {
-  const { signup, login } = useAuth();
+  const { signup, login, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -77,6 +77,13 @@ export const Auth = () => {
   const categoryConfig = category ? ROLE_CONFIG[category] : null;
   const isLogin = tab === 'login';
   const showCategorySelection = tab === 'signup' && !category;
+
+  // Auto-redirect authenticated users to feed
+  useEffect(() => {
+    if (user) {
+      navigate('/feed', { replace: true });
+    }
+  }, [user, navigate]);
 
   // Fetch ToS content from DB when modal opens
   useEffect(() => {
