@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Lock } from 'lucide-react';
 import MapWebGL from './map/MapWebGL';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,6 +46,8 @@ var MapPageContent = () => {
 
  // v3.7: Track map center for forecast overlay data tracks what user is looking at
   const [mapCenter, setMapCenter] = useState(null);
+  // v163: Long-press marker location (Ventusky/Windy style)
+  const [longPressLocation, setLongPressLocation] = useState(null);
 
   // User location hook - handles GPS and location-related state
   const {
@@ -148,10 +150,10 @@ var MapPageContent = () => {
     isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
 
- // Open-Meteo 16-day forecast (weather + marine) driven by MAP CENTER & model
-  // v3.7: Uses map center instead of fixed user location for accurate readouts
-  const forecastLat = mapCenter?.lat || effectiveLocation?.lat || FLORIDA_CENTER.lat;
-  const forecastLng = mapCenter?.lng || effectiveLocation?.lng || FLORIDA_CENTER.lng;
+ // Open-Meteo 16-day forecast driven by: selected spot > long-press > map center > user location
+  // v163: Spot/long-press coordinates take priority for accurate readouts
+  const forecastLat = selectedSpot?.latitude || longPressLocation?.lat || mapCenter?.lat || effectiveLocation?.lat || FLORIDA_CENTER.lat;
+  const forecastLng = selectedSpot?.longitude || longPressLocation?.lng || mapCenter?.lng || effectiveLocation?.lng || FLORIDA_CENTER.lng;
  // v3.9.4: Disable spot forecast when weather layers active they compete for rate limit
  // v3.9.6: REGRESSION FIX Re-enable. Spot forecast is only 1 weighted API call.
   // The infobox depends on this data. The real rate-limit problem is the 441-point POST.
@@ -474,12 +476,18 @@ var MapPageContent = () => {
           timeOffsetHours={timeOffsetHours}
           userTier={user?.subscription_tier || user?.tier_id || 'tier_1'}
           onMapClick={(e) => {
-            // Check if they clicked on the base map layer, not a marker/cluster
             if (e.originalEvent && !e.originalEvent.defaultPrevented) {
-              setIsImmersiveMode(prev => !prev);
+              // Clear long-press marker on normal click
+              if (longPressLocation) { setLongPressLocation(null); }
+              else { setIsImmersiveMode(prev => !prev); }
             }
           }}
           onMapMoveEnd={(center) => setMapCenter(center)}
+          onMapLongPress={(lngLat) => {
+            setLongPressLocation({ lat: lngLat.lat, lng: lngLat.lng });
+            setSelectedSpot(null);
+            setUnifiedDrawerOpen(false);
+          }}
         />
       </div>
 
@@ -638,6 +646,8 @@ var MapPageContent = () => {
           isLockedForecast={isLockedForecast}
           isTimelineCollapsed={isTimelineCollapsed}
           isImmersiveMode={isImmersiveMode}
+          selectedSpot={selectedSpot}
+          longPressLocation={longPressLocation}
         />
       )}
 

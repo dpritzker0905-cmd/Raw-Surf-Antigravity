@@ -87,6 +87,7 @@ var MapWebGL = ({
   userTier = 'tier_1',
   onMapClick,
   onMapMoveEnd,
+  onMapLongPress,
 }) => {
  // v3.9.7: Explicit init never at import time
   ensureMapLibreInit();
@@ -490,6 +491,28 @@ var MapWebGL = ({
       // Force render loop to paint custom-protocol tiles on mount
       markMapReady(); // Init sequencer: map is ready
       setTimeout(() => { try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ } }, 300);
+
+      // v163: Long-press/right-click handler (Ventusky/Windy style map pin)
+      map.on('contextmenu', (e) => {
+        e.preventDefault();
+        if (onMapLongPress) onMapLongPress(e.lngLat);
+      });
+      // Mobile: detect long-press via touch hold (500ms threshold)
+      let touchTimer = null;
+      let touchStartPos = null;
+      map.getCanvas().addEventListener('touchstart', (e) => {
+        if (e.touches.length !== 1) return;
+        const t = e.touches[0];
+        touchStartPos = { x: t.clientX, y: t.clientY };
+        touchTimer = setTimeout(() => {
+          if (!touchStartPos) return;
+          const point = map.unproject([touchStartPos.x - map.getCanvas().getBoundingClientRect().left, touchStartPos.y - map.getCanvas().getBoundingClientRect().top]);
+          if (onMapLongPress) onMapLongPress({ lat: point.lat, lng: point.lng });
+          touchStartPos = null;
+        }, 500);
+      }, { passive: true });
+      map.getCanvas().addEventListener('touchmove', () => { clearTimeout(touchTimer); touchStartPos = null; }, { passive: true });
+      map.getCanvas().addEventListener('touchend', () => { clearTimeout(touchTimer); }, { passive: true });
     }
   });
 

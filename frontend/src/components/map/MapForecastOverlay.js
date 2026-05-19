@@ -1,5 +1,5 @@
-﻿import React, { useMemo, useState } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, ArrowUp, Droplets, Gauge, Lock, ChevronDown } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Wind, Waves, CloudRain, Thermometer, ArrowUp, Droplets, Gauge, Lock, ChevronDown, MapPin } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
@@ -9,15 +9,12 @@ import { useTheme } from '../../contexts/ThemeContext';
  * Data source: Open-Meteo Weather & Marine APIs (GFS / ECMWF / ICON).
  * Shows numeric values for the currently selected layer + time offset.
  *
- * V162: Consolidated wave dashboard each swell component shows
- * height + period + direction together (like Windy.com detail panels).
- * Wind LIVE mode uses `current` observational data for accuracy.
+ * V163: Shows spot-specific conditions when a surf spot is selected,
+ * or point-specific data for long-press marker (like Ventusky/Windy).
  */
 
-/** Convert meters to feet */
 var mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
 
-/** Format compass direction from degrees */
 var degToCompass = (deg) => {
   if (deg == null) return '';
   const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
@@ -35,6 +32,9 @@ export var MapForecastOverlay = ({
   isLockedForecast = false,
   isTimelineCollapsed = false,
   isImmersiveMode = false,
+  // v163: Spot-specific and long-press location support
+  selectedSpot = null,
+  longPressLocation = null,
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -46,7 +46,6 @@ export var MapForecastOverlay = ({
   const textClass = isLight ? 'text-gray-900' : 'text-white';
   const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
 
-  // Find the data point closest to the requested time offset
   const currentHourIndex = useMemo(() => {
     if (!forecastData?.hourly?.time) return 0;
     const targetTime = new Date();
@@ -56,7 +55,6 @@ export var MapForecastOverlay = ({
     let closest = 0;
     let minDiff = Infinity;
     forecastData.hourly.time.forEach((t, i) => {
-      // Append 'Z' to force JavaScript to parse the ISO string as UTC
       const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
       if (diff < minDiff) { minDiff = diff; closest = i; }
     });
@@ -72,7 +70,6 @@ export var MapForecastOverlay = ({
     let closest = 0;
     let minDiff = Infinity;
     marineData.hourly.time.forEach((t, i) => {
-      // Append 'Z' to force JavaScript to parse the ISO string as UTC
       const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
       if (diff < minDiff) { minDiff = diff; closest = i; }
     });
@@ -82,12 +79,10 @@ export var MapForecastOverlay = ({
  // Don't show when no data loaded yet (AFTER all hooks React Rules of Hooks)
   if (!forecastData && !marineData) return null;
 
-  // Extract values
   const wx = forecastData?.hourly || {};
   const marine = marineData?.hourly || {};
   const isLive = timeOffsetHours === 0;
 
-  // For LIVE mode, prefer `current` data for wind accuracy
   const liveWind = currentWeather;
   const windSpeed = isLive && liveWind?.wind_speed_10m != null
     ? liveWind.wind_speed_10m : wx.wind_speed_10m?.[currentHourIndex];
@@ -99,7 +94,6 @@ export var MapForecastOverlay = ({
   const precip = wx.precipitation?.[currentHourIndex];
   const pressure = wx.surface_pressure?.[currentHourIndex];
 
-  // Marine data extraction (prefer 'current' data in live mode for accuracy)
   const marineCurrent = marineData?.current || {};
   const waveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : marine.wave_height?.[marineHourIndex];
   const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : marine.wave_period?.[marineHourIndex];
@@ -109,7 +103,6 @@ export var MapForecastOverlay = ({
   const swell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : marine.swell_wave_period?.[marineHourIndex];
   const swell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : marine.swell_wave_direction?.[marineHourIndex];
   
-  // Secondary swell and wind waves don't have current endpoints in our fetch
   const swell2Height = marine.secondary_swell_wave_height?.[marineHourIndex];
   const swell2Period = marine.secondary_swell_wave_period?.[marineHourIndex];
   const swell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex];
@@ -117,7 +110,6 @@ export var MapForecastOverlay = ({
   const windWavePeriod = marine.wind_wave_period?.[marineHourIndex];
   const windWaveDir = marine.wind_wave_direction?.[marineHourIndex];
 
-  // Show relevant data based on activeLayer
   const cards = [];
 
   if (activeLayer === 'rain' || activeLayer === 'radar') {
@@ -132,7 +124,6 @@ export var MapForecastOverlay = ({
  if (windDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}`, color: 'text-teal-300', rotate: windDir });
       if (windGusts != null) cards.push({ icon: Wind, label: 'Gusts', value: `${Math.round(windGusts)} kts`, color: 'text-orange-400' });
     } else {
- // Forecast data unavailable show placeholder so overlay stays visible
  cards.push({ icon: Wind, label: 'Wind', value: isLoading ? 'Loading' : '--', color: 'text-gray-400' });
     }
   }
@@ -141,7 +132,6 @@ export var MapForecastOverlay = ({
     cards.push({ icon: Gauge, label: 'Pressure', value: pressure != null ? `${Math.round(pressure)} hPa` : '--', color: 'text-rose-400' });
   }
 
-  // --- Wave Dashboard: each component shows height + period + direction ---
   if (activeLayer === 'waves') {
     const hFt = mToFt(waveHeight);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-blue-300' });
@@ -173,12 +163,23 @@ export var MapForecastOverlay = ({
   if (cards.length === 0) return null;
 
   const modelLabel = { GFS: 'GFS', EURO: 'ECMWF', ICON: 'ICON' }[activeModel] || activeModel;
+
+  // v163: Context-aware label — shows spot name, long-press coords, or time
   const forecastTimeLabel = (() => {
+    if (selectedSpot?.name) return selectedSpot.name;
+    if (longPressLocation) {
+      const lat = longPressLocation.lat.toFixed(2);
+      const lng = longPressLocation.lng.toFixed(2);
+      return `${lat}°, ${lng}°`;
+    }
     if (isLive) return 'Live Conditions';
     const d = new Date();
     d.setHours(d.getHours() + timeOffsetHours);
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' });
   })();
+
+  // v163: Show pin icon when displaying spot or long-press location
+  const showPinIcon = !!(selectedSpot || longPressLocation);
 
   return (
     <div
@@ -195,10 +196,11 @@ export var MapForecastOverlay = ({
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div>
-          <div className={`text-[9px] uppercase tracking-wider font-bold ${textMuted}`}>
-            {modelLabel} {isLive ? 'Live' : 'Forecast'}
+          <div className={`text-[9px] uppercase tracking-wider font-bold ${textMuted} flex items-center gap-1`}>
+            {showPinIcon && <MapPin className="w-2.5 h-2.5 text-cyan-400" />}
+            {modelLabel} {isLive && !selectedSpot && !longPressLocation ? 'Live' : 'Forecast'}
           </div>
-          <div className={`text-[10px] font-semibold ${textClass}`}>
+          <div className={`text-[10px] font-semibold ${textClass} truncate max-w-[160px]`}>
             {forecastTimeLabel}
           </div>
         </div>
