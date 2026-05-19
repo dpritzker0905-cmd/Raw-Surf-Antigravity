@@ -18,6 +18,7 @@ import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
+import { OceanMask } from './OceanMask';
 import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP } from './LayerRegistry'; // eslint-disable-line
 import { validateModelAccess, getUserTier } from './LayerAccessResolver'; // eslint-disable-line
 import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
@@ -654,13 +655,20 @@ var MapWebGL = ({
               'raster-saturation': layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
                 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
               'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
-              'raster-fade-duration': 300
+              'raster-fade-duration': 0
             }}
           />
         </Source>
       ))}
 
-
+      {/* v83: Ocean Mask -- clips marine rasters to ocean boundaries using
+           inverted NE 50m land polygons. Rendered ABOVE raster tiles, paints
+           land areas with theme-matched fill to hide coastline bleed. */}
+      <OceanMask
+        mapInstance={mapInstance}
+        active={!!activeMarineLayer}
+        theme={theme}
+      />
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
       <MarineParticleCanvas 
