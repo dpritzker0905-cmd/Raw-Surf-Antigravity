@@ -119,9 +119,45 @@ var MapWebGL = ({
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
+    import('@openmeteo/weather-map-layer').then((omLib) => {
+      const { omProtocol, defaultOmProtocolSettings } = omLib;
       if (maplibregl?.addProtocol) {
-        try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ }
+        // v86: Register om:// protocol with NE 10m land clipping for pixel-perfect
+        // coastline masking. Tiles are clipped to water-only areas inside the worker,
+        // eliminating the blocky GFS grid-cell bleed on land that polygon masking can't fix.
+        const settings = { ...defaultOmProtocolSettings };
+
+        // Fetch NE 10m land polygons → build inverted water mask for clipping
+        fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json')
+          .then(r => r.ok ? r.json() : null)
+          .then(landGeoJSON => {
+            if (!landGeoJSON?.features?.length) return;
+            // Build world polygon with land as holes = water-only clipping region
+            const WORLD = [[-180.1, -85.1], [180.1, -85.1], [180.1, 85.1], [-180.1, 85.1], [-180.1, -85.1]];
+            const holes = [];
+            for (const f of landGeoJSON.features) {
+              const g = f.geometry;
+              if (!g) continue;
+              if (g.type === 'Polygon') {
+                for (const ring of g.coordinates) holes.push(ring);
+              } else if (g.type === 'MultiPolygon') {
+                for (const poly of g.coordinates) { for (const ring of poly) holes.push(ring); }
+              }
+            }
+            settings.clippingOptions = {
+              geojson: { type: 'Polygon', coordinates: [WORLD, ...holes] },
+              fillRule: 'evenodd',
+            };
+            // Re-register protocol with clipping (removes old, adds new)
+            try { maplibregl.removeProtocol('om'); } catch (e) { /* ok */ }
+            try { maplibregl.addProtocol('om', (params, ac) => omProtocol(params, ac, settings)); } catch (e) { /* ok */ }
+            console.log('[OceanMask] Pixel-level clipping active (NE 10m,', holes.length, 'land rings)');
+          })
+          .catch(err => console.warn('[OceanMask] Clipping data fetch failed:', err));
+
+        // Register immediately (without clipping) so tiles load fast,
+        // then re-register with clipping once land data arrives
+        try { maplibregl.addProtocol('om', (params, ac) => omProtocol(params, ac, settings)); } catch (e) { /* already registered */ }
       }
       setProtocolReady(true);
     });

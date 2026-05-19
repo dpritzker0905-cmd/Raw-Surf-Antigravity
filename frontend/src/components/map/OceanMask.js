@@ -1,24 +1,21 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 
 /**
- * OceanMask v3 — Hybrid coastline clipping for marine rasters.
+ * OceanMask v3 — Supplementary vector-tile coastline refinement.
  *
  * Architecture: Two-tier masking system:
- *   1. PRIMARY: Natural Earth 10m land polygons (jsDelivr CDN, ~4.6MB)
- *      — covers 95%+ of global coastlines with high detail
- *   2. SUPPLEMENTARY: Mapbox `composite` vector tile layers (landuse/landcover)
- *      — adds coverage for barrier islands, narrow peninsulas, and other
- *        features missing from NE 10m at high zoom levels
+ *   1. PRIMARY (in MapWebGL.js): Open-Meteo `clippingOptions` clips raster
+ *      tiles at the PIXEL level using NE 10m land polygons. This eliminates
+ *      the blocky GFS grid-cell bleed that polygon-based masking can't fix.
+ *   2. SUPPLEMENTARY (this component): Adds fill layers from the Mapbox
+ *      `composite` vector tile source (landuse, landcover, building) to
+ *      cover any residual bleed from barrier islands or narrow features
+ *      that NE 10m doesn't include.
  *
- * Both layers paint land areas with the map background color, positioned
- * ABOVE marine rasters but BELOW roads/labels/buildings.
+ * v86: Moved primary clipping to the om:// protocol pipeline.
+ * This component now only manages the lightweight supplementary layers.
  */
 
-// Natural Earth 10m land polygons via jsDelivr CDN
-const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
-
-const MASK_SOURCE_ID  = 'ocean-mask-source';
-const MASK_LAYER_ID   = 'ocean-mask-layer';
 const SUPP_LAYER_PREFIX = 'ocean-mask-supp';
 
 // Theme-aware land fill colors (must EXACTLY match base map background)
@@ -30,41 +27,20 @@ const LAND_COLORS = {
 
 /**
  * Supplementary vector-tile layers from the Mapbox `composite` source.
- * These cover land features that NE 10m misses (barrier islands, parks,
- * airports, buildings). Each entry creates a fill layer painted with
- * the background color, positioned alongside the primary NE 10m mask.
+ * Each entry creates a fill layer painted with the background color.
  */
 const SUPP_LAYERS = [
-  { id: `${SUPP_LAYER_PREFIX}-landuse`,    sourceLayer: 'landuse',    minzoom: 5 },
-  { id: `${SUPP_LAYER_PREFIX}-landcover`,  sourceLayer: 'landcover',  minzoom: 0, maxzoom: 8 },
-  { id: `${SUPP_LAYER_PREFIX}-building`,   sourceLayer: 'building',   minzoom: 13 },
+  { id: `${SUPP_LAYER_PREFIX}-landuse`,   sourceLayer: 'landuse',   minzoom: 5 },
+  { id: `${SUPP_LAYER_PREFIX}-landcover`, sourceLayer: 'landcover', minzoom: 0, maxzoom: 8 },
+  { id: `${SUPP_LAYER_PREFIX}-building`,  sourceLayer: 'building',  minzoom: 13 },
 ];
-
-/**
- * Build a GeoJSON FeatureCollection from NE 10m land polygons.
- * Returns raw land features — no inversion needed.
- */
-function buildLandMask(landGeoJSON) {
-  if (!landGeoJSON?.features?.length) return null;
-
-  const polygons = [];
-  for (const feature of landGeoJSON.features) {
-    const geom = feature.geometry;
-    if (!geom) continue;
-    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
-      polygons.push({ type: 'Feature', geometry: geom, properties: {} });
-    }
-  }
-  return { type: 'FeatureCollection', features: polygons };
-}
 
 /**
  * Find the layer id to insert mask layers BEFORE.
  * Target: after marine rasters, before land-structure/roads/labels.
  */
 function findInsertionPoint(style) {
-  const layers = style?.layers || [];
-  for (const l of layers) {
+  for (const l of style?.layers || []) {
     if (['land-structure-polygon', 'land-structure-line',
          'building-outline', 'building'].includes(l.id) ||
         l.id.startsWith('tunnel-') || l.id.startsWith('road-')) {
@@ -78,33 +54,18 @@ function findInsertionPoint(style) {
 /*  React component                                                    */
 /* ------------------------------------------------------------------ */
 
+/**
+ * OceanMask component — manages supplementary vector-tile fill layers.
+ *
+ * Props:
+ *   mapInstance  — raw MapLibre map object
+ *   active       — whether any marine layer is currently active
+ *   theme        — 'dark' | 'light' | 'beach'
+ */
 export function OceanMask({ mapInstance, active, theme }) {
-  const [maskData, setMaskData] = useState(null);
-  const fetchedRef   = useRef(false);
-  const layerAddedRef = useRef(false);
-  const suppAddedRef  = useRef(false);
+  const addedRef = useRef(false);
 
-  // ─── Fetch NE 10m land polygons once ───
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    fetch(NE_LAND_URL)
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(geojson => {
-        const mask = buildLandMask(geojson);
-        if (mask) setMaskData(mask);
-      })
-      .catch(err => {
-        console.warn('[OceanMask] Failed to fetch land polygons:', err);
-        fetchedRef.current = false; // Allow retry
-      });
-  }, []);
-
-  // ─── Resolve fill color from active style or theme fallback ───
+  // Resolve fill color from active style or theme fallback
   const fillColor = useMemo(() => {
     if (mapInstance) {
       try {
@@ -116,14 +77,17 @@ export function OceanMask({ mapInstance, active, theme }) {
     return LAND_COLORS[theme] || LAND_COLORS.dark;
   }, [mapInstance, theme]);
 
-  // ─── Sync supplementary vector-tile layers ───
-  const syncSuppLayers = useCallback((beforeId) => {
+  // Add/remove supplementary layers
+  const syncLayers = useCallback(() => {
     if (!mapInstance) return;
+    const style = mapInstance.getStyle?.();
+    if (!style) return;
+
+    const beforeId = findInsertionPoint(style);
 
     if (active) {
       for (const cfg of SUPP_LAYERS) {
         if (mapInstance.getLayer(cfg.id)) {
-          // Update color on existing layer
           try { mapInstance.setPaintProperty(cfg.id, 'fill-color', fillColor); }
           catch (e) { /* ok */ }
           continue;
@@ -136,95 +100,36 @@ export function OceanMask({ mapInstance, active, theme }) {
             'source-layer': cfg.sourceLayer,
             minzoom: cfg.minzoom || 0,
             ...(cfg.maxzoom ? { maxzoom: cfg.maxzoom } : {}),
-            paint: {
-              'fill-color': fillColor,
-              'fill-opacity': 1,
-            },
+            paint: { 'fill-color': fillColor, 'fill-opacity': 1 },
           }, beforeId || undefined);
-        } catch (e) {
-          // Source layer might not exist in this style
-        }
+        } catch (e) { /* source-layer may not exist */ }
       }
-      suppAddedRef.current = true;
+      addedRef.current = true;
     } else {
       for (const cfg of SUPP_LAYERS) {
         if (mapInstance.getLayer(cfg.id)) {
           try { mapInstance.removeLayer(cfg.id); } catch (e) { /* ok */ }
         }
       }
-      suppAddedRef.current = false;
+      addedRef.current = false;
     }
   }, [mapInstance, active, fillColor]);
 
-  // ─── Sync primary NE 10m mask layer ───
-  const syncLayer = useCallback(() => {
-    if (!mapInstance || !maskData) return;
+  // Sync on dependency changes
+  useEffect(() => { syncLayers(); }, [syncLayers]);
 
-    const style = mapInstance.getStyle?.();
-    if (!style) return;
-
-    const sourceExists = !!mapInstance.getSource(MASK_SOURCE_ID);
-    const layerExists  = !!mapInstance.getLayer(MASK_LAYER_ID);
-    const beforeId = findInsertionPoint(style);
-
-    if (active) {
-      if (!sourceExists) {
-        mapInstance.addSource(MASK_SOURCE_ID, {
-          type: 'geojson',
-          data: maskData,
-          tolerance: 0.375,
-        });
-      }
-
-      if (!layerExists) {
-        mapInstance.addLayer({
-          id: MASK_LAYER_ID,
-          type: 'fill',
-          source: MASK_SOURCE_ID,
-          paint: {
-            'fill-color': fillColor,
-            'fill-opacity': 1,
-          },
-        }, beforeId || undefined);
-        layerAddedRef.current = true;
-      } else {
-        try { mapInstance.setPaintProperty(MASK_LAYER_ID, 'fill-color', fillColor); }
-        catch (e) { /* transitioning */ }
-      }
-
-      // Add supplementary vector-tile layers
-      syncSuppLayers(beforeId);
-    } else {
-      // Remove primary
-      if (layerExists) {
-        try { mapInstance.removeLayer(MASK_LAYER_ID); } catch (e) { /* ok */ }
-        layerAddedRef.current = false;
-      }
-      if (sourceExists) {
-        try { mapInstance.removeSource(MASK_SOURCE_ID); } catch (e) { /* ok */ }
-      }
-      // Remove supplementary
-      syncSuppLayers(null);
-    }
-  }, [mapInstance, maskData, active, fillColor, syncSuppLayers]);
-
-  // Run sync whenever dependencies change
-  useEffect(() => { syncLayer(); }, [syncLayer]);
-
-  // Re-sync on map style changes (theme switch causes full style reload)
+  // Re-sync on style changes (theme switch)
   useEffect(() => {
     if (!mapInstance) return;
-    const handler = () => setTimeout(syncLayer, 200);
+    const handler = () => setTimeout(syncLayers, 200);
     mapInstance.on('styledata', handler);
     return () => mapInstance.off('styledata', handler);
-  }, [mapInstance, syncLayer]);
+  }, [mapInstance, syncLayers]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (!mapInstance) return;
-      try { mapInstance.removeLayer(MASK_LAYER_ID); } catch (e) { /* ok */ }
-      try { mapInstance.removeSource(MASK_SOURCE_ID); } catch (e) { /* ok */ }
       for (const cfg of SUPP_LAYERS) {
         try { mapInstance.removeLayer(cfg.id); } catch (e) { /* ok */ }
       }
