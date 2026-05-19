@@ -119,25 +119,40 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
 };
 
 /**
- * Find the first land-related layer in a Mapbox vector style.
- * Marine rasters should be inserted BEFORE this layer (above water, below land).
- * Returns null if no suitable layer found (fallback: add at top).
+ * Find the first layer ABOVE water in a Mapbox vector style.
+ * Marine rasters are inserted BEFORE this layer (above water, below land structures).
+ *
+ * Mapbox navigation styles render in this order:
+ *   land (bg) → landcover → landuse → waterway → water → land-structure → roads → labels
+ * Marine rasters must go AFTER water and BEFORE land-structure-polygon so that:
+ *   - Wave data is visible over ocean/bay/lake water fills
+ *   - Piers, docks, barrier islands, buildings, and roads render ON TOP of wave data
+ *
+ * Returns null if no suitable layer found (fallback: layers added at top).
  */
 export var findLandLayerId = function(mapInstance) {
   if (!mapInstance) return null;
   var style = mapInstance.getStyle?.();
   if (!style?.layers) return null;
-  // Common Mapbox vector style land layer patterns (ordered by priority)
-  var landPatterns = ['landcover', 'landuse', 'land-structure', 'hillshade', 'national-park'];
+
+  // Primary: look for the first layer AFTER the water fill layer.
+  // In all Mapbox nav styles this is 'land-structure-polygon'.
+  var afterWater = false;
   for (var layer of style.layers) {
-    for (var pat of landPatterns) {
-      if (layer.id.includes(pat)) return layer.id;
+    if (layer.id === 'water' || layer.id === 'water-depth') {
+      afterWater = true;
+      continue;
     }
+    // Return the first non-water layer after the water fill
+    if (afterWater && layer.type === 'fill') return layer.id;
   }
-  // Fallback: find first non-water fill layer
+
+  // Fallback: search for known land structure layer IDs
+  var knownIds = ['land-structure-polygon', 'building-outline', 'building'];
   for (var layer2 of style.layers) {
-    if (layer2.type === 'fill' && !layer2.id.includes('water')) return layer2.id;
+    if (knownIds.includes(layer2.id)) return layer2.id;
   }
+
   return null;
 };
 

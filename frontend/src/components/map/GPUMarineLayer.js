@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GPUMarineLayer.js Marine-only renderer (v3.1)
  *
  * Renders ocean energy fields (waves, swell, wind waves) with:
@@ -99,11 +99,11 @@ function isLikelyOcean(lat, lng, grid) {
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
 
- // Fast reject: if inside a land bounding box (0.3 margin for coastal tolerance)
- // v70: Reduced from 1 to 0.3 to allow particles into coves, bays, and inlets
+ // Fast reject: if inside a land bounding box (0.15° margin for coastal tolerance)
+ // v85: Reduced from 0.3° to 0.15° to allow particles in bays, barrier island channels
   for (const box of LAND_BOXES) {
-    if (lat > box.s + 0.3 && lat < box.n - 0.3 &&
-        nLng > box.w + 0.3 && nLng < box.e - 0.3) {
+    if (lat > box.s + 0.15 && lat < box.n - 0.15 &&
+        nLng > box.w + 0.15 && nLng < box.e - 0.15) {
       return false;
     }
   }
