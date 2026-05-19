@@ -12,7 +12,7 @@
  * - This ensures the first call plays audio without delay
  */
 
-// GG Generate a WAV file as a data URI from raw PCM samples GGGGGGGGGG
+// --- Generate a WAV file as a data URI from raw PCM samples ---
 function generateWavDataUri(samples, sampleRate = 22050) {
   const numChannels = 1;
   const bitsPerSample = 16;
@@ -57,7 +57,7 @@ function writeString(view, offset, str) {
   }
 }
 
-// GG Generate ringtone samples GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Generate ringtone samples ---
 function generateIncomingRing() {
   const sampleRate = 22050;
   const duration = 2.5;
@@ -98,7 +98,7 @@ function generateRingbackTone() {
   return generateWavDataUri(samples, sampleRate);
 }
 
-// GG PRE-GENERATE on module load (runs once at import time) GGGGGGGGGG
+// --- PRE-GENERATE on module load (runs once at import time) ---
 const RING_URI = generateIncomingRing();
 const RINGBACK_URI = generateRingbackTone();
 

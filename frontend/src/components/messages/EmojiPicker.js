@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   QUICK_ACCESS_EMOJIS,
@@ -36,7 +36,7 @@ const EmojiPicker = ({ show, onSelect, onClose }) => {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
- // GG Scroll-indicator state GG
+ // --- Scroll-indicator state ---
   const updateScrollIndicators = useCallback(() => {
     const el = tabsRef.current;
     if (!el) return;

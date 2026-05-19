@@ -115,7 +115,7 @@ export const EXTENDED_EMOJI_CATEGORIES = {
   ],
 };
 
-// GGG Convenience: all categories merged (for full-picker views) GG
+// --- Convenience: all categories merged (for full-picker views) ---
 export const ALL_EMOJI_CATEGORIES = {
   ...EMOJI_CATEGORIES,
   ...EXTENDED_EMOJI_CATEGORIES,

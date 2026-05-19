@@ -11,7 +11,7 @@
  */
 import apiClient from '../lib/apiClient';
 
-// GG Read / fetch GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Read / fetch ---
 
 /**
  * Fetch all notifications for a user.
@@ -30,7 +30,7 @@ export const getNotifications = (userId) =>
 export const getUnreadCount = (userId) =>
   apiClient.get(`/notifications/${userId}/unread-count`);
 
-// GG Mark read GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Mark read ---
 
 /**
  * Mark a single notification as read.
@@ -48,7 +48,7 @@ export const markRead = (notificationId) =>
 export const markAllRead = (userId) =>
   apiClient.post(`/notifications/${userId}/read-all`);
 
-// GG Send GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Send ---
 
 /**
  * Send a notification to a user.
@@ -75,7 +75,7 @@ export const sendPhotographerAlert = (payload) =>
 export const createNotification = (payload) =>
   apiClient.post('/notifications', payload);
 
-// GG Preferences GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Preferences ---
 
 /**
  * Fetch notification preferences for a user.
@@ -122,7 +122,7 @@ export const getPreferencesByPath = (userId) =>
 export const updatePreferenceByPath = (userId, key, value) =>
   apiClient.put(`/notifications/preferences/${userId}`, { [key]: value });
 
-// GG GromHQ alert GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- GromHQ alert ---
 
 /**
  * Mark a GromHQ alert notification as read.

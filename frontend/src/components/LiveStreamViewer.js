@@ -188,7 +188,7 @@ const ViewerRoomContent = ({
   const [isChatOpen, setIsChatOpen]   = useState(true);
   const [emojiBursts, setEmojiBursts] = useState([]);
 
- // GG LiveKit DataChannel for real-time emoji reactions GG
+ // --- LiveKit DataChannel for real-time emoji reactions ---
   // Reactions are broadcast via LiveKit data messages on the 'reactions' topic.
   // This allows the broadcaster to see viewer reactions and vice versa.
   const onReactionReceived = useCallback((msg) => {

@@ -65,7 +65,7 @@ export const getThumbnailUrl = (thumbnailUrl, fullUrl) =>
 export const getVideoPoster = (post) =>
   getFullUrl(post?.thumbnail_url || post?.media_url);
 
-// GG CDN / Supabase Image Transform helpers GGGGGGGGGGGGGGGGGGGGGGGGG
+// --- CDN / Supabase Image Transform helpers ---
 // Supabase Storage supports on-the-fly image transforms via URL params.
 // See: https://supabase.com/docs/guides/storage/serving/image-transformations
 // These helpers are CDN-ready -- they only modify Supabase-hosted URLs,

@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import useActiveSession from '../hooks/useActiveSession';
 
-// GG Status label map GG
+// --- Status label map ---
 const STATUS_LABELS = {
   searching_for_pro: { captain: 'Finding Photographer...', crew: 'Waiting for Photographer...' },
   pending_payment:   { captain: 'Payment Pending', crew: 'Waiting for Captain to Pay' },
@@ -39,7 +39,7 @@ const STATUS_LABELS = {
  in_session: { captain: 'Session Active =+', crew: 'Session Active =+' },
 };
 
-// GG Shared color config factory GG
+// --- Shared color config factory ---
 const getColorConfig = (isCrew, isLight) => isCrew
   ? {
       barGradient: 'from-cyan-400 via-blue-500 to-cyan-400',
@@ -58,7 +58,7 @@ const getColorConfig = (isCrew, isLight) => isCrew
       glow: 'shadow-amber-400/20',
     };
 
-// GG Status icon component GG
+// --- Status icon component ---
 const StatusIcon = ({ status, colorConfig }) => {
   if (['searching_for_pro', 'en_route'].includes(status)) {
     return <Radio className={`w-4 h-4 animate-pulse ${colorConfig.textAccent}`} />;
@@ -78,7 +78,7 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
   const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
 
- // GG Collapsed: thin pulsing bar GG
+ // --- Collapsed: thin pulsing bar ---
   if (!isExpanded) {
     return (
       <div
@@ -106,7 +106,7 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
     );
   }
 
- // GG Expanded: full context card GG
+ // --- Expanded: full context card ---
   return (
     <div
       className="fixed left-0 right-0 z-[99] md:hidden"

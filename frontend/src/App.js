@@ -13,7 +13,7 @@ import ErrorBoundary from './components/routing/ErrorBoundary';
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AppLayout from './components/routing/AppLayout';
 
-// GGG Critical path (NOT lazy -- loaded immediately) GGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Critical path (NOT lazy -- loaded immediately) ---
 import { Home } from './components/Home';
 import { Auth } from './components/Auth';
 import { ForgotPassword, ResetPassword } from './components/PasswordReset';
@@ -81,7 +81,7 @@ const CareerPage = React.lazy(() => import('./components/CareerPage'));
 
 import './App.css';
 
-// GGG Audio: Unlock AudioContext on first user gesture for reliable ringtones GG
+// --- Audio: Unlock AudioContext on first user gesture for reliable ringtones ---
 import { ensureAudioUnlocked } from './utils/audioUnlock';
 ensureAudioUnlocked();
 

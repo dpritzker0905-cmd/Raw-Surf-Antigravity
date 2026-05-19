@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Reply,
   Check,
@@ -171,7 +171,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     
     const mediaUrl = getMediaUrl(message.media_url);
 
- // GG Post Share Card GG
+ // --- Post Share Card ---
     if (message.message_type === 'post_share') {
       const shareData = parsePostShareData(message.content);
       if (shareData) {

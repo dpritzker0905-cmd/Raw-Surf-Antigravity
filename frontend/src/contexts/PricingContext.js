@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
@@ -120,7 +120,7 @@ export const PricingProvider = ({ children }) => {
       const bk = res.data.booking_pricing || {};
 
       setGeneralSettings({
- // GG Gallery (general) pricing GG
+ // --- Gallery (general) pricing ---
         photo_price_web: res.data.photo_pricing?.web || 3,
         photo_price_standard: res.data.photo_pricing?.standard || 5,
         photo_price_high: res.data.photo_pricing?.high || 10,
@@ -128,7 +128,7 @@ export const PricingProvider = ({ children }) => {
         video_price_1080p: res.data.video_pricing?.['1080p'] || 15,
         video_price_4k: res.data.video_pricing?.['4k'] || 30,
 
- // GG Session-level metadata (included counts, buy-in, etc.) GG
+ // --- Session-level metadata (included counts, buy-in, etc.) ---
         on_demand_photo_price: sp.on_demand_photo_price || 10,
         on_demand_photos_included: sp.on_demand_photos_included || 3,
         on_demand_videos_included: sp.on_demand_videos_included || 0,
@@ -151,7 +151,7 @@ export const PricingProvider = ({ children }) => {
         group_discount_3_plus: sp.group_discount_3_plus || 0,
         group_discount_5_plus: sp.group_discount_5_plus || 0,
 
- // GG On-Demand independent resolution pricing GG
+ // --- On-Demand independent resolution pricing ---
         on_demand_price_web: od.photo_web || 5,
         on_demand_price_standard: od.photo_standard || 10,
         on_demand_price_high: od.photo_high || 18,
@@ -159,7 +159,7 @@ export const PricingProvider = ({ children }) => {
         on_demand_video_1080p: od.video_1080p || 20,
         on_demand_video_4k: od.video_4k || 40,
 
- // GG Live Session independent resolution pricing GG
+ // --- Live Session independent resolution pricing ---
         live_price_web: ls.photo_web || 3,
         live_price_standard: ls.photo_standard || 6,
         live_price_high: ls.photo_high || 12,
@@ -167,7 +167,7 @@ export const PricingProvider = ({ children }) => {
         live_video_1080p: ls.video_1080p || 15,
         live_video_4k: ls.video_4k || 30,
 
- // GG Booking independent resolution pricing GG
+ // --- Booking independent resolution pricing ---
         booking_price_web: bk.photo_web || 3,
         booking_price_standard: bk.photo_standard || 5,
         booking_price_high: bk.photo_high || 10,

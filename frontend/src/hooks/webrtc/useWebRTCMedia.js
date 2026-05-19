@@ -36,7 +36,7 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
  *   Single { audio: true } request.
  */
 export async function getMediaStream(type = 'audio', facingMode = 'user') {
- // GG Pre-flight: Check if permissions are permanently denied GG
+ // --- Pre-flight: Check if permissions are permanently denied ---
   // navigator.permissions.query is NOT available for camera/mic on Safari,
   // so we skip this check on iOS and rely on the getUserMedia error instead.
   if (!isIOS && navigator.permissions?.query) {
@@ -52,7 +52,7 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
     }
   }
 
- // GG Step 1: Always acquire audio first GG
+ // --- Step 1: Always acquire audio first ---
   let audioStream;
   try {
  logger.debug('[WebRTC] Step 1 -- requesting audio-onlyG');
@@ -68,7 +68,7 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
     return audioStream;
   }
 
- // GG Step 2: Acquire video separately (iOS needs its own prompt) GG
+ // --- Step 2: Acquire video separately (iOS needs its own prompt) ---
   const videoConstraintChain = [
     { audio: false, video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode } },
     { audio: false, video: { facingMode } },
@@ -87,7 +87,7 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
     }
   }
 
- // GG Step 3: Merge into a single MediaStream GG
+ // --- Step 3: Merge into a single MediaStream ---
   if (videoStream) {
     const combined = new MediaStream();
     audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
@@ -115,7 +115,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [facingMode, setFacingMode] = useState('user');
 
- // GG Toggle Mute GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+ // --- Toggle Mute ---
   const toggleMute = useCallback(() => {
     const stream = localStreamRef.current;
     if (!stream) return;
@@ -125,7 +125,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     setIsMuted(prev => !prev);
   }, [localStreamRef]);
 
- // GG Toggle Camera GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+ // --- Toggle Camera ---
   // When turning OFF: disable the video track (fast, no renegotiation needed)
   // When turning ON: re-acquire camera via getUserMedia to get a fresh track,
   //   then replace it on the stream AND peer connection sender so InCallView's
@@ -135,13 +135,13 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     if (!stream) return;
 
     if (!isCameraOff) {
- // GG Turning camera OFF GG
+ // --- Turning camera OFF ---
       stream.getVideoTracks().forEach(track => {
         track.enabled = false;
       });
       setIsCameraOff(true);
     } else {
- // GG Turning camera back ON GG
+ // --- Turning camera back ON ---
       try {
         // Re-acquire a fresh video track from the camera hardware
         const freshMedia = await navigator.mediaDevices.getUserMedia({
@@ -193,7 +193,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     }
   }, [isCameraOff, localStreamRef, peerConnectionRef, setLocalStream]);
 
- // GG Flip Camera (Front -- Rear) GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+ // --- Flip Camera (Front -- Rear) ---
   // Samsung S23 FE + many Android devices: must STOP the old camera
   // track BEFORE requesting a new one, otherwise the browser throws
   // OverconstrainedError or NotReadableError because the hardware
@@ -321,7 +321,7 @@ export function useWebRTCMedia({ localStreamRef, peerConnectionRef, setLocalStre
     logger.debug(`[WebRTC] \u{2705} Camera flipped to ${newFacing}`);
   }, [isCameraOff, facingMode, localStreamRef, peerConnectionRef, setLocalStream]);
 
- // GG Replace Video Track (for WebGL filtered canvas stream) GGGGGG
+ // --- Replace Video Track (for WebGL filtered canvas stream) ---
   const replaceVideoTrack = useCallback((newVideoTrack) => {
     const pc = peerConnectionRef.current;
     if (!pc || !newVideoTrack) return;

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getUserTier, resolveForecastWindow } from '../components/map/LayerAccessResolver';
 import logger from '../utils/logger';
 
@@ -70,8 +70,8 @@ export function useWeatherState({ user }) {
     if (isPlayingTimeline && !isRadarOrSat && activeLayers.length > 0) {
       const activeLayer = activeLayers[0];
       const isRasterOnly = ['rain', 'fog', 'pressure', 'satellite'].includes(activeLayer);
-      const stepHours = isRasterOnly ? 3 : 6;
-      const intervalMs = isRasterOnly ? 1500 : 4000;
+      const stepHours = isRasterOnly ? 1 : 6;
+      const intervalMs = isRasterOnly ? 800 : 4000;
 
       forecastIntervalRef.current = setInterval(() => {
         setTimeOffsetHours(prev => {

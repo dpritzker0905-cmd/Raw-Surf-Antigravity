@@ -151,7 +151,7 @@ export const HAIR_STYLES = {
   },
 };
 
-// GG MediaPipe Face Mesh Landmark Indices GG
+// --- MediaPipe Face Mesh Landmark Indices ---
 const LANDMARK = {
  FOREHEAD_TOP: 10, // Glabella area (between eyebrows -- NOT top of skull!)
   CHIN: 152,            // Bottom of chin
@@ -220,7 +220,7 @@ function processImageAlpha(img) {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const data = imageData.data;
   
- // GG Auto-detect background type by sampling corner pixels GG
+ // --- Auto-detect background type by sampling corner pixels ---
   const w = canvas.width;
   const corners = [
     0,                          // top-left
@@ -250,7 +250,7 @@ function processImageAlpha(img) {
     const colorRange = maxChannel - minChannel;
     
     if (isBlackBackground) {
- // GG BLACK BACKGROUND mode GG
+ // --- BLACK BACKGROUND mode ---
       // Remove dark pixels with low saturation (pure black/near-black)
       if (avg < 20 && colorRange < 15) {
         data[i + 3] = 0; // fully transparent
@@ -260,7 +260,7 @@ function processImageAlpha(img) {
         data[i + 3] = Math.round(255 * fade);
       }
     } else {
- // GG CHECKERED BACKGROUND mode GG
+ // --- CHECKERED BACKGROUND mode ---
       // Remove bright pixels with low color saturation (gray/white)
       if (avg > 145 && colorRange < 45) {
         data[i + 3] = 0;
@@ -537,7 +537,7 @@ export class HairFilterEngine {
     
     if (!glabella || !chin || !leftTemple || !rightTemple) return;
     
- // GG Step 1: Measure face dimensions in canvas pixels GG
+ // --- Step 1: Measure face dimensions in canvas pixels ---
     // Temple width (upper face)
     const templeWidth = Math.sqrt(
       Math.pow((rightTemple.x - leftTemple.x) * width, 2) +
@@ -562,10 +562,10 @@ export class HairFilterEngine {
       Math.pow((chin.y - glabella.y) * height, 2)
     );
     
- // GG Step 2: Estimate HEAD dimensions (larger than face) GG
+ // --- Step 2: Estimate HEAD dimensions (larger than face) ---
     const headWidth = faceWidth * HEAD_WIDTH_RATIO;
     
- // GG Step 3: Estimate CROWN position GG
+ // --- Step 3: Estimate CROWN position ---
     // Crown is above landmark 10 by ~50% of the face height
     const crownOffsetPx = faceHeight * CROWN_OFFSET_RATIO;
     
@@ -578,13 +578,13 @@ export class HairFilterEngine {
     const glabellaY = glabella.y * height;
     const crownY = glabellaY - crownOffsetPx;
     
- // GG Step 4: Head rotation angle GG
+ // --- Step 4: Head rotation angle ---
     const angle = Math.atan2(
       (rightEye.y - leftEye.y) * height,
       (rightEye.x - leftEye.x) * width
     );
     
- // GG Step 5: Smooth values GG
+ // --- Step 5: Smooth values ---
     // Include face center/dimensions for face masking
     const faceCenterX = centerX; // nose bridge X
     const faceCenterY = ((glabella.y + chin.y) / 2) * height;
@@ -667,7 +667,7 @@ export class HairFilterEngine {
     );
     ctx.restore();
     
- // GG Face Mask: erase the face area so hair never covers the face GG
+ // --- Face Mask: erase the face area so hair never covers the face ---
     // Uses 'destination-out' compositing to punch a soft elliptical hole
     if (faceCenterX && faceCenterY && faceMaskW > 0 && faceMaskH > 0) {
       ctx.save();

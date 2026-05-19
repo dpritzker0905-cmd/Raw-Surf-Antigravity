@@ -62,7 +62,7 @@ const TrustSignalBadges = ({ profileId, compact = false }) => {
   const tier = TIER_CONFIG[data.session_tier] || TIER_CONFIG.new;
   const breakdown = data.review_breakdown || {};
 
- // GG COMPACT MODE (inline badges for cards / search results) GG
+ // --- COMPACT MODE (inline badges for cards / search results) ---
   if (compact) {
     return (
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -104,7 +104,7 @@ const TrustSignalBadges = ({ profileId, compact = false }) => {
     );
   }
 
- // GG FULL MODE (profile page) GG
+ // --- FULL MODE (profile page) ---
   return (
     <div
       className="rounded-xl border border-white/10 overflow-hidden"

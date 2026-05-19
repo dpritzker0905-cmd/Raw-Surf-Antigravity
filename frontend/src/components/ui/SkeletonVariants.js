@@ -212,7 +212,7 @@ export const StoryRingSkeleton = () => (
   </div>
 );
 
-// GGG Gear Hub Item Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Gear Hub Item Skeleton ---
 export const GearItemSkeleton = () => (
   <div className="rounded-xl border border-border bg-card overflow-hidden">
     <Skeleton className="w-full aspect-square" />
@@ -292,7 +292,7 @@ export const LeaderboardSkeleton = ({ count = 10 }) => (
   </div>
 );
 
-// GGG Gallery Page Skeleton GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Gallery Page Skeleton ---
 export const GallerySkeleton = () => (
   <div className="space-y-4">
     <div className="flex items-center justify-between">
@@ -320,7 +320,7 @@ export const BookingsSkeleton = ({ count = 4 }) => (
   </div>
 );
 
-// GGG Generic Page Skeleton (for hub/dashboard pages) GGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Generic Page Skeleton (for hub/dashboard pages) ---
 export const GenericPageSkeleton = () => (
   <div className="p-4 max-w-4xl mx-auto space-y-4">
     <div className="flex items-center gap-3">

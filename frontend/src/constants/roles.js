@@ -41,7 +41,7 @@ export const ROLES = Object.freeze({
   GOD: 'God',
 });
 
-// GGG Role Set Groupings GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Role Set Groupings ---
 
 /** All surfer-type roles (not photographers or businesses) */
 export const SURFER_ROLES = [ROLES.SURFER, ROLES.GROM, ROLES.COMP_SURFER, ROLES.PRO];

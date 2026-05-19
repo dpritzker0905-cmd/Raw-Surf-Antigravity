@@ -146,7 +146,7 @@ const BroadcasterControls = ({
     // Throws on error so CommentTile can revert the optimistic update
   }, [streamId, userId]);
 
- // GG LiveKit DataChannel for real-time emoji reactions GG
+ // --- LiveKit DataChannel for real-time emoji reactions ---
   // Reactions received from viewers appear as floating emoji bursts on the broadcaster's screen.
   const onReactionReceived = useCallback((msg) => {
     try {

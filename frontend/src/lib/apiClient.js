@@ -31,7 +31,7 @@ const apiClient = axios.create({
   },
 });
 
-// GG Request interceptor -- inject auth token GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Request interceptor -- inject auth token ---
 apiClient.interceptors.request.use(
   (config) => {
     // Inject Bearer token from stored user session
@@ -55,10 +55,10 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// GG Track whether we've already shown the session-expired message GGGGGGGGGGGG
+// --- Track whether we've already shown the session-expired message ---
 let _sessionExpiredShown = false;
 
-// GG Response interceptor -- handle auth errors GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
+// --- Response interceptor -- handle auth errors ---
 apiClient.interceptors.response.use(
   (response) => {
     // Reset session-expired flag on any successful response
