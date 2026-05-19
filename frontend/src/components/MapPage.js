@@ -488,6 +488,7 @@ var MapPageContent = () => {
             setSelectedSpot(null);
             setUnifiedDrawerOpen(false);
           }}
+          longPressLocation={longPressLocation}
         />
       </div>
 

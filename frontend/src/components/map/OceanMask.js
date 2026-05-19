@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
- * OceanMask v8 — Three-layer coastline masking system.
+ * OceanMask v9 — Coastline masking with outward-shifted buffer.
  *
  * Layer stack (bottom → top):
- *   [water]               ← Mapbox base (ocean fill)
+ *   [water]               ← Mapbox base
  *   [marine rasters]      ← OM wave/swell tiles
- *   ocean-mask-buffer     ← NE 10m THICK coastline line (covers GFS grid bleed)
- *   ocean-mask-fill       ← NE 10m land fill (solid land coverage)
- *   ocean-mask-line       ← NE 10m thin outline (aesthetic boundary)
- *   [roads/labels]        ← Mapbox base (untouched)
+ *   ocean-mask-buffer     ← WIDE line shifted outward from land (covers GFS bleed)
+ *   ocean-mask-fill       ← NE 10m land fill (solid coverage)
+ *   ocean-mask-line       ← Thin coastline outline (aesthetic)
+ *   [roads/labels]        ← Mapbox base
  *
- * The BUFFER layer is the key innovation: GFS marine raster tiles have
- * ~28km grid cells that straddle coastlines, producing a green/teal band
- * where the raster extends past the NE 10m polygon edge into the ocean.
- * A thick line in the background color, painted BELOW the fill, extends
- * outward from the coastline to cover this bleed zone.
+ * The buffer uses `line-translate` to shift the entire line outward from
+ * land, ensuring maximum coverage of the GFS grid cell bleed zone that
+ * creates a green/teal band along coastlines.
  */
 
 const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
@@ -115,10 +113,14 @@ export function OceanMask({ mapInstance, active, theme }) {
         const beforeId = findInsertBefore(style);
         const fillColor = resolveFillColor(mapInstance, theme);
 
-        // Layer 1: THICK coastline buffer — covers GFS grid cell bleed zone.
-        // At zoom 3, GFS cells are ~100px → need ~50px buffer.
-        // At zoom 7, cells are ~8px → need ~10px buffer.
-        // At zoom 12+, cells are sub-pixel → 3px is enough.
+        // Layer 1: WIDE coastline buffer with outward shift.
+        // GFS marine tiles bleed 1-3 grid cells (~28-84km) past coastlines.
+        // At zoom 3: ~18px per cell → need 36px+ buffer
+        // At zoom 7: ~6px per cell → need 12px+ buffer
+        // At zoom 12+: sub-pixel → 6px is enough
+        // The line extends equally inward/outward from the polygon edge.
+        // The fill will cover the inward half anyway, so the effective
+        // coverage equals half the line-width on the ocean side.
         if (!hasBuf) {
           mapInstance.addLayer({
             id: MASK_BUFFER,
@@ -127,14 +129,16 @@ export function OceanMask({ mapInstance, active, theme }) {
             paint: {
               'line-color': fillColor,
               'line-width': ['interpolate', ['exponential', 1.5], ['zoom'],
-                2, 6,
-                5, 12,
-                7, 16,
-                10, 10,
-                14, 4,
+                1, 8,
+                3, 16,
+                5, 28,
+                7, 36,
+                9, 24,
+                11, 14,
+                14, 8,
               ],
               'line-opacity': 1,
-              'line-blur': ['interpolate', ['linear'], ['zoom'], 3, 2, 8, 1, 12, 0],
+              'line-blur': ['interpolate', ['linear'], ['zoom'], 2, 3, 7, 2, 12, 0],
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
           }, beforeId || undefined);
@@ -172,7 +176,6 @@ export function OceanMask({ mapInstance, active, theme }) {
           }, beforeId || undefined);
         }
       } else {
-        // --- REMOVE ---
         for (const lid of ALL_LAYERS) {
           if (mapInstance.getLayer(lid)) { try { mapInstance.removeLayer(lid); } catch (e) {} }
         }
