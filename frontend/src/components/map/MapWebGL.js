@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findLandLayerId } from './mapUtils';
+import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WindParticleCanvas } from './GPUWindLayer';
@@ -453,20 +453,24 @@ var MapWebGL = ({
   // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
 
-  // v84: Find the first land layer in the vector style to insert marine rasters BEFORE it.
-  // This positions OM tiles above water but below land — natural coastline clipping.
-  const [landBeforeId, setLandBeforeId] = useState(null);
+  // v85: Find the landcover layer — marine rasters insert BELOW it (above background).
+  // Then make the water layer semi-transparent so raster colors show through ocean.
+  const [marineBeforeId, setMarineBeforeId] = useState(null);
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
-      var id = findLandLayerId(mapInstance);
-      if (id) setLandBeforeId(id);
+      var id = findMarineInsertionLayer(mapInstance);
+      if (id) setMarineBeforeId(id);
     };
     mapInstance.on('styledata', onStyleData);
-    // Also run immediately if style already loaded
     onStyleData();
     return () => mapInstance.off('styledata', onStyleData);
   }, [mapInstance]);
+
+  // v85: Toggle water layer transparency when marine layers activate/deactivate
+  useEffect(() => {
+    configureWaterTransparency(mapInstance, !!activeMarineLayer, theme);
+  }, [mapInstance, activeMarineLayer, theme]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 
@@ -643,7 +647,7 @@ var MapWebGL = ({
         >
           <Layer
             id={`${layerKey}-layer`}
-            beforeId={LAYER_REGISTRY[layerKey]?.type === 'marine' && landBeforeId ? landBeforeId : undefined}
+            beforeId={LAYER_REGISTRY[layerKey]?.type === 'marine' && marineBeforeId ? marineBeforeId : undefined}
             type="raster"
             layout={{ 
               visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 

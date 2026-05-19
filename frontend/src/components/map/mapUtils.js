@@ -119,41 +119,60 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
 };
 
 /**
- * Find the first layer ABOVE water in a Mapbox vector style.
- * Marine rasters are inserted BEFORE this layer (above water, below land structures).
+ * Find the correct insertion layer for marine rasters in a Mapbox vector style.
  *
- * Mapbox navigation styles render in this order:
- *   land (bg) → landcover → landuse → waterway → water → land-structure → roads → labels
- * Marine rasters must go AFTER water and BEFORE land-structure-polygon so that:
- *   - Wave data is visible over ocean/bay/lake water fills
- *   - Piers, docks, barrier islands, buildings, and roads render ON TOP of wave data
+ * Strategy: Place marine rasters BELOW all land layers but ABOVE the background.
+ *   land (bg) → [MARINE RASTERS HERE] → landcover → landuse → water(transparent) → roads → labels
  *
- * Returns null if no suitable layer found (fallback: layers added at top).
+ * Then make the `water` layer semi-transparent so the marine raster colors show
+ * through ocean/lake areas, while landcover/landuse/parks remain OPAQUE and block
+ * the marine raster on land.
+ *
+ * Returns the `landcover` layer id (the first fill layer after background).
  */
-export var findLandLayerId = function(mapInstance) {
+export var findMarineInsertionLayer = function(mapInstance) {
   if (!mapInstance) return null;
   var style = mapInstance.getStyle?.();
   if (!style?.layers) return null;
 
-  // Primary: look for the first layer AFTER the water fill layer.
-  // In all Mapbox nav styles this is 'land-structure-polygon'.
-  var afterWater = false;
+  // In Mapbox nav styles: land[bg] → landcover[fill] → national-park → landuse → water
+  // We want the first fill layer after the background — that's 'landcover'.
   for (var layer of style.layers) {
-    if (layer.id === 'water' || layer.id === 'water-depth') {
-      afterWater = true;
-      continue;
-    }
-    // Return the first non-water layer after the water fill
-    if (afterWater && layer.type === 'fill') return layer.id;
+    if (layer.type === 'fill') return layer.id;  // First fill = landcover
   }
-
-  // Fallback: search for known land structure layer IDs
-  var knownIds = ['land-structure-polygon', 'building-outline', 'building'];
-  for (var layer2 of style.layers) {
-    if (knownIds.includes(layer2.id)) return layer2.id;
-  }
-
   return null;
+};
+
+/**
+ * Configure the vector style's water layer for marine raster pass-through.
+ * Makes the water fill semi-transparent so marine rasters placed below it
+ * are visible over ocean/lake areas.
+ *
+ * @param {object} mapInstance — MapLibre GL map instance
+ * @param {boolean} marineActive — whether any marine layer is active
+ * @param {string} theme — current theme (dark/light/beach)
+ */
+export var configureWaterTransparency = function(mapInstance, marineActive, theme) {
+  if (!mapInstance) return;
+  try {
+    var style = mapInstance.getStyle?.();
+    if (!style?.layers) return;
+
+    // Check if water layer exists in the style
+    var hasWater = style.layers.some(function(l) { return l.id === 'water'; });
+    if (!hasWater) return;
+
+    if (marineActive) {
+      // Make water semi-transparent so marine raster shows through
+      // Use low opacity so wave colors are vivid but water tint is still visible
+      mapInstance.setPaintProperty('water', 'fill-opacity', 0.25);
+    } else {
+      // Restore to fully opaque when no marine layer is active
+      mapInstance.setPaintProperty('water', 'fill-opacity', 1.0);
+    }
+  } catch (e) {
+    // Style not ready or layer not found — silent fail
+  }
 };
 
 /**
