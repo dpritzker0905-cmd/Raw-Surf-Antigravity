@@ -22,9 +22,7 @@ const MASK_SOURCE = 'ocean-mask-source';
 const MASK_BUFFER = 'ocean-mask-buffer';
 const MASK_FILL   = 'ocean-mask-fill';
 const MASK_LINE   = 'ocean-mask-line';
-const MASK_INLAND_WATERWAY = 'ocean-mask-inland-waterway';
-const MASK_INLAND_WATER = 'ocean-mask-inland-water';
-const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER, MASK_INLAND_WATERWAY, MASK_INLAND_WATER];
+const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER];
 
 const THEME_COLORS = {
   dark:  { fill: 'hsl(214, 17%, 31%)', line: 'rgba(0, 0, 0, 0.35)', lw: 1.2 },
@@ -119,8 +117,6 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
       const hasBuf  = !!mapInstance.getLayer(MASK_BUFFER);
       const hasFill = !!mapInstance.getLayer(MASK_FILL);
       const hasLine = !!mapInstance.getLayer(MASK_LINE);
-      const hasWaterway = !!mapInstance.getLayer(MASK_INLAND_WATERWAY);
-      const hasWater = !!mapInstance.getLayer(MASK_INLAND_WATER);
       const hasSrc  = !!mapInstance.getSource(MASK_SOURCE);
 
       if (active) {
@@ -156,8 +152,9 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
                   14, 0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
-                  9, 1.0,
-                  14, 0.0
+                  2, 0.4,
+                  8, 0.2,
+                  10, 0.0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
                   2, 2.0,
@@ -175,6 +172,11 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           try {
             safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', fillColor);
+            mapInstance.setPaintProperty(MASK_BUFFER, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
+              2, 0.4,
+              8, 0.2,
+              10, 0.0
+            ]);
           } catch (e) {}
         }
 
@@ -193,7 +195,13 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               id: MASK_FILL,
               type: 'fill',
               source: MASK_SOURCE,
-              paint: { 'fill-color': fillColor, 'fill-opacity': fillOpacity },
+              paint: {
+                'fill-color': fillColor,
+                'fill-opacity': ['interpolate', ['linear'], ['zoom'],
+                  8, fillOpacity,
+                  11, 0.0
+                ]
+              },
             }, insertBeforeId || undefined);
           } catch (e) {
             console.error('[OceanMask] Failed to add MASK_FILL:', e);
@@ -202,89 +210,14 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           try {
             safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
-            mapInstance.setPaintProperty(MASK_FILL, 'fill-opacity', fillOpacity);
+            mapInstance.setPaintProperty(MASK_FILL, 'fill-opacity', ['interpolate', ['linear'], ['zoom'],
+              8, fillOpacity,
+              11, 0.0
+            ]);
           } catch (e) {}
         }
 
-        // Layer 3: Bring high-resolution inland water (lakes/reservoirs) back to top
-        // Dynamically resolve source and source-layer from base style's 'water' layer
-        let waterSource = 'composite';
-        let waterSourceLayer = 'water';
-        let waterColor = 'hsl(197, 60%, 80%)';
-        try {
-          const baseWater = style?.layers?.find(l => l.id === 'water' || l.id === 'water-depth' || l.id === 'wetland');
-          if (baseWater) {
-            if (baseWater.source) waterSource = baseWater.source;
-            if (baseWater['source-layer']) waterSourceLayer = baseWater['source-layer'];
-            if (baseWater.paint?.['fill-color']) waterColor = baseWater.paint['fill-color'];
-          }
-        } catch (e) {}
-
-        if (!hasWater) {
-          try {
-            mapInstance.addLayer({
-              id: MASK_INLAND_WATER,
-              type: 'fill',
-              source: waterSource,
-              'source-layer': waterSourceLayer,
-              filter: ['all', ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
-              paint: {
-                'fill-color': waterColor,
-                'fill-opacity': 1.0
-              }
-            }, insertBeforeId || undefined);
-          } catch (e) {
-            console.warn('[OceanMask] Failed to add MASK_INLAND_WATER:', e);
-          }
-        } else {
-          try {
-            safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
-            mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-          } catch (e) {}
-        }
-
-        // Layer 4: Bring high-resolution waterways (rivers/streams as lines) back to top
-        // Dynamically resolve source and source-layer from base style's 'waterway' layer
-        let waterwaySource = 'composite';
-        let waterwaySourceLayer = 'waterway';
-        let waterwayColor = 'hsl(197, 15%, 43%)';
-        try {
-          const baseWaterway = style?.layers?.find(l => l.id === 'waterway' || l.id.includes('waterway'));
-          if (baseWaterway) {
-            if (baseWaterway.source) waterwaySource = baseWaterway.source;
-            if (baseWaterway['source-layer']) waterwaySourceLayer = baseWaterway['source-layer'];
-            if (baseWaterway.paint?.['line-color']) waterwayColor = baseWaterway.paint['line-color'];
-          }
-        } catch (e) {}
-
-        if (!hasWaterway) {
-          try {
-            mapInstance.addLayer({
-              id: MASK_INLAND_WATERWAY,
-              type: 'line',
-              source: waterwaySource,
-              'source-layer': waterwaySourceLayer,
-              paint: {
-                'line-color': waterwayColor,
-                'line-width': ['interpolate', ['linear'], ['zoom'],
-                  8, 0.5,
-                  13, 1.5,
-                  18, 6
-                ],
-                'line-opacity': 1.0
-              }
-            }, insertBeforeId || undefined);
-          } catch (e) {
-            console.warn('[OceanMask] Failed to add MASK_INLAND_WATERWAY:', e);
-          }
-        } else {
-          try {
-            safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
-            mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
-          } catch (e) {}
-        }
-
-        // Layer 5: Thin coastline outline — aesthetic boundary
+        // Layer 3: Thin coastline outline — aesthetic boundary
         if (!hasLine) {
           try {
             mapInstance.addLayer({
@@ -297,8 +230,8 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
                   2, tc.lw * 0.5, 6, tc.lw, 10, tc.lw * 1.5,
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
-                  9, 0.8,
-                  14, 0.0
+                  6, 0.3,
+                  10, 0.0
                 ],
                 'line-blur': 0.5,
               },
@@ -310,6 +243,11 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         } else {
           try {
             safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
+            mapInstance.setPaintProperty(MASK_LINE, 'line-color', tc.line);
+            mapInstance.setPaintProperty(MASK_LINE, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
+              6, 0.3,
+              10, 0.0
+            ]);
           } catch (e) {}
         }
 
