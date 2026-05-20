@@ -270,6 +270,7 @@ function createProgram(gl, vs, fs) {
 }
 
 function createTexture(gl, filter, data, width, height) {
+  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
   const tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -281,6 +282,7 @@ function createTexture(gl, filter, data, width, height) {
   } else {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
   }
+  gl.bindTexture(gl.TEXTURE_2D, prevTex);
   return tex;
 }
 
@@ -461,6 +463,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.disable(gl.STENCIL_TEST);
   gl.disable(gl.SCISSOR_TEST);
 
+  // Capture textures on unit 0 and 1
+  gl.activeTexture(gl.TEXTURE0);
+  var prevTex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  gl.activeTexture(gl.TEXTURE1);
+  var prevTex1 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+
   // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
   var prevVAO = null;
   var isWebGL2 = false;
@@ -477,6 +485,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // ==========================================
   // PHASE 1: DRAW WAVE HEIGHT HEATMAP
   // ==========================================
+  // Unbind potential feedback loop textures from units 0 and 1
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
 
@@ -524,6 +536,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
 
+  // Unbind potential feedback loop textures from units 0 and 1
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
   gl.viewport(0, 0, this.particleRes, this.particleRes);
@@ -538,12 +554,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(advPosLoc);
 
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+
   // Swap buffers
   var tmp = this.particleStateA;
   this.particleStateA = this.particleStateB;
   this.particleStateB = tmp;
 
   // Draw wave crest lines
+  // Unbind potential feedback loop textures from units 0 and 1
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
 
@@ -582,7 +604,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.useProgram(prevProg);
   gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
   gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, prevActiveTex);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex1);
+  gl.activeTexture(prevActiveTex);
   
   if (prevBlend) {
     gl.enable(gl.BLEND);

@@ -269,6 +269,7 @@ function createProgram(gl, vs, fs) {
 }
 
 function createTexture(gl, filter, data, width, height) {
+  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
   const tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -282,14 +283,17 @@ function createTexture(gl, filter, data, width, height) {
   } else {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
   }
+  gl.bindTexture(gl.TEXTURE_2D, prevTex);
   return tex;
 }
 
 function createFBO(gl, filter, width, height) {
+  const prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   const tex = createTexture(gl, filter, null, width, height);
   const fbo = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   return { tex, fbo };
 }
 
@@ -524,6 +528,11 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   // ==========================================
   // PHASE 2: DRAW HEATMAP (Option A Standalone WebGL)
   // ==========================================
+  // Unbind potential feedback loop textures from all units first
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
 
@@ -580,6 +589,12 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
+
+  // Unbind potential feedback loop textures from all units first
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
   gl.viewport(0, 0, this.particleRes, this.particleRes);
@@ -598,6 +613,12 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
 
   // Fade screen A -> screen B
   gl.useProgram(this.fadeProgram);
+
+  // Unbind potential feedback loop textures from all units first
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.disable(gl.BLEND);
@@ -616,6 +637,12 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.drawProgram);
+
+  // Unbind potential feedback loop textures from all units first
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2);
@@ -640,6 +667,12 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
 
   // Copy screenB -> screenA
   gl.useProgram(this.screenProgram);
+
+  // Unbind potential feedback loop textures from all units first
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
@@ -657,6 +690,12 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+  // Unbind potential feedback loop textures from all units first
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+
   bindTexture(gl, this.screenB.tex, 0);
   
   var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
