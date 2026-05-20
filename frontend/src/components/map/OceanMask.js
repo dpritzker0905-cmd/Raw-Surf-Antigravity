@@ -126,7 +126,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         if (!hasSrc) {
           try {
             mapInstance.addSource(MASK_SOURCE, {
-              type: 'geojson', data: maskData, tolerance: 0.375,
+              type: 'geojson', data: maskData, tolerance: 0.01,
             });
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);
@@ -136,10 +136,8 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         const insertBeforeId = beforeId || findInsertBefore(style);
         const fillColor = resolveFillColor(mapInstance, theme);
 
-        // Layer 1: WIDE coastline buffer with outward shift.
-        // GFS marine tiles bleed 1-3 grid cells (~28-84km) past coastlines.
-        // Shrink the width of MASK_BUFFER at mid-to-high zoom levels to prevent it from invading coastal waters.
-        // Use soft blur for a clean, premium transition where water meets the edge of land.
+        // Layer 1: Coastline buffer with outward shift.
+        // GFS marine tiles bleed past coastlines. Dynamic width tapers off at high zooms.
         if (!hasBuf) {
           try {
             mapInstance.addLayer({
@@ -148,13 +146,13 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               source: MASK_SOURCE,
               paint: {
                 'line-color': fillColor,
-                'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
-                  1, 5,
-                  3, 8,
-                  5, 12,
-                  7, 16,
-                  9, 20,
-                  14, 2,
+                'line-width': ['interpolate', ['linear'], ['zoom'],
+                  1, 8,
+                  4, 6,
+                  7, 4,
+                  10, 2,
+                  12, 1,
+                  14, 0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   9, 1.0,

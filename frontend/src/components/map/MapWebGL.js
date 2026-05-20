@@ -536,24 +536,18 @@ var MapWebGL = ({
     }
   });
 
-  // v163: Keep long-press ref in sync with latest callback
+  // Keep long-press ref in sync
   useEffect(() => { longPressRef.current = onMapLongPress; }, [onMapLongPress]);
 
   useEffect(() => {
     if (!mapInstance) return;
-
-    // v3.11.2r1: Immediately reset canvas opacity for layers NOT in activeLayers
-    // This prevents stale particles from persisting visually after layer switch
     const windActive = activeLayers.includes('wind');
-    const wc = document.getElementById('wind-canvas-layer');
+    const wc = document.getElementById('wind-particle-overlay');
     if (!windActive && wc) {
       wc.style.opacity = '0';
-      // Clear the canvas content to prevent flash on re-enable
-      try { wc.getContext('2d')?.clearRect(0, 0, wc.width, wc.height); } catch(e) { /* ignore context errors */ }
+      try { wc.getContext('2d')?.clearRect(0, 0, wc.width, wc.height); } catch(e) {}
     }
-
     weatherAnimRef.current = { active: true, start: performance.now(), duration: 600 };
-    const MARINE_LAYERS = ['marine-wave-height-layer', 'marine-swell-primary-layer', 'marine-swell-secondary-layer', 'marine-wind-wave-layer'];
     const animateWeatherLayers = () => {
       const anim = weatherAnimRef.current;
       if (!anim.active) return;
@@ -569,7 +563,6 @@ var MapWebGL = ({
               mapInstance.setPaintProperty(lid, 'raster-opacity', base * p);
             }
           }
-          // v3.2: OM raster tiles for marine + wind layers (canvas particles overlay separately)
           if (activeRenderType === 'marine' || activeRenderType === 'wind') {
             const lk = activeLayers[0], lid = `${lk}-layer`;
             if (lk && mapInstance.getLayer(lid)) {
@@ -577,10 +570,10 @@ var MapWebGL = ({
             }
           }
           if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
-        } catch (e) { /* layer may have been removed */ }
+        } catch (e) {}
       }
       if (windActive && wc) wc.style.opacity = p;
-      if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) { /* map disposed */ } animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
+      if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) {} animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
     };
     cancelAnimationFrame(animFrameRef.current);
     animFrameRef.current = requestAnimationFrame(animateWeatherLayers);

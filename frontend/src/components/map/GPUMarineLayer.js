@@ -360,7 +360,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         position: 'absolute', top: 0, left: 0,
         width: '100%', height: '100%',
         pointerEvents: 'none', zIndex: 5,
-        opacity: 0, transition: 'none'
+        opacity: active ? 1 : 0,
+        transition: 'opacity 0.3s ease'
       }}
     />
   );
