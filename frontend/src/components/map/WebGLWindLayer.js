@@ -119,6 +119,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     // Dynamic layer ordering: insert wind particles directly before the first symbol layer
     const handleStyleData = () => {
       if (!mapInstance) return;
+      if (!mapInstance.isStyleLoaded?.()) return;
 
       const layers = mapInstance.getStyle()?.layers || [];
       let firstSymbolId = undefined;

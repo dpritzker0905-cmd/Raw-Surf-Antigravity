@@ -444,12 +444,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
 
   const z = typeof zoom === 'number' ? zoom : 6;
-  const wScale = 0.016 * 1500 * Math.pow(0.70, z - 6) * this.speedFactor;
+  // v3.12.7: Premium, zoom-independent screen-space velocity calibration
+  const baseScale = 0.008 * this.speedFactor * Math.pow(0.5, z - 6);
   const bnd = this._windData.bounds;
   const lngSpan = Math.max(0.01, Math.abs(bnd.east - bnd.west));
   const latSpan = Math.max(0.01, Math.abs(bnd.north - bnd.south));
-  const speedScaleX = ((1.0 / 111320.0) * wScale) / lngSpan;
-  const speedScaleY = ((1.0 / 111320.0) * wScale) / latSpan;
+  const speedScaleX = baseScale / lngSpan;
+  const speedScaleY = baseScale / latSpan;
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
 
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());

@@ -2,13 +2,13 @@
   "projects": [
     {
       "name": "RawSurf Frontend",
-      "path": "C:/Users/dprit/.gemini/antigravity/scratch/raw-surf/Raw-Surf-main/frontend",
+      "path": "c:/Users/dprit/Raw-Surf/frontend",
       "type": "react",
       "checks": ["eslint"]
     },
     {
       "name": "RawSurf Backend",
-      "path": "C:/Users/dprit/.gemini/antigravity/scratch/raw-surf/Raw-Surf-main/backend",
+      "path": "c:/Users/dprit/Raw-Surf/backend",
       "type": "python",
       "checks": ["ruff", "pytest"]
     }
@@ -16,8 +16,8 @@
   "watchExtensions": [".js", ".jsx", ".ts", ".tsx", ".py"],
   "debounceMs": 800,
   "dashboardPort": 7734,
-  "qaStatusFile": "C:/Users/dprit/.gemini/antigravity/scratch/raw-surf/Raw-Surf-main/qa-agent/qa-status.json",
-  "conversationId": "e6b20a99-fc82-4e1b-9f1d-1b6e53e8818c",
+  "qaStatusFile": "c:/Users/dprit/Raw-Surf/qa-agent/qa-status.json",
+  "conversationId": "4e63c47c-02ba-4f38-b1d8-3862de616759",
 
   "_comment_deploys": "Always use activeEnv=dev during development. Switch to prod only for production smoke tests.",
   "activeEnv": "dev",

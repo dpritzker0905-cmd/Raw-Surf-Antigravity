@@ -148,7 +148,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         if (!hasSrc) {
           try {
             mapInstance.addSource(MASK_SOURCE, {
-              type: 'geojson', data: maskData, tolerance: 0.1,
+              type: 'geojson', data: maskData, tolerance: 0.01,
             });
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);
@@ -169,11 +169,11 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               paint: {
                 'line-color': fillColor,
                 'line-width': ['interpolate', ['linear'], ['zoom'],
-                  1, 8,
-                  4, 6,
-                  7, 4,
-                  10, 2,
-                  12, 1,
+                  1, 4,
+                  4, 3,
+                  7, 2,
+                  9, 1,
+                  12, 0.5,
                   14, 0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],

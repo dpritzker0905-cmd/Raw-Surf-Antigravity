@@ -104,6 +104,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     // Dynamic layer ordering: insert wave particles directly before ocean-mask-buffer or marineBeforeId
     const handleStyleData = () => {
       if (!mapInstance) return;
+      if (!mapInstance.isStyleLoaded?.()) return;
 
       const hasMaskBuffer = !!mapInstance.getLayer('ocean-mask-buffer');
       const insertionId = hasMaskBuffer ? 'ocean-mask-buffer' : findMarineInsertionLayer(mapInstance);
