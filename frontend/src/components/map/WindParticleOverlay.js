@@ -85,13 +85,22 @@ function noise2D(x, y) {
  * Higher wind speeds = brighter, more opaque white.
  * Low speeds = faint, ghostly trails.
  */
-function getWindColor(speed, alpha) {
-  // Calm: soft icy blue-white [200, 220, 255]
-  // Storm: bright white-amber [255, 255, 230]
+function getWindColor(speed, alpha, theme) {
   var intensity = Math.min(1.0, speed / 30);
-  var r = Math.round(200 + intensity * 55);
-  var g = Math.round(220 + intensity * 35);
-  var b = Math.round(255 - intensity * 25);
+  var r, g, b;
+  if (theme === 'dark') {
+    r = Math.round(147 - intensity * 141);
+    g = Math.round(51 + intensity * 131);
+    b = Math.round(234 - intensity * 22);
+  } else if (theme === 'beach') {
+    r = Math.round(249 + intensity * 6);
+    g = Math.round(115 + intensity * 128);
+    b = Math.round(22 + intensity * 177);
+  } else {
+    r = Math.round(148 - intensity * 97);
+    g = Math.round(163 - intensity * 98);
+    b = Math.round(184 - intensity * 99);
+  }
   return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(3) + ')';
 }
 
@@ -121,15 +130,17 @@ function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal) {
     noiseSeed: Math.random() * 100 };
 }
 
-export function WindParticleOverlay({ mapInstance, active, data, id }) {
+export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
   var layerId = id || 'wind-particle-overlay';
   var canvasRef = useRef(null);
   var dataRef = useRef(null);
   var particlesRef = useRef([]);
   var activeRef = useRef(active);
+  var themeRef = useRef(theme);
   var debugRef = useRef({ logged: false, drawCount: 0 });
 
   useEffect(function() { activeRef.current = active; }, [active]);
+  useEffect(function() { themeRef.current = theme; }, [theme]);
   useEffect(function() {
     if (data?.vectors?.length) {
       dataRef.current = data;
@@ -356,8 +367,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           alpha *= (0.08 + speedFactor * 0.35);
           if (alpha < 0.01) continue;
 
-          // Ventusky-style: white vapor trails
-          ctx.strokeStyle = getWindColor(wind.speed, alpha);
+          // Dynamic theme-aware color
+          ctx.strokeStyle = getWindColor(wind.speed, alpha, themeRef.current);
 
           // Speed-aware dynamic line width (0.7px - 2.0px) for premium look
           ctx.lineWidth = Math.min(2.0, 0.7 + wind.speed * 0.025);

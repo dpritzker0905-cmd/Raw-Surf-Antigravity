@@ -10,7 +10,6 @@ import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
-import { useRasterTransactions } from './useRasterTransactions';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
@@ -33,14 +32,7 @@ function ensureMapLibreInit() {
 }
 export function trace(layer, action, source, payload) {
   if (!window.__LRCM_EXEC_TRACE__) window.__LRCM_EXEC_TRACE__ = [];
-  window.__LRCM_EXEC_TRACE__.push({
-    layer,
-    action,
-    source,
-    timestamp: Date.now(),
-    payload,
-    stack: new Error().stack
-  });
+  window.__LRCM_EXEC_TRACE__.push({ layer, action, source, timestamp: Date.now(), payload, stack: new Error().stack });
   return payload;
 }
 
@@ -58,6 +50,7 @@ var OM_MODEL_MAP = {
 
 // Cache to prevent repetitive manifest fetching during layer toggles
 var MODEL_METADATA_PROMISES = {};
+var LIVE_FETCHED_MODELS = new Set();
 
 var MapWebGL = ({
   isLight,
@@ -98,6 +91,7 @@ var MapWebGL = ({
 
   const [mapInstance, setMapInstance] = useState(null);
   const resolveTaskIdRef = useRef(0);
+  const [metadataRevision, setMetadataRevision] = useState(0);
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -105,9 +99,7 @@ var MapWebGL = ({
   
   // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
   // v3.12.4: Passes activeModel + tier-based forecastDays for multi-model support
-  const forecastDays = useMemo(() => {
-    return resolveForecastWindow(userTier);
-  }, [userTier]);
+  const forecastDays = useMemo(() => resolveForecastWindow(userTier), [userTier]);
   const { windData, windRevision } = useWeatherEngine({
     activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
   });
@@ -131,11 +123,7 @@ var MapWebGL = ({
     return () => window.removeEventListener('unhandledrejection', suppressAbortRejections);
   }, []);
 
-  const activeWeatherVariable = useMemo(() => {
-    if (!activeLayers.length) return null;
-    const layer = LAYER_REGISTRY[activeLayers[0]];
-    return layer?.omVariable || null;
-  }, [activeLayers]);
+  const activeWeatherVariable = useMemo(() => activeLayers[0] ? LAYER_REGISTRY[activeLayers[0]]?.omVariable || null : null, [activeLayers]);
 
   useEffect(() => {
     trace(activeLayers[0] || 'none', 'toggle_layer', 'MapWebGL', { activeLayers });
@@ -165,9 +153,6 @@ var MapWebGL = ({
 
  // v242: Global Render Contract single source of truth for map readiness
   const renderContract = useMapRenderContract(mapInstance);
-
- // Raster Transaction Layer now gated by render contract
-  const { queueRasterUpdate } = useRasterTransactions(mapInstance, renderContract);
 
  // Marine Orchestrator single-pipeline data fetching
   const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours });
@@ -204,9 +189,8 @@ var MapWebGL = ({
 
   /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
-    if (MODEL_METADATA_CACHE[modelToCheck]) return MODEL_METADATA_CACHE[modelToCheck];
-
-    if (!MODEL_METADATA_PROMISES[modelToCheck]) {
+    const cached = MODEL_METADATA_CACHE[modelToCheck];
+    if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
       MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`)
         .then(res => {
           if (!res.ok) throw new Error('Fetch failed');
@@ -218,15 +202,30 @@ var MapWebGL = ({
             validTimes: data.valid_times || [],
             referenceTime: data.reference_time || null,
           };
+          const prevCache = MODEL_METADATA_CACHE[modelToCheck];
+          const hasChanged = !prevCache ||
+            prevCache.referenceTime !== result.referenceTime ||
+            prevCache.variables.length !== result.variables.length ||
+            prevCache.validTimes.length !== result.validTimes.length;
+
           MODEL_METADATA_CACHE[modelToCheck] = result;
+          LIVE_FETCHED_MODELS.add(modelToCheck);
+
+          if (hasChanged) {
+            setMetadataRevision(prev => prev + 1);
+          }
           return result;
         })
         .catch(err => {
           console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-          return { variables: [], validTimes: [], referenceTime: null };
+          LIVE_FETCHED_MODELS.add(modelToCheck);
+          return cached || { variables: [], validTimes: [], referenceTime: null };
+        })
+        .finally(() => {
+          MODEL_METADATA_PROMISES[modelToCheck] = null;
         });
     }
-    return MODEL_METADATA_PROMISES[modelToCheck];
+    return cached || { variables: [], validTimes: [], referenceTime: null };
   }, []);
 
   // Pre-warm metadata cache on mount so layer toggles are instant
@@ -363,7 +362,7 @@ var MapWebGL = ({
     });
     
     return () => { isMounted = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [activeModel, theme, timeOffsetHours, fetchMetadata, activeLayers]);
+  }, [activeModel, theme, timeOffsetHours, fetchMetadata, activeLayers, metadataRevision]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -743,6 +742,7 @@ var MapWebGL = ({
         mapInstance={mapInstance}
         active={activeLayers.includes('wind')}
         data={windData}
+        theme={theme}
       />
 
       {/* v163: Long-press / right-click marker (Ventusky/Windy style) */}
