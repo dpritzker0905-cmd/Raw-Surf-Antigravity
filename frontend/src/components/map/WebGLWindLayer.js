@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WebGLWindLayer MapLibre custom layer integration for GPU wind particles
  *
  * v3.8: React component wrapping WebGLWindEngine as a MapLibre CustomLayerInterface.
@@ -92,29 +92,48 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef);
 
-    // Wait for style load before adding layer
-    const addLayer = () => {
-      if (layerAddedRef.current) return;
-      try {
-        if (mapInstance.getLayer(LAYER_ID)) {
-          mapInstance.removeLayer(LAYER_ID);
+    // Dynamic layer ordering: insert wind particles directly before the first symbol layer
+    const handleStyleData = () => {
+      if (!mapInstance) return;
+
+      const layers = mapInstance.getStyle()?.layers || [];
+      let firstSymbolId = undefined;
+      for (const l of layers) {
+        if (l.type === 'symbol') {
+          firstSymbolId = l.id;
+          break;
         }
-        mapInstance.addLayer(customLayer);
-        layerAddedRef.current = true;
-        console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
-      } catch (e) {
-        console.warn('[WebGLWind] Failed to add layer:', e.message);
+      }
+
+      if (!mapInstance.getLayer(LAYER_ID)) {
+        layerAddedRef.current = false;
+        try {
+          mapInstance.addLayer(customLayer, firstSymbolId);
+          layerAddedRef.current = true;
+          console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+        } catch (e) {
+          console.warn('[WebGLWind] Failed to add layer:', e.message);
+        }
+      } else if (firstSymbolId) {
+        try {
+          mapInstance.moveLayer(LAYER_ID, firstSymbolId);
+        } catch (e) {}
+      }
+
+      // v3.12.6: Move raster wind-layer below custom webgl-wind-particles layer
+      if (mapInstance.getLayer('wind-layer') && mapInstance.getLayer(LAYER_ID)) {
+        try {
+          mapInstance.moveLayer('wind-layer', LAYER_ID);
+        } catch (e) {}
       }
     };
 
-    if (mapInstance.isStyleLoaded()) {
-      addLayer();
-    } else {
-      mapInstance.once('styledata', addLayer);
-    }
+    mapInstance.on('styledata', handleStyleData);
+    handleStyleData();
 
     return () => {
       try {
+        mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }
@@ -141,10 +160,15 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
     }
   }, [data, mapInstance]);
 
-  // Trigger repaints when activated
+  // Trigger repaints and ensure layer ordering when activated
   useEffect(() => {
     if (active && mapInstance) {
       mapInstance.triggerRepaint();
+      if (mapInstance.getLayer('wind-layer') && mapInstance.getLayer(LAYER_ID)) {
+        try {
+          mapInstance.moveLayer('wind-layer', LAYER_ID);
+        } catch (e) {}
+      }
     }
   }, [active, mapInstance]);
 

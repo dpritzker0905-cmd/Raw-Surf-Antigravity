@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
+import { findMarineInsertionLayer } from './mapUtils';
 
 var LAYER_ID = 'webgl-marine-particles';
 
@@ -77,28 +78,45 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef);
 
-    const addLayer = () => {
-      if (layerAddedRef.current) return;
-      try {
-        if (mapInstance.getLayer(LAYER_ID)) {
-          mapInstance.removeLayer(LAYER_ID);
+    // Dynamic layer ordering: insert wave particles directly before ocean-mask-buffer or marineBeforeId
+    const handleStyleData = () => {
+      if (!mapInstance) return;
+
+      const hasMaskBuffer = !!mapInstance.getLayer('ocean-mask-buffer');
+      const insertionId = hasMaskBuffer ? 'ocean-mask-buffer' : findMarineInsertionLayer(mapInstance);
+
+      if (!mapInstance.getLayer(LAYER_ID)) {
+        layerAddedRef.current = false;
+        try {
+          mapInstance.addLayer(customLayer, insertionId || undefined);
+          layerAddedRef.current = true;
+          console.log(`[WebGLMarine] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+        } catch (e) {
+          console.warn('[WebGLMarine] Failed to add layer:', e.message);
         }
-        mapInstance.addLayer(customLayer);
-        layerAddedRef.current = true;
-        console.log(`[WebGLMarine] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
-      } catch (e) {
-        console.warn('[WebGLMarine] Failed to add layer:', e.message);
+      } else if (insertionId) {
+        try {
+          mapInstance.moveLayer(LAYER_ID, insertionId);
+        } catch (e) {}
+      }
+
+      // Move any active marine raster layer below the custom webgl-marine-particles layer
+      const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
+      for (const rasterId of marineRasterLayers) {
+        if (mapInstance.getLayer(rasterId) && mapInstance.getLayer(LAYER_ID)) {
+          try {
+            mapInstance.moveLayer(rasterId, LAYER_ID);
+          } catch (e) {}
+        }
       }
     };
 
-    if (mapInstance.isStyleLoaded()) {
-      addLayer();
-    } else {
-      mapInstance.once('styledata', addLayer);
-    }
+    mapInstance.on('styledata', handleStyleData);
+    handleStyleData();
 
     return () => {
       try {
+        mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }
@@ -124,9 +142,18 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
     }
   }, [data, mapInstance]);
 
+  // Trigger repaints and ensure layer ordering when activated
   useEffect(() => {
     if (active && mapInstance) {
       mapInstance.triggerRepaint();
+      const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
+      for (const rasterId of marineRasterLayers) {
+        if (mapInstance.getLayer(rasterId) && mapInstance.getLayer(LAYER_ID)) {
+          try {
+            mapInstance.moveLayer(rasterId, LAYER_ID);
+          } catch (e) {}
+        }
+      }
     }
   }, [active, mapInstance]);
 

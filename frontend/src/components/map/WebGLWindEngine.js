@@ -582,11 +582,12 @@ WebGLWindEngine.prototype.dispose = function(gl) {
 };
 
 /**
- * v3.11.2r1: Clear all framebuffers called on layer deactivation
+ * v3.11.2r2: Clear all framebuffers called on layer deactivation
  * to prevent stale trails from persisting across layer switches.
+ * Safeguarded against uninitialized screen FBOs.
  */
 WebGLWindEngine.prototype.clearBuffers = function(gl) {
-  if (!gl || !this._initialized) return;
+  if (!gl || !this._initialized || !this.screenA || !this.screenB) return;
   try {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
     gl.clearColor(0, 0, 0, 0);

@@ -657,8 +657,10 @@ var MapWebGL = ({
           <Layer
             id={`${layerKey}-layer`}
             beforeId={
-              LAYER_REGISTRY[layerKey]?.type === 'marine'
-                ? (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId)
+              layerKey === 'wind'
+                ? undefined
+                : LAYER_REGISTRY[layerKey]?.type === 'marine'
+                ? (mapInstance?.getLayer('webgl-marine-particles') ? 'webgl-marine-particles' : (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId))
                 : undefined
             }
             type="raster"

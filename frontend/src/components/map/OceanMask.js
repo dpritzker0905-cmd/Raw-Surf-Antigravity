@@ -289,12 +289,13 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           } catch (e) {}
         }
 
-        // v90: Strictly force active marine raster layers BELOW the MASK_BUFFER layer
+        // v90: Strictly force active marine raster layers BELOW webgl-marine-particles or MASK_BUFFER layer
         const marineLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
+        const targetLayerId = mapInstance.getLayer('webgl-marine-particles') ? 'webgl-marine-particles' : MASK_BUFFER;
         for (const ml of marineLayers) {
-          if (mapInstance.getLayer(ml) && mapInstance.getLayer(MASK_BUFFER)) {
+          if (mapInstance.getLayer(ml) && mapInstance.getLayer(targetLayerId)) {
             try {
-              mapInstance.moveLayer(ml, MASK_BUFFER);
+              mapInstance.moveLayer(ml, targetLayerId);
             } catch (e) {}
           }
         }
