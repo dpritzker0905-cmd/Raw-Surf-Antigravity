@@ -1,5 +1,5 @@
 ﻿# QA Companion Report (Auto-Updated)
-**Generated:** 2026-04-30T23:14:09
+**Generated:** 2026-05-20T02:45:05
 **Trigger:** 
 **Environment:** dev (branch: dev)
 **Frontend Under Test:** https://dev--rawsurf.netlify.app
@@ -10,11 +10,11 @@
 
 ---
 
-## Overall: FAIL
+## Overall: PASS
 
 | Tool | Status | Detail |
 |------|--------|--------|
-| ESLint | FAIL | 261 errors, 498 warnings |
+| ESLint | PASS | 0 errors, 1 warnings |
 | Ruff | PASS | Python backend lint |
 | pytest | PASS | 0 passed, 0 failed |
 
@@ -22,16 +22,7 @@
 
 ## Critical ESLint Errors (severity=error)
 
-- `\src\contexts\AuthContext.test.js:7` [no-undef] 'jest' is not defined.
-- `\src\contexts\AuthContext.test.js:8` [no-undef] 'jest' is not defined.
-- `\src\contexts\AuthContext.test.js:9` [no-undef] 'jest' is not defined.
-- `\src\contexts\AuthContext.test.js:10` [no-undef] 'jest' is not defined.
-- `\src\contexts\AuthContext.test.js:11` [no-undef] 'jest' is not defined.
-- `\src\contexts\AuthContext.test.js:13` [no-undef] 'jest' is not defined.
-- `\src\contexts\AuthContext.test.js:14` [no-undef] 'jest' is not defined.
-- `\src\contexts\AuthContext.test.js:28` [no-undef] 'describe' is not defined.
-- `\src\contexts\AuthContext.test.js:29` [no-undef] 'beforeEach' is not defined.
-- `\src\contexts\AuthContext.test.js:31` [no-undef] 'jest' is not defined.
+
 
 ---
 

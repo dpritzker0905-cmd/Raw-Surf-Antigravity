@@ -171,6 +171,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     handleStyleData();
 
     return () => {
+      if (frameId) cancelAnimationFrame(frameId);
       try {
         mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {

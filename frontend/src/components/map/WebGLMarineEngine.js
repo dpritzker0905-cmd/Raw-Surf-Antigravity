@@ -18,7 +18,7 @@ var ADVECT_FS = `
 precision highp float;
 uniform sampler2D u_particles;
 uniform sampler2D u_marine_grid;
-uniform float u_speed_factor;
+uniform vec2 u_speed_scale;
 uniform float u_rand_seed;
 uniform float u_drop_rate;
 varying vec2 v_uv;
@@ -54,15 +54,15 @@ void main() {
   float lat_rad = (pos.y - 0.5) * 3.141592653589793;
   float merc_scale = max(0.1, cos(lat_rad));
   
-  // Wave drift (slower ocean velocity)
-  vec2 offset = vec2(waveVec.x / merc_scale, waveVec.y) * u_speed_factor;
+  // Wave drift (slower ocean velocity with high-precision coordinate advection)
+  vec2 offset = vec2(waveVec.x / merc_scale, waveVec.y) * u_speed_scale;
   pos = pos + offset;
 
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // Land or dead calm discard (threshold: 0.05m wave height)
-  if (waveHeight < 0.05 || length(waveVec) < 0.02) {
+  // Land or dead calm discard (relax relative amplitude threshold)
+  if (waveHeight < 0.05 || length(waveVec) < 0.001) {
     drop = 1.0;
   }
 
@@ -115,7 +115,7 @@ void main() {
   v_wave_height = waveHeight;
 
   // Land discard: if wave height/velocity is zero, push vertex to infinity
-  if (waveHeight < 0.05 || length(waveVec) < 0.02) {
+  if (waveHeight < 0.05 || length(waveVec) < 0.001) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
@@ -372,7 +372,18 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_marine_grid'), 1);
-  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_factor'), this.speedFactor);
+  
+  // High-precision, zoom-invariant wave advection scale calculation
+  const z = typeof zoom === 'number' ? zoom : 6;
+  const baseScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6));
+  const waveBounds = this._waveData.bounds;
+  const lngSpan = Math.max(0.01, Math.abs(waveBounds.east - waveBounds.west));
+  const latSpan = Math.max(0.01, Math.abs(waveBounds.north - waveBounds.south));
+  // Enforce a hard minimum step of 1.5e-5 to prevent 16-bit texture coordinate quantization freezes
+  const speedScaleX = Math.max(1.5e-5, baseScale / lngSpan);
+  const speedScaleY = Math.max(1.5e-5, baseScale / latSpan);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
+
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
 
@@ -408,9 +419,8 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
 
-  var bnd = this._waveData.bounds;
-  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
-  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
 
   var dashLengthScale = Math.max(0.3, Math.min(1.5, zoom / 6.0));

@@ -22,10 +22,74 @@ import { useTemporalPreloader } from './useTemporalPreloader';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+const MARINE_SCALE = {
+  type: "breakpoint", unit: "m",
+  breakpoints: [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10],
+  colors: [
+    [14, 25, 65, 0],       
+    [25, 45, 100, 1],    
+    [35, 75, 135, 1],    
+    [45, 110, 160, 1],   
+    [60, 140, 175, 1],   
+    [80, 175, 180, 1],   
+    [120, 205, 165, 1],  
+    [180, 220, 140, 1],  
+    [230, 210, 95, 1],   
+    [245, 150, 50, 1],   
+    [220, 80, 40, 1],    
+    [160, 30, 70, 1] 
+  ]
+};
+
+var _omProtocolPromise = null;
+function getOmProtocol() {
+  if (!_omProtocolPromise) {
+    _omProtocolPromise = import('@openmeteo/weather-map-layer').then((om) => {
+      const vars = ['wave_height', 'swell_wave_height', 'secondary_swell_wave_height', 'wind_wave_height'];
+      vars.forEach(varName => {
+        om.COLOR_SCALES[varName] = MARINE_SCALE;
+        if (om.COLOR_SCALES_WITH_ALIASES) {
+          om.COLOR_SCALES_WITH_ALIASES[varName] = MARINE_SCALE;
+        }
+        if (om.defaultOmProtocolSettings && om.defaultOmProtocolSettings.colorScales) {
+          om.defaultOmProtocolSettings.colorScales[varName] = MARINE_SCALE;
+        }
+      });
+      const settings = {
+        ...om.defaultOmProtocolSettings,
+        colorScales: {
+          ...om.defaultOmProtocolSettings?.colorScales,
+          wave_height: MARINE_SCALE,
+          swell_wave_height: MARINE_SCALE,
+          secondary_swell_wave_height: MARINE_SCALE,
+          wind_wave_height: MARINE_SCALE,
+        }
+      };
+      return { om, settings };
+    });
+  }
+  return _omProtocolPromise;
+}
+
 var _mapLibreWorkerSet = false;
 function ensureMapLibreInit() {
   if (!_mapLibreWorkerSet) {
     maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
+    
+    // Register custom 'om' protocol synchronously so it is available to the first map instance
+    try {
+      if (maplibregl.removeProtocol) maplibregl.removeProtocol('om');
+    } catch (e) {}
+    try {
+      maplibregl.addProtocol('om', (params, abortController) => {
+        return getOmProtocol().then(({ om, settings }) => {
+          return om.omProtocol(params, abortController, settings);
+        });
+      });
+    } catch (e) {
+      console.error('[MapLibre Init] Synchronous protocol registration error:', e);
+    }
+
     if (!window.__LRCM_EXEC_TRACE__) window.__LRCM_EXEC_TRACE__ = [];
     if (!window.__RASTER_DEBUG__) window.__RASTER_DEBUG__ = { failFast: true, logMissingVariables: true };
     _mapLibreWorkerSet = true;
@@ -124,36 +188,7 @@ var MapWebGL = ({
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    import('@openmeteo/weather-map-layer').then((om) => {
-      // v3.12.8: Inject marine color scales for wave heights
-      // @openmeteo/weather-map-layer does not natively support marine variables
-      if (!om.COLOR_SCALES['wave_height']) {
-        const marineScale = {
-          type: "breakpoint", unit: "m",
-          breakpoints: [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10],
-          colors: [
-            [14, 25, 65, 0],       
-            [25, 45, 100, 1],    
-            [35, 75, 135, 1],    
-            [45, 110, 160, 1],   
-            [60, 140, 175, 1],   
-            [80, 175, 180, 1],   
-            [120, 205, 165, 1],  
-            [180, 220, 140, 1],  
-            [230, 210, 95, 1],   
-            [245, 150, 50, 1],   
-            [220, 80, 40, 1],    
-            [160, 30, 70, 1] 
-          ]
-        };
-        om.COLOR_SCALES['wave_height'] = marineScale;
-        om.COLOR_SCALES['swell_wave_height'] = marineScale;
-        om.COLOR_SCALES['secondary_swell_wave_height'] = marineScale;
-        om.COLOR_SCALES['wind_wave_height'] = marineScale;
-      }
-      if (maplibregl?.addProtocol) {
-        try { maplibregl.addProtocol('om', om.omProtocol); } catch (e) { /* already registered */ }
-      }
+    getOmProtocol().then(() => {
       setProtocolReady(true);
     });
 
@@ -725,15 +760,18 @@ var MapWebGL = ({
                 12, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : 0.40),
               ],
               'raster-resampling': 'linear',
-              'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
+              'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0
+                : layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
                 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
                 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
                 : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 0 : 0,
  // v75: Fog (visibility) is inverted low values = fog = should render opaque.
               // Rain/cloud uses standard mapping where high values = precipitation.
-              'raster-contrast': layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10
+              'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.0
+                : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10
                 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-              'raster-saturation': layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
+              'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 1.0
+                : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
                 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
               'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
               'raster-fade-duration': 0
