@@ -5,9 +5,10 @@ import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
-import { MarineParticleCanvas } from './GPUMarineLayer';
+import { WebGLMarineLayer } from './WebGLMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
-import { WindParticleOverlay } from './WindParticleOverlay';
+// import { WindParticleOverlay } from './WindParticleOverlay';
+import WebGLWindLayer from './WebGLWindLayer';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
@@ -518,17 +519,11 @@ var MapWebGL = ({
     // v3.11.2r1: Immediately reset canvas opacity for layers NOT in activeLayers
     // This prevents stale particles from persisting visually after layer switch
     const windActive = activeLayers.includes('wind');
-    const marineActive = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
     const wc = document.getElementById('wind-canvas-layer');
-    const mc = document.getElementById('marine-canvas-layer');
     if (!windActive && wc) {
       wc.style.opacity = '0';
       // Clear the canvas content to prevent flash on re-enable
       try { wc.getContext('2d')?.clearRect(0, 0, wc.width, wc.height); } catch(e) { /* ignore context errors */ }
-    }
-    if (!marineActive && mc) {
-      mc.style.opacity = '0';
-      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) { /* ignore context errors */ }
     }
 
     weatherAnimRef.current = { active: true, start: performance.now(), duration: 600 };
@@ -559,7 +554,6 @@ var MapWebGL = ({
         } catch (e) { /* layer may have been removed */ }
       }
       if (windActive && wc) wc.style.opacity = p;
-      if (marineActive && mc) mc.style.opacity = p;
       if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) { /* map disposed */ } animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
     };
     cancelAnimationFrame(animFrameRef.current);
@@ -711,8 +705,7 @@ var MapWebGL = ({
       />
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
-      <MarineParticleCanvas 
-        id="marine-canvas-layer"
+      <WebGLMarineLayer 
         mapInstance={mapInstance} 
         active={!!activeMarineLayer}
         data={marineWindData}
@@ -734,15 +727,22 @@ var MapWebGL = ({
       />
 
       {/* v3.12.3: Canvas2D wind particles (Ventusky technique).
- WebGLWindLayer DISABLED MapLibre custom layer had WebGL state conflicts
-          making particles invisible. Canvas2D overlay uses same proven architecture
-          as MarineParticleCanvas and Ventusky.com (5 stacked Canvas2D layers). */}
+         WebGLWindLayer active now with WebGL State Isolation Protocol.
+         Commenting out Canvas2D WindParticleOverlay fallback. */}
+      {/*
       <WindParticleOverlay
         id="wind-particle-overlay"
         mapInstance={mapInstance}
         active={activeLayers.includes('wind')}
         data={windData}
         theme={theme}
+      />
+      */}
+      <WebGLWindLayer
+        mapInstance={mapInstance}
+        active={activeLayers.includes('wind')}
+        data={windData}
+        revision={windRevision}
       />
 
       {/* v163: Long-press / right-click marker (Ventusky/Windy style) */}

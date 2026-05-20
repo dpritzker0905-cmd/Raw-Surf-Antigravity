@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WebGLWindEngine GPU-accelerated wind particle advection + trail fading
  *
  * v3.8: Replaces Canvas2D particle loop with WebGL ping-pong framebuffer
@@ -382,10 +382,48 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     this.screenB = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
     this._screenW = screenWidth; this._screenH = screenHeight;
   }
+
+  // ==========================================
+  // PHASE 1: CAPTURE & ISOLATE STATE
+  // ==========================================
   var prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
   var prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   var prevBlend = gl.getParameter(gl.BLEND);
+  var prevActiveTex = gl.getParameter(gl.ACTIVE_TEXTURE);
+  var prevViewport = gl.getParameter(gl.VIEWPORT);
+
+  // Capture blending variables
+  var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
+  var prevBlendDstRGB = gl.getParameter(gl.BLEND_DST_RGB);
+  var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
+  var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
+
+  // Capture bound textures on units 0, 1, and 2
+  gl.activeTexture(gl.TEXTURE0);
+  var prevTex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  gl.activeTexture(gl.TEXTURE1);
+  var prevTex1 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  gl.activeTexture(gl.TEXTURE2);
+  var prevTex2 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+
+  // Capture buffer bindings
+  var prevArrayBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
+  var prevElementArrayBuffer = gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING);
+
+  // Capture WebGL2 Vertex Array Object (VAO) to prevent MapLibre pollution
+  var prevVAO = null;
+  var isWebGL2 = false;
+  if (gl.bindVertexArray) {
+    isWebGL2 = true;
+    prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
+    gl.bindVertexArray(null); // Unbind MapLibre's VAO
+  }
+
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
+
+  // ==========================================
+  // PHASE 2: EXECUTE SIMULATION (Standard WebGLWindEngine routines)
+  // ==========================================
 
   // Step 1: Advect particles (ping-pong)
   gl.useProgram(this.advectProgram);
@@ -403,6 +441,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.viewport(0, 0, this.particleRes, this.particleRes);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
+  
   var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(advPosLoc);
@@ -410,17 +449,19 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(advPosLoc);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+  
+  // Swap particle states
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
- // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
+  // Step 2: Fade screen A -> screen B (RGB fade, alpha=1.0)
   gl.useProgram(this.fadeProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
- // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
   bindTexture(gl, this.screenA.tex, 0);
+  
   var fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(fadePosLoc);
@@ -429,7 +470,6 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(fadePosLoc);
 
   // Step 3: Draw particles onto screen B with color ramp
- // v3.12.2: Re-enable blending particles drawn ON TOP of faded trails
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.drawProgram);
@@ -441,12 +481,15 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
+  
   var bnd = this._windData.bounds;
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
+  
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);
+  
   var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
   gl.enableVertexAttribArray(idxLoc);
@@ -454,13 +497,14 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
   gl.disableVertexAttribArray(idxLoc);
 
- // Copy screenB screenA
+  // Copy screenB -> screenA
   gl.useProgram(this.screenProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0);
   bindTexture(gl, this.screenB.tex, 0);
+  
   var cpLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(cpLoc);
@@ -469,22 +513,53 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(cpLoc);
 
   // Step 4: Composite to main framebuffer
- // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
-  // RGB-fade FBO has alpha=1.0, but screen shader outputs brightness-derived alpha.
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   bindTexture(gl, this.screenB.tex, 0);
+  
   var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  // Restore standard blending for subsequent MapLibre layers
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.disableVertexAttribArray(scrLoc);
-  if (!prevBlend) gl.disable(gl.BLEND);
+
+  // ==========================================
+  // PHASE 3: RESTORE CAPTURED STATE
+  // ==========================================
+  // Restore buffer bindings
+  gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
+
+  // Restore textures and units
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex1);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex2);
+  gl.activeTexture(prevActiveTex);
+
+  // Restore WebGL2 VAO
+  if (isWebGL2 && gl.bindVertexArray) {
+    gl.bindVertexArray(prevVAO);
+  }
+
+  // Restore FBO & Viewport
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+  gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+
+  // Restore program
   gl.useProgram(prevProg);
+
+  // Restore blending states
+  if (prevBlend) {
+    gl.enable(gl.BLEND);
+  } else {
+    gl.disable(gl.BLEND);
+  }
+  gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
