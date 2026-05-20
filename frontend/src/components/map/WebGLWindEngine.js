@@ -194,7 +194,55 @@ void main() {
   gl_FragColor = vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
 }`;
 
+var HEATMAP_VS = `
+attribute vec2 a_grid_uv;
+uniform mat4 u_matrix;
+uniform vec2 u_dataBounds_min;   // [west, south]
+uniform vec2 u_dataBounds_max;   // [east, north]
+varying vec2 v_grid_uv;
+
+void main() {
+  v_grid_uv = a_grid_uv;
+  
+  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
+  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
+  lat = clamp(lat, -85.051129, 85.051129);
+
+  float x = (lng + 180.0) / 360.0;
+  float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
+
+  gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
+}
+`;
+
+var HEATMAP_FS = `
+precision mediump float;
+varying vec2 v_grid_uv;
+uniform sampler2D u_wind;
+uniform vec2 u_wind_min;
+uniform vec2 u_wind_max;
+uniform sampler2D u_color_ramp;
+uniform float u_max_speed;
+uniform float u_opacity;
+
+void main() {
+  vec4 windColor = texture2D(u_wind, v_grid_uv);
+  vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
+  float speed = length(wind);
+
+  float normalizedSpeed = clamp(speed / u_max_speed, 0.0, 1.0);
+  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
+  
+  float alpha = color.a * u_opacity;
+  float lowSpeedFade = smoothstep(0.0, 1.5, speed);
+  alpha *= lowSpeedFade;
+
+  gl_FragColor = vec4(color.rgb * alpha, alpha);
+}
+`;
+
 // --- Utility Functions ---
+
 
 function createShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -342,21 +390,64 @@ WebGLWindEngine.prototype.init = function(gl) {
   var screenFS = createShader(gl, gl.FRAGMENT_SHADER, SCREEN_FS);
   var fadeVS = createShader(gl, gl.VERTEX_SHADER, SCREEN_VS);
   var fadeFS = createShader(gl, gl.FRAGMENT_SHADER, FADE_FS);
-  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS) {
+  var heatVS = createShader(gl, gl.VERTEX_SHADER, HEATMAP_VS);
+  var heatFS = createShader(gl, gl.FRAGMENT_SHADER, HEATMAP_FS);
+
+  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS || !heatVS || !heatFS) {
     console.error('[WebGLWind] Failed to compile shaders'); return;
   }
   this.advectProgram = createProgram(gl, advVS, advFS);
   this.drawProgram = createProgram(gl, drawVS, drawFS);
   this.screenProgram = createProgram(gl, screenVS, screenFS);
   this.fadeProgram = createProgram(gl, fadeVS, fadeFS);
+  this.heatmapProgram = createProgram(gl, heatVS, heatFS);
+
   this.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  
   var indices = new Float32Array(this.particleRes * this.particleRes);
   for (var i = 0; i < indices.length; i++) indices[i] = i;
   this.particleIndexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+  // Static 64x64 grid mesh for heatmap rendering
+  const W = 64;
+  const H = 64;
+  const gridUVs = new Float32Array(W * H * 2);
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) {
+      const idx = (r * W + c) * 2;
+      gridUVs[idx + 0] = c / (W - 1);
+      gridUVs[idx + 1] = r / (H - 1);
+    }
+  }
+  this.gridUVBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, gridUVs, gl.STATIC_DRAW);
+
+  const gridIndices = new Uint16Array((W - 1) * (H - 1) * 6);
+  let iIdx = 0;
+  for (let r = 0; r < H - 1; r++) {
+    for (let c = 0; c < W - 1; c++) {
+      const i0 = r * W + c;
+      const i1 = i0 + 1;
+      const i2 = (r + 1) * W + c;
+      const i3 = i2 + 1;
+      gridIndices[iIdx++] = i0;
+      gridIndices[iIdx++] = i1;
+      gridIndices[iIdx++] = i2;
+      gridIndices[iIdx++] = i1;
+      gridIndices[iIdx++] = i3;
+      gridIndices[iIdx++] = i2;
+    }
+  }
+  this.gridIndexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, gridIndices, gl.STATIC_DRAW);
+  this.numGridIndices = gridIndices.length;
+
   this.particleStateA = initParticleTexture(gl, this.particleRes);
   this.particleStateB = initParticleTexture(gl, this.particleRes);
   this.advFBO = gl.createFramebuffer();
@@ -364,7 +455,7 @@ WebGLWindEngine.prototype.init = function(gl) {
   var rampData = generateRampData(this._maxWindSpeed);
   this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
   this._initialized = true;
-  console.log('[WebGLWind] Initialized: ' + (this.particleRes * this.particleRes) + ' particles');
+  console.log('[WebGLWind] Initialized: ' + (this.particleRes * this.particleRes) + ' particles + 64x64 grid');
 };
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
@@ -373,7 +464,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   this._windData = encodeWindTexture(gl, windGrid);
 };
 
-WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom) {
+WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
   if (!this._initialized || !this._windData) return;
   if (!matrix || !matrix.length) return;
   if (!this.screenA || this._screenW !== screenWidth || this._screenH !== screenHeight) {
@@ -404,13 +495,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disable(gl.STENCIL_TEST);
   gl.disable(gl.SCISSOR_TEST);
 
-  // Capture blending variables
   var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
   var prevBlendDstRGB = gl.getParameter(gl.BLEND_DST_RGB);
   var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
   var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
 
-  // Capture bound textures on units 0, 1, and 2
   gl.activeTexture(gl.TEXTURE0);
   var prevTex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
   gl.activeTexture(gl.TEXTURE1);
@@ -418,33 +507,63 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.activeTexture(gl.TEXTURE2);
   var prevTex2 = gl.getParameter(gl.TEXTURE_BINDING_2D);
 
-  // Capture buffer bindings
   var prevArrayBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
   var prevElementArrayBuffer = gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING);
 
-  // Capture WebGL2 Vertex Array Object (VAO) to prevent MapLibre pollution
   var prevVAO = null;
   var isWebGL2 = false;
   if (gl.bindVertexArray) {
     isWebGL2 = true;
     prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
-    gl.bindVertexArray(null); // Unbind MapLibre's VAO
+    gl.bindVertexArray(null);
   }
 
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
-
-  // ==========================================
-  // PHASE 2: EXECUTE SIMULATION (Standard WebGLWindEngine routines)
-  // ==========================================
-
-  // Step 1: Advect particles (ping-pong)
-  const z = typeof zoom === 'number' ? zoom : 6;
-  // Graceful decay factor to preserve movement at higher zooms
-  const baseScale = 0.008 * this.speedFactor * Math.pow(0.8, Math.max(0, z - 6));
   const bnd = this._windData.bounds;
+
+  // ==========================================
+  // PHASE 2: DRAW HEATMAP (Option A Standalone WebGL)
+  // ==========================================
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+  gl.viewport(0, 0, screenWidth, screenHeight);
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+  gl.useProgram(this.heatmapProgram);
+  
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
+  
+  const windOpacity = Math.min(0.40, Math.max(0.20, 0.20 + (zoom - 2) * 0.015));
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), windOpacity);
+
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind'), 0);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_color_ramp'), 1);
+
+  bindTexture(gl, this._windData.texture, 0);
+  if (this._colorRamp) bindTexture(gl, this._colorRamp, 1);
+
+  var gridUvLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+  gl.enableVertexAttribArray(gridUvLoc);
+  gl.vertexAttribPointer(gridUvLoc, 2, gl.FLOAT, false, 0, 0);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+  gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
+  gl.disableVertexAttribArray(gridUvLoc);
+
+  // ==========================================
+  // PHASE 3: EXECUTE WIND PARTICLE SIMULATION
+  // ==========================================
+  const z = typeof zoom === 'number' ? zoom : 6;
+  const baseScale = 0.008 * this.speedFactor * Math.pow(0.8, Math.max(0, z - 6));
   const lngSpan = Math.max(0.01, Math.abs(bnd.east - bnd.west));
   const latSpan = Math.max(0.01, Math.abs(bnd.north - bnd.south));
-  // Enforce a hard minimum of 5.0e-4 to stay well above the 16-bit texture coordinate precision limit
   const speedScaleX = Math.max(5.0e-4, baseScale / lngSpan);
   const speedScaleY = Math.max(5.0e-4, baseScale / latSpan);
 
@@ -475,10 +594,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(advPosLoc);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
   
-  // Swap particle states
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
-  // Step 2: Fade screen A -> screen B (RGB fade, alpha=1.0)
+  // Fade screen A -> screen B
   gl.useProgram(this.fadeProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
@@ -494,7 +612,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(fadePosLoc);
 
-  // Step 3: Draw particles onto screen B with color ramp
+  // Draw particles onto screen B with color ramp
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.drawProgram);
@@ -506,7 +624,6 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
-  
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
   
@@ -536,7 +653,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(cpLoc);
 
-  // Step 4: Composite to main framebuffer
+  // Composite screenB to main framebuffer
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -550,13 +667,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(scrLoc);
 
   // ==========================================
-  // PHASE 3: RESTORE CAPTURED STATE
+  // PHASE 4: RESTORE STATE
   // ==========================================
-  // Restore buffer bindings
   gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
-
-  // Restore textures and units
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, prevTex0);
   gl.activeTexture(gl.TEXTURE1);
@@ -565,44 +679,38 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindTexture(gl.TEXTURE_2D, prevTex2);
   gl.activeTexture(prevActiveTex);
 
-  // Restore WebGL2 VAO
   if (isWebGL2 && gl.bindVertexArray) {
     gl.bindVertexArray(prevVAO);
   }
 
-  // Restore FBO & Viewport
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
-
-  // Restore program
   gl.useProgram(prevProg);
 
-  // Restore blending states
-  if (prevBlend) {
-    gl.enable(gl.BLEND);
-  } else {
-    gl.disable(gl.BLEND);
-  }
+  if (prevBlend) gl.enable(gl.BLEND);
+  else gl.disable(gl.BLEND);
   gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
 
-  // Restore depth state
-  if (prevDepthTest) {
-    gl.enable(gl.DEPTH_TEST);
-  } else {
-    gl.disable(gl.DEPTH_TEST);
-  }
+  if (prevDepthTest) gl.enable(gl.DEPTH_TEST);
+  else gl.disable(gl.DEPTH_TEST);
   gl.depthMask(prevDepthMask);
 
-  if (prevStencilTest) {
-    gl.enable(gl.STENCIL_TEST);
-  } else {
-    gl.disable(gl.STENCIL_TEST);
+  if (prevStencilTest) gl.enable(gl.STENCIL_TEST);
+  else gl.disable(gl.STENCIL_TEST);
+  if (prevScissorTest) gl.enable(gl.SCISSOR_TEST);
+  else gl.disable(gl.SCISSOR_TEST);
+};
+
+WebGLWindEngine.prototype.render = WebGLWindEngine.prototype.renderHeatmapAndParticles;
+
+WebGLWindEngine.prototype.setTheme = function(gl, theme) {
+  if (!gl || !this._initialized) return;
+  if (this._colorRamp) {
+    gl.deleteTexture(this._colorRamp);
   }
-  if (prevScissorTest) {
-    gl.enable(gl.SCISSOR_TEST);
-  } else {
-    gl.disable(gl.SCISSOR_TEST);
-  }
+  var rampData = generateRampData(this._maxWindSpeed, theme);
+  this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+  console.log('[WebGLWind] Theme-based color ramp updated for:', theme);
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
@@ -611,8 +719,11 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   if (this.drawProgram) gl.deleteProgram(this.drawProgram);
   if (this.screenProgram) gl.deleteProgram(this.screenProgram);
   if (this.fadeProgram) gl.deleteProgram(this.fadeProgram);
+  if (this.heatmapProgram) gl.deleteProgram(this.heatmapProgram);
   if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
   if (this.particleIndexBuffer) gl.deleteBuffer(this.particleIndexBuffer);
+  if (this.gridUVBuffer) gl.deleteBuffer(this.gridUVBuffer);
+  if (this.gridIndexBuffer) gl.deleteBuffer(this.gridIndexBuffer);
   if (this.advFBO) gl.deleteFramebuffer(this.advFBO);
   if (this.particleStateA) gl.deleteTexture(this.particleStateA);
   if (this.particleStateB) gl.deleteTexture(this.particleStateB);

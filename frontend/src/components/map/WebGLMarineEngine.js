@@ -1,8 +1,9 @@
 /**
  * WebGLMarineEngine.js
- * GPU-accelerated wave crest simulation engine.
- * Renders pulsing, perpendicular wave fronts using gl.drawArrays(gl.LINES).
- * Strictly conforms to WebGL State Isolation Protocol and is < 500 lines of code.
+ * GPU-accelerated wave crest simulation engine + continuous wave height heatmap.
+ * Renders pulsing, perpendicular wave fronts using gl.drawArrays(gl.LINES)
+ * overlayed on a smooth, continuous GPU wave height heatmap.
+ * Strictly conforms to WebGL State Isolation Protocol and is < 600 lines of code.
  */
 
 var ADVECT_VS = `
@@ -64,8 +65,8 @@ void main() {
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // Land or dead calm discard (relax relative amplitude threshold)
-  if (waveHeight < 0.05 || length(waveVec) < 0.001) {
+  // Land or very small waves discard (threshold: 0.35m wave height)
+  if (waveHeight < 0.35 || length(waveVec) < 0.001) {
     drop = 1.0;
   }
 
@@ -96,7 +97,6 @@ varying float v_alpha;
 varying float v_wave_height;
 
 void main() {
-  // 1. Calculate particle index and UV in state texture
   float particleIndex = floor(a_vertex_id / 2.0);
   float vertexType = mod(a_vertex_id, 2.0); // 0.0 = start, 1.0 = end
 
@@ -104,38 +104,32 @@ void main() {
   float row = floor(particleIndex / u_particles_res);
   vec2 p_uv = (vec2(col, row) + 0.5) / u_particles_res;
 
-  // 2. Decode position from texture
   vec4 encodedPos = texture2D(u_particles, p_uv);
   vec2 pos = vec2(
     encodedPos.r + encodedPos.g / 255.0,
     encodedPos.b + encodedPos.a / 255.0
   );
 
-  // 3. Lookup marine wave data at this position
   vec4 waveData = texture2D(u_marine_grid, pos);
-  vec2 waveVec = waveData.rg * 2.0 - 1.0; // Decode u, v to [-1, 1]
-  float waveHeight = waveData.b * 10.0;   // Decode height (up to 10m)
+  vec2 waveVec = waveData.rg * 2.0 - 1.0;
+  float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
 
-  // Land discard: if wave height/velocity is zero, push vertex to infinity
-  if (waveHeight < 0.05 || length(waveVec) < 0.001) {
+  if (waveHeight < 0.35 || length(waveVec) < 0.001) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
   }
 
-  // 4. Calculate perpendicular wave crest offset in degree space
   vec2 dir = normalize(waveVec);
-  vec2 perp = vec2(-dir.y, dir.x); // Rotate 90 degrees
+  vec2 perp = vec2(-dir.y, dir.x);
   
-  float dashLen = (4.0 + waveHeight * 2.0) * u_dash_length_scale;
-  vec2 coordOffset = perp * (dashLen / 111320.0) * 0.5; // Degree expansion
+  float dashLen = waveHeight * 4.0 * u_dash_length_scale;
+  vec2 coordOffset = perp * (dashLen / 111320.0) * 0.5;
 
-  // 5. Project position to geographic degrees
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
 
-  // 6. Expand start/end vertices in degree space
   if (vertexType < 0.5) {
     lng -= coordOffset.x;
     lat -= coordOffset.y;
@@ -145,21 +139,17 @@ void main() {
   }
   lat = clamp(lat, -85.051129, 85.051129);
 
-  // 7. Mercator projection & Matrix multiplication
   float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
 
-  // 8. Calculate periodic phase pulsation alpha
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
-  float period = 3.0 + particleHash * 4.0; // Wave period 3s to 7s
+  float period = 3.0 + particleHash * 4.0;
   float phase = fract(u_time / period + particleHash);
   
-  // Sine curve: smooth fade-in -> peak -> smooth fade-out
   v_alpha = sin(phase * 3.141592653589793);
-  // Scale alpha by wave height (larger waves are highly visible)
-  v_alpha *= clamp(waveHeight / 3.0, 0.2, 1.0);
+  v_alpha *= clamp(waveHeight / 2.0, 0.0, 1.0);
 }
 `;
 
@@ -171,15 +161,85 @@ varying float v_wave_height;
 void main() {
   if (v_alpha < 0.02) discard;
 
-  // Visual Tinting: ocean crests shift from pure white (high waves)
-  // to beautiful light cyan/teal for standard waves
   float energy = clamp(v_wave_height / 4.0, 0.0, 1.0);
   
-  vec3 standardColor = vec3(0.82, 0.95, 1.0); // Soft cyan foam
-  vec3 highEnergyColor = vec3(1.0, 1.0, 1.0);  // Pure white crests
+  vec3 standardColor = vec3(0.82, 0.95, 1.0);
+  vec3 highEnergyColor = vec3(1.0, 1.0, 1.0);
   vec3 finalColor = mix(standardColor, highEnergyColor, energy);
 
   gl_FragColor = vec4(finalColor * v_alpha, v_alpha);
+}
+`;
+
+var HEATMAP_VS = `
+attribute vec2 a_grid_uv;
+uniform mat4 u_matrix;
+uniform vec2 u_dataBounds_min;   // [west, south]
+uniform vec2 u_dataBounds_max;   // [east, north]
+varying vec2 v_grid_uv;
+
+void main() {
+  v_grid_uv = a_grid_uv;
+  
+  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
+  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
+  lat = clamp(lat, -85.051129, 85.051129);
+
+  float x = (lng + 180.0) / 360.0;
+  float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
+
+  gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
+}
+`;
+
+var HEATMAP_FS = `
+precision mediump float;
+varying vec2 v_grid_uv;
+uniform sampler2D u_marine_grid;
+uniform float u_opacity;
+
+vec3 getMarineColor(float h) {
+  // Breakpoints: 0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10
+  if (h <= 0.5) {
+    return mix(vec3(14.0/255.0, 25.0/255.0, 65.0/255.0), vec3(25.0/255.0, 45.0/255.0, 100.0/255.0), clamp(h / 0.5, 0.0, 1.0));
+  } else if (h <= 1.0) {
+    return mix(vec3(25.0/255.0, 45.0/255.0, 100.0/255.0), vec3(35.0/255.0, 75.0/255.0, 135.0/255.0), clamp((h - 0.5) / 0.5, 0.0, 1.0));
+  } else if (h <= 1.5) {
+    return mix(vec3(35.0/255.0, 75.0/255.0, 135.0/255.0), vec3(45.0/255.0, 110.0/255.0, 160.0/255.0), clamp((h - 1.0) / 0.5, 0.0, 1.0));
+  } else if (h <= 2.0) {
+    return mix(vec3(45.0/255.0, 110.0/255.0, 160.0/255.0), vec3(60.0/255.0, 140.0/255.0, 175.0/255.0), clamp((h - 1.5) / 0.5, 0.0, 1.0));
+  } else if (h <= 2.5) {
+    return mix(vec3(60.0/255.0, 140.0/255.0, 175.0/255.0), vec3(80.0/255.0, 175.0/255.0, 180.0/255.0), clamp((h - 2.0) / 0.5, 0.0, 1.0));
+  } else if (h <= 3.0) {
+    return mix(vec3(80.0/255.0, 175.0/255.0, 180.0/255.0), vec3(120.0/255.0, 205.0/255.0, 165.0/255.0), clamp((h - 2.5) / 0.5, 0.0, 1.0));
+  } else if (h <= 4.0) {
+    return mix(vec3(120.0/255.0, 205.0/255.0, 165.0/255.0), vec3(180.0/255.0, 220.0/255.0, 140.0/255.0), clamp((h - 3.0) / 1.0, 0.0, 1.0));
+  } else if (h <= 5.0) {
+    return mix(vec3(180.0/255.0, 220.0/255.0, 140.0/255.0), vec3(230.0/255.0, 210.0/255.0, 95.0/255.0), clamp((h - 4.0) / 1.0, 0.0, 1.0));
+  } else if (h <= 6.0) {
+    return mix(vec3(230.0/255.0, 210.0/255.0, 95.0/255.0), vec3(245.0/255.0, 150.0/255.0, 50.0/255.0), clamp((h - 5.0) / 1.0, 0.0, 1.0));
+  } else if (h <= 8.0) {
+    return mix(vec3(245.0/255.0, 150.0/255.0, 50.0/255.0), vec3(220.0/255.0, 80.0/255.0, 40.0/255.0), clamp((h - 6.0) / 2.0, 0.0, 1.0));
+  } else {
+    return mix(vec3(220.0/255.0, 80.0/255.0, 40.0/255.0), vec3(160.0/255.0, 30.0/255.0, 70.0/255.0), clamp((h - 8.0) / 2.0, 0.0, 1.0));
+  }
+}
+
+void main() {
+  vec4 waveData = texture2D(u_marine_grid, v_grid_uv);
+  float waveHeight = waveData.b * 10.0;
+
+  if (waveHeight < 0.05) {
+    discard;
+  }
+
+  vec3 rgb = getMarineColor(waveHeight);
+  float alpha = u_opacity;
+  
+  float fade = smoothstep(0.05, 0.3, waveHeight);
+  alpha *= fade;
+
+  gl_FragColor = vec4(rgb * alpha, alpha);
 }
 `;
 
@@ -296,14 +356,17 @@ WebGLMarineEngine.prototype.init = function(gl) {
   var advFS = createShader(gl, gl.FRAGMENT_SHADER, ADVECT_FS);
   var drawVS = createShader(gl, gl.VERTEX_SHADER, DRAW_VS);
   var drawFS = createShader(gl, gl.FRAGMENT_SHADER, DRAW_FS);
+  var heatVS = createShader(gl, gl.VERTEX_SHADER, HEATMAP_VS);
+  var heatFS = createShader(gl, gl.FRAGMENT_SHADER, HEATMAP_FS);
 
-  if (!advVS || !advFS || !drawVS || !drawFS) {
+  if (!advVS || !advFS || !drawVS || !drawFS || !heatVS || !heatFS) {
     console.error('[WebGLMarine] Failed to compile shaders');
     return;
   }
 
   this.advectProgram = createProgram(gl, advVS, advFS);
   this.drawProgram = createProgram(gl, drawVS, drawFS);
+  this.heatmapProgram = createProgram(gl, heatVS, heatFS);
 
   this.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -318,12 +381,48 @@ WebGLMarineEngine.prototype.init = function(gl) {
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, vertexIds, gl.STATIC_DRAW);
 
+  // Static 64x64 grid mesh for heatmap rendering
+  const W = 64;
+  const H = 64;
+  const gridUVs = new Float32Array(W * H * 2);
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) {
+      const idx = (r * W + c) * 2;
+      gridUVs[idx + 0] = c / (W - 1);
+      gridUVs[idx + 1] = r / (H - 1);
+    }
+  }
+  this.gridUVBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, gridUVs, gl.STATIC_DRAW);
+
+  const gridIndices = new Uint16Array((W - 1) * (H - 1) * 6);
+  let iIdx = 0;
+  for (let r = 0; r < H - 1; r++) {
+    for (let c = 0; c < W - 1; c++) {
+      const i0 = r * W + c;
+      const i1 = i0 + 1;
+      const i2 = (r + 1) * W + c;
+      const i3 = i2 + 1;
+      gridIndices[iIdx++] = i0;
+      gridIndices[iIdx++] = i1;
+      gridIndices[iIdx++] = i2;
+      gridIndices[iIdx++] = i1;
+      gridIndices[iIdx++] = i3;
+      gridIndices[iIdx++] = i2;
+    }
+  }
+  this.gridIndexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, gridIndices, gl.STATIC_DRAW);
+  this.numGridIndices = gridIndices.length;
+
   this.particleStateA = initParticleTexture(gl, this.particleRes);
   this.particleStateB = initParticleTexture(gl, this.particleRes);
 
   this.advFBO = gl.createFramebuffer();
   this._initialized = true;
-  console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests');
+  console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests + 64x64 grid');
 };
 
 WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid) {
@@ -334,7 +433,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid) {
   this._waveData = encodeMarineTexture(gl, waveGrid);
 };
 
-WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom) {
+WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
   if (!this._initialized || !this._waveData) return;
   if (!matrix || !matrix.length) return;
 
@@ -344,6 +443,7 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   var prevBlend = gl.getParameter(gl.BLEND);
   var prevActiveTex = gl.getParameter(gl.ACTIVE_TEXTURE);
   var prevArrayBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
+  var prevElementArrayBuffer = gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING);
   var prevViewport = gl.getParameter(gl.VIEWPORT);
 
   var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
@@ -372,15 +472,45 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
 
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
   var time = (Date.now() - this._startTime) / 1000.0;
+  const waveBounds = this._waveData.bounds;
 
-  // Step 1: Advect positions using FBO ping-pong
-  // High-precision, zoom-invariant wave advection scale calculation
+  // ==========================================
+  // PHASE 1: DRAW WAVE HEIGHT HEATMAP
+  // ==========================================
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+  gl.viewport(0, 0, screenWidth, screenHeight);
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+  gl.useProgram(this.heatmapProgram);
+  
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+  
+  const waveOpacity = Math.min(0.40, Math.max(0.18, 0.18 + (zoom - 2) * 0.015));
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), waveOpacity);
+
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_marine_grid'), 0);
+  bindTexture(gl, this._waveData.texture, 0);
+
+  var gridUvLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+  gl.enableVertexAttribArray(gridUvLoc);
+  gl.vertexAttribPointer(gridUvLoc, 2, gl.FLOAT, false, 0, 0);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+  gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
+  gl.disableVertexAttribArray(gridUvLoc);
+
+  // ==========================================
+  // PHASE 2: WAVE CREST PARTICLE SIMULATION
+  // ==========================================
   const z = typeof zoom === 'number' ? zoom : 6;
   const baseScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6));
-  const waveBounds = this._waveData.bounds;
   const lngSpan = Math.max(0.01, Math.abs(waveBounds.east - waveBounds.west));
   const latSpan = Math.max(0.01, Math.abs(waveBounds.north - waveBounds.south));
-  // Enforce a hard minimum step of 3.0e-4 to prevent 16-bit texture coordinate quantization freezes
   const speedScaleX = Math.max(3.0e-4, baseScale / lngSpan);
   const speedScaleY = Math.max(3.0e-4, baseScale / latSpan);
 
@@ -413,12 +543,9 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   this.particleStateA = this.particleStateB;
   this.particleStateB = tmp;
 
-  // Step 2: Draw wave crest lines directly to MapLibre's main framebuffer
+  // Draw wave crest lines
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Pre-multiplied alpha
 
   gl.useProgram(this.drawProgram);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
@@ -445,8 +572,8 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
 
   // Restore State
   gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
 
-  // Restore WebGL2 VAO
   if (isWebGL2 && gl.bindVertexArray) {
     gl.bindVertexArray(prevVAO);
   }
@@ -454,7 +581,8 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.useProgram(prevProg);
   gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
-  gl.activeTexture(prevActiveTex);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, prevActiveTex);
   
   if (prevBlend) {
     gl.enable(gl.BLEND);
@@ -482,6 +610,8 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   }
 };
 
+WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;
+
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
   // No screen FBOs are used (direct drawing), so there is no trail residue.
 };
@@ -490,8 +620,11 @@ WebGLMarineEngine.prototype.dispose = function(gl) {
   if (!gl) return;
   if (this.advectProgram) gl.deleteProgram(this.advectProgram);
   if (this.drawProgram) gl.deleteProgram(this.drawProgram);
+  if (this.heatmapProgram) gl.deleteProgram(this.heatmapProgram);
   if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
   if (this.vertexIdBuffer) gl.deleteBuffer(this.vertexIdBuffer);
+  if (this.gridUVBuffer) gl.deleteBuffer(this.gridUVBuffer);
+  if (this.gridIndexBuffer) gl.deleteBuffer(this.gridIndexBuffer);
   if (this.advFBO) gl.deleteFramebuffer(this.advFBO);
   if (this.particleStateA) gl.deleteTexture(this.particleStateA);
   if (this.particleStateB) gl.deleteTexture(this.particleStateB);
