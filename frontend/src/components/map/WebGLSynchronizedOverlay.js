@@ -124,7 +124,7 @@ export function WebGLSynchronizedOverlay({ mapInstance, activeLayers, windData, 
   useEffect(() => {
     const gl = glRef.current;
     const marineEngine = marineEngineRef.current;
-    if (gl && marineEngine && marineData?.vectors?.length) {
+    if (gl && marineEngine && (marineData?.vectors?.length || marineData?.grid?.vectors?.length)) {
       try {
         // Find active marine layer type (waves, swell_1, etc.)
         const activeMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayersRef.current?.includes(l));

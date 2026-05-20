@@ -1,15 +1,5 @@
 /**
- * WebGLWindEngine GPU-accelerated wind particle advection + trail fading
- *
- * v3.8: Replaces Canvas2D particle loop with WebGL ping-pong framebuffer
- * architecture for 10-50x more particles with trail decay.
- *
- * Architecture:
- * 1. Wind vectors GPU texture (RGBA encoding of u,v per grid cell)
- * 2. Particle positions ping-pong framebuffers (read/write swap each frame)
- * 3. Advection shader: sample wind texture move particle positions
- * 4. Trail texture: alpha-blend particles fade previous frame (persistence)
- *   5. Final composite: render trail texture to screen canvas
+ * WebGLWindEngine: GPU wind particle advection + fade trails.
  */
 
 // --- Shader Sources ---
@@ -371,16 +361,15 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.12.2: Ventusky-parity trails and motion
- this.particleRes = 384; // 384 = 147,456 particles
-  this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
-  this.speedFactor = 0.40;  // Visible directional flow
- this.dropRate = 0.0015; // Particles live longer continuous streams
-  this.dropRateBump = 0.006;
+  this.particleRes = 384;
+  this.fadeOpacity = 0.994;
+  this.speedFactor = 0.40;
+  this.dropRate = 0.0015;
+  this.dropRateBump = 0.0004;
   this._initialized = false;
   this._windData = null;
-  this._colorRamp = null; // v3.9.8: Color ramp LUT texture
- this._maxWindSpeed = 50; // m/s maps to ramp max
+  this._colorRamp = null;
+  this._maxWindSpeed = 50;
 }
 export default WebGLWindEngine;
 
@@ -464,8 +453,24 @@ WebGLWindEngine.prototype.init = function(gl) {
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   if (!windGrid?.vectors?.length) return;
+  const prevBounds = this._windData?.bounds;
+  const newBounds = windGrid.bounds;
+  const boundsChanged = !prevBounds || 
+    Math.abs(prevBounds.west - newBounds.west) > 0.01 ||
+    Math.abs(prevBounds.east - newBounds.east) > 0.01 ||
+    Math.abs(prevBounds.south - newBounds.south) > 0.01 ||
+    Math.abs(prevBounds.north - newBounds.north) > 0.01;
+
   if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
   this._windData = encodeWindTexture(gl, windGrid);
+
+  if (boundsChanged && this._initialized) {
+    if (this.particleStateA) gl.deleteTexture(this.particleStateA);
+    if (this.particleStateB) gl.deleteTexture(this.particleStateB);
+    this.particleStateA = initParticleTexture(gl, this.particleRes);
+    this.particleStateB = initParticleTexture(gl, this.particleRes);
+    this.clearBuffers(gl);
+  }
 };
 
 WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
@@ -775,11 +780,7 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   console.log('[WebGLWind] Disposed');
 };
 
-/**
- * v3.11.2r2: Clear all framebuffers called on layer deactivation
- * to prevent stale trails from persisting across layer switches.
- * Safeguarded against uninitialized screen FBOs.
- */
+// Clear screen FBOs on layer switch to prevent stale trail residue.
 WebGLWindEngine.prototype.clearBuffers = function(gl) {
   if (!gl || !this._initialized || !this.screenA || !this.screenB) return;
   try {
@@ -795,4 +796,3 @@ WebGLWindEngine.prototype.clearBuffers = function(gl) {
     console.warn('[WebGLWind] clearBuffers error:', e.message);
   }
 };
-
