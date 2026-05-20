@@ -709,11 +709,7 @@ var MapWebGL = ({
                 12, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : 0.40),
               ],
               'raster-resampling': 'linear',
-              'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0
-                : layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
-                : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
-                : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
-                : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 0 : 0,
+              'raster-hue-rotate': layerKey === 'waves' ? 30 : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55 : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
  // v75: Fog (visibility) is inverted low values = fog = should render opaque.
               // Rain/cloud uses standard mapping where high values = precipitation.
               'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.0

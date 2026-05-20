@@ -97,9 +97,9 @@ function getWindColor(speed, alpha, theme) {
     g = Math.round(115 + intensity * 128);
     b = Math.round(22 + intensity * 177);
   } else {
-    r = Math.round(148 - intensity * 97);
-    g = Math.round(163 - intensity * 98);
-    b = Math.round(184 - intensity * 99);
+    r = Math.round(240 + intensity * 15);
+    g = Math.round(245 + intensity * 10);
+    b = 255;
   }
   return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(3) + ')';
 }
@@ -175,7 +175,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     var isMobile = window.innerWidth < 768;
     var getCount = function() {
       var zoom = mapInstance.getZoom();
-      var base = isMobile ? 1800 : 4500;
+      var base = isMobile ? 1200 : 2500;
       if (zoom < 3) return Math.round(base * 0.5);
       if (zoom < 5) return Math.round(base * 0.75);
       if (zoom < 7) return base;

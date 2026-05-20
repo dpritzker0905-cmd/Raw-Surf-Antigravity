@@ -160,7 +160,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     // v3.11.2: Doubled marine particle counts for visible ocean animation
     const getParticleCount = () => {
       const zoom = mapInstance.getZoom();
-      const base = isMobile ? (isWeak ? 600 : 1500) : (isWeak ? 2500 : 6000);
+      const base = isMobile ? (isWeak ? 400 : 1000) : (isWeak ? 1500 : 3000);
       if (zoom < 3) return Math.round(base * 0.25);
       if (zoom < 5) return Math.round(base * 0.5);
       return base;
@@ -207,7 +207,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         if (!isLikelyOcean(lat, lng, grid)) continue;
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
         const spd = wave?.speed || 0;
-        if (spd < 0.1 && Math.random() > 0.05) continue;
+        if (spd < 0.15 && Math.random() > 0.02) continue; // Reject 98% in dead calm
+        if (spd < 0.5 && Math.random() > 0.15) continue;  // Reject 85% in small waves
         const energyScale = Math.min(1, spd / 3);
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
@@ -337,6 +338,17 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
  // v3.4: Data-driven intensity particles fade in calm water
           const h = wave.speed;
+          if (h < 0.15) continue; // Skip rendering entirely in dead calm / tiny wave areas
+
+          // v3.41: Scale down alpha sharply for smaller waves (< 0.5m) to clean up calm water
+          let waveScale = 1.0;
+          if (h < 0.5) {
+            waveScale = ((h - 0.15) / 0.35) * 0.3;
+          } else if (h < 1.5) {
+            waveScale = 0.3 + 0.7 * ((h - 0.5) / 1.0);
+          }
+          alpha *= waveScale;
+
           const energyAlpha = p.energy !== undefined ? (0.15 + p.energy * 0.85) : Math.min(1.5, 0.6 + h / 3);
           alpha *= energyAlpha; alpha = Math.min(1.0, alpha);
 
