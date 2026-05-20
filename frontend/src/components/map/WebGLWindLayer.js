@@ -112,19 +112,6 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
   useEffect(() => {
     if (!mapInstance) return;
 
-    // v3.12.9: MapLibre doesn't always schedule continuous repaints reliably for custom layers
-    // We enforce an animation loop when active to guarantee the advection updates
-    let frameId;
-    const renderLoop = () => {
-      if (activeRef.current && mapInstance) {
-        mapInstance.triggerRepaint();
-        frameId = requestAnimationFrame(renderLoop);
-      }
-    };
-    if (active) {
-      frameId = requestAnimationFrame(renderLoop);
-    }
-
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
 
@@ -171,7 +158,6 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     handleStyleData();
 
     return () => {
-      if (frameId) cancelAnimationFrame(frameId);
       try {
         mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
@@ -202,13 +188,23 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     }
   }, [data, mapInstance]);
 
-  // Trigger repaints and ensure layer ordering when activated
+  // Enforce continuous animation loop and layer ordering when active
   useEffect(() => {
-    if (active && mapInstance) {
+    if (!mapInstance || !active) return;
+
+    safeMoveLayer(mapInstance, 'wind-layer', LAYER_ID);
+
+    let frameId;
+    const renderLoop = () => {
       mapInstance.triggerRepaint();
-      safeMoveLayer(mapInstance, 'wind-layer', LAYER_ID);
-    }
-  }, [active, mapInstance]);
+      frameId = requestAnimationFrame(renderLoop);
+    };
+    frameId = requestAnimationFrame(renderLoop);
+
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [mapInstance, active]);
 
   // No DOM element this renders directly into MapLibre's WebGL context
   return null;

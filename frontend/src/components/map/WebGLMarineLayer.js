@@ -98,19 +98,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   useEffect(() => {
     if (!mapInstance) return;
 
-    // v3.12.9: MapLibre doesn't always schedule continuous repaints reliably for custom layers
-    // We enforce an animation loop when active to guarantee the shaders receive time ticks
-    let frameId;
-    const renderLoop = () => {
-      if (activeRef.current && mapInstance) {
-        mapInstance.triggerRepaint();
-        frameId = requestAnimationFrame(renderLoop);
-      }
-    };
-    if (active) {
-      frameId = requestAnimationFrame(renderLoop);
-    }
-
     const engine = new WebGLMarineEngine();
     engineRef.current = engine;
 
@@ -153,7 +140,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     handleStyleData();
 
     return () => {
-      if (frameId) cancelAnimationFrame(frameId);
       try {
         mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
@@ -183,16 +169,26 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
   }, [data, mapInstance]);
 
-  // Trigger repaints and ensure layer ordering when activated
+  // Enforce continuous animation loop and layer ordering when active
   useEffect(() => {
-    if (active && mapInstance) {
-      mapInstance.triggerRepaint();
-      const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
-      for (const rasterId of marineRasterLayers) {
-        safeMoveLayer(mapInstance, rasterId, LAYER_ID);
-      }
+    if (!mapInstance || !active) return;
+
+    const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
+    for (const rasterId of marineRasterLayers) {
+      safeMoveLayer(mapInstance, rasterId, LAYER_ID);
     }
-  }, [active, mapInstance]);
+
+    let frameId;
+    const renderLoop = () => {
+      mapInstance.triggerRepaint();
+      frameId = requestAnimationFrame(renderLoop);
+    };
+    frameId = requestAnimationFrame(renderLoop);
+
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [mapInstance, active]);
 
   return null;
 }

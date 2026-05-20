@@ -35,15 +35,37 @@ const THEME_COLORS = {
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
+
+  const decimateRing = (ring, maxPoints = 120) => {
+    if (!ring || ring.length <= maxPoints) return ring;
+    const step = Math.ceil(ring.length / maxPoints);
+    const newRing = [];
+    for (let i = 0; i < ring.length - 1; i += step) {
+      newRing.push(ring[i]);
+    }
+    newRing.push(ring[ring.length - 1]);
+    return newRing;
+  };
+
   for (const feature of landGeoJSON.features) {
     const geom = feature.geometry;
     if (!geom) continue;
-    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+    if (geom.type === 'Polygon') {
+      const coords = geom.coordinates.map(ring => decimateRing(ring));
       polygons.push({
         type: 'Feature',
-        geometry: { type: geom.type, coordinates: geom.coordinates },
+        geometry: { type: 'Polygon', coordinates: coords },
         properties: {}
       });
+    } else if (geom.type === 'MultiPolygon') {
+      for (const polyCoords of geom.coordinates) {
+        const coords = polyCoords.map(ring => decimateRing(ring));
+        polygons.push({
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: coords },
+          properties: {}
+        });
+      }
     }
   }
   return { type: 'FeatureCollection', features: polygons };
