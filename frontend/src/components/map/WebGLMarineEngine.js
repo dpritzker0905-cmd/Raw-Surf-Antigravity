@@ -25,8 +25,8 @@ varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
   return vec2(
-    color.r / 255.0 + color.g,
-    color.b / 255.0 + color.a
+    color.r + color.g / 255.0,
+    color.b + color.a / 255.0
   );
 }
 
@@ -104,8 +104,8 @@ void main() {
   // 2. Decode position from texture
   vec4 encodedPos = texture2D(u_particles, p_uv);
   vec2 pos = vec2(
-    encodedPos.r / 255.0 + encodedPos.g,
-    encodedPos.b / 255.0 + encodedPos.a
+    encodedPos.r + encodedPos.g / 255.0,
+    encodedPos.b + encodedPos.a / 255.0
   );
 
   // 3. Lookup marine wave data at this position

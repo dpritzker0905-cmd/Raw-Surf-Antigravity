@@ -40,8 +40,8 @@ varying vec2 v_uv;
 // Decode position from 2-channel encoding (16-bit precision per axis)
 vec2 decodePos(vec4 color) {
   return vec2(
-    color.r / 255.0 + color.g,
-    color.b / 255.0 + color.a
+    color.r + color.g / 255.0,
+    color.b + color.a / 255.0
   );
 }
 
@@ -112,8 +112,8 @@ uniform vec2 u_wind_max;
 
 vec2 decodePos(vec4 color) {
   return vec2(
-    color.r / 255.0 + color.g,
-    color.b / 255.0 + color.a
+    color.r + color.g / 255.0,
+    color.b + color.a / 255.0
   );
 }
 
