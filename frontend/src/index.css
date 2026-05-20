@@ -611,7 +611,7 @@ input[type="range"].appearance-none::-moz-range-track {
 /* Pointer events override */
 .pointer-events-auto {
   pointer-events: auto;
-}
+}
 
 /* WCAG 2.3.3 — Respect user preference for reduced motion */
 @media (prefers-reduced-motion: reduce) {

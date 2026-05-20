@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
+// Trigger Netlify redeployment after backend security hardening updates
+
 const swPath = path.join(__dirname, 'public', 'service-worker.js');
 let version = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 12); // Fallback: YYYYMMDDHHMM
 
