@@ -6,17 +6,17 @@
  */
 
 var DEFAULT_WIND_RAMP = [
-  [0,  0.65, 0.75, 0.85, 0.05], // Calm: highly transparent light blue-white
-  [2,  0.55, 0.70, 0.88, 0.10], // Light air: bright blue, very transparent
-  [5,  0.38, 0.75, 0.88, 0.18], // Light breeze: cyan
-  [8,  0.22, 0.80, 0.72, 0.24], // Gentle breeze: teal
-  [12, 0.38, 0.82, 0.38, 0.30], // Moderate: soft green
-  [16, 0.78, 0.82, 0.20, 0.35], // Fresh: yellow-green
-  [20, 0.95, 0.68, 0.15, 0.40], // Strong: soft amber
-  [25, 0.95, 0.45, 0.10, 0.45], // Near gale: soft orange
-  [30, 0.90, 0.22, 0.15, 0.48], // Gale: soft red
-  [40, 0.75, 0.10, 0.35, 0.50], // Storm: soft magenta
-  [50, 0.55, 0.05, 0.50, 0.50], // Hurricane: soft purple
+  [0,  0.55, 0.82, 0.95, 0.55], // Calm: sky blue
+  [2,  0.30, 0.75, 0.92, 0.60], // Light air: cyan
+  [5,  0.10, 0.72, 0.82, 0.65], // Light breeze: teal-cyan
+  [8,  0.05, 0.65, 0.65, 0.68], // Gentle breeze: teal
+  [12, 0.15, 0.75, 0.35, 0.70], // Moderate: green
+  [16, 0.70, 0.85, 0.10, 0.72], // Fresh: yellow-green
+  [20, 0.98, 0.72, 0.05, 0.75], // Strong: amber
+  [25, 0.98, 0.45, 0.05, 0.78], // Near gale: orange
+  [30, 0.92, 0.18, 0.10, 0.80], // Gale: red
+  [40, 0.78, 0.05, 0.30, 0.82], // Storm: deep red/magenta
+  [50, 0.60, 0.00, 0.50, 0.85], // Hurricane: purple
 ];
 
 function lerpStop(a, b, t) {

@@ -126,21 +126,26 @@ export function WebGLSynchronizedOverlay({ mapInstance, activeLayers, windData, 
     const marineEngine = marineEngineRef.current;
     if (gl && marineEngine && (marineData?.vectors?.length || marineData?.grid?.vectors?.length)) {
       try {
-        // Find active marine layer type (waves, swell_1, etc.)
-        const activeMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayersRef.current?.includes(l));
-        if (activeMarine) {
-          const formattedGrid = {
-            bounds: marineData.bounds || marineData.grid?.bounds,
-            cols: marineData.cols || marineData.grid?.cols,
-            rows: marineData.rows || marineData.grid?.rows,
-            vectors: (marineData.vectors || marineData.grid?.vectors || []).map(v => ({
+        const marineLayerNames = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+        // Use first matching active layer, fall back to 'waves' so marine always renders
+        const activeMarine = marineLayerNames.find(l => activeLayersRef.current?.includes(l)) || 'waves';
+        const rawVectors = marineData.vectors || marineData.grid?.vectors || [];
+        const formattedGrid = {
+          bounds: marineData.bounds || marineData.grid?.bounds,
+          cols: marineData.cols || marineData.grid?.cols,
+          rows: marineData.rows || marineData.grid?.rows,
+          vectors: rawVectors.map(v => {
+            const sub = v[activeMarine] || {};
+            return {
               lat: v.lat,
               lng: v.lng,
-              u: v[activeMarine]?.u || 0,
-              v: v[activeMarine]?.v || 0,
-              speed: v[activeMarine]?.speed || 0
-            }))
-          };
+              u: sub.u || 0,
+              v: sub.v || 0,
+              speed: sub.speed || 0
+            };
+          })
+        };
+        if (formattedGrid.vectors.some(v => v.speed > 0)) {
           marineEngine.setWaveData(gl, formattedGrid);
         }
       } catch (e) {

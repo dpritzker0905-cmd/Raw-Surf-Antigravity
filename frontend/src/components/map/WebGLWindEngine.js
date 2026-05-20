@@ -453,24 +453,8 @@ WebGLWindEngine.prototype.init = function(gl) {
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   if (!windGrid?.vectors?.length) return;
-  const prevBounds = this._windData?.bounds;
-  const newBounds = windGrid.bounds;
-  const boundsChanged = !prevBounds || 
-    Math.abs(prevBounds.west - newBounds.west) > 0.01 ||
-    Math.abs(prevBounds.east - newBounds.east) > 0.01 ||
-    Math.abs(prevBounds.south - newBounds.south) > 0.01 ||
-    Math.abs(prevBounds.north - newBounds.north) > 0.01;
-
   if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
   this._windData = encodeWindTexture(gl, windGrid);
-
-  if (boundsChanged && this._initialized) {
-    if (this.particleStateA) gl.deleteTexture(this.particleStateA);
-    if (this.particleStateB) gl.deleteTexture(this.particleStateB);
-    this.particleStateA = initParticleTexture(gl, this.particleRes);
-    this.particleStateB = initParticleTexture(gl, this.particleRes);
-    this.clearBuffers(gl);
-  }
 };
 
 WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
