@@ -18,3 +18,5 @@
 
 # Dev branch - always build, gets stable URL at dev--rawsurf.netlify.app
 [context.dev]
+  ignore = "false"
+
