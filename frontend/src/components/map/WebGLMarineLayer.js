@@ -79,9 +79,11 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
   const layerAddedRef = useRef(false);
+  const onAddedChangeRef = useRef(onAddedChange);
 
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
+  useEffect(() => { onAddedChangeRef.current = onAddedChange; }, [onAddedChange]);
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -108,7 +110,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           mapInstance.addLayer(customLayer, beforeExists ? insertionId : undefined);
           layerAddedRef.current = true;
           console.log(`[WebGLMarine] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
-          if (onAddedChange) onAddedChange(true);
+          if (onAddedChangeRef.current) onAddedChangeRef.current(true);
         } catch (e) {
           console.warn('[WebGLMarine] Failed to add layer:', e.message);
         }
@@ -131,14 +133,14 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
-          if (onAddedChange) onAddedChange(false);
+          if (onAddedChangeRef.current) onAddedChangeRef.current(false);
         }
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
       engine.dispose(mapInstance.painter?.context?.gl);
       engineRef.current = null;
     };
-  }, [mapInstance, onAddedChange]);
+  }, [mapInstance]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -165,13 +167,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       }
     }
   }, [active, mapInstance]);
-
-  // Unmount safety safeguard to reset parent state if component is unmounted
-  useEffect(() => {
-    return () => {
-      if (onAddedChange) onAddedChange(false);
-    };
-  }, [onAddedChange]);
 
   return null;
 }

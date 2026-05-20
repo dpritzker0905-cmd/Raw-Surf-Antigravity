@@ -94,6 +94,20 @@ var MapWebGL = ({
   const resolveTaskIdRef = useRef(0);
   const [metadataRevision, setMetadataRevision] = useState(0);
   const [customLayersAdded, setCustomLayersAdded] = useState({ wind: false, marine: false });
+
+  const handleWindAddedChange = useCallback((added) => {
+    setCustomLayersAdded(prev => {
+      if (prev.wind === added) return prev;
+      return { ...prev, wind: added };
+    });
+  }, []);
+
+  const handleMarineAddedChange = useCallback((added) => {
+    setCustomLayersAdded(prev => {
+      if (prev.marine === added) return prev;
+      return { ...prev, marine: added };
+    });
+  }, []);
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -724,7 +738,7 @@ var MapWebGL = ({
         active={!!activeMarineLayer}
         data={marineWindData}
         revision={marineData?.grid?.timestamp || Date.now()}
-        onAddedChange={useCallback((added) => setCustomLayersAdded(prev => ({ ...prev, marine: added })), [])}
+        onAddedChange={handleMarineAddedChange}
       />
 
       {/* v3.11.1: Extracted marker rendering for LOC compliance */}
@@ -746,41 +760,18 @@ var MapWebGL = ({
         active={activeLayers.includes('wind')}
         data={windData}
         revision={windRevision}
-        onAddedChange={useCallback((added) => setCustomLayersAdded(prev => ({ ...prev, wind: added })), [])}
+        onAddedChange={handleWindAddedChange}
       />
 
       {/* v163: Long-press / right-click marker (Ventusky/Windy style) */}
       {longPressLocation && (
-        <Marker
-          longitude={longPressLocation.lng}
-          latitude={longPressLocation.lat}
-          anchor="bottom"
-        >
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
-            animation: 'markerDrop 0.3s ease-out',
-          }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50% 50% 50% 0',
-              background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-              transform: 'rotate(-45deg)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '2px solid white',
-            }}>
-              <div style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: 'white', transform: 'rotate(45deg)',
-              }} />
+        <Marker longitude={longPressLocation.lng} latitude={longPressLocation.lat} anchor="bottom">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))', animation: 'markerDrop 0.3s ease-out' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50% 50% 50% 0', background: 'linear-gradient(135deg, #06b6d4, #0891b2)', transform: 'rotate(-45deg)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid white' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', transform: 'rotate(45deg)' }} />
             </div>
-            <div style={{
-              width: 2, height: 6, background: 'rgba(6,182,212,0.6)',
-              borderRadius: 1, marginTop: -2,
-            }} />
-            <style>{`@keyframes markerDrop {
-              from { transform: translateY(-20px); opacity: 0; }
-              to { transform: translateY(0); opacity: 1; }
-            }`}</style>
+            <div style={{ width: 2, height: 6, background: 'rgba(6,182,212,0.6)', borderRadius: 1, marginTop: -2 }} />
+            <style>{`@keyframes markerDrop { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
           </div>
         </Marker>
       )}

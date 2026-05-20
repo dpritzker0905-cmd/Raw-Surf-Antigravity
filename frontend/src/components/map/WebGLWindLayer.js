@@ -90,10 +90,12 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
   const layerAddedRef = useRef(false);
+  const onAddedChangeRef = useRef(onAddedChange);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
+  useEffect(() => { onAddedChangeRef.current = onAddedChange; }, [onAddedChange]);
 
   // Initialize engine + add custom layer
   useEffect(() => {
@@ -102,7 +104,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
 
- // v3.11.2: Increased particle density 384 = 147k desktop, 192 = 37k mobile
+    // v3.11.2: Increased particle density 384 = 147k desktop, 192 = 37k mobile
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
@@ -128,7 +130,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
           mapInstance.addLayer(customLayer, beforeExists ? firstSymbolId : undefined);
           layerAddedRef.current = true;
           console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
-          if (onAddedChange) onAddedChange(true);
+          if (onAddedChangeRef.current) onAddedChangeRef.current(true);
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
         }
@@ -148,14 +150,14 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
         mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
-          if (onAddedChange) onAddedChange(false);
+          if (onAddedChangeRef.current) onAddedChangeRef.current(false);
         }
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
       engine.dispose(mapInstance.painter?.context?.gl);
       engineRef.current = null;
     };
-  }, [mapInstance, onAddedChange]);
+  }, [mapInstance]);
 
   // Update wind data texture when data changes
   useEffect(() => {
@@ -181,14 +183,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     }
   }, [active, mapInstance]);
 
-  // Unmount safety safeguard to reset parent state if component is unmounted
-  useEffect(() => {
-    return () => {
-      if (onAddedChange) onAddedChange(false);
-    };
-  }, [onAddedChange]);
-
- // No DOM element this renders directly into MapLibre's WebGL context
+  // No DOM element this renders directly into MapLibre's WebGL context
   return null;
 }
 
