@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Wind, Waves, CloudRain, ArrowUp, Droplets, Gauge, Lock, ChevronDown, MapPin } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -39,6 +39,12 @@ export var MapForecastOverlay = ({
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isLight = theme === 'light';
+
+  useEffect(() => {
+    if (isImmersiveMode) {
+      setIsCollapsed(true);
+    }
+  }, [isImmersiveMode]);
 
   const bgClass = isLight
     ? 'bg-white/90 border-gray-200'

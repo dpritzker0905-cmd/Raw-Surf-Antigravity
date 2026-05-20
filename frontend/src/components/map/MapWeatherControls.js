@@ -102,7 +102,7 @@ export var MapWeatherControls = ({
   // Local state and refs for decoupled and throttled slider dragging
   const [sliderVal, setSliderVal] = useState(isRadar ? radarFrameIndex : currentTimeOffset);
   const isDraggingRef = useRef(false);
-  const throttleRef = useRef(null);
+  const debounceTimerRef = useRef(null);
   const trailingValRef = useRef(null);
 
   // Synchronize local slider state with parent prop updates when not dragging (e.g. autoplay)
@@ -115,8 +115,8 @@ export var MapWeatherControls = ({
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (throttleRef.current) {
-        clearTimeout(throttleRef.current);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
     };
   }, []);
@@ -143,30 +143,35 @@ export var MapWeatherControls = ({
     const val = parseInt(e.target.value, 10);
     setSliderVal(val);
 
-    if (throttleRef.current) {
-      trailingValRef.current = val;
-      return;
-    }
-
-    // Trigger parent update immediately for first interaction
-    if (isRadar) {
-      onRadarFrameChange(val);
-    } else {
-      onTimeChange(val);
-    }
-
-    throttleRef.current = setTimeout(() => {
-      throttleRef.current = null;
-      if (trailingValRef.current !== null) {
-        const tVal = trailingValRef.current;
-        trailingValRef.current = null;
-        if (isRadar) {
-          onRadarFrameChange(tVal);
-        } else {
-          onTimeChange(tVal);
-        }
+    if (isDraggingRef.current) {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
-    }, 120);
+      trailingValRef.current = val;
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
+        if (trailingValRef.current !== null) {
+          const tVal = trailingValRef.current;
+          trailingValRef.current = null;
+          if (isRadar) {
+            onRadarFrameChange(tVal);
+          } else {
+            onTimeChange(tVal);
+          }
+        }
+      }, 250);
+    } else {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      trailingValRef.current = null;
+      if (isRadar) {
+        onRadarFrameChange(val);
+      } else {
+        onTimeChange(val);
+      }
+    }
   };
 
   const handleDragStart = () => {
@@ -175,6 +180,10 @@ export var MapWeatherControls = ({
 
   const handleDragEnd = () => {
     isDraggingRef.current = false;
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
     // Trigger any remaining trailing updates immediately
     if (trailingValRef.current !== null) {
       const tVal = trailingValRef.current;

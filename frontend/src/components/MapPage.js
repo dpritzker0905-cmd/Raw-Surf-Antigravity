@@ -293,6 +293,13 @@ var MapPageContent = () => {
     }
   }, [userLocation, pendingRequestPro]);
 
+  useEffect(() => {
+    if (isImmersiveMode) {
+      setShowWeatherControls(false);
+      setIsTimelineCollapsed(true);
+    }
+  }, [isImmersiveMode, setShowWeatherControls, setIsTimelineCollapsed]);
+
   // Setup Map page SEO meta tags
   useMapSeo();
 
@@ -453,6 +460,11 @@ var MapPageContent = () => {
             opacity: 0;
             pointer-events: none !important;
           }
+          .top-rail-container, .top-rail-container *,
+          .right-controls-container, .right-controls-container *,
+          .nearest-spot-card-container, .nearest-spot-card-container * {
+            pointer-events: none !important;
+          }
         `}</style>
       )}
       {/* Map Container - Fill entire view */}
@@ -510,7 +522,7 @@ var MapPageContent = () => {
 
       {/* TOP RAIL */}
       <div 
-        className={`absolute top-0 left-0 right-0 z-[1000] pointer-events-none pt-4 transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0' : 'opacity-100'}`} 
+        className={`absolute top-0 left-0 right-0 z-[1000] pointer-events-none pt-4 transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0' : 'opacity-100'} top-rail-container`} 
       >
         <div className="px-4">
           <MapHeader livePhotographerCount={livePhotographers.length} />
@@ -570,7 +582,7 @@ var MapPageContent = () => {
         <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={clearDispatch} />
       </div>
 
-      <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'} right-controls-container`}>
         <MapRightControls
           userLocation={userLocation}
           gpsLoading={gpsLoading}
@@ -665,7 +677,7 @@ var MapPageContent = () => {
         />
       )}
 
-      <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+      <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'} nearest-spot-card-container`}>
         <NearestSpotCard
           nearestSpot={nearestSpot}
           userLocation={userLocation}
@@ -699,14 +711,7 @@ var MapPageContent = () => {
         />
       )}
 
-      <style>{`
-        .custom-marker { background: transparent !important; border: none !important; }
-        .custom-cluster-marker { background: transparent !important; border: none !important; }
-        .photographer-marker .animate-ping { animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; }
-        @keyframes ping { 75%, 100% { transform: scale(1.5); opacity: 0; } }
-        .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: transparent !important; }
-        .marker-cluster div { background: transparent !important; }
-      `}</style>
+      <style>{`.custom-marker, .custom-cluster-marker, .marker-cluster div, .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: transparent !important; border: none !important; } .photographer-marker .animate-ping { animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; } @keyframes ping { 75%, 100% { transform: scale(1.5); opacity: 0; } }`}</style>
 
       <UnifiedSpotDrawer
         spot={selectedSpot}

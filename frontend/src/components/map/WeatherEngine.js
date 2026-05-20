@@ -161,8 +161,14 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   useEffect(() => {
     if (!mapInstance || !isWindActive || !windData) return;
 
+    let timer = null;
+
     const onMoveEnd = () => {
-      setTimeout(async () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(async () => {
+        timer = null;
         try {
           const b = mapInstance.getBounds();
           const bounds = {
@@ -181,7 +187,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     };
 
     mapInstance.on('moveend', onMoveEnd);
-    return () => mapInstance.off('moveend', onMoveEnd);
+    return () => {
+      mapInstance.off('moveend', onMoveEnd);
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [mapInstance, isWindActive, !!windData]);  
 
   // v3.11.1: Subscribe to forecast pipeline for downstream engine consumers
