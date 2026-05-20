@@ -19,17 +19,20 @@ var LAYER_ID = 'webgl-wind-particles';
  * Creates a MapLibre CustomLayerInterface that delegates rendering
  * to the WebGLWindEngine.
  */
-function createCustomLayer(engine, activeRef, mapRef, dataRef) {
+function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
     type: 'custom',
     renderingMode: '2d',
+    engine, // expose engine reference for debugging
 
     onAdd(_map, gl) {
+      glRef.current = gl;
       try {
         engine.init(gl);
         if (dataRef.current?.vectors?.length) {
+          console.log(`[WebGLWind] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors');
           engine.setWindData(gl, dataRef.current);
         }
       } catch (e) {
@@ -69,6 +72,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef) {
 
     onRemove(_map, gl) {
       engine.dispose(gl);
+      glRef.current = null;
     }
   };
 }
@@ -96,6 +100,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
   const layerAddedRef = useRef(false);
   const onAddedChangeRef = useRef(onAddedChange);
   const dataRef = useRef(data);
+  const glRef = useRef(null);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
@@ -114,7 +119,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef);
 
     // Dynamic layer ordering: insert wind particles directly before the first symbol layer
     const handleStyleData = () => {
@@ -169,12 +174,13 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
   // Update wind data texture when data changes
   useEffect(() => {
     const engine = engineRef.current;
-    if (!engine || !data?.vectors?.length || !mapInstance) return;
+    const gl = glRef.current || mapInstance?.painter?.context?.gl;
+    if (!engine || !data?.vectors?.length || !gl) return;
 
     try {
-      const gl = mapInstance.painter?.context?.gl;
-      if (gl) {
-        engine.setWindData(gl, data);
+      console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
+      engine.setWindData(gl, data);
+      if (mapInstance) {
         mapInstance.triggerRepaint();
       }
     } catch (e) {

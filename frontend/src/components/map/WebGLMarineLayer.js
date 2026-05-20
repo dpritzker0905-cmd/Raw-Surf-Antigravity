@@ -9,17 +9,20 @@ import { findMarineInsertionLayer } from './mapUtils';
 
 var LAYER_ID = 'webgl-marine-particles';
 
-function createCustomLayer(engine, activeRef, mapRef, dataRef) {
+function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
     type: 'custom',
     renderingMode: '2d',
+    engine, // expose engine reference for debugging
 
     onAdd(_map, gl) {
+      glRef.current = gl;
       try {
         engine.init(gl);
         if (dataRef.current?.vectors?.length) {
+          console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors');
           engine.setWaveData(gl, dataRef.current);
         }
       } catch (e) {
@@ -57,6 +60,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef) {
 
     onRemove(_map, gl) {
       engine.dispose(gl);
+      glRef.current = null;
     }
   };
 }
@@ -84,6 +88,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const layerAddedRef = useRef(false);
   const onAddedChangeRef = useRef(onAddedChange);
   const dataRef = useRef(data);
+  const glRef = useRef(null);
 
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
@@ -99,7 +104,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 128 : 256;
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef);
 
     // Dynamic layer ordering: insert wave particles directly before ocean-mask-buffer or marineBeforeId
     const handleStyleData = () => {
@@ -150,12 +155,13 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
   useEffect(() => {
     const engine = engineRef.current;
-    if (!engine || !data?.vectors?.length || !mapInstance) return;
+    const gl = glRef.current || mapInstance?.painter?.context?.gl;
+    if (!engine || !data?.vectors?.length || !gl) return;
 
     try {
-      const gl = mapInstance.painter?.context?.gl;
-      if (gl) {
-        engine.setWaveData(gl, data);
+      console.log(`[WebGLMarine] setWaveData triggered by effect:`, data.vectors.length, 'vectors');
+      engine.setWaveData(gl, data);
+      if (mapInstance) {
         mapInstance.triggerRepaint();
       }
     } catch (e) {

@@ -32,23 +32,6 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0 },
 };
 
-function makeCoordinatesContinuous(coords) {
-  if (Array.isArray(coords[0]) && typeof coords[0][0] === 'number') {
-    const newRing = [coords[0]];
-    let prevLng = coords[0][0];
-    for (let i = 1; i < coords.length; i++) {
-      let lng = coords[i][0];
-      const lat = coords[i][1];
-      while (lng - prevLng > 180) lng -= 360;
-      while (lng - prevLng < -180) lng += 360;
-      newRing.push([lng, lat]);
-      prevLng = lng;
-    }
-    return newRing;
-  }
-  return coords.map(makeCoordinatesContinuous);
-}
-
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
@@ -56,10 +39,9 @@ function buildLandMask(landGeoJSON) {
     const geom = feature.geometry;
     if (!geom) continue;
     if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
-      const continuousCoords = makeCoordinatesContinuous(geom.coordinates);
       polygons.push({
         type: 'Feature',
-        geometry: { type: geom.type, coordinates: continuousCoords },
+        geometry: { type: geom.type, coordinates: geom.coordinates },
         properties: {}
       });
     }

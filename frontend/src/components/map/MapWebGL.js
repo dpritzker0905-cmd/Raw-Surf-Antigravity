@@ -496,6 +496,7 @@ var MapWebGL = ({
     const map = innerMapRef.current?.getMap?.();
     if (map && !mapInstance) {
       setMapInstance(map);
+      window.map = map;
 
       // v239: Suppress async AbortErrors from MapLibre's internal tile-fetch pipeline.
       // These fire AFTER setUrl() returns (asynchronous Promise rejection inside workers),
