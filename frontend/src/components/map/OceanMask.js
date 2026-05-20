@@ -16,7 +16,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
  *   [roads/labels]        ← Mapbox base
  */
 
-const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
+const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/ne_50m_land.json';
 
 const MASK_SOURCE = 'ocean-mask-source';
 const MASK_BUFFER = 'ocean-mask-buffer';
@@ -98,7 +98,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         const mask = buildLandMask(geojson);
         if (mask) {
           setMaskData(mask);
-          console.log('[OceanMask] Loaded NE 10m land:', geojson.features.length, 'land features');
+          console.log('[OceanMask] Loaded NE 50m land:', geojson.features.length, 'land features');
         }
       })
       .catch(err => { console.warn('[OceanMask] Land fetch failed:', err); fetchedRef.current = false; });
@@ -126,7 +126,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         if (!hasSrc) {
           try {
             mapInstance.addSource(MASK_SOURCE, {
-              type: 'geojson', data: maskData, tolerance: 0.01,
+              type: 'geojson', data: maskData, tolerance: 0.1,
             });
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);

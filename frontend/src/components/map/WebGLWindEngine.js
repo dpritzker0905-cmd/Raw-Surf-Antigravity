@@ -129,6 +129,7 @@ void main() {
  // Convert [0,1] [lng, lat]
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
+  lat = clamp(lat, -85.051129, 85.051129);
 
   // Speed for coloring
   vec4 windColor = texture2D(u_wind, pos);

@@ -139,6 +139,7 @@ void main() {
   // 6. Project position (Mercator & Matrix multiplication)
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, finalPos.x);
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, finalPos.y);
+  lat = clamp(lat, -85.051129, 85.051129);
 
   float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
