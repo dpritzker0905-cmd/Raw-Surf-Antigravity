@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WindParticleOverlay.js Canvas2D Wind Particle System (v3.12.3)
  *
  * Ventusky-style flowing wind trails using Canvas2D overlay.
@@ -74,16 +74,25 @@ function interpolateWind(grid, lng, lat) {
   return { u: u, v: v, speed: Math.sqrt(u * u + v * v) };
 }
 
+// Simple hash-based noise to break grid-locked particle lanes
+function noise2D(x, y) {
+  var n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return (n - Math.floor(n)) * 2 - 1; // range [-1, 1]
+}
+
 /**
  * Ventusky-style wind color: white/light trails with speed-based brightness.
  * Higher wind speeds = brighter, more opaque white.
  * Low speeds = faint, ghostly trails.
  */
 function getWindColor(speed, alpha) {
-  // Base brightness increases with wind speed (180-255 range)
-  var brightness = Math.min(255, Math.round(180 + speed * 5));
-  return 'rgba(' + brightness + ',' + brightness + ',' +
-    Math.min(255, brightness + 10) + ',' + alpha.toFixed(3) + ')';
+  // Calm: soft icy blue-white [200, 220, 255]
+  // Storm: bright white-amber [255, 255, 230]
+  var intensity = Math.min(1.0, speed / 30);
+  var r = Math.round(200 + intensity * 55);
+  var g = Math.round(220 + intensity * 35);
+  var b = Math.round(255 - intensity * 25);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(3) + ')';
 }
 
 /** Spawn particle at random viewport position with optional grid-stratified placement */
@@ -103,9 +112,13 @@ function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal) {
     lng = west + Math.random() * (east - west);
     lat = south + Math.random() * (north - south);
   }
-  var maxAge = 2.0 + Math.random() * 5.0;
+  var maxAge = 3.0 + Math.random() * 6.0;
+  var jitter = 0.02; // Jitter to break cell alignment
+  lng += (Math.random() - 0.5) * jitter * 2;
+  lat += (Math.random() - 0.5) * jitter * 2;
   return { lng: lng, lat: lat, prevLng: lng, prevLat: lat,
-    age: preAge ? Math.random() * maxAge : 0, maxAge: maxAge };
+    age: preAge ? Math.random() * maxAge : 0, maxAge: maxAge,
+    noiseSeed: Math.random() * 100 };
 }
 
 export function WindParticleOverlay({ mapInstance, active, data, id }) {
@@ -151,11 +164,11 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
     var isMobile = window.innerWidth < 768;
     var getCount = function() {
       var zoom = mapInstance.getZoom();
-      var base = isMobile ? 1200 : 2500;
-      if (zoom < 3) return Math.round(base * 0.4);
-      if (zoom < 5) return Math.round(base * 0.6);
+      var base = isMobile ? 1800 : 4500;
+      if (zoom < 3) return Math.round(base * 0.5);
+      if (zoom < 5) return Math.round(base * 0.75);
       if (zoom < 7) return base;
-      return Math.round(base * 1.1);
+      return Math.round(base * 1.25);
     };
     var PARTICLE_COUNT = getCount();
     console.log('[WindOverlay] Spawning ' + PARTICLE_COUNT + ' particles');
@@ -180,8 +193,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       if (!grid?.vectors?.length) return;
       wasActive = true;
 
- // Redistribute particles only when MODEL changes (GFSEUROICON)
- // NOT when bounds/vectors change from cache refresh that causes cluster burst
+      // Redistribute particles only when MODEL changes (GFSEUROICON)
+      // NOT when bounds/vectors change from cache refresh that causes cluster burst
       var sourceModel = grid.source || 'GFS';
       if (lastDataId !== null && lastDataId !== sourceModel) {
         var pts2 = particlesRef.current;
@@ -193,8 +206,10 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       }
       lastDataId = sourceModel;
 
+      var zoom = mapInstance.getZoom();
+
       // Warm-up: simulate steps without drawing to pre-advect particles.
- // v78: Reduced from 3015 steps and respawn OOB particles after warm-up
+      // v78: Reduced from 3015 steps and respawn OOB particles after warm-up
       // to prevent clustering downwind (particles all blow the same direction).
       if (!warmedUp) {
         warmedUp = true;
@@ -207,15 +222,21 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           for (var wi = 0; wi < pts3.length; wi++) {
             var wp = pts3[wi];
             var wWind = interpolateWind(grid, wp.lng, wp.lat);
+            var wScale = 0.016 * 3500 * Math.pow(0.60, zoom - 6);
+            var wNoiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
+            var wTurbulence = 0.05 + 0.15 * Math.min(1.0, wWind.speed / 10);
+            var wNs = wp.noiseSeed || 0;
+            var wNoiseU = noise2D(wp.lng * wNoiseFreqScale + wNs, wp.lat * wNoiseFreqScale) * wTurbulence;
+            var wNoiseV = noise2D(wp.lat * wNoiseFreqScale + wNs, wp.lng * wNoiseFreqScale + wNs) * wTurbulence;
+
             if (wWind.speed > 0.3) {
               var wLatRad = wp.lat * Math.PI / 180;
               var wMerc = Math.max(0.1, Math.cos(wLatRad));
-              var wScale = 0.016 * 6000;
-              wp.lng += wWind.u * DEG_PER_M / wMerc * wScale;
-              wp.lat += wWind.v * DEG_PER_M * wScale;
+              wp.lng += (wWind.u + wNoiseU * wWind.speed) * DEG_PER_M / wMerc * wScale;
+              wp.lat += (wWind.v + wNoiseV * wWind.speed) * DEG_PER_M * wScale;
             } else {
-              wp.lng += (Math.random() - 0.5) * 0.002;
-              wp.lat += (Math.random() - 0.5) * 0.002;
+              wp.lng += wNoiseU * 0.005 * wScale;
+              wp.lat += wNoiseV * 0.005 * wScale;
             }
             wp.prevLng = wp.lng;
             wp.prevLat = wp.lat;
@@ -224,7 +245,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
             while (wp.lng < -180) wp.lng += 360;
           }
         }
- // v78: Respawn particles that warm-up blew outside viewport 
+        // v78: Respawn particles that warm-up blew outside viewport 
         // prevents density clustering on the downwind side
         var respawned = 0;
         for (var ri2 = 0; ri2 < pts3.length; ri2++) {
@@ -266,6 +287,9 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
       var DEG_PER_METER = 1 / 111320;
       var drawnThisFrame = 0;
 
+      var speedScale = dt * 3500 * Math.pow(0.60, zoom - 6);
+      var noiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
+
       for (var i = 0; i < pts.length; i += stride) {
         var p = pts[i];
         p.age += dt;
@@ -277,18 +301,23 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
         // Interpolate wind at current position
         var wind = interpolateWind(grid, p.lng, p.lat);
 
- // World-coordinate advection AMPLIFIED for visual effect
- // Real wind: 0.01px/frame. Amplify 75 for Ventusky-style visible trails.
+        // Turbulence noise to create beautiful micro-swirls
+        var turbulence = 0.05 + 0.15 * Math.min(1.0, wind.speed / 10);
+        var ns = p.noiseSeed || 0;
+        var noiseU = noise2D(p.lng * noiseFreqScale + now * 0.001 + ns, p.lat * noiseFreqScale) * turbulence;
+        var noiseV = noise2D(p.lat * noiseFreqScale + now * 0.001 + ns, p.lng * noiseFreqScale + ns) * turbulence;
+
+        // World-coordinate advection AMPLIFIED for visual effect
+        // Real wind: 0.01px/frame. Amplify for Ventusky-style visible trails.
         if (wind.speed > 0.3) {
           var latRad = p.lat * Math.PI / 180;
           var mercCorr = Math.max(0.1, Math.cos(latRad));
-          var speedScale = dt * 6000;
-          p.lng += wind.u * DEG_PER_METER / mercCorr * speedScale;
-          p.lat += wind.v * DEG_PER_METER * speedScale;
+          p.lng += (wind.u + noiseU * wind.speed) * DEG_PER_METER / mercCorr * speedScale;
+          p.lat += (wind.v + noiseV * wind.speed) * DEG_PER_METER * speedScale;
         } else {
-          // In calm areas: random drift to prevent freeze
-          p.lng += (Math.random() - 0.5) * 0.002;
-          p.lat += (Math.random() - 0.5) * 0.002;
+          // Continuous lazy drift in calm areas instead of shaky jitter
+          p.lng += noiseU * 0.005 * speedScale;
+          p.lat += noiseV * 0.005 * speedScale;
         }
 
         // Sanity clamp
@@ -316,13 +345,13 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           // Clamp extreme jumps (projection artifacts)
           if (segLen > 100) { pts[i] = spawnParticle(mapInstance, false); continue; }
 
- // Age-based alpha smooth fade-in and fade-out
+          // Age-based alpha smooth fade-in and fade-out
           var ageRatio = p.age / p.maxAge;
           var fadeIn = Math.min(1, p.age / 0.3);
           var fadeOut = 1 - ageRatio * ageRatio;
           var alpha = fadeIn * fadeOut;
 
- // Speed-based emphasis faster wind = more visible
+          // Speed-based emphasis faster wind = more visible
           var speedFactor = Math.min(1, wind.speed / 20);
           alpha *= (0.08 + speedFactor * 0.35);
           if (alpha < 0.01) continue;
@@ -330,8 +359,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id }) {
           // Ventusky-style: white vapor trails
           ctx.strokeStyle = getWindColor(wind.speed, alpha);
 
- // Thin consistent lines Ventusky uses ~1px
-          ctx.lineWidth = 1;
+          // Speed-aware dynamic line width (0.7px - 2.0px) for premium look
+          ctx.lineWidth = Math.min(2.0, 0.7 + wind.speed * 0.025);
           ctx.lineCap = 'round';
 
           ctx.beginPath();

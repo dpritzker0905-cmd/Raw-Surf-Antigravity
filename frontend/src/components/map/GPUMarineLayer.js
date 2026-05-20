@@ -154,7 +154,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     // v3.11.2: Doubled marine particle counts for visible ocean animation
     const getParticleCount = () => {
       const zoom = mapInstance.getZoom();
-      const base = isMobile ? (isWeak ? 400 : 1000) : (isWeak ? 2000 : 4000);
+      const base = isMobile ? (isWeak ? 600 : 1500) : (isWeak ? 2500 : 6000);
       if (zoom < 3) return Math.round(base * 0.25);
       if (zoom < 5) return Math.round(base * 0.5);
       return base;
@@ -179,7 +179,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
         // v74: Add spawn jitter to break grid-cell center alignment
- const jitter = 0.03; // 0.03 random offset
+        const jitter = 0.03; // 0.03 random offset
         const jLng = lng + (Math.random() - 0.5) * jitter * 2;
         const jLat = lat + (Math.random() - 0.5) * jitter * 2;
         return {
@@ -239,6 +239,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
       const stride = state === THROTTLED ? 4 : 1;
       const pts = particlesRef.current;
+      const zoom = mapInstance.getZoom();
 
       for (let i = 0; i < pts.length; i += stride) {
         const p = pts[i];
@@ -254,12 +255,13 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const latRad = p.lat * Math.PI / 180;
           const mercCorr = Math.max(0.1, Math.cos(latRad));
           // Ocean drift is much slower than atmospheric flow
-          const speedScale = dt * 3000;
+          const speedScale = dt * 1500 * Math.pow(0.62, zoom - 6);
           // v74: Tripled noise amplitude + per-particle seed to fully break grid-lane patterns
           const turbulence = 0.40 + 0.40 * p.energy; // much stronger: was 0.15+0.2
           const ns = p.noiseSeed || 0;
-          const noiseU = noise2D(p.lng * 10 + now * 0.0008 + ns, p.lat * 10) * turbulence;
-          const noiseV = noise2D(p.lat * 10 + now * 0.0008 + ns, p.lng * 10 + ns) * turbulence;
+          const noiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
+          const noiseU = noise2D(p.lng * noiseFreqScale + now * 0.001 + ns, p.lat * noiseFreqScale) * turbulence;
+          const noiseV = noise2D(p.lat * noiseFreqScale + now * 0.001 + ns, p.lng * noiseFreqScale + ns) * turbulence;
           p.lng += (wave.u + noiseU) * DEG_PER_METER / mercCorr * speedScale;
           p.lat += (wave.v + noiseV) * DEG_PER_METER * speedScale;
         } else {

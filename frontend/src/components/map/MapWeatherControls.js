@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
@@ -98,24 +98,94 @@ export var MapWeatherControls = ({
   const maxForecastDays = resolveForecastWindow(userTier);
   const maxForecastHours = maxForecastDays * 24;
   const isRadar = radarMode && radarFrames.length > 0;
-  
+
+  // Local state and refs for decoupled and throttled slider dragging
+  const [sliderVal, setSliderVal] = useState(isRadar ? radarFrameIndex : currentTimeOffset);
+  const isDraggingRef = useRef(false);
+  const throttleRef = useRef(null);
+  const trailingValRef = useRef(null);
+
+  // Synchronize local slider state with parent prop updates when not dragging (e.g. autoplay)
+  useEffect(() => {
+    if (!isDraggingRef.current) {
+      setSliderVal(isRadar ? radarFrameIndex : currentTimeOffset);
+    }
+  }, [isRadar, radarFrameIndex, currentTimeOffset]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (throttleRef.current) {
+        clearTimeout(throttleRef.current);
+      }
+    };
+  }, []);
+
   const formatTime = () => {
     if (isRadar) {
-      const frame = radarFrames[radarFrameIndex];
+      const frame = radarFrames[sliderVal];
       if (!frame?.time) return '--:--';
       const d = new Date(frame.time * 1000);
       return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     } else {
-      if (currentTimeOffset === 0) return 'Live';
+      if (sliderVal === 0) return 'Live';
       const d = new Date();
-      d.setHours(d.getHours() + currentTimeOffset);
+      d.setHours(d.getHours() + sliderVal);
       return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.toLocaleTimeString('en-US', { hour: 'numeric' })}`;
     }
   };
 
   const progress = isRadar
-    ? ((radarFrameIndex + 1) / radarFrames.length) * 100
-    : (currentTimeOffset / maxForecastHours) * 100;
+    ? (radarFrames.length > 0 ? ((sliderVal + 1) / radarFrames.length) * 100 : 0)
+    : (sliderVal / maxForecastHours) * 100;
+
+  const handleSliderChange = (e) => {
+    const val = parseInt(e.target.value, 10);
+    setSliderVal(val);
+
+    if (throttleRef.current) {
+      trailingValRef.current = val;
+      return;
+    }
+
+    // Trigger parent update immediately for first interaction
+    if (isRadar) {
+      onRadarFrameChange(val);
+    } else {
+      onTimeChange(val);
+    }
+
+    throttleRef.current = setTimeout(() => {
+      throttleRef.current = null;
+      if (trailingValRef.current !== null) {
+        const tVal = trailingValRef.current;
+        trailingValRef.current = null;
+        if (isRadar) {
+          onRadarFrameChange(tVal);
+        } else {
+          onTimeChange(tVal);
+        }
+      }
+    }, 120);
+  };
+
+  const handleDragStart = () => {
+    isDraggingRef.current = true;
+  };
+
+  const handleDragEnd = () => {
+    isDraggingRef.current = false;
+    // Trigger any remaining trailing updates immediately
+    if (trailingValRef.current !== null) {
+      const tVal = trailingValRef.current;
+      trailingValRef.current = null;
+      if (isRadar) {
+        onRadarFrameChange(tVal);
+      } else {
+        onTimeChange(tVal);
+      }
+    }
+  };
 
   // Integrated Timeline UI block
   const renderTimeline = (isMobile = false) => {
@@ -148,12 +218,13 @@ export var MapWeatherControls = ({
               type="range"
               min={0}
               max={isRadar ? Math.max(radarFrames.length - 1, 0) : maxForecastHours}
-              step={isRadar ? 1 : 1}
-              value={isRadar ? radarFrameIndex : currentTimeOffset}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                isRadar ? onRadarFrameChange(val) : onTimeChange(val);
-              }}
+              step={1}
+              value={sliderVal}
+              onChange={handleSliderChange}
+              onMouseDown={handleDragStart}
+              onTouchStart={handleDragStart}
+              onMouseUp={handleDragEnd}
+              onTouchEnd={handleDragEnd}
               className="w-full h-2 rounded-full appearance-none cursor-pointer"
               style={{
                 background: `linear-gradient(to right, #06b6d4 ${progress}%, ${trackBg} ${progress}%)`

@@ -138,15 +138,17 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
                   5, 12,
                   7, 16,
                   9, 20,
-                  11, 24,
-                  14, 28,
+                  14, 2,
                 ],
-                'line-opacity': 1,
+                'line-opacity': ['interpolate', ['linear'], ['zoom'],
+                  9, 1.0,
+                  14, 0.0
+                ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
                   2, 2.0,
                   7, 1.5,
-                  11, 1.0,
-                  14, 0.5
+                  9, 1.0,
+                  14, 0.0
                 ],
               },
               layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -270,7 +272,10 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
                 'line-width': ['interpolate', ['linear'], ['zoom'],
                   2, tc.lw * 0.5, 6, tc.lw, 10, tc.lw * 1.5,
                 ],
-                'line-opacity': 0.8,
+                'line-opacity': ['interpolate', ['linear'], ['zoom'],
+                  9, 0.8,
+                  14, 0.0
+                ],
                 'line-blur': 0.5,
               },
               layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -309,7 +314,8 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
                 const id = l.id;
                 const isLandFeature = landusePatterns.some(pat => id.toLowerCase().includes(pat));
                 const isMaskLayer = ALL_LAYERS.includes(id);
-                if (isLandFeature && !isMaskLayer) {
+                const isOutline = l.type === 'line' || id.toLowerCase().includes('outline') || id.toLowerCase().includes('border') || id.toLowerCase().includes('boundary') || id.toLowerCase().includes('line');
+                if (isLandFeature && !isMaskLayer && !isOutline) {
                   try {
                     mapInstance.moveLayer(id, targetBeforeId);
                   } catch (e) {}

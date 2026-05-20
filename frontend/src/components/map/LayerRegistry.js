@@ -277,3 +277,39 @@ export function bootstrapCoreLayers() {
     });
   });
 }
+
+// v3.12.5: Pre-populate known model variables and valid times to avoid blocking URL resolution on layer toggle
+export const MODEL_METADATA_CACHE = {};
+
+const DEFAULT_ATMOSPHERIC_VARS = [
+  'wind_speed_10m', 'wind_direction_10m', 'wind_gusts_10m', 'wind_u_component_10m', 'wind_v_component_10m',
+  'precipitation', 'cloud_cover', 'cloud_cover_low', 'visibility', 'msl_pressure', 'fog', 'pressure_msl'
+];
+const DEFAULT_MARINE_VARS = [
+  'wave_height', 'wave_direction', 'wave_period',
+  'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+  'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+  'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+];
+
+function generateDefaultTimes() {
+  const start = new Date();
+  start.setMinutes(0, 0, 0);
+  const times = [];
+  for (let i = -24; i < 240; i++) { // -24h to +10 days
+    const d = new Date(start.getTime() + i * 3600000);
+    times.push(d.toISOString().replace(/\.\d+Z$/, 'Z'));
+  }
+  return times;
+}
+
+const defaultTimes = generateDefaultTimes();
+const referenceTime = new Date().toISOString();
+
+MODEL_METADATA_CACHE['ncep_gfs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['dwd_icon'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['ecmwf_ifs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['ncep_gfswave025'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['ecmwf_wam025'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };
+

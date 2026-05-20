@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WindColorRamp.js Color LUT for WebGL Wind Visualization
  *
  * Generates a 1D texture lookup table (LUT) that maps wind speed color.
@@ -18,17 +18,17 @@
  * Colors follow Beaufort/Ventusky convention: bluecyangreenyellowredpurple.
  */
 var DEFAULT_WIND_RAMP = [
- [0, 0.60, 0.70, 0.85, 0.30], // Calm light blue-white, clearly visible
- [2, 0.50, 0.65, 0.88, 0.38], // Light air bright blue
- [5, 0.35, 0.72, 0.90, 0.45], // Light breeze cyan
- [8, 0.20, 0.78, 0.70, 0.52], // Gentle breeze teal
- [12, 0.35, 0.82, 0.35, 0.58], // Moderate green
- [16, 0.75, 0.85, 0.15, 0.63], // Fresh yellow-green
- [20, 0.95, 0.72, 0.08, 0.67], // Strong amber
- [25, 0.95, 0.42, 0.06, 0.70], // Near gale orange (MAX alpha)
- [30, 0.90, 0.18, 0.10, 0.70], // Gale red
- [40, 0.78, 0.05, 0.30, 0.70], // Storm magenta
- [50, 0.55, 0.00, 0.45, 0.70], // Hurricane purple
+  [0,  0.65, 0.75, 0.85, 0.05], // Calm: highly transparent light blue-white
+  [2,  0.55, 0.70, 0.88, 0.10], // Light air: bright blue, very transparent
+  [5,  0.38, 0.75, 0.88, 0.18], // Light breeze: cyan
+  [8,  0.22, 0.80, 0.72, 0.24], // Gentle breeze: teal
+  [12, 0.38, 0.82, 0.38, 0.30], // Moderate: soft green
+  [16, 0.78, 0.82, 0.20, 0.35], // Fresh: yellow-green
+  [20, 0.95, 0.68, 0.15, 0.40], // Strong: soft amber
+  [25, 0.95, 0.45, 0.10, 0.45], // Near gale: soft orange
+  [30, 0.90, 0.22, 0.15, 0.48], // Gale: soft red
+  [40, 0.75, 0.10, 0.35, 0.50], // Storm: soft magenta
+  [50, 0.55, 0.05, 0.50, 0.50], // Hurricane: soft purple
 ];
 
 /**

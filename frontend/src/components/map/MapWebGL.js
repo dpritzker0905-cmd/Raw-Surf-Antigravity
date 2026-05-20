@@ -15,7 +15,7 @@ import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import { OceanMask } from './OceanMask';
-import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP } from './LayerRegistry'; // eslint-disable-line
+import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry'; // eslint-disable-line
 import { validateModelAccess, resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
 import { useTemporalPreloader } from './useTemporalPreloader';
@@ -57,7 +57,6 @@ var OM_MODEL_MAP = {
 };
 
 // Cache to prevent repetitive manifest fetching during layer toggles
-var MODEL_METADATA_CACHE = {};
 var MODEL_METADATA_PROMISES = {};
 
 var MapWebGL = ({
@@ -679,10 +678,10 @@ var MapWebGL = ({
  // v73: Fog opacity reduced cloud_cover_low shows ALL low clouds,
               // not just fog. Keep subtle so minor cumulus doesn't look like fog.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
-                5, layerKey === 'wind' ? 0.42 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.28),
-                8, layerKey === 'wind' ? 0.48 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.35),
-                12, layerKey === 'wind' ? 0.52 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
+                2, layerKey === 'wind' ? 0.20 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
+                5, layerKey === 'wind' ? 0.25 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.28),
+                8, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.35),
+                12, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
               ],
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
