@@ -277,7 +277,7 @@ function initParticleTexture(gl, resolution) {
 
 function WebGLMarineEngine() {
   this.particleRes = 256;       // 256 * 256 = 65,536 lines
-  this.speedFactor = 0.0003;    // Slower advection matching ocean drift
+  this.speedFactor = 0.05;      // Slower advection matching ocean drift
   this.dropRate = 0.002;
   this._initialized = false;
   this._waveData = null;
@@ -379,9 +379,9 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   const waveBounds = this._waveData.bounds;
   const lngSpan = Math.max(0.01, Math.abs(waveBounds.east - waveBounds.west));
   const latSpan = Math.max(0.01, Math.abs(waveBounds.north - waveBounds.south));
-  // Enforce a hard minimum step of 1.5e-5 to prevent 16-bit texture coordinate quantization freezes
-  const speedScaleX = Math.max(1.5e-5, baseScale / lngSpan);
-  const speedScaleY = Math.max(1.5e-5, baseScale / latSpan);
+  // Enforce a hard minimum step of 3.0e-4 to prevent 16-bit texture coordinate quantization freezes
+  const speedScaleX = Math.max(3.0e-4, baseScale / lngSpan);
+  const speedScaleY = Math.max(3.0e-4, baseScale / latSpan);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
 
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());

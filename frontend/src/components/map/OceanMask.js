@@ -32,6 +32,24 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0 },
 };
 
+function forceRightHandRule(coordinates) {
+  return coordinates.map((ring, idx) => {
+    if (!ring || ring.length < 3) return ring;
+    let area = 0;
+    for (let i = 0; i < ring.length; i++) {
+      const p1 = ring[i];
+      const p2 = ring[(i + 1) % ring.length];
+      area += p1[0] * p2[1] - p2[0] * p1[1];
+    }
+    const isCCW = area > 0;
+    const shouldBeCCW = (idx === 0);
+    if (isCCW !== shouldBeCCW) {
+      return [...ring].reverse();
+    }
+    return ring;
+  });
+}
+
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
@@ -42,14 +60,14 @@ function buildLandMask(landGeoJSON) {
     if (geom.type === 'Polygon') {
       polygons.push({
         type: 'Feature',
-        geometry: { type: 'Polygon', coordinates: geom.coordinates },
+        geometry: { type: 'Polygon', coordinates: forceRightHandRule(geom.coordinates) },
         properties: {}
       });
     } else if (geom.type === 'MultiPolygon') {
       for (const polyCoords of geom.coordinates) {
         polygons.push({
           type: 'Feature',
-          geometry: { type: 'Polygon', coordinates: polyCoords },
+          geometry: { type: 'Polygon', coordinates: forceRightHandRule(polyCoords) },
           properties: {}
         });
       }
@@ -57,6 +75,7 @@ function buildLandMask(landGeoJSON) {
   }
   return { type: 'FeatureCollection', features: polygons };
 }
+
 
 function findInsertBefore(style) {
   const layers = style?.layers || [];
@@ -139,7 +158,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         if (!hasSrc) {
           try {
             mapInstance.addSource(MASK_SOURCE, {
-              type: 'geojson', data: maskData, tolerance: 0.01,
+              type: 'geojson', data: maskData, tolerance: 0.01, buffer: 0,
             });
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);

@@ -448,9 +448,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const bnd = this._windData.bounds;
   const lngSpan = Math.max(0.01, Math.abs(bnd.east - bnd.west));
   const latSpan = Math.max(0.01, Math.abs(bnd.north - bnd.south));
-  // Enforce a hard minimum of 1.2e-5 to stay well above the 16-bit texture coordinate precision limit
-  const speedScaleX = Math.max(1.2e-5, baseScale / lngSpan);
-  const speedScaleY = Math.max(1.2e-5, baseScale / latSpan);
+  // Enforce a hard minimum of 5.0e-4 to stay well above the 16-bit texture coordinate precision limit
+  const speedScaleX = Math.max(5.0e-4, baseScale / lngSpan);
+  const speedScaleY = Math.max(5.0e-4, baseScale / latSpan);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
 
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());

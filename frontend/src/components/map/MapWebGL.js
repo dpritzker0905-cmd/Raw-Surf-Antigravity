@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import Map, { Source, Layer, Marker } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer } from './mapUtils';
+import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer, MARINE_SCALE, OM_MODEL_MAP } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { WebGLMarineLayer } from './WebGLMarineLayer';
@@ -22,24 +22,6 @@ import { useTemporalPreloader } from './useTemporalPreloader';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-const MARINE_SCALE = {
-  type: "breakpoint", unit: "m",
-  breakpoints: [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10],
-  colors: [
-    [14, 25, 65, 0],       
-    [25, 45, 100, 1],    
-    [35, 75, 135, 1],    
-    [45, 110, 160, 1],   
-    [60, 140, 175, 1],   
-    [80, 175, 180, 1],   
-    [120, 205, 165, 1],  
-    [180, 220, 140, 1],  
-    [230, 210, 95, 1],   
-    [245, 150, 50, 1],   
-    [220, 80, 40, 1],    
-    [160, 30, 70, 1] 
-  ]
-};
 
 var _omProtocolPromise = null;
 function getOmProtocol() {
@@ -103,16 +85,6 @@ export function trace(layer, action, source, payload) {
 
 var EMPTY_MARINE_FC = { type: 'FeatureCollection', features: [] };
 
-/**
- * Map Open-Meteo model identifiers to their tile-server paths.
- * Used to construct om:// source URLs.
- */
-var OM_MODEL_MAP = {
-  GFS:  'ncep_gfs025',
-  EURO: 'ecmwf_ifs025',
-  ICON: 'dwd_icon',
-};
-
 // Cache to prevent repetitive manifest fetching during layer toggles
 var MODEL_METADATA_PROMISES = {};
 var LIVE_FETCHED_MODELS = new Set();
@@ -160,38 +132,27 @@ var MapWebGL = ({
   const [customLayersAdded, setCustomLayersAdded] = useState({ wind: false, marine: false });
 
   const handleWindAddedChange = useCallback((added) => {
-    setCustomLayersAdded(prev => {
-      if (prev.wind === added) return prev;
-      return { ...prev, wind: added };
-    });
+    setCustomLayersAdded(prev => prev.wind === added ? prev : { ...prev, wind: added });
   }, []);
 
   const handleMarineAddedChange = useCallback((added) => {
-    setCustomLayersAdded(prev => {
-      if (prev.marine === added) return prev;
-      return { ...prev, marine: added };
-    });
+    setCustomLayersAdded(prev => prev.marine === added ? prev : { ...prev, marine: added });
   }, []);
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
   const animFrameRef = useRef(null);
   
-  // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
-  // v3.12.4: Passes activeModel + tier-based forecastDays for multi-model support
+  // Weather Engine: Decoupled from map lifecycle
   const forecastDays = useMemo(() => resolveForecastWindow(userTier), [userTier]);
   const { windData, windRevision } = useWeatherEngine({
     activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
   });
- // v3.9.9: Temporal preloader prefetch 1hr tiles
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance });
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    getOmProtocol().then(() => {
-      setProtocolReady(true);
-    });
-
+    getOmProtocol().then(() => { setProtocolReady(true); });
     const suppressAbortRejections = (event) => {
       const reason = event?.reason;
       if (reason?.name === 'AbortError' || reason?.message?.includes('aborted')) event.preventDefault();
@@ -210,25 +171,17 @@ var MapWebGL = ({
     trace('all', 'select_model', 'MapWebGL', { activeModel });
   }, [activeModel]);
 
- // LRCM: Derived render type drives which renderer pipeline is active
+  // Derived render type
   const activeRenderType = useMemo(() => {
-    const layerId = activeLayers[0];
-    if (!layerId) return 'none';
-    const layer = LAYER_REGISTRY[layerId];
+    const layer = LAYER_REGISTRY[activeLayers[0]];
     if (!layer) return 'none';
     if (layer.type === 'raster') return layer.id === 'radar' ? 'radar' : 'raster';
     if (layer.type === 'marine') return 'marine';
-    if ((layer.type === 'canvas' || layer.type === 'particle') && layer.id === 'wind') return 'wind';
+    if (layer.id === 'wind') return 'wind';
     return 'none';
   }, [activeLayers]);
 
-
   const [omTileUrls, setOmTileUrls] = useState({});
- // v69: initialOmUrls removed React <Source> now reads omTileUrls directly
- // v70: initialRadarUrl removed React <Source> reads radarTileUrl directly
-
-
- // v242: Global Render Contract single source of truth for map readiness
   const renderContract = useMapRenderContract(mapInstance);
 
  // Marine Orchestrator single-pipeline data fetching
