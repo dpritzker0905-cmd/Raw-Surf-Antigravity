@@ -112,6 +112,19 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
   useEffect(() => {
     if (!mapInstance) return;
 
+    // v3.12.9: MapLibre doesn't always schedule continuous repaints reliably for custom layers
+    // We enforce an animation loop when active to guarantee the advection updates
+    let frameId;
+    const renderLoop = () => {
+      if (activeRef.current && mapInstance) {
+        mapInstance.triggerRepaint();
+        frameId = requestAnimationFrame(renderLoop);
+      }
+    };
+    if (active) {
+      frameId = requestAnimationFrame(renderLoop);
+    }
+
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
 

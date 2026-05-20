@@ -154,7 +154,7 @@ var DRAW_FS = [
   'void main() {',
   '  float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);',
   '  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));',
-  '  gl_FragColor = vec4(color.rgb * color.a, 1.0);',
+  '  gl_FragColor = vec4(color.rgb * color.a, color.a);',
   '}',
 ].join('\n');
 
@@ -173,10 +173,9 @@ uniform float u_opacity;
 varying vec2 v_uv;
 void main() {
   vec4 color = texture2D(u_screen, v_uv);
-  // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness.
-  // Black = transparent, bright = opaque. Creates proper vapor trail effect.
   float brightness = max(color.r, max(color.g, color.b));
-  gl_FragColor = vec4(color.rgb, brightness * u_opacity);
+  float alpha = brightness * u_opacity;
+  gl_FragColor = vec4(color.rgb * alpha, alpha);
 }`;
 
 var FADE_FS = `

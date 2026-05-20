@@ -124,9 +124,35 @@ var MapWebGL = ({
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
+    import('@openmeteo/weather-map-layer').then((om) => {
+      // v3.12.8: Inject marine color scales for wave heights
+      // @openmeteo/weather-map-layer does not natively support marine variables
+      if (!om.COLOR_SCALES['wave_height']) {
+        const marineScale = {
+          type: "breakpoint", unit: "m",
+          breakpoints: [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10],
+          colors: [
+            [14, 25, 65, 0],       
+            [25, 45, 100, 1],    
+            [35, 75, 135, 1],    
+            [45, 110, 160, 1],   
+            [60, 140, 175, 1],   
+            [80, 175, 180, 1],   
+            [120, 205, 165, 1],  
+            [180, 220, 140, 1],  
+            [230, 210, 95, 1],   
+            [245, 150, 50, 1],   
+            [220, 80, 40, 1],    
+            [160, 30, 70, 1] 
+          ]
+        };
+        om.COLOR_SCALES['wave_height'] = marineScale;
+        om.COLOR_SCALES['swell_wave_height'] = marineScale;
+        om.COLOR_SCALES['secondary_swell_wave_height'] = marineScale;
+        om.COLOR_SCALES['wind_wave_height'] = marineScale;
+      }
       if (maplibregl?.addProtocol) {
-        try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ }
+        try { maplibregl.addProtocol('om', om.omProtocol); } catch (e) { /* already registered */ }
       }
       setProtocolReady(true);
     });
