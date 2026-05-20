@@ -1,10 +1,12 @@
 """Grom HQ age verification — Stripe Identity, demo verify, password-protected unlink."""
+import stripe
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import Profile
 from utils.grom_parent import is_grom_parent_eligible
+from core.security import get_user_id_from_jwt_or_query
 
 from .schemas import AgeVerificationRequest, UnlinkRequest
 router = APIRouter()
@@ -15,12 +17,16 @@ router = APIRouter()
 async def create_age_verification(
     parent_id: str,
     request: AgeVerificationRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Create a Stripe Identity verification session for parent age verification.
     Parent must verify they are 18+ before they can link Grom accounts.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to create age verification for this parent")
+
     # Verify parent exists
     parent_result = await db.execute(
         select(Profile).where(Profile.id == parent_id)
@@ -73,12 +79,16 @@ async def create_age_verification(
 async def verify_age_complete(
     parent_id: str,
     verification_session_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Complete age verification after Stripe Identity flow.
     Checks the verification session status and extracts DOB to verify 18+.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to complete age verification for this parent")
+
     # Verify parent exists
     parent_result = await db.execute(
         select(Profile).where(Profile.id == parent_id)
@@ -95,6 +105,11 @@ async def verify_age_complete(
             expand=['verified_outputs']
         )
         
+        # Stripe Age Hijacking Shield: Check metadata.parent_id
+        session_metadata = getattr(verification_session, 'metadata', {}) or {}
+        if session_metadata.get("parent_id") != parent_id:
+            raise HTTPException(status_code=403, detail="Stripe verification session parent_id mismatch")
+
         # Check status
         if verification_session.status != 'verified':
             return {
@@ -140,11 +155,15 @@ async def verify_age_complete(
 @router.get("/age-verification-status/{parent_id}")
 async def get_age_verification_status(
     parent_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Check if a parent has completed age verification.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view age verification status")
+
     parent_result = await db.execute(
         select(Profile).where(Profile.id == parent_id)
     )
@@ -163,12 +182,16 @@ async def get_age_verification_status(
 @router.post("/demo-verify-age/{parent_id}")
 async def demo_verify_age(
     parent_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Demo/test endpoint to bypass Stripe Identity for age verification.
     In production, this should be disabled or require admin access.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to demo verify age")
+
     parent_result = await db.execute(
         select(Profile).where(Profile.id == parent_id)
     )
@@ -198,14 +221,17 @@ async def unlink_grom_secure(
     grom_id: str,
     parent_id: str,
     request: UnlinkRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Unlink a Grom account from parent (requires parent password).
     This can ONLY be done from the parent's side with password verification.
     """
-    from passlib.context import CryptContext
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to unlink this Grom")
 
+    from passlib.context import CryptContext
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
@@ -249,6 +275,7 @@ async def unlink_grom_secure(
 @router.get("/can-grom-unlink/{grom_id}")
 async def can_grom_unlink(
     grom_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -256,10 +283,17 @@ async def can_grom_unlink(
     Groms should NOT be able to unlink themselves - returns false always.
     This endpoint is called by the frontend to hide the unlink button.
     """
+    if user_id != grom_id:
+        grom_result = await db.execute(select(Profile).where(Profile.id == grom_id))
+        grom = grom_result.scalar_one_or_none()
+        if not grom or grom.parent_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to check unlink capability")
+
     return {
         "can_unlink": False,
         "reason": "Unlinking can only be done by your parent/guardian"
     }
+
 
 
 

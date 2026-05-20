@@ -2,9 +2,11 @@
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 from database import get_db
 from models import Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from core.security import get_user_id_from_jwt_or_query
 
 from .schemas import ToggleCompetitionRequest
 router = APIRouter()
@@ -14,8 +16,11 @@ async def toggle_grom_competition(
     grom_id: str,
     parent_id: str,
     data: ToggleCompetitionRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to modify competition status")
     """
     Toggle competition mode for a linked Grom.
     Only the linked parent can change this setting.
@@ -72,8 +77,11 @@ async def toggle_grom_competition(
 @router.get("/linked-groms/{parent_id}")
 async def get_linked_groms(
     parent_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view linked Groms")
     """
     Get all Groms linked to a parent account
     Returns linked groms, pending requests, and aggregate stats
@@ -145,8 +153,11 @@ async def get_linked_groms(
 async def link_grom(
     parent_id: str,
     grom_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to link Groms for this parent")
     """
     Link a Grom account to a verified parent
     """
@@ -192,8 +203,11 @@ async def unlink_grom(
     parent_id: str,
     grom_id: str,
     password: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to unlink Groms for this parent")
     """
     Unlink a Grom account from parent (requires parent password)
     This can ONLY be done from the parent's side
@@ -241,6 +255,7 @@ async def unlink_grom(
 @router.get("/grom-status/{grom_id}")
 async def get_grom_status(
     grom_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -254,6 +269,9 @@ async def get_grom_status(
     
     if not grom:
         raise HTTPException(status_code=404, detail="User not found")
+        
+    if user_id != grom_id and grom.parent_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this Grom's status")
     
     if grom.role != RoleEnum.GROM:
         return {
@@ -303,8 +321,11 @@ async def update_parental_controls(
     grom_id: str,
     parent_id: str,
     controls: dict,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update parental controls")
     """
     Update parental controls for a linked Grom
     Only the linked parent can update these settings
@@ -343,8 +364,11 @@ async def update_parental_controls(
 async def approve_grom_link(
     grom_id: str,
     parent_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to approve links")
     """
     Parent approves a Grom link request
     """
@@ -382,8 +406,11 @@ async def approve_grom_link(
 async def link_grom_by_code(
     parent_id: str,
     guardian_code: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to link by code")
     """
     Link a Grom to parent using guardian code
     """

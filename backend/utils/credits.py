@@ -34,7 +34,7 @@ async def deduct_credits(
     Deduct credits from user's balance.
     Returns: (success: bool, new_balance: float, error_message: str)
     """
-    result = await db.execute(select(Profile).where(Profile.id == user_id))
+    result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update())
     user = result.scalar_one_or_none()
     
     if not user:
@@ -78,7 +78,7 @@ async def add_credits(
     Add credits to user's balance.
     Returns: (success: bool, new_balance: float, error_message: str)
     """
-    result = await db.execute(select(Profile).where(Profile.id == user_id))
+    result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update())
     user = result.scalar_one_or_none()
     
     if not user:

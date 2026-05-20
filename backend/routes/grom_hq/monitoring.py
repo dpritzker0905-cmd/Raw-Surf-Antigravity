@@ -3,9 +3,11 @@ from pydantic import BaseModel
 from fastapi import Depends, HTTPException, APIRouter
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 from database import get_db
 from typing import Optional
 from models import CreditTransaction, Notification, Post, Profile
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter()
 
@@ -15,12 +17,15 @@ router = APIRouter()
 async def get_grom_activity(
     grom_id: str,
     parent_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get activity data for a linked Grom.
     Only the linked parent can view this data.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view Grom activity")
     from models import Post, CreditTransaction
     from datetime import datetime, timedelta
     
@@ -99,12 +104,15 @@ async def get_grom_activity(
 async def get_spending_summary(
     grom_id: str,
     parent_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get detailed spending summary for a Grom.
     Shows spending by category and recent purchases.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view Grom spending summary")
     from models import CreditTransaction, GearPurchase
     from datetime import datetime, timedelta
     
@@ -178,12 +186,15 @@ async def update_spending_controls(
     grom_id: str,
     parent_id: str,
     controls: SpendingLimitUpdate,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update spending controls for a Grom.
     Parent can set monthly limits and require approval for purchases.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update Grom spending controls")
     # Verify authorization
     grom_result = await db.execute(
         select(Profile).where(Profile.id == grom_id)
@@ -289,8 +300,11 @@ async def send_parental_spending_alert(
 @router.post("/spending-alert")
 async def trigger_spending_alert(
     request: SpendingAlertRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != request.grom_id:
+        raise HTTPException(status_code=403, detail="Not authorized to trigger spending alerts for other users")
     """
     Endpoint to trigger a parental spending alert.
     Called when a Grom makes a purchase that exceeds the approval threshold.
@@ -314,8 +328,11 @@ async def trigger_spending_alert(
 async def get_spending_alerts(
     parent_id: str,
     limit: int = 20,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view spending alerts")
     """
     Get recent spending alerts for a parent.
     """

@@ -100,3 +100,20 @@ class GlobalPricingConfig(Base):
     
     updater = relationship('Profile', backref='pricing_updates')
 
+
+from sqlalchemy import event
+
+# ============ LEDGER IMMUTABILITY ENFORCEMENT ============
+
+@event.listens_for(CreditTransaction, 'before_update')
+def prevent_credit_tx_update(mapper, connection, target):
+    raise ValueError("Transactions are immutable")
+
+@event.listens_for(CreditTransaction, 'before_delete')
+def prevent_credit_tx_delete(mapper, connection, target):
+    raise ValueError("Transactions are immutable")
+
+@event.listens_for(PaymentTransaction, 'before_delete')
+def prevent_payment_tx_delete(mapper, connection, target):
+    raise ValueError("Transactions are immutable")
+

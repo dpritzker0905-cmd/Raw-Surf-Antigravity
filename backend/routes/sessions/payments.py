@@ -88,7 +88,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
         surfer = surfer_result.scalar_one_or_none()
         
         photographer_result = await db.execute(
-            select(Profile).where(Profile.id == photographer_id).options(selectinload(Profile.current_spot))
+            select(Profile).where(Profile.id == photographer_id).options(selectinload(Profile.current_spot)).with_for_update()
         )
         photographer = photographer_result.scalar_one_or_none()
         

@@ -9,6 +9,7 @@ from typing import Optional
 import json
 from models import GalleryItem, PhotoTag, Post, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter()
 
@@ -19,12 +20,15 @@ async def get_family_activity_feed(
     grom_id: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get a consolidated activity feed for all linked Groms (or a specific Grom).
     Shows: Latest Posts, Earned Achievements/Badges, Tagged Photos.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view family activity for this parent")
     from models import Post, PhotoTag, GalleryItem
 
 
@@ -200,8 +204,11 @@ async def get_family_activity_feed(
 async def check_call_permission(
     caller_id: str,
     target_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
+    if user_id != caller_id and user_id != target_id:
+        raise HTTPException(status_code=403, detail="Not authorized to check call permissions for other users")
     """
     Check if a call is allowed between two users.
     

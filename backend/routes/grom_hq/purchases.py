@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import json
 from models import Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from core.security import get_user_id_from_jwt_or_query
 
 from .family import PurchaseRequestBody
 router = APIRouter()
@@ -16,12 +17,16 @@ router = APIRouter()
 async def submit_purchase_request(
     grom_id: str,
     data: PurchaseRequestBody,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Grom submits a purchase request for parental approval.
     Creates a notification for the parent with the request details.
     """
+    if user_id != grom_id:
+        raise HTTPException(status_code=403, detail="Not authorized to submit purchase request for this Grom")
+
     from models import Notification
     import logging
     logger = logging.getLogger(__name__)
@@ -111,12 +116,16 @@ async def submit_purchase_request(
 async def get_purchase_requests(
     parent_id: str,
     status: str = "pending",
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get all pending purchase requests for a parent.
     Used by the GromHQ Purchase Requests panel.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view purchase requests for this parent")
+
     from models import Notification
 
     # Verify parent
@@ -182,6 +191,7 @@ async def get_purchase_requests(
 async def approve_purchase_request(
     request_id: str,
     parent_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -189,6 +199,9 @@ async def approve_purchase_request(
     This marks the request as approved and creates a notification
     for the Grom to complete the purchase.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to approve purchase requests for this parent")
+
     from models import Notification
     import logging
     logger = logging.getLogger(__name__)
@@ -269,11 +282,15 @@ async def deny_purchase_request(
     request_id: str,
     parent_id: str,
     reason: str = "",
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Parent denies a Grom purchase request.
     """
+    if user_id != parent_id:
+        raise HTTPException(status_code=403, detail="Not authorized to deny purchase requests for this parent")
+
     from models import Notification
     import logging
 
@@ -311,3 +328,29 @@ async def deny_purchase_request(
     grom_id = req_data.get("grom_id")
 
     # Update request status
+    req_data["status"] = "denied"
+    req_data["denied_by"] = parent_id
+    req_data["denied_at"] = datetime.now(timezone.utc).isoformat()
+    req_data["deny_reason"] = reason
+    notif.data = json.dumps(req_data)
+    notif.is_read = True
+
+    grom_notif = Notification(
+        user_id=grom_id,
+        type='purchase_denied',
+        title='❌ Purchase Denied',
+        body=f'Your parent denied: {req_data.get("item_name")}' + (f' - Reason: {reason}' if reason else ''),
+        data=json.dumps({
+            "item_type": req_data.get("item_type"),
+            "item_id": req_data.get("item_id"),
+            "item_name": req_data.get("item_name"),
+            "amount": req_data.get("amount"),
+            "denied_by": parent_id,
+            "deny_reason": reason,
+            "request_id": request_id
+        })
+    )
+    db.add(grom_notif)
+    await db.commit()
+    logger.info(f"[GromPurchase] Denied: {req_data.get('grom_name')} -> {req_data.get('item_name')}")
+    return {"success": True, "message": f"Denied {req_data.get('item_name')} for {req_data.get('grom_name')}", "grom_id": grom_id}
