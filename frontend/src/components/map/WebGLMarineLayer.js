@@ -58,6 +58,22 @@ function createCustomLayer(engine, activeRef, mapRef) {
   };
 }
 
+function safeMoveLayer(map, layerId, beforeId) {
+  if (!map || !layerId || !map.getLayer(layerId)) return;
+  if (beforeId && map.getLayer(beforeId)) {
+    try {
+      const layers = map.getStyle()?.layers || [];
+      const idxLayer = layers.findIndex(l => l.id === layerId);
+      const idxBefore = layers.findIndex(l => l.id === beforeId);
+      if (idxLayer !== -1 && idxBefore !== -1 && idxLayer >= idxBefore) {
+        map.moveLayer(layerId, beforeId);
+      }
+    } catch (e) {
+      console.warn(`[WebGLMarine] safeMoveLayer error:`, e);
+    }
+  }
+}
+
 export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
@@ -85,29 +101,24 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
       const hasMaskBuffer = !!mapInstance.getLayer('ocean-mask-buffer');
       const insertionId = hasMaskBuffer ? 'ocean-mask-buffer' : findMarineInsertionLayer(mapInstance);
 
+      const beforeExists = !!(insertionId && mapInstance.getLayer(insertionId));
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
         try {
-          mapInstance.addLayer(customLayer, insertionId || undefined);
+          mapInstance.addLayer(customLayer, beforeExists ? insertionId : undefined);
           layerAddedRef.current = true;
           console.log(`[WebGLMarine] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
         } catch (e) {
           console.warn('[WebGLMarine] Failed to add layer:', e.message);
         }
-      } else if (insertionId) {
-        try {
-          mapInstance.moveLayer(LAYER_ID, insertionId);
-        } catch (e) {}
+      } else if (beforeExists) {
+        safeMoveLayer(mapInstance, LAYER_ID, insertionId);
       }
 
       // Move any active marine raster layer below the custom webgl-marine-particles layer
       const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
       for (const rasterId of marineRasterLayers) {
-        if (mapInstance.getLayer(rasterId) && mapInstance.getLayer(LAYER_ID)) {
-          try {
-            mapInstance.moveLayer(rasterId, LAYER_ID);
-          } catch (e) {}
-        }
+        safeMoveLayer(mapInstance, rasterId, LAYER_ID);
       }
     };
 
@@ -148,11 +159,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
       mapInstance.triggerRepaint();
       const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
       for (const rasterId of marineRasterLayers) {
-        if (mapInstance.getLayer(rasterId) && mapInstance.getLayer(LAYER_ID)) {
-          try {
-            mapInstance.moveLayer(rasterId, LAYER_ID);
-          } catch (e) {}
-        }
+        safeMoveLayer(mapInstance, rasterId, LAYER_ID);
       }
     }
   }, [active, mapInstance]);

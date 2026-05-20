@@ -69,6 +69,22 @@ function createCustomLayer(engine, activeRef, mapRef) {
   };
 }
 
+function safeMoveLayer(map, layerId, beforeId) {
+  if (!map || !layerId || !map.getLayer(layerId)) return;
+  if (beforeId && map.getLayer(beforeId)) {
+    try {
+      const layers = map.getStyle()?.layers || [];
+      const idxLayer = layers.findIndex(l => l.id === layerId);
+      const idxBefore = layers.findIndex(l => l.id === beforeId);
+      if (idxLayer !== -1 && idxBefore !== -1 && idxLayer >= idxBefore) {
+        map.moveLayer(layerId, beforeId);
+      }
+    } catch (e) {
+      console.warn(`[WebGLWind] safeMoveLayer error:`, e);
+    }
+  }
+}
+
 export function WebGLWindLayer({ mapInstance, active, data, revision }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
@@ -105,27 +121,22 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
         }
       }
 
+      const beforeExists = !!(firstSymbolId && mapInstance.getLayer(firstSymbolId));
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
         try {
-          mapInstance.addLayer(customLayer, firstSymbolId);
+          mapInstance.addLayer(customLayer, beforeExists ? firstSymbolId : undefined);
           layerAddedRef.current = true;
           console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
         }
-      } else if (firstSymbolId) {
-        try {
-          mapInstance.moveLayer(LAYER_ID, firstSymbolId);
-        } catch (e) {}
+      } else if (beforeExists) {
+        safeMoveLayer(mapInstance, LAYER_ID, firstSymbolId);
       }
 
       // v3.12.6: Move raster wind-layer below custom webgl-wind-particles layer
-      if (mapInstance.getLayer('wind-layer') && mapInstance.getLayer(LAYER_ID)) {
-        try {
-          mapInstance.moveLayer('wind-layer', LAYER_ID);
-        } catch (e) {}
-      }
+      safeMoveLayer(mapInstance, 'wind-layer', LAYER_ID);
     };
 
     mapInstance.on('styledata', handleStyleData);
@@ -164,11 +175,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
   useEffect(() => {
     if (active && mapInstance) {
       mapInstance.triggerRepaint();
-      if (mapInstance.getLayer('wind-layer') && mapInstance.getLayer(LAYER_ID)) {
-        try {
-          mapInstance.moveLayer('wind-layer', LAYER_ID);
-        } catch (e) {}
-      }
+      safeMoveLayer(mapInstance, 'wind-layer', LAYER_ID);
     }
   }, [active, mapInstance]);
 

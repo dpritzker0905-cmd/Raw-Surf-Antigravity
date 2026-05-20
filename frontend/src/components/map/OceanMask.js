@@ -66,6 +66,22 @@ function resolveFillColor(mapInstance, theme) {
   return tc.fill;
 }
 
+function safeMoveLayer(map, layerId, beforeId) {
+  if (!map || !layerId || !map.getLayer(layerId)) return;
+  if (beforeId && map.getLayer(beforeId)) {
+    try {
+      const layers = map.getStyle()?.layers || [];
+      const idxLayer = layers.findIndex(l => l.id === layerId);
+      const idxBefore = layers.findIndex(l => l.id === beforeId);
+      if (idxLayer !== -1 && idxBefore !== -1 && idxLayer >= idxBefore) {
+        map.moveLayer(layerId, beforeId);
+      }
+    } catch (e) {
+      console.warn(`[OceanMask] safeMoveLayer error:`, e);
+    }
+  }
+}
+
 export function OceanMask({ mapInstance, active, theme, beforeId }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
@@ -158,7 +174,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_BUFFER, insertBeforeId);
+            safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', fillColor);
           } catch (e) {}
         }
@@ -177,7 +193,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_FILL, insertBeforeId);
+            safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
           } catch (e) {}
         }
@@ -214,7 +230,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_INLAND_WATER, insertBeforeId);
+            safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
           } catch (e) {}
         }
@@ -255,7 +271,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_INLAND_WATERWAY, insertBeforeId);
+            safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
           } catch (e) {}
         }
@@ -285,7 +301,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_LINE, insertBeforeId);
+            safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
           } catch (e) {}
         }
 
@@ -295,37 +311,9 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         for (const ml of marineLayers) {
           if (mapInstance.getLayer(ml) && mapInstance.getLayer(targetLayerId)) {
             try {
-              mapInstance.moveLayer(ml, targetLayerId);
+              safeMoveLayer(mapInstance, ml, targetLayerId);
             } catch (e) {}
           }
-        }
-
-        // v90: Move vector land layers ABOVE MASK_FILL but BELOW MASK_INLAND_WATER/MASK_LINE to preserve visibility of parks/forests
-        try {
-          const targetBeforeId = mapInstance.getLayer(MASK_INLAND_WATER) ? MASK_INLAND_WATER : (mapInstance.getLayer(MASK_LINE) ? MASK_LINE : null);
-          if (targetBeforeId) {
-            const currentStyle = mapInstance.getStyle();
-            if (currentStyle && currentStyle.layers) {
-              const landusePatterns = [
-                'landuse', 'national-park', 'landcover', 'park', 'natural', 'wood', 
-                'glacier', 'sand', 'pitch', 'cemetery', 'hospital', 'school',
-                'scrub', 'grass', 'crop', 'agriculture'
-              ];
-              for (const l of currentStyle.layers) {
-                const id = l.id;
-                const isLandFeature = landusePatterns.some(pat => id.toLowerCase().includes(pat));
-                const isMaskLayer = ALL_LAYERS.includes(id);
-                const isOutline = l.type === 'line' || id.toLowerCase().includes('outline') || id.toLowerCase().includes('border') || id.toLowerCase().includes('boundary') || id.toLowerCase().includes('line');
-                if (isLandFeature && !isMaskLayer && !isOutline) {
-                  try {
-                    mapInstance.moveLayer(id, targetBeforeId);
-                  } catch (e) {}
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[OceanMask] Error rearranging vector land layers:', e);
         }
       } else {
         for (const lid of ALL_LAYERS) {
