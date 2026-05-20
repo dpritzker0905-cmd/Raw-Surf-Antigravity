@@ -74,7 +74,7 @@ function safeMoveLayer(map, layerId, beforeId) {
   }
 }
 
-export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
+export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -108,6 +108,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
           mapInstance.addLayer(customLayer, beforeExists ? insertionId : undefined);
           layerAddedRef.current = true;
           console.log(`[WebGLMarine] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+          if (onAddedChange) onAddedChange(true);
         } catch (e) {
           console.warn('[WebGLMarine] Failed to add layer:', e.message);
         }
@@ -130,13 +131,14 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
         mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
+          if (onAddedChange) onAddedChange(false);
         }
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
       engine.dispose(mapInstance.painter?.context?.gl);
       engineRef.current = null;
     };
-  }, [mapInstance]);
+  }, [mapInstance, onAddedChange]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -163,6 +165,13 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision }) {
       }
     }
   }, [active, mapInstance]);
+
+  // Unmount safety safeguard to reset parent state if component is unmounted
+  useEffect(() => {
+    return () => {
+      if (onAddedChange) onAddedChange(false);
+    };
+  }, [onAddedChange]);
 
   return null;
 }

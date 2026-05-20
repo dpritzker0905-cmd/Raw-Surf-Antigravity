@@ -93,6 +93,7 @@ var MapWebGL = ({
   const [mapInstance, setMapInstance] = useState(null);
   const resolveTaskIdRef = useRef(0);
   const [metadataRevision, setMetadataRevision] = useState(0);
+  const [customLayersAdded, setCustomLayersAdded] = useState({ wind: false, marine: false });
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -450,12 +451,23 @@ var MapWebGL = ({
   // Marine rasters sit above water fills, then OceanMask covers land bleed.
   const [marineBeforeId, setMarineBeforeId] = useState(null);
   const [maskBufferExists, setMaskBufferExists] = useState(false);
+  const [firstSymbolId, setFirstSymbolId] = useState(null);
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
       setMaskBufferExists(!!mapInstance.getLayer('ocean-mask-buffer'));
       var id = findMarineInsertionLayer(mapInstance);
       if (id) setMarineBeforeId(id);
+      
+      const layers = mapInstance.getStyle()?.layers || [];
+      let foundSymbolId = null;
+      for (const l of layers) {
+        if (l.type === 'symbol') {
+          foundSymbolId = l.id;
+          break;
+        }
+      }
+      if (foundSymbolId) setFirstSymbolId(foundSymbolId);
     };
     mapInstance.on('styledata', onStyleData);
     onStyleData();
@@ -658,9 +670,9 @@ var MapWebGL = ({
             id={`${layerKey}-layer`}
             beforeId={
               layerKey === 'wind'
-                ? undefined
+                ? (customLayersAdded.wind ? 'webgl-wind-particles' : firstSymbolId)
                 : LAYER_REGISTRY[layerKey]?.type === 'marine'
-                ? (mapInstance?.getLayer('webgl-marine-particles') ? 'webgl-marine-particles' : (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId))
+                ? (customLayersAdded.marine ? 'webgl-marine-particles' : (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId))
                 : undefined
             }
             type="raster"
@@ -712,6 +724,7 @@ var MapWebGL = ({
         active={!!activeMarineLayer}
         data={marineWindData}
         revision={marineData?.grid?.timestamp || Date.now()}
+        onAddedChange={useCallback((added) => setCustomLayersAdded(prev => ({ ...prev, marine: added })), [])}
       />
 
       {/* v3.11.1: Extracted marker rendering for LOC compliance */}
@@ -728,23 +741,12 @@ var MapWebGL = ({
         mapRef={innerMapRef}
       />
 
-      {/* v3.12.3: Canvas2D wind particles (Ventusky technique).
-         WebGLWindLayer active now with WebGL State Isolation Protocol.
-         Commenting out Canvas2D WindParticleOverlay fallback. */}
-      {/*
-      <WindParticleOverlay
-        id="wind-particle-overlay"
-        mapInstance={mapInstance}
-        active={activeLayers.includes('wind')}
-        data={windData}
-        theme={theme}
-      />
-      */}
       <WebGLWindLayer
         mapInstance={mapInstance}
         active={activeLayers.includes('wind')}
         data={windData}
         revision={windRevision}
+        onAddedChange={useCallback((added) => setCustomLayersAdded(prev => ({ ...prev, wind: added })), [])}
       />
 
       {/* v163: Long-press / right-click marker (Ventusky/Windy style) */}
