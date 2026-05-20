@@ -348,9 +348,22 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
 
   var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
   var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
+  var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
+  var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
 
   gl.disable(gl.DEPTH_TEST);
   gl.depthMask(false);
+  gl.disable(gl.STENCIL_TEST);
+  gl.disable(gl.SCISSOR_TEST);
+
+  // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
+  var prevVAO = null;
+  var isWebGL2 = false;
+  if (gl.bindVertexArray) {
+    isWebGL2 = true;
+    prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
+    gl.bindVertexArray(null);
+  }
 
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
   var time = (Date.now() - this._startTime) / 1000.0;
@@ -415,6 +428,12 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
 
   // Restore State
   gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
+
+  // Restore WebGL2 VAO
+  if (isWebGL2 && gl.bindVertexArray) {
+    gl.bindVertexArray(prevVAO);
+  }
+
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.useProgram(prevProg);
   gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
@@ -433,6 +452,17 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
     gl.disable(gl.DEPTH_TEST);
   }
   gl.depthMask(prevDepthWriteMask);
+
+  if (prevStencilTest) {
+    gl.enable(gl.STENCIL_TEST);
+  } else {
+    gl.disable(gl.STENCIL_TEST);
+  }
+  if (prevScissorTest) {
+    gl.enable(gl.SCISSOR_TEST);
+  } else {
+    gl.disable(gl.SCISSOR_TEST);
+  }
 };
 
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
@@ -449,6 +479,7 @@ WebGLMarineEngine.prototype.dispose = function(gl) {
   if (this.particleStateA) gl.deleteTexture(this.particleStateA);
   if (this.particleStateB) gl.deleteTexture(this.particleStateB);
   if (this._waveData?.texture) gl.deleteTexture(this._waveData.texture);
+  this._waveData = null;
   this._initialized = false;
   console.log('[WebGLMarine] Engine Disposed');
 };

@@ -394,9 +394,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var prevViewport = gl.getParameter(gl.VIEWPORT);
   var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
   var prevDepthMask = gl.getParameter(gl.DEPTH_WRITEMASK);
+  var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
+  var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
 
   gl.disable(gl.DEPTH_TEST);
   gl.depthMask(false);
+  gl.disable(gl.STENCIL_TEST);
+  gl.disable(gl.SCISSOR_TEST);
 
   // Capture blending variables
   var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
@@ -582,6 +586,17 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.disable(gl.DEPTH_TEST);
   }
   gl.depthMask(prevDepthMask);
+
+  if (prevStencilTest) {
+    gl.enable(gl.STENCIL_TEST);
+  } else {
+    gl.disable(gl.STENCIL_TEST);
+  }
+  if (prevScissorTest) {
+    gl.enable(gl.SCISSOR_TEST);
+  } else {
+    gl.disable(gl.SCISSOR_TEST);
+  }
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
@@ -599,6 +614,7 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   if (this._colorRamp) gl.deleteTexture(this._colorRamp);
   if (this.screenA) { gl.deleteFramebuffer(this.screenA.fbo); gl.deleteTexture(this.screenA.tex); }
   if (this.screenB) { gl.deleteFramebuffer(this.screenB.fbo); gl.deleteTexture(this.screenB.tex); }
+  this._windData = null;
   this._initialized = false;
   console.log('[WebGLWind] Disposed');
 };

@@ -32,6 +32,23 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0 },
 };
 
+function makeCoordinatesContinuous(coords) {
+  if (Array.isArray(coords[0]) && typeof coords[0][0] === 'number') {
+    const newRing = [coords[0]];
+    let prevLng = coords[0][0];
+    for (let i = 1; i < coords.length; i++) {
+      let lng = coords[i][0];
+      const lat = coords[i][1];
+      while (lng - prevLng > 180) lng -= 360;
+      while (lng - prevLng < -180) lng += 360;
+      newRing.push([lng, lat]);
+      prevLng = lng;
+    }
+    return newRing;
+  }
+  return coords.map(makeCoordinatesContinuous);
+}
+
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
@@ -39,7 +56,12 @@ function buildLandMask(landGeoJSON) {
     const geom = feature.geometry;
     if (!geom) continue;
     if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
-      polygons.push({ type: 'Feature', geometry: geom, properties: {} });
+      const continuousCoords = makeCoordinatesContinuous(geom.coordinates);
+      polygons.push({
+        type: 'Feature',
+        geometry: { type: geom.type, coordinates: continuousCoords },
+        properties: {}
+      });
     }
   }
   return { type: 'FeatureCollection', features: polygons };
@@ -177,6 +199,14 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           } catch (e) {}
         }
 
+        let isSatellite = theme === 'satellite';
+        try {
+          if (!isSatellite && mapInstance.getLayer('esri-satellite-layer')) {
+            isSatellite = mapInstance.getLayoutProperty('esri-satellite-layer', 'visibility') === 'visible';
+          }
+        } catch (e) {}
+        const fillOpacity = isSatellite ? 0.0 : 1.0;
+
         // Layer 2: NE 10m land fill
         if (!hasFill) {
           try {
@@ -184,7 +214,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               id: MASK_FILL,
               type: 'fill',
               source: MASK_SOURCE,
-              paint: { 'fill-color': fillColor, 'fill-opacity': 1 },
+              paint: { 'fill-color': fillColor, 'fill-opacity': fillOpacity },
             }, insertBeforeId || undefined);
           } catch (e) {
             console.error('[OceanMask] Failed to add MASK_FILL:', e);
@@ -193,6 +223,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           try {
             safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
+            mapInstance.setPaintProperty(MASK_FILL, 'fill-opacity', fillOpacity);
           } catch (e) {}
         }
 

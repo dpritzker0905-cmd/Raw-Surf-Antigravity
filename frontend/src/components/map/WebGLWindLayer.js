@@ -19,7 +19,7 @@ var LAYER_ID = 'webgl-wind-particles';
  * Creates a MapLibre CustomLayerInterface that delegates rendering
  * to the WebGLWindEngine.
  */
-function createCustomLayer(engine, activeRef, mapRef) {
+function createCustomLayer(engine, activeRef, mapRef, dataRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
@@ -29,6 +29,9 @@ function createCustomLayer(engine, activeRef, mapRef) {
     onAdd(_map, gl) {
       try {
         engine.init(gl);
+        if (dataRef.current?.vectors?.length) {
+          engine.setWindData(gl, dataRef.current);
+        }
       } catch (e) {
         console.error('[WebGLWind] Init failed:', e.message);
       }
@@ -92,11 +95,13 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
   const mapRef = useRef(mapInstance);
   const layerAddedRef = useRef(false);
   const onAddedChangeRef = useRef(onAddedChange);
+  const dataRef = useRef(data);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onAddedChangeRef.current = onAddedChange; }, [onAddedChange]);
+  useEffect(() => { dataRef.current = data; }, [data]);
 
   // Initialize engine + add custom layer
   useEffect(() => {
@@ -109,7 +114,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef);
 
     // Dynamic layer ordering: insert wind particles directly before the first symbol layer
     const handleStyleData = () => {

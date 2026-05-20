@@ -9,7 +9,7 @@ import { findMarineInsertionLayer } from './mapUtils';
 
 var LAYER_ID = 'webgl-marine-particles';
 
-function createCustomLayer(engine, activeRef, mapRef) {
+function createCustomLayer(engine, activeRef, mapRef, dataRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
@@ -19,6 +19,9 @@ function createCustomLayer(engine, activeRef, mapRef) {
     onAdd(_map, gl) {
       try {
         engine.init(gl);
+        if (dataRef.current?.vectors?.length) {
+          engine.setWaveData(gl, dataRef.current);
+        }
       } catch (e) {
         console.error('[WebGLMarine] Init failed:', e.message);
       }
@@ -80,10 +83,12 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const mapRef = useRef(mapInstance);
   const layerAddedRef = useRef(false);
   const onAddedChangeRef = useRef(onAddedChange);
+  const dataRef = useRef(data);
 
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onAddedChangeRef.current = onAddedChange; }, [onAddedChange]);
+  useEffect(() => { dataRef.current = data; }, [data]);
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -94,7 +99,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 128 : 256;
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef);
 
     // Dynamic layer ordering: insert wave particles directly before ocean-mask-buffer or marineBeforeId
     const handleStyleData = () => {
