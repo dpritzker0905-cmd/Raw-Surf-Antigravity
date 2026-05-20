@@ -89,9 +89,9 @@ function getWindColor(speed, alpha, theme) {
   var intensity = Math.min(1.0, speed / 30);
   var r, g, b;
   if (theme === 'dark') {
-    r = Math.round(147 - intensity * 141);
-    g = Math.round(51 + intensity * 131);
-    b = Math.round(234 - intensity * 22);
+    r = Math.round(200 + intensity * 55);
+    g = Math.round(230 + intensity * 25);
+    b = 255;
   } else if (theme === 'beach') {
     r = Math.round(249 + intensity * 6);
     g = Math.round(115 + intensity * 128);
@@ -364,7 +364,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
 
           // Speed-based emphasis faster wind = more visible
           var speedFactor = Math.min(1, wind.speed / 20);
-          alpha *= (0.08 + speedFactor * 0.35);
+          alpha *= (0.35 + speedFactor * 0.55);
           if (alpha < 0.01) continue;
 
           // Dynamic theme-aware color

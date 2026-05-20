@@ -5,10 +5,9 @@ import maplibregl from 'maplibre-gl';
 import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer, MARINE_SCALE, OM_MODEL_MAP } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
-import { WebGLMarineLayer } from './WebGLMarineLayer';
+import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
-// import { WindParticleOverlay } from './WindParticleOverlay';
-import WebGLWindLayer from './WebGLWindLayer';
+import { WindParticleOverlay } from './WindParticleOverlay';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
@@ -129,15 +128,7 @@ var MapWebGL = ({
   const [mapInstance, setMapInstance] = useState(null);
   const resolveTaskIdRef = useRef(0);
   const [metadataRevision, setMetadataRevision] = useState(0);
-  const [customLayersAdded, setCustomLayersAdded] = useState({ wind: false, marine: false });
 
-  const handleWindAddedChange = useCallback((added) => {
-    setCustomLayersAdded(prev => prev.wind === added ? prev : { ...prev, wind: added });
-  }, []);
-
-  const handleMarineAddedChange = useCallback((added) => {
-    setCustomLayersAdded(prev => prev.marine === added ? prev : { ...prev, marine: added });
-  }, []);
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -516,8 +507,13 @@ var MapWebGL = ({
       // These fire AFTER setUrl() returns (asynchronous Promise rejection inside workers),
       // so the try-catch in useRasterTransactions cannot intercept them.
       map.on('error', (e) => {
-        if (e?.error?.name === 'AbortError' || e?.error?.message?.includes('aborted')) {
- return; // Swallow this is expected during raster source transitions
+        const msg = e?.error?.message || e?.message || '';
+        if (
+          e?.error?.name === 'AbortError' || 
+          msg.includes('aborted') ||
+          msg.includes('Cannot remove non-existing')
+        ) {
+          return; // Swallow this is expected during raster source/layer transitions
         }
         console.error('[MapLibre Error]', e?.error || e);
       });
@@ -692,9 +688,9 @@ var MapWebGL = ({
             id={`${layerKey}-layer`}
             beforeId={
               layerKey === 'wind'
-                ? (customLayersAdded.wind ? 'webgl-wind-particles' : firstSymbolId)
+                ? firstSymbolId
                 : LAYER_REGISTRY[layerKey]?.type === 'marine'
-                ? (customLayersAdded.marine ? 'webgl-marine-particles' : (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId))
+                ? (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId)
                 : undefined
             }
             type="raster"
@@ -744,12 +740,12 @@ var MapWebGL = ({
       />
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
-      <WebGLMarineLayer 
+      <MarineParticleCanvas 
+        id="marine-canvas-layer"
         mapInstance={mapInstance} 
         active={!!activeMarineLayer}
         data={marineWindData}
         revision={marineData?.grid?.timestamp || Date.now()}
-        onAddedChange={handleMarineAddedChange}
       />
 
       {/* v3.11.1: Extracted marker rendering for LOC compliance */}
@@ -766,12 +762,16 @@ var MapWebGL = ({
         mapRef={innerMapRef}
       />
 
-      <WebGLWindLayer
+      {/* v3.12.3: Canvas2D wind particles (Ventusky technique).
+          WebGLWindLayer DISABLED MapLibre custom layer had WebGL state conflicts
+          making particles invisible. Canvas2D overlay uses same proven architecture
+          as MarineParticleCanvas and Ventusky.com (5 stacked Canvas2D layers). */}
+      <WindParticleOverlay
+        id="wind-particle-overlay"
         mapInstance={mapInstance}
         active={activeLayers.includes('wind')}
         data={windData}
-        revision={windRevision}
-        onAddedChange={handleWindAddedChange}
+        theme={theme}
       />
 
       {/* v163: Long-press / right-click marker (Ventusky/Windy style) */}

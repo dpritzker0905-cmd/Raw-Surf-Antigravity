@@ -32,45 +32,14 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0 },
 };
 
-function forceRightHandRule(coordinates) {
-  return coordinates.map((ring, idx) => {
-    if (!ring || ring.length < 3) return ring;
-    let area = 0;
-    for (let i = 0; i < ring.length; i++) {
-      const p1 = ring[i];
-      const p2 = ring[(i + 1) % ring.length];
-      area += p1[0] * p2[1] - p2[0] * p1[1];
-    }
-    const isCCW = area > 0;
-    const shouldBeCCW = (idx === 0);
-    if (isCCW !== shouldBeCCW) {
-      return [...ring].reverse();
-    }
-    return ring;
-  });
-}
-
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
-
   for (const feature of landGeoJSON.features) {
     const geom = feature.geometry;
     if (!geom) continue;
-    if (geom.type === 'Polygon') {
-      polygons.push({
-        type: 'Feature',
-        geometry: { type: 'Polygon', coordinates: forceRightHandRule(geom.coordinates) },
-        properties: {}
-      });
-    } else if (geom.type === 'MultiPolygon') {
-      for (const polyCoords of geom.coordinates) {
-        polygons.push({
-          type: 'Feature',
-          geometry: { type: 'Polygon', coordinates: forceRightHandRule(polyCoords) },
-          properties: {}
-        });
-      }
+    if (geom.type === 'Polygon' || geom.type === 'MultiPolygon') {
+      polygons.push({ type: 'Feature', geometry: geom, properties: {} });
     }
   }
   return { type: 'FeatureCollection', features: polygons };
@@ -344,21 +313,30 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           } catch (e) {}
         }
 
-        // v90: Strictly force active marine raster layers BELOW webgl-marine-particles or MASK_BUFFER layer
+        // v90: Strictly force active marine raster layers BELOW the MASK_BUFFER layer
         const marineLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
-        const targetLayerId = mapInstance.getLayer('webgl-marine-particles') ? 'webgl-marine-particles' : MASK_BUFFER;
         for (const ml of marineLayers) {
-          if (mapInstance.getLayer(ml) && mapInstance.getLayer(targetLayerId)) {
+          if (mapInstance.getLayer(ml) && mapInstance.getLayer(MASK_BUFFER)) {
             try {
-              safeMoveLayer(mapInstance, ml, targetLayerId);
+              safeMoveLayer(mapInstance, ml, MASK_BUFFER);
             } catch (e) {}
           }
         }
       } else {
-        for (const lid of ALL_LAYERS) {
-          if (mapInstance.getLayer(lid)) { try { mapInstance.removeLayer(lid); } catch (e) {} }
+        if (mapInstance.getStyle()) {
+          for (const lid of ALL_LAYERS) {
+            try {
+              if (mapInstance.getLayer(lid)) {
+                mapInstance.removeLayer(lid);
+              }
+            } catch (e) {}
+          }
+          try {
+            if (mapInstance.getSource(MASK_SOURCE)) {
+              mapInstance.removeSource(MASK_SOURCE);
+            }
+          } catch (e) {}
         }
-        if (hasSrc) { try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {} }
       }
     } finally {
       setTimeout(() => { syncingRef.current = false; }, 500);
@@ -376,9 +354,19 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
 
   useEffect(() => {
     return () => {
-      if (!mapInstance) return;
-      for (const lid of ALL_LAYERS) { try { mapInstance.removeLayer(lid); } catch (e) {} }
-      try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
+      if (!mapInstance || !mapInstance.getStyle()) return;
+      for (const lid of ALL_LAYERS) {
+        try {
+          if (mapInstance.getLayer(lid)) {
+            mapInstance.removeLayer(lid);
+          }
+        } catch (e) {}
+      }
+      try {
+        if (mapInstance.getSource(MASK_SOURCE)) {
+          mapInstance.removeSource(MASK_SOURCE);
+        }
+      } catch (e) {}
     };
   }, [mapInstance]);
 

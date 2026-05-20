@@ -19,6 +19,8 @@ precision highp float;
 uniform sampler2D u_particles;
 uniform sampler2D u_marine_grid;
 uniform vec2 u_speed_scale;
+uniform vec2 u_dataBounds_min;
+uniform vec2 u_dataBounds_max;
 uniform float u_rand_seed;
 uniform float u_drop_rate;
 varying vec2 v_uv;
@@ -51,7 +53,8 @@ void main() {
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   float waveHeight = waveData.b * 10.0;
 
-  float lat_rad = (pos.y - 0.5) * 3.141592653589793;
+  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
+  float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   
   // Wave drift (slower ocean velocity with high-precision coordinate advection)
@@ -121,32 +124,34 @@ void main() {
     return;
   }
 
-  // 4. Calculate perpendicular wave crest offset
+  // 4. Calculate perpendicular wave crest offset in degree space
   vec2 dir = normalize(waveVec);
   vec2 perp = vec2(-dir.y, dir.x); // Rotate 90 degrees
   
   float dashLen = (4.0 + waveHeight * 2.0) * u_dash_length_scale;
   vec2 coordOffset = perp * (dashLen / 111320.0) * 0.5; // Degree expansion
 
-  // 5. Expand start/end vertices
-  vec2 finalPos = pos;
-  if (vertexType < 0.5) {
-    finalPos -= coordOffset;
-  } else {
-    finalPos += coordOffset;
-  }
+  // 5. Project position to geographic degrees
+  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
+  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
 
-  // 6. Project position (Mercator & Matrix multiplication)
-  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, finalPos.x);
-  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, finalPos.y);
+  // 6. Expand start/end vertices in degree space
+  if (vertexType < 0.5) {
+    lng -= coordOffset.x;
+    lat -= coordOffset.y;
+  } else {
+    lng += coordOffset.x;
+    lat += coordOffset.y;
+  }
   lat = clamp(lat, -85.051129, 85.051129);
 
+  // 7. Mercator projection & Matrix multiplication
   float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
 
-  // 7. Calculate periodic phase pulsation alpha
+  // 8. Calculate periodic phase pulsation alpha
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
   float period = 3.0 + particleHash * 4.0; // Wave period 3s to 7s
   float phase = fract(u_time / period + particleHash);
@@ -369,10 +374,6 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   var time = (Date.now() - this._startTime) / 1000.0;
 
   // Step 1: Advect positions using FBO ping-pong
-  gl.useProgram(this.advectProgram);
-  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
-  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_marine_grid'), 1);
-  
   // High-precision, zoom-invariant wave advection scale calculation
   const z = typeof zoom === 'number' ? zoom : 6;
   const baseScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6));
@@ -382,6 +383,12 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   // Enforce a hard minimum step of 3.0e-4 to prevent 16-bit texture coordinate quantization freezes
   const speedScaleX = Math.max(3.0e-4, baseScale / lngSpan);
   const speedScaleY = Math.max(3.0e-4, baseScale / latSpan);
+
+  gl.useProgram(this.advectProgram);
+  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
+  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_marine_grid'), 1);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
 
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());

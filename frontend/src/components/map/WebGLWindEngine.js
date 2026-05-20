@@ -32,6 +32,8 @@ uniform vec2 u_wind_min;          // min u,v values for decoding
 uniform vec2 u_wind_max;          // max u,v values for decoding
 uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
 uniform vec2 u_speed_scale;       // advection speed scale vector
+uniform vec2 u_dataBounds_min;    // true bounds for latitude scaling
+uniform vec2 u_dataBounds_max;
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
 uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
@@ -75,8 +77,9 @@ void main() {
   float speed = length(wind);
 
   // Advect: move particle by wind velocity (normalized to [0,1] space)
- // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
- float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] [-/2, /2]
+  // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
+  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
+  float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_scale;
   pos = pos + offset;
@@ -435,13 +438,6 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // ==========================================
 
   // Step 1: Advect particles (ping-pong)
-  gl.useProgram(this.advectProgram);
-  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
-  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind'), 1);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
-
   const z = typeof zoom === 'number' ? zoom : 6;
   // Graceful decay factor to preserve movement at higher zooms
   const baseScale = 0.008 * this.speedFactor * Math.pow(0.8, Math.max(0, z - 6));
@@ -451,6 +447,15 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Enforce a hard minimum of 5.0e-4 to stay well above the 16-bit texture coordinate precision limit
   const speedScaleX = Math.max(5.0e-4, baseScale / lngSpan);
   const speedScaleY = Math.max(5.0e-4, baseScale / latSpan);
+
+  gl.useProgram(this.advectProgram);
+  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
+  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind'), 1);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
 
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
@@ -534,7 +539,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Step 4: Composite to main framebuffer
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   bindTexture(gl, this.screenB.tex, 0);
   
   var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');

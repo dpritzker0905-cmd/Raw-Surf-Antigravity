@@ -16,7 +16,7 @@ var ACTIVE_MARINE_ENGINES = new Set();
 
 // --- VISUAL TUNING ---
 // v3.11.2: Amplified for visible ocean energy animation
-var MARINE_PARTICLE_ALPHA = 0.72; // was 0.55
+var MARINE_PARTICLE_ALPHA = 0.90; // was 0.72
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
@@ -89,6 +89,12 @@ function isLikelyOcean(lat, lng, grid) {
   // Grid-based check: use actual wave energy data from GFS marine model
   // GFS marine grid has zero energy over land cells — this IS the land mask
   if (grid) {
+    if (grid.bounds) {
+      const { west, east, south, north } = grid.bounds;
+      if (nLng < west || nLng > east || lat < south || lat > north) {
+        return false;
+      }
+    }
     const wave = interpolateMarine(grid, nLng, lat);
     // Threshold: near-zero energy = land or dead calm ocean
     // 0.005 m/s is below any measurable wave energy
@@ -168,9 +174,36 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
       const grid = dataRef.current;
       const zoom = mapInstance.getZoom();
+
+      let spawnWest = west;
+      let spawnEast = east;
+      let spawnSouth = south;
+      let spawnNorth = north;
+
+      if (grid && grid.bounds) {
+        const gWest = grid.bounds.west;
+        const gEast = grid.bounds.east;
+        const gSouth = grid.bounds.south;
+        const gNorth = grid.bounds.north;
+
+        // Clip spawn bounds to grid bounds
+        spawnWest = Math.max(west, gWest);
+        spawnEast = Math.min(east, gEast);
+        spawnSouth = Math.max(south, gSouth);
+        spawnNorth = Math.min(north, gNorth);
+
+        // Fallback to grid bounds if no valid intersection
+        if (spawnWest >= spawnEast || spawnSouth >= spawnNorth) {
+          spawnWest = gWest;
+          spawnEast = gEast;
+          spawnSouth = gSouth;
+          spawnNorth = gNorth;
+        }
+      }
+
       for (let attempt = 0; attempt < 12; attempt++) {
-        const lng = west + Math.random() * (east - west);
-        const lat = south + Math.random() * (north - south);
+        const lng = spawnWest + Math.random() * (spawnEast - spawnWest);
+        const lat = spawnSouth + Math.random() * (spawnNorth - spawnSouth);
         if (!isLikelyOcean(lat, lng, grid)) continue;
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
         const spd = wave?.speed || 0;
@@ -194,7 +227,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         };
       }
       const maxAge = 0.2;
-      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 0, energy: 0, noiseSeed: Math.random() * 100 };
+      return { lng: spawnWest + Math.random() * (spawnEast - spawnWest), lat: spawnSouth + Math.random() * (spawnNorth - spawnSouth), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 0, energy: 0, noiseSeed: Math.random() * 100 };
     };
 
     const particles = [];
