@@ -345,6 +345,12 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
   var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
   var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
 
+  var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
+  var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
+
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
   var time = (Date.now() - this._startTime) / 1000.0;
 
@@ -419,6 +425,13 @@ WebGLMarineEngine.prototype.render = function(gl, matrix, screenWidth, screenHei
     gl.disable(gl.BLEND);
   }
   gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
+
+  if (prevDepthTest) {
+    gl.enable(gl.DEPTH_TEST);
+  } else {
+    gl.disable(gl.DEPTH_TEST);
+  }
+  gl.depthMask(prevDepthWriteMask);
 };
 
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {

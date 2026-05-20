@@ -31,7 +31,7 @@ uniform sampler2D u_wind;         // wind field texture (RG = u, BA = v)
 uniform vec2 u_wind_min;          // min u,v values for decoding
 uniform vec2 u_wind_max;          // max u,v values for decoding
 uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
-uniform float u_speed_factor;     // advection speed multiplier
+uniform vec2 u_speed_scale;       // advection speed scale vector
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
 uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
@@ -78,7 +78,7 @@ void main() {
  // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
  float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] [-/2, /2]
   float merc_scale = max(0.1, cos(lat_rad));
-  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_factor;
+  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_scale;
   pos = pos + offset;
 
   // Respawn logic: randomly drop particles (more likely when slow)
@@ -370,7 +370,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   this._windData = encodeWindTexture(gl, windGrid);
 };
 
-WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight) {
+WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom) {
   if (!this._initialized || !this._windData) return;
   if (!matrix || !matrix.length) return;
   if (!this.screenA || this._screenW !== screenWidth || this._screenH !== screenHeight) {
@@ -391,6 +391,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var prevBlend = gl.getParameter(gl.BLEND);
   var prevActiveTex = gl.getParameter(gl.ACTIVE_TEXTURE);
   var prevViewport = gl.getParameter(gl.VIEWPORT);
+  var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
+  var prevDepthMask = gl.getParameter(gl.DEPTH_WRITEMASK);
+
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
 
   // Capture blending variables
   var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
@@ -432,7 +437,16 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
-  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_factor'), this.speedFactor);
+
+  const z = typeof zoom === 'number' ? zoom : 6;
+  const wScale = 0.016 * 1500 * Math.pow(0.70, z - 6) * this.speedFactor;
+  const bnd = this._windData.bounds;
+  const lngSpan = Math.max(0.01, Math.abs(bnd.east - bnd.west));
+  const latSpan = Math.max(0.01, Math.abs(bnd.north - bnd.south));
+  const speedScaleX = ((1.0 / 111320.0) * wScale) / lngSpan;
+  const speedScaleY = ((1.0 / 111320.0) * wScale) / latSpan;
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
+
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
@@ -482,7 +496,6 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
   
-  var bnd = this._windData.bounds;
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
   
@@ -560,6 +573,14 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.disable(gl.BLEND);
   }
   gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
+
+  // Restore depth state
+  if (prevDepthTest) {
+    gl.enable(gl.DEPTH_TEST);
+  } else {
+    gl.disable(gl.DEPTH_TEST);
+  }
+  gl.depthMask(prevDepthMask);
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
