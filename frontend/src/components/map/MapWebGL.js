@@ -288,7 +288,7 @@ var MapWebGL = ({
       catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
       const tasks = Object.keys(LAYER_REGISTRY)
-        .filter(k => LAYER_REGISTRY[k].omVariable)
+        .filter(k => LAYER_REGISTRY[k].omVariable && activeLayers.includes(k))
         .map(k => ({ layerKey: k, variable: LAYER_REGISTRY[k].omVariable, entry: LAYER_REGISTRY[k] }));
 
       // v76: Model routing uses the exported maps from LayerRegistry
@@ -391,7 +391,7 @@ var MapWebGL = ({
     });
     
     return () => { isMounted = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [activeModel, theme, timeOffsetHours, fetchMetadata, metadataRevision]); // activeLayers excluded: we resolve ALL layers now
+  }, [activeModel, theme, timeOffsetHours, activeLayers, fetchMetadata, metadataRevision]);
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -650,7 +650,12 @@ var MapWebGL = ({
       </Source>
 
       {/* v251: Open-Meteo Independent Static Tile Sources with Triple-Source Sliding Ring Buffer */}
-      {protocolReady && Object.entries(omTileUrls).map(([slotKey, url]) => {
+      {protocolReady && Object.entries(omTileUrls)
+        .filter(([slotKey]) => {
+          const match = slotKey.match(/^(.+)-slot-(\d+)$/);
+          return match && activeLayers.includes(match[1]);
+        })
+        .map(([slotKey, url]) => {
         const match = slotKey.match(/^(.+)-slot-(\d+)$/);
         if (!match) return null;
         const layerKey = match[1];
