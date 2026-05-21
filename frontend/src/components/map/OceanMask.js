@@ -122,7 +122,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
         if (!hasSrc) {
           try {
             mapInstance.addSource(MASK_SOURCE, {
-              type: 'geojson', data: maskData, tolerance: 0.375,
+              type: 'geojson', data: maskData, tolerance: 0.005,
             });
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);
@@ -144,31 +144,30 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               source: MASK_SOURCE,
               paint: {
                 'line-color': fillColor,
-                'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
+                'line-width': ['interpolate', ['linear'], ['zoom'],
                   1, 10,
-                  3, 16,
                   5, 22,
-                  7, 22,
-                  9, 20,
-                  14, 2,
+                  7, 12,
+                  9, 0.5,
+                  14, 0.0
                 ],
                 // Shift the buffer line outward into the ocean to cover GFS tile bleed
                 // (GFS grid ~25km resolution bleeds 1-3 cells past actual coastline)
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
                   1, 5,
                   5, 9,
-                  9, 12,
-                  14, 0,
+                  7, 4,
+                  9, 0.0,
+                  14, 0.0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
-                  9, 1.0,
-                  14, 0.0
+                  7, 1.0,
+                  9, 0.0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
                   2, 2.0,
                   7, 1.5,
-                  9, 1.0,
-                  14, 0.0
+                  9, 0.0
                 ],
               },
               layout: { 'line-join': 'round', 'line-cap': 'round' },

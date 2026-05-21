@@ -698,7 +698,7 @@ var MapWebGL = ({
            roads/labels/buildings, so land detail is preserved. */}
       <OceanMask
         mapInstance={mapInstance}
-        active={false}
+        active={!!activeMarineLayer}
         theme={theme}
         beforeId={marineBeforeId}
       />
