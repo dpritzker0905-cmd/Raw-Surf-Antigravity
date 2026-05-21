@@ -14,10 +14,11 @@ import { findMarineInsertionLayer } from './mapUtils';
  * vector-sharp coastline clipping at all zoom levels, with absolutely zero staircasing or jaggedness.
  *
  * Polygon directionality:
- * Since the source polygons are 'water' bodies, a negative line-offset shifts the line OUTWARD
- * away from the water (i.e. onto the land). By setting the line-offset to exactly -line-width / 2,
- * the outer boundary of the buffer aligns perfectly with the vector coastline, while the entire width
- * of the buffer line extends inward over the land to cover the coarse 12.5km GFS marine raster bleed.
+ * Since the source polygons are 'water' bodies and are wound counter-clockwise (CCW)
+ * in MapLibre, a positive line-offset shifts the line OUTWARD away from the water (i.e. onto the land).
+ * By setting the line-offset to exactly +line-width / 2, the outer boundary of the buffer aligns
+ * perfectly with the vector coastline, while the entire width of the buffer line extends inward
+ * over the land to cover the coarse 12.5km GFS marine raster bleed.
  *
  * Layer stack (bottom → top):
  *   [water]                  ← Mapbox base (recolored dynamically)
@@ -162,10 +163,10 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
                   14, 0.0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, -4,    // Exactly -line-width / 2 to shift outward (onto land)
-                  5, -11,
-                  7, -6,
-                  9, -0.25,
+                  1, 4,     // Exactly line-width / 2 to shift outward (onto land)
+                  5, 11,
+                  7, 6,
+                  9, 0.25,
                   14, 0.0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
