@@ -207,7 +207,7 @@ function computeGridPoints(bounds, caller = 'wind') {
       });
     }
   }
-  return { points, gridSize: GRID + 1, isGlobal };
+  return { points, gridSize: GRID + 1, isGlobal, bounds: { west, south, east, north } };
 }
 
 // safeNum and getUV are defined at top of file (above hydration code)
@@ -336,7 +336,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   windRequestInFlight = true;
 
   try {
-    const { points, gridSize } = computeGridPoints(bounds);
+    const { points, gridSize, bounds: gridBounds } = computeGridPoints(bounds);
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
@@ -396,7 +396,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     // Cache the full hourly response for local timeline re-indexing
     windHourlyCache = {
       hash: viewHash, results, points, gridSize,
-      bounds: { west, south, east, north },
+      bounds: gridBounds,
       timestamp: Date.now(),
       model: model || 'GFS'
     };
@@ -543,7 +543,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   marineRequestInFlight = true;
 
   try {
-    const { points, gridSize } = computeGridPoints(snappedBounds, 'marine');
+    const { points, gridSize, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
@@ -590,7 +590,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     // Cache full hourly response
     marineHourlyCache = {
       hash: viewHash, results: allResults, points, gridSize,
-      bounds: snappedBounds, timestamp: Date.now()
+      bounds: gridBounds, timestamp: Date.now()
     };
     persistCache(LS_MARINE_KEY, marineHourlyCache);
 
