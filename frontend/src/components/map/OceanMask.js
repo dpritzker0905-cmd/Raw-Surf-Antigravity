@@ -2,7 +2,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 /**
- * OceanMask v11 — Dynamic base map water recoloring.
+ * OceanMask v12 — Dynamic base map water recoloring.
  *
  * Rather than loading a heavy, glitched global GeoJSON land mask which
  * draws massive visual artifacts and covers up inland lakes/parks,
@@ -15,10 +15,25 @@ import { useEffect, useRef, useCallback } from 'react';
  */
 
 const THEME_OCEAN_COLORS = {
-  active: {
-    dark:  'hsl(218, 25%, 16%)', // Premium, rich deep marine navy
-    light: 'hsl(205, 32%, 80%)', // Premium, soft clean coastal blue
-    beach: 'hsl(195, 35%, 72%)', // Gorgeous clean tropical teal
+  waves: {
+    dark:  'hsl(195, 50%, 18%)', // Premium, rich coastal blue-teal
+    light: 'hsl(195, 60%, 82%)', // Soft beach sky blue
+    beach: 'hsl(192, 65%, 75%)', // Tropical beach teal
+  },
+  swell_1: {
+    dark:  'hsl(195, 50%, 18%)', // Premium, rich coastal blue-teal (same as waves)
+    light: 'hsl(195, 60%, 82%)',
+    beach: 'hsl(192, 65%, 75%)',
+  },
+  swell_2: {
+    dark:  'hsl(270, 25%, 14%)', // Deep, mysterious violet-navy
+    light: 'hsl(270, 40%, 85%)',
+    beach: 'hsl(265, 45%, 80%)',
+  },
+  wind_waves: {
+    dark:  'hsl(160, 35%, 14%)', // Rich deep emerald-marine
+    light: 'hsl(165, 45%, 85%)',
+    beach: 'hsl(160, 50%, 80%)',
   },
   default: {
     dark:  'hsl(220, 16%, 16%)', // Mapbox Navigation Night default water
@@ -27,8 +42,8 @@ const THEME_OCEAN_COLORS = {
   }
 };
 
-export function OceanMask({ mapInstance, active, theme }) {
-  const lastStateRef = useRef({ active: null, theme: null });
+export function OceanMask({ mapInstance, activeMarineLayer, theme }) {
+  const lastStateRef = useRef({ activeMarineLayer: null, theme: null });
 
   const syncWaterColor = useCallback((force = false) => {
     if (!mapInstance) return;
@@ -38,18 +53,14 @@ export function OceanMask({ mapInstance, active, theme }) {
 
       // Prevent redundant updates
       if (!force && 
-          lastStateRef.current.active === active && 
+          lastStateRef.current.activeMarineLayer === activeMarineLayer && 
           lastStateRef.current.theme === theme) {
         return;
       }
-      lastStateRef.current = { active, theme };
+      lastStateRef.current = { activeMarineLayer, theme };
 
-      const activeColors = THEME_OCEAN_COLORS.active;
-      const defaultColors = THEME_OCEAN_COLORS.default;
-
-      const targetColor = active 
-        ? (activeColors[theme] || activeColors.dark)
-        : (defaultColors[theme] || defaultColors.dark);
+      const colors = THEME_OCEAN_COLORS[activeMarineLayer] || THEME_OCEAN_COLORS.default;
+      const targetColor = colors[theme] || colors.dark;
 
       // Find and dynamically update all base map fill layers representing water
       style.layers.forEach(layer => {
@@ -57,12 +68,16 @@ export function OceanMask({ mapInstance, active, theme }) {
             (layer.id === 'water' || layer.id.includes('water')) && 
             !layer.id.startsWith('ocean-mask-')) {
           try {
-            mapInstance.setPaintProperty(layer.id, 'fill-color', targetColor);
+            // CRITICAL OPTIMIZATION: Check before setting to prevent infinite loop of styledata events
+            const currentColor = mapInstance.getPaintProperty(layer.id, 'fill-color');
+            if (currentColor !== targetColor) {
+              mapInstance.setPaintProperty(layer.id, 'fill-color', targetColor);
+            }
           } catch (e) {}
         }
       });
     } catch (e) {}
-  }, [mapInstance, active, theme]);
+  }, [mapInstance, activeMarineLayer, theme]);
 
   // Synchronize color on active/theme prop changes
   useEffect(() => {
@@ -92,7 +107,10 @@ export function OceanMask({ mapInstance, active, theme }) {
         style.layers.forEach(layer => {
           if (layer.type === 'fill' && (layer.id === 'water' || layer.id.includes('water'))) {
             try {
-              mapInstance.setPaintProperty(layer.id, 'fill-color', targetColor);
+              const currentColor = mapInstance.getPaintProperty(layer.id, 'fill-color');
+              if (currentColor !== targetColor) {
+                mapInstance.setPaintProperty(layer.id, 'fill-color', targetColor);
+              }
             } catch (e) {}
           }
         });
