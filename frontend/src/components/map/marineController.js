@@ -148,6 +148,22 @@ export function getRemainingCooldown(domain) {
 }
 
 /**
+ * Dynamic snapping configurator based on current viewport size.
+ * Prevents redundant API requests on minor pans while keeping resolution crisp.
+ */
+function getSnapConfig(bounds) {
+  const lngSpan = Math.abs(bounds.east - bounds.west);
+  const latSpan = Math.abs(bounds.north - bounds.south);
+  const maxSpan = Math.max(lngSpan, latSpan);
+
+  if (maxSpan < 2) return { snap: 0.5, padding: 0.25 };
+  if (maxSpan < 5) return { snap: 1.0, padding: 0.5 };
+  if (maxSpan < 12) return { snap: 2.0, padding: 1.0 };
+  if (maxSpan < 25) return { snap: 5.0, padding: 2.5 };
+  return { snap: 10.0, padding: 5.0 };
+}
+
+/**
  * Generate a cache key from viewport bounds.
  * Snaps to 0.5-degree precision to allow cache hits on minor pans.
  */
@@ -175,18 +191,18 @@ function computeGridPoints(bounds, caller = 'wind') {
   if (isGlobal) {
     if (caller === 'marine') {
       west = -180; east = 180; south = -80; north = 80;
- GRID = isMobile ? 10 : 16; // 1717=289 (desktop), 1111=121 (mobile)
+      GRID = isMobile ? 8 : 12; // 13x13=169 (desktop), 9x9=81 (mobile)
     } else {
       west = -180; east = 180; south = -85; north = 85;
- GRID = isMobile ? 14 : 20; // 2121=441 (desktop), 1515=225 (mobile)
+      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 1111=121 (mobile)
     }
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
     if (caller === 'marine') {
- GRID = isMobile ? 8 : 16; // 1717=289 (desktop), 99=81 (mobile)
+      GRID = isMobile ? 8 : 12; // 13x13=169 (desktop), 9x9=81 (mobile)
     } else {
- GRID = isMobile ? 12 : 20; // 2121=441 (desktop), 1313=169 (mobile)
+      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 1111=121 (mobile)
     }
   }
 
@@ -296,12 +312,19 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     return lastKnownGoodWind;
   }
 
-  const { west, south, east, north } = bounds;
-  if (north <= south || east === west) return lastKnownGoodWind;
+  // Snap bounds
+  const { snap, padding } = getSnapConfig(bounds);
+  const latMin = Math.max(-85, Math.floor((bounds.south - padding) / snap) * snap);
+  const latMax = Math.min(85, Math.ceil((bounds.north + padding) / snap) * snap);
+  const lngMin = Math.floor((bounds.west - padding) / snap) * snap;
+  const lngMax = Math.ceil((bounds.east + padding) / snap) * snap;
+  if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodWind;
 
- // v3.9.1: Hourly cache re-index locally instead of making new API call
+  const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
+
+  // v3.9.1: Hourly cache re-index locally instead of making new API call
   // Cache key now includes model so GFS/EURO/ICON don't collide
-  const viewHash = viewportCacheKey(bounds, `wind_${model || 'GFS'}`);
+  const viewHash = viewportCacheKey(snappedBounds, `wind_${model || 'GFS'}`);
   if (windHourlyCache.hash === viewHash &&
       windHourlyCache.model === (model || 'GFS') &&
       Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
@@ -310,18 +333,18 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     return extractWindAtOffset(windHourlyCache, hourOffset);
   }
 
- // v3.9.5: Stale viewport fallback only if same model
+  // v3.9.5: Stale viewport fallback only if same model
   if (windHourlyCache.hash && windHourlyCache.model === (model || 'GFS') &&
       Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const staleData = extractWindAtOffset(windHourlyCache, hourOffset);
     if (staleData && staleData.vectors.length > 0) {
- console.log(`[Wind] Stale cache served (viewport mismatch) ${staleData.vectors.length} vectors`);
+      console.log(`[Wind] Stale cache served (viewport mismatch) ${staleData.vectors.length} vectors`);
       lastKnownGoodWind = staleData;
     }
   }
 
   // Per-offset cache (covers initial load + exact re-visits)
-  const cacheKey = viewportCacheKey(bounds, `wind_${model || 'GFS'}_h${hourOffset}`);
+  const cacheKey = viewportCacheKey(snappedBounds, `wind_${model || 'GFS'}_h${hourOffset}`);
   if (WIND_CACHE.has(cacheKey)) {
     const cached = WIND_CACHE.get(cacheKey);
     if (Date.now() - cached.timestamp < 300000) {
@@ -336,7 +359,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   windRequestInFlight = true;
 
   try {
-    const { points, gridSize, bounds: gridBounds } = computeGridPoints(bounds);
+    const { points, gridSize, bounds: gridBounds } = computeGridPoints(snappedBounds);
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
@@ -506,8 +529,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     return lastKnownGoodMarine;
   }
 
-  // Snap bounds
-  const snap = 10, padding = 5;
+  // Snap bounds dynamically
+  const { snap, padding } = getSnapConfig(bounds);
   const latMin = Math.max(-70, Math.floor((bounds.south - padding) / snap) * snap);
   const latMax = Math.min(70, Math.ceil((bounds.north + padding) / snap) * snap);
   const lngMin = Math.floor((bounds.west - padding) / snap) * snap;
