@@ -136,35 +136,81 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
 export var findMarineInsertionLayer = function(mapInstance) {
   if (!mapInstance) return null;
   var style = mapInstance.getStyle?.();
-  if (!style?.layers) return null;
+  if (!style?.layers || style.layers.length === 0) return null;
 
-  // Find the first layer after the water fill that is NOT a custom layer
   var afterWater = false;
+  var fallbackId = null;
+
+  // Let's identify preferred target prefixes that are above water/landuse/parks but below labels.
+  // In Mapbox vector styles, placing marine/mask layers before roads, buildings, or tunnels is perfect.
+  var preferredPrefixes = [
+    'tunnel-', 'road-', 'bridge-', 'building', 'land-structure', 
+    'aeroway', 'admin-', 'highway-', 'railway-'
+  ];
+
+  // First pass: find a preferred layer that is NOT custom
   for (var layer of style.layers) {
     var id = layer.id;
-    if (id === 'water' || id === 'water-depth' || id === 'wetland') {
-      afterWater = true;
-      continue;
-    }
-    
-    // Ignore custom layers to prevent circular style positioning loops
     var isCustom = id.startsWith('ocean-mask-') || 
                    id.endsWith('-layer') || 
                    id.endsWith('-source') ||
                    id === 'radar-layer' || 
                    id === 'esri-satellite-layer' ||
                    id === 'spot-geofences-layer';
+    if (isCustom) continue;
 
-    if (afterWater && !isCustom && (layer.type === 'fill' || layer.type === 'line')) {
-      return id;
+    for (var prefix of preferredPrefixes) {
+      if (id.startsWith(prefix)) {
+        return id;
+      }
     }
   }
 
-  // Fallback: known layer IDs (excluding custom layers)
-  var knownIds = ['land-structure-polygon', 'building-outline', 'building'];
-  for (var layer2 of style.layers) {
-    if (knownIds.includes(layer2.id)) return layer2.id;
+  // Second pass: fall back to original water-based search
+  for (layer of style.layers) {
+    id = layer.id;
+    
+    // Ignore custom layers to prevent circular style positioning loops
+    isCustom = id.startsWith('ocean-mask-') || 
+               id.endsWith('-layer') || 
+               id.endsWith('-source') ||
+               id === 'radar-layer' || 
+               id === 'esri-satellite-layer' ||
+               id === 'spot-geofences-layer';
+
+    if (id === 'water' || id === 'water-depth' || id === 'wetland') {
+      afterWater = true;
+      continue;
+    }
+
+    if (afterWater && !isCustom) {
+      // Found the first valid non-custom layer after water! This is the perfect insertion point.
+      return id;
+    }
+
+    // Keep track of a fallback (any non-custom, non-background, non-water layer)
+    if (!isCustom && id !== 'background' && id !== 'water' && id !== 'water-depth' && id !== 'wetland') {
+      if (!fallbackId) {
+        fallbackId = id;
+      }
+    }
   }
+
+  // If we never found a layer after water, return the fallbackId if we have one
+  if (fallbackId) return fallbackId;
+
+  // Last resort: return the ID of the last layer in the style that is not custom
+  for (var i = style.layers.length - 1; i >= 0; i--) {
+    var lid = style.layers[i].id;
+    var isLidCustom = lid.startsWith('ocean-mask-') || 
+                      lid.endsWith('-layer') || 
+                      lid.endsWith('-source') ||
+                      lid === 'radar-layer' || 
+                      lid === 'esri-satellite-layer' ||
+                      lid === 'spot-geofences-layer';
+    if (!isLidCustom) return lid;
+  }
+
   return null;
 };
 

@@ -66,23 +66,88 @@ function interpolateMarine(grid, lng, lat) {
 }
 
 /**
- * v86: Data-driven ocean detection — no hardcoded bounding boxes.
- *
- * Previous approach used large rectangular land boxes that prevented
- * particles from appearing in bays, barrier island channels, and
- * coastal coves. Now relies SOLELY on the GFS marine grid data:
- *   - Wave energy > 0 at a point → ocean
- *   - Wave energy ≈ 0 → land or dead calm (reject)
- *
- * The GFS grid inherently knows where water vs land is because
- * its marine model only produces wave data over ocean cells.
+ * High-precision land bounding box exclusion checks to instantly reject
+ * coordinates on major continental landmasses and islands in our active GFS domain.
+ */
+function isLandCoord(lat, lng) {
+  // US Gulf Coast and Mainland West
+  if (lat >= 29.0 && lat <= 31.0 && lng <= -83.5) return true;
+  if (lat >= 24.0 && lat < 29.0 && lng <= -89.0) return true;
+
+  // Florida Peninsula
+  if (lat >= 24.5 && lat <= 31.0) {
+    let eastCoastLng = -80.0;
+    if (lat < 26.0) eastCoastLng = -80.15;
+    else if (lat < 27.0) eastCoastLng = -80.05;
+    else if (lat < 28.0) eastCoastLng = -80.35;
+    else if (lat < 29.0) eastCoastLng = -80.55;
+    else if (lat < 30.0) eastCoastLng = -80.95;
+    else eastCoastLng = -81.35;
+
+    let westCoastLng = -82.8;
+    if (lat >= 29.0) westCoastLng = -84.0;
+
+    if (lng >= westCoastLng && lng <= eastCoastLng) {
+      return true;
+    }
+  }
+
+  // US East Coast (above Florida)
+  if (lat > 31.0 && lat <= 48.0) {
+    let coastLng = -81.0;
+    if (lat <= 32.0) coastLng = -81.15;
+    else if (lat <= 33.0) coastLng = -80.0;
+    else if (lat <= 34.0) coastLng = -79.1;
+    else if (lat <= 35.0) coastLng = -77.0;
+    else if (lat <= 36.0) coastLng = -75.7;
+    else if (lat <= 37.0) coastLng = -76.1;
+    else if (lat <= 38.0) coastLng = -75.1;
+    else if (lat <= 40.0) coastLng = -74.5;
+    else if (lat <= 41.0) coastLng = -72.0; // Long Island
+    else if (lat <= 42.0) coastLng = -70.8;
+    else coastLng = -70.0;
+
+    if (lng <= coastLng) return true;
+  }
+
+  // Yucatan Peninsula
+  if (lat >= 16.0 && lat <= 21.5 && lng >= -91.5 && lng <= -86.8) {
+    return true;
+  }
+  // Cuba (tighter multi-box)
+  if (lat >= 21.0 && lat <= 23.2 && lng >= -85.0 && lng < -80.0) return true;
+  if (lat >= 20.5 && lat <= 23.0 && lng >= -80.0 && lng < -77.0) return true;
+  if (lat >= 19.8 && lat <= 21.5 && lng >= -77.0 && lng <= -74.0) return true;
+
+  // Hispaniola (DR & Haiti)
+  if (lat >= 18.0 && lat <= 20.1 && lng >= -74.5 && lng < -71.5) return true;
+  if (lat >= 17.5 && lat <= 20.0 && lng >= -71.5 && lng <= -68.3) return true;
+
+  // Jamaica
+  if (lat >= 17.7 && lat <= 18.6 && lng >= -78.4 && lng <= -76.1) return true;
+
+  // Puerto Rico
+  if (lat >= 17.9 && lat <= 18.6 && lng >= -67.3 && lng <= -65.5) return true;
+
+  // Bahamas largest islands
+  if (lat >= 23.6 && lat <= 25.2 && lng >= -78.4 && lng <= -77.5) return true; // Andros
+  if (lat >= 25.9 && lat <= 26.9 && lng >= -77.9 && lng <= -77.0) return true; // Great Abaco/Grand Bahama
+
+  return false;
+}
+
+/**
+ * v86: Data-driven ocean detection + precise land box exclusions.
  */
 function isLikelyOcean(lat, lng, grid) {
-  if (!grid?.vectors?.length) return false; // no data → reject; prevents cold-start spawning
+  if (!grid?.vectors?.length) return false;
   let nLng = lng;
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
   if (lat < -85 || lat > 85) return false;
+
+  // Intercept with precise land coordinate checks to block inland spawn immediately
+  if (isLandCoord(lat, nLng)) return false;
 
   const { vectors, bounds, cols, rows } = grid;
   // Strict bounding box check to prevent snapping to ocean edge cells when outside data bounds
@@ -96,9 +161,7 @@ function isLikelyOcean(lat, lng, grid) {
     return false;
   }
 
-  // Nearest-neighbour cell lookup: bilinear interpolation blends ocean energy
-  // into adjacent land cells at the coast, causing particles to spawn inland.
-  // Snapping to the closest grid cell avoids this bleed-through.
+  // Nearest-neighbour cell lookup
   const gx = Math.round(((nLng - bounds.west) / (bounds.east - bounds.west)) * (cols - 1));
   const gy = Math.round(((lat - bounds.south) / (bounds.north - bounds.south)) * (rows - 1));
   
@@ -294,6 +357,12 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         }
         // Cull outside viewport (don't kill)
         if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn) continue;
+
+        // Wave density scaling: less dense waves in calm seas, more dense in active seas.
+        // Also saves CPU/GPU overhead by skipping projection and canvas draw calls.
+        const h = Number.isFinite(wave.speed) ? wave.speed : 0;
+        const densityFactor = Math.min(1.0, Math.max(0.02, Math.pow(h / 5.0, 1.5)));
+        if (p.phase > densityFactor) continue;
 
         // --- DRAW FOAM CREST DASH ---
         try {

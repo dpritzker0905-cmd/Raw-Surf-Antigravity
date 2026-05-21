@@ -1,5 +1,6 @@
 /* eslint-disable no-empty */
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { findMarineInsertionLayer } from './mapUtils';
 
 /**
  * OceanMask v10 — Coastline masking with outward-shifted buffer.
@@ -63,22 +64,6 @@ function buildLandMask(landGeoJSON) {
   return { type: 'FeatureCollection', features: polygons };
 }
 
-function findInsertBefore(style) {
-  const layers = style?.layers || [];
-  const waterIdx = layers.findIndex(l => l.id === 'water' || l.id === 'water-depth' || l.id === 'wetland');
-  const startIndex = waterIdx !== -1 ? waterIdx + 1 : 0;
-  for (let i = startIndex; i < layers.length; i++) {
-    const l = layers[i];
-    if (['landuse', 'national-park', 'park', 'natural', 'wood', 'glacier', 'sand', 'pitch',
-         'land-structure-polygon', 'land-structure-line',
-         'building-outline', 'building'].includes(l.id) ||
-        l.id.startsWith('tunnel-') || l.id.startsWith('road-') || l.id.startsWith('landuse')) {
-      return l.id;
-    }
-  }
-  return null;
-}
-
 function resolveFillColor(mapInstance, theme) {
   const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
   return tc.fill;
@@ -88,6 +73,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
+  const lastPropsRef = useRef({ beforeId: null, active: null, theme: null });
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -110,10 +96,18 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
 
   const syncLayers = useCallback(() => {
     if (!mapInstance || !maskData) return;
-    if (syncingRef.current) return;
+
+    // Bypass syncingRef throttle if critical props have changed explicitly
+    const propsChanged =
+      beforeId !== lastPropsRef.current.beforeId ||
+      active !== lastPropsRef.current.active ||
+      theme !== lastPropsRef.current.theme;
+
+    if (syncingRef.current && !propsChanged) return;
     syncingRef.current = true;
 
     try {
+      lastPropsRef.current = { beforeId, active, theme };
       const style = mapInstance.getStyle?.();
       if (!style) return;
 
@@ -135,7 +129,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         }
 
-        const insertBeforeId = beforeId || findInsertBefore(style);
+        const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
         const fillColor = resolveFillColor(mapInstance, theme);
 
         // Layer 1: WIDE coastline buffer with outward shift.
@@ -229,7 +223,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               type: 'fill',
               source: waterSource,
               'source-layer': waterSourceLayer,
-              filter: ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
+              filter: ['all', ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
               paint: {
                 'fill-color': waterColor,
                 'fill-opacity': 1.0
@@ -242,7 +236,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']]);
+            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']]);
           } catch (e) {}
         }
 
@@ -322,31 +316,6 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           safeMoveLayer(mapInstance, ml, MASK_BUFFER);
         }
 
-        // v90: Move vector land layers ABOVE MASK_FILL but BELOW MASK_INLAND_WATER/MASK_LINE to preserve visibility of parks/forests
-        try {
-          const targetBeforeId = mapInstance.getLayer(MASK_INLAND_WATER) ? MASK_INLAND_WATER : (mapInstance.getLayer(MASK_LINE) ? MASK_LINE : null);
-          if (targetBeforeId) {
-            const currentStyle = mapInstance.getStyle();
-            if (currentStyle && currentStyle.layers) {
-              const landusePatterns = [
-                'landuse', 'national-park', 'landcover', 'park', 'natural', 'wood', 
-                'glacier', 'sand', 'pitch', 'cemetery', 'hospital', 'school',
-                'scrub', 'grass', 'crop', 'agriculture'
-              ];
-              for (const l of currentStyle.layers) {
-                const id = l.id;
-                const isLandFeature = landusePatterns.some(pat => id.toLowerCase().includes(pat));
-                const isMaskLayer = ALL_LAYERS.includes(id);
-                const isOutline = l.type === 'line' || id.toLowerCase().includes('outline') || id.toLowerCase().includes('border') || id.toLowerCase().includes('boundary') || id.toLowerCase().includes('line');
-                if (isLandFeature && !isMaskLayer && !isOutline) {
-                  safeMoveLayer(mapInstance, id, targetBeforeId);
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('[OceanMask] Error rearranging vector land layers:', e);
-        }
       } else {
         for (const lid of ALL_LAYERS) {
           if (mapInstance.getLayer(lid)) { try { mapInstance.removeLayer(lid); } catch (e) {} }
