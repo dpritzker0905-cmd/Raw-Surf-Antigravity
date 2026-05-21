@@ -3,22 +3,41 @@
  *
  * Generates a 1D texture lookup table (LUT) that maps wind speed color.
  * Used by WebGLWindEngine's draw fragment shader.
+ *
+ * RULES:
+ *   - NO import-time side effects
+ *   - NO DOM or React dependency
+ *   - Pure color math + GL texture creation
  */
 
+/**
+ * v3.11.3: Scientific wind speed color ramp (meteorological convention).
+ * Each stop: [speed_ms, r, g, b, a]
+ * Speed in m/s. Calm winds are nearly transparent so terrain shows through.
+ * Alpha ramps nonlinearly only moderate+ winds visually dominate.
+ * Colors follow Beaufort/Ventusky convention: bluecyangreenyellowredpurple.
+ */
 var DEFAULT_WIND_RAMP = [
-  [0,  0.55, 0.82, 0.95, 0.55], // Calm: sky blue
-  [2,  0.30, 0.75, 0.92, 0.60], // Light air: cyan
-  [5,  0.10, 0.72, 0.82, 0.65], // Light breeze: teal-cyan
-  [8,  0.05, 0.65, 0.65, 0.68], // Gentle breeze: teal
-  [12, 0.15, 0.75, 0.35, 0.70], // Moderate: green
-  [16, 0.70, 0.85, 0.10, 0.72], // Fresh: yellow-green
-  [20, 0.98, 0.72, 0.05, 0.75], // Strong: amber
-  [25, 0.98, 0.45, 0.05, 0.78], // Near gale: orange
-  [30, 0.92, 0.18, 0.10, 0.80], // Gale: red
-  [40, 0.78, 0.05, 0.30, 0.82], // Storm: deep red/magenta
-  [50, 0.60, 0.00, 0.50, 0.85], // Hurricane: purple
+  [0,  0.65, 0.75, 0.85, 0.05], // Calm: highly transparent light blue-white
+  [2,  0.55, 0.70, 0.88, 0.10], // Light air: bright blue, very transparent
+  [5,  0.38, 0.75, 0.88, 0.18], // Light breeze: cyan
+  [8,  0.22, 0.80, 0.72, 0.24], // Gentle breeze: teal
+  [12, 0.38, 0.82, 0.38, 0.30], // Moderate: soft green
+  [16, 0.78, 0.82, 0.20, 0.35], // Fresh: yellow-green
+  [20, 0.95, 0.68, 0.15, 0.40], // Strong: soft amber
+  [25, 0.95, 0.45, 0.10, 0.45], // Near gale: soft orange
+  [30, 0.90, 0.22, 0.15, 0.48], // Gale: soft red
+  [40, 0.75, 0.10, 0.35, 0.50], // Storm: soft magenta
+  [50, 0.55, 0.05, 0.50, 0.50], // Hurricane: soft purple
 ];
 
+/**
+ * Interpolate between two color stops.
+ * @param {number[]} a - [speed, r, g, b, a]
+ * @param {number[]} b - [speed, r, g, b, a]
+ * @param {number} t - interpolation factor [0, 1]
+ * @returns {number[]} [r, g, b, a]
+ */
 function lerpStop(a, b, t) {
   return [
     a[1] + (b[1] - a[1]) * t,
@@ -28,6 +47,12 @@ function lerpStop(a, b, t) {
   ];
 }
 
+/**
+ * Sample the color ramp at a given wind speed.
+ * @param {number[][]} ramp
+ * @param {number} speed - wind speed in m/s
+ * @returns {number[]} [r, g, b, a] in [0, 1]
+ */
 export function sampleRamp(ramp, speed) {
   if (speed <= ramp[0][0]) return [ramp[0][1], ramp[0][2], ramp[0][3], ramp[0][4]];
   for (var i = 1; i < ramp.length; i++) {
@@ -40,40 +65,18 @@ export function sampleRamp(ramp, speed) {
   return [last[1], last[2], last[3], last[4]];
 }
 
-export function generateRampData(maxSpeed, theme) {
-  var stops = DEFAULT_WIND_RAMP;
-  
-  if (theme === 'dark') {
-    stops = [
-      [0,  0.45, 0.55, 0.95, 0.55],
-      [2,  0.30, 0.60, 0.95, 0.60],
-      [5,  0.15, 0.70, 0.90, 0.65],
-      [8,  0.05, 0.80, 0.85, 0.68],
-      [12, 0.05, 0.90, 0.75, 0.70],
-      [16, 0.10, 0.90, 0.50, 0.72],
-      [20, 0.25, 0.88, 0.30, 0.75],
-      [25, 0.55, 0.82, 0.10, 0.78],
-      [30, 0.85, 0.70, 0.05, 0.80],
-      [40, 0.95, 0.40, 0.10, 0.82],
-      [50, 0.98, 0.10, 0.10, 0.85],
-    ];
-  } else if (theme === 'beach') {
-    stops = [
-      [0,  0.98, 0.60, 0.10, 0.55],
-      [2,  0.99, 0.68, 0.18, 0.60],
-      [5,  0.99, 0.75, 0.25, 0.65],
-      [8,  0.99, 0.82, 0.35, 0.68],
-      [12, 0.98, 0.88, 0.45, 0.70],
-      [16, 0.95, 0.68, 0.50, 0.72],
-      [20, 0.90, 0.48, 0.55, 0.75],
-      [25, 0.85, 0.32, 0.58, 0.78],
-      [30, 0.80, 0.18, 0.62, 0.80],
-      [40, 0.75, 0.06, 0.68, 0.82],
-      [50, 0.70, 0.00, 0.72, 0.85],
-    ];
-  }
-
+/**
+ * Generate a 256-pixel 1D color ramp texture (RGBA8).
+ * Maps normalized speed [0, 1] color, where 1.0 = maxSpeed.
+ *
+ * @param {number} maxSpeed - max wind speed in m/s (typically 50)
+ * @param {number[][]} [ramp] - custom color ramp, or defaults
+ * @returns {Uint8Array} 256 1 RGBA data (1024 bytes)
+ */
+export function generateRampData(maxSpeed, ramp) {
+  var stops = ramp || DEFAULT_WIND_RAMP;
   var data = new Uint8Array(256 * 4);
+
   for (var i = 0; i < 256; i++) {
     var speed = (i / 255) * maxSpeed;
     var color = sampleRamp(stops, speed);
@@ -82,9 +85,18 @@ export function generateRampData(maxSpeed, theme) {
     data[i * 4 + 2] = Math.round(color[2] * 255);
     data[i * 4 + 3] = Math.round(color[3] * 255);
   }
+
   return data;
 }
 
+/**
+ * Create a WebGL 1D texture from the color ramp.
+ *
+ * @param {WebGLRenderingContext} gl
+ * @param {number} maxSpeed
+ * @param {number[][]} [ramp]
+ * @returns {{ texture: WebGLTexture, maxSpeed: number }}
+ */
 export function createRampTexture(gl, maxSpeed, ramp) {
   var data = generateRampData(maxSpeed || 50, ramp);
   var tex = gl.createTexture();
@@ -97,10 +109,33 @@ export function createRampTexture(gl, maxSpeed, ramp) {
   return { texture: tex, maxSpeed: maxSpeed || 50 };
 }
 
+/**
+ * GLSL fragment shader snippet for color ramp lookup.
+ * Replaces the fixed dark color in WebGLWindEngine's DRAW_FS.
+ */
+export var COLOR_RAMP_DRAW_FS = [
+  'precision mediump float;',
+  'varying float v_speed;',
+  'uniform sampler2D u_color_ramp;',
+  'uniform float u_max_speed;',
+  'void main() {',
+  '  float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);',
+  '  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));',
+  '  gl_FragColor = color;',
+  '}',
+].join('\n');
+
+/** @returns {number[][]} A copy of the default ramp for customization */
 export function getDefaultRamp() {
   return DEFAULT_WIND_RAMP.map(function(stop) { return stop.slice(); });
 }
 
+/**
+ * v3.12.3: Convenience wrapper sample default ramp at a given speed.
+ * Used by WindParticleOverlay for Canvas2D rendering.
+ * @param {number} speed - wind speed in m/s
+ * @returns {number[]} [r, g, b, a] in [0, 1]
+ */
 export function sampleColorRamp(speed) {
   return sampleRamp(DEFAULT_WIND_RAMP, speed);
 }

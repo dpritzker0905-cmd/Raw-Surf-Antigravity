@@ -1,5 +1,15 @@
-/**
- * WebGLWindEngine: GPU wind particle advection + fade trails.
+﻿/**
+ * WebGLWindEngine GPU-accelerated wind particle advection + trail fading
+ *
+ * v3.8: Replaces Canvas2D particle loop with WebGL ping-pong framebuffer
+ * architecture for 10-50x more particles with trail decay.
+ *
+ * Architecture:
+ * 1. Wind vectors GPU texture (RGBA encoding of u,v per grid cell)
+ * 2. Particle positions ping-pong framebuffers (read/write swap each frame)
+ * 3. Advection shader: sample wind texture move particle positions
+ * 4. Trail texture: alpha-blend particles fade previous frame (persistence)
+ *   5. Final composite: render trail texture to screen canvas
  */
 
 // --- Shader Sources ---
@@ -21,9 +31,7 @@ uniform sampler2D u_wind;         // wind field texture (RG = u, BA = v)
 uniform vec2 u_wind_min;          // min u,v values for decoding
 uniform vec2 u_wind_max;          // max u,v values for decoding
 uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
-uniform vec2 u_speed_scale;       // advection speed scale vector
-uniform vec2 u_dataBounds_min;    // true bounds for latitude scaling
-uniform vec2 u_dataBounds_max;
+uniform float u_speed_factor;     // advection speed multiplier
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
 uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
@@ -32,8 +40,8 @@ varying vec2 v_uv;
 // Decode position from 2-channel encoding (16-bit precision per axis)
 vec2 decodePos(vec4 color) {
   return vec2(
-    color.r + color.g / 255.0,
-    color.b + color.a / 255.0
+    color.r / 255.0 + color.g,
+    color.b / 255.0 + color.a
   );
 }
 
@@ -67,11 +75,10 @@ void main() {
   float speed = length(wind);
 
   // Advect: move particle by wind velocity (normalized to [0,1] space)
-  // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
-  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
-  float lat_rad = lat * 3.141592653589793 / 180.0;
+ // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
+ float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] [-/2, /2]
   float merc_scale = max(0.1, cos(lat_rad));
-  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_scale;
+  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_factor;
   pos = pos + offset;
 
   // Respawn logic: randomly drop particles (more likely when slow)
@@ -105,8 +112,8 @@ uniform vec2 u_wind_max;
 
 vec2 decodePos(vec4 color) {
   return vec2(
-    color.r + color.g / 255.0,
-    color.b + color.a / 255.0
+    color.r / 255.0 + color.g,
+    color.b / 255.0 + color.a
   );
 }
 
@@ -122,7 +129,6 @@ void main() {
  // Convert [0,1] [lng, lat]
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
-  lat = clamp(lat, -85.051129, 85.051129);
 
   // Speed for coloring
   vec4 windColor = texture2D(u_wind, pos);
@@ -147,7 +153,7 @@ var DRAW_FS = [
   'void main() {',
   '  float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);',
   '  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));',
-  '  gl_FragColor = vec4(color.rgb * color.a, color.a);',
+  '  gl_FragColor = vec4(color.rgb * color.a, 1.0);',
   '}',
 ].join('\n');
 
@@ -166,9 +172,10 @@ uniform float u_opacity;
 varying vec2 v_uv;
 void main() {
   vec4 color = texture2D(u_screen, v_uv);
+  // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness.
+  // Black = transparent, bright = opaque. Creates proper vapor trail effect.
   float brightness = max(color.r, max(color.g, color.b));
-  float alpha = brightness * u_opacity;
-  gl_FragColor = vec4(color.rgb * alpha, alpha);
+  gl_FragColor = vec4(color.rgb, brightness * u_opacity);
 }`;
 
 var FADE_FS = `
@@ -184,55 +191,7 @@ void main() {
   gl_FragColor = vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
 }`;
 
-var HEATMAP_VS = `
-attribute vec2 a_grid_uv;
-uniform mat4 u_matrix;
-uniform vec2 u_dataBounds_min;   // [west, south]
-uniform vec2 u_dataBounds_max;   // [east, north]
-varying vec2 v_grid_uv;
-
-void main() {
-  v_grid_uv = a_grid_uv;
-  
-  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
-  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
-  lat = clamp(lat, -85.051129, 85.051129);
-
-  float x = (lng + 180.0) / 360.0;
-  float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
-
-  gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
-}
-`;
-
-var HEATMAP_FS = `
-precision mediump float;
-varying vec2 v_grid_uv;
-uniform sampler2D u_wind;
-uniform vec2 u_wind_min;
-uniform vec2 u_wind_max;
-uniform sampler2D u_color_ramp;
-uniform float u_max_speed;
-uniform float u_opacity;
-
-void main() {
-  vec4 windColor = texture2D(u_wind, v_grid_uv);
-  vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
-  float speed = length(wind);
-
-  float normalizedSpeed = clamp(speed / u_max_speed, 0.0, 1.0);
-  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
-  
-  float alpha = color.a * u_opacity;
-  float lowSpeedFade = smoothstep(0.0, 1.5, speed);
-  alpha *= lowSpeedFade;
-
-  gl_FragColor = vec4(color.rgb * alpha, alpha);
-}
-`;
-
 // --- Utility Functions ---
-
 
 function createShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -259,7 +218,6 @@ function createProgram(gl, vs, fs) {
 }
 
 function createTexture(gl, filter, data, width, height) {
-  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
   const tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -273,17 +231,14 @@ function createTexture(gl, filter, data, width, height) {
   } else {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
   }
-  gl.bindTexture(gl.TEXTURE_2D, prevTex);
   return tex;
 }
 
 function createFBO(gl, filter, width, height) {
-  const prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   const tex = createTexture(gl, filter, null, width, height);
   const fbo = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   return { tex, fbo };
 }
 
@@ -361,15 +316,16 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
-  this.particleRes = 384;
-  this.fadeOpacity = 0.994;
-  this.speedFactor = 0.40;
-  this.dropRate = 0.0015;
-  this.dropRateBump = 0.0004;
+  // v3.12.2: Ventusky-parity trails and motion
+ this.particleRes = 384; // 384 = 147,456 particles
+  this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
+  this.speedFactor = 0.40;  // Visible directional flow
+ this.dropRate = 0.0015; // Particles live longer continuous streams
+  this.dropRateBump = 0.006;
   this._initialized = false;
   this._windData = null;
-  this._colorRamp = null;
-  this._maxWindSpeed = 50;
+  this._colorRamp = null; // v3.9.8: Color ramp LUT texture
+ this._maxWindSpeed = 50; // m/s maps to ramp max
 }
 export default WebGLWindEngine;
 
@@ -383,64 +339,21 @@ WebGLWindEngine.prototype.init = function(gl) {
   var screenFS = createShader(gl, gl.FRAGMENT_SHADER, SCREEN_FS);
   var fadeVS = createShader(gl, gl.VERTEX_SHADER, SCREEN_VS);
   var fadeFS = createShader(gl, gl.FRAGMENT_SHADER, FADE_FS);
-  var heatVS = createShader(gl, gl.VERTEX_SHADER, HEATMAP_VS);
-  var heatFS = createShader(gl, gl.FRAGMENT_SHADER, HEATMAP_FS);
-
-  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS || !heatVS || !heatFS) {
+  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS) {
     console.error('[WebGLWind] Failed to compile shaders'); return;
   }
   this.advectProgram = createProgram(gl, advVS, advFS);
   this.drawProgram = createProgram(gl, drawVS, drawFS);
   this.screenProgram = createProgram(gl, screenVS, screenFS);
   this.fadeProgram = createProgram(gl, fadeVS, fadeFS);
-  this.heatmapProgram = createProgram(gl, heatVS, heatFS);
-
   this.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  
   var indices = new Float32Array(this.particleRes * this.particleRes);
   for (var i = 0; i < indices.length; i++) indices[i] = i;
   this.particleIndexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-
-  // Static 64x64 grid mesh for heatmap rendering
-  const W = 64;
-  const H = 64;
-  const gridUVs = new Float32Array(W * H * 2);
-  for (let r = 0; r < H; r++) {
-    for (let c = 0; c < W; c++) {
-      const idx = (r * W + c) * 2;
-      gridUVs[idx + 0] = c / (W - 1);
-      gridUVs[idx + 1] = r / (H - 1);
-    }
-  }
-  this.gridUVBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, gridUVs, gl.STATIC_DRAW);
-
-  const gridIndices = new Uint16Array((W - 1) * (H - 1) * 6);
-  let iIdx = 0;
-  for (let r = 0; r < H - 1; r++) {
-    for (let c = 0; c < W - 1; c++) {
-      const i0 = r * W + c;
-      const i1 = i0 + 1;
-      const i2 = (r + 1) * W + c;
-      const i3 = i2 + 1;
-      gridIndices[iIdx++] = i0;
-      gridIndices[iIdx++] = i1;
-      gridIndices[iIdx++] = i2;
-      gridIndices[iIdx++] = i1;
-      gridIndices[iIdx++] = i3;
-      gridIndices[iIdx++] = i2;
-    }
-  }
-  this.gridIndexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, gridIndices, gl.STATIC_DRAW);
-  this.numGridIndices = gridIndices.length;
-
   this.particleStateA = initParticleTexture(gl, this.particleRes);
   this.particleStateB = initParticleTexture(gl, this.particleRes);
   this.advFBO = gl.createFramebuffer();
@@ -448,7 +361,7 @@ WebGLWindEngine.prototype.init = function(gl) {
   var rampData = generateRampData(this._maxWindSpeed);
   this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
   this._initialized = true;
-  console.log('[WebGLWind] Initialized: ' + (this.particleRes * this.particleRes) + ' particles + 64x64 grid');
+  console.log('[WebGLWind] Initialized: ' + (this.particleRes * this.particleRes) + ' particles');
 };
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
@@ -457,7 +370,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   this._windData = encodeWindTexture(gl, windGrid);
 };
 
-WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
+WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight) {
   if (!this._initialized || !this._windData) return;
   if (!matrix || !matrix.length) return;
   if (!this.screenA || this._screenW !== screenWidth || this._screenH !== screenHeight) {
@@ -469,127 +382,27 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
     this.screenB = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
     this._screenW = screenWidth; this._screenH = screenHeight;
   }
-
-  // ==========================================
-  // PHASE 1: CAPTURE & ISOLATE STATE
-  // ==========================================
   var prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
   var prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   var prevBlend = gl.getParameter(gl.BLEND);
-  var prevActiveTex = gl.getParameter(gl.ACTIVE_TEXTURE);
-  var prevViewport = gl.getParameter(gl.VIEWPORT);
-  var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
-  var prevDepthMask = gl.getParameter(gl.DEPTH_WRITEMASK);
-  var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
-  var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
-
-  gl.disable(gl.DEPTH_TEST);
-  gl.depthMask(false);
-  gl.disable(gl.STENCIL_TEST);
-  gl.disable(gl.SCISSOR_TEST);
-
-  var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
-  var prevBlendDstRGB = gl.getParameter(gl.BLEND_DST_RGB);
-  var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
-  var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
-
-  gl.activeTexture(gl.TEXTURE0);
-  var prevTex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  gl.activeTexture(gl.TEXTURE1);
-  var prevTex1 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  gl.activeTexture(gl.TEXTURE2);
-  var prevTex2 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-
-  var prevArrayBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
-  var prevElementArrayBuffer = gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING);
-
-  var prevVAO = null;
-  var isWebGL2 = false;
-  if (gl.bindVertexArray) {
-    isWebGL2 = true;
-    prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
-    gl.bindVertexArray(null);
-  }
-
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
-  const bnd = this._windData.bounds;
 
-  // ==========================================
-  // PHASE 2: DRAW HEATMAP (Option A Standalone WebGL)
-  // ==========================================
-  // Unbind potential feedback loop textures from all units first
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-  gl.viewport(0, 0, screenWidth, screenHeight);
-
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
-  gl.useProgram(this.heatmapProgram);
-  
-  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
-  
-  const windOpacity = Math.min(0.40, Math.max(0.20, 0.20 + (zoom - 2) * 0.015));
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), windOpacity);
-
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind'), 0);
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_color_ramp'), 1);
-
-  bindTexture(gl, this._windData.texture, 0);
-  if (this._colorRamp) bindTexture(gl, this._colorRamp, 1);
-
-  var gridUvLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
-  gl.enableVertexAttribArray(gridUvLoc);
-  gl.vertexAttribPointer(gridUvLoc, 2, gl.FLOAT, false, 0, 0);
-
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
-  gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
-  gl.disableVertexAttribArray(gridUvLoc);
-
-  // ==========================================
-  // PHASE 3: EXECUTE WIND PARTICLE SIMULATION
-  // ==========================================
-  const z = typeof zoom === 'number' ? zoom : 6;
-  const baseScale = 0.008 * this.speedFactor * Math.pow(0.8, Math.max(0, z - 6));
-  const lngSpan = Math.max(0.01, Math.abs(bnd.east - bnd.west));
-  const latSpan = Math.max(0.01, Math.abs(bnd.north - bnd.south));
-  const speedScaleX = Math.max(5.0e-4, baseScale / lngSpan);
-  const speedScaleY = Math.max(5.0e-4, baseScale / latSpan);
-
+  // Step 1: Advect particles (ping-pong)
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind'), 1);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
-
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_factor'), this.speedFactor);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
-
-  // Unbind potential feedback loop textures from all units first
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
-
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
   gl.viewport(0, 0, this.particleRes, this.particleRes);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
-  
   var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(advPosLoc);
@@ -597,24 +410,17 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(advPosLoc);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-  
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
-  // Fade screen A -> screen B
+ // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
   gl.useProgram(this.fadeProgram);
-
-  // Unbind potential feedback loop textures from all units first
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
-
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
+ // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
   bindTexture(gl, this.screenA.tex, 0);
-  
   var fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(fadePosLoc);
@@ -622,16 +428,11 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(fadePosLoc);
 
-  // Draw particles onto screen B with color ramp
+  // Step 3: Draw particles onto screen B with color ramp
+ // v3.12.2: Re-enable blending particles drawn ON TOP of faded trails
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.drawProgram);
-
-  // Unbind potential feedback loop textures from all units first
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
-
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2);
@@ -640,13 +441,12 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
+  var bnd = this._windData.bounds;
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
-  
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);
-  
   var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
   gl.enableVertexAttribArray(idxLoc);
@@ -654,20 +454,13 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
   gl.disableVertexAttribArray(idxLoc);
 
-  // Copy screenB -> screenA
+ // Copy screenB screenA
   gl.useProgram(this.screenProgram);
-
-  // Unbind potential feedback loop textures from all units first
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
-
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0);
   bindTexture(gl, this.screenB.tex, 0);
-  
   var cpLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(cpLoc);
@@ -675,70 +468,23 @@ WebGLWindEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scree
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   gl.disableVertexAttribArray(cpLoc);
 
-  // Composite screenB to main framebuffer
+  // Step 4: Composite to main framebuffer
+ // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
+  // RGB-fade FBO has alpha=1.0, but screen shader outputs brightness-derived alpha.
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
-  // Unbind potential feedback loop textures from all units first
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
-
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   bindTexture(gl, this.screenB.tex, 0);
-  
   var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  // Restore standard blending for subsequent MapLibre layers
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.disableVertexAttribArray(scrLoc);
-
-  // ==========================================
-  // PHASE 4: RESTORE STATE
-  // ==========================================
-  gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex0);
-  gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex1);
-  gl.activeTexture(gl.TEXTURE2);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex2);
-  gl.activeTexture(prevActiveTex);
-
-  if (isWebGL2 && gl.bindVertexArray) {
-    gl.bindVertexArray(prevVAO);
-  }
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-  gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+  if (!prevBlend) gl.disable(gl.BLEND);
   gl.useProgram(prevProg);
-
-  if (prevBlend) gl.enable(gl.BLEND);
-  else gl.disable(gl.BLEND);
-  gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
-
-  if (prevDepthTest) gl.enable(gl.DEPTH_TEST);
-  else gl.disable(gl.DEPTH_TEST);
-  gl.depthMask(prevDepthMask);
-
-  if (prevStencilTest) gl.enable(gl.STENCIL_TEST);
-  else gl.disable(gl.STENCIL_TEST);
-  if (prevScissorTest) gl.enable(gl.SCISSOR_TEST);
-  else gl.disable(gl.SCISSOR_TEST);
-};
-
-WebGLWindEngine.prototype.render = WebGLWindEngine.prototype.renderHeatmapAndParticles;
-
-WebGLWindEngine.prototype.setTheme = function(gl, theme) {
-  if (!gl || !this._initialized) return;
-  if (this._colorRamp) {
-    gl.deleteTexture(this._colorRamp);
-  }
-  var rampData = generateRampData(this._maxWindSpeed, theme);
-  this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
-  console.log('[WebGLWind] Theme-based color ramp updated for:', theme);
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
@@ -747,11 +493,8 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   if (this.drawProgram) gl.deleteProgram(this.drawProgram);
   if (this.screenProgram) gl.deleteProgram(this.screenProgram);
   if (this.fadeProgram) gl.deleteProgram(this.fadeProgram);
-  if (this.heatmapProgram) gl.deleteProgram(this.heatmapProgram);
   if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
   if (this.particleIndexBuffer) gl.deleteBuffer(this.particleIndexBuffer);
-  if (this.gridUVBuffer) gl.deleteBuffer(this.gridUVBuffer);
-  if (this.gridIndexBuffer) gl.deleteBuffer(this.gridIndexBuffer);
   if (this.advFBO) gl.deleteFramebuffer(this.advFBO);
   if (this.particleStateA) gl.deleteTexture(this.particleStateA);
   if (this.particleStateB) gl.deleteTexture(this.particleStateB);
@@ -759,14 +502,16 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   if (this._colorRamp) gl.deleteTexture(this._colorRamp);
   if (this.screenA) { gl.deleteFramebuffer(this.screenA.fbo); gl.deleteTexture(this.screenA.tex); }
   if (this.screenB) { gl.deleteFramebuffer(this.screenB.fbo); gl.deleteTexture(this.screenB.tex); }
-  this._windData = null;
   this._initialized = false;
   console.log('[WebGLWind] Disposed');
 };
 
-// Clear screen FBOs on layer switch to prevent stale trail residue.
+/**
+ * v3.11.2r1: Clear all framebuffers called on layer deactivation
+ * to prevent stale trails from persisting across layer switches.
+ */
 WebGLWindEngine.prototype.clearBuffers = function(gl) {
-  if (!gl || !this._initialized || !this.screenA || !this.screenB) return;
+  if (!gl || !this._initialized) return;
   try {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
     gl.clearColor(0, 0, 0, 0);
@@ -780,3 +525,4 @@ WebGLWindEngine.prototype.clearBuffers = function(gl) {
     console.warn('[WebGLWind] clearBuffers error:', e.message);
   }
 };
+

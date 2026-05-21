@@ -222,29 +222,3 @@ export var PHOTOGRAPHER_CLUSTER_OPTIONS = {
   disableClusteringAtZoom: 14,
   chunkedLoading: true
 };
-
-export var MARINE_SCALE = {
-  type: "breakpoint", unit: "m",
-  breakpoints: [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10],
-  colors: [
-    [14, 25, 65, 0],       
-    [25, 45, 100, 1],    
-    [35, 75, 135, 1],    
-    [45, 110, 160, 1],   
-    [60, 140, 175, 1],   
-    [80, 175, 180, 1],   
-    [120, 205, 165, 1],  
-    [180, 220, 140, 1],  
-    [230, 210, 95, 1],   
-    [245, 150, 50, 1],   
-    [220, 80, 40, 1],    
-    [160, 30, 70, 1] 
-  ]
-};
-
-export var OM_MODEL_MAP = {
-  GFS:  'ncep_gfs025',
-  EURO: 'ecmwf_ifs025',
-  ICON: 'dwd_icon',
-};
-

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WebGLWindLayer MapLibre custom layer integration for GPU wind particles
  *
  * v3.8: React component wrapping WebGLWindEngine as a MapLibre CustomLayerInterface.
@@ -19,22 +19,16 @@ var LAYER_ID = 'webgl-wind-particles';
  * Creates a MapLibre CustomLayerInterface that delegates rendering
  * to the WebGLWindEngine.
  */
-function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef) {
+function createCustomLayer(engine, activeRef, mapRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
     type: 'custom',
     renderingMode: '2d',
-    engine, // expose engine reference for debugging
 
     onAdd(_map, gl) {
-      glRef.current = gl;
       try {
         engine.init(gl);
-        if (dataRef.current?.vectors?.length) {
-          console.log(`[WebGLWind] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors');
-          engine.setWindData(gl, dataRef.current);
-        }
       } catch (e) {
         console.error('[WebGLWind] Init failed:', e.message);
       }
@@ -55,8 +49,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef) {
 
       try {
         const canvas = map.getCanvas();
-        const zoom = map.getZoom();
-        engine.render(gl, matrix, canvas.width, canvas.height, zoom);
+        engine.render(gl, matrix, canvas.width, canvas.height);
         // Request continuous repainting while active
         map.triggerRepaint();
       } catch (e) {
@@ -72,41 +65,19 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef) {
 
     onRemove(_map, gl) {
       engine.dispose(gl);
-      glRef.current = null;
     }
   };
 }
 
-function safeMoveLayer(map, layerId, beforeId) {
-  if (!map || !layerId || !map.getLayer(layerId)) return;
-  if (beforeId && map.getLayer(beforeId)) {
-    try {
-      const layers = map.getStyle()?.layers || [];
-      const idxLayer = layers.findIndex(l => l.id === layerId);
-      const idxBefore = layers.findIndex(l => l.id === beforeId);
-      if (idxLayer !== -1 && idxBefore !== -1 && idxLayer >= idxBefore) {
-        map.moveLayer(layerId, beforeId);
-      }
-    } catch (e) {
-      console.warn(`[WebGLWind] safeMoveLayer error:`, e);
-    }
-  }
-}
-
-export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedChange }) {
+export function WebGLWindLayer({ mapInstance, active, data, revision }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
   const layerAddedRef = useRef(false);
-  const onAddedChangeRef = useRef(onAddedChange);
-  const dataRef = useRef(data);
-  const glRef = useRef(null);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
-  useEffect(() => { onAddedChangeRef.current = onAddedChange; }, [onAddedChange]);
-  useEffect(() => { dataRef.current = data; }, [data]);
 
   // Initialize engine + add custom layer
   useEffect(() => {
@@ -115,54 +86,37 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
 
-    // v3.11.2: Increased particle density 384 = 147k desktop, 192 = 37k mobile
+ // v3.11.2: Increased particle density 384 = 147k desktop, 192 = 37k mobile
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef);
 
-    // Dynamic layer ordering: insert wind particles directly before the first symbol layer
-    const handleStyleData = () => {
-      if (!mapInstance) return;
-      if (!mapInstance.isStyleLoaded?.()) return;
-
-      const layers = mapInstance.getStyle()?.layers || [];
-      let firstSymbolId = undefined;
-      for (const l of layers) {
-        if (l.type === 'symbol') {
-          firstSymbolId = l.id;
-          break;
+    // Wait for style load before adding layer
+    const addLayer = () => {
+      if (layerAddedRef.current) return;
+      try {
+        if (mapInstance.getLayer(LAYER_ID)) {
+          mapInstance.removeLayer(LAYER_ID);
         }
+        mapInstance.addLayer(customLayer);
+        layerAddedRef.current = true;
+        console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+      } catch (e) {
+        console.warn('[WebGLWind] Failed to add layer:', e.message);
       }
-
-      const beforeExists = !!(firstSymbolId && mapInstance.getLayer(firstSymbolId));
-      if (!mapInstance.getLayer(LAYER_ID)) {
-        layerAddedRef.current = false;
-        try {
-          mapInstance.addLayer(customLayer, beforeExists ? firstSymbolId : undefined);
-          layerAddedRef.current = true;
-          console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
-          if (onAddedChangeRef.current) onAddedChangeRef.current(true);
-        } catch (e) {
-          console.warn('[WebGLWind] Failed to add layer:', e.message);
-        }
-      } else if (beforeExists) {
-        safeMoveLayer(mapInstance, LAYER_ID, firstSymbolId);
-      }
-
-      // v3.12.6: Move raster wind-layer below custom webgl-wind-particles layer
-      safeMoveLayer(mapInstance, 'wind-layer', LAYER_ID);
     };
 
-    mapInstance.on('styledata', handleStyleData);
-    handleStyleData();
+    if (mapInstance.isStyleLoaded()) {
+      addLayer();
+    } else {
+      mapInstance.once('styledata', addLayer);
+    }
 
     return () => {
       try {
-        mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
-          if (onAddedChangeRef.current) onAddedChangeRef.current(false);
         }
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
@@ -174,13 +128,12 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
   // Update wind data texture when data changes
   useEffect(() => {
     const engine = engineRef.current;
-    const gl = glRef.current || mapInstance?.painter?.context?.gl;
-    if (!engine || !data?.vectors?.length || !gl) return;
+    if (!engine || !data?.vectors?.length || !mapInstance) return;
 
     try {
-      console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
-      engine.setWindData(gl, data);
-      if (mapInstance) {
+      const gl = mapInstance.painter?.context?.gl;
+      if (gl) {
+        engine.setWindData(gl, data);
         mapInstance.triggerRepaint();
       }
     } catch (e) {
@@ -188,25 +141,14 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onAddedCha
     }
   }, [data, mapInstance]);
 
-  // Enforce continuous animation loop and layer ordering when active
+  // Trigger repaints when activated
   useEffect(() => {
-    if (!mapInstance || !active) return;
-
-    safeMoveLayer(mapInstance, 'wind-layer', LAYER_ID);
-
-    let frameId;
-    const renderLoop = () => {
+    if (active && mapInstance) {
       mapInstance.triggerRepaint();
-      frameId = requestAnimationFrame(renderLoop);
-    };
-    frameId = requestAnimationFrame(renderLoop);
+    }
+  }, [active, mapInstance]);
 
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-    };
-  }, [mapInstance, active]);
-
-  // No DOM element this renders directly into MapLibre's WebGL context
+ // No DOM element this renders directly into MapLibre's WebGL context
   return null;
 }
 

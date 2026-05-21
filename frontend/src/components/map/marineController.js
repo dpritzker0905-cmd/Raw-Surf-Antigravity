@@ -365,9 +365,6 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         body: JSON.stringify({ type: 'wind', body }),
         signal: fetchSignal
       });
-      if (!res.ok) {
-        throw new Error(`Proxy responded with status ${res.status}`);
-      }
       if (res.headers.get('X-Cache') === 'HIT') {
         console.log(`[Wind] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
       }
@@ -566,9 +563,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         body: JSON.stringify({ type: 'marine', body }),
         signal: fetchSignal
       });
-      if (!res.ok) {
-        throw new Error(`Proxy responded with status ${res.status}`);
-      }
       if (res.headers.get('X-Cache') === 'HIT') {
         console.log(`[Marine] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
       }

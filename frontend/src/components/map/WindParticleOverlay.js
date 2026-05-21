@@ -97,9 +97,9 @@ function getWindColor(speed, alpha, theme) {
     g = Math.round(115 + intensity * 128);
     b = Math.round(22 + intensity * 177);
   } else {
-    r = Math.round(240 + intensity * 15);
-    g = Math.round(245 + intensity * 10);
-    b = 255;
+    r = Math.round(148 - intensity * 97);
+    g = Math.round(163 - intensity * 98);
+    b = Math.round(184 - intensity * 99);
   }
   return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(3) + ')';
 }
@@ -175,7 +175,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     var isMobile = window.innerWidth < 768;
     var getCount = function() {
       var zoom = mapInstance.getZoom();
-      var base = isMobile ? 1200 : 2500;
+      var base = isMobile ? 1800 : 4500;
       if (zoom < 3) return Math.round(base * 0.5);
       if (zoom < 5) return Math.round(base * 0.75);
       if (zoom < 7) return base;
@@ -364,7 +364,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
 
           // Speed-based emphasis faster wind = more visible
           var speedFactor = Math.min(1, wind.speed / 20);
-          alpha *= (0.35 + speedFactor * 0.55);
+          alpha *= (0.08 + speedFactor * 0.35);
           if (alpha < 0.01) continue;
 
           // Dynamic theme-aware color
