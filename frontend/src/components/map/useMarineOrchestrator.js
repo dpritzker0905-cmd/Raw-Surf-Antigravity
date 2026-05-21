@@ -66,6 +66,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         // Only trigger manual fetch on FIRST activation, not re-renders
         hasActivatedRef.current = true;
         console.log('[Marine] Layer activated, triggering manual fetch...');
+        // Reset hash so the 5-min TTL guard does not block re-activation fetches
+        marineFetchLocksRef.current.lastHash = null;
+        marineFetchLocksRef.current.lastTime = 0;
         manualMarineTriggerRef.current?.();
       }
     }, 50);

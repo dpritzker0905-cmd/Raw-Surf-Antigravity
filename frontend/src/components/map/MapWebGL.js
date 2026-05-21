@@ -506,60 +506,29 @@ var MapWebGL = ({
   // v163: Keep long-press ref in sync with latest callback
   useEffect(() => { longPressRef.current = onMapLongPress; }, [onMapLongPress]);
 
+  // v3.13: Marine canvas fade. Wind canvas self-manages via active prop (CSS transition).
+  // NOTE: raster setPaintProperty removed — it permanently corrupted the zoom-interpolated
+  // opacity expression on every toggle, causing the 'blocked/stuck' layer appearance.
   useEffect(() => {
     if (!mapInstance) return;
-
-    // v3.11.2r1: Immediately reset canvas opacity for layers NOT in activeLayers
-    // This prevents stale particles from persisting visually after layer switch
-    const windActive = activeLayers.includes('wind');
     const marineActive = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
-    const wc = document.getElementById('wind-canvas-layer');
     const mc = document.getElementById('marine-canvas-layer');
-    if (!windActive && wc) {
-      wc.style.opacity = '0';
-      // Clear the canvas content to prevent flash on re-enable
-      try { wc.getContext('2d')?.clearRect(0, 0, wc.width, wc.height); } catch(e) { /* ignore context errors */ }
-    }
     if (!marineActive && mc) {
       mc.style.opacity = '0';
-      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) { /* ignore context errors */ }
+      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) {}
     }
-
-    weatherAnimRef.current = { active: true, start: performance.now(), duration: 600 };
-    const MARINE_LAYERS = ['marine-wave-height-layer', 'marine-swell-primary-layer', 'marine-swell-secondary-layer', 'marine-wind-wave-layer'];
-    const animateWeatherLayers = () => {
-      const anim = weatherAnimRef.current;
-      if (!anim.active) return;
-      let t = (performance.now() - anim.start) / anim.duration;
-      if (t >= 1) { anim.active = false; t = 1; }
-      const p = 1 - Math.pow(1 - t, 3);
-      if (mapInstance.getStyle()) {
-        try {
-          if (activeRenderType === 'raster') {
-            const lk = activeLayers[0], lid = `${lk}-layer`;
-            if (lk && mapInstance.getLayer(lid)) {
-              const base = lk === 'pressure' ? 0.45 : lk === 'satellite' ? 1.0 : 0.7;
-              mapInstance.setPaintProperty(lid, 'raster-opacity', base * p);
-            }
-          }
-          // v3.2: OM raster tiles for marine + wind layers (canvas particles overlay separately)
-          if (activeRenderType === 'marine' || activeRenderType === 'wind') {
-            const lk = activeLayers[0], lid = `${lk}-layer`;
-            if (lk && mapInstance.getLayer(lid)) {
-              mapInstance.setPaintProperty(lid, 'raster-opacity', 0.7 * p);
-            }
-          }
-          if (activeRenderType === 'radar' && mapInstance.getLayer('radar-layer')) mapInstance.setPaintProperty('radar-layer', 'raster-opacity', 0.65 * p);
-        } catch (e) { /* layer may have been removed */ }
-      }
-      if (windActive && wc) wc.style.opacity = p;
-      if (marineActive && mc) mc.style.opacity = p;
-      if (t < 1) { try { mapInstance.triggerRepaint(); } catch(e) { /* map disposed */ } animFrameRef.current = requestAnimationFrame(animateWeatherLayers); }
-    };
-    cancelAnimationFrame(animFrameRef.current);
-    animFrameRef.current = requestAnimationFrame(animateWeatherLayers);
+    if (marineActive && mc) {
+      const start = performance.now();
+      const fade = () => {
+        const t = Math.min(1, (performance.now() - start) / 400);
+        mc.style.opacity = String(1 - Math.pow(1 - t, 2));
+        if (t < 1) { animFrameRef.current = requestAnimationFrame(fade); }
+      };
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = requestAnimationFrame(fade);
+    }
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [mapInstance, activeLayers, activeRenderType]);
+  }, [mapInstance, activeLayers]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -671,10 +640,10 @@ var MapWebGL = ({
  // v73: Fog opacity reduced cloud_cover_low shows ALL low clouds,
               // not just fog. Keep subtle so minor cumulus doesn't look like fog.
               'raster-opacity': ['interpolate', ['linear'], ['zoom'],
-                2, layerKey === 'wind' ? 0.20 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
-                5, layerKey === 'wind' ? 0.25 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.28),
-                8, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.35),
-                12, layerKey === 'wind' ? 0.35 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
+                2, layerKey === 'wind' ? 0.13 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.28 : 0.22),
+                5, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.35 : 0.28),
+                8, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.40 : 0.35),
+                12, layerKey === 'wind' ? 0.25 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
               ],
               'raster-resampling': 'linear',
               'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
@@ -688,7 +657,7 @@ var MapWebGL = ({
               'raster-saturation': layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
                 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
               'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
-              'raster-fade-duration': 0
+              'raster-fade-duration': 300
             }}
           />
         </Source>
