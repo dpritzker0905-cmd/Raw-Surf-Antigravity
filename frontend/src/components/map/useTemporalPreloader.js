@@ -37,7 +37,7 @@ var MIN_STEP_MS = 3 * 3600 * 1000; // 3h minimum — guards against fake hourly 
  * @param {object}   opts.mapInstance  - raw MapLibre map instance
  * @param {string}   [opts.activeModel='GFS'] - GFS | EURO | ICON
  */
-export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, activeModel = 'GFS' }) {
+export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, activeModel = 'GFS', theme }) {
   var abortRef = useRef(null);
   var timerRef = useRef(null);
   var cacheRef = useRef(new Set());
@@ -72,27 +72,12 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
         if (diff < minDiff) { minDiff = diff; closestIdx = i; }
       }
 
-      // Get viewport info for tile coordinate math
-      if (!mapInstance.getBounds) return;
-      var b = mapInstance.getBounds();
-      var west = b.getWest(), east = b.getEast();
-      var south = b.getSouth(), north = b.getNorth();
-      var zoom = Math.max(1, Math.min(6, Math.floor(mapInstance.getZoom() || 6)));
-      var n = Math.pow(2, zoom);
-
-      // Center tile coords
-      var centerLng = (west + east) / 2;
-      var centerLat = (south + north) / 2;
-      var cx = Math.floor((centerLng + 180) / 360 * n);
-      var latRad = centerLat * Math.PI / 180;
-      var cy = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
-
       if (abortRef.current) abortRef.current.abort();
       var controller = new AbortController();
       abortRef.current = controller;
       var signal = controller.signal;
 
-      // Pre-fetch 3×3 tile grid for each of the next PRELOAD_STEPS valid model steps
+      // Pre-fetch raw spatial JSON chunks for each of the next PRELOAD_STEPS valid model steps
       for (var step = 1; step <= PRELOAD_STEPS; step++) {
         var targetIdx = closestIdx + step;
         if (targetIdx >= meta.validTimes.length) break;
@@ -101,15 +86,10 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
         if (cacheRef.current.has(cacheKey)) continue;
         cacheRef.current.add(cacheKey);
 
-        for (var dx = -1; dx <= 1; dx++) {
-          for (var dy = -1; dy <= 1; dy++) {
-            var tx = Math.max(0, Math.min(n - 1, cx + dx));
-            var ty = Math.max(0, Math.min(n - 1, cy + dy));
-            var url = 'https://tiles.open-meteo.com/' + model + '/' + variable
-              + '/' + targetIdx + '/' + zoom + '/' + tx + '/' + ty + '.png';
-            fetch(url, { signal: signal, mode: 'no-cors' }).catch(function () { /* best-effort */ });
-          }
-        }
+        var darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
+        var url = 'https://map-tiles.open-meteo.com/data_spatial/' + model
+          + '/latest.json?time_step=valid_times_' + targetIdx + '&variable=' + variable + darkParam;
+        fetch(url, { signal: signal }).catch(function () { /* best-effort */ });
       }
     }, PRELOAD_DELAY_MS);
 
@@ -117,5 +97,5 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
       clearTimeout(timerRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [currentHour, activeLayers, mapInstance, activeModel]);
+  }, [currentHour, activeLayers, mapInstance, activeModel, theme]);
 }
