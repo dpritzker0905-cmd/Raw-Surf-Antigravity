@@ -25,6 +25,7 @@ var _mapLibreWorkerSet = false;
 function ensureMapLibreInit() {
   if (!_mapLibreWorkerSet) {
     maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
+    maplibregl.setMaxParallelImageRequests(32); // fetch more tiles in parallel
     if (!window.__LRCM_EXEC_TRACE__) window.__LRCM_EXEC_TRACE__ = [];
     if (!window.__RASTER_DEBUG__) window.__RASTER_DEBUG__ = { failFast: true, logMissingVariables: true };
     _mapLibreWorkerSet = true;
@@ -475,7 +476,6 @@ var MapWebGL = ({
       
       // Force render loop to paint custom-protocol tiles on mount
       markMapReady(); // Init sequencer: map is ready
-      map.setMaxParallelImageRequests(32); // Fetch more tiles in parallel for faster layer loads
       setTimeout(() => { try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ } }, 300);
 
       // v163: Long-press/right-click handler (Ventusky/Windy style map pin)
