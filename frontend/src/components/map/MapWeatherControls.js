@@ -84,10 +84,10 @@ export var MapWeatherControls = ({
 
   const legendConfig = {
     satellite: { label: 'Cloud Cover (%)', gradient: 'from-transparent via-gray-300 via-gray-400 to-white', stops: ['0','20','40','60','80','100'] },
-    waves: { label: 'Combined Waves (ft)', gradient: 'from-blue-100 via-cyan-400 via-blue-600 via-purple-600 to-rose-700', stops: ['0','2','4','8','12','20+'] },
-    swell_1: { label: 'Primary Swell (ft)', gradient: 'from-cyan-100 via-cyan-400 via-blue-500 via-indigo-600 to-violet-700', stops: ['0','2','4','8','12','20+'] },
-    swell_2: { label: 'Secondary Swell (ft)', gradient: 'from-purple-100 via-purple-400 via-fuchsia-500 via-pink-600 to-rose-700', stops: ['0','1','2','4','6','10+'] },
-    wind_waves: { label: 'Wind Waves (ft)', gradient: 'from-emerald-100 via-emerald-400 via-teal-500 via-cyan-600 to-blue-700', stops: ['0','1','2','4','6','10+'] },
+    waves: { label: 'Combined Waves (ft)', gradient: 'bg-[linear-gradient(to_right,#dbeafe,#22d3ee,#2563eb,#9333ea,#be184a,#9f1239)]', stops: ['0','2','4','8','12','20+'] },
+    swell_1: { label: 'Primary Swell (ft)', gradient: 'bg-[linear-gradient(to_right,#cffafe,#22d3ee,#3b82f6,#4f46e5,#6d28d9,#5b21b6)]', stops: ['0','2','4','8','12','20+'] },
+    swell_2: { label: 'Secondary Swell (ft)', gradient: 'bg-[linear-gradient(to_right,#f3e8ff,#c084fc,#d946ef,#db2777,#be184a,#9f1239)]', stops: ['0','1','2','4','6','10+'] },
+    wind_waves: { label: 'Wind Waves (ft)', gradient: 'bg-[linear-gradient(to_right,#d1fae5,#34d399,#14b8a6,#0891b2,#1d4ed8,#1e3a8a)]', stops: ['0','1','2','4','6','10+'] },
     fog: { label: 'Visibility / Fog', gradient: 'from-gray-500 via-gray-400 via-gray-300 to-transparent', stops: ['<1km','5km','10km','20km','40km','Clear'] },
     wind: { label: 'Wind (kts)', gradient: 'from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600', stops: ['0','5','10','20','30','50+'] },
     rain: { label: 'Rain Forecast (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
@@ -387,7 +387,7 @@ export var MapWeatherControls = ({
         {activeLayer && legendConfig[activeLayer] && (
           <div className="mt-1">
             <div className={`text-[9px] ${textMuted} mb-0.5`}>{legendConfig[activeLayer].label}</div>
-            <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
+            <div className={`h-1.5 w-full rounded-full ${legendConfig[activeLayer].gradient.startsWith('bg-[') ? '' : 'bg-gradient-to-r'} ${legendConfig[activeLayer].gradient}`} />
             <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
               {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
             </div>
@@ -436,7 +436,7 @@ export var MapWeatherControls = ({
                 <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
                   <span>{legendConfig[activeLayer].label}</span>
                 </div>
-                <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
+                <div className={`h-1.5 w-full rounded-full ${legendConfig[activeLayer].gradient.startsWith('bg-[') ? '' : 'bg-gradient-to-r'} ${legendConfig[activeLayer].gradient}`} />
                 <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
                   {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
                 </div>
@@ -506,7 +506,7 @@ export var MapWeatherControls = ({
                   <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>
                     {legendConfig[activeLayer].label}
                   </div>
-                  <div className={`h-1.5 w-full rounded-full bg-gradient-to-r ${legendConfig[activeLayer].gradient}`} />
+                  <div className={`h-1.5 w-full rounded-full ${legendConfig[activeLayer].gradient.startsWith('bg-[') ? '' : 'bg-gradient-to-r'} ${legendConfig[activeLayer].gradient}`} />
                   <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5`}>
                     {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
                   </div>

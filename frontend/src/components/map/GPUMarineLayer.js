@@ -173,6 +173,13 @@ function isCoordOnLand(lng, lat, landPolygons) {
   return false;
 }
 
+/**
+ * Checks if a longitude is within bounding box, accounting for Antimeridian wrap-around.
+ */
+function isLngInBounds(lng, w, e) {
+  return w <= e ? (lng >= w && lng <= e) : (lng >= w || lng <= e);
+}
+
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -286,8 +293,20 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         return { lng: 0, lat: 0, age: 0, maxAge: 0.1, dashLen: 0, phase: 999, energy: 0, noiseSeed: 0 };
       }
 
+      // Calculate the true visible longitude width
+      let lngWidth = east - west;
+      let isCrossed = false;
+      if (west > east) {
+        lngWidth = 360 - (west - east);
+        isCrossed = true;
+      }
+
       for (let attempt = 0; attempt < 12; attempt++) {
-        const lng = west + Math.random() * (east - west);
+        let lng = west + Math.random() * lngWidth;
+        if (isCrossed) {
+          while (lng > 180) lng -= 360;
+          while (lng < -180) lng += 360;
+        }
         const lat = south + Math.random() * (north - south);
         if (isCoordOnLand(lng, lat, landPolys)) continue;
         if (!isLikelyOcean(lat, lng, grid)) continue;
@@ -302,8 +321,12 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const jitter = 0.03; // 0.03 random offset
         const jLng = lng + (Math.random() - 0.5) * jitter * 2;
         const jLat = lat + (Math.random() - 0.5) * jitter * 2;
+        let finalLng = jLng;
+        while (finalLng > 180) finalLng -= 360;
+        while (finalLng < -180) finalLng += 360;
+
         return {
-          lng: jLng, lat: jLat,
+          lng: finalLng, lat: jLat,
           age: preAge ? Math.random() * maxAge * 0.8 : 0,
           maxAge,
           dashLen: (3 + Math.random() * 8 * energyScale) * zoomScale,
@@ -315,7 +338,12 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       }
       // Fallback particle: assign phase=999 to guarantee it will never be rendered
       const maxAge = 0.2;
-      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 999, energy: 0, noiseSeed: Math.random() * 100 };
+      let fallLng = west + Math.random() * lngWidth;
+      if (isCrossed) {
+        while (fallLng > 180) fallLng -= 360;
+        while (fallLng < -180) fallLng += 360;
+      }
+      return { lng: fallLng, lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 999, energy: 0, noiseSeed: Math.random() * 100 };
     };
 
     const particles = [];
@@ -404,11 +432,12 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (p.lng < -180) p.lng += 360;
 
         // Respawn if out of bounds or too old
-        if (p.age > p.maxAge || p.lng < paddedW || p.lng > paddedE || p.lat < paddedS || p.lat > paddedN) {
+        const inPaddedBounds = isLngInBounds(p.lng, paddedW, paddedE) && p.lat >= paddedS && p.lat <= paddedN;
+        if (p.age > p.maxAge || !inPaddedBounds) {
           pts[i] = spawn(); continue;
         }
         // Cull outside viewport (don't kill)
-        if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn) continue;
+        if (!isLngInBounds(p.lng, bw, be) || p.lat < bs || p.lat > bn) continue;
 
         // Wave density scaling: absolutely 0 waves if speed <= 0.01, else scale up by wave height
         const h = Number.isFinite(wave.speed) ? wave.speed : 0;
@@ -427,12 +456,27 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const fadeOut = 1 - Math.pow(ageRatio, 1.5);
           let alpha = fadeIn * fadeOut;
 
-          // Edge fade
-          const edgePad = Math.max(1, (paddedE - paddedW) * 0.12);
-          alpha *= smoothstep(paddedW, paddedW + edgePad, p.lng);
-          alpha *= smoothstep(paddedE, paddedE - edgePad, p.lng);
-          alpha *= smoothstep(paddedS, paddedS + edgePad, p.lat);
-          alpha *= smoothstep(paddedN, paddedN - edgePad, p.lat);
+          // Edge fade (wrap-aware longitude fading)
+          let viewLngWidth = paddedE - paddedW;
+          if (paddedW > paddedE) viewLngWidth = 360 - (paddedW - paddedE);
+          const edgePadLng = Math.max(0.5, viewLngWidth * 0.12);
+
+          let distWest = p.lng - paddedW;
+          while (distWest < 0) distWest += 360;
+          while (distWest >= 360) distWest -= 360;
+
+          if (distWest < edgePadLng) {
+            alpha *= smoothstep(0, edgePadLng, distWest);
+          }
+          const distEast = viewLngWidth - distWest;
+          if (distEast < edgePadLng) {
+            alpha *= smoothstep(0, edgePadLng, distEast);
+          }
+
+          const latHeight = paddedN - paddedS;
+          const edgePadLat = Math.max(0.5, latHeight * 0.12);
+          alpha *= smoothstep(paddedS, paddedS + edgePadLat, p.lat);
+          alpha *= smoothstep(paddedN, paddedN - edgePadLat, p.lat);
           alpha *= MARINE_PARTICLE_ALPHA;
 
           // Data-driven intensity: particles are more opaque in higher waves

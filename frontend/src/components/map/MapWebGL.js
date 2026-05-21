@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import Map, { Source, Layer, Marker } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer } from './mapUtils';
+import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer, CUSTOM_COLOR_SCALES } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
@@ -109,9 +109,20 @@ var MapWebGL = ({
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    import('@openmeteo/weather-map-layer').then(({ omProtocol }) => {
+    import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
       if (maplibregl?.addProtocol) {
-        try { maplibregl.addProtocol('om', omProtocol); } catch (e) { /* already registered */ }
+        try {
+          const settings = {
+            ...defaultOmProtocolSettings,
+            colorScales: {
+              ...defaultOmProtocolSettings.colorScales,
+              ...CUSTOM_COLOR_SCALES
+            }
+          };
+          maplibregl.addProtocol('om', (params, abortController) => {
+            return omProtocol(params, abortController, settings);
+          });
+        } catch (e) { /* already registered */ }
       }
       setProtocolReady(true);
     });
@@ -646,16 +657,9 @@ var MapWebGL = ({
                 12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.45 : 0.40),
               ],
               'raster-resampling': 'linear',
-              'raster-hue-rotate': layerKey === 'wind' ? 0 : layerKey === 'waves' ? 30
-                : layerKey === 'swell_1' ? 40 : layerKey === 'swell_2' ? 55
-                : layerKey === 'wind_waves' ? -10 : layerKey === 'rain' ? -60
-                : layerKey === 'pressure' ? -45 : layerKey === 'fog' ? 0 : 0,
- // v75: Fog (visibility) is inverted low values = fog = should render opaque.
-              // Rain/cloud uses standard mapping where high values = precipitation.
-              'raster-contrast': layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10
-                : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-              'raster-saturation': layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15
-                : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
+              'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
+              'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
+              'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
               'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
               'raster-fade-duration': 300
             }}
