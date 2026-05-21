@@ -15,8 +15,8 @@ import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 var ACTIVE_MARINE_ENGINES = new Set();
 
 // --- VISUAL TUNING ---
-// v3.11.2: Amplified for visible ocean energy animation
-var MARINE_PARTICLE_ALPHA = 0.72; // was 0.55
+// v3.16: Softened for premium visual aesthetics and reduced clutter
+var MARINE_PARTICLE_ALPHA = 0.40; // was 0.72
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
@@ -180,6 +180,17 @@ function isLngInBounds(lng, w, e) {
   return w <= e ? (lng >= w && lng <= e) : (lng >= w || lng <= e);
 }
 
+/**
+ * Wraps a longitude relative to the map's current center longitude to ensure it maps
+ * correctly in the viewport's continuous rendering space (fixes the Pacific Ocean split).
+ */
+function getRenderLng(lng, centerLng) {
+  let rLng = lng;
+  while (rLng - centerLng > 180) rLng -= 360;
+  while (rLng - centerLng < -180) rLng += 360;
+  return rLng;
+}
+
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -265,17 +276,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
     const isMobile = window.innerWidth < 768;
     const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
-    // v3.11.2: Doubled marine particle counts for visible ocean animation
-    const getParticleCount = () => {
-      const zoom = mapInstance.getZoom();
-      // v3.12: Boosted baseline particle counts for dynamic global wave animations
-      const base = isMobile ? (isWeak ? 800 : 2000) : (isWeak ? 3500 : 8000);
-      if (zoom < 3) return Math.round(base * 0.25);
-      if (zoom < 5) return Math.round(base * 0.5);
-      return base;
-    };
-    const PARTICLE_COUNT = getParticleCount();
-    console.log(`[Marine] Spawning ${PARTICLE_COUNT} foam particles (zoom: ${mapInstance.getZoom().toFixed(1)})`);
+    // v3.16: Optimized baseline particle count to prevent panning lag
+    const PARTICLE_COUNT = isMobile ? (isWeak ? 500 : 1000) : (isWeak ? 1200 : 2200);
+    console.log(`[Marine] Spawning up to ${PARTICLE_COUNT} foam particles (max baseline)`);
 
     const spawn = (preAge = false) => {
       const mb = mapInstance.getBounds();
@@ -293,20 +296,15 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         return { lng: 0, lat: 0, age: 0, maxAge: 0.1, dashLen: 0, phase: 999, energy: 0, noiseSeed: 0 };
       }
 
-      // Calculate the true visible longitude width
+      // Calculate the true visible longitude width (handles continuous bounds beautifully)
       let lngWidth = east - west;
-      let isCrossed = false;
-      if (west > east) {
-        lngWidth = 360 - (west - east);
-        isCrossed = true;
-      }
+      if (lngWidth < 0) lngWidth += 360;
 
       for (let attempt = 0; attempt < 12; attempt++) {
         let lng = west + Math.random() * lngWidth;
-        if (isCrossed) {
-          while (lng > 180) lng -= 360;
-          while (lng < -180) lng += 360;
-        }
+        while (lng > 180) lng -= 360;
+        while (lng < -180) lng += 360;
+
         const lat = south + Math.random() * (north - south);
         if (isCoordOnLand(lng, lat, landPolys)) continue;
         if (!isLikelyOcean(lat, lng, grid)) continue;
@@ -319,31 +317,26 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
         // v74: Add spawn jitter to break grid-cell center alignment
         const jitter = 0.03; // 0.03 random offset
-        const jLng = lng + (Math.random() - 0.5) * jitter * 2;
+        let jLng = lng + (Math.random() - 0.5) * jitter * 2;
         const jLat = lat + (Math.random() - 0.5) * jitter * 2;
-        let finalLng = jLng;
-        while (finalLng > 180) finalLng -= 360;
-        while (finalLng < -180) finalLng += 360;
+        while (jLng > 180) jLng -= 360;
+        while (jLng < -180) jLng += 360;
 
         return {
-          lng: finalLng, lat: jLat,
+          lng: jLng, lat: jLat,
           age: preAge ? Math.random() * maxAge * 0.8 : 0,
           maxAge,
           dashLen: (3 + Math.random() * 8 * energyScale) * zoomScale,
           phase: Math.random(),
           energy: energyScale,
-          // v74: Per-particle noise seed for organic flow variation
           noiseSeed: Math.random() * 100
         };
       }
       // Fallback particle: assign phase=999 to guarantee it will never be rendered
-      const maxAge = 0.2;
       let fallLng = west + Math.random() * lngWidth;
-      if (isCrossed) {
-        while (fallLng > 180) fallLng -= 360;
-        while (fallLng < -180) fallLng += 360;
-      }
-      return { lng: fallLng, lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 999, energy: 0, noiseSeed: Math.random() * 100 };
+      while (fallLng > 180) fallLng -= 360;
+      while (fallLng < -180) fallLng += 360;
+      return { lng: fallLng, lat: south + Math.random() * (north - south), age: preAge ? Math.random() * 0.2 : 0, maxAge: 0.2, dashLen: 3, phase: 999, energy: 0, noiseSeed: Math.random() * 100 };
     };
 
     const particles = [];
@@ -382,15 +375,21 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
       const mb = mapInstance.getBounds();
       const bw = mb.getWest(), be = mb.getEast(), bs = mb.getSouth(), bn = mb.getNorth();
-
-      // v3.3: Use viewport bounds for particle lifecycle (global coverage)
-      const paddedW = bw, paddedE = be, paddedS = bs, paddedN = bn;
+      const centerLng = mapInstance.getCenter().lng;
 
       const stride = state === THROTTLED ? 4 : 1;
       const pts = particlesRef.current;
       const zoom = mapInstance.getZoom();
 
-      for (let i = 0; i < pts.length; i += stride) {
+      // Dynamic zoom-based active particle limits to ensure flawless panning performance
+      let activeFraction = 1.0;
+      if (zoom < 3) activeFraction = 0.12;
+      else if (zoom < 5) activeFraction = 0.30;
+      else if (zoom < 7) activeFraction = 0.60;
+
+      const activeCount = Math.round(pts.length * activeFraction);
+
+      for (let i = 0; i < activeCount; i += stride) {
         const p = pts[i];
         p.age += dt;
 
@@ -431,13 +430,15 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
 
-        // Respawn if out of bounds or too old
-        const inPaddedBounds = isLngInBounds(p.lng, paddedW, paddedE) && p.lat >= paddedS && p.lat <= paddedN;
-        if (p.age > p.maxAge || !inPaddedBounds) {
-          pts[i] = spawn(); continue;
+        // Wrap particle longitude relative to camera center for continuous render space coordinates
+        const rLng = getRenderLng(p.lng, centerLng);
+
+        // Respawn if too old or drifted completely out of the viewport
+        const inView = (be - bw >= 360) || (bw <= be ? (rLng >= bw && rLng <= be) : (rLng >= bw || rLng <= be));
+        if (p.age > p.maxAge || !inView || p.lat < bs || p.lat > bn) {
+          pts[i] = spawn();
+          continue;
         }
-        // Cull outside viewport (don't kill)
-        if (!isLngInBounds(p.lng, bw, be) || p.lat < bs || p.lat > bn) continue;
 
         // Wave density scaling: absolutely 0 waves if speed <= 0.01, else scale up by wave height
         const h = Number.isFinite(wave.speed) ? wave.speed : 0;
@@ -447,7 +448,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
         // --- DRAW FOAM CREST DASH ---
         try {
-          const pt = mapInstance.project([p.lng, p.lat]);
+          // Project continuous rendering space coordinates (fixes Pacific antimeridian split!)
+          const pt = mapInstance.project([rLng, p.lat]);
           if (!pt || !Number.isFinite(pt.x) || !Number.isFinite(pt.y)) continue;
 
           // Age-based alpha: fade in quickly, fade out slowly
@@ -456,27 +458,23 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const fadeOut = 1 - Math.pow(ageRatio, 1.5);
           let alpha = fadeIn * fadeOut;
 
-          // Edge fade (wrap-aware longitude fading)
-          let viewLngWidth = paddedE - paddedW;
-          if (paddedW > paddedE) viewLngWidth = 360 - (paddedW - paddedE);
+          // Edge fade (wrap-aware continuous longitude fading)
+          const viewLngWidth = be - bw;
           const edgePadLng = Math.max(0.5, viewLngWidth * 0.12);
 
-          let distWest = p.lng - paddedW;
-          while (distWest < 0) distWest += 360;
-          while (distWest >= 360) distWest -= 360;
-
+          const distWest = rLng - bw;
           if (distWest < edgePadLng) {
             alpha *= smoothstep(0, edgePadLng, distWest);
           }
-          const distEast = viewLngWidth - distWest;
+          const distEast = be - rLng;
           if (distEast < edgePadLng) {
             alpha *= smoothstep(0, edgePadLng, distEast);
           }
 
-          const latHeight = paddedN - paddedS;
+          const latHeight = bn - bs;
           const edgePadLat = Math.max(0.5, latHeight * 0.12);
-          alpha *= smoothstep(paddedS, paddedS + edgePadLat, p.lat);
-          alpha *= smoothstep(paddedN, paddedN - edgePadLat, p.lat);
+          alpha *= smoothstep(bs, bs + edgePadLat, p.lat);
+          alpha *= smoothstep(bn, bn - edgePadLat, p.lat);
           alpha *= MARINE_PARTICLE_ALPHA;
 
           // Data-driven intensity: particles are more opaque in higher waves
@@ -488,8 +486,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           // Wave direction for dash orientation
           const dirAngle = Math.atan2(-wave.v, wave.u) ;
           
-          // Dynamically scale dash length and width by local wave height!
-          const dynamicDashLen = p.dashLen * Math.min(2.2, 0.4 + h * 0.6);
+          // v3.16: Scale width and length down elegant when zoomed out to render as premium micro-particles
+          const zoomScale = Math.max(0.2, Math.min(1.2, zoom / 7.0));
+          const dynamicDashLen = p.dashLen * Math.min(1.8, 0.4 + h * 0.5) * zoomScale;
           const halfDash = dynamicDashLen / 2;
           const dx = Math.cos(dirAngle) * halfDash;
           const dy = -Math.sin(dirAngle) * halfDash;
@@ -500,8 +499,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const foamG = Math.round(225 + hEnergy * 30);
           const foamB = 255;
           ctx.strokeStyle = `rgba(${foamR}, ${foamG}, ${foamB}, ${alpha})`;
-          const zScale = Math.max(0.5, Math.min(1.5, mapInstance.getZoom() / 6));
-          ctx.lineWidth = Math.min(5.5, (0.7 + h * 0.8) * zScale);
+          ctx.lineWidth = Math.max(0.6, Math.min(4.0, (0.5 + h * 0.5) * zoomScale));
           ctx.lineCap = 'round';
 
           ctx.beginPath();
