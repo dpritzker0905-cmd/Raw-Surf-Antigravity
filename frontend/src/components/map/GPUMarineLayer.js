@@ -66,78 +66,7 @@ function interpolateMarine(grid, lng, lat) {
 }
 
 /**
- * High-precision land bounding box exclusion checks to instantly reject
- * coordinates on major continental landmasses and islands in our active GFS domain.
- */
-function isLandCoord(lat, lng) {
-  // US Gulf Coast and Mainland West
-  if (lat >= 29.0 && lat <= 31.0 && lng <= -83.5) return true;
-  if (lat >= 24.0 && lat < 29.0 && lng <= -89.0) return true;
-
-  // Florida Peninsula
-  if (lat >= 24.5 && lat <= 31.0) {
-    let eastCoastLng = -80.0;
-    if (lat < 26.0) eastCoastLng = -80.15;
-    else if (lat < 27.0) eastCoastLng = -80.05;
-    else if (lat < 28.0) eastCoastLng = -80.35;
-    else if (lat < 29.0) eastCoastLng = -80.55;
-    else if (lat < 30.0) eastCoastLng = -80.95;
-    else eastCoastLng = -81.35;
-
-    let westCoastLng = -82.8;
-    if (lat >= 29.0) westCoastLng = -84.0;
-
-    if (lng >= westCoastLng && lng <= eastCoastLng) {
-      return true;
-    }
-  }
-
-  // US East Coast (above Florida)
-  if (lat > 31.0 && lat <= 48.0) {
-    let coastLng = -81.0;
-    if (lat <= 32.0) coastLng = -81.15;
-    else if (lat <= 33.0) coastLng = -80.0;
-    else if (lat <= 34.0) coastLng = -79.1;
-    else if (lat <= 35.0) coastLng = -77.0;
-    else if (lat <= 36.0) coastLng = -75.7;
-    else if (lat <= 37.0) coastLng = -76.1;
-    else if (lat <= 38.0) coastLng = -75.1;
-    else if (lat <= 40.0) coastLng = -74.5;
-    else if (lat <= 41.0) coastLng = -72.0; // Long Island
-    else if (lat <= 42.0) coastLng = -70.8;
-    else coastLng = -70.0;
-
-    if (lng <= coastLng) return true;
-  }
-
-  // Yucatan Peninsula
-  if (lat >= 16.0 && lat <= 21.5 && lng >= -91.5 && lng <= -86.8) {
-    return true;
-  }
-  // Cuba (tighter multi-box)
-  if (lat >= 21.0 && lat <= 23.2 && lng >= -85.0 && lng < -80.0) return true;
-  if (lat >= 20.5 && lat <= 23.0 && lng >= -80.0 && lng < -77.0) return true;
-  if (lat >= 19.8 && lat <= 21.5 && lng >= -77.0 && lng <= -74.0) return true;
-
-  // Hispaniola (DR & Haiti)
-  if (lat >= 18.0 && lat <= 20.1 && lng >= -74.5 && lng < -71.5) return true;
-  if (lat >= 17.5 && lat <= 20.0 && lng >= -71.5 && lng <= -68.3) return true;
-
-  // Jamaica
-  if (lat >= 17.7 && lat <= 18.6 && lng >= -78.4 && lng <= -76.1) return true;
-
-  // Puerto Rico
-  if (lat >= 17.9 && lat <= 18.6 && lng >= -67.3 && lng <= -65.5) return true;
-
-  // Bahamas largest islands
-  if (lat >= 23.6 && lat <= 25.2 && lng >= -78.4 && lng <= -77.5) return true; // Andros
-  if (lat >= 25.9 && lat <= 26.9 && lng >= -77.9 && lng <= -77.0) return true; // Great Abaco/Grand Bahama
-
-  return false;
-}
-
-/**
- * v86: Data-driven ocean detection + precise land box exclusions.
+ * Data-driven ocean detection based on wave height value from the forecast grid.
  */
 function isLikelyOcean(lat, lng, grid) {
   if (!grid?.vectors?.length) return false;
@@ -145,9 +74,6 @@ function isLikelyOcean(lat, lng, grid) {
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
   if (lat < -85 || lat > 85) return false;
-
-  // Intercept with precise land coordinate checks to block inland spawn immediately
-  if (isLandCoord(lat, nLng)) return false;
 
   const { vectors, bounds, cols, rows } = grid;
   // Strict bounding box check to prevent snapping to ocean edge cells when outside data bounds
@@ -169,8 +95,8 @@ function isLikelyOcean(lat, lng, grid) {
 
   const cell = vectors[gy * cols + gx];
   if (!cell) return false;
-  // GFS land cells have exactly 0 energy; 0.01 threshold rejects dead-calm edge cells too
-  return cell.speed >= 0.01 || Math.abs(cell.u) >= 0.005 || Math.abs(cell.v) >= 0.005;
+  // Wave height threshold: if wave height/speed is <= 0, it's not ocean or has 0 waves!
+  return typeof cell.speed === 'number' && cell.speed > 0 && Number.isFinite(cell.speed);
 }
 
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
@@ -229,7 +155,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     // v3.11.2: Doubled marine particle counts for visible ocean animation
     const getParticleCount = () => {
       const zoom = mapInstance.getZoom();
-      const base = isMobile ? (isWeak ? 600 : 1500) : (isWeak ? 2500 : 6000);
+      // v3.12: Boosted baseline particle counts for dynamic global wave animations
+      const base = isMobile ? (isWeak ? 800 : 2000) : (isWeak ? 3500 : 8000);
       if (zoom < 3) return Math.round(base * 0.25);
       if (zoom < 5) return Math.round(base * 0.5);
       return base;
@@ -247,9 +174,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const lng = west + Math.random() * (east - west);
         const lat = south + Math.random() * (north - south);
         if (!isLikelyOcean(lat, lng, grid)) continue;
+
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
         const spd = wave?.speed || 0;
-        if (spd < 0.1 && Math.random() > 0.05) continue;
+        if (spd <= 0.01 || !Number.isFinite(spd)) continue; // Skip calm/land cells completely
         const energyScale = Math.min(1, spd / 3);
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
@@ -323,30 +251,29 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // Interpolate wave vector at particle position
         const wave = interpolateMarine(grid, p.lng, p.lat);
 
-        // v3.12: World-coordinate advection for marine (same as wind, but slower)
-        // v70: Added turbulence noise to break grid-locked lane patterns
-        if (wave.speed > 0.01 && Number.isFinite(wave.u) && Number.isFinite(wave.v)) {
-          const DEG_PER_METER = 1 / 111320;
-          const latRad = p.lat * Math.PI / 180;
-          const mercCorr = Math.max(0.1, Math.cos(latRad));
-          // Ocean drift is much slower than atmospheric flow
-          const speedScale = dt * 1500 * Math.pow(0.62, zoom - 6);
-          // v74: Tripled noise amplitude + per-particle seed to fully break grid-lane patterns
-          const turbulence = 0.40 + 0.40 * p.energy; // much stronger: was 0.15+0.2
-          const ns = p.noiseSeed || 0;
-          const noiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
-          const noiseU = noise2D(p.lng * noiseFreqScale + now * 0.001 + ns, p.lat * noiseFreqScale) * turbulence;
-          const noiseV = noise2D(p.lat * noiseFreqScale + now * 0.001 + ns, p.lng * noiseFreqScale + ns) * turbulence;
-          p.lng += (wave.u + noiseU) * DEG_PER_METER / mercCorr * speedScale;
-          p.lat += (wave.v + noiseV) * DEG_PER_METER * speedScale;
-        } else {
-          p.age = p.maxAge + 1;
+        // Check if wave speed/height is 0 or too small (i.e. we hit land or calm water)
+        if (wave.speed <= 0.01 || !Number.isFinite(wave.speed) || !Number.isFinite(wave.u) || !Number.isFinite(wave.v)) {
+          pts[i] = spawn();
+          continue;
         }
+
+        // Advect particle - speed scales with wave height/speed and dt!
+        const waveSpeedAmp = 0.5 + Math.min(3.5, wave.speed * 0.8); // bigger waves flow dramatically faster
+        const DEG_PER_METER = 1 / 111320;
+        const latRad = p.lat * Math.PI / 180;
+        const mercCorr = Math.max(0.1, Math.cos(latRad));
+        const speedScale = dt * 1500 * Math.pow(0.62, zoom - 6) * waveSpeedAmp;
+        const turbulence = 0.40 + 0.40 * p.energy;
+        const ns = p.noiseSeed || 0;
+        const noiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
+        const noiseU = noise2D(p.lng * noiseFreqScale + now * 0.001 + ns, p.lat * noiseFreqScale) * turbulence;
+        const noiseV = noise2D(p.lat * noiseFreqScale + now * 0.001 + ns, p.lng * noiseFreqScale + ns) * turbulence;
+        p.lng += (wave.u + noiseU) * DEG_PER_METER / mercCorr * speedScale;
+        p.lat += (wave.v + noiseV) * DEG_PER_METER * speedScale;
 
         // Clamp & wrap
         if (isNaN(p.lat) || isNaN(p.lng)) { pts[i] = spawn(); continue; }
-        // v3.6: Kill particles that drift over land (data-driven)
-        if (!isLikelyOcean(p.lat, p.lng, grid)) { pts[i] = spawn(); continue; }
+
         p.lat = Math.max(-85, Math.min(85, p.lat));
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
@@ -358,10 +285,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // Cull outside viewport (don't kill)
         if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn) continue;
 
-        // Wave density scaling: less dense waves in calm seas, more dense in active seas.
-        // Also saves CPU/GPU overhead by skipping projection and canvas draw calls.
+        // Wave density scaling: absolutely 0 waves if speed <= 0.01, else scale up by wave height
         const h = Number.isFinite(wave.speed) ? wave.speed : 0;
-        const densityFactor = Math.min(1.0, Math.max(0.02, Math.pow(h / 5.0, 1.5)));
+        if (h <= 0.01) continue;
+        const densityFactor = Math.min(1.0, Math.pow(h / 2.5, 0.9));
         if (p.phase > densityFactor) continue;
 
         // --- DRAW FOAM CREST DASH ---
@@ -383,29 +310,29 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           alpha *= smoothstep(paddedN, paddedN - edgePad, p.lat);
           alpha *= MARINE_PARTICLE_ALPHA;
 
- // v3.4: Data-driven intensity particles fade in calm water
-          const h = wave.speed;
-          const energyAlpha = p.energy !== undefined ? (0.15 + p.energy * 0.85) : Math.min(1.5, 0.6 + h / 3);
+          // Data-driven intensity: particles are more opaque in higher waves
+          const energyAlpha = Math.min(1.0, 0.2 + h * 0.3);
           alpha *= energyAlpha; alpha = Math.min(1.0, alpha);
 
           if (alpha < 0.01) continue;
 
           // Wave direction for dash orientation
- // Wave propagation direction particles flow WITH energy movement (like Windy.com)
           const dirAngle = Math.atan2(-wave.v, wave.u) ;
-          const halfDash = p.dashLen / 2;
+          
+          // Dynamically scale dash length and width by local wave height!
+          const dynamicDashLen = p.dashLen * Math.min(2.2, 0.4 + h * 0.6);
+          const halfDash = dynamicDashLen / 2;
           const dx = Math.cos(dirAngle) * halfDash;
           const dy = -Math.sin(dirAngle) * halfDash;
 
- // White foam crest broken dash, NOT continuous trail
- // v3.11.2: Energy-tinted foam brighter, wider, with wave height color shift
+          // White foam crest broken dash with wave height color shift
           const hEnergy = Math.min(1, h / 4);
           const foamR = Math.round(210 + hEnergy * 45);
           const foamG = Math.round(225 + hEnergy * 30);
           const foamB = 255;
           ctx.strokeStyle = `rgba(${foamR}, ${foamG}, ${foamB}, ${alpha})`;
           const zScale = Math.max(0.5, Math.min(1.5, mapInstance.getZoom() / 6));
-          ctx.lineWidth = Math.min(4, (1.2 + h * 0.6) * zScale);
+          ctx.lineWidth = Math.min(5.5, (0.7 + h * 0.8) * zScale);
           ctx.lineCap = 'round';
 
           ctx.beginPath();

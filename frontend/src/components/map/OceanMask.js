@@ -43,8 +43,8 @@ const safeMoveLayer = (mapInstance, layerId, beforeId) => {
     const layerIdx = layers.findIndex(l => l.id === layerId);
     const beforeIdx = layers.findIndex(l => l.id === beforeId);
     if (layerIdx !== -1 && beforeIdx !== -1) {
-      if (layerIdx < beforeIdx) {
-        return; // Already in the correct relative position
+      if (layerIdx === beforeIdx - 1) {
+        return; // Already immediately before beforeId
       }
     }
     mapInstance.moveLayer(layerId, beforeId);
@@ -223,7 +223,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               type: 'fill',
               source: waterSource,
               'source-layer': waterSourceLayer,
-              filter: ['all', ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
+              filter: ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
               paint: {
                 'fill-color': waterColor,
                 'fill-opacity': 1.0
@@ -236,7 +236,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']]);
+            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']]);
           } catch (e) {}
         }
 
