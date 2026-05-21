@@ -104,7 +104,7 @@ var MapWebGL = ({
     activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
   });
  // v3.9.9: Temporal preloader prefetch 1hr tiles
-  useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance });
+  useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance, activeModel });
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
@@ -267,7 +267,7 @@ var MapWebGL = ({
       catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
       const tasks = Object.keys(LAYER_REGISTRY)
-        .filter(k => LAYER_REGISTRY[k].omVariable && activeLayers.includes(k))
+        .filter(k => LAYER_REGISTRY[k].omVariable)
         .map(k => ({ layerKey: k, variable: LAYER_REGISTRY[k].omVariable, entry: LAYER_REGISTRY[k] }));
 
       // v76: Model routing uses the exported maps from LayerRegistry
@@ -342,14 +342,7 @@ var MapWebGL = ({
       }
 
       if (isMounted && taskId === resolveTaskIdRef.current) {
-        setOmTileUrls(prev => {
-          const merged = {};
-          for (const key of activeLayers) {
-            if (newUrls[key]) merged[key] = newUrls[key];
-            else if (prev[key]) merged[key] = prev[key];
-          }
-          return merged;
-        });
+        setOmTileUrls(prev => ({ ...prev, ...newUrls }));
       }
     };
     
@@ -362,7 +355,7 @@ var MapWebGL = ({
     });
     
     return () => { isMounted = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [activeModel, theme, timeOffsetHours, fetchMetadata, activeLayers, metadataRevision]);
+  }, [activeModel, theme, timeOffsetHours, fetchMetadata, metadataRevision]); // activeLayers excluded: we resolve ALL layers now
 
   // Sync ref to parent so useMapActions works
   useEffect(() => {
@@ -482,6 +475,7 @@ var MapWebGL = ({
       
       // Force render loop to paint custom-protocol tiles on mount
       markMapReady(); // Init sequencer: map is ready
+      map.setMaxParallelImageRequests(32); // Fetch more tiles in parallel for faster layer loads
       setTimeout(() => { try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ } }, 300);
 
       // v163: Long-press/right-click handler (Ventusky/Windy style map pin)

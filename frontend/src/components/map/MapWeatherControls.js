@@ -159,7 +159,7 @@ export var MapWeatherControls = ({
             onTimeChange(tVal);
           }
         }
-      }, 250);
+      }, 100);
     } else {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
@@ -280,31 +280,34 @@ export var MapWeatherControls = ({
               <span style={{ fontSize: 8, color: '#06b6d4', fontWeight: 700, marginTop: 1 }}>Now</span>
             </div>
             {/* Day labels */}
-            {Array.from({ length: Math.min(Math.floor(maxForecastHours / 24), 7) }, (_, i) => {
-              const dayOffset = (i + 1) * 24;
-              const pct = (dayOffset / maxForecastHours) * 100;
+            {Array.from({ length: Math.min(Math.floor(maxForecastHours / 6), 56) }, (_, i) => {
+              const hrOff = (i + 1) * 6;
+              if (hrOff > maxForecastHours) return null;
+              const pct = (hrOff / maxForecastHours) * 100;
               if (pct > 100) return null;
+              const isDay = hrOff % 24 === 0;
               const d = new Date();
-              d.setDate(d.getDate() + i + 1);
-              const label = i === 0 ? 'Tmrw' : d.toLocaleDateString('en-US', { weekday: 'short' });
+              d.setHours(d.getHours() + hrOff);
+              const label = isDay
+                ? (hrOff === 24 ? 'Tmrw' : d.toLocaleDateString('en-US', { weekday: 'short' }))
+                : d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }).replace(':00', '').replace(' ', '').toLowerCase();
               return (
                 <div key={i} style={{
-                  position: 'absolute',
-                  left: `${pct}%`,
-                  top: 0,
-                  transform: 'translateX(-50%)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center'
+                  position: 'absolute', left: `${pct}%`, top: 0,
+                  transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center'
                 }}>
                   <div style={{
-                    width: 1, height: 6,
-                    background: isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)'
+                    width: 1, height: isDay ? 6 : 4,
+                    background: isLight
+                      ? (isDay ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.10)')
+                      : (isDay ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)')
                   }} />
                   <span style={{
-                    fontSize: 8,
-                    color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
-                    fontWeight: 600
+                    fontSize: isDay ? 8 : 7,
+                    color: isLight
+                      ? (isDay ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.25)')
+                      : (isDay ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.25)'),
+                    fontWeight: isDay ? 600 : 400
                   }}>{label}</span>
                 </div>
               );
