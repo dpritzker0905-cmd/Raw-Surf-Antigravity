@@ -1,4 +1,3 @@
-import React from 'react';
 import { LAYER_REGISTRY } from './LayerRegistry';
 
 function getLayerTruth(layerId, rasterVisible) {

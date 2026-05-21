@@ -1,3 +1,4 @@
+/* eslint-disable */
 (function() {
   "use strict";
   const SHIFT_LEFT_32 = (1 << 16) * (1 << 16);

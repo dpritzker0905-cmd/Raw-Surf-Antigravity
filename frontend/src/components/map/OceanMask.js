@@ -32,6 +32,24 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0 },
 };
 
+const safeMoveLayer = (mapInstance, layerId, beforeId) => {
+  if (!mapInstance || !layerId || !beforeId) return;
+  try {
+    if (!mapInstance.getLayer(layerId) || !mapInstance.getLayer(beforeId)) return;
+    const style = mapInstance.getStyle();
+    if (!style || !style.layers) return;
+    const layers = style.layers;
+    const layerIdx = layers.findIndex(l => l.id === layerId);
+    const beforeIdx = layers.findIndex(l => l.id === beforeId);
+    if (layerIdx !== -1 && beforeIdx !== -1) {
+      if (layerIdx < beforeIdx) {
+        return; // Already in the correct relative position
+      }
+    }
+    mapInstance.moveLayer(layerId, beforeId);
+  } catch (e) {}
+};
+
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
@@ -166,7 +184,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_BUFFER, insertBeforeId);
+            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', fillColor);
           } catch (e) {}
         }
@@ -185,7 +203,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_FILL, insertBeforeId);
+            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
           } catch (e) {}
         }
@@ -222,7 +240,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_INLAND_WATER, insertBeforeId);
+            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
           } catch (e) {}
         }
@@ -263,7 +281,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_INLAND_WATERWAY, insertBeforeId);
+            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
           } catch (e) {}
         }
@@ -293,18 +311,14 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           }
         } else {
           try {
-            if (insertBeforeId) mapInstance.moveLayer(MASK_LINE, insertBeforeId);
+            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
           } catch (e) {}
         }
 
         // v90: Strictly force active marine raster layers BELOW the MASK_BUFFER layer
         const marineLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
         for (const ml of marineLayers) {
-          if (mapInstance.getLayer(ml) && mapInstance.getLayer(MASK_BUFFER)) {
-            try {
-              mapInstance.moveLayer(ml, MASK_BUFFER);
-            } catch (e) {}
-          }
+          safeMoveLayer(mapInstance, ml, MASK_BUFFER);
         }
 
         // v90: Move vector land layers ABOVE MASK_FILL but BELOW MASK_INLAND_WATER/MASK_LINE to preserve visibility of parks/forests
@@ -324,9 +338,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
                 const isMaskLayer = ALL_LAYERS.includes(id);
                 const isOutline = l.type === 'line' || id.toLowerCase().includes('outline') || id.toLowerCase().includes('border') || id.toLowerCase().includes('boundary') || id.toLowerCase().includes('line');
                 if (isLandFeature && !isMaskLayer && !isOutline) {
-                  try {
-                    mapInstance.moveLayer(id, targetBeforeId);
-                  } catch (e) {}
+                  safeMoveLayer(mapInstance, id, targetBeforeId);
                 }
               }
             }
@@ -364,9 +376,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
     const repositionLayers = () => {
       if (!mapInstance.getLayer(MASK_BUFFER)) return;
       for (const ml of marineRasterLayers) {
-        if (mapInstance.getLayer(ml)) {
-          try { mapInstance.moveLayer(ml, MASK_BUFFER); } catch (e) {}
-        }
+        safeMoveLayer(mapInstance, ml, MASK_BUFFER);
       }
     };
     mapInstance.on('styledata', repositionLayers);
