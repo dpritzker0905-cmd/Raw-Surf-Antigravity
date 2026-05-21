@@ -99,12 +99,118 @@ function isLikelyOcean(lat, lng, grid) {
   return typeof cell.speed === 'number' && cell.speed > 0 && Number.isFinite(cell.speed);
 }
 
+// v3.15: High-precision simplified Natural Earth land mask helper functions
+function prepareLandPolygons(geojson) {
+  if (!geojson?.features) return [];
+  const polys = [];
+  geojson.features.forEach(f => {
+    const geom = f.geometry;
+    if (!geom) return;
+    const rings = [];
+    if (geom.type === 'Polygon') {
+      rings.push(geom.coordinates);
+    } else if (geom.type === 'MultiPolygon') {
+      geom.coordinates.forEach(r => rings.push(r));
+    }
+    rings.forEach(ring => {
+      const outer = ring[0];
+      if (!outer || outer.length === 0) return;
+      let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+      outer.forEach(pt => {
+        const lng = pt[0], lat = pt[1];
+        if (lng < west) west = lng;
+        if (lng > east) east = lng;
+        if (lat < south) south = lat;
+        if (lat > north) north = lat;
+      });
+      polys.push({
+        outer,
+        holes: ring.slice(1),
+        bbox: { west, east, south, north }
+      });
+    });
+  });
+  return polys;
+}
+
+function isPointInRing(lng, lat, ring) {
+  let inside = false;
+  const len = ring.length;
+  for (let i = 0, j = len - 1; i < len; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect = ((yi > lat) !== (yj > lat))
+        && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function isCoordOnLand(lng, lat, landPolygons) {
+  if (!landPolygons || landPolygons.length === 0) return false;
+  let nLng = lng;
+  while (nLng > 180) nLng -= 360;
+  while (nLng < -180) nLng += 360;
+  for (let i = 0; i < landPolygons.length; i++) {
+    const poly = landPolygons[i];
+    const bbox = poly.bbox;
+    if (nLng < bbox.west || nLng > bbox.east || lat < bbox.south || lat > bbox.north) {
+      continue;
+    }
+    if (isPointInRing(nLng, lat, poly.outer)) {
+      let inHole = false;
+      if (poly.holes) {
+        for (let k = 0; k < poly.holes.length; k++) {
+          if (isPointInRing(nLng, lat, poly.holes[k])) {
+            inHole = true;
+            break;
+          }
+        }
+      }
+      if (!inHole) return true;
+    }
+  }
+  return false;
+}
+
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const dataRef = useRef(null);
   const particlesRef = useRef([]);
   const activeRef = useRef(active);
+
+  // v3.15: Reference to Natural Earth simplified global land mask polygons
+  const landPolygonsRef = useRef([]);
+
+  useEffect(() => {
+    fetch('/ne_110m_land.json')
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(geojson => {
+        const polys = prepareLandPolygons(geojson);
+        landPolygonsRef.current = polys;
+        console.log(`[Marine] Loaded offline-friendly 110m land mask: ${polys.length} polygons`);
+      })
+      .catch(err => {
+        console.warn('[Marine] Local land mask failed, attempting CDN fallback:', err.message);
+        fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/physical/ne_110m_land.json')
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
+          .then(geojson => {
+            const polys = prepareLandPolygons(geojson);
+            landPolygonsRef.current = polys;
+            console.log(`[Marine] Loaded CDN fallback 110m land mask: ${polys.length} polygons`);
+          })
+          .catch(cdnErr => {
+            console.warn('[Marine] CDN land mask fallback also failed:', cdnErr.message);
+          });
+      });
+  }, []);
 
   useEffect(() => { activeRef.current = active; }, [active]);
   const prevDataIdRef = useRef(null);
@@ -166,13 +272,24 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
     const spawn = (preAge = false) => {
       const mb = mapInstance.getBounds();
+      if (!mb) {
+        return { lng: 0, lat: 0, age: 0, maxAge: 0.1, dashLen: 0, phase: 999, energy: 0, noiseSeed: 0 };
+      }
       const west = mb.getWest(), east = mb.getEast();
       const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
       const grid = dataRef.current;
       const zoom = mapInstance.getZoom();
+      const landPolys = landPolygonsRef.current;
+
+      // Force particles to stay inactive (dummy state) if land mask is not loaded yet
+      if (!landPolys || landPolys.length === 0) {
+        return { lng: 0, lat: 0, age: 0, maxAge: 0.1, dashLen: 0, phase: 999, energy: 0, noiseSeed: 0 };
+      }
+
       for (let attempt = 0; attempt < 12; attempt++) {
         const lng = west + Math.random() * (east - west);
         const lat = south + Math.random() * (north - south);
+        if (isCoordOnLand(lng, lat, landPolys)) continue;
         if (!isLikelyOcean(lat, lng, grid)) continue;
 
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
@@ -196,8 +313,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           noiseSeed: Math.random() * 100
         };
       }
+      // Fallback particle: assign phase=999 to guarantee it will never be rendered
       const maxAge = 0.2;
-      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 0, energy: 0, noiseSeed: Math.random() * 100 };
+      return { lng: west + Math.random() * (east - west), lat: south + Math.random() * (north - south), age: preAge ? Math.random() * maxAge : 0, maxAge, dashLen: 3, phase: 999, energy: 0, noiseSeed: Math.random() * 100 };
     };
 
     const particles = [];
@@ -253,6 +371,13 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
         // Check if wave speed/height is 0 or too small (i.e. we hit land or calm water)
         if (wave.speed <= 0.01 || !Number.isFinite(wave.speed) || !Number.isFinite(wave.u) || !Number.isFinite(wave.v)) {
+          pts[i] = spawn();
+          continue;
+        }
+
+        // Staggered high-precision land mask check: check once every 10 frames to optimize CPU
+        const landPolys = landPolygonsRef.current;
+        if ((frameCount + i) % 10 === 0 && isCoordOnLand(p.lng, p.lat, landPolys)) {
           pts[i] = spawn();
           continue;
         }
