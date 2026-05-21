@@ -662,8 +662,8 @@ var MapWebGL = ({
                   ] : 0.0,
                   'raster-resampling': 'linear',
                   'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
-                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.15 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.15 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
+                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
+                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
                   'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
                   'raster-fade-duration': 0 // Instant transition between slots
                 }}
