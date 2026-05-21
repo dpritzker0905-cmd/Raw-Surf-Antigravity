@@ -2,7 +2,17 @@ import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import Map, { Source, Layer, Marker } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
-import { getMapStyle, FLORIDA_CENTER, mapboxTransformRequest, findMarineInsertionLayer, CUSTOM_COLOR_SCALES } from './mapUtils';
+import {
+  getMapStyle,
+  FLORIDA_CENTER,
+  mapboxTransformRequest,
+  findMarineInsertionLayer,
+  CUSTOM_COLOR_SCALES,
+  ensureMapLibreInit,
+  trace,
+  OM_MODEL_MAP,
+  fetchModelMetadata
+} from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
@@ -21,35 +31,7 @@ import { useTemporalPreloader } from './useTemporalPreloader';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-var _mapLibreWorkerSet = false;
-function ensureMapLibreInit() {
-  if (_mapLibreWorkerSet) return;
-  maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
-  maplibregl.setMaxParallelImageRequests(32);
-  window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || [];
-  window.__RASTER_DEBUG__ = window.__RASTER_DEBUG__ || { failFast: true, logMissingVariables: true };
-  _mapLibreWorkerSet = true;
-}
-export function trace(layer, action, source, payload) {
-  (window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || []).push({ layer, action, source, timestamp: Date.now(), payload, stack: new Error().stack });
-  return payload;
-}
 
-var EMPTY_MARINE_FC = { type: 'FeatureCollection', features: [] };
-
-/**
- * Map Open-Meteo model identifiers to their tile-server paths.
- * Used to construct om:// source URLs.
- */
-var OM_MODEL_MAP = {
-  GFS:  'ncep_gfs025',
-  EURO: 'ecmwf_ifs025',
-  ICON: 'dwd_icon',
-};
-
-// Cache to prevent repetitive manifest fetching during layer toggles
-var MODEL_METADATA_PROMISES = {};
-var LIVE_FETCHED_MODELS = new Set();
 
 var MapWebGL = ({
   isLight,
@@ -91,6 +73,7 @@ var MapWebGL = ({
   const [mapInstance, setMapInstance] = useState(null);
   const resolveTaskIdRef = useRef(0);
   const [metadataRevision, setMetadataRevision] = useState(0);
+  const [activeSlots, setActiveSlots] = useState({});
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -108,6 +91,9 @@ var MapWebGL = ({
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
     import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
+      // Forceful mutation to guarantee custom scales are used in all instances
+      Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);
+
       const settings = {
         ...defaultOmProtocolSettings,
         colorScales: {
@@ -122,6 +108,22 @@ var MapWebGL = ({
         try {
           maplibregl.addProtocol('om', (params, abortController) => {
             const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
+            
+            if (!window.__RASTER_DEBUG__?.hasLoggedProtocol) {
+              window.__RASTER_DEBUG__.hasLoggedProtocol = true;
+              console.log('[OM-Protocol] Custom scales initialized:', Object.keys(currentSettings.colorScales));
+            }
+            
+            try {
+              const urlObj = new URL(params.url.replace('om://', ''));
+              const variable = urlObj.searchParams.get('variable');
+              const scale = currentSettings.colorScales[variable];
+              if (scale && window.__RASTER_DEBUG__?.logMissingVariables && !window.__RASTER_DEBUG__?.[`logged_scale_${variable}`]) {
+                window.__RASTER_DEBUG__[`logged_scale_${variable}`] = true;
+                console.log(`[OM-Protocol] Variable: ${variable}, Unit: ${scale.unit}, Breakpoints count: ${scale.breakpoints?.length}`);
+              }
+            } catch (err) { /* ignore parse errors */ }
+
             return omProtocol(params, abortController, currentSettings);
           });
         } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
@@ -209,45 +211,8 @@ var MapWebGL = ({
  // The old imperative queueRasterUpdate path is no longer needed react-map-gl
   // calls setUrl() internally when the url prop changes.
 
-  /** Fetch and cache model metadata (variables + valid_times) using Promises to prevent races */
   const fetchMetadata = useCallback(async (modelToCheck) => {
-    const cached = MODEL_METADATA_CACHE[modelToCheck];
-    if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
-      MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`)
-        .then(res => {
-          if (!res.ok) throw new Error('Fetch failed');
-          return res.json();
-        })
-        .then(data => {
-          const result = {
-            variables: data.variables || [],
-            validTimes: data.valid_times || [],
-            referenceTime: data.reference_time || null,
-          };
-          const prevCache = MODEL_METADATA_CACHE[modelToCheck];
-          const hasChanged = !prevCache ||
-            prevCache.referenceTime !== result.referenceTime ||
-            prevCache.variables.length !== result.variables.length ||
-            prevCache.validTimes.length !== result.validTimes.length;
-
-          MODEL_METADATA_CACHE[modelToCheck] = result;
-          LIVE_FETCHED_MODELS.add(modelToCheck);
-
-          if (hasChanged) {
-            setMetadataRevision(prev => prev + 1);
-          }
-          return result;
-        })
-        .catch(err => {
-          console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-          LIVE_FETCHED_MODELS.add(modelToCheck);
-          return cached || { variables: [], validTimes: [], referenceTime: null };
-        })
-        .finally(() => {
-          MODEL_METADATA_PROMISES[modelToCheck] = null;
-        });
-    }
-    return cached || { variables: [], validTimes: [], referenceTime: null };
+    return fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, () => setMetadataRevision(prev => prev + 1));
   }, []);
 
   // Pre-warm metadata cache on mount so layer toggles are instant
@@ -272,7 +237,7 @@ var MapWebGL = ({
 
     const getUrlForIndex = (model, variable, idx) => {
       const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${idx}&variable=${variable}${darkParam}`;
+      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${idx}&variable=${variable}${darkParam}&contours=true`;
     };
 
     const resolveAllUrls = async () => {
@@ -310,6 +275,7 @@ var MapWebGL = ({
       if (taskId !== resolveTaskIdRef.current) return;
 
       const newUrls = {};
+      const newActiveSlots = {};
       for (const { layerKey, variable, entry } of tasks) {
         let layerModel = resolveModel(entry, variable);
         let meta = await fetchMetadata(layerModel);
@@ -353,6 +319,7 @@ var MapWebGL = ({
             }
           }
           const slotCurrent = closestIdx % 3;
+          newActiveSlots[layerKey] = slotCurrent;
           const slotPrev = (closestIdx - 1 + 3) % 3;
           const slotNext = (closestIdx + 1) % 3;
           newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
@@ -372,6 +339,7 @@ var MapWebGL = ({
           });
           return { ...filtered, ...newUrls };
         });
+        setActiveSlots(newActiveSlots);
       }
     };
     
@@ -482,6 +450,7 @@ var MapWebGL = ({
     const map = innerMapRef.current?.getMap?.();
     if (map && !mapInstance) {
       setMapInstance(map);
+      window.map = map;
 
       // v239: Suppress async AbortErrors from MapLibre's internal tile-fetch pipeline.
       // These fire AFTER setUrl() returns (asynchronous Promise rejection inside workers),
@@ -659,7 +628,9 @@ var MapWebGL = ({
           const slotKey = `${layerKey}-slot-${slotIdx}`;
           const url = omTileUrls[slotKey];
           if (!url) return null;
-          const isActive = (closestTimeIdx % 3) === slotIdx;
+          const isActive = activeSlots[layerKey] !== undefined
+            ? activeSlots[layerKey] === slotIdx
+            : (closestTimeIdx % 3) === slotIdx;
 
           return (
             <Source
@@ -691,8 +662,8 @@ var MapWebGL = ({
                   ] : 0.0,
                   'raster-resampling': 'linear',
                   'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
-                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
+                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.15 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
+                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.15 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
                   'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
                   'raster-fade-duration': 0 // Instant transition between slots
                 }}

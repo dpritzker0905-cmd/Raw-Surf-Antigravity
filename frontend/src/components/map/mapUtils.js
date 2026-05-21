@@ -3,6 +3,7 @@
  * Extracted from MapPage.js for better organization
  */
 
+import maplibregl from 'maplibre-gl';
 
 // Colors
 export var ELECTRIC_CYAN = '#00CCFF';
@@ -281,7 +282,51 @@ export var PHOTOGRAPHER_CLUSTER_OPTIONS = {
   chunkedLoading: true
 };
 
-export var CUSTOM_COLOR_SCALES = {
+export function smoothColorScale(baseScale, numSteps = 80) {
+  if (!baseScale || baseScale.type !== 'breakpoint') return baseScale;
+  
+  var originalBreakpoints = baseScale.breakpoints;
+  var originalColors = baseScale.colors;
+  
+  var newBreakpoints = [];
+  var newColors = [];
+  
+  var numIntervals = originalBreakpoints.length - 1;
+  var stepsPerInterval = Math.max(1, Math.round(numSteps / numIntervals));
+  
+  for (var i = 0; i < numIntervals; i++) {
+    var bStart = originalBreakpoints[i];
+    var bEnd = originalBreakpoints[i + 1];
+    
+    var cStart = originalColors[i];
+    var cEnd = originalColors[i + 1];
+    
+    for (var j = 0; j < stepsPerInterval; j++) {
+      var t = j / stepsPerInterval;
+      var val = bStart + (bEnd - bStart) * t;
+      
+      var r = Math.round(cStart[0] + (cEnd[0] - cStart[0]) * t);
+      var g = Math.round(cStart[1] + (cEnd[1] - cStart[1]) * t);
+      var b = Math.round(cStart[2] + (cEnd[2] - cStart[2]) * t);
+      var a = Number((cStart[3] + (cEnd[3] - cStart[3]) * t).toFixed(3));
+      
+      newBreakpoints.push(Number(val.toFixed(3)));
+      newColors.push([r, g, b, a]);
+    }
+  }
+  
+  newBreakpoints.push(originalBreakpoints[originalBreakpoints.length - 1]);
+  newColors.push(originalColors[originalColors.length - 1]);
+  
+  return {
+    type: 'breakpoint',
+    unit: baseScale.unit,
+    breakpoints: newBreakpoints,
+    colors: newColors
+  };
+}
+
+var BASE_CUSTOM_COLOR_SCALES = {
   wave_height: {
     type: 'breakpoint',
     unit: 'm',
@@ -348,4 +393,81 @@ export var CUSTOM_COLOR_SCALES = {
     ]
   }
 };
+
+export var CUSTOM_COLOR_SCALES = {};
+Object.keys(BASE_CUSTOM_COLOR_SCALES).forEach(function(key) {
+  CUSTOM_COLOR_SCALES[key] = smoothColorScale(BASE_CUSTOM_COLOR_SCALES[key], 80);
+});
+
+var _mapLibreWorkerSet = false;
+export function ensureMapLibreInit() {
+  if (_mapLibreWorkerSet) return;
+  maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
+  maplibregl.setMaxParallelImageRequests(32);
+  window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || [];
+  window.__RASTER_DEBUG__ = window.__RASTER_DEBUG__ || { failFast: true, logMissingVariables: true };
+  _mapLibreWorkerSet = true;
+}
+
+export function trace(layer, action, source, payload) {
+  (window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || []).push({
+    layer,
+    action,
+    source,
+    timestamp: Date.now(),
+    payload,
+    stack: new Error().stack
+  });
+  return payload;
+}
+
+export var OM_MODEL_MAP = {
+  GFS:  'ncep_gfs025',
+  EURO: 'ecmwf_ifs025',
+  ICON: 'dwd_icon',
+};
+
+export var MODEL_METADATA_PROMISES = {};
+export var LIVE_FETCHED_MODELS = new Set();
+
+export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged) {
+  const cached = MODEL_METADATA_CACHE[modelToCheck];
+  if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
+    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`)
+      .then(res => {
+        if (!res.ok) throw new Error('Fetch failed');
+        return res.json();
+      })
+      .then(data => {
+        const result = {
+          variables: data.variables || [],
+          validTimes: data.valid_times || [],
+          referenceTime: data.reference_time || null,
+        };
+        const prevCache = MODEL_METADATA_CACHE[modelToCheck];
+        const hasChanged = !prevCache ||
+          prevCache.referenceTime !== result.referenceTime ||
+          prevCache.variables.length !== result.variables.length ||
+          prevCache.validTimes.length !== result.validTimes.length;
+
+        MODEL_METADATA_CACHE[modelToCheck] = result;
+        LIVE_FETCHED_MODELS.add(modelToCheck);
+
+        if (hasChanged && onMetadataChanged) {
+          onMetadataChanged();
+        }
+        return result;
+      })
+      .catch(err => {
+        console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
+        LIVE_FETCHED_MODELS.add(modelToCheck);
+        return cached || { variables: [], validTimes: [], referenceTime: null };
+      })
+      .finally(() => {
+        MODEL_METADATA_PROMISES[modelToCheck] = null;
+      });
+  }
+  return cached || { variables: [], validTimes: [], referenceTime: null };
+}
+
 
