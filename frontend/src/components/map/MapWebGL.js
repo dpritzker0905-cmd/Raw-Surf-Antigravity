@@ -23,17 +23,15 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 var _mapLibreWorkerSet = false;
 function ensureMapLibreInit() {
-  if (!_mapLibreWorkerSet) {
-    maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
-    maplibregl.setMaxParallelImageRequests(32); // fetch more tiles in parallel
-    if (!window.__LRCM_EXEC_TRACE__) window.__LRCM_EXEC_TRACE__ = [];
-    if (!window.__RASTER_DEBUG__) window.__RASTER_DEBUG__ = { failFast: true, logMissingVariables: true };
-    _mapLibreWorkerSet = true;
-  }
+  if (_mapLibreWorkerSet) return;
+  maplibregl.setWorkerUrl('/maplibre-gl-worker.js');
+  maplibregl.setMaxParallelImageRequests(32);
+  window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || [];
+  window.__RASTER_DEBUG__ = window.__RASTER_DEBUG__ || { failFast: true, logMissingVariables: true };
+  _mapLibreWorkerSet = true;
 }
 export function trace(layer, action, source, payload) {
-  if (!window.__LRCM_EXEC_TRACE__) window.__LRCM_EXEC_TRACE__ = [];
-  window.__LRCM_EXEC_TRACE__.push({ layer, action, source, timestamp: Date.now(), payload, stack: new Error().stack });
+  (window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || []).push({ layer, action, source, timestamp: Date.now(), payload, stack: new Error().stack });
   return payload;
 }
 
@@ -131,23 +129,17 @@ var MapWebGL = ({
       setProtocolReady(true);
     });
 
-    const suppressAbortRejections = (event) => {
-      const reason = event?.reason;
-      if (reason?.name === 'AbortError' || reason?.message?.includes('aborted')) event.preventDefault();
-    };
-    window.addEventListener('unhandledrejection', suppressAbortRejections);
-    return () => window.removeEventListener('unhandledrejection', suppressAbortRejections);
+    const suppress = e => (e?.reason?.name === 'AbortError' || e?.reason?.message?.includes('aborted')) && e.preventDefault();
+    window.addEventListener('unhandledrejection', suppress);
+    return () => window.removeEventListener('unhandledrejection', suppress);
   }, []);
 
   const activeWeatherVariable = useMemo(() => activeLayers[0] ? LAYER_REGISTRY[activeLayers[0]]?.omVariable || null : null, [activeLayers]);
 
   useEffect(() => {
     trace(activeLayers[0] || 'none', 'toggle_layer', 'MapWebGL', { activeLayers });
-  }, [activeLayers]);
-
-  useEffect(() => {
     trace('all', 'select_model', 'MapWebGL', { activeModel });
-  }, [activeModel]);
+  }, [activeLayers, activeModel]);
 
  // LRCM: Derived render type drives which renderer pipeline is active
   const activeRenderType = useMemo(() => {
@@ -325,32 +317,26 @@ var MapWebGL = ({
         let resolvedVar = variable;
         if (!meta.variables.includes(variable)) {
           const VARIABLE_FALLBACKS = {
-            'wind_speed_10m': 'wind_gusts_10m',
-            'wind_gusts_10m': 'wind_u_component_10m',
-            'visibility': 'cloud_cover_low',
-            'swell_wave_height': null,
-            'secondary_swell_wave_height': null,
-            'wind_wave_height': null,
+            'wind_speed_10m': 'wind_gusts_10m', 'wind_gusts_10m': 'wind_u_component_10m', 'visibility': 'cloud_cover_low'
           };
-          if (variable in VARIABLE_FALLBACKS) {
-            if (VARIABLE_FALLBACKS[variable] && meta.variables.includes(VARIABLE_FALLBACKS[variable])) {
-              resolvedVar = VARIABLE_FALLBACKS[variable];
-              const fbKey = `${variable}-${layerModel}`;
+          const fb = VARIABLE_FALLBACKS[variable];
+          if (fb && meta.variables.includes(fb)) {
+            resolvedVar = fb;
+            const fbKey = `${variable}-${layerModel}`;
+            if (!loggedFallbacks.current.has(fbKey)) {
+              loggedFallbacks.current.add(fbKey);
+              console.log(`[Raster] Variable fallback: ${variable} -> ${resolvedVar} for ${layerModel}`);
+            }
+          } else if (entry.omModelGroup === 'marine') {
+            layerModel = 'ncep_gfswave025';
+            meta = await fetchMetadata(layerModel);
+            if (taskId !== resolveTaskIdRef.current) return;
+            if (meta.variables.includes(variable)) {
+              resolvedVar = variable;
+              const fbKey = `marine-${variable}`;
               if (!loggedFallbacks.current.has(fbKey)) {
                 loggedFallbacks.current.add(fbKey);
-                console.log(`[Raster] Variable fallback: ${variable} -> ${resolvedVar} for ${layerModel}`);
-              }
-            } else if (entry.omModelGroup === 'marine') {
-              layerModel = 'ncep_gfswave025';
-              meta = await fetchMetadata(layerModel);
-              if (taskId !== resolveTaskIdRef.current) return;
-              if (meta.variables.includes(variable)) {
-                resolvedVar = variable;
-                const fbKey = `marine-${variable}`;
-                if (!loggedFallbacks.current.has(fbKey)) {
-                  loggedFallbacks.current.add(fbKey);
-                  console.log(`[Raster] Marine model fallback: ${layerModel} for ${variable}`);
-                }
+                console.log(`[Raster] Marine model fallback: ${layerModel} for ${variable}`);
               }
             }
           }
@@ -366,11 +352,9 @@ var MapWebGL = ({
               if (diff < minDiff) { minDiff = diff; closestIdx = i; }
             }
           }
-          
           const slotCurrent = closestIdx % 3;
           const slotPrev = (closestIdx - 1 + 3) % 3;
           const slotNext = (closestIdx + 1) % 3;
-          
           newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
           newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
           newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < validTimes.length - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
@@ -378,12 +362,19 @@ var MapWebGL = ({
       }
 
       if (isMounted && taskId === resolveTaskIdRef.current) {
-        setOmTileUrls(prev => ({ ...prev, ...newUrls }));
+        setOmTileUrls(prev => {
+          const filtered = {};
+          Object.keys(prev).forEach(key => {
+            const match = key.match(/^(.+)-slot-(\d+)$/);
+            if (match && activeLayers.includes(match[1])) {
+              filtered[key] = prev[key];
+            }
+          });
+          return { ...filtered, ...newUrls };
+        });
       }
     };
     
- // v78: rAF throttle during rapid slider dragging, only resolve once per frame.
-    // This prevents stacking dozens of async resolveAllUrls() during fast scrubbing.
     pendingResolve.current = resolveAllUrls;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
@@ -400,20 +391,13 @@ var MapWebGL = ({
     }
   }, [mapInstanceRef, innerMapRef.current]);
 
-  const onMove = useCallback(evt => {
-    setViewState(evt.viewState);
-  }, []);
+  const onMove = useCallback(evt => setViewState(evt.viewState), []);
 
-  // v3.7: Debounced moveend callback to update map center for forecast overlay
   const moveEndTimerRef = useRef(null);
-  const onMoveEnd = useCallback((evt) => {
-    if (onMapMoveEnd) {
-      clearTimeout(moveEndTimerRef.current);
-      moveEndTimerRef.current = setTimeout(() => {
-        const { latitude, longitude } = evt.viewState;
-        onMapMoveEnd({ lat: latitude, lng: longitude });
-      }, 800);
-    }
+  const onMoveEnd = useCallback(evt => {
+    if (!onMapMoveEnd) return;
+    clearTimeout(moveEndTimerRef.current);
+    moveEndTimerRef.current = setTimeout(() => onMapMoveEnd({ lat: evt.viewState.latitude, lng: evt.viewState.longitude }), 800);
   }, [onMapMoveEnd]);
 
   // Sync to effectiveLocation initially
@@ -565,6 +549,26 @@ var MapWebGL = ({
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers]);
 
+  useEffect(() => {
+    if (!mapInstance) return;
+    try {
+      const activeSourceIds = new Set();
+      activeLayers.forEach(l => {
+        [0, 1, 2].forEach(slot => activeSourceIds.add(`${l}-slot-${slot}-source`));
+      });
+      const style = mapInstance.getStyle();
+      if (style?.sources) {
+        Object.keys(style.sources).forEach(sourceId => {
+          if (sourceId.includes('-slot-') && !activeSourceIds.has(sourceId)) {
+            const layerId = sourceId.replace('-source', '-layer');
+            if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
+            if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
+          }
+        });
+      }
+    } catch (e) { /* empty */ }
+  }, [mapInstance, activeLayers]);
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
@@ -650,56 +654,52 @@ var MapWebGL = ({
       </Source>
 
       {/* v251: Open-Meteo Independent Static Tile Sources with Triple-Source Sliding Ring Buffer */}
-      {protocolReady && Object.entries(omTileUrls)
-        .filter(([slotKey]) => {
-          const match = slotKey.match(/^(.+)-slot-(\d+)$/);
-          return match && activeLayers.includes(match[1]);
-        })
-        .map(([slotKey, url]) => {
-        const match = slotKey.match(/^(.+)-slot-(\d+)$/);
-        if (!match) return null;
-        const layerKey = match[1];
-        const slotIdx = parseInt(match[2], 10);
-        const isActive = (closestTimeIdx % 3) === slotIdx;
+      {protocolReady && activeLayers.map(layerKey => {
+        return [0, 1, 2].map(slotIdx => {
+          const slotKey = `${layerKey}-slot-${slotIdx}`;
+          const url = omTileUrls[slotKey];
+          if (!url) return null;
+          const isActive = (closestTimeIdx % 3) === slotIdx;
 
-        return (
-          <Source
-            key={`${slotKey}-source`}
-            id={`${slotKey}-source`}
-            type="raster"
-            url={url}
-            maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
-          >
-            <Layer
-              id={`${slotKey}-layer`}
-              beforeId={
-                LAYER_REGISTRY[layerKey]?.type === 'marine'
-                  ? (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId) || undefined
-                  : undefined
-              }
+          return (
+            <Source
+              key={`${slotKey}-source`}
+              id={`${slotKey}-source`}
               type="raster"
-              layout={{ 
-                visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
-              }}
-              paint={{
-                // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
-                'raster-opacity': isActive ? [
-                  'interpolate', ['linear'], ['zoom'],
-                  2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.70 : 0.22),
-                  5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : 0.28),
-                  8, layerKey === 'wind' ? 0.26 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.80 : 0.35),
-                  12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.85 : 0.40),
-                ] : 0.0,
-                'raster-resampling': 'linear',
-                'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
-                'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-                'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
-                'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
-                'raster-fade-duration': 0 // Instant transition between slots
-              }}
-            />
-          </Source>
-        );
+              url={url}
+              maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
+            >
+              <Layer
+                id={`${slotKey}-layer`}
+                beforeId={
+                  LAYER_REGISTRY[layerKey]?.type === 'marine'
+                    ? (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId) || undefined
+                    : undefined
+                }
+                type="raster"
+                layout={{ 
+                  visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
+                }}
+                paint={{
+                  // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
+                  'raster-opacity': isActive ? [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.70 : 0.22),
+                    5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : 0.28),
+                    8, layerKey === 'wind' ? 0.26 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.80 : 0.35),
+                    12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.85 : 0.40),
+                  ] : 0.0,
+                  'raster-resampling': 'linear',
+                  'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
+                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
+                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
+                  'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
+                  'raster-fade-duration': 0 // Instant transition between slots
+                }}
+              />
+            </Source>
+          );
+        });
       })}
 
       {/* v85: OceanMask — covers marine raster coastline bleed on land.

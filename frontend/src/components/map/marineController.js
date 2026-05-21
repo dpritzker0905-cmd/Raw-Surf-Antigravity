@@ -365,12 +365,15 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         body: JSON.stringify({ type: 'wind', body }),
         signal: fetchSignal
       });
+      if (!res.ok) {
+        throw new Error(`Proxy returned HTTP ${res.status}`);
+      }
       if (res.headers.get('X-Cache') === 'HIT') {
         console.log(`[Wind] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
       }
     } catch (proxyErr) {
- // Proxy unavailable (e.g. localhost dev) fall back to direct API
-      console.log('[Wind] Proxy unavailable, direct API fallback');
+      // Proxy unavailable (e.g. localhost dev) fall back to direct API
+      console.log('[Wind] Proxy unavailable or error, direct API fallback:', proxyErr.message);
       res = await fetch('https://api.open-meteo.com/v1/forecast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -563,11 +566,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         body: JSON.stringify({ type: 'marine', body }),
         signal: fetchSignal
       });
+      if (!res.ok) {
+        throw new Error(`Proxy returned HTTP ${res.status}`);
+      }
       if (res.headers.get('X-Cache') === 'HIT') {
         console.log(`[Marine] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
       }
     } catch (proxyErr) {
-      console.log('[Marine] Proxy unavailable, direct API fallback');
+      console.log('[Marine] Proxy unavailable or error, direct API fallback:', proxyErr.message);
       res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

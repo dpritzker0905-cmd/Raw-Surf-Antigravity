@@ -309,8 +309,10 @@ function generateDefaultTimes() {
 const defaultTimes = generateDefaultTimes();
 const referenceTime = new Date().toISOString();
 
-MODEL_METADATA_CACHE['ncep_gfs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
+const GFS_ATMOSPHERIC_VARS = DEFAULT_ATMOSPHERIC_VARS.filter(v => v !== 'wind_speed_10m');
+
+MODEL_METADATA_CACHE['ncep_gfs025'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['dwd_icon'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ecmwf_ifs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ncep_gfswave025'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };

@@ -23,7 +23,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { LAYER_REGISTRY, MARINE_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry';
+import { LAYER_REGISTRY, MARINE_MODEL_MAP, PRECIP_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry';
 
 var OM_MODEL_MAP = { GFS: 'ncep_gfs025', EURO: 'ecmwf_ifs025', ICON: 'dwd_icon' };
 var PRELOAD_STEPS = 3;    // number of future valid model steps to preload
@@ -51,14 +51,47 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
       if (!entry?.omVariable) return;
 
       // Resolve model and variable for this layer
-      var model = entry.omModelGroup === 'marine'
-        ? (MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025')
-        : (OM_MODEL_MAP[activeModel] || 'ncep_gfs025');
       var variable = entry.omVariable;
+      var model;
+      if (entry.omModel) {
+        model = entry.omModel;
+      } else if (entry.omModelGroup === 'marine') {
+        model = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
+      } else if (variable === 'precipitation' || variable === 'cloud_cover') {
+        model = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
+      } else {
+        model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+      }
 
-      // Use live metadata from shared cache — MUST have real (non-hourly) step intervals
+      // Use live metadata from shared cache
       var meta = MODEL_METADATA_CACHE[model];
       if (!meta?.validTimes?.length || meta.validTimes.length < 2) return;
+
+      // Variable fallback matching MapWebGL.js
+      var resolvedVar = variable;
+      if (!meta.variables.includes(variable)) {
+        var VARIABLE_FALLBACKS = {
+          'wind_speed_10m': 'wind_gusts_10m',
+          'wind_gusts_10m': 'wind_u_component_10m',
+          'visibility': 'cloud_cover_low',
+          'swell_wave_height': null,
+          'secondary_swell_wave_height': null,
+          'wind_wave_height': null
+        };
+        var fb = VARIABLE_FALLBACKS[variable];
+        if (fb && meta.variables.includes(fb)) {
+          resolvedVar = fb;
+        } else if (entry.omModelGroup === 'marine') {
+          model = 'ncep_gfswave025';
+          meta = MODEL_METADATA_CACHE[model];
+          if (!meta?.validTimes?.length || meta.validTimes.length < 2) return;
+          if (meta.variables.includes(variable)) {
+            resolvedVar = variable;
+          }
+        }
+      }
+
+      if (!meta.variables.includes(resolvedVar)) return;
 
       // Guard: skip if metadata is still the fake hourly defaults (step < 3h)
       var stepMs = new Date(meta.validTimes[1]).getTime() - new Date(meta.validTimes[0]).getTime();
@@ -82,13 +115,13 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
         var targetIdx = closestIdx + step;
         if (targetIdx >= meta.validTimes.length) break;
 
-        var cacheKey = model + ':' + variable + ':' + targetIdx;
+        var cacheKey = model + ':' + resolvedVar + ':' + targetIdx;
         if (cacheRef.current.has(cacheKey)) continue;
         cacheRef.current.add(cacheKey);
 
         var darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
         var url = 'https://map-tiles.open-meteo.com/data_spatial/' + model
-          + '/latest.json?time_step=valid_times_' + targetIdx + '&variable=' + variable + darkParam;
+          + '/latest.json?time_step=valid_times_' + targetIdx + '&variable=' + resolvedVar + darkParam;
         fetch(url, { signal: signal }).catch(function () { /* best-effort */ });
       }
     }, PRELOAD_DELAY_MS);
