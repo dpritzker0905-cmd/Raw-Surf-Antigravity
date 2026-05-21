@@ -627,7 +627,7 @@ var MapWebGL = ({
             id={`${layerKey}-layer`}
             beforeId={
               LAYER_REGISTRY[layerKey]?.type === 'marine'
-                ? (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId)
+                ? (maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId) || undefined
                 : undefined
             }
             type="raster"

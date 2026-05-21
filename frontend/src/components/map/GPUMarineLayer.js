@@ -78,24 +78,23 @@ function interpolateMarine(grid, lng, lat) {
  * its marine model only produces wave data over ocean cells.
  */
 function isLikelyOcean(lat, lng, grid) {
-  // Normalize longitude
+  if (!grid?.vectors?.length) return false; // no data → reject; prevents cold-start spawning
   let nLng = lng;
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
-
-  // Latitude sanity
   if (lat < -85 || lat > 85) return false;
-
-  // Grid-based check: use actual wave energy data from GFS marine model
-  // GFS marine grid has zero energy over land cells — this IS the land mask
-  if (grid) {
-    const wave = interpolateMarine(grid, nLng, lat);
-    // Threshold: near-zero energy = land or dead calm ocean
-    // 0.005 m/s is below any measurable wave energy
-    if (wave.speed < 0.005 && Math.abs(wave.u) < 0.003 && Math.abs(wave.v) < 0.003) return false;
-  }
-
-  return true;
+  // Nearest-neighbour cell lookup: bilinear interpolation blends ocean energy
+  // into adjacent land cells at the coast, causing particles to spawn inland.
+  // Snapping to the closest grid cell avoids this bleed-through.
+  const { vectors, bounds, cols, rows } = grid;
+  const gx = Math.round(Math.max(0, Math.min(cols - 1,
+    ((nLng - bounds.west) / (bounds.east - bounds.west)) * (cols - 1))));
+  const gy = Math.round(Math.max(0, Math.min(rows - 1,
+    ((lat - bounds.south) / (bounds.north - bounds.south)) * (rows - 1))));
+  const cell = vectors[gy * cols + gx];
+  if (!cell) return false;
+  // GFS land cells have exactly 0 energy; 0.01 threshold rejects dead-calm edge cells too
+  return cell.speed >= 0.01 || Math.abs(cell.u) >= 0.005 || Math.abs(cell.v) >= 0.005;
 }
 
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {

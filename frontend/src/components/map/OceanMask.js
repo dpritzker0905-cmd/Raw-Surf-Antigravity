@@ -354,6 +354,25 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
     return () => mapInstance.off('styledata', handler);
   }, [mapInstance, syncLayers]);
 
+  // v91: Dedicated marine-raster repositioning listener — runs WITHOUT syncingRef guard.
+  // Fixes the race where react-map-gl adds swell_1-layer / waves-layer a few ms after
+  // syncLayers fires (syncingRef is still true), so the blocked styledata handler
+  // never calls moveLayer for those layers and they render above MASK_FILL (over land).
+  useEffect(() => {
+    if (!mapInstance) return;
+    const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
+    const repositionLayers = () => {
+      if (!mapInstance.getLayer(MASK_BUFFER)) return;
+      for (const ml of marineRasterLayers) {
+        if (mapInstance.getLayer(ml)) {
+          try { mapInstance.moveLayer(ml, MASK_BUFFER); } catch (e) {}
+        }
+      }
+    };
+    mapInstance.on('styledata', repositionLayers);
+    return () => mapInstance.off('styledata', repositionLayers);
+  }, [mapInstance]);
+
   useEffect(() => {
     return () => {
       if (!mapInstance) return;
