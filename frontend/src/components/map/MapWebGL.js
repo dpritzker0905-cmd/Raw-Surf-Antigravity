@@ -653,13 +653,21 @@ var MapWebGL = ({
                 }}
                 paint={{
                   // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
-                  'raster-opacity': isActive ? [
-                    'interpolate', ['linear'], ['zoom'],
-                    2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.70 : 0.22),
-                    5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : 0.28),
-                    8, layerKey === 'wind' ? 0.26 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.80 : 0.35),
-                    12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : (LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.85 : 0.40),
-                  ] : 0.0,
+                  'raster-opacity': isActive ? (
+                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
+                      'interpolate', ['linear'], ['zoom'],
+                      2, 0.70,
+                      5, 0.75,
+                      7.5, 0.80,
+                      9.0, 0.0
+                    ] : [
+                      'interpolate', ['linear'], ['zoom'],
+                      2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+                      5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+                      8, layerKey === 'wind' ? 0.26 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+                      12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+                    ]
+                  ) : 0.0,
                   'raster-resampling': 'linear',
                   'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
                   'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,

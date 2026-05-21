@@ -65,7 +65,7 @@ var MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN || '';
 export var MAPBOX_TILES = {
   dark:  `https://api.mapbox.com/styles/v1/mapbox/navigation-night-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
   light: `https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
-  beach: `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
+  beach: `https://api.mapbox.com/styles/v1/mapbox/outdoors-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
   satellite: `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`,
 };
 
@@ -77,8 +77,8 @@ export var MAPBOX_TILES = {
 var MAPBOX_VECTOR_STYLES = {
   dark:      `https://api.mapbox.com/styles/v1/mapbox/navigation-night-v1?access_token=${MAPBOX_TOKEN}`,
   light:     `https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1?access_token=${MAPBOX_TOKEN}`,
-  beach:     `https://api.mapbox.com/styles/v1/mapbox/outdoors-v12?access_token=${MAPBOX_TOKEN}`,
-  satellite: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12?access_token=${MAPBOX_TOKEN}`,
+  beach:     `https://api.mapbox.com/styles/v1/mapbox/outdoors-v11?access_token=${MAPBOX_TOKEN}`,
+  satellite: `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11?access_token=${MAPBOX_TOKEN}`,
 };
 
 /**
