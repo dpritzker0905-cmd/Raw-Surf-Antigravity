@@ -110,19 +110,23 @@ var MapWebGL = ({
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
     import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
+      const settings = {
+        ...defaultOmProtocolSettings,
+        colorScales: {
+          ...defaultOmProtocolSettings.colorScales,
+          ...CUSTOM_COLOR_SCALES
+        }
+      };
+      // Persist settings globally so the registered protocol can read them dynamically
+      window.__OM_PROTOCOL_SETTINGS__ = settings;
+
       if (maplibregl?.addProtocol) {
         try {
-          const settings = {
-            ...defaultOmProtocolSettings,
-            colorScales: {
-              ...defaultOmProtocolSettings.colorScales,
-              ...CUSTOM_COLOR_SCALES
-            }
-          };
           maplibregl.addProtocol('om', (params, abortController) => {
-            return omProtocol(params, abortController, settings);
+            const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
+            return omProtocol(params, abortController, currentSettings);
           });
-        } catch (e) { /* already registered */ }
+        } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
       }
       setProtocolReady(true);
     });
