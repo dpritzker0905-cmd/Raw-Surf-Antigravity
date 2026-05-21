@@ -229,7 +229,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
               type: 'fill',
               source: waterSource,
               'source-layer': waterSourceLayer,
-              filter: ['all', ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
+              filter: ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
               paint: {
                 'fill-color': waterColor,
                 'fill-opacity': 1.0
@@ -242,6 +242,7 @@ export function OceanMask({ mapInstance, active, theme, beforeId }) {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
+            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']]);
           } catch (e) {}
         }
 

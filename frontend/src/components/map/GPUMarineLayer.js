@@ -83,14 +83,27 @@ function isLikelyOcean(lat, lng, grid) {
   while (nLng > 180) nLng -= 360;
   while (nLng < -180) nLng += 360;
   if (lat < -85 || lat > 85) return false;
+
+  const { vectors, bounds, cols, rows } = grid;
+  // Strict bounding box check to prevent snapping to ocean edge cells when outside data bounds
+  let inside = false;
+  if (bounds.west <= bounds.east) {
+    inside = (nLng >= bounds.west && nLng <= bounds.east);
+  } else {
+    inside = (nLng >= bounds.west || nLng <= bounds.east);
+  }
+  if (!inside || lat < bounds.south || lat > bounds.north) {
+    return false;
+  }
+
   // Nearest-neighbour cell lookup: bilinear interpolation blends ocean energy
   // into adjacent land cells at the coast, causing particles to spawn inland.
   // Snapping to the closest grid cell avoids this bleed-through.
-  const { vectors, bounds, cols, rows } = grid;
-  const gx = Math.round(Math.max(0, Math.min(cols - 1,
-    ((nLng - bounds.west) / (bounds.east - bounds.west)) * (cols - 1))));
-  const gy = Math.round(Math.max(0, Math.min(rows - 1,
-    ((lat - bounds.south) / (bounds.north - bounds.south)) * (rows - 1))));
+  const gx = Math.round(((nLng - bounds.west) / (bounds.east - bounds.west)) * (cols - 1));
+  const gy = Math.round(((lat - bounds.south) / (bounds.north - bounds.south)) * (rows - 1));
+  
+  if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return false;
+
   const cell = vectors[gy * cols + gx];
   if (!cell) return false;
   // GFS land cells have exactly 0 energy; 0.01 threshold rejects dead-calm edge cells too
