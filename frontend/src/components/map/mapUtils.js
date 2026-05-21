@@ -138,17 +138,29 @@ export var findMarineInsertionLayer = function(mapInstance) {
   var style = mapInstance.getStyle?.();
   if (!style?.layers) return null;
 
-  // Find the first layer after the water fill
+  // Find the first layer after the water fill that is NOT a custom layer
   var afterWater = false;
   for (var layer of style.layers) {
-    if (layer.id === 'water' || layer.id === 'water-depth' || layer.id === 'wetland') {
+    var id = layer.id;
+    if (id === 'water' || id === 'water-depth' || id === 'wetland') {
       afterWater = true;
       continue;
     }
-    if (afterWater && (layer.type === 'fill' || layer.type === 'line')) return layer.id;
+    
+    // Ignore custom layers to prevent circular style positioning loops
+    var isCustom = id.startsWith('ocean-mask-') || 
+                   id.endsWith('-layer') || 
+                   id.endsWith('-source') ||
+                   id === 'radar-layer' || 
+                   id === 'esri-satellite-layer' ||
+                   id === 'spot-geofences-layer';
+
+    if (afterWater && !isCustom && (layer.type === 'fill' || layer.type === 'line')) {
+      return id;
+    }
   }
 
-  // Fallback: known layer IDs
+  // Fallback: known layer IDs (excluding custom layers)
   var knownIds = ['land-structure-polygon', 'building-outline', 'building'];
   for (var layer2 of style.layers) {
     if (knownIds.includes(layer2.id)) return layer2.id;
