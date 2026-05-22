@@ -196,7 +196,8 @@ var MapWebGL = ({
         lng: v.lng,
         u: v[activeMarineLayer]?.u || 0,
         v: v[activeMarineLayer]?.v || 0,
-        speed: v[activeMarineLayer]?.speed || 0
+        speed: v[activeMarineLayer]?.speed || 0,
+        isOcean: v.isOcean
       }))
     };
   }, [marineData, activeMarineLayer]);

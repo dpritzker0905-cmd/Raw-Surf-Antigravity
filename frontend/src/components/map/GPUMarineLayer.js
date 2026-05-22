@@ -44,8 +44,11 @@ function interpolateMarine(grid, lng, lat) {
   while (gLng - center > 180) gLng -= 360;
   while (gLng - center < -180) gLng += 360;
 
+  // Clamp query latitude to grid latitude bounds (fixes Polar/Arctic particle absence)
+  const qLat = Math.max(south, Math.min(north, lat));
+
   const gx = Math.max(0, Math.min(cols - 1, ((gLng - west) / (east - west)) * (cols - 1)));
-  const gy = Math.max(0, Math.min(rows - 1, ((lat - south) / (north - south)) * (rows - 1)));
+  const gy = Math.max(0, Math.min(rows - 1, ((qLat - south) / (north - south)) * (rows - 1)));
   const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
   const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
   const fx = gx - xi;
@@ -82,20 +85,24 @@ function isLikelyOcean(lat, lng, grid) {
   while (gLng - center > 180) gLng -= 360;
   while (gLng - center < -180) gLng += 360;
 
+  // Clamp query latitude to grid latitude bounds (fixes Polar/Arctic particle absence)
+  const qLat = Math.max(south, Math.min(north, lat));
+
   // Since grid bounds are continuous, check directly against the wrapped gLng
-  if (gLng < west || gLng > east || lat < south || lat > north) {
+  if (gLng < west || gLng > east || qLat < south || qLat > north) {
     return false;
   }
 
   // Nearest-neighbour cell lookup using grid bounds coordinate space
   const gx = Math.round(((gLng - west) / (east - west)) * (cols - 1));
-  const gy = Math.round(((lat - south) / (north - south)) * (rows - 1));
+  const gy = Math.round(((qLat - south) / (north - south)) * (rows - 1));
   
   if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return false;
 
   const cell = vectors[gy * cols + gx];
   if (!cell) return false;
-  // Wave height threshold: if wave height/speed is <= 0, it's not ocean or has 0 waves!
+  // Wave height threshold: prioritize isOcean flag if present, else fallback
+  if (typeof cell.isOcean === 'boolean') return cell.isOcean;
   return typeof cell.speed === 'number' && cell.speed > 0 && Number.isFinite(cell.speed);
 }
 

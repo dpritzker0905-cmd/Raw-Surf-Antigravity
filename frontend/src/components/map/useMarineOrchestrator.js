@@ -293,10 +293,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const moveendDebounceRef = { timer: null };
 
     const onMoveEnd = () => {
-      // User intent check
-      const isUserDriven = Date.now() - lastUserInteractionRef.current < 1500;
-      if (!isUserDriven) return;
-
       // Internal update check (source/style mutations cause synthetic moveends)
       if (isInternalMapUpdateRef.current) return;
 

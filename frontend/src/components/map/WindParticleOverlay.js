@@ -82,6 +82,17 @@ function noise2D(x, y) {
 }
 
 /**
+ * Wraps a longitude relative to the map's current center longitude to ensure it maps
+ * correctly in the viewport's continuous rendering space (fixes the Pacific Ocean split).
+ */
+function getRenderLng(lng, centerLng) {
+  var rLng = lng;
+  while (rLng - centerLng > 180) rLng -= 360;
+  while (rLng - centerLng < -180) rLng += 360;
+  return rLng;
+}
+
+/**
  * Ventusky-style wind color: white/light trails with speed-based brightness.
  * Higher wind speeds = brighter, more opaque white.
  * Low speeds = faint, ghostly trails.
@@ -219,6 +230,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       lastDataId = sourceModel;
 
       var zoom = mapInstance.getZoom();
+      var centerLng = mapInstance.getCenter().lng;
 
       // Warm-up: simulate steps without drawing to pre-advect particles.
       // v78: Reduced from 3015 steps and respawn OOB particles after warm-up
@@ -346,8 +358,10 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
 
         // --- DRAW WIND TRAIL SEGMENT ---
         try {
-          var curr = mapInstance.project([p.lng, p.lat]);
-          var prev = mapInstance.project([p.prevLng, p.prevLat]);
+          var rLng = getRenderLng(p.lng, centerLng);
+          var rPrevLng = getRenderLng(p.prevLng, centerLng);
+          var curr = mapInstance.project([rLng, p.lat]);
+          var prev = mapInstance.project([rPrevLng, p.prevLat]);
           if (!curr || !prev || !Number.isFinite(curr.x) || !Number.isFinite(prev.x)) continue;
 
           // Skip truly zero movements

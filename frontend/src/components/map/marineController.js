@@ -183,26 +183,26 @@ function computeGridPoints(bounds, caller = 'wind') {
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const lngSpan = bounds.east - bounds.west;
   const latSpan = bounds.north - bounds.south;
-  const isGlobal = lngSpan > 100 || latSpan > 60;
+  const isGlobal = lngSpan > 180 || latSpan > 90;
 
- // v3.9.4: Reduced grid density Open-Meteo weights POST requests by
- // point count (961 pts 961 weighted calls, exceeding 600/min limit)
+  // v3.9.4: Reduced grid density Open-Meteo weights POST requests by
+  // point count (961 pts 961 weighted calls, exceeding 600/min limit)
   let west, south, east, north, GRID;
   if (isGlobal) {
     if (caller === 'marine') {
       west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 8 : 12; // 13x13=169 (desktop), 9x9=81 (mobile)
+      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
     } else {
       west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 1111=121 (mobile)
+      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
     }
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
     if (caller === 'marine') {
-      GRID = isMobile ? 8 : 12; // 13x13=169 (desktop), 9x9=81 (mobile)
+      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
     } else {
-      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 1111=121 (mobile)
+      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
     }
   }
 
@@ -477,7 +477,8 @@ function extractMarineAtOffset(cache, hourOffset) {
     if (!r?.hourly) {
       gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
         waves: { u: 0, v: 0, speed: 0 }, swell_1: { u: 0, v: 0, speed: 0 },
-        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 } });
+        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 },
+        isOcean: false });
       return;
     }
     const c = {
@@ -496,16 +497,21 @@ function extractMarineAtOffset(cache, hourOffset) {
     const s2_h = safeNum(c.secondary_swell_wave_height), s2_d = safeNum(c.secondary_swell_wave_direction);
     const ww_h = safeNum(c.wind_wave_height), ww_d = safeNum(c.wind_wave_direction);
 
+    const w_h_raw = r.hourly.wave_height?.[idx];
+    const isOcean = (w_h_raw !== null && w_h_raw !== undefined);
+
     if (w_h === 0 && s1_h === 0 && ww_h === 0) {
       gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
         waves: { u: 0, v: 0, speed: 0 }, swell_1: { u: 0, v: 0, speed: 0 },
-        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 } });
+        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 },
+        isOcean });
       return;
     }
 
     gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
       waves: getUV(w_h, w_d), swell_1: getUV(s1_h, s1_d),
-      swell_2: getUV(s2_h, s2_d), wind_waves: getUV(ww_h, ww_d) });
+      swell_2: getUV(s2_h, s2_d), wind_waves: getUV(ww_h, ww_d),
+      isOcean });
 
     features.push({
       type: 'Feature',
@@ -556,10 +562,15 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const lngMax = Math.ceil((east + padding) / snap) * snap;
 
   // Clamp requested latitudes to Open-Meteo marine API limits [-80, 80]
-  const latMin = Math.max(-80, Math.min(80, latMinRaw));
-  const latMax = Math.max(-80, Math.min(80, latMaxRaw));
+  // v3.10.0: Clamp to guarantee a 0.5 deg span so polar fetches never hit equal-clamped latMax <= latMin early exits.
+  let latMin = Math.max(-80, Math.min(79.5, latMinRaw));
+  let latMax = Math.max(-79.5, Math.min(80, latMaxRaw));
+  if (latMax <= latMin) {
+    latMin = -80;
+    latMax = 80;
+  }
 
-  if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodMarine;
+  if (lngMax <= lngMin) return lastKnownGoodMarine;
 
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
