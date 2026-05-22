@@ -14,11 +14,10 @@ import { findMarineInsertionLayer } from './mapUtils';
  * vector-sharp coastline clipping at all zoom levels, with absolutely zero staircasing or jaggedness.
  *
  * Polygon directionality:
- * Since the source polygons are 'water' bodies and are wound counter-clockwise (CCW)
- * in MapLibre, a positive line-offset shifts the line OUTWARD away from the water (i.e. onto the land).
- * By setting the line-offset to exactly +line-width / 2, the outer boundary of the buffer aligns
- * perfectly with the vector coastline, while the entire width of the buffer line extends inward
- * over the land to cover the coarse 12.5km GFS marine raster bleed.
+ * Since the source polygons are 'water' bodies and are wound clockwise (CW) for outer rings
+ * in standard vector tiles, a negative line-offset shifts the line OUTWARD away from the water (i.e. onto the land).
+ * By setting the line-offset to exactly -line-width / 2, the buffer extends outward onto the land side
+ * to cover the coarse 12.5km GFS marine raster bleed while keeping the ocean water 100% clean and sharp.
  *
  * Layer stack (bottom → top):
  *   [water]                  ← Mapbox base (recolored dynamically)
@@ -133,12 +132,25 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
       const hasLine = !!mapInstance.getLayer(MASK_LINE);
 
       if (active) {
-        // Resolve active vector source dynamically from the map style
+        // Resolve active vector source dynamically from the map style by finding
+        // the vector source that actually contains the 'water' layer.
         let vectorSourceId = 'composite';
-        if (style.sources) {
-          const found = Object.entries(style.sources).find(([_, src]) => src.type === 'vector');
-          if (found) {
-            vectorSourceId = found[0];
+        if (style.layers) {
+          const waterLayer = style.layers.find(l => l['source-layer'] === 'water');
+          if (waterLayer && waterLayer.source) {
+            vectorSourceId = waterLayer.source;
+          } else if (style.sources) {
+            const found = Object.entries(style.sources).find(([id, src]) => 
+              src.type === 'vector' && !id.includes('traffic') && !id.includes('incident')
+            );
+            if (found) {
+              vectorSourceId = found[0];
+            } else {
+              const firstVector = Object.entries(style.sources).find(([_, src]) => src.type === 'vector');
+              if (firstVector) {
+                vectorSourceId = firstVector[0];
+              }
+            }
           }
         }
 
@@ -156,18 +168,20 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
               paint: {
                 'line-color': fillColor,
                 'line-width': ['interpolate', ['linear'], ['zoom'],
-                  1, 8,
-                  5, 22,
-                  7, 12,
-                  9, 0.5,
-                  14, 0.0
+                  1, 6,
+                  4, 6,
+                  5, 8,
+                  7, 14,
+                  8, 18,
+                  9, 0.0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, 4,     // Exactly line-width / 2 to shift outward (onto land)
-                  5, 11,
-                  7, 6,
-                  9, 0.25,
-                  14, 0.0
+                  1, -3,    // Exactly -line-width / 2 to shift outward (onto land)
+                  4, -3,
+                  5, -4,
+                  7, -7,
+                  8, -9,
+                  9, 0.0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   7.5, 1.0,
