@@ -275,10 +275,10 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           paint: {
             'line-color': tc.fill,
             'line-width': ['interpolate', ['linear'], ['zoom'],
-              1, 6, 4, 8, 5, 12, 7, 24, 8, 36, 9, 50, 10, 60, 12, 0.0
+              1, 8, 4, 10, 5, 14, 7, 30, 8, 44, 9, 64, 10, 80, 12, 0.0
             ],
             'line-offset': ['interpolate', ['linear'], ['zoom'],
-              1, 3, 4, 4, 5, 6, 7, 12, 8, 18, 9, 25, 10, 30, 12, 0.0
+              1, 4, 4, 5, 5, 7, 7, 15, 8, 22, 9, 32, 10, 40, 12, 0.0
             ],
             'line-opacity': ['interpolate', ['linear'], ['zoom'],
               7.5, 1.0, 10.0, 1.0, 12.0, 0.0

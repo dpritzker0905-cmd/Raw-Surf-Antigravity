@@ -143,8 +143,8 @@ export var findMarineInsertionLayer = function(mapInstance) {
   var fallbackId = null;
 
   // Priority tiers: find the best layer to insert marine rasters before.
-  // Tier 1: Explicit land-fill layers (highest priority — these draw land polygons)
-  var landFillPrefixes = ['land-structure', 'landuse', 'landcover'];
+  // Tier 1: land-structure layers (ideal — sits above water/landcover, below roads)
+  var landFillPrefixes = ['land-structure'];
   // Tier 2: Transportation layers (lower priority — above land, below labels)
   var transportPrefixes = ['tunnel-', 'road-', 'bridge-', 'aeroway', 'highway-', 'railway-'];
   // Tier 3: Other structural layers
