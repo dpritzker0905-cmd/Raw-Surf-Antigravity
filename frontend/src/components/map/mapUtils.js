@@ -486,8 +486,8 @@ export function safeMoveLayer(mapInstance, layerId, beforeId) {
     const layerIdx = layers.findIndex(l => l.id === layerId);
     const beforeIdx = layers.findIndex(l => l.id === beforeId);
     if (layerIdx !== -1 && beforeIdx !== -1) {
-      if (layerIdx === beforeIdx - 1) {
-        return; // Already immediately before beforeId
+      if (layerIdx < beforeIdx) {
+        return; // Already before beforeId (completely avoids styledata loops)
       }
     }
     mapInstance.moveLayer(layerId, beforeId);

@@ -55,45 +55,7 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0, ocean: 'rgba(173, 213, 242, 0.90)' },
 };
 
-// Beautiful low-end wave/swell color scale matching for smooth nearshore blending
-const MARINE_BUFFER_COLORS = {
-  waves: 'rgba(34, 211, 238, 0.70)',       // Cyan matching 0.6m–1.2m waves
-  swell_1: 'rgba(34, 211, 238, 0.70)',     // Cyan matching swell_1 scale
-  swell_2: 'rgba(192, 132, 252, 0.60)',    // Lavender matching secondary swell scale
-  wind_waves: 'rgba(20, 184, 166, 0.65)',  // Soft teal matching wind wave scale
-};
 
-const landuseKeywords = ['landuse', 'park', 'wood', 'forest', 'glacier', 'sand', 'pitch', 'grass', 'cemetery', 'hospital', 'school', 'university'];
-
-
-
-// Reposition base map landuse/park fills dynamically on top of the solid land mask
-const repositionLanduse = (mapInstance) => {
-  if (!mapInstance) return;
-  try {
-    const style = mapInstance.getStyle();
-    if (!style || !style.layers) return;
-    const layers = style.layers;
-
-    const maskFillIdx = layers.findIndex(l => l.id === MASK_FILL);
-    if (maskFillIdx === -1) return;
-
-    // Use MASK_INLAND_WATER or MASK_LINE as the anchor boundary
-    const anchorId = mapInstance.getLayer(MASK_INLAND_WATER) ? MASK_INLAND_WATER : (mapInstance.getLayer(MASK_LINE) ? MASK_LINE : null);
-    if (!anchorId) return;
-
-    for (let i = 0; i < maskFillIdx; i++) {
-      const layer = layers[i];
-      const id = layer.id.toLowerCase();
-      const isLanduse = landuseKeywords.some(kw => id.includes(kw));
-      if (isLanduse && layer.type === 'fill') {
-        safeMoveLayer(mapInstance, layer.id, anchorId);
-      }
-    }
-  } catch (e) {
-    console.warn('[OceanMask] Failed to reposition landuse layers:', e);
-  }
-};
 
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
@@ -225,10 +187,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
         const fillColor = tc.fill;
         
-        // Dynamically recolor the buffer based on the active marine layer to hide nearshore GFS gaps
-        const oceanColor = (activeMarineLayer && MARINE_BUFFER_COLORS[activeMarineLayer])
-          ? MARINE_BUFFER_COLORS[activeMarineLayer]
-          : (tc.ocean || 'rgba(16, 29, 43, 0.90)');
+
 
         // Resolve base vector water properties from the Mapbox style dynamically
         let waterSource = 'composite';
@@ -263,7 +222,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               type: 'line',
               source: MASK_SOURCE,
               paint: {
-                'line-color': oceanColor,
+                'line-color': fillColor,
                 'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
                   1, 10,
                   3, 16,
@@ -302,7 +261,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         } else {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
-            safeSetPaintProperty(mapInstance, MASK_BUFFER, 'line-color', oceanColor);
+            safeSetPaintProperty(mapInstance, MASK_BUFFER, 'line-color', fillColor);
           } catch (e) {}
         }
 
@@ -412,14 +371,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           } catch (e) {}
         }
 
-        // 6. Dynamically restore base map parks, forests, and green space fills
-        repositionLanduse(mapInstance);
 
-        // 7. Force slot-based active marine raster layers BELOW MASK_BUFFER
-        const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-        for (const ml of marineLayers) {
-          safeMoveLayer(mapInstance, ml, MASK_BUFFER);
-        }
 
       } else {
         // Active is false: remove all layers immediately and synchronously
@@ -496,20 +448,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     };
   }, [mapInstance, triggerSync]);
 
-  // Dedicated marine-raster repositioning listener to ensure slots sit below buffer
-  useEffect(() => {
-    if (!mapInstance) return;
-    const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-    const repositionLayers = () => {
-      const { active } = stateRef.current;
-      if (!active || !mapInstance.getLayer(MASK_BUFFER)) return;
-      for (const ml of marineRasterLayers) {
-        safeMoveLayer(mapInstance, ml, MASK_BUFFER);
-      }
-    };
-    mapInstance.on('styledata', repositionLayers);
-    return () => mapInstance.off('styledata', repositionLayers);
-  }, [mapInstance]);
+
 
   // Unmount cleanup
   useEffect(() => {

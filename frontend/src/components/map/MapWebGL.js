@@ -413,33 +413,7 @@ var MapWebGL = ({
     return () => mapInstance.off('styledata', onStyleData);
   }, [mapInstance]);
 
-  // v91: Reposition marine rasters below mask on every styledata, time/layer change, and via a safe fallback interval (fixes React timeline playback race conditions)
-  useEffect(() => {
-    if (!mapInstance) return;
-    const mlIds = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-    const reposition = () => {
-      const ref = mapInstance.getLayer('ocean-mask-buffer')
-        ? 'ocean-mask-buffer'
-        : (mapInstance.getLayer('marine-raster-anchor') ? 'marine-raster-anchor' : null);
-      if (!ref) return;
-      for (const ml of mlIds) {
-        if (mapInstance.getLayer(ml)) {
-          try {
-            safeMoveLayer(mapInstance, ml, ref);
-          } catch (e) {
-            // Layer might not be fully loaded or ready to move yet
-          }
-        }
-      }
-    };
-    reposition();
-    mapInstance.on('styledata', reposition);
-    const interval = setInterval(reposition, 200);
-    return () => {
-      mapInstance.off('styledata', reposition);
-      clearInterval(interval);
-    };
-  }, [mapInstance, activeLayers, closestTimeIdx, maskLandExists]);
+
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 
@@ -641,7 +615,11 @@ var MapWebGL = ({
             >
               <Layer
                 id={`${slotKey}-layer`}
-                beforeId={undefined}
+                beforeId={
+                  LAYER_REGISTRY[layerKey]?.type === 'marine'
+                    ? (maskLandExists ? 'ocean-mask-buffer' : marineBeforeId) || undefined
+                    : undefined
+                }
                 type="raster"
                 layout={{ 
                   visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
@@ -666,8 +644,8 @@ var MapWebGL = ({
                   ) : 0.0,
                   'raster-resampling': 'linear',
                   'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
-                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.10 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.12 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
+                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
+                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
                   'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
                   'raster-fade-duration': 0 // Instant transition between slots
                 }}
