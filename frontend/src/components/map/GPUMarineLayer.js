@@ -298,10 +298,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const zoom = mapInstance.getZoom();
       const landPolys = landPolygonsRef.current;
 
-      // Force particles to stay inactive (dummy state) if land mask is not loaded yet
-      if (!landPolys || landPolys.length === 0) {
-        return { lng: 0, lat: 0, age: 0, maxAge: 0.1, dashLen: 0, phase: 999, energy: 0, noiseSeed: 0 };
-      }
+      const hasLandMask = landPolys && landPolys.length > 0;
 
       // Calculate the true visible longitude width (handles continuous bounds beautifully)
       let lngWidth = east - west;
@@ -313,7 +310,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (lng < -180) lng += 360;
 
         const lat = south + Math.random() * (north - south);
-        if (isCoordOnLand(lng, lat, landPolys)) continue;
+        if (hasLandMask && isCoordOnLand(lng, lat, landPolys)) continue;
         if (!isLikelyOcean(lat, lng, grid)) continue;
 
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
@@ -390,9 +387,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
       // Dynamic zoom-based active particle limits to ensure flawless panning performance
       let activeFraction = 1.0;
-      if (zoom < 3) activeFraction = 0.12;
-      else if (zoom < 5) activeFraction = 0.30;
-      else if (zoom < 7) activeFraction = 0.60;
+      if (zoom < 3) activeFraction = 0.50;
+      else if (zoom < 5) activeFraction = 0.65;
+      else if (zoom < 7) activeFraction = 0.80;
 
       const activeCount = Math.round(pts.length * activeFraction);
 
@@ -450,7 +447,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // Wave density scaling: absolutely 0 waves if speed <= 0.01, else scale up by wave height
         const h = Number.isFinite(wave.speed) ? wave.speed : 0;
         if (h <= 0.01) continue;
-        const densityFactor = Math.min(1.0, Math.pow(h / 2.5, 0.9));
+        const densityFactor = Math.min(1.0, Math.pow(h / 4.0, 0.7));
         if (p.phase > densityFactor) continue;
 
         // --- DRAW FOAM CREST DASH ---
