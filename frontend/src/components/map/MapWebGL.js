@@ -430,15 +430,25 @@ var MapWebGL = ({
   // v85: Find the first layer after water for marine raster insertion.
   // Marine rasters sit above water fills, then OceanMask covers land bleed.
   const [marineBeforeId, setMarineBeforeId] = useState(null);
-  const [maskLandExists, setMaskLandExists] = useState(false);
-  const [maskBufferExists, setMaskBufferExists] = useState(false);
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
-      setMaskLandExists(!!mapInstance.getLayer('ocean-mask-land'));
-      setMaskBufferExists(!!mapInstance.getLayer('ocean-mask-buffer'));
-      var id = findMarineInsertionLayer(mapInstance);
-      if (id) setMarineBeforeId(id);
+      const id = findMarineInsertionLayer(mapInstance);
+      if (id) {
+        setMarineBeforeId(id);
+        if (!mapInstance.getLayer('marine-raster-anchor')) {
+          try {
+            mapInstance.addLayer({
+              id: 'marine-raster-anchor',
+              type: 'background',
+              layout: { visibility: 'none' }
+            }, id);
+            console.log('[MapWebGL] Added marine-raster-anchor before', id);
+          } catch (e) {
+            console.error('[MapWebGL] Failed to add marine-raster-anchor:', e);
+          }
+        }
+      }
     };
     mapInstance.on('styledata', onStyleData);
     onStyleData();
@@ -647,7 +657,7 @@ var MapWebGL = ({
                 id={`${slotKey}-layer`}
                 beforeId={
                   LAYER_REGISTRY[layerKey]?.type === 'marine'
-                    ? (maskLandExists ? 'ocean-mask-land' : maskBufferExists ? 'ocean-mask-buffer' : marineBeforeId) || undefined
+                    ? 'marine-raster-anchor'
                     : undefined
                 }
                 type="raster"
@@ -691,6 +701,7 @@ var MapWebGL = ({
         mapInstance={mapInstance}
         activeMarineLayer={activeMarineLayer}
         theme={theme}
+        beforeId={marineBeforeId}
       />
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}

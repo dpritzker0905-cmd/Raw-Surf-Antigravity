@@ -1,4 +1,4 @@
-﻿/*
+/*
 ====================================================
  Raw Surf OS Wave Height Color Ramp
  VISUALIZATION MAPPING FOR WAVE/SWELL DATA
@@ -36,21 +36,38 @@ var WAVE_HEIGHT_STOPS = [
  */
 function getWaveColor(height) {
   var stops = WAVE_HEIGHT_STOPS;
-  if (height <= stops[0][0]) {
-    return { r: stops[0][1], g: stops[0][2], b: stops[0][3], a: stops[0][4] };
+  if (!stops || stops.length === 0) {
+    return { r: 0, g: 0, b: 0, a: 0 };
   }
-  if (height >= stops[stops.length - 1][0]) {
+  var queryHeight = typeof height === 'number' && !isNaN(height) ? height : 0;
+
+  if (queryHeight <= stops[0][0]) {
+    return {
+      r: stops[0][1] !== undefined ? stops[0][1] : 0,
+      g: stops[0][2] !== undefined ? stops[0][2] : 0,
+      b: stops[0][3] !== undefined ? stops[0][3] : 0,
+      a: stops[0][4] !== undefined ? stops[0][4] : 255,
+    };
+  }
+  if (queryHeight >= stops[stops.length - 1][0]) {
     var last = stops[stops.length - 1];
-    return { r: last[1], g: last[2], b: last[3], a: last[4] };
+    return {
+      r: last[1] !== undefined ? last[1] : 0,
+      g: last[2] !== undefined ? last[2] : 0,
+      b: last[3] !== undefined ? last[3] : 0,
+      a: last[4] !== undefined ? last[4] : 255,
+    };
   }
   for (var i = 0; i < stops.length - 1; i++) {
-    if (height >= stops[i][0] && height < stops[i + 1][0]) {
-      var t = (height - stops[i][0]) / (stops[i + 1][0] - stops[i][0]);
+    if (stops[i] && stops[i + 1] && queryHeight >= stops[i][0] && queryHeight < stops[i + 1][0]) {
+      var diff = stops[i + 1][0] - stops[i][0];
+      var t = diff > 0 ? (queryHeight - stops[i][0]) / diff : 0;
+      if (isNaN(t)) t = 0;
       return {
-        r: Math.round(stops[i][1] + (stops[i + 1][1] - stops[i][1]) * t),
-        g: Math.round(stops[i][2] + (stops[i + 1][2] - stops[i][2]) * t),
-        b: Math.round(stops[i][3] + (stops[i + 1][3] - stops[i][3]) * t),
-        a: Math.round(stops[i][4] + (stops[i + 1][4] - stops[i][4]) * t),
+        r: Math.round((stops[i][1] !== undefined ? stops[i][1] : 0) + ((stops[i + 1][1] !== undefined ? stops[i + 1][1] : 0) - (stops[i][1] !== undefined ? stops[i][1] : 0)) * t),
+        g: Math.round((stops[i][2] !== undefined ? stops[i][2] : 0) + ((stops[i + 1][2] !== undefined ? stops[i + 1][2] : 0) - (stops[i][2] !== undefined ? stops[i][2] : 0)) * t),
+        b: Math.round((stops[i][3] !== undefined ? stops[i][3] : 0) + ((stops[i + 1][3] !== undefined ? stops[i + 1][3] : 0) - (stops[i][3] !== undefined ? stops[i][3] : 0)) * t),
+        a: Math.round((stops[i][4] !== undefined ? stops[i][4] : 255) + ((stops[i + 1][4] !== undefined ? stops[i + 1][4] : 255) - (stops[i][4] !== undefined ? stops[i][4] : 255)) * t),
       };
     }
   }
@@ -63,15 +80,16 @@ function getWaveColor(height) {
  * @returns {Uint8Array} 256*4 RGBA data
  */
 function generateWaveRampData(maxHeight) {
-  if (maxHeight === undefined) maxHeight = 10;
+  var maxH = typeof maxHeight === 'number' && !isNaN(maxHeight) ? maxHeight : 10;
   var data = new Uint8Array(256 * 4);
   for (var i = 0; i < 256; i++) {
-    var h = (i / 255) * maxHeight;
+    var h = (i / 255) * maxH;
     var c = getWaveColor(h);
-    data[i * 4 + 0] = c.r;
-    data[i * 4 + 1] = c.g;
-    data[i * 4 + 2] = c.b;
-    data[i * 4 + 3] = c.a;
+    if (!c) c = { r: 0, g: 0, b: 0, a: 0 };
+    data[i * 4 + 0] = c.r !== undefined ? c.r : 0;
+    data[i * 4 + 1] = c.g !== undefined ? c.g : 0;
+    data[i * 4 + 2] = c.b !== undefined ? c.b : 0;
+    data[i * 4 + 3] = c.a !== undefined ? c.a : 0;
   }
   return data;
 }

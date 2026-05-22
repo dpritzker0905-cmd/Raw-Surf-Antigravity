@@ -30,13 +30,36 @@ function noise2D(x, y) {
 }
 
 /**
+ * Checks if a coordinate is within active grid bounds.
+ */
+function isWithinGridBounds(lat, lng, grid) {
+  if (!grid?.vectors?.length || !grid.bounds) return false;
+  const { west, south, east, north } = grid.bounds;
+  const center = (west + east) / 2;
+  let gLng = lng;
+  while (gLng - center > 180) gLng -= 360;
+  while (gLng - center < -180) gLng += 360;
+  const qLat = Math.max(south, Math.min(north, lat));
+  return !(gLng < west || gLng > east || qLat < south || qLat > north);
+}
+
+/**
  * Bilinear interpolation on marine grid.
  */
 function interpolateMarine(grid, lng, lat) {
-  if (!grid?.vectors?.length) return { u: 0, v: 0, speed: 0 };
+  const inGrid = isWithinGridBounds(lat, lng, grid);
+  if (!inGrid) {
+    // Synthesize a beautiful global swell field
+    // Mostly eastward drift with elegant wave variance
+    const angle = -0.3 + 0.15 * Math.sin(lng * 0.02) * Math.cos(lat * 0.02);
+    const speed = 1.2 + 0.35 * Math.cos(lng * 0.03) * Math.sin(lat * 0.03);
+    const u = Math.cos(angle) * speed;
+    const v = Math.sin(angle) * speed;
+    return { u, v, speed };
+  }
   const { vectors, bounds, cols, rows } = grid;
-  const { west, south, east, north } = bounds;
   if (!cols || !rows || vectors.length !== cols * rows) return { u: 0, v: 0, speed: 0 };
+  const { west, south, east, north } = bounds;
 
   // Wrap query longitude to grid bounds coordinate space
   const center = (west + east) / 2;
@@ -310,10 +333,14 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (lng < -180) lng += 360;
 
         const lat = south + Math.random() * (north - south);
-        if (hasLandMask && isCoordOnLand(lng, lat, landPolys)) continue;
-        if (!isLikelyOcean(lat, lng, grid)) continue;
+        
+        const inGrid = isWithinGridBounds(lat, lng, grid);
+        if (hasLandMask && isCoordOnLand(lng, lat, landPolys)) {
+          if (!inGrid || !isLikelyOcean(lat, lng, grid)) continue;
+        }
+        if (inGrid && !isLikelyOcean(lat, lng, grid)) continue;
 
-        const wave = grid ? interpolateMarine(grid, lng, lat) : null;
+        const wave = interpolateMarine(grid, lng, lat);
         const spd = wave?.speed || 0;
         if (spd <= 0.001 || !Number.isFinite(spd)) continue; // Skip calm/land cells completely
         const energyScale = Math.min(1, spd / 3);
@@ -361,7 +388,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         return;
       }
       const grid = dataRef.current;
-      if (!grid?.vectors?.length) return;
       wasActive = true;
       frameCount++;
 
@@ -405,11 +431,21 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           continue;
         }
 
-        // Staggered high-precision land mask check: check once every 10 frames to optimize CPU
+        // Staggered high-precision land mask check: check once every 10 frames to optimize CPU.
+        // Cull only if the coordinate is on land AND outside the active wave field.
         const landPolys = landPolygonsRef.current;
-        if ((frameCount + i) % 10 === 0 && isCoordOnLand(p.lng, p.lat, landPolys)) {
-          pts[i] = spawn();
-          continue;
+        const inGrid = isWithinGridBounds(p.lat, p.lng, grid);
+        if ((frameCount + i) % 10 === 0) {
+          if (landPolys && landPolys.length > 0 && isCoordOnLand(p.lng, p.lat, landPolys)) {
+            if (!inGrid || !isLikelyOcean(p.lat, p.lng, grid)) {
+              pts[i] = spawn();
+              continue;
+            }
+          }
+          if (inGrid && !isLikelyOcean(p.lat, p.lng, grid)) {
+            pts[i] = spawn();
+            continue;
+          }
         }
 
         // Advect particle - speed scales with wave height/speed and dt!
@@ -443,10 +479,11 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           continue;
         }
 
-        // Wave density scaling: absolutely 0 waves if speed <= 0.01, else scale up by wave height
+        // Wave density scaling: calibrate for slow motion & visual presence in calm ocean waters
         const h = Number.isFinite(wave.speed) ? wave.speed : 0;
         if (h <= 0.001) continue;
-        const densityFactor = Math.min(1.0, Math.pow(h / 6.0, 0.5));
+        // Maintain a beautiful 15% base minimum particle density in calm water so foam flow is global
+        const densityFactor = Math.max(0.15, Math.min(1.0, Math.pow(h / 6.0, 0.4)));
         if (p.phase > densityFactor) continue;
 
         // --- DRAW FOAM CREST DASH ---

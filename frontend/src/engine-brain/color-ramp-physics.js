@@ -1,4 +1,4 @@
-﻿/*
+/*
 ====================================================
  Raw Surf OS Color Ramp Physics System
  LUT-BASED SHADER COLOR MAPPING
@@ -25,22 +25,34 @@ var/function only (TDZ-immune)
  */
 function sampleLUT(lut, t) {
   if (!lut || lut.length === 0) return { r: 0, g: 0, b: 0, a: 1 };
-  var clamped = Math.max(0, Math.min(1, t));
+  var queryVal = typeof t === 'number' && !isNaN(t) ? t : 0;
+  var clamped = Math.max(0, Math.min(1, queryVal));
 
   // Find surrounding stops
   var lower = lut[0];
   var upper = lut[lut.length - 1];
 
   for (var i = 0; i < lut.length - 1; i++) {
-    if (clamped >= lut[i].t && clamped <= lut[i + 1].t) {
+    if (lut[i] && lut[i + 1] && clamped >= lut[i].t && clamped <= lut[i + 1].t) {
       lower = lut[i];
       upper = lut[i + 1];
       break;
     }
   }
 
+  if (!lower || !upper || lower.r === undefined || upper.r === undefined) {
+    var fallback = lower || upper || { r: 0, g: 0, b: 0, a: 1 };
+    return {
+      r: fallback.r !== undefined ? fallback.r : 0,
+      g: fallback.g !== undefined ? fallback.g : 0,
+      b: fallback.b !== undefined ? fallback.b : 0,
+      a: fallback.a !== undefined ? fallback.a : 1,
+    };
+  }
+
   var range = upper.t - lower.t;
   var frac = range > 0 ? (clamped - lower.t) / range : 0;
+  if (isNaN(frac)) frac = 0;
 
   return {
     r: Math.round(lower.r + (upper.r - lower.r) * frac),
@@ -63,10 +75,11 @@ function lutToTexture(lut, size) {
   for (var i = 0; i < size; i++) {
     var t = i / (size - 1);
     var c = sampleLUT(lut, t);
-    data[i * 4] = c.r / 255;
-    data[i * 4 + 1] = c.g / 255;
-    data[i * 4 + 2] = c.b / 255;
-    data[i * 4 + 3] = c.a;
+    if (!c) c = { r: 0, g: 0, b: 0, a: 1 };
+    data[i * 4] = (c.r !== undefined ? c.r : 0) / 255;
+    data[i * 4 + 1] = (c.g !== undefined ? c.g : 0) / 255;
+    data[i * 4 + 2] = (c.b !== undefined ? c.b : 0) / 255;
+    data[i * 4 + 3] = c.a !== undefined ? c.a : 1;
   }
   return data;
 }
