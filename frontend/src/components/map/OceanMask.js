@@ -8,7 +8,7 @@ import {
 } from './mapUtils';
 
 /**
- * OceanMask v17 — Premium GeoJSON Land Masking & Loop-Proof Coastal Blending.
+ * OceanMask v18 — Premium GeoJSON Land Masking & Loop-Proof Coastal Blending.
  *
  * This version completely resolves the land feature occlusion (covered lakes/parks)
  * by restoring the solid land fill layer (ocean-mask-fill) to mask the GFS grid bleed
@@ -63,16 +63,26 @@ const repositionLanduse = (mapInstance) => {
     const maskFillIdx = layers.findIndex(l => l.id === MASK_FILL);
     if (maskFillIdx === -1) return;
 
-    // Use MASK_INLAND_WATER or MASK_LINE as the anchor boundary
+    // Use MASK_INLAND_WATER as the anchor boundary
     const anchorId = mapInstance.getLayer(MASK_INLAND_WATER) ? MASK_INLAND_WATER : (mapInstance.getLayer(MASK_LINE) ? MASK_LINE : null);
     if (!anchorId) return;
 
-    for (let i = 0; i < maskFillIdx; i++) {
-      const layer = layers[i];
+    const anchorIdx = layers.findIndex(l => l.id === anchorId);
+    if (anchorIdx === -1) return;
+
+    for (const layer of layers) {
       const id = layer.id.toLowerCase();
       const isLanduse = landuseKeywords.some(kw => id.includes(kw));
       if (isLanduse && layer.type === 'fill') {
-        safeMoveLayer(mapInstance, layer.id, anchorId);
+        const layerIdx = layers.findIndex(l => l.id === layer.id);
+        if (layerIdx !== -1) {
+          // Sweet spot: ABOVE MASK_FILL (layerIdx > maskFillIdx) AND BEFORE anchorId (layerIdx < anchorIdx)
+          // If already in this sweet spot, DO NOT MOVE to completely prevent any styledata reflow loops!
+          if (layerIdx > maskFillIdx && layerIdx < anchorIdx) {
+            continue;
+          }
+          mapInstance.moveLayer(layer.id, anchorId);
+        }
       }
     }
   } catch (e) {
