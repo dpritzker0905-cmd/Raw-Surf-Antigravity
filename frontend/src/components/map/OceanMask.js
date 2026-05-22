@@ -216,9 +216,8 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
             'fill-color': tc.fill,
             'fill-opacity': [
               'interpolate', ['linear'], ['zoom'],
-              2, 1.0, 8, 1.0, 9.5, 0.0
+              2, 1.0, 8.5, 1.0, 9.5, 0.0
             ],
-            'fill-antialias': false,
           },
         }, insertBeforeId || undefined);
       } catch (e) {
@@ -240,10 +239,10 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           paint: {
             'line-color': targetOceanColor,
             'line-width': ['interpolate', ['linear'], ['zoom'],
-              1, 4, 4, 6, 5, 8, 7, 14, 8, 20, 9, 28, 10, 36, 12, 0.0
+              1, 6, 4, 8, 5, 12, 7, 24, 8, 36, 9, 50, 10, 60, 12, 0.0
             ],
             'line-offset': ['interpolate', ['linear'], ['zoom'],
-              1, -2, 4, -3, 5, -4, 7, -7, 8, -10, 9, -14, 10, -18, 12, 0.0
+              1, -3, 4, -4, 5, -6, 7, -12, 8, -18, 9, -25, 10, -30, 12, 0.0
             ],
             'line-opacity': ['interpolate', ['linear'], ['zoom'],
               7.5, 1.0, 10.0, 1.0, 12.0, 0.0
@@ -276,10 +275,10 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           paint: {
             'line-color': tc.fill,
             'line-width': ['interpolate', ['linear'], ['zoom'],
-              1, 4, 4, 6, 5, 8, 7, 14, 8, 20, 9, 28, 10, 36, 12, 0.0
+              1, 6, 4, 8, 5, 12, 7, 24, 8, 36, 9, 50, 10, 60, 12, 0.0
             ],
             'line-offset': ['interpolate', ['linear'], ['zoom'],
-              1, 2, 4, 3, 5, 4, 7, 7, 8, 10, 9, 14, 10, 18, 12, 0.0
+              1, 3, 4, 4, 5, 6, 7, 12, 8, 18, 9, 25, 10, 30, 12, 0.0
             ],
             'line-opacity': ['interpolate', ['linear'], ['zoom'],
               7.5, 1.0, 10.0, 1.0, 12.0, 0.0
