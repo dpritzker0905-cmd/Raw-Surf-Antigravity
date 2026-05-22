@@ -169,13 +169,13 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
                   12, 0.0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, 5,   // Exactly line-width / 2 to shift inward (into water)
-                  4, 6,
-                  5, 8,
-                  7, 18,
-                  8, 27,
-                  9, 40,
-                  10, 50,
+                  1, -5,   // Exactly -line-width / 2 to shift inward (into water)
+                  4, -6,
+                  5, -8,
+                  7, -18,
+                  8, -27,
+                  9, -40,
+                  10, -50,
                   12, 0.0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
@@ -210,13 +210,13 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
               12, 0.0
             ]);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-offset', ['interpolate', ['linear'], ['zoom'],
-              1, 5,
-              4, 6,
-              5, 8,
-              7, 18,
-              8, 27,
-              9, 40,
-              10, 50,
+              1, -5,
+              4, -6,
+              5, -8,
+              7, -18,
+              8, -27,
+              9, -40,
+              10, -50,
               12, 0.0
             ]);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
