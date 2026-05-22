@@ -430,11 +430,11 @@ var MapWebGL = ({
   // v85: Find the first layer after water for marine raster insertion.
   // Marine rasters sit above water fills, then OceanMask covers land bleed.
   const [marineBeforeId, setMarineBeforeId] = useState(null);
-  const [maskBufferExists, setMaskBufferExists] = useState(false);
+  const [maskLandExists, setMaskLandExists] = useState(false);
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
-      setMaskBufferExists(!!mapInstance.getLayer('ocean-mask-buffer'));
+      setMaskLandExists(!!mapInstance.getLayer('ocean-mask-land'));
       const id = findMarineInsertionLayer(mapInstance);
       if (id) {
         setMarineBeforeId(id);
@@ -462,8 +462,9 @@ var MapWebGL = ({
     if (!mapInstance) return;
     const mlIds = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
     const reposition = () => {
-      const ref = mapInstance.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer'
-                : mapInstance.getLayer('ocean-mask-land') ? 'ocean-mask-land' : null;
+      const ref = mapInstance.getLayer('ocean-mask-land') ? 'ocean-mask-land'
+                : mapInstance.getLayer('ocean-mask-land-buffer') ? 'ocean-mask-land-buffer'
+                : mapInstance.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer' : null;
       if (!ref) return;
       for (const ml of mlIds) { if (mapInstance.getLayer(ml)) { try { mapInstance.moveLayer(ml, ref); } catch(e){} } }
     };
@@ -673,7 +674,7 @@ var MapWebGL = ({
                 id={`${slotKey}-layer`}
                 beforeId={
                   LAYER_REGISTRY[layerKey]?.type === 'marine'
-                    ? (maskBufferExists ? 'ocean-mask-buffer' : 'marine-raster-anchor') || undefined
+                    ? (maskLandExists ? 'ocean-mask-land' : 'marine-raster-anchor') || undefined
                     : undefined
                 }
                 type="raster"
