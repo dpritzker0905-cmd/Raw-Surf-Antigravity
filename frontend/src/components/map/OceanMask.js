@@ -14,10 +14,10 @@ import { findMarineInsertionLayer } from './mapUtils';
  * vector-sharp coastline clipping at all zoom levels, with absolutely zero staircasing or jaggedness.
  *
  * Polygon directionality:
- * Since the source polygons are 'water' bodies and are wound clockwise (CW) for outer rings
- * in standard vector tiles, a negative line-offset shifts the line OUTWARD away from the water (i.e. onto the land).
- * By setting the line-offset to exactly -line-width / 2, the buffer extends outward onto the land side
- * to cover the coarse 12.5km GFS marine raster bleed while keeping the ocean water 100% clean and sharp.
+ * Since the source polygons are 'water' bodies and are wound counter-clockwise (CCW) for outer rings
+ * in MapLibre GL JS runtime parsing, a negative line-offset shifts the line INWARD (into water).
+ * By setting the line-offset to exactly -line-width / 2, the buffer extends inward onto the water side
+ * to cover the coarse GFS marine raster staircasing while keeping the land 100% clean and unmasked.
  *
  * Layer stack (bottom → top):
  *   [water]                  ← Mapbox base (recolored dynamically)
@@ -93,13 +93,13 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
   const syncLayers = useCallback(() => {
     if (!mapInstance) return;
 
+    const oceanColors = active ? (THEME_OCEAN_COLORS[activeMarineLayer] || THEME_OCEAN_COLORS.default) : THEME_OCEAN_COLORS.default;
+    const targetOceanColor = oceanColors[theme] || oceanColors.dark;
+
     // Base map water layers dynamic recoloring
     try {
       const style = mapInstance.getStyle();
       if (style && style.layers) {
-        const oceanColors = active ? (THEME_OCEAN_COLORS[activeMarineLayer] || THEME_OCEAN_COLORS.default) : THEME_OCEAN_COLORS.default;
-        const targetOceanColor = oceanColors[theme] || oceanColors.dark;
-
         style.layers.forEach(layer => {
           if (layer.type === 'fill' && 
               (layer.id === 'water' || layer.id.includes('water')) && 
@@ -147,9 +147,8 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
         }
 
         const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
-        const fillColor = tc.fill;
 
-        // Layer 1: Coastline buffer shifted OUTWARD (onto land) to cover GFS bleed beautifully
+        // Layer 1: Coastline buffer shifted INWARD (into water) to mask GFS staircasing beautifully
         if (!hasBuf) {
           try {
             mapInstance.addLayer({
@@ -158,7 +157,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
               source: vectorSourceId,
               'source-layer': 'water',
               paint: {
-                'line-color': fillColor,
+                'line-color': targetOceanColor,
                 'line-width': ['interpolate', ['linear'], ['zoom'],
                   1, 6,
                   4, 6,
@@ -168,7 +167,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
                   9, 0.0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, -3,    // Exactly -line-width / 2 to shift outward (onto land)
+                  1, -3,   // Exactly -line-width / 2 to shift inward (into water)
                   4, -3,
                   5, -4,
                   7, -7,
@@ -193,7 +192,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
         } else {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
-            mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', fillColor);
+            mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', targetOceanColor);
           } catch (e) {}
         }
 
