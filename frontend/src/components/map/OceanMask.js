@@ -159,29 +159,35 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
               paint: {
                 'line-color': targetOceanColor,
                 'line-width': ['interpolate', ['linear'], ['zoom'],
-                  1, 6,
-                  4, 6,
-                  5, 8,
-                  7, 14,
-                  8, 18,
-                  9, 0.0
+                  1, 10,
+                  4, 12,
+                  5, 16,
+                  7, 36,
+                  8, 54,
+                  9, 80,
+                  10, 100,
+                  12, 0.0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, -3,   // Exactly -line-width / 2 to shift inward (into water)
-                  4, -3,
-                  5, -4,
-                  7, -7,
-                  8, -9,
-                  9, 0.0
+                  1, 5,   // Exactly line-width / 2 to shift inward (into water)
+                  4, 6,
+                  5, 8,
+                  7, 18,
+                  8, 27,
+                  9, 40,
+                  10, 50,
+                  12, 0.0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   7.5, 1.0,
-                  9.0, 0.0
+                  10.0, 1.0,
+                  12.0, 0.0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
                   2, 2.0,
-                  7.5, 1.5,
-                  9.0, 0.0
+                  7.5, 3.0,
+                  10.0, 4.0,
+                  12.0, 0.0
                 ],
               },
               layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -193,6 +199,37 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', targetOceanColor);
+            mapInstance.setPaintProperty(MASK_BUFFER, 'line-width', ['interpolate', ['linear'], ['zoom'],
+              1, 10,
+              4, 12,
+              5, 16,
+              7, 36,
+              8, 54,
+              9, 80,
+              10, 100,
+              12, 0.0
+            ]);
+            mapInstance.setPaintProperty(MASK_BUFFER, 'line-offset', ['interpolate', ['linear'], ['zoom'],
+              1, 5,
+              4, 6,
+              5, 8,
+              7, 18,
+              8, 27,
+              9, 40,
+              10, 50,
+              12, 0.0
+            ]);
+            mapInstance.setPaintProperty(MASK_BUFFER, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
+              7.5, 1.0,
+              10.0, 1.0,
+              12.0, 0.0
+            ]);
+            mapInstance.setPaintProperty(MASK_BUFFER, 'line-blur', ['interpolate', ['linear'], ['zoom'],
+              2, 2.0,
+              7.5, 3.0,
+              10.0, 4.0,
+              12.0, 0.0
+            ]);
           } catch (e) {}
         }
 
@@ -211,7 +248,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   7.5, 0.8,
-                  9.0, 0.0
+                  12.0, 0.0
                 ],
                 'line-blur': 0.5,
               },
@@ -223,6 +260,14 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
         } else {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
+            mapInstance.setPaintProperty(MASK_LINE, 'line-color', tc.line);
+            mapInstance.setPaintProperty(MASK_LINE, 'line-width', ['interpolate', ['linear'], ['zoom'],
+              2, tc.lw * 0.5, 6, tc.lw, 10, tc.lw * 1.5,
+            ]);
+            mapInstance.setPaintProperty(MASK_LINE, 'line-opacity', ['interpolate', ['linear'], ['zoom'],
+              7.5, 0.8,
+              12.0, 0.0
+            ]);
           } catch (e) {}
         }
 
