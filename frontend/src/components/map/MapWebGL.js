@@ -457,7 +457,7 @@ var MapWebGL = ({
     return () => mapInstance.off('styledata', onStyleData);
   }, [mapInstance]);
 
-  // v91: Reposition marine rasters below mask on every styledata (fixes React race condition)
+  // v91: Reposition marine rasters below mask on every styledata, time/layer change, and via a safe fallback interval (fixes React timeline playback race conditions)
   useEffect(() => {
     if (!mapInstance) return;
     const mlIds = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
@@ -466,11 +466,22 @@ var MapWebGL = ({
                 : mapInstance.getLayer('ocean-mask-land-buffer') ? 'ocean-mask-land-buffer'
                 : mapInstance.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer' : null;
       if (!ref) return;
-      for (const ml of mlIds) { if (mapInstance.getLayer(ml)) { try { mapInstance.moveLayer(ml, ref); } catch(e){} } }
+      for (const ml of mlIds) {
+        if (mapInstance.getLayer(ml)) {
+          try {
+            mapInstance.moveLayer(ml, ref);
+          } catch(e){}
+        }
+      }
     };
+    reposition();
     mapInstance.on('styledata', reposition);
-    return () => mapInstance.off('styledata', reposition);
-  }, [mapInstance]);
+    const interval = setInterval(reposition, 200);
+    return () => {
+      mapInstance.off('styledata', reposition);
+      clearInterval(interval);
+    };
+  }, [mapInstance, activeLayers, closestTimeIdx, maskLandExists]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
 
