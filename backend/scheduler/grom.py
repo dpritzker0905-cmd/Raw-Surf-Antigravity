@@ -104,7 +104,7 @@ async def weekly_grom_report_task():
                     {grom_html}
                     
                     <div style="text-align: center; margin-top: 24px;">
-                        <a href="https://raw-surf-os.preview.emergentagent.com/grom-hq" 
+                        <a href="https://dev--rawsurf.netlify.app/grom-hq" 
                            style="display: inline-block; background: linear-gradient(to right, #facc15, #f97316); 
                                   color: #000; padding: 12px 24px; text-decoration: none; 
                                   border-radius: 50px; font-weight: bold;">

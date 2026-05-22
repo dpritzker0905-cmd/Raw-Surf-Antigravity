@@ -70,7 +70,7 @@ export const WaveLoader = () => {
       <div className="relative z-10 flex flex-col items-center">
         {/* Logo */}
         <img loading="lazy" decoding="async"
-          src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
+          src="/logo.svg"
           alt="Raw Surf"
           className="w-20 h-20 mb-6 animate-pulse animate-duration-2s"
         />

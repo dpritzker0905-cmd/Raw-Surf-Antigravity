@@ -35,8 +35,8 @@ async def send_push_notification(db, user_id: str, title: str, body: str, data: 
         payload = json.dumps({
             "title": title,
             "body": body,
-            "icon": "https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png",
-            "badge": "https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png",
+            "icon": "/logo.svg",
+            "badge": "/logo.svg",
             "data": data or {},
             "tag": "surf-alert",
             "requireInteraction": True

@@ -211,7 +211,7 @@ async def go_live(
 
     # Multi-post pipeline: Story + Condition Report
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
-    default_live_media = photographer.avatar_url or "https://raw-surf-os.preview.emergentagent.com/api/static/live-status-default.png"
+    default_live_media = photographer.avatar_url or "https://raw-surf-antigravity.onrender.com/api/static/live-status-default.png"
 
     story = Story(
         author_id=photographer_id, spot_id=spot_id, media_url=default_live_media,

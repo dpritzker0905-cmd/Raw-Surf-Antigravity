@@ -259,7 +259,7 @@ export const Auth = () => {
             data-testid="auth-logo-link"
           >
             <img loading="lazy" decoding="async"
-              src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
+              src="/logo.svg"
               alt="Raw Surf"
               className="w-10 h-10"
             />

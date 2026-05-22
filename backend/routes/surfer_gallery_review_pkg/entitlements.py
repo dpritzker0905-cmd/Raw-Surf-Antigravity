@@ -15,7 +15,7 @@ from models import (
 )
 from core.security import get_user_id_from_jwt_or_query
 
-router = APIRouter(prefix="/surfer-gallery-review", tags=["Surfer Gallery Review"])
+router = APIRouter(prefix="/surfer-gallery", tags=["Surfer Gallery Review"])
 logger = logging.getLogger(__name__)
 
 

@@ -18,7 +18,7 @@ from models import (
 )
 from .schemas import SelfClaimRequest
 
-router = APIRouter(prefix="/surfer-gallery-review", tags=["Surfer Gallery Review"])
+router = APIRouter(prefix="/surfer-gallery", tags=["Surfer Gallery Review"])
 logger = logging.getLogger(__name__)
 
 

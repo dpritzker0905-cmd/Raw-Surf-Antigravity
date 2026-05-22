@@ -221,49 +221,23 @@ async def confirm_surfer_tags(
         db.add(photo_tag)
         
         # Create appropriate notification
+        title, body = 'You were tagged in a photo!', 'A photographer tagged you in a surf photo'
+        n_data = {"gallery_item_id": data.gallery_item_id, "photographer_id": photographer_id, "type": "photo_tagged", "access_granted": False}
         if access_granted:
-            # No extra charge - photo ready to view
-            notification = Notification(
-                user_id=sid,
-                type='photo_tagged',
-                title='Your photo is ready!',
-                body='You\'ve been tagged in a photo from your session - no extra charge!',
-                data=json.dumps({
-                    "gallery_item_id": data.gallery_item_id,
-                    "photographer_id": photographer_id,
-                    "type": "photo_tagged",
-                    "access_granted": True
-                })
-            )
+            title = 'Your photo is ready!'
+            body = "You've been tagged in a photo from your session - no extra charge!"
+            n_data["access_granted"] = True
         elif was_participant and session_photo_price and session_photo_price > 0:
-            # Session participant but needs to pay per-photo price
-            notification = Notification(
-                user_id=sid,
-                type='photo_tagged',
-                title='You were tagged in a photo!',
-                body=f'View your photo for {int(session_photo_price)} credits',
-                data=json.dumps({
-                    "gallery_item_id": data.gallery_item_id,
-                    "photographer_id": photographer_id,
-                    "type": "photo_tagged",
-                    "access_granted": False,
-                    "price": session_photo_price
-                })
-            )
-        else:
-            # Non-participant - gallery pricing applies
-            notification = Notification(
-                user_id=sid,
-                type='photo_tagged',
-                title='You were tagged in a photo!',
-                body='A photographer tagged you in a surf photo',
-                data=json.dumps({
-                    "gallery_item_id": data.gallery_item_id,
-                    "photographer_id": photographer_id,
-                    "type": "photo_tagged",
-                    "access_granted": False
-                })
-            )
+            body = f'View your photo for {int(session_photo_price)} credits'
+            n_data["price"] = session_photo_price
+
+        notification = Notification(
+            user_id=sid,
+            type='photo_tagged',
+            title=title,
+            body=body,
+            data=json.dumps(n_data)
+        )
         db.add(notification)
         
         tagged_details.append({
@@ -331,22 +305,14 @@ async def get_my_tagged_photos(
             continue
             
         item = tag.gallery_item
+        p = item.photographer
         tagged_photos.append({
-            "id": item.id,
-            "tag_id": tag.id,
-            "preview_url": item.preview_url,
-            "photographer_id": item.photographer_id,
-            "photographer_name": item.photographer.full_name if item.photographer else None,
-            "photographer_avatar": item.photographer.avatar_url if item.photographer else None,
-            "tagged_at": tag.tagged_at.isoformat(),
-            "viewed_at": tag.viewed_at.isoformat() if tag.viewed_at else None,
-            "is_new": tag.viewed_at is None,  # NEW badge
-            "access_granted": tag.access_granted,
-            "was_session_participant": tag.was_session_participant,
-            "session_photo_price": tag.session_photo_price,
-            "is_gift": tag.is_gift,
-            "is_for_sale": item.is_for_sale,
-            "price": item.price
+            "id": item.id, "tag_id": tag.id, "preview_url": item.preview_url, "photographer_id": item.photographer_id,
+            "photographer_name": p.full_name if p else None, "photographer_avatar": p.avatar_url if p else None,
+            "tagged_at": tag.tagged_at.isoformat(), "viewed_at": tag.viewed_at.isoformat() if tag.viewed_at else None,
+            "is_new": tag.viewed_at is None, "access_granted": tag.access_granted,
+            "was_session_participant": tag.was_session_participant, "session_photo_price": tag.session_photo_price,
+            "is_gift": tag.is_gift, "is_for_sale": item.is_for_sale, "price": item.price
         })
     
     # Count unviewed (new) photos
@@ -557,12 +523,8 @@ async def ai_face_match(
     
     for photo in tagged_photos:
         matches.append({
-            "id": photo.id,
-            "url": photo.preview_url or photo.original_url,
-            "thumbnail_url": photo.thumbnail_url,
-            "title": photo.title,
-            "match_type": "tagged",
-            "confidence": 1.0,
+            "id": photo.id, "url": photo.preview_url or photo.original_url, "thumbnail_url": photo.thumbnail_url,
+            "title": photo.title, "match_type": "tagged", "confidence": 1.0,
             "created_at": photo.created_at.isoformat() if photo.created_at else None
         })
     
@@ -570,57 +532,34 @@ async def ai_face_match(
     claim_result = await db.execute(
         select(SurferGalleryClaimQueue)
         .options(selectinload(SurferGalleryClaimQueue.gallery_item))
-        .where(
-            SurferGalleryClaimQueue.surfer_id == data.surfer_id,
-            SurferGalleryClaimQueue.status == 'pending'
-        )
+        .where(SurferGalleryClaimQueue.surfer_id == data.surfer_id, SurferGalleryClaimQueue.status == 'pending')
     )
     claim_items = claim_result.scalars().all()
     
     for claim in claim_items:
-        if claim.gallery_item and claim.gallery_item.photographer_id == data.photographer_id:
-            # Avoid duplicates
-            if not any(m["id"] == claim.gallery_item.id for m in matches):
-                matches.append({
-                    "id": claim.gallery_item.id,
-                    "url": claim.gallery_item.preview_url or claim.gallery_item.original_url,
-                    "thumbnail_url": claim.gallery_item.thumbnail_url,
-                    "title": claim.gallery_item.title,
-                    "match_type": "ai_suggested",
-                    "confidence": claim.confidence_score or 0.8,
-                    "created_at": claim.gallery_item.created_at.isoformat() if claim.gallery_item.created_at else None
-                })
+        gi = claim.gallery_item
+        if gi and gi.photographer_id == data.photographer_id and not any(m["id"] == gi.id for m in matches):
+            matches.append({
+                "id": gi.id, "url": gi.preview_url or gi.original_url, "thumbnail_url": gi.thumbnail_url,
+                "title": gi.title, "match_type": "ai_suggested", "confidence": claim.confidence_score or 0.8,
+                "created_at": gi.created_at.isoformat() if gi.created_at else None
+            })
     
     # 3. Get photos from sessions the surfer participated in
-    # Check booking participants
     booking_result = await db.execute(
-        select(Booking.id)
-        .join(BookingParticipant, BookingParticipant.booking_id == Booking.id)
-        .where(
-            Booking.photographer_id == data.photographer_id,
-            BookingParticipant.participant_id == data.surfer_id
-        )
+        select(Booking.id).join(BookingParticipant, BookingParticipant.booking_id == Booking.id)
+        .where(Booking.photographer_id == data.photographer_id, BookingParticipant.participant_id == data.surfer_id)
     )
     booking_ids = [b[0] for b in booking_result.fetchall()]
     
-    # Check dispatch participants
     dispatch_result = await db.execute(
-        select(DispatchRequest.id)
-        .join(DispatchRequestParticipant, DispatchRequestParticipant.dispatch_request_id == DispatchRequest.id)
-        .where(
-            DispatchRequest.photographer_id == data.photographer_id,
-            DispatchRequestParticipant.participant_id == data.surfer_id
-        )
+        select(DispatchRequest.id).join(DispatchRequestParticipant, DispatchRequestParticipant.dispatch_request_id == DispatchRequest.id)
+        .where(DispatchRequest.photographer_id == data.photographer_id, DispatchRequestParticipant.participant_id == data.surfer_id)
     )
     dispatch_ids = [d[0] for d in dispatch_result.fetchall()]
     
-    # Get gallery items from these sessions
     if booking_ids or dispatch_ids:
-        session_photos_query = select(GalleryItem).where(
-            GalleryItem.photographer_id == data.photographer_id
-        )
-        
-        # Filter by session references if available
+        session_photos_query = select(GalleryItem).where(GalleryItem.photographer_id == data.photographer_id)
         conditions = []
         if booking_ids:
             conditions.append(GalleryItem.booking_id.in_(booking_ids))
@@ -630,20 +569,14 @@ async def ai_face_match(
         if conditions:
             from sqlalchemy import or_
             session_photos_query = session_photos_query.where(or_(*conditions))
-            
             session_result = await db.execute(session_photos_query.limit(50))
             session_photos = session_result.scalars().all()
             
             for photo in session_photos:
-                # Avoid duplicates
                 if not any(m["id"] == photo.id for m in matches):
                     matches.append({
-                        "id": photo.id,
-                        "url": photo.preview_url or photo.original_url,
-                        "thumbnail_url": photo.thumbnail_url,
-                        "title": photo.title,
-                        "match_type": "session_participant",
-                        "confidence": 0.7,
+                        "id": photo.id, "url": photo.preview_url or photo.original_url, "thumbnail_url": photo.thumbnail_url,
+                        "title": photo.title, "match_type": "session_participant", "confidence": 0.7,
                         "created_at": photo.created_at.isoformat() if photo.created_at else None
                     })
     
@@ -684,8 +617,6 @@ async def scan_surfboard_image(
             detail="Provide either image_url or image_base64"
         )
 
-    # Use analyze_image_with_vision with a board-specific prompt
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
     import httpx, base64, os
     from dotenv import load_dotenv
     load_dotenv()
@@ -697,29 +628,25 @@ async def scan_surfboard_image(
             detail="AI service not configured"
         )
 
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"board-scan-{datetime.now(timezone.utc).timestamp()}",
-        system_message=(
-            "You are an expert surfboard analyst. Analyze the surfboard "
-            "in this image and extract identifying features that could "
-            "be used to recognize this board in surf action photos.\n\n"
-            "Return JSON:\n"
-            '{\n'
-            '    "brand": "detected brand/shaper name or null",\n'
-            '    "model": "detected model name or null",\n'
-            '    "board_type": "shortboard|longboard|fish|funboard|gun|'
-            'foamie|other",\n'
-            '    "estimated_length": "e.g. 5\'10\\" or null",\n'
-            '    "color_scheme": ["primary color", "secondary color"],\n'
-            '    "fin_setup": "thruster|quad|twin|single|other or null",\n'
-            '    "tail_shape": "squash|swallow|round|pin|other or null",\n'
-            '    "distinctive_features": ["list of unique visual markers"],\n'
-            '    "condition_notes": "any visible dings, repairs, stickers",\n'
-            '    "confidence": "high/medium/low"\n'
-            "}"
-        )
-    ).with_model("openai", "gpt-4o")
+    system_message = (
+        "You are an expert surfboard analyst. Analyze the surfboard "
+        "in this image and extract identifying features that could "
+        "be used to recognize this board in surf action photos.\n\n"
+        "Return JSON:\n"
+        '{\n'
+        '    "brand": "detected brand/shaper name or null",\n'
+        '    "model": "detected model name or null",\n'
+        '    "board_type": "shortboard|longboard|fish|funboard|gun|'
+        'foamie|other",\n'
+        '    "estimated_length": "e.g. 5\'10\\" or null",\n'
+        '    "color_scheme": ["primary color", "secondary color"],\n'
+        '    "fin_setup": "thruster|quad|twin|single|other or null",\n'
+        '    "tail_shape": "squash|swallow|round|pin|other or null",\n'
+        '    "distinctive_features": ["list of unique visual markers"],\n'
+        '    "condition_notes": "any visible dings, repairs, stickers",\n'
+        '    "confidence": "high/medium/low"\n'
+        "}"
+    )
 
     try:
         if data.image_base64:
@@ -734,25 +661,56 @@ async def scan_surfboard_image(
                     )
                 img_b64 = base64.b64encode(resp.content).decode('utf-8')
 
-        image_content = ImageContent(image_base64=img_b64)
-        user_message = UserMessage(
-            text="Analyze this surfboard image. Return JSON only.",
-            file_contents=[image_content]
-        )
+        img_url = f"data:image/jpeg;base64,{img_b64}" if not img_b64.startswith("data:image") else img_b64
 
-        response = await chat.send_message(user_message)
+        # Call OpenAI Vision API directly using httpx
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": system_message},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Analyze this surfboard image. Return JSON only."},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": img_url,
+                                        "detail": "high"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "max_tokens": 800,
+                    "response_format": {"type": "json_object"}
+                }
+            )
+            if response.status_code != 200:
+                logger.error(f"OpenAI Board Scan API error: {response.text}")
+                raise HTTPException(status_code=response.status_code, detail=f"OpenAI error: {response.text}")
+
+            result_data = response.json()
+            response_text = result_data["choices"][0]["message"]["content"]
 
         # Parse JSON from response
         try:
-            if "```json" in response:
-                json_str = response.split("```json")[1].split("```")[0].strip()
-            elif "```" in response:
-                json_str = response.split("```")[1].split("```")[0].strip()
+            if "```json" in response_text:
+                json_str = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                json_str = response_text.split("```")[1].split("```")[0].strip()
             else:
-                json_str = response.strip()
+                json_str = response_text.strip()
             analysis = json.loads(json_str)
         except json.JSONDecodeError:
-            analysis = {"raw_response": response, "confidence": "low"}
+            analysis = {"raw_response": response_text, "confidence": "low"}
 
         # If surfboard_id provided, update the board record with AI insights
         if data.surfboard_id:
@@ -763,16 +721,9 @@ async def scan_surfboard_image(
             board = board_result.scalar_one_or_none()
             if board:
                 # Update fields the AI detected that were previously empty
-                if not board.brand and analysis.get("brand"):
-                    board.brand = analysis["brand"]
-                if not board.model and analysis.get("model"):
-                    board.model = analysis["model"]
-                if not board.board_type and analysis.get("board_type"):
-                    board.board_type = analysis["board_type"]
-                if not board.fin_setup and analysis.get("fin_setup"):
-                    board.fin_setup = analysis["fin_setup"]
-                if not board.tail_shape and analysis.get("tail_shape"):
-                    board.tail_shape = analysis["tail_shape"]
+                for field in ["brand", "model", "board_type", "fin_setup", "tail_shape"]:
+                    if not getattr(board, field, None) and analysis.get(field):
+                        setattr(board, field, analysis[field])
                 await db.commit()
                 analysis["board_updated"] = True
             else:

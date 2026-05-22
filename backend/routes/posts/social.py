@@ -138,9 +138,9 @@ async def get_share_page(
         <head>
             <meta property="og:title" content="Raw Surf - Post Not Found" />
             <meta property="og:description" content="This surf post is no longer available." />
-            <meta property="og:image" content="https://raw-surf-os.preview.emergentagent.com/logo.png" />
-            <meta property="og:url" content="https://raw-surf-os.preview.emergentagent.com" />
-            <meta http-equiv="refresh" content="0;url=https://raw-surf-os.preview.emergentagent.com" />
+            <meta property="og:image" content="https://dev--rawsurf.netlify.app/logo.png" />
+            <meta property="og:url" content="https://dev--rawsurf.netlify.app" />
+            <meta http-equiv="refresh" content="0;url=https://dev--rawsurf.netlify.app" />
         </head>
         <body>Redirecting...</body>
         </html>
@@ -175,7 +175,7 @@ async def get_share_page(
     image_url = post.thumbnail_url if post.media_type == 'video' else post.media_url
     
     # Frontend URL for redirect
-    frontend_url = f"https://raw-surf-os.preview.emergentagent.com/post/{post_id}"
+    frontend_url = f"https://dev--rawsurf.netlify.app/post/{post_id}"
     
     html_content = f"""
     <!DOCTYPE html>

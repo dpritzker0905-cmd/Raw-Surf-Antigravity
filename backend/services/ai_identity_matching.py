@@ -6,7 +6,7 @@ Provides face recognition and surfer identification using:
 - Wetsuit pattern recognition
 - Historical tagged photos
 
-Uses OpenAI Vision API via Emergent LLM Key for image analysis.
+Uses OpenAI Vision API directly for image analysis.
 """
 import os
 import json
@@ -165,48 +165,8 @@ async def _call_vision_api(
     prompt: str, 
     images: List[Dict[str, str]]
 ) -> IdentityMatchResult:
-    """Call OpenAI Vision API via Emergent integration"""
-    
-    try:
-        # Import emergent integration
-        from emergentintegrations.llm.chat import chat, UserMessage, ImageContent, TextContent
-        
-        # Build message content
-        content = [TextContent(text=prompt)]
-        
-        for img in images:
-            content.append(ImageContent(
-                image_url=img["url"],
-                detail="high"
-            ))
-        
-        # Call the API
-        response = await chat(
-            api_key=OPENAI_API_KEY,
-            model="gpt-4o",
-            messages=[UserMessage(content=content)],
-            response_format={"type": "json_object"}
-        )
-        
-        # Parse response
-        result_json = json.loads(response.content)
-        
-        return IdentityMatchResult(
-            is_match=result_json.get("is_match", False),
-            confidence=float(result_json.get("confidence", 0.5)),
-            match_methods=result_json.get("match_methods", ["ai_analysis"]),
-            details={
-                "reasoning": result_json.get("reasoning", ""),
-                "visible_features": result_json.get("visible_features", {})
-            }
-        )
-        
-    except ImportError:
-        logger.warning("emergentintegrations not available, using REST API fallback")
-        return await _call_vision_api_rest(prompt, images)
-    except Exception as e:
-        logger.error(f"Vision API call failed: {e}")
-        return _fallback_match()
+    """Call OpenAI Vision API via REST integration"""
+    return await _call_vision_api_rest(prompt, images)
 
 
 async def _call_vision_api_rest(
@@ -360,25 +320,45 @@ Respond in JSON:
 """
     
     try:
-        from emergentintegrations.llm.chat import chat, UserMessage, ImageContent, TextContent
-        
-        response = await chat(
-            api_key=OPENAI_API_KEY,
-            model="gpt-4o",
-            messages=[UserMessage(content=[
-                TextContent(text=prompt),
-                ImageContent(image_url=photo_url, detail="high")
-            ])],
-            response_format={"type": "json_object"}
-        )
-        
-        result = json.loads(response.content)
-        return {
-            "match": result.get("matches_description", False),
-            "confidence": result.get("confidence", 0.5),
-            "observed": result.get("observed_board", ""),
-            "reason": result.get("reason", "")
-        }
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "gpt-4o",
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": photo_url,
+                                    "detail": "high"
+                                }
+                            }
+                        ]
+                    }],
+                    "max_tokens": 500,
+                    "response_format": {"type": "json_object"}
+                }
+            )
+            if response.status_code != 200:
+                logger.error(f"OpenAI API error: {response.text}")
+                return {"match": False, "confidence": 0.5, "reason": "OpenAI API error"}
+                
+            result_data = response.json()
+            result_text = result_data["choices"][0]["message"]["content"]
+            result = json.loads(result_text)
+            return {
+                "match": result.get("matches_description", False),
+                "confidence": result.get("confidence", 0.5),
+                "observed": result.get("observed_board", ""),
+                "reason": result.get("reason", "")
+            }
         
     except Exception as e:
         logger.error(f"Board color comparison failed: {e}")

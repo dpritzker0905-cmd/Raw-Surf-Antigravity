@@ -34,9 +34,9 @@ if RESEND_API_KEY:
 
 # App URL for reset links - read at runtime to pick up env changes
 def get_app_url():
-    url = os.environ.get('APP_URL')
+    url = os.environ.get('APP_URL') or os.environ.get('FRONTEND_URL')
     if not url:
-        url = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+        url = 'https://dev--rawsurf.netlify.app'
     return url
 
 def hash_password(password: str) -> str:

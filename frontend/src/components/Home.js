@@ -86,7 +86,7 @@ export const Home = () => {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <img loading="lazy" decoding="async"
-              src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
+              src="/logo.svg"
               alt="Raw Surf"
               className="w-8 h-8"
             />
@@ -108,7 +108,7 @@ export const Home = () => {
           {/* Logo */}
           <div className="flex justify-center">
             <img loading="lazy" decoding="async"
-              src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
+              src="/logo.svg"
               alt="Raw Surf"
               className="w-24 h-24"
             />
@@ -264,7 +264,7 @@ export const Home = () => {
         <div className="container mx-auto text-center space-y-4">
           <div className="flex justify-center items-center gap-2">
             <img loading="lazy" decoding="async"
-              src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
+              src="/logo.svg"
               alt="Raw Surf"
               className="w-8 h-8"
             />

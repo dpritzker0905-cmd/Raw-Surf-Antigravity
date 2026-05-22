@@ -17,6 +17,91 @@ from models import Profile, PaymentTransaction
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+import stripe
+import json
+
+class CheckoutSessionRequest:
+    def __init__(self, amount, currency, success_url, cancel_url, metadata):
+        self.amount = amount
+        self.currency = currency
+        self.success_url = success_url
+        self.cancel_url = cancel_url
+        self.metadata = metadata
+
+class CheckoutSessionResponse:
+    def __init__(self, session_id, url):
+        self.session_id = session_id
+        self.url = url
+
+class WebhookResponse:
+    def __init__(self, event_type, session_id, payment_status, raw_event):
+        self.event_type = event_type
+        self.session_id = session_id
+        self.payment_status = payment_status
+        self.raw_event = raw_event
+
+class StripeCheckout:
+    def __init__(self, api_key: str, webhook_url: str):
+        self.api_key = api_key
+        self.webhook_url = webhook_url
+        stripe.api_key = api_key
+
+    async def create_checkout_session(self, request: CheckoutSessionRequest) -> CheckoutSessionResponse:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': request.currency,
+                    'unit_amount': int(request.amount * 100),
+                    'product_data': {
+                        'name': 'Request a Pro Deposit',
+                        'description': 'Request a Pro photo session deposit',
+                    },
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=request.success_url,
+            cancel_url=request.cancel_url,
+            metadata=request.metadata
+        )
+        return CheckoutSessionResponse(session_id=session.id, url=session.url)
+
+    async def get_checkout_status(self, session_id: str):
+        session = stripe.checkout.Session.retrieve(session_id)
+        class LocalStatus:
+            def __init__(self, s):
+                self.payment_status = s.payment_status
+                self.amount_total = s.amount_total
+                self.status = s.status
+                self.currency = s.currency
+                self.metadata = s.metadata
+        return LocalStatus(session)
+
+    async def handle_webhook(self, body: bytes, signature: str) -> WebhookResponse:
+        try:
+            event_data = json.loads(body.decode('utf-8'))
+        except Exception:
+            event_data = {}
+        webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
+        if webhook_secret and signature:
+            try:
+                event = stripe.Webhook.construct_event(body, signature, webhook_secret)
+                event_data = event
+            except stripe.error.SignatureVerificationError as e:
+                logger.error(f"Stripe Webhook signature verification failed: {e}")
+                raise HTTPException(status_code=400, detail="Invalid signature")
+        event_type = event_data.get("type")
+        data_obj = event_data.get("data", {}).get("object", {})
+        session_id = data_obj.get("id") if event_type and event_type.startswith("checkout.session.") else None
+        payment_status = data_obj.get("payment_status")
+        return WebhookResponse(
+            event_type=event_type,
+            session_id=session_id,
+            payment_status=payment_status,
+            raw_event=event_data
+        )
+
 # Stripe Configuration
 STRIPE_API_KEY = os.environ.get('STRIPE_SECRET_KEY') or os.environ.get('STRIPE_API_KEY')
 
@@ -57,9 +142,7 @@ async def create_checkout_session(
     """Create a Stripe Checkout session for Request a Pro deposit.
     Uses photographer's custom pricing if available, otherwise defaults.
     """
-    from emergentintegrations.payments.stripe.checkout import (
-        StripeCheckout, CheckoutSessionRequest, CheckoutSessionResponse
-    )
+    pass
     
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Stripe not configured")
@@ -181,7 +264,7 @@ async def get_checkout_status(
     db: AsyncSession = Depends(get_db)
 ):
     """Check payment status and update database"""
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    pass
     
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Stripe not configured")
@@ -245,7 +328,7 @@ async def stripe_webhook(
     db: AsyncSession = Depends(get_db)
 ):
     """Handle Stripe webhook events"""
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    pass
     
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Stripe not configured")
@@ -521,7 +604,7 @@ async def create_identity_verification_session(
             return {"status": "already_verified", "message": "User is already verified"}
         
         # Get host URL
-        host_url = os.environ.get('FRONTEND_URL') or return_url or 'https://raw-surf-os.preview.emergentagent.com'
+        host_url = os.environ.get('FRONTEND_URL') or return_url or 'https://dev--rawsurf.netlify.app'
         
         # Create Identity verification session
         verification_session = stripe.identity.VerificationSession.create(

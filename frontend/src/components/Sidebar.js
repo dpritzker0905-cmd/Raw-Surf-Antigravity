@@ -168,7 +168,7 @@ export const Sidebar = () => {
           aria-label={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
         >
           <img loading="lazy" decoding="async"
-            src="https://customer-assets.emergentagent.com/job_raw-surf-os/artifacts/9llcl5mg_Rawig6-500x500.png"
+            src="/logo.svg"
             alt="Raw Surf"
             className={`w-7 h-7 transition-transform duration-300 ${
               logoSpinning ? 'rotate-[360deg]' : ''

@@ -269,7 +269,7 @@ async def send_weekly_sales_reports_task():
                                 {top_items_html}
                                 
                                 <p style="margin-top: 30px;">
-                                    <a href="https://raw-surf-os.preview.emergentagent.com/dashboard" 
+                                    <a href="https://dev--rawsurf.netlify.app/dashboard" 
                                        style="background: #06b6d4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px;">
                                         View Full Dashboard
                                     </a>

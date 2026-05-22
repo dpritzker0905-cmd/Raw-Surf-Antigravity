@@ -120,7 +120,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
         if not STRIPE_API_KEY:
             raise HTTPException(status_code=500, detail="Payment processing not configured")
         
-        origin_url = data.origin_url or "https://raw-surf-os.preview.emergentagent.com"
+        origin_url = data.origin_url or "https://dev--rawsurf.netlify.app"
         
         # Store session data for completion after payment
         session_data = {

@@ -20,7 +20,7 @@ router = APIRouter()
 # Meta App Credentials
 META_APP_ID = os.environ.get('META_APP_ID')
 META_APP_SECRET = os.environ.get('META_APP_SECRET')
-APP_URL = os.environ.get('APP_URL', 'https://raw-surf-os.preview.emergentagent.com')
+APP_URL = os.environ.get('APP_URL', 'https://dev--rawsurf.netlify.app')
 
 # Meta OAuth endpoints
 META_OAUTH_URL = "https://www.facebook.com/v19.0/dialog/oauth"

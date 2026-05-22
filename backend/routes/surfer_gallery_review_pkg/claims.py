@@ -15,7 +15,7 @@ from core.security import get_user_id_from_jwt_or_query
 from .schemas import ClaimMatchRequest, ClaimBatchRequest, ConfirmIdentityRequest, _parse_match_reasons
 from .entitlements import get_session_entitlements
 
-router = APIRouter(prefix="/surfer-gallery-review", tags=["Surfer Gallery Review"])
+router = APIRouter(prefix="/surfer-gallery", tags=["Surfer Gallery Review"])
 logger = logging.getLogger(__name__)
 
 

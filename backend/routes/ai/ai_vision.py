@@ -23,15 +23,10 @@ async def analyze_image_with_vision(image_data: str, is_base64: bool = False) ->
     Analyze an image using GPT-4o Vision API to detect surfers.
     Returns description and detected people count.
     """
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-
     if not OPENAI_API_KEY:
         raise HTTPException(status_code=500, detail="AI service not configured — OPENAI_API_KEY missing")
 
-    chat = LlmChat(
-        api_key=OPENAI_API_KEY,
-        session_id=f"photo-analysis-{datetime.now().timestamp()}",
-        system_message="""You are a surf photo analysis AI. Your job is to analyze surf photos and:
+    system_message = """You are a surf photo analysis AI. Your job is to analyze surf photos and:
 1. Count how many surfers/people are visible in the image
 2. Describe what each person is doing (surfing, paddling, watching, etc.)
 3. Note distinctive features that could help identify them (wetsuit color, board color, position)
@@ -55,49 +50,65 @@ Return your analysis as JSON with this structure:
     },
     "overall_description": "brief description of the scene"
 }"""
-    ).with_model("openai", "gpt-4o")
 
     try:
         if is_base64:
-            image_content = ImageContent(image_base64=image_data)
-            user_message = UserMessage(
-                text="Analyze this surf photo and identify all people visible. Return JSON only.",
-                file_contents=[image_content]
-            )
+            img_url = f"data:image/jpeg;base64,{image_data}"
         else:
-            # For URL, we need to download and convert to base64
-            async with httpx.AsyncClient() as client:
-                response = await client.get(image_data, timeout=30)
-                if response.status_code == 200:
-                    image_base64 = base64.b64encode(response.content).decode('utf-8')
-                    image_content = ImageContent(image_base64=image_base64)
-                    user_message = UserMessage(
-                        text="Analyze this surf photo and identify all people visible. Return JSON only.",
-                        file_contents=[image_content]
-                    )
-                else:
-                    raise HTTPException(status_code=400, detail="Could not fetch image from URL")
+            img_url = image_data
 
-        response = await chat.send_message(user_message)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": system_message},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Analyze this surf photo and identify all people visible. Return JSON only."},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": img_url,
+                                        "detail": "high"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "max_tokens": 800,
+                    "response_format": {"type": "json_object"}
+                }
+            )
+            if response.status_code != 200:
+                logger.error(f"OpenAI Vision API error: {response.text}")
+                raise HTTPException(status_code=response.status_code, detail=f"OpenAI error: {response.text}")
+
+            result_data = response.json()
+            response_text = result_data["choices"][0]["message"]["content"]
 
         # Parse JSON from response
         try:
-            # Try to extract JSON from the response
-            if "```json" in response:
-                json_str = response.split("```json")[1].split("```")[0].strip()
-            elif "```" in response:
-                json_str = response.split("```")[1].split("```")[0].strip()
+            if "```json" in response_text:
+                json_str = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                json_str = response_text.split("```")[1].split("```")[0].strip()
             else:
-                json_str = response.strip()
+                json_str = response_text.strip()
 
             return json.loads(json_str)
         except json.JSONDecodeError:
-            # Return a structured response even if JSON parsing fails
             return {
                 "people_count": 0,
                 "people": [],
                 "conditions": {},
-                "overall_description": response,
+                "overall_description": response_text,
                 "raw_response": True
             }
 
@@ -112,8 +123,6 @@ async def compare_faces(photo_data: str, profile_photos: List[dict],
     Optionally includes surfboard quiver data for board-based identification.
     Returns list of potential matches with confidence scores.
     """
-    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-
     if not OPENAI_API_KEY:
         return []
 
@@ -143,34 +152,30 @@ async def compare_faces(photo_data: str, profile_photos: List[dict],
                 "help confirm identity):\n" + "\n".join(board_lines)
             )
 
-    chat = LlmChat(
-        api_key=OPENAI_API_KEY,
-        session_id=f"face-compare-{datetime.now().timestamp()}",
-        system_message=(
-            "You are helping identify surfers in photos by comparing with "
-            "their profile photos and registered surfboard data.\n"
-            "Given a surf action photo and profile photos, identify which "
-            "profile photos might match people in the action shot.\n"
-            "Consider: body type, stance, wetsuit/gear if visible, hair "
-            "color/style, and any other identifying features.\n"
-            "IMPORTANT: Also compare the surfboard visible in the action "
-            "shot against the registered surfboard data (brand logos, board "
-            "shape, size, color). A matching board is a strong signal.\n"
-            "Note: This is for tagging assistance only. Be conservative "
-            "with matches - only suggest high-confidence matches.\n\n"
-            "Return JSON:\n"
-            '{\n'
-            '    "matches": [\n'
-            '        {\n'
-            '            "profile_id": "id from the profile list",\n'
-            '            "confidence": "high/medium/low",\n'
-            '            "reasoning": "why you think this is a match",\n'
-            '            "board_match": true or false\n'
-            '        }\n'
-            '    ]\n'
-            '}'
-        )
-    ).with_model("openai", "gpt-4o")
+    system_message = (
+        "You are helping identify surfers in photos by comparing with "
+        "their profile photos and registered surfboard data.\n"
+        "Given a surf action photo and profile photos, identify which "
+        "profile photos might match people in the action shot.\n"
+        "Consider: body type, stance, wetsuit/gear if visible, hair "
+        "color/style, and any other identifying features.\n"
+        "IMPORTANT: Also compare the surfboard visible in the action "
+        "shot against the registered surfboard data (brand logos, board "
+        "shape, size, color). A matching board is a strong signal.\n"
+        "Note: This is for tagging assistance only. Be conservative "
+        "with matches - only suggest high-confidence matches.\n\n"
+        "Return JSON:\n"
+        '{\n'
+        '    "matches": [\n'
+        '        {\n'
+        '            "profile_id": "id from the profile list",\n'
+        '            "confidence": "high/medium/low",\n'
+        '            "reasoning": "why you think this is a match",\n'
+        '            "board_match": true or false\n'
+        '        }\n'
+        '    ]\n'
+        '}'
+    )
 
     try:
         # Download main photo
@@ -186,27 +191,53 @@ async def compare_faces(photo_data: str, profile_photos: List[dict],
             for p in profile_photos
         ])
 
-        # For now, just analyze the main photo and return the analysis
-        # Full face matching would require sending multiple images
-        image_content = ImageContent(image_base64=main_photo_base64)
-        user_message = UserMessage(
-            text=f"""Analyze this surf photo. These are the potential surfers to match:
-{profiles_text}{board_context}
+        # Call OpenAI Vision API directly using httpx
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENAI_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "gpt-4o",
+                    "messages": [
+                        {"role": "system", "content": system_message},
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": f"Analyze this surf photo. These are the potential surfers to match:\n{profiles_text}{board_context}\n\nBased on any visible features (face, body, wetsuit, AND surfboard), suggest which profiles might be in this photo. Return JSON with matches array."
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{main_photo_base64}",
+                                        "detail": "high"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "max_tokens": 800,
+                    "response_format": {"type": "json_object"}
+                }
+            )
+            if response.status_code != 200:
+                logger.error(f"OpenAI Vision compare_faces API error: {response.text}")
+                return []
 
-Based on any visible features (face, body, wetsuit, AND surfboard), suggest which profiles might be in this photo.
-Return JSON with matches array.""",
-            file_contents=[image_content]
-        )
-
-        response = await chat.send_message(user_message)
+            result_data = response.json()
+            response_text = result_data["choices"][0]["message"]["content"]
 
         try:
-            if "```json" in response:
-                json_str = response.split("```json")[1].split("```")[0].strip()
-            elif "```" in response:
-                json_str = response.split("```")[1].split("```")[0].strip()
+            if "```json" in response_text:
+                json_str = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                json_str = response_text.split("```")[1].split("```")[0].strip()
             else:
-                json_str = response.strip()
+                json_str = response_text.strip()
 
             result = json.loads(json_str)
             return result.get("matches", [])
