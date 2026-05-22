@@ -214,7 +214,11 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           source: MASK_LAND_SOURCE,
           paint: {
             'fill-color': tc.fill,
-            'fill-opacity': 1.0,
+            'fill-opacity': [
+              'interpolate', ['linear'], ['zoom'],
+              2, 1.0, 8, 1.0, 9.5, 0.0
+            ],
+            'fill-antialias': false,
           },
         }, insertBeforeId || undefined);
       } catch (e) {
@@ -236,10 +240,10 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           paint: {
             'line-color': targetOceanColor,
             'line-width': ['interpolate', ['linear'], ['zoom'],
-              1, 10, 4, 12, 5, 16, 7, 36, 8, 54, 9, 80, 10, 100, 12, 0.0
+              1, 4, 4, 6, 5, 8, 7, 14, 8, 20, 9, 28, 10, 36, 12, 0.0
             ],
             'line-offset': ['interpolate', ['linear'], ['zoom'],
-              1, -5, 4, -6, 5, -8, 7, -18, 8, -27, 9, -40, 10, -50, 12, 0.0
+              1, -2, 4, -3, 5, -4, 7, -7, 8, -10, 9, -14, 10, -18, 12, 0.0
             ],
             'line-opacity': ['interpolate', ['linear'], ['zoom'],
               7.5, 1.0, 10.0, 1.0, 12.0, 0.0
@@ -272,10 +276,10 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           paint: {
             'line-color': tc.fill,
             'line-width': ['interpolate', ['linear'], ['zoom'],
-              1, 10, 4, 12, 5, 16, 7, 36, 8, 54, 9, 80, 10, 100, 12, 0.0
+              1, 4, 4, 6, 5, 8, 7, 14, 8, 20, 9, 28, 10, 36, 12, 0.0
             ],
             'line-offset': ['interpolate', ['linear'], ['zoom'],
-              1, 5, 4, 6, 5, 8, 7, 18, 8, 27, 9, 40, 10, 50, 12, 0.0
+              1, 2, 4, 3, 5, 4, 7, 7, 8, 10, 9, 14, 10, 18, 12, 0.0
             ],
             'line-opacity': ['interpolate', ['linear'], ['zoom'],
               7.5, 1.0, 10.0, 1.0, 12.0, 0.0
@@ -328,25 +332,28 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
     }
 
     // ---- Enforce correct layer order ----
-    // Target: ... → [marine rasters] → marine-raster-anchor → MASK_LAND → MASK_LAND_BUFFER → MASK_BUFFER → MASK_LINE → insertBeforeId → [roads]
-    if (insertBeforeId) {
-      safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
+    // Target: ... → marine-raster-anchor → MASK_LAND → MASK_LAND_BUFFER → MASK_BUFFER → MASK_LINE → insertBeforeId → [roads]
+    const anchorId = mapInstance.getLayer('marine-raster-anchor') ? 'marine-raster-anchor' : null;
+    const refId = insertBeforeId;
+
+    if (refId) {
+      safeMoveLayer(mapInstance, MASK_LINE, refId);
       safeMoveLayer(mapInstance, MASK_BUFFER, MASK_LINE);
       if (mapInstance.getLayer(MASK_LAND_BUFFER)) {
         safeMoveLayer(mapInstance, MASK_LAND_BUFFER, MASK_BUFFER);
       }
       if (mapInstance.getLayer(MASK_LAND)) {
-        safeMoveLayer(mapInstance, MASK_LAND, MASK_LAND_BUFFER);
+        safeMoveLayer(mapInstance, MASK_LAND, mapInstance.getLayer(MASK_LAND_BUFFER) ? MASK_LAND_BUFFER : MASK_BUFFER);
       }
+    }
 
-      // Position marine-raster-anchor right below the bottom-most mask layer to anchor declarative marine rasters below the land mask
+    // Position marine-raster-anchor BELOW the land mask so rasters render under the mask
+    if (anchorId) {
       const bottomMask = mapInstance.getLayer(MASK_LAND) ? MASK_LAND
                        : mapInstance.getLayer(MASK_LAND_BUFFER) ? MASK_LAND_BUFFER
                        : mapInstance.getLayer(MASK_BUFFER) ? MASK_BUFFER
-                       : insertBeforeId;
-      if (mapInstance.getLayer('marine-raster-anchor')) {
-        safeMoveLayer(mapInstance, 'marine-raster-anchor', bottomMask);
-      }
+                       : refId;
+      safeMoveLayer(mapInstance, anchorId, bottomMask);
     }
   }, [mapInstance, active, activeMarineLayer, theme, tc, beforeId]);
 

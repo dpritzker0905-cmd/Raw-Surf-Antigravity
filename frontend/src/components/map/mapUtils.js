@@ -142,14 +142,15 @@ export var findMarineInsertionLayer = function(mapInstance) {
   var afterWater = false;
   var fallbackId = null;
 
-  // Let's identify preferred target prefixes that are above water/landuse/parks but below labels.
-  // In Mapbox vector styles, placing marine/mask layers before roads, buildings, or tunnels is perfect.
-  var preferredPrefixes = [
-    'tunnel-', 'road-', 'bridge-', 'building', 'land-structure', 
-    'aeroway', 'admin-', 'highway-', 'railway-'
-  ];
+  // Priority tiers: find the best layer to insert marine rasters before.
+  // Tier 1: Explicit land-fill layers (highest priority — these draw land polygons)
+  var landFillPrefixes = ['land-structure', 'landuse', 'landcover'];
+  // Tier 2: Transportation layers (lower priority — above land, below labels)
+  var transportPrefixes = ['tunnel-', 'road-', 'bridge-', 'aeroway', 'highway-', 'railway-'];
+  // Tier 3: Other structural layers
+  var structurePrefixes = ['building', 'admin-'];
 
-  // First pass: find a preferred layer that is NOT custom
+  // First pass: find a Tier 1 land-fill layer (best for masking)
   for (var layer of style.layers) {
     var id = layer.id;
     var isCustom = id.startsWith('ocean-mask-') || 
@@ -160,14 +161,50 @@ export var findMarineInsertionLayer = function(mapInstance) {
                    id === 'spot-geofences-layer';
     if (isCustom) continue;
 
-    for (var prefix of preferredPrefixes) {
+    for (var prefix of landFillPrefixes) {
       if (id.startsWith(prefix)) {
         return id;
       }
     }
   }
 
-  // Second pass: fall back to original water-based search
+  // Second pass: find a Tier 2 transport layer  
+  for (layer of style.layers) {
+    id = layer.id;
+    isCustom = id.startsWith('ocean-mask-') || 
+               id.endsWith('-layer') || 
+               id.endsWith('-source') ||
+               id === 'radar-layer' || 
+               id === 'esri-satellite-layer' ||
+               id === 'spot-geofences-layer';
+    if (isCustom) continue;
+
+    for (prefix of transportPrefixes) {
+      if (id.startsWith(prefix)) {
+        return id;
+      }
+    }
+  }
+
+  // Third pass: find a Tier 3 structural layer
+  for (layer of style.layers) {
+    id = layer.id;
+    isCustom = id.startsWith('ocean-mask-') || 
+               id.endsWith('-layer') || 
+               id.endsWith('-source') ||
+               id === 'radar-layer' || 
+               id === 'esri-satellite-layer' ||
+               id === 'spot-geofences-layer';
+    if (isCustom) continue;
+
+    for (prefix of structurePrefixes) {
+      if (id.startsWith(prefix)) {
+        return id;
+      }
+    }
+  }
+
+  // Final fallback: fall back to original water-based search
   for (layer of style.layers) {
     id = layer.id;
     

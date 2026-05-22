@@ -334,10 +334,10 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
         const lat = south + Math.random() * (north - south);
         
+        // Land mask is authoritative — ALWAYS reject particles on land
+        if (hasLandMask && isCoordOnLand(lng, lat, landPolys)) continue;
+        
         const inGrid = isWithinGridBounds(lat, lng, grid);
-        if (hasLandMask && isCoordOnLand(lng, lat, landPolys)) {
-          if (!inGrid || !isLikelyOcean(lat, lng, grid)) continue;
-        }
         if (inGrid && !isLikelyOcean(lat, lng, grid)) continue;
 
         const wave = interpolateMarine(grid, lng, lat);
@@ -431,17 +431,15 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           continue;
         }
 
-        // Staggered high-precision land mask check: check once every 10 frames to optimize CPU.
-        // Cull only if the coordinate is on land AND outside the active wave field.
+        // Staggered land mask check: every 10 frames per particle.
+        // Land mask is AUTHORITATIVE — always reject particles on land.
         const landPolys = landPolygonsRef.current;
-        const inGrid = isWithinGridBounds(p.lat, p.lng, grid);
         if ((frameCount + i) % 10 === 0) {
           if (landPolys && landPolys.length > 0 && isCoordOnLand(p.lng, p.lat, landPolys)) {
-            if (!inGrid || !isLikelyOcean(p.lat, p.lng, grid)) {
-              pts[i] = spawn();
-              continue;
-            }
+            pts[i] = spawn();
+            continue;
           }
+          const inGrid = isWithinGridBounds(p.lat, p.lng, grid);
           if (inGrid && !isLikelyOcean(p.lat, p.lng, grid)) {
             pts[i] = spawn();
             continue;
