@@ -27,9 +27,12 @@ import { findMarineInsertionLayer } from './mapUtils';
  *   [roads/labels]           ← Mapbox base
  */
 
+const MASK_LAND   = 'ocean-mask-land';
 const MASK_BUFFER = 'ocean-mask-buffer';
 const MASK_LINE   = 'ocean-mask-line';
-const ALL_LAYERS  = [MASK_LINE, MASK_BUFFER];
+const ALL_LAYERS  = [MASK_LINE, MASK_BUFFER, MASK_LAND];
+
+const MASK_LAND_SOURCE = 'ocean-mask-land-source';
 
 const THEME_COLORS = {
   dark:  { fill: 'hsl(214, 17%, 31%)', line: 'rgba(0, 0, 0, 0.35)', lw: 1.2 },
@@ -130,6 +133,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
 
       const hasBuf  = !!mapInstance.getLayer(MASK_BUFFER);
       const hasLine = !!mapInstance.getLayer(MASK_LINE);
+      const hasLand = !!mapInstance.getLayer(MASK_LAND);
 
       if (active) {
         // Resolve active vector source dynamically from the map style by finding
@@ -139,7 +143,8 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           const waterLayer = style.layers.find(l => 
             l['source-layer'] === 'water' && 
             l.id !== MASK_BUFFER && 
-            l.id !== MASK_LINE
+            l.id !== MASK_LINE &&
+            l.id !== MASK_LAND
           );
           if (waterLayer && waterLayer.source) {
             vectorSourceId = waterLayer.source;
@@ -148,6 +153,39 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
 
         const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
         const waterFilter = ['match', ['get', 'class'], ['lake', 'river', 'canal', 'stream', 'reservoir', 'pool', 'pond', 'spring', 'waterfall'], false, true];
+
+        // Layer 0: Continent-level fill layer (ocean-mask-land)
+        if (!mapInstance.getSource(MASK_LAND_SOURCE)) {
+          try {
+            mapInstance.addSource(MASK_LAND_SOURCE, {
+              type: 'geojson',
+              data: '/ne_110m_land.json',
+            });
+          } catch (e) {
+            console.error('[OceanMask] Failed to add MASK_LAND_SOURCE:', e);
+          }
+        }
+
+        if (!hasLand && mapInstance.getSource(MASK_LAND_SOURCE)) {
+          try {
+            mapInstance.addLayer({
+              id: MASK_LAND,
+              type: 'fill',
+              source: MASK_LAND_SOURCE,
+              paint: {
+                'fill-color': tc.fill,
+                'fill-opacity': 1.0,
+              },
+            }, insertBeforeId || undefined);
+          } catch (e) {
+            console.error('[OceanMask] Failed to add MASK_LAND:', e);
+          }
+        } else if (hasLand) {
+          try {
+            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LAND, insertBeforeId);
+            mapInstance.setPaintProperty(MASK_LAND, 'fill-color', tc.fill);
+          } catch (e) {}
+        }
 
         // Layer 1: Coastline buffer shifted INWARD (into water) to mask GFS staircasing beautifully
         if (!hasBuf) {
@@ -276,13 +314,21 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
           } catch (e) {}
         }
 
-        // Reposition all active sliding marine layers below the land mask buffer
+        // Guarantee correct stack order: insertBeforeId -> MASK_LINE -> MASK_BUFFER -> MASK_LAND
+        if (insertBeforeId) {
+          safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
+          safeMoveLayer(mapInstance, MASK_BUFFER, MASK_LINE);
+          safeMoveLayer(mapInstance, MASK_LAND, MASK_BUFFER);
+        }
+
+        // Reposition all active sliding marine layers below the land mask fill layer or buffer layer
         const styleLayers = style?.layers || [];
+        const bottomMaskLayer = mapInstance.getLayer(MASK_LAND) ? MASK_LAND : MASK_BUFFER;
         styleLayers.forEach(l => {
           if (l.id.includes('-slot-') && l.id.endsWith('-layer')) {
             const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(prefix => l.id.startsWith(prefix));
             if (isMarineLayer) {
-              safeMoveLayer(mapInstance, l.id, MASK_BUFFER);
+              safeMoveLayer(mapInstance, l.id, bottomMaskLayer);
             }
           }
         });
@@ -294,6 +340,9 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
             try { mapInstance.removeLayer(lid); } catch (e) {}
           }
         });
+        if (mapInstance.getSource(MASK_LAND_SOURCE)) {
+          try { mapInstance.removeSource(MASK_LAND_SOURCE); } catch (e) {}
+        }
       }
     } finally {
       setTimeout(() => { syncingRef.current = false; }, 300);
@@ -321,14 +370,15 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
   useEffect(() => {
     if (!mapInstance) return;
     const repositionLayers = () => {
-      if (!mapInstance.getLayer(MASK_BUFFER)) return;
+      const bottomMaskLayer = mapInstance.getLayer(MASK_LAND) ? MASK_LAND : (mapInstance.getLayer(MASK_BUFFER) ? MASK_BUFFER : null);
+      if (!bottomMaskLayer) return;
       const style = mapInstance.getStyle();
       const styleLayers = style?.layers || [];
       styleLayers.forEach(l => {
         if (l.id.includes('-slot-') && l.id.endsWith('-layer')) {
           const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(prefix => l.id.startsWith(prefix));
           if (isMarineLayer) {
-            safeMoveLayer(mapInstance, l.id, MASK_BUFFER);
+            safeMoveLayer(mapInstance, l.id, bottomMaskLayer);
           }
         }
       });
@@ -347,6 +397,9 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
             try { mapInstance.removeLayer(lid); } catch (e) {}
           }
         });
+        if (mapInstance.getSource(MASK_LAND_SOURCE)) {
+          try { mapInstance.removeSource(MASK_LAND_SOURCE); } catch (e) {}
+        }
 
         const style = mapInstance.getStyle();
         if (style && style.layers) {

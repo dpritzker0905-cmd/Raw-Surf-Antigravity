@@ -40,11 +40,13 @@ function interpolateWind(grid, lng, lat) {
 
   var west = bounds.west, south = bounds.south;
   var east = bounds.east, north = bounds.north;
-  var lngSpan = east - west, latSpan = north - south;
+  var wrappedEast = east;
+  if (wrappedEast < west) wrappedEast += 360;
+  var lngSpan = wrappedEast - west, latSpan = north - south;
   if (lngSpan === 0 || latSpan === 0) return { u: 0, v: 0, speed: 0 };
 
   // Wrap query longitude to grid bounds coordinate space
-  var center = (west + east) / 2;
+  var center = (west + wrappedEast) / 2;
   var gLng = lng;
   while (gLng - center > 180) gLng -= 360;
   while (gLng - center < -180) gLng += 360;
@@ -121,22 +123,30 @@ function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal) {
   var mb = mapInstance.getBounds();
   var west = mb.getWest(), east = mb.getEast();
   var south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
+  var lngWidth = east - west;
+  if (lngWidth < 0) lngWidth += 360;
+
   var lng, lat;
   if (stratifyIdx != null && stratifyTotal > 0) {
-    var cols = Math.ceil(Math.sqrt(stratifyTotal * Math.max(1, east - west) / Math.max(1, north - south)));
+    var cols = Math.ceil(Math.sqrt(stratifyTotal * Math.max(1, lngWidth) / Math.max(1, north - south)));
     var rows = Math.ceil(stratifyTotal / cols);
     var ci = stratifyIdx % cols, ri = Math.floor(stratifyIdx / cols) % rows;
-    var cellW = (east - west) / cols, cellH = (north - south) / rows;
+    var cellW = lngWidth / cols, cellH = (north - south) / rows;
     lng = west + (ci + Math.random()) * cellW;
     lat = south + (ri + Math.random()) * cellH;
   } else {
-    lng = west + Math.random() * (east - west);
+    lng = west + Math.random() * lngWidth;
     lat = south + Math.random() * (north - south);
   }
   var maxAge = 3.0 + Math.random() * 6.0;
   var jitter = 0.02; // Jitter to break cell alignment
   lng += (Math.random() - 0.5) * jitter * 2;
   lat += (Math.random() - 0.5) * jitter * 2;
+
+  // Wrap query longitude to continuous [-180, 180] range
+  while (lng > 180) lng -= 360;
+  while (lng < -180) lng += 360;
+
   return { lng: lng, lat: lat, prevLng: lng, prevLat: lat,
     age: preAge ? Math.random() * maxAge : 0, maxAge: maxAge,
     noiseSeed: Math.random() * 100 };
@@ -240,7 +250,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
         var pts3 = particlesRef.current;
         var DEG_PER_M = 1 / 111320;
         var wmb = mapInstance.getBounds();
-        var wBW = wmb.getWest(), wBE = wmb.getEast();
+        var wBW = getRenderLng(wmb.getWest(), centerLng);
+        var wBE = getRenderLng(wmb.getEast(), centerLng);
         var wBS = wmb.getSouth(), wBN = wmb.getNorth();
         for (var step = 0; step < 15; step++) {
           for (var wi = 0; wi < pts3.length; wi++) {
@@ -274,7 +285,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
         var respawned = 0;
         for (var ri2 = 0; ri2 < pts3.length; ri2++) {
           var rp = pts3[ri2];
-          if (rp.lng < wBW - 2 || rp.lng > wBE + 2 || rp.lat < wBS - 2 || rp.lat > wBN + 2) {
+          var rrpLng = getRenderLng(rp.lng, centerLng);
+          if (rrpLng < wBW - 2 || rrpLng > wBE + 2 || rp.lat < wBS - 2 || rp.lat > wBN + 2) {
             pts3[ri2] = spawnParticle(mapInstance, true, ri2, pts3.length);
             respawned++;
           }
@@ -305,7 +317,9 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       ctx.globalCompositeOperation = 'source-over';
 
       var mb = mapInstance.getBounds();
-      var bw = mb.getWest(), be = mb.getEast(), bs = mb.getSouth(), bn = mb.getNorth();
+      var bw = getRenderLng(mb.getWest(), centerLng);
+      var be = getRenderLng(mb.getEast(), centerLng);
+      var bs = mb.getSouth(), bn = mb.getNorth();
       var stride = isThrottled ? 3 : 1;
       var pts = particlesRef.current;
       var DEG_PER_METER = 1 / 111320;
@@ -350,15 +364,17 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
 
-        if (p.age > p.maxAge || p.lng < bw - 5 || p.lng > be + 5 || p.lat < bs - 5 || p.lat > bn + 5) {
+        var rLng = getRenderLng(p.lng, centerLng);
+        var inViewPadded = (rLng >= bw - 5 && rLng <= be + 5 && p.lat >= bs - 5 && p.lat <= bn + 5);
+        if (p.age > p.maxAge || !inViewPadded) {
           pts[i] = spawnParticle(mapInstance, false); continue;
         }
         // Skip drawing if outside visible bounds
-        if (p.lng < bw || p.lng > be || p.lat < bs || p.lat > bn) continue;
+        var inViewStrict = (rLng >= bw && rLng <= be && p.lat >= bs && p.lat <= bn);
+        if (!inViewStrict) continue;
 
         // --- DRAW WIND TRAIL SEGMENT ---
         try {
-          var rLng = getRenderLng(p.lng, centerLng);
           var rPrevLng = getRenderLng(p.prevLng, centerLng);
           var curr = mapInstance.project([rLng, p.lat]);
           var prev = mapInstance.project([rPrevLng, p.prevLat]);
