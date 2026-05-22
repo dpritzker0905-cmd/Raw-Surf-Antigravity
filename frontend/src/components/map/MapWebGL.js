@@ -430,9 +430,11 @@ var MapWebGL = ({
   // v85: Find the first layer after water for marine raster insertion.
   // Marine rasters sit above water fills, then OceanMask covers land bleed.
   const [marineBeforeId, setMarineBeforeId] = useState(null);
+  const [maskBufferExists, setMaskBufferExists] = useState(false);
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
+      setMaskBufferExists(!!mapInstance.getLayer('ocean-mask-buffer'));
       const id = findMarineInsertionLayer(mapInstance);
       if (id) {
         setMarineBeforeId(id);
@@ -453,6 +455,20 @@ var MapWebGL = ({
     mapInstance.on('styledata', onStyleData);
     onStyleData();
     return () => mapInstance.off('styledata', onStyleData);
+  }, [mapInstance]);
+
+  // v91: Reposition marine rasters below mask on every styledata (fixes React race condition)
+  useEffect(() => {
+    if (!mapInstance) return;
+    const mlIds = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
+    const reposition = () => {
+      const ref = mapInstance.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer'
+                : mapInstance.getLayer('ocean-mask-land') ? 'ocean-mask-land' : null;
+      if (!ref) return;
+      for (const ml of mlIds) { if (mapInstance.getLayer(ml)) { try { mapInstance.moveLayer(ml, ref); } catch(e){} } }
+    };
+    mapInstance.on('styledata', reposition);
+    return () => mapInstance.off('styledata', reposition);
   }, [mapInstance]);
 
   // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
@@ -657,7 +673,7 @@ var MapWebGL = ({
                 id={`${slotKey}-layer`}
                 beforeId={
                   LAYER_REGISTRY[layerKey]?.type === 'marine'
-                    ? 'marine-raster-anchor'
+                    ? (maskBufferExists ? 'ocean-mask-buffer' : 'marine-raster-anchor') || undefined
                     : undefined
                 }
                 type="raster"

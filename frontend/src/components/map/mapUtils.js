@@ -142,15 +142,14 @@ export var findMarineInsertionLayer = function(mapInstance) {
   var afterWater = false;
   var fallbackId = null;
 
-  // Priority tiers: find the best layer to insert marine rasters before.
-  // Tier 1: land-structure layers (ideal — sits above water/landcover, below roads)
-  var landFillPrefixes = ['land-structure'];
-  // Tier 2: Transportation layers (lower priority — above land, below labels)
-  var transportPrefixes = ['tunnel-', 'road-', 'bridge-', 'aeroway', 'highway-', 'railway-'];
-  // Tier 3: Other structural layers
-  var structurePrefixes = ['building', 'admin-'];
+  // Preferred target prefixes — above water/landuse/parks but below labels.
+  // In Mapbox vector styles, placing marine/mask layers before roads, buildings, or tunnels is ideal.
+  var preferredPrefixes = [
+    'tunnel-', 'road-', 'bridge-', 'building', 'land-structure', 
+    'aeroway', 'admin-', 'highway-', 'railway-'
+  ];
 
-  // First pass: find a Tier 1 land-fill layer (best for masking)
+  // First pass: find a preferred layer that is NOT custom
   for (var layer of style.layers) {
     var id = layer.id;
     var isCustom = id.startsWith('ocean-mask-') || 
@@ -161,43 +160,7 @@ export var findMarineInsertionLayer = function(mapInstance) {
                    id === 'spot-geofences-layer';
     if (isCustom) continue;
 
-    for (var prefix of landFillPrefixes) {
-      if (id.startsWith(prefix)) {
-        return id;
-      }
-    }
-  }
-
-  // Second pass: find a Tier 2 transport layer  
-  for (layer of style.layers) {
-    id = layer.id;
-    isCustom = id.startsWith('ocean-mask-') || 
-               id.endsWith('-layer') || 
-               id.endsWith('-source') ||
-               id === 'radar-layer' || 
-               id === 'esri-satellite-layer' ||
-               id === 'spot-geofences-layer';
-    if (isCustom) continue;
-
-    for (prefix of transportPrefixes) {
-      if (id.startsWith(prefix)) {
-        return id;
-      }
-    }
-  }
-
-  // Third pass: find a Tier 3 structural layer
-  for (layer of style.layers) {
-    id = layer.id;
-    isCustom = id.startsWith('ocean-mask-') || 
-               id.endsWith('-layer') || 
-               id.endsWith('-source') ||
-               id === 'radar-layer' || 
-               id === 'esri-satellite-layer' ||
-               id === 'spot-geofences-layer';
-    if (isCustom) continue;
-
-    for (prefix of structurePrefixes) {
+    for (var prefix of preferredPrefixes) {
       if (id.startsWith(prefix)) {
         return id;
       }
