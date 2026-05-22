@@ -406,6 +406,11 @@ export function ensureMapLibreInit() {
   maplibregl.setMaxParallelImageRequests(32);
   window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || [];
   window.__RASTER_DEBUG__ = window.__RASTER_DEBUG__ || { failFast: true, logMissingVariables: true };
+
+  // Suppress unhandled promise rejection for aborted fetch tiles
+  const suppress = e => (e?.reason?.name === 'AbortError' || e?.reason?.message?.includes('aborted')) && e.preventDefault();
+  window.addEventListener('unhandledrejection', suppress);
+
   _mapLibreWorkerSet = true;
 }
 
@@ -468,6 +473,99 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
       });
   }
   return cached || { variables: [], validTimes: [], referenceTime: null };
+}
+
+// v18: Shared utilities to completely prevent styledata event storms and mount race conditions
+export function safeMoveLayer(mapInstance, layerId, beforeId) {
+  if (!mapInstance || !layerId || !beforeId) return;
+  try {
+    if (!mapInstance.getLayer(layerId) || !mapInstance.getLayer(beforeId)) return;
+    const style = mapInstance.getStyle();
+    if (!style || !style.layers) return;
+    const layers = style.layers;
+    const layerIdx = layers.findIndex(l => l.id === layerId);
+    const beforeIdx = layers.findIndex(l => l.id === beforeId);
+    if (layerIdx !== -1 && beforeIdx !== -1) {
+      if (layerIdx === beforeIdx - 1) {
+        return; // Already immediately before beforeId
+      }
+    }
+    mapInstance.moveLayer(layerId, beforeId);
+  } catch (e) {}
+}
+
+export function safeSetPaintProperty(mapInstance, layerId, name, value) {
+  if (!mapInstance || !layerId) return;
+  try {
+    if (!mapInstance.getLayer(layerId)) return;
+    const current = mapInstance.getPaintProperty(layerId, name);
+    if (JSON.stringify(current) === JSON.stringify(value)) {
+      return; // No change, skip to prevent styledata loop
+    }
+    mapInstance.setPaintProperty(layerId, name, value);
+  } catch (e) {
+    try {
+      mapInstance.setPaintProperty(layerId, name, value);
+    } catch (err) {}
+  }
+}
+
+export function safeSetFilter(mapInstance, layerId, filter) {
+  if (!mapInstance || !layerId) return;
+  try {
+    if (!mapInstance.getLayer(layerId)) return;
+    const current = mapInstance.getFilter(layerId);
+    if (JSON.stringify(current) === JSON.stringify(filter)) {
+      return; // No change, skip to prevent styledata loop
+    }
+    mapInstance.setFilter(layerId, filter);
+  } catch (e) {
+    try {
+      mapInstance.setFilter(layerId, filter);
+    } catch (err) {}
+  }
+}
+
+export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
+  import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
+    // Forceful mutation to guarantee custom scales are used in all instances
+    Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);
+
+    const settings = {
+      ...defaultOmProtocolSettings,
+      colorScales: {
+        ...defaultOmProtocolSettings.colorScales,
+        ...CUSTOM_COLOR_SCALES
+      }
+    };
+    window.__OM_PROTOCOL_SETTINGS__ = settings;
+
+    if (maplibregl?.addProtocol) {
+      try {
+        maplibregl.addProtocol('om', (params, abortController) => {
+          const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
+          
+          if (!window.__RASTER_DEBUG__?.hasLoggedProtocol) {
+            window.__RASTER_DEBUG__.hasLoggedProtocol = true;
+            console.log('[OM-Protocol] Custom scales initialized:', Object.keys(currentSettings.colorScales));
+          }
+          
+          try {
+            const urlObj = new URL(params.url.replace('om://', ''));
+            const variable = urlObj.searchParams.get('variable');
+            const scale = currentSettings.colorScales[variable];
+            if (scale && window.__RASTER_DEBUG__?.logMissingVariables && !window.__RASTER_DEBUG__?.[`logged_scale_${variable}`]) {
+              window.__RASTER_DEBUG__[`logged_scale_${variable}`] = true;
+              console.log(`[OM-Protocol] Variable: ${variable}, Unit: ${scale.unit}, Breakpoints count: ${scale.breakpoints?.length}`);
+            }
+          } catch (err) { /* ignore parse errors */ }
+
+          return omProtocol(params, abortController, currentSettings);
+        });
+      } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
+    }
+    setProtocolReady(true);
+  });
 }
 
 

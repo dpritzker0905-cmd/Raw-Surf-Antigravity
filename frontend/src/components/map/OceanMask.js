@@ -1,6 +1,11 @@
 /* eslint-disable no-empty */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { findMarineInsertionLayer } from './mapUtils';
+import {
+  findMarineInsertionLayer,
+  safeMoveLayer,
+  safeSetPaintProperty,
+  safeSetFilter
+} from './mapUtils';
 
 /**
  * OceanMask v15 — Pristine GeoJSON Land Masking & Dynamic Coastline Blending.
@@ -60,55 +65,7 @@ const MARINE_BUFFER_COLORS = {
 
 const landuseKeywords = ['landuse', 'park', 'wood', 'forest', 'glacier', 'sand', 'pitch', 'grass', 'cemetery', 'hospital', 'school', 'university'];
 
-const safeMoveLayer = (mapInstance, layerId, beforeId) => {
-  if (!mapInstance || !layerId || !beforeId) return;
-  try {
-    if (!mapInstance.getLayer(layerId) || !mapInstance.getLayer(beforeId)) return;
-    const style = mapInstance.getStyle();
-    if (!style || !style.layers) return;
-    const layers = style.layers;
-    const layerIdx = layers.findIndex(l => l.id === layerId);
-    const beforeIdx = layers.findIndex(l => l.id === beforeId);
-    if (layerIdx !== -1 && beforeIdx !== -1) {
-      if (layerIdx === beforeIdx - 1) {
-        return; // Already immediately before beforeId
-      }
-    }
-    mapInstance.moveLayer(layerId, beforeId);
-  } catch (e) {}
-};
 
-const safeSetPaintProperty = (mapInstance, layerId, name, value) => {
-  if (!mapInstance || !layerId) return;
-  try {
-    if (!mapInstance.getLayer(layerId)) return;
-    const current = mapInstance.getPaintProperty(layerId, name);
-    if (JSON.stringify(current) === JSON.stringify(value)) {
-      return; // No change, skip to prevent styledata loop
-    }
-    mapInstance.setPaintProperty(layerId, name, value);
-  } catch (e) {
-    try {
-      mapInstance.setPaintProperty(layerId, name, value);
-    } catch (err) {}
-  }
-};
-
-const safeSetFilter = (mapInstance, layerId, filter) => {
-  if (!mapInstance || !layerId) return;
-  try {
-    if (!mapInstance.getLayer(layerId)) return;
-    const current = mapInstance.getFilter(layerId);
-    if (JSON.stringify(current) === JSON.stringify(filter)) {
-      return; // No change, skip to prevent styledata loop
-    }
-    mapInstance.setFilter(layerId, filter);
-  } catch (e) {
-    try {
-      mapInstance.setFilter(layerId, filter);
-    } catch (err) {}
-  }
-};
 
 // Reposition base map landuse/park fills dynamically on top of the solid land mask
 const repositionLanduse = (mapInstance) => {
@@ -257,7 +214,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
             mapInstance.addSource(MASK_SOURCE, {
               type: 'geojson',
               data: maskData,
-              tolerance: 0.375,
+              tolerance: 0.005,
             });
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);
@@ -313,7 +270,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                   5, 32,
                   7, 48,
                   9, 60,
-                  14, 2,
+                  17, 2,
                 ],
                 // Positive shift on land polygon shifts outward into the ocean
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
@@ -322,19 +279,19 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                   5, 16,
                   7, 24,
                   9, 30,
-                  14, 0,
+                  17, 0,
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   9.0, 1.0,
                   12.0, 0.50,
-                  14.0, 0.0
+                  17.0, 0.0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
                   2, 3.0,
                   5, 2.5,
                   7, 2.0,
                   9, 1.5,
-                  14, 0.0
+                  17, 0.0
                 ],
               },
               layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -440,7 +397,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   9, 0.8,
-                  14, 0.0
+                  17, 0.0
                 ],
                 'line-blur': 0.5,
               },

@@ -7,11 +7,12 @@ import {
   FLORIDA_CENTER,
   mapboxTransformRequest,
   findMarineInsertionLayer,
-  CUSTOM_COLOR_SCALES,
   ensureMapLibreInit,
   trace,
   OM_MODEL_MAP,
-  fetchModelMetadata
+  fetchModelMetadata,
+  safeMoveLayer,
+  registerOpenMeteoProtocol
 } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -30,24 +31,6 @@ import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
 import { useTemporalPreloader } from './useTemporalPreloader';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
-
-const safeMoveLayer = (mapInstance, layerId, beforeId) => {
-  if (!mapInstance || !layerId || !beforeId) return;
-  try {
-    if (!mapInstance.getLayer(layerId) || !mapInstance.getLayer(beforeId)) return;
-    const style = mapInstance.getStyle();
-    if (!style || !style.layers) return;
-    const layers = style.layers;
-    const layerIdx = layers.findIndex(l => l.id === layerId);
-    const beforeIdx = layers.findIndex(l => l.id === beforeId);
-    if (layerIdx !== -1 && beforeIdx !== -1) {
-      if (layerIdx === beforeIdx - 1) {
-        return; // Already immediately before beforeId
-      }
-    }
-    mapInstance.moveLayer(layerId, beforeId);
-  } catch (e) {}
-};
 
 var MapWebGL = ({
   isLight,
@@ -106,50 +89,7 @@ var MapWebGL = ({
 
   const [protocolReady, setProtocolReady] = useState(false);
   useEffect(() => {
-    import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
-      // Forceful mutation to guarantee custom scales are used in all instances
-      Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);
-
-      const settings = {
-        ...defaultOmProtocolSettings,
-        colorScales: {
-          ...defaultOmProtocolSettings.colorScales,
-          ...CUSTOM_COLOR_SCALES
-        }
-      };
-      // Persist settings globally so the registered protocol can read them dynamically
-      window.__OM_PROTOCOL_SETTINGS__ = settings;
-
-      if (maplibregl?.addProtocol) {
-        try {
-          maplibregl.addProtocol('om', (params, abortController) => {
-            const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
-            
-            if (!window.__RASTER_DEBUG__?.hasLoggedProtocol) {
-              window.__RASTER_DEBUG__.hasLoggedProtocol = true;
-              console.log('[OM-Protocol] Custom scales initialized:', Object.keys(currentSettings.colorScales));
-            }
-            
-            try {
-              const urlObj = new URL(params.url.replace('om://', ''));
-              const variable = urlObj.searchParams.get('variable');
-              const scale = currentSettings.colorScales[variable];
-              if (scale && window.__RASTER_DEBUG__?.logMissingVariables && !window.__RASTER_DEBUG__?.[`logged_scale_${variable}`]) {
-                window.__RASTER_DEBUG__[`logged_scale_${variable}`] = true;
-                console.log(`[OM-Protocol] Variable: ${variable}, Unit: ${scale.unit}, Breakpoints count: ${scale.breakpoints?.length}`);
-              }
-            } catch (err) { /* ignore parse errors */ }
-
-            return omProtocol(params, abortController, currentSettings);
-          });
-        } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
-      }
-      setProtocolReady(true);
-    });
-
-    const suppress = e => (e?.reason?.name === 'AbortError' || e?.reason?.message?.includes('aborted')) && e.preventDefault();
-    window.addEventListener('unhandledrejection', suppress);
-    return () => window.removeEventListener('unhandledrejection', suppress);
+    registerOpenMeteoProtocol(maplibregl, setProtocolReady);
   }, []);
 
   const activeWeatherVariable = useMemo(() => activeLayers[0] ? LAYER_REGISTRY[activeLayers[0]]?.omVariable || null : null, [activeLayers]);
@@ -478,7 +418,9 @@ var MapWebGL = ({
     if (!mapInstance) return;
     const mlIds = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
     const reposition = () => {
-      const ref = mapInstance.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer' : null;
+      const ref = mapInstance.getLayer('ocean-mask-buffer')
+        ? 'ocean-mask-buffer'
+        : (mapInstance.getLayer('marine-raster-anchor') ? 'marine-raster-anchor' : null);
       if (!ref) return;
       for (const ml of mlIds) {
         if (mapInstance.getLayer(ml)) {
@@ -699,11 +641,7 @@ var MapWebGL = ({
             >
               <Layer
                 id={`${slotKey}-layer`}
-                beforeId={
-                  LAYER_REGISTRY[layerKey]?.type === 'marine'
-                    ? (maskLandExists ? 'ocean-mask-buffer' : 'marine-raster-anchor') || undefined
-                    : undefined
-                }
+                beforeId={undefined}
                 type="raster"
                 layout={{ 
                   visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
@@ -717,7 +655,7 @@ var MapWebGL = ({
                       5, 0.75,
                       9.0, 0.80,
                       12.0, 0.45,
-                      14.0, 0.0
+                      17.0, 0.0
                     ] : [
                       'interpolate', ['linear'], ['zoom'],
                       2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
@@ -728,8 +666,8 @@ var MapWebGL = ({
                   ) : 0.0,
                   'raster-resampling': 'linear',
                   'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
-                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
+                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.10 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
+                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.12 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
                   'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
                   'raster-fade-duration': 0 // Instant transition between slots
                 }}
@@ -744,6 +682,7 @@ var MapWebGL = ({
            roads/labels/buildings, so land detail is preserved. */}
       <OceanMask
         mapInstance={mapInstance}
+        active={!!activeMarineLayer}
         activeMarineLayer={activeMarineLayer}
         theme={theme}
         beforeId={marineBeforeId}
