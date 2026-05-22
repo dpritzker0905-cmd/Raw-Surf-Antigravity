@@ -293,9 +293,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const moveendDebounceRef = { timer: null };
 
     const onMoveEnd = () => {
-      // Internal update check (source/style mutations cause synthetic moveends)
-      if (isInternalMapUpdateRef.current) return;
-
       // Camera hash dedup (did the camera ACTUALLY move?)
       const center = mapInstance.getCenter();
       const zoom = mapInstance.getZoom();
