@@ -136,21 +136,13 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
         // the vector source that actually contains the 'water' layer.
         let vectorSourceId = 'composite';
         if (style.layers) {
-          const waterLayer = style.layers.find(l => l['source-layer'] === 'water');
+          const waterLayer = style.layers.find(l => 
+            l['source-layer'] === 'water' && 
+            l.id !== MASK_BUFFER && 
+            l.id !== MASK_LINE
+          );
           if (waterLayer && waterLayer.source) {
             vectorSourceId = waterLayer.source;
-          } else if (style.sources) {
-            const found = Object.entries(style.sources).find(([id, src]) => 
-              src.type === 'vector' && !id.includes('traffic') && !id.includes('incident')
-            );
-            if (found) {
-              vectorSourceId = found[0];
-            } else {
-              const firstVector = Object.entries(style.sources).find(([_, src]) => src.type === 'vector');
-              if (firstVector) {
-                vectorSourceId = firstVector[0];
-              }
-            }
           }
         }
 
