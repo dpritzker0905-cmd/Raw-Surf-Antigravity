@@ -209,7 +209,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
   const landPolygonsRef = useRef([]);
 
   useEffect(() => {
-    fetch('/ne_110m_land.json')
+    fetch('/ne_50m_land.json')
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -217,11 +217,11 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       .then(geojson => {
         const polys = prepareLandPolygons(geojson);
         landPolygonsRef.current = polys;
-        console.log(`[Marine] Loaded offline-friendly 110m land mask: ${polys.length} polygons`);
+        console.log(`[Marine] Loaded offline-friendly 50m land mask: ${polys.length} polygons`);
       })
       .catch(err => {
         console.warn('[Marine] Local land mask failed, attempting CDN fallback:', err.message);
-        fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/physical/ne_110m_land.json')
+        fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/ne_50m_land.json')
           .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
@@ -229,7 +229,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           .then(geojson => {
             const polys = prepareLandPolygons(geojson);
             landPolygonsRef.current = polys;
-            console.log(`[Marine] Loaded CDN fallback 110m land mask: ${polys.length} polygons`);
+            console.log(`[Marine] Loaded CDN fallback 50m land mask: ${polys.length} polygons`);
           })
           .catch(cdnErr => {
             console.warn('[Marine] CDN land mask fallback also failed:', cdnErr.message);
@@ -315,7 +315,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
         const wave = grid ? interpolateMarine(grid, lng, lat) : null;
         const spd = wave?.speed || 0;
-        if (spd <= 0.005 || !Number.isFinite(spd)) continue; // Skip calm/land cells completely
+        if (spd <= 0.001 || !Number.isFinite(spd)) continue; // Skip calm/land cells completely
         const energyScale = Math.min(1, spd / 3);
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
@@ -387,9 +387,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
       // Dynamic zoom-based active particle limits to ensure flawless panning performance
       let activeFraction = 1.0;
-      if (zoom < 3) activeFraction = 0.75;
-      else if (zoom < 5) activeFraction = 0.85;
-      else if (zoom < 7) activeFraction = 0.90;
+      if (zoom < 3) activeFraction = 0.90;
+      else if (zoom < 5) activeFraction = 0.95;
 
       const activeCount = Math.round(pts.length * activeFraction);
 
@@ -401,7 +400,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const wave = interpolateMarine(grid, p.lng, p.lat);
 
         // Check if wave speed/height is 0 or too small (i.e. we hit land or calm water)
-        if (wave.speed <= 0.005 || !Number.isFinite(wave.speed) || !Number.isFinite(wave.u) || !Number.isFinite(wave.v)) {
+        if (wave.speed <= 0.001 || !Number.isFinite(wave.speed) || !Number.isFinite(wave.u) || !Number.isFinite(wave.v)) {
           pts[i] = spawn();
           continue;
         }
@@ -446,7 +445,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
         // Wave density scaling: absolutely 0 waves if speed <= 0.01, else scale up by wave height
         const h = Number.isFinite(wave.speed) ? wave.speed : 0;
-        if (h <= 0.005) continue;
+        if (h <= 0.001) continue;
         const densityFactor = Math.min(1.0, Math.pow(h / 6.0, 0.5));
         if (p.phase > densityFactor) continue;
 

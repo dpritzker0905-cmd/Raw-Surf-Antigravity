@@ -6,7 +6,7 @@ import { findMarineInsertionLayer } from './mapUtils';
  * OceanMask v16 — Robust coastline masking with GeoJSON land fill + vector buffer.
  *
  * Three mask layers (bottom → top):
- *   ocean-mask-land    — GeoJSON fill covering all land masses (ne_110m_land.json)
+ *   ocean-mask-land    — GeoJSON fill covering all land masses (ne_50m_land.json)
  *   ocean-mask-buffer  — Wide blurred vector line on water edge (hides raster staircasing)
  *   ocean-mask-line    — Thin aesthetic coastline outline
  *
@@ -83,7 +83,7 @@ function fetchLandGeoJson(callback) {
   _landGeoJsonCallbacks.push(callback);
   if (_landGeoJsonFetching) return;
   _landGeoJsonFetching = true;
-  fetch('/ne_110m_land.json')
+  fetch('/ne_50m_land.json')
     .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
     .then(json => {
       _landGeoJsonCache = json;
