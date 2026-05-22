@@ -73,6 +73,31 @@ const safeMoveLayer = (map, layerId, beforeId) => {
   } catch (e) {}
 };
 
+// Module-level cache for the land GeoJSON (fetch once, reuse forever)
+let _landGeoJsonCache = null;
+let _landGeoJsonFetching = false;
+const _landGeoJsonCallbacks = [];
+
+function fetchLandGeoJson(callback) {
+  if (_landGeoJsonCache) { callback(_landGeoJsonCache); return; }
+  _landGeoJsonCallbacks.push(callback);
+  if (_landGeoJsonFetching) return;
+  _landGeoJsonFetching = true;
+  fetch('/ne_110m_land.json')
+    .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+    .then(json => {
+      _landGeoJsonCache = json;
+      _landGeoJsonFetching = false;
+      _landGeoJsonCallbacks.forEach(cb => { try { cb(json); } catch(e) {} });
+      _landGeoJsonCallbacks.length = 0;
+    })
+    .catch(err => {
+      console.error('[OceanMask] Failed to fetch land GeoJSON:', err);
+      _landGeoJsonFetching = false;
+      _landGeoJsonCallbacks.length = 0;
+    });
+}
+
 export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
   const landSourceLoadedRef = useRef(false);
   const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
@@ -141,19 +166,25 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
     // ---- LAYER 0: Land fill (GeoJSON) ----
     if (!mapInstance.getSource(MASK_LAND_SOURCE)) {
       try {
+        // Create source with empty data first, then populate via explicit fetch
         mapInstance.addSource(MASK_LAND_SOURCE, {
           type: 'geojson',
-          data: '/ne_110m_land.json',
+          data: { type: 'FeatureCollection', features: [] },
         });
         landSourceLoadedRef.current = false;
-        // Listen for source load so we know when the layer can render
-        const onSourceData = (e) => {
-          if (e.sourceId === MASK_LAND_SOURCE && e.isSourceLoaded) {
-            landSourceLoadedRef.current = true;
-            mapInstance.off('sourcedata', onSourceData);
+        // Fetch and inject the actual land polygons
+        fetchLandGeoJson((geojson) => {
+          try {
+            const src = mapInstance.getSource(MASK_LAND_SOURCE);
+            if (src) {
+              src.setData(geojson);
+              landSourceLoadedRef.current = true;
+              console.log('[OceanMask] Land GeoJSON loaded via setData:', geojson.features?.length, 'features');
+            }
+          } catch (e) {
+            console.error('[OceanMask] setData failed:', e);
           }
-        };
-        mapInstance.on('sourcedata', onSourceData);
+        });
       } catch (e) {
         console.error('[OceanMask] addSource failed:', e);
       }
