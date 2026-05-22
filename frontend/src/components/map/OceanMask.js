@@ -82,9 +82,18 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         // Dynamically find the active vector tile source ID (typically 'composite')
         let vectorSourceId = 'composite';
         if (style.sources) {
-          const found = Object.keys(style.sources).find(id => style.sources[id].type === 'vector');
-          if (found) {
-            vectorSourceId = found;
+          if (style.sources['composite'] && style.sources['composite'].type === 'vector') {
+            vectorSourceId = 'composite';
+          } else if (style.sources['mapbox'] && style.sources['mapbox'].type === 'vector') {
+            vectorSourceId = 'mapbox';
+          } else {
+            const found = Object.keys(style.sources).find(id => 
+              style.sources[id].type === 'vector' && 
+              !id.toLowerCase().includes('traffic')
+            );
+            if (found) {
+              vectorSourceId = found;
+            }
           }
         }
 
