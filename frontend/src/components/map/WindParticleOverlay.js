@@ -21,7 +21,7 @@ var ACTIVE_WIND_ENGINES = new Set();
 
 // --- VISUAL TUNING (Ventusky-parity) ---
 // Slow fade = long vapor trails. Must balance with particle count.
-var TRAIL_FADE = 0.018;
+var TRAIL_FADE = 0.015;
 var TRAIL_FADE_THROTTLED = 0.05;
 
 /**
@@ -43,13 +43,14 @@ function interpolateWind(grid, lng, lat) {
   var lngSpan = east - west, latSpan = north - south;
   if (lngSpan === 0 || latSpan === 0) return { u: 0, v: 0, speed: 0 };
 
-  // Normalize query lng
-  var nLng = lng;
-  while (nLng > 180) nLng -= 360;
-  while (nLng < -180) nLng += 360;
+  // Wrap query longitude to grid bounds coordinate space
+  var center = (west + east) / 2;
+  var gLng = lng;
+  while (gLng - center > 180) gLng -= 360;
+  while (gLng - center < -180) gLng += 360;
 
- // Compute grid position CLAMP instead of reject
-  var gx = ((nLng - west) / lngSpan) * (cols - 1);
+  // Compute grid position CLAMP instead of reject
+  var gx = ((gLng - west) / lngSpan) * (cols - 1);
   var gy = ((lat - south) / latSpan) * (rows - 1);
   gx = Math.max(0, Math.min(cols - 1.001, gx));
   gy = Math.max(0, Math.min(rows - 1.001, gy));

@@ -127,10 +127,10 @@ export var MapForecastOverlay = ({
     if (windSpeed != null) {
       const kts = windSpeed != null ? Math.round(windSpeed) : null;
       cards.push({ icon: Wind, label: isLive ? 'Live Wind' : 'Wind', value: kts != null ? `${kts} kts` : '--', color: 'text-teal-400' });
- if (windDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}`, color: 'text-teal-300', rotate: windDir });
+      if (windDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}`, color: 'text-teal-300', rotate: (windDir + 180) % 360 });
       if (windGusts != null) cards.push({ icon: Wind, label: 'Gusts', value: `${Math.round(windGusts)} kts`, color: 'text-orange-400' });
     } else {
- cards.push({ icon: Wind, label: 'Wind', value: isLoading ? 'Loading' : '--', color: 'text-gray-400' });
+      cards.push({ icon: Wind, label: 'Wind', value: isLoading ? 'Loading' : '--', color: 'text-gray-400' });
     }
   }
 
@@ -142,28 +142,28 @@ export var MapForecastOverlay = ({
     const hFt = mToFt(waveHeight);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-blue-300' });
     if (wavePeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${wavePeriod.toFixed(1)}s`, color: 'text-blue-200' });
- if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}`, color: 'text-blue-200', rotate: waveDir });
+    if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}`, color: 'text-blue-200', rotate: (waveDir + 180) % 360 });
   }
 
   if (activeLayer === 'swell_1') {
     const hFt = mToFt(swell1Height);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-cyan-400' });
     if (swell1Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
- if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: swell1Dir });
+    if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: (swell1Dir + 180) % 360 });
   }
 
   if (activeLayer === 'swell_2') {
     const hFt = mToFt(swell2Height);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-purple-400' });
     if (swell2Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell2Period.toFixed(1)}s`, color: 'text-purple-300' });
- if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}`, color: 'text-purple-200', rotate: swell2Dir });
+    if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}`, color: 'text-purple-200', rotate: (swell2Dir + 180) % 360 });
   }
 
   if (activeLayer === 'wind_waves') {
     const hFt = mToFt(windWaveHeight);
     cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-emerald-400' });
     if (windWavePeriod != null) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}s`, color: 'text-emerald-300' });
- if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: windWaveDir });
+    if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: (windWaveDir + 180) % 360 });
   }
 
   if (cards.length === 0) return null;
@@ -232,8 +232,8 @@ export var MapForecastOverlay = ({
               return (
                 <div key={i} className="flex items-center gap-2">
                   <Icon
-                    className={`w-3.5 h-3.5 ${card.color} shrink-0`}
-                    style={card.rotate ? { transform: `rotate(${card.rotate}deg)` } : undefined}
+                    className={`w-3.5 h-3.5 ${card.color} shrink-0 inline-block`}
+                    style={card.rotate ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
                   />
                   <span className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
                   <span className={`text-xs font-bold ${textClass}`}>{card.value}</span>

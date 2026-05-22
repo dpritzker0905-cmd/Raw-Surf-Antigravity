@@ -38,12 +38,13 @@ function interpolateMarine(grid, lng, lat) {
   const { west, south, east, north } = bounds;
   if (!cols || !rows || vectors.length !== cols * rows) return { u: 0, v: 0, speed: 0 };
 
-  // v3.6: Normalize longitude for wrap-aware interpolation
-  let nLng = lng;
-  while (nLng > 180) nLng -= 360;
-  while (nLng < -180) nLng += 360;
+  // Wrap query longitude to grid bounds coordinate space
+  const center = (west + east) / 2;
+  let gLng = lng;
+  while (gLng - center > 180) gLng -= 360;
+  while (gLng - center < -180) gLng += 360;
 
-  const gx = Math.max(0, Math.min(cols - 1, ((nLng - west) / (east - west)) * (cols - 1)));
+  const gx = Math.max(0, Math.min(cols - 1, ((gLng - west) / (east - west)) * (cols - 1)));
   const gy = Math.max(0, Math.min(rows - 1, ((lat - south) / (north - south)) * (rows - 1)));
   const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
   const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
@@ -70,26 +71,25 @@ function interpolateMarine(grid, lng, lat) {
  */
 function isLikelyOcean(lat, lng, grid) {
   if (!grid?.vectors?.length) return false;
-  let nLng = lng;
-  while (nLng > 180) nLng -= 360;
-  while (nLng < -180) nLng += 360;
   if (lat < -85 || lat > 85) return false;
 
   const { vectors, bounds, cols, rows } = grid;
-  // Strict bounding box check to prevent snapping to ocean edge cells when outside data bounds
-  let inside = false;
-  if (bounds.west <= bounds.east) {
-    inside = (nLng >= bounds.west && nLng <= bounds.east);
-  } else {
-    inside = (nLng >= bounds.west || nLng <= bounds.east);
-  }
-  if (!inside || lat < bounds.south || lat > bounds.north) {
+  const { west, south, east, north } = bounds;
+
+  // Wrap query longitude to grid bounds coordinate space
+  const center = (west + east) / 2;
+  let gLng = lng;
+  while (gLng - center > 180) gLng -= 360;
+  while (gLng - center < -180) gLng += 360;
+
+  // Since grid bounds are continuous, check directly against the wrapped gLng
+  if (gLng < west || gLng > east || lat < south || lat > north) {
     return false;
   }
 
-  // Nearest-neighbour cell lookup
-  const gx = Math.round(((nLng - bounds.west) / (bounds.east - bounds.west)) * (cols - 1));
-  const gy = Math.round(((lat - bounds.south) / (bounds.north - bounds.south)) * (rows - 1));
+  // Nearest-neighbour cell lookup using grid bounds coordinate space
+  const gx = Math.round(((gLng - west) / (east - west)) * (cols - 1));
+  const gy = Math.round(((lat - south) / (north - south)) * (rows - 1));
   
   if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return false;
 
@@ -535,7 +535,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         position: 'absolute', top: 0, left: 0,
         width: '100%', height: '100%',
         pointerEvents: 'none', zIndex: 5,
-        opacity: 0, transition: 'none'
+        opacity: active ? 1 : 0,
+        transition: 'opacity 0.3s ease'
       }}
     />
   );

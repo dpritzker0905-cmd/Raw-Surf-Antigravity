@@ -147,6 +147,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
         }
 
         const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
+        const waterFilter = ['match', ['get', 'class'], ['lake', 'river', 'canal', 'stream', 'reservoir', 'pool', 'pond', 'spring', 'waterfall'], false, true];
 
         // Layer 1: Coastline buffer shifted INWARD (into water) to mask GFS staircasing beautifully
         if (!hasBuf) {
@@ -156,6 +157,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
               type: 'line',
               source: vectorSourceId,
               'source-layer': 'water',
+              filter: waterFilter,
               paint: {
                 'line-color': targetOceanColor,
                 'line-width': ['interpolate', ['linear'], ['zoom'],
@@ -198,6 +200,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
         } else {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
+            mapInstance.setFilter(MASK_BUFFER, waterFilter);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', targetOceanColor);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-width', ['interpolate', ['linear'], ['zoom'],
               1, 10,
@@ -241,6 +244,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
               type: 'line',
               source: vectorSourceId,
               'source-layer': 'water',
+              filter: waterFilter,
               paint: {
                 'line-color': tc.line,
                 'line-width': ['interpolate', ['linear'], ['zoom'],
@@ -260,6 +264,7 @@ export function OceanMask({ mapInstance, activeMarineLayer, theme, beforeId }) {
         } else {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
+            mapInstance.setFilter(MASK_LINE, waterFilter);
             mapInstance.setPaintProperty(MASK_LINE, 'line-color', tc.line);
             mapInstance.setPaintProperty(MASK_LINE, 'line-width', ['interpolate', ['linear'], ['zoom'],
               2, tc.lw * 0.5, 6, tc.lw, 10, tc.lw * 1.5,

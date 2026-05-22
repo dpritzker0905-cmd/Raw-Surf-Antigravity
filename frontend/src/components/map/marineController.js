@@ -312,12 +312,24 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     return lastKnownGoodWind;
   }
 
+  // Adjust for Antimeridian / Pacific wrap (ensure east is always greater than west)
+  let west = bounds.west;
+  let east = bounds.east;
+  if (east < west) {
+    east += 360;
+  }
+
   // Snap bounds
   const { snap, padding } = getSnapConfig(bounds);
-  const latMin = Math.max(-85, Math.floor((bounds.south - padding) / snap) * snap);
-  const latMax = Math.min(85, Math.ceil((bounds.north + padding) / snap) * snap);
-  const lngMin = Math.floor((bounds.west - padding) / snap) * snap;
-  const lngMax = Math.ceil((bounds.east + padding) / snap) * snap;
+  const latMinRaw = Math.floor((bounds.south - padding) / snap) * snap;
+  const latMaxRaw = Math.ceil((bounds.north + padding) / snap) * snap;
+  const lngMin = Math.floor((west - padding) / snap) * snap;
+  const lngMax = Math.ceil((east + padding) / snap) * snap;
+
+  // Clamp requested latitudes to Open-Meteo weather API limits [-85, 85]
+  const latMin = Math.max(-85, Math.min(85, latMinRaw));
+  const latMax = Math.max(-85, Math.min(85, latMaxRaw));
+
   if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodWind;
 
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
@@ -529,12 +541,24 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     return lastKnownGoodMarine;
   }
 
+  // Adjust for Antimeridian / Pacific wrap (ensure east is always greater than west)
+  let west = bounds.west;
+  let east = bounds.east;
+  if (east < west) {
+    east += 360;
+  }
+
   // Snap bounds dynamically
   const { snap, padding } = getSnapConfig(bounds);
-  const latMin = Math.max(-70, Math.floor((bounds.south - padding) / snap) * snap);
-  const latMax = Math.min(70, Math.ceil((bounds.north + padding) / snap) * snap);
-  const lngMin = Math.floor((bounds.west - padding) / snap) * snap;
-  const lngMax = Math.ceil((bounds.east + padding) / snap) * snap;
+  const latMinRaw = Math.floor((bounds.south - padding) / snap) * snap;
+  const latMaxRaw = Math.ceil((bounds.north + padding) / snap) * snap;
+  const lngMin = Math.floor((west - padding) / snap) * snap;
+  const lngMax = Math.ceil((east + padding) / snap) * snap;
+
+  // Clamp requested latitudes to Open-Meteo marine API limits [-80, 80]
+  const latMin = Math.max(-80, Math.min(80, latMinRaw));
+  const latMax = Math.max(-80, Math.min(80, latMaxRaw));
+
   if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodMarine;
 
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };

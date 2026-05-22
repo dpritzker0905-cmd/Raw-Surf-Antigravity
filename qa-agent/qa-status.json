@@ -1,18 +1,18 @@
 ﻿{
-    "changedFile":  "",
+    "changedFile":  "(startup)",
     "targetBackend":  "https://raw-surf-antigravity.onrender.com",
     "activeEnv":  "dev",
     "overallStatus":  "PASS",
-    "lastRun":  "2026-05-20T02:45:05",
+    "lastRun":  "2026-05-22T00:54:48",
     "targetBranch":  "dev",
     "targetFrontend":  "https://dev--rawsurf.netlify.app",
     "history":  [
                     {
                         "activeEnv":  "dev",
-                        "timestamp":  "2026-05-20T02:45:05",
+                        "timestamp":  "2026-05-22T00:54:48",
                         "overallStatus":  "PASS",
                         "targetFrontend":  "https://dev--rawsurf.netlify.app",
-                        "changedFile":  ""
+                        "changedFile":  "(startup)"
                     }
                 ],
     "status":  "IDLE",
@@ -20,17 +20,10 @@
                    {
                        "tool":  "ESLint",
                        "errors":  [
-                                      {
-                                          "message":  "\u0027React\u0027 is defined but never used.",
-                                          "column":  8,
-                                          "line":  1,
-                                          "severity":  "warning",
-                                          "rule":  "unused-imports/no-unused-imports",
-                                          "file":  "\\src\\components\\map\\TruthOverlay.js"
-                                      }
+
                                   ],
                        "errorCount":  0,
-                       "warningCount":  1,
+                       "warningCount":  0,
                        "status":  "PASS"
                    },
                    {
