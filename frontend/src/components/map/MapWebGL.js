@@ -434,7 +434,7 @@ var MapWebGL = ({
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
-      setMaskLandExists(!!mapInstance.getLayer('ocean-mask-land'));
+      setMaskLandExists(!!mapInstance.getLayer('ocean-mask-buffer'));
       const id = findMarineInsertionLayer(mapInstance);
       if (id) {
         setMarineBeforeId(id);
@@ -462,9 +462,7 @@ var MapWebGL = ({
     if (!mapInstance) return;
     const mlIds = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
     const reposition = () => {
-      const ref = mapInstance.getLayer('ocean-mask-land') ? 'ocean-mask-land'
-                : mapInstance.getLayer('ocean-mask-land-buffer') ? 'ocean-mask-land-buffer'
-                : mapInstance.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer' : null;
+      const ref = mapInstance.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer' : null;
       if (!ref) return;
       for (const ml of mlIds) {
         if (mapInstance.getLayer(ml)) {
@@ -687,7 +685,7 @@ var MapWebGL = ({
                 id={`${slotKey}-layer`}
                 beforeId={
                   LAYER_REGISTRY[layerKey]?.type === 'marine'
-                    ? (maskLandExists ? 'ocean-mask-land' : 'marine-raster-anchor') || undefined
+                    ? (maskLandExists ? 'ocean-mask-buffer' : 'marine-raster-anchor') || undefined
                     : undefined
                 }
                 type="raster"

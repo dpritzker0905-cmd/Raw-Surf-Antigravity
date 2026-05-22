@@ -142,14 +142,9 @@ export var findMarineInsertionLayer = function(mapInstance) {
   var afterWater = false;
   var fallbackId = null;
 
-  // Preferred target prefixes — above water/landuse/parks but below labels.
-  // In Mapbox vector styles, placing marine/mask layers before roads, buildings, or tunnels is ideal.
-  var preferredPrefixes = [
-    'tunnel-', 'road-', 'bridge-', 'building', 'land-structure', 
-    'aeroway', 'admin-', 'highway-', 'railway-'
-  ];
-
-  // First pass: find a preferred layer that is NOT custom
+  // Primary Pass: Find the first valid non-custom layer immediately following water fill layers.
+  // Placing the marine/mask layers here inserts them at the absolute bottom of the land layer stack,
+  // below landuse, parks, roads, buildings, and labels.
   for (var layer of style.layers) {
     var id = layer.id;
     var isCustom = id.startsWith('ocean-mask-') || 
@@ -157,7 +152,41 @@ export var findMarineInsertionLayer = function(mapInstance) {
                    id.endsWith('-source') ||
                    id === 'radar-layer' || 
                    id === 'esri-satellite-layer' ||
-                   id === 'spot-geofences-layer';
+                   id === 'spot-geofences-layer' ||
+                   id === 'marine-raster-anchor';
+
+    if (id === 'water' || id === 'water-depth' || id === 'wetland') {
+      afterWater = true;
+      continue;
+    }
+
+    if (afterWater && !isCustom) {
+      return id;
+    }
+
+    // Keep track of a general fallback (any non-custom, non-background, non-water layer)
+    if (!isCustom && id !== 'background' && id !== 'water' && id !== 'water-depth' && id !== 'wetland') {
+      if (!fallbackId) {
+        fallbackId = id;
+      }
+    }
+  }
+
+  // Fallback Pass 1: If water layers were not found, search for preferred land prefixes
+  var preferredPrefixes = [
+    'tunnel-', 'road-', 'bridge-', 'building', 'land-structure', 
+    'aeroway', 'admin-', 'highway-', 'railway-'
+  ];
+
+  for (layer of style.layers) {
+    id = layer.id;
+    isCustom = id.startsWith('ocean-mask-') || 
+                   id.endsWith('-layer') || 
+                   id.endsWith('-source') ||
+                   id === 'radar-layer' || 
+                   id === 'esri-satellite-layer' ||
+                   id === 'spot-geofences-layer' ||
+                   id === 'marine-raster-anchor';
     if (isCustom) continue;
 
     for (var prefix of preferredPrefixes) {
@@ -167,40 +196,10 @@ export var findMarineInsertionLayer = function(mapInstance) {
     }
   }
 
-  // Final fallback: fall back to original water-based search
-  for (layer of style.layers) {
-    id = layer.id;
-    
-    // Ignore custom layers to prevent circular style positioning loops
-    isCustom = id.startsWith('ocean-mask-') || 
-               id.endsWith('-layer') || 
-               id.endsWith('-source') ||
-               id === 'radar-layer' || 
-               id === 'esri-satellite-layer' ||
-               id === 'spot-geofences-layer';
-
-    if (id === 'water' || id === 'water-depth' || id === 'wetland') {
-      afterWater = true;
-      continue;
-    }
-
-    if (afterWater && !isCustom) {
-      // Found the first valid non-custom layer after water! This is the perfect insertion point.
-      return id;
-    }
-
-    // Keep track of a fallback (any non-custom, non-background, non-water layer)
-    if (!isCustom && id !== 'background' && id !== 'water' && id !== 'water-depth' && id !== 'wetland') {
-      if (!fallbackId) {
-        fallbackId = id;
-      }
-    }
-  }
-
-  // If we never found a layer after water, return the fallbackId if we have one
+  // Fallback Pass 2: return the first general non-custom fallback layer we saw
   if (fallbackId) return fallbackId;
 
-  // Last resort: return the ID of the last layer in the style that is not custom
+  // Fallback Pass 3: return the last non-custom layer in the style
   for (var i = style.layers.length - 1; i >= 0; i--) {
     var lid = style.layers[i].id;
     var isLidCustom = lid.startsWith('ocean-mask-') || 
@@ -208,7 +207,8 @@ export var findMarineInsertionLayer = function(mapInstance) {
                       lid.endsWith('-source') ||
                       lid === 'radar-layer' || 
                       lid === 'esri-satellite-layer' ||
-                      lid === 'spot-geofences-layer';
+                      lid === 'spot-geofences-layer' ||
+                      lid === 'marine-raster-anchor';
     if (!isLidCustom) return lid;
   }
 

@@ -21,11 +21,14 @@ const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geoj
 
 const MASK_SOURCE = 'ocean-mask-source';
 const MASK_BUFFER = 'ocean-mask-buffer';
-const MASK_FILL   = 'ocean-mask-fill';
 const MASK_LINE   = 'ocean-mask-line';
-const MASK_INLAND_WATERWAY = 'ocean-mask-inland-waterway';
-const MASK_INLAND_WATER = 'ocean-mask-inland-water';
-const ALL_LAYERS  = [MASK_LINE, MASK_FILL, MASK_BUFFER, MASK_INLAND_WATERWAY, MASK_INLAND_WATER];
+const ALL_LAYERS  = [
+  MASK_LINE,
+  MASK_BUFFER,
+  'ocean-mask-fill',
+  'ocean-mask-inland-water',
+  'ocean-mask-inland-waterway'
+];
 
 const THEME_COLORS = {
   dark:  { fill: 'hsl(214, 17%, 31%)', line: 'rgba(0, 0, 0, 0.35)', lw: 1.2 },
@@ -73,15 +76,27 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
-  const lastPropsRef = useRef({ beforeId: null, active: null, theme: null });
+  const timeoutRef = useRef(null);
 
   const active = propActive !== undefined ? propActive : !!activeMarineLayer;
 
+  console.log('[OceanMask] Render:', { active, propActive, activeMarineLayer, theme, hasMaskData: !!maskData });
+
+  // Update a stateRef on every render to completely prevent stale closure races
+  const stateRef = useRef({ mapInstance, maskData, active, theme, beforeId });
   useEffect(() => {
+    stateRef.current = { mapInstance, maskData, active, theme, beforeId };
+  });
+
+  useEffect(() => {
+    if (!active) {
+      console.log('[OceanMask] Passive; skipping fetch');
+      return;
+    }
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
-    // Fetch land mask
+    console.log('[OceanMask] Fetching land mask from CDN:', NE_LAND_URL);
     fetch(NE_LAND_URL)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(geojson => {
@@ -94,30 +109,18 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       .catch(err => { console.warn('[OceanMask] Land fetch failed:', err); fetchedRef.current = false; });
   }, [active]);
 
-  const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
-
   const syncLayers = useCallback(() => {
-    if (!mapInstance || !maskData) return;
+    const { mapInstance, maskData, active, theme, beforeId } = stateRef.current;
+    if (!mapInstance || !maskData) {
+      console.log('[OceanMask] syncLayers bypassed, no map or no maskData');
+      return;
+    }
 
-    // Bypass syncingRef throttle if critical props have changed explicitly
-    const propsChanged =
-      beforeId !== lastPropsRef.current.beforeId ||
-      active !== lastPropsRef.current.active ||
-      theme !== lastPropsRef.current.theme;
-
-    if (syncingRef.current && !propsChanged) return;
-    syncingRef.current = true;
+    console.log('[OceanMask] syncLayers running:', { active });
 
     try {
-      lastPropsRef.current = { beforeId, active, theme };
-      const style = mapInstance.getStyle?.();
-      if (!style) return;
-
       const hasBuf  = !!mapInstance.getLayer(MASK_BUFFER);
-      const hasFill = !!mapInstance.getLayer(MASK_FILL);
       const hasLine = !!mapInstance.getLayer(MASK_LINE);
-      const hasWaterway = !!mapInstance.getLayer(MASK_INLAND_WATERWAY);
-      const hasWater = !!mapInstance.getLayer(MASK_INLAND_WATER);
       const hasSrc  = !!mapInstance.getSource(MASK_SOURCE);
 
       if (active) {
@@ -132,12 +135,10 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         }
 
         const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
-        const fillColor = resolveFillColor(mapInstance, theme);
+        const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
+        const fillColor = tc.fill;
 
-        // Layer 1: WIDE coastline buffer with outward shift.
-        // GFS marine tiles bleed 1-3 grid cells (~28-84km) past coastlines.
-        // Shrink the width of MASK_BUFFER at mid-to-high zoom levels to prevent it from invading coastal waters.
-        // Use soft blur for a clean, premium transition where water meets the edge of land.
+        // Coastline buffer (shifted slightly into the ocean)
         if (!hasBuf) {
           try {
             mapInstance.addLayer({
@@ -147,19 +148,17 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               paint: {
                 'line-color': fillColor,
                 'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
-                  1, 10,
-                  3, 16,
-                  5, 22,
-                  7, 22,
-                  9, 20,
-                  14, 2,
+                  1, 4,
+                  3, 5,
+                  5, 6,
+                  7, 6,
+                  9, 5,
+                  14, 1,
                 ],
-                // Shift the buffer line outward into the ocean to cover GFS tile bleed
-                // (GFS grid ~25km resolution bleeds 1-3 cells past actual coastline)
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, 5,
-                  5, 9,
-                  9, 12,
+                  1, 2,
+                  5, 3,
+                  9, 2,
                   14, 0,
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
@@ -185,105 +184,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           } catch (e) {}
         }
 
-        // Layer 2: NE 10m land fill
-        if (!hasFill) {
-          try {
-            mapInstance.addLayer({
-              id: MASK_FILL,
-              type: 'fill',
-              source: MASK_SOURCE,
-              paint: { 'fill-color': fillColor, 'fill-opacity': 1 },
-            }, insertBeforeId || undefined);
-          } catch (e) {
-            console.error('[OceanMask] Failed to add MASK_FILL:', e);
-          }
-        } else {
-          try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
-            mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
-          } catch (e) {}
-        }
-
-        // Layer 3: Bring high-resolution inland water (lakes/reservoirs) back to top
-        // Dynamically resolve source and source-layer from base style's 'water' layer
-        let waterSource = 'composite';
-        let waterSourceLayer = 'water';
-        let waterColor = 'hsl(197, 60%, 80%)';
-        try {
-          const baseWater = style?.layers?.find(l => l.id === 'water' || l.id === 'water-depth' || l.id === 'wetland');
-          if (baseWater) {
-            if (baseWater.source) waterSource = baseWater.source;
-            if (baseWater['source-layer']) waterSourceLayer = baseWater['source-layer'];
-            if (baseWater.paint?.['fill-color']) waterColor = baseWater.paint['fill-color'];
-          }
-        } catch (e) {}
-
-        if (!hasWater) {
-          try {
-            mapInstance.addLayer({
-              id: MASK_INLAND_WATER,
-              type: 'fill',
-              source: waterSource,
-              'source-layer': waterSourceLayer,
-              filter: ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']],
-              paint: {
-                'fill-color': waterColor,
-                'fill-opacity': 1.0
-              }
-            }, insertBeforeId || undefined);
-          } catch (e) {
-            console.warn('[OceanMask] Failed to add MASK_INLAND_WATER:', e);
-          }
-        } else {
-          try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
-            mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['!=', ['get', 'class'], 'ocean'], ['!=', ['get', 'class'], 'sea']]);
-          } catch (e) {}
-        }
-
-        // Layer 4: Bring high-resolution waterways (rivers/streams as lines) back to top
-        // Dynamically resolve source and source-layer from base style's 'waterway' layer
-        let waterwaySource = 'composite';
-        let waterwaySourceLayer = 'waterway';
-        let waterwayColor = 'hsl(197, 15%, 43%)';
-        try {
-          const baseWaterway = style?.layers?.find(l => l.id === 'waterway' || l.id.includes('waterway'));
-          if (baseWaterway) {
-            if (baseWaterway.source) waterwaySource = baseWaterway.source;
-            if (baseWaterway['source-layer']) waterwaySourceLayer = baseWaterway['source-layer'];
-            if (baseWaterway.paint?.['line-color']) waterwayColor = baseWaterway.paint['line-color'];
-          }
-        } catch (e) {}
-
-        if (!hasWaterway) {
-          try {
-            mapInstance.addLayer({
-              id: MASK_INLAND_WATERWAY,
-              type: 'line',
-              source: waterwaySource,
-              'source-layer': waterwaySourceLayer,
-              paint: {
-                'line-color': waterwayColor,
-                'line-width': ['interpolate', ['linear'], ['zoom'],
-                  8, 0.5,
-                  13, 1.5,
-                  18, 6
-                ],
-                'line-opacity': 1.0
-              }
-            }, insertBeforeId || undefined);
-          } catch (e) {
-            console.warn('[OceanMask] Failed to add MASK_INLAND_WATERWAY:', e);
-          }
-        } else {
-          try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
-            mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
-          } catch (e) {}
-        }
-
-        // Layer 5: Thin coastline outline — aesthetic boundary
+        // Thin aesthetic coastline line
         if (!hasLine) {
           try {
             mapInstance.addLayer({
@@ -312,41 +213,92 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           } catch (e) {}
         }
 
-        // v90: Strictly force active marine raster layers BELOW the MASK_BUFFER layer
+        // Force active marine raster layers BELOW the MASK_BUFFER layer
         const marineLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
         for (const ml of marineLayers) {
           safeMoveLayer(mapInstance, ml, MASK_BUFFER);
         }
-
       } else {
+        // Active is false: remove all layers immediately and synchronously
         for (const lid of ALL_LAYERS) {
-          if (mapInstance.getLayer(lid)) { try { mapInstance.removeLayer(lid); } catch (e) {} }
+          if (mapInstance.getLayer(lid)) {
+            try { mapInstance.removeLayer(lid); } catch (e) {}
+          }
         }
-        if (hasSrc) { try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {} }
+        if (mapInstance.getSource(MASK_SOURCE)) {
+          try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
+        }
       }
-    } finally {
-      setTimeout(() => { syncingRef.current = false; }, 500);
+    } catch (err) {
+      console.error('[OceanMask] Error in syncLayers:', err);
     }
-  }, [mapInstance, maskData, active, theme, tc, beforeId]);
+  }, []);
 
-  useEffect(() => { syncLayers(); }, [syncLayers]);
+  const triggerSync = useCallback((delay = 0) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (delay === 0) {
+      if (!syncingRef.current) {
+        syncingRef.current = true;
+        syncLayers();
+        setTimeout(() => { syncingRef.current = false; }, 300);
+      }
+    } else {
+      timeoutRef.current = setTimeout(() => {
+        if (!syncingRef.current) {
+          syncingRef.current = true;
+          syncLayers();
+          setTimeout(() => { syncingRef.current = false; }, 300);
+        }
+      }, delay);
+    }
+  }, [syncLayers]);
 
+  // Handle active state changes immediately and synchronously
+  useEffect(() => {
+    if (!active) {
+      // Immediate synchronous cleanup on deactivation
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (mapInstance) {
+        console.log('[OceanMask] Deactivating: removing layers immediately');
+        syncingRef.current = true;
+        for (const lid of ALL_LAYERS) {
+          if (mapInstance.getLayer(lid)) {
+            try { mapInstance.removeLayer(lid); } catch (e) {}
+          }
+        }
+        if (mapInstance.getSource(MASK_SOURCE)) {
+          try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
+        }
+        setTimeout(() => { syncingRef.current = false; }, 300);
+      }
+    } else {
+      triggerSync(0);
+    }
+  }, [mapInstance, maskData, active, theme, beforeId, triggerSync]);
+
+  // Styledata event listener (only runs when active, ignores styledata event storms on deactivation)
   useEffect(() => {
     if (!mapInstance) return;
-    const handler = () => { if (!syncingRef.current) setTimeout(syncLayers, 300); };
+    const handler = () => {
+      const { active } = stateRef.current;
+      if (active && !syncingRef.current) {
+        triggerSync(300);
+      }
+    };
     mapInstance.on('styledata', handler);
-    return () => mapInstance.off('styledata', handler);
-  }, [mapInstance, syncLayers]);
+    return () => {
+      mapInstance.off('styledata', handler);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [mapInstance, triggerSync]);
 
-  // v91: Dedicated marine-raster repositioning listener — runs WITHOUT syncingRef guard.
-  // Fixes the race where react-map-gl adds swell_1-layer / waves-layer a few ms after
-  // syncLayers fires (syncingRef is still true), so the blocked styledata handler
-  // never calls moveLayer for those layers and they render above MASK_FILL (over land).
+  // Dedicated marine-raster repositioning listener
   useEffect(() => {
     if (!mapInstance) return;
     const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
     const repositionLayers = () => {
-      if (!mapInstance.getLayer(MASK_BUFFER)) return;
+      const { active } = stateRef.current;
+      if (!active || !mapInstance.getLayer(MASK_BUFFER)) return;
       for (const ml of marineRasterLayers) {
         safeMoveLayer(mapInstance, ml, MASK_BUFFER);
       }
@@ -355,10 +307,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     return () => mapInstance.off('styledata', repositionLayers);
   }, [mapInstance]);
 
+  // Unmount cleanup
   useEffect(() => {
     return () => {
       if (!mapInstance) return;
-      for (const lid of ALL_LAYERS) { try { mapInstance.removeLayer(lid); } catch (e) {} }
+      for (const lid of ALL_LAYERS) {
+        try { mapInstance.removeLayer(lid); } catch (e) {}
+      }
       try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
     };
   }, [mapInstance]);
