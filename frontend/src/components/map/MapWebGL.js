@@ -715,8 +715,9 @@ var MapWebGL = ({
                       'interpolate', ['linear'], ['zoom'],
                       2, 0.70,
                       5, 0.75,
-                      7.5, 0.80,
-                      9.0, 0.0
+                      9.0, 0.80,
+                      12.0, 0.45,
+                      14.0, 0.0
                     ] : [
                       'interpolate', ['linear'], ['zoom'],
                       2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,

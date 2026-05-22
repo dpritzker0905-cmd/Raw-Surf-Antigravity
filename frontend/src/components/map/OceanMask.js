@@ -325,8 +325,9 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                   14, 0,
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
-                  8.5, 1.0,
-                  9.5, 0.0
+                  9.0, 1.0,
+                  12.0, 0.50,
+                  14.0, 0.0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
                   2, 3.0,
