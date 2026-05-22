@@ -470,7 +470,9 @@ var MapWebGL = ({
         if (mapInstance.getLayer(ml)) {
           try {
             mapInstance.moveLayer(ml, ref);
-          } catch(e){}
+          } catch (e) {
+            // Layer might not be fully loaded or ready to move yet
+          }
         }
       }
     };
