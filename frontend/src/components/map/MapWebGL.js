@@ -31,7 +31,23 @@ import { useTemporalPreloader } from './useTemporalPreloader';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-
+const safeMoveLayer = (mapInstance, layerId, beforeId) => {
+  if (!mapInstance || !layerId || !beforeId) return;
+  try {
+    if (!mapInstance.getLayer(layerId) || !mapInstance.getLayer(beforeId)) return;
+    const style = mapInstance.getStyle();
+    if (!style || !style.layers) return;
+    const layers = style.layers;
+    const layerIdx = layers.findIndex(l => l.id === layerId);
+    const beforeIdx = layers.findIndex(l => l.id === beforeId);
+    if (layerIdx !== -1 && beforeIdx !== -1) {
+      if (layerIdx === beforeIdx - 1) {
+        return; // Already immediately before beforeId
+      }
+    }
+    mapInstance.moveLayer(layerId, beforeId);
+  } catch (e) {}
+};
 
 var MapWebGL = ({
   isLight,
@@ -467,7 +483,7 @@ var MapWebGL = ({
       for (const ml of mlIds) {
         if (mapInstance.getLayer(ml)) {
           try {
-            mapInstance.moveLayer(ml, ref);
+            safeMoveLayer(mapInstance, ml, ref);
           } catch (e) {
             // Layer might not be fully loaded or ready to move yet
           }
