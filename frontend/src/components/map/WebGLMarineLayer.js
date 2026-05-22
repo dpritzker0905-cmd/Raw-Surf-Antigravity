@@ -130,7 +130,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       }
 
       // Move any active marine raster layer below the custom webgl-marine-particles layer
-      const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
+      const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
       for (const rasterId of marineRasterLayers) {
         safeMoveLayer(mapInstance, rasterId, LAYER_ID);
       }
@@ -173,7 +173,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   useEffect(() => {
     if (!mapInstance || !active) return;
 
-    const marineRasterLayers = ['waves-layer', 'swell_1-layer', 'swell_2-layer', 'wind_waves-layer'];
+    const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
     for (const rasterId of marineRasterLayers) {
       safeMoveLayer(mapInstance, rasterId, LAYER_ID);
     }
