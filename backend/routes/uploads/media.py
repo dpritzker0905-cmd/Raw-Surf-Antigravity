@@ -504,13 +504,11 @@ async def upload_comment_media(
             await file.close()
             gc.collect()
 
-        # 2. Get video info and validate duration
-        video_info = await asyncio.to_thread(get_video_info, str(temp_path))
-        if video_info and video_info.get('duration', 0) > MAX_COMMENT_VIDEO_DURATION:
+        if video_info and video_info.get('duration', 0) > 60.9:
             os.remove(temp_path)
             raise HTTPException(
                 status_code=400,
-                detail=f"Comment videos must be {MAX_COMMENT_VIDEO_DURATION} seconds or less. Your video is {video_info['duration']:.1f} seconds."
+                detail=f"Comment videos must be 60 seconds or less. Your video is {video_info['duration']:.1f} seconds."
             )
 
         # 3. Process video from disk path

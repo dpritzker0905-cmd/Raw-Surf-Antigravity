@@ -3,6 +3,7 @@ import { Camera, Smile, Send, X, Loader2, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
 import EmojiPicker from '../EmojiPicker';
+import GifPicker from '../messages/GifPicker';
 
 const CommentInputForm = ({ 
   user, 
@@ -17,6 +18,7 @@ const CommentInputForm = ({
   const [uploading, setUploading] = useState(false);
   const [mediaAttachment, setMediaAttachment] = useState(null); // { media_url, media_type, local_preview }
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
@@ -46,7 +48,7 @@ const CommentInputForm = ({
       video.preload = 'metadata';
       video.onloadedmetadata = () => {
         window.URL.revokeObjectURL(video.src);
-        if (video.duration > 60) {
+        if (video.duration > 60.9) {
           toast.error("Video comments must be 60 seconds or less! Your video is " + Math.round(video.duration) + "s.");
           e.target.value = ''; // Clear file input
         } else {
@@ -176,7 +178,7 @@ const CommentInputForm = ({
           
           <div className="flex flex-col pr-8 pl-1">
             <span className="text-[11px] font-semibold text-white">
-              {uploading ? "Staging Upload..." : "Attachment Ready"}
+              {uploading ? "Uploading..." : "Attachment Ready"}
             </span>
             <span className="text-[10px] text-gray-400 capitalize">
               {mediaAttachment.media_type}
@@ -216,6 +218,20 @@ const CommentInputForm = ({
           title="Attach Image, GIF or Video (Max 60s)"
         >
           <Camera className="w-5 h-5" />
+        </button>
+
+        {/* GIF Trigger Button */}
+        <button 
+          type="button"
+          onClick={() => setShowGifPicker(!showGifPicker)}
+          className={`px-1.5 py-0.5 rounded text-[10px] font-extrabold border transition-all active:scale-95 ${
+            showGifPicker 
+              ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' 
+              : 'text-gray-400 hover:text-cyan-400 border-zinc-700 hover:border-cyan-400/50'
+          }`}
+          title="Search & attach GIF"
+        >
+          GIF
         </button>
 
         {/* Text Area / Input */}
@@ -267,6 +283,20 @@ const CommentInputForm = ({
             inputRef.current?.focus();
           }}
           position="above"
+        />
+
+        {/* Floating Tenor GIF Picker Popover */}
+        <GifPicker
+          show={showGifPicker}
+          onClose={() => setShowGifPicker(false)}
+          onSelect={(gifUrl) => {
+            setMediaAttachment({
+              media_url: gifUrl,
+              media_type: 'gif',
+              local_preview: gifUrl
+            });
+            setShowGifPicker(false);
+          }}
         />
       </div>
     </div>
