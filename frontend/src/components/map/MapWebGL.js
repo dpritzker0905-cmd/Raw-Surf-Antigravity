@@ -535,6 +535,7 @@ var MapWebGL = ({
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
       attributionControl={false}
+      minZoom={2.0}
     >
       {/* Geofence Visual Layer */}
       <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
