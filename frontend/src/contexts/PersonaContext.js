@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import logger from '../utils/logger';
 import { ROLES, ROLE_SETS, isProLevel, isBusinessRole as _isBusinessRole } from '../constants/roles';
@@ -9,7 +9,7 @@ export const ALL_PERSONAS = [
   { id: ROLES.PRO, label: 'Verified Pro Surfer', icon: '\u{2B50}', description: 'Professional athlete' },
   { id: ROLES.APPROVED_PRO, label: 'Verified Pro Photographer', icon: '\u{1F4F8}', description: 'Verified pro photographer' },
   { id: ROLES.PHOTOGRAPHER, label: 'Regular Photographer', icon: '\u{1F4F7}', description: 'Standard photographer' },
-  { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: '\u{1F50D}', description: 'Amateur/hobbyist' },
+  { id: ROLES.HOBBYIST, label: 'Hobbyist Photographer', icon: '\u{1F39E}\u{FE0F}', description: 'Amateur/hobbyist' },
   { id: ROLES.SHOP, label: 'Surf Shop', icon: '\u{1F6CD}\u{FE0F}', description: 'Retail business' },
   { id: ROLES.SCHOOL, label: 'Surf School / Coach', icon: '\u{1F32C}\u{FE0F}', description: 'Teaching/coaching' },
   { id: ROLES.SHAPER, label: 'Shaper', icon: '\u{1F6E0}\u{FE0F}', description: 'Board shaper' },
@@ -43,7 +43,7 @@ const getRoleDetails = (role) => {
     case ROLES.PHOTOGRAPHER:
       return { icon: '\u{1F4F7}', color: 'text-purple-400', bgColor: 'bg-purple-400/20', label: 'Photographer', priority: 2 };
     case ROLES.HOBBYIST:
-      return { icon: '\u{1F50D}', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
+      return { icon: '\u{1F39E}\u{FE0F}', color: 'text-indigo-400', bgColor: 'bg-indigo-400/20', label: 'Hobbyist', priority: 3 };
     case ROLES.SHOP:
       return { icon: '\u{1F6CD}\u{FE0F}', color: 'text-pink-400', bgColor: 'bg-pink-400/20', label: 'Surf Shop', priority: 2 };
     case ROLES.SCHOOL:

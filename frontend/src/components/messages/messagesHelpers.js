@@ -21,7 +21,7 @@ const getRoleIcon = (role, isAdmin = false) => {
     case 'Photographer':
       return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '\u{1F4F7}' };
     case 'Hobbyist':
-      return { icon: Search, color: 'text-indigo-400', label: 'Hobbyist', emoji: '\u{1F3C4}' };
+      return { icon: Camera, color: 'text-indigo-400', label: 'Hobbyist', emoji: '\u{1F39E}\u{FE0F}' };
     case 'Shop':
       return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '\u{1F6CD}\u{FE0F}' };
     case 'Surf School':

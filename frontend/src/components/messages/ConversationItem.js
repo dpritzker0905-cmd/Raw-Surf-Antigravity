@@ -22,6 +22,7 @@ const getRoleIcon = (role, isAdmin = false) => {
     case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400' };
     case 'Approved Pro': return { icon: Camera, color: 'text-blue-400' };
     case 'Photographer': return { icon: Camera, color: 'text-purple-400' };
+    case 'Hobbyist': return { icon: Camera, color: 'text-indigo-400' };
     case 'Shop': return { icon: Store, color: 'text-pink-400' };
     case 'Surf School': return { icon: Users, color: 'text-teal-400' };
     case 'Shaper': return { icon: Briefcase, color: 'text-orange-400' };
