@@ -50,12 +50,12 @@ const PricingTierRow = ({
         )}
         {photo && (
           <span className={`text-[10px] ${textSecondaryClass}`}>
- =+ ${photo}
+            Photo: {typeof photo === 'object' ? `$${photo.web} - $${photo.high}` : `$${photo}`}
           </span>
         )}
         {video && (
           <span className={`text-[10px] ${textSecondaryClass}`}>
- = ${video}
+            Video: {typeof video === 'object' ? `$${video['720p']} - $${video['4k']}` : `$${video}`}
           </span>
         )}
       </div>
