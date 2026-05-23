@@ -13,7 +13,8 @@ import hashlib
 import json
 
 from database import get_db
-from models import Profile, SurfSpot, Post, ConditionReport, SurfReport
+from models import Profile, SurfSpot, Post, ConditionReport, SurfReport, CheckIn, RoleEnum
+from core.security import get_optional_user_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -243,7 +244,14 @@ async def explore_search(
     return results
 
 @router.get("/explore/trending")
-async def get_trending(db: AsyncSession = Depends(get_db)):
+async def get_trending(
+    viewer_id: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user_id: Optional[str] = Depends(get_optional_user_id)
+):
+    # Resolve the active viewer
+    active_viewer_id = viewer_id or current_user_id
+
     # Social Live Users - Users who are broadcasting live to followers (Instagram Live style)
     # This is DIFFERENT from photographers who are actively shooting at spots
     social_live_result = await db.execute(
@@ -260,13 +268,73 @@ async def get_trending(db: AsyncSession = Depends(get_db)):
     )
     popular_spots = spots_result.scalars().all()
     
+    # Fetch top 50 recent posts with media for algorithmic ranking
     posts_result = await db.execute(
         select(Post)
         .options(selectinload(Post.author))
-        .order_by(Post.likes_count.desc(), Post.created_at.desc())
-        .limit(12)
+        .where(
+            Post.media_url.isnot(None),
+            Post.media_url != ''
+        )
+        .order_by(Post.created_at.desc())
+        .limit(50)
     )
-    trending_posts = posts_result.scalars().all()
+    all_recent_posts = posts_result.scalars().all()
+    
+    # Fetch active viewer check-in history if logged in
+    viewer_spot_ids = set()
+    if active_viewer_id:
+        check_ins_query = (
+            select(CheckIn.spot_id)
+            .where(CheckIn.user_id == active_viewer_id)
+            .where(CheckIn.spot_id.isnot(None))
+        )
+        check_ins_result = await db.execute(check_ins_query)
+        viewer_spot_ids = set(check_ins_result.scalars().all())
+
+    # Multi-signal Ranking Score Engine
+    now = datetime.now(timezone.utc)
+    scored_posts = []
+    
+    for post in all_recent_posts:
+        # Timezone-aware created_at calculation
+        created_at = post.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+            
+        time_diff = now - created_at
+        hours_since_creation = time_diff.total_seconds() / 3600.0
+        if hours_since_creation < 0:
+            hours_since_creation = 0.0
+            
+        # Signal 1: Blended Engagement with Time Decay
+        likes = post.likes_count or 0
+        comments = post.comments_count or 0
+        base_score = likes + (3 * comments) + 1
+        time_decay = (hours_since_creation + 2.0) ** 1.8
+        score = base_score / time_decay
+        
+        # Signal 2: Role Boosting Heuristics
+        if post.author and post.author.role:
+            role = post.author.role
+            if role == RoleEnum.PRO or role.value == "Pro":
+                score *= 1.5
+            elif role == RoleEnum.APPROVED_PRO or role.value == "Approved Pro":
+                score *= 1.3
+            elif role == RoleEnum.PHOTOGRAPHER or role.value == "Photographer":
+                score *= 1.15
+            elif role in {RoleEnum.SHOP, RoleEnum.SCHOOL, RoleEnum.COACH, RoleEnum.RESORT, RoleEnum.WAVE_POOL, RoleEnum.SHAPER, RoleEnum.DESTINATION} or role.value in {"Shop", "School", "Coach", "Resort", "Wave Pool", "Shaper", "Destination"}:
+                score *= 1.1
+                
+        # Signal 3: Spot Affinity / Check-in Proximity Boosting
+        if post.spot_id and post.spot_id in viewer_spot_ids:
+            score *= 1.4
+            
+        scored_posts.append((score, post))
+        
+    # Sort descending by calculated score and return the top 12 trending posts
+    scored_posts.sort(key=lambda x: x[0], reverse=True)
+    trending_posts = [p for score, p in scored_posts[:12]]
     
     # Get latest tagged media for all popular spots in ONE batched query (not N+1)
     spot_ids = [s.id for s in popular_spots]
