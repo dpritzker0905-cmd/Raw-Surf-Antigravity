@@ -12,7 +12,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test user from previous iterations
 TEST_USER_ID = "d3eb9019-d16f-4374-b432-4d168a96a00f"  # kelly@surf.com

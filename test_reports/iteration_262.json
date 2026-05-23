@@ -29,7 +29,7 @@
     "ai-sessions endpoint works correctly - returns sessions grouped by booking/live_session with pending counts",
     "ai-analyze-photo endpoint works correctly - uses fallback matching (time_location, 0.5 confidence) when AI unavailable",
     "ai-batch-analyze has model mismatch bug - queries non-existent columns on GalleryItem",
-    "AI identity matching service correctly falls back to time/location-based matching when EMERGENT_LLM_KEY is unavailable or analysis fails"
+    "AI identity matching service correctly falls back to time/location-based matching when OPENAI_API_KEY is unavailable or analysis fails"
   ],
   "updated_files": [
     "/app/backend/tests/test_ai_sessions_identity_matching_iter262.py"

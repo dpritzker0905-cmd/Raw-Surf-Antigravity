@@ -189,7 +189,7 @@ class TestCheckoutWithCustomPricing:
         # Create checkout request with photographer_id
         checkout_data = {
             "package_id": "1hr",
-            "origin_url": "https://raw-surf-os.preview.emergentagent.com",
+            "origin_url": "https://dev--rawsurf.netlify.app",
             "user_id": self.USER_ID,
             "photographer_id": self.PHOTOGRAPHER_ID
         }

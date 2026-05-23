@@ -13,7 +13,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test credentials from review request
 GROM_PARENT_EMAIL = "testgromparent@gmail.com"
@@ -55,7 +55,7 @@ class TestStripeIdentityAgeVerification:
         """Verify create-age-verification endpoint exists and returns proper response"""
         response = requests.post(
             f"{BASE_URL}/api/grom-hq/create-age-verification/{grom_parent_id}",
-            json={"return_url": "https://raw-surf-os.preview.emergentagent.com/grom-hq"}
+            json={"return_url": "https://dev--rawsurf.netlify.app/grom-hq"}
         )
         # Should return 200 with verification session OR already_verified
         # If Stripe API key is not configured, it may return 500

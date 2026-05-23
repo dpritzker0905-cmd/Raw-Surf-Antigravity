@@ -7,7 +7,7 @@ import httpx
 import os
 from datetime import datetime
 
-API_URL = os.environ.get("API_URL", "https://raw-surf-os.preview.emergentagent.com/api")
+API_URL = os.environ.get("API_URL", "https://dev--rawsurf.netlify.app/api")
 
 # Test credentials
 ADMIN_USER = {

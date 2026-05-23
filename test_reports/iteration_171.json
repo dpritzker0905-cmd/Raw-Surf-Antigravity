@@ -68,19 +68,19 @@
     },
     "bottomnav_messages_navigation": {
       "description": "BottomNav Messages navigates to /messages page",
-      "status": "VERIFIED - Navigates to https://raw-surf-os.preview.emergentagent.com/messages"
+      "status": "VERIFIED - Navigates to https://dev--rawsurf.netlify.app/messages"
     },
     "bottomnav_explore_navigation": {
       "description": "BottomNav Explore navigates to /explore (for surfers)",
-      "status": "VERIFIED - Navigates to https://raw-surf-os.preview.emergentagent.com/explore"
+      "status": "VERIFIED - Navigates to https://dev--rawsurf.netlify.app/explore"
     },
     "bottomnav_create_navigation": {
       "description": "BottomNav Create button navigates to /create",
-      "status": "VERIFIED - Navigates to https://raw-surf-os.preview.emergentagent.com/create"
+      "status": "VERIFIED - Navigates to https://dev--rawsurf.netlify.app/create"
     },
     "bottomnav_me_navigation": {
       "description": "BottomNav Me navigates to /profile",
-      "status": "VERIFIED - Navigates to https://raw-surf-os.preview.emergentagent.com/profile"
+      "status": "VERIFIED - Navigates to https://dev--rawsurf.netlify.app/profile"
     }
   },
   "topnav_icon_order": {

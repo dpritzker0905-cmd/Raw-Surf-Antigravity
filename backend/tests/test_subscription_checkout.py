@@ -6,7 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app').rstrip('/')
 
 # Test user IDs from existing database
 SURFER_ID = "90d2c43c-026e-4800-bc93-796921f410fe"  # testuser@rawsurf.com
@@ -40,7 +40,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id={SURFER_ID}",
             json={
                 "tier_id": "surfer_free",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200
@@ -67,7 +67,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id={SURFER_ID}",
             json={
                 "tier_id": "surfer_basic",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200
@@ -84,7 +84,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id={SURFER_ID}",
             json={
                 "tier_id": "surfer_premium",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200
@@ -103,7 +103,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id={PHOTOGRAPHER_ID}",
             json={
                 "tier_id": "photographer_basic",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200
@@ -120,7 +120,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id={PHOTOGRAPHER_ID}",
             json={
                 "tier_id": "photographer_premium",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200
@@ -139,7 +139,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id={SURFER_ID}",
             json={
                 "tier_id": "invalid_tier",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 400
@@ -153,7 +153,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id=00000000-0000-0000-0000-000000000000",
             json={
                 "tier_id": "surfer_basic",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 404
@@ -178,7 +178,7 @@ class TestSubscriptionCheckout:
             f"{BASE_URL}/api/subscriptions/checkout?user_id={SURFER_ID}",
             json={
                 "tier_id": "surfer_basic",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert create_response.status_code == 200
@@ -203,7 +203,7 @@ class TestSubscriptionPricing:
                 f"{BASE_URL}/api/subscriptions/checkout?user_id={SURFER_ID}",
                 json={
                     "tier_id": tier,
-                    "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                    "origin_url": "https://dev--rawsurf.netlify.app"
                 }
             )
             assert response.status_code == 200, f"Tier {tier} failed"
@@ -217,7 +217,7 @@ class TestSubscriptionPricing:
                 f"{BASE_URL}/api/subscriptions/checkout?user_id={PHOTOGRAPHER_ID}",
                 json={
                     "tier_id": tier,
-                    "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                    "origin_url": "https://dev--rawsurf.netlify.app"
                 }
             )
             assert response.status_code == 200, f"Tier {tier} failed"
@@ -233,7 +233,7 @@ class TestCreditsPurchase:
             f"{BASE_URL}/api/credits/purchase?user_id={SURFER_ID}",
             json={
                 "amount": 25.0,
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200
@@ -251,7 +251,7 @@ class TestCreditsPurchase:
             f"{BASE_URL}/api/credits/purchase?user_id={SURFER_ID}",
             json={
                 "amount": 10.0,
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert create_response.status_code == 200
@@ -271,7 +271,7 @@ class TestCreditsPurchase:
             f"{BASE_URL}/api/credits/purchase?user_id=00000000-0000-0000-0000-000000000000",
             json={
                 "amount": 25.0,
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 404

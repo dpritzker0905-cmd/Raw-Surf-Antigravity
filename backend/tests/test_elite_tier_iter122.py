@@ -9,7 +9,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test Grom profile ID from the request
 TEST_GROM_PROFILE_ID = "fe32f32d-bf4e-4fb7-b78e-04059811ea34"

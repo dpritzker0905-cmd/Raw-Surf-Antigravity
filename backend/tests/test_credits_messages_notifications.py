@@ -72,7 +72,7 @@ class TestCreditsAPI:
             params={"user_id": user_id},
             json={
                 "amount": 25,
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         

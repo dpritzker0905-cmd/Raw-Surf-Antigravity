@@ -67,7 +67,7 @@ class TestHobbyistConversion:
             f"{BASE_URL}/api/auth/convert-to-hobbyist?user_id={self.test_user_id}",
             json={
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -111,7 +111,7 @@ class TestHobbyistConversion:
             f"{BASE_URL}/api/auth/convert-to-hobbyist?user_id={user_id}",
             json={
                 "tier_id": "tier_2",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -140,7 +140,7 @@ class TestHobbyistConversion:
             f"{BASE_URL}/api/auth/convert-to-hobbyist?user_id={self.test_user_id}",
             json={
                 "tier_id": "invalid_tier",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -158,7 +158,7 @@ class TestHobbyistConversion:
             f"{BASE_URL}/api/auth/convert-to-hobbyist?user_id={fake_user_id}",
             json={
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -367,7 +367,7 @@ class TestGromSubscriptionAdToggle:
             json={
                 "grom_id": grom_id,
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         

@@ -10,7 +10,7 @@ import requests
 import os
 import io
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test photographer ID from previous tests
 TEST_PHOTOGRAPHER_ID = "3f88be92-5a86-4482-afc1-b32716357f6f"

@@ -11,7 +11,7 @@ from datetime import datetime
 # Configure Stripe
 stripe.api_key = os.environ.get('STRIPE_API_KEY', '')
 
-BASE_URL = os.environ.get('TEST_API_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('TEST_API_URL', 'https://dev--rawsurf.netlify.app')
 
 
 class TestStripeIdentityIntegration:
@@ -50,7 +50,7 @@ class TestStripeIdentityIntegration:
         # Try to create verification session
         response = api_client.post(
             f'/api/grom-hq/create-age-verification/{parent_id}',
-            json={'return_url': 'https://raw-surf-os.preview.emergentagent.com/grom-hq'}
+            json={'return_url': 'https://dev--rawsurf.netlify.app/grom-hq'}
         )
         
         assert response.status_code == 200
@@ -131,7 +131,7 @@ class TestStripeIdentityIntegration:
         # Try to create verification session
         response = api_client.post(
             f'/api/grom-hq/create-age-verification/{user_id}',
-            json={'return_url': 'https://raw-surf-os.preview.emergentagent.com/grom-hq'}
+            json={'return_url': 'https://dev--rawsurf.netlify.app/grom-hq'}
         )
         
         # Should fail - only Grom Parents need verification

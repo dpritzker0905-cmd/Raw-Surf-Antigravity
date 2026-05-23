@@ -14,7 +14,7 @@ import requests
 import os
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test credentials from review request
 TEST_USER_ID = "12dc6786-124f-40b1-8698-a9409f99736f"
@@ -205,7 +205,7 @@ class TestStripeIdentityAgeVerification:
         """Verify Stripe Identity session is created for Grom Parent"""
         response = requests.post(
             f"{BASE_URL}/api/grom-hq/create-age-verification/{GROM_PARENT_ID}",
-            json={"return_url": "https://raw-surf-os.preview.emergentagent.com/grom-hq"}
+            json={"return_url": "https://dev--rawsurf.netlify.app/grom-hq"}
         )
         
         # Could be 200 (success) or 200 with already_verified

@@ -158,7 +158,7 @@ class TestTierUpgrade:
             f"{BASE_URL}/api/subscriptions/upgrade-tier/{COMP_SURFER_ID}",
             json={
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -177,7 +177,7 @@ class TestTierUpgrade:
             f"{BASE_URL}/api/subscriptions/upgrade-tier/{COMP_SURFER_ID}",
             json={
                 "tier_id": "tier_2",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -200,7 +200,7 @@ class TestTierUpgrade:
             f"{BASE_URL}/api/subscriptions/upgrade-tier/{COMP_SURFER_ID}",
             json={
                 "tier_id": "invalid_tier",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -219,7 +219,7 @@ class TestGromTierManagement:
             json={
                 "grom_id": "some-grom-id",
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         
@@ -233,7 +233,7 @@ class TestGromTierManagement:
             json={
                 "grom_id": "invalid-grom-id-12345",
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         

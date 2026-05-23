@@ -157,7 +157,7 @@ class TestGromTierPricing:
             json={
                 "grom_id": grom_id,
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -178,7 +178,7 @@ class TestTierUpgradeStripeCheckout:
             f"{BASE_URL}/api/subscriptions/upgrade-tier/{TEST_SURFER_ID}",
             json={
                 "tier_id": "tier_2",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -203,7 +203,7 @@ class TestTierUpgradeStripeCheckout:
             f"{BASE_URL}/api/subscriptions/upgrade-tier/{TEST_SURFER_ID}",
             json={
                 "tier_id": "tier_3",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -221,7 +221,7 @@ class TestTierUpgradeStripeCheckout:
             f"{BASE_URL}/api/subscriptions/upgrade-tier/{TEST_SURFER_ID}",
             json={
                 "tier_id": "tier_1",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"

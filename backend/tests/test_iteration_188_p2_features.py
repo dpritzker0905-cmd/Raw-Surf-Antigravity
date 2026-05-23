@@ -10,7 +10,7 @@ import requests
 import os
 from datetime import datetime, timedelta, timezone
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test credentials from previous iteration
 TEST_USER_ID = "12dc6786-124f-40b1-8698-a9409f99736f"

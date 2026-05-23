@@ -7,7 +7,7 @@ import requests
 import os
 import time
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test credentials from review request
 PHOTOGRAPHER_ID = "12dc6786-124f-40b1-8698-a9409f99736f"
@@ -103,7 +103,7 @@ class TestJumpInSessionFlow:
             json={
                 "photographer_id": PHOTOGRAPHER_ID,
                 "payment_method": "card",
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         

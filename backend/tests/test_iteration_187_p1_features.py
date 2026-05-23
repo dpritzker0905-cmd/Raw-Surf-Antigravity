@@ -11,7 +11,7 @@ import requests
 import os
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test credentials from review request
 TEST_USER_ID = "12dc6786-124f-40b1-8698-a9409f99736f"
@@ -45,7 +45,7 @@ class TestStripeBookingIntegration:
             "longitude": -80.1373,
             "description": "Test Stripe booking",
             "apply_credits": 0,  # No credits to force card payment
-            "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+            "origin_url": "https://dev--rawsurf.netlify.app"
         }
         
         response = api_client.post(
@@ -99,7 +99,7 @@ class TestStripeBookingIntegration:
             "allow_splitting": False,
             "description": "Test booking with credits",
             "apply_credits": credits_to_apply,
-            "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+            "origin_url": "https://dev--rawsurf.netlify.app"
         }
         
         response = api_client.post(

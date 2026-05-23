@@ -11,7 +11,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test user credentials
 TEST_USER_ID = "d3eb9019-d16f-4374-b432-4d168a96a00f"  # kelly@surf.com
-TEST_ORIGIN = "https://raw-surf-os.preview.emergentagent.com"
+TEST_ORIGIN = "https://dev--rawsurf.netlify.app"
 
 
 class TestPaymentsPackages:

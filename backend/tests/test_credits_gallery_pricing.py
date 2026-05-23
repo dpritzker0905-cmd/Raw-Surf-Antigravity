@@ -249,7 +249,7 @@ class TestCreditPurchaseInitiation:
             params={"user_id": PHOTOGRAPHER_ID},
             json={
                 "amount": 25.0,
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
@@ -272,7 +272,7 @@ class TestCreditPurchaseInitiation:
             params={"user_id": "invalid-user-id-123"},
             json={
                 "amount": 25.0,
-                "origin_url": "https://raw-surf-os.preview.emergentagent.com"
+                "origin_url": "https://dev--rawsurf.netlify.app"
             }
         )
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"

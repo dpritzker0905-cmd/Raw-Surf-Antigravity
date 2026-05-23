@@ -6,7 +6,7 @@ Tests the following new endpoints:
 2. POST /api/surfer-gallery/ai-analyze-photo - Analyzes photo for surfer matching
 3. POST /api/surfer-gallery/ai-batch-analyze - Batch processes multiple photos
 
-AI identity matching uses OpenAI Vision API via Emergent LLM Key.
+AI identity matching uses OpenAI Vision API via OpenAI API Key.
 Falls back to time/location-based matching with 0.5 confidence if key not available.
 """
 import pytest
@@ -332,7 +332,7 @@ class TestAIIdentityMatchingService:
     def test_fallback_matching_when_no_llm_key(self, api_client, test_user_id):
         """
         Test that AI matching falls back to time/location-based matching
-        when EMERGENT_LLM_KEY is not available or API fails.
+        when OPENAI_API_KEY is not available or API fails.
         
         Expected fallback behavior:
         - is_match: True (default to potential match for review)

@@ -97,5 +97,5 @@
   "seed_data_creation": "None - used existing test users",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Featured Photographers API uses scoring: earnings*2 + sessions*10 + gallery*5 + 100 if currently live. AI Photo Tagging uses GPT-4o Vision via EMERGENT_LLM_KEY - successfully detects surfers, their actions, distinctive features, and surf conditions. Message request logic: new conversations start as 'request' for recipient unless they follow the sender. Test file /app/backend/tests/test_featured_ai_messaging.py covers all new APIs. Sarah Waters and Test Hobbyist now have an active conversation in Primary inbox (after accepting request)."
+  "context_for_next_testing_agent": "Featured Photographers API uses scoring: earnings*2 + sessions*10 + gallery*5 + 100 if currently live. AI Photo Tagging uses GPT-4o Vision via OPENAI_API_KEY - successfully detects surfers, their actions, distinctive features, and surf conditions. Message request logic: new conversations start as 'request' for recipient unless they follow the sender. Test file /app/backend/tests/test_featured_ai_messaging.py covers all new APIs. Sarah Waters and Test Hobbyist now have an active conversation in Primary inbox (after accepting request)."
 }

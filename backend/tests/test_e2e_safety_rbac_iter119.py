@@ -13,7 +13,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://raw-surf-os.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify.app')
 
 # Test credentials
 GROM_PARENT_EMAIL = "testgromparent@gmail.com"
@@ -119,7 +119,7 @@ class TestStripeIdentityIntegration:
         """Test create age verification for already verified parent"""
         response = requests.post(
             f"{BASE_URL}/api/grom-hq/create-age-verification/{GROM_PARENT_PROFILE_ID}",
-            json={"return_url": "https://raw-surf-os.preview.emergentagent.com/grom-hq"}
+            json={"return_url": "https://dev--rawsurf.netlify.app/grom-hq"}
         )
         assert response.status_code == 200, f"Failed to create age verification: {response.text}"
         data = response.json()

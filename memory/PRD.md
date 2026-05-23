@@ -145,7 +145,7 @@ Raw Surf OS is a social platform for surfers and surf photographers. The app man
 - `GalleryItem` - Individual photos/videos in galleries
 
 ## Third-Party Integrations
-- OpenAI GPT-4o (Emergent LLM Key)
+- OpenAI GPT-4o (OpenAI API Key)
 - Resend (Email)
 - Stripe (Payments)
 - LiveKit Cloud (Real-time Streaming)
