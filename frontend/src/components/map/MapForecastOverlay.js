@@ -189,8 +189,8 @@ export var MapForecastOverlay = ({
     <div
       className={`absolute ${
         isImmersiveMode 
-          ? (isTimelineCollapsed ? 'bottom-[64px]' : 'bottom-[134px]') 
-          : (isTimelineCollapsed ? 'bottom-[120px]' : 'bottom-[190px]')
+          ? (isTimelineCollapsed ? 'bottom-[80px]' : 'bottom-[170px]') 
+          : (isTimelineCollapsed ? 'bottom-[140px]' : 'bottom-[230px]')
       } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
     >
