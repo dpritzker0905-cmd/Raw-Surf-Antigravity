@@ -157,14 +157,14 @@ async def upload_feed_media(
         # Prefer Supabase Storage (permanent) over ephemeral disk URL
         remote_key = f"feed/{result['filename']}"
         supabase_video_url = await asyncio.to_thread(
-            upload_to_supabase_storage, video_path, 'videos', remote_key, 'video/mp4'
+            upload_to_supabase_storage, video_path, 'feed', remote_key, 'video/mp4'
         )
         media_url = supabase_video_url or f"/api/uploads/feed/{result['filename']}"
 
         if thumb_success:
             remote_thumb_key = f"feed/{thumbnail_filename}"
             supabase_thumb_url = await asyncio.to_thread(
-                upload_to_supabase_storage, thumbnail_path, 'videos', remote_thumb_key, 'image/jpeg'
+                upload_to_supabase_storage, thumbnail_path, 'feed', remote_thumb_key, 'image/jpeg'
             )
             thumbnail_url = supabase_thumb_url or f"/api/uploads/feed/{thumbnail_filename}"
 
