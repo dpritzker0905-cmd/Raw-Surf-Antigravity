@@ -34,11 +34,11 @@ import {
  */
 
 const MASK_BUFFER      = 'ocean-mask-buffer';
+const MASK_LAND_BUFFER = 'ocean-mask-land-buffer';
 const MASK_LINE        = 'ocean-mask-line';
 
-const ALL_LAYERS = [MASK_BUFFER, MASK_LINE];
+const ALL_LAYERS = [MASK_BUFFER, MASK_LAND_BUFFER, MASK_LINE];
 const LEGACY_LAYERS = [
-  'ocean-mask-land-buffer',
   'ocean-mask-fill',
   'ocean-mask-inland-water',
   'ocean-mask-inland-waterway'
@@ -86,6 +86,7 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
       if (!style) return;
 
       const hasBuf     = !!mapInstance.getLayer(MASK_BUFFER);
+      const hasLandBuf = !!mapInstance.getLayer(MASK_LAND_BUFFER);
       const hasLine    = !!mapInstance.getLayer(MASK_LINE);
 
       if (active) {
@@ -100,6 +101,7 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
 
         const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
         const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
+        const fillColor = tc.fill;
 
         // Dynamically resolve the active style's water fill color if available
         let waterColor = tc.ocean;
@@ -170,7 +172,66 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
           } catch (e) {}
         }
 
-        // 2. Thin aesthetic coastline outline
+        // 2. Land-Side Masking Buffer (shifted onto land using negative offset)
+        // Shifted onto land to cover wave bleed. Extremely narrow at high zooms to keep parks and streets visible.
+        if (!hasLandBuf) {
+          try {
+            mapInstance.addLayer({
+              id: MASK_LAND_BUFFER,
+              type: 'line',
+              source: vectorSourceId,
+              'source-layer': 'water',
+              filter: waterFilter,
+              paint: {
+                'line-color': fillColor,
+                'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
+                  1, 4,
+                  5, 8,
+                  6, 12,
+                  7, 16,
+                  8, 20,
+                  9, 24,
+                  10, 20,
+                  12, 10,
+                  14, 0
+                ],
+                'line-offset': ['interpolate', ['linear'], ['zoom'],
+                  1, -2,
+                  5, -4,
+                  6, -6,
+                  7, -8,
+                  8, -10,
+                  9, -12,
+                  10, -10,
+                  12, -5,
+                  14, 0
+                ],
+                'line-blur': ['interpolate', ['linear'], ['zoom'],
+                  5, 0.5,
+                  9, 1.0,
+                  12, 1.0
+                ],
+                'line-opacity': ['interpolate', ['linear'], ['zoom'],
+                  5, 1.0,
+                  10, 1.0,
+                  12, 0.8,
+                  14, 0.0
+                ]
+              },
+              layout: { 'line-join': 'round', 'line-cap': 'round' }
+            }, insertBeforeId || undefined);
+            console.log('[OceanMask] Added ocean-mask-land-buffer');
+          } catch (e) {
+            console.error('[OceanMask] Failed to add MASK_LAND_BUFFER:', e);
+          }
+        } else {
+          try {
+            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LAND_BUFFER, insertBeforeId);
+            safeSetPaintProperty(mapInstance, MASK_LAND_BUFFER, 'line-color', fillColor);
+          } catch (e) {}
+        }
+
+        // 3. Thin aesthetic coastline outline
         if (!hasLine) {
           try {
             mapInstance.addLayer({
