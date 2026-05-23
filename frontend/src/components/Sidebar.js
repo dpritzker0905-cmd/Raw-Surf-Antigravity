@@ -33,7 +33,8 @@ export const Sidebar = () => {
     if (location.pathname === '/feed') {
       window.dispatchEvent(new CustomEvent('feed:refresh'));
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const scrollContainer = document.getElementById('main-content') || window;
+    scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
     setLogoSpinning(true);
     setTimeout(() => setLogoSpinning(false), 600);
   }, [location.pathname]);

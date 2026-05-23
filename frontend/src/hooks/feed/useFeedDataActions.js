@@ -69,13 +69,29 @@ const useFeedDataActions = ({
       const response = await apiClient.get('/posts', {
         params: { limit: 10 }
       });
-      const incoming = response.data || [];
+      const data = response.data;
+      const incoming = data?.posts || (Array.isArray(data) ? data : []);
       if (incoming.length > 0) {
-        setPosts(incoming.map(post => ({ ...post, localLiked: false })));
+        setPosts(incoming.map(post => ({
+          ...post,
+          liked: post.is_liked_by_user || !!post.user_reaction
+        })));
+        
+        // Update pagination cursor to keep infinite scroll in sync
+        if (data?.next_cursor !== undefined) {
+          feedCursorRef.current = data.next_cursor;
+          feedHasMoreRef.current = data.has_more;
+        }
+        
         latestPostIdRef.current = incoming[0]?.id ?? null;
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Scroll the main content container to the top (works on both desktop and mobile)
+        const scrollContainer = document.getElementById('main-content') || window;
+        scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    } catch { /* silent - non-critical refresh */ }
+    } catch (err) {
+      logger.error('handleLoadNewPosts failed:', err);
+    }
     setNewPostsChip(0);
     setIsRefreshing(false);
   }, [user?.id]);
