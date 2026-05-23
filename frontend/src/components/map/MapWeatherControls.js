@@ -264,7 +264,7 @@ export var MapWeatherControls = ({
 
         {/* v3.8: Day tick labels beneath scrubber */}
         {!isRadar && maxForecastHours > 24 && (
-          <div className="relative h-4 mt-1 mx-8" style={{ position: 'relative', height: 16, marginTop: 4 }}>
+          <div className="relative h-6 mt-2 mx-8" style={{ position: 'relative', height: 24, marginTop: 8 }}>
             {/* Now indicator */}
             <div style={{
               position: 'absolute',
@@ -281,7 +281,7 @@ export var MapWeatherControls = ({
                 boxShadow: '0 0 6px #06b6d4',
                 animation: 'nowPulse 2s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 8, color: '#06b6d4', fontWeight: 700, marginTop: 1 }}>Now</span>
+              <span style={{ fontSize: 8, color: '#06b6d4', fontWeight: 700, marginTop: '5px' }}>Now</span>
             </div>
             {/* Day labels */}
             {Array.from({ length: Math.min(Math.floor(maxForecastHours / 6), 56) }, (_, i) => {
@@ -294,7 +294,7 @@ export var MapWeatherControls = ({
               d.setHours(d.getHours() + hrOff);
               const label = isDay
                 ? (hrOff === 24 ? 'Tmrw' : d.toLocaleDateString('en-US', { weekday: 'short' }))
-                : d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }).replace(':00', '').replace(' ', '').toLowerCase();
+                : '';
               return (
                 <div key={i} style={{
                   position: 'absolute', left: `${pct}%`, top: 0,
@@ -303,16 +303,18 @@ export var MapWeatherControls = ({
                   <div style={{
                     width: 1, height: isDay ? 6 : 4,
                     background: isLight
-                      ? (isDay ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.10)')
-                      : (isDay ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)')
+                      ? (isDay ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.12)')
+                      : (isDay ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)')
                   }} />
-                  <span style={{
-                    fontSize: isDay ? 8 : 7,
-                    color: isLight
-                      ? (isDay ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.25)')
-                      : (isDay ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.25)'),
-                    fontWeight: isDay ? 600 : 400
-                  }}>{label}</span>
+                  {isDay && (
+                    <span style={{
+                      fontSize: 8,
+                      color: isLight ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)',
+                      fontWeight: 600,
+                      marginTop: '5px',
+                      whiteSpace: 'nowrap'
+                    }}>{label}</span>
+                  )}
                 </div>
               );
             })}
