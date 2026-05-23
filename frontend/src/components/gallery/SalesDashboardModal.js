@@ -1,5 +1,6 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Loader2, ShoppingBag, BarChart3
 } from 'lucide-react';
