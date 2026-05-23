@@ -10,14 +10,14 @@ import React, { useState, useRef, useCallback } from 'react';
 import ReactionIcon from './ReactionIcon';
 import { ImageCarousel } from './PostModalComponents';
 import { useNavigate } from 'react-router-dom';
-import { X, Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Smile } from 'lucide-react';
+import { X, Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from 'lucide-react';
 import { RichText } from '../RichText';
 import { SharePostModal } from '../PostMenu';
 import PostMenu from '../PostMenu';
 import { getFullUrl } from '../../utils/media';
 import { formatTimeAgo } from '../../utils/formatTime';
 import { REACTION_EMOJIS } from '../../constants/emojis';
-import EmojiPicker from '../EmojiPicker';
+import CommentInputForm from './CommentInputForm';
 
 const PostModalMobileView = ({
   post, onClose, user, isLight,
@@ -334,6 +334,25 @@ const PostModalMobileView = ({
                       <span className="font-semibold mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
                       <span className={m.commentText}>{comment.content}</span>
                     </p>
+                    {comment.media_url && (
+                      <div className="mt-2 max-w-[280px] rounded-xl overflow-hidden border border-white/10 shadow-md bg-black/40">
+                        {comment.media_type === 'video' ? (
+                          <video 
+                            src={getFullUrl(comment.media_url)} 
+                            controls 
+                            className="w-full max-h-[180px] object-contain bg-black animate-in fade-in duration-200"
+                            playsInline
+                          />
+                        ) : (
+                          <img 
+                            src={getFullUrl(comment.media_url)} 
+                            alt="Comment attachment" 
+                            className="w-full max-h-[180px] object-contain cursor-pointer hover:opacity-90 transition-opacity animate-in fade-in duration-200"
+                            onClick={() => window.open(getFullUrl(comment.media_url), '_blank')}
+                          />
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 mt-1">
                       <span className={`${m.textMuted} text-xs`}>{formatTimeAgo(comment.created_at)}</span>
                       {(comment.likes_count > 0 || comment.reactions?.length > 0) && (
@@ -363,46 +382,13 @@ const PostModalMobileView = ({
           </div>
         )}
         
-        {/* Comment Input with Emoji Picker */}
-        <div className="relative px-4 pb-2 flex items-center gap-2" style={{ pointerEvents: 'auto' }}>
-          <button aria-label="Emoji"
-            aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
-            className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
-              showCommentEmoji ? m.emojiActive : m.emojiInactive
-            }`}
-          >
-            <Smile className="w-5 h-5" />
-          </button>
-          <input aria-label="Add a comment..."
-            ref={mobileCommentInputRef}
-            type="text"
+        {/* Comment Input with rich media upload */}
+        <div className="relative px-4 pb-2" style={{ pointerEvents: 'auto' }} data-testid={`comment-input-container-${post.id}`}>
+          <CommentInputForm
+            user={user}
+            onSubmit={handleComment}
             placeholder="Add a comment..."
-            value={commentInput}
-            onChange={(e) => setCommentInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && commentInput.trim()) {
-                handleComment();
-                setShowCommentEmoji(false);
-              }
-            }}
-            className={`flex-1 bg-transparent ${m.inputText} text-sm ${m.inputPlaceholder} outline-none`}
-          />
-          {commentInput.trim() && (
-            <button
-              onClick={() => { handleComment(); setShowCommentEmoji(false); }}
-              disabled={submittingComment}
-              className="text-cyan-400 font-semibold text-sm"
-            >
-              {submittingComment ? '...' : 'Post'}
-            </button>
-          )}
-          <EmojiPicker
-            isOpen={showCommentEmoji}
-            onClose={() => setShowCommentEmoji(false)}
-            onSelect={(emoji) => {
-              setCommentInput(prev => prev + emoji);
-            }}
-            position="above"
+            isLight={isLight}
           />
         </div>
         

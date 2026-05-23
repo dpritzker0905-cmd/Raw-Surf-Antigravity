@@ -294,17 +294,25 @@ const useFeedReactionActions = ({
     }
   };
 
-  const handleCommentSubmit = async (postId) => {
-    const content = commentInputs[postId]?.trim();
-    if (!content || !user?.id) {
-      if (!user?.id) toast.error('Please log in to comment');
+  const handleCommentSubmit = async (postId, richPayload = null) => {
+    const content = richPayload ? richPayload.content : commentInputs[postId]?.trim();
+    const media_url = richPayload ? richPayload.media_url : null;
+    const media_type = richPayload ? richPayload.media_type : null;
+
+    if (!content?.trim() && !media_url) return;
+    if (!user?.id) {
+      toast.error('Please log in to comment');
       return;
     }
 
     try {
       const response = await apiClient.post(
         `/posts/${postId}/comments`,
-        { content }
+        { 
+          content: content ? content.trim() : "",
+          media_url,
+          media_type
+        }
       );
       
       // Add new comment to the post's recent_comments

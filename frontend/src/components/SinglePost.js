@@ -318,15 +318,25 @@ const SinglePost = () => {
   };
 
   // Comment handlers
-  const handleCommentSubmit = async (postId) => {
-    const content = commentInputs[postId]?.trim();
-    if (!content || !user?.id) return;
+  const handleCommentSubmit = async (postId, richPayload = null) => {
+    const content = richPayload ? richPayload.content : commentInputs[postId]?.trim();
+    const media_url = richPayload ? richPayload.media_url : null;
+    const media_type = richPayload ? richPayload.media_type : null;
+    
+    if (!content?.trim() && !media_url) return;
+    if (!user?.id) {
+      toast.error('Please log in to comment');
+      return;
+    }
     
     try {
       await apiClient.post(
         `/posts/${postId}/comments`,
-        { content },
-        { }
+        { 
+          content: content ? content.trim() : "",
+          media_url,
+          media_type
+        }
       );
       
       setCommentInputs(prev => ({ ...prev, [postId]: '' }));

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * PostModalComponents.js - Sub-components extracted from PostModal.js.
  * ModalVideoPlayer, ImageCarousel, CommentItem.
  */
@@ -351,8 +351,27 @@ const CommentItem = ({ comment, userId, _onReact }) => {
           <span className="font-semibold text-white mr-1 cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>{comment.author_name}</span>
           <CommentText 
             text={comment.content}
-            className="text-gray-300"
+            className="text-gray-300 animate-in fade-in duration-200"
           />
+          {comment.media_url && (
+            <div className="mt-2 max-w-[280px] rounded-xl overflow-hidden border border-white/10 shadow-md bg-black/40">
+              {comment.media_type === 'video' ? (
+                <video 
+                  src={getFullUrl(comment.media_url)} 
+                  controls 
+                  className="w-full max-h-[180px] object-contain bg-black animate-in fade-in duration-200"
+                  playsInline
+                />
+              ) : (
+                <img 
+                  src={getFullUrl(comment.media_url)} 
+                  alt="Comment attachment" 
+                  className="w-full max-h-[180px] object-contain cursor-pointer hover:opacity-90 transition-opacity animate-in fade-in duration-200"
+                  onClick={() => window.open(getFullUrl(comment.media_url), '_blank')}
+                />
+              )}
+            </div>
+          )}
         </p>
         <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
           <span>{formatTimeAgo(comment.created_at)}</span>

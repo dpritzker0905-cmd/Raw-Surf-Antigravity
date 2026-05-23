@@ -171,7 +171,9 @@ class Comment(Base):
     post_id = Column(String(36), ForeignKey('posts.id', ondelete='CASCADE'), nullable=False, index=True)
     author_id = Column(String(36), ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False, index=True)
     parent_id = Column(String(36), ForeignKey('comments.id', ondelete='CASCADE'), nullable=True, index=True)  # For replies
-    content = Column(Text, nullable=False)
+    content = Column(Text, nullable=True)
+    media_url = Column(Text, nullable=True)
+    media_type = Column(String(20), nullable=True)  # 'image', 'video', or 'gif'
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     
     # Edit tracking (Instagram-style "edited" label)

@@ -5,17 +5,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactionIcon from './social/ReactionIcon';
 import { ImageCarousel, CommentItem } from './social/PostModalComponents';
+import CommentInputForm from './social/CommentInputForm';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { X, ChevronLeft, ChevronRight, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves, Smile } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, MessageCircle, Send, Bookmark, MoreHorizontal, Loader2, Calendar, Waves } from 'lucide-react';
 import { RichText } from './RichText';
 import { SharePostModal } from './PostMenu';
 import PostMenu from './PostMenu';
 import { getFullUrl } from '../utils/media';
 import { formatTimeAgo } from '../utils/formatTime';
 import { REACTION_EMOJIS } from '../constants/emojis';
-import EmojiPicker from './EmojiPicker';
 import useFocusTrap from '../hooks/useFocusTrap';
 import usePostModal from '../hooks/usePostModal';
 import PostModalMobileView from './social/PostModalMobileView';
@@ -601,50 +601,14 @@ const PostModal = ({ post, isOpen, onClose, onPostUpdated, posts, onNavigatePost
             </p>
           </div>
           
-          {/* Comment input with Emoji Picker */}
-          <div className={`border-t ${t.panelBorder} p-4`}>
-            <div className="relative flex items-center gap-2">
-              <button aria-label="Emoji"
-                aria-expanded={showCommentEmoji} onClick={() => setShowCommentEmoji(!showCommentEmoji)}
-                className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
-                  showCommentEmoji ? t.commentBtnActive : t.commentBtnInactive
-                }`}
-              >
-                <Smile className="w-5 h-5" />
-              </button>
-              <input aria-label="Text input"
-                ref={desktopCommentInputRef}
-                type="text"
-                value={commentInput}
-                onChange={(e) => setCommentInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && commentInput.trim()) {
-                    handleSubmitComment();
-                    setShowCommentEmoji(false);
-                  }
-                }}
-                placeholder="Add a comment..."
-                className={`flex-1 bg-transparent ${t.inputText} text-sm ${t.inputPlaceholder} focus:outline-none`}
-                disabled={submittingComment}
-              />
-              {commentInput.trim() && (
-                <button aria-label="Loader2"
-                  onClick={() => { handleSubmitComment(); setShowCommentEmoji(false); }}
-                  disabled={submittingComment}
-                  className="text-blue-500 hover:text-blue-400 text-sm font-semibold"
-                >
-                  {submittingComment ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Post'}
-                </button>
-              )}
-              <EmojiPicker
-                isOpen={showCommentEmoji}
-                onClose={() => setShowCommentEmoji(false)}
-                onSelect={(emoji) => {
-                  setCommentInput(prev => prev + emoji);
-                }}
-                position="above"
-              />
-            </div>
+          {/* Comment input with rich media upload */}
+          <div className={`border-t ${t.panelBorder} p-4`} data-testid={`comment-input-container-${post.id}`}>
+            <CommentInputForm
+              user={user}
+              onSubmit={handleSubmitComment}
+              placeholder="Add a comment..."
+              isLight={isLight}
+            />
           </div>
         </div>
       </div>

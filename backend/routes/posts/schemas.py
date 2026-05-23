@@ -41,12 +41,14 @@ class PostCreate(BaseModel):
     conditions_source: Optional[str] = 'manual'
 
 class CommentCreate(BaseModel):
-    content: str
+    content: Optional[str] = None
     parent_id: Optional[str] = None  # For replies to other comments
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None
 
 class CommentUpdate(BaseModel):
     """Request body for editing a comment"""
-    content: str
+    content: Optional[str] = None
 
 class ReactionCreate(BaseModel):
     emoji: str
@@ -66,10 +68,12 @@ class CommentResponse(BaseModel):
     author_name: Optional[str]
     author_username: Optional[str] = None
     author_avatar: Optional[str]
-    content: str
+    content: Optional[str] = None
     created_at: datetime
     is_edited: bool = False
     edited_at: Optional[datetime] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None
 
 class CollaboratorData(BaseModel):
     """Collaborator info for session posts"""

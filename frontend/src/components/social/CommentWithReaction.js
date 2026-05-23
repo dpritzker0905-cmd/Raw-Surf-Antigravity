@@ -1,12 +1,14 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../lib/apiClient';
 import { CommentText } from '../RichText';
-import { Heart, MoreHorizontal, Loader2 } from 'lucide-react';
+import { Heart, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import ReplyItem from './ReplyItem';
 import { formatTimeAgo } from '../../utils/formatTime';
 import { REACTION_EMOJIS } from '../../constants/emojis';
+import { getFullUrl } from '../../utils/media';
+import CommentInputForm from './CommentInputForm';
 
 const CommentWithReaction = ({ 
   comment, 
@@ -190,6 +192,25 @@ const CommentWithReaction = ({
                 text={localContent}
                 className={`${textSecondaryClass} text-sm ml-1`}
               />
+              {comment.media_url && (
+                <div className="mt-2 max-w-[280px] rounded-xl overflow-hidden border border-white/10 shadow-md bg-black/40">
+                  {comment.media_type === 'video' ? (
+                    <video 
+                      src={getFullUrl(comment.media_url)} 
+                      controls 
+                      className="w-full max-h-[200px] object-contain bg-black animate-in fade-in duration-200"
+                      playsInline
+                    />
+                  ) : (
+                    <img 
+                      src={getFullUrl(comment.media_url)} 
+                      alt="Comment attachment" 
+                      className="w-full max-h-[200px] object-contain cursor-pointer hover:opacity-90 transition-opacity animate-in fade-in duration-200"
+                      onClick={() => window.open(getFullUrl(comment.media_url), '_blank')}
+                    />
+                  )}
+                </div>
+              )}
               {localIsEdited && (
                 <span className={`${textSecondaryClass} text-xs ml-1 opacity-60`}>(edited)</span>
               )}
@@ -291,33 +312,43 @@ const CommentWithReaction = ({
       
       {/* Reply Input */}
       {showReplyInput && (
-        <div className="mt-2 ml-6 flex gap-2" data-testid={`reply-input-container-${comment.id}`}>
-          <input aria-label="Reply to ${comment.author_name}..."
-            type="text"
-            value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
+        <div className="mt-2 ml-6" data-testid={`reply-input-container-${comment.id}`}>
+          <CommentInputForm
+            user={{ id: userId }}
             placeholder={`Reply to ${comment.author_name}...`}
-            className={`flex-1 text-sm px-3 py-1.5 rounded-full ${
-              isLight ? 'bg-gray-100 border border-gray-200 text-gray-900' : 'bg-zinc-800 border border-zinc-700 text-white'
-            } focus:outline-none focus:ring-1 focus:ring-blue-500`}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey && replyContent.trim()) {
-                e.preventDefault();
-                handleSubmitReply();
+            onSubmit={async ({ content, media_url, media_type }) => {
+              setSubmittingReply(true);
+              try {
+                const response = await apiClient.post(
+                  `/posts/${postId}/comments`,
+                  { 
+                    content,
+                    parent_id: comment.id,
+                    media_url,
+                    media_type
+                  }
+                );
+                
+                const newReply = {
+                  ...response.data,
+                  reaction_count: 0,
+                  viewer_reaction: null
+                };
+                setLocalReplies(prev => [...prev, newReply]);
+                setShowReplyInput(false);
+                setShowReplies(true);
+                toast.success('Reply added');
+                if (onReplyAdded) onReplyAdded();
+              } catch (err) {
+                toast.error('Failed to add reply');
+                throw err;
+              } finally {
+                setSubmittingReply(false);
               }
             }}
-            data-testid={`reply-input-${comment.id}`}
+            isLight={isLight}
+            onCancelReply={() => setShowReplyInput(false)}
           />
-          <button aria-label="Loader2"
-            onClick={handleSubmitReply}
-            disabled={!replyContent.trim() || submittingReply}
-            className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
-              replyContent.trim() ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-zinc-700 text-gray-400 cursor-not-allowed'
-            }`}
-            data-testid={`reply-submit-${comment.id}`}
-          >
-            {submittingReply ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Post'}
-          </button>
         </div>
       )}
       

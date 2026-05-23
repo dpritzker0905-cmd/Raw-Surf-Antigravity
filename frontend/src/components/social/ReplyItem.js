@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ReplyItem.js - Individual reply/comment display component.
  * Extracted from PostCard.js to reduce God component size.
  */
@@ -9,6 +9,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import { CommentText } from '../RichText';
 import { formatTimeAgo } from '../../utils/formatTime';
+import { getFullUrl } from '../../utils/media';
 
 const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClass, _isLight }) => {
   const navigate = useNavigate();
@@ -59,6 +60,25 @@ const ReplyItem = ({ reply, userId, _postId, textPrimaryClass, textSecondaryClas
             text={reply.content}
             className={`${textSecondaryClass} text-sm ml-1`}
           />
+          {reply.media_url && (
+            <div className="mt-2 max-w-[240px] rounded-lg overflow-hidden border border-white/10 shadow-md bg-black/40">
+              {reply.media_type === 'video' ? (
+                <video 
+                  src={getFullUrl(reply.media_url)} 
+                  controls 
+                  className="w-full max-h-[160px] object-contain bg-black animate-in fade-in duration-200"
+                  playsInline
+                />
+              ) : (
+                <img 
+                  src={getFullUrl(reply.media_url)} 
+                  alt="Reply attachment" 
+                  className="w-full max-h-[160px] object-contain cursor-pointer hover:opacity-90 transition-opacity animate-in fade-in duration-200"
+                  onClick={() => window.open(getFullUrl(reply.media_url), '_blank')}
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
       <div className={`flex items-center gap-3 mt-1 ${textSecondaryClass} text-xs`}>

@@ -179,6 +179,11 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depen
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Verify user has either content or media
+    content_val = data.content.strip() if data.content else ""
+    if not content_val and not data.media_url:
+        raise HTTPException(status_code=400, detail="Comment cannot be completely empty. Provide text or a media attachment.")
+        
     # If this is a reply, verify parent comment exists
     if data.parent_id:
         parent_result = await db.execute(select(Comment).where(Comment.id == data.parent_id))
@@ -193,7 +198,9 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depen
         post_id=post_id,
         author_id=user_id,
         parent_id=data.parent_id,
-        content=data.content.strip()
+        content=content_val,
+        media_url=data.media_url,
+        media_type=data.media_type
     )
     db.add(comment)
     
@@ -207,7 +214,10 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depen
     from utils.notifications import send_notification, NotificationType
     
     commenter_name = user.full_name or user.username or "Someone"
-    preview = (data.content.strip()[:80] + "…") if len(data.content.strip()) > 80 else data.content.strip()
+    if content_val:
+        preview = (content_val[:80] + "…") if len(content_val) > 80 else content_val
+    else:
+        preview = f"[{data.media_type.capitalize()} Comment]" if data.media_type else "[Attachment]"
     
     if data.parent_id and parent:
         # Reply to a comment — notify the parent comment author
@@ -257,7 +267,9 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depen
         content=comment.content,
         created_at=comment.created_at,
         is_edited=comment.is_edited or False,
-        edited_at=comment.edited_at
+        edited_at=comment.edited_at,
+        media_url=comment.media_url,
+        media_type=comment.media_type
     )
 
 
@@ -320,6 +332,8 @@ async def get_comments(
             "reaction_count": reaction_count,
             "emoji_counts": emoji_counts,
             "viewer_reaction": viewer_reaction,
+            "media_url": c.media_url,
+            "media_type": c.media_type,
             "replies": []
         }
         
@@ -394,14 +408,15 @@ async def edit_comment(
         raise HTTPException(status_code=403, detail="Not authorized to edit this comment")
     
     # Validate content
-    if not data.content or not data.content.strip():
-        raise HTTPException(status_code=400, detail="Comment content cannot be empty")
+    content_val = data.content.strip() if data.content else ""
+    if not content_val and not comment.media_url:
+        raise HTTPException(status_code=400, detail="Comment cannot be completely empty")
     
-    if len(data.content) > 2000:
+    if content_val and len(content_val) > 2000:
         raise HTTPException(status_code=400, detail="Comment cannot exceed 2000 characters")
     
     # Update the comment
-    comment.content = data.content.strip()
+    comment.content = content_val
     comment.is_edited = True
     comment.edited_at = datetime.now(timezone.utc)
     
@@ -418,7 +433,9 @@ async def edit_comment(
         content=comment.content,
         created_at=comment.created_at,
         is_edited=comment.is_edited,
-        edited_at=comment.edited_at
+        edited_at=comment.edited_at,
+        media_url=comment.media_url,
+        media_type=comment.media_type
     )
 
 

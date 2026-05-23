@@ -1,4 +1,4 @@
-﻿import { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
@@ -238,13 +238,23 @@ export default function usePostModal({
     };
   }, []);
   
-  const handleSubmitComment = async () => {
-    if (!commentInput.trim() || !user?.id) return;
+  const handleSubmitComment = async (richPayload = null) => {
+    const content = richPayload ? richPayload.content : commentInput.trim();
+    const media_url = richPayload ? richPayload.media_url : null;
+    const media_type = richPayload ? richPayload.media_type : null;
+    
+    if (!content?.trim() && !media_url) return;
+    if (!user?.id) {
+      toast.error('Please log in to comment');
+      return;
+    }
     
     setSubmittingComment(true);
     try {
       await apiClient.post(`/posts/${post.id}/comments`, {
-        content: commentInput.trim()
+        content: content ? content.trim() : "",
+        media_url,
+        media_type
       });
       setCommentInput('');
       loadComments();

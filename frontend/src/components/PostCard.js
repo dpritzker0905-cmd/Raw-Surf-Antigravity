@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import SessionLogHeader from './SessionLogHeader';
-import { CommentInputWithEmoji } from './EmojiPicker';
+import CommentInputForm from './social/CommentInputForm';
 import WhoReactedModal from './WhoReactedModal';
 import SessionJoinCard from './SessionJoinCard';
 import { RichText } from './RichText';
@@ -334,7 +334,8 @@ const PostCard = ({
               <button aria-label="Message" 
                 className={`${textPrimaryClass} hover:${textSecondaryClass} transition-colors`}
                 onClick={() => {
-                  const input = document.querySelector(`[data-testid="comment-input-${post.id}"]`);
+                  const container = document.querySelector(`[data-testid="comment-input-container-${post.id}"]`);
+                  const input = container?.querySelector('input[type="text"]');
                   if (input) input.focus();
                 }}
                 data-testid={`comment-btn-${post.id}`}
@@ -447,7 +448,9 @@ const PostCard = ({
                     onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author_id}`); }}>
                     {comment.author_name}
                   </span>
-                  <span className={`${textSecondaryClass} text-sm flex-1 truncate`}>{comment.content}</span>
+                  <span className={`${textSecondaryClass} text-sm flex-1 truncate`}>
+                    {comment.content || (comment.media_type === 'video' ? '🎥 Video Comment' : comment.media_type === 'gif' ? '🖼️ GIF Comment' : '📷 Photo Comment')}
+                  </span>
                 </div>
               ))}
               <button 
@@ -460,17 +463,14 @@ const PostCard = ({
           )}
         </div>
 
-        {/* Comment Input with Emoji Picker - hidden if comments are disabled */}
+        {/* Comment Input with rich media upload - hidden if comments are disabled */}
         {!post.comments_disabled && (
-          <div className="mt-3">
-            <CommentInputWithEmoji
-              value={commentInputs[post.id] || ''}
-              onChange={(val) => onCommentChange(post.id, val)}
-              onSubmit={() => onCommentSubmit(post.id)}
+          <div className="mt-3" data-testid={`comment-input-container-${post.id}`}>
+            <CommentInputForm
+              user={user}
+              onSubmit={(richPayload) => onCommentSubmit(post.id, richPayload)}
               placeholder="Add a comment..."
-              postId={post.id}
-              textClass={textSecondaryClass}
-              borderClass={borderClass}
+              isLight={isLight}
             />
           </div>
         )}
