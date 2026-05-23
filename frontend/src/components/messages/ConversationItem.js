@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getFullUrl, cacheBustUrl } from '../../utils/media';
 import { formatTimeAgo } from '../../utils/formatTime';
+import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
 
 // Inline role icon helper (mirrors MessagesPage logic for ConversationItem)
 const getRoleIcon = (role, isAdmin = false) => {
@@ -103,7 +104,9 @@ const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
           {RoleIcon ? (
             <RoleIcon className={`w-4 h-4 ${roleInfo.color} flex-shrink-0`} />
           ) : (
- <span className="text-sm flex-shrink-0">{'\u{1F4CC}'}</span>
+            <span className="text-sm flex-shrink-0" data-testid={`role-emoji-${conversation.other_user_role?.toLowerCase()}`}>
+              {getExpandedRoleInfo(conversation.other_user_role)?.icon}
+            </span>
           )}
           {/* Request badge */}
           {isRequest && (

@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../../lib/apiClient';
-import { isProLevelRole, isBusinessRole } from '../../contexts/PersonaContext';
+import { isProLevelRole, isBusinessRole, getExpandedRoleInfo } from '../../contexts/PersonaContext';
 import { Check, X, Users, Star, Camera, Briefcase, Store, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import logger from '../../utils/logger';
@@ -227,7 +227,7 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     {RoleIcon ? (
                       <RoleIcon className={`w-4 h-4 ${roleInfo.color}`} />
                     ) : (
-                      <span className="text-sm">{String.fromCodePoint(0x1F3C4)}</span>
+                      <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
