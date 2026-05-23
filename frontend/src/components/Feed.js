@@ -249,6 +249,7 @@ export const Feed = () => {
     handleShakaPointerLeave,
     handleShakaClick,
     handleReaction,
+    handleDoubleTapLike,
     handleSavePost,
     handleCommentSubmit,
     loadAllComments,
@@ -572,7 +573,7 @@ export const Feed = () => {
                 onLikeEnd={handleShakaPointerUp}
                 onLikeLeave={handleShakaPointerLeave}
                 onLikeClick={handleShakaClick}
-                onDoubleTapLike={(postId) => handleReaction(postId, '\u{1F919}')}
+                onDoubleTapLike={handleDoubleTapLike}
                 onCommentChange={(postId, val) => setCommentInputs(prev => ({ ...prev, [postId]: val }))}
                 onCommentSubmit={handleCommentSubmit}
                 onLoadAllComments={loadAllComments}

@@ -124,6 +124,7 @@ const useFeedActions = ({
     handleShakaPointerLeave: reactionActions.handleShakaPointerLeave,
     handleShakaClick: reactionActions.handleShakaClick,
     handleReaction: reactionActions.handleReaction,
+    handleDoubleTapLike: reactionActions.handleDoubleTapLike,
     handleSavePost: reactionActions.handleSavePost,
     handleCommentSubmit: reactionActions.handleCommentSubmit,
     loadAllComments: reactionActions.loadAllComments,

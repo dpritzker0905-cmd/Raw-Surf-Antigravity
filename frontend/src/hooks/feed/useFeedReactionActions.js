@@ -254,6 +254,23 @@ const useFeedReactionActions = ({
     }
   };
 
+  const handleDoubleTapLike = (postId) => {
+    const targetPost = posts.find(p => p.id === postId);
+    if (!targetPost) return;
+    
+    const existing = targetPost.user_reaction;
+    if (existing) {
+      // Toggle off the existing emoji reaction
+      handleReaction(postId, existing.emoji);
+    } else if (targetPost.liked) {
+      // Toggle off the standard like/shaka
+      handleLike(postId);
+    } else {
+      // Add a standard shaka reaction
+      handleReaction(postId, '\u{1F919}');
+    }
+  };
+
   const handleSavePost = async (postId, isSaved) => {
     // Optimistic update
     setPosts(posts.map(p =>
@@ -422,6 +439,7 @@ const useFeedReactionActions = ({
     handleShakaPointerLeave,
     handleShakaClick,
     handleReaction,
+    handleDoubleTapLike,
     handleSavePost,
     handleCommentSubmit,
     loadAllComments,

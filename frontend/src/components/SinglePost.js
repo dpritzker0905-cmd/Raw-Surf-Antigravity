@@ -265,12 +265,18 @@ const SinglePost = () => {
     }
   };
 
- // Double-tap to like handler for PostCard -- toggles shaka on/off
+  // Double-tap to like handler for PostCard -- toggles shaka on/off
   const handleDoubleTapLike = async (postId) => {
-    if (!user?.id || inFlightRef.current) return;
+    if (!user?.id || inFlightRef.current || !post) return;
     inFlightRef.current = true;
+    
+    // Find if the user has an existing reaction
+    const userReaction = post.reactions?.find(r => r.user_id === user.id);
+    const hasExistingReaction = !!userReaction || !!post.liked;
+    const emojiToToggle = userReaction ? userReaction.emoji : '\u{1F919}';
+    
     try {
-      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji: '\u{1F919}' });
+      const response = await apiClient.post(`/posts/${postId}/reactions`, { emoji: emojiToToggle });
       setPost(prev => {
         const newState = { ...prev };
         if (response.data?.likes_count !== undefined) newState.likes_count = response.data.likes_count;
