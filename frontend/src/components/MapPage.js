@@ -198,7 +198,7 @@ var MapPageContent = () => {
     friendsList, setFriendsList,
     selectedFriends, setSelectedFriends,
     friendsLoading, setFriendsLoading,
-    _showFriendPicker, setShowFriendPicker,
+    setShowFriendPicker,
     friendSearchQuery, setFriendSearchQuery,
   } = useRequestProState();
 
@@ -213,7 +213,7 @@ var MapPageContent = () => {
   
   const [activeOnDemandRequests, setActiveOnDemandRequests] = useState([]);
   const onDemandMarkersRef = useRef([]);
-  const [_lockedShooterCount, setLockedShooterCount] = useState(null);
+  const [, setLockedShooterCount] = useState(null);
   
   const [trackingMarkersRef] = useState({ surfer: null, photographer: null, routeLine: null });
   const userMarkerRef = useRef(null);
@@ -226,10 +226,7 @@ var MapPageContent = () => {
     ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole),
     [effectiveRole]
   );
-  const _canAccessPhotoTools = useMemo(() =>
-    ['Grom Parent', 'Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole),
-    [effectiveRole]
-  );
+
 
   // Handle filter change with map resize
   const handleFilterChange = useCallback((newFilter) => {
@@ -279,11 +276,7 @@ var MapPageContent = () => {
     }
   }, [surfSpots, livePhotographers]);
 
-  // Debug logger for permission status
-  const _logPermissionStatus = useCallback((step, status, details = '') => {
-    const timestamp = new Date().toISOString();
-    logger.debug(`[PERMISSION DEBUG ${timestamp}] Step: ${step}, Status: ${status}${details ? `, Details: ${details}` : ''}`);
-  }, []);
+
 
   useEffect(() => {
     if (pendingRequestPro && userLocation) {

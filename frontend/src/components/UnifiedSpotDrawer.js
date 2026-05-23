@@ -1,37 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-
 import { useNavigate } from 'react-router-dom';
-
 import { MapPin, Camera, Users, Waves, AlertTriangle, Check, ArrowLeft, Loader2, ChevronDown, CheckCircle, X } from 'lucide-react';
-
 import { Button } from './ui/button';
-
-
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-
 import { Drawer, DrawerContent } from './ui/drawer';
-
-
-
 import { Badge } from './ui/badge';
-
 import { useAuth } from '../contexts/AuthContext';
-
-
 import { useTheme } from '../contexts/ThemeContext';
-
 import { getThemeTokens } from '../utils/themeTokens';
-
 import { JumpInSessionModal } from './JumpInSessionModal';
-
 import { LockerSelfieModal } from './LockerSelfieModal';
-
-
 import apiClient from '../lib/apiClient';
-
 import { toast } from 'sonner';
-
 import logger from '../utils/logger';
 
 
