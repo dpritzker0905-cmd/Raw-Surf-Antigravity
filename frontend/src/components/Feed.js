@@ -101,6 +101,7 @@ export const Feed = () => {
   const [newPostsChip, setNewPostsChip] = useState(0); // count of new posts waiting to load
   const [isRefreshing, setIsRefreshing] = useState(false);
   const latestPostIdRef = useRef(null); // track the most-recent post id we've rendered
+  const latestPostCreatedAtRef = useRef(null); // track the created_at timestamp of the most-recent post we've rendered
   
   // Post modal state - Instagram-style popup
   const [postModalOpen, setPostModalOpen] = useState(null);
@@ -263,6 +264,7 @@ export const Feed = () => {
     user, navigate, activeTab, selectedCountry, selectedState, selectedCity,
     posts,
     latestPostIdRef,
+    latestPostCreatedAtRef,
     isPhotographer,
     spots,
     showReactionPicker,
@@ -326,10 +328,11 @@ export const Feed = () => {
     setPostModalOpen(null);
   }, []);
 
-  // Track the latest rendered post id so we can detect new arrivals
+  // Track the latest rendered post id and timestamp so we can detect new arrivals
   useEffect(() => {
-    if (posts.length > 0 && !latestPostIdRef.current) {
+    if (posts.length > 0) {
       latestPostIdRef.current = posts[0]?.id ?? null;
+      latestPostCreatedAtRef.current = posts[0]?.created_at ?? null;
     }
   }, [posts]);
 

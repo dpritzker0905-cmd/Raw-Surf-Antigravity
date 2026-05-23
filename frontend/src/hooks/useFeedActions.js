@@ -16,6 +16,7 @@ import useFeedCheckInActions from './feed/useFeedCheckInActions';
 const useFeedActions = ({
   user, navigate, activeTab, selectedCountry, selectedState, selectedCity, posts,
   latestPostIdRef,
+  latestPostCreatedAtRef,
   isPhotographer,
   spots,
   showReactionPicker,
@@ -70,7 +71,7 @@ const useFeedActions = ({
 
   // --- Data layer: posts, pagination, follow, lineups, live streams ---
   const dataActions = useFeedDataActions({
-    user, posts, latestPostIdRef, isPhotographer,
+    user, posts, latestPostIdRef, latestPostCreatedAtRef, isPhotographer,
     postModalOpen, postMenuOpen,
     setConnectingToStream, setFeedLastUpdated, setFeedLineups,
     setFeedLineupsLoading, setFollowLoading, setFollowingUsers,

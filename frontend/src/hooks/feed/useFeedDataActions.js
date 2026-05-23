@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 
 const useFeedDataActions = ({
-  user, posts, latestPostIdRef, isPhotographer,
+  user, posts, latestPostIdRef, latestPostCreatedAtRef, isPhotographer,
   postModalOpen, postMenuOpen,
   // State setters
   setConnectingToStream, setFeedLastUpdated, setFeedLineups,
@@ -48,11 +48,14 @@ const useFeedDataActions = ({
         setPosts(incoming.map(post => ({ ...post, liked: post.is_liked_by_user || !!post.user_reaction })));
         setNewPostsChip(0);
         latestPostIdRef.current = incoming[0]?.id ?? null;
+        latestPostCreatedAtRef.current = incoming[0]?.created_at ?? null;
       } else {
         // Silent auto-refresh: show chip only if there are genuinely new posts
-        const currentLatest = latestPostIdRef.current;
-        const newCount = currentLatest
-          ? incoming.filter(p => String(p.id) > String(currentLatest)).length
+        const currentLatestTime = latestPostCreatedAtRef.current 
+          ? new Date(latestPostCreatedAtRef.current).getTime() 
+          : 0;
+        const newCount = currentLatestTime
+          ? incoming.filter(p => new Date(p.created_at).getTime() > currentLatestTime).length
           : 0;
         if (newCount > 0) setNewPostsChip(newCount);
       }
@@ -84,6 +87,7 @@ const useFeedDataActions = ({
         }
         
         latestPostIdRef.current = incoming[0]?.id ?? null;
+        latestPostCreatedAtRef.current = incoming[0]?.created_at ?? null;
         
         // Scroll the main content container to the top (works on both desktop and mobile)
         const scrollContainer = document.getElementById('main-content') || window;
