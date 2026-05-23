@@ -3,7 +3,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import {
   findMarineInsertionLayer,
   safeMoveLayer,
-  safeSetPaintProperty
+  safeSetPaintProperty,
+  safeSetFilter
 } from './mapUtils';
 
 /**
@@ -45,11 +46,17 @@ const LEGACY_LAYERS = [
 ];
 
 const waterFilter = [
-  'match',
-  ['get', 'class'],
-  ['lake', 'river', 'canal', 'stream', 'reservoir', 'pool', 'pond', 'spring', 'waterfall'],
-  false,
-  true
+  'all',
+  // Exclude named inland water bodies (lakes, reservoirs, and rivers have names, ocean does not)
+  ['!', ['has', 'name']],
+  // Exclude common inland classes (case-insensitive matching)
+  [
+    'match',
+    ['downcase', ['default', ['get', 'class'], '']],
+    ['lake', 'river', 'canal', 'stream', 'reservoir', 'pool', 'pond', 'spring', 'waterfall', 'playa'],
+    false,
+    true
+  ]
 ];
 
 const THEME_COLORS = {
@@ -113,7 +120,7 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
         } catch (e) {}
 
         // 1. Ocean-Side Vignette Buffer (shifted into the ocean using positive offset)
-        // Shifted into water to cover GFS grid gaps. Wider & softer to cover estuaries/lagoons.
+        // Shifted into water to cover GFS grid gaps. Tight and subtle to avoid heavy ocean-side halos.
         if (!hasBuf) {
           try {
             mapInstance.addLayer({
@@ -125,37 +132,37 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
               paint: {
                 'line-color': waterColor,
                 'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
-                  1, 12,
-                  5, 24,
-                  6, 36,
-                  7, 60,
-                  8, 100,
-                  9, 180,
-                  10, 300,
-                  12, 500,
+                  1, 2,
+                  5, 4,
+                  6, 6,
+                  7, 10,
+                  8, 16,
+                  9, 24,
+                  10, 32,
+                  12, 16,
                   14, 0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, 6,
-                  5, 12,
-                  6, 18,
-                  7, 30,
-                  8, 50,
-                  9, 90,
-                  10, 150,
-                  12, 250,
+                  1, 1,
+                  5, 2,
+                  6, 3,
+                  7, 5,
+                  8, 8,
+                  9, 12,
+                  10, 16,
+                  12, 8,
                   14, 0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
-                  5, 1.5,
-                  8, 2.5,
-                  10, 3.5,
-                  12, 5.0
+                  5, 0.5,
+                  8, 1.0,
+                  10, 1.5,
+                  12, 1.0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   5, 1.0,
                   10, 1.0,
-                  12, 0.9,
+                  12, 0.8,
                   14, 0.0
                 ]
               },
@@ -169,11 +176,12 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
             safeSetPaintProperty(mapInstance, MASK_BUFFER, 'line-color', waterColor);
+            safeSetFilter(mapInstance, MASK_BUFFER, waterFilter);
           } catch (e) {}
         }
 
         // 2. Land-Side Masking Buffer (shifted onto land using negative offset)
-        // Shifted onto land to cover wave bleed. Extremely narrow at high zooms to keep parks and streets visible.
+        // Shifted onto land to cover wave bleed. Extremely tight and subtle to keep parks, roads, and lakes completely pristine.
         if (!hasLandBuf) {
           try {
             mapInstance.addLayer({
@@ -185,36 +193,36 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
               paint: {
                 'line-color': fillColor,
                 'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
-                  1, 4,
-                  5, 8,
-                  6, 12,
-                  7, 16,
-                  8, 20,
-                  9, 24,
-                  10, 20,
-                  12, 10,
+                  1, 2,
+                  5, 3,
+                  6, 4,
+                  7, 6,
+                  8, 8,
+                  9, 10,
+                  10, 8,
+                  12, 4,
                   14, 0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, -2,
-                  5, -4,
-                  6, -6,
-                  7, -8,
-                  8, -10,
-                  9, -12,
-                  10, -10,
-                  12, -5,
+                  1, -1,
+                  5, -1.5,
+                  6, -2,
+                  7, -3,
+                  8, -4,
+                  9, -5,
+                  10, -4,
+                  12, -2,
                   14, 0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
-                  5, 0.5,
-                  9, 1.0,
-                  12, 1.0
+                  5, 0.3,
+                  9, 0.8,
+                  12, 0.5
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   5, 1.0,
                   10, 1.0,
-                  12, 0.8,
+                  12, 0.7,
                   14, 0.0
                 ]
               },
@@ -228,6 +236,7 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LAND_BUFFER, insertBeforeId);
             safeSetPaintProperty(mapInstance, MASK_LAND_BUFFER, 'line-color', fillColor);
+            safeSetFilter(mapInstance, MASK_LAND_BUFFER, waterFilter);
           } catch (e) {}
         }
 
@@ -263,6 +272,7 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
             safeSetPaintProperty(mapInstance, MASK_LINE, 'line-color', tc.line);
+            safeSetFilter(mapInstance, MASK_LINE, waterFilter);
           } catch (e) {}
         }
 
