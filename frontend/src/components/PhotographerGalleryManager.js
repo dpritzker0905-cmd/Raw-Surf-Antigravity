@@ -50,10 +50,10 @@ export const PhotographerGalleryManager = () => {
   
   // ROLE-BASED COMMERCE RESTRICTIONS
   // Grom Parent: NO commerce at all - pure archive/family photos
-  // Hobbyist: Can browse/buy but NOT sell
+  // Hobbyist: Can sell photos/videos but cannot cash out directly (credits only)
   const isGromParent = user?.role === ROLES.GROM_PARENT || user?.role === 'GROM_PARENT';
   const isHobbyist = user?.role === ROLES.HOBBYIST || user?.role === 'HOBBYIST';
-  const canSellPhotos = !isGromParent && !isHobbyist; // Only Pro photographers can sell
+  const canSellPhotos = !isGromParent; // Both Pro photographers and Hobbyists can sell
   const showPricing = canSellPhotos; // Hide all pricing UI for non-sellers
   
   const [gallery, setGallery] = useState(null);

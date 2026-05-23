@@ -175,11 +175,11 @@ export const GalleryPage = () => {
   
   // ROLE-BASED COMMERCE RESTRICTIONS
   // Grom Parent: NO commerce - archive only, zero selling
-  // Hobbyist: Can spend but NOT sell
+  // Hobbyist: Can sell photos/videos but cannot cash out directly (credits only)
   const userRole = user?.role?.toLowerCase?.() || '';
   const isGromParent = userRole.includes('grom parent') || userRole === 'grom_parent' || userRole.includes('Grom Parent') || user?.is_grom_parent === true;
   const isHobbyist = userRole.includes('hobbyist') || user?.role === ROLES.HOBBYIST || user?.role === 'HOBBYIST';
-  const canSellPhotos = isPhotographer && !isGromParent && !isHobbyist;
+  const canSellPhotos = isPhotographer && !isGromParent; // Both Pro photographers and Hobbyists can sell
   const showPricing = canSellPhotos;
 
   // Sync local state with context when context updates
