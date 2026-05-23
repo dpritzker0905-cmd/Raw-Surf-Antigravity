@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -100,6 +100,17 @@ export const Sidebar = () => {
       };
     }
   }, [user?.id]);
+
+  // Listen for global open-passport events from RightSidebar
+  useEffect(() => {
+    const handleOpenPassport = () => {
+      setPassportOpen(true);
+    };
+    window.addEventListener('open-passport', handleOpenPassport);
+    return () => {
+      window.removeEventListener('open-passport', handleOpenPassport);
+    };
+  }, []);
 
   const fetchUnreadCount = async () => {
     try {
