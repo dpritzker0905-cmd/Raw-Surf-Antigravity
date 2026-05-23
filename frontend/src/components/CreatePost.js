@@ -93,10 +93,6 @@ export const CreatePost = () => {
   const [showRecentLocations, setShowRecentLocations] = useState(false);
 
   // GPS + Location hierarchy state (mirrors Feed check-in flow)
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const [userLat, setUserLat] = useState(null);
-  const [userLon, setUserLon] = useState(null);
-  const [nearestSpot, setNearestSpot] = useState(null);
   const [allSpots, setAllSpots] = useState([]);
   const [locationHierarchy, setLocationHierarchy] = useState({ countries: [] });
   const [selectedCountry, setSelectedCountry] = useState('');
@@ -139,6 +135,11 @@ export const CreatePost = () => {
     removeImage,
     compressImageToBase64,
     handleUpload,
+    gpsLoading,
+    userLat,
+    userLon,
+    nearestSpot,
+    getGpsLocation,
   } = useCreatePostActions({
     user, navigate, selectedSpot, caption, selectedFiles, previewUrls,
     captionRef, hashtagRef,
@@ -201,52 +202,6 @@ export const CreatePost = () => {
     fetchAllSpots();
     fetchLocationHierarchy();
   }, []);
-
-  // Calculate distance between two GPS points (km)
-
-  // Get GPS location and find nearest spots
-  const getGpsLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
-      return;
-    }
-    setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        setUserLat(latitude);
-        setUserLon(longitude);
-
-        // Find nearest spot
-        let nearest = null;
-        let minDistance = Infinity;
-        allSpots.forEach(spot => {
-          if (!spot.latitude || !spot.longitude) return;
-          const distance = calculateDistance(latitude, longitude, spot.latitude, spot.longitude);
-          if (distance < minDistance) {
-            minDistance = distance;
-            nearest = { ...spot, distance: distance.toFixed(1) };
-          }
-        });
-
-        setNearestSpot(nearest);
-        if (nearest && minDistance < 10) {
-          setLocation(nearest.name);
-          toast.success(`${String.fromCodePoint(0x1F4CD)} Near ${nearest.name} (${nearest.distance}km)`);
-        } else if (nearest) {
-          toast.success(`${String.fromCodePoint(0x1F4CD)} Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
-        } else {
-          toast.success(`${String.fromCodePoint(0x1F4CD)} Location detected - select your spot below`);
-        }
-        setGpsLoading(false);
-      },
-      (error) => {
-        toast.error('Could not get your location. Please select manually.');
-        setGpsLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  };
 
   // Handle spot selection from hierarchy picker
 

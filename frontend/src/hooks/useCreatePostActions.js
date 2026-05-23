@@ -3,6 +3,7 @@
  * Post creation: media upload, compression, tag, spot selection.
  * 18 pure handlers.
  */
+import { useState } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -53,6 +54,10 @@ const useCreatePostActions = ({
   setWindDirection,
   setWindSpeedMph,
 }) => {
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [userLat, setUserLat] = useState(null);
+  const [userLon, setUserLon] = useState(null);
+  const [nearestSpot, setNearestSpot] = useState(null);
 
     const fetchSpots = async () => {
       try {
@@ -99,6 +104,49 @@ const useCreatePostActions = ({
               Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+  };
+
+  const getGpsLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLat(latitude);
+        setUserLon(longitude);
+
+        // Find nearest spot
+        let nearest = null;
+        let minDistance = Infinity;
+        allSpots.forEach(spot => {
+          if (!spot.latitude || !spot.longitude) return;
+          const distance = calculateDistance(latitude, longitude, spot.latitude, spot.longitude);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearest = { ...spot, distance: distance.toFixed(1) };
+          }
+        });
+
+        setNearestSpot(nearest);
+        if (nearest && minDistance < 10) {
+          setLocation(nearest.name);
+          toast.success(`${String.fromCodePoint(0x1F4CD)} Near ${nearest.name} (${nearest.distance}km)`);
+        } else if (nearest) {
+          toast.success(`${String.fromCodePoint(0x1F4CD)} Location found. Nearest: ${nearest.name} (${nearest.distance}km)`);
+        } else {
+          toast.success(`${String.fromCodePoint(0x1F4CD)} Location detected - select your spot below`);
+        }
+        setGpsLoading(false);
+      },
+      (error) => {
+        toast.error('Could not get your location. Please select manually.');
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleHierarchySpotSelect = (spotId) => {
@@ -570,6 +618,11 @@ const useCreatePostActions = ({
     removeImage,
     compressImageToBase64,
     handleUpload,
+    gpsLoading,
+    userLat,
+    userLon,
+    nearestSpot,
+    getGpsLocation,
   };
 };
 
