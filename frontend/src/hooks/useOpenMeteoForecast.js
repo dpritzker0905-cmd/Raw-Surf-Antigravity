@@ -41,7 +41,7 @@ const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_h
 // Module-level rate limiter shared across all instances
 let lastGlobalFetchTime = 0;
 let lastGlobalModel = '';
-const MIN_FETCH_INTERVAL = 45_000;
+const MIN_FETCH_INTERVAL = 2_000;
 
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false }) => {
   const [forecastData, setForecastData] = useState(null);
@@ -56,7 +56,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}`;
+    const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}_${isExplicit ? 'explicit' : 'auto'}`;
     if (fetchKey === lastFetchKey.current) return;
 
     // Rate limit - bypass when model changes (user action, must be responsive)
