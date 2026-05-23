@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -38,6 +38,7 @@ import ItemPricingModal from './gallery/ItemPricingModal';
 import GallerySessionPanel from './gallery/GallerySessionPanel';
 import PhotographerLightbox from './gallery/PhotographerLightbox';
 import GalleryPricingPanel from './gallery/GalleryPricingPanel';
+import { ProStudioManager } from './gallery/ProStudioManager';
 
 
 
@@ -425,6 +426,16 @@ export const PhotographerGalleryManager = () => {
           fetchSessionParticipants={fetchSessionParticipants}
         />
 
+
+        {/* Pro Photographer AI Studio Panel */}
+        <div className="mb-6">
+          <ProStudioManager
+            gallery={gallery}
+            galleryId={galleryId}
+            sessionParticipants={sessionParticipants}
+            theme={theme}
+          />
+        </div>
 
         {/* Upload Section */}
         <Card className={`mb-6 ${cardBgClass}`}>

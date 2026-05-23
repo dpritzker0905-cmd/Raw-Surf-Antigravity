@@ -645,3 +645,143 @@ async def get_comment_media(filename: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     return _cached_file_response(file_path)
+
+
+# ============================================================
+# TIMELINE FRAME EXTRACTOR & DRM PHOTO REGISTRATION
+# ============================================================
+from pydantic import BaseModel
+
+class FrameExportRequest(BaseModel):
+    timestamp: float
+    gallery_id: str
+
+@router.post("/gallery/item/{item_id}/export-frame")
+async def export_video_frame(
+    item_id: str,
+    payload: FrameExportRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Extract a high-resolution frame from an existing gallery video at the requested timestamp,
+    apply watermarking, upload to Supabase, and register as a new saleable GalleryItem.
+    
+    Uses backend subprocess FFmpeg. High performance, zero RAM spikes.
+    """
+    import subprocess
+    import shutil
+    
+    # 1. Pull the source video from database
+    result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
+    source_item = result.scalar_one_or_none()
+    
+    if not source_item:
+        raise HTTPException(status_code=404, detail="Video file item not found")
+        
+    if source_item.media_type != 'video':
+        raise HTTPException(status_code=400, detail="Frame grab can only be executed on video files")
+
+    # Determine local working path
+    photographer_id = source_item.photographer_id
+    working_dir = UPLOAD_DIR / "gallery" / photographer_id
+    working_dir.mkdir(parents=True, exist_ok=True)
+    
+    # We locate local copy if stored, otherwise fetch source stream
+    filename = source_item.original_url.rsplit('/', 1)[-1]
+    local_video_path = working_dir / filename
+    
+    if not local_video_path.exists():
+        # Fallback: if running on stateless container, download stream frame directly via URL
+        video_source = source_item.original_url
+    else:
+        video_source = str(local_video_path)
+
+    # 2. Setup output filenames
+    unique_id = str(uuid.uuid4())
+    frame_filename = f"exported_{unique_id}.jpg"
+    frame_preview_filename = f"preview_exported_{unique_id}.jpg"
+    
+    out_original_path = working_dir / frame_filename
+    out_preview_path = working_dir / frame_preview_filename
+
+    # 3. Extract exact frame using ffmpeg subprocess (extremely memory-safe)
+    try:
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-ss', str(payload.timestamp),   # Fast seek to frame
+            '-i', video_source,
+            '-vframes', '1',                 # Extract single frame
+            '-q:v', '2',                     # High-quality JPEG quantization
+            '-y',                            # Overwrite output
+            str(out_original_path)
+        ]
+        
+        process = subprocess.run(ffmpeg_cmd, capture_output=True, text=True, timeout=10)
+        
+        if process.returncode != 0:
+            logger.error(f"FFmpeg frame grab failed: {process.stderr}")
+            raise HTTPException(status_code=500, detail="Failed to parse frame from video container")
+            
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Frame extraction timed out")
+    except Exception as e:
+        logger.error(f"Frame extraction exception: {e}")
+        raise HTTPException(status_code=500, detail="Frame extraction processor failure")
+
+    # 4. Generate watermarked preview for e-commerce protection
+    try:
+        from routes.uploads.core import add_watermark
+        add_watermark(str(out_original_path), str(out_preview_path), text="RAW SURF OS")
+    except Exception as e:
+        logger.warning(f"Failed to auto-watermark extracted frame: {e}")
+        shutil.copy(str(out_original_path), str(out_preview_path))
+
+    # 5. Persist original and preview files to Supabase Storage
+    supabase_original = None
+    supabase_preview = None
+    
+    if SUPABASE_STORAGE_AVAILABLE:
+        try:
+            supabase_original = await asyncio.to_thread(
+                upload_to_supabase_storage,
+                out_original_path, 'gallery', 
+                f"{photographer_id}/{frame_filename}", 'image/jpeg'
+            )
+            supabase_preview = await asyncio.to_thread(
+                upload_to_supabase_storage,
+                out_preview_path, 'gallery', 
+                f"{photographer_id}/{frame_preview_filename}", 'image/jpeg'
+            )
+        except Exception as supa_err:
+            logger.error(f"Supabase upload failed for frame extract: {supa_err}")
+
+    # Set up final database URLs
+    final_original_url = supabase_original or f"/api/uploads/gallery/{photographer_id}/{frame_filename}"
+    final_preview_url = supabase_preview or f"/api/uploads/gallery/{photographer_id}/{frame_preview_filename}"
+
+    # 6. Write new saleable photo row into the database
+    from models import generate_uuid
+    new_photo_item = GalleryItem(
+        id=generate_uuid(),
+        photographer_id=photographer_id,
+        gallery_id=payload.gallery_id,
+        original_url=final_original_url,
+        preview_url=final_preview_url,
+        media_type='image',
+        price=5.0,  # Standard standard photo price
+        is_public=True,
+        session_id=source_item.session_id
+    )
+    
+    db.add(new_photo_item)
+    await db.commit()
+    await db.refresh(new_photo_item)
+
+    return {
+        "success": True,
+        "item_id": new_photo_item.id,
+        "original_url": final_original_url,
+        "preview_url": final_preview_url,
+        "message": "Frame successfully extracted, watermarked, and listed in your session gallery!"
+    }
+

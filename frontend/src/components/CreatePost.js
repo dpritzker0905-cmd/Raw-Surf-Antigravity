@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { Loader2, Image, Video, Upload, Camera, Megaphone, X, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Radio } from 'lucide-react';
+import { Loader2, Image, Video, Upload, Camera, Megaphone, X, ChevronLeft, ChevronRight, Smile, AtSign, Play, HelpCircle, Radio, Sliders } from 'lucide-react';
 import { toast } from 'sonner';
 import useCreatePostActions from '../hooks/useCreatePostActions';
 import { Button } from './ui/button';
@@ -22,6 +22,7 @@ import WebcamCaptureModal from './WebcamCaptureModal';
 import VideoInfoModal from './create-post/VideoInfoModal';
 import LocationPickerPanel from './create-post/LocationPickerPanel';
 import SessionConditionsPanel from './create-post/SessionConditionsPanel';
+import { CasualEditorModal } from './social/CasualEditorModal';
 
 
 export const CreatePost = () => {
@@ -63,6 +64,8 @@ export const CreatePost = () => {
   const [showGoLiveModal, setShowGoLiveModal] = useState(false);
   const [showWebcamModal, setShowWebcamModal] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showCasualEditor, setShowCasualEditor] = useState(false);
+  const [editingFileIndex, setEditingFileIndex] = useState(0);
   const photoInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -509,6 +512,20 @@ export const CreatePost = () => {
                   )}
                 </div>
               )}
+              {mediaType === 'image' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingFileIndex(currentPreviewIndex);
+                    setShowCasualEditor(true);
+                  }}
+                  className="absolute top-3 right-14 p-2 bg-black/70 rounded-full hover:bg-black text-white flex items-center justify-center transition-colors"
+                  title="Edit Photo"
+                  data-testid="edit-photo-btn"
+                >
+                  <Sliders className="w-5 h-5 text-cyan-400" />
+                </button>
+              )}
               <button aria-label="Close"
                 onClick={clearSelection}
                 className="absolute top-3 right-3 p-2 bg-black/70 rounded-full hover:bg-black"
@@ -783,6 +800,36 @@ export const CreatePost = () => {
           handleFileSelect({ target: { files } });
         }}
       />
+
+      {/* Casual Social Media Editor */}
+      {selectedFiles.length > 0 && selectedFiles[editingFileIndex] && (
+        <CasualEditorModal
+          isOpen={showCasualEditor}
+          onClose={() => setShowCasualEditor(false)}
+          file={selectedFiles[editingFileIndex]}
+          fileIndex={editingFileIndex}
+          weatherData={{
+            spotName: location || selectedSpot,
+            waveHeight: waveHeightFt,
+            wavePeriod: wavePeriodSec,
+            windSpeed: windSpeedMph,
+            windDir: windDirection
+          }}
+          theme={theme}
+          onSave={(editedFile, index) => {
+            const updatedFiles = [...selectedFiles];
+            updatedFiles[index] = editedFile;
+            setSelectedFiles(updatedFiles);
+
+            const updatedPreviews = [...previewUrls];
+            URL.revokeObjectURL(updatedPreviews[index]);
+            updatedPreviews[index] = URL.createObjectURL(editedFile);
+            setPreviewUrls(updatedPreviews);
+            
+            toast.success("Edits saved to draft post!");
+          }}
+        />
+      )}
     </div>
   );
 };
