@@ -504,6 +504,8 @@ async def upload_comment_media(
             await file.close()
             gc.collect()
 
+        # 2. Get video info and validate duration
+        video_info = await asyncio.to_thread(get_video_info, str(temp_path))
         if video_info and video_info.get('duration', 0) > 60.9:
             os.remove(temp_path)
             raise HTTPException(
