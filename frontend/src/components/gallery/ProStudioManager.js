@@ -16,6 +16,14 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
   const [activeVideo, setActiveVideo] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
   
+  // Dynamic preview backgrounds for the watermark designer
+  const previewPresets = [
+    { name: 'Pipeline Sunny', url: 'https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=600&q=80' },
+    { name: 'Sunset Beach', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80' },
+    { name: 'Swell Wave', url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80' }
+  ];
+  const [previewImage, setPreviewImage] = useState(previewPresets[0].url);
+  
   const videoRef = useRef(null);
 
   // Theme-aware classes
@@ -223,27 +231,65 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
             </div>
 
             {/* Live Preview Area */}
-            <div className={`rounded-xl p-4 border flex flex-col justify-center items-center relative min-h-[300px] overflow-hidden ${
-              isLight ? 'bg-gray-100 border-gray-200' : 'bg-black border-zinc-800'
-            }`}>
-              <div className="absolute inset-0 bg-cover bg-center rounded-lg opacity-40" style={{ backgroundImage: "url('/api/placeholder/400/300')" }} />
-              
-              {watermarkStyle === 'grid' ? (
-                <div className="absolute inset-0 flex flex-wrap gap-12 justify-center items-center pointer-events-none" style={{ opacity: watermarkOpacity / 100 }}>
-                  {[...Array(6)].map((_, i) => (
-                    <span key={i} className="text-white text-xs font-extrabold rotate-[-30deg] border border-white/20 px-2 py-0.5 whitespace-nowrap">
-                      {watermarkText}
+            <div className="flex flex-col gap-3">
+              <div className={`rounded-xl p-4 border flex flex-col justify-center items-center relative min-h-[300px] overflow-hidden ${
+                isLight ? 'bg-gray-100 border-gray-200' : 'bg-black border-zinc-800'
+              }`}>
+                <div className="absolute inset-0 bg-cover bg-center rounded-lg opacity-40 transition-all duration-500" style={{ backgroundImage: `url('${previewImage}')` }} />
+                
+                {watermarkStyle === 'grid' ? (
+                  <div className="absolute inset-0 flex flex-wrap gap-12 justify-center items-center pointer-events-none" style={{ opacity: watermarkOpacity / 100 }}>
+                    {[...Array(6)].map((_, i) => (
+                      <span key={i} className="text-white text-xs font-extrabold rotate-[-30deg] border border-white/20 px-2 py-0.5 whitespace-nowrap">
+                        {watermarkText}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="absolute z-10 pointer-events-none" style={{ opacity: watermarkOpacity / 100 }}>
+                    <span className="text-white text-sm font-extrabold border border-white px-4 py-2 bg-black/60 rounded">
+                      ⚠️ {watermarkText}
                     </span>
+                  </div>
+                )}
+                <span className="z-10 bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded border border-zinc-700">Studio Mockup Preview</span>
+              </div>
+
+              {/* Dynamic Background Presets */}
+              <div className={`p-3 border rounded-xl space-y-2 ${itemBgClass}`}>
+                <p className={`text-[10px] font-bold ${textSecondaryClass}`}>Change preview lighting & contrast:</p>
+                <div className="flex gap-2 overflow-x-auto pb-1 max-w-full">
+                  {/* Gallery Images if available */}
+                  {(gallery?.items?.filter(item => item.media_type === 'image') || []).map((img, i) => (
+                    <button
+                      key={img.id || i}
+                      onClick={() => setPreviewImage(img.media_url)}
+                      className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
+                        previewImage === img.media_url ? 'border-cyan-400 scale-95' : 'border-zinc-800 hover:border-zinc-700'
+                      }`}
+                    >
+                      <img src={img.media_url} alt={`Gallery ${i}`} className="object-cover w-full h-full" />
+                    </button>
+                  ))}
+
+                  {/* Preset lighting wave photos */}
+                  {previewPresets.map((preset, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setPreviewImage(preset.url)}
+                      className={`relative w-12 h-12 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
+                        previewImage === preset.url ? (isBeach ? 'border-amber-400' : isLight ? 'border-blue-500' : 'border-cyan-400') + ' scale-95' : 'border-zinc-800 hover:border-zinc-700'
+                      }`}
+                      title={preset.name}
+                    >
+                      <img src={preset.url} alt={preset.name} className="object-cover w-full h-full" />
+                      <div className="absolute inset-x-0 bottom-0 bg-black/60 text-[8px] text-white text-center py-0.5 truncate">
+                        {preset.name.split(' ')[0]}
+                      </div>
+                    </button>
                   ))}
                 </div>
-              ) : (
-                <div className="absolute z-10 pointer-events-none" style={{ opacity: watermarkOpacity / 100 }}>
-                  <span className="text-white text-sm font-extrabold border border-white px-4 py-2 bg-black/60 rounded">
-                    ⚠️ {watermarkText}
-                  </span>
-                </div>
-              )}
-              <span className="z-10 bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded border border-zinc-700">Studio Mockup Preview</span>
+              </div>
             </div>
           </div>
         )}
