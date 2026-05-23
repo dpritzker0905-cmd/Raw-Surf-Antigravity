@@ -50,15 +50,6 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0, ocean: 'hsl(196, 80%, 70%)' },
 };
 
-// Filter out lakes, rivers, canals, etc., to only target the ocean/sea coastlines
-const waterFilter = [
-  'match',
-  ['get', 'class'],
-  ['lake', 'river', 'canal', 'stream', 'reservoir', 'pool', 'pond', 'spring', 'waterfall'],
-  false,
-  true
-];
-
 export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) {
   const syncingRef = useRef(false);
   const timeoutRef = useRef(null);
@@ -113,7 +104,8 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
           }
         } catch (e) {}
 
-        // 1. Ocean-Side Vignette Buffer (shifted into the ocean using negative offset)
+        // 1. Ocean-Side Vignette Buffer (shifted into the ocean using positive offset)
+        // Shifted into water to cover GFS grid gaps. Wider & softer to cover estuaries/lagoons.
         if (!hasBuf) {
           try {
             mapInstance.addLayer({
@@ -121,41 +113,40 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
               type: 'line',
               source: vectorSourceId,
               'source-layer': 'water',
-              filter: waterFilter,
               paint: {
                 'line-color': waterColor,
                 'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
-                  1, 8,
-                  5, 16,
-                  6, 24,
-                  7, 36,
-                  8, 64,
-                  9, 120,
-                  10, 200,
-                  12, 360,
+                  1, 12,
+                  5, 24,
+                  6, 36,
+                  7, 60,
+                  8, 100,
+                  9, 180,
+                  10, 300,
+                  12, 500,
                   14, 0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, 4,
-                  5, 8,
-                  6, 12,
-                  7, 18,
-                  8, 32,
-                  9, 60,
-                  10, 100,
-                  12, 180,
+                  1, 6,
+                  5, 12,
+                  6, 18,
+                  7, 30,
+                  8, 50,
+                  9, 90,
+                  10, 150,
+                  12, 250,
                   14, 0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
-                  5, 1.0,
-                  8, 2.0,
-                  10, 3.0,
-                  12, 4.0
+                  5, 1.5,
+                  8, 2.5,
+                  10, 3.5,
+                  12, 5.0
                 ],
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   5, 1.0,
                   10, 1.0,
-                  12, 0.8,
+                  12, 0.9,
                   14, 0.0
                 ]
               },
@@ -172,7 +163,8 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
           } catch (e) {}
         }
 
-        // 2. Land-Side Masking Buffer (shifted onto land using positive offset)
+        // 2. Land-Side Masking Buffer (shifted onto land using negative offset)
+        // Shifted onto land to cover wave bleed. Wider to block GFS cells bleeding inland.
         if (!hasLandBuf) {
           try {
             mapInstance.addLayer({
@@ -180,29 +172,28 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
               type: 'line',
               source: vectorSourceId,
               'source-layer': 'water',
-              filter: waterFilter,
               paint: {
                 'line-color': fillColor,
                 'line-width': ['interpolate', ['exponential', 1.2], ['zoom'],
-                  1, 6,
-                  5, 12,
-                  6, 18,
-                  7, 24,
-                  8, 48,
-                  9, 96,
-                  10, 160,
-                  12, 300,
+                  1, 8,
+                  5, 16,
+                  6, 24,
+                  7, 36,
+                  8, 72,
+                  9, 144,
+                  10, 240,
+                  12, 400,
                   14, 0
                 ],
                 'line-offset': ['interpolate', ['linear'], ['zoom'],
-                  1, -3,
-                  5, -6,
-                  6, -9,
-                  7, -12,
-                  8, -24,
-                  9, -48,
-                  10, -80,
-                  12, -150,
+                  1, -4,
+                  5, -8,
+                  6, -12,
+                  7, -18,
+                  8, -36,
+                  9, -72,
+                  10, -120,
+                  12, -200,
                   14, 0
                 ],
                 'line-blur': ['interpolate', ['linear'], ['zoom'],
@@ -213,7 +204,7 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   5, 1.0,
                   10, 1.0,
-                  12, 0.8,
+                  12, 0.9,
                   14, 0.0
                 ]
               },
@@ -238,7 +229,6 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
               type: 'line',
               source: vectorSourceId,
               'source-layer': 'water',
-              filter: waterFilter,
               paint: {
                 'line-color': tc.line,
                 'line-width': ['interpolate', ['linear'], ['zoom'],
