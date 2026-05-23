@@ -517,6 +517,14 @@ var MapWebGL = ({
     } catch (e) { /* empty */ }
   }, [mapInstance, activeLayers]);
 
+  // v3.13.1: Force instantaneous map repaint on layer toggles or tile URL updates
+  // Prevents mobile GPU rendering latency from blocking layer appearances.
+  useEffect(() => {
+    if (mapInstance) {
+      try { mapInstance.triggerRepaint(); } catch (e) {}
+    }
+  }, [mapInstance, activeLayers, omTileUrls]);
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
 
