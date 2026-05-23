@@ -39,12 +39,28 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
     }
   }, [gallery]);
 
-  // Load detected surfer clusters from AI
+  // Load photographer watermark settings and detected surfer clusters
   useEffect(() => {
     if (galleryId) {
       fetchAICells();
     }
-  }, [galleryId]);
+    if (gallery?.photographer_id) {
+      fetchWatermarkSettings();
+    }
+  }, [galleryId, gallery?.photographer_id]);
+
+  const fetchWatermarkSettings = async () => {
+    try {
+      const response = await apiClient.get(`/photographer/${gallery.photographer_id}/watermark-settings`);
+      if (response.data) {
+        setWatermarkStyle(response.data.watermark_position === 'tiled' ? 'grid' : 'center');
+        setWatermarkOpacity(Math.round((response.data.watermark_opacity || 0.5) * 100));
+        setWatermarkText(response.data.watermark_text || 'RAW SURF DRM');
+      }
+    } catch (err) {
+      // Graceful fallback if settings are uninitialized
+    }
+  };
 
   const fetchAICells = async () => {
     try {
@@ -61,10 +77,13 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
 
   const handleUpdateWatermarkSettings = async () => {
     try {
-      await apiClient.post(`/gallery/${galleryId}/watermark-settings`, {
-        style: watermarkStyle,
-        opacity: watermarkOpacity / 100,
-        text: watermarkText
+      await apiClient.put(`/photographer/${gallery.photographer_id}/watermark-settings`, {
+        watermark_style: 'text',
+        watermark_text: watermarkText,
+        watermark_logo_url: null,
+        watermark_opacity: watermarkOpacity / 100,
+        watermark_position: watermarkStyle === 'grid' ? 'tiled' : 'center',
+        default_watermark_in_selection: true
       });
       toast.success("Watermark parameters updated across session previews!");
     } catch (err) {
