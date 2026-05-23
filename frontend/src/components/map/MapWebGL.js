@@ -316,7 +316,13 @@ var MapWebGL = ({
     }
   }, [mapInstanceRef, innerMapRef.current]);
 
-  const onMove = useCallback(evt => setViewState(evt.viewState), []);
+  const onMove = useCallback(evt => {
+    const nextViewState = { ...evt.viewState };
+    if (nextViewState.zoom < 3.0) {
+      nextViewState.zoom = 3.0;
+    }
+    setViewState(nextViewState);
+  }, []);
 
   const moveEndTimerRef = useRef(null);
   const onMoveEnd = useCallback(evt => {
@@ -535,7 +541,9 @@ var MapWebGL = ({
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
       attributionControl={false}
-      minZoom={2.0}
+      minZoom={3.0}
+      renderWorldCopies={false}
+      maxBounds={[[-180, -85], [180, 85]]}
     >
       {/* Geofence Visual Layer */}
       <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
