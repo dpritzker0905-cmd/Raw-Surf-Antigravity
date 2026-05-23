@@ -543,7 +543,6 @@ var MapWebGL = ({
       attributionControl={false}
       minZoom={3.0}
       renderWorldCopies={false}
-      maxBounds={[[-180, -85], [180, 85]]}
     >
       {/* Geofence Visual Layer */}
       <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
