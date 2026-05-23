@@ -47,6 +47,7 @@ class Booking(Base):
     # Status tracking - includes PENDING_PAYMENT for crew split logic
     # Status flow: Pending -> PendingPayment (if crew) -> Confirmed -> Completed / Cancelled
     status = Column(String(50), default='Pending', nullable=False, index=True)
+    pending_payment_expires_at = Column(DateTime(timezone=True), nullable=True)
     
     # Crew payment tracking
     crew_payment_required = Column(Boolean, default=False)  # True if waiting for crew to pay

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MapMarkerLayers Extracted from MapWebGL.js for LOC compliance.
  *
  * Renders all interactive map markers:
@@ -8,7 +8,7 @@
  *   - Dispatch tracking (photographer + surfer)
  *   - Friends on map
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { Marker } from 'react-map-gl/maplibre';
 
 /**
@@ -37,6 +37,7 @@ var MapMarkerLayers = ({
   onPhotographerClick,
   mapRef,
 }) => {
+  const [hoveredSpotId, setHoveredSpotId] = useState(null);
   return (
     <>
       {/* Spot Clusters */}
@@ -69,6 +70,7 @@ var MapMarkerLayers = ({
             longitude={lng}
             latitude={lat}
             anchor="bottom"
+            style={{ zIndex: hoveredSpotId === cluster.id ? 99999 : 1 }}
             onClick={(e) => {
               e.originalEvent.stopPropagation();
               e.originalEvent.preventDefault();
@@ -81,7 +83,12 @@ var MapMarkerLayers = ({
               });
             }}
           >
-            <div className="relative cursor-pointer" style={{ position: 'relative', zIndex: 10 }}>
+            <div
+              className="relative cursor-pointer"
+              style={{ position: 'relative', width: 32, height: 32 }}
+              onMouseEnter={() => setHoveredSpotId(cluster.id)}
+              onMouseLeave={() => setHoveredSpotId(null)}
+            >
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
                   !isWithinGeofence
@@ -107,6 +114,20 @@ var MapMarkerLayers = ({
                   style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white', fontWeight: 'bold' }}
                 >
                   {cluster.active_photographers_count}
+                </div>
+              )}
+              {hoveredSpotId === cluster.id && (
+                <div
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-zinc-950/95 backdrop-blur-md border border-white/10 text-white text-xs font-semibold rounded-lg shadow-2xl whitespace-nowrap pointer-events-none transition-all duration-200 transform -translate-y-1 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  style={{
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.6)'
+                  }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                    <span>{cluster.name || 'Surf Spot'}</span>
+                  </div>
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-950/95"></div>
                 </div>
               )}
             </div>

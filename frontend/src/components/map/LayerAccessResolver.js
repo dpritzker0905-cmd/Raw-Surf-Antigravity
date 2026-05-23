@@ -8,6 +8,10 @@
 
 // Define access rules per subscription tier
 var TIER_ACCESS = {
+  guest: {
+    models: ['GFS'],
+    forecastDays: 3
+  },
   free: {
     models: ['GFS'],
     forecastDays: 3
@@ -27,19 +31,21 @@ var TIER_ACCESS = {
  * Maps raw backend tiers (tier_1, tier_2, etc.) to canonical access levels.
  */
 export function getUserTier(userOrTier) {
+  if (!userOrTier) return 'guest';
+
   const tierString = typeof userOrTier === 'string' 
     ? userOrTier 
-    : (userOrTier?.subscriptionTier || userOrTier?.subscription_tier || userOrTier?.tier_id || 'tier_1');
+    : (userOrTier?.subscriptionTier || userOrTier?.subscription_tier || userOrTier?.tier_id || 'guest');
 
-  // Handle tier_id format (tier_1, tier_2, tier_3)
+  // Handle tier_id format (tier_1, tier_2, etc.)
   if (tierString === 'tier_1') return 'free';
   if (tierString === 'tier_2') return 'basic';
   if (['tier_3', 'tier_4', 'admin'].includes(tierString)) return 'premium';
 
-  // Handle subscription_tier name format (free, basic, premium)
-  if (['free', 'basic', 'premium'].includes(tierString)) return tierString;
+  // Handle subscription_tier name format (free, basic, premium, guest)
+  if (['free', 'basic', 'premium', 'guest'].includes(tierString)) return tierString;
   
-  return 'free'; // default fallback
+  return 'guest'; // default fallback for guests/anonymous
 }
 
 /**

@@ -6,7 +6,7 @@
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 const useSessionActions = ({
   user, navigate, pricing, isHobbyist, isOnDemandActive, manualConfirm,
@@ -51,8 +51,25 @@ const useSessionActions = ({
     }
   }, [sessionSettings.surf_spot_id, showGoLiveModal, nearbySpots]);
 
-  // Check if user is within range
-  const isWithinRange = distanceToSpot !== null && distanceToSpot <= REQUIRED_DISTANCE_MILES;
+  const lastWithinRangeTimeRef = useRef(Date.now());
+
+  // Proximity Geofence Failures Correction:
+  // If GPS accuracy is above 100 meters (erratic GPS due to metal structures/remote cliffs),
+  // we apply a 3.0x geofence radius multiplier (offline-fallback multiplier).
+  const accuracyMultiplier = (debugInfo?.gpsAccuracy > 100) ? 3.0 : 1.0;
+  const effectiveRequiredDistance = REQUIRED_DISTANCE_MILES * accuracyMultiplier;
+
+  // Track currently within range
+  const currentlyWithinRange = distanceToSpot !== null && distanceToSpot <= effectiveRequiredDistance;
+
+  // Telemetry grace window: photographer stays active if they were recently in range
+  useEffect(() => {
+    if (currentlyWithinRange) {
+      lastWithinRangeTimeRef.current = Date.now();
+    }
+  }, [currentlyWithinRange]);
+
+  const isWithinRange = currentlyWithinRange || (Date.now() - lastWithinRangeTimeRef.current <= 5 * 60 * 1000);
   const canProceed = isWithinRange || manualConfirm;
   
   // Get dynamic commission rate based on user's subscription tier

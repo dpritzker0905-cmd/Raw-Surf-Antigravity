@@ -668,6 +668,7 @@ export const PhotographerSessionsManager = () => {
         canProceed={canProceed}
         handleGoLiveConfirmed={handleGoLiveConfirmed}
         locationError={locationError}
+        debugInfo={debugInfo}
         REQUIRED_DISTANCE_MILES={REQUIRED_DISTANCE_MILES}
         NEARBY_RADIUS_MILES={NEARBY_RADIUS_MILES}
         isLight={isLight}

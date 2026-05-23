@@ -480,7 +480,7 @@ var MapPageContent = () => {
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
           timeOffsetHours={timeOffsetHours}
-          userTier={user?.subscription_tier || user?.tier_id || 'tier_1'}
+          userTier={user ? (user.subscription_tier || user.tier_id || 'tier_1') : 'guest'}
           onMapClick={(e) => {
             if (e.originalEvent && !e.originalEvent.defaultPrevented) {
               // Clear long-press marker on normal click
@@ -602,7 +602,7 @@ var MapPageContent = () => {
         onModelChange={setActiveModel}
         activeLayers={activeLayers}
         onLayerToggle={toggleLayer}
-        userTier={user?.subscription_tier || user?.tier_id || 'tier_1'}
+        userTier={user ? (user.subscription_tier || user.tier_id || 'tier_1') : 'guest'}
         onUpgradeClick={handleUpgradeClick}
         radarMode={isRadarOrSat}
         radarFrames={radarFrames}
@@ -625,7 +625,7 @@ var MapPageContent = () => {
         onModelChange={setActiveModel}
         activeLayers={activeLayers}
         onLayerToggle={(layerId) => { toggleLayer(layerId); setShowWeatherControls(false); }}
-        userTier={user?.subscription_tier || user?.tier_id || 'tier_1'}
+        userTier={user ? (user.subscription_tier || user.tier_id || 'tier_1') : 'guest'}
         onUpgradeClick={handleUpgradeClick}
         onClose={() => setShowWeatherControls(false)}
         radarMode={isRadarOrSat}

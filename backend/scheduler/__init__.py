@@ -18,6 +18,7 @@ from .bookings import (
     send_payment_expiry_reminders_task,
     send_session_reminders_task,
     expire_booking_invites_task,
+    cleanup_expired_booking_payments_task,
 )
 from .financial import (
     auto_release_escrow_task,
@@ -126,6 +127,13 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # Cleanup expired booking payments — every 10 minutes
+    scheduler.add_job(
+        cleanup_expired_booking_payments_task, IntervalTrigger(minutes=10),
+        id='cleanup_expired_booking_payments', name='Decline bookings with expired payment session and refund credits',
+        replace_existing=True
+    )
+
     # Credit transaction integrity — daily 5am UTC
     scheduler.add_job(
         check_credit_transaction_integrity_task, CronTrigger(hour=5, minute=0),
@@ -162,7 +170,7 @@ def start_scheduler():
                 "grom_report (weekly), payment_expiry (5min), platform_metrics (6hr), session_reminders (5min), "
                 "auto_escrow_release (daily 3am), selection_deadline_expiry (daily 4am), weekly_sales_reports "
                 "(Monday 9am), expire_booking_invites (5min), cleanup_stripe_sessions (30min), "
-                "credit_integrity_check (daily 5am), rate_limiter_cleanup (1hr)")
+                "cleanup_expired_booking_payments (10min), credit_integrity_check (daily 5am), rate_limiter_cleanup (1hr)")
 
 
 def stop_scheduler():

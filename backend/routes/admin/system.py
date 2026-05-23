@@ -151,7 +151,19 @@ async def get_system_health(
     # Use interval=None (non-blocking) to avoid measuring this request's own CPU load.
     # Returns CPU% since last call; first call returns 0 which is fine.
     cpu_percent = psutil.cpu_percent(interval=None)
-    memory = psutil.virtual_memory()
+    
+    # Calculate process-level memory for the app (including all child processes)
+    current_process = psutil.Process(os.getpid())
+    app_used_bytes = current_process.memory_info().rss
+    try:
+        for child in current_process.children(recursive=True):
+            app_used_bytes += child.memory_info().rss
+    except Exception:
+        pass
+
+    APP_MEMORY_LIMIT_MB = float(os.environ.get('APP_MEMORY_LIMIT_MB', '512.0'))
+    app_limit_bytes = int(APP_MEMORY_LIMIT_MB * 1024 * 1024)
+    app_memory_percent = min(round((app_used_bytes / app_limit_bytes) * 100, 1), 100.0)
     
     # App storage metrics (Supabase + DB + local)
     try:
@@ -196,8 +208,8 @@ async def get_system_health(
     health_components.append({"name": "CPU", "value": cpu_percent, "unit": "%", "status": cpu_status})
     
     # Memory health
-    mem_status = "healthy" if memory.percent < 70 else "warning" if memory.percent < 90 else "critical"
-    health_components.append({"name": "Memory", "value": memory.percent, "unit": "%", "status": mem_status})
+    mem_status = "healthy" if app_memory_percent < 70 else "warning" if app_memory_percent < 90 else "critical"
+    health_components.append({"name": "Memory", "value": app_memory_percent, "unit": "%", "status": mem_status})
     
     # Storage health (real app storage, not Render disk)
     storage_status = "healthy" if storage_percent < 70 else "warning" if storage_percent < 90 else "critical"
@@ -230,9 +242,9 @@ async def get_system_health(
         "components": health_components,
         "system": {
             "cpu_percent": cpu_percent,
-            "memory_percent": memory.percent,
-            "memory_used_gb": round(memory.used / (1024**3), 2),
-            "memory_total_gb": round(memory.total / (1024**3), 2),
+            "memory_percent": app_memory_percent,
+            "memory_used_gb": round(app_used_bytes / (1024**3), 3),
+            "memory_total_gb": round(app_limit_bytes / (1024**3), 2),
             "storage_percent": storage_percent,
             "storage_used_gb": storage_metrics["total_used_gb"],
             "storage_limit_gb": round(total_limit_gb, 2),

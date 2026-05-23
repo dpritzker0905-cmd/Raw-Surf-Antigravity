@@ -138,10 +138,11 @@ async def decline_crew_invite(
 
     dispatch = participant.dispatch_request
     if dispatch and dispatch.status in [
+        DispatchRequestStatusEnum.ARRIVED,
         DispatchRequestStatusEnum.COMPLETED,
         DispatchRequestStatusEnum.CANCELLED
     ]:
-        raise HTTPException(status_code=400, detail="Session is no longer active")
+        raise HTTPException(status_code=400, detail="Session state is locked (arrived, completed, or cancelled)")
 
     # Mark as declined
     participant.status = 'declined'
@@ -216,8 +217,12 @@ async def pay_crew_share(
         raise HTTPException(status_code=400, detail="Already paid")
     
     dispatch = participant.dispatch_request
-    if dispatch.status in [DispatchRequestStatusEnum.COMPLETED, DispatchRequestStatusEnum.CANCELLED]:
-        raise HTTPException(status_code=400, detail="Session is no longer active")
+    if dispatch.status in [
+        DispatchRequestStatusEnum.ARRIVED,
+        DispatchRequestStatusEnum.COMPLETED,
+        DispatchRequestStatusEnum.CANCELLED
+    ]:
+        raise HTTPException(status_code=400, detail="Session state is locked (arrived, completed, or cancelled)")
     
     # Get payer's profile - REQUIRED for metadata injection
     payer_result = await db.execute(select(Profile).where(Profile.id == payer_id))
@@ -376,8 +381,12 @@ async def crew_invite_checkout(
         raise HTTPException(status_code=400, detail="Already paid")
 
     dispatch = participant.dispatch_request
-    if dispatch.status in [DispatchRequestStatusEnum.COMPLETED, DispatchRequestStatusEnum.CANCELLED]:
-        raise HTTPException(status_code=400, detail="Session is no longer active")
+    if dispatch.status in [
+        DispatchRequestStatusEnum.ARRIVED,
+        DispatchRequestStatusEnum.COMPLETED,
+        DispatchRequestStatusEnum.CANCELLED
+    ]:
+        raise HTTPException(status_code=400, detail="Session state is locked (arrived, completed, or cancelled)")
 
     # Get payer profile for metadata
     payer_result = await db.execute(select(Profile).where(Profile.id == payer_id))

@@ -510,3 +510,84 @@ async def expire_booking_invites_task():
         logger.error(f"[Scheduler] Error expiring booking invites: {str(e)}")
 
 
+async def cleanup_expired_booking_payments_task():
+    """
+    Purge/decline booking requests where Stripe webhook didn't fire within 30 minutes.
+    Refund pre-applied credits.
+    Triggered every 10 or 30 minutes.
+    """
+    from database import async_session_maker
+    from sqlalchemy import select, and_
+    from sqlalchemy.orm import selectinload
+    from models import Booking, BookingParticipant, Notification, Profile
+    from utils.credits import add_credits
+
+    logger.info("[Scheduler] Checking for expired Stripe checkout bookings...")
+
+    try:
+        async with async_session_maker() as db:
+            now = datetime.now(timezone.utc)
+
+            # Find bookings stuck in 'Pending Payment' beyond their expiry
+            result = await db.execute(
+                select(Booking)
+                .where(
+                    and_(
+                        Booking.status == 'Pending Payment',
+                        Booking.pending_payment_expires_at <= now
+                    )
+                )
+                .options(
+                    selectinload(Booking.participants).selectinload(BookingParticipant.participant)
+                )
+            )
+            expired_bookings = result.scalars().all()
+
+            logger.info(f"[Scheduler] Found {len(expired_bookings)} expired 'Pending Payment' bookings")
+
+            for booking in expired_bookings:
+                # Cancel/Decline the booking
+                booking.status = 'Cancelled'
+                booking.cancellation_reason = 'Stripe checkout payment session expired'
+                booking.cancelled_at = now
+
+                # Find creator's participant record to check for pre-applied credits
+                for p in booking.participants:
+                    if p.participant_id == booking.creator_id:
+                        p.status = 'cancelled'
+                        if p.paid_amount > 0:
+                            # Refund the pre-applied credits
+                            logger.info(f"[Scheduler] Refunding pre-applied credits of {p.paid_amount} for booking {booking.id} to user {p.participant_id}")
+                            await add_credits(
+                                user_id=p.participant_id,
+                                amount=p.paid_amount,
+                                transaction_type='booking_refund',
+                                db=db,
+                                description=f"Refund pre-applied credits for expired payment booking at {booking.location}",
+                                reference_type='booking',
+                                reference_id=booking.id,
+                                counterparty_id=booking.photographer_id
+                            )
+                        break
+
+                # Create in-app notification for the captain
+                notification = Notification(
+                    user_id=booking.creator_id,
+                    type='payment_expired',
+                    title='Booking Request Expired',
+                    body=f'Your booking request at {booking.location} has expired because payment was not completed within 30 minutes.',
+                    data=json.dumps({
+                        "booking_id": booking.id,
+                        "location": booking.location
+                    })
+                )
+                db.add(notification)
+
+            if expired_bookings:
+                await db.commit()
+                logger.info(f"[Scheduler] Successfully cleaned up {len(expired_bookings)} expired pending payment bookings")
+
+    except Exception as e:
+        logger.error(f"[Scheduler] Error cleaning up expired booking payments: {str(e)}")
+
+

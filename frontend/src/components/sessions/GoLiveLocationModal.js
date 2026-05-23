@@ -13,9 +13,10 @@ const GoLiveLocationModal = ({
   nearbySpots, nearbySpotsLoading, surfSpots, spotSearchQuery, setSpotSearchQuery,
   distanceToSpot, setDistanceToSpot, setManualConfirm, manualConfirm,
   isWithinRange, canProceed, handleGoLiveConfirmed, locationError,
-  REQUIRED_DISTANCE_MILES, NEARBY_RADIUS_MILES,
+  debugInfo, REQUIRED_DISTANCE_MILES, NEARBY_RADIUS_MILES,
   isLight, textPrimaryClass, textSecondaryClass, borderClass, inputBgClass
 }) => {
+  const accuracyMultiplier = (debugInfo?.gpsAccuracy > 100) ? 3.0 : 1.0;
   return (
       <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
         <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass}`}>
@@ -125,7 +126,7 @@ const GoLiveLocationModal = ({
                     {nearbySpots.map((spot) => {
                       const isSelected = sessionSettings.surf_spot_id === spot.id;
                       const hasDistance = spot.distance !== null && spot.distance !== undefined;
-                      const isWithinLiveRange = hasDistance && spot.distance <= REQUIRED_DISTANCE_MILES;
+                      const isWithinLiveRange = hasDistance && spot.distance <= (REQUIRED_DISTANCE_MILES * accuracyMultiplier);
                     
                     return (
                       <button
@@ -307,7 +308,7 @@ const GoLiveLocationModal = ({
                         <div>
                           <p className="text-amber-500 font-medium text-sm">Not at the spot yet</p>
                           <p className="text-amber-500 text-xs">
-                            You're {distanceToSpot.toFixed(2)} miles away (need to be within {REQUIRED_DISTANCE_MILES} miles)
+                            You're {distanceToSpot.toFixed(2)} miles away (need to be within {(REQUIRED_DISTANCE_MILES * accuracyMultiplier).toFixed(2)} miles)
                           </p>
                         </div>
                       </div>

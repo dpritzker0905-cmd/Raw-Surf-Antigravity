@@ -10,7 +10,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import logging
 import os
@@ -114,7 +114,8 @@ async def create_booking_with_stripe(
         session_date=session_date, duration=data.duration,
         max_participants=data.max_participants, total_price=total_price,
         price_per_person=total_price, allow_splitting=data.allow_splitting,
-        description=data.description, status='Pending Payment'
+        description=data.description, status='Pending Payment',
+        pending_payment_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30)
     )
     db.add(booking)
     await db.flush()
