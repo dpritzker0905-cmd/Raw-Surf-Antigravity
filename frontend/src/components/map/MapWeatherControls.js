@@ -220,6 +220,7 @@ export var MapWeatherControls = ({
             <button
               onClick={() => onRadarFrameChange(Math.max(0, radarFrameIndex - 1))}
               className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${btnHover}`}
+              aria-label="Step back"
             >
               <SkipBack className={`w-3 h-3 ${textMuted}`} />
             </button>
@@ -251,6 +252,7 @@ export var MapWeatherControls = ({
             <button
               onClick={() => onRadarFrameChange(Math.min(radarFrames.length - 1, radarFrameIndex + 1))}
               className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${btnHover}`}
+              aria-label="Step forward"
             >
               <SkipForward className={`w-3 h-3 ${textMuted}`} />
             </button>
@@ -364,7 +366,7 @@ export var MapWeatherControls = ({
       <div className={`${desktopClass} w-60 p-3 max-h-[calc(100vh-120px)] overflow-y-auto`}>
         <div className="flex items-center justify-between mb-2">
           <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Weather</span>
-          <button onClick={() => setIsCollapsed(true)} className={`p-1 rounded ${btnHover}`}>
+          <button onClick={() => setIsCollapsed(true)} className={`p-1 rounded ${btnHover}`} aria-label="Collapse weather controls">
             <ChevronUp className={`w-4 h-4 ${textMuted}`} />
           </button>
         </div>
@@ -474,7 +476,7 @@ export var MapWeatherControls = ({
         <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-zinc-800/30">
           <span className={`text-xs font-bold uppercase tracking-wider ${textClass}`}>Map Layers</span>
           {onClose && (
-            <button onClick={onClose} className={`p-1.5 rounded-full ${btnHover} transition-colors`}>
+            <button onClick={onClose} className={`p-1.5 rounded-full ${btnHover} transition-colors`} aria-label="Close">
               <X className={`w-5 h-5 ${textMuted}`} />
             </button>
           )}

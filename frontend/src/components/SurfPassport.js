@@ -319,7 +319,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
         </div>
 
         {/* Tabs */}
-        <div className={`flex border-b ${borderClass}`}>
+        <div role="tablist" className={`flex border-b ${borderClass}`}>
           {[
             { id: 'stamps', label: 'My Stamps', icon: Stamp },
             { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
@@ -327,6 +327,8 @@ export const SurfPassport = ({ isOpen, onClose }) => {
           ].map(tab => (
             <button
               key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id 
@@ -464,7 +466,7 @@ export const SurfPassport = ({ isOpen, onClose }) => {
           ) : activeTab === 'leaderboard' ? (
             <div className="space-y-4">
               {/* Category Tabs */}
-              <div className={`flex gap-2 p-1 rounded-lg ${cardBgClass}`}>
+              <div role="tablist" className={`flex gap-2 p-1 rounded-lg ${cardBgClass}`}>
                 {[
                   { id: 'spots', label: 'Spots' },
                   { id: 'countries', label: 'Countries' },
@@ -473,6 +475,8 @@ export const SurfPassport = ({ isOpen, onClose }) => {
                 ].map(cat => (
                   <button
                     key={cat.id}
+                    role="tab"
+                    aria-selected={leaderboardCategory === cat.id}
                     onClick={() => setLeaderboardCategory(cat.id)}
                     className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
                       leaderboardCategory === cat.id 
