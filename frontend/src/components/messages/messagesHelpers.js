@@ -2,7 +2,7 @@
  * messagesHelpers.js - Extracted from MessagesPage.js (v61)
  * Role-based folder system, icon helpers, and UI components for the messaging system.
  */
-import { Star, Camera, Search, Store, Users, Briefcase, Smile, EyeOff, Shield } from 'lucide-react';
+import { Star, Camera, Search, Store, Users, Briefcase, Smile, EyeOff, Shield, Trophy } from 'lucide-react';
 import { getExpandedRoleInfo, isProLevelRole, isBusinessRole as isBusinessRoleCheck } from '../../contexts/PersonaContext';
 import { ROLES } from '../../constants/roles';
 
@@ -14,8 +14,15 @@ const getRoleIcon = (role, isAdmin = false) => {
   // Map to lucide icons for non-emoji contexts
   switch (role) {
     case 'Pro':
-        case 'Comp Surfer':
-      return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: '\u{2B50}' };
+      return { icon: Star, color: 'text-amber-400', label: 'Pro Surfer', emoji: '\u{2B50}' };
+    case 'Comp Surfer':
+      return { icon: Trophy, color: 'text-yellow-400', label: 'Comp Surfer', emoji: '\u{1F3C6}' };
+    case 'Grom':
+      return { icon: null, color: 'text-lime-400', label: 'Grom', emoji: '\u{1F423}' };
+    case 'Grom Parent':
+      return { icon: null, color: 'text-sky-400', label: 'Grom Parent', emoji: '\u{1F468}\u{200D}\u{1F467}' };
+    case 'Surfer':
+      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '\u{1F3C4}' };
     case 'Approved Pro':
       return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '\u{1F4F8}' };
     case 'Photographer':
@@ -31,7 +38,7 @@ const getRoleIcon = (role, isAdmin = false) => {
     case 'Resort':
       return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '\u{1F3D6}\u{FE0F}' };
     default:
-      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '\u{1F30A}' };
+      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '\u{1F3C4}' };
   }
 };
 

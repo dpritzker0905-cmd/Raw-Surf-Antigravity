@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import apiClient from '../../lib/apiClient';
 import { isProLevelRole, isBusinessRole, getExpandedRoleInfo } from '../../contexts/PersonaContext';
-import { Check, X, Users, Star, Camera, Briefcase, Store, Shield } from 'lucide-react';
+import { Check, X, Users, Star, Camera, Briefcase, Store, Shield, Trophy } from 'lucide-react';
 import { Button } from '../ui/button';
 import logger from '../../utils/logger';
 
@@ -10,17 +10,34 @@ const isProRole = isProLevelRole;
 
 // Role icon helper (inline since it uses MessagesPage internal logic)
 const getRoleIcon = (role, isAdmin = false) => {
-  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: String.fromCodePoint(0x1F534) };
+  if (isAdmin) return { icon: Shield, color: 'text-red-500', label: 'God Mode', emoji: '\u{1F534}' };
   switch (role) {
-    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400', label: 'Pro', emoji: String.fromCodePoint(0x2B50) };
-    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: String.fromCodePoint(0x1F4F8) };
-    case 'Photographer': return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: String.fromCodePoint(0x1F4F7) };
-    case 'Hobbyist': return { icon: Camera, color: 'text-indigo-400', label: 'Hobbyist', emoji: '\u{1F39E}\u{FE0F}' };
-    case 'Shop': return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: String.fromCodePoint(0x1F3EA) };
-    case 'Surf School': return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: String.fromCodePoint(0x1F32C) };
-    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: String.fromCodePoint(0x1F528) };
-    case 'Resort': return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: String.fromCodePoint(0x1F334) };
-    default: return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: String.fromCodePoint(0x1F3C4) };
+    case 'Pro':
+      return { icon: Star, color: 'text-amber-400', label: 'Pro Surfer', emoji: '\u{2B50}' };
+    case 'Comp Surfer':
+      return { icon: Trophy, color: 'text-yellow-400', label: 'Comp Surfer', emoji: '\u{1F3C6}' };
+    case 'Grom':
+      return { icon: null, color: 'text-lime-400', label: 'Grom', emoji: '\u{1F423}' };
+    case 'Grom Parent':
+      return { icon: null, color: 'text-sky-400', label: 'Grom Parent', emoji: '\u{1F468}\u{200D}\u{1F467}' };
+    case 'Surfer':
+      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '\u{1F3C4}' };
+    case 'Approved Pro':
+      return { icon: Camera, color: 'text-blue-400', label: 'Pro Photographer', emoji: '\u{1F4F8}' };
+    case 'Photographer':
+      return { icon: Camera, color: 'text-purple-400', label: 'Photographer', emoji: '\u{1F4F7}' };
+    case 'Hobbyist':
+      return { icon: Camera, color: 'text-indigo-400', label: 'Hobbyist', emoji: '\u{1F39E}\u{FE0F}' };
+    case 'Shop':
+      return { icon: Store, color: 'text-pink-400', label: 'Surf Shop', emoji: '\u{1F3EA}' };
+    case 'Surf School':
+      return { icon: Users, color: 'text-teal-400', label: 'Surf School', emoji: '\u{1F32C}' };
+    case 'Shaper':
+      return { icon: Briefcase, color: 'text-orange-400', label: 'Shaper', emoji: '\u{1F528}' };
+    case 'Resort':
+      return { icon: Store, color: 'text-emerald-400', label: 'Resort', emoji: '\u{1F334}' };
+    default:
+      return { icon: null, color: 'text-cyan-400', label: 'Surfer', emoji: '\u{1F3C4}' };
   }
 };
 

@@ -9,7 +9,8 @@ import {
   Shield,
   Users,
   Store,
-  Briefcase
+  Briefcase,
+  Trophy
 } from 'lucide-react';
 import { getFullUrl, cacheBustUrl } from '../../utils/media';
 import { formatTimeAgo } from '../../utils/formatTime';
@@ -19,14 +20,30 @@ import { getExpandedRoleInfo } from '../../contexts/PersonaContext';
 const getRoleIcon = (role, isAdmin = false) => {
   if (isAdmin) return { icon: Shield, color: 'text-red-500' };
   switch (role) {
-    case 'Pro': case 'Comp Surfer': return { icon: Star, color: 'text-amber-400' };
-    case 'Approved Pro': return { icon: Camera, color: 'text-blue-400' };
-    case 'Photographer': return { icon: Camera, color: 'text-purple-400' };
-    case 'Hobbyist': return { icon: Camera, color: 'text-indigo-400' };
-    case 'Shop': return { icon: Store, color: 'text-pink-400' };
-    case 'Surf School': return { icon: Users, color: 'text-teal-400' };
-    case 'Shaper': return { icon: Briefcase, color: 'text-orange-400' };
-    default: return { icon: null, color: 'text-cyan-400' };
+    case 'Pro':
+      return { icon: Star, color: 'text-amber-400' };
+    case 'Comp Surfer':
+      return { icon: Trophy, color: 'text-yellow-400' };
+    case 'Grom':
+      return { icon: null, color: 'text-lime-400' };
+    case 'Grom Parent':
+      return { icon: null, color: 'text-sky-400' };
+    case 'Surfer':
+      return { icon: null, color: 'text-cyan-400' };
+    case 'Approved Pro':
+      return { icon: Camera, color: 'text-blue-400' };
+    case 'Photographer':
+      return { icon: Camera, color: 'text-purple-400' };
+    case 'Hobbyist':
+      return { icon: Camera, color: 'text-indigo-400' };
+    case 'Shop':
+      return { icon: Store, color: 'text-pink-400' };
+    case 'Surf School':
+      return { icon: Users, color: 'text-teal-400' };
+    case 'Shaper':
+      return { icon: Briefcase, color: 'text-orange-400' };
+    default:
+      return { icon: null, color: 'text-cyan-400' };
   }
 };
 
