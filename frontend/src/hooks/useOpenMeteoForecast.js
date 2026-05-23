@@ -196,7 +196,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     prevCoordsRef.current = { latitude, longitude };
 
     const useFastDebounce = isExplicit || isModelSwitch;
-    const debounceDuration = useFastDebounce ? 300 : 3000;
+    const debounceDuration = useFastDebounce ? 50 : 1000;
 
     debounceRef.current = setTimeout(() => {
       fetchForecast();

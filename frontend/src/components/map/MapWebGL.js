@@ -318,8 +318,8 @@ var MapWebGL = ({
 
   const onMove = useCallback(evt => {
     const nextViewState = { ...evt.viewState };
-    if (nextViewState.zoom < 3.0) {
-      nextViewState.zoom = 3.0;
+    if (nextViewState.zoom < 2.0) {
+      nextViewState.zoom = 2.0;
     }
     setViewState(nextViewState);
   }, []);
@@ -541,8 +541,8 @@ var MapWebGL = ({
       style={{ width: '100%', height: '100%' }}
       maxPitch={60}
       attributionControl={false}
-      minZoom={3.0}
-      renderWorldCopies={false}
+      minZoom={2.0}
+      renderWorldCopies={true}
     >
       {/* Geofence Visual Layer */}
       <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
