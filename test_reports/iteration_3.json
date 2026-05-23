@@ -31,7 +31,7 @@
   "seed_data_creation": "Used existing test accounts. Created additional test users during UI testing flow.",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Subscription checkout feature fully implemented and tested. Stripe integration working in sandbox mode (sk_test_emergent). Free tier directly updates user and redirects to /feed. Paid tiers redirect to Stripe checkout with correct amounts. Success page verifies payment status and shows confirmation UI.",
+  "context_for_next_testing_agent": "Subscription checkout feature fully implemented and tested. Stripe integration working in sandbox mode (sk_test_mock). Free tier directly updates user and redirects to /feed. Paid tiers redirect to Stripe checkout with correct amounts. Success page verifies payment status and shows confirmation UI.",
   "verified_features": {
     "surfer_subscription_page_displays_3_tiers": "PASS - Free ($0), Basic ($1.99), Premium ($9.99)",
     "surfer_free_tier_redirects_to_feed": "PASS - Clicking Free tier updates user subscription and redirects to /feed",
@@ -62,5 +62,5 @@
     "test_surfer_tiers_exist",
     "test_photographer_tiers_exist"
   ],
-  "stripe_integration_notes": "Using Stripe test key (sk_test_emergent). Checkout sessions created successfully. Actual payment completion not tested (sandbox mode). Success/Cancel URLs properly configured with session_id and tier parameters."
+  "stripe_integration_notes": "Using Stripe test key (sk_test_mock). Checkout sessions created successfully. Actual payment completion not tested (sandbox mode). Success/Cancel URLs properly configured with session_id and tier parameters."
 }

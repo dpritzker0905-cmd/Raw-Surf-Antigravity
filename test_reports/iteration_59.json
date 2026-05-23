@@ -12,7 +12,7 @@
   "features_verified": {
     "ai_moderation_service": {
       "status": "PASS",
-      "description": "AI moderation service at services/ai_moderation.py exists and is properly imported in reviews.py. Uses GPT-4o via emergentintegrations LlmChat. Fail-open design - if moderation fails, reviews are approved."
+      "description": "AI moderation service at services/ai_moderation.py exists and is properly imported in reviews.py. Uses GPT-4o via custom LlmChat. Fail-open design - if moderation fails, reviews are approved."
     },
     "reviews_ai_moderation_integration": {
       "status": "PASS",
