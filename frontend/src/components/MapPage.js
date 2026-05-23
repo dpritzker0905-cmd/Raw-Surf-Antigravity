@@ -619,6 +619,7 @@ var MapPageContent = () => {
         onTimeChange={setTimeOffsetHours}
         isPlaying={isPlayingTimeline}
         onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
+        isImmersiveMode={isImmersiveMode}
       />
 
  {/* Mobile Weather Controls anchors itself and handles expanded/collapsed state */}

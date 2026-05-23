@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 
@@ -36,6 +36,10 @@ export var MapWeatherControls = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   // Remove local isTimelineCollapsed since we lift it up, or use the prop directly if provided.
   const [localTimelineCollapsed, setLocalTimelineCollapsed] = useState(false);
+
+  useEffect(() => {
+    setIsCollapsed(isImmersiveMode);
+  }, [isImmersiveMode]);
   
   const collapsedState = onTimelineCollapseToggle ? isTimelineCollapsed : localTimelineCollapsed;
   const setCollapsedState = onTimelineCollapseToggle || setLocalTimelineCollapsed;
@@ -335,13 +339,21 @@ export var MapWeatherControls = ({
     const desktopClass = `absolute top-24 right-2 z-[1000] backdrop-blur-xl border rounded-xl transition-all duration-300 ease-in-out hidden md:block ${bgClass}`;
 
     if (isCollapsed) {
+      const activeLayerObj = layers.find(l => l.id === activeLayer);
+      const ActiveIcon = activeLayerObj ? activeLayerObj.icon : Sun;
+      const activeColor = activeLayerObj ? activeLayerObj.color : textMuted;
+
       return (
         <div
-          className={`${desktopClass} w-12 h-12 p-0 overflow-hidden flex items-center justify-center cursor-pointer`}
+          className={`${desktopClass} w-12 h-12 p-0 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-lg group`}
           onClick={() => setIsCollapsed(false)}
           aria-label="Expand weather controls"
+          style={{ borderRadius: '12px' }}
         >
-          <ChevronDown className={`w-5 h-5 ${textClass}`} />
+          <div className="relative flex flex-col items-center justify-center w-full h-full gap-0.5">
+            <ActiveIcon className={`w-5 h-5 ${activeColor} transition-transform group-hover:rotate-12`} />
+            <ChevronDown className={`w-3.5 h-3.5 ${textMuted}`} />
+          </div>
         </div>
       );
     }

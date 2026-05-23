@@ -41,9 +41,7 @@ export var MapForecastOverlay = ({
   const isLight = theme === 'light';
 
   useEffect(() => {
-    if (isImmersiveMode) {
-      setIsCollapsed(true);
-    }
+    setIsCollapsed(isImmersiveMode);
   }, [isImmersiveMode]);
 
   const bgClass = isLight
