@@ -25,6 +25,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Autonomous Operator Engine** $\rightarrow$ Call `autonomous-operator-mcp` (`monitor_system_state`, `propose_pricing_change`, `propose_cancellation`, `execute_decision`, `get_operator_decision_history`) to monitor conditions, enqueue admin-gated pricing revisions, validate safety cancellation thresholds, and maintain audit logs.
 * **Persistent Semantic Memory** $\rightarrow$ Call `semantic-memory-mcp` (`store_memory`, `retrieve_similar_memories`, `get_user_preferred_conditions`, `predict_repeat_booking`, `get_surfer_memory_profile`) to index user history, execute time-decayed cosine semantic searches, aggregate surfer preference vectors, and forecast repeat bookings.
 * **Real-Time Event Bus** $\rightarrow$ Call `realtime-event-bus-mcp` (`publish_event`, `subscribe_to_channel`, `pull_subscribed_events`, `get_recent_events`, `get_event_bus_metrics`) to ingest core operational event types, handle frontend/AI/notification subscriptions, manage agent mailbox pull queues, and monitor propagation latency metrics.
+* **Intelligent Simulation Engine** $\rightarrow$ Call `simulation-layer-mcp` (`run_system_simulation`, `get_simulation_history`, `evaluate_stress_vulnerability`) to model booking surges, cancellations, map browsing, storms, API latency delays, and compile horizontal autoscaling/caching optimization solutions.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
@@ -116,6 +117,12 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Autotrigger Alerting**: Weather updates containing swell height $> 10\text{ ft}$ must automatically publish an secondary `swell_threshold_crossed` safety alert event to trigger immediate downstream cancellation routines.
 * **Robust Mailbox Pull Queues**: Pull-based agent subscribers must successfully pull unread enqueued events via `pull_subscribed_events(subscription_id)` and automatically transition states to `read` to avoid duplicate processing loops.
 * **Persistent Telemetry Auditing**: Core event categories (`bookings_created`, `weather_updated`, `swell_threshold_crossed`, `user_checked_map`, `payment_success`) must be written to `event_bus.db` for full telemetry auditing.
+
+### 18. Simulation Layer Rules
+* **Behavior, Weather, and Stress Presets**: Scenario runs must strictly map predefined presets (user patterns: `booking_surge`, `heavy_cancellations`, `heavy_map_browsing`; environmental: `storm`, `flat_spell`, `perfect_window`; stress: `api_failures_high`, `db_latency_heavy`, `traffic_spike_mega`) to maintain evaluation consistency.
+* **Derived System Metrics Calculations**: Evaluated metrics must dynamically compute response times (base 80ms + latency offsets), UX quality scores (penalized by failures, latency and storm warning indicators), and booking dropoffs.
+* **Automated Scaling Logic**: The simulator must automatically output optimization recommendations when thresholds are breached (e.g. suggesting database cache structures for DB latency $> 200\text{ ms}$, gateway rate limits for traffic spikes $> 5000\text{ RPM}$, circuit breakers for API failures $> 15\%$).
+* **Trend Analysis Bottleneck Discovery**: Vulnerability trends must aggregate Historic trial entries to correctly highlight database reads, external gateways, or safety cancellation hooks as the primary platform scaling vulnerabilities.
 
 ---
 
