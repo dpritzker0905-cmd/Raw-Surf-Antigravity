@@ -52,7 +52,7 @@ const waterFilter = [
   // Exclude common inland classes (case-insensitive matching)
   [
     'match',
-    ['downcase', ['default', ['get', 'class'], '']],
+    ['downcase', ['coalesce', ['get', 'class'], '']],
     ['lake', 'river', 'canal', 'stream', 'reservoir', 'pool', 'pond', 'spring', 'waterfall', 'playa'],
     false,
     true

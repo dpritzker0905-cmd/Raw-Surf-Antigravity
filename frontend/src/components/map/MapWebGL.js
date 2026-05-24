@@ -134,8 +134,8 @@ var MapWebGL = ({
  // v242: Global Render Contract single source of truth for map readiness
   const renderContract = useMapRenderContract(mapInstance);
 
- // Marine Orchestrator single-pipeline data fetching
-  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours });
+  // Marine Orchestrator single-pipeline data fetching
+  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours, activeModel });
 
   const activeMarineLayer = useMemo(() => {
     return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));

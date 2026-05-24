@@ -536,7 +536,7 @@ function extractMarineAtOffset(cache, hourOffset) {
 // MARINE FETCH
 // v3.9.1: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
 // ========================================================================
-export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false) {
+export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null) {
   if (!bounds) return lastKnownGoodMarine;
   if (marineRequestInFlight) {
     console.log('[Marine] fetchMarineData: request inflight, returning cached');
@@ -574,25 +574,27 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
- // v3.9.3: Hourly cache re-index locally (removed hourOffset>0 guard)
-  const viewHash = viewportCacheKey(snappedBounds, 'marine');
+  // v3.9.3: Hourly cache re-index locally snaped to active model to avoid collisions
+  const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}`);
   if (marineHourlyCache.hash === viewHash &&
+      marineHourlyCache.model === (model || 'GFS') &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
-    console.log(`[Marine] Cache HIT for offset=${hourOffset}h`);
+    console.log(`[Marine] Cache HIT for offset=${hourOffset}h, model=${model || 'GFS'}`);
     return extractMarineAtOffset(marineHourlyCache, hourOffset);
   }
 
-  // v3.9.5: Stale viewport fallback for marine
-  if (marineHourlyCache.hash && Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+  // v3.9.5: Stale viewport fallback for marine snap to model
+  if (marineHourlyCache.hash && marineHourlyCache.model === (model || 'GFS') &&
+      Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const staleData = extractMarineAtOffset(marineHourlyCache, hourOffset);
     if (staleData && staleData.features?.length > 0) {
- console.log(`[Marine] Stale cache served (viewport mismatch) ${staleData.features.length} features`);
+      console.log(`[Marine] Stale cache served (viewport mismatch) ${staleData.features.length} features`);
       lastKnownGoodMarine = staleData;
     }
   }
 
   // Per-offset cache
-  const cacheKey = viewportCacheKey(snappedBounds, `marine_h${hourOffset}`);
+  const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_h${hourOffset}`);
   if (MARINE_CACHE.has(cacheKey)) {
     const cached = MARINE_CACHE.get(cacheKey);
     if (Date.now() - cached.timestamp < 300000) return cached.data;
@@ -614,6 +616,12 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
       'wind_wave_height','wind_wave_direction','wind_wave_period'];
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
+
+    // Open-Meteo model identifiers for Marine
+    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'ncep_gfswave025', EURO: 'ecmwf_wam025' };
+    if (model && MARINE_OM_MODELS[model]) {
+      body.models = [MARINE_OM_MODELS[model]];
+    }
 
     // v3.9.6: Proxy-first, direct fallback
     let res;
@@ -654,7 +662,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     // Cache full hourly response
     marineHourlyCache = {
       hash: viewHash, results: allResults, points, gridSize,
-      bounds: gridBounds, timestamp: Date.now()
+      bounds: gridBounds, timestamp: Date.now(),
+      model: model || 'GFS'
     };
     persistCache(LS_MARINE_KEY, marineHourlyCache);
 

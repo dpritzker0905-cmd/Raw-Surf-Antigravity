@@ -16,7 +16,7 @@ import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMar
  *
  * RULE: This hook has ZERO knowledge of rendering. It only manages data.
  */
-export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0 }) {
+export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
   const [marineData, setMarineData] = useState(null);
 
   // --- Refs (all internal to this hook) ---
@@ -42,6 +42,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const updateMarineGridRef = useRef(null);
   const hasActivatedRef = useRef(false);
   const consecutiveFailuresRef = useRef(0); // v3.9: Circuit breaker
+  const activeModelRef = useRef(activeModel);
+
+  useEffect(() => {
+    activeModelRef.current = activeModel;
+  }, [activeModel]);
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -163,7 +168,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       // Silenced: fetchMarineData call
       locks.isFetching = true;
       try {
-        let data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current);
+        let data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, activeModelRef.current);
         if (window.__LRCM_EXEC_TRACE__) {
           data = window.__LRCM_EXEC_TRACE__.push({ layer: 'marine', action: 'fetch', source: 'useMarineOrchestrator', timestamp: Date.now(), payload: data, stack: new Error().stack }) && data;
         }
@@ -379,6 +384,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }, 350);
     return () => clearTimeout(t);
   }, [timeOffsetHours, mapInstance]);
+
+  // v3.9.8: Trigger re-fetch when activeModel changes
+  useEffect(() => {
+    if (!mapInstance || !activeMarineLayersRef.current) return;
+    console.log(`[Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
+    marineFetchLocksRef.current.lastHash = null;
+    marineFetchLocksRef.current.lastTime = 0;
+    const t = setTimeout(() => {
+      manualMarineTriggerRef.current?.();
+    }, 350);
+    return () => clearTimeout(t);
+  }, [activeModel, mapInstance]);
 
   return { marineData };
 }
