@@ -606,12 +606,13 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
           } catch (err) { /* ignore parse errors */ }
 
           const getFallbackResponse = async (url) => {
-            // Authoritatively isolate TileJSON and configuration metadata lookups by scanning the full path string
-            const isMetadataConfigQuery = url && (url.includes('.json') || url.includes('type=json') || url.includes('time_step='));
+            // Isolate metadata/TileJSON queries accurately by verifying string layout criteria
+            const isTileImageRequest = url && (url.includes('.om') || /[\/\?&]\d+[\/\?&]\d+[\/\?&]\d+/.test(url));
+            const isStructuralJson = !isTileImageRequest || url.includes('latest.json') || url.includes('type=json');
 
-            if (isMetadataConfigQuery) {
+            if (isStructuralJson) {
               console.log('[OM-Protocol] Enforcing string-compliant mock TileJSON structure on metadata line.');
-              const comprehensiveMockTileJson = {
+              const bulletproofMockJson = {
                 tilejson: "2.2.0",
                 name: "om-safe-fallback",
                 version: "1.0.0",
@@ -621,22 +622,21 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 maxzoom: 22
               };
               const textEncoder = new TextEncoder();
-              const encodedUint8Array = textEncoder.encode(JSON.stringify(comprehensiveMockTileJson));
-              return { data: encodedUint8Array.buffer };
+              const encodedUint8 = textEncoder.encode(JSON.stringify(bulletproofMockJson));
+              return { data: encodedUint8.buffer };
             }
 
-            // Fallback for actual image tiles is a valid, pre-compiled 1x1 transparent PNG structure array buffer
+            // Imagery tiles return a beautiful, tiny 1x1 fully transparent PNG chunk buffer array
             try {
-              const valid1x1TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              const decodedBinaryString = window.atob(valid1x1TransparentPngBase64);
-              const dataBufferLength = decodedBinaryString.length;
-              const rawBinaryBytes = new Uint8Array(dataBufferLength);
-              for (let i = 0; i < dataBufferLength; i++) {
-                rawBinaryBytes[i] = decodedBinaryString.charCodeAt(i);
+              const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+              const binaryString = window.atob(transparentPngBase64);
+              const length = binaryString.length;
+              const bytesArray = new Uint8Array(length);
+              for (let i = 0; i < length; i++) {
+                bytesArray[i] = binaryString.charCodeAt(i);
               }
-              return { data: rawBinaryBytes.buffer };
-            } catch (err) {
-              // Ultimate type safety fallback to ensure worker survives loop evaluations
+              return { data: bytesArray.buffer };
+            } catch (e) {
               return { data: new ArrayBuffer(0) };
             }
           };
