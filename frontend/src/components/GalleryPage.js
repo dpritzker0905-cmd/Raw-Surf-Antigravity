@@ -59,7 +59,7 @@ export const GalleryPage = () => {
   const [showAddToGalleryModal, setShowAddToGalleryModal] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState(null);
   const [showGalleryPricingModal, setShowGalleryPricingModal] = useState(false);
-  const [pricingCollapsed, setPricingCollapsed] = useState(true); // Collapsed by default on mobile
+  const [pricingCollapsed, setPricingCollapsed] = useState(false); // Maximized by default
 
   const [pricingTab, setPricingTab] = useState('gallery'); // 'gallery' | 'live' | 'booking' | 'ondemand'
   const [galleryPricing, setGalleryPricing] = useState({

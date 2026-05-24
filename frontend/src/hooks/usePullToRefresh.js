@@ -70,11 +70,15 @@ export function usePullToRefresh(onRefresh, { enabled = true } = {}) {
     const el = pullRef.current;
     if (!el || !enabled) return;
 
+    const oldTouchAction = el.style.touchAction;
+    el.style.touchAction = 'pan-y';
+
     el.addEventListener('touchstart', handleTouchStart, { passive: true });
     el.addEventListener('touchmove', handleTouchMove, { passive: true });
     el.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
+      el.style.touchAction = oldTouchAction;
       el.removeEventListener('touchstart', handleTouchStart);
       el.removeEventListener('touchmove', handleTouchMove);
       el.removeEventListener('touchend', handleTouchEnd);

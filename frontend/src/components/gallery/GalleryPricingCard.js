@@ -22,12 +22,12 @@ export const GalleryPricingCard = ({
 
   return (
         <Card className="mb-6 bg-card border-border">
-          <CardHeader className="cursor-pointer md:cursor-default" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
+          <CardHeader className="cursor-pointer" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg text-foreground flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-400" />
                 Gallery Pricing
-                <button className="md:hidden ml-1 text-muted-foreground" aria-label="Collapse">
+                <button className="ml-1 text-muted-foreground" aria-label="Collapse">
                   {pricingCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                 </button>
               </CardTitle>
@@ -43,7 +43,7 @@ export const GalleryPricingCard = ({
               </Button>
             </div>
           </CardHeader>
-          <CardContent className={`${pricingCollapsed ? 'hidden md:block' : ''}`}>
+          <CardContent className={pricingCollapsed ? 'hidden' : ''}>
             {/* Service Type Tabs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
               {[
