@@ -20,6 +20,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Marketplace Catalog & Seller Splits** $\rightarrow$ Call `woocommerce-mcp` (`create_product`, `update_product`, `update_variation`, `sync_inventory`, `moderate_listing`, `attach_gallery_images`) to manage surfboard/equipment catalogs, map variable size/color/fin attributes, synchronize stock levels, enforce strict admin moderation queues, and bundle picture-in-picture variation overlays.
 * **Google Calendar Scheduling & Booking** $\rightarrow$ Call `google-calendar-mcp` (`check_availability`, `create_booking`, `cancel_booking`, `reschedule_booking`, `get_provider_schedule`) to verify instructor/photographer slots, manage timezone offsets, prevent conflicts, and trigger automated reminders.
 * **System Feedback Loop Telemetry** $\rightarrow$ Call `system-feedback-loop-mcp` (`ingest_telemetry_event`, `get_recent_errors`, `get_performance_anomalies`, `get_user_funnel_dropoff`) to stream frontend Netlify and backend Render logs, analyze API latency status anomalies, and retrieve surfer booking dropoff funnel percentages.
+* **Autonomous QA Agent Simulators** $\rightarrow$ Call `autonomous-qa-agent-mcp` (`simulate_user_journey`, `get_recent_bug_reports`, `get_system_health_baseline`) to run continuous browser tests simulating bookings or map viewports, log structured bugs prioritized by business impact, and monitor healthy session benchmarks.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
@@ -80,6 +81,12 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Performance Anomaly Thresholds**: Real-time warning alerts must trigger immediately if Map Renderer frame rate drops below $30\text{ FPS}$ or if container memory usage spikes above $512\text{ MB}$.
 * **Error Classification Levels**: Critical errors and fatal logs (`level in ('error', 'fatal')` or HTTP status $\ge 500$) must trigger real-time slack/webhook regression alerts immediately.
 * **Conversion Funnel Integrity**: Funnel conversion and dropoff percentages must strictly trace matching surfer session transitions from `booking_started` to `booking_completed` to guarantee conversion audit accuracy.
+
+### 13. Autonomous QA Agent Rules
+* **Continuous Journey Simulations**: Autonomous QA audits must simulate real surfers traversing core funnels (`booking_lesson`, `map_browsing`, `forecast_checking`, `marketplace_listing`) to capture real-time exceptions.
+* **Business-Impact Prioritization**: Generated bugs must be prioritized using strict severity weights: critical bookings failures are High severity; map rendering lags or forecast unresponsive views are Medium severity; marketplace catalog listing issues are Low severity.
+* **Layout and Error Auditing**: Simulators must dynamically capture layout misfits, JS trace exceptions, and rendering latencies, outputting structured reports alongside detailed screenshot paths.
+* **Baseline Health Comparisons**: System health baseline metrics must compare simulated conversion success ratios against the target bench percentage ($95.0\%$), immediately flagging degraded system statuses.
 
 ---
 
