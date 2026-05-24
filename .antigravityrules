@@ -19,6 +19,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Financial Checkout & Billing Splits** $\rightarrow$ Call `stripe-mcp` (`create_checkout_session`, `create_subscription`, `refund_payment`, `transfer_payout`, `create_invoice`, `get_customer_payments`, `simulate_webhook`) to construct secure checkout sessions, activate plan memberships, trigger payout disbursements, split coach/photographer commissions (80% to coach, 20% to platform), process refunds, and route webhook events.
 * **Marketplace Catalog & Seller Splits** $\rightarrow$ Call `woocommerce-mcp` (`create_product`, `update_product`, `update_variation`, `sync_inventory`, `moderate_listing`, `attach_gallery_images`) to manage surfboard/equipment catalogs, map variable size/color/fin attributes, synchronize stock levels, enforce strict admin moderation queues, and bundle picture-in-picture variation overlays.
 * **Google Calendar Scheduling & Booking** $\rightarrow$ Call `google-calendar-mcp` (`check_availability`, `create_booking`, `cancel_booking`, `reschedule_booking`, `get_provider_schedule`) to verify instructor/photographer slots, manage timezone offsets, prevent conflicts, and trigger automated reminders.
+* **System Feedback Loop Telemetry** $\rightarrow$ Call `system-feedback-loop-mcp` (`ingest_telemetry_event`, `get_recent_errors`, `get_performance_anomalies`, `get_user_funnel_dropoff`) to stream frontend Netlify and backend Render logs, analyze API latency status anomalies, and retrieve surfer booking dropoff funnel percentages.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
@@ -73,6 +74,12 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **ISO 8601 UTC Standardization**: Time ranges must be formatted and stored as standard ISO 8601 strings in UTC (e.g. `'YYYY-MM-DDTHH:MM:SSZ'`) with appropriate local timezone offsets managed transparently.
 * **Automated Reminders Notification Logs**: Every confirmed booking must successfully trigger an automated SMS/Email reminder workflow and log details to the SQLite cache to preserve n8n pipeline continuity.
 * **SQLite Timeout Resilience**: SQLite database connection timeouts must be set to `10.0` seconds to guarantee thread-safe operation and prevent locks during high-frequency API schedules.
+
+### 12. System Feedback Loop Telemetry Rules
+* **Low-Impact Ingestion**: Telemetry logs and behavior metrics must be enqueued asynchronously using non-blocking cycles (`requestIdleCallback` or background worker queues) to prevent UI frame rate drops.
+* **Performance Anomaly Thresholds**: Real-time warning alerts must trigger immediately if Map Renderer frame rate drops below $30\text{ FPS}$ or if container memory usage spikes above $512\text{ MB}$.
+* **Error Classification Levels**: Critical errors and fatal logs (`level in ('error', 'fatal')` or HTTP status $\ge 500$) must trigger real-time slack/webhook regression alerts immediately.
+* **Conversion Funnel Integrity**: Funnel conversion and dropoff percentages must strictly trace matching surfer session transitions from `booking_started` to `booking_completed` to guarantee conversion audit accuracy.
 
 ---
 
