@@ -178,6 +178,10 @@ export var findMarineInsertionLayer = function(mapInstance) {
                      id.includes('coastline') || 
                      id.includes('place') ||
                      id.includes('poi-') ||
+                     id.includes('road') ||
+                     id.includes('track') ||
+                     id.includes('bridge') ||
+                     id.includes('tunnel') ||
                      id.includes('road-label');
                      
     const isCustom = id.startsWith('ocean-mask-') || 
@@ -605,38 +609,39 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          const getSafeWorkerFallbackResponse = async (url) => {
-            // Deep-scan the request string pattern since worker threads suppress the type parameter
-            const isImageryTile = url && (url.includes('.om') || /[\/\?&]\d+[\/\?&]\d+[\/\?&]\d+/.test(url));
-            const isConfigurationJson = !isImageryTile || url.includes('latest.json') || url.includes('type=json');
+          const getSafeWorkerFallbackResponse = async (url, type) => {
+            // Explicitly verify that the URL request targets a cancelled metadata configuration block
+            const isAbortedJsonMeta = type === 'json' || 
+              (url && (url.includes('type=json') || url.includes('time_step=undefined') || url.includes('latest.json?_cb='))) && 
+              !url.includes('.om');
 
-            if (isConfigurationJson) {
+            if (isAbortedJsonMeta) {
               console.log('[OM-Protocol] Enforcing string-compliant mock TileJSON structure on metadata line.');
-              const structuredMockJson = {
+              const flawlessMockJson = {
                 tilejson: "2.2.0",
-                name: "om-safe-fallback-node",
+                name: "om-safe-fallback",
                 version: "1.0.0",
                 tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="],
                 bounds: [-180, -85, 180, 85],
                 minzoom: 0,
                 maxzoom: 22
               };
-              const encoder = new TextEncoder();
-              const serializedUint8 = encoder.encode(JSON.stringify(structuredMockJson));
-              return { data: serializedUint8.buffer };
+              const textEncoder = new TextEncoder();
+              const arrayBufferData = textEncoder.encode(JSON.stringify(flawlessMockJson));
+              return { data: arrayBufferData.buffer };
             }
 
-            // Imagery requests resolve cleanly with a type-safe 1x1 transparent PNG array container
+            // Standard imagery fallbacks return our valid 1x1 fully transparent PNG data container
             try {
-              const transparentPngString = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              const arrayBinary = window.atob(transparentPngString);
-              const dataLen = arrayBinary.length;
-              const allocatedBytes = new Uint8Array(dataLen);
-              for (let i = 0; i < dataLen; i++) {
-                allocatedBytes[i] = arrayBinary.charCodeAt(i);
+              const cleanPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+              const binaryStr = window.atob(cleanPngBase64);
+              const bufferLength = binaryStr.length;
+              const bytesView = new Uint8Array(bufferLength);
+              for (let i = 0; i < bufferLength; i++) {
+                bytesView[i] = binaryStr.charCodeAt(i);
               }
-              return { data: allocatedBytes.buffer };
-            } catch (err) {
+              return { data: bytesView.buffer };
+            } catch (e) {
               return { data: new ArrayBuffer(0) };
             }
           };
@@ -648,7 +653,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               .then(response => {
                 if (!isModelMatch(requestedModelFolder, activeModelLock)) {
                   console.warn(`[OM-Protocol] Discarding tile for model ${requestedModelFolder} because active lock is ${activeModelLock}`);
-                  return getSafeWorkerFallbackResponse(params.url);
+                  return getSafeWorkerFallbackResponse(params.url, params.type);
                 }
                 return response;
               })
@@ -658,11 +663,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 } else {
                   console.error('[OM-Protocol] Async tile decoding error caught:', err.message || err);
                 }
-                return getSafeWorkerFallbackResponse(params.url); // Type-safe fallback!
+                return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
               });
           } catch (syncErr) {
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
-            return getSafeWorkerFallbackResponse(params.url); // Type-safe fallback!
+            return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
           }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
