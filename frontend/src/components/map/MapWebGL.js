@@ -615,6 +615,34 @@ var MapWebGL = ({
     } catch (e) { /* empty */ }
   }, [mapInstance, activeLayers]);
 
+  // Explicit paint blend parameter and dynamic slot properties for tracking visibility
+  useEffect(() => {
+    if (!mapInstance) return;
+    try {
+      if (mapInstance.getLayer('marine-raster-layer')) {
+        mapInstance.setPaintProperty('marine-raster-layer', 'raster-fade-duration', 150);
+        mapInstance.setPaintProperty('marine-raster-layer', 'raster-opacity', 0.75);
+      }
+      
+      // Dynamically apply properties to all active slot layers for the current active marine layer
+      const activeMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
+      if (activeMarine) {
+        [0, 1, 2].forEach(slot => {
+          const slotLayerId = `${activeMarine}-slot-${slot}-layer`;
+          if (mapInstance.getLayer(slotLayerId)) {
+            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
+            const isActive = activeSlots[activeMarine] === slot;
+            if (isActive && !isTransitioning) {
+              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.75);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('[MapWebGL] Failed to apply explicit blend parameter:', e);
+    }
+  }, [mapInstance, activeLayers, activeSlots, isTransitioning]);
+
   // v3.13.1: Force instantaneous map repaint on layer toggles or tile URL updates
   // Prevents mobile GPU rendering latency from blocking layer appearances.
   useEffect(() => {
@@ -741,15 +769,9 @@ var MapWebGL = ({
                 }}
                 paint={{
                   // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
+                  // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
                   'raster-opacity': (!isTransitioning && isActive) ? (
-                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, 0.70,
-                      5, 0.75,
-                      9.0, 0.80,
-                      12.0, 0.45,
-                      17.0, 0.0
-                    ] : [
+                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : [
                       'interpolate', ['linear'], ['zoom'],
                       2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
                       5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
@@ -762,7 +784,7 @@ var MapWebGL = ({
                   'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
                   'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
                   'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
-                  'raster-fade-duration': 0 // Instant transition between slots
+                  'raster-fade-duration': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 150 : 0 // Smooth transition for marine
                 }}
               />
             </Source>

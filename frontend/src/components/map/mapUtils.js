@@ -168,12 +168,32 @@ export var findMarineInsertionLayer = function(mapInstance) {
   var style = mapInstance.getStyle?.();
   if (!style?.layers || style.layers.length === 0) return null;
 
-  var afterWater = false;
-  var fallbackId = null;
+  // Search for the first label, text, symbol or coastline layer to insert BEFORE
+  for (var layer of style.layers) {
+    var id = layer.id;
+    var type = layer.type;
+    
+    const isTarget = type === 'symbol' || 
+                     id.includes('label') || 
+                     id.includes('coastline') || 
+                     id.includes('place') ||
+                     id.includes('poi-') ||
+                     id.includes('road-label');
+                     
+    const isCustom = id.startsWith('ocean-mask-') || 
+                     id.endsWith('-layer') || 
+                     id.endsWith('-source') ||
+                     id === 'radar-layer' || 
+                     id === 'esri-satellite-layer' ||
+                     id === 'spot-geofences-layer' ||
+                     id === 'marine-raster-anchor';
+                     
+    if (isTarget && !isCustom) {
+      return id;
+    }
+  }
 
-  // Primary Pass: Find the first valid non-custom layer immediately following water fill layers.
-  // Placing the marine/mask layers here inserts them at the absolute bottom of the land layer stack,
-  // below landuse, parks, roads, buildings, and labels.
+  // Fallback Pass: return any non-custom, non-background, non-water layer
   for (var layer of style.layers) {
     var id = layer.id;
     var isCustom = id.startsWith('ocean-mask-') || 
@@ -183,62 +203,10 @@ export var findMarineInsertionLayer = function(mapInstance) {
                    id === 'esri-satellite-layer' ||
                    id === 'spot-geofences-layer' ||
                    id === 'marine-raster-anchor';
-
-    if (id === 'water' || id === 'water-depth' || id === 'wetland') {
-      afterWater = true;
-      continue;
-    }
-
-    if (afterWater && !isCustom) {
+    if (isCustom) continue;
+    if (id !== 'background' && id !== 'water' && id !== 'water-depth' && id !== 'wetland') {
       return id;
     }
-
-    // Keep track of a general fallback (any non-custom, non-background, non-water layer)
-    if (!isCustom && id !== 'background' && id !== 'water' && id !== 'water-depth' && id !== 'wetland') {
-      if (!fallbackId) {
-        fallbackId = id;
-      }
-    }
-  }
-
-  // Fallback Pass 1: If water layers were not found, search for preferred land prefixes
-  var preferredPrefixes = [
-    'tunnel-', 'road-', 'bridge-', 'building', 'land-structure', 
-    'aeroway', 'admin-', 'highway-', 'railway-'
-  ];
-
-  for (layer of style.layers) {
-    id = layer.id;
-    isCustom = id.startsWith('ocean-mask-') || 
-                   id.endsWith('-layer') || 
-                   id.endsWith('-source') ||
-                   id === 'radar-layer' || 
-                   id === 'esri-satellite-layer' ||
-                   id === 'spot-geofences-layer' ||
-                   id === 'marine-raster-anchor';
-    if (isCustom) continue;
-
-    for (var prefix of preferredPrefixes) {
-      if (id.startsWith(prefix)) {
-        return id;
-      }
-    }
-  }
-
-  // Fallback Pass 2: return the first general non-custom fallback layer we saw
-  if (fallbackId) return fallbackId;
-
-  // Fallback Pass 3: return the last non-custom layer in the style
-  for (var i = style.layers.length - 1; i >= 0; i--) {
-    var lid = style.layers[i].id;
-    var isLidCustom = lid.startsWith('ocean-mask-') || 
-                      lid.endsWith('-layer') || 
-                      lid.endsWith('-source') ||
-                      lid === 'radar-layer' || 
-                      lid === 'esri-satellite-layer' ||
-                      lid === 'spot-geofences-layer' ||
-                      lid === 'marine-raster-anchor';
-    if (!isLidCustom) return lid;
   }
 
   return null;
@@ -637,7 +605,23 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          // Helper to get a transparent 1x1 pixel PNG ImageBitmap fallback or valid empty TileJSON depending on request type
+          const getSafeWorkerImageFallback = async () => {
+            try {
+              // A solid, valid 1x1 completely transparent PNG binary data block
+              const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+              const binaryString = window.atob(transparentPngBase64);
+              const len = binaryString.length;
+              const bytes = new Uint8Array(len);
+              for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              return { data: bytes.buffer };
+            } catch (err) {
+              return { data: new ArrayBuffer(0) };
+            }
+          };
+
+          // Helper to get a transparent 1x1 pixel PNG ArrayBuffer fallback or valid empty TileJSON depending on request type
           // Prevents MapLibre GL JS tile painter warnings and guarantees the WebGL thread stays stable on corrupt tiles
           const getFallbackResponse = async (type, url) => {
             const isJson = type === 'json' || (url && url.includes('latest.json'));
@@ -655,21 +639,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               return { data: uint8Data.buffer };
             }
             
-            // For all tile imagery and raster texture request routes, generate a type-safe fallback image texture on-the-fly inside canvas
-            try {
-              const canvas = document.createElement('canvas');
-              canvas.width = 1;
-              canvas.height = 1;
-              const ctx = canvas.getContext('2d');
-              if (ctx) ctx.clearRect(0, 0, 1, 1);
-              
-              // Generate a native browser-level ImageBitmap instance directly
-              const safeBitmap = await createImageBitmap(canvas);
-              return { data: safeBitmap };
-            } catch (err) {
-              console.error('[OM-Protocol] Fatal error allocating bitmap texture fallback:', err);
-              return { data: null };
-            }
+            return getSafeWorkerImageFallback();
           };
 
           // v3.13.5: Double-wrapped synchronous + asynchronous type-safe error boundaries
