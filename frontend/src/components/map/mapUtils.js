@@ -29,14 +29,24 @@ const getParentModel = (folder) => {
 const isModelMatch = (folder, lock) => {
   if (!folder) return true;
   
-  // Safe dynamic fallback: if folder is explicitly listed in currently active models, it is a valid match!
-  if (window.__OM_ACTIVE_MODELS__ && window.__OM_ACTIVE_MODELS__.includes(folder)) {
+  // Safe dynamic fallback: check typeof window !== 'undefined' to avoid worker ReferenceErrors
+  if (typeof window !== 'undefined' && window.__OM_ACTIVE_MODELS__ && window.__OM_ACTIVE_MODELS__.includes(folder)) {
     return true;
   }
   
   if (!lock) return true; // Safe fallback if lock is empty
-  const parent = getParentModel(folder);
+  
   const f = folder.toLowerCase();
+  
+  // Marine layers cross-compatibility fallback:
+  // If the folder represents a marine wave/swell model (containing wave, wam, gwam) and lock is any weather model,
+  // allow it so that fallback wave parameters can render.
+  const isMarine = f.includes('wave') || f.includes('wam') || f.includes('gwam');
+  if (isMarine) {
+    return true;
+  }
+  
+  const parent = getParentModel(folder);
   const l = lock.toLowerCase();
   return parent.toLowerCase() === l || f.includes(l) || l.includes(f);
 };
@@ -582,8 +592,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
     if (maplibregl?.addProtocol) {
       try {
         maplibregl.addProtocol('om', (params, abortController) => {
-          const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
-          const debug = window.__RASTER_DEBUG__ || {};
+          const hasWindow = typeof window !== 'undefined';
+          const currentSettings = (hasWindow && window.__OM_PROTOCOL_SETTINGS__) || settings;
+          const debug = (hasWindow && window.__RASTER_DEBUG__) || {};
           
           // Enforce network caching bypass rules to prevent ERR_CACHE_OPERATION_NOT_SUPPORTED on rapid switches
           if (params) {
@@ -596,7 +607,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
           
           // Safe one-time init log
           if (!debug.hasLoggedProtocol) {
-            if (window.__RASTER_DEBUG__) window.__RASTER_DEBUG__.hasLoggedProtocol = true;
+            if (hasWindow && window.__RASTER_DEBUG__) window.__RASTER_DEBUG__.hasLoggedProtocol = true;
             console.log('[OM-Protocol] Registered with', Object.keys(currentSettings.colorScales).length, 'color scales');
           }
           
@@ -609,7 +620,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               requestedModelFolder = parts[2];
             }
             const variable = urlObj.searchParams.get('variable');
-            if (variable && window.__RASTER_DEBUG__ && !debug[`logged_var_${variable}`]) {
+            if (variable && hasWindow && window.__RASTER_DEBUG__ && !debug[`logged_var_${variable}`]) {
               window.__RASTER_DEBUG__[`logged_var_${variable}`] = true;
               const scale = currentSettings.colorScales[variable];
               console.log(`[OM-Protocol] Tile request: variable=${variable}, hasScale=${!!scale}, type=${params.type}`);
@@ -639,15 +650,12 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
 
             // Standard imagery fallbacks return our valid 1x1 fully transparent PNG data container
+            // Pre-compiled raw Uint8Array byte sequence avoids window.atob ReferenceError in Web Workers.
             try {
-              const cleanPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              const binaryStr = window.atob(cleanPngBase64);
-              const bufferLength = binaryStr.length;
-              const bytesView = new Uint8Array(bufferLength);
-              for (let i = 0; i < bufferLength; i++) {
-                bytesView[i] = binaryStr.charCodeAt(i);
-              }
-              return { data: bytesView.buffer };
+              const cleanPngBytes = new Uint8Array([
+                137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 64, 4, 3, 0, 0, 52, 0, 255, 147, 25, 122, 178, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+              ]);
+              return { data: cleanPngBytes.buffer };
             } catch (e) {
               return { data: new ArrayBuffer(0) };
             }

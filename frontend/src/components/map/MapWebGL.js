@@ -397,6 +397,9 @@ var MapWebGL = ({
             }
           } else if (entry.omModelGroup === 'marine') {
             layerModel = 'ncep_gfswave025';
+            if (window.__OM_ACTIVE_MODELS__ && !window.__OM_ACTIVE_MODELS__.includes(layerModel)) {
+              window.__OM_ACTIVE_MODELS__.push(layerModel);
+            }
             meta = await fetchMetadata(layerModel, signal);
             if (taskId !== resolveTaskIdRef.current) return;
             if (meta.variables.includes(variable)) {
