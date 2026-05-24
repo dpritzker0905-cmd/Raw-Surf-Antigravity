@@ -187,22 +187,24 @@ function computeGridPoints(bounds, caller = 'wind') {
 
   // v3.9.4: Reduced grid density Open-Meteo weights POST requests by
   // point count (961 pts 961 weighted calls, exceeding 600/min limit)
+  // v4.0.0: Slashed grid density to prevent Open-Meteo 429 rate-limiting weight failures.
+  // 10x10=100 points (desktop), 7x7=49 points (mobile). High fidelity, 3x fewer API weight units!
   let west, south, east, north, GRID;
   if (isGlobal) {
     if (caller === 'marine') {
       west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
+      GRID = isMobile ? 6 : 9;
     } else {
       west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
+      GRID = isMobile ? 6 : 9;
     }
   } else {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
     if (caller === 'marine') {
-      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
+      GRID = isMobile ? 6 : 9;
     } else {
-      GRID = isMobile ? 10 : 16; // 17x17=289 (desktop), 11x11=121 (mobile)
+      GRID = isMobile ? 6 : 9;
     }
   }
 
