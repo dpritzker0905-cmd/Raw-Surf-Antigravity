@@ -144,27 +144,65 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // Forward to Open-Meteo
-    console.log(`[weather-proxy] Forwarding ${type} ${event.httpMethod} to ${targetUrl}`);
-    const fetchOptions = {
-      method: event.httpMethod,
-    };
-    if (event.httpMethod === 'POST') {
-      fetchOptions.headers = { 'Content-Type': 'application/json' };
-      fetchOptions.body = JSON.stringify(body);
-    }
-    const apiRes = await fetch(targetUrl, fetchOptions);
+    // Forward to Open-Meteo with a robust retry wrapper (try up to 3 times with 100ms exponential backoff on 502/503/504)
+    let apiRes;
+    let attempt = 0;
+    const maxAttempts = 3;
+    let delay = 100;
 
-    if (!apiRes.ok) {
-      const errorText = await apiRes.text();
-      console.error(`[weather-proxy] Open-Meteo error: ${apiRes.status} ${errorText}`);
+    while (attempt < maxAttempts) {
+      attempt++;
+      try {
+        console.log(`[weather-proxy] Forwarding ${type} ${event.httpMethod} to ${targetUrl} (attempt ${attempt}/${maxAttempts})`);
+        const fetchOptions = {
+          method: event.httpMethod,
+        };
+        if (event.httpMethod === 'POST') {
+          fetchOptions.headers = { 'Content-Type': 'application/json' };
+          fetchOptions.body = JSON.stringify(body);
+        }
+        apiRes = await fetch(targetUrl, fetchOptions);
+        
+        // Break early if successful or if it's not a temporary gateway error (like 502/503/504)
+        if (apiRes.ok || (apiRes.status !== 502 && apiRes.status !== 503 && apiRes.status !== 504)) {
+          break;
+        }
+        
+        console.warn(`[weather-proxy] Attempt ${attempt} failed with status ${apiRes.status}. Retrying in ${delay}ms...`);
+      } catch (fetchErr) {
+        if (attempt >= maxAttempts) {
+          throw fetchErr;
+        }
+        console.warn(`[weather-proxy] Attempt ${attempt} threw error: ${fetchErr.message}. Retrying in ${delay}ms...`);
+      }
+      
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      }
+    }
+
+    if (!apiRes || !apiRes.ok) {
+      const status = apiRes ? apiRes.status : 502;
+      let errorText = 'Gateway Timeout / Connection Refused';
+      try {
+        if (apiRes) errorText = await apiRes.text();
+      } catch (e) { /* ignore */ }
+      
+      console.error(`[weather-proxy] Open-Meteo error after ${attempt} attempts: ${status} ${errorText}`);
       return {
-        statusCode: apiRes.status,
+        statusCode: status,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
         },
-        body: JSON.stringify({ error: `Open-Meteo ${apiRes.status}`, detail: errorText })
+        body: JSON.stringify({ 
+          error: `Open-Meteo Gateway Error`, 
+          statusCode: status,
+          isGatewayError: true,
+          attempts: attempt,
+          detail: errorText 
+        })
       };
     }
 

@@ -177,8 +177,8 @@ var MapWebGL = ({
  // The old imperative queueRasterUpdate path is no longer needed react-map-gl
   // calls setUrl() internally when the url prop changes.
 
-  const fetchMetadata = useCallback(async (modelToCheck) => {
-    return fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, () => setMetadataRevision(prev => prev + 1));
+  const fetchMetadata = useCallback(async (modelToCheck, signal) => {
+    return fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, () => setMetadataRevision(prev => prev + 1), signal);
   }, []);
 
   // Pre-warm metadata cache on mount so layer toggles are instant
@@ -260,6 +260,10 @@ var MapWebGL = ({
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
     const taskId = ++resolveTaskIdRef.current;
+    
+    // Set up AbortController for this effect execution cycle
+    const controller = new AbortController();
+    const { signal } = controller;
 
     const getUrlForIndex = (model, variable, idx) => {
       const meta = MODEL_METADATA_CACHE[model];
@@ -299,16 +303,16 @@ var MapWebGL = ({
         return targetModel;
       };
 
-      // Parallel metadata pre-fetch
+      // Parallel metadata pre-fetch with abort signal
       const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
-      await Promise.all(models.map(m => fetchMetadata(m)));
+      await Promise.all(models.map(m => fetchMetadata(m, signal)));
       if (taskId !== resolveTaskIdRef.current) return;
 
       const newUrls = {};
       const newActiveSlots = {};
       for (const { layerKey, variable, entry } of tasks) {
         let layerModel = resolveModel(entry, variable);
-        let meta = await fetchMetadata(layerModel);
+        let meta = await fetchMetadata(layerModel, signal);
         if (taskId !== resolveTaskIdRef.current) return;
         let resolvedVar = variable;
         if (!meta.variables.includes(variable)) {
@@ -330,7 +334,7 @@ var MapWebGL = ({
             }
           } else if (entry.omModelGroup === 'marine') {
             layerModel = 'ncep_gfswave025';
-            meta = await fetchMetadata(layerModel);
+            meta = await fetchMetadata(layerModel, signal);
             if (taskId !== resolveTaskIdRef.current) return;
             if (meta.variables.includes(variable)) {
               resolvedVar = variable;
@@ -396,7 +400,11 @@ var MapWebGL = ({
       if (pendingResolve.current) pendingResolve.current();
     });
     
-    return () => { isMounted = false; if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    return () => { 
+      isMounted = false; 
+      controller.abort(); 
+      if (rafRef.current) cancelAnimationFrame(rafRef.current); 
+    };
   }, [activeModel, theme, timeOffsetHours, activeLayers, fetchMetadata, metadataRevision]);
 
   // Sync ref to parent so useMapActions works

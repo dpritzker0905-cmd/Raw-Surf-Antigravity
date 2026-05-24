@@ -456,12 +456,25 @@ export var OM_MODEL_MAP = {
 export var MODEL_METADATA_PROMISES = {};
 export var LIVE_FETCHED_MODELS = new Set();
 
-export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged) {
+export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged, signal) {
   const cached = MODEL_METADATA_CACHE[modelToCheck];
   if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
-    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`/api/weather-proxy?type=tiles&model=${modelToCheck}`)
-      .then(res => {
-        if (!res.ok) throw new Error('Fetch failed');
+    // If signal is already aborted, throw AbortError immediately
+    if (signal?.aborted) {
+      return Promise.reject(new DOMException('Aborted', 'AbortError'));
+    }
+
+    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`/api/weather-proxy?type=tiles&model=${modelToCheck}`, { signal })
+      .then(async res => {
+        if (!res.ok) {
+          console.warn(`[OM-Protocol] Proxy failed with status ${res.status}. Initiating direct-to-CDN metadata fallback fetch...`);
+          // Bypassing netlify proxy and fetching straight from Open-Meteo edge CDN
+          const fallbackRes = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`, { signal });
+          if (!fallbackRes.ok) {
+            throw new Error(`Direct edge CDN fetch failed: ${fallbackRes.status}`);
+          }
+          return fallbackRes.json();
+        }
         return res.json();
       })
       .then(data => {
@@ -485,6 +498,11 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
         return result;
       })
       .catch(err => {
+        // High-precision AbortError checking: do not flag aborted requests as systemic proxy errors
+        if (err.name === 'AbortError' || err.message?.includes('abort')) {
+          console.log(`[OM-Protocol] Metadata fetch for ${modelToCheck} was cleanly aborted.`);
+          throw err; // Propagate AbortError cleanly
+        }
         console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
         LIVE_FETCHED_MODELS.add(modelToCheck);
         return cached || { variables: [], validTimes: [], referenceTime: null };
