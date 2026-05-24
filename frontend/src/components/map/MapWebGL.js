@@ -773,7 +773,7 @@ var MapWebGL = ({
                 beforeId={
                   LAYER_REGISTRY[layerKey]?.type === 'marine'
                     ? (maskLandExists ? 'ocean-mask-buffer' : marineBeforeId) || undefined
-                    : undefined
+                    : marineBeforeId || undefined
                 }
                 type="raster"
                 layout={{ 
