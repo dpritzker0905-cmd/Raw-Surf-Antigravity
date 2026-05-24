@@ -80,6 +80,13 @@ var MapWebGL = ({
   const cacheBustRef = useRef(Date.now());
   const modelDebounceTimeoutRef = useRef(null);
   
+  // v86: Refs to completely eliminate stale closures in transitions
+  const activeSlotsRef = useRef(activeSlots);
+  activeSlotsRef.current = activeSlots;
+  const closestTimeIdxRef = useRef(0);
+  const activeLayersRef = useRef(activeLayers);
+  activeLayersRef.current = activeLayers;
+  
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
   const animFrameRef = useRef(null);
@@ -133,6 +140,7 @@ var MapWebGL = ({
     // Clamping defense to strictly avoid out-of-bounds indices on activeModel shifts
     return Math.max(0, Math.min(meta.validTimes.length - 1, closestIdx));
   }, [activeModel, timeOffsetHours, metadataRevision]);
+  closestTimeIdxRef.current = closestTimeIdx;
 
  // v69: initialOmUrls removed React <Source> now reads omTileUrls directly
  // v70: initialRadarUrl removed React <Source> reads radarTileUrl directly
@@ -226,7 +234,11 @@ var MapWebGL = ({
               
               if (mapInstance && mapInstance.isStyleLoaded()) {
                 try {
-                  activeLayers.forEach(layerKey => {
+                  const currentActiveLayers = activeLayersRef.current || [];
+                  const currentActiveSlots = activeSlotsRef.current || {};
+                  const currentClosestTimeIdx = closestTimeIdxRef.current || 0;
+                  
+                  currentActiveLayers.forEach(layerKey => {
                     const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
                     const opacityExpression = isMarine ? 0.70 : [
                       'interpolate', ['linear'], ['zoom'],
@@ -238,9 +250,9 @@ var MapWebGL = ({
                     
                     [0, 1, 2].forEach(slotIdx => {
                       const layerId = `${layerKey}-slot-${slotIdx}-layer`;
-                      const isActive = activeSlots[layerKey] !== undefined
-                        ? activeSlots[layerKey] === slotIdx
-                        : (closestTimeIdx % 3) === slotIdx;
+                      const isActive = currentActiveSlots[layerKey] !== undefined
+                        ? currentActiveSlots[layerKey] === slotIdx
+                        : (currentClosestTimeIdx % 3) === slotIdx;
                       
                       if (mapInstance.getLayer(layerId)) {
                         mapInstance.setLayoutProperty(layerId, 'visibility', 'visible');
@@ -249,7 +261,7 @@ var MapWebGL = ({
                     });
                   });
                   
-                  if (activeLayers.includes('wind') && mapInstance.getLayer('wind-particle-overlay')) {
+                  if (currentActiveLayers.includes('wind') && mapInstance.getLayer('wind-particle-overlay')) {
                     mapInstance.setLayoutProperty('wind-particle-overlay', 'visibility', 'visible');
                     mapInstance.setPaintProperty('wind-particle-overlay', 'raster-opacity', 0.25);
                   }
@@ -733,30 +745,33 @@ var MapWebGL = ({
     } catch (e) { /* empty */ }
   }, [mapInstance, activeLayers]);
 
-  // Explicit paint blend parameter and dynamic slot properties for tracking visibility
+  // v86: Unified Reactive Weather Raster Opacity and Transition Sync
   useEffect(() => {
     if (!mapInstance) return;
     try {
-      if (mapInstance.getLayer('marine-raster-layer')) {
-        // Forces the weather data canvas to smoothly blend across background base assets
-        mapInstance.setPaintProperty('marine-raster-layer', 'raster-opacity', 0.70);
-        mapInstance.setPaintProperty('marine-raster-layer', 'raster-fade-duration', 150);
-      }
-      
-      // Dynamically apply properties to all active slot layers for the current active marine layer
-      const activeMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
-      if (activeMarine) {
+      activeLayers.forEach(layerKey => {
+        const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
+        const opacityExpression = isMarine ? 0.70 : [
+          'interpolate', ['linear'], ['zoom'],
+          2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+          5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+          8, layerKey === 'wind' ? 0.26 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+          12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+        ];
+        
         [0, 1, 2].forEach(slot => {
-          const slotLayerId = `${activeMarine}-slot-${slot}-layer`;
+          const slotLayerId = `${layerKey}-slot-${slot}-layer`;
           if (mapInstance.getLayer(slotLayerId)) {
             safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
-            const isActive = activeSlots[activeMarine] === slot;
-            if (isActive && !isTransitioning) {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.70);
+            const isActive = activeSlots[layerKey] === slot;
+            if (!isTransitioning) {
+              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? opacityExpression : 0.0);
+            } else {
+              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.0);
             }
           }
         });
-      }
+      });
     } catch (e) {
       console.warn('[MapWebGL] Failed to apply explicit blend parameter:', e);
     }

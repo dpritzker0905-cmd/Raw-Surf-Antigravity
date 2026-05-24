@@ -666,13 +666,16 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               })
               .catch(err => {
                 if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-                  console.log('[OM-Protocol] Silent fallback for aborted tile:', params.url?.substring(0, 120));
-                } else {
-                  console.error('[OM-Protocol] Async tile decoding error caught:', err.message || err);
+                  // Propagate the AbortError cleanly to let MapLibre know the cancellation succeeded
+                  throw err;
                 }
+                console.error('[OM-Protocol] Async tile decoding error caught:', err.message || err);
                 return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
               });
           } catch (syncErr) {
+            if (syncErr.name === 'AbortError' || syncErr.message?.includes('aborted')) {
+              throw syncErr;
+            }
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
             return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
           }
