@@ -1,16 +1,17 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import time
 import os
 import uuid
 from datetime import datetime, timedelta
 
 # SQLite Google Calendar Caching & Scheduling Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\calendar_scheduling_cache.db"
+DB_PATH = get_db_path("calendar_scheduling_cache.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Provider Calendars table (coaches, photographers, instructors)
@@ -77,7 +78,7 @@ def init_db():
 
 # Calendar MCP Core Actions
 def check_scheduling_conflict(provider_id, start_iso, end_iso, ignore_event_id=None):
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     if ignore_event_id:
         cursor.execute("""
@@ -115,7 +116,7 @@ def calendar_check_availability(provider_id, start_iso, end_iso):
     init_db()
     conflict_info = check_scheduling_conflict(provider_id, start_iso, end_iso)
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT name, timezone FROM provider_calendars WHERE provider_id = ?", (provider_id,))
     row = cursor.fetchone()
@@ -148,7 +149,7 @@ def calendar_create_booking(provider_id, customer_id, summary, description, star
         
     event_id = f"evt_wc_{uuid.uuid4().hex[:12]}"
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO calendar_events (event_id, provider_id, summary, description, start_time, end_time, timezone, customer_id, booking_status, created_at, correlation_id)
@@ -178,7 +179,7 @@ def calendar_create_booking(provider_id, customer_id, summary, description, star
 
 def calendar_cancel_booking(event_id, correlation_id=None):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT provider_id, customer_id, booking_status FROM calendar_events WHERE event_id = ?", (event_id,))
@@ -207,7 +208,7 @@ def calendar_cancel_booking(event_id, correlation_id=None):
 
 def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso, correlation_id=None):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT provider_id, customer_id, timezone FROM calendar_events WHERE event_id = ?", (event_id,))
@@ -227,7 +228,7 @@ def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso, correlatio
             "conflict_details": conflict_info["conflict_details"]
         }
         
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     UPDATE calendar_events 
@@ -253,7 +254,7 @@ def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso, correlatio
 
 def get_provider_events(provider_id):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT event_id, summary, description, start_time, end_time, timezone, customer_id, booking_status, correlation_id 

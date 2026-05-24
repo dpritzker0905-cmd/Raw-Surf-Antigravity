@@ -1,16 +1,17 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 import time
 from datetime import datetime, timezone
 
 # SQLite Event Bus Database Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\event_bus.db"
+DB_PATH = get_db_path("event_bus.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Event Log Table (Refactored to support complete tracing schema)
@@ -62,6 +63,12 @@ def init_db():
     )
     """)
     
+    # 4. Performance Optimization Composite Indexes
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_event_subscriptions_event_type ON event_subscriptions(event_type)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_agent_event_queue_sub_status ON agent_event_queue(subscription_id, status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_event_log_type_time ON event_log(event_type, timestamp DESC)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_event_log_correlation_id ON event_log(correlation_id)")
+    
     conn.commit()
     conn.close()
 
@@ -97,7 +104,7 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
     if not u_id and isinstance(payload, dict):
         u_id = payload.get("user_id") or payload.get("customer_id")
         
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Insert event to Event Log
@@ -173,10 +180,14 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
                 sys.stderr.write(f"Error in in-memory event handler: {str(e)}\n")
                 sys.stderr.flush()
                 
-    # Real-time WebSocket streaming integration fallback
+    # Real-time WebSocket streaming integration fallback (via internal loopback broadcast webhook)
     try:
-        from websocket_manager import ws_manager
-        import asyncio
+        import httpx
+        import threading
+        
+        INTERNAL_TOKEN = os.environ.get("INTERNAL_BROADCAST_TOKEN", "super_secret_internal_token_123")
+        BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8001")
+        
         message = {
             "type": "event_spine_broadcast",
             "event_type": event_type,
@@ -186,18 +197,31 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
             "payload": payload,
             "timestamp": timestamp
         }
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-        if loop.is_running():
-            asyncio.run_coroutine_threadsafe(ws_manager.broadcast(message, room=event_type), loop)
-            asyncio.run_coroutine_threadsafe(ws_manager.broadcast(message, room="admin_events"), loop)
-        else:
-            loop.run_until_complete(ws_manager.broadcast(message, room=event_type))
-            loop.run_until_complete(ws_manager.broadcast(message, room="admin_events"))
+        
+        def push_to_websocket_webhook():
+            try:
+                headers = {
+                    "X-Internal-Token": INTERNAL_TOKEN,
+                    "Content-Type": "application/json"
+                }
+                with httpx.Client(timeout=5.0) as client:
+                    # Broadcast to specific room
+                    client.post(
+                        f"{BACKEND_URL}/api/internal/events/broadcast",
+                        json={"room": event_type, "message": message},
+                        headers=headers
+                    )
+                    # Broadcast to admin_events
+                    client.post(
+                        f"{BACKEND_URL}/api/internal/events/broadcast",
+                        json={"room": "admin_events", "message": message},
+                        headers=headers
+                    )
+            except Exception as e:
+                sys.stderr.write(f"Warning: WebSocket broadcast webhook failed: {str(e)}\n")
+                sys.stderr.flush()
+                
+        threading.Thread(target=push_to_websocket_webhook, daemon=True).start()
     except Exception:
         pass
     
@@ -273,13 +297,13 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
         if final_score >= 70.0 and "offshore" in wind_cond.lower():
             try:
                 dec_id = f"dec_alert_{uuid.uuid4().hex[:8]}"
-                op_db_path = "C:\\Users\\dprit\\Raw-Surf\\backend\\operator_decisions.db"
+                op_db_path = get_db_path("operator_decisions.db")
                 
                 # Check/create operator DB first if needed
                 import operator_mcp_server
                 operator_mcp_server.init_db()
                 
-                conn_op = sqlite3.connect(op_db_path, timeout=10.0)
+                conn_op = get_sqlite_connection(op_db_path)
                 cur_op = conn_op.cursor()
                 
                 # Avoid duplicate alerts enqueuing
@@ -342,12 +366,12 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
         # 4. Enqueue Social Gallery Post Approval in Admin queue
         try:
             dec_id = f"dec_post_{uuid.uuid4().hex[:8]}"
-            op_db_path = "C:\\Users\\dprit\\Raw-Surf\\backend\\operator_decisions.db"
+            op_db_path = get_db_path("operator_decisions.db")
             
             import operator_mcp_server
             operator_mcp_server.init_db()
             
-            conn_op = sqlite3.connect(op_db_path, timeout=10.0)
+            conn_op = get_sqlite_connection(op_db_path)
             cur_op = conn_op.cursor()
             
             op_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -442,7 +466,7 @@ def subscribe_to_channel(event_type, target):
     subscription_id = f"sub_{uuid.uuid4().hex[:12]}"
     created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO event_subscriptions (subscription_id, event_type, target, created_at)
@@ -462,40 +486,37 @@ def subscribe_to_channel(event_type, target):
 
 # 3. Pull Subscribed Events (Agent Mailbox Queue)
 def pull_subscribed_events(subscription_id):
-    init_db()
-    
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
-    # Retrieve unread enqueued events
+    # Single Join Select
     cursor.execute("""
-    SELECT queue_id, event_id FROM agent_event_queue 
-    WHERE subscription_id = ? AND status = 'unread'
+        SELECT q.queue_id, q.event_id, l.event_type, l.payload, l.timestamp, l.user_id, l.source_mcp, l.correlation_id
+        FROM agent_event_queue q
+        JOIN event_log l ON q.event_id = l.event_id
+        WHERE q.subscription_id = ? AND q.status = 'unread'
     """, (subscription_id,))
     rows = cursor.fetchall()
     
     events = []
+    queue_ids = []
     
-    for queue_id, event_id in rows:
-        cursor.execute("""
-        SELECT event_type, payload, timestamp, user_id, source_mcp, correlation_id FROM event_log WHERE event_id = ?
-        """, (event_id,))
-        evt = cursor.fetchone()
+    for r in rows:
+        events.append({
+            "event_id": r[1],
+            "event_type": r[2],
+            "payload": json.loads(r[3]),
+            "timestamp": r[4],
+            "user_id": r[5],
+            "source_mcp": r[6],
+            "correlation_id": r[7]
+        })
+        queue_ids.append(r[0])
         
-        if evt:
-            events.append({
-                "event_id": event_id,
-                "event_type": evt[0],
-                "payload": json.loads(evt[1]),
-                "timestamp": evt[2],
-                "user_id": evt[3],
-                "source_mcp": evt[4],
-                "correlation_id": evt[5]
-            })
-            
-        cursor.execute("""
-        UPDATE agent_event_queue SET status = 'read' WHERE queue_id = ?
-        """, (queue_id,))
+    # Single Bulk Update
+    if queue_ids:
+        placeholders = ",".join("?" for _ in queue_ids)
+        cursor.execute(f"UPDATE agent_event_queue SET status = 'read' WHERE queue_id IN ({placeholders})", queue_ids)
         
     conn.commit()
     conn.close()
@@ -509,7 +530,7 @@ def pull_subscribed_events(subscription_id):
 # 4. Get Recent Events History
 def get_recent_events(event_type=None, limit=50):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     if event_type:
@@ -542,7 +563,7 @@ def get_recent_events(event_type=None, limit=50):
 # 5. Replay Events (Time-Range Filtering)
 def replay_events(event_type=None, start_time=None, end_time=None):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     query = "SELECT event_id, event_type, payload, timestamp, user_id, source_mcp, correlation_id FROM event_log WHERE 1=1"
@@ -582,7 +603,7 @@ def replay_events(event_type=None, start_time=None, end_time=None):
 # 6. Reconstruct Event Flow Traces (Correlation Chain analysis)
 def get_event_flow_trace(correlation_id):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -611,7 +632,7 @@ def get_event_flow_trace(correlation_id):
 # 7. Get Event Bus Metrics
 def get_event_bus_metrics():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT COUNT(*) FROM event_subscriptions")

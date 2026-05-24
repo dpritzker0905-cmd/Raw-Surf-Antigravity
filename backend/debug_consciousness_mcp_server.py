@@ -1,16 +1,17 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 import time
 from datetime import datetime, timezone
 
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\debug_consciousness.db"
+DB_PATH = get_db_path("debug_consciousness.db")
 EVENT_BUS_DB = "C:\\Users\\dprit\\Raw-Surf\\backend\\event_bus.db"
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Failure Memory Table (DCL Debug Memory Layer)
@@ -160,7 +161,7 @@ def explain_failure(event_id):
         confidence = 85.0
         
     # Save diagnosed failure to debug memory layer
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     failure_id = f"fail_{uuid.uuid4().hex[:8]}"
     cursor.execute("""
@@ -429,7 +430,7 @@ def detect_anomalies(start_time=None, end_time=None):
 # 7. Get Diagnostic historical logs from memory
 def get_failure_history(limit=50):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT failure_id, correlation_id, event_id, event_type, failing_mcp, full_chain, suggested_fix, confidence_score, timestamp

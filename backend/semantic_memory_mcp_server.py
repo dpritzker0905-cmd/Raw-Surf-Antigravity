@@ -1,6 +1,7 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 import urllib.request
@@ -9,10 +10,10 @@ from datetime import datetime, timezone
 import math
 
 # SQLite Semantic Memory DB Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\semantic_memory.db"
+DB_PATH = get_db_path("semantic_memory.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Semantic Memory Table
@@ -99,7 +100,7 @@ def store_memory(user_id, memory_type, content, metadata=None, created_at=None):
     memory_id = f"mem_{uuid.uuid4().hex[:12]}"
     emb = get_embedding(content)
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO semantic_memory (memory_id, user_id, type, content, metadata, embedding, created_at)
@@ -122,7 +123,7 @@ def retrieve_similar_memories(user_id, query, memory_type=None, limit=5, decay_l
     init_db()
     query_emb = get_embedding(query)
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     if memory_type:
@@ -182,7 +183,7 @@ def retrieve_similar_memories(user_id, query, memory_type=None, limit=5, decay_l
 def get_user_preferred_conditions(user_id):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT metadata, created_at FROM semantic_memory 
@@ -261,7 +262,7 @@ def get_user_preferred_conditions(user_id):
 def predict_repeat_booking(user_id, spot_name):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT metadata, created_at, content FROM semantic_memory 
@@ -335,7 +336,7 @@ def predict_repeat_booking(user_id, spot_name):
 def get_surfer_memory_profile(user_id):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT embedding, created_at FROM semantic_memory 

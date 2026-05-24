@@ -1,19 +1,20 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import time
 import os
 import uuid
 from datetime import datetime
 
 # SQLite Stripe Caching & Billing Storage Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\stripe_billing_cache.db"
+DB_PATH = get_db_path("stripe_billing_cache.db")
 
 # Secure Stripe environment variable support
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY", "sk_test_mock_stripe_key_for_antigravity_2_0")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Stripe Customers Supabase Mapping
@@ -94,7 +95,7 @@ def stripe_create_checkout_session(customer_id, amount, currency, success_url, c
     commission_provider = round(amount * 0.80, 2)
     
     # Record payment intent as pending
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO stripe_payments (payment_intent_id, customer_id, amount, currency, status, commission_platform, commission_provider, provider_id, metadata, created_at, correlation_id)
@@ -124,7 +125,7 @@ def stripe_create_subscription(customer_id, plan_name, monthly_price):
     
     sub_id = f"sub_test_{uuid.uuid4().hex[:12]}"
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Update customer plan & active status in cache (equivalent to Supabase sync hook)
@@ -149,7 +150,7 @@ def stripe_create_subscription(customer_id, plan_name, monthly_price):
 
 def stripe_refund_payment(payment_intent_id, refund_amount=None):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT amount, customer_id, status FROM stripe_payments WHERE payment_intent_id = ?", (payment_intent_id,))
@@ -208,7 +209,7 @@ def stripe_create_invoice(customer_id, amount, description):
 
 def stripe_get_customer_payments(customer_id):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT payment_intent_id, amount, currency, status, commission_platform, commission_provider, provider_id, metadata, created_at
@@ -239,7 +240,7 @@ def process_webhook_event(event_type, payload):
     event_id = f"evt_test_{uuid.uuid4().hex[:12]}"
     started_at = datetime.now().isoformat()
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     error_logs = None

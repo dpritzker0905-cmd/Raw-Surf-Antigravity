@@ -1,14 +1,15 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import math
 from datetime import datetime
 
 # SQLite Cache Store Path for Google Maps MCP
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\google_maps_cache.db"
+DB_PATH = get_db_path("google_maps_cache.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Surf Spots spatial cache table
@@ -117,7 +118,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 # Core Actions
 def get_nearby_spots(lat, lon, radius_km=10.0):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT name, region, latitude, longitude, formatted_address, current_swell, wave_height_ft FROM cached_surf_spots")
     rows = cursor.fetchall()
@@ -171,7 +172,7 @@ def calc_travel_time(lat1, lon1, lat2, lon2, mode="driving"):
     }
 
 def get_nearby_instructors(lat, lon, radius_km=15.0):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT name, latitude, longitude, formatted_address, rating, hourly_rate, availability_status, certification FROM cached_instructors")
     rows = cursor.fetchall()
@@ -199,7 +200,7 @@ def get_nearby_instructors(lat, lon, radius_km=15.0):
     return nearby
 
 def get_parking_lookup(query_spot, query_lat=None, query_lon=None):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Resolve spot coordinate first if lat/lon are not provided
@@ -258,7 +259,7 @@ def get_parking_lookup(query_spot, query_lat=None, query_lon=None):
 def get_reverse_geocode(lat, lon):
     # Simulated high-fidelity Reverse Geocoder that returns realistic coastal addresses
     # Search closest spot to output a matching formatted address
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT name, formatted_address, latitude, longitude FROM cached_surf_spots")
     rows = cursor.fetchall()

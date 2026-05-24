@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../lib/apiClient';
 
 const AuthContext = createContext();
@@ -55,7 +55,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, [checkImpersonationSession]);
 
-  const signup = async (email, password, full_name, username, role, parent_email, company_name, birthdate, grom_competes = false) => {
+  const signup = useCallback(async (email, password, full_name, username, role, parent_email, company_name, birthdate, grom_competes = false) => {
     const response = await apiClient.post('/auth/signup', {
       email,
       password,
@@ -68,34 +68,47 @@ export const AuthProvider = ({ children }) => {
       grom_competes
     });
     const userData = response.data;
- // Token is included in signup response -- store it inside the user object
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     document.documentElement.classList.remove('no-god-mode');
     return userData;
-  };
+  }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const response = await apiClient.post('/auth/login', {
       email,
       password
     });
     const userData = response.data;
-    // Store token inside the user object so apiClient can read it
-    // (token is in userData.access_token from the backend)
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     document.documentElement.classList.remove('no-god-mode');
     return userData;
-  };
+  }, []);
 
-  const logout = () => {
-    // End any active impersonation first
+  const endImpersonation = useCallback(async () => {
+    if (!impersonation || !originalUser) return;
+    
+    try {
+      await apiClient.post(`/admin/impersonate/${impersonation.session_id}/end`);
+    } catch (e) {
+      // Continue anyway
+    }
+    
+    setUser(originalUser);
+    localStorage.setItem('raw-surf-user', JSON.stringify(originalUser));
+    
+    setImpersonation(null);
+    setOriginalUser(null);
+    localStorage.removeItem('impersonation_session');
+    localStorage.removeItem('raw-surf-user-original');
+  }, [impersonation, originalUser]);
+
+  const logout = useCallback(() => {
     if (impersonation) {
       endImpersonation();
     }
     setUser(null);
-    // Clear all session data including the Bearer token
     localStorage.removeItem('raw-surf-user');
     localStorage.removeItem('raw-surf-user-original');
     localStorage.removeItem('godModeMinimized');
@@ -105,18 +118,17 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('activePersona');
     localStorage.removeItem('impersonation_session');
     document.documentElement.classList.add('no-god-mode');
-  };
+  }, [impersonation, endImpersonation]);
 
-  const updateUser = (updates) => {
+  const updateUser = useCallback((updates) => {
     if (user) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       localStorage.setItem('raw-surf-user', JSON.stringify(updatedUser));
     }
-  };
+  }, [user]);
 
-  // Refresh user data from server (useful when profile fields are updated)
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (!user?.id) return null;
     try {
       const response = await apiClient.get(`/profiles/${user.id}`);
@@ -128,41 +140,31 @@ export const AuthProvider = ({ children }) => {
       console.error('Failed to refresh user:', error);
       return null;
     }
-  };
+  }, [user]);
 
-  const updateSubscription = async (profileId, subscriptionTier) => {
+  const updateSubscription = useCallback(async (profileId, subscriptionTier) => {
     const response = await apiClient.post(`/profiles/${profileId}/subscription`, {
       subscription_tier: subscriptionTier
     });
     updateUser({ subscription_tier: subscriptionTier });
     return response.data;
-  };
+  }, [updateUser]);
 
-  const submitProOnboarding = async (profileId, data) => {
+  const submitProOnboarding = useCallback(async (profileId, data) => {
     const response = await apiClient.post(`/profiles/${profileId}/pro-onboarding`, data);
     updateUser({ portfolio_url: data.portfolio_url });
     return response.data;
-  };
+  }, [updateUser]);
 
-  // ============ IMPERSONATION METHODS ============
-  
-  /**
-   * Start viewing as another user (admin only)
-   * @param {Object} session - Impersonation session data from API
-   */
-  const startImpersonation = (session) => {
+  const startImpersonation = useCallback((session) => {
     if (!user?.is_admin) return;
     
-    // Store original admin user
     setOriginalUser(user);
     localStorage.setItem('raw-surf-user-original', JSON.stringify(user));
     
-    // Store impersonation session
     setImpersonation(session);
     localStorage.setItem('impersonation_session', JSON.stringify(session));
     
-    // Switch effective user to target (for viewing purposes)
-    // Note: We keep using original user's ID for API calls that need admin auth
     const effectiveUser = {
       ...session.target_user,
       _isImpersonated: true,
@@ -172,85 +174,68 @@ export const AuthProvider = ({ children }) => {
     };
     setUser(effectiveUser);
     localStorage.setItem('raw-surf-user', JSON.stringify(effectiveUser));
-  };
+  }, [user]);
 
-  /**
-   * End impersonation and return to admin view
-   */
-  const endImpersonation = async () => {
-    if (!impersonation || !originalUser) return;
-    
-    try {
-      // Call API to end session
-      await apiClient.post(`/admin/impersonate/${impersonation.session_id}/end`);
-    } catch (e) {
-      // Continue anyway - session cleanup is important
-    }
-    
-    // Restore original admin user
-    setUser(originalUser);
-    localStorage.setItem('raw-surf-user', JSON.stringify(originalUser));
-    
-    // Clear impersonation state
-    setImpersonation(null);
-    setOriginalUser(null);
-    localStorage.removeItem('impersonation_session');
-    localStorage.removeItem('raw-surf-user-original');
-  };
-
-  /**
-   * Get the real admin user ID (for API calls that need admin auth)
-   */
-  const getAdminId = () => {
+  const getAdminId = useCallback(() => {
     if (impersonation && originalUser) {
       return originalUser.id;
     }
     return user?.is_admin ? user.id : null;
-  };
+  }, [impersonation, originalUser, user]);
 
-  /**
-   * Check if currently in read-only impersonation mode
-   */
-  const isReadOnlyMode = () => {
+  const isReadOnlyMode = useCallback(() => {
     return impersonation?.is_read_only || user?._isReadOnly || false;
-  };
+  }, [impersonation, user]);
 
-  /**
-   * Get the effective user for display (impersonated or real)
-   */
-  const getEffectiveUser = () => {
+  const getEffectiveUser = useCallback(() => {
     return user;
-  };
+  }, [user]);
 
-  /**
-   * Get the original admin user (if impersonating)
-   */
-  const getOriginalAdmin = () => {
+  const getOriginalAdmin = useCallback(() => {
     return originalUser;
-  };
+  }, [originalUser]);
+
+  const contextValue = useMemo(() => ({
+    user,
+    signup,
+    login,
+    logout,
+    updateUser,
+    refreshUser,
+    updateSubscription,
+    submitProOnboarding,
+    loading,
+    impersonation,
+    originalUser,
+    startImpersonation,
+    endImpersonation,
+    getAdminId,
+    isReadOnlyMode,
+    getEffectiveUser,
+    getOriginalAdmin,
+    isImpersonating: !!impersonation
+  }), [
+    user,
+    signup,
+    login,
+    logout,
+    updateUser,
+    refreshUser,
+    updateSubscription,
+    submitProOnboarding,
+    loading,
+    impersonation,
+    originalUser,
+    startImpersonation,
+    endImpersonation,
+    getAdminId,
+    isReadOnlyMode,
+    getEffectiveUser,
+    getOriginalAdmin
+  ]);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      signup, 
-      login, 
-      logout, 
-      updateUser,
-      refreshUser,
-      updateSubscription,
-      submitProOnboarding,
-      loading,
-      // Impersonation
-      impersonation,
-      originalUser,
-      startImpersonation,
-      endImpersonation,
-      getAdminId,
-      isReadOnlyMode,
-      getEffectiveUser,
-      getOriginalAdmin,
-      isImpersonating: !!impersonation
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

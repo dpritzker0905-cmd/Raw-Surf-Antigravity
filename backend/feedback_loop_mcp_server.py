@@ -1,15 +1,16 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 from datetime import datetime, timezone
 
 # SQLite System Telemetry Storage Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\system_telemetry.db"
+DB_PATH = get_db_path("system_telemetry.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. System Logs table (Frontend Netlify & Backend Render)
@@ -62,7 +63,7 @@ def init_db():
 # Real-Time Telemetry Ingestion
 def ingest_telemetry_event(category, payload):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     timestamp = payload.get("timestamp")
@@ -151,7 +152,7 @@ def ingest_telemetry_event(category, payload):
 # AI Audit Tools
 def get_recent_errors(source=None, limit=50):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     errors = []
@@ -206,7 +207,7 @@ def get_recent_errors(source=None, limit=50):
 
 def get_performance_anomalies(min_fps=30.0, max_memory_mb=512.0):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     anomalies = []
@@ -253,7 +254,7 @@ def get_performance_anomalies(min_fps=30.0, max_memory_mb=512.0):
 
 def get_user_funnel_dropoff():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Fetch all funnel events grouped by user_id

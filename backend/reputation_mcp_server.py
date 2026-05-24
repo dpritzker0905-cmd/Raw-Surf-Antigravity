@@ -1,14 +1,15 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import re
 from datetime import datetime
 
 # SQLite Reputation DB Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\reputation_trust.db"
+DB_PATH = get_db_path("reputation_trust.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Moderation Queue Table
@@ -90,7 +91,7 @@ def analyze_spam_fraud(content, rating=5, history_checks=None):
 def calculate_reputation(entity_id):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT total_bookings, completed_bookings, cancellations, response_times_sum, response_count FROM reliability_metrics WHERE entity_id = ?",
@@ -176,7 +177,7 @@ def add_to_moderation(entity_type, entity_id, reporter_id, content, rating=5):
     status = "pending" if spam_score >= 0.70 else "approved"
     reason = "Flagged by AI Spam Engine" if spam_score >= 0.70 else "Auto-approved by AI Clean Check"
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO moderation_queue (entity_type, entity_id, reporter_id, content, spam_score, status, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -199,7 +200,7 @@ def update_moderation_status(review_id, caller_role, action, reason=""):
         
     status = "approved" if action == "approve" else "rejected"
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "UPDATE moderation_queue SET status = ?, reason = ? WHERE id = ?",
@@ -213,7 +214,7 @@ def update_moderation_status(review_id, caller_role, action, reason=""):
 def seed_reliability_metrics(entity_id, entity_type, total, completed, cancels, resp_sum, resp_count):
     init_db()
     now = datetime.now().isoformat()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT OR REPLACE INTO reliability_metrics (entity_id, entity_type, total_bookings, completed_bookings, cancellations, response_times_sum, response_count, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -375,7 +376,7 @@ def main():
                     if caller_role.lower() != "admin":
                         text_out = "Access Denied: Only users with 'admin' roles can read moderation queues."
                     else:
-                        conn = sqlite3.connect(DB_PATH)
+                        conn = get_sqlite_connection(DB_PATH)
                         cursor = conn.cursor()
                         cursor.execute("SELECT id, entity_type, entity_id, reporter_id, content, spam_score, status, reason FROM moderation_queue WHERE status = 'pending'")
                         rows = cursor.fetchall()

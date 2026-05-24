@@ -1,15 +1,19 @@
 """
 WebSocket Routes for Real-time Updates
 """
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Header, HTTPException, status
 import logging
 import json
 import asyncio
+import os
 
 from websocket_manager import ws_manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
+
+INTERNAL_TOKEN = os.getenv("INTERNAL_BROADCAST_TOKEN", "super_secret_internal_token_123")
+
 
 
 @router.websocket("/ws/conditions")
@@ -435,4 +439,31 @@ async def get_online_users():
         "online_users": online,
         "count": len(online)
     }
+
+
+@router.post("/internal/events/broadcast")
+async def internal_broadcast(payload: dict, x_internal_token: str = Header(None)):
+    """
+    Internal loopback proxy webhook to bridge process boundaries.
+    Enables standalone MCP processes to securely forward broadcast events
+    to FastAPI's active, in-memory WebSocket connections.
+    """
+    if x_internal_token != INTERNAL_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing X-Internal-Token header"
+        )
+    
+    room = payload.get("room", "conditions")
+    message = payload.get("message")
+    
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payload must contain a 'message' dictionary"
+        )
+        
+    await ws_manager.broadcast(message, room=room)
+    return {"status": "broadcast_sent", "room": room}
+
 

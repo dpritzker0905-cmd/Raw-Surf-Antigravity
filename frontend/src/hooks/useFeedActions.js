@@ -9,6 +9,7 @@
  * This file is the single entry point consumed by Feed.js.
  * Each sub-hook receives only the state it needs.
  */
+import { useMemo } from 'react';
 import useFeedDataActions from './feed/useFeedDataActions';
 import useFeedReactionActions from './feed/useFeedReactionActions';
 import useFeedCheckInActions from './feed/useFeedCheckInActions';
@@ -100,7 +101,7 @@ const useFeedActions = ({
     setShowCheckInModal, setSpots, setStreak,
   });
 
-  return {
+  return useMemo(() => ({
     // Data actions
     handleFeedRefresh: dataActions.handleFeedRefresh,
     handleLoadNewPosts: dataActions.handleLoadNewPosts,
@@ -141,7 +142,7 @@ const useFeedActions = ({
     handleCheckIn: checkInActions.handleCheckIn,
     submitCheckIn: checkInActions.submitCheckIn,
     closeCheckInModal: checkInActions.closeCheckInModal,
-  };
+  }), [dataActions, reactionActions, checkInActions]);
 };
 
 export default useFeedActions;

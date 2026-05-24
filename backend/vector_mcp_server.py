@@ -1,6 +1,7 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import os
 import urllib.request
 import urllib.parse
@@ -8,10 +9,10 @@ from datetime import datetime
 import math
 
 # SQLite Vector Store Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\vector_store.db"
+DB_PATH = get_db_path("vector_store.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS vector_store (
@@ -111,7 +112,7 @@ def index_document(collection, content, metadata_dict):
     metadata_json = json.dumps(metadata_dict or {})
     created_at = datetime.now().isoformat()
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO vector_store (collection, content, metadata, embedding, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -125,7 +126,7 @@ def semantic_search(collection, query_text, limit=5):
     init_db()
     query_emb = get_embedding(query_text)
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT id, content, metadata, embedding, created_at FROM vector_store WHERE collection = ?",

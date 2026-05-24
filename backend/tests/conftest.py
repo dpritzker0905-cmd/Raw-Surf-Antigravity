@@ -24,7 +24,7 @@ async def client():
     Each test gets a fresh client instance. No real DB connections are made.
     """
     try:
-        from main import app
+        from server import app
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
             yield ac

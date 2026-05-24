@@ -118,14 +118,18 @@ export const useWebSocket = (room, userId = null) => {
  * useConditionsSync - Real-time conditions feed
  */
 export const useConditionsSync = (onNewCondition) => {
+  const onNewConditionRef = useRef(onNewCondition);
+  useEffect(() => {
+    onNewConditionRef.current = onNewCondition;
+  }, [onNewCondition]);
+
   const { isConnected, lastMessage, error } = useWebSocket('conditions');
 
   useEffect(() => {
-    // Match backend message type: 'new_condition_report'
-    if (lastMessage?.type === 'new_condition_report' && onNewCondition) {
-      onNewCondition(lastMessage.data);
+    if (lastMessage?.type === 'new_condition_report' && onNewConditionRef.current) {
+      onNewConditionRef.current(lastMessage.data);
     }
-  }, [lastMessage, onNewCondition]);
+  }, [lastMessage]);
 
   return { isConnected, error };
 };
@@ -134,14 +138,18 @@ export const useConditionsSync = (onNewCondition) => {
  * useLiveStreamSync - Real-time live stream status
  */
 export const useLiveStreamSync = (onLiveUpdate) => {
+  const onLiveUpdateRef = useRef(onLiveUpdate);
+  useEffect(() => {
+    onLiveUpdateRef.current = onLiveUpdate;
+  }, [onLiveUpdate]);
+
   const { isConnected, lastMessage, error } = useWebSocket('live');
 
   useEffect(() => {
-    // Match backend message type: 'live_status_change'
-    if (lastMessage?.type === 'live_status_change' && onLiveUpdate) {
-      onLiveUpdate(lastMessage.data);
+    if (lastMessage?.type === 'live_status_change' && onLiveUpdateRef.current) {
+      onLiveUpdateRef.current(lastMessage.data);
     }
-  }, [lastMessage, onLiveUpdate]);
+  }, [lastMessage]);
 
   return { isConnected, error };
 };
@@ -150,13 +158,18 @@ export const useLiveStreamSync = (onLiveUpdate) => {
  * useEarningsSync - Real-time earnings updates for photographers
  */
 export const useEarningsSync = (userId, onEarningsUpdate) => {
+  const onEarningsUpdateRef = useRef(onEarningsUpdate);
+  useEffect(() => {
+    onEarningsUpdateRef.current = onEarningsUpdate;
+  }, [onEarningsUpdate]);
+
   const { isConnected, lastMessage, error } = useWebSocket('earnings', userId);
 
   useEffect(() => {
-    if (lastMessage?.type === 'earnings_update' && onEarningsUpdate) {
-      onEarningsUpdate(lastMessage.data);
+    if (lastMessage?.type === 'earnings_update' && onEarningsUpdateRef.current) {
+      onEarningsUpdateRef.current(lastMessage.data);
     }
-  }, [lastMessage, onEarningsUpdate]);
+  }, [lastMessage]);
 
   return { isConnected, error };
 };
@@ -171,6 +184,11 @@ export const usePhotographerActivitySync = (photographerId, onActivity) => {
   const wsRef = useRef(null);
   const pingIntervalRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+
+  const onActivityRef = useRef(onActivity);
+  useEffect(() => {
+    onActivityRef.current = onActivity;
+  }, [onActivity]);
 
   useEffect(() => {
     if (!photographerId) return;
@@ -195,8 +213,8 @@ export const usePhotographerActivitySync = (photographerId, onActivity) => {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data.type !== 'pong' && data.type !== 'connected' && onActivity) {
-              onActivity(data);
+            if (data.type !== 'pong' && data.type !== 'connected' && onActivityRef.current) {
+              onActivityRef.current(data);
             }
           } catch (e) {
             logger.error('[WS] Parse error:', e);
@@ -224,7 +242,7 @@ export const usePhotographerActivitySync = (photographerId, onActivity) => {
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (wsRef.current) wsRef.current.close(1000);
     };
-  }, [photographerId, onActivity]);
+  }, [photographerId]);
 
   return { isConnected, error };
 };

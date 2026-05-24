@@ -1,15 +1,16 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 from datetime import datetime, timezone
 
 # SQLite QA Audit Storage Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\qa_audit_telemetry.db"
+DB_PATH = get_db_path("qa_audit_telemetry.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. QA simulated sessions log
@@ -61,7 +62,7 @@ def simulate_user_journey(journey_type, simulated_issues=None):
     if js_errors > 0 or layout == "broken" or simulated_issues.get("force_failure"):
         status = "failure"
         
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO qa_sessions (session_id, journey_type, duration_ms, js_errors_count, rendering_speed, layout_status, status, timestamp)
@@ -122,7 +123,7 @@ def simulate_user_journey(journey_type, simulated_issues=None):
 # Retrieve bug reports ordered by Severity
 def get_recent_bug_reports(min_severity=None):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     if min_severity:
@@ -167,7 +168,7 @@ def get_recent_bug_reports(min_severity=None):
 # Compare current tests against healthy session baselines
 def get_system_health_baseline():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT status FROM qa_sessions")

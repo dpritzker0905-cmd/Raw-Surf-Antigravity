@@ -1,15 +1,16 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import time
 import random
 from datetime import datetime
 
 # SQLite Workflow Caching & Storage Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\n8n_workflow_store.db"
+DB_PATH = get_db_path("n8n_workflow_store.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Workflows definition table
@@ -90,7 +91,7 @@ def init_db():
 # Core Actions
 def add_workflow(name, nodes_list, max_retries=3, backoff=2.0, active=True):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     nodes_json = json.dumps(nodes_list)
     act_val = 1 if active else 0
@@ -108,7 +109,7 @@ def add_workflow(name, nodes_list, max_retries=3, backoff=2.0, active=True):
 
 def run_workflow(name, payload):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Fetch workflow definition
@@ -193,7 +194,7 @@ def run_workflow(name, payload):
     completed_at = datetime.now().isoformat()
     
     # Save execution log in database
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO n8n_executions (id, workflow_name, status, execution_logs, retry_attempts, error_msg, started_at, completed_at)
@@ -216,7 +217,7 @@ def run_workflow(name, payload):
 
 def get_executions(workflow_name=None, limit=10):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     if workflow_name:
@@ -250,7 +251,7 @@ def get_executions(workflow_name=None, limit=10):
 
 def get_dashboard_metrics():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT status FROM n8n_executions")
@@ -287,7 +288,7 @@ def get_dashboard_metrics():
 
 def update_retry_policy(name, max_retries, backoff):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute("SELECT id FROM n8n_workflows WHERE name = ?", (name,))

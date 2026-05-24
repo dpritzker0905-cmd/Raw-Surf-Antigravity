@@ -1,20 +1,21 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import time
 import os
 import uuid
 from datetime import datetime
 
 # SQLite WooCommerce Caching & Marketplace Storage Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\woocommerce_marketplace.db"
+DB_PATH = get_db_path("woocommerce_marketplace.db")
 
 # Secure WooCommerce REST API key support
 WOOCOMMERCE_KEY = os.environ.get("WOOCOMMERCE_CONSUMER_KEY", "ck_test_mock_woo_key_for_antigravity_2_0")
 WOOCOMMERCE_SECRET = os.environ.get("WOOCOMMERCE_CONSUMER_SECRET", "cs_test_mock_woo_secret_for_antigravity_2_0")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Marketplace Sellers Supabase Auth Mapping
@@ -100,7 +101,7 @@ def wc_create_product(seller_id, name, base_price, description, categories_list,
     init_db()
     product_id = f"prod_wc_{uuid.uuid4().hex[:12]}"
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO marketplace_products (product_id, seller_id, name, type, status, base_price, description, categories, created_at)
@@ -122,7 +123,7 @@ def wc_create_product(seller_id, name, base_price, description, categories_list,
 
 def wc_update_product(product_id, price=None, description=None, status=None):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Verify product exists
@@ -157,7 +158,7 @@ def wc_update_variation(product_id, size, color, fin_setup, price, stock, overla
     if not overlay_image:
         overlay_image = f"https://res.cloudinary.com/rawsurf/image/upload/v12/{color.lower().replace(' ', '_')}_{fin_setup.lower().replace(' ', '_')}_overlay.png"
         
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO product_variations (variation_id, product_id, size, color, fin_setup, price, stock_quantity, overlay_image_url, created_at)
@@ -186,7 +187,7 @@ def wc_update_variation(product_id, size, color, fin_setup, price, stock, overla
 
 def wc_sync_inventory(product_id, variation_id, new_quantity):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Verify variation exists
@@ -218,7 +219,7 @@ def wc_moderate_listing(product_id, admin_decision, caller_role="admin"):
     decision_map = {"approve": "approved", "flag": "flagged", "reject": "flagged"}
     db_status = decision_map.get(admin_decision.lower(), "pending")
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("UPDATE marketplace_products SET status = ? WHERE product_id = ?", (db_status, product_id))
     conn.commit()

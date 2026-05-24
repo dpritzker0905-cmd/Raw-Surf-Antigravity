@@ -28,6 +28,12 @@ export const useOfflineMode = () => {
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const [lastSyncLocation, setLastSyncLocation] = useState(null);
   const locationWatchRef = useRef(null);
+  const autoSyncRef = useRef(autoSyncEnabled);
+
+  // Keep autoSyncRef in sync with the state
+  useEffect(() => {
+    autoSyncRef.current = autoSyncEnabled;
+  }, [autoSyncEnabled]);
 
   // Listen for online/offline events
   useEffect(() => {
@@ -35,7 +41,7 @@ export const useOfflineMode = () => {
       setIsOnline(true);
       logger.debug('[OfflineMode] Back online');
       // Auto-sync when back online if enabled
-      if (autoSyncEnabled) {
+      if (autoSyncRef.current) {
         syncNearbySpots();
       }
     };

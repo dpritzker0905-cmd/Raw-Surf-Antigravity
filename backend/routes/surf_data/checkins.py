@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_current_user_id
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -39,7 +41,12 @@ class StreakResponse(BaseModel):
     checked_in_today: bool
 
 @router.post("/check-in", response_model=CheckInResponse)
-async def create_check_in(user_id: str, data: CheckInRequest, db: AsyncSession = Depends(get_db)):
+async def create_check_in(user_id: str, data: CheckInRequest, db: AsyncSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+    if user_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: cannot create check-in for another user."
+        )
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = user_result.scalar_one_or_none()
     if not user:
@@ -143,7 +150,12 @@ async def create_check_in(user_id: str, data: CheckInRequest, db: AsyncSession =
     )
 
 @router.get("/streak/{user_id}", response_model=StreakResponse)
-async def get_user_streak(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_user_streak(user_id: str, db: AsyncSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+    if user_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: cannot view streaks of another user."
+        )
     streak_result = await db.execute(select(UserStreak).where(UserStreak.user_id == user_id))
     streak = streak_result.scalar_one_or_none()
     
@@ -172,7 +184,12 @@ async def get_user_streak(user_id: str, db: AsyncSession = Depends(get_db)):
     )
 
 @router.get("/check-ins/{user_id}")
-async def get_user_check_ins(user_id: str, limit: int = 20, db: AsyncSession = Depends(get_db)):
+async def get_user_check_ins(user_id: str, limit: int = 20, db: AsyncSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+    if user_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: cannot view check-ins of another user."
+        )
     result = await db.execute(
         select(CheckIn)
         .where(CheckIn.user_id == user_id)

@@ -1,14 +1,15 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import math
 from datetime import datetime
 
 # SQLite Recommendation Storage Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\recommendations_store.db"
+DB_PATH = get_db_path("recommendations_store.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Store profiles/embeddings for recommendation caching

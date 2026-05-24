@@ -1,13 +1,14 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 from datetime import datetime
 
 # SQLite Overrides Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\pricing_overrides.db"
+DB_PATH = get_db_path("pricing_overrides.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS pricing_overrides (
@@ -29,7 +30,7 @@ def calculate_dynamic_pricing(base_price, demand, surf_quality, availability, se
     init_db()
     
     # 1. Check for Active Admin Overrides first
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Query specific override or service type override
@@ -151,7 +152,7 @@ def set_admin_override(service_type, entity_id, override_type, value, reason):
     init_db()
     created_at = datetime.now().isoformat()
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     # Deactivate existing overrides for same entity
     cursor.execute(
@@ -170,7 +171,7 @@ def set_admin_override(service_type, entity_id, override_type, value, reason):
 # Admin List Overrides
 def list_overrides():
     init_db()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "SELECT id, service_type, entity_id, override_type, value, reason, is_active, created_at FROM pricing_overrides"
@@ -195,7 +196,7 @@ def list_overrides():
 # Remove Override
 def remove_override(override_id):
     init_db()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("UPDATE pricing_overrides SET is_active = 0 WHERE id = ?", (override_id,))
     conn.commit()

@@ -1,6 +1,7 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 import time
@@ -8,10 +9,10 @@ from datetime import datetime, timezone
 import math
 
 # SQLite Simulation Layer DB Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\simulation_layer.db"
+DB_PATH = get_db_path("simulation_layer.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Simulated Scenarios Table
@@ -164,7 +165,7 @@ def run_system_simulation(name, user_behavior_preset, environmental_preset, syst
     scenario_id = f"scen_{uuid.uuid4().hex[:12]}"
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO simulated_scenarios (
@@ -194,7 +195,7 @@ def run_system_simulation(name, user_behavior_preset, environmental_preset, syst
 # 2. Get Simulation History
 def get_simulation_history(limit=50):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT scenario_id, name, user_behavior, environmental_conditions, system_stress, evaluation_result, optimization_suggestions, timestamp 
@@ -220,7 +221,7 @@ def get_simulation_history(limit=50):
 # 3. Evaluate Stress Vulnerability Analysis
 def evaluate_stress_vulnerability():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT system_stress, evaluation_result, optimization_suggestions FROM simulated_scenarios")
     rows = cursor.fetchall()

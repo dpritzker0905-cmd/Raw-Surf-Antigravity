@@ -1,15 +1,16 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 from datetime import datetime, timezone
 
 # SQLite World Model Caching Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\world_model_intel.db"
+DB_PATH = get_db_path("world_model_intel.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Weather and Ocean Data table
@@ -103,7 +104,7 @@ def calculate_derived_metrics(height, period, wind_dir, tide):
 # Ingest and correlate weather/ocean parameters
 def ingest_weather_ocean_data(spot_name, swell_height_ft, swell_period_sec, swell_direction, wind_speed_mph, wind_direction, tide_cycle, latitude=34.0, longitude=-118.0):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -148,7 +149,7 @@ def ingest_weather_ocean_data(spot_name, swell_height_ft, swell_period_sec, swel
 # Derived insights tool
 def get_surf_spot_insights(spot_name, user_skill):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT swell_height_ft, swell_period_sec, swell_direction, wind_speed_mph, wind_direction, tide_cycle, latitude, longitude 
@@ -201,7 +202,7 @@ def get_surf_spot_insights(spot_name, user_skill):
 # Best surf spots next 24h
 def get_best_surf_spots_24h(user_skill):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT spot_name, swell_height_ft, swell_period_sec, swell_direction, wind_speed_mph, wind_direction, tide_cycle 
@@ -233,7 +234,7 @@ def get_best_surf_spots_24h(user_skill):
 # Crowd level predictions
 def get_expected_crowds_by_beach():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT spot_name, swell_height_ft, swell_period_sec, wind_direction, tide_cycle FROM weather_ocean_data")
     rows = cursor.fetchall()
@@ -253,7 +254,7 @@ def get_expected_crowds_by_beach():
 # Photography windows
 def get_optimal_photography_windows(spot_name):
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT swell_height_ft, swell_period_sec, wind_direction, tide_cycle FROM weather_ocean_data WHERE spot_name = ?", (spot_name,))
     row = cursor.fetchone()
@@ -294,7 +295,7 @@ def get_optimal_photography_windows(spot_name):
 # MapLibre GeoJSON layer exporter
 def generate_maplibre_weather_geojson():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT spot_name, swell_height_ft, wind_speed_mph, wind_direction, tide_cycle, latitude, longitude FROM weather_ocean_data")
     rows = cursor.fetchall()

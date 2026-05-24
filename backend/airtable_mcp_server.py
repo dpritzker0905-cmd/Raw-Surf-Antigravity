@@ -1,13 +1,14 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 from datetime import datetime
 
 # SQLite Mock Airtable Sync Path (Simulates Airtable tables locally)
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\airtable_sync.db"
+DB_PATH = get_db_path("airtable_sync.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Instructors Base Table
@@ -102,7 +103,7 @@ def execute_supabase_sync():
         {"sponsor_name": "Rip Curl", "tier": "platinum", "ad_views": 15200}
     ]
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Sync Instructors
@@ -157,7 +158,7 @@ def execute_supabase_sync():
 def update_booking_status_mcp(booking_id, new_status):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute(
         "UPDATE base_bookings SET status = ? WHERE booking_id = ?",
@@ -193,7 +194,7 @@ def update_booking_status_mcp(booking_id, new_status):
 def assign_instructor_mcp(booking_id, instructor_id):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Fetch instructor name to be helpful
@@ -234,7 +235,7 @@ def assign_instructor_mcp(booking_id, instructor_id):
 def generate_reports_mcp():
     init_db()
     
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Get total active bookings
@@ -271,7 +272,7 @@ def generate_reports_mcp():
 # Setup initial mock automations
 def setup_initial_automations():
     init_db()
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # Deactivate existing mock triggers

@@ -8,6 +8,8 @@ from sqlalchemy.orm import selectinload
 from typing import List, Optional
 from datetime import datetime, timezone
 import json
+from core.security import get_current_user_id
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,9 +34,16 @@ router = APIRouter()
 async def get_photographer_bookings(
     photographer_id: str,
     status: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Get all bookings for a photographer"""
+    if photographer_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: cannot query bookings of another photographer."
+        )
+
     # Verify photographer exists and has photographer role
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == photographer_id)
@@ -153,9 +162,16 @@ async def get_booked_slots(
 async def create_booking(
     photographer_id: str,
     data: CreateBookingRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Create a new booking/session (photographer creating their own availability)"""
+    if photographer_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: cannot create booking for another photographer."
+        )
+
     # Verify photographer
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == photographer_id)
@@ -242,7 +258,8 @@ async def create_booking(
 async def update_booking_status(
     booking_id: str,
     data: UpdateBookingStatusRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Update booking status (confirm, cancel)"""
     result = await db.execute(
@@ -253,6 +270,13 @@ async def update_booking_status(
     
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+        
+    if current_user_id not in [booking.photographer_id, booking.creator_id]:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: you are not authorized to update this booking's status."
+        )
+
     
     valid_statuses = ['Pending', 'Confirmed', 'Completed', 'Cancelled']
     if data.status not in valid_statuses:
@@ -282,7 +306,8 @@ async def update_booking_status(
 async def update_booking_details(
     booking_id: str,
     data: UpdateBookingDetailsRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Update booking details (location, date, duration, etc.)"""
     from routes.notifications.push import notify_booking
@@ -299,6 +324,13 @@ async def update_booking_details(
     
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+        
+    if current_user_id not in [booking.photographer_id, booking.creator_id]:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: you are not authorized to update this booking."
+        )
+
     
     # Track what changed for notifications
     changes = []

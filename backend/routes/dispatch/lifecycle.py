@@ -27,6 +27,8 @@ from models import (
     Surfboard
 )
 from utils.parental_alerts import check_and_send_spending_alert
+from core.security import get_current_user_id
+
 from services.onesignal_service import onesignal_service
 
 from .schemas import (
@@ -48,12 +50,19 @@ async def accept_dispatch(
     dispatch_id: str,
     accept_data: AcceptDispatchRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Photographer accepts a dispatch request
     Starts GPS tracking session and sends push notification to surfer
     """
+    if accept_data.photographer_id != current_user_id:
+        raise HTTPException(
+            status_code=403, 
+            detail="Unauthorized action: photographer_id does not match authenticated user."
+        )
+
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
@@ -158,13 +167,20 @@ async def decline_dispatch(
     dispatch_id: str,
     photographer_id: str,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Photographer declines a dispatch request.
     This marks the notification as declined but doesn't cancel the request.
     If this is a Quick Book (target_photographer), notify the surfer.
     """
+    if photographer_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized action: photographer_id does not match authenticated user."
+        )
+
     # Find the notification for this photographer
     notif_result = await db.execute(
         select(DispatchNotification).where(
@@ -244,7 +260,8 @@ async def update_session_location(
     dispatch_id: str,
     requester_id: str,
     data: UpdateSessionLocationRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Update the session meeting point (coordinates + name).
@@ -257,6 +274,12 @@ async def update_session_location(
     
     Once any confirmation happens, the location is LOCKED.
     """
+    if requester_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized action: requester_id does not match authenticated user."
+        )
+
     result = await db.execute(
         select(DispatchRequest).where(DispatchRequest.id == dispatch_id)
     )
@@ -334,9 +357,16 @@ async def update_location(
     dispatch_id: str,
     user_id: str,
     location: UpdateGPSLocation,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Update GPS location for either party during en_route phase"""
+    if user_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized action: user_id does not match authenticated user."
+        )
+
     result = await db.execute(
         select(DispatchRequest).where(DispatchRequest.id == dispatch_id)
     )
@@ -394,12 +424,19 @@ async def update_selfie(
     dispatch_id: str,
     requester_id: str,
     data: UpdateSelfieRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Surfer uploads their identification selfie (with surfboard) so the Pro can find them.
     This should be done after the Pro accepts the request.
     """
+    if requester_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized action: requester_id does not match authenticated user."
+        )
+
     result = await db.execute(
         select(DispatchRequest).where(DispatchRequest.id == dispatch_id)
     )
@@ -438,11 +475,18 @@ async def update_selfie(
 async def mark_arrived(
     dispatch_id: str,
     photographer_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Photographer marks arrival - ends GPS tracking, creates booking
     """
+    if photographer_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized action: photographer_id does not match authenticated user."
+        )
+
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)

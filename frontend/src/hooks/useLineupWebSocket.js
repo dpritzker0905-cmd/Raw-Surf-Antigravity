@@ -22,6 +22,47 @@ export const useLineupWebSocket = (lineupId, userId, onUpdate) => {
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
 
+  const onUpdateRef = useRef(onUpdate);
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
+  const mapUpdateTypeToEventType = (updateType) => {
+    const mapping = {
+      'crew_joined': 'member_joined',
+      'crew_left': 'member_left',
+      'lineup_locked': 'lineup_status_changed',
+      'lineup_cancelled': 'session_cancelled',
+      'payment_received': 'payment_received',
+      'status_changed': 'lineup_status_changed'
+    };
+    return mapping[updateType] || updateType;
+  };
+
+  const handleLineupUpdate = useCallback((message) => {
+    if (message.type !== 'lineup_update') return;
+
+    const { update_type, ...data } = message.data;
+
+    // Process through the enhanced notification service
+    const notificationEvent = processLineupWebSocketEvent(
+      { type: mapUpdateTypeToEventType(update_type), data },
+      userId
+    );
+    
+    if (notificationEvent) {
+      handleLineupNotification(notificationEvent.type, notificationEvent.data, {
+        soundEnabled: true,
+        pushEnabled: true
+      });
+    }
+
+    // Call the update callback to refresh lineup data
+    if (onUpdateRef.current) {
+      onUpdateRef.current(message.data);
+    }
+  }, [userId]);
+
   const connect = useCallback(() => {
     if (!lineupId || !userId || !WS_BASE) return;
 
@@ -62,44 +103,7 @@ export const useLineupWebSocket = (lineupId, userId, onUpdate) => {
     } catch (e) {
       logger.error('[LineupWS] Connection error:', e);
     }
-  }, [lineupId, userId]);
-
-  const handleLineupUpdate = useCallback((message) => {
-    if (message.type !== 'lineup_update') return;
-
-    const { update_type, ...data } = message.data;
-
-    // Process through the enhanced notification service
-    const notificationEvent = processLineupWebSocketEvent(
-      { type: mapUpdateTypeToEventType(update_type), data },
-      userId
-    );
-    
-    if (notificationEvent) {
-      handleLineupNotification(notificationEvent.type, notificationEvent.data, {
-        soundEnabled: true,
-        pushEnabled: true
-      });
-    }
-
-    // Call the update callback to refresh lineup data
-    if (onUpdate) {
-      onUpdate(message.data);
-    }
-  }, [onUpdate, userId]);
-
-  // Map old update types to new event types
-  const mapUpdateTypeToEventType = (updateType) => {
-    const mapping = {
-      'crew_joined': 'member_joined',
-      'crew_left': 'member_left',
-      'lineup_locked': 'lineup_status_changed',
-      'lineup_cancelled': 'session_cancelled',
-      'payment_received': 'payment_received',
-      'status_changed': 'lineup_status_changed'
-    };
-    return mapping[updateType] || updateType;
-  };
+  }, [lineupId, userId, handleLineupUpdate]);
 
   // Ping to keep connection alive
   useEffect(() => {
@@ -144,6 +148,11 @@ export const useUserWebSocket = (userId, onNotification) => {
   const [isConnected, setIsConnected] = useState(false);
   const wsRef = useRef(null);
 
+  const onNotificationRef = useRef(onNotification);
+  useEffect(() => {
+    onNotificationRef.current = onNotification;
+  }, [onNotification]);
+
   useEffect(() => {
     if (!userId || !WS_BASE) return;
 
@@ -176,8 +185,8 @@ export const useUserWebSocket = (userId, onNotification) => {
               });
             }
             
-            if (onNotification) {
-              onNotification(message.data);
+            if (onNotificationRef.current) {
+              onNotificationRef.current(message.data);
             }
           }
         } catch (e) {
@@ -205,7 +214,7 @@ export const useUserWebSocket = (userId, onNotification) => {
     } catch (e) {
       logger.error('[UserWS] Connection error:', e);
     }
-  }, [userId, onNotification]);
+  }, [userId]);
 
   return { isConnected };
 };

@@ -1,15 +1,16 @@
 import sys
 import json
 import sqlite3
+from utils.sqlite_helpers import get_sqlite_connection, get_db_path
 import uuid
 import os
 from datetime import datetime, timezone
 
 # SQLite Operator Decisions Database Path
-DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\operator_decisions.db"
+DB_PATH = get_db_path("operator_decisions.db")
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     # 1. Operator Decisions Table (Refactored to support complete Admin Queue schema)
@@ -174,7 +175,7 @@ def monitor_system_state(spot_name):
         })
 
     # Enqueue recommendations in sqlite DB under pending_approval state
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -241,7 +242,7 @@ def propose_pricing_change(spot_name, proposed_price, explanation, correlation_i
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     corr_id = correlation_id or f"corr_p_{uuid.uuid4().hex[:8]}"
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO operator_decisions (
@@ -299,7 +300,7 @@ def propose_cancellation(event_id, explanation, swell_height_ft=None, correlatio
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     corr_id = correlation_id or f"corr_c_{uuid.uuid4().hex[:8]}"
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO operator_decisions (
@@ -333,7 +334,7 @@ def propose_cancellation(event_id, explanation, swell_height_ft=None, correlatio
 def execute_decision(decision_id, caller_role, correlation_id=None):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id 
@@ -431,7 +432,7 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
 # 5. Query decision history
 def get_operator_decision_history():
     init_db()
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp, caller_role, execution_timestamp, execution_result, correlation_id,
@@ -474,7 +475,7 @@ def get_operator_decision_history():
 def reject_decision(decision_id, caller_role, explanation, correlation_id=None):
     init_db()
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     SELECT decision_id, type, spot_name, proposed_value, status, correlation_id 
@@ -553,7 +554,7 @@ def propose_booking_override(booking_id, new_capacity, caller_role, explanation,
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     c_id = correlation_id or f"corr_o_{uuid.uuid4().hex[:8]}"
     
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    conn = get_sqlite_connection(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO operator_decisions (
@@ -598,7 +599,7 @@ def propose_booking_override(booking_id, new_capacity, caller_role, explanation,
     # If caller_role == 'admin', we immediately execute the override!
     if caller_role == "admin":
         exec_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        conn = get_sqlite_connection(DB_PATH)
         cursor = conn.cursor()
         
         exec_payload = {

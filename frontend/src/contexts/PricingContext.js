@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
@@ -252,7 +252,7 @@ export const PricingProvider = ({ children }) => {
     fetchSessionPricing();
   }, [fetchGeneralSettings, fetchSessionPricing]);
 
-  const value = {
+  const value = useMemo(() => ({
     generalSettings,
     sessionPricing,
     loading,
@@ -264,7 +264,17 @@ export const PricingProvider = ({ children }) => {
     refreshPricing,
     _refreshPricing: refreshPricing,
     calculateDisplayPrice: (item, tier) => calculateDisplayPrice(item, sessionPricing, generalSettings, tier)
-  };
+  }), [
+    generalSettings,
+    sessionPricing,
+    loading,
+    lastUpdated,
+    updateGeneralSettings,
+    setItemCustomPrice,
+    clearItemCustomPrice,
+    getDisplayPrice,
+    refreshPricing
+  ]);
 
   return (
     <PricingContext.Provider value={value}>
