@@ -439,7 +439,7 @@ const UnifiedAdminConsole = () => {
   ];
 
   return (
-    <div className={`min-h-screen ${bgClass} pb-20`} data-testid="unified-admin-console">
+    <div className={`min-h-screen ${bgClass} ${t.textPrimary} pb-20`} data-testid="unified-admin-console">
       {/* Header */}
       <div className={`sticky top-0 z-[1100] ${
         theme === 'beach'

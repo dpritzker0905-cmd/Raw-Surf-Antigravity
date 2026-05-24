@@ -666,3 +666,40 @@ input[type="range"].appearance-none::-moz-range-track {
     background: rgba(0,0,0,0.25);
   }
 }
+
+/* ============ GLOBAL THEME-AWARE INPUT & SELECT CONTRAST OVERRIDES ============ */
+/* Ensures high-contrast legibility for all interactive form controls across different themes */
+.light input,
+.light textarea,
+.light button[role="combobox"],
+.light button[role="combobox"] *,
+.light .SelectTrigger,
+.light .SelectTrigger *,
+.light select,
+.light select * {
+  color: #111827 !important; /* text-gray-900 */
+  border-color: #d1d5db !important; /* border-gray-300 */
+}
+
+.beach-mode input,
+.beach-mode textarea,
+.beach-mode button[role="combobox"],
+.beach-mode button[role="combobox"] *,
+.beach-mode .SelectTrigger,
+.beach-mode .SelectTrigger *,
+.beach-mode select,
+.beach-mode select * {
+  color: #78350f !important; /* text-amber-900 */
+  border-color: #fde68a !important; /* border-amber-200 */
+}
+
+/* Legible placeholders for light and beach themes */
+.light input::placeholder,
+.light textarea::placeholder {
+  color: #6b7280 !important; /* text-gray-500 */
+}
+
+.beach-mode input::placeholder,
+.beach-mode textarea::placeholder {
+  color: #b45309 !important; /* text-amber-700 */
+}
