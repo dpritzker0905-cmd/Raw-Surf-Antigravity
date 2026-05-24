@@ -12,7 +12,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     
-    # 1. Operator Decisions Table (Refactored to track correlation_id)
+    # 1. Operator Decisions Table (Refactored to support complete Admin Queue schema)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS operator_decisions (
         decision_id TEXT PRIMARY KEY,
@@ -25,27 +25,48 @@ def init_db():
         caller_role TEXT,
         execution_timestamp TEXT,
         execution_result TEXT, -- JSON string with details of Stripe/Calendar/Supabase integrations
-        correlation_id TEXT
+        correlation_id TEXT,
+        recommendation_type TEXT,
+        reasoning TEXT,
+        supporting_event_trace TEXT,
+        expected_outcome TEXT,
+        risk_level TEXT,
+        confidence_score REAL
     )
     """)
     
-    # Dynamic Migrations
+    # Dynamic Migrations: Check if columns exist and add them if not
     cursor.execute("PRAGMA table_info(operator_decisions)")
     cols = [col[1] for col in cursor.fetchall()]
-    if "correlation_id" not in cols:
-        cursor.execute("ALTER TABLE operator_decisions ADD COLUMN correlation_id TEXT")
-        
+    
+    migrations = [
+        ("correlation_id", "TEXT"),
+        ("recommendation_type", "TEXT"),
+        ("reasoning", "TEXT"),
+        ("supporting_event_trace", "TEXT"),
+        ("expected_outcome", "TEXT"),
+        ("risk_level", "TEXT"),
+        ("confidence_score", "REAL")
+    ]
+    
+    for col_name, col_type in migrations:
+        if col_name not in cols:
+            cursor.execute(f"ALTER TABLE operator_decisions ADD COLUMN {col_name} {col_type}")
+            
     conn.commit()
     conn.close()
 
-# 1. Monitor System State
+# 1. Monitor System State (Enqueues recommendations into the Admin Queue)
 def monitor_system_state(spot_name):
+    init_db()
+    
     # Standard realistic weather defaults
     swell_height = 5.5
     swell_period = 14
     wind_speed = 8.0
     wind_direction = "Light Offshore"
     tide_cycle = "rising"
+    corr_id = f"corr_mon_{uuid.uuid4().hex[:8]}"
     
     # PURE EVENT SPINE QUERY: completely decoupled, no raw world model SQLite DB connection
     try:
@@ -60,6 +81,7 @@ def monitor_system_state(spot_name):
             wind_speed = float(w_pay.get("wind_speed_mph", wind_speed))
             wind_direction = w_pay.get("wind_conditions", wind_direction)
             tide_cycle = w_pay.get("tide_cycle", tide_cycle)
+            corr_id = spot_weather.get("correlation_id") or corr_id
     except Exception as e:
         sys.stderr.write(f"Warning querying event bus for weather: {str(e)}\n")
         sys.stderr.flush()
@@ -82,51 +104,113 @@ def monitor_system_state(spot_name):
         "status": "available" if is_prime else "restricted"
     }
 
-    # Recommendations lists
+    # Generate Recommendations and Enqueue into the Admin Decisions Table
     recommendations = []
     
-    # Pricing recommendation
+    # 1. Pricing recommendation
     if demand == "high":
         recommendations.append({
             "action": "adjust_pricing",
-            "multiplier": 1.25,
+            "proposed_value": "125.0",
             "proposed_price": 125.0,
-            "rationale": f"High demand and prime swell of {swell_height}ft groom offshore wind peaks."
+            "multiplier": 1.25,
+            "rationale": f"High demand and prime swell of {swell_height}ft groom offshore wind peaks.",
+            "expected_outcome": "Capture premium value and increase booking margins by 25%.",
+            "risk_level": "low",
+            "confidence_score": 92.0
         })
     elif demand == "low":
         recommendations.append({
             "action": "adjust_pricing",
-            "multiplier": 0.85,
+            "proposed_value": "85.0",
             "proposed_price": 85.0,
-            "rationale": f"Low demand due to poor {swell_height}ft waves or onshore wind clutter."
+            "multiplier": 0.85,
+            "rationale": f"Low demand due to poor {swell_height}ft waves or onshore wind clutter.",
+            "expected_outcome": "Stimulate conversion rates with a 15% discount.",
+            "risk_level": "low",
+            "confidence_score": 80.0
         })
     else:
         recommendations.append({
             "action": "adjust_pricing",
-            "multiplier": 1.0,
+            "proposed_value": "100.0",
             "proposed_price": 100.0,
-            "rationale": "Moderate conditions. Standard baseline pricing recommended."
+            "multiplier": 1.0,
+            "rationale": "Moderate conditions. Standard baseline pricing recommended.",
+            "expected_outcome": "Maintain normal baseline operations.",
+            "risk_level": "low",
+            "confidence_score": 95.0
         })
 
-    # Booking status recommendation
+    # 2. Booking status recommendation
     if swell_height > 10.0:
         recommendations.append({
             "action": "close_bookings",
-            "rationale": f"Severe warning: Swell height is {swell_height}ft which exceeds safe lessons limit of 10ft."
+            "proposed_value": "close",
+            "rationale": f"Severe warning: Swell height is {swell_height}ft which exceeds safe lessons limit of 10ft.",
+            "expected_outcome": "Enforce water safety cancellations and prevent student accidents.",
+            "risk_level": "high",
+            "confidence_score": 99.0
         })
     else:
         recommendations.append({
             "action": "open_bookings",
-            "rationale": f"Safe wave heights of {swell_height}ft are ideal for standard lessons."
+            "proposed_value": "open",
+            "rationale": f"Safe wave heights of {swell_height}ft are ideal for standard lessons.",
+            "expected_outcome": "Keep lesson booking calendars open for surfers.",
+            "risk_level": "low",
+            "confidence_score": 95.0
         })
 
-    # Promotional push recommendation
+    # 3. Promotional push recommendation
     if is_prime:
         recommendations.append({
             "action": "promo_push",
-            "campaign": f"Epic Surf {spot_name}",
-            "rationale": "Prime glassy offshore sets matching premium photographer slot availability."
+            "proposed_value": f"Epic Surf {spot_name}",
+            "rationale": "Prime glassy offshore sets matching premium photographer slot availability.",
+            "expected_outcome": "Drive booking conversions during peak glassy surf windows.",
+            "risk_level": "medium",
+            "confidence_score": 85.0
         })
+
+    # Enqueue recommendations in sqlite DB under pending_approval state
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    cursor = conn.cursor()
+    
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    for rec in recommendations:
+        dec_id = f"dec_{rec['action']}_{uuid.uuid4().hex[:8]}"
+        rec["decision_id"] = dec_id
+        
+        # Avoid duplicate pending decisions for visual hygiene
+        cursor.execute("""
+        SELECT COUNT(*) FROM operator_decisions 
+        WHERE spot_name = ? AND type = ? AND proposed_value = ? AND status = 'pending_approval'
+        """, (spot_name, rec["action"], rec["proposed_value"]))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("""
+            INSERT INTO operator_decisions (
+                decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id,
+                recommendation_type, reasoning, supporting_event_trace, expected_outcome, risk_level, confidence_score
+            ) VALUES (?, ?, ?, ?, 'pending_approval', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                dec_id,
+                rec["action"],
+                spot_name,
+                rec["proposed_value"],
+                rec["rationale"],
+                timestamp,
+                corr_id,
+                rec["action"],
+                rec["rationale"],
+                corr_id,
+                rec["expected_outcome"],
+                rec["risk_level"],
+                rec["confidence_score"]
+            ))
+            
+    conn.commit()
+    conn.close()
 
     return {
         "spot_name": spot_name,
@@ -142,7 +226,7 @@ def monitor_system_state(spot_name):
         "recommendations": recommendations
     }
 
-# 2. Propose Pricing Change
+# 2. Propose Pricing Change (Non-autonomous proposal)
 def propose_pricing_change(spot_name, proposed_price, explanation, correlation_id=None):
     init_db()
     
@@ -155,13 +239,26 @@ def propose_pricing_change(spot_name, proposed_price, explanation, correlation_i
 
     decision_id = f"dec_price_{uuid.uuid4().hex[:8]}"
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    corr_id = correlation_id or f"corr_p_{uuid.uuid4().hex[:8]}"
     
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO operator_decisions (decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (decision_id, "pricing_adjustment", spot_name, str(price_val), "pending_approval", explanation, timestamp, correlation_id))
+    INSERT INTO operator_decisions (
+        decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id,
+        recommendation_type, reasoning, supporting_event_trace, expected_outcome, risk_level, confidence_score
+    ) VALUES (?, 'pricing_adjustment', ?, ?, 'pending_approval', ?, ?, ?, 'pricing_adjustment', ?, ?, ?, 'medium', 95.0)
+    """, (
+        decision_id,
+        spot_name,
+        str(price_val),
+        explanation,
+        timestamp,
+        corr_id,
+        explanation,
+        corr_id,
+        f"Enforce dynamic pricing shift to ${price_val} for {spot_name}."
+    ))
     
     conn.commit()
     conn.close()
@@ -172,10 +269,10 @@ def propose_pricing_change(spot_name, proposed_price, explanation, correlation_i
         "status": "pending_approval",
         "explanation_logged": True,
         "proposed_price": price_val,
-        "correlation_id": correlation_id
+        "correlation_id": corr_id
     }
 
-# 3. Propose Safety Cancellation
+# 3. Propose Safety Cancellation (Non-autonomous proposal)
 def propose_cancellation(event_id, explanation, swell_height_ft=None, correlation_id=None):
     init_db()
     
@@ -200,13 +297,25 @@ def propose_cancellation(event_id, explanation, swell_height_ft=None, correlatio
 
     decision_id = f"dec_cancel_{uuid.uuid4().hex[:8]}"
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    corr_id = correlation_id or f"corr_c_{uuid.uuid4().hex[:8]}"
     
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO operator_decisions (decision_id, type, proposed_value, status, explanation, timestamp, correlation_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (decision_id, "cancellation", str(event_id), "pending_approval", f"[SAFETY VALIDATED - Swell: {s_height}ft] {explanation}", timestamp, correlation_id))
+    INSERT INTO operator_decisions (
+        decision_id, type, proposed_value, status, explanation, timestamp, correlation_id,
+        recommendation_type, reasoning, supporting_event_trace, expected_outcome, risk_level, confidence_score
+    ) VALUES (?, 'cancellation', ?, 'pending_approval', ?, ?, ?, 'cancellation', ?, ?, ?, 'high', 99.0)
+    """, (
+        decision_id,
+        str(event_id),
+        f"[SAFETY VALIDATED - Swell: {s_height}ft] {explanation}",
+        timestamp,
+        corr_id,
+        explanation,
+        corr_id,
+        f"Enforce safety cancellation for booking event {event_id}."
+    ))
     
     conn.commit()
     conn.close()
@@ -217,17 +326,17 @@ def propose_cancellation(event_id, explanation, swell_height_ft=None, correlatio
         "status": "pending_approval",
         "explanation_logged": True,
         "safety_threshold_validated": True,
-        "correlation_id": correlation_id
+        "correlation_id": corr_id
     }
 
-# 4. Execute approved decision with Gates
+# 4. Execute approved decision with strict human-in-the-loop Gate
 def execute_decision(decision_id, caller_role, correlation_id=None):
     init_db()
     
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp 
+    SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id 
     FROM operator_decisions WHERE decision_id = ?
     """, (decision_id,))
     row = cursor.fetchone()
@@ -236,23 +345,48 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
         conn.close()
         return {"success": False, "error": f"Decision {decision_id} not found."}
         
-    dec_id, dec_type, spot, value, status, explanation, ts = row
+    dec_id, dec_type, spot, value, status, explanation, ts, corr_id = row
     
     if status != "pending_approval":
         conn.close()
         return {"success": False, "error": f"Decision is already in '{status}' status."}
         
-    # GATES ENFORCEMENT
-    if dec_type == "pricing_adjustment" and caller_role != "admin":
+    # STRICT HUMAN-IN-THE-LOOP ADMIN GATE
+    if caller_role != "admin":
         conn.close()
         return {
             "success": False,
-            "error": "Unauthorized execution attempt: Pricing changes require admin approval."
+            "error": "Unauthorized execution attempt: All operator decisions require explicit admin approval."
         }
         
-    # Execute and sync with simulated integrations (Stripe, Calendar, Supabase)
+    # Execute decision: Publish admin_approved_action back into the central Event Spine!
     exec_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    c_id = correlation_id or corr_id or f"corr_exec_{uuid.uuid4().hex[:8]}"
     
+    approved_payload = {
+        "decision_id": decision_id,
+        "recommendation_type": dec_type,
+        "spot_name": spot,
+        "proposed_value": value,
+        "explanation": explanation,
+        "approved_by": caller_role,
+        "timestamp": exec_ts
+    }
+    
+    # Route back through the unified event backbone spine
+    try:
+        import event_bus_mcp_server
+        event_bus_mcp_server.publish_event(
+            event_type="admin_approved_action",
+            payload=approved_payload,
+            correlation_id=c_id,
+            source_mcp="operator_mcp",
+            source_service="operator_mcp"
+        )
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed publishing admin_approved_action: {str(e)}\n")
+        sys.stderr.flush()
+        
     integration_results = {
         "stripe_sync": {
             "status": "synchronized",
@@ -264,7 +398,7 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
         },
         "supabase_sync": {
             "status": "synchronized",
-            "message": f"Supabase sync: Operator decision trail successfully committed. Audit: {explanation}"
+            "message": f"Supabase event spine synchronizer triggered. Emitted admin_approved_action: {dec_type}"
         }
     }
     
@@ -272,7 +406,7 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
     UPDATE operator_decisions 
     SET status = 'executed', caller_role = ?, execution_timestamp = ?, execution_result = ?, correlation_id = ?
     WHERE decision_id = ?
-    """, (caller_role, exec_ts, json.dumps(integration_results), correlation_id, decision_id))
+    """, (caller_role, exec_ts, json.dumps(integration_results), c_id, decision_id))
     
     conn.commit()
     conn.close()
@@ -284,7 +418,7 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
         "caller_role": caller_role,
         "execution_timestamp": exec_ts,
         "execution_result": integration_results,
-        "correlation_id": correlation_id
+        "correlation_id": c_id
     }
 
 # 5. Query decision history
@@ -293,7 +427,8 @@ def get_operator_decision_history():
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp, caller_role, execution_timestamp, execution_result, correlation_id 
+    SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp, caller_role, execution_timestamp, execution_result, correlation_id,
+           recommendation_type, reasoning, supporting_event_trace, expected_outcome, risk_level, confidence_score
     FROM operator_decisions ORDER BY timestamp DESC
     """)
     rows = cursor.fetchall()
@@ -318,7 +453,13 @@ def get_operator_decision_history():
             "caller_role": r[7],
             "execution_timestamp": r[8],
             "execution_result": exec_res,
-            "correlation_id": r[10]
+            "correlation_id": r[10],
+            "recommendation_type": r[11],
+            "reasoning": r[12],
+            "supporting_event_trace": r[13],
+            "expected_outcome": r[14],
+            "risk_level": r[15],
+            "confidence_score": r[16]
         })
     return history
 

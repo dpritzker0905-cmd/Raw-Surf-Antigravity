@@ -22,6 +22,7 @@ def init_db():
         timestamp TEXT NOT NULL, -- ISO 8601 UTC Z format
         user_id TEXT,
         source_mcp TEXT,
+        source_service TEXT,
         correlation_id TEXT NOT NULL
     )
     """)
@@ -34,8 +35,11 @@ def init_db():
         cursor.execute("ALTER TABLE event_log ADD COLUMN user_id TEXT")
     if "source_mcp" not in columns:
         cursor.execute("ALTER TABLE event_log ADD COLUMN source_mcp TEXT")
+    if "source_service" not in columns:
+        cursor.execute("ALTER TABLE event_log ADD COLUMN source_service TEXT")
     if "correlation_id" not in columns:
         cursor.execute("ALTER TABLE event_log ADD COLUMN correlation_id TEXT NOT NULL DEFAULT ''")
+
     
     # 2. Event Subscriptions Table
     cursor.execute("""
@@ -75,7 +79,7 @@ def clear_in_memory_handlers():
     _in_memory_subscribers.clear()
 
 # 1. Publish Event
-def publish_event(event_type, payload, correlation_id=None, source_mcp=None, user_id=None):
+def publish_event(event_type, payload, correlation_id=None, source_mcp=None, user_id=None, source_service=None):
     init_db()
     start_time = time.perf_counter()
     
@@ -84,6 +88,9 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
     
     # Ensure correlation_id exists for causal trace chains
     corr_id = correlation_id or f"corr_{uuid.uuid4().hex[:12]}"
+    
+    # Resolve source_service/source_mcp
+    src_svc = source_service or source_mcp or "unknown"
     
     # Auto-resolve user_id from payload if omitted
     u_id = user_id
@@ -95,9 +102,10 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
     
     # Insert event to Event Log
     cursor.execute("""
-    INSERT INTO event_log (event_id, event_type, payload, timestamp, user_id, source_mcp, correlation_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (event_id, event_type, json.dumps(payload), timestamp, u_id, source_mcp, corr_id))
+    INSERT INTO event_log (event_id, event_type, payload, timestamp, user_id, source_mcp, source_service, correlation_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (event_id, event_type, json.dumps(payload), timestamp, u_id, src_svc, src_svc, corr_id))
+
     
     # Scan active persistent subscriptions
     cursor.execute("""
@@ -481,7 +489,8 @@ def main():
                                         "event_type": {"type": "string", "description": "System event type category"},
                                         "payload": {"type": "object", "description": "Arbitrary JSON payload content"},
                                         "correlation_id": {"type": "string", "description": "Causal tracking UUID"},
-                                        "source_mcp": {"type": "string", "description": "Emitting service name"},
+                                        "source_mcp": {"type": "string", "description": "Emitting service name (legacy)"},
+                                        "source_service": {"type": "string", "description": "Standardized emitting service name"},
                                         "user_id": {"type": "string", "description": "Associated user identifier"}
                                     },
                                     "required": ["event_type", "payload"]
@@ -563,9 +572,10 @@ def main():
                     e_type = args.get("event_type")
                     pay = args.get("payload", {})
                     corr = args.get("correlation_id")
-                    src = args.get("source_mcp")
+                    src_mcp = args.get("source_mcp")
+                    src_svc = args.get("source_service")
                     u_id = args.get("user_id")
-                    res = publish_event(e_type, pay, corr, src, u_id)
+                    res = publish_event(e_type, pay, corr, source_mcp=src_mcp, user_id=u_id, source_service=src_svc)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "subscribe_to_channel":
