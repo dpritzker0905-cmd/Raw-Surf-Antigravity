@@ -15,7 +15,7 @@ import {
   registerOpenMeteoProtocol,
   clearOpenMeteoCache,
   safeSetPaintProperty,
-  invalidateStaleTileRequests
+  setMapActiveModelLock
 } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -194,7 +194,7 @@ var MapWebGL = ({
     console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
     setIsTransitioning(true);
     cacheBustRef.current = Date.now();
-    invalidateStaleTileRequests(); // Invalidate stale out-of-order custom tile requests
+    setMapActiveModelLock(activeModel); // Enforce active model lock to avoid out-of-order discarding
     
     let active = true;
 

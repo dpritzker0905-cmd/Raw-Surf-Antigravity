@@ -5,13 +5,34 @@
 
 import maplibregl from 'maplibre-gl';
 
-// Custom protocol request session token
-let currentRequestSessionToken = Date.now();
+// Custom protocol active model lock to avoid premature tile discarding
+let activeModelLock = "";
+
+export const setMapActiveModelLock = (modelName) => {
+  activeModelLock = modelName;
+  console.log('[OM-Protocol] Active model lock target set to:', activeModelLock);
+};
 
 export function invalidateStaleTileRequests() {
-  currentRequestSessionToken = Date.now();
-  console.log('[OM-Protocol] Invalidating stale tile requests, new session token:', currentRequestSessionToken);
+  // Backwards compatibility stub
 }
+
+const getParentModel = (folder) => {
+  if (!folder) return "";
+  const f = folder.toLowerCase();
+  if (f.includes('gfs')) return "GFS";
+  if (f.includes('ecmwf') || f.includes('ifs') || f.includes('wam')) return "EURO";
+  if (f.includes('dwd') || f.includes('icon') || f.includes('gwam')) return "ICON";
+  return "";
+};
+
+const isModelMatch = (folder, lock) => {
+  if (!lock) return true; // Safe fallback if lock is empty
+  const parent = getParentModel(folder);
+  const f = folder.toLowerCase();
+  const l = lock.toLowerCase();
+  return parent.toLowerCase() === l || f.includes(l) || l.includes(f);
+};
 
 // Colors
 export var ELECTRIC_CYAN = '#00CCFF';
@@ -600,9 +621,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             console.log('[OM-Protocol] Registered with', Object.keys(currentSettings.colorScales).length, 'color scales');
           }
           
+          let requestedModelFolder = "";
           // Diagnostic: log each unique variable request
           try {
             const urlObj = new URL(params.url.replace('om://', ''));
+            const parts = urlObj.pathname.split('/');
+            if (parts[2]) {
+              requestedModelFolder = parts[2];
+            }
             const variable = urlObj.searchParams.get('variable');
             if (variable && window.__RASTER_DEBUG__ && !debug[`logged_var_${variable}`]) {
               window.__RASTER_DEBUG__[`logged_var_${variable}`] = true;
@@ -645,13 +671,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
 
           // v3.13.5: Double-wrapped synchronous + asynchronous type-safe error boundaries
           // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
-          const requestSession = currentRequestSessionToken;
-
           try {
             return omProtocol(params, abortController, currentSettings)
               .then(response => {
-                if (requestSession !== currentRequestSessionToken) {
-                  console.warn('[OM-Protocol] Discarding stale tile request session response');
+                if (!isModelMatch(requestedModelFolder, activeModelLock)) {
+                  console.warn(`[OM-Protocol] Discarding tile for model ${requestedModelFolder} because active lock is ${activeModelLock}`);
                   return getFallbackResponse(params);
                 }
                 return response;
