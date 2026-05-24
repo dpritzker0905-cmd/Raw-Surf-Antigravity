@@ -245,9 +245,14 @@ var MapWebGL = ({
           const VARIABLE_FALLBACKS = {
             'wind_speed_10m': 'wind_gusts_10m', 'wind_gusts_10m': 'wind_u_component_10m', 'visibility': 'cloud_cover_low'
           };
-          const fb = VARIABLE_FALLBACKS[variable];
-          if (fb && meta.variables.includes(fb)) {
-            resolvedVar = fb;
+          let currentVar = variable;
+          while (currentVar && !meta.variables.includes(currentVar)) {
+            const fb = VARIABLE_FALLBACKS[currentVar];
+            if (fb) currentVar = fb;
+            else break;
+          }
+          if (meta.variables.includes(currentVar)) {
+            resolvedVar = currentVar;
             const fbKey = `${variable}-${layerModel}`;
             if (!loggedFallbacks.current.has(fbKey)) {
               loggedFallbacks.current.add(fbKey);

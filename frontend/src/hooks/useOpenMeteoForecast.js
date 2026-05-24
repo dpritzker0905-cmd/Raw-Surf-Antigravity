@@ -13,7 +13,7 @@ import logger from '../utils/logger';
 const MODEL_MAP = {
   GFS:  'gfs_seamless',
   EURO: 'ecmwf_ifs025',
-  ICON: 'icon_seamless',
+  ICON: 'dwd_icon',
 };
 
 const MODEL_FORECAST_DAYS = { GFS: 16, EURO: 10, ICON: 7 };
