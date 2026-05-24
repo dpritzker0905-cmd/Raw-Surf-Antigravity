@@ -606,14 +606,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
           } catch (err) { /* ignore parse errors */ }
 
           const getFallbackResponse = async (url) => {
-            // Explicitly target metadata and TileJSON requests by scanning the incoming URL string
-            const isMetadataJson = url && (url.includes('.json') || url.includes('type=json'));
-            
-            if (isMetadataJson) {
-              console.log('[OM-Protocol] Enforcing type-safe TileJSON structure on fallback channel.');
-              const compliantTileJson = {
+            // Authoritatively isolate TileJSON and configuration metadata lookups by scanning the full path string
+            const isMetadataConfigQuery = url && (url.includes('.json') || url.includes('type=json') || url.includes('time_step='));
+
+            if (isMetadataConfigQuery) {
+              console.log('[OM-Protocol] Enforcing string-compliant mock TileJSON structure on metadata line.');
+              const comprehensiveMockTileJson = {
                 tilejson: "2.2.0",
-                name: "om-fallback-layer",
+                name: "om-safe-fallback",
                 version: "1.0.0",
                 tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="],
                 bounds: [-180, -85, 180, 85],
@@ -621,21 +621,22 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 maxzoom: 22
               };
               const textEncoder = new TextEncoder();
-              const encodedUint8 = textEncoder.encode(JSON.stringify(compliantTileJson));
-              return { data: encodedUint8.buffer };
+              const encodedUint8Array = textEncoder.encode(JSON.stringify(comprehensiveMockTileJson));
+              return { data: encodedUint8Array.buffer };
             }
-            
-            // Fallback for real gridded raster chunks remains our pristine 1x1 transparent PNG binary array buffer
+
+            // Fallback for actual image tiles is a valid, pre-compiled 1x1 transparent PNG structure array buffer
             try {
-              const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              const binaryString = window.atob(transparentPngBase64);
-              const bufferLength = binaryString.length;
-              const binaryBytes = new Uint8Array(bufferLength);
-              for (let i = 0; i < bufferLength; i++) {
-                binaryBytes[i] = binaryString.charCodeAt(i);
+              const valid1x1TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+              const decodedBinaryString = window.atob(valid1x1TransparentPngBase64);
+              const dataBufferLength = decodedBinaryString.length;
+              const rawBinaryBytes = new Uint8Array(dataBufferLength);
+              for (let i = 0; i < dataBufferLength; i++) {
+                rawBinaryBytes[i] = decodedBinaryString.charCodeAt(i);
               }
-              return { data: binaryBytes.buffer };
-            } catch (e) {
+              return { data: rawBinaryBytes.buffer };
+            } catch (err) {
+              // Ultimate type safety fallback to ensure worker survives loop evaluations
               return { data: new ArrayBuffer(0) };
             }
           };
