@@ -34,7 +34,7 @@ export const PRECIP_MODEL_MAP = {
 // ECMWF WAM only has wave_height/period no swell/wind_wave decomposition.
 export const MARINE_MODEL_MAP = {
   'GFS':  'ncep_gfswave025',  // Full: wave, swell, wind_wave, secondary swell
-  'ICON': 'dwd_icon',         // DWD ICON-based global wave model
+  'ICON': 'dwd_gwam',         // DWD ICON-based global wave model
   'EURO': 'ecmwf_wam025',     // Limited: wave_height/period only
 };
 
