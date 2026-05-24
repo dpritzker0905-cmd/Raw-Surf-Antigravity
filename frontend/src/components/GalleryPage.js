@@ -2,23 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
+import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
-import {
-  Camera,
-  X,
-  Plus,
-  Loader2,
-  Check,
-  Sparkles,
-  Folder,
-  MapPin,
-  Trash2,
-  Copy,
-  Radio,
-  UserPlus,
-  ChevronLeft,
-  Link2
-} from 'lucide-react';
+import { Camera, X, Plus, Loader2, Check, Sparkles, Folder, MapPin, Trash2, Copy, Radio, UserPlus, ChevronLeft, Link2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
@@ -39,6 +25,7 @@ import { GalleryFolderList } from './gallery/GalleryFolderList';
 import { GalleryFolderModals } from './gallery/GalleryFolderModals';
 import { GalleryPricingCard } from './gallery/GalleryPricingCard';
 import GromHighlightsCard from './gallery/GromHighlightsCard';
+import { ProStudioManager } from './gallery/ProStudioManager';
 
 
 
@@ -49,6 +36,7 @@ import { GallerySkeleton } from './ui/SkeletonVariants';
 
 export const GalleryPage = () => {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const { 
     generalSettings, 
@@ -281,6 +269,13 @@ export const GalleryPage = () => {
     newFolderName, folderToRename, folderToDelete, galleryPricing,
     gallery,
   });
+
+  // Auto-fetch participants when selected gallery changes
+  useEffect(() => {
+    if (selectedGallery?.id) {
+      fetchParticipants(selectedGallery.id);
+    }
+  }, [selectedGallery?.id]);
 
   // Pull-to-refresh for mobile - triggers gallery refresh on swipe-down
   const { pullRef: galleryPullRef, isPulling: galleryPulling, pullProgress: galleryPullProgress, isRefreshing: galleryPtrRefreshing } = usePullToRefresh(
@@ -617,6 +612,16 @@ export const GalleryPage = () => {
             </div>
           )}
 
+          {/* Pro Photographer AI Studio Panel */}
+          <div className="mb-6">
+            <ProStudioManager
+              gallery={selectedGallery}
+              galleryId={selectedGallery.id}
+              sessionParticipants={participants}
+              theme={theme}
+            />
+          </div>
+
           {/* Gallery items grid */}
           {galleryItemsLoading ? (
             <div className="flex justify-center py-12">
@@ -766,25 +771,8 @@ export const GalleryPage = () => {
         selectedItems={selectedItems}
         handleMoveToFolder={handleMoveToFolder}
         handleCopyToFolder={handleCopyToFolder}
-      />
-
-      {/* TAG_ASSIGN modal - extracted */}
-
-      {/* Batch Tag Picker now unified into Tag & Assign modal above */}
-
-      {/* THUMBNAIL modal - extracted */}
-
-      {/* LINK_SESSION modal - extracted */}
-
-      {/* Watermark Settings Modal */}
-      <WatermarkSettings
-        open={showWatermarkSettings}
-        onOpenChange={setShowWatermarkSettings}
-        theme="dark"
-      />
+      />      <WatermarkSettings open={showWatermarkSettings} onOpenChange={setShowWatermarkSettings} theme="dark" />
     </div>
   );
 };
-
-
 export default GalleryPage;
