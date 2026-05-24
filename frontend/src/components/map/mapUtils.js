@@ -584,22 +584,24 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          // Helper to get a transparent 1x1 pixel ImageBitmap fallback or valid empty TileJSON depending on request type
+          // Helper to get a transparent 1x1 pixel PNG ArrayBuffer fallback or valid empty TileJSON depending on request type
           // Prevents MapLibre GL JS tile painter warnings and guarantees the WebGL thread stays stable on corrupt tiles
           const getFallbackResponse = async (type) => {
             if (type === 'json') {
               return { data: { tiles: [] } };
             }
             try {
-              const canvas = document.createElement('canvas');
-              canvas.width = 1;
-              canvas.height = 1;
-              const ctx = canvas.getContext('2d');
-              if (ctx) ctx.clearRect(0, 0, 1, 1);
-              const bitmap = await createImageBitmap(canvas);
-              return { data: bitmap };
+              // A solid, valid 1x1 transparent PNG binary array buffer
+              const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+              const binaryString = window.atob(transparentPngBase64);
+              const len = binaryString.length;
+              const bytes = new Uint8Array(len);
+              for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              return { data: bytes.buffer };
             } catch (e) {
-              return { data: null };
+              return { data: new ArrayBuffer(0) };
             }
           };
 
