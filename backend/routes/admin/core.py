@@ -885,7 +885,7 @@ async def get_chronological_trace(correlation_id: str, admin: Profile = Depends(
         raise HTTPException(status_code=500, detail=f"Trace reconstruction error: {str(e)}")
 
 @router.get("/admin/event-dashboard/system-health")
-async def get_event_system_health(admin: Profile = Depends(get_current_admin)):
+async def get_event_system_health(admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Calculate core system indicators from actual event statistics"""
     try:
         import event_bus_mcp_server
@@ -905,13 +905,52 @@ async def get_event_system_health(admin: Profile = Depends(get_current_admin)):
         latencies = [e.get("propagation_latency_ms", 2.5) for e in events if e.get("propagation_latency_ms")]
         avg_latency = (sum(latencies) / len(latencies)) if latencies else 2.5
         
+        # Active Photographer Telemetry
+        from models.bookings import Booking
+        from models.sessions import LiveSession
+
+        try:
+            # 1. Photographers actively shooting (live session mode 'live_join')
+            active_shooting_q = select(func.count(func.distinct(LiveSession.photographer_id))).where(
+                LiveSession.status == 'active',
+                LiveSession.session_mode == 'live_join'
+            )
+            active_shooting_res = await db.execute(active_shooting_q)
+            active_shooting_count = active_shooting_res.scalar() or 0
+        except Exception:
+            active_shooting_count = 0
+
+        try:
+            # 2. Photographers with active/confirmed bookings
+            active_booking_q = select(func.count(func.distinct(Booking.photographer_id))).where(
+                Booking.status.in_(['Confirmed', 'in_progress', 'active'])
+            )
+            active_booking_res = await db.execute(active_booking_q)
+            active_booking_count = active_booking_res.scalar() or 0
+        except Exception:
+            active_booking_count = 0
+
+        try:
+            # 3. Photographers on-demand (live session mode 'on_demand')
+            active_ondemand_q = select(func.count(func.distinct(LiveSession.photographer_id))).where(
+                LiveSession.status == 'active',
+                LiveSession.session_mode == 'on_demand'
+            )
+            active_ondemand_res = await db.execute(active_ondemand_q)
+            active_ondemand_count = active_ondemand_res.scalar() or 0
+        except Exception:
+            active_ondemand_count = 0
+        
         return {
             "success": True,
             "metrics": {
                 "error_rate": round(error_rate, 2),
                 "booking_success_rate": round(booking_success, 1),
                 "average_propagation_latency_ms": round(avg_latency, 1),
-                "total_events_logged": total_events
+                "total_events_logged": total_events,
+                "photographers_active_shooting": active_shooting_count,
+                "photographers_active_booking": active_booking_count,
+                "photographers_active_ondemand": active_ondemand_count
             }
         }
     except Exception as e:

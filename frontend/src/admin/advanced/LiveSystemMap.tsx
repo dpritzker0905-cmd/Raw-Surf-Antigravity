@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Map, RefreshCw, Server, Users, CloudSun, AlertOctagon, Activity, ShieldAlert, Cpu
+  Map, RefreshCw, Server, Users, CloudSun, AlertOctagon, Activity, ShieldAlert, Cpu, Camera
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 
@@ -9,6 +9,9 @@ interface TelemetryMetrics {
   booking_success_rate: number;
   average_propagation_latency_ms: number;
   total_events_logged: number;
+  photographers_active_shooting?: number;
+  photographers_active_booking?: number;
+  photographers_active_ondemand?: number;
 }
 
 interface PlatformStats {
@@ -28,7 +31,10 @@ export const LiveSystemMap: React.FC = () => {
     error_rate: 0.0,
     booking_success_rate: 100.0,
     average_propagation_latency_ms: 2.5,
-    total_events_logged: 0
+    total_events_logged: 0,
+    photographers_active_shooting: 0,
+    photographers_active_booking: 0,
+    photographers_active_ondemand: 0
   });
   const [stats, setStats] = useState<PlatformStats>({
     users: { total: 0, active: 0, new_this_week: 0 },
@@ -211,10 +217,28 @@ export const LiveSystemMap: React.FC = () => {
               </div>
             </div>
 
-            {/* Total events ticker */}
-            <div className="bg-slate-900/30 border border-slate-900 rounded-lg p-3 text-[10px] font-mono space-y-0.5 text-slate-400 leading-normal">
-              <div>Total Event Logs Analyzed: <strong>{metrics.total_events_logged}</strong></div>
-              <div>Hotspot Diagnostics: <strong>Healthy</strong></div>
+            {/* Active Photographers Telemetry */}
+            <div className="bg-slate-900/30 border border-slate-900 rounded-lg p-3.5 font-mono text-[10px] space-y-2 text-slate-400">
+              <div className="flex items-center gap-1.5 text-slate-300 border-b border-slate-850 pb-1 mb-1 font-bold">
+                <Camera className="w-3.5 h-3.5 text-cyan-400" />
+                <span>ACTIVE PHOTOGRAPHERS</span>
+              </div>
+              <div className="flex justify-between py-0.5">
+                <span>Live Active Shooting:</span>
+                <span className="text-emerald-400 font-extrabold">{metrics.photographers_active_shooting || 0} active</span>
+              </div>
+              <div className="flex justify-between py-0.5">
+                <span>Scheduled Bookings:</span>
+                <span className="text-cyan-400 font-extrabold">{metrics.photographers_active_booking || 0} active</span>
+              </div>
+              <div className="flex justify-between py-0.5">
+                <span>On-Demand Dispatch:</span>
+                <span className="text-purple-400 font-extrabold">{metrics.photographers_active_ondemand || 0} active</span>
+              </div>
+              <div className="border-t border-slate-850 pt-2 mt-1 space-y-0.5 text-[9px] text-slate-500">
+                <div>Total Event Logs Analyzed: <strong>{metrics.total_events_logged}</strong></div>
+                <div>Hotspot Diagnostics: <strong>Healthy</strong></div>
+              </div>
             </div>
           </div>
         </div>

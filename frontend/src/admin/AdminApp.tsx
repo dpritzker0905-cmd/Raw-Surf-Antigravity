@@ -9,6 +9,7 @@ import AdminQueue from './components/AdminQueue';
 import BookingTrace from './components/BookingTrace';
 import MediaReview from './components/MediaReview';
 import SystemHealth from './components/SystemHealth';
+import UnifiedAdminConsole from '../components/UnifiedAdminConsole';
 
 // Advanced Console Components
 import { DecisionWorkbench } from './advanced/DecisionWorkbench';
