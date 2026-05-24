@@ -14,11 +14,12 @@ import logger from '../utils/logger';
 const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
   const { user } = useAuth();
   const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
   
-  const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondaryClass = isLight ? 'text-gray-600' : 'text-zinc-400';
-  const borderClass = isLight ? 'border-gray-200' : 'border-zinc-700';
-  const bgCardClass = isLight ? 'bg-gray-100' : 'bg-zinc-800';
+  const textPrimaryClass = isLight ? 'text-gray-900' : isBeach ? 'text-amber-50/90' : 'text-white';
+  const textSecondaryClass = isLight ? 'text-gray-600' : isBeach ? 'text-amber-200/50' : 'text-zinc-400';
+  const borderClass = isLight ? 'border-gray-200' : isBeach ? 'border-zinc-800' : 'border-zinc-700';
+  const bgCardClass = isLight ? 'bg-gray-100' : isBeach ? 'bg-black border border-zinc-900/60' : 'bg-zinc-800';
 
   // Watermark settings state
   const [settings, setSettings] = useState({
@@ -169,7 +170,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} sm:max-w-2xl`}>
+      <DialogContent className={`${isLight ? 'bg-white' : isBeach ? 'bg-zinc-950' : 'bg-zinc-900'} border ${borderClass} sm:max-w-2xl`}>
         <DialogHeader className="shrink-0 border-b border-inherit px-4 sm:px-6 pt-4 pb-3">
           <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
             <Droplet className="w-5 h-5 text-cyan-400" />
@@ -203,13 +204,15 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                       className={`
                         p-4 rounded-xl border-2 transition-all
                         ${isSelected 
-                          ? 'border-cyan-500 bg-cyan-500/10' 
-                          : `border-transparent ${bgCardClass} hover:border-cyan-500/50`
+                          ? isBeach
+                            ? 'border-amber-400 bg-amber-400/10'
+                            : 'border-cyan-500 bg-cyan-500/10' 
+                          : `border-transparent ${bgCardClass} hover:${isBeach ? 'border-amber-400/50' : 'border-cyan-500/50'}`
                         }
                       `}
                     >
-                      <Icon className={`w-6 h-6 mx-auto mb-2 ${isSelected ? 'text-cyan-400' : textSecondaryClass}`} />
-                      <span className={`text-sm ${isSelected ? 'text-cyan-400' : textPrimaryClass}`}>
+                      <Icon className={`w-6 h-6 mx-auto mb-2 ${isSelected ? isBeach ? 'text-amber-400' : 'text-cyan-400' : textSecondaryClass}`} />
+                      <span className={`text-sm ${isSelected ? isBeach ? 'text-amber-400' : 'text-cyan-400' : textPrimaryClass}`}>
                         {option.label}
                       </span>
                     </button>
@@ -297,12 +300,12 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                 >
                   <SelectValue placeholder="Select position" />
                 </SelectTrigger>
-                <SelectContent className={`${isLight ? 'bg-white' : 'bg-zinc-800'} border ${borderClass}`}>
+                <SelectContent className={`${isLight ? 'bg-white' : isBeach ? 'bg-zinc-950' : 'bg-zinc-800'} border ${borderClass}`}>
                   {positionOptions.map(option => (
                     <SelectItem 
                       key={option.value} 
                       value={option.value}
-                      className={`${textPrimaryClass} hover:bg-cyan-500/10`}
+                      className={`${textPrimaryClass} hover:${isBeach ? 'bg-amber-400/10 text-amber-400' : 'bg-cyan-500/10'}`}
                     >
                       <div className="flex items-center gap-2">
                         <Move className="w-4 h-4" />
@@ -347,7 +350,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
                   size="sm"
                   onClick={generatePreview}
                   disabled={generatingPreview}
-                  className="text-cyan-400 border-cyan-500/30"
+                  className={`${isBeach ? 'text-amber-400 border-amber-500/30 hover:bg-amber-400/10 hover:text-amber-400' : 'text-cyan-400 border-cyan-500/30'}`}
                 >
                   {generatingPreview ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -423,7 +426,7 @@ const WatermarkSettings = ({ open, onOpenChange, theme = 'dark' }) => {
             data-testid="save-watermark-settings-btn"
             onClick={handleSaveSettings}
             disabled={saving}
-            className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
+            className={isBeach ? "bg-amber-400 text-black font-bold hover:bg-amber-500" : "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"}
           >
             {saving ? (
               <>

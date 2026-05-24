@@ -1,6 +1,6 @@
 // File: frontend/src/components/gallery/ProStudioManager.js
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, UserCheck } from 'lucide-react';
+import { Camera, UserCheck, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
@@ -15,6 +15,21 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
   const [selectedSurferForGroup, setSelectedSurferForGroup] = useState({});
   const [activeVideo, setActiveVideo] = useState(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const [watermarkStyleType, setWatermarkStyleType] = useState('text'); // 'text' | 'logo' | 'both'
+  const [watermarkLogoUrl, setWatermarkLogoUrl] = useState(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  const filmstripThumbnails = [
+    'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=150&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=150&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=150&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=150&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=150&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1472214222541-d510753a4907?w=150&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=150&auto=format&fit=crop&q=60',
+    'https://images.unsplash.com/photo-1447752875215-b2761acb3c5d?w=150&auto=format&fit=crop&q=60'
+  ];
   
   // Dynamic preview backgrounds for the watermark designer
   const previewPresets = [
@@ -64,6 +79,8 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
         setWatermarkStyle(response.data.watermark_position === 'tiled' ? 'grid' : 'center');
         setWatermarkOpacity(Math.round((response.data.watermark_opacity || 0.5) * 100));
         setWatermarkText(response.data.watermark_text || 'RAW SURF DRM');
+        setWatermarkStyleType(response.data.watermark_style || 'text');
+        setWatermarkLogoUrl(response.data.watermark_logo_url || null);
       }
     } catch (err) {
       // Graceful fallback if settings are uninitialized
@@ -83,12 +100,43 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
     }
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Logo must be under 5MB');
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_type', 'watermark_logo');
+      const response = await apiClient.post('/upload/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setWatermarkLogoUrl(response.data.url);
+      setWatermarkStyleType('logo');
+      toast.success('Watermark logo uploaded!');
+    } catch (err) {
+      toast.error('Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setWatermarkLogoUrl(null);
+    setWatermarkStyleType('text');
+    toast.info('Logo removed. Reverted to text watermark.');
+  };
+
   const handleUpdateWatermarkSettings = async () => {
     try {
       await apiClient.put(`/photographer/${gallery.photographer_id}/watermark-settings`, {
-        watermark_style: 'text',
+        watermark_style: watermarkStyleType,
         watermark_text: watermarkText,
-        watermark_logo_url: null,
+        watermark_logo_url: watermarkLogoUrl,
         watermark_opacity: watermarkOpacity / 100,
         watermark_position: watermarkStyle === 'grid' ? 'tiled' : 'center',
         default_watermark_in_selection: true
@@ -173,6 +221,71 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
                 <h3 className={`text-base font-bold mb-1 ${textPrimaryClass}`}>DRM Brand designer</h3>
                 <p className="text-xs text-zinc-400">Protect high-res commercial photographs against screenshot extraction.</p>
               </div>
+
+              <div className="space-y-2">
+                <label className={`text-xs font-bold ${textSecondaryClass}`}>Watermark Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'text', label: 'Type Text' },
+                    { id: 'logo', label: 'Upload Logo' },
+                    { id: 'both', label: 'Logo + Text' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setWatermarkStyleType(t.id)}
+                      className={`p-2 rounded-lg border text-xs font-semibold text-center transition-colors ${
+                        watermarkStyleType === t.id
+                          ? isBeach
+                            ? 'border-amber-400 bg-amber-400/5 text-amber-400'
+                            : isLight
+                              ? 'border-blue-500 bg-blue-500/5 text-blue-600'
+                              : 'border-cyan-400 bg-cyan-500/5 text-cyan-400'
+                          : itemBgClass + ' ' + textSecondaryClass
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {(watermarkStyleType === 'logo' || watermarkStyleType === 'both') && (
+                <div className="space-y-2">
+                  <label className={`text-xs font-bold ${textSecondaryClass}`}>Custom Watermark Logo</label>
+                  {watermarkLogoUrl ? (
+                    <div className={`relative p-3 rounded-xl border flex items-center justify-between ${itemBgClass}`}>
+                      <div className="flex items-center gap-3">
+                        <img src={watermarkLogoUrl} alt="Logo" className="w-10 h-10 object-contain rounded border border-zinc-700 bg-zinc-950/40" />
+                        <span className="text-[10px] text-zinc-400 truncate max-w-[120px]">Custom logo uploaded</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        onClick={handleRemoveLogo}
+                        className="text-red-400 hover:text-red-300 p-1.5 h-auto text-[10px] font-bold"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className={`block p-4 rounded-xl border border-dashed cursor-pointer text-center hover:border-cyan-500/50 transition-colors ${itemBgClass}`}>
+                      <input
+                        type="file"
+                        accept="image/png"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                      {uploadingLogo ? (
+                        <span className="text-[10px] text-zinc-400">Uploading logo...</span>
+                      ) : (
+                        <div className="space-y-1">
+                          <p className={`text-xs font-bold ${textPrimaryClass}`}>📂 Select PNG Logo</p>
+                          <p className="text-[9px] text-zinc-500">Transparents/alpha-channels blend best</p>
+                        </div>
+                      )}
+                    </label>
+                  )}
+                </div>
+              )}
               
               <div className="space-y-3">
                 <label className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer ${itemBgClass}`}>
@@ -203,15 +316,17 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
                 </label>
               </div>
 
-              <div className="space-y-2">
-                <label className={`text-xs font-bold ${textSecondaryClass}`}>Watermark Banner Text</label>
-                <input 
-                  type="text" value={watermarkText} onChange={(e) => setWatermarkText(e.target.value)}
-                  className={`w-full border rounded-xl p-2.5 text-xs ${
-                    isLight ? 'bg-white border-gray-200 text-gray-900' : 'bg-zinc-900 border-zinc-800 text-white'
-                  }`}
-                />
-              </div>
+              {(watermarkStyleType === 'text' || watermarkStyleType === 'both') && (
+                <div className="space-y-2">
+                  <label className={`text-xs font-bold ${textSecondaryClass}`}>Watermark Banner Text</label>
+                  <input 
+                    type="text" value={watermarkText} onChange={(e) => setWatermarkText(e.target.value)}
+                    className={`w-full border rounded-xl p-2.5 text-xs ${
+                      isLight ? 'bg-white border-gray-200 text-gray-900' : 'bg-zinc-900 border-zinc-800 text-white'
+                    }`}
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-semibold text-zinc-300">
@@ -240,16 +355,28 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
                 {watermarkStyle === 'grid' ? (
                   <div className="absolute inset-0 flex flex-wrap gap-12 justify-center items-center pointer-events-none" style={{ opacity: watermarkOpacity / 100 }}>
                     {[...Array(6)].map((_, i) => (
-                      <span key={i} className="text-white text-xs font-extrabold rotate-[-30deg] border border-white/20 px-2 py-0.5 whitespace-nowrap">
-                        {watermarkText}
-                      </span>
+                      <div key={i} className="flex flex-col items-center rotate-[-30deg]">
+                        {watermarkLogoUrl && (
+                          <img src={watermarkLogoUrl} alt="DRM Logo" className="max-h-8 object-contain opacity-80" />
+                        )}
+                        {(watermarkStyleType === 'text' || watermarkStyleType === 'both') && (
+                          <span className="text-white text-[10px] font-extrabold whitespace-nowrap mt-1">
+                            {watermarkText}
+                          </span>
+                        )}
+                      </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="absolute z-10 pointer-events-none" style={{ opacity: watermarkOpacity / 100 }}>
-                    <span className="text-white text-sm font-extrabold border border-white px-4 py-2 bg-black/60 rounded">
-                      ⚠️ {watermarkText}
-                    </span>
+                  <div className="absolute z-10 pointer-events-none flex flex-col items-center gap-2" style={{ opacity: watermarkOpacity / 100 }}>
+                    {watermarkLogoUrl && (
+                      <img src={watermarkLogoUrl} alt="DRM Logo" className="max-h-24 object-contain" />
+                    )}
+                    {(watermarkStyleType === 'text' || watermarkStyleType === 'both') && (
+                      <span className="text-white text-xs font-extrabold border border-white/20 px-3 py-1 bg-black/60 rounded">
+                        {watermarkText}
+                      </span>
+                    )}
                   </div>
                 )}
                 <span className="z-10 bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded border border-zinc-700">Studio Mockup Preview</span>
@@ -318,19 +445,65 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
                       
                       {/* Surfer Select Dropdown */}
                       <div className="flex gap-2">
-                        <select
-                          onChange={(e) => setSelectedSurferForGroup({ ...selectedSurferForGroup, [cluster.id]: e.target.value })}
-                          className={`border rounded-lg p-1.5 text-[10px] flex-1 ${
-                            isLight 
-                              ? 'bg-white border-gray-200 text-gray-900' 
-                              : 'bg-zinc-950 border-zinc-800 text-white'
-                          }`}
-                        >
-                          <option value="">Select checked-in surfer...</option>
-                          {sessionParticipants.map(surfer => (
-                            <option key={surfer.id} value={surfer.id}>@{surfer.username} ({surfer.surf_mode || 'surfer'})</option>
-                          ))}
-                        </select>
+                        <div className="relative flex-1">
+                          <button
+                            onClick={() => setOpenDropdown(openDropdown === cluster.id ? null : cluster.id)}
+                            className={`w-full border rounded-lg p-2 text-left text-[10px] flex items-center justify-between ${
+                              isLight ? 'bg-white border-gray-200 text-gray-900' : 'bg-zinc-950 border-zinc-800 text-white'
+                            }`}
+                          >
+                            {selectedSurferForGroup[cluster.id] ? (
+                              (() => {
+                                const selected = sessionParticipants.find(s => s.id === selectedSurferForGroup[cluster.id]);
+                                return selected ? (
+                                  <div className="flex items-center gap-2">
+                                    <img
+                                      src={selected.avatar_url || '/api/placeholder/40/40'}
+                                      alt={selected.username}
+                                      className="w-5 h-5 rounded-full object-cover border border-zinc-700"
+                                    />
+                                    <span className="font-bold truncate">@{selected.username}</span>
+                                    <span className="text-[8px] opacity-60">({selected.surf_mode || 'surfer'})</span>
+                                  </div>
+                                ) : 'Select checked-in surfer...';
+                              })()
+                            ) : 'Select checked-in surfer...'}
+                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                          </button>
+                          
+                          {openDropdown === cluster.id && (
+                            <div className={`absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border shadow-xl p-1 ${
+                              isLight ? 'bg-white border-gray-200' : 'bg-zinc-950 border-zinc-800'
+                            }`}>
+                              {sessionParticipants.length === 0 ? (
+                                <div className="p-2 text-[10px] text-zinc-500 text-center">No participants in session</div>
+                              ) : (
+                                sessionParticipants.map(surfer => (
+                                  <button
+                                    key={surfer.id}
+                                    onClick={() => {
+                                      setSelectedSurferForGroup({ ...selectedSurferForGroup, [cluster.id]: surfer.id });
+                                      setOpenDropdown(null);
+                                    }}
+                                    className={`w-full text-left p-2 rounded-md flex items-center gap-2.5 transition-colors ${
+                                      isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-900'
+                                    }`}
+                                  >
+                                    <img
+                                      src={surfer.avatar_url || '/api/placeholder/40/40'}
+                                      alt={surfer.username}
+                                      className="w-6 h-6 rounded-full object-cover border border-zinc-700"
+                                    />
+                                    <div className="min-w-0">
+                                      <p className={`text-[10px] font-bold truncate ${isLight ? 'text-gray-900' : 'text-white'}`}>@{surfer.username}</p>
+                                      <p className="text-[8px] text-zinc-400 truncate">{surfer.full_name || 'Checked-in Surfer'} • {surfer.surf_mode || 'casual'}</p>
+                                    </div>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <Button 
                           size="sm" onClick={() => handleConfirmTagGroup(cluster.id)}
                           className={`${buttonHighlightClass} text-[10px] px-2.5 h-8 font-bold flex items-center gap-1`}
@@ -367,6 +540,61 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
                   />
                   <div className="absolute top-3 left-3 bg-black/80 px-2 py-1 rounded text-[10px] text-zinc-300">
                     📹 Active Clip: {activeVideo.filename}
+                  </div>
+                </div>
+
+                {/* Visual Keyframe Filmstrip Timeline */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[10px] text-zinc-500 font-semibold px-1">
+                    <span>🎞️ KEYFRAME FILMSTRIP SCRUBBER</span>
+                    <span>Click strip to seek frame</span>
+                  </div>
+                  <div 
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const clickX = e.clientX - rect.left;
+                      const percentage = clickX / rect.width;
+                      if (videoRef.current) {
+                        const duration = videoRef.current.duration || 0;
+                        videoRef.current.currentTime = duration * percentage;
+                        setCurrentTime(duration * percentage);
+                      }
+                    }}
+                    className="relative h-14 w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950 flex cursor-pointer select-none group shadow-inner"
+                  >
+                    {filmstripThumbnails.map((thumb, idx) => (
+                      <div key={idx} className="flex-1 h-full border-r border-zinc-900/60 last:border-0 relative">
+                        <img src={thumb} alt={`Frame ${idx}`} className="w-full h-full object-cover opacity-60 group-hover:opacity-75 transition-opacity" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                      </div>
+                    ))}
+                    
+                    {/* Scrub Indicator Line */}
+                    <div 
+                      className={`absolute top-0 bottom-0 w-0.5 z-10 shadow-lg ${
+                        isBeach ? 'bg-amber-400' : isLight ? 'bg-blue-500' : 'bg-cyan-500'
+                      }`}
+                      style={{ 
+                        left: `${
+                          videoRef.current && videoRef.current.duration 
+                            ? (currentTime / videoRef.current.duration) * 100 
+                            : 0
+                        }%` 
+                      }}
+                    />
+                    {/* Handle head */}
+                    <div 
+                      className={`absolute top-[-3px] w-2 h-2 rounded-full z-10 shadow border border-white ${
+                        isBeach ? 'bg-amber-400' : isLight ? 'bg-blue-500' : 'bg-cyan-500'
+                      }`}
+                      style={{ 
+                        left: `calc(${
+                          videoRef.current && videoRef.current.duration 
+                            ? (currentTime / videoRef.current.duration) * 100 
+                            : 0
+                        }% - 3px)` 
+                      }}
+                    />
                   </div>
                 </div>
 

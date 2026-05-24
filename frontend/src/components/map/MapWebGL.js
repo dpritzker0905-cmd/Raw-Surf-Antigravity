@@ -521,7 +521,7 @@ var MapWebGL = ({
   // Prevents mobile GPU rendering latency from blocking layer appearances.
   useEffect(() => {
     if (mapInstance) {
-      try { mapInstance.triggerRepaint(); } catch (e) {}
+      try { mapInstance.triggerRepaint(); } catch (e) { /* ignore mapInstance repaint errors */ }
     }
   }, [mapInstance, activeLayers, omTileUrls]);
 

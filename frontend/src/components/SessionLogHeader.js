@@ -41,11 +41,13 @@ const _WIND_ARROWS = {
 /**
  * Compact conditions badge with wave direction visualization
  */
-const ConditionsBadge = ({ waveHeight, waveDirection, waveDirectionDegrees, wavePeriod, windSpeed, windDirection, tide, tideHeight, isLight }) => {
+const ConditionsBadge = ({ waveHeight, waveDirection, waveDirectionDegrees, wavePeriod, windSpeed, windDirection, tide, tideHeight, theme }) => {
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
   if (!waveHeight && !windSpeed && !tide) return null;
   
   return (
-    <div className={`flex items-center gap-2 text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+    <div className={`flex items-center gap-2 text-xs ${isLight ? 'text-gray-600' : isBeach ? 'text-amber-200/60' : 'text-gray-400'}`}>
       {waveHeight && (
         <TooltipProvider>
           <Tooltip>
@@ -113,7 +115,9 @@ const ConditionsBadge = ({ waveHeight, waveDirection, waveDirectionDegrees, wave
 /**
  * Collaborators avatars row
  */
-const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
+const CollaboratorsRow = ({ collaborators, onViewAll, theme }) => {
+  const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
   if (!collaborators || collaborators.length === 0) return null;
   
   const accepted = collaborators.filter(c => c.status === 'accepted');
@@ -122,7 +126,7 @@ const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
   return (
     <button aria-label="Users" 
       onClick={onViewAll}
-      className={`flex items-center gap-2 ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'} rounded-lg px-2 py-1 -mx-2 transition-colors`}
+      className={`flex items-center gap-2 ${isLight ? 'hover:bg-gray-100' : isBeach ? 'hover:bg-zinc-900/40' : 'hover:bg-zinc-800'} rounded-lg px-2 py-1 -mx-2 transition-colors`}
     >
       <Users className="w-3.5 h-3.5 text-cyan-400" />
       <div className="flex -space-x-1.5">
@@ -142,7 +146,7 @@ const CollaboratorsRow = ({ collaborators, onViewAll, isLight }) => {
           </div>
         ))}
       </div>
-      <span className={`text-xs ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+      <span className={`text-xs ${isLight ? 'text-gray-600' : isBeach ? 'text-amber-200/50' : 'text-gray-400'}`}>
         {accepted.length} {accepted.length === 1 ? 'surfer' : 'surfers'} in session
       </span>
       {accepted.some(c => c.verified_by_gps) && (
@@ -171,11 +175,12 @@ export const SessionLogHeader = ({
 }) => {
   const { theme } = useTheme();
   const isLight = theme === 'light';
+  const isBeach = theme === 'beach';
   const [expanded, setExpanded] = useState(false);
   
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
-  const bgCard = isLight ? 'bg-gray-50' : 'bg-zinc-800/50';
+  const textPrimary = isLight ? 'text-gray-900' : isBeach ? 'text-amber-50/90' : 'text-white';
+  const textSecondary = isLight ? 'text-gray-600' : isBeach ? 'text-amber-200/50' : 'text-gray-400';
+  const bgCard = isLight ? 'bg-gray-50' : isBeach ? 'bg-black/40 border border-zinc-900/60 shadow-inner' : 'bg-zinc-800/50';
   
   // Extract session data from post
   const {
@@ -278,7 +283,7 @@ export const SessionLogHeader = ({
     <div className={`${bgCard} rounded-lg p-3 mb-2`} data-testid="session-log-header">
       {/* Session Date Banner - Prominent for historical sessions */}
       {sessionDateInfo && (
-        <div className={`flex items-center gap-2 mb-2 pb-2 border-b ${isLight ? 'border-gray-200' : 'border-zinc-700/50'}`}>
+        <div className={`flex items-center gap-2 mb-2 pb-2 border-b ${isLight ? 'border-gray-200' : isBeach ? 'border-zinc-900/80' : 'border-zinc-700/50'}`}>
           <Calendar className="w-4 h-4 text-cyan-400" />
           <span className={`text-sm font-medium ${textPrimary}`}>
             {isHistoricalSession ? 'Session from ' : ''}{sessionDateInfo.text}
@@ -325,7 +330,7 @@ export const SessionLogHeader = ({
               windDirection={wind_direction}
               tide={tide_status}
               tideHeight={post.tide_height_ft}
-              isLight={isLight}
+              theme={theme}
             />
           )}
         </div>
@@ -349,7 +354,7 @@ export const SessionLogHeader = ({
       
       {/* Expanded Conditions */}
       {expanded && hasConditions && (
-        <div className={`grid grid-cols-3 gap-3 mt-3 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
+        <div className={`grid grid-cols-3 gap-3 mt-3 pt-3 border-t ${isLight ? 'border-gray-200' : isBeach ? 'border-zinc-900/80' : 'border-zinc-700'}`}>
           {wave_height_ft && (
             <div className="text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
@@ -406,11 +411,11 @@ export const SessionLogHeader = ({
       <CollaboratorsRow 
         collaborators={collaborators}
         onViewAll={onViewCollaborators}
-        isLight={isLight}
+        theme={theme}
       />
       
       {/* Action Buttons */}
-      <div className={`flex items-center gap-2 mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-700'}`}>
+      <div className={`flex items-center gap-2 mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : isBeach ? 'border-zinc-900/80' : 'border-zinc-700'}`}>
         {/* I Was There Button */}
         {canRequestCollaboration && (
           <Button aria-label="User Plus"

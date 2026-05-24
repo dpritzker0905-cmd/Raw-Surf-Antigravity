@@ -491,7 +491,7 @@ export function safeMoveLayer(mapInstance, layerId, beforeId) {
       }
     }
     mapInstance.moveLayer(layerId, beforeId);
-  } catch (e) {}
+  } catch (e) { /* ignore */ }
 }
 
 export function safeSetPaintProperty(mapInstance, layerId, name, value) {
@@ -506,7 +506,7 @@ export function safeSetPaintProperty(mapInstance, layerId, name, value) {
   } catch (e) {
     try {
       mapInstance.setPaintProperty(layerId, name, value);
-    } catch (err) {}
+    } catch (err) { /* ignore */ }
   }
 }
 
@@ -522,7 +522,7 @@ export function safeSetFilter(mapInstance, layerId, filter) {
   } catch (e) {
     try {
       mapInstance.setFilter(layerId, filter);
-    } catch (err) {}
+    } catch (err) { /* ignore */ }
   }
 }
 

@@ -49,6 +49,7 @@ const useGalleryActions = ({
   setDistributeLoading,
   setDistributeAllLoading,
   setDistributeProgress,
+  manualSurferSearch,
   setManualSurferSearch,
   setSearchResults,
   setSearchLoading,

@@ -174,15 +174,24 @@ def get_file_extension(content_type: str) -> str:
     }
     return extensions.get(content_type, ".bin")
 
-def add_watermark(image_path: str, output_path: str, text: str = "RAW SURF OS") -> tuple:
+def add_watermark(
+    image_path: str,
+    output_path: str,
+    text: str = "RAW SURF OS",
+    logo_path: str = None,
+    position: str = "tiled",
+    opacity: float = 0.12,
+    style: str = "text"
+) -> tuple:
     """
-    Add watermark to an image.
+    Add custom text or logo watermark to an image.
     Returns (output_path, processing_time_ms)
     Optimized for sub-2-second processing of 5MB images.
     Memory-safe: releases intermediate PIL images between steps.
     """
     import time
     import gc
+    import os
     start_time = time.time()
     
     try:
@@ -203,50 +212,126 @@ def add_watermark(image_path: str, output_path: str, text: str = "RAW SURF OS") 
         if img.mode != 'RGBA':
             img = img.convert('RGBA')
         
-        # Create watermark overlay
-        txt_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
-        draw = ImageDraw.Draw(txt_layer)
+        # Create watermark overlay layer
+        overlay_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
+        draw = ImageDraw.Draw(overlay_layer)
         
-        # Calculate font size based on image dimensions (optimized)
-        font_size = max(20, min(img.width, img.height) // 25)
-        
-        try:
-            # Try common font paths (Linux, macOS, Windows, bundled)
-            font_paths = [
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-                "/System/Library/Fonts/Helvetica.ttc",
-                "C:/Windows/Fonts/arial.ttf",
-                os.path.join(os.path.dirname(__file__), "..", "assets", "DejaVuSans-Bold.ttf"),
-            ]
-            font = None
-            for fp in font_paths:
-                if os.path.exists(fp):
-                    font = ImageFont.truetype(fp, font_size)
-                    break
-            if font is None:
+        # 1. Load and scale custom logo if provided
+        has_logo = False
+        logo_img = None
+        if logo_path and os.path.exists(logo_path) and style in ['logo', 'both']:
+            try:
+                logo_img = Image.open(logo_path)
+                if logo_img.mode != 'RGBA':
+                    logo_img = logo_img.convert('RGBA')
+                
+                # Scale logo to ~18% of background dimensions
+                l_w, l_h = logo_img.size
+                max_w = int(img.width * 0.18)
+                max_h = int(img.height * 0.18)
+                scale = min(max_w / l_w, max_h / l_h)
+                if scale < 1.0:
+                    logo_img = logo_img.resize((int(l_w * scale), int(l_h * scale)), Image.Resampling.LANCZOS)
+                
+                # Apply opacity blending directly to logo's alpha channel
+                r, g, b, a = logo_img.split()
+                a = a.point(lambda p: int(p * opacity))
+                logo_img = Image.merge('RGBA', (r, g, b, a))
+                has_logo = True
+            except Exception as le:
+                logger.error(f"Error preparing watermark logo: {le}")
+                has_logo = False
+
+        # 2. Setup text styling if text is included
+        text_width, text_height = 0, 0
+        font = None
+        if style in ['text', 'both']:
+            font_size = max(20, min(img.width, img.height) // 25)
+            try:
+                font_paths = [
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                    "/System/Library/Fonts/Helvetica.ttc",
+                    "C:/Windows/Fonts/arial.ttf",
+                    os.path.join(os.path.dirname(__file__), "..", "assets", "DejaVuSans-Bold.ttf"),
+                ]
+                for fp in font_paths:
+                    if os.path.exists(fp):
+                        font = ImageFont.truetype(fp, font_size)
+                        break
+                if font is None:
+                    font = ImageFont.load_default()
+            except Exception:
                 font = ImageFont.load_default()
-        except Exception:
-            font = ImageFont.load_default()
-        
-        # Get text bounding box
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        
-        # Tile watermark across image (with larger spacing for performance)
-        spacing_y = text_height * 4
-        spacing_x = text_width + 80
-        
-        for y in range(0, img.height, spacing_y):
-            for x in range(0, img.width, spacing_x):
-                draw.text((x, y), text, font=font, fill=(255, 255, 255, 50))
-        
+            
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+        # 3. Position and composite watermark
+        if position == 'tiled':
+            # Repeating grid diagonal watermark
+            spacing_y = int((logo_img.height * 4.5) if has_logo else (text_height * 4))
+            spacing_x = int((logo_img.width + 150) if has_logo else (text_width + 80))
+            
+            for y in range(40, img.height, spacing_y):
+                for x in range(40, img.width, spacing_x):
+                    if has_logo:
+                        overlay_layer.paste(logo_img, (x, y), logo_img)
+                        if style == 'both':
+                            tx = x + (logo_img.width - text_width) // 2
+                            ty = y + logo_img.height + 8
+                            draw.text((tx, ty), text, font=font, fill=(255, 255, 255, int(opacity * 255)))
+                    elif style == 'text':
+                        draw.text((x, y), text, font=font, fill=(255, 255, 255, int(opacity * 255)))
+        else:
+            # Single placement (center or corners)
+            margin_w, margin_h = 45, 45
+            px, py = margin_w, margin_h
+            
+            # Width and height of complete watermark stamp
+            stamp_w = logo_img.width if has_logo else text_width
+            stamp_h = logo_img.height if has_logo else text_height
+            if has_logo and style == 'both':
+                stamp_w = max(logo_img.width, text_width)
+                stamp_h = logo_img.height + text_height + 8
+                
+            if position == 'center':
+                px = (img.width - stamp_w) // 2
+                py = (img.height - stamp_h) // 2
+            elif position == 'bottom-right':
+                px = img.width - stamp_w - margin_w
+                py = img.height - stamp_h - margin_h
+            elif position == 'bottom-left':
+                px = margin_w
+                py = img.height - stamp_h - margin_h
+            elif position == 'top-right':
+                px = img.width - stamp_w - margin_w
+                py = margin_h
+            elif position == 'top-left':
+                px = margin_w
+                py = margin_h
+                
+            # Paste/Draw watermark stamp at px, py
+            if has_logo:
+                lx = px + (stamp_w - logo_img.width) // 2
+                ly = py
+                overlay_layer.paste(logo_img, (lx, ly), logo_img)
+                if style == 'both':
+                    tx = px + (stamp_w - text_width) // 2
+                    ty = py + logo_img.height + 8
+                    draw.text((tx, ty), text, font=font, fill=(255, 255, 255, int(opacity * 255)))
+            elif style == 'text':
+                draw.text((px, py), text, font=font, fill=(255, 255, 255, int(opacity * 255)))
+
         # Composite and immediately release source images
-        watermarked = Image.alpha_composite(img, txt_layer)
+        watermarked = Image.alpha_composite(img, overlay_layer)
         img.close()
-        txt_layer.close()
-        del img, txt_layer, draw
+        overlay_layer.close()
+        if logo_img:
+            logo_img.close()
+            del logo_img
+        del img, overlay_layer, draw
         
         # Convert back to RGB for saving as JPEG
         if output_path.lower().endswith('.jpg') or output_path.lower().endswith('.jpeg'):

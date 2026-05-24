@@ -46,10 +46,11 @@ export const PhotoUploadModal = ({
   
   // Theme
   const isLight = theme === 'light';
-  const textPrimaryClass = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondaryClass = isLight ? 'text-gray-600' : 'text-gray-400';
-  const borderClass = isLight ? 'border-gray-200' : 'border-zinc-700';
-  const _inputBgClass = isLight ? 'bg-white' : 'bg-zinc-800';
+  const isBeach = theme === 'beach';
+  const textPrimaryClass = isLight ? 'text-gray-900' : isBeach ? 'text-amber-50/90' : 'text-white';
+  const textSecondaryClass = isLight ? 'text-gray-600' : isBeach ? 'text-amber-200/50' : 'text-gray-400';
+  const borderClass = isLight ? 'border-gray-200' : isBeach ? 'border-zinc-800' : 'border-zinc-700';
+  const _inputBgClass = isLight ? 'bg-white' : isBeach ? 'bg-black' : 'bg-zinc-800';
   
   // Live Savings pricing
   const livePhotoPrice = sessionPricing.live_photo_price || 5;
@@ -227,7 +228,7 @@ export const PhotoUploadModal = ({
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent data-testid="photo-upload-modal"  className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border ${borderClass} sm:max-w-2xl`}>
+      <DialogContent data-testid="photo-upload-modal"  className={`${isLight ? 'bg-white' : isBeach ? 'bg-zinc-950' : 'bg-zinc-900'} border ${borderClass} sm:max-w-2xl`}>
         <DialogHeader className="shrink-0 border-b border-inherit px-4 sm:px-6 pt-4 pb-3">
           <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
             <Upload className="w-5 h-5 text-cyan-400" />
@@ -257,7 +258,7 @@ export const PhotoUploadModal = ({
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
-                className={`border-2 border-dashed ${borderClass} rounded-xl p-8 text-center cursor-pointer hover:border-cyan-500/50 transition-colors`}
+                className={`border-2 border-dashed ${borderClass} rounded-xl p-8 text-center cursor-pointer hover:${isBeach ? 'border-amber-400/60' : 'border-cyan-500/50'} transition-colors ${isLight ? 'bg-gray-50' : isBeach ? 'bg-black/60' : 'bg-zinc-900/20'}`}
               >
                 <Upload className={`w-12 h-12 mx-auto mb-4 ${textSecondaryClass}`} />
                 <p className={`text-lg ${textPrimaryClass} mb-2`}>
@@ -405,8 +406,10 @@ export const PhotoUploadModal = ({
                         onClick={() => toggleSurferTag(currentPhotoId, surfer.id)}
                         className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
                           isTagged
-                            ? 'border-cyan-500 bg-cyan-500/10'
-                            : `${borderClass} hover:border-gray-500`
+                            ? isBeach
+                              ? 'border-amber-400 bg-amber-400/10'
+                              : 'border-cyan-500 bg-cyan-500/10'
+                            : `${borderClass} hover:${isBeach ? 'border-amber-400/40' : 'border-gray-500'}`
                         }`}
                       >
                         <div className={`w-10 h-10 rounded-full ${isLight ? 'bg-gray-200' : 'bg-zinc-700'} overflow-hidden`}>
@@ -422,7 +425,7 @@ export const PhotoUploadModal = ({
                           <p className={textPrimaryClass}>{surfer.name || surfer.full_name}</p>
                         </div>
                         {isTagged && (
-                          <Check className="w-5 h-5 text-cyan-400" />
+                          <Check className={`w-5 h-5 ${isBeach ? 'text-amber-400' : 'text-cyan-400'}`} />
                         )}
                       </button>
                     );
@@ -443,7 +446,7 @@ export const PhotoUploadModal = ({
           {/* Step 3: Confirm */}
           {step === 'confirm' && (
             <div className="space-y-4">
-              <div className={`p-4 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800'}`}>
+              <div className={`p-4 rounded-lg ${isLight ? 'bg-gray-100' : isBeach ? 'bg-black border border-zinc-900' : 'bg-zinc-800'}`}>
                 <h4 className={`font-medium ${textPrimaryClass} mb-3`}>Upload Summary</h4>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -531,7 +534,7 @@ export const PhotoUploadModal = ({
             <Button
               onClick={proceedToTagging}
               disabled={selectedFiles.length === 0}
-              className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"
+              className={isBeach ? "bg-amber-400 text-black font-bold hover:bg-amber-500" : "bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"}
             >
               {participants.length > 0 ? 'Next: Tag Surfers' : 'Continue'}
             </Button>
@@ -540,7 +543,7 @@ export const PhotoUploadModal = ({
           {step === 'tag' && (
             <Button
               onClick={() => setStep('confirm')}
-              className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"
+              className={isBeach ? "bg-amber-400 text-black font-bold hover:bg-amber-500" : "bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"}
             >
               Continue to Upload
             </Button>
@@ -550,7 +553,7 @@ export const PhotoUploadModal = ({
             <Button aria-label="Loader2"
               onClick={handleUpload}
               disabled={uploading || selectedFiles.length === 0}
-              className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"
+              className={isBeach ? "bg-amber-400 text-black font-bold hover:bg-amber-500" : "bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"}
             >
               {uploading ? (
                 <>

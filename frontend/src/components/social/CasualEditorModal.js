@@ -99,37 +99,138 @@ export const CasualEditorModal = ({ isOpen, onClose, file, fileIndex, weatherDat
     }
   };
 
+  const getDirAngle = (dirStr) => {
+    const directions = {
+      N: 0, NNE: 22.5, NE: 45, ENE: 67.5,
+      E: 90, ESE: 112.5, SE: 135, SSE: 157.5,
+      S: 180, SSW: 202.5, SW: 225, WSW: 247.5,
+      W: 270, WNW: 292.5, NW: 315, NNW: 337.5
+    };
+    return directions[dirStr?.toUpperCase()] ?? 0;
+  };
+
   const drawTelemetryHUD = (ctx, w, h) => {
     if (!weatherData) return;
 
     ctx.save();
+    
+    const isLight = theme === 'light';
+    const isBeach = theme === 'beach';
+    const accentColor = isBeach ? '#fbbf24' : isLight ? '#2563eb' : '#06b6d4';
+    const panelBg = 'rgba(10, 10, 10, 0.75)';
+    const textColor = '#ffffff';
+    const subTextColor = 'rgba(255, 255, 255, 0.7)';
+
     const margin = Math.round(w * 0.04);
-    let currentY = h - margin;
+    
+    // Calculate layout based on activated fields
+    let activeCount = 0;
+    if (telemetry.spotName) activeCount++;
+    if (telemetry.surfStats) activeCount++;
+    if (telemetry.windStats) activeCount++;
+    
+    if (activeCount === 0) {
+      ctx.restore();
+      return;
+    }
 
-    // Set text styling
+    const panelWidth = Math.round(w * 0.48);
+    const panelHeight = Math.round(w * 0.16);
+    const panelX = margin;
+    const panelY = h - margin - panelHeight;
+
+    // 1. Draw Glassmorphism Card Shadow & Panel
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetX = 4;
+    ctx.shadowOffsetY = 4;
+
+    ctx.fillStyle = panelBg;
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(panelX, panelY, panelWidth, panelHeight, 12);
+    } else {
+      ctx.rect(panelX, panelY, panelWidth, panelHeight);
+    }
+    ctx.fill();
+
+    // Draw Accent Outline
+    ctx.shadowColor = 'transparent'; // Reset shadow for stroke
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 2. Draw Text and Info on the Left Side
+    const textX = panelX + 16;
+    let textY = panelY + 24;
+    const stepY = (panelHeight - 20) / Math.max(1, activeCount);
+
     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-    ctx.shadowBlur = 8;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = `bold ${Math.round(w * 0.035)}px Oswald, sans-serif`;
+    ctx.shadowBlur = 4;
 
-    // 1. Spot Name Overlay
     if (telemetry.spotName && weatherData.spotName) {
-      ctx.fillText(`📍 ${weatherData.spotName.toUpperCase()}`, margin, currentY);
-      currentY -= Math.round(w * 0.05);
+      ctx.fillStyle = textColor;
+      ctx.font = `bold ${Math.round(w * 0.016)}px Oswald, sans-serif`;
+      ctx.fillText(`📍 ${weatherData.spotName.toUpperCase()}`, textX, textY);
+      textY += stepY;
     }
 
-    // 2. Swell Height & Wave Period HUD
     if (telemetry.surfStats && weatherData.waveHeight) {
-      ctx.font = `bold ${Math.round(w * 0.028)}px Inter, sans-serif`;
-      ctx.fillText(`🌊 Swell: ${weatherData.waveHeight}ft @ ${weatherData.wavePeriod}s`, margin, currentY);
-      currentY -= Math.round(w * 0.04);
+      ctx.fillStyle = subTextColor;
+      ctx.font = `${Math.round(w * 0.013)}px Inter, sans-serif`;
+      ctx.fillText(`🌊 Swell: ${weatherData.waveHeight}ft @ ${weatherData.wavePeriod}s`, textX, textY);
+      textY += stepY;
     }
 
-    // 3. Offshore Wind HUD
     if (telemetry.windStats && weatherData.windSpeed) {
-      ctx.font = `bold ${Math.round(w * 0.028)}px Inter, sans-serif`;
-      ctx.fillText(`💨 Wind: ${weatherData.windSpeed}kts ${weatherData.windDir}`, margin, currentY);
+      ctx.fillStyle = subTextColor;
+      ctx.font = `${Math.round(w * 0.013)}px Inter, sans-serif`;
+      ctx.fillText(`💨 Wind: ${weatherData.windSpeed}kts ${weatherData.windDir}`, textX, textY);
     }
+
+    // 3. Draw Synchronous Vector Compass Face and Swell Arrow on the Right Side
+    const compassRadius = Math.round(panelHeight * 0.35);
+    const compassX = panelX + panelWidth - compassRadius - 20;
+    const compassY = panelY + panelHeight / 2;
+
+    // Outer dial ring
+    ctx.shadowBlur = 0; // turn off shadow
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(compassX, compassY, compassRadius, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Ticks & Labels
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.font = `bold ${Math.round(w * 0.01)}px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('N', compassX, compassY - compassRadius + 6);
+    ctx.fillText('S', compassX, compassY + compassRadius - 6);
+
+    // Parse swell/wind direction angle
+    const swellAngle = getDirAngle(weatherData.windDir || 'N');
+    
+    // Swell direction arrow
+    ctx.save();
+    ctx.translate(compassX, compassY);
+    ctx.rotate((swellAngle * Math.PI) / 180);
+    
+    // Draw dynamic indicator arrow
+    ctx.beginPath();
+    ctx.moveTo(0, -compassRadius + 8); // Tip
+    ctx.lineTo(4, -compassRadius + 18);
+    ctx.lineTo(1.5, -compassRadius + 16);
+    ctx.lineTo(1.5, compassRadius - 10);
+    ctx.lineTo(-1.5, compassRadius - 10);
+    ctx.lineTo(-1.5, -compassRadius + 16);
+    ctx.lineTo(-4, -compassRadius + 18);
+    ctx.closePath();
+    
+    ctx.fillStyle = accentColor;
+    ctx.fill();
+    ctx.restore();
 
     ctx.restore();
   };

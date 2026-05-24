@@ -3,13 +3,13 @@
     "targetBackend":  "https://raw-surf-antigravity.onrender.com",
     "activeEnv":  "dev",
     "overallStatus":  "PASS",
-    "lastRun":  "2026-05-22T15:24:45",
+    "lastRun":  "2026-05-23T20:22:15",
     "targetBranch":  "dev",
     "targetFrontend":  "https://dev--rawsurf.netlify.app",
     "history":  [
                     {
                         "activeEnv":  "dev",
-                        "timestamp":  "2026-05-22T15:24:45",
+                        "timestamp":  "2026-05-23T20:22:15",
                         "overallStatus":  "PASS",
                         "targetFrontend":  "https://dev--rawsurf.netlify.app",
                         "changedFile":  ""
@@ -20,10 +20,25 @@
                    {
                        "tool":  "ESLint",
                        "errors":  [
-
+                                      {
+                                          "message":  "\u0027safeMoveLayer\u0027 is defined but never used.",
+                                          "column":  3,
+                                          "line":  14,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\map\\MapWebGL.js"
+                                      },
+                                      {
+                                          "message":  "\u0027Search\u0027 is defined but never used.",
+                                          "column":  24,
+                                          "line":  5,
+                                          "severity":  "warning",
+                                          "rule":  "unused-imports/no-unused-imports",
+                                          "file":  "\\src\\components\\messages\\messagesHelpers.js"
+                                      }
                                   ],
                        "errorCount":  0,
-                       "warningCount":  0,
+                       "warningCount":  2,
                        "status":  "PASS"
                    },
                    {

@@ -1,5 +1,5 @@
 ﻿# QA Companion Report (Auto-Updated)
-**Generated:** 2026-05-22T15:24:45
+**Generated:** 2026-05-23T20:22:15
 **Trigger:** 
 **Environment:** dev (branch: dev)
 **Frontend Under Test:** https://dev--rawsurf.netlify.app
@@ -14,7 +14,7 @@
 
 | Tool | Status | Detail |
 |------|--------|--------|
-| ESLint | PASS | 0 errors, 0 warnings |
+| ESLint | PASS | 0 errors, 2 warnings |
 | Ruff | PASS | Python backend lint |
 | pytest | PASS | 0 passed, 0 failed |
 

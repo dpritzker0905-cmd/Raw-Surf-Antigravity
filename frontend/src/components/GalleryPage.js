@@ -270,7 +270,7 @@ export const GalleryPage = () => {
     setShowMoveToFolderModal, setShowCopyToFolderModal,
     setShowTagAssignModal, setParticipantsLoading, setParticipants, setSessionInfo,
     setDistributeLoading, setDistributeAllLoading, setDistributeProgress,
-    setManualSurferSearch, setSearchResults, setSearchLoading,
+    manualSurferSearch, setManualSurferSearch, setSearchResults, setSearchLoading,
     setAiAutoTagLoading, setBatchTagLoading, setShowBatchTagPicker,
     setShowThumbnailPicker, setThumbnailPickerGallery, setThumbnailPickerItems,
     setThumbnailPickerLoading, setSettingThumbnail,

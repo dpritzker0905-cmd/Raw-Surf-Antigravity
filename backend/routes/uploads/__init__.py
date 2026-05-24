@@ -15,7 +15,9 @@ router = APIRouter()
 from .core import router as core_router
 from .media import router as media_router
 from .media_gallery import router as media_gallery_router
+from .comments import router as comments_router
 
 router.include_router(core_router)
 router.include_router(media_router)
 router.include_router(media_gallery_router)
+router.include_router(comments_router)
