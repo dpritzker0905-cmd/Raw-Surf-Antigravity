@@ -17,12 +17,13 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Geospatial & Mapping Enhancements** $\rightarrow$ Call `google-maps-mcp` (`nearby_surf_spots`, `calculate_travel_time`, `find_nearby_instructors`, `parking_lookup`, `reverse_geocode`, `get_weather_overlay`) to locate beaches/instructors, estimate multi-modal routing, look up parking limits, reverse geocode addresses, and format MapLibre overlay scopes.
 * **Workflow Automation & Connection Orchestrations** $\rightarrow$ Call `n8n-mcp` (`create_workflow`, `trigger_workflow`, `get_workflow_executions`, `get_monitoring_dashboard`, `configure_retry_policy`) to design custom newsletter/alerts triggers, coordinate multi-node triggers (Supabase, Stripe, WooCommerce, Twilio, Weather APIs), enforce recovery retry metrics, and monitor visual dashboard states.
 * **Financial Checkout & Billing Splits** $\rightarrow$ Call `stripe-mcp` (`create_checkout_session`, `create_subscription`, `refund_payment`, `transfer_payout`, `create_invoice`, `get_customer_payments`, `simulate_webhook`) to construct secure checkout sessions, activate plan memberships, trigger payout disbursements, split coach/photographer commissions (80% to coach, 20% to platform), process refunds, and route webhook events.
+* **Marketplace Catalog & Seller Splits** $\rightarrow$ Call `woocommerce-mcp` (`create_product`, `update_product`, `update_variation`, `sync_inventory`, `moderate_listing`, `attach_gallery_images`) to manage surfboard/equipment catalogs, map variable size/color/fin attributes, synchronize stock levels, enforce strict admin moderation queues, and bundle picture-in-picture variation overlays.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
 When extending models, routes, or database schemas (e.g. `spots.py`, `marketplace.py` in the backend):
-* **Audit Alignment**: Instantly verify if the changes impact spatial filters, pricing equations, vector stores, recommendation profiles, geospatial cache, workflow tracking, or billing logs.
-* **Schema Registration**: Update the JSON-RPC schema descriptions and input validations in the corresponding MCP files (`geospatial_mcp_server.py`, `pricing_mcp_server.py`, `recommendation_mcp_server.py`, `google_maps_mcp_server.py`, `n8n_mcp_server.py`, `stripe_mcp_server.py`, etc.) to keep AI client capabilities cleanly synchronized.
+* **Audit Alignment**: Instantly verify if the changes impact spatial filters, pricing equations, vector stores, recommendation profiles, geospatial cache, workflow tracking, billing logs, or product variations.
+* **Schema Registration**: Update the JSON-RPC schema descriptions and input validations in the corresponding MCP files (`geospatial_mcp_server.py`, `pricing_mcp_server.py`, `recommendation_mcp_server.py`, `google_maps_mcp_server.py`, `n8n_mcp_server.py`, `stripe_mcp_server.py`, `woocommerce_mcp_server.py`, etc.) to keep AI client capabilities cleanly synchronized.
 
 ### 3. Native Windows Execution Standarization
 To prevent shell escaping failures and quote-stripping issues common to PowerShell/CMD boundaries:
@@ -58,6 +59,12 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Secure Key Fallback**: The server must always support standard environment variables (e.g. `STRIPE_SECRET_KEY`) with robust mock credentials fallback to guarantee stability during automated CI/CD checks.
 * **Commission Split Ratios**: All marketplace bookings must strictly enforce standard commission splits (80/20 ratio: 80% earnings to photographers/coaches, 20% platform fee) to preserve commission margins.
 * **Supabase Synchronization Hooks**: Webhook handlers for payment success, renewals, and cancellations must propagate metadata updates to local database caches immediately, ensuring user subscription permissions map correctly.
+
+### 10. WooCommerce Marketplace & Variable Product Rules
+* **Secure API Credentials**: Connect WooCommerce REST endpoints securely utilizing standard variables (`WOOCOMMERCE_CONSUMER_KEY`, `WOOCOMMERCE_CONSUMER_SECRET`) with robust fallback defaults.
+* **Variable Product Attributes**: Variable listings must map classic properties: size, color (e.g. Ocean Blue, Sunburst Orange), and fin setups (Thruster, Twin Fin, Quad, Single Fin).
+* **Picture-in-Picture Image Overlays**: Shaper variations must support picture-in-picture overlays, enabling real-time Mockup Canvas previews of customized surfboards.
+* **Admin Listing Moderation**: To preserve marketplace safety, listing status updates must be routed through `woocommerce-mcp` moderation and reject unauthorized roles immediately.
 
 ---
 
