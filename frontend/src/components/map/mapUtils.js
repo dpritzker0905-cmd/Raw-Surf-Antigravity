@@ -605,41 +605,39 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          const serveTypeSafeWorkerFallback = () => {
-            try {
-              // A perfectly structured, valid 1x1 pixel completely transparent PNG byte array
-              const cleanTransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              const binaryStr = window.atob(cleanTransparentPngBase64);
-              const byteLength = binaryStr.length;
-              const uIntArray = new Uint8Array(byteLength);
-              for (let i = 0; i < byteLength; i++) {
-                uIntArray[i] = binaryStr.charCodeAt(i);
-              }
-              return { data: uIntArray.buffer };
-            } catch (err) {
-              return { data: new ArrayBuffer(0) };
-            }
-          };
-
-          // Helper to get a transparent 1x1 pixel PNG ArrayBuffer fallback or valid empty TileJSON depending on request type
-          // Prevents MapLibre GL JS tile painter warnings and guarantees the WebGL thread stays stable on corrupt tiles
-          const getFallbackResponse = async (type, url) => {
-            const isJson = type === 'json' || (url && url.includes('latest.json'));
+          const getFallbackResponse = async (url) => {
+            // Explicitly target metadata and TileJSON requests by scanning the incoming URL string
+            const isMetadataJson = url && (url.includes('.json') || url.includes('type=json'));
             
-            if (isJson) {
-              const structuralContractJson = {
+            if (isMetadataJson) {
+              console.log('[OM-Protocol] Enforcing type-safe TileJSON structure on fallback channel.');
+              const compliantTileJson = {
                 tilejson: "2.2.0",
+                name: "om-fallback-layer",
+                version: "1.0.0",
                 tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="],
                 bounds: [-180, -85, 180, 85],
                 minzoom: 0,
                 maxzoom: 22
               };
               const textEncoder = new TextEncoder();
-              const uint8Data = textEncoder.encode(JSON.stringify(structuralContractJson));
-              return { data: uint8Data.buffer };
+              const encodedUint8 = textEncoder.encode(JSON.stringify(compliantTileJson));
+              return { data: encodedUint8.buffer };
             }
             
-            return serveTypeSafeWorkerFallback();
+            // Fallback for real gridded raster chunks remains our pristine 1x1 transparent PNG binary array buffer
+            try {
+              const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+              const binaryString = window.atob(transparentPngBase64);
+              const bufferLength = binaryString.length;
+              const binaryBytes = new Uint8Array(bufferLength);
+              for (let i = 0; i < bufferLength; i++) {
+                binaryBytes[i] = binaryString.charCodeAt(i);
+              }
+              return { data: binaryBytes.buffer };
+            } catch (e) {
+              return { data: new ArrayBuffer(0) };
+            }
           };
 
           // v3.13.5: Double-wrapped synchronous + asynchronous type-safe error boundaries
@@ -649,7 +647,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               .then(response => {
                 if (!isModelMatch(requestedModelFolder, activeModelLock)) {
                   console.warn(`[OM-Protocol] Discarding tile for model ${requestedModelFolder} because active lock is ${activeModelLock}`);
-                  return getFallbackResponse(params.type, params.url);
+                  return getFallbackResponse(params.url);
                 }
                 return response;
               })
@@ -659,11 +657,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 } else {
                   console.error('[OM-Protocol] Async tile decoding error caught:', err.message || err);
                 }
-                return getFallbackResponse(params.type, params.url); // Type-safe fallback!
+                return getFallbackResponse(params.url); // Type-safe fallback!
               });
           } catch (syncErr) {
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
-            return getFallbackResponse(params.type, params.url); // Type-safe fallback!
+            return getFallbackResponse(params.url); // Type-safe fallback!
           }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }

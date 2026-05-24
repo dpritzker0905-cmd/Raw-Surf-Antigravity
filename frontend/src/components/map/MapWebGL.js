@@ -631,8 +631,9 @@ var MapWebGL = ({
     if (!mapInstance) return;
     try {
       if (mapInstance.getLayer('marine-raster-layer')) {
-        mapInstance.setPaintProperty('marine-raster-layer', 'raster-fade-duration', 150);
-        mapInstance.setPaintProperty('marine-raster-layer', 'raster-opacity', 0.75);
+        // Forces the weather data canvas to smoothly multiply overlay across background base assets
+        mapInstance.setPaintProperty('marine-raster-layer', 'raster-opacity', 0.80);
+        mapInstance.setPaintProperty('marine-raster-layer', 'raster-fade-duration', 100);
       }
       
       // Dynamically apply properties to all active slot layers for the current active marine layer
@@ -641,10 +642,10 @@ var MapWebGL = ({
         [0, 1, 2].forEach(slot => {
           const slotLayerId = `${activeMarine}-slot-${slot}-layer`;
           if (mapInstance.getLayer(slotLayerId)) {
-            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
+            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 100);
             const isActive = activeSlots[activeMarine] === slot;
             if (isActive && !isTransitioning) {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.75);
+              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.80);
             }
           }
         });
@@ -782,7 +783,7 @@ var MapWebGL = ({
                   // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
                   // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
                   'raster-opacity': (!isTransitioning && isActive) ? (
-                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.75 : [
+                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.80 : [
                       'interpolate', ['linear'], ['zoom'],
                       2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
                       5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
@@ -795,7 +796,7 @@ var MapWebGL = ({
                   'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
                   'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
                   'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
-                  'raster-fade-duration': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 150 : 0 // Smooth transition for marine
+                  'raster-fade-duration': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 100 : 0 // Smooth transition for marine
                 }}
               />
             </Source>
