@@ -20,13 +20,20 @@ export function invalidateStaleTileRequests() {
 const getParentModel = (folder) => {
   if (!folder) return "";
   const f = folder.toLowerCase();
+  if (f.includes('dwd') || f.includes('icon') || f.includes('gwam')) return "ICON";
   if (f.includes('gfs')) return "GFS";
   if (f.includes('ecmwf') || f.includes('ifs') || f.includes('wam')) return "EURO";
-  if (f.includes('dwd') || f.includes('icon') || f.includes('gwam')) return "ICON";
   return "";
 };
 
 const isModelMatch = (folder, lock) => {
+  if (!folder) return true;
+  
+  // Safe dynamic fallback: if folder is explicitly listed in currently active models, it is a valid match!
+  if (window.__OM_ACTIVE_MODELS__ && window.__OM_ACTIVE_MODELS__.includes(folder)) {
+    return true;
+  }
+  
   if (!lock) return true; // Safe fallback if lock is empty
   const parent = getParentModel(folder);
   const f = folder.toLowerCase();
@@ -628,7 +635,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               };
               const textEncoder = new TextEncoder();
               const arrayBufferData = textEncoder.encode(JSON.stringify(flawlessMockJson));
-              return { data: arrayBufferData.buffer };
+              return { data: arrayBufferData.buffer.slice(arrayBufferData.byteOffset, arrayBufferData.byteOffset + arrayBufferData.byteLength) };
             }
 
             // Standard imagery fallbacks return our valid 1x1 fully transparent PNG data container

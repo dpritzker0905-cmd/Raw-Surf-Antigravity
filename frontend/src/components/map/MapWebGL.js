@@ -316,6 +316,7 @@ var MapWebGL = ({
 
       // Parallel metadata pre-fetch with abort signal
       const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
+      window.__OM_ACTIVE_MODELS__ = models;
       await Promise.all(models.map(m => fetchMetadata(m, signal)));
       if (taskId !== resolveTaskIdRef.current) return;
 
@@ -746,6 +747,7 @@ var MapWebGL = ({
       >
         <Layer
           id="esri-satellite-layer"
+          beforeId={marineBeforeId || undefined}
           type="raster"
           layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
           paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
