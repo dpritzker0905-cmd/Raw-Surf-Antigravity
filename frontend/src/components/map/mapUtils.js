@@ -585,6 +585,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
           const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
           const debug = window.__RASTER_DEBUG__ || {};
           
+          // Enforce network caching bypass rules to prevent ERR_CACHE_OPERATION_NOT_SUPPORTED on rapid switches
+          if (params) {
+            if (!params.headers) {
+              params.headers = {};
+            }
+            params.headers['Cache-Control'] = 'no-cache';
+            params.headers['Pragma'] = 'no-cache';
+          }
+          
           // Safe one-time init log
           if (!debug.hasLoggedProtocol) {
             if (window.__RASTER_DEBUG__) window.__RASTER_DEBUG__.hasLoggedProtocol = true;
@@ -604,12 +613,23 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
 
           // Helper to get a transparent 1x1 pixel PNG ArrayBuffer fallback or valid empty TileJSON depending on request type
           // Prevents MapLibre GL JS tile painter warnings and guarantees the WebGL thread stays stable on corrupt tiles
-          const getFallbackResponse = async (type) => {
-            if (type === 'json') {
-              return { data: { tiles: [] } };
+          const getFallbackResponse = async (p) => {
+            // Check if MapLibre expects structural configuration metadata
+            if (p && (p.type === 'json' || p.url?.includes('latest.json'))) {
+              const mockTileJson = {
+                tilejson: "2.2.0",
+                tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="],
+                bounds: [-180, -85, 180, 85],
+                minzoom: 0,
+                maxzoom: 22
+              };
+              const encoder = new TextEncoder();
+              const uint8 = encoder.encode(JSON.stringify(mockTileJson));
+              return { data: uint8.buffer };
             }
+            
+            // Fallback for real image tiles remains our valid 1x1 transparent PNG array buffer
             try {
-              // A solid, valid 1x1 transparent PNG binary array buffer
               const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
               const binaryString = window.atob(transparentPngBase64);
               const len = binaryString.length;
@@ -632,7 +652,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               .then(response => {
                 if (requestSession !== currentRequestSessionToken) {
                   console.warn('[OM-Protocol] Discarding stale tile request session response');
-                  return getFallbackResponse(params.type);
+                  return getFallbackResponse(params);
                 }
                 return response;
               })
@@ -642,11 +662,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 } else {
                   console.error('[OM-Protocol] Async tile decoding error caught:', err.message || err);
                 }
-                return getFallbackResponse(params.type); // Type-safe fallback!
+                return getFallbackResponse(params); // Type-safe fallback!
               });
           } catch (syncErr) {
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
-            return getFallbackResponse(params.type); // Type-safe fallback!
+            return getFallbackResponse(params); // Type-safe fallback!
           }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
