@@ -42,7 +42,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </div>
             <div>
               <h1 className="text-base font-extrabold text-slate-100 tracking-wide flex items-center gap-2">
-                ANTIGRAVITY 2.0
+                RAW SURF OS
                 <span className="text-[10px] font-bold bg-cyan-500/10 text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/20 uppercase tracking-widest">
                   Admin Sync
                 </span>
