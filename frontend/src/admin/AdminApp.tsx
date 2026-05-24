@@ -9,10 +9,20 @@ import AdminQueue from './components/AdminQueue';
 import BookingTrace from './components/BookingTrace';
 import MediaReview from './components/MediaReview';
 import SystemHealth from './components/SystemHealth';
-import UnifiedAdminConsole from '../components/UnifiedAdminConsole';
+
+// Advanced Console Components
+import { DecisionWorkbench } from './advanced/DecisionWorkbench';
+import { BookingLifecycleInspector } from './advanced/BookingLifecycleInspector';
+import { EventGraphExplorer } from './advanced/EventGraphExplorer';
+import { EventReplayEngine } from './advanced/EventReplayEngine';
+import { RootCauseAnalyzer } from './advanced/RootCauseAnalyzer';
+import { SimulationEngine } from './advanced/SimulationEngine';
+import { LiveSystemMap } from './advanced/LiveSystemMap';
+import { SocialIntelligencePanel } from './advanced/SocialIntelligencePanel';
 
 import { 
-  Shield, Terminal, ShieldAlert, GitCommit, Image, Server
+  Shield, Terminal, ShieldAlert, GitCommit, Image, Server,
+  ShieldCheck, Clock, Network, Cpu, Zap, Map, Sparkles
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -49,7 +59,7 @@ export const AdminApp: React.FC = () => {
 
   const handleTraceCorrelation = (correlationId: string) => {
     setTraceCorrelationId(correlationId);
-    setActiveTab('trace');
+    setActiveTab('lifecycle_inspector');
   };
 
   const handleApproveAction = (action: AdminAction) => {
@@ -65,11 +75,22 @@ export const AdminApp: React.FC = () => {
   };
 
   const tabs = [
+    // Legacy Dashboards
     { id: 'events', label: 'Event Inbox', icon: Terminal },
     { id: 'actions', label: 'Decisions Queue', icon: ShieldAlert },
     { id: 'trace', label: 'Booking Trace', icon: GitCommit },
     { id: 'media', label: 'Media Review', icon: Image },
     { id: 'health', label: 'System Health', icon: Server },
+    
+    // AI Operations Console Advanced Overlay
+    { id: 'decision_workbench', label: 'Decision Workbench', icon: ShieldCheck },
+    { id: 'lifecycle_inspector', label: 'Booking Lifecycle', icon: Clock },
+    { id: 'graph_explorer', label: 'Event Graph Explorer', icon: Network },
+    { id: 'replay_engine', label: 'Event Replay Engine', icon: Cpu },
+    { id: 'root_cause', label: 'Root Cause Analyzer', icon: ShieldAlert },
+    { id: 'simulation_engine', label: 'Simulation Sandbox', icon: Zap },
+    { id: 'system_map', label: 'Live System Map', icon: Map },
+    { id: 'social_intelligence', label: 'Social Intelligence', icon: Sparkles }
   ];
 
   if (viewLegacyConsole) {
@@ -96,6 +117,7 @@ export const AdminApp: React.FC = () => {
 
   const renderActiveTabContent = () => {
     switch (activeTab) {
+      // Legacy Dashboard Cases
       case 'events':
         return (
           <EventInbox 
@@ -120,6 +142,24 @@ export const AdminApp: React.FC = () => {
         return <MediaReview />;
       case 'health':
         return <SystemHealth />;
+      
+      // Advanced AI Console Cases
+      case 'decision_workbench':
+        return <DecisionWorkbench />;
+      case 'lifecycle_inspector':
+        return <BookingLifecycleInspector initialCorrelationId={traceCorrelationId} />;
+      case 'graph_explorer':
+        return <EventGraphExplorer />;
+      case 'replay_engine':
+        return <EventReplayEngine />;
+      case 'root_cause':
+        return <RootCauseAnalyzer />;
+      case 'simulation_engine':
+        return <SimulationEngine />;
+      case 'system_map':
+        return <LiveSystemMap />;
+      case 'social_intelligence':
+        return <SocialIntelligencePanel />;
       default:
         return null;
     }
