@@ -9,6 +9,8 @@ import { useNavigate } from 'react-router-dom';
 import { Users, DollarSign, Image, FileText } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 
 /**
  * Reusable stat card widget.
@@ -35,6 +37,8 @@ const StatCard = ({ icon: Icon, label, value, subtext, color = 'cyan' }) => (
  */
 const AdminOverviewTab = ({ stats, cardBgClass, textClass, textSecondary, isLight }) => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
 
   if (!stats) return null;
 
@@ -56,7 +60,7 @@ const AdminOverviewTab = ({ stats, cardBgClass, textClass, textSecondary, isLigh
         <CardContent>
           <div className="grid grid-cols-2 gap-2">
             {stats.users?.by_role && Object.entries(stats.users.by_role).map(([role, count]) => (
-              <div key={role} className={`${isLight ? 'bg-gray-100' : 'bg-muted/50'} rounded-lg p-2`}>
+              <div key={role} className={`${theme === 'beach' ? 'bg-amber-100/35' : isLight ? 'bg-gray-100' : 'bg-muted/50'} rounded-lg p-2`}>
                 <p className={`${textSecondary} text-xs capitalize`}>{role.replace(/_/g, ' ')}</p>
                 <p className={`${textClass} font-bold`}>{count}</p>
               </div>
@@ -71,16 +75,16 @@ const AdminOverviewTab = ({ stats, cardBgClass, textClass, textSecondary, isLigh
           <CardTitle className={`${textClass} text-sm`}>Quick Navigation</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate('/map')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/map')} className={`border ${t.border} ${t.textPrimary} ${t.hoverBg}`}>
             Test Map
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/bookings')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/bookings')} className={`border ${t.border} ${t.textPrimary} ${t.hoverBg}`}>
             Test Bookings
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/gallery')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/gallery')} className={`border ${t.border} ${t.textPrimary} ${t.hoverBg}`}>
             Test Gallery
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/profile')} className={isLight ? 'border-gray-200 hover:bg-gray-100' : 'border-border'}>
+          <Button variant="outline" size="sm" onClick={() => navigate('/profile')} className={`border ${t.border} ${t.textPrimary} ${t.hoverBg}`}>
             Test Profile
           </Button>
         </CardContent>

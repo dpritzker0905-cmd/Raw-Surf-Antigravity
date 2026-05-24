@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from './ui/button';
+import { getThemeTokens } from '../utils/themeTokens';
 
 
 import { Textarea } from './ui/textarea';
@@ -128,11 +129,12 @@ const UnifiedAdminConsole = () => {
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Theme classes
+  const t = getThemeTokens(theme);
   const isLight = theme === 'light';
-  const bgClass = isLight ? 'bg-gray-50' : 'bg-background';
-  const cardBgClass = isLight ? 'bg-white border-gray-200' : 'bg-card border-border';
-  const textClass = isLight ? 'text-gray-900' : 'text-foreground';
-  const textSecondary = isLight ? 'text-gray-600' : 'text-muted-foreground';
+  const bgClass = t.pageBg;
+  const cardBgClass = t.cardBgBorder;
+  const textClass = t.textPrimary;
+  const textSecondary = t.textSecondary;
 
   // Redirect non-admins
   useEffect(() => {
@@ -439,11 +441,19 @@ const UnifiedAdminConsole = () => {
   return (
     <div className={`min-h-screen ${bgClass} pb-20`} data-testid="unified-admin-console">
       {/* Header */}
-      <div className={`sticky top-0 z-[1100] ${isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-border'} backdrop-blur-lg`}>
+      <div className={`sticky top-0 z-[1100] ${
+        theme === 'beach'
+          ? 'bg-amber-50/95 border-b border-amber-200'
+          : isLight ? 'bg-white/90 border-b border-gray-200' : 'bg-black/90 border-b border-border'
+      } backdrop-blur-lg`}>
         <div className="flex items-center justify-between p-4">
           <button aria-label="Go back" 
             onClick={() => navigate(-1)}
-            className={`flex items-center gap-2 ${isLight ? 'text-gray-500 hover:text-black' : 'text-muted-foreground hover:text-foreground'} transition-colors`}
+            className={`flex items-center gap-2 ${
+              theme === 'beach'
+                ? 'text-amber-800 hover:text-amber-950'
+                : isLight ? 'text-gray-500 hover:text-black' : 'text-muted-foreground hover:text-foreground'
+            } transition-colors`}
           >
             <ArrowLeft className="w-5 h-5" />
             Back
@@ -457,7 +467,11 @@ const UnifiedAdminConsole = () => {
               variant="ghost"
               size="sm"
               onClick={() => { fetchData(); fetchSessionData(); }}
-              className={`${isLight ? 'text-gray-500 hover:text-black hover:bg-gray-100' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+              className={`${
+                theme === 'beach'
+                  ? 'text-amber-700 hover:text-amber-900 hover:bg-amber-200/50'
+                  : isLight ? 'text-gray-500 hover:text-black hover:bg-gray-100' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              }`}
             >
               <RefreshCw className="w-4 h-4" />
             </Button>
@@ -495,10 +509,12 @@ const UnifiedAdminConsole = () => {
               const container = document.getElementById('admin-tabs-container');
               if (container) container.scrollBy({ left: -200, behavior: 'smooth' });
             }}
-            className={`absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r ${isLight ? 'from-white via-white/80' : 'from-black via-black/80'} to-transparent z-20 flex items-center justify-start pl-1 opacity-70 hover:opacity-100 transition-opacity`}
+            className={`absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r ${
+              theme === 'beach' ? 'from-amber-50 via-amber-50/80' : isLight ? 'from-white via-white/80' : 'from-black via-black/80'
+            } to-transparent z-20 flex items-center justify-start pl-1 opacity-70 hover:opacity-100 transition-opacity`}
             aria-label="Scroll left"
           >
-            <ChevronLeft className={`w-5 h-5 ${isLight ? 'text-black' : 'text-foreground'}`} />
+            <ChevronLeft className={`w-5 h-5 ${theme === 'beach' ? 'text-amber-900' : isLight ? 'text-black' : 'text-foreground'}`} />
           </button>
           
           {/* Right scroll button */}
@@ -507,10 +523,12 @@ const UnifiedAdminConsole = () => {
               const container = document.getElementById('admin-tabs-container');
               if (container) container.scrollBy({ left: 200, behavior: 'smooth' });
             }}
-            className={`absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l ${isLight ? 'from-white via-white/80' : 'from-black via-black/80'} to-transparent z-20 flex items-center justify-end pr-1 opacity-70 hover:opacity-100 transition-opacity`}
+            className={`absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l ${
+              theme === 'beach' ? 'from-amber-50 via-amber-50/80' : isLight ? 'from-white via-white/80' : 'from-black via-black/80'
+            } to-transparent z-20 flex items-center justify-end pr-1 opacity-70 hover:opacity-100 transition-opacity`}
             aria-label="Scroll right"
           >
-            <ChevronRight className={`w-5 h-5 ${isLight ? 'text-black' : 'text-foreground'}`} />
+            <ChevronRight className={`w-5 h-5 ${theme === 'beach' ? 'text-amber-900' : isLight ? 'text-black' : 'text-foreground'}`} />
           </button>
           
           <div 
@@ -526,10 +544,12 @@ const UnifiedAdminConsole = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
                     isActive
-                      ? 'bg-red-500 text-white'
-                      : isLight 
-                        ? 'bg-gray-100 text-gray-500 hover:text-black hover:bg-gray-200' 
-                        : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : theme === 'beach'
+                        ? 'bg-amber-100 text-amber-800 hover:text-amber-950 hover:bg-amber-200/60'
+                        : isLight 
+                          ? 'bg-gray-100 text-gray-500 hover:text-black hover:bg-gray-200' 
+                          : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 data-testid={`admin-tab-${tab.id}`}
               >

@@ -11,6 +11,8 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 
 export const AdminSessionsPanel = ({
   loadingPhotographers,
@@ -43,6 +45,9 @@ export const AdminSessionsPanel = ({
   textClass,
   textSecondary,
 }) => {
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+
   return (
     <div className="space-y-4">
       {loadingPhotographers ? (
@@ -68,16 +73,16 @@ export const AdminSessionsPanel = ({
                   placeholder="Search photographers..."
                   value={photographerSearch}
                   onChange={(e) => setPhotographerSearch(e.target.value)}
-                  className="mb-2 bg-card border-input h-9 text-sm"
+                  className={`mb-2 h-9 text-sm ${t.inputBg} ${t.textPrimary}`}
                 />
                 <select
                   value={selectedPhotographer}
                   onChange={(e) => setSelectedPhotographer(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md bg-card border border-input text-foreground text-sm"
+                  className={`w-full h-10 px-3 rounded-md border text-sm ${t.inputBg} ${t.textPrimary}`}
                 >
-                  <option value="">Select photographer...</option>
+                  <option value="" className={t.textPrimary}>Select photographer...</option>
                   {filteredPhotographers.map((p) => (
-                    <option key={p.id} value={p.id} disabled={p.is_shooting}>
+                    <option key={p.id} value={p.id} disabled={p.is_shooting} className={t.textPrimary}>
                       {p.full_name} {p.is_shooting ? '(LIVE)' : ''} - {p.role}
                     </option>
                   ))}
@@ -91,16 +96,16 @@ export const AdminSessionsPanel = ({
                   placeholder="Search spots..."
                   value={spotSearch}
                   onChange={(e) => setSpotSearch(e.target.value)}
-                  className="mb-2 bg-card border-input h-9 text-sm"
+                  className={`mb-2 h-9 text-sm ${t.inputBg} ${t.textPrimary}`}
                 />
                 <select
                   value={selectedSpot}
                   onChange={(e) => setSelectedSpot(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md bg-card border border-input text-foreground text-sm"
+                  className={`w-full h-10 px-3 rounded-md border text-sm ${t.inputBg} ${t.textPrimary}`}
                 >
-                  <option value="">Select surf spot...</option>
+                  <option value="" className={t.textPrimary}>Select surf spot...</option>
                   {filteredSpots.map((s) => (
-                    <option key={s.id} value={s.id}>
+                    <option key={s.id} value={s.id} className={t.textPrimary}>
                       {s.name} - {s.region}
                     </option>
                   ))}
@@ -114,7 +119,7 @@ export const AdminSessionsPanel = ({
                   type="number"
                   value={sessionPrice}
                   onChange={(e) => setSessionPrice(e.target.value)}
-                  className="bg-card border-input h-9 text-sm w-24"
+                  className={`h-9 text-sm w-24 ${t.inputBg} ${t.textPrimary}`}
                   min="0"
                 />
               </div>
@@ -147,7 +152,7 @@ export const AdminSessionsPanel = ({
                     variant="outline"
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-full border-dashed border-input h-16"
+                    className={`w-full border-dashed border-input h-16 hover:bg-amber-100/30 dark:hover:bg-zinc-800/40`}
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Photo/Video
@@ -162,7 +167,7 @@ export const AdminSessionsPanel = ({
                   placeholder="e.g., 3-4ft, glassy..."
                   value={spotNotes}
                   onChange={(e) => setSpotNotes(e.target.value)}
-                  className="bg-card border-input text-sm h-14 resize-none"
+                  className={`text-sm h-14 resize-none ${t.inputBg} ${t.textPrimary}`}
                 />
               </div>
               
@@ -199,11 +204,11 @@ export const AdminSessionsPanel = ({
                   {activeSessions.map((session) => (
                     <div 
                       key={session.id}
-                      className="p-3 rounded-lg border border-red-500/30 bg-red-500/5 flex items-center gap-3"
+                      className={`p-3 rounded-lg border border-red-500/30 ${theme === 'beach' ? 'bg-amber-100/40' : 'bg-red-500/5'} flex items-center gap-3`}
                     >
                       <Avatar className="w-10 h-10">
                         <AvatarImage src={session.photographer_avatar} />
-                        <AvatarFallback className="bg-input">
+                        <AvatarFallback className={t.avatarBg}>
                           <Camera className="w-4 h-4" />
                         </AvatarFallback>
                       </Avatar>

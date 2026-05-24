@@ -7,6 +7,8 @@ import { Lock, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 
 export const AdminAccessControlPanel = ({
   siteSettings,
@@ -16,6 +18,10 @@ export const AdminAccessControlPanel = ({
   cardBgClass,
   textClass,
 }) => {
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+  const isLight = theme === 'light';
+
   return (
     <Card className={cardBgClass}>
       <CardHeader>
@@ -35,10 +41,10 @@ export const AdminAccessControlPanel = ({
         ) : (
           <div className="space-y-4">
             {/* Enable/Disable Toggle */}
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+            <div className={`flex items-center justify-between p-4 rounded-lg ${t.cellBg}`}>
               <div>
-                <p className="text-foreground font-medium">Access Code Required</p>
-                <p className="text-muted-foreground text-sm">
+                <p className={`${t.textPrimary} font-medium`}>Access Code Required</p>
+                <p className={`${t.textSecondary} text-sm`}>
                   {siteSettings.access_code_enabled 
                     ? 'Visitors must enter code to access the site' 
                     : 'Site is publicly accessible'}
@@ -48,7 +54,13 @@ export const AdminAccessControlPanel = ({
                 onClick={() => updateSiteSettings({ access_code_enabled: !siteSettings.access_code_enabled })}
                 disabled={savingSettings}
                 className={`relative w-14 h-8 rounded-full transition-colors ${
-                  siteSettings.access_code_enabled ? 'bg-cyan-500' : 'bg-muted'
+                  siteSettings.access_code_enabled 
+                    ? 'bg-cyan-500' 
+                    : theme === 'beach'
+                      ? 'bg-amber-200'
+                      : isLight
+                        ? 'bg-gray-200'
+                        : 'bg-zinc-700'
                 }`}
                 data-testid="access-code-toggle"
               >
@@ -60,20 +72,20 @@ export const AdminAccessControlPanel = ({
             
             {/* Access Code Input */}
             {siteSettings.access_code_enabled && (
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <label className="block text-foreground font-medium mb-2">Access Code</label>
+              <div className={`p-4 rounded-lg ${t.cellBg}`}>
+                <label className={`block font-medium mb-2 ${t.textPrimary}`}>Access Code</label>
                 <div className="flex gap-2">
                   <Input
                     value={siteSettings.access_code || ''}
                     onChange={(e) => setSiteSettings(prev => ({ ...prev, access_code: e.target.value.toUpperCase() }))}
                     placeholder="Enter access code"
-                    className="bg-input border-input text-foreground uppercase tracking-widest font-mono"
+                    className={`border uppercase tracking-widest font-mono ${t.inputBg} ${t.textPrimary}`}
                     data-testid="access-code-input"
                   />
                   <Button aria-label="Loader2"
                     onClick={() => updateSiteSettings({ access_code: siteSettings.access_code })}
                     disabled={savingSettings}
-                    className="bg-cyan-500 hover:bg-cyan-600"
+                    className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold"
                     data-testid="save-access-code-btn"
                   >
                     {savingSettings ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}

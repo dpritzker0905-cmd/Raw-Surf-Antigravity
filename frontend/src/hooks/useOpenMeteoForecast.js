@@ -102,6 +102,14 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const forecastDays = MODEL_FORECAST_DAYS[activeModel] || 16;
     console.log(`[Forecast] Fetching ${activeModel} (${modelParam}), ${forecastDays}d`);
 
+    const marineModel = activeModel === 'EURO' ? 'ecmwf_wam025' : 'ncep_gfswave025';
+    const hourlyMarineVars = activeModel === 'EURO'
+      ? 'wave_height,wave_period,wave_direction'
+      : MARINE_VARS;
+    const currentMarineVars = activeModel === 'EURO'
+      ? 'wave_height,wave_period,wave_direction'
+      : CURRENT_MARINE_VARS;
+
     try {
       // Helper: fetch with signal, retry without if service worker can't clone Request
       const safeFetch = async (url) => {
@@ -132,8 +140,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         safeFetch(
           `https://marine-api.open-meteo.com/v1/marine?` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-          `&hourly=${MARINE_VARS}` +
-          `&current=${CURRENT_MARINE_VARS}` +
+          `&hourly=${hourlyMarineVars}` +
+          `&current=${currentMarineVars}` +
+          `&models=${marineModel}` +
           `&forecast_days=${Math.min(forecastDays, 16)}`
         ).then(r => ({ status: 'fulfilled', value: r }))
          .catch(e => ({ status: 'rejected', reason: e }))

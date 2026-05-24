@@ -103,16 +103,22 @@ export var MapForecastOverlay = ({
   const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : marine.wave_period?.[marineHourIndex];
   const waveDir = isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : marine.wave_direction?.[marineHourIndex];
   
-  const swell1Height = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : marine.swell_wave_height?.[marineHourIndex];
-  const swell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : marine.swell_wave_period?.[marineHourIndex];
-  const swell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : marine.swell_wave_direction?.[marineHourIndex];
+  const rawSwell1Height = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : marine.swell_wave_height?.[marineHourIndex];
+  const swell1Height = rawSwell1Height != null ? rawSwell1Height : waveHeight;
   
-  const swell2Height = marine.secondary_swell_wave_height?.[marineHourIndex];
-  const swell2Period = marine.secondary_swell_wave_period?.[marineHourIndex];
-  const swell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex];
-  const windWaveHeight = marine.wind_wave_height?.[marineHourIndex];
-  const windWavePeriod = marine.wind_wave_period?.[marineHourIndex];
-  const windWaveDir = marine.wind_wave_direction?.[marineHourIndex];
+  const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : marine.swell_wave_period?.[marineHourIndex];
+  const swell1Period = rawSwell1Period != null ? rawSwell1Period : wavePeriod;
+  
+  const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : marine.swell_wave_direction?.[marineHourIndex];
+  const swell1Dir = rawSwell1Dir != null ? rawSwell1Dir : waveDir;
+  
+  const swell2Height = marine.secondary_swell_wave_height?.[marineHourIndex] != null ? marine.secondary_swell_wave_height?.[marineHourIndex] : waveHeight;
+  const swell2Period = marine.secondary_swell_wave_period?.[marineHourIndex] != null ? marine.secondary_swell_wave_period?.[marineHourIndex] : wavePeriod;
+  const swell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex] != null ? marine.secondary_swell_wave_direction?.[marineHourIndex] : waveDir;
+  
+  const windWaveHeight = marine.wind_wave_height?.[marineHourIndex] != null ? marine.wind_wave_height?.[marineHourIndex] : waveHeight;
+  const windWavePeriod = marine.wind_wave_period?.[marineHourIndex] != null ? marine.wind_wave_period?.[marineHourIndex] : wavePeriod;
+  const windWaveDir = marine.wind_wave_direction?.[marineHourIndex] != null ? marine.wind_wave_direction?.[marineHourIndex] : waveDir;
 
   const cards = [];
 

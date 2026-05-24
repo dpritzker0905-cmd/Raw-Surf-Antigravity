@@ -10,6 +10,8 @@ import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { getFullUrl } from '../../utils/media';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 
 // --- Re-exports from extracted modules ---
 export { UsersTabContent, DropdownBadge } from './tabs/UsersTabContent';
@@ -39,45 +41,48 @@ const StatCard = React.memo(({ icon: Icon, label, value, subtext, color }) => {
 
 // --- UserDetailModal (small, used by UnifiedAdminConsole) ---
 const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="bg-card border-border text-foreground max-w-md">
+      <DialogContent className={`max-w-md border ${t.pageBg} ${t.border} ${t.textPrimary}`}>
         <DialogHeader>
-          <DialogTitle>User Details</DialogTitle>
+          <DialogTitle className={t.textPrimary}>User Details</DialogTitle>
         </DialogHeader>
         <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
               <AvatarImage src={getFullUrl(targetUser.avatar_url)} />
-              <AvatarFallback className="bg-input text-2xl">
+              <AvatarFallback className={`${t.avatarBg} ${t.textPrimary} text-2xl`}>
                 {targetUser.full_name?.[0] || targetUser.email[0]}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <h3 className={`text-lg font-bold flex items-center gap-2 ${t.textPrimary}`}>
                 {targetUser.full_name || 'No name'}
                 {targetUser.is_admin && <Crown className="w-5 h-5 text-yellow-400" />}
               </h3>
-              <p className="text-muted-foreground text-sm">{targetUser.email}</p>
+              <p className={`text-sm ${t.textSecondary}`}>{targetUser.email}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-muted rounded-lg p-2">
-              <p className="text-muted-foreground text-xs">Role</p>
-              <p className="text-foreground capitalize">{targetUser.role?.replace(/_/g, ' ')}</p>
+            <div className={`${t.cellBg} rounded-lg p-2`}>
+              <p className={`text-xs ${t.textSecondary}`}>Role</p>
+              <p className={`capitalize ${t.textPrimary}`}>{targetUser.role?.replace(/_/g, ' ')}</p>
             </div>
-            <div className="bg-muted rounded-lg p-2">
-              <p className="text-muted-foreground text-xs">Subscription</p>
-              <p className="text-foreground capitalize">{targetUser.subscription_tier || 'None'}</p>
+            <div className={`${t.cellBg} rounded-lg p-2`}>
+              <p className={`text-xs ${t.textSecondary}`}>Subscription</p>
+              <p className={`capitalize ${t.textPrimary}`}>{targetUser.subscription_tier || 'None'}</p>
             </div>
-            <div className="bg-muted rounded-lg p-2">
-              <p className="text-muted-foreground text-xs">Credits</p>
-              <p className="text-green-400">${targetUser.credit_balance?.toFixed(2)}</p>
+            <div className={`${t.cellBg} rounded-lg p-2`}>
+              <p className={`text-xs ${t.textSecondary}`}>Credits</p>
+              <p className="text-green-400 font-bold">${targetUser.credit_balance?.toFixed(2)}</p>
             </div>
-            <div className="bg-muted rounded-lg p-2">
-              <p className="text-muted-foreground text-xs">Joined</p>
-              <p className="text-foreground">{targetUser.created_at ? new Date(targetUser.created_at).toLocaleDateString() : 'N/A'}</p>
+            <div className={`${t.cellBg} rounded-lg p-2`}>
+              <p className={`text-xs ${t.textSecondary}`}>Joined</p>
+              <p className={t.textPrimary}>{targetUser.created_at ? new Date(targetUser.created_at).toLocaleDateString() : 'N/A'}</p>
             </div>
           </div>
 
@@ -85,12 +90,12 @@ const UserDetailModal = ({ user: targetUser, onClose, onToggleAdmin }) => {
             <Button aria-label="Toggle admin status"
               variant="outline"
               onClick={() => onToggleAdmin(targetUser)}
-              className={`flex-1 border-border ${targetUser.is_admin ? 'text-yellow-400' : 'text-foreground'}`}
+              className={`flex-1 border ${t.border} ${t.hoverBg} ${targetUser.is_admin ? 'text-yellow-500' : t.textPrimary}`}
             >
               <Crown className="w-4 h-4 mr-2" />
               {targetUser.is_admin ? 'Remove Admin' : 'Make Admin'}
             </Button>
-            <Button variant="outline" onClick={onClose} className="flex-1 border-border text-foreground">
+            <Button variant="outline" onClick={onClose} className={`flex-1 border ${t.border} ${t.hoverBg} ${t.textPrimary}`}>
               Close
             </Button>
           </div>

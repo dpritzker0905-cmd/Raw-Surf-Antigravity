@@ -493,9 +493,12 @@ function extractMarineAtOffset(cache, hourOffset) {
       wind_wave_period: r.hourly.wind_wave_period?.[idx],
     };
     const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
-    const s1_h = safeNum(c.swell_wave_height), s1_d = safeNum(c.swell_wave_direction);
-    const s2_h = safeNum(c.secondary_swell_wave_height), s2_d = safeNum(c.secondary_swell_wave_direction);
-    const ww_h = safeNum(c.wind_wave_height), ww_d = safeNum(c.wind_wave_direction);
+    const s1_h = safeNum(c.swell_wave_height != null ? c.swell_wave_height : c.wave_height), 
+          s1_d = safeNum(c.swell_wave_direction != null ? c.swell_wave_direction : c.wave_direction);
+    const s2_h = safeNum(c.secondary_swell_wave_height != null ? c.secondary_swell_wave_height : c.wave_height), 
+          s2_d = safeNum(c.secondary_swell_wave_direction != null ? c.secondary_swell_wave_direction : c.wave_direction);
+    const ww_h = safeNum(c.wind_wave_height != null ? c.wind_wave_height : c.wave_height), 
+          ww_d = safeNum(c.wind_wave_direction != null ? c.wind_wave_direction : c.wave_direction);
 
     const w_h_raw = r.hourly.wave_height?.[idx];
     const isOcean = (w_h_raw !== null && w_h_raw !== undefined);
@@ -518,9 +521,9 @@ function extractMarineAtOffset(cache, hourOffset) {
       geometry: { type: 'Point', coordinates: [pt.monotonicLng, pt.lat] },
       properties: {
         wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
-        swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period), swell_wave_direction: s1_d,
-        secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period), secondary_swell_wave_direction: s2_d,
-        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period), wind_wave_direction: ww_d,
+        swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : c.wave_period), swell_wave_direction: s1_d,
+        secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : c.wave_period), secondary_swell_wave_direction: s2_d,
+        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : c.wave_period), wind_wave_direction: ww_d,
       },
     });
   });
@@ -611,10 +614,13 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const lons = points.map(p => p.reqLng);
 
     // v3.9.1: ALWAYS fetch hourly for 3 days (72h)
-    const marineVarList = ['wave_height','wave_direction','wave_period',
-      'swell_wave_height','swell_wave_direction','swell_wave_period',
-      'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
-      'wind_wave_height','wind_wave_direction','wind_wave_period'];
+    const isEuro = model === 'EURO';
+    const marineVarList = isEuro
+      ? ['wave_height', 'wave_direction', 'wave_period']
+      : ['wave_height','wave_direction','wave_period',
+         'swell_wave_height','swell_wave_direction','swell_wave_period',
+         'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
+         'wind_wave_height','wind_wave_direction','wind_wave_period'];
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
 
     // Open-Meteo model identifiers for Marine

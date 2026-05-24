@@ -19,6 +19,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '../../ui/avatar';
 import apiClient from '../../../lib/apiClient';
 import { getFullUrl } from '../../../utils/media';
 import { toast } from 'sonner';
+import { useTheme } from '../../../contexts/ThemeContext';
+import { getThemeTokens } from '../../../utils/themeTokens';
 
 // Aliased to match original usage (CheckCircle2 imported, used as CheckCircle in JSX)
 const CheckCircle = CheckCircle2;
@@ -53,6 +55,8 @@ const SUBSCRIPTION_OPTIONS = [
 const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -84,7 +88,7 @@ const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 left-0 bg-muted border border-input rounded-lg shadow-xl py-1 min-w-[140px] max-h-[200px] overflow-y-auto">
+        <div className={`absolute z-50 mt-1 left-0 border rounded-lg shadow-xl py-1 min-w-[140px] max-h-[200px] overflow-y-auto ${t.pageBg} ${t.border}`}>
           {options.map((option) => (
             <button
               key={option.value}
@@ -92,10 +96,10 @@ const DropdownBadge = ({ value, options, onChange, colorClass, isLoading }) => {
                 onChange(option.value);
                 setIsOpen(false);
               }}
-              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-input transition-colors ${
+              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-amber-100/40 dark:hover:bg-zinc-800/40 transition-colors ${
                 option.value.toLowerCase() === value?.toLowerCase()
                   ? 'text-cyan-400 bg-cyan-500/10'
-                  : 'text-foreground'
+                  : t.textPrimary
               }`}
             >
               {option.label}
@@ -124,6 +128,10 @@ const UsersTabContent = ({
   adminId,
   onUserUpdate
 }) => {
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+  const isLight = theme === 'light';
+
   const [loadingUser, setLoadingUser] = useState(null);
   const [loadingField, setLoadingField] = useState(null);
   const [selectedUsers, setSelectedUsers] = useState(new Set());
@@ -291,10 +299,10 @@ const UsersTabContent = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by email or name..."
-          className="bg-muted border-border text-foreground"
+          className={`border ${t.inputBg} ${t.textPrimary}`}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
         />
-        <Button onClick={handleSearch} className="bg-red-500 hover:bg-red-600" aria-label="Search">
+        <Button onClick={handleSearch} className="bg-red-500 hover:bg-red-600 text-white" aria-label="Search">
           <Search className="w-4 h-4" />
         </Button>
       </div>
@@ -305,7 +313,7 @@ const UsersTabContent = ({
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-              <span className="text-foreground font-medium text-sm">
+              <span className={`font-medium text-sm ${t.textPrimary}`}>
                 {selectedUsers.size} selected
               </span>
             </div>
@@ -320,7 +328,7 @@ const UsersTabContent = ({
               <Button size="sm" variant="outline"
                 onClick={() => { setShowBulkSubDropdown(false); setShowBulkRoleDropdown(!showBulkRoleDropdown); }}
                 disabled={bulkLoading}
-                className="border-input text-foreground hover:bg-input text-xs px-2 h-8 whitespace-nowrap"
+                className={`border text-xs px-2 h-8 whitespace-nowrap ${t.border} ${t.textPrimary} ${t.hoverBg}`}
               >
                 {bulkLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <User className="w-3 h-3 mr-1" />}
                 Role <ChevronDown className="w-3 h-3 ml-1" />
@@ -332,7 +340,7 @@ const UsersTabContent = ({
               <Button size="sm" variant="outline"
                 onClick={() => { setShowBulkRoleDropdown(false); setShowBulkSubDropdown(!showBulkSubDropdown); }}
                 disabled={bulkLoading}
-                className="border-input text-foreground hover:bg-input text-xs px-2 h-8 whitespace-nowrap"
+                className={`border text-xs px-2 h-8 whitespace-nowrap ${t.border} ${t.textPrimary} ${t.hoverBg}`}
               >
                 {bulkLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Crown className="w-3 h-3 mr-1" />}
                 Plan <ChevronDown className="w-3 h-3 ml-1" />
@@ -352,10 +360,10 @@ const UsersTabContent = ({
 
           {/* Role Dropdown */}
           {showBulkRoleDropdown && (
-            <div ref={roleDropdownRef} className="absolute left-2 mt-1 bg-muted border border-input rounded-lg shadow-xl py-1 min-w-[160px] max-h-[250px] overflow-y-auto z-[100]">
+            <div ref={roleDropdownRef} className={`absolute left-2 mt-1 border rounded-lg shadow-xl py-1 min-w-[160px] max-h-[250px] overflow-y-auto z-[100] ${t.pageBg} ${t.border}`}>
               {ROLE_OPTIONS.map((option) => (
                 <button key={option.value} onClick={() => handleBulkUpdateRole(option.value)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-input text-foreground transition-colors"
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-amber-100/40 dark:hover:bg-zinc-800/40 transition-colors ${t.textPrimary}`}
                 >{option.label}</button>
               ))}
             </div>
@@ -363,11 +371,11 @@ const UsersTabContent = ({
 
           {/* Plan Dropdown */}
           {showBulkSubDropdown && (
-            <div ref={planDropdownRef} className="absolute left-20 mt-1 bg-muted border border-input rounded-lg shadow-xl py-1 min-w-[120px] z-[100]">
+            <div ref={planDropdownRef} className={`absolute left-20 mt-1 border rounded-lg shadow-xl py-1 min-w-[120px] z-[100] ${t.pageBg} ${t.border}`}>
               {SUBSCRIPTION_OPTIONS.map((option) => (
                 <button key={option.value} onClick={() => handleBulkUpdateSubscription(option.value)}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-input transition-colors ${
-                    option.value === 'premium' ? 'text-yellow-400' : 'text-foreground'
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-amber-100/40 dark:hover:bg-zinc-800/40 transition-colors ${
+                    option.value === 'premium' ? 'text-yellow-400 font-semibold' : t.textPrimary
                   }`}
                 >{option.label}</button>
               ))}
@@ -402,7 +410,11 @@ const UsersTabContent = ({
                   <button aria-label="Select user"
                     onClick={() => toggleUserSelection(u.id)}
                     className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
-                      isSelected ? 'bg-cyan-500 border-cyan-500' : 'border-zinc-500 hover:border-cyan-400'
+                      isSelected 
+                        ? 'bg-cyan-500 border-cyan-500' 
+                        : theme === 'beach'
+                          ? 'border-amber-400 hover:border-amber-600'
+                          : 'border-zinc-500 hover:border-cyan-400'
                     }`}
                   >
                     {isSelected && <Check className="w-3 h-3 text-black" />}
@@ -410,7 +422,7 @@ const UsersTabContent = ({
 
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={getFullUrl(u.avatar_url)} />
-                    <AvatarFallback className="bg-input">
+                    <AvatarFallback className={t.avatarBg}>
                       {u.full_name?.[0] || u.email[0]}
                     </AvatarFallback>
                   </Avatar>
@@ -423,10 +435,10 @@ const UsersTabContent = ({
                     <p className={`text-xs ${textSecondary} truncate`}>{u.email}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button aria-label="View user" size="sm" variant="ghost" onClick={() => setSelectedUser(u)} className="h-8 w-8 p-0">
+                    <Button aria-label="View user" size="sm" variant="ghost" onClick={() => setSelectedUser(u)} className={`h-8 w-8 p-0 ${t.textPrimary}`}>
                       <Eye className="w-4 h-4" />
                     </Button>
-                    <Button aria-label="Verify user" size="sm" variant="ghost" onClick={() => handleVerify(u)} className={`h-8 w-8 p-0 ${u.is_verified ? 'text-cyan-400' : ''}`}>
+                    <Button aria-label="Verify user" size="sm" variant="ghost" onClick={() => handleVerify(u)} className={`h-8 w-8 p-0 ${u.is_verified ? 'text-cyan-400' : t.textPrimary}`}>
                       <CheckCircle className="w-4 h-4" />
                     </Button>
                     <Button size="sm" variant="ghost"
@@ -438,12 +450,12 @@ const UsersTabContent = ({
                     </Button>
                     {u.is_suspended ? (
                       <Button aria-label="Unsuspend user" size="sm" onClick={() => handleUnsuspend(u)} className="bg-emerald-500 hover:bg-emerald-600 h-8 w-8 p-0">
-                        <UserCheck className="w-4 h-4" />
+                        <UserCheck className="w-4 h-4 text-white" />
                       </Button>
                     ) : (
                       <Button aria-label="Suspend user" size="sm"
                         onClick={() => { setUserToSuspend(u); setShowSuspendModal(true); }}
-                        className="bg-red-500 hover:bg-red-600 h-8 w-8 p-0" disabled={u.is_admin}
+                        className="bg-red-500 hover:bg-red-600 h-8 w-8 p-0 text-white" disabled={u.is_admin}
                       >
                         <UserX className="w-4 h-4" />
                       </Button>
@@ -453,16 +465,16 @@ const UsersTabContent = ({
                 <div className="flex gap-2 mt-2 flex-wrap ml-8">
                   <DropdownBadge value={u.role} options={ROLE_OPTIONS}
                     onChange={(newRole) => handleUpdateRole(u.id, newRole)}
-                    colorClass="bg-input text-foreground"
+                    colorClass={`${t.badgeBg}`}
                     isLoading={loadingUser === u.id && loadingField === 'role'}
                   />
                   <DropdownBadge value={u.subscription_tier || 'free'} options={SUBSCRIPTION_OPTIONS}
                     onChange={(newTier) => handleUpdateSubscription(u.id, newTier)}
-                    colorClass={u.subscription_tier === 'premium' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-input text-muted-foreground'}
+                    colorClass={u.subscription_tier === 'premium' ? 'bg-yellow-500/20 text-yellow-500' : `${t.badgeBg}`}
                     isLoading={loadingUser === u.id && loadingField === 'subscription'}
                   />
-                  <Badge className="bg-green-500/20 text-green-400">${u.credit_balance?.toFixed(2) || '0.00'}</Badge>
-                  {u.is_suspended && <Badge className="bg-red-500/20 text-red-400">Suspended</Badge>}
+                  <Badge className="bg-green-500/20 text-green-500 font-bold">${u.credit_balance?.toFixed(2) || '0.00'}</Badge>
+                  {u.is_suspended && <Badge className="bg-red-500/20 text-red-500 font-bold">Suspended</Badge>}
                 </div>
               </CardContent>
             </Card>
@@ -472,60 +484,60 @@ const UsersTabContent = ({
 
       {/* Delete Confirmation Modal */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="bg-card border-border max-w-sm">
+        <DialogContent className={`border max-w-sm ${t.pageBg} ${t.border}`}>
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
+            <DialogTitle className={`flex items-center gap-2 ${t.textPrimary}`}>
               <Trash2 className="w-5 h-5 text-red-500" /> Confirm Delete
             </DialogTitle>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-zinc-300">
-              Are you sure you want to delete <span className="text-red-400 font-semibold">{selectedUsers.size} user{selectedUsers.size > 1 ? 's' : ''}</span>?
+            <p className={t.textSecondary}>
+              Are you sure you want to delete <span className="text-red-500 font-semibold">{selectedUsers.size} user{selectedUsers.size > 1 ? 's' : ''}</span>?
             </p>
-            <p className="text-zinc-500 text-sm mt-2">This action cannot be undone.</p>
+            <p className={`${t.textMuted} text-sm mt-2`}>This action cannot be undone.</p>
           </div>
           <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className="border-input text-zinc-300 hover:bg-muted">Cancel</Button>
-            <Button onClick={confirmBulkDelete} className="bg-red-600 hover:bg-red-700 text-white">Delete Users</Button>
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className={`border ${t.border} ${t.textPrimary} ${t.hoverBg}`}>Cancel</Button>
+            <Button onClick={confirmBulkDelete} className="bg-red-600 hover:bg-red-700 text-white font-bold">Delete Users</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Reset Password Modal */}
       <Dialog open={showResetPasswordModal} onOpenChange={setShowResetPasswordModal}>
-        <DialogContent className="bg-card border-border text-foreground max-w-sm">
+        <DialogContent className={`border max-w-sm ${t.pageBg} ${t.border}`}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-amber-400">
+            <DialogTitle className="flex items-center gap-2 text-amber-500">
               <KeyRound className="w-5 h-5" /> Reset Password
             </DialogTitle>
           </DialogHeader>
           <div className="modal-body px-4 sm:px-6 space-y-4 py-4">
-            <p className="text-muted-foreground text-sm">
+            <p className={`text-sm ${t.textSecondary}`}>
               Set a new password for{' '}
-              <span className="text-foreground font-medium">{resetPasswordUser?.full_name || resetPasswordUser?.email}</span>
+              <span className={`font-semibold ${t.textPrimary}`}>{resetPasswordUser?.full_name || resetPasswordUser?.email}</span>
             </p>
-            <p className="text-gray-500 text-xs">{resetPasswordUser?.email}</p>
+            <p className={`text-xs ${t.textMuted}`}>{resetPasswordUser?.email}</p>
             <Input aria-label="Enter new password (min 6 characters)"
               type="text" value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Enter new password (min 6 characters)"
-              className="bg-muted border-border text-foreground" autoComplete="new-password"
+              className={`border ${t.inputBg} ${t.textPrimary}`} autoComplete="new-password"
             />
             {newPassword && newPassword.length < 6 && (
-              <p className="text-red-400 text-xs">Password must be at least 6 characters</p>
+              <p className="text-red-500 text-xs font-semibold">Password must be at least 6 characters</p>
             )}
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => { setShowResetPasswordModal(false); setNewPassword(''); }} className="flex-1 border-border text-foreground">Cancel</Button>
+              <Button variant="outline" onClick={() => { setShowResetPasswordModal(false); setNewPassword(''); }} className={`flex-1 border ${t.border} ${t.textPrimary} ${t.hoverBg}`}>Cancel</Button>
               <Button aria-label="Reset password"
                 onClick={handleResetPassword}
                 disabled={!newPassword || newPassword.length < 6 || resetPasswordLoading}
-                className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-semibold"
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold"
               >
                 {resetPasswordLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <KeyRound className="w-4 h-4 mr-2" />}
                 Reset Password
               </Button>
             </div>
-            <p className="text-yellow-500/60 text-xs text-center">
+            <p className={`text-xs text-center ${t.textMuted}`}>
               {'\u26A0\uFE0F'} The user will need to log in with this new password
             </p>
           </div>

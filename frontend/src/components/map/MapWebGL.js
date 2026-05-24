@@ -147,14 +147,17 @@ var MapWebGL = ({
       bounds: marineData.grid.bounds,
       cols: marineData.grid.cols,
       rows: marineData.grid.rows,
-      vectors: marineData.grid.vectors.map(v => ({
-        lat: v.lat,
-        lng: v.lng,
-        u: v[activeMarineLayer]?.u || 0,
-        v: v[activeMarineLayer]?.v || 0,
-        speed: v[activeMarineLayer]?.speed || 0,
-        isOcean: v.isOcean
-      }))
+      vectors: marineData.grid.vectors.map(v => {
+        const layerData = v[activeMarineLayer] || v['waves'];
+        return {
+          lat: v.lat,
+          lng: v.lng,
+          u: layerData?.u || 0,
+          v: layerData?.v || 0,
+          speed: layerData?.speed || 0,
+          isOcean: v.isOcean
+        };
+      })
     };
   }, [marineData, activeMarineLayer]);
 
