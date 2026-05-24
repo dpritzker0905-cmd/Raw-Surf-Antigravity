@@ -130,6 +130,13 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Event Replayability**: All events must support time-range filtering (`replay_events`) using ISO 8601 UTC Z timestamps to reconstruct historical state sequences.
 * **Real-time Pub/Sub Streaming**: Event dispatches must broadcast in real-time to active listeners, maintaining low latency propagation (<500ms) with zero-coupling between producers and consumers.
 
+
+### 20. Debug Consciousness Rules
+* **Pure Diagnostic Observation**: The Debug Consciousness Layer (DCL) must remain strictly read-only and analytics-only. It is forbidden from modifying production database states, bookings, payments, or executing workflows.
+* **Causal Failure Diagnosis**: Every root-cause failure analysis (`explain_failure`) must trace causality backward through correlation chains and return the mandated format (Root Cause Summary, First failing MCP, First failing event, Full event chain leading to failure, Suggested fix, and Confidence score).
+* **Dynamic Health Index Calculations**: The System Health Score ($0\text{-}100$) must be evaluated dynamically based on recent event logs, applying strict penalties for hard failures ($-15$ per error event), broken event chains ($-10$ per incomplete flow), and latency anomalies ($-5$ per propagation step $>500\text{ ms}$).
+* **Debug Memory Persistence**: Diagnosed root causes and anomalous traces must be committed to the isolated `debug_consciousness.db` failure logs to allow historical regression tracking and recurring pattern discoveries.
+
 ---
 
 > [!IMPORTANT]
