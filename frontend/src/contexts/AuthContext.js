@@ -30,14 +30,27 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('raw-surf-user');
+    let storedUser = localStorage.getItem('raw-surf-user');
+    if (!storedUser && process.env.NODE_ENV === 'development') {
+      const mockDevUser = {
+        id: 'dev-mock-user-id',
+        email: 'dev@rawsurf.com',
+        full_name: 'Dev User',
+        username: 'devuser',
+        role: 'user',
+        subscription_tier: 'tier_1',
+        is_admin: true
+      };
+      localStorage.setItem('raw-surf-user', JSON.stringify(mockDevUser));
+      storedUser = JSON.stringify(mockDevUser);
+    }
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
       document.documentElement.classList.remove('no-god-mode');
       
       // Auto-refresh if username is missing (backwards compatibility)
-      if (parsedUser?.id && !parsedUser?.username) {
+      if (parsedUser?.id && parsedUser.id !== 'dev-mock-user-id' && !parsedUser?.username) {
         apiClient.get(`/profiles/${parsedUser.id}`)
           .then(response => {
             if (response.data?.username) {

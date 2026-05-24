@@ -59,8 +59,11 @@ var MapWebGL = ({
   onMapLongPress,
   longPressLocation,
 }) => {
- // v3.9.7: Explicit init never at import time
+  // v3.9.7: Explicit init never at import time
   ensureMapLibreInit();
+  if (typeof window !== 'undefined') {
+    window.__MODEL_METADATA_CACHE__ = MODEL_METADATA_CACHE;
+  }
   markDOMReady(); // Init sequencer: DOM is ready when component renders
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
@@ -573,8 +576,8 @@ var MapWebGL = ({
           if (layerIds.includes('tunnel-minor-case-navigation')) {
             id = 'tunnel-minor-case-navigation';
           } else {
-            // 2. Scan style sheet array for valid fallback layer IDs
-            const fallbackTargets = ['building', 'road-label', 'water', 'land-structure-polygon', 'road-structure-polygon'];
+            // 2. Scan style sheet array for valid fallback layer IDs (exclude water so layers are never covered by base map water)
+            const fallbackTargets = ['building', 'road-label', 'land-structure-polygon', 'road-structure-polygon'];
             for (const target of fallbackTargets) {
               const foundId = layerIds.find(lid => lid && (lid.includes(target) || target.includes(lid)));
               if (foundId) {

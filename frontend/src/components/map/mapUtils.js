@@ -476,8 +476,9 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
 
     MODEL_METADATA_PROMISES[modelToCheck] = fetch(`/api/weather-proxy?type=tiles&model=${modelToCheck}`, { signal })
       .then(async res => {
-        if (!res.ok) {
-          console.warn(`[OM-Protocol] Proxy failed with status ${res.status}. Initiating direct-to-CDN metadata fallback fetch...`);
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok || !contentType.includes('application/json')) {
+          console.warn(`[OM-Protocol] Proxy failed or returned non-JSON (${res.status}, ${contentType}). Initiating direct-to-CDN metadata fallback fetch...`);
           // Bypassing netlify proxy and fetching straight from Open-Meteo edge CDN
           const fallbackRes = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`, { signal });
           if (!fallbackRes.ok) {
@@ -611,19 +612,19 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             console.log('[OM-Protocol] Registered with', Object.keys(currentSettings.colorScales).length, 'color scales');
           }
           
-          let requestedModelFolder = "";
+           let requestedModelFolder = "";
+          let urlObj = null;
+          let variable = "";
           // Diagnostic: log each unique variable request
           try {
-            const urlObj = new URL(params.url.replace('om://', ''));
+            urlObj = new URL(params.url.replace('om://', ''));
             const parts = urlObj.pathname.split('/');
             if (parts[2]) {
               requestedModelFolder = parts[2];
             }
-            const variable = urlObj.searchParams.get('variable');
-            if (variable && hasWindow && window.__RASTER_DEBUG__ && !debug[`logged_var_${variable}`]) {
-              window.__RASTER_DEBUG__[`logged_var_${variable}`] = true;
-              const scale = currentSettings.colorScales[variable];
-              console.log(`[OM-Protocol] Tile request: variable=${variable}, hasScale=${!!scale}, type=${params.type}`);
+            variable = urlObj.searchParams.get('variable') || "";
+            if (variable && hasWindow && window.__RASTER_DEBUG__) {
+              console.log(`[OM-Protocol] Tile request: variable=${variable}, type=${params.type}, url: ${params.url?.substring(0, 120)}`);
             }
           } catch (err) { /* ignore parse errors */ }
 
@@ -644,9 +645,8 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 minzoom: 0,
                 maxzoom: 22
               };
-              const textEncoder = new TextEncoder();
-              const arrayBufferData = textEncoder.encode(JSON.stringify(flawlessMockJson));
-              return { data: arrayBufferData.buffer.slice(arrayBufferData.byteOffset, arrayBufferData.byteOffset + arrayBufferData.byteLength) };
+              // Return the parsed JSON object directly to prevent MapLibre from throwing length TypeError
+              return { data: flawlessMockJson };
             }
 
             // Standard imagery fallbacks return our valid 1x1 fully transparent PNG data container
@@ -670,6 +670,30 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                   console.warn(`[OM-Protocol] Discarding tile for model ${requestedModelFolder} because active lock is ${activeModelLock}`);
                   return getSafeWorkerFallbackResponse(params.url, params.type);
                 }
+                
+                // Diagnostic logging
+                if (response && response.data) {
+                  if (params.type === 'json') {
+                    console.log(`[OM-Protocol-Diag] Resolved TileJSON for variable ${urlObj.searchParams.get('variable')}:`, {
+                      tilejson: response.data.tilejson,
+                      tiles: response.data.tiles,
+                      minzoom: response.data.minzoom,
+                      maxzoom: response.data.maxzoom
+                    });
+                  } else if (params.type === 'image') {
+                    const isBitmap = typeof ImageBitmap !== 'undefined' && response.data instanceof ImageBitmap;
+                    const isBuffer = response.data instanceof ArrayBuffer;
+                    console.log(`[OM-Protocol-Diag] Resolved image tile for ${urlObj.searchParams.get('variable')}:`, {
+                      dataType: isBitmap ? 'ImageBitmap' : isBuffer ? 'ArrayBuffer' : typeof response.data,
+                      width: isBitmap ? response.data.width : undefined,
+                      height: isBitmap ? response.data.height : undefined,
+                      byteLength: isBuffer ? response.data.byteLength : undefined
+                    });
+                  }
+                } else {
+                  console.warn('[OM-Protocol-Diag] omProtocol resolved with empty response/data');
+                }
+
                 return response;
               })
               .catch(err => {
@@ -677,14 +701,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                   // Propagate the AbortError cleanly to let MapLibre know the cancellation succeeded
                   throw err;
                 }
-                console.error('[OM-Protocol] Async tile decoding error caught:', err.message || err);
+                console.error('[OM-Protocol] Async tile decoding error caught:', err, err.stack);
                 return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
               });
           } catch (syncErr) {
             if (syncErr.name === 'AbortError' || syncErr.message?.includes('aborted')) {
               throw syncErr;
             }
-            console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
+            console.error('[OM-Protocol] Sync tile parsing error:', syncErr, syncErr.stack);
             return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
           }
         });
