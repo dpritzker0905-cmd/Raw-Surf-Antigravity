@@ -605,17 +605,17 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          const getSafeWorkerImageFallback = async () => {
+          const serveTypeSafeWorkerFallback = () => {
             try {
-              // A solid, valid 1x1 completely transparent PNG binary data block
-              const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              const binaryString = window.atob(transparentPngBase64);
-              const len = binaryString.length;
-              const bytes = new Uint8Array(len);
-              for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+              // A perfectly structured, valid 1x1 pixel completely transparent PNG byte array
+              const cleanTransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+              const binaryStr = window.atob(cleanTransparentPngBase64);
+              const byteLength = binaryStr.length;
+              const uIntArray = new Uint8Array(byteLength);
+              for (let i = 0; i < byteLength; i++) {
+                uIntArray[i] = binaryStr.charCodeAt(i);
               }
-              return { data: bytes.buffer };
+              return { data: uIntArray.buffer };
             } catch (err) {
               return { data: new ArrayBuffer(0) };
             }
@@ -639,7 +639,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               return { data: uint8Data.buffer };
             }
             
-            return getSafeWorkerImageFallback();
+            return serveTypeSafeWorkerFallback();
           };
 
           // v3.13.5: Double-wrapped synchronous + asynchronous type-safe error boundaries

@@ -78,6 +78,7 @@ var MapWebGL = ({
   const [activeSlots, setActiveSlots] = useState({});
   const [isTransitioning, setIsTransitioning] = useState(true);
   const cacheBustRef = useRef(Date.now());
+  const modelDebounceTimeoutRef = useRef(null);
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -191,58 +192,68 @@ var MapWebGL = ({
   useEffect(() => {
     if (!activeModel) return;
     
-    console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
-    setIsTransitioning(true);
-    cacheBustRef.current = Date.now();
-    setMapActiveModelLock(activeModel); // Enforce active model lock to avoid out-of-order discarding
+    // Clear any pending transition debounce timeout completely before it fires
+    if (modelDebounceTimeoutRef.current) {
+      clearTimeout(modelDebounceTimeoutRef.current);
+    }
     
     let active = true;
-
-    // Synchronize deactivation: force layer opacities to 0 before cache is cleared to prevent texture flashes
-    if (mapInstance && mapInstance.isStyleLoaded()) {
-      safeSetPaintProperty(mapInstance, 'wind-particle-overlay', 'raster-opacity', 0);
-      safeSetPaintProperty(mapInstance, 'marine-canvas-layer', 'raster-opacity', 0);
-    }
-
-    clearOpenMeteoCache().then(() => {
+    
+    // Wrap active model initialization loop inside a 300ms debouncing window
+    modelDebounceTimeoutRef.current = setTimeout(() => {
       if (!active) return;
-
-      const finishTransition = () => {
-        // Temporal safety window: defer setting transitioning to false by 120ms using rAF
-        setTimeout(() => {
-          requestAnimationFrame(() => {
-            if (!active) return;
-            console.log(`[Raster] Transition finished, activeModel: ${activeModel}`);
-            setIsTransitioning(false);
-            if (mapInstance) {
-              try { mapInstance.triggerRepaint(); } catch(e) {}
-            }
-          });
-        }, 120);
-      };
-
-      if (mapInstance) {
-        if (mapInstance.isStyleLoaded()) {
-          finishTransition();
-        } else {
-          // Wait for map style to be fully loaded before revealing raster layers
-          mapInstance.once('load', finishTransition);
-          // Safety fallback timeout
-          setTimeout(() => {
-            if (active) {
-              console.log('[Raster] Style load safety fallback triggered');
-              finishTransition();
-            }
-          }, 2000);
-        }
-      } else {
-        // If mapInstance is not yet ready, we remain in transitioning state.
-        // Once mapInstance is set, this useEffect will run again and register the load listeners!
+      
+      console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
+      setIsTransitioning(true);
+      cacheBustRef.current = Date.now();
+      setMapActiveModelLock(activeModel); // Enforce active model lock to avoid out-of-order discarding
+      
+      // Synchronize deactivation: force layer opacities to 0 before cache is cleared to prevent texture flashes
+      if (mapInstance && mapInstance.isStyleLoaded()) {
+        safeSetPaintProperty(mapInstance, 'wind-particle-overlay', 'raster-opacity', 0);
+        safeSetPaintProperty(mapInstance, 'marine-canvas-layer', 'raster-opacity', 0);
       }
-    });
+
+      clearOpenMeteoCache().then(() => {
+        if (!active) return;
+
+        const finishTransition = () => {
+          // Temporal safety window: defer setting transitioning to false by 120ms using rAF
+          setTimeout(() => {
+            requestAnimationFrame(() => {
+              if (!active) return;
+              console.log(`[Raster] Transition finished, activeModel: ${activeModel}`);
+              setIsTransitioning(false);
+              if (mapInstance) {
+                try { mapInstance.triggerRepaint(); } catch(e) {}
+              }
+            });
+          }, 120);
+        };
+
+        if (mapInstance) {
+          if (mapInstance.isStyleLoaded()) {
+            finishTransition();
+          } else {
+            // Wait for map style to be fully loaded before revealing raster layers
+            mapInstance.once('load', finishTransition);
+            // Safety fallback timeout
+            setTimeout(() => {
+              if (active) {
+                console.log('[Raster] Style load safety fallback triggered');
+                finishTransition();
+              }
+            }, 2000);
+          }
+        }
+      });
+    }, 300);
 
     return () => {
       active = false;
+      if (modelDebounceTimeoutRef.current) {
+        clearTimeout(modelDebounceTimeoutRef.current);
+      }
     };
   }, [activeModel, mapInstance]);
 
