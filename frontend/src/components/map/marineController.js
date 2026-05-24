@@ -622,7 +622,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
 
     // Open-Meteo model identifiers for Marine
-    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'dwd_icon', EURO: 'ecmwf_wam025' };
+    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'dwd_gwam', EURO: 'ecmwf_wam025' };
     if (model && MARINE_OM_MODELS[model]) {
       body.models = [MARINE_OM_MODELS[model]];
     }
