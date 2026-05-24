@@ -18,6 +18,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Workflow Automation & Connection Orchestrations** $\rightarrow$ Call `n8n-mcp` (`create_workflow`, `trigger_workflow`, `get_workflow_executions`, `get_monitoring_dashboard`, `configure_retry_policy`) to design custom newsletter/alerts triggers, coordinate multi-node triggers (Supabase, Stripe, WooCommerce, Twilio, Weather APIs), enforce recovery retry metrics, and monitor visual dashboard states.
 * **Financial Checkout & Billing Splits** $\rightarrow$ Call `stripe-mcp` (`create_checkout_session`, `create_subscription`, `refund_payment`, `transfer_payout`, `create_invoice`, `get_customer_payments`, `simulate_webhook`) to construct secure checkout sessions, activate plan memberships, trigger payout disbursements, split coach/photographer commissions (80% to coach, 20% to platform), process refunds, and route webhook events.
 * **Marketplace Catalog & Seller Splits** $\rightarrow$ Call `woocommerce-mcp` (`create_product`, `update_product`, `update_variation`, `sync_inventory`, `moderate_listing`, `attach_gallery_images`) to manage surfboard/equipment catalogs, map variable size/color/fin attributes, synchronize stock levels, enforce strict admin moderation queues, and bundle picture-in-picture variation overlays.
+* **Google Calendar Scheduling & Booking** $\rightarrow$ Call `google-calendar-mcp` (`check_availability`, `create_booking`, `cancel_booking`, `reschedule_booking`, `get_provider_schedule`) to verify instructor/photographer slots, manage timezone offsets, prevent conflicts, and trigger automated reminders.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
@@ -65,6 +66,13 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Variable Product Attributes**: Variable listings must map classic properties: size, color (e.g. Ocean Blue, Sunburst Orange), and fin setups (Thruster, Twin Fin, Quad, Single Fin).
 * **Picture-in-Picture Image Overlays**: Shaper variations must support picture-in-picture overlays, enabling real-time Mockup Canvas previews of customized surfboards.
 * **Admin Listing Moderation**: To preserve marketplace safety, listing status updates must be routed through `woocommerce-mcp` moderation and reject unauthorized roles immediately.
+
+### 11. Google Calendar Scheduling Rules
+* **Conflict Prevention Inequality**: All scheduling availability checks and booking events must strictly enforce the overlap conflict inequality `(target_start < event_end) and (event_start < target_end)`.
+* **Canceled Status Exemption**: Calendar slots associated with `canceled` events must be skipped during overlap checks, allowing instant re-scheduling and slot freeing.
+* **ISO 8601 UTC Standardization**: Time ranges must be formatted and stored as standard ISO 8601 strings in UTC (e.g. `'YYYY-MM-DDTHH:MM:SSZ'`) with appropriate local timezone offsets managed transparently.
+* **Automated Reminders Notification Logs**: Every confirmed booking must successfully trigger an automated SMS/Email reminder workflow and log details to the SQLite cache to preserve n8n pipeline continuity.
+* **SQLite Timeout Resilience**: SQLite database connection timeouts must be set to `10.0` seconds to guarantee thread-safe operation and prevent locks during high-frequency API schedules.
 
 ---
 
