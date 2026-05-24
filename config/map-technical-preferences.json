@@ -1,0 +1,34 @@
+{
+  "mapping_framework": "MapLibre GL JS (Web Mercator / EPSG:3857)",
+  "tile_protocol": "om:// (Open-Meteo binary .om format, client-side decode)",
+  "raster_format": "Binary .om tiles (NOT GeoTIFF/PNG — decoded client-side via @openmeteo/weather-map-layer)",
+  "base_map_source": "MapTiler vector tiles",
+  "forecast_models": {
+    "atmospheric": {
+      "GFS": "ncep_gfs025",
+      "GFS_PRECIP": "ncep_gfs013",
+      "ICON": "dwd_icon",
+      "EURO": "ecmwf_ifs025"
+    },
+    "marine": {
+      "GFS": "ncep_gfswave025",
+      "ICON": "dwd_gwam",
+      "EURO": "ecmwf_wam025"
+    }
+  },
+  "weather_coordinate_precision": 4,
+  "grid_resolution_degrees": 0.25,
+  "preferred_spatial_libraries": ["turf.js", "@openmeteo/weather-map-layer"],
+  "tile_size_px": 512,
+  "max_zoom_marine": 9,
+  "max_zoom_atmospheric": 12,
+  "color_scale_alpha_range": "0-1 (NOT 0-255)",
+  "direction_convention": "meteorological (degrees FROM source, 0=N, CW)",
+  "direction_canvas_transform": "(meteoDir + 180) % 360",
+  "interpolation": "bilinear (handled server-side by Open-Meteo API)",
+  "crs": {
+    "data_native": "EPSG:4326 (WGS 84)",
+    "map_display": "EPSG:3857 (Web Mercator)",
+    "reprojection": "handled by @openmeteo/weather-map-layer GridFactory"
+  }
+}

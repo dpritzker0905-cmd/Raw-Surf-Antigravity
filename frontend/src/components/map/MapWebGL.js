@@ -293,6 +293,16 @@ var MapWebGL = ({
         }
       }
 
+      // Diagnostic: log marine tile URL resolution
+      const marineUrlCount = Object.keys(newUrls).filter(k => ['waves','swell_1','swell_2','wind_waves'].some(m => k.startsWith(m))).length;
+      if (marineUrlCount > 0) {
+        console.log(`[Raster] Resolved ${marineUrlCount} marine tile URLs:`, Object.keys(newUrls).filter(k => ['waves','swell_1','swell_2','wind_waves'].some(m => k.startsWith(m))));
+      }
+      const totalUrls = Object.keys(newUrls).length;
+      if (totalUrls === 0 && tasks.length > 0) {
+        console.warn('[Raster] WARNING: resolveAllUrls generated 0 URLs for', tasks.length, 'active layers:', tasks.map(t => `${t.layerKey}(${t.variable})`));
+      }
+
       if (isMounted && taskId === resolveTaskIdRef.current) {
         setOmTileUrls(prev => {
           const filtered = {};
@@ -635,6 +645,7 @@ var MapWebGL = ({
               id={`${slotKey}-source`}
               type="raster"
               url={url}
+              tileSize={512}
               maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
             >
               <Layer

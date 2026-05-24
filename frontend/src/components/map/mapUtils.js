@@ -544,23 +544,29 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
       try {
         maplibregl.addProtocol('om', (params, abortController) => {
           const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
+          const debug = window.__RASTER_DEBUG__ || {};
           
-          if (!window.__RASTER_DEBUG__?.hasLoggedProtocol) {
-            window.__RASTER_DEBUG__.hasLoggedProtocol = true;
-            console.log('[OM-Protocol] Custom scales initialized:', Object.keys(currentSettings.colorScales));
+          // Safe one-time init log
+          if (!debug.hasLoggedProtocol) {
+            if (window.__RASTER_DEBUG__) window.__RASTER_DEBUG__.hasLoggedProtocol = true;
+            console.log('[OM-Protocol] Registered with', Object.keys(currentSettings.colorScales).length, 'color scales');
           }
           
+          // Diagnostic: log each unique variable request
           try {
             const urlObj = new URL(params.url.replace('om://', ''));
             const variable = urlObj.searchParams.get('variable');
-            const scale = currentSettings.colorScales[variable];
-            if (scale && window.__RASTER_DEBUG__?.logMissingVariables && !window.__RASTER_DEBUG__?.[`logged_scale_${variable}`]) {
-              window.__RASTER_DEBUG__[`logged_scale_${variable}`] = true;
-              console.log(`[OM-Protocol] Variable: ${variable}, Unit: ${scale.unit}, Breakpoints count: ${scale.breakpoints?.length}`);
+            if (variable && window.__RASTER_DEBUG__ && !debug[`logged_var_${variable}`]) {
+              window.__RASTER_DEBUG__[`logged_var_${variable}`] = true;
+              const scale = currentSettings.colorScales[variable];
+              console.log(`[OM-Protocol] Tile request: variable=${variable}, hasScale=${!!scale}, type=${params.type}`);
             }
           } catch (err) { /* ignore parse errors */ }
 
-          return omProtocol(params, abortController, currentSettings);
+          return omProtocol(params, abortController, currentSettings).catch(err => {
+            console.error('[OM-Protocol] Tile error:', err.message, 'url:', params.url?.substring(0, 120));
+            throw err;
+          });
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
     }

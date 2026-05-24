@@ -24,6 +24,7 @@
 
 import { useEffect, useRef } from 'react';
 import { LAYER_REGISTRY, MARINE_MODEL_MAP, PRECIP_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry';
+import { LIVE_FETCHED_MODELS } from './mapUtils';
 
 var OM_MODEL_MAP = { GFS: 'ncep_gfs025', EURO: 'ecmwf_ifs025', ICON: 'dwd_icon' };
 var PRELOAD_STEPS = 3;    // number of future valid model steps to preload
@@ -93,9 +94,8 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
 
       if (!meta.variables.includes(resolvedVar)) return;
 
-      // Guard: skip if metadata is still the fake hourly defaults (step < 3h)
-      var stepMs = new Date(meta.validTimes[1]).getTime() - new Date(meta.validTimes[0]).getTime();
-      if (stepMs < MIN_STEP_MS) return;
+      // Guard: skip if metadata is still the fake pre-populated defaults (not live-fetched)
+      if (!LIVE_FETCHED_MODELS.has(model)) return;
 
       // Compute closest valid_times index to the current forecast target
       var now = Date.now() + currentHour * 3600000;
