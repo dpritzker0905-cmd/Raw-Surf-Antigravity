@@ -1,0 +1,53 @@
+# Brain Rules — Maximizing MCP Capabilities
+
+This document establishes the **Core MCP Maximize Protocol** for all AI coding assistants, agents, and systems operating on the Raw Surf platform. It defines strict rules to ensure registered Model Context Protocol (MCP) capabilities are prioritized, preserved, and fully leveraged.
+
+---
+
+## ⚡ Core Rules & Directives
+
+### 1. Prefer Registered MCP Servers Over Ad-Hoc Scripts
+AI assistants must proactively query and call tools from the active MCP suite before writing scratch scripts or duplicating local logic:
+* **Vector Indexing & Searches** $\rightarrow$ Call `vector-db-mcp` (`index_document`, `semantic_search`) to ingest and query surf alerts, weather summaries, and preferences.
+* **Pricing & Surge Modeling** $\rightarrow$ Call `dynamic-pricing-mcp` (`calculate_dynamic_price`, `add_admin_override`) to preview booking costs, evaluate availability scarcity, or enforce admin fixed rates.
+* **Spatial & Heatmap Analytics** $\rightarrow$ Call `geospatial-analytics-mcp` (`analyze_crowd_density`, `generate_maplibre_geojson`) to snapshot lineup traffic and structure MapLibre GeoJSON layers.
+* **Media Optimization & Tagging** $\rightarrow$ Call `cloudinary-mcp` (`optimize_image`, `auto_tag_photo`, `generate_thumbnail`) to compress photos, parse AI metadata, and compile LQIP lazy load assets.
+* **Operational Dashboard & Synced Bases** $\rightarrow$ Call `airtable-mcp` (`sync_airtable_with_supabase`, `update_booking_status`, `assign_instructor`, `generate_reports`) to manage leads, trips, and assign instructors with Slack/Email alerts.
+* **Recommendation Engine & Dynamic Matching** $\rightarrow$ Call `recommendation-engine-mcp` (`recommend_surf_spots`, `recommend_surf_boards`) to dynamically match surfers to beaches and equipment using multi-factor scores, geographic distance checks, and vector semantic similarity.
+* **Geospatial & Mapping Enhancements** $\rightarrow$ Call `google-maps-mcp` (`nearby_surf_spots`, `calculate_travel_time`, `find_nearby_instructors`, `parking_lookup`, `reverse_geocode`, `get_weather_overlay`) to locate beaches/instructors, estimate multi-modal routing, look up parking limits, reverse geocode addresses, and format MapLibre overlay scopes.
+* **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
+
+### 2. Observe and Sync Tool Schemas
+When extending models, routes, or database schemas (e.g. `spots.py`, `marketplace.py` in the backend):
+* **Audit Alignment**: Instantly verify if the changes impact spatial filters, pricing equations, vector stores, recommendation profiles, or geospatial cache structures.
+* **Schema Registration**: Update the JSON-RPC schema descriptions and input validations in the corresponding MCP files (`geospatial_mcp_server.py`, `pricing_mcp_server.py`, `recommendation_mcp_server.py`, `google_maps_mcp_server.py`, etc.) to keep AI client capabilities cleanly synchronized.
+
+### 3. Native Windows Execution Standarization
+To prevent shell escaping failures and quote-stripping issues common to PowerShell/CMD boundaries:
+* **Rule**: Never run complex nested JSON objects directly inside bare terminal strings.
+* **Standard**: Always wrap command-setting inputs (e.g. `npx openclaw mcp set`) inside a Python `subprocess.run()` list-of-strings pipeline:
+  ```python
+  import subprocess
+  import json
+  subprocess.run(["npx", "openclaw", "mcp", "set", "name", json.dumps(payload)], shell=True)
+  ```
+
+### 4. Supabase Compatibility Lock
+* **pgvector Standards**: All vector index configurations must adhere to Supabase PostgreSQL dimensions (e.g. `vector(384)` for `all-MiniLM-L6-v2`) and use standard HNSW vector cosine operators (`<=>`) to ensure local development migrations compile seamlessly in the cloud production environment.
+
+### 5. Role-Based Moderation Safety
+* **Access Control**: Keep standard user permissions isolated. Any MCP tool managing system-wide states (such as deactivating pricing overrides or moderating spam reviews) must strictly enforce that the parameter `caller_role == 'admin'`, rejecting unauthorised surfer/photographer profiles instantly.
+
+### 6. Recommendation Engine Safety & Matching Guidelines
+* **Skill Level Verification**: Spot recommendation matches must penalize skill mismatch strictly (e.g. intermediate surfers trying advanced point breaks lose 15 points, beginner surfers trying advanced reef breaks lose 60 points) to guarantee safety.
+* **Equipment Profile Matching**: Equipments and surfboards suggestions must match surfer volume expectations: beginners need larger, high-volume boards (minimum 40L) which receive suitability bonuses; advanced surfers need low-volume high-performance thrusters/shortboards (maximum 32L) for maneuverability.
+
+### 7. Google Maps Geospatial Rules
+* **Address Resolution**: Proactively reverse geocode spot coordinates to physical formatted addresses to enhance search results readability.
+* **Travel and Route Multipliers**: Driving estimates must incorporate standard PCH/traffic friction delay modifiers ($+25\%$) rather than using pure geometric line calculations.
+* **MapLibre GL Performance Protection**: Geospatial data must be formatted as raw GeoJSON properties, ensuring seamless integrations with the existing MapLibre web components without blocking UI rendering frames or introducing high latency.
+
+---
+
+> [!IMPORTANT]
+> The MCP Maximize Protocol operates as a primary system binding. AI assistants must always inspect this rules checklist on each turn to preserve clean agent capabilities.
