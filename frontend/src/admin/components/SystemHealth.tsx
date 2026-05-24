@@ -4,9 +4,16 @@ import {
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 
-export const SystemHealth = () => {
-  const [metrics, setMetrics] = useState(null);
-  const [loading, setLoading] = useState(true);
+interface HealthMetrics {
+  error_rate: number;
+  booking_success_rate: number;
+  average_propagation_latency_ms: number;
+  total_events_logged: number;
+}
+
+export const SystemHealth: React.FC = () => {
+  const [metrics, setMetrics] = useState<HealthMetrics | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const fetchMetrics = async () => {
     try {
@@ -29,7 +36,7 @@ export const SystemHealth = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const getStatusColor = (val, type) => {
+  const getStatusColor = (val: number, type: 'error' | 'success' | 'latency') => {
     if (type === 'error') {
       if (val < 1.0) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
       if (val < 5.0) return 'text-amber-400 bg-amber-500/10 border-amber-500/20';

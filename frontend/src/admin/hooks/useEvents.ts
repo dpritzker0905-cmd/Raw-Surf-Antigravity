@@ -1,12 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
 import apiClient, { BACKEND_URL } from '../../lib/apiClient';
-import { supabaseAdminClient } from '../services/supabaseAdminClient';
+import { supabaseAdmin } from '../lib/supabase';
+
+export interface SystemEvent {
+  event_id: string;
+  event_type: string;
+  timestamp: string;
+  payload: any;
+  user_id?: string;
+  source_mcp?: string;
+  correlation_id?: string;
+  propagation_latency_ms?: number;
+  source_service?: string;
+}
 
 export const useEvents = () => {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const wsRef = useRef(null);
+  const [events, setEvents] = useState<SystemEvent[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const fetchEvents = async () => {
     try {
@@ -15,7 +27,7 @@ export const useEvents = () => {
       if (res.data?.success) {
         setEvents(res.data.events || []);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch events:', err);
       setError(err.message || 'Failed to fetch events');
     } finally {
@@ -26,8 +38,6 @@ export const useEvents = () => {
   useEffect(() => {
     fetchEvents();
 
-    // ─── Realtime Subscription Strategy ────────────────────────────────────
-    // 1. Try WebSocket first (fast, direct backend event spine stream)
     const wsUrl = `${BACKEND_URL.replace(/^http/, 'ws')}/ws/admin/events`;
     
     const connectWS = () => {
@@ -39,33 +49,29 @@ export const useEvents = () => {
           try {
             const data = JSON.parse(event.data);
             if (data.event_id && data.event_type) {
-              // Add to the top of the list in real-time
               setEvents((prev) => {
-                // Prevent duplicate events
                 if (prev.some((e) => e.event_id === data.event_id)) return prev;
                 return [data, ...prev];
               });
             }
           } catch (e) {
-            // Ignore non-json or ping-pong
+            // Ignore ping-pong or invalid JSON
           }
         };
 
         ws.onclose = () => {
-          // Retry connection after 5 seconds if closed
           setTimeout(connectWS, 5000);
         };
       } catch (err) {
-        console.warn('WS Admin Connection failed, falling back to Supabase', err);
+        console.warn('WS connection failed, falling back to Supabase', err);
       }
     };
 
     connectWS();
 
-    // 2. Supabase Realtime Fallback
-    const subscription = supabaseAdminClient.subscribeToTable('event_log', (payload) => {
+    const subscription = supabaseAdmin.subscribeTable('event_log', (payload) => {
       if (payload.new) {
-        const newEvent = {
+        const newEvent: SystemEvent = {
           event_id: payload.new.event_id,
           event_type: payload.new.event_type,
           timestamp: payload.new.timestamp,
@@ -89,7 +95,7 @@ export const useEvents = () => {
         wsRef.current.close();
       }
       if (subscription) {
-        supabaseAdminClient.unsubscribe(subscription);
+        supabaseAdmin.unsubscribeTable(subscription);
       }
     };
   }, []);

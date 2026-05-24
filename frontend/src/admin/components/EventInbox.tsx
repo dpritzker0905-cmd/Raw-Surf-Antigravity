@@ -1,34 +1,23 @@
 import React, { useState } from 'react';
 import { 
-  Zap, Calendar, DollarSign, Activity, AlertOctagon, Terminal, Search, ChevronDown, ChevronRight, Hash, Clock
+  Terminal, Search, ChevronDown, ChevronRight, Hash
 } from 'lucide-react';
+import { SystemEvent } from '../hooks/useEvents';
+import EventCard from './EventCard';
 
-export const EventInbox = ({ events, loading, onSelectCorrelationId }) => {
-  const [search, setSearch] = useState('');
-  const [expandedEvents, setExpandedEvents] = useState({});
-  const [activeFilter, setActiveFilter] = useState('all');
+interface EventInboxProps {
+  events: SystemEvent[];
+  loading: boolean;
+  onSelectCorrelationId: (correlationId: string) => void;
+}
 
-  const toggleExpand = (id) => {
-    setExpandedEvents(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+export const EventInbox: React.FC<EventInboxProps> = ({ events, loading, onSelectCorrelationId }) => {
+  const [search, setSearch] = useState<string>('');
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [activeFilter, setActiveFilter] = useState<string>('all');
 
-  const getEventIcon = (type) => {
-    switch (type) {
-      case 'booking_created':
-      case 'booking_confirmed':
-        return <Calendar className="w-4 h-4 text-cyan-400 animate-pulse" />;
-      case 'payment_success':
-        return <DollarSign className="w-4 h-4 text-emerald-400" />;
-      case 'payment_failed':
-        return <AlertOctagon className="w-4 h-4 text-red-500 animate-bounce" />;
-      case 'weather_updated':
-      case 'surf_quality_updated':
-        return <Activity className="w-4 h-4 text-amber-400" />;
-      case 'system_error':
-        return <AlertOctagon className="w-4 h-4 text-red-500" />;
-      default:
-        return <Zap className="w-4 h-4 text-yellow-400" />;
-    }
+  const toggleGroup = (id: string) => {
+    setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
   const filteredEvents = events.filter(e => {
@@ -44,8 +33,7 @@ export const EventInbox = ({ events, loading, onSelectCorrelationId }) => {
     return matchesSearch;
   });
 
-  // Group events by correlation ID
-  const groupedEvents = filteredEvents.reduce((acc, current) => {
+  const groupedEvents = filteredEvents.reduce((acc: Record<string, SystemEvent[]>, current) => {
     const cId = current.correlation_id || 'no_correlation';
     if (!acc[cId]) {
       acc[cId] = [];
@@ -65,7 +53,6 @@ export const EventInbox = ({ events, loading, onSelectCorrelationId }) => {
           <p className="text-sm text-slate-400 mt-1">Live feed of global social marketplace operations</p>
         </div>
         
-        {/* Filter buttons */}
         <div className="flex flex-wrap gap-2">
           {['all', 'bookings', 'payments', 'errors'].map(filter => (
             <button
@@ -83,7 +70,6 @@ export const EventInbox = ({ events, loading, onSelectCorrelationId }) => {
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative mb-6">
         <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
         <input
@@ -106,7 +92,7 @@ export const EventInbox = ({ events, loading, onSelectCorrelationId }) => {
       ) : (
         <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2 scrollbar-thin">
           {Object.entries(groupedEvents).map(([corrId, evts]) => {
-            const isGroupExpanded = expandedEvents[corrId];
+            const isGroupExpanded = expandedGroups[corrId];
             const hasCorrelation = corrId !== 'no_correlation';
             
             return (
@@ -118,10 +104,9 @@ export const EventInbox = ({ events, loading, onSelectCorrelationId }) => {
                     : 'bg-transparent border-transparent'
                 }`}
               >
-                {/* Correlation header */}
                 {hasCorrelation && (
                   <div 
-                    onClick={() => toggleExpand(corrId)}
+                    onClick={() => toggleGroup(corrId)}
                     className="flex justify-between items-center p-3 cursor-pointer select-none"
                   >
                     <div className="flex items-center gap-2.5">
@@ -148,62 +133,10 @@ export const EventInbox = ({ events, loading, onSelectCorrelationId }) => {
                   </div>
                 )}
 
-                {/* Event lists */}
                 <div className={`px-4 pb-3 space-y-2.5 ${hasCorrelation && !isGroupExpanded ? 'hidden' : 'pt-2'}`}>
-                  {evts.map((evt) => {
-                    const isEvtExpanded = expandedEvents[evt.event_id];
-                    const eventDate = new Date(evt.timestamp);
-                    const formattedTime = eventDate.toLocaleTimeString();
-
-                    return (
-                      <div 
-                        key={evt.event_id} 
-                        className="bg-slate-950/40 border border-slate-900/60 rounded-md p-3 hover:bg-slate-950/80 transition-colors"
-                      >
-                        <div 
-                          onClick={() => toggleExpand(evt.event_id)}
-                          className="flex justify-between items-start cursor-pointer select-none"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-slate-900 border border-slate-800">
-                              {getEventIcon(evt.event_type)}
-                            </span>
-                            <div>
-                              <div className="font-semibold text-sm text-slate-200">{evt.event_type}</div>
-                              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                                <span className="bg-slate-900 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold text-slate-400">
-                                  {evt.source_mcp || 'spine'}
-                                </span>
-                                {evt.user_id && <span>User: {evt.user_id}</span>}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
-                              <Clock className="w-3 h-3" />
-                              {formattedTime}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Expandable JSON Payload view */}
-                        {isEvtExpanded && (
-                          <div className="mt-3 pt-3 border-t border-slate-900">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-xs font-semibold text-slate-400">Event Payload:</span>
-                              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                                Latency: {evt.propagation_latency_ms || 2.5}ms
-                              </span>
-                            </div>
-                            <pre className="text-[11px] font-mono bg-slate-900 border border-slate-850 rounded p-2.5 overflow-x-auto text-slate-300">
-                              {JSON.stringify(evt.payload, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {evts.map((evt) => (
+                    <EventCard key={evt.event_id} event={evt} />
+                  ))}
                 </div>
               </div>
             );

@@ -1,15 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Image, Share2, Check, X, Edit3, Clock, AlertCircle, RefreshCw
+  Image as ImageIcon, Share2, Check, Clock, AlertCircle, RefreshCw, Edit3
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 
-export const MediaReview = () => {
-  const [queue, setQueue] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [editingCaption, setEditingCaption] = useState('');
+interface MediaQueueItem {
+  queue_id: string;
+  correlation_id?: string;
+  type?: string;
+  status: string;
+  caption: string;
+  media_url: string;
+  booking_id: string;
+}
+
+export const MediaReview: React.FC = () => {
+  const [queue, setQueue] = useState<MediaQueueItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingCaption, setEditingCaption] = useState<string>('');
 
   const fetchQueue = async () => {
     try {
@@ -30,7 +40,7 @@ export const MediaReview = () => {
     fetchQueue();
   }, []);
 
-  const handleApprove = async (item) => {
+  const handleApprove = async (item: MediaQueueItem) => {
     try {
       toast.loading('Publishing social gallery post...', { id: 'media-post' });
       const captionToUse = editingId === item.queue_id ? editingCaption : item.caption;
@@ -46,12 +56,12 @@ export const MediaReview = () => {
         setEditingId(null);
         fetchQueue(); // refresh queue
       }
-    } catch (err) {
+    } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Failed to approve media post', { id: 'media-post' });
     }
   };
 
-  const handleStartEdit = (item) => {
+  const handleStartEdit = (item: MediaQueueItem) => {
     setEditingId(item.queue_id);
     setEditingCaption(item.caption);
   };
@@ -69,7 +79,7 @@ export const MediaReview = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Image className="w-5 h-5 text-cyan-400" />
+            <ImageIcon className="w-5 h-5 text-cyan-400" />
             Media & Social Feed Review Panel
           </h2>
           <p className="text-sm text-slate-400 mt-1">Review photo gallery posts prior to public feed publishing</p>

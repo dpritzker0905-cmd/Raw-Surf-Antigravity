@@ -1,16 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  GitCommit, Activity, Search, Clock, ShieldCheck, CheckCircle2, ChevronRight, HelpCircle
+  GitCommit, Activity, Search, Clock, ShieldCheck, CheckCircle2, HelpCircle
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 
-export const BookingTrace = ({ initialCorrelationId }) => {
-  const [correlationId, setCorrelationId] = useState(initialCorrelationId || '');
-  const [trace, setTrace] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+interface BookingTraceProps {
+  initialCorrelationId?: string;
+}
 
-  const fetchTrace = async (idToFetch) => {
+interface TraceEvent {
+  event_id: string;
+  event_type: string;
+  timestamp: string;
+  payload: any;
+  source_service?: string;
+  source_mcp?: string;
+}
+
+export const BookingTrace: React.FC<BookingTraceProps> = ({ initialCorrelationId }) => {
+  const [correlationId, setCorrelationId] = useState<string>(initialCorrelationId || '');
+  const [trace, setTrace] = useState<TraceEvent[] | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTrace = async (idToFetch?: string) => {
     const cId = idToFetch || correlationId;
     if (!cId) return;
     
@@ -24,7 +37,7 @@ export const BookingTrace = ({ initialCorrelationId }) => {
       } else {
         setError('No events matched this correlation token.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to reconstruct trace:', err);
       setError(err.response?.data?.detail || 'Correlation trace not found.');
     } finally {
@@ -39,12 +52,12 @@ export const BookingTrace = ({ initialCorrelationId }) => {
     }
   }, [initialCorrelationId]);
 
-  const handleSearchSubmit = (e) => {
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     fetchTrace();
   };
 
-  const getStepStatusClass = (idx, total) => {
+  const getStepStatusClass = (idx: number, total: number) => {
     if (idx === total - 1) return 'text-cyan-400 border-cyan-400 font-bold';
     return 'text-emerald-400 border-emerald-400';
   };

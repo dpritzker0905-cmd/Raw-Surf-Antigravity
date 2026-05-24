@@ -1,15 +1,14 @@
 import { supabase } from '../../lib/supabase';
 
-// High-level wrapper for Supabase realtime subscriptions and queries
-export const supabaseAdminClient = {
+// Realtime subscription helper for events and decisions
+export const supabaseAdmin = {
   client: supabase,
 
-  // Subscribe to real-time events on a table
-  subscribeToTable: (tableName, callback) => {
+  subscribeTable: (tableName: string, callback: (payload: any) => void) => {
     if (!supabase) return null;
     
     return supabase
-      .channel(`admin-${tableName}-changes`)
+      .channel(`admin-ts-${tableName}-changes`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: tableName },
@@ -20,12 +19,11 @@ export const supabaseAdminClient = {
       .subscribe();
   },
 
-  // Unsubscribe from a channel
-  unsubscribe: (channel) => {
+  unsubscribeTable: (channel: any) => {
     if (channel && supabase) {
       supabase.removeChannel(channel);
     }
   }
 };
 
-export default supabaseAdminClient;
+export default supabaseAdmin;
