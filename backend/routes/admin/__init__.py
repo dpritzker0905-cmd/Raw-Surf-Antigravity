@@ -3,6 +3,7 @@ Admin routes package — consolidates admin route modules.
 Re-exports all routers for backward-compatible registration in routes/__init__.py.
 """
 from .core import router as admin_router
+from .telemetry import router as admin_telemetry_router
 from .analytics import router as admin_analytics_router
 from .analytics_enhanced import router as admin_analytics_enhanced_router
 from .analytics_settings import router as admin_analytics_settings_router

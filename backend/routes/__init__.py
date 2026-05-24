@@ -34,7 +34,7 @@ from .grom_hq import router as grom_hq_router
 from .surfer_gallery import router as surfer_gallery_router
 
 # ─── Admin packages ─────────────────────────────────────────────────────────────
-from .admin import admin_router, admin_analytics_router
+from .admin import admin_router, admin_analytics_router, admin_telemetry_router
 from .admin import (
     admin_moderation_router, admin_moderation_reports_router,
     admin_p1_router, admin_p2_router, admin_p2_campaigns_router,
@@ -88,6 +88,7 @@ api_router.include_router(surfer_gallery_router, tags=["Surfer Gallery"])
 
 # ─── Include admin routers ──────────────────────────────────────────────────────
 api_router.include_router(admin_router, tags=["Admin"])
+api_router.include_router(admin_telemetry_router, tags=["Admin Telemetry"])
 api_router.include_router(admin_analytics_router, tags=["Admin Analytics"])
 api_router.include_router(admin_moderation_router, tags=["Admin Moderation"])
 api_router.include_router(admin_moderation_reports_router, tags=["Admin Moderation Reports"])

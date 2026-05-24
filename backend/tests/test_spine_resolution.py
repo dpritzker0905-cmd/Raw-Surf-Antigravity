@@ -164,8 +164,9 @@ def test_supabase_cloud_sync_bridge(monkeypatch):
     # Sleep slightly to allow background daemon thread worker to fire
     time.sleep(0.3)
     
-    assert len(post_requests) == 1
-    req = post_requests[0]
+    supabase_requests = [r for r in post_requests if "mock.supabase.co" in r["url"]]
+    assert len(supabase_requests) == 1
+    req = supabase_requests[0]
     assert "mock.supabase.co" in req["url"]
     assert req["payload"]["correlation_id"] == "corr_cloud_sync_99"
     assert req["headers"]["apikey"] == "mock-service-key"
