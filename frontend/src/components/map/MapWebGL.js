@@ -511,14 +511,17 @@ var MapWebGL = ({
         setMarineBeforeId(id);
         if (!mapInstance.getLayer('marine-raster-anchor')) {
           try {
-            mapInstance.addLayer({
-              id: 'marine-raster-anchor',
-              type: 'background',
-              layout: { visibility: 'none' }
-            }, id);
-            console.log('[MapWebGL] Added marine-raster-anchor before', id);
-          } catch (e) {
-            console.error('[MapWebGL] Failed to add marine-raster-anchor:', e);
+            const layerId = 'marine-raster-anchor';
+            if (!mapInstance.getLayer(layerId)) {
+              mapInstance.addLayer({
+                id: layerId,
+                type: 'background',
+                layout: { visibility: 'none' }
+              }, id);
+              console.log('[MapWebGL] Added marine-raster-anchor before', id);
+            }
+          } catch (err) {
+            console.error(`[MapWebGL] Layer insertion caught exception for layer marine-raster-anchor:`, err.message);
           }
         }
       }
@@ -631,9 +634,9 @@ var MapWebGL = ({
     if (!mapInstance) return;
     try {
       if (mapInstance.getLayer('marine-raster-layer')) {
-        // Forces the weather data canvas to smoothly multiply overlay across background base assets
-        mapInstance.setPaintProperty('marine-raster-layer', 'raster-opacity', 0.80);
-        mapInstance.setPaintProperty('marine-raster-layer', 'raster-fade-duration', 100);
+        // Forces the weather data canvas to smoothly blend across background base assets
+        mapInstance.setPaintProperty('marine-raster-layer', 'raster-opacity', 0.70);
+        mapInstance.setPaintProperty('marine-raster-layer', 'raster-fade-duration', 150);
       }
       
       // Dynamically apply properties to all active slot layers for the current active marine layer
@@ -642,10 +645,10 @@ var MapWebGL = ({
         [0, 1, 2].forEach(slot => {
           const slotLayerId = `${activeMarine}-slot-${slot}-layer`;
           if (mapInstance.getLayer(slotLayerId)) {
-            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 100);
+            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
             const isActive = activeSlots[activeMarine] === slot;
             if (isActive && !isTransitioning) {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.80);
+              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.70);
             }
           }
         });
@@ -781,23 +784,13 @@ var MapWebGL = ({
                 }}
                 paint={{
                   // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
-                  // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
-                  'raster-opacity': (!isTransitioning && isActive) ? (
-                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.80 : [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-                      5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-                      8, layerKey === 'wind' ? 0.26 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-                      12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
-                    ]
-                  ) : 0.0,
+                  'raster-opacity': (!isTransitioning && isActive) ? 0.70 : 0.0,
                   'raster-resampling': 'linear',
                   'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
                   'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
                   'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
                   'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
-                  'raster-fade-duration': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 100 : 0, // Smooth transition for marine
-                  'raster-blend-mode': 'multiply'
+                  'raster-fade-duration': 150
                 }}
               />
             </Source>
