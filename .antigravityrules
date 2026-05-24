@@ -23,6 +23,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Autonomous QA Agent Simulators** $\rightarrow$ Call `autonomous-qa-agent-mcp` (`simulate_user_journey`, `get_recent_bug_reports`, `get_system_health_baseline`) to run continuous browser tests simulating bookings or map viewports, log structured bugs prioritized by business impact, and monitor healthy session benchmarks.
 * **World Model (Surf + Weather Intel)** $\rightarrow$ Call `world-model-mcp` (`ingest_weather_ocean_data`, `get_surf_spot_insights`, `get_best_surf_spots_24h`, `get_expected_crowds_by_beach`, `get_optimal_photography_windows`, `generate_maplibre_weather_geojson`) to ingest swell/wind/tide stats, calculate derived surf quality scores and crowd probability indexes, output prime golden hour photo timings, correlate cancellations, and format MapLibre GeoJSON weather intelligence layer overlays.
 * **Autonomous Operator Engine** $\rightarrow$ Call `autonomous-operator-mcp` (`monitor_system_state`, `propose_pricing_change`, `propose_cancellation`, `execute_decision`, `get_operator_decision_history`) to monitor conditions, enqueue admin-gated pricing revisions, validate safety cancellation thresholds, and maintain audit logs.
+* **Persistent Semantic Memory** $\rightarrow$ Call `semantic-memory-mcp` (`store_memory`, `retrieve_similar_memories`, `get_user_preferred_conditions`, `predict_repeat_booking`, `get_surfer_memory_profile`) to index user history, execute time-decayed cosine semantic searches, aggregate surfer preference vectors, and forecast repeat bookings.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
@@ -101,6 +102,13 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Safety Threshold Cancellations**: Booking cancellations require validation against ocean safety thresholds: they are validated and enqueued only when swell height $> 10\text{ ft}$, matching the World Model weather caches.
 * **Decision Trail Auditing**: Every system state monitor recommendation and operational proposal must write detailed explanation logs into the SQLite caching DB to preserve full accountability.
 * **Stripe, Supabase, and Google Calendar Sync**: Executed operator decisions must trigger synchronized updates showing successful payment status transitions in Stripe checkout, scheduling slot updates in Google Calendar, and telemetry audit records in Supabase.
+
+### 16. Semantic Memory Rules
+* **Privacy-Safe Partitioning**: Every single semantic indexing and retrieval operation must strictly demand and filter by a unique `user_id`. Under no circumstances should cross-user semantic memory queries be allowed to run, protecting private surfer data.
+* **Time-Based Exponential Decay**: Semantic retrieval results must apply active time decay weighting $\lambda = 0.05$ (meaning a half-life of roughly 14 days) to ensure recent sessions and waves conditions matter more than older historical sessions:
+  $$\text{score} = \text{cosine\_similarity} \cdot e^{-\lambda \cdot \Delta t}$$
+* **Recommendation Preference Aggregation**: Memory profile retrievals must normalize time-decayed vectors to provide the `recommendation-engine-mcp` with accurate 384-dimensional surfer preference representations.
+* **Booking Forecast Heuristics**: Repeat booking prediction scores must factor booking frequencies, recency bonuses, and positive sentiment metadata ratios, outputting a probability rate between 0% and 100%.
 
 ---
 
