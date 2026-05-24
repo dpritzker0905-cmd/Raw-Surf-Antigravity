@@ -614,17 +614,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const lons = points.map(p => p.reqLng);
 
     // v3.9.1: ALWAYS fetch hourly for 3 days (72h)
-    const isEuro = model === 'EURO';
-    const marineVarList = isEuro
-      ? ['wave_height', 'wave_direction', 'wave_period']
-      : ['wave_height','wave_direction','wave_period',
-         'swell_wave_height','swell_wave_direction','swell_wave_period',
-         'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
-         'wind_wave_height','wind_wave_direction','wind_wave_period'];
+    const marineVarList = ['wave_height','wave_direction','wave_period',
+       'swell_wave_height','swell_wave_direction','swell_wave_period',
+       'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
+       'wind_wave_height','wind_wave_direction','wind_wave_period'];
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
 
     // Open-Meteo model identifiers for Marine
-    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'dwd_gwam', EURO: 'ecmwf_wam025' };
+    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'dwd_icon', EURO: 'ecmwf_wam025' };
     if (model && MARINE_OM_MODELS[model]) {
       body.models = [MARINE_OM_MODELS[model]];
     }

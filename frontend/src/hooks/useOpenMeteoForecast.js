@@ -105,14 +105,10 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const marineModel = activeModel === 'EURO'
       ? 'ecmwf_wam025'
       : activeModel === 'ICON'
-        ? 'dwd_gwam'
+        ? 'dwd_icon'
         : 'ncep_gfswave025';
-    const hourlyMarineVars = activeModel === 'EURO'
-      ? 'wave_height,wave_period,wave_direction'
-      : MARINE_VARS;
-    const currentMarineVars = activeModel === 'EURO'
-      ? 'wave_height,wave_period,wave_direction'
-      : CURRENT_MARINE_VARS;
+    const hourlyMarineVars = MARINE_VARS;
+    const currentMarineVars = CURRENT_MARINE_VARS;
 
     try {
       // Helper: fetch with signal, retry without if service worker can't clone Request
