@@ -22,6 +22,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **System Feedback Loop Telemetry** $\rightarrow$ Call `system-feedback-loop-mcp` (`ingest_telemetry_event`, `get_recent_errors`, `get_performance_anomalies`, `get_user_funnel_dropoff`) to stream frontend Netlify and backend Render logs, analyze API latency status anomalies, and retrieve surfer booking dropoff funnel percentages.
 * **Autonomous QA Agent Simulators** $\rightarrow$ Call `autonomous-qa-agent-mcp` (`simulate_user_journey`, `get_recent_bug_reports`, `get_system_health_baseline`) to run continuous browser tests simulating bookings or map viewports, log structured bugs prioritized by business impact, and monitor healthy session benchmarks.
 * **World Model (Surf + Weather Intel)** $\rightarrow$ Call `world-model-mcp` (`ingest_weather_ocean_data`, `get_surf_spot_insights`, `get_best_surf_spots_24h`, `get_expected_crowds_by_beach`, `get_optimal_photography_windows`, `generate_maplibre_weather_geojson`) to ingest swell/wind/tide stats, calculate derived surf quality scores and crowd probability indexes, output prime golden hour photo timings, correlate cancellations, and format MapLibre GeoJSON weather intelligence layer overlays.
+* **Autonomous Operator Engine** $\rightarrow$ Call `autonomous-operator-mcp` (`monitor_system_state`, `propose_pricing_change`, `propose_cancellation`, `execute_decision`, `get_operator_decision_history`) to monitor conditions, enqueue admin-gated pricing revisions, validate safety cancellation thresholds, and maintain audit logs.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
@@ -94,6 +95,12 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Crowd Probability Metrics**: Crowd indices ('low', 'medium', 'high') must be predicted dynamically as a function of surf quality, swell warmness, and simulated local active bookings.
 * **Optimal Photography Windows**: Photography suitability windows must map Golden Hour morning ($06:00\text{-}08:30$) and evening ($17:30\text{-}19:30$) timings, strictly enforcing that they are PRIME only when offshore winds and waves $\ge 3\text{ ft}$ groom glassy shapes.
 * **MapLibre Layer GeoJSON**: Ingested weather overlays must be exported as standard MapLibre GeoJSON coordinates containing derived quality scores and orange-red ($q \ge 70.0$) or blue-light hex marker properties.
+
+### 15. Autonomous Operator Rules
+* **Strict Admin Approval Gates**: Proposing any dynamic pricing adjustments enqueues them in `pending_approval` state, and executing them strictly requires `caller_role == 'admin'`, rejecting any moderator or standard user attempts immediately.
+* **Safety Threshold Cancellations**: Booking cancellations require validation against ocean safety thresholds: they are validated and enqueued only when swell height $> 10\text{ ft}$, matching the World Model weather caches.
+* **Decision Trail Auditing**: Every system state monitor recommendation and operational proposal must write detailed explanation logs into the SQLite caching DB to preserve full accountability.
+* **Stripe, Supabase, and Google Calendar Sync**: Executed operator decisions must trigger synchronized updates showing successful payment status transitions in Stripe checkout, scheduling slot updates in Google Calendar, and telemetry audit records in Supabase.
 
 ---
 
