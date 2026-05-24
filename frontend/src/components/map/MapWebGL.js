@@ -74,7 +74,7 @@ var MapWebGL = ({
   const resolveTaskIdRef = useRef(0);
   const [metadataRevision, setMetadataRevision] = useState(0);
   const [activeSlots, setActiveSlots] = useState({});
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(true);
   const cacheBustRef = useRef(Date.now());
   
   // Shared Weather Animation Controller
@@ -184,24 +184,54 @@ var MapWebGL = ({
     ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025', 'dwd_gwam'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
-  // v3.13.2: Clear the Open-Meteo tile block cache when activeModel changes
-  // completely invalidates the old model's binary chunks, avoiding grid lines and cross-model contamination
+  // v3.13.3: Clear the Open-Meteo tile block cache when activeModel changes
+  // and coordinate with map style load lifecycle to prevent startup race conditions
   useEffect(() => {
-    if (activeModel) {
-      console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
-      setIsTransitioning(true);
-      cacheBustRef.current = Date.now();
-      
-      clearOpenMeteoCache().then(() => {
-        // Let the cache clearing complete and MapLibre reload its style configuration cleanly
+    if (!activeModel) return;
+    
+    console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
+    setIsTransitioning(true);
+    cacheBustRef.current = Date.now();
+    
+    let active = true;
+
+    clearOpenMeteoCache().then(() => {
+      if (!active) return;
+
+      const finishTransition = () => {
         setTimeout(() => {
+          if (!active) return;
+          console.log(`[Raster] Transition finished, activeModel: ${activeModel}`);
           setIsTransitioning(false);
           if (mapInstance) {
             try { mapInstance.triggerRepaint(); } catch(e) {}
           }
         }, 150);
-      });
-    }
+      };
+
+      if (mapInstance) {
+        if (mapInstance.isStyleLoaded()) {
+          finishTransition();
+        } else {
+          // Wait for map style to be fully loaded before revealing raster layers
+          mapInstance.once('load', finishTransition);
+          // Safety fallback timeout
+          setTimeout(() => {
+            if (active) {
+              console.log('[Raster] Style load safety fallback triggered');
+              finishTransition();
+            }
+          }, 2000);
+        }
+      } else {
+        // If mapInstance is not yet ready, we remain in transitioning state.
+        // Once mapInstance is set, this useEffect will run again and register the load listeners!
+      }
+    });
+
+    return () => {
+      active = false;
+    };
   }, [activeModel, mapInstance]);
 
   // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
