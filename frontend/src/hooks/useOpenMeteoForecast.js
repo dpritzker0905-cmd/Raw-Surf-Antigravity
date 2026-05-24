@@ -127,7 +127,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       // Fetch weather and marine in parallel
       const [wxRes, marineRes] = await Promise.all([
         safeFetch(
-          `https://api.open-meteo.com/v1/forecast?` +
+          `/api/weather-proxy?type=wind&` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
           `&hourly=${WEATHER_VARS}` +
           `&current=${CURRENT_WEATHER_VARS}` +
@@ -138,7 +138,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
          .catch(e => ({ status: 'rejected', reason: e })),
 
         safeFetch(
-          `https://marine-api.open-meteo.com/v1/marine?` +
+          `/api/weather-proxy?type=marine&` +
           `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
           `&hourly=${hourlyMarineVars}` +
           `&current=${currentMarineVars}` +
