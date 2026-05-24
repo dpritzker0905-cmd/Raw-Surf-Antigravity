@@ -183,17 +183,23 @@ export const AdminUnifiedAnalytics = () => {
             { id: 'funnel', label: 'Funnel & Retention', icon: BarChart3 },
             { id: 'growth', label: 'Growth Tools', icon: Zap },
           ].map(tab => (
-            <Button
+            <button
               key={tab.id}
-              variant={activeSubTab === tab.id ? 'default' : 'outline'}
-              size="sm"
               onClick={() => setActiveSubTab(tab.id)}
-              className={`text-xs ${activeSubTab === tab.id ? 'bg-gradient-to-r from-cyan-500 to-teal-500 border-0' : ''}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 border flex-shrink-0 ${
+                activeSubTab === tab.id 
+                  ? 'bg-gradient-to-r from-cyan-500 to-teal-500 text-slate-950 font-extrabold border-transparent shadow-md shadow-cyan-500/10' 
+                  : theme === 'beach'
+                    ? 'bg-amber-100/50 text-amber-900 border-amber-200/60 hover:bg-amber-200/60 hover:text-amber-950'
+                    : isLight
+                      ? 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                      : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:bg-zinc-800/50 hover:text-zinc-100'
+              }`}
               data-testid={`analytics-tab-${tab.id}`}
             >
               <tab.icon className="w-3.5 h-3.5 mr-1" />
               {tab.label}
-            </Button>
+            </button>
           ))}
         </div>
         <div className="flex items-center gap-2">

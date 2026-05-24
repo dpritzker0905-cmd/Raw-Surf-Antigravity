@@ -34,7 +34,7 @@ export const PRECIP_MODEL_MAP = {
 // ECMWF WAM only has wave_height/period no swell/wind_wave decomposition.
 export const MARINE_MODEL_MAP = {
   'GFS':  'ncep_gfswave025',  // Full: wave, swell, wind_wave, secondary swell
- 'ICON': 'ncep_gfswave025', // No ICON wave tiles exist use GFS wave
+  'ICON': 'dwd_gwam',         // DWD ICON-based global wave model
   'EURO': 'ecmwf_wam025',     // Limited: wave_height/period only
 };
 
@@ -316,5 +316,6 @@ MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: GFS_ATMOSPHERIC_VARS, validTi
 MODEL_METADATA_CACHE['dwd_icon'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ecmwf_ifs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ncep_gfswave025'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['dwd_gwam'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ecmwf_wam025'] = { variables: LIMITED_MARINE_VARS, validTimes: defaultTimes, referenceTime };
 

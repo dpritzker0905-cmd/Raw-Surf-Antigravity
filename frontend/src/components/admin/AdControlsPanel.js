@@ -12,6 +12,7 @@ import { Badge } from '../ui/badge';
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
 import logger from '../../utils/logger';
+import { useTheme } from '../../contexts/ThemeContext';
 
 /**
  * AdControlsPanel - Extracted from UnifiedAdminConsole
@@ -19,6 +20,8 @@ import logger from '../../utils/logger';
  */
 // Ad Controls Panel Component with Approval Queue
 const AdControlsPanel = ({ user }) => {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const [config, setConfig] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [queue, setQueue] = useState(null);
@@ -149,35 +152,59 @@ const AdControlsPanel = ({ user }) => {
       <div className="flex border-b border-border">
         <button
           onClick={() => setActiveSubTab('overview')}
-          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 py-2 text-sm font-semibold transition-colors ${
             activeSubTab === 'overview' 
-              ? 'text-foreground border-b-2 border-cyan-400' 
-              : 'text-muted-foreground hover:text-foreground'
+              ? theme === 'beach'
+                ? 'text-amber-900 border-b-2 border-amber-600'
+                : isLight
+                  ? 'text-gray-900 border-b-2 border-gray-900'
+                  : 'text-cyan-400 border-b-2 border-cyan-400 font-extrabold'
+              : theme === 'beach'
+                ? 'text-amber-800/60 hover:text-amber-900'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900'
+                  : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           Overview
         </button>
         <button
           onClick={() => setActiveSubTab('queue')}
-          className={`flex-1 py-2 text-sm font-medium transition-colors relative ${
+          className={`flex-1 py-2 text-sm font-semibold transition-colors relative ${
             activeSubTab === 'queue' 
-              ? 'text-foreground border-b-2 border-cyan-400' 
-              : 'text-muted-foreground hover:text-foreground'
+              ? theme === 'beach'
+                ? 'text-amber-900 border-b-2 border-amber-600'
+                : isLight
+                  ? 'text-gray-900 border-b-2 border-gray-900'
+                  : 'text-cyan-400 border-b-2 border-cyan-400 font-extrabold'
+              : theme === 'beach'
+                ? 'text-amber-800/60 hover:text-amber-900'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900'
+                  : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           Approval Queue
           {queue?.counts?.pending > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
               {queue.counts.pending}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveSubTab('variants')}
-          className={`flex-1 py-2 text-sm font-medium transition-colors ${
+          className={`flex-1 py-2 text-sm font-semibold transition-colors ${
             activeSubTab === 'variants' 
-              ? 'text-foreground border-b-2 border-cyan-400' 
-              : 'text-muted-foreground hover:text-foreground'
+              ? theme === 'beach'
+                ? 'text-amber-900 border-b-2 border-amber-600'
+                : isLight
+                  ? 'text-gray-900 border-b-2 border-gray-900'
+                  : 'text-cyan-400 border-b-2 border-cyan-400 font-extrabold'
+              : theme === 'beach'
+                ? 'text-amber-800/60 hover:text-amber-900'
+                : isLight
+                  ? 'text-gray-500 hover:text-gray-900'
+                  : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           All Variants

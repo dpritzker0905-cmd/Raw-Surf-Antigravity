@@ -203,20 +203,34 @@ export const AdminP1Dashboard = () => {
           { id: 'journey', label: 'User Journey', icon: Activity },
           { id: 'test_accounts', label: 'Test Accounts', icon: Users },
         ].map(tab => (
-          <Button
+          <button
             key={tab.id}
-            variant={activeSubTab === tab.id ? 'default' : 'outline'}
-            size="sm"
             onClick={() => setActiveSubTab(tab.id)}
-            className={activeSubTab === tab.id ? 'bg-purple-500 hover:bg-purple-600' : ''}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 border flex-shrink-0 ${
+              activeSubTab === tab.id 
+                ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/10' 
+                : theme === 'beach'
+                  ? 'bg-amber-100/50 text-amber-900 border-amber-200/60 hover:bg-amber-200/60 hover:text-amber-950'
+                  : isLight
+                    ? 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                    : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:bg-zinc-800/50 hover:text-zinc-100'
+            }`}
             data-testid={`p1-tab-${tab.id}`}
           >
             <tab.icon className="w-4 h-4 mr-1.5" />
             {tab.label}
             {tab.count > 0 && (
-              <Badge className="ml-1.5 bg-white/20 text-foreground">{tab.count}</Badge>
+              <span className={`ml-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
+                activeSubTab === tab.id 
+                  ? 'bg-white/20 text-white' 
+                  : theme === 'beach' 
+                    ? 'bg-amber-200 text-amber-950' 
+                    : isLight 
+                      ? 'bg-gray-200 text-gray-800' 
+                      : 'bg-zinc-800 text-zinc-200'
+              }`}>{tab.count}</span>
             )}
-          </Button>
+          </button>
         ))}
       </div>
 

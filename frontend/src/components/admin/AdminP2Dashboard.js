@@ -205,17 +205,23 @@ export const AdminP2Dashboard = () => {
           { id: 'flags', label: 'Feature Flags', icon: FlagIcon },
           { id: 'campaigns', label: 'Push Campaigns', icon: Bell },
         ].map(tab => (
-          <Button
+          <button
             key={tab.id}
-            variant={activeSubTab === tab.id ? 'default' : 'outline'}
-            size="sm"
             onClick={() => setActiveSubTab(tab.id)}
-            className={activeSubTab === tab.id ? 'bg-green-500 hover:bg-green-600' : ''}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 border flex-shrink-0 ${
+              activeSubTab === tab.id 
+                ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-600/10' 
+                : theme === 'beach'
+                  ? 'bg-amber-100/50 text-amber-900 border-amber-200/60 hover:bg-amber-200/60 hover:text-amber-950'
+                  : isLight
+                    ? 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                    : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:bg-zinc-800/50 hover:text-zinc-100'
+            }`}
             data-testid={`p2-tab-${tab.id}`}
           >
             <tab.icon className="w-4 h-4 mr-1.5" />
             {tab.label}
-          </Button>
+          </button>
         ))}
       </div>
 

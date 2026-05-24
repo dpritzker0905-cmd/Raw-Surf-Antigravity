@@ -204,16 +204,22 @@ export const AdminFinanceDashboard = () => {
           { id: 'failed', label: 'Failed Payments', icon: TrendingDown },
           { id: 'tax', label: 'Tax Report', icon: FileText }
         ].map(tab => (
-          <Button
+          <button
             key={tab.id}
-            variant={activeTab === tab.id ? 'default' : 'outline'}
-            size="sm"
             onClick={() => setActiveTab(tab.id)}
-            className={activeTab === tab.id ? 'bg-cyan-500 hover:bg-cyan-600' : ''}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 border flex-shrink-0 ${
+              activeTab === tab.id 
+                ? 'bg-cyan-500 text-slate-950 border-cyan-500 font-extrabold shadow-lg shadow-cyan-500/20' 
+                : theme === 'beach'
+                  ? 'bg-amber-100/50 text-amber-900 border-amber-200/60 hover:bg-amber-200/60 hover:text-amber-950'
+                  : isLight
+                    ? 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                    : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:bg-zinc-800/50 hover:text-zinc-100'
+            }`}
           >
             <tab.icon className="w-4 h-4 mr-1" />
             {tab.label}
-          </Button>
+          </button>
         ))}
       </div>
 

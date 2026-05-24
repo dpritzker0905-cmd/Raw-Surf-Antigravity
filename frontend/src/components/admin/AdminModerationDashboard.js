@@ -80,35 +80,23 @@ export const AdminModerationDashboard = () => {
   const fetchDisputes = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (disputeFilter.status) params.append('status', disputeFilter.status);
-      if (disputeFilter.type) params.append('dispute_type', disputeFilter.type);
-      
-      const response = await apiClient.get(`/admin/disputes?${params}`);
-      setDisputes(response.data.disputes || []);
-      setDisputesTotal(response.data.total || 0);
-    } catch (error) {
-      toast.error('Failed to load disputes');
-    } finally {
-      setLoading(false);
-    }
+      const p = new URLSearchParams();
+      if (disputeFilter.status) p.append('status', disputeFilter.status);
+      if (disputeFilter.type) p.append('dispute_type', disputeFilter.type);
+      const r = await apiClient.get(`/admin/disputes?${p}`);
+      setDisputes(r.data.disputes || []); setDisputesTotal(r.data.total || 0);
+    } catch (e) { toast.error('Failed to load disputes'); } finally { setLoading(false); }
   };
 
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (reportFilter.status) params.append('status', reportFilter.status);
-      if (reportFilter.reason) params.append('reason', reportFilter.reason);
-      
-      const response = await apiClient.get(`/admin/reports?${params}`);
-      setReports(response.data.reports || []);
-      setPendingReportsCount(response.data.pending_count || 0);
-    } catch (error) {
-      toast.error('Failed to load reports');
-    } finally {
-      setLoading(false);
-    }
+      const p = new URLSearchParams();
+      if (reportFilter.status) p.append('status', reportFilter.status);
+      if (reportFilter.reason) p.append('reason', reportFilter.reason);
+      const r = await apiClient.get(`/admin/reports?${p}`);
+      setReports(r.data.reports || []); setPendingReportsCount(r.data.pending_count || 0);
+    } catch (e) { toast.error('Failed to load reports'); } finally { setLoading(false); }
   };
 
   const fetchPayoutHolds = async () => {
@@ -122,16 +110,11 @@ export const AdminModerationDashboard = () => {
   const fetchAuditLogs = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '100' });
-      if (auditFilter.category) params.append('category', auditFilter.category);
-      
-      const response = await apiClient.get(`/admin/audit-logs?${params}`);
-      setAuditLogs(response.data.logs || []);
-    } catch (error) {
-      toast.error('Failed to load audit logs');
-    } finally {
-      setLoading(false);
-    }
+      const p = new URLSearchParams({ limit: '100' });
+      if (auditFilter.category) p.append('category', auditFilter.category);
+      const r = await apiClient.get(`/admin/audit-logs?${p}`);
+      setAuditLogs(r.data.logs || []);
+    } catch (e) { toast.error('Failed to load audit logs'); } finally { setLoading(false); }
   };
 
   const fetchDisputeDetail = async (disputeId) => {
@@ -221,20 +204,34 @@ export const AdminModerationDashboard = () => {
           { id: 'holds', label: 'Payout Holds', icon: Wallet, count: payoutHolds.filter(h => h.is_active).length },
           { id: 'audit', label: 'Audit Logs', icon: FileText },
         ].map(tab => (
-          <Button
+          <button
             key={tab.id}
-            variant={activeSubTab === tab.id ? 'default' : 'outline'}
-            size="sm"
             onClick={() => setActiveSubTab(tab.id)}
-            className={activeSubTab === tab.id ? 'bg-red-500 hover:bg-red-600' : ''}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 border flex-shrink-0 ${
+              activeSubTab === tab.id 
+                ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-600/10' 
+                : theme === 'beach'
+                  ? 'bg-amber-100/50 text-amber-900 border-amber-200/60 hover:bg-amber-200/60 hover:text-amber-950'
+                  : isLight
+                    ? 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-black'
+                    : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:bg-zinc-800/50 hover:text-zinc-100'
+            }`}
             data-testid={`moderation-tab-${tab.id}`}
           >
             <tab.icon className="w-4 h-4 mr-1.5" />
             {tab.label}
             {tab.count > 0 && (
-              <Badge className="ml-1.5 bg-white/20 text-foreground">{tab.count}</Badge>
+              <span className={`ml-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
+                activeSubTab === tab.id 
+                  ? 'bg-white/20 text-white' 
+                  : theme === 'beach' 
+                    ? 'bg-amber-200 text-amber-950' 
+                    : isLight 
+                      ? 'bg-gray-200 text-gray-800' 
+                      : 'bg-zinc-800 text-zinc-200'
+              }`}>{tab.count}</span>
             )}
-          </Button>
+          </button>
         ))}
       </div>
 

@@ -542,22 +542,26 @@ const UnifiedAdminConsole = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200 border flex-shrink-0 ${
                     isActive
-                      ? 'bg-red-500 text-white animate-pulse'
+                      ? theme === 'beach'
+                        ? 'bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-600/10'
+                        : isLight
+                          ? 'bg-gray-900 text-white border-gray-900 shadow-md shadow-gray-900/10'
+                          : 'bg-cyan-500 text-slate-950 border-cyan-500 font-extrabold shadow-lg shadow-cyan-500/20'
                       : theme === 'beach'
-                        ? 'bg-amber-100 text-amber-800 hover:text-amber-950 hover:bg-amber-200/60'
+                        ? 'bg-amber-100/50 text-amber-900 border-amber-200/60 hover:bg-amber-200/60 hover:text-amber-950'
                         : isLight 
-                          ? 'bg-gray-100 text-gray-500 hover:text-black hover:bg-gray-200' 
-                          : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
+                          ? 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200 hover:text-black' 
+                          : 'bg-zinc-900/50 text-zinc-400 border-zinc-800 hover:bg-zinc-800/50 hover:text-zinc-100'
                   }`}
-                data-testid={`admin-tab-${tab.id}`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
+                  data-testid={`admin-tab-${tab.id}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

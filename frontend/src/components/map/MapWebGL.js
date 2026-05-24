@@ -177,7 +177,7 @@ var MapWebGL = ({
 
   // Pre-warm metadata cache on mount so layer toggles are instant
   useEffect(() => {
-    ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025'].forEach(m => fetchMetadata(m));
+    ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025', 'dwd_gwam'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
   // v77: Track logged fallbacks to prevent console spam during timeline scrubbing

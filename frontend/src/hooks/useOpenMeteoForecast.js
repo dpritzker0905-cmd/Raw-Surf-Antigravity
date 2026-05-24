@@ -102,7 +102,11 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const forecastDays = MODEL_FORECAST_DAYS[activeModel] || 16;
     console.log(`[Forecast] Fetching ${activeModel} (${modelParam}), ${forecastDays}d`);
 
-    const marineModel = activeModel === 'EURO' ? 'ecmwf_wam025' : 'ncep_gfswave025';
+    const marineModel = activeModel === 'EURO'
+      ? 'ecmwf_wam025'
+      : activeModel === 'ICON'
+        ? 'dwd_gwam'
+        : 'ncep_gfswave025';
     const hourlyMarineVars = activeModel === 'EURO'
       ? 'wave_height,wave_period,wave_direction'
       : MARINE_VARS;
