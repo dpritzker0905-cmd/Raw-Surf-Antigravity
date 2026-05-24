@@ -223,6 +223,45 @@ var MapWebGL = ({
             requestAnimationFrame(() => {
               if (!active) return;
               console.log(`[Raster] Transition finished, activeModel: ${activeModel}`);
+              
+              if (mapInstance && mapInstance.isStyleLoaded()) {
+                try {
+                  activeLayers.forEach(layerKey => {
+                    const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
+                    const opacityExpression = isMarine ? 0.70 : [
+                      'interpolate', ['linear'], ['zoom'],
+                      2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+                      5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+                      8, layerKey === 'wind' ? 0.26 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+                      12, layerKey === 'wind' ? 0.30 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+                    ];
+                    
+                    [0, 1, 2].forEach(slotIdx => {
+                      const layerId = `${layerKey}-slot-${slotIdx}-layer`;
+                      const isActive = activeSlots[layerKey] !== undefined
+                        ? activeSlots[layerKey] === slotIdx
+                        : (closestTimeIdx % 3) === slotIdx;
+                      
+                      if (mapInstance.getLayer(layerId)) {
+                        mapInstance.setLayoutProperty(layerId, 'visibility', 'visible');
+                        mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? opacityExpression : 0.0);
+                      }
+                    });
+                  });
+                  
+                  if (activeLayers.includes('wind') && mapInstance.getLayer('wind-particle-overlay')) {
+                    mapInstance.setLayoutProperty('wind-particle-overlay', 'visibility', 'visible');
+                    mapInstance.setPaintProperty('wind-particle-overlay', 'raster-opacity', 0.25);
+                  }
+                  if (activeMarineLayer && mapInstance.getLayer('marine-canvas-layer')) {
+                    mapInstance.setLayoutProperty('marine-canvas-layer', 'visibility', 'visible');
+                    mapInstance.setPaintProperty('marine-canvas-layer', 'raster-opacity', 0.70);
+                  }
+                } catch (err) {
+                  console.warn('[MapWebGL] Transition rendering synchronization caught warning:', err.message);
+                }
+              }
+
               setIsTransitioning(false);
               if (mapInstance) {
                 try { mapInstance.triggerRepaint(); } catch(e) {}
@@ -507,7 +546,46 @@ var MapWebGL = ({
     if (!mapInstance) return;
     const onStyleData = () => {
       setMaskLandExists(!!mapInstance.getLayer('ocean-mask-buffer'));
-      const id = findMarineInsertionLayer(mapInstance);
+      
+      let id = null;
+      try {
+        const style = mapInstance.getStyle();
+        if (style && style.layers && style.layers.length > 0) {
+          const layers = style.layers;
+          const layerIds = layers.map(l => l.id);
+          
+          // 1. Primary target anchor check
+          if (layerIds.includes('tunnel-minor-case-navigation')) {
+            id = 'tunnel-minor-case-navigation';
+          } else {
+            // 2. Scan style sheet array for valid fallback layer IDs
+            const fallbackTargets = ['building', 'road-label', 'water', 'land-structure-polygon', 'road-structure-polygon'];
+            for (const target of fallbackTargets) {
+              const foundId = layerIds.find(lid => lid && (lid.includes(target) || target.includes(lid)));
+              if (foundId) {
+                id = foundId;
+                break;
+              }
+            }
+            
+            // 3. Default to the lowest symbol layer to prevent layers from drifting to top
+            if (!id) {
+              const symbolLayer = layers.find(l => l.type === 'symbol');
+              if (symbolLayer) {
+                id = symbolLayer.id;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[MapWebGL] Anchor target validation failed, falling back...', err);
+      }
+
+      // Default fallback using standard utility if custom loop did not resolve
+      if (!id) {
+        id = findMarineInsertionLayer(mapInstance);
+      }
+
       if (id) {
         setMarineBeforeId(id);
         if (!mapInstance.getLayer('marine-raster-anchor')) {
@@ -531,6 +609,31 @@ var MapWebGL = ({
     onStyleData();
     return () => mapInstance.off('styledata', onStyleData);
   }, [mapInstance]);
+
+  // v86: ESRI Satellite Cognizance and Clean Background clearing
+  useEffect(() => {
+    if (!mapInstance) return;
+    const handleBackgroundClear = () => {
+      try {
+        if (activeLayers.includes('satellite')) {
+          // Clear background color assets cleanly to prevent overlap/blend artifact issues
+          if (mapInstance.getLayer('background')) {
+            safeSetPaintProperty(mapInstance, 'background', 'background-opacity', 0);
+          }
+        } else {
+          // Restore background opacity when satellite is inactive
+          if (mapInstance.getLayer('background')) {
+            safeSetPaintProperty(mapInstance, 'background', 'background-opacity', 1.0);
+          }
+        }
+      } catch (e) { /* ignore */ }
+    };
+    if (mapInstance.isStyleLoaded()) {
+      handleBackgroundClear();
+    } else {
+      mapInstance.once('style.load', handleBackgroundClear);
+    }
+  }, [mapInstance, activeLayers]);
 
 
 
