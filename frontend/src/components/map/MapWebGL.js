@@ -74,6 +74,8 @@ var MapWebGL = ({
   const resolveTaskIdRef = useRef(0);
   const [metadataRevision, setMetadataRevision] = useState(0);
   const [activeSlots, setActiveSlots] = useState({});
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const cacheBustRef = useRef(Date.now());
   
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
@@ -125,7 +127,8 @@ var MapWebGL = ({
       const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
       if (diff < minDiff) { minDiff = diff; closestIdx = i; }
     }
-    return closestIdx;
+    // Clamping defense to strictly avoid out-of-bounds indices on activeModel shifts
+    return Math.max(0, Math.min(meta.validTimes.length - 1, closestIdx));
   }, [activeModel, timeOffsetHours, metadataRevision]);
 
  // v69: initialOmUrls removed React <Source> now reads omTileUrls directly
@@ -185,10 +188,21 @@ var MapWebGL = ({
   // completely invalidates the old model's binary chunks, avoiding grid lines and cross-model contamination
   useEffect(() => {
     if (activeModel) {
-      console.log(`[Raster] Model changed to ${activeModel}, wiping Open-Meteo block cache...`);
-      clearOpenMeteoCache();
+      console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
+      setIsTransitioning(true);
+      cacheBustRef.current = Date.now();
+      
+      clearOpenMeteoCache().then(() => {
+        // Let the cache clearing complete and MapLibre reload its style configuration cleanly
+        setTimeout(() => {
+          setIsTransitioning(false);
+          if (mapInstance) {
+            try { mapInstance.triggerRepaint(); } catch(e) {}
+          }
+        }, 150);
+      });
     }
-  }, [activeModel]);
+  }, [activeModel, mapInstance]);
 
   // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
   const loggedFallbacks = useRef(new Set());
@@ -206,8 +220,12 @@ var MapWebGL = ({
     const taskId = ++resolveTaskIdRef.current;
 
     const getUrlForIndex = (model, variable, idx) => {
+      const meta = MODEL_METADATA_CACHE[model];
+      const len = meta?.validTimes?.length || 0;
+      const clampedIdx = len > 0 ? Math.max(0, Math.min(len - 1, idx)) : 0;
       const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${idx}&variable=${variable}${darkParam}&contours=true`;
+      const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
+      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}`;
     };
 
     const resolveAllUrls = async () => {
@@ -293,6 +311,8 @@ var MapWebGL = ({
               if (diff < minDiff) { minDiff = diff; closestIdx = i; }
             }
           }
+          // Clamping defense to strictly avoid out-of-bounds indices on activeModel shifts
+          closestIdx = Math.max(0, Math.min(validTimes.length - 1, closestIdx));
           const slotCurrent = closestIdx % 3;
           newActiveSlots[layerKey] = slotCurrent;
           const slotPrev = (closestIdx - 1 + 3) % 3;
@@ -667,11 +687,11 @@ var MapWebGL = ({
                 }
                 type="raster"
                 layout={{ 
-                  visibility: activeLayers.includes(layerKey) ? 'visible' : 'none' 
+                  visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none' 
                 }}
                 paint={{
                   // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
-                  'raster-opacity': isActive ? (
+                  'raster-opacity': (!isTransitioning && isActive) ? (
                     LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
                       'interpolate', ['linear'], ['zoom'],
                       2, 0.70,
@@ -705,7 +725,7 @@ var MapWebGL = ({
            roads/labels/buildings, so land detail is preserved. */}
       <OceanMask
         mapInstance={mapInstance}
-        active={!!activeMarineLayer}
+        active={!isTransitioning && !!activeMarineLayer}
         activeMarineLayer={activeMarineLayer}
         theme={theme}
         beforeId={marineBeforeId}
@@ -715,7 +735,7 @@ var MapWebGL = ({
       <MarineParticleCanvas 
         id="marine-canvas-layer"
         mapInstance={mapInstance} 
-        active={!!activeMarineLayer}
+        active={!isTransitioning && !!activeMarineLayer}
         data={marineWindData}
         revision={marineData?.grid?.timestamp || Date.now()}
       />
@@ -741,7 +761,7 @@ var MapWebGL = ({
       <WindParticleOverlay
         id="wind-particle-overlay"
         mapInstance={mapInstance}
-        active={activeLayers.includes('wind')}
+        active={!isTransitioning && activeLayers.includes('wind')}
         data={windData}
         theme={theme}
       />

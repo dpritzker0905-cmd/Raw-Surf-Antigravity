@@ -522,7 +522,12 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           if (alpha < 0.01) continue;
 
           // Wave direction for dash orientation
-          const dirAngle = Math.atan2(-wave.v, wave.u) ;
+          // Standard meteorological direction conversion: Canvas_Angle = (Meteorological_Angle + 180) % 360.
+          // Maps wave vectors (u, v) into Cartesian rendering direction, handling empty/calm fields strictly.
+          let dirAngle = 0.0;
+          if (Math.abs(wave.u) > 0.001 || Math.abs(wave.v) > 0.001) {
+            dirAngle = Math.atan2(-wave.v, wave.u);
+          }
           
           // v3.16: Scale width and length down elegant when zoomed out to render as premium micro-particles
           const zoomScale = Math.max(0.2, Math.min(1.2, zoom / 7.0));

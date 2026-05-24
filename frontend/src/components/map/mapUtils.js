@@ -576,6 +576,22 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
+          // Helper to get a transparent 1x1 pixel ImageBitmap fallback
+          // Prevents MapLibre GL JS tile painter warnings and guarantees the WebGL thread stays stable on corrupt tiles
+          const getFallbackResponse = async () => {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = 1;
+              canvas.height = 1;
+              const ctx = canvas.getContext('2d');
+              if (ctx) ctx.clearRect(0, 0, 1, 1);
+              const bitmap = await createImageBitmap(canvas);
+              return { data: bitmap };
+            } catch (e) {
+              return { data: null };
+            }
+          };
+
           // v3.13.2: Double-wrapped synchronous + asynchronous error boundaries
           // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
           try {
@@ -584,11 +600,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 return { data: null }; // Silent fallback for aborted tiles
               }
               console.error('[OM-Protocol] Async tile decoding error:', err.message, 'url:', params.url?.substring(0, 120));
-              return { data: null }; // Safe fallback, map survives!
+              return getFallbackResponse(); // Safe fallback: return 1x1 transparent ImageBitmap!
             });
           } catch (syncErr) {
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
-            return Promise.resolve({ data: null }); // Safe fallback, map survives!
+            return getFallbackResponse(); // Safe fallback: return 1x1 transparent ImageBitmap!
           }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
