@@ -637,39 +637,38 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          // Helper to get a transparent 1x1 pixel PNG ArrayBuffer fallback or valid empty TileJSON depending on request type
+          // Helper to get a transparent 1x1 pixel PNG ImageBitmap fallback or valid empty TileJSON depending on request type
           // Prevents MapLibre GL JS tile painter warnings and guarantees the WebGL thread stays stable on corrupt tiles
           const getFallbackResponse = async (type, url) => {
             const isJson = type === 'json' || (url && url.includes('latest.json'));
             
             if (isJson) {
-              const standardizedTileJson = {
+              const structuralContractJson = {
                 tilejson: "2.2.0",
-                name: "om-fallback-layer",
-                version: "1.0.0",
                 tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="],
                 bounds: [-180, -85, 180, 85],
                 minzoom: 0,
-                maxzoom: 22,
-                attribution: "Open-Meteo"
+                maxzoom: 22
               };
-              const encoder = new TextEncoder();
-              const encodedUint8 = encoder.encode(JSON.stringify(standardizedTileJson));
-              return { data: encodedUint8.buffer };
+              const textEncoder = new TextEncoder();
+              const uint8Data = textEncoder.encode(JSON.stringify(structuralContractJson));
+              return { data: uint8Data.buffer };
             }
             
-            // Fallback for raw gridded .om binary image data chunks remains unchanged
+            // For all tile imagery and raster texture request routes, generate a type-safe fallback image texture on-the-fly inside canvas
             try {
-              const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-              const binaryString = window.atob(transparentPngBase64);
-              const len = binaryString.length;
-              const bytes = new Uint8Array(len);
-              for (let i = 0; i < len; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-              }
-              return { data: bytes.buffer };
-            } catch (e) {
-              return { data: new ArrayBuffer(0) };
+              const canvas = document.createElement('canvas');
+              canvas.width = 1;
+              canvas.height = 1;
+              const ctx = canvas.getContext('2d');
+              if (ctx) ctx.clearRect(0, 0, 1, 1);
+              
+              // Generate a native browser-level ImageBitmap instance directly
+              const safeBitmap = await createImageBitmap(canvas);
+              return { data: safeBitmap };
+            } catch (err) {
+              console.error('[OM-Protocol] Fatal error allocating bitmap texture fallback:', err);
+              return { data: null };
             }
           };
 
