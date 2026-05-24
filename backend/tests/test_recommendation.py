@@ -186,5 +186,66 @@ def test_json_rpc_initialize():
     assert response["result"]["serverInfo"]["name"] == "recommendation-engine-mcp"
     print("✓ JSON-RPC Initialize method returns correct protocol metadata")
 
+def test_recommend_instructors():
+    instructors = [
+        {
+            "name": "Kai Surf-Master",
+            "latitude": 34.0194,
+            "longitude": -118.4912,
+            "specialty": "beginner",
+            "rating": 4.9
+        },
+        {
+            "name": "Laird Ocean-Guide",
+            "latitude": 34.3725,
+            "longitude": -119.4772,
+            "specialty": "advanced",
+            "rating": 5.0
+        }
+    ]
+    
+    # Beginner surfer in Santa Monica
+    recs = recommendation_mcp_server.recommend_instructors(
+        user_skill="beginner",
+        user_lat=34.0194,
+        user_lon=-118.4912,
+        instructors_list=instructors
+    )
+    
+    assert len(recs) == 2
+    # Kai should be the top match because he's a beginner coach and right there
+    assert recs[0]["name"] == "Kai Surf-Master"
+    print("✓ Instructor recommendations successfully parsed location & ratings suitability")
+
+def test_recommend_forecasts():
+    forecasts = [
+        {
+            "day": "Monday",
+            "swell_height_ft": 3.0,
+            "wind": "Light Offshore",
+            "description": "Small clean glass swells ideal for learning and styling retro fish."
+        },
+        {
+            "day": "Wednesday",
+            "swell_height_ft": 9.0,
+            "wind": "Heavy Onshore",
+            "description": "Huge storm surf waves messy wind chop choppy washouts."
+        }
+    ]
+    
+    # Beginner asking for learning fish waves
+    recs = recommendation_mcp_server.recommend_forecasts(
+        user_skill="beginner",
+        user_preferences="retro fish learning glass",
+        forecasts_list=forecasts
+    )
+    
+    assert len(recs) == 2
+    # Monday should rank top due to light offshore wind and clean soft waves matching retro fish
+    assert recs[0]["day"] == "Monday"
+    # Wednesday should have suitability "Fair" and Monday should be "Prime"
+    assert recs[0]["suitability"] == "Prime"
+    print("✓ Forecast recommendations perform vector matching combined with swell parameters")
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

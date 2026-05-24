@@ -157,6 +157,106 @@ def recommend_equipment(user_preferences, user_skill, boards_list):
     recommended.sort(key=lambda x: x["composite_score"], reverse=True)
     return recommended
 
+def recommend_instructors(user_skill, user_lat, user_lon, instructors_list):
+    recommended = []
+    u_skill = user_skill.lower()
+    
+    for inst in instructors_list:
+        inst_name = inst.get("name")
+        inst_lat = inst.get("latitude")
+        inst_lon = inst.get("longitude")
+        specialty = inst.get("specialty", "intermediate").lower()
+        rating = inst.get("rating", 5.0)
+        
+        # Calculate geographic distance
+        dist = haversine_distance(user_lat, user_lon, inst_lat, inst_lon)
+        
+        # Score calculation (starts at 100)
+        score = 100.0
+        
+        # 1. Geographic distance penalty (-2 points per 10km, max -30 points)
+        score -= min(30.0, (dist / 10.0) * 2.0)
+        
+        # 2. Skill specialty compatibility
+        if u_skill == "beginner":
+            if specialty == "beginner":
+                score += 25.0
+            elif specialty == "advanced":
+                score -= 15.0  # Beginner might get overwhelmed by a heavy coach
+        elif u_skill == "advanced":
+            if specialty == "advanced":
+                score += 25.0
+            elif specialty == "beginner":
+                score -= 20.0  # Advanced surfer wants a pro-coach
+        else: # Intermediate
+            if specialty == "intermediate":
+                score += 20.0
+                
+        # 3. Rating boost (+5 points per star above 4.0)
+        score += max(0.0, (rating - 4.0) * 10.0)
+        
+        recommended.append({
+            "name": inst_name,
+            "specialty": specialty.upper(),
+            "rating": rating,
+            "distance_km": round(dist, 1),
+            "match_score": max(0.0, round(score, 1)),
+            "reason": f"Top-rated {specialty} guide located {round(dist, 1)}km away."
+        })
+        
+    recommended.sort(key=lambda x: x["match_score"], reverse=True)
+    return recommended
+
+def recommend_forecasts(user_skill, user_preferences, forecasts_list):
+    # Vector semantic matching between user preferences and forecast descriptions
+    user_vector = generate_mock_embedding(user_preferences + " " + user_skill)
+    
+    recommended = []
+    u_skill = user_skill.lower()
+    
+    for fc in forecasts_list:
+        day = fc.get("day")
+        swell_height = fc.get("swell_height_ft", 3.0)
+        desc = fc.get("description", "")
+        wind = fc.get("wind", "Light Offshore")
+        
+        fc_vector = generate_mock_embedding(desc + " " + wind)
+        sim_score = cosine_similarity(user_vector, fc_vector)
+        
+        # Skill-based swell height adjustment
+        suitability_bonus = 0.0
+        if u_skill == "beginner":
+            if 2.0 <= swell_height <= 4.0:
+                suitability_bonus = 0.20  # Perfect beginner range
+            elif swell_height >= 7.0:
+                suitability_bonus = -0.40  # Dangerous for beginners!
+        elif u_skill == "advanced":
+            if swell_height >= 6.0:
+                suitability_bonus = 0.20  # Epic large wave bonus
+            elif swell_height <= 3.0:
+                suitability_bonus = -0.20  # Too small for advanced surfers
+                
+        # Wind condition adjustment
+        wind_bonus = 0.0
+        if "offshore" in wind.lower():
+            wind_bonus = 0.10
+        elif "onshore" in wind.lower():
+            wind_bonus = -0.10
+            
+        composite_score = sim_score + suitability_bonus + wind_bonus
+        
+        recommended.append({
+            "day": day,
+            "swell_height_ft": swell_height,
+            "wind": wind,
+            "similarity_score": round(sim_score, 4),
+            "composite_score": round(composite_score, 4),
+            "suitability": "Prime" if composite_score >= 0.25 else "Fair"
+        })
+        
+    recommended.sort(key=lambda x: x["composite_score"], reverse=True)
+    return recommended
+
 # JSON-RPC MCP stdio Loop
 def main():
     init_db()
@@ -273,6 +373,75 @@ def main():
                                     },
                                     "required": ["user_preferences", "user_skill", "boards"]
                                 }
+                            },
+                            {
+                                "name": "recommend_instructors",
+                                "description": "Generate dynamic surf instructor recommendations matching the surfer's experience level, geographic distance, and coach star ratings.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "user_skill": {
+                                            "type": "string",
+                                            "enum": ["beginner", "intermediate", "advanced"],
+                                            "description": "Surfer experience skill level"
+                                        },
+                                        "user_latitude": {
+                                            "type": "number",
+                                            "description": "Surfer latitude"
+                                        },
+                                        "user_longitude": {
+                                            "type": "number",
+                                            "description": "Surfer longitude"
+                                        },
+                                        "instructors": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {"type": "string"},
+                                                    "latitude": {"type": "number"},
+                                                    "longitude": {"type": "number"},
+                                                    "specialty": {"type": "string"},
+                                                    "rating": {"type": "number"}
+                                                },
+                                                "required": ["name", "latitude", "longitude"]
+                                            }
+                                        }
+                                    },
+                                    "required": ["user_skill", "user_latitude", "user_longitude", "instructors"]
+                                }
+                            },
+                            {
+                                "name": "recommend_forecasts",
+                                "description": "Analyze swell forecast heights, wind conditions, and surfer preferences to recommend optimal surfing days/windows.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "user_skill": {
+                                            "type": "string",
+                                            "enum": ["beginner", "intermediate", "advanced"],
+                                            "description": "Surfer skill level"
+                                        },
+                                        "user_preferences": {
+                                            "type": "string",
+                                            "description": "Surfer weather and swell shape preferences"
+                                        },
+                                        "forecasts": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "day": {"type": "string"},
+                                                    "swell_height_ft": {"type": "number"},
+                                                    "wind": {"type": "string"},
+                                                    "description": {"type": "string"}
+                                                },
+                                                "required": ["day", "swell_height_ft", "wind"]
+                                            }
+                                        }
+                                    },
+                                    "required": ["user_skill", "user_preferences", "forecasts"]
+                                }
                             }
                         ]
                     }
@@ -299,6 +468,23 @@ def main():
                     boards = args.get("boards")
                     
                     recs = recommend_equipment(prefs, skill, boards)
+                    text_out = json.dumps(recs, indent=2)
+                    
+                elif tool_name == "recommend_instructors":
+                    skill = args.get("user_skill")
+                    lat = args.get("user_latitude")
+                    lon = args.get("user_longitude")
+                    insts = args.get("instructors")
+                    
+                    recs = recommend_instructors(skill, lat, lon, insts)
+                    text_out = json.dumps(recs, indent=2)
+                    
+                elif tool_name == "recommend_forecasts":
+                    skill = args.get("user_skill")
+                    prefs = args.get("user_preferences")
+                    fcs = args.get("forecasts")
+                    
+                    recs = recommend_forecasts(skill, prefs, fcs)
                     text_out = json.dumps(recs, indent=2)
                     
                 else:
