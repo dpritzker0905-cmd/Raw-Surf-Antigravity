@@ -576,9 +576,12 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          // Helper to get a transparent 1x1 pixel ImageBitmap fallback
+          // Helper to get a transparent 1x1 pixel ImageBitmap fallback or valid empty TileJSON depending on request type
           // Prevents MapLibre GL JS tile painter warnings and guarantees the WebGL thread stays stable on corrupt tiles
-          const getFallbackResponse = async () => {
+          const getFallbackResponse = async (type) => {
+            if (type === 'json') {
+              return { data: { tiles: [] } };
+            }
             try {
               const canvas = document.createElement('canvas');
               canvas.width = 1;
@@ -592,19 +595,19 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           };
 
-          // v3.13.2: Double-wrapped synchronous + asynchronous error boundaries
+          // v3.13.4: Double-wrapped synchronous + asynchronous type-safe error boundaries
           // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
           try {
             return omProtocol(params, abortController, currentSettings).catch(err => {
               if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-                return { data: null }; // Silent fallback for aborted tiles
+                return params.type === 'json' ? { data: { tiles: [] } } : { data: null }; // Safe silent abort fallback
               }
               console.error('[OM-Protocol] Async tile decoding error:', err.message, 'url:', params.url?.substring(0, 120));
-              return getFallbackResponse(); // Safe fallback: return 1x1 transparent ImageBitmap!
+              return getFallbackResponse(params.type); // Type-safe fallback!
             });
           } catch (syncErr) {
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
-            return getFallbackResponse(); // Safe fallback: return 1x1 transparent ImageBitmap!
+            return getFallbackResponse(params.type); // Type-safe fallback!
           }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
