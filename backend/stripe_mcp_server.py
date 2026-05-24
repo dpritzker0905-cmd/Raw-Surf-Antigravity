@@ -41,9 +41,16 @@ def init_db():
         commission_provider REAL NOT NULL, -- photographer/instructor cut (e.g. 80%)
         provider_id TEXT,
         metadata TEXT, -- JSON mapping
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        correlation_id TEXT
     )
     """)
+    
+    # Dynamic Migrations
+    cursor.execute("PRAGMA table_info(stripe_payments)")
+    cols = [col[1] for col in cursor.fetchall()]
+    if "correlation_id" not in cols:
+        cursor.execute("ALTER TABLE stripe_payments ADD COLUMN correlation_id TEXT")
     
     # 3. Webhooks processed log
     cursor.execute("""
@@ -73,8 +80,7 @@ def init_db():
         
     conn.close()
 
-# Stripe MCP Core Tool Actions
-def stripe_create_checkout_session(customer_id, amount, currency, success_url, cancel_url, metadata_dict=None):
+def stripe_create_checkout_session(customer_id, amount, currency, success_url, cancel_url, metadata_dict=None, correlation_id=None):
     init_db()
     
     session_id = f"cs_test_{uuid.uuid4().hex[:12]}"
@@ -91,9 +97,9 @@ def stripe_create_checkout_session(customer_id, amount, currency, success_url, c
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO stripe_payments (payment_intent_id, customer_id, amount, currency, status, commission_platform, commission_provider, provider_id, metadata, created_at)
-    VALUES (?, ?, ?, ?, 'requires_payment_method', ?, ?, ?, ?, datetime('now'))
-    """, (payment_intent_id, customer_id, amount, currency, commission_platform, commission_provider, provider_id, json.dumps(metadata_dict)))
+    INSERT INTO stripe_payments (payment_intent_id, customer_id, amount, currency, status, commission_platform, commission_provider, provider_id, metadata, created_at, correlation_id)
+    VALUES (?, ?, ?, ?, 'requires_payment_method', ?, ?, ?, ?, datetime('now'), ?)
+    """, (payment_intent_id, customer_id, amount, currency, commission_platform, commission_provider, provider_id, json.dumps(metadata_dict), correlation_id))
     conn.commit()
     conn.close()
     
@@ -109,7 +115,8 @@ def stripe_create_checkout_session(customer_id, amount, currency, success_url, c
         "url": f"https://checkout.stripe.com/pay/{session_id}",
         "success_url": success_url,
         "cancel_url": cancel_url,
-        "status": "pending_payment"
+        "status": "pending_payment",
+        "correlation_id": correlation_id
     }
 
 def stripe_create_subscription(customer_id, plan_name, monthly_price):
@@ -333,7 +340,8 @@ def main():
                                         "metadata": {
                                             "type": "object", 
                                             "description": "Dynamic metadata mapping including booking_id, photographer_id, and instructor_id for split verification"
-                                        }
+                                        },
+                                        "correlation_id": {"type": "string", "description": "Optional correlation tracking UUID"}
                                     },
                                     "required": ["customer_id", "amount", "success_url", "cancel_url"]
                                 }
@@ -434,7 +442,8 @@ def main():
                     s_url = args.get("success_url")
                     c_url = args.get("cancel_url")
                     meta = args.get("metadata", {})
-                    res = stripe_create_checkout_session(cus, amt, curr, s_url, c_url, meta)
+                    corr = args.get("correlation_id")
+                    res = stripe_create_checkout_session(cus, amt, curr, s_url, c_url, meta, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "create_subscription":

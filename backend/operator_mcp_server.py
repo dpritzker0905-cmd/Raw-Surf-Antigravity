@@ -7,13 +7,12 @@ from datetime import datetime, timezone
 
 # SQLite Operator Decisions Database Path
 DB_PATH = "C:\\Users\\dprit\\Raw-Surf\\backend\\operator_decisions.db"
-WORLD_MODEL_DB = "C:\\Users\\dprit\\Raw-Surf\\backend\\world_model_intel.db"
 
 def init_db():
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     
-    # 1. Operator Decisions Table
+    # 1. Operator Decisions Table (Refactored to track correlation_id)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS operator_decisions (
         decision_id TEXT PRIMARY KEY,
@@ -25,36 +24,45 @@ def init_db():
         timestamp TEXT NOT NULL,
         caller_role TEXT,
         execution_timestamp TEXT,
-        execution_result TEXT -- JSON string with details of Stripe/Calendar/Supabase integrations
+        execution_result TEXT, -- JSON string with details of Stripe/Calendar/Supabase integrations
+        correlation_id TEXT
     )
     """)
+    
+    # Dynamic Migrations
+    cursor.execute("PRAGMA table_info(operator_decisions)")
+    cols = [col[1] for col in cursor.fetchall()]
+    if "correlation_id" not in cols:
+        cursor.execute("ALTER TABLE operator_decisions ADD COLUMN correlation_id TEXT")
+        
     conn.commit()
     conn.close()
 
 # 1. Monitor System State
 def monitor_system_state(spot_name):
-    # Try to query world model db for weather conditions, otherwise fall back to realistic defaults
+    # Standard realistic weather defaults
     swell_height = 5.5
     swell_period = 14
     wind_speed = 8.0
     wind_direction = "Light Offshore"
     tide_cycle = "rising"
     
-    if os.path.exists(WORLD_MODEL_DB):
-        try:
-            conn = sqlite3.connect(WORLD_MODEL_DB, timeout=10.0)
-            cursor = conn.cursor()
-            cursor.execute("""
-            SELECT swell_height_ft, swell_period_sec, wind_speed_mph, wind_direction, tide_cycle 
-            FROM weather_ocean_data WHERE spot_name = ?
-            """, (spot_name,))
-            row = cursor.fetchone()
-            conn.close()
-            if row:
-                swell_height, swell_period, wind_speed, wind_direction, tide_cycle = row
-        except Exception as e:
-            sys.stderr.write(f"Warning querying world model DB: {str(e)}\n")
-            sys.stderr.flush()
+    # PURE EVENT SPINE QUERY: completely decoupled, no raw world model SQLite DB connection
+    try:
+        import event_bus_mcp_server
+        recent_weather = event_bus_mcp_server.get_recent_events(event_type="weather_updated", limit=50)
+        # Find matching weather for the target spot
+        spot_weather = next((w for w in recent_weather if w["payload"].get("spot_name") == spot_name), None)
+        if spot_weather:
+            w_pay = spot_weather["payload"]
+            swell_height = float(w_pay.get("swell_height_ft", swell_height))
+            swell_period = int(w_pay.get("swell_period_sec", swell_period))
+            wind_speed = float(w_pay.get("wind_speed_mph", wind_speed))
+            wind_direction = w_pay.get("wind_conditions", wind_direction)
+            tide_cycle = w_pay.get("tide_cycle", tide_cycle)
+    except Exception as e:
+        sys.stderr.write(f"Warning querying event bus for weather: {str(e)}\n")
+        sys.stderr.flush()
 
     # Determine booking demand based on surf quality indicators
     is_prime = (swell_height >= 4.0 and swell_period >= 12 and "offshore" in wind_direction.lower())
@@ -135,10 +143,9 @@ def monitor_system_state(spot_name):
     }
 
 # 2. Propose Pricing Change
-def propose_pricing_change(spot_name, proposed_price, explanation):
+def propose_pricing_change(spot_name, proposed_price, explanation, correlation_id=None):
     init_db()
     
-    # Pricing safe bounds check: $30.0 - $200.0
     price_val = float(proposed_price)
     if price_val < 30.0 or price_val > 200.0:
         return {
@@ -152,9 +159,9 @@ def propose_pricing_change(spot_name, proposed_price, explanation):
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO operator_decisions (decision_id, type, spot_name, proposed_value, status, explanation, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (decision_id, "pricing_adjustment", spot_name, str(price_val), "pending_approval", explanation, timestamp))
+    INSERT INTO operator_decisions (decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, (decision_id, "pricing_adjustment", spot_name, str(price_val), "pending_approval", explanation, timestamp, correlation_id))
     
     conn.commit()
     conn.close()
@@ -164,29 +171,25 @@ def propose_pricing_change(spot_name, proposed_price, explanation):
         "decision_id": decision_id,
         "status": "pending_approval",
         "explanation_logged": True,
-        "proposed_price": price_val
+        "proposed_price": price_val,
+        "correlation_id": correlation_id
     }
 
 # 3. Propose Safety Cancellation
-def propose_cancellation(event_id, explanation, swell_height_ft=None):
+def propose_cancellation(event_id, explanation, swell_height_ft=None, correlation_id=None):
     init_db()
     
-    # Determine swell height for safety validation
-    # If not supplied, search spot or use default Malibu swell height
     s_height = swell_height_ft
     if s_height is None:
         s_height = 5.5 # default moderate
-        if os.path.exists(WORLD_MODEL_DB):
-            try:
-                conn = sqlite3.connect(WORLD_MODEL_DB, timeout=10.0)
-                cursor = conn.cursor()
-                cursor.execute("SELECT swell_height_ft FROM weather_ocean_data LIMIT 1")
-                row = cursor.fetchone()
-                conn.close()
-                if row:
-                    s_height = row[0]
-            except:
-                pass
+        # Decoupled weather lookup via Event Spine
+        try:
+            import event_bus_mcp_server
+            recent = event_bus_mcp_server.get_recent_events(event_type="weather_updated", limit=1)
+            if recent:
+                s_height = float(recent[0]["payload"].get("swell_height_ft", 5.5))
+        except:
+            pass
                 
     # Safety Threshold Validation Check
     if s_height <= 10.0:
@@ -201,9 +204,9 @@ def propose_cancellation(event_id, explanation, swell_height_ft=None):
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO operator_decisions (decision_id, type, proposed_value, status, explanation, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?)
-    """, (decision_id, "cancellation", str(event_id), "pending_approval", f"[SAFETY VALIDATED - Swell: {s_height}ft] {explanation}", timestamp))
+    INSERT INTO operator_decisions (decision_id, type, proposed_value, status, explanation, timestamp, correlation_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (decision_id, "cancellation", str(event_id), "pending_approval", f"[SAFETY VALIDATED - Swell: {s_height}ft] {explanation}", timestamp, correlation_id))
     
     conn.commit()
     conn.close()
@@ -213,11 +216,12 @@ def propose_cancellation(event_id, explanation, swell_height_ft=None):
         "decision_id": decision_id,
         "status": "pending_approval",
         "explanation_logged": True,
-        "safety_threshold_validated": True
+        "safety_threshold_validated": True,
+        "correlation_id": correlation_id
     }
 
 # 4. Execute approved decision with Gates
-def execute_decision(decision_id, caller_role):
+def execute_decision(decision_id, caller_role, correlation_id=None):
     init_db()
     
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
@@ -266,9 +270,9 @@ def execute_decision(decision_id, caller_role):
     
     cursor.execute("""
     UPDATE operator_decisions 
-    SET status = 'executed', caller_role = ?, execution_timestamp = ?, execution_result = ?
+    SET status = 'executed', caller_role = ?, execution_timestamp = ?, execution_result = ?, correlation_id = ?
     WHERE decision_id = ?
-    """, (caller_role, exec_ts, json.dumps(integration_results), decision_id))
+    """, (caller_role, exec_ts, json.dumps(integration_results), correlation_id, decision_id))
     
     conn.commit()
     conn.close()
@@ -279,7 +283,8 @@ def execute_decision(decision_id, caller_role):
         "status": "executed",
         "caller_role": caller_role,
         "execution_timestamp": exec_ts,
-        "execution_result": integration_results
+        "execution_result": integration_results,
+        "correlation_id": correlation_id
     }
 
 # 5. Query decision history
@@ -288,7 +293,7 @@ def get_operator_decision_history():
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp, caller_role, execution_timestamp, execution_result 
+    SELECT decision_id, type, spot_name, proposed_value, status, explanation, timestamp, caller_role, execution_timestamp, execution_result, correlation_id 
     FROM operator_decisions ORDER BY timestamp DESC
     """)
     rows = cursor.fetchall()
@@ -312,7 +317,8 @@ def get_operator_decision_history():
             "timestamp": r[6],
             "caller_role": r[7],
             "execution_timestamp": r[8],
-            "execution_result": exec_res
+            "execution_result": exec_res,
+            "correlation_id": r[10]
         })
     return history
 
@@ -342,7 +348,7 @@ def main():
                         },
                         "serverInfo": {
                             "name": "autonomous-operator-mcp",
-                            "version": "1.0.0"
+                            "version": "2.0.0"
                         }
                     }
                 }
@@ -372,7 +378,8 @@ def main():
                                     "properties": {
                                         "spot_name": {"type": "string"},
                                         "proposed_price": {"type": "number"},
-                                        "explanation": {"type": "string"}
+                                        "explanation": {"type": "string"},
+                                        "correlation_id": {"type": "string", "description": "Causal trace correlation UUID"}
                                     },
                                     "required": ["spot_name", "proposed_price", "explanation"]
                                 }
@@ -385,7 +392,8 @@ def main():
                                     "properties": {
                                         "event_id": {"type": "string"},
                                         "explanation": {"type": "string"},
-                                        "swell_height_ft": {"type": "number", "description": "Optional swell height to validate. If omitted, uses world model lookup."}
+                                        "swell_height_ft": {"type": "number", "description": "Optional swell height to validate. If omitted, uses world model lookup."},
+                                        "correlation_id": {"type": "string", "description": "Causal trace correlation UUID"}
                                     },
                                     "required": ["event_id", "explanation"]
                                 }
@@ -397,7 +405,8 @@ def main():
                                     "type": "object",
                                     "properties": {
                                         "decision_id": {"type": "string"},
-                                        "caller_role": {"type": "string", "enum": ["admin", "moderator", "user"]}
+                                        "caller_role": {"type": "string", "enum": ["admin", "moderator", "user"]},
+                                        "correlation_id": {"type": "string", "description": "Causal trace correlation UUID"}
                                     },
                                     "required": ["decision_id", "caller_role"]
                                 }
@@ -426,20 +435,23 @@ def main():
                     spot = args.get("spot_name")
                     price = args.get("proposed_price")
                     expl = args.get("explanation")
-                    res = propose_pricing_change(spot, price, expl)
+                    corr = args.get("correlation_id")
+                    res = propose_pricing_change(spot, price, expl, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "propose_cancellation":
                     ev_id = args.get("event_id")
                     expl = args.get("explanation")
                     sh = args.get("swell_height_ft")
-                    res = propose_cancellation(ev_id, expl, sh)
+                    corr = args.get("correlation_id")
+                    res = propose_cancellation(ev_id, expl, sh, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "execute_decision":
                     dec = args.get("decision_id")
                     role = args.get("caller_role")
-                    res = execute_decision(dec, role)
+                    corr = args.get("correlation_id")
+                    res = execute_decision(dec, role, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "get_operator_decision_history":

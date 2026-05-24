@@ -124,6 +124,38 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
     conn.commit()
     conn.close()
     
+    # ── Supabase Cloud Syncer Bridge ───────────────────────────────────────
+    # Non-blocking, background-threaded cloud event synchronizer
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY")
+    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+        import threading
+        def push_to_supabase_worker():
+            try:
+                import httpx
+                headers = {
+                    "apikey": SUPABASE_SERVICE_KEY,
+                    "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal"
+                }
+                db_payload = {
+                    "event_id": event_id,
+                    "event_type": event_type,
+                    "payload": json.dumps(payload),
+                    "timestamp": timestamp,
+                    "user_id": u_id,
+                    "source_mcp": source_mcp,
+                    "correlation_id": corr_id
+                }
+                with httpx.Client(timeout=5.0) as client:
+                    client.post(f"{SUPABASE_URL}/rest/v1/event_log", json=db_payload, headers=headers)
+            except Exception as e:
+                sys.stderr.write(f"Warning: Cloud Supabase bridge sync failed: {str(e)}\n")
+                sys.stderr.flush()
+        
+        threading.Thread(target=push_to_supabase_worker, daemon=True).start()
+    
     # Route event to real-time in-memory subscribers (e.g. testing decoupled flows)
     if event_type in _in_memory_subscribers:
         for handler in _in_memory_subscribers[event_type]:

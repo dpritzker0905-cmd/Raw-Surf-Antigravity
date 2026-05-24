@@ -25,7 +25,7 @@ def init_db():
     )
     """)
     
-    # 2. Calendar Scheduled Events table
+    # 2. Calendar Scheduled Events table (Refactored to support correlation_id)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS calendar_events (
         event_id TEXT PRIMARY KEY,
@@ -37,9 +37,17 @@ def init_db():
         timezone TEXT DEFAULT 'America/Los_Angeles',
         customer_id TEXT,
         booking_status TEXT DEFAULT 'confirmed', -- 'confirmed', 'canceled'
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        correlation_id TEXT
     )
     """)
+    
+    # Dynamic Migrations
+    cursor.execute("PRAGMA table_info(calendar_events)")
+    cols = [col[1] for col in cursor.fetchall()]
+    if "correlation_id" not in cols:
+        cursor.execute("ALTER TABLE calendar_events ADD COLUMN correlation_id TEXT")
+        
     conn.commit()
     
     # Seed provider calendars if empty
@@ -69,7 +77,6 @@ def init_db():
 
 # Calendar MCP Core Actions
 def check_scheduling_conflict(provider_id, start_iso, end_iso, ignore_event_id=None):
-    # Retrieve all confirmed events for this provider
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     if ignore_event_id:
@@ -86,7 +93,6 @@ def check_scheduling_conflict(provider_id, start_iso, end_iso, ignore_event_id=N
     rows = cursor.fetchall()
     conn.close()
     
-    # Parse target times into datetime objects
     target_start = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
     target_end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
     
@@ -95,7 +101,7 @@ def check_scheduling_conflict(provider_id, start_iso, end_iso, ignore_event_id=N
         evt_start = datetime.fromisoformat(s_time.replace("Z", "+00:00"))
         evt_end = datetime.fromisoformat(e_time.replace("Z", "+00:00"))
         
-        # Conflict if intervals overlap: (start1 < end2) and (start2 < end1)
+        # Overlap check
         if target_start < evt_end and evt_start < target_end:
             return {
                 "has_conflict": True,
@@ -107,7 +113,6 @@ def check_scheduling_conflict(provider_id, start_iso, end_iso, ignore_event_id=N
 
 def calendar_check_availability(provider_id, start_iso, end_iso):
     init_db()
-    # Check for conflicts
     conflict_info = check_scheduling_conflict(provider_id, start_iso, end_iso)
     
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
@@ -130,10 +135,9 @@ def calendar_check_availability(provider_id, start_iso, end_iso):
         "conflict_details": conflict_info.get("conflict_details")
     }
 
-def calendar_create_booking(provider_id, customer_id, summary, description, start_iso, end_iso, tz="America/Los_Angeles"):
+def calendar_create_booking(provider_id, customer_id, summary, description, start_iso, end_iso, tz="America/Los_Angeles", correlation_id=None):
     init_db()
     
-    # Enforce conflict check
     conflict_info = check_scheduling_conflict(provider_id, start_iso, end_iso)
     if conflict_info["has_conflict"]:
         return {
@@ -147,9 +151,9 @@ def calendar_create_booking(provider_id, customer_id, summary, description, star
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    INSERT INTO calendar_events (event_id, provider_id, summary, description, start_time, end_time, timezone, customer_id, booking_status, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', datetime('now'))
-    """, (event_id, provider_id, summary, description, start_iso, end_iso, tz, customer_id))
+    INSERT INTO calendar_events (event_id, provider_id, summary, description, start_time, end_time, timezone, customer_id, booking_status, created_at, correlation_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed', datetime('now'), ?)
+    """, (event_id, provider_id, summary, description, start_iso, end_iso, tz, customer_id, correlation_id))
     conn.commit()
     conn.close()
     
@@ -168,15 +172,15 @@ def calendar_create_booking(provider_id, customer_id, summary, description, star
         "reminder_workflow": {
             "workflow_triggered": True,
             "message": "Enqueued automated SMS reminder workflow in 8ce66b10"
-        }
+        },
+        "correlation_id": correlation_id
     }
 
-def calendar_cancel_booking(event_id):
+def calendar_cancel_booking(event_id, correlation_id=None):
     init_db()
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     
-    # Check if event exists
     cursor.execute("SELECT provider_id, customer_id, booking_status FROM calendar_events WHERE event_id = ?", (event_id,))
     row = cursor.fetchone()
     if not row:
@@ -188,7 +192,7 @@ def calendar_cancel_booking(event_id):
         conn.close()
         return {"success": False, "error": f"Event '{event_id}' is already canceled."}
         
-    cursor.execute("UPDATE calendar_events SET booking_status = 'canceled' WHERE event_id = ?", (event_id,))
+    cursor.execute("UPDATE calendar_events SET booking_status = 'canceled', correlation_id = ? WHERE event_id = ?", (correlation_id, event_id))
     conn.commit()
     conn.close()
     
@@ -197,15 +201,15 @@ def calendar_cancel_booking(event_id):
         "provider_id": prov_id,
         "customer_id": cus_id,
         "booking_status": "canceled",
-        "sync_status": "synchronized_with_supabase"
+        "sync_status": "synchronized_with_supabase",
+        "correlation_id": correlation_id
     }
 
-def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso):
+def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso, correlation_id=None):
     init_db()
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     
-    # Check if event exists
     cursor.execute("SELECT provider_id, customer_id, timezone FROM calendar_events WHERE event_id = ?", (event_id,))
     row = cursor.fetchone()
     if not row:
@@ -215,7 +219,6 @@ def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso):
     prov_id, cus_id, tz = row
     conn.close()
     
-    # Enforce conflict check (excluding current event itself)
     conflict_info = check_scheduling_conflict(prov_id, new_start_iso, new_end_iso, ignore_event_id=event_id)
     if conflict_info["has_conflict"]:
         return {
@@ -228,9 +231,9 @@ def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso):
     cursor = conn.cursor()
     cursor.execute("""
     UPDATE calendar_events 
-    SET start_time = ?, end_time = ?, booking_status = 'confirmed' 
+    SET start_time = ?, end_time = ?, booking_status = 'confirmed', correlation_id = ?
     WHERE event_id = ?
-    """, (new_start_iso, new_end_iso, event_id))
+    """, (new_start_iso, new_end_iso, correlation_id, event_id))
     conn.commit()
     conn.close()
     
@@ -244,7 +247,8 @@ def calendar_reschedule_booking(event_id, new_start_iso, new_end_iso):
             "timezone": tz
         },
         "booking_status": "rescheduled",
-        "sync_status": "synchronized_with_supabase"
+        "sync_status": "synchronized_with_supabase",
+        "correlation_id": correlation_id
     }
 
 def get_provider_events(provider_id):
@@ -252,7 +256,7 @@ def get_provider_events(provider_id):
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT event_id, summary, description, start_time, end_time, timezone, customer_id, booking_status 
+    SELECT event_id, summary, description, start_time, end_time, timezone, customer_id, booking_status, correlation_id 
     FROM calendar_events WHERE provider_id = ? ORDER BY start_time ASC
     """, (provider_id,))
     rows = cursor.fetchall()
@@ -260,7 +264,7 @@ def get_provider_events(provider_id):
     
     events = []
     for row in rows:
-        evt_id, summ, desc, start, end, tz, cus, status = row
+        evt_id, summ, desc, start, end, tz, cus, status, corr = row
         events.append({
             "event_id": evt_id,
             "summary": summ,
@@ -269,7 +273,8 @@ def get_provider_events(provider_id):
             "end_time": end,
             "timezone": tz,
             "customer_id": cus,
-            "booking_status": status
+            "booking_status": status,
+            "correlation_id": corr
         })
     return events
 
@@ -299,7 +304,7 @@ def main():
                         },
                         "serverInfo": {
                             "name": "google-calendar-mcp",
-                            "version": "1.0.0"
+                            "version": "2.0.0"
                         }
                     }
                 }
@@ -317,8 +322,8 @@ def main():
                                     "type": "object",
                                     "properties": {
                                         "provider_id": {"type": "string", "description": "Target calendar provider ID"},
-                                        "start_time": {"type": "string", "description": "Query start ISO timestamp (e.g. '2026-05-24T15:00:00Z')"},
-                                        "end_time": {"type": "string", "description": "Query end ISO timestamp (e.g. '2026-05-24T16:00:00Z')"}
+                                        "start_time": {"type": "string", "description": "Query start ISO timestamp"},
+                                        "end_time": {"type": "string", "description": "Query end ISO timestamp"}
                                     },
                                     "required": ["provider_id", "start_time", "end_time"]
                                 }
@@ -335,7 +340,8 @@ def main():
                                         "description": {"type": "string", "description": "Descriptions of booking"},
                                         "start_time": {"type": "string", "description": "Start ISO timestamp UTC"},
                                         "end_time": {"type": "string", "description": "End ISO timestamp UTC"},
-                                        "timezone": {"type": "string", "description": "Provider local timezone (default: 'America/Los_Angeles')"}
+                                        "timezone": {"type": "string", "description": "Provider local timezone"},
+                                        "correlation_id": {"type": "string", "description": "Optional trace correlation UUID"}
                                     },
                                     "required": ["provider_id", "customer_id", "summary", "start_time", "end_time"]
                                 }
@@ -346,7 +352,8 @@ def main():
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
-                                        "event_id": {"type": "string", "description": "Target Calendar Event ID"}
+                                        "event_id": {"type": "string", "description": "Target Calendar Event ID"},
+                                        "correlation_id": {"type": "string", "description": "Optional trace correlation UUID"}
                                     },
                                     "required": ["event_id"]
                                 }
@@ -359,7 +366,8 @@ def main():
                                     "properties": {
                                         "event_id": {"type": "string", "description": "Target Calendar Event ID"},
                                         "start_time": {"type": "string", "description": "New start ISO timestamp UTC"},
-                                        "end_time": {"type": "string", "description": "New end ISO timestamp UTC"}
+                                        "end_time": {"type": "string", "description": "New end ISO timestamp UTC"},
+                                        "correlation_id": {"type": "string", "description": "Optional trace correlation UUID"}
                                     },
                                     "required": ["event_id", "start_time", "end_time"]
                                 }
@@ -398,19 +406,22 @@ def main():
                     start = args.get("start_time")
                     end = args.get("end_time")
                     tz = args.get("timezone", "America/Los_Angeles")
-                    res = calendar_create_booking(prov, cus, sum_val, desc, start, end, tz)
+                    corr = args.get("correlation_id")
+                    res = calendar_create_booking(prov, cus, sum_val, desc, start, end, tz, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "cancel_booking":
                     evt = args.get("event_id")
-                    res = calendar_cancel_booking(evt)
+                    corr = args.get("correlation_id")
+                    res = calendar_cancel_booking(evt, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "reschedule_booking":
                     evt = args.get("event_id")
                     start = args.get("start_time")
                     end = args.get("end_time")
-                    res = calendar_reschedule_booking(evt, start, end)
+                    corr = args.get("correlation_id")
+                    res = calendar_reschedule_booking(evt, start, end, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "get_provider_schedule":
