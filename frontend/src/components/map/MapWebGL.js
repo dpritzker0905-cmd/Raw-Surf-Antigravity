@@ -13,7 +13,9 @@ import {
   fetchModelMetadata,
   safeMoveLayer,
   registerOpenMeteoProtocol,
-  clearOpenMeteoCache
+  clearOpenMeteoCache,
+  safeSetPaintProperty,
+  invalidateStaleTileRequests
 } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -184,7 +186,7 @@ var MapWebGL = ({
     ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025', 'dwd_gwam'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
 
-  // v3.13.3: Clear the Open-Meteo tile block cache when activeModel changes
+  // v3.13.6: Clear the Open-Meteo tile block cache when activeModel changes
   // and coordinate with map style load lifecycle to prevent startup race conditions
   useEffect(() => {
     if (!activeModel) return;
@@ -192,21 +194,31 @@ var MapWebGL = ({
     console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
     setIsTransitioning(true);
     cacheBustRef.current = Date.now();
+    invalidateStaleTileRequests(); // Invalidate stale out-of-order custom tile requests
     
     let active = true;
+
+    // Synchronize deactivation: force layer opacities to 0 before cache is cleared to prevent texture flashes
+    if (mapInstance && mapInstance.isStyleLoaded()) {
+      safeSetPaintProperty(mapInstance, 'wind-particle-overlay', 'raster-opacity', 0);
+      safeSetPaintProperty(mapInstance, 'marine-canvas-layer', 'raster-opacity', 0);
+    }
 
     clearOpenMeteoCache().then(() => {
       if (!active) return;
 
       const finishTransition = () => {
+        // Temporal safety window: defer setting transitioning to false by 120ms using rAF
         setTimeout(() => {
-          if (!active) return;
-          console.log(`[Raster] Transition finished, activeModel: ${activeModel}`);
-          setIsTransitioning(false);
-          if (mapInstance) {
-            try { mapInstance.triggerRepaint(); } catch(e) {}
-          }
-        }, 150);
+          requestAnimationFrame(() => {
+            if (!active) return;
+            console.log(`[Raster] Transition finished, activeModel: ${activeModel}`);
+            setIsTransitioning(false);
+            if (mapInstance) {
+              try { mapInstance.triggerRepaint(); } catch(e) {}
+            }
+          });
+        }, 120);
       };
 
       if (mapInstance) {

@@ -5,6 +5,14 @@
 
 import maplibregl from 'maplibre-gl';
 
+// Custom protocol request session token
+let currentRequestSessionToken = Date.now();
+
+export function invalidateStaleTileRequests() {
+  currentRequestSessionToken = Date.now();
+  console.log('[OM-Protocol] Invalidating stale tile requests, new session token:', currentRequestSessionToken);
+}
+
 // Colors
 export var ELECTRIC_CYAN = '#00CCFF';
 
@@ -595,16 +603,27 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           };
 
-          // v3.13.4: Double-wrapped synchronous + asynchronous type-safe error boundaries
+          // v3.13.5: Double-wrapped synchronous + asynchronous type-safe error boundaries
           // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
+          const requestSession = currentRequestSessionToken;
+
           try {
-            return omProtocol(params, abortController, currentSettings).catch(err => {
-              if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-                return params.type === 'json' ? { data: { tiles: [] } } : { data: null }; // Safe silent abort fallback
-              }
-              console.error('[OM-Protocol] Async tile decoding error:', err.message, 'url:', params.url?.substring(0, 120));
-              return getFallbackResponse(params.type); // Type-safe fallback!
-            });
+            return omProtocol(params, abortController, currentSettings)
+              .then(response => {
+                if (requestSession !== currentRequestSessionToken) {
+                  console.warn('[OM-Protocol] Discarding stale tile request session response');
+                  return getFallbackResponse(params.type);
+                }
+                return response;
+              })
+              .catch(err => {
+                if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+                  console.log('[OM-Protocol] Silent fallback for aborted tile:', params.url?.substring(0, 120));
+                } else {
+                  console.error('[OM-Protocol] Async tile decoding error caught:', err.message || err);
+                }
+                return getFallbackResponse(params.type); // Type-safe fallback!
+              });
           } catch (syncErr) {
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
             return getFallbackResponse(params.type); // Type-safe fallback!
