@@ -124,7 +124,14 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Automated Scaling Logic**: The simulator must automatically output optimization recommendations when thresholds are breached (e.g. suggesting database cache structures for DB latency $> 200\text{ ms}$, gateway rate limits for traffic spikes $> 5000\text{ RPM}$, circuit breakers for API failures $> 15\%$).
 * **Trend Analysis Bottleneck Discovery**: Vulnerability trends must aggregate Historic trial entries to correctly highlight database reads, external gateways, or safety cancellation hooks as the primary platform scaling vulnerabilities.
 
+### 19. Event Spine Rules
+* **Unified Event Spine Core**: The Central Event Spine is the ONLY permitted communication medium between MCP servers. Direct cross-service dependencies or mutable shared state are strictly forbidden.
+* **Causal Trace Tracking**: Every published event must accept and propagate a `correlation_id` to trace transactional lifecycles across booking, weather, behavior, and QA workflows.
+* **Event Replayability**: All events must support time-range filtering (`replay_events`) using ISO 8601 UTC Z timestamps to reconstruct historical state sequences.
+* **Real-time Pub/Sub Streaming**: Event dispatches must broadcast in real-time to active listeners, maintaining low latency propagation (<500ms) with zero-coupling between producers and consumers.
+
 ---
 
 > [!IMPORTANT]
 > The MCP Maximize Protocol operates as a primary system binding. AI assistants must always inspect this rules checklist on each turn to preserve clean agent capabilities.
+

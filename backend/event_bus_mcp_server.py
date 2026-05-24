@@ -13,22 +13,36 @@ def init_db():
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     
-    # 1. Event Log Table
+    # 1. Event Log Table (Refactored to support complete tracing schema)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS event_log (
         event_id TEXT PRIMARY KEY,
-        event_type TEXT NOT NULL, -- 'bookings_created', 'weather_updated', 'swell_threshold_crossed', 'user_checked_map', 'payment_success'
-        payload TEXT NOT NULL, -- JSON string
-        timestamp TEXT NOT NULL -- ISO 8601 UTC
+        event_type TEXT NOT NULL,
+        payload TEXT NOT NULL, -- JSON string representation of jsonb
+        timestamp TEXT NOT NULL, -- ISO 8601 UTC Z format
+        user_id TEXT,
+        source_mcp TEXT,
+        correlation_id TEXT NOT NULL
     )
     """)
+    
+    # Dynamic Migrations: Check if columns exist and add them if not
+    cursor.execute("PRAGMA table_info(event_log)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    if "user_id" not in columns:
+        cursor.execute("ALTER TABLE event_log ADD COLUMN user_id TEXT")
+    if "source_mcp" not in columns:
+        cursor.execute("ALTER TABLE event_log ADD COLUMN source_mcp TEXT")
+    if "correlation_id" not in columns:
+        cursor.execute("ALTER TABLE event_log ADD COLUMN correlation_id TEXT NOT NULL DEFAULT ''")
     
     # 2. Event Subscriptions Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS event_subscriptions (
         subscription_id TEXT PRIMARY KEY,
         event_type TEXT NOT NULL,
-        target TEXT NOT NULL, -- 'frontend_map_update', 'ai_operator_trigger', 'notification_service', 'agent_queue'
+        target TEXT NOT NULL, -- 'frontend_map_update', 'ai_operator_trigger', 'notification_service', 'agent_queue', etc.
         created_at TEXT NOT NULL
     )
     """)
@@ -47,24 +61,45 @@ def init_db():
     conn.commit()
     conn.close()
 
+# In-memory pub/sub listener registry for real-time same-process test execution
+_in_memory_subscribers = {}
+
+def register_in_memory_handler(event_type, handler):
+    """Register a same-process callback handler for real-time event loops (ideal for tests)"""
+    if event_type not in _in_memory_subscribers:
+        _in_memory_subscribers[event_type] = []
+    _in_memory_subscribers[event_type].append(handler)
+
+def clear_in_memory_handlers():
+    """Clear same-process callback handlers"""
+    _in_memory_subscribers.clear()
+
 # 1. Publish Event
-def publish_event(event_type, payload):
+def publish_event(event_type, payload, correlation_id=None, source_mcp=None, user_id=None):
     init_db()
     start_time = time.perf_counter()
     
     event_id = f"evt_{uuid.uuid4().hex[:12]}"
     timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
+    # Ensure correlation_id exists for causal trace chains
+    corr_id = correlation_id or f"corr_{uuid.uuid4().hex[:12]}"
+    
+    # Auto-resolve user_id from payload if omitted
+    u_id = user_id
+    if not u_id and isinstance(payload, dict):
+        u_id = payload.get("user_id") or payload.get("customer_id")
+        
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
     cursor = conn.cursor()
     
-    # Insert to Event Log
+    # Insert event to Event Log
     cursor.execute("""
-    INSERT INTO event_log (event_id, event_type, payload, timestamp)
-    VALUES (?, ?, ?, ?)
-    """, (event_id, event_type, json.dumps(payload), timestamp))
+    INSERT INTO event_log (event_id, event_type, payload, timestamp, user_id, source_mcp, correlation_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (event_id, event_type, json.dumps(payload), timestamp, u_id, source_mcp, corr_id))
     
-    # Scan active subscriptions
+    # Scan active persistent subscriptions
     cursor.execute("""
     SELECT subscription_id, target FROM event_subscriptions 
     WHERE event_type = ?
@@ -73,7 +108,7 @@ def publish_event(event_type, payload):
     
     subscribers_notified = []
     
-    # Route event to subscribers
+    # Route event to persistent subscribers
     for sub_id, target in subs:
         subscribers_notified.append({
             "subscription_id": sub_id,
@@ -89,9 +124,44 @@ def publish_event(event_type, payload):
     conn.commit()
     conn.close()
     
-    # Autotrigger secondary alerts: e.g. swell crossed safety ceiling (> 10 ft)
+    # Route event to real-time in-memory subscribers (e.g. testing decoupled flows)
+    if event_type in _in_memory_subscribers:
+        for handler in _in_memory_subscribers[event_type]:
+            try:
+                handler(event_type, payload, corr_id, source_mcp)
+            except Exception as e:
+                sys.stderr.write(f"Error in in-memory event handler: {str(e)}\n")
+                sys.stderr.flush()
+                
+    # Real-time WebSocket streaming integration fallback
+    try:
+        from websocket_manager import ws_manager
+        import asyncio
+        message = {
+            "type": "event_spine_broadcast",
+            "event_type": event_type,
+            "event_id": event_id,
+            "correlation_id": corr_id,
+            "source_mcp": source_mcp,
+            "payload": payload,
+            "timestamp": timestamp
+        }
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+        if loop.is_running():
+            asyncio.run_coroutine_threadsafe(ws_manager.broadcast(message, room=event_type), loop)
+        else:
+            loop.run_until_complete(ws_manager.broadcast(message, room=event_type))
+    except Exception:
+        pass
+    
+    # Autotrigger secondary alerts: swell safety threshold (> 10 ft)
     secondary_events = []
-    if event_type == "weather_updated":
+    if event_type == "weather_updated" and isinstance(payload, dict):
         swell_height = float(payload.get("swell_height_ft", 0.0))
         if swell_height > 10.0:
             alert_payload = {
@@ -100,8 +170,12 @@ def publish_event(event_type, payload):
                 "wind_conditions": payload.get("wind_conditions", "Storm Wind"),
                 "alert": "CRITICAL SAFETY EXCEEDED: SWELL HEIGHT IS OVER 10FT"
             }
-            # Trigger autotarget event
-            sec_res = publish_event("swell_threshold_crossed", alert_payload)
+            sec_res = publish_event(
+                event_type="swell_threshold_crossed",
+                payload=alert_payload,
+                correlation_id=corr_id,
+                source_mcp="event_bus"
+            )
             secondary_events.append(sec_res)
             
     end_time = time.perf_counter()
@@ -113,6 +187,9 @@ def publish_event(event_type, payload):
         "event_type": event_type,
         "payload": payload,
         "timestamp": timestamp,
+        "user_id": u_id,
+        "source_mcp": source_mcp,
+        "correlation_id": corr_id,
         "subscribers_notified_count": len(subscribers_notified),
         "subscribers_details": subscribers_notified,
         "propagation_latency_ms": round(propagation_latency_ms, 3),
@@ -123,16 +200,15 @@ def publish_event(event_type, payload):
 def subscribe_to_channel(event_type, target):
     init_db()
     
-    # Validate type and target
-    valid_types = ('bookings_created', 'weather_updated', 'swell_threshold_crossed', 'user_checked_map', 'payment_success')
-    valid_targets = ('frontend_map_update', 'ai_operator_trigger', 'notification_service', 'agent_queue')
+    # Universal lists supporting all Step 2 Event Spine standardize event types and MCP targets
+    valid_types = (
+        'bookings_created', 'booking_created', 'booking_confirmed', 'booking_cancelled', 'booking_completed',
+        'payment_initiated', 'payment_success', 'payment_failed', 'refund_issued',
+        'weather_updated', 'swell_threshold_crossed', 'surf_quality_score_updated', 'tide_shift_detected',
+        'user_session_started', 'user_session_ended', 'map_interaction', 'search_performed',
+        'mcp_action_executed', 'mcp_error', 'system_latency_detected', 'qa_failure_detected'
+    )
     
-    if event_type not in valid_types:
-        return {"success": False, "error": f"Invalid event_type. Must be one of: {valid_types}"}
-        
-    if target not in valid_targets:
-        return {"success": False, "error": f"Invalid target. Must be one of: {valid_targets}"}
-        
     subscription_id = f"sub_{uuid.uuid4().hex[:12]}"
     created_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
@@ -171,9 +247,8 @@ def pull_subscribed_events(subscription_id):
     events = []
     
     for queue_id, event_id in rows:
-        # Fetch event payload
         cursor.execute("""
-        SELECT event_type, payload, timestamp FROM event_log WHERE event_id = ?
+        SELECT event_type, payload, timestamp, user_id, source_mcp, correlation_id FROM event_log WHERE event_id = ?
         """, (event_id,))
         evt = cursor.fetchone()
         
@@ -182,10 +257,12 @@ def pull_subscribed_events(subscription_id):
                 "event_id": event_id,
                 "event_type": evt[0],
                 "payload": json.loads(evt[1]),
-                "timestamp": evt[2]
+                "timestamp": evt[2],
+                "user_id": evt[3],
+                "source_mcp": evt[4],
+                "correlation_id": evt[5]
             })
             
-        # Update queue item to 'read'
         cursor.execute("""
         UPDATE agent_event_queue SET status = 'read' WHERE queue_id = ?
         """, (queue_id,))
@@ -207,12 +284,12 @@ def get_recent_events(event_type=None, limit=50):
     
     if event_type:
         cursor.execute("""
-        SELECT event_id, event_type, payload, timestamp FROM event_log 
+        SELECT event_id, event_type, payload, timestamp, user_id, source_mcp, correlation_id FROM event_log 
         WHERE event_type = ? ORDER BY timestamp DESC LIMIT ?
         """, (event_type, limit))
     else:
         cursor.execute("""
-        SELECT event_id, event_type, payload, timestamp FROM event_log 
+        SELECT event_id, event_type, payload, timestamp, user_id, source_mcp, correlation_id FROM event_log 
         ORDER BY timestamp DESC LIMIT ?
         """, (limit,))
         
@@ -225,11 +302,83 @@ def get_recent_events(event_type=None, limit=50):
             "event_id": r[0],
             "event_type": r[1],
             "payload": json.loads(r[2]),
-            "timestamp": r[3]
+            "timestamp": r[3],
+            "user_id": r[4],
+            "source_mcp": r[5],
+            "correlation_id": r[6]
         })
     return history
 
-# 5. Get Event Bus Metrics
+# 5. Replay Events (Time-Range Filtering)
+def replay_events(event_type=None, start_time=None, end_time=None):
+    init_db()
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    cursor = conn.cursor()
+    
+    query = "SELECT event_id, event_type, payload, timestamp, user_id, source_mcp, correlation_id FROM event_log WHERE 1=1"
+    params = []
+    
+    if event_type:
+        query += " AND event_type = ?"
+        params.append(event_type)
+        
+    if start_time:
+        query += " AND timestamp >= ?"
+        params.append(start_time)
+        
+    if end_time:
+        query += " AND timestamp <= ?"
+        params.append(end_time)
+        
+    query += " ORDER BY timestamp ASC"
+    
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    events = []
+    for r in rows:
+        events.append({
+            "event_id": r[0],
+            "event_type": r[1],
+            "payload": json.loads(r[2]),
+            "timestamp": r[3],
+            "user_id": r[4],
+            "source_mcp": r[5],
+            "correlation_id": r[6]
+        })
+    return events
+
+# 6. Reconstruct Event Flow Traces (Correlation Chain analysis)
+def get_event_flow_trace(correlation_id):
+    init_db()
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+    SELECT event_id, event_type, payload, timestamp, user_id, source_mcp, correlation_id 
+    FROM event_log 
+    WHERE correlation_id = ? 
+    ORDER BY timestamp ASC
+    """, (correlation_id,))
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    trace = []
+    for r in rows:
+        trace.append({
+            "event_id": r[0],
+            "event_type": r[1],
+            "payload": json.loads(r[2]),
+            "timestamp": r[3],
+            "user_id": r[4],
+            "source_mcp": r[5],
+            "correlation_id": r[6]
+        })
+    return trace
+
+# 7. Get Event Bus Metrics
 def get_event_bus_metrics():
     init_db()
     conn = sqlite3.connect(DB_PATH, timeout=10.0)
@@ -251,7 +400,7 @@ def get_event_bus_metrics():
         "total_active_subscriptions": sub_count,
         "total_events_published": evt_count,
         "unread_agent_queue_backlog": unread_backlog,
-        "benchmark_average_latency_ms": 1.25 # standard local propagation latency benchmark
+        "benchmark_average_latency_ms": 1.25
     }
 
 # JSON-RPC Stdio Loop Compliance
@@ -280,7 +429,7 @@ def main():
                         },
                         "serverInfo": {
                             "name": "realtime-event-bus-mcp",
-                            "version": "1.0.0"
+                            "version": "2.0.0"
                         }
                     }
                 }
@@ -293,40 +442,34 @@ def main():
                         "tools": [
                             {
                                 "name": "publish_event",
-                                "description": "Publish a core event to the real-time event bus. Swell heights > 10ft auto-trigger safety alerts.",
+                                "description": "Publish a core event to the event spine. High swell (>10ft) triggers secondary safety alerts.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
-                                        "event_type": {
-                                            "type": "string",
-                                            "enum": ["bookings_created", "weather_updated", "swell_threshold_crossed", "user_checked_map", "payment_success"]
-                                        },
-                                        "payload": {"type": "object", "description": "Arbitrary JSON payload"}
+                                        "event_type": {"type": "string", "description": "System event type category"},
+                                        "payload": {"type": "object", "description": "Arbitrary JSON payload content"},
+                                        "correlation_id": {"type": "string", "description": "Causal tracking UUID"},
+                                        "source_mcp": {"type": "string", "description": "Emitting service name"},
+                                        "user_id": {"type": "string", "description": "Associated user identifier"}
                                     },
                                     "required": ["event_type", "payload"]
                                 }
                             },
                             {
                                 "name": "subscribe_to_channel",
-                                "description": "Register a new subscriber channel (targets: frontend updates, AI triggers, notifications, agent pull queues).",
+                                "description": "Subscribe a target channel to receive an event type.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
-                                        "event_type": {
-                                            "type": "string",
-                                            "enum": ["bookings_created", "weather_updated", "swell_threshold_crossed", "user_checked_map", "payment_success"]
-                                        },
-                                        "target": {
-                                            "type": "string",
-                                            "enum": ["frontend_map_update", "ai_operator_trigger", "notification_service", "agent_queue"]
-                                        }
+                                        "event_type": {"type": "string", "description": "System event category name"},
+                                        "target": {"type": "string", "description": "Receiving subscriber target ID"}
                                     },
                                     "required": ["event_type", "target"]
                                 }
                             },
                             {
                                 "name": "pull_subscribed_events",
-                                "description": "Pull enqueued unread events for a specific subscription ID, enabling low-latency mailbox reads.",
+                                "description": "Pull unread events from mailbox subscription queue.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
@@ -337,18 +480,41 @@ def main():
                             },
                             {
                                 "name": "get_recent_events",
-                                "description": "Retrieve recent events history logs.",
+                                "description": "Retrieve chronological history log of published events.",
                                 "inputSchema": {
                                     "type": "object",
                                     "properties": {
-                                        "event_type": {"type": "string", "enum": ["bookings_created", "weather_updated", "swell_threshold_crossed", "user_checked_map", "payment_success"]},
+                                        "event_type": {"type": "string"},
                                         "limit": {"type": "integer"}
                                     }
                                 }
                             },
                             {
+                                "name": "replay_events",
+                                "description": "Replay history logs filtered optionally by type and ISO 8601 time ranges.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "event_type": {"type": "string"},
+                                        "start_time": {"type": "string", "description": "ISO 8601 UTC Z"},
+                                        "end_time": {"type": "string", "description": "ISO 8601 UTC Z"}
+                                    }
+                                }
+                            },
+                            {
+                                "name": "get_event_flow_trace",
+                                "description": "Retrieve chronologically ordered events matching a single correlation_id.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "correlation_id": {"type": "string", "description": "Target correlation token"}
+                                    },
+                                    "required": ["correlation_id"]
+                                }
+                            },
+                            {
                                 "name": "get_event_bus_metrics",
-                                "description": "Audit subscription counts, queue backlog, and average latency benchmarks.",
+                                "description": "Audit subscription counts, queue backlog, and latency metrics.",
                                 "inputSchema": {
                                     "type": "object"
                                 }
@@ -364,7 +530,10 @@ def main():
                 if tool_name == "publish_event":
                     e_type = args.get("event_type")
                     pay = args.get("payload", {})
-                    res = publish_event(e_type, pay)
+                    corr = args.get("correlation_id")
+                    src = args.get("source_mcp")
+                    u_id = args.get("user_id")
+                    res = publish_event(e_type, pay, corr, src, u_id)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "subscribe_to_channel":
@@ -382,6 +551,18 @@ def main():
                     e_type = args.get("event_type")
                     lim = args.get("limit", 50)
                     res = get_recent_events(e_type, lim)
+                    text_out = json.dumps(res, indent=2)
+                    
+                elif tool_name == "replay_events":
+                    e_type = args.get("event_type")
+                    s_t = args.get("start_time")
+                    e_t = args.get("end_time")
+                    res = replay_events(e_type, s_t, e_t)
+                    text_out = json.dumps(res, indent=2)
+                    
+                elif tool_name == "get_event_flow_trace":
+                    corr = args.get("correlation_id")
+                    res = get_event_flow_trace(corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "get_event_bus_metrics":
