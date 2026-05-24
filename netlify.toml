@@ -20,3 +20,8 @@
 [context.dev]
   ignore = "false"
 
+[[redirects]]
+  from = "/api/weather-proxy"
+  to = "/.netlify/functions/weather-proxy"
+  status = 200
+
