@@ -297,6 +297,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', oceanColor);
+            mapInstance.setLayoutProperty(MASK_BUFFER, 'visibility', 'visible');
           } catch (e) {}
         }
 
@@ -319,6 +320,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
+            mapInstance.setLayoutProperty(MASK_FILL, 'visibility', 'visible');
           } catch (e) {}
         }
 
@@ -344,6 +346,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
             mapInstance.setFilter(MASK_INLAND_WATER, ['match', ['get', 'class'], ['ocean', 'sea'], false, true]);
+            mapInstance.setLayoutProperty(MASK_INLAND_WATER, 'visibility', 'visible');
           } catch (e) {}
         }
 
@@ -372,6 +375,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
+            mapInstance.setLayoutProperty(MASK_INLAND_WATERWAY, 'visibility', 'visible');
           } catch (e) {}
         }
 
@@ -403,6 +407,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         } else {
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
+            mapInstance.setLayoutProperty(MASK_LINE, 'visibility', 'visible');
           } catch (e) {}
         }
 
@@ -416,15 +421,12 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         }
 
       } else {
-        // Active is false: remove all layers immediately and synchronously
+        // Active is false: Enforce permanent layer presence. Set visibility to 'none' instead of removing layers
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
         for (const lid of historicalLayers) {
           if (mapInstance.getLayer(lid)) {
-            try { mapInstance.removeLayer(lid); } catch (e) {}
+            try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
           }
-        }
-        if (mapInstance.getSource(MASK_SOURCE)) {
-          try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
         }
       }
     } catch (err) {
@@ -456,16 +458,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     if (!active) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (mapInstance) {
-        console.log('[OceanMask] Deactivating: removing layers immediately');
+        console.log('[OceanMask] Deactivating: setting visibility to none instead of removing layers immediately');
         syncingRef.current = true;
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
         for (const lid of historicalLayers) {
           if (mapInstance.getLayer(lid)) {
-            try { mapInstance.removeLayer(lid); } catch (e) {}
+            try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
           }
-        }
-        if (mapInstance.getSource(MASK_SOURCE)) {
-          try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
         }
         setTimeout(() => { syncingRef.current = false; }, 300);
       }
