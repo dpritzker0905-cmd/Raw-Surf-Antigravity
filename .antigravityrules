@@ -15,12 +15,13 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Operational Dashboard & Synced Bases** $\rightarrow$ Call `airtable-mcp` (`sync_airtable_with_supabase`, `update_booking_status`, `assign_instructor`, `generate_reports`) to manage leads, trips, and assign instructors with Slack/Email alerts.
 * **Recommendation Engine & Dynamic Matching** $\rightarrow$ Call `recommendation-engine-mcp` (`recommend_surf_spots`, `recommend_surf_boards`) to dynamically match surfers to beaches and equipment using multi-factor scores, geographic distance checks, and vector semantic similarity.
 * **Geospatial & Mapping Enhancements** $\rightarrow$ Call `google-maps-mcp` (`nearby_surf_spots`, `calculate_travel_time`, `find_nearby_instructors`, `parking_lookup`, `reverse_geocode`, `get_weather_overlay`) to locate beaches/instructors, estimate multi-modal routing, look up parking limits, reverse geocode addresses, and format MapLibre overlay scopes.
+* **Workflow Automation & Connection Orchestrations** $\rightarrow$ Call `n8n-mcp` (`create_workflow`, `trigger_workflow`, `get_workflow_executions`, `get_monitoring_dashboard`, `configure_retry_policy`) to design custom newsletter/alerts triggers, coordinate multi-node triggers (Supabase, Stripe, WooCommerce, Twilio, Weather APIs), enforce recovery retry metrics, and monitor visual dashboard states.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
 
 ### 2. Observe and Sync Tool Schemas
 When extending models, routes, or database schemas (e.g. `spots.py`, `marketplace.py` in the backend):
-* **Audit Alignment**: Instantly verify if the changes impact spatial filters, pricing equations, vector stores, recommendation profiles, or geospatial cache structures.
-* **Schema Registration**: Update the JSON-RPC schema descriptions and input validations in the corresponding MCP files (`geospatial_mcp_server.py`, `pricing_mcp_server.py`, `recommendation_mcp_server.py`, `google_maps_mcp_server.py`, etc.) to keep AI client capabilities cleanly synchronized.
+* **Audit Alignment**: Instantly verify if the changes impact spatial filters, pricing equations, vector stores, recommendation profiles, geospatial cache, or workflow tracking.
+* **Schema Registration**: Update the JSON-RPC schema descriptions and input validations in the corresponding MCP files (`geospatial_mcp_server.py`, `pricing_mcp_server.py`, `recommendation_mcp_server.py`, `google_maps_mcp_server.py`, `n8n_mcp_server.py`, etc.) to keep AI client capabilities cleanly synchronized.
 
 ### 3. Native Windows Execution Standarization
 To prevent shell escaping failures and quote-stripping issues common to PowerShell/CMD boundaries:
@@ -46,6 +47,11 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Address Resolution**: Proactively reverse geocode spot coordinates to physical formatted addresses to enhance search results readability.
 * **Travel and Route Multipliers**: Driving estimates must incorporate standard PCH/traffic friction delay modifiers ($+25\%$) rather than using pure geometric line calculations.
 * **MapLibre GL Performance Protection**: Geospatial data must be formatted as raw GeoJSON properties, ensuring seamless integrations with the existing MapLibre web components without blocking UI rendering frames or introducing high latency.
+
+### 8. n8n Workflow Automation Rules
+* **Multi-Node Operations**: Automated actions spanning Stripe checkout and WooCommerce orders must be routed through `n8n-mcp` workflow pipelines to guarantee clean step-by-step transaction logs.
+* **Failure Recovery Protocol**: All billing and booking flows must enforce active retry policies (minimum 3 attempts) and log detailed failed webhook payloads to SQLite cache repositories to prevent transaction drops.
+* **Dashboard Visual Consistency**: Automation dashboard metrics must present clean success/failure curves, ensuring the platform's visual dashboards remain visually consistent and synchronized.
 
 ---
 
