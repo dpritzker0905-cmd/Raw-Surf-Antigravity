@@ -47,6 +47,31 @@ async def websocket_conditions(websocket: WebSocket):
         ws_manager.disconnect(websocket, room="conditions")
 
 
+@router.websocket("/ws/admin/events")
+async def websocket_admin_events(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time admin event updates
+    """
+    await ws_manager.connect(websocket, room="admin_events")
+    try:
+        await ws_manager.send_personal(websocket, {
+            "type": "connected",
+            "room": "admin_events",
+            "message": "Connected to admin events feed"
+        })
+        while True:
+            try:
+                data = await websocket.receive_text()
+                if data == "ping":
+                    await ws_manager.send_personal(websocket, {"type": "pong"})
+            except WebSocketDisconnect:
+                break
+    except Exception as e:
+        logger.error(f"Admin events WebSocket error: {e}")
+    finally:
+        ws_manager.disconnect(websocket, room="admin_events")
+
+
 @router.websocket("/ws/live")
 async def websocket_live(websocket: WebSocket):
     """

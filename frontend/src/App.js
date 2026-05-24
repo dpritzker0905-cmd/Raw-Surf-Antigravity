@@ -27,6 +27,7 @@ const MessagesPage                = React.lazy(() => import('./components/Messag
 const MapPage                     = React.lazy(() => import('./components/MapPage').then(m => ({ default: m.MapPage })));
 const GalleryPage                 = React.lazy(() => import('./components/GalleryPage').then(m => ({ default: m.GalleryPage })));
 const UnifiedAdminConsole         = React.lazy(() => import('./components/UnifiedAdminConsole'));
+const AdminApp                    = React.lazy(() => import('./admin/AdminApp'));
 const PhotographerBookingsManager = React.lazy(() => import('./components/PhotographerBookingsManager').then(m => ({ default: m.PhotographerBookingsManager })));
 const PhotographerSessionsManager = React.lazy(() => import('./components/PhotographerSessionsManager').then(m => ({ default: m.PhotographerSessionsManager })));
 const OnDemandSessionManager      = React.lazy(() => import('./components/OnDemandSessionManager').then(m => ({ default: m.OnDemandSessionManager })));
@@ -180,7 +181,7 @@ function App() {
             <Route path="/gallery/:username" element={<AppLayout><Lazy><GalleryStorefront /></Lazy></AppLayout>} />
 
             {/* Admin */}
-            <Route path="/admin" element={<ProtectedRoute><AppLayout><Lazy><UnifiedAdminConsole /></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><Lazy><AdminApp /></Lazy></ProtectedRoute>} />
             <Route path="/god-mode" element={<Navigate to="/admin" replace />} />
 
             {/* Career / Leaderboard */}

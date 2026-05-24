@@ -194,8 +194,10 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
             
         if loop.is_running():
             asyncio.run_coroutine_threadsafe(ws_manager.broadcast(message, room=event_type), loop)
+            asyncio.run_coroutine_threadsafe(ws_manager.broadcast(message, room="admin_events"), loop)
         else:
             loop.run_until_complete(ws_manager.broadcast(message, room=event_type))
+            loop.run_until_complete(ws_manager.broadcast(message, room="admin_events"))
     except Exception:
         pass
     
@@ -364,6 +366,41 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
                 corr_id,
                 "Publish premium surfer highlight gallery to social feed."
             ))
+            
+            # Enqueue into the media_queue table as well
+            cur_op.execute("""
+            CREATE TABLE IF NOT EXISTS media_queue (
+                queue_id TEXT PRIMARY KEY,
+                booking_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                media_url TEXT,
+                caption TEXT,
+                created_at TEXT NOT NULL,
+                correlation_id TEXT
+            )
+            """)
+            media_q_id = f"mq_{uuid.uuid4().hex[:8]}"
+            mock_photos = [
+                "https://images.unsplash.com/photo-1502680390469-be75c86b636f?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800&q=80",
+                "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80"
+            ]
+            import random
+            selected_url = mock_photos[random.randint(0, len(mock_photos)-1)]
+            
+            cur_op.execute("""
+            INSERT INTO media_queue (
+                queue_id, booking_id, status, media_url, caption, created_at, correlation_id
+            ) VALUES (?, ?, 'pending_review', ?, ?, ?, ?)
+            """, (
+                media_q_id,
+                booking_id,
+                selected_url,
+                f"Stoked! Incredible swell ride during surf session {booking_id}! 🏄‍♂️🔥 #rawsurf #perfectwaves #peakstoke",
+                op_ts,
+                corr_id
+            ))
+            
             conn_op.commit()
             conn_op.close()
         except Exception as e:
