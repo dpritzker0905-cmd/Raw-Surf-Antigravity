@@ -391,6 +391,19 @@ var BASE_CUSTOM_COLOR_SCALES = {
       [29, 78, 216, 0.85],
       [30, 58, 138, 0.95]
     ]
+  },
+  precipitation: {
+    type: 'breakpoint',
+    unit: 'mm',
+    breakpoints: [0, 0.1, 0.5, 2.0, 10.0, 50.0],
+    colors: [
+      [224, 242, 254, 0.0],
+      [56, 189, 248, 0.35],
+      [14, 165, 233, 0.55],
+      [37, 99, 235, 0.70],
+      [124, 58, 237, 0.85],
+      [219, 39, 119, 0.95]
+    ]
   }
 };
 
@@ -563,15 +576,47 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           } catch (err) { /* ignore parse errors */ }
 
-          return omProtocol(params, abortController, currentSettings).catch(err => {
-            console.error('[OM-Protocol] Tile error:', err.message, 'url:', params.url?.substring(0, 120));
-            throw err;
-          });
+          // v3.13.2: Double-wrapped synchronous + asynchronous error boundaries
+          // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
+          try {
+            return omProtocol(params, abortController, currentSettings).catch(err => {
+              if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+                return { data: null }; // Silent fallback for aborted tiles
+              }
+              console.error('[OM-Protocol] Async tile decoding error:', err.message, 'url:', params.url?.substring(0, 120));
+              return { data: null }; // Safe fallback, map survives!
+            });
+          } catch (syncErr) {
+            console.error('[OM-Protocol] Sync tile parsing error:', syncErr.message, 'url:', params.url?.substring(0, 120));
+            return Promise.resolve({ data: null }); // Safe fallback, map survives!
+          }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
     }
     setProtocolReady(true);
   });
+}
+
+/**
+ * v3.13.2: Dynamically imports clearBlockCache from @openmeteo/weather-map-layer
+ * and completely clears the tile server's grid block registry.
+ * Called on activeModel changes to prevent cross-model data pollution and tile corruption.
+ * @returns {Promise<void>}
+ */
+export function clearOpenMeteoCache() {
+  return import('@openmeteo/weather-map-layer')
+    .then(({ clearBlockCache }) => {
+      return clearBlockCache()
+        .then(() => {
+          console.log('[OM-Protocol] Grid block cache cleared successfully');
+        })
+        .catch(err => {
+          console.warn('[OM-Protocol] clearBlockCache execution failed:', err);
+        });
+    })
+    .catch(err => {
+      console.warn('[OM-Protocol] Failed to import clearBlockCache:', err);
+    });
 }
 
 

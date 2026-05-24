@@ -12,7 +12,8 @@ import {
   OM_MODEL_MAP,
   fetchModelMetadata,
   safeMoveLayer,
-  registerOpenMeteoProtocol
+  registerOpenMeteoProtocol,
+  clearOpenMeteoCache
 } from './mapUtils';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -179,6 +180,15 @@ var MapWebGL = ({
   useEffect(() => {
     ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025', 'dwd_gwam'].forEach(m => fetchMetadata(m));
   }, [fetchMetadata]);
+
+  // v3.13.2: Clear the Open-Meteo tile block cache when activeModel changes
+  // completely invalidates the old model's binary chunks, avoiding grid lines and cross-model contamination
+  useEffect(() => {
+    if (activeModel) {
+      console.log(`[Raster] Model changed to ${activeModel}, wiping Open-Meteo block cache...`);
+      clearOpenMeteoCache();
+    }
+  }, [activeModel]);
 
   // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
   const loggedFallbacks = useRef(new Set());
