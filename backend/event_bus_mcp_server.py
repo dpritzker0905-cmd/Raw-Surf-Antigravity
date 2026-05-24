@@ -199,15 +199,23 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
     except Exception:
         pass
     
-    # Autotrigger secondary alerts: swell safety threshold (> 10 ft)
+    # Autotrigger secondary alerts and production loops
     secondary_events = []
-    if event_type == "weather_updated" and isinstance(payload, dict):
-        swell_height = float(payload.get("swell_height_ft", 0.0))
+    
+    # ── Gap 3: Weather -> Business loop & Surf Quality ────────────────
+    if event_type == "weather_updated" and isinstance(payload, dict) and source_mcp != "event_bus":
+        swell_height = float(payload.get("swell_height_ft", 5.5))
+        swell_period = int(payload.get("swell_period_sec", 14))
+        wind_cond = payload.get("wind_conditions") or payload.get("wind_direction") or "Light Offshore"
+        tide_cycle = payload.get("tide_cycle", "rising")
+        spot = payload.get("spot_name", "Unknown Spot")
+        
+        # 1. Swell Safety threshold exceed check
         if swell_height > 10.0:
             alert_payload = {
-                "spot_name": payload.get("spot_name", "Unknown Spot"),
+                "spot_name": spot,
                 "swell_height_ft": swell_height,
-                "wind_conditions": payload.get("wind_conditions", "Storm Wind"),
+                "wind_conditions": wind_cond,
                 "alert": "CRITICAL SAFETY EXCEEDED: SWELL HEIGHT IS OVER 10FT"
             }
             sec_res = publish_event(
@@ -217,6 +225,151 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
                 source_mcp="event_bus"
             )
             secondary_events.append(sec_res)
+            
+        # 2. Derived Surf Quality Score calculation
+        score = 50.0
+        if 3.0 <= swell_height <= 8.0:
+            score += 20.0
+        elif swell_height > 8.0:
+            score += 10.0
+        else:
+            score -= 20.0
+            
+        if swell_period >= 14:
+            score += 15.0
+        elif 10 <= swell_period < 14:
+            score += 5.0
+        else:
+            score -= 10.0
+            
+        if "offshore" in wind_cond.lower():
+            score += 15.0
+        elif "onshore" in wind_cond.lower():
+            score -= 25.0
+            
+        if tide_cycle.lower() in ("rising", "low"):
+            score += 10.0
+            
+        final_score = max(0.0, min(100.0, score))
+        crowd_level = "high" if final_score >= 75.0 else "medium" if final_score >= 45.0 else "low"
+        
+        # Publish surf_quality_updated event
+        quality_payload = {
+            "spot_name": spot,
+            "surf_quality_score": final_score,
+            "crowd_probability_index": crowd_level.upper()
+        }
+        sec_q = publish_event(
+            event_type="surf_quality_updated",
+            payload=quality_payload,
+            correlation_id=corr_id,
+            source_mcp="event_bus"
+        )
+        secondary_events.append(sec_q)
+        
+        # 3. Prime Weather Alerts enqueuing to Admin Queue
+        if final_score >= 70.0 and "offshore" in wind_cond.lower():
+            try:
+                dec_id = f"dec_alert_{uuid.uuid4().hex[:8]}"
+                op_db_path = "C:\\Users\\dprit\\Raw-Surf\\backend\\operator_decisions.db"
+                
+                # Check/create operator DB first if needed
+                import operator_mcp_server
+                operator_mcp_server.init_db()
+                
+                conn_op = sqlite3.connect(op_db_path, timeout=10.0)
+                cur_op = conn_op.cursor()
+                
+                # Avoid duplicate alerts enqueuing
+                cur_op.execute("SELECT COUNT(*) FROM operator_decisions WHERE spot_name = ? AND type = 'promo_push' AND status = 'pending_approval'", (spot,))
+                if cur_op.fetchone()[0] == 0:
+                    op_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                    cur_op.execute("""
+                    INSERT INTO operator_decisions (
+                        decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id,
+                        recommendation_type, reasoning, supporting_event_trace, expected_outcome, risk_level, confidence_score
+                    ) VALUES (?, 'promo_push', ?, ?, 'pending_approval', ?, ?, ?, 'promo_push', ?, ?, ?, 'low', 90.0)
+                    """, (
+                        dec_id,
+                        spot,
+                        f"Epic Surf {spot}",
+                        f"Activate premium swell alert marketing for {spot} (Score: {final_score})",
+                        op_ts,
+                        corr_id,
+                        f"Glassy prime swell of {swell_height}ft at {spot}.",
+                        corr_id,
+                        "Notify users and fill open photographer slots."
+                    ))
+                    conn_op.commit()
+                conn_op.close()
+            except Exception as e:
+                sys.stderr.write(f"Warning enqueuing weather alert: {str(e)}\n")
+                sys.stderr.flush()
+                
+    # ── Gap 2: Social Media and Booking Completion Loop ───────────────
+    elif event_type == "surf_session_completed" and isinstance(payload, dict):
+        booking_id = payload.get("booking_id", "bk_unknown")
+        
+        # 1. Publish photo_gallery_ready
+        sec_gal = publish_event(
+            event_type="photo_gallery_ready",
+            payload={"booking_id": booking_id, "gallery_status": "generated"},
+            correlation_id=corr_id,
+            source_mcp="event_bus"
+        )
+        secondary_events.append(sec_gal)
+        
+        # 2. Publish social_content_queued
+        sec_soc = publish_event(
+            event_type="social_content_queued",
+            payload={"booking_id": booking_id, "social_status": "queued"},
+            correlation_id=corr_id,
+            source_mcp="event_bus"
+        )
+        secondary_events.append(sec_soc)
+        
+        # 3. Publish admin_review_requested
+        sec_rev = publish_event(
+            event_type="admin_review_requested",
+            payload={"booking_id": booking_id, "review_status": "requested"},
+            correlation_id=corr_id,
+            source_mcp="event_bus"
+        )
+        secondary_events.append(sec_rev)
+        
+        # 4. Enqueue Social Gallery Post Approval in Admin queue
+        try:
+            dec_id = f"dec_post_{uuid.uuid4().hex[:8]}"
+            op_db_path = "C:\\Users\\dprit\\Raw-Surf\\backend\\operator_decisions.db"
+            
+            import operator_mcp_server
+            operator_mcp_server.init_db()
+            
+            conn_op = sqlite3.connect(op_db_path, timeout=10.0)
+            cur_op = conn_op.cursor()
+            
+            op_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            cur_op.execute("""
+            INSERT INTO operator_decisions (
+                decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id,
+                recommendation_type, reasoning, supporting_event_trace, expected_outcome, risk_level, confidence_score
+            ) VALUES (?, 'promo_push', 'Global', ?, 'pending_approval', ?, ?, ?, 'social_post_approval', ?, ?, ?, 'low', 95.0)
+            """, (
+                dec_id,
+                booking_id,
+                f"Approve gallery photo social post for session {booking_id}",
+                op_ts,
+                corr_id,
+                "Surf session completed successfully with ready photo gallery.",
+                corr_id,
+                "Publish premium surfer highlight gallery to social feed."
+            ))
+            conn_op.commit()
+            conn_op.close()
+        except Exception as e:
+            sys.stderr.write(f"Warning enqueuing social post review: {str(e)}\n")
+            sys.stderr.flush()
+
             
     end_time = time.perf_counter()
     propagation_latency_ms = (end_time - start_time) * 1000.0

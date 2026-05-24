@@ -383,8 +383,15 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
             source_mcp="operator_mcp",
             source_service="operator_mcp"
         )
+        event_bus_mcp_server.publish_event(
+            event_type="admin_action_approved",
+            payload=approved_payload,
+            correlation_id=c_id,
+            source_mcp="operator_mcp",
+            source_service="operator_mcp"
+        )
     except Exception as e:
-        sys.stderr.write(f"Warning: Failed publishing admin_approved_action: {str(e)}\n")
+        sys.stderr.write(f"Warning: Failed publishing admin approved events: {str(e)}\n")
         sys.stderr.flush()
         
     integration_results = {
@@ -462,6 +469,184 @@ def get_operator_decision_history():
             "confidence_score": r[16]
         })
     return history
+
+# 6. Reject decision
+def reject_decision(decision_id, caller_role, explanation, correlation_id=None):
+    init_db()
+    
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT decision_id, type, spot_name, proposed_value, status, correlation_id 
+    FROM operator_decisions WHERE decision_id = ?
+    """, (decision_id,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        return {"success": False, "error": f"Decision {decision_id} not found."}
+        
+    dec_id, dec_type, spot, value, status, corr_id = row
+    
+    if status != "pending_approval":
+        conn.close()
+        return {"success": False, "error": f"Decision is already in '{status}' status."}
+        
+    # STRICT HUMAN-IN-THE-LOOP ADMIN GATE
+    if caller_role != "admin":
+        conn.close()
+        return {
+            "success": False,
+            "error": "Unauthorized execution attempt: Rejects require explicit admin approval."
+        }
+        
+    exec_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    c_id = correlation_id or corr_id or f"corr_rej_{uuid.uuid4().hex[:8]}"
+    
+    rejected_payload = {
+        "decision_id": decision_id,
+        "recommendation_type": dec_type,
+        "spot_name": spot,
+        "proposed_value": value,
+        "explanation": explanation,
+        "rejected_by": caller_role,
+        "timestamp": exec_ts
+    }
+    
+    # Route back through the unified event backbone spine
+    try:
+        import event_bus_mcp_server
+        event_bus_mcp_server.publish_event(
+            event_type="admin_action_rejected",
+            payload=rejected_payload,
+            correlation_id=c_id,
+            source_mcp="operator_mcp",
+            source_service="operator_mcp"
+        )
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed publishing admin_action_rejected: {str(e)}\n")
+        sys.stderr.flush()
+        
+    cursor.execute("""
+    UPDATE operator_decisions 
+    SET status = 'rejected', caller_role = ?, execution_timestamp = ?, execution_result = ?, correlation_id = ?
+    WHERE decision_id = ?
+    """, (caller_role, exec_ts, f"Rejected by admin: {explanation}", c_id, decision_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return {
+        "success": True,
+        "decision_id": decision_id,
+        "status": "rejected",
+        "caller_role": caller_role,
+        "execution_timestamp": exec_ts,
+        "correlation_id": c_id
+    }
+
+# 7. Propose Booking Override
+def propose_booking_override(booking_id, new_capacity, caller_role, explanation, correlation_id=None):
+    init_db()
+    
+    decision_id = f"dec_override_{uuid.uuid4().hex[:8]}"
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    c_id = correlation_id or f"corr_o_{uuid.uuid4().hex[:8]}"
+    
+    conn = sqlite3.connect(DB_PATH, timeout=10.0)
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO operator_decisions (
+        decision_id, type, spot_name, proposed_value, status, explanation, timestamp, correlation_id,
+        recommendation_type, reasoning, supporting_event_trace, expected_outcome, risk_level, confidence_score
+    ) VALUES (?, 'booking_override', 'Global', ?, 'pending_approval', ?, ?, ?, 'booking_override', ?, ?, ?, 'medium', 95.0)
+    """, (
+        decision_id,
+        str(new_capacity),
+        explanation,
+        timestamp,
+        c_id,
+        explanation,
+        c_id,
+        f"Override booking capacity/availability for lesson {booking_id} to {new_capacity}."
+    ))
+    conn.commit()
+    conn.close()
+    
+    # Emit admin_booking_override_event!
+    try:
+        import event_bus_mcp_server
+        override_payload = {
+            "booking_id": booking_id,
+            "proposed_capacity": new_capacity,
+            "explanation": explanation,
+            "caller_role": caller_role,
+            "timestamp": timestamp,
+            "decision_id": decision_id
+        }
+        event_bus_mcp_server.publish_event(
+            event_type="admin_booking_override_event",
+            payload=override_payload,
+            correlation_id=c_id,
+            source_mcp="operator_mcp",
+            source_service="operator_mcp"
+        )
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed publishing admin_booking_override_event: {str(e)}\n")
+        sys.stderr.flush()
+        
+    # If caller_role == 'admin', we immediately execute the override!
+    if caller_role == "admin":
+        exec_ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        cursor = conn.cursor()
+        
+        exec_payload = {
+            "booking_id": booking_id,
+            "new_capacity": new_capacity,
+            "explanation": explanation,
+            "approved_by": caller_role,
+            "timestamp": exec_ts
+        }
+        
+        try:
+            import event_bus_mcp_server
+            event_bus_mcp_server.publish_event(
+                event_type="admin_override_executed",
+                payload=exec_payload,
+                correlation_id=c_id,
+                source_mcp="operator_mcp",
+                source_service="operator_mcp"
+            )
+        except Exception as e:
+            sys.stderr.write(f"Warning: Failed publishing admin_override_executed: {str(e)}\n")
+            sys.stderr.flush()
+            
+        cursor.execute("""
+        UPDATE operator_decisions 
+        SET status = 'executed', caller_role = ?, execution_timestamp = ?, execution_result = ?
+        WHERE decision_id = ?
+        """, (caller_role, exec_ts, "Booking availability overridden successfully.", decision_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return {
+            "success": True,
+            "decision_id": decision_id,
+            "status": "executed",
+            "caller_role": caller_role,
+            "proposed_capacity": new_capacity,
+            "correlation_id": c_id
+        }
+        
+    return {
+        "success": True,
+        "decision_id": decision_id,
+        "status": "pending_approval",
+        "proposed_capacity": new_capacity,
+        "correlation_id": c_id
+    }
 
 # JSON-RPC MCP stdio loop
 def main():
@@ -553,6 +738,35 @@ def main():
                                 }
                             },
                             {
+                                "name": "reject_decision",
+                                "description": "Reject a pending decision under strict admin approval gates, enlisting details and emitting event.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "decision_id": {"type": "string"},
+                                        "caller_role": {"type": "string", "enum": ["admin", "moderator", "user"]},
+                                        "explanation": {"type": "string"},
+                                        "correlation_id": {"type": "string", "description": "Causal trace correlation UUID"}
+                                    },
+                                    "required": ["decision_id", "caller_role", "explanation"]
+                                }
+                            },
+                            {
+                                "name": "propose_booking_override",
+                                "description": "Propose or execute a booking capacity/availability override.",
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "booking_id": {"type": "string"},
+                                        "new_capacity": {"type": "integer"},
+                                        "caller_role": {"type": "string", "enum": ["admin", "moderator", "user"]},
+                                        "explanation": {"type": "string"},
+                                        "correlation_id": {"type": "string", "description": "Causal trace correlation UUID"}
+                                    },
+                                    "required": ["booking_id", "new_capacity", "caller_role", "explanation"]
+                                }
+                            },
+                            {
                                 "name": "get_operator_decision_history",
                                 "description": "Query detailed decision audits history logs.",
                                 "inputSchema": {
@@ -593,6 +807,23 @@ def main():
                     role = args.get("caller_role")
                     corr = args.get("correlation_id")
                     res = execute_decision(dec, role, corr)
+                    text_out = json.dumps(res, indent=2)
+                    
+                elif tool_name == "reject_decision":
+                    dec = args.get("decision_id")
+                    role = args.get("caller_role")
+                    expl = args.get("explanation")
+                    corr = args.get("correlation_id")
+                    res = reject_decision(dec, role, expl, corr)
+                    text_out = json.dumps(res, indent=2)
+                    
+                elif tool_name == "propose_booking_override":
+                    bk = args.get("booking_id")
+                    cap = int(args.get("new_capacity"))
+                    role = args.get("caller_role")
+                    expl = args.get("explanation")
+                    corr = args.get("correlation_id")
+                    res = propose_booking_override(bk, cap, role, expl, corr)
                     text_out = json.dumps(res, indent=2)
                     
                 elif tool_name == "get_operator_decision_history":

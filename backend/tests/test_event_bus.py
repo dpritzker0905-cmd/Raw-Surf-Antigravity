@@ -94,9 +94,8 @@ def test_swell_threshold_crossing_autotrigger():
     
     assert res["success"] is True
     # The secondary event should have published successfully
-    assert len(res["secondary_events"]) == 1
-    sec_event = res["secondary_events"][0]
-    assert sec_event["event_type"] == "swell_threshold_crossed"
+    sec_event = next((e for e in res["secondary_events"] if e["event_type"] == "swell_threshold_crossed"), None)
+    assert sec_event is not None
     assert "SAFETY EXCEEDED" in sec_event["payload"]["alert"]
     
     # Pull the safety alert event
