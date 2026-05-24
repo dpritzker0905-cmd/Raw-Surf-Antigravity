@@ -612,7 +612,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
           const getSafeWorkerFallbackResponse = async (url, type) => {
             // Explicitly verify that the URL request targets a cancelled metadata configuration block
             const isAbortedJsonMeta = type === 'json' || 
-              (url && (url.includes('type=json') || url.includes('time_step=undefined') || url.includes('latest.json?_cb='))) && 
+              (url && (url.includes('type=json') || url.includes('time_step=undefined') || url.includes('latest.json'))) && 
               !url.includes('.om');
 
             if (isAbortedJsonMeta) {
