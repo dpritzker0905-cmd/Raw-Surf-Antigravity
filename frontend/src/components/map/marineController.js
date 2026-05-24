@@ -469,6 +469,7 @@ function extractMarineAtOffset(cache, hourOffset) {
   const targetMs = Date.now() + hourOffset * 3600000;
   const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
 
+  const activeModel = cache.model || 'GFS';
   const gridVectors = [];
   const features = [];
 
@@ -493,12 +494,12 @@ function extractMarineAtOffset(cache, hourOffset) {
       wind_wave_period: r.hourly.wind_wave_period?.[idx],
     };
     const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
-    const s1_h = safeNum(c.swell_wave_height != null ? c.swell_wave_height : c.wave_height), 
-          s1_d = safeNum(c.swell_wave_direction != null ? c.swell_wave_direction : c.wave_direction);
-    const s2_h = safeNum(c.secondary_swell_wave_height != null ? c.secondary_swell_wave_height : c.wave_height), 
-          s2_d = safeNum(c.secondary_swell_wave_direction != null ? c.secondary_swell_wave_direction : c.wave_direction);
-    const ww_h = safeNum(c.wind_wave_height != null ? c.wind_wave_height : c.wave_height), 
-          ww_d = safeNum(c.wind_wave_direction != null ? c.wind_wave_direction : c.wave_direction);
+    const s1_h = safeNum(c.swell_wave_height != null ? c.swell_wave_height : (activeModel === 'EURO' ? c.wave_height : 0)), 
+          s1_d = safeNum(c.swell_wave_direction != null ? c.swell_wave_direction : (activeModel === 'EURO' ? c.wave_direction : 0));
+    const s2_h = safeNum(c.secondary_swell_wave_height != null ? c.secondary_swell_wave_height : 0), 
+          s2_d = safeNum(c.secondary_swell_wave_direction != null ? c.secondary_swell_wave_direction : 0);
+    const ww_h = safeNum(c.wind_wave_height != null ? c.wind_wave_height : 0), 
+          ww_d = safeNum(c.wind_wave_direction != null ? c.wind_wave_direction : 0);
 
     const w_h_raw = r.hourly.wave_height?.[idx];
     const isOcean = (w_h_raw !== null && w_h_raw !== undefined);
@@ -521,9 +522,9 @@ function extractMarineAtOffset(cache, hourOffset) {
       geometry: { type: 'Point', coordinates: [pt.monotonicLng, pt.lat] },
       properties: {
         wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
-        swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : c.wave_period), swell_wave_direction: s1_d,
-        secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : c.wave_period), secondary_swell_wave_direction: s2_d,
-        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : c.wave_period), wind_wave_direction: ww_d,
+        swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : (activeModel === 'EURO' ? c.wave_period : null)), swell_wave_direction: s1_h > 0 ? s1_d : null,
+        secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : null), secondary_swell_wave_direction: s2_h > 0 ? s2_d : null,
+        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : null), wind_wave_direction: ww_h > 0 ? ww_d : null,
       },
     });
   });

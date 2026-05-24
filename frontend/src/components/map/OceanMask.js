@@ -100,9 +100,15 @@ export function OceanMask({ mapInstance, active: propActive, theme, beforeId }) 
         // Dynamically resolve the active vector tile source ID (typically 'composite')
         let vectorSourceId = 'composite';
         if (style.sources) {
-          const found = Object.keys(style.sources).find(id => style.sources[id].type === 'vector');
-          if (found) {
-            vectorSourceId = found;
+          const preferredSources = ['composite', 'openmaptiles', 'mapbox'];
+          const foundPreferred = preferredSources.find(id => style.sources[id] && style.sources[id].type === 'vector');
+          if (foundPreferred) {
+            vectorSourceId = foundPreferred;
+          } else {
+            const found = Object.keys(style.sources).find(id => style.sources[id].type === 'vector' && id !== 'mapbox-traffic');
+            if (found) {
+              vectorSourceId = found;
+            }
           }
         }
 
