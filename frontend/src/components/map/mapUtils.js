@@ -440,6 +440,56 @@ Object.keys(BASE_CUSTOM_COLOR_SCALES).forEach(function(key) {
   CUSTOM_COLOR_SCALES[key] = smoothColorScale(BASE_CUSTOM_COLOR_SCALES[key], 80);
 });
 
+export function applyThemePressureScale(theme) {
+  var colors;
+  if (theme === 'beach') {
+    // Beach Theme: desaturated deep ocean teal-indigo (Lows) to sand/bronze (Highs)
+    colors = [
+      [8, 51, 68, 0.75],     // 970 hPa (deep ocean teal-indigo)
+      [79, 110, 138, 0.45],  // 990 hPa (muted sea-gray)
+      [180, 200, 210, 0.25], // 1005 hPa (pale sea-mist)
+      [253, 252, 248, 0.0],  // 1013 hPa (neutral fully transparent)
+      [242, 230, 210, 0.35], // 1025 hPa (soft beach sand)
+      [180, 130, 60, 0.65]   // 1045 hPa (warm coastal bronze)
+    ];
+  } else if (theme === 'light') {
+    // Light Theme: desaturated charcoal (Lows) to cream/gold (Highs)
+    colors = [
+      [31, 41, 55, 0.75],    // 970 hPa (dark charcoal)
+      [75, 85, 99, 0.45],    // 990 hPa (cool slate)
+      [209, 213, 219, 0.2],  // 1005 hPa (light cool gray)
+      [255, 255, 255, 0.0],  // 1013 hPa (neutral fully transparent)
+      [245, 245, 240, 0.3],  // 1025 hPa (soft warm sand)
+      [251, 191, 36, 0.6]    // 1045 hPa (pale warm gold)
+    ];
+  } else {
+    // Dark Theme: desaturated violet-indigo (Lows) to bronze-amber (Highs)
+    colors = [
+      [124, 58, 237, 0.7],   // 970 hPa (deep royal indigo)
+      [71, 85, 105, 0.4],    // 990 hPa (muted blue-gray)
+      [30, 41, 59, 0.2],     // 1005 hPa (dark slate-blue)
+      [15, 23, 42, 0.0],     // 1013 hPa (neutral fully transparent)
+      [120, 113, 108, 0.3],  // 1025 hPa (deep charcoal-amber)
+      [217, 119, 6, 0.65]    // 1045 hPa (muted amber/bronze)
+    ];
+  }
+
+  if (BASE_CUSTOM_COLOR_SCALES.pressure_msl) {
+    BASE_CUSTOM_COLOR_SCALES.pressure_msl.colors = colors;
+  }
+  
+  // Re-smooth scale in memory
+  CUSTOM_COLOR_SCALES.pressure_msl = smoothColorScale(BASE_CUSTOM_COLOR_SCALES.pressure_msl, 80);
+  
+  // Push changes to protocol if active
+  if (typeof window !== 'undefined' && window.__OM_PROTOCOL_SETTINGS__) {
+    window.__OM_PROTOCOL_SETTINGS__.colorScales.pressure_msl = CUSTOM_COLOR_SCALES.pressure_msl;
+  }
+}
+
+// Warm up default theme scale on module load
+applyThemePressureScale('dark');
+
 var _mapLibreWorkerSet = false;
 export function ensureMapLibreInit() {
   if (_mapLibreWorkerSet) return;

@@ -7,6 +7,7 @@ import {
   clearOpenMeteoCache,
   safeSetPaintProperty,
   setMapActiveModelLock,
+  applyThemePressureScale,
   trace
 } from './mapUtils';
 import {
@@ -46,6 +47,11 @@ export function useOpenMeteoTileUrls({
   useEffect(() => {
     registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE);
   }, []);
+
+  // Dynamic theme pressure color scale synchronizer
+  useEffect(() => {
+    applyThemePressureScale(theme);
+  }, [theme]);
 
   const fetchMetadata = useCallback(async (modelToCheck, signal) => {
     return fetchModelMetadata(

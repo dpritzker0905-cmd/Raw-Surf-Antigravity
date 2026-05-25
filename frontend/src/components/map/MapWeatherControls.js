@@ -187,7 +187,7 @@ export var MapWeatherControls = ({
     };
 
     return config;
-  }, []);
+  }, [theme]);
 
   const maxForecastDays = resolveForecastWindow(userTier);
   const maxForecastHours = maxForecastDays * 24;

@@ -91,7 +91,6 @@ export function useWeatherState({ user }) {
       prev.includes(layerId) ? [] : [layerId]
     );
     setIsPlayingTimeline(false);
-    setTimeOffsetHours(0);
   }, []);
 
   return {
