@@ -703,3 +703,26 @@ input[type="range"].appearance-none::-moz-range-track {
 .beach-mode textarea::placeholder {
   color: #b45309 !important; /* text-amber-700 */
 }
+
+/* ============ COMPACT MESSAGES VIEW ON SHORT VERTICAL SCREENS ============ */
+@media (max-height: 800px) and (min-width: 768px) {
+  /* Shrink note bubbles */
+  .group.pt-3 {
+    padding-top: 0.5rem !important;
+  }
+  .group .w-14.h-14 {
+    width: 2.75rem !important; /* 44px */
+    height: 2.75rem !important; /* 44px */
+  }
+  
+  /* Shrink conversation items */
+  button[data-testid^="conversation-"] {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    gap: 0.5rem !important;
+  }
+  button[data-testid^="conversation-"] .w-14.h-14 {
+    width: 2.75rem !important; /* 44px */
+    height: 2.75rem !important; /* 44px */
+  }
+}

@@ -36,7 +36,7 @@ const STATUS_LABELS = {
   accepted:          { captain: 'Photographer Confirmed!', crew: 'Photographer Confirmed!' },
   en_route:          { captain: 'On The Way', crew: 'On The Way!' },
   arrived:           { captain: 'Photographer Arrived!', crew: 'Arrived!' },
- in_session: { captain: 'Session Active =+', crew: 'Session Active =+' },
+  in_session: { captain: 'Session Active', crew: 'Session Active' },
 };
 
 // --- Shared color config factory ---
@@ -140,7 +140,7 @@ const MobileBanner = ({ activeSession, colorConfig, isLight, isExpanded, setIsEx
                     ~{activeSession.eta} min
                   </span>
                 )}
-                {activeSession.eta && activeSession.locationName && <span>-+</span>}
+                {activeSession.eta && activeSession.locationName && <span className="mx-1">·</span>}
                 {activeSession.locationName && (
                   <>
                     <MapPin className="w-2.5 h-2.5 inline flex-shrink-0" />

@@ -139,7 +139,7 @@ const ConversationItem = ({ conversation, isSelected, isOnline, onClick }) => {
           </span>
           {conversation.last_message_at && (
             <span className="text-xs text-gray-500 flex-shrink-0">
-              -+ {formatTimeAgo(conversation.last_message_at)}
+              · {formatTimeAgo(conversation.last_message_at)}
             </span>
           )}
         </div>

@@ -2,7 +2,7 @@
  * ConversationListPanel - Extracted from MessagesPage.js
  * Renders the conversation list sidebar including folder tabs, stories, crew chats, and conversation items.
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Search, ChevronLeft, Check, Edit3, Filter, Users
 } from 'lucide-react';
@@ -33,6 +33,7 @@ const ConversationListPanel = ({
   // Navigation
   navigate,
 }) => {
+  const [showNotes, setShowNotes] = useState(true);
   // Filter conversations by search AND by active folder
   let filteredConversations = [];
   try {
@@ -91,18 +92,31 @@ const ConversationListPanel = ({
       </div>
 
       {/* Stories/Notes Section */}
-      <div className="px-2 pt-4 pb-3 border-b border-border">
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-          {stories.map((story) => (
-            <StoryBubble 
-              key={story.id} 
-              story={story} 
-              onClick={handleNoteClick}
-              isOwnNote={story.isOwnNote}
-            />
-          ))}
+      {stories.length > 0 && (
+        <div className="px-4 pt-3 pb-2 border-b border-border">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 select-none">
+            <span>Active Notes</span>
+            <button
+              onClick={() => setShowNotes(!showNotes)}
+              className="text-[10px] text-cyan-400 hover:text-cyan-300 font-bold transition-all lowercase"
+            >
+              {showNotes ? 'hide' : 'show'}
+            </button>
+          </div>
+          {showNotes && (
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide animate-in fade-in slide-in-from-top-1 duration-200">
+              {stories.map((story) => (
+                <StoryBubble 
+                  key={story.id} 
+                  story={story} 
+                  onClick={handleNoteClick}
+                  isOwnNote={story.isOwnNote}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Folder Tabs */}
       <div className="relative">
