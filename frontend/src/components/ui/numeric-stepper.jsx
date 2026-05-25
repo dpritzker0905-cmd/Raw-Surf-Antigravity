@@ -21,11 +21,37 @@ export const NumericStepper = ({
   theme = 'dark'
 }) => {
   const isLight = theme === 'light';
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const textSecondary = isLight ? 'text-gray-500' : 'text-gray-400';
-  const bgClass = isLight ? 'bg-gray-100' : 'bg-zinc-800';
-  const borderClass = isLight ? 'border-gray-300' : 'border-zinc-600';
-  const buttonBg = isLight ? 'bg-gray-200 hover:bg-gray-300' : 'bg-zinc-700 hover:bg-zinc-600';
+  const isBeach = theme === 'beach';
+  
+  const textPrimary = isLight 
+    ? 'text-gray-900' 
+    : isBeach 
+      ? 'text-amber-400 font-extrabold' 
+      : 'text-white';
+      
+  const textSecondary = isLight 
+    ? 'text-gray-500' 
+    : isBeach 
+      ? 'text-amber-200/90' 
+      : 'text-gray-400';
+      
+  const bgClass = isLight 
+    ? 'bg-gray-100' 
+    : isBeach 
+      ? 'bg-black' 
+      : 'bg-zinc-800';
+      
+  const borderClass = isLight 
+    ? 'border-gray-300' 
+    : isBeach 
+      ? 'border-zinc-800' 
+      : 'border-zinc-600';
+      
+  const buttonBg = isLight 
+    ? 'bg-gray-200 hover:bg-gray-300 text-gray-700' 
+    : isBeach 
+      ? 'bg-zinc-950 hover:bg-zinc-900 text-amber-400' 
+      : 'bg-zinc-700 hover:bg-zinc-600 text-white';
   
   const sizeStyles = {
     sm: { wrapper: 'h-10', input: 'text-lg', button: 'w-8 h-10' },
