@@ -43,14 +43,6 @@ const isModelMatch = (folder, lock) => {
     return true;
   }
   
-  // Marine layers cross-compatibility fallback:
-  // If the folder represents a marine wave/swell model (containing wave, wam, gwam) and lock is any weather model,
-  // allow it so that fallback wave parameters can render.
-  const isMarine = f.includes('wave') || f.includes('wam') || f.includes('gwam');
-  if (isMarine) {
-    return true;
-  }
-  
   const parent = getParentModel(folder);
   const l = lock.toLowerCase();
   return parent.toLowerCase() === l || f.includes(l) || l.includes(f);
@@ -666,10 +658,11 @@ function buildOceanPolygon(landGeoJSON) {
 
 export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE) {
   // Register a global fetch interceptor to completely prevent 429 rate limits on latest.json metadata requests
-  if (typeof window !== 'undefined' && !window.__FETCH_INTERCEPTED__) {
-    window.__FETCH_INTERCEPTED__ = true;
-    const originalFetch = window.fetch;
-    window.fetch = function (input, init) {
+  const globalCtx = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {};
+  if (globalCtx.fetch && !globalCtx.__FETCH_INTERCEPTED__) {
+    globalCtx.__FETCH_INTERCEPTED__ = true;
+    const originalFetch = globalCtx.fetch;
+    globalCtx.fetch = function (input, init) {
       const urlString = typeof input === 'string' ? input : input?.url || '';
       if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && MODEL_METADATA_CACHE) {
         try {
@@ -805,6 +798,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             return getSafeWorkerFallbackResponse(params.url, 'image');
           }
 
+          // Zero-Latency Match Lock Fast-Path
+          const matchResult = isModelMatch(requestedModelFolder, activeModelLock);
+          if (params.url.includes('variable=')) {
+            console.log(`[OM-Protocol DEBUG] url: ${params.url}, folder: ${requestedModelFolder}, lock: ${activeModelLock}, match: ${matchResult}`);
+          }
+          if (!matchResult) {
+            return getSafeWorkerFallbackResponse(params.url, params.type);
+          }
+
           // v3.14: Use ocean-clipped settings for marine variables so land pixels are transparent
           const isMarine = variable && MARINE_VARIABLES.has(variable);
           const marineSettings = (hasWindow && window.__OM_MARINE_SETTINGS__) || null;
@@ -814,13 +816,6 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
           try {
             return omProtocol(params, abortController, effectiveSettings)
-              .then(response => {
-                if (!isModelMatch(requestedModelFolder, activeModelLock)) {
-                  return getSafeWorkerFallbackResponse(params.url, params.type);
-                }
-
-                return response;
-              })
               .catch(err => {
                 if (err.name === 'AbortError' || err.message?.includes('aborted')) {
                   // Propagate the AbortError cleanly to let MapLibre know the cancellation succeeded

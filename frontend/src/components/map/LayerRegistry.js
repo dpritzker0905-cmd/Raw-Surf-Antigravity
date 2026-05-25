@@ -291,6 +291,11 @@ const DEFAULT_MARINE_VARS = [
   'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
   'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
 ];
+const DWD_GWAM_VARS = [
+  'wave_height', 'wave_direction', 'wave_period',
+  'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+  'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+];
 const LIMITED_MARINE_VARS = [
   'wave_height', 'wave_direction', 'wave_period'
 ];
@@ -316,6 +321,6 @@ MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: GFS_ATMOSPHERIC_VARS, validTi
 MODEL_METADATA_CACHE['dwd_icon'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ecmwf_ifs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ncep_gfswave025'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['dwd_gwam'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['dwd_gwam'] = { variables: DWD_GWAM_VARS, validTimes: defaultTimes, referenceTime };
 MODEL_METADATA_CACHE['ecmwf_wam025'] = { variables: LIMITED_MARINE_VARS, validTimes: defaultTimes, referenceTime };
 
