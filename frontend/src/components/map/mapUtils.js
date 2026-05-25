@@ -675,7 +675,12 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               completed: true,
               crs_wkt: "",
               last_modified_time: new Date().toISOString(),
-              reference_time: meta.referenceTime || new Date(Date.now() - 12 * 3600000).toISOString(),
+              reference_time: meta.referenceTime || (() => {
+                const d = new Date(Date.now() - 12 * 3600000);
+                const h = d.getUTCHours();
+                d.setUTCHours(Math.floor(h / 6) * 6, 0, 0, 0);
+                return d.toISOString().replace(/\.\d+Z$/, 'Z');
+              })(),
               valid_times: meta.validTimes || [],
               variables: meta.variables || []
             };

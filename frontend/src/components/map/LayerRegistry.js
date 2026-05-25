@@ -312,7 +312,14 @@ function generateDefaultTimes() {
 }
 
 const defaultTimes = generateDefaultTimes();
-const referenceTime = new Date(Date.now() - 12 * 3600000).toISOString();
+function getAlignedReferenceTime() {
+  const date = new Date(Date.now() - 12 * 3600000);
+  const hours = date.getUTCHours();
+  const alignedHours = Math.floor(hours / 6) * 6;
+  date.setUTCHours(alignedHours, 0, 0, 0);
+  return date.toISOString().replace(/\.\d+Z$/, 'Z');
+}
+const referenceTime = getAlignedReferenceTime();
 
 const GFS_ATMOSPHERIC_VARS = DEFAULT_ATMOSPHERIC_VARS.filter(v => v !== 'wind_speed_10m');
 
