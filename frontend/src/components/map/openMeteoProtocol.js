@@ -10,6 +10,7 @@ let activeModelLock = "";
 
 // Global registry for missing Open-Meteo model runs to block 404 tile storms
 const MISSING_OM_RUNS = new Set();
+const MISSING_OM_TILES = new Set();
 
 export const setMapActiveModelLock = (modelName) => {
   activeModelLock = modelName;
@@ -127,8 +128,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     globalCtx.fetch = function (input, init) {
       const urlString = typeof input === 'string' ? input : input?.url || '';
       
-      // Fast-path: Block requests to known missing model runs in 0ms
+      // Fast-path: Block requests to known missing model runs or specific missing tiles in 0ms
       if (urlString.includes('map-tiles.open-meteo.com')) {
+        if (MISSING_OM_TILES.has(urlString)) {
+          return Promise.resolve(new Response('OM Tile Missing', {
+            status: 404,
+            statusText: 'Not Found'
+          }));
+        }
         for (const runPattern of MISSING_OM_RUNS) {
           if (urlString.includes(runPattern)) {
             // Serve 404 immediately in 0ms, preventing browser-blocking network storms
@@ -173,15 +180,10 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         return promise.then(res => {
           if (res.status === 404) {
             try {
-              const urlObj = new URL(urlString);
-              const pathParts = urlObj.pathname.split('/');
-              // Path layout: /data_spatial/ecmwf_ifs025/2026/05/25/0600Z/...
-              if (pathParts.length >= 7) {
-                const runPattern = `${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}/${pathParts[6]}`;
-                if (!MISSING_OM_RUNS.has(runPattern)) {
-                  MISSING_OM_RUNS.add(runPattern);
-                  console.warn(`[OM-Protocol] Model run registered as MISSING: ${runPattern}. Blocking future tile requests to prevent 404 storms.`);
-                }
+              // Block the specific missing tile URL to prevent repeated 404 requests for it
+              if (!MISSING_OM_TILES.has(urlString)) {
+                MISSING_OM_TILES.add(urlString);
+                console.warn(`[OM-Protocol] Precise tile registered as MISSING: ${urlString}. Future requests to this exact tile will be blocked.`);
               }
             } catch (e) { /* ignore */ }
           }

@@ -300,18 +300,41 @@ const LIMITED_MARINE_VARS = [
   'wave_height', 'wave_direction', 'wave_period'
 ];
 
-function generateDefaultTimes() {
+function generateDefaultTimes(intervalHours = 1, maxHours = 240) {
   const start = new Date();
   start.setMinutes(0, 0, 0);
   const times = [];
-  for (let i = -24; i < 240; i++) { // -24h to +10 days
+  const startOffset = Math.floor(-24 / intervalHours) * intervalHours;
+  const endOffset = Math.ceil(maxHours / intervalHours) * intervalHours;
+  for (let i = startOffset; i <= endOffset; i += intervalHours) {
     const d = new Date(start.getTime() + i * 3600000);
     times.push(d.toISOString().replace(/\.\d+Z$/, 'Z'));
   }
   return times;
 }
 
-const defaultTimes = generateDefaultTimes();
+function generateGfsDefaultTimes() {
+  const start = new Date();
+  start.setMinutes(0, 0, 0);
+  const times = [];
+  // GFS is hourly up to 120 hours (5 days)
+  for (let i = -24; i <= 120; i++) {
+    const d = new Date(start.getTime() + i * 3600000);
+    times.push(d.toISOString().replace(/\.\d+Z$/, 'Z'));
+  }
+  // GFS becomes 3-hourly from 120h to 384h (16 days)
+  for (let i = 123; i <= 384; i += 3) {
+    const d = new Date(start.getTime() + i * 3600000);
+    times.push(d.toISOString().replace(/\.\d+Z$/, 'Z'));
+  }
+  return times;
+}
+
+const defaultTimesGfs = generateGfsDefaultTimes();         // GFS atmospheric / wave: hybrid 1h/3h interval, max 16 days (384h)
+const defaultTimesIconAtm = generateDefaultTimes(1, 120); // ICON atmospheric: 1h interval, max 5 days (120h)
+const defaultTimesIconWav = generateDefaultTimes(3, 180); // ICON wave: 3h interval, max 7.5 days (180h)
+const defaultTimesEuro = generateDefaultTimes(3, 240);    // EURO atmospheric / wave: 3h interval, max 10 days (240h)
+
 function getAlignedReferenceTime() {
   const date = new Date(Date.now() - 12 * 3600000);
   const hours = date.getUTCHours();
@@ -323,11 +346,11 @@ const referenceTime = getAlignedReferenceTime();
 
 const GFS_ATMOSPHERIC_VARS = DEFAULT_ATMOSPHERIC_VARS.filter(v => v !== 'wind_speed_10m');
 
-MODEL_METADATA_CACHE['ncep_gfs025'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['dwd_icon'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['ecmwf_ifs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['ncep_gfswave025'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['dwd_gwam'] = { variables: DWD_GWAM_VARS, validTimes: defaultTimes, referenceTime };
-MODEL_METADATA_CACHE['ecmwf_wam025'] = { variables: LIMITED_MARINE_VARS, validTimes: defaultTimes, referenceTime };
+MODEL_METADATA_CACHE['ncep_gfs025'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimesGfs, referenceTime };
+MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimesGfs, referenceTime };
+MODEL_METADATA_CACHE['dwd_icon'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimesIconAtm, referenceTime };
+MODEL_METADATA_CACHE['ecmwf_ifs025'] = { variables: DEFAULT_ATMOSPHERIC_VARS, validTimes: defaultTimesEuro, referenceTime };
+MODEL_METADATA_CACHE['ncep_gfswave025'] = { variables: DEFAULT_MARINE_VARS, validTimes: defaultTimesGfs, referenceTime };
+MODEL_METADATA_CACHE['dwd_gwam'] = { variables: DWD_GWAM_VARS, validTimes: defaultTimesIconWav, referenceTime };
+MODEL_METADATA_CACHE['ecmwf_wam025'] = { variables: LIMITED_MARINE_VARS, validTimes: defaultTimesEuro, referenceTime };
 

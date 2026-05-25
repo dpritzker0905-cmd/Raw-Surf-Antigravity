@@ -96,8 +96,7 @@ export function useOpenMeteoTileUrls({
       const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
       if (diff < minDiff) { minDiff = diff; closestIdx = i; }
     }
-    // Clamp to 10-day physical tile limit (index 159 / 240h) to prevent out-of-bounds 404s
-    const maxAllowedIdx = Math.min(159, meta.validTimes.length - 1);
+    const maxAllowedIdx = meta.validTimes.length - 1;
     const resultIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
     return isNaN(resultIdx) ? 0 : resultIdx;
   }, [activeModel, timeOffsetHours, metadataRevision]);
@@ -348,8 +347,7 @@ export function useOpenMeteoTileUrls({
                   if (diff < minDiff) { minDiff = diff; closestIdx = i; }
                 }
               }
-              const isClampedModel = layerModel === 'ncep_gfswave025' || layerModel === 'ncep_gfs013' || layerModel === 'ncep_gfs025';
-              const maxAllowedIdx = isClampedModel ? Math.min(159, (validTimes?.length || 1) - 1) : (validTimes?.length || 1) - 1;
+              const maxAllowedIdx = (validTimes?.length || 1) - 1;
               closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
               if (isNaN(closestIdx)) closestIdx = 0;
 
@@ -443,9 +441,7 @@ export function useOpenMeteoTileUrls({
                 if (diff < minDiff) { minDiff = diff; closestIdx = i; }
               }
             }
-            // For GFS Wave and Precipitation models, clamp to the 10-day physical tile limit (index 159 / 240h) to avoid 404s
-            const isClampedModel = layerModel === 'ncep_gfswave025' || layerModel === 'ncep_gfs013' || layerModel === 'ncep_gfs025';
-            const maxAllowedIdx = isClampedModel ? Math.min(159, (validTimes?.length || 1) - 1) : (validTimes?.length || 1) - 1;
+            const maxAllowedIdx = (validTimes?.length || 1) - 1;
             closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
             if (isNaN(closestIdx)) closestIdx = 0;
 
