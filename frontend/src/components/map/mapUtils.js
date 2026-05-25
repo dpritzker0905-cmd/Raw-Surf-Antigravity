@@ -38,6 +38,11 @@ const isModelMatch = (folder, lock) => {
   
   const f = folder.toLowerCase();
   
+  // GFS is the global fallback model for all weather/marine layers, allow it always
+  if (f.includes('gfs')) {
+    return true;
+  }
+  
   // Marine layers cross-compatibility fallback:
   // If the folder represents a marine wave/swell model (containing wave, wam, gwam) and lock is any weather model,
   // allow it so that fallback wave parameters can render.
