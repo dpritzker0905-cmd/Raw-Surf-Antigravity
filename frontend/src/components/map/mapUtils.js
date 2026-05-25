@@ -735,7 +735,13 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 tiles: ["om://transparent-tile"],
                 bounds: [-180, -85, 180, 85],
                 minzoom: 0,
-                maxzoom: 22
+                maxzoom: 22,
+                completed: true,
+                crs_wkt: "",
+                last_modified_time: new Date().toISOString(),
+                reference_time: new Date().toISOString(),
+                valid_times: [new Date().toISOString()],
+                variables: []
               };
               // Return the parsed JSON object directly to prevent MapLibre from throwing length TypeError
               return { data: flawlessMockJson };

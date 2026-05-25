@@ -59,15 +59,16 @@ export function useOpenMeteoTileUrls({
   // Pre-warm active model and wave fallbacks immediately, and defer the rest
   useEffect(() => {
     const activeModelCode = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
-    // 1. Prioritize active model and active wave model metadata immediately
+    // 1. Prioritize active model and regional/global wave models metadata immediately
     fetchMetadata(activeModelCode);
     fetchMetadata('ncep_gfswave025'); // Default wave model
+    fetchMetadata('ecmwf_wam025'); // EURO wave model
+    fetchMetadata('dwd_gwam'); // ICON wave model
     
-    // 2. Defer other models by 2 seconds using a non-blocking setTimeout
+    // 2. Defer remaining atmospheric models by 2 seconds using a non-blocking setTimeout
     const timer = setTimeout(() => {
       const remainingModels = [
-        'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025',
-        'ecmwf_wam025', 'dwd_gwam'
+        'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025'
       ].filter(m => m !== activeModelCode);
       
       // Load remaining models in the background
@@ -251,8 +252,14 @@ export function useOpenMeteoTileUrls({
           if (entry.omModel) return entry.omModel;
           if (entry.omModelGroup === 'marine') {
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
-            // Strategy 1 Fallback: DWD GWAM / ECMWF WAM run out at 180 / 240 hours.
-            // Dynamically upgrade to GFS wave (ncep_gfswave025) if past 180 hours
+            // Strategy 1 Fallback: DWD GWAM (168h limit) / ECMWF WAM (144h limit) run out.
+            // Dynamically upgrade to GFS wave (ncep_gfswave025) if past regional boundaries
+            if (baseModel === 'ecmwf_wam025' && timeOffsetHours > 140) {
+              return 'ncep_gfswave025';
+            }
+            if (baseModel === 'dwd_gwam' && timeOffsetHours > 160) {
+              return 'ncep_gfswave025';
+            }
             if (timeOffsetHours > 180 && baseModel !== 'ncep_gfswave025') {
               return 'ncep_gfswave025';
             }
@@ -260,10 +267,22 @@ export function useOpenMeteoTileUrls({
           }
           if (variable === 'precipitation' || variable === 'cloud_cover') {
             const baseModel = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
-            if (timeOffsetHours > 180 && baseModel === 'dwd_icon') {
+            if (baseModel === 'dwd_icon' && timeOffsetHours > 160) {
               return 'ncep_gfs013'; // GFS precipitation runs up to 10 days
             }
+            if (baseModel === 'ecmwf_ifs025' && timeOffsetHours > 130) {
+              return 'ncep_gfs013';
+            }
+            if (timeOffsetHours > 180 && baseModel === 'dwd_icon') {
+              return 'ncep_gfs013';
+            }
             return baseModel;
+          }
+          if (targetModel === 'ecmwf_ifs025' && timeOffsetHours > 130) {
+            return 'ncep_gfs025'; // Fallback to GFS atmospheric
+          }
+          if (targetModel === 'dwd_icon' && timeOffsetHours > 160) {
+            return 'ncep_gfs025';
           }
           if (timeOffsetHours > 180 && targetModel === 'dwd_icon') {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
@@ -273,6 +292,80 @@ export function useOpenMeteoTileUrls({
 
         const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
         window.__OM_ACTIVE_MODELS__ = models;
+
+        // FAST-PATH: If all models are warm in cache, resolve SYNCHRONOUSLY to prevent timeline scrubbing delay
+        const allCached = models.every(m => MODEL_METADATA_CACHE[m] && Array.isArray(MODEL_METADATA_CACHE[m].validTimes) && MODEL_METADATA_CACHE[m].validTimes.length);
+        if (allCached) {
+          const newUrls = {};
+          const newActiveSlots = {};
+          for (const { layerKey, variable, entry } of tasks) {
+            let layerModel = resolveModel(entry, variable);
+            let meta = MODEL_METADATA_CACHE[layerModel];
+            let resolvedVar = variable;
+            if (!meta.variables.includes(variable)) {
+              const VARIABLE_FALLBACKS = {
+                'wind_speed_10m': 'wind_gusts_10m', 'wind_gusts_10m': 'wind_u_component_10m', 'visibility': 'cloud_cover_low'
+              };
+              let currentVar = variable;
+              while (currentVar && !meta.variables.includes(currentVar)) {
+                const fb = VARIABLE_FALLBACKS[currentVar];
+                if (fb) currentVar = fb;
+                else break;
+              }
+              if (meta.variables.includes(currentVar)) {
+                resolvedVar = currentVar;
+              } else if (entry.omModelGroup === 'marine') {
+                layerModel = 'ncep_gfswave025';
+                meta = MODEL_METADATA_CACHE[layerModel] || meta;
+                if (meta.variables.includes(variable)) {
+                  resolvedVar = variable;
+                }
+              }
+            }
+            if (meta.variables.includes(resolvedVar)) {
+              const { validTimes } = meta;
+              const targetMs = Date.now() + timeOffsetHours * 3600000;
+              let closestIdx = 0;
+              let minDiff = Infinity;
+              if (Array.isArray(validTimes) && validTimes.length) {
+                for (let i = 0; i < validTimes.length; i++) {
+                  const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
+                  if (diff < minDiff) { minDiff = diff; closestIdx = i; }
+                }
+              }
+              const isClampedModel = layerModel === 'ncep_gfswave025' || layerModel === 'ncep_gfs013' || layerModel === 'ncep_gfs025';
+              const maxAllowedIdx = isClampedModel ? Math.min(159, (validTimes?.length || 1) - 1) : (validTimes?.length || 1) - 1;
+              closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
+              if (isNaN(closestIdx)) closestIdx = 0;
+
+              const slotCurrent = closestIdx % 3;
+              newActiveSlots[layerKey] = slotCurrent;
+              const slotPrev = (closestIdx - 1 + 3) % 3;
+              const slotNext = (closestIdx + 1) % 3;
+              const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
+              newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
+              newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+              newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            }
+          }
+
+          if (isMounted) {
+            setOmTileUrls(prev => {
+              const filtered = {};
+              Object.keys(prev).forEach(key => {
+                const match = key.match(/^(.+)-slot-(\d+)$/);
+                if (match && activeLayers.includes(match[1])) {
+                  filtered[key] = prev[key];
+                }
+              });
+              return { ...filtered, ...newUrls };
+            });
+            setActiveSlots(newActiveSlots);
+          }
+          return;
+        }
+
+        // Asynchronous slow-path (only used if cache is cold)
         await Promise.all(models.map(m => fetchMetadata(m, signal)));
         if (!isMounted) return;
 
