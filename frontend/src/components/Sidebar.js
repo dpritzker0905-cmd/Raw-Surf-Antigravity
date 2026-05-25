@@ -24,6 +24,7 @@ export const Sidebar = () => {
   const [passportOpen, setPassportOpen] = useState(false);
   const [logoSpinning, setLogoSpinning] = useState(false);
   const { activeSession } = useActiveSession();
+  const [isHovered, setIsHovered] = useState(false);
 
   // Logo click: refresh current page in-place
   // On /feed: triggers full feed refresh + scroll to top
@@ -169,13 +170,19 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className={`fixed left-0 top-0 h-full w-16 xl:w-[200px] ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-all duration-300 overflow-hidden sidebar-left`}>
+    <aside 
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`fixed left-0 top-0 h-full ${
+        isHovered ? 'w-[200px] shadow-[8px_0_24px_rgba(0,0,0,0.25)]' : 'w-16 xl:w-[200px]'
+      } ${sidebarBgClass} border-r flex flex-col z-[100] hidden md:flex transition-all duration-300 overflow-hidden sidebar-left`}
+    >
       <AdaptiveBackground />
       {/* Logo - Compact, clickable (Instagram-style refresh) */}
       <div className={`p-3 border-b ${borderClass} flex flex-col items-center xl:items-start flex-shrink-0 z-10 relative`}>
         <button
           onClick={handleLogoClick}
-          className="flex items-center justify-center xl:justify-start gap-2 group cursor-pointer w-full"
+          className={`flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-2 group cursor-pointer w-full`}
           title={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
           aria-label={location.pathname === '/feed' ? 'Refresh feed' : 'Go to Feed'}
         >
@@ -187,12 +194,12 @@ export const Sidebar = () => {
             } group-hover:scale-110`}
             style={{ transition: logoSpinning ? 'transform 0.6s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.2s ease' }}
           />
-          <span className={`text-base font-bold ${textPrimaryClass} group-hover:opacity-80 transition-opacity font-oswald hidden xl:inline`} >Raw Surf</span>
+          <span className={`text-base font-bold ${textPrimaryClass} group-hover:opacity-80 transition-opacity font-oswald ${isHovered ? 'inline' : 'hidden xl:inline'}`} >Raw Surf</span>
         </button>
         
         {/* Role badge - shows actual role or persona when masking */}
         {user && (
-          <div className="mt-2 hidden xl:block w-full">
+          <div className={`mt-2 ${isHovered ? 'block' : 'hidden xl:block'} w-full`}>
             {isMasked ? (
               <>
                 <span className={`text-[10px] ${textSecondaryClass} flex items-center gap-1`}>
@@ -272,11 +279,11 @@ export const Sidebar = () => {
               <button
                 key="create"
                 onClick={() => navigate('/create')}
-                className={`w-full flex items-center justify-center xl:justify-start gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm ${textSecondaryClass} ${hoverBgClass} hover:${textPrimaryClass}`}
+                className={`w-full flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm ${textSecondaryClass} ${hoverBgClass} hover:${textPrimaryClass}`}
                 data-testid="nav-create"
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden xl:inline">Create</span>
+                <span className={isHovered ? 'inline' : 'hidden xl:inline'}>Create</span>
               </button>
             );
           }
@@ -288,7 +295,7 @@ export const Sidebar = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center justify-center xl:justify-start gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm ${
+                `flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm ${
                   isActive
                     ? item.highlight 
                       ? getHighlightClasses(item.highlightColor, true)
@@ -308,11 +315,11 @@ export const Sidebar = () => {
                   </span>
                 )}
               </div>
-              <span className="hidden xl:inline">{item.label}</span>
+              <span className={isHovered ? 'inline' : 'hidden xl:inline'}>{item.label}</span>
             </NavLink>,
             // Insert search bar after Map item
             isMapItem && (
-              <div key="search-bar" className="px-2 py-2 hidden xl:block w-full">
+              <div key="search-bar" className={`px-2 py-2 ${isHovered ? 'block' : 'hidden xl:block'} w-full`}>
                 <GlobalSearchBar variant="desktop" className="w-full" />
               </div>
             ),
@@ -329,7 +336,7 @@ export const Sidebar = () => {
                 navigate('/bookings?tab=on_demand');
               }
             }}
-            className="w-full px-3 py-1.5 flex items-center justify-center xl:justify-start gap-2 transition-all hover:opacity-80"
+            className={`w-full px-3 py-1.5 flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-2 transition-all hover:opacity-80`}
             data-testid="sidebar-active-session"
             title={
               activeSession.status === 'in_session'
@@ -349,7 +356,7 @@ export const Sidebar = () => {
               }`} 
             />
             <span
-              className={`text-[11px] font-semibold animate-pulse hidden xl:inline ${
+              className={`text-[11px] font-semibold animate-pulse ${isHovered ? 'inline' : 'hidden xl:inline'} ${
                 activeSession.role === 'crew_member' ? 'text-cyan-400' : 'text-amber-400'
               }`}
             >
@@ -371,12 +378,12 @@ export const Sidebar = () => {
       </nav>
 
       {/* Bottom actions - Compact for smaller screens */}
-      <div className={`p-2 border-t ${borderClass} flex flex-col items-center xl:items-stretch flex-shrink-0 z-10 relative`}>
+      <div className={`p-2 border-t ${borderClass} flex flex-col ${isHovered ? 'items-stretch' : 'items-center xl:items-stretch'} flex-shrink-0 w-full z-10 relative`}>
         {/* Settings - User preferences, notifications, billing */}
         <NavLink
           to="/settings"
           className={({ isActive }) =>
-            `w-full flex items-center justify-center xl:justify-start gap-3 px-4 py-2 rounded-lg mb-0.5 transition-all text-sm ${
+            `w-full flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-3 px-4 py-2 rounded-lg mb-0.5 transition-all text-sm ${
               isActive
                 ? activeHighlightClass
                 : `${textSecondaryClass} ${hoverBgClass} hover:${textPrimaryClass}`
@@ -385,7 +392,7 @@ export const Sidebar = () => {
           data-testid="nav-settings"
         >
           <Settings className="w-4 h-4 flex-shrink-0" />
-          <span className="hidden xl:inline">Settings</span>
+          <span className={isHovered ? 'inline' : 'hidden xl:inline'}>Settings</span>
         </NavLink>
         
         {/* Admin Console - Only visible to admins (Unified entry point) */}
@@ -393,7 +400,7 @@ export const Sidebar = () => {
           <NavLink
             to="/admin"
             className={({ isActive }) =>
-              `w-full flex items-center justify-center xl:justify-start gap-3 px-4 py-2 rounded-lg mb-0.5 transition-all text-sm ${
+              `w-full flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-3 px-4 py-2 rounded-lg mb-0.5 transition-all text-sm ${
                 isActive
                   ? 'bg-gradient-to-r from-red-500 to-yellow-500 text-black font-medium'
                   : 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
@@ -402,12 +409,12 @@ export const Sidebar = () => {
             data-testid="nav-admin-console"
           >
             <Shield className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden xl:inline">Admin Console</span>
+            <span className={isHovered ? 'inline' : 'hidden xl:inline'}>Admin Console</span>
           </NavLink>
         )}
         
         {/* Theme & Logout in a row to save space */}
-        <div className="flex flex-col xl:flex-row items-center gap-1 mt-1 w-full">
+        <div className={`flex ${isHovered ? 'flex-row' : 'flex-col xl:flex-row'} items-center gap-1 mt-1 w-full`}>
           <NavLink
             to="/theme"
             className={({ isActive }) =>
@@ -420,7 +427,7 @@ export const Sidebar = () => {
             data-testid="nav-theme"
           >
             <ThemeIcon className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden xl:inline">Theme</span>
+            <span className={isHovered ? 'inline' : 'hidden xl:inline'}>Theme</span>
           </NavLink>
           
           <button aria-label="Log Out"
@@ -429,7 +436,7 @@ export const Sidebar = () => {
             data-testid="nav-logout"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden xl:inline">Log out</span>
+            <span className={isHovered ? 'inline' : 'hidden xl:inline'}>Log out</span>
           </button>
         </div>
       </div>
