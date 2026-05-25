@@ -156,11 +156,41 @@ function getSnapConfig(bounds) {
   const latSpan = Math.abs(bounds.north - bounds.south);
   const maxSpan = Math.max(lngSpan, latSpan);
 
-  if (maxSpan < 2) return { snap: 0.5, padding: 0.25 };
-  if (maxSpan < 5) return { snap: 1.0, padding: 0.5 };
-  if (maxSpan < 12) return { snap: 2.0, padding: 1.0 };
-  if (maxSpan < 25) return { snap: 5.0, padding: 2.5 };
-  return { snap: 10.0, padding: 5.0 };
+  // v4.2.0: Coarser snapping grid to maximize regional containment cache hits
+  if (maxSpan < 4) return { snap: 4.0, padding: 2.0 };
+  if (maxSpan < 12) return { snap: 4.0, padding: 2.0 };
+  if (maxSpan < 25) return { snap: 8.0, padding: 4.0 };
+  return { snap: 16.0, padding: 8.0 };
+}
+
+function isViewportInsideCachedBounds(viewport, cached) {
+  if (!viewport || !cached) return false;
+  let vWest = viewport.west;
+  let vEast = viewport.east;
+  if (vEast < vWest) vEast += 360;
+
+  let cWest = cached.west;
+  let cEast = cached.east;
+  if (cEast < cWest) cEast += 360;
+
+  // Verify full coordinate containment within active cached hourly grid bounds
+  const isLatContained = viewport.south >= cached.south && viewport.north <= cached.north;
+  const isLngContained = vWest >= cWest && vEast <= cEast;
+  return isLatContained && isLngContained;
+}
+
+export function isContainedInWindCache(bounds, model) {
+  if (!bounds || !windHourlyCache.bounds || !windHourlyCache.results) return false;
+  if (windHourlyCache.model !== (model || 'GFS')) return false;
+  if (Date.now() - windHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
+  return isViewportInsideCachedBounds(bounds, windHourlyCache.bounds);
+}
+
+export function isContainedInMarineCache(bounds, model) {
+  if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
+  if (marineHourlyCache.model !== (model || 'GFS')) return false;
+  if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
+  return isViewportInsideCachedBounds(bounds, marineHourlyCache.bounds);
 }
 
 /**
@@ -300,6 +330,12 @@ export { extractWindAtOffset, extractMarineAtOffset };
 // ========================================================================
 export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null) {
   if (!bounds) { console.log('[Wind] fetchWindData: no bounds'); return lastKnownGoodWind; }
+
+  // Viewport containment caching hit (0ms load from memory)
+  if (!forceFetch && isContainedInWindCache(bounds, model)) {
+    console.log(`[Wind] Viewport containment HIT: zero-API pan served instantly from memory`);
+    return extractWindAtOffset(windHourlyCache, hourOffset);
+  }
 
  // Inflight lock but DON'T return null on first load, return lastKnownGood
   if (windRequestInFlight) {
@@ -543,6 +579,13 @@ function extractMarineAtOffset(cache, hourOffset) {
 // ========================================================================
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null) {
   if (!bounds) return lastKnownGoodMarine;
+
+  // Viewport containment caching hit (0ms load from memory)
+  if (!forceFetch && isContainedInMarineCache(bounds, model)) {
+    console.log(`[Marine] Viewport containment HIT: zero-API pan served instantly from memory`);
+    return extractMarineAtOffset(marineHourlyCache, hourOffset);
+  }
+
   if (marineRequestInFlight) {
     console.log('[Marine] fetchMarineData: request inflight, returning cached');
     return lastKnownGoodMarine;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset } from './marineController';
+import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 
 /**
@@ -167,23 +167,29 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       if (timer) {
         clearTimeout(timer);
       }
-      timer = setTimeout(async () => {
-        timer = null;
-        try {
-          const b = mapInstance.getBounds();
-          const bounds = {
-            west: b.getWest(),
-            south: Math.max(-85, b.getSouth()),
-            east: b.getEast(),
-            north: Math.min(85, b.getNorth())
-          };
-          const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
-          if (data && data.vectors?.length > 0) {
-            windRevision.current += 1;
-            setWindData(data);
-          }
-        } catch (e) { /* ignore */ }
-      }, 2000);
+      try {
+        const b = mapInstance.getBounds();
+        const bounds = {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
+        // Turbo-boost: check if the new bounds are contained in cache, drop pan delay to 50ms instead of 2000ms
+        const isCached = isContainedInWindCache(bounds, activeModel);
+        const delay = isCached ? 50 : 2000;
+
+        timer = setTimeout(async () => {
+          timer = null;
+          try {
+            const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
+            if (data && data.vectors?.length > 0) {
+              windRevision.current += 1;
+              setWindData(data);
+            }
+          } catch (e) { /* ignore */ }
+        }, delay);
+      } catch (e) { /* ignore bounds error on init */ }
     };
 
     mapInstance.on('moveend', onMoveEnd);

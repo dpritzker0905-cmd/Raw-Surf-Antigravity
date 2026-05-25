@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset } from './marineController';
+import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache } from './marineController';
 
 /**
  * useMarineOrchestrator (v238)
@@ -258,8 +258,20 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         return;
       }
 
-      // Hard Dedupe: Ignore identical triggers within 800ms
-      if (lastInvocationRef.current.source === source && now - lastInvocationRef.current.time < 800) {
+      // Check if this pan is already cached
+      let isCached = false;
+      try {
+        const b = mapInstance.getBounds();
+        const bounds = {
+          west: b.getWest(), south: b.getSouth(),
+          east: b.getEast(), north: b.getNorth()
+        };
+        isCached = isContainedInMarineCache(bounds, activeModelRef.current);
+      } catch (e) { /* map not ready */ }
+
+      // Hard Dedupe: Ignore identical triggers within 800ms (reduced to 50ms if cached)
+      const dedupeWindow = isCached ? 50 : 800;
+      if (lastInvocationRef.current.source === source && now - lastInvocationRef.current.time < dedupeWindow) {
         return;
       }
 
@@ -283,12 +295,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       requestAnimationFrame(() => {
         scheduledRef.current = false;
         clearTimeout(timeoutId);
-        // Stable Bounds Delay: let inertial map easing settle
+        // Stable Bounds Delay: let inertial map easing settle (turbo-boosted to 20ms if cached)
+        const stableDelay = isCached ? 20 : 300;
         timeoutId = setTimeout(() => {
           if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
             updateMarineGrid(source);
           }
-        }, 300);
+        }, stableDelay);
       });
     };
 
@@ -305,11 +318,23 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (lastStableCameraRef.current === cameraHash) return;
       lastStableCameraRef.current = cameraHash;
 
+      // Turbo-boost pan: check if cached, drop debounce from 900ms to 50ms
+      let isCached = false;
+      try {
+        const b = mapInstance.getBounds();
+        const bounds = {
+          west: b.getWest(), south: b.getSouth(),
+          east: b.getEast(), north: b.getNorth()
+        };
+        isCached = isContainedInMarineCache(bounds, activeModelRef.current);
+      } catch (e) { /* map not ready */ }
+      const debounceTime = isCached ? 50 : 900;
+
       // v3 contract: 900ms debounce for moveend per rate limit protection
       clearTimeout(moveendDebounceRef.timer);
       moveendDebounceRef.timer = setTimeout(() => {
         enqueueMarineUpdate('moveend');
-      }, 900);
+      }, debounceTime);
     };
 
     // User Intent Tracking

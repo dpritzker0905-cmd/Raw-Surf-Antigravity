@@ -255,9 +255,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     var wasActive = false;
     var lastDataId = null;
     var lastHourOffset = null;
+    var lastBoundsHash = null;
     var warmedUp = false; // Track if we've done the initial warm-up
-    var handleMapMove = function() { warmedUp = false; };
-    mapInstance.on('moveend', handleMapMove);
     var coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
 
@@ -271,11 +270,13 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       wasActive = true;
 
       // Redistribute particles on MODEL change (full respawn) or
-      // timeline scrub (soft 30% expire for smooth transition)
+      // viewport grid bounds change (soft respawn & warm-up)
       var sourceModel = grid.source || 'GFS';
       var currentOffset = grid.hourOffset;
-      if (lastDataId !== null && lastDataId !== sourceModel) {
-        // Full respawn on model switch
+      var currentBoundsHash = grid.bounds ? `${grid.bounds.west.toFixed(2)}:${grid.bounds.east.toFixed(2)}` : '';
+
+      if (lastDataId !== null && (lastDataId !== sourceModel || lastBoundsHash !== currentBoundsHash)) {
+        // Full respawn on model switch or regional bounds shift
         var pts2 = particlesRef.current;
         for (var ri = 0; ri < pts2.length; ri++) {
           pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length);
@@ -294,22 +295,22 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       }
       lastDataId = sourceModel;
       lastHourOffset = currentOffset;
+      lastBoundsHash = currentBoundsHash;
 
       var zoom = mapInstance.getZoom();
       var centerLng = mapInstance.getCenter().lng;
 
-      // Warm-up: simulate steps without drawing to pre-advect particles.
-      // v78: Reduced from 3015 steps and respawn OOB particles after warm-up
-      // to prevent clustering downwind (particles all blow the same direction).
-      if (!warmedUp) {
-        warmedUp = true;
+      // Spread the 15 warm-up steps over 5 frames (3 steps per frame) to prevent requestAnimationFrame violations
+      if (warmedUp === false || (typeof warmedUp === 'number' && warmedUp < 15)) {
+        var currentStep = typeof warmedUp === 'number' ? warmedUp : 0;
+        var stepsToRun = 3;
         var pts3 = particlesRef.current;
         var DEG_PER_M = 1 / 111320;
         var wmb = mapInstance.getBounds();
         var wBW = getRenderLng(wmb.getWest(), centerLng);
         var wBE = getRenderLng(wmb.getEast(), centerLng);
         var wBS = wmb.getSouth(), wBN = wmb.getNorth();
-        for (var step = 0; step < 15; step++) {
+        for (var step = 0; step < stepsToRun; step++) {
           for (var wi = 0; wi < pts3.length; wi++) {
             var wp = pts3[wi];
             var wWind = interpolateWind(grid, wp.lng, wp.lat);
@@ -336,18 +337,24 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
             while (wp.lng < -180) wp.lng += 360;
           }
         }
-        // v78: Respawn particles that warm-up blew outside viewport 
-        // prevents density clustering on the downwind side
-        var respawned = 0;
-        for (var ri2 = 0; ri2 < pts3.length; ri2++) {
-          var rp = pts3[ri2];
-          var rrpLng = getRenderLng(rp.lng, centerLng);
-          if (rrpLng < wBW - 2 || rrpLng > wBE + 2 || rp.lat < wBS - 2 || rp.lat > wBN + 2) {
-            pts3[ri2] = spawnParticle(mapInstance, true, ri2, pts3.length);
-            respawned++;
+        currentStep += stepsToRun;
+        if (currentStep >= 15) {
+          warmedUp = true;
+          // Respawn particles that warm-up blew outside viewport 
+          // prevents density clustering on the downwind side
+          var respawned = 0;
+          for (var ri2 = 0; ri2 < pts3.length; ri2++) {
+            var rp = pts3[ri2];
+            var rrpLng = getRenderLng(rp.lng, centerLng);
+            if (rrpLng < wBW - 2 || rrpLng > wBE + 2 || rp.lat < wBS - 2 || rp.lat > wBN + 2) {
+              pts3[ri2] = spawnParticle(mapInstance, true, ri2, pts3.length);
+              respawned++;
+            }
           }
+          console.log('[WindOverlay] Warm-up complete: 15 steps (spread), ' + respawned + ' respawned');
+        } else {
+          warmedUp = currentStep;
         }
-        console.log('[WindOverlay] Warm-up complete: 15 steps, ' + respawned + ' respawned');
       }
 
       var isThrottled = coordState === 2;
@@ -489,7 +496,6 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       ACTIVE_WIND_ENGINES.delete(layerId);
       coordinator.unregister(layerId);
       window.removeEventListener('resize', onResize);
-      mapInstance.off('moveend', handleMapMove);
     };
   }, [mapInstance]);
 
