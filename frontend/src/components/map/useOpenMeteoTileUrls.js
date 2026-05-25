@@ -147,6 +147,13 @@ export function useOpenMeteoTileUrls({
                       12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
                     ];
                     
+                    const dampingFactor = timeOffsetHours > 240
+                      ? Math.max(0.3, 1.0 - (timeOffsetHours - 240) * 0.005)
+                      : 1.0;
+                    const finalOpacity = dampingFactor !== 1.0
+                      ? opacityExpression.map((val, idx) => (idx > 2 && typeof val === 'number' ? val * dampingFactor : val))
+                      : opacityExpression;
+                    
                     [0, 1, 2].forEach(slotIdx => {
                       const layerId = `${layerKey}-slot-${slotIdx}-layer`;
                       const isActive = currentActiveSlots[layerKey] !== undefined
@@ -155,7 +162,7 @@ export function useOpenMeteoTileUrls({
                       
                       if (mapInstance.getLayer(layerId)) {
                         mapInstance.setLayoutProperty(layerId, 'visibility', 'visible');
-                        mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? opacityExpression : 0.0);
+                        mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? finalOpacity : 0.0);
                       }
                     });
                   });
@@ -240,10 +247,23 @@ export function useOpenMeteoTileUrls({
         const resolveModel = (entry, variable) => {
           if (entry.omModel) return entry.omModel;
           if (entry.omModelGroup === 'marine') {
-            return MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
+            const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
+            // Strategy 1 Fallback: DWD GWAM / ECMWF WAM run out at 180 / 240 hours.
+            // Dynamically upgrade to GFS wave (ncep_gfswave025) if past 180 hours
+            if (timeOffsetHours > 180 && baseModel !== 'ncep_gfswave025') {
+              return 'ncep_gfswave025';
+            }
+            return baseModel;
           }
           if (variable === 'precipitation' || variable === 'cloud_cover') {
-            return PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
+            const baseModel = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
+            if (timeOffsetHours > 180 && baseModel === 'dwd_icon') {
+              return 'ncep_gfs013'; // GFS precipitation runs up to 10 days
+            }
+            return baseModel;
+          }
+          if (timeOffsetHours > 180 && targetModel === 'dwd_icon') {
+            return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
           return targetModel;
         };
@@ -369,6 +389,13 @@ export function useOpenMeteoTileUrls({
           12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
         ];
         
+        const dampingFactor = timeOffsetHours > 240
+          ? Math.max(0.3, 1.0 - (timeOffsetHours - 240) * 0.005)
+          : 1.0;
+        const finalOpacity = dampingFactor !== 1.0
+          ? opacityExpression.map((val, idx) => (idx > 2 && typeof val === 'number' ? val * dampingFactor : val))
+          : opacityExpression;
+        
         [0, 1, 2].forEach(slot => {
           const slotLayerId = `${layerKey}-slot-${slot}-layer`;
           if (mapInstance.getLayer(slotLayerId)) {
@@ -377,7 +404,7 @@ export function useOpenMeteoTileUrls({
               ? activeSlots[layerKey] === slot
               : (closestTimeIdxRef.current % 3) === slot;
             if (!isTransitioning) {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? opacityExpression : 0.0);
+              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? finalOpacity : 0.0);
             } else {
               safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.0);
             }
