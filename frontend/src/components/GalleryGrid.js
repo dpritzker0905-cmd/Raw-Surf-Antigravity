@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Edit3, Trash2, Check, Loader2, Play, Image, MoreVertical, X } from 'lucide-react';
+import { Edit3, Trash2, Check, Loader2, Play, Image, MoreVertical, X, Plus } from 'lucide-react';
 import { getFullUrl, getOptimizedMediaUrl } from '../utils/media';
 
 /**
@@ -222,6 +222,7 @@ export const GalleryGrid = ({
   onItemClick,
   onItemEdit,
   onItemDelete,
+  onUploadClick,
   emptyMessage = 'No items in gallery',
   theme = 'dark'
 }) => {
@@ -250,6 +251,21 @@ export const GalleryGrid = ({
           theme={theme}
         />
       ))}
+
+      {!bulkSelectMode && onUploadClick && (
+        <button
+          onClick={onUploadClick}
+          className="relative aspect-square rounded-xl border-2 border-dashed border-cyan-500/30 hover:border-cyan-500 bg-muted/20 hover:bg-cyan-500/5 flex flex-col items-center justify-center gap-2 group transition-all duration-200"
+          aria-label="Upload photos"
+        >
+          <div className="w-10 h-10 rounded-full bg-cyan-500/10 group-hover:bg-cyan-500/20 text-cyan-400 flex items-center justify-center transition-colors">
+            <Plus className="w-5 h-5" />
+          </div>
+          <span className="text-xs font-semibold text-muted-foreground group-hover:text-cyan-400 transition-colors">
+            Add Photos
+          </span>
+        </button>
+      )}
     </div>
   );
 };

@@ -649,6 +649,7 @@ export const GalleryPage = () => {
               onItemClick={(item) => setSelectedItem(item)}
               onItemEdit={(item) => setSelectedItem(item)}
               onItemDelete={handleDeleteFromGallery}
+              onUploadClick={() => setShowAddToGalleryModal(true)}
               emptyMessage="No items in gallery"
               theme="dark"
             />
