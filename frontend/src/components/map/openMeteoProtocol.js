@@ -324,6 +324,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             }
           };
 
+          // Fast-path: Block requests to known missing model runs in 0ms without throwing or logging
+          if (params.url) {
+            for (const runPattern of MISSING_OM_RUNS) {
+              if (params.url.includes(runPattern)) {
+                return getSafeWorkerFallbackResponse(params.url, params.type);
+              }
+            }
+          }
+
           // Intercept local transparent-tile requests seamlessly without causing Data URI fetch exceptions
           if (params.url && params.url.includes('transparent-tile')) {
             return getSafeWorkerFallbackResponse(params.url, 'image');

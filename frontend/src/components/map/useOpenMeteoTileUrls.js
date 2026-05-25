@@ -252,7 +252,12 @@ export function useOpenMeteoTileUrls({
 
         const tasks = Object.keys(LAYER_REGISTRY)
           .filter(k => LAYER_REGISTRY[k].omVariable)
-          .map(k => ({ layerKey: k, variable: LAYER_REGISTRY[k].omVariable, entry: LAYER_REGISTRY[k] }));
+          .map(k => ({
+            layerKey: k,
+            variable: LAYER_REGISTRY[k].omVariable,
+            entry: LAYER_REGISTRY[k],
+            isActive: activeLayers.includes(k)
+          }));
 
         const resolveModel = (entry, variable) => {
           if (entry.omModel) return entry.omModel;
@@ -287,7 +292,8 @@ export function useOpenMeteoTileUrls({
           return targetModel;
         };
 
-        const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
+        const activeTasks = tasks.filter(t => t.isActive);
+        const models = [...new Set(activeTasks.map(t => resolveModel(t.entry, t.variable)))];
         window.__OM_ACTIVE_MODELS__ = models;
 
         // FAST-PATH: If all models are warm in cache, resolve SYNCHRONOUSLY to prevent timeline scrubbing delay
@@ -295,7 +301,14 @@ export function useOpenMeteoTileUrls({
         if (allCached) {
           const newUrls = {};
           const newActiveSlots = {};
-          for (const { layerKey, variable, entry } of tasks) {
+          for (const { layerKey, variable, entry, isActive } of tasks) {
+            if (!isActive) {
+              newActiveSlots[layerKey] = 0;
+              newUrls[`${layerKey}-slot-0`] = 'om://transparent-tile';
+              newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
+              newUrls[`${layerKey}-slot-2`] = 'om://transparent-tile';
+              continue;
+            }
             let layerModel = resolveModel(entry, variable);
             let meta = MODEL_METADATA_CACHE[layerModel];
             let resolvedVar = variable;
@@ -373,7 +386,14 @@ export function useOpenMeteoTileUrls({
 
         const newUrls = {};
         const newActiveSlots = {};
-        for (const { layerKey, variable, entry } of tasks) {
+        for (const { layerKey, variable, entry, isActive } of tasks) {
+          if (!isActive) {
+            newActiveSlots[layerKey] = 0;
+            newUrls[`${layerKey}-slot-0`] = 'om://transparent-tile';
+            newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
+            newUrls[`${layerKey}-slot-2`] = 'om://transparent-tile';
+            continue;
+          }
           let layerModel = resolveModel(entry, variable);
           let meta = await fetchMetadata(layerModel);
           if (!isMounted) return;

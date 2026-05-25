@@ -80,7 +80,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       }
     }
 
-    const shouldBypassRateLimit = isModelSwitch || isExplicit || isCoordinateMoved;
+    const shouldBypassRateLimit = isModelSwitch || isExplicit;
     if (!shouldBypassRateLimit && now - lastGlobalFetchTime < MIN_FETCH_INTERVAL) {
       return;
     }
@@ -119,15 +119,21 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         marine: 'https://marine-api.open-meteo.com/v1/marine',
       };
 
-      // Helper: fetch via proxy, fall back to direct Open-Meteo if proxy returns HTML/404
+      const isLocalhost = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
+
+      // Helper: fetch via proxy, fall back to direct Open-Meteo if proxy returns HTML/404 (localhost only)
       const safeFetch = async (url, directType, directParams) => {
         try {
           const res = await fetch(url, { signal: controller.signal });
-          // If proxy returns HTML (e.g. CRA index.html for unknown route), fall back
+          // If proxy returns HTML (e.g. CRA index.html for unknown route), fall back (localhost only)
           const ct = res.headers.get('content-type') || '';
           if (!res.ok || ct.includes('text/html')) {
-            console.log(`[OpenMeteo] Proxy unavailable (${res.status}), falling back to direct API for ${directType}`);
-            return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+            if (isLocalhost) {
+              console.log(`[OpenMeteo] Proxy unavailable (${res.status}), falling back to direct API for ${directType}`);
+              return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+            }
+            throw new Error(`Proxy unavailable (${res.status})`);
           }
           return res;
         } catch (e) {
@@ -135,10 +141,13 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             if (process.env.NODE_ENV === 'development') logger.debug?.('[OpenMeteo] SW clone retry');
             return await fetch(url);
           }
-          // Network error — try direct
+          // Network error — try direct (localhost only)
           if (e.name !== 'AbortError') {
-            console.log(`[OpenMeteo] Proxy error (${e.message}), falling back to direct API for ${directType}`);
-            return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+            if (isLocalhost) {
+              console.log(`[OpenMeteo] Proxy error (${e.message}), falling back to direct API for ${directType}`);
+              return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+            }
+            throw e;
           }
           throw e;
         }
@@ -317,7 +326,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     prevCoordsRef.current = { latitude, longitude };
 
     const useFastDebounce = isExplicit || isModelSwitch;
-    const debounceDuration = useFastDebounce ? 50 : 1000;
+    const debounceDuration = useFastDebounce ? 50 : 2500;
 
     debounceRef.current = setTimeout(() => {
       fetchForecast();

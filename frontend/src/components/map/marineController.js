@@ -28,6 +28,8 @@ var getUV = (speed, dir) => {
 // --- PROXY CONFIG ---
 // v3.9.6: Route through Netlify serverless proxy to bypass client IP rate limits
 var PROXY_URL = '/api/weather-proxy';
+var isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
 
 function findClosestHourIndex(timeArray, targetMs) {
   if (!timeArray || !timeArray.length) return 0;
@@ -444,14 +446,18 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         console.log(`[Wind] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
       }
     } catch (proxyErr) {
-      // Proxy unavailable (e.g. localhost dev) fall back to direct API
-      console.log('[Wind] Proxy unavailable or error, direct API fallback:', proxyErr.message);
-      res = await fetch('https://api.open-meteo.com/v1/forecast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: fetchSignal
-      });
+      if (isLocalhost) {
+        console.log('[Wind] Proxy unavailable or error, direct API fallback:', proxyErr.message);
+        res = await fetch('https://api.open-meteo.com/v1/forecast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: fetchSignal
+        });
+      } else {
+        console.error('[Wind] Proxy error, direct fallback skipped in production/dev:', proxyErr.message);
+        throw proxyErr;
+      }
     }
 
     if (!res.ok) {
@@ -687,13 +693,18 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         console.log(`[Marine] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
       }
     } catch (proxyErr) {
-      console.log('[Marine] Proxy unavailable or error, direct API fallback:', proxyErr.message);
-      res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: fetchSignal
-      });
+      if (isLocalhost) {
+        console.log('[Marine] Proxy unavailable or error, direct API fallback:', proxyErr.message);
+        res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: fetchSignal
+        });
+      } else {
+        console.error('[Marine] Proxy error, direct fallback skipped in production/dev:', proxyErr.message);
+        throw proxyErr;
+      }
     }
 
     if (!res.ok) {
