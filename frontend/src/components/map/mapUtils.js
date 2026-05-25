@@ -732,7 +732,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 tilejson: "2.2.0",
                 name: "om-safe-fallback",
                 version: "1.0.0",
-                tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="],
+                tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg="],
                 bounds: [-180, -85, 180, 85],
                 minzoom: 0,
                 maxzoom: 22
@@ -745,7 +745,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             // Pre-compiled raw Uint8Array byte sequence avoids window.atob ReferenceError in Web Workers.
             try {
               const cleanPngBytes = new Uint8Array([
-                137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 4, 0, 0, 0, 181, 28, 12, 2, 0, 0, 0, 11, 73, 68, 65, 84, 120, 218, 99, 100, 96, 0, 0, 0, 6, 0, 2, 48, 129, 208, 47, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+                137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 96, 96, 96, 0, 0, 0, 5, 0, 1, 165, 246, 69, 64, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
               ]);
               return { data: cleanPngBytes.buffer };
             } catch (e) {
