@@ -107,7 +107,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const marineModel = activeModel === 'EURO'
       ? 'ecmwf_wam025'
       : activeModel === 'ICON'
-        ? 'gwam'
+        ? 'dwd_gwam'
         : 'ncep_gfswave025';
     const hourlyMarineVars = MARINE_VARS;
     const currentMarineVars = CURRENT_MARINE_VARS;
@@ -213,6 +213,10 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             });
           }
         }
+      } else if (needBaseGfs && rx.wx_base?.ok) {
+        // Fallback to base GFS weather data if the selected model failed (e.g. rate limit, 502/503/504)
+        finalForecastData = await rx.wx_base.value.json();
+        console.log(`[Forecast] Selected weather model failed, falling back to base GFS weather data`);
       }
 
       // Marine Stitching:
@@ -239,6 +243,10 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             });
           }
         }
+      } else if (needBaseGfs && rx.marine_base?.ok) {
+        // Fallback to base GFS marine data if selected model failed (e.g. due to land mask boundary differences)
+        finalMarineData = await rx.marine_base.value.json();
+        console.log(`[Forecast] Selected marine model failed, falling back to base GFS Wave data`);
       }
 
       // Weather Application:

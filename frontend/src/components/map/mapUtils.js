@@ -463,6 +463,32 @@ export var OM_MODEL_MAP = {
 export var MODEL_METADATA_PROMISES = {};
 export var LIVE_FETCHED_MODELS = new Set();
 
+// Synchronously warm the metadata cache from localStorage on startup if present.
+// This ensures that MapWebGL immediately uses the correct synced CDN reference times
+// on the very first frame, eliminating the 1-second double-render double-loading delay.
+if (typeof window !== 'undefined' && window.localStorage) {
+  const models = ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ncep_gfswave025', 'dwd_gwam', 'ecmwf_wam025'];
+  models.forEach(modelToCheck => {
+    try {
+      const stored = window.localStorage.getItem(`om_meta_${modelToCheck}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.validTimes && (Date.now() - (parsed.fetchedAt || 0) < 3600000)) {
+          MODEL_METADATA_CACHE[modelToCheck] = {
+            variables: parsed.variables || [],
+            validTimes: parsed.validTimes || [],
+            referenceTime: parsed.referenceTime || null
+          };
+          LIVE_FETCHED_MODELS.add(modelToCheck);
+          console.log(`[OM-Cache] Synchronous startup cache HIT for ${modelToCheck}`);
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  });
+}
+
 export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged, signal) {
   const cached = MODEL_METADATA_CACHE[modelToCheck];
   if (cached && LIVE_FETCHED_MODELS.has(modelToCheck)) return cached;
