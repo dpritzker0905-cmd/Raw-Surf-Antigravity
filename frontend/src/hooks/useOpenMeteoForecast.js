@@ -147,30 +147,109 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       const wxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=${modelParam}&forecast_days=${forecastDays}&wind_speed_unit=kn`;
       const marineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=${marineModel}&forecast_days=${Math.min(forecastDays, 16)}`;
 
-      // Fetch weather and marine in parallel
-      const [wxRes, marineRes] = await Promise.all([
-        safeFetch(
-          `/api/weather-proxy?type=wind&${wxParams}`,
-          'wind', wxParams
-        ).then(r => ({ status: 'fulfilled', value: r }))
-         .catch(e => ({ status: 'rejected', reason: e })),
+      const needBaseGfs = activeModel !== 'GFS';
+      const gfsWxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=gfs_seamless&forecast_days=16&wind_speed_unit=kn`;
+      const gfsMarineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=ncep_gfswave025&forecast_days=16`;
 
-        safeFetch(
-          `/api/weather-proxy?type=marine&${marineParams}`,
-          'marine', marineParams
-        ).then(r => ({ status: 'fulfilled', value: r }))
-         .catch(e => ({ status: 'rejected', reason: e }))
-      ]);
+      const fetchQueue = [];
 
-      // Weather:
-      if (wxRes.status === 'fulfilled' && wxRes.value.ok) {
-        const data = await wxRes.value.json();
-        setForecastData(data);
-        if (data.current) setCurrentWeather(data.current);
+      // 1. Weather Selected
+      fetchQueue.push(
+        safeFetch(`/api/weather-proxy?type=wind&${wxParams}`, 'wind', wxParams)
+          .then(r => ({ type: 'wx_sel', ok: r.ok, value: r }))
+          .catch(e => ({ type: 'wx_sel', ok: false, reason: e }))
+      );
+
+      // 2. Marine Selected
+      fetchQueue.push(
+        safeFetch(`/api/weather-proxy?type=marine&${marineParams}`, 'marine', marineParams)
+          .then(r => ({ type: 'marine_sel', ok: r.ok, value: r }))
+          .catch(e => ({ type: 'marine_sel', ok: false, reason: e }))
+      );
+
+      if (needBaseGfs) {
+        // 3. Weather Base GFS (16 days)
+        fetchQueue.push(
+          safeFetch(`/api/weather-proxy?type=wind&${gfsWxParams}`, 'wind', gfsWxParams)
+            .then(r => ({ type: 'wx_base', ok: r.ok, value: r }))
+            .catch(e => ({ type: 'wx_base', ok: false, reason: e }))
+        );
+
+        // 4. Marine Base GFS (16 days)
+        fetchQueue.push(
+          safeFetch(`/api/weather-proxy?type=marine&${gfsMarineParams}`, 'marine', gfsMarineParams)
+            .then(r => ({ type: 'marine_base', ok: r.ok, value: r }))
+            .catch(e => ({ type: 'marine_base', ok: false, reason: e }))
+        );
+      }
+
+      const results = await Promise.all(fetchQueue);
+      const rx = {};
+      results.forEach(res => {
+        rx[res.type] = res;
+      });
+
+      // Weather Stitching:
+      let finalForecastData = null;
+      if (rx.wx_sel.ok) {
+        finalForecastData = await rx.wx_sel.value.json();
+        
+        if (needBaseGfs && rx.wx_base?.ok) {
+          const baseData = await rx.wx_base.value.json();
+          if (finalForecastData.hourly && baseData.hourly) {
+            const selHourly = finalForecastData.hourly;
+            const baseHourly = baseData.hourly;
+            const selLen = selHourly.time?.length || 0;
+            const baseLen = baseHourly.time?.length || 0;
+            
+            Object.keys(baseHourly).forEach(key => {
+              if (Array.isArray(baseHourly[key])) {
+                const stitchedArray = [...(selHourly[key] || [])];
+                for (let i = selLen; i < baseLen; i++) {
+                  stitchedArray.push(baseHourly[key][i]);
+                }
+                selHourly[key] = stitchedArray;
+              }
+            });
+          }
+        }
+      }
+
+      // Marine Stitching:
+      let finalMarineData = null;
+      if (rx.marine_sel.ok) {
+        finalMarineData = await rx.marine_sel.value.json();
+        
+        if (needBaseGfs && rx.marine_base?.ok) {
+          const baseData = await rx.marine_base.value.json();
+          if (finalMarineData.hourly && baseData.hourly) {
+            const selHourly = finalMarineData.hourly;
+            const baseHourly = baseData.hourly;
+            const selLen = selHourly.time?.length || 0;
+            const baseLen = baseHourly.time?.length || 0;
+            
+            Object.keys(baseHourly).forEach(key => {
+              if (Array.isArray(baseHourly[key])) {
+                const stitchedArray = [...(selHourly[key] || [])];
+                for (let i = selLen; i < baseLen; i++) {
+                  stitchedArray.push(baseHourly[key][i]);
+                }
+                selHourly[key] = stitchedArray;
+              }
+            });
+          }
+        }
+      }
+
+      // Weather Application:
+      if (finalForecastData) {
+        setForecastData(finalForecastData);
+        if (finalForecastData.current) setCurrentWeather(finalForecastData.current);
         setIsStale(false);
-        console.log(`[Forecast] OK ${activeModel}: ${data.hourly?.wind_speed_10m?.length || 0}h records`);
+        console.log(`[Forecast] OK ${activeModel} (Stitched): ${finalForecastData.hourly?.wind_speed_10m?.length || 0}h records`);
       } else {
-        const status = wxRes.value?.status || wxRes.reason;
+        lastFetchKey.current = ''; // Reset lock on error
+        const status = rx.wx_sel.value?.status || rx.wx_sel.reason;
         logger.warn(`[OpenMeteo] Weather fetch failed (${status}).`);
         setIsStale(true);
         if (isCoordinateMoved || isExplicit) {
@@ -179,13 +258,13 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       }
 
-      // Marine:
-      if (marineRes.status === 'fulfilled' && marineRes.value.ok) {
-        const data = await marineRes.value.json();
-        setMarineData(data);
+      // Marine Application:
+      if (finalMarineData) {
+        setMarineData(finalMarineData);
       } else {
-        const status = marineRes.value?.status || marineRes.reason;
-        const is400 = marineRes.value?.status === 400;
+        lastFetchKey.current = ''; // Reset lock on error
+        const status = rx.marine_sel.value?.status || rx.marine_sel.reason;
+        const is400 = rx.marine_sel.value?.status === 400;
         logger.warn(`[OpenMeteo] Marine fetch failed (${status}).`);
         setIsStale(true);
         if (isCoordinateMoved || isExplicit || is400) {
@@ -193,6 +272,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       }
     } catch (err) {
+      lastFetchKey.current = ''; // Reset lock on abort/error
       if (err.name !== 'AbortError') {
         logger.error('[OpenMeteo] Fetch error:', err);
         setIsStale(true);
