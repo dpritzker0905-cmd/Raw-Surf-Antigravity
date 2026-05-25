@@ -33,6 +33,36 @@ export function useOpenMeteoTileUrls({
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [omTileUrls, setOmTileUrls] = useState({});
 
+  const [debouncedTimeOffsetHours, setDebouncedTimeOffsetHours] = useState(timeOffsetHours);
+  const lastTimeOffsetChangeRef = useRef(0);
+  const debounceTimerRef = useRef(null);
+
+  useEffect(() => {
+    const now = Date.now();
+    const diff = now - lastTimeOffsetChangeRef.current;
+    lastTimeOffsetChangeRef.current = now;
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (diff < 120) {
+      // Rapid dragging / scrubbing timeline slider: debounce by 200ms
+      debounceTimerRef.current = setTimeout(() => {
+        setDebouncedTimeOffsetHours(timeOffsetHours);
+      }, 200);
+    } else {
+      // Single click/tap or slow adjustment: update instantly
+      setDebouncedTimeOffsetHours(timeOffsetHours);
+    }
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [timeOffsetHours]);
+
   const cacheBustRef = useRef(Date.now());
   const modelDebounceTimeoutRef = useRef(null);
   
@@ -89,7 +119,7 @@ export function useOpenMeteoTileUrls({
     const model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     const meta = MODEL_METADATA_CACHE[model];
     if (!meta || !Array.isArray(meta.validTimes) || !meta.validTimes.length) return 0;
-    const targetMs = Date.now() + timeOffsetHours * 3600000;
+    const targetMs = Date.now() + debouncedTimeOffsetHours * 3600000;
     let closestIdx = 0;
     let minDiff = Infinity;
     for (let i = 0; i < meta.validTimes.length; i++) {
@@ -99,7 +129,7 @@ export function useOpenMeteoTileUrls({
     const maxAllowedIdx = meta.validTimes.length - 1;
     const resultIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
     return isNaN(resultIdx) ? 0 : resultIdx;
-  }, [activeModel, timeOffsetHours, metadataRevision]);
+  }, [activeModel, debouncedTimeOffsetHours, metadataRevision]);
   
   useEffect(() => {
     closestTimeIdxRef.current = closestTimeIdx;
@@ -108,6 +138,9 @@ export function useOpenMeteoTileUrls({
   // Debounced model transition and block cache clear
   useEffect(() => {
     if (!activeModel) return;
+    
+    // Synced immediately to prevent the 50ms race condition
+    setMapActiveModelLock(activeModel);
     
     if (modelDebounceTimeoutRef.current) {
       clearTimeout(modelDebounceTimeoutRef.current);
@@ -150,14 +183,14 @@ export function useOpenMeteoTileUrls({
                       2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
                     ] : [
                       'interpolate', ['linear'], ['zoom'],
-                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
+                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
+                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
+                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
                     ];
                     
-                    const dampingFactor = timeOffsetHours > 240
-                      ? Math.max(0.3, 1.0 - (timeOffsetHours - 240) * 0.005)
+                    const dampingFactor = debouncedTimeOffsetHours > 240
+                      ? Math.max(0.3, 1.0 - (debouncedTimeOffsetHours - 240) * 0.005)
                       : 1.0;
                     const finalOpacity = dampingFactor !== 1.0
                       ? opacityExpression.map((val, idx) => (idx >= 4 && idx % 2 === 0 && typeof val === 'number' ? val * dampingFactor : val))
@@ -264,28 +297,28 @@ export function useOpenMeteoTileUrls({
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
             // Extend native boundaries: ECMWF WAM (EURO) runs natively to 240 hours (10 days).
             // DWD GWAM (ICON) runs natively to 180 hours (7.5 days).
-            if (baseModel === 'ecmwf_wam025' && timeOffsetHours > 240) {
+            if (baseModel === 'ecmwf_wam025' && debouncedTimeOffsetHours > 240) {
               return 'ncep_gfswave025';
             }
-            if (baseModel === 'dwd_gwam' && timeOffsetHours > 180) {
+            if (baseModel === 'dwd_gwam' && debouncedTimeOffsetHours > 180) {
               return 'ncep_gfswave025';
             }
             return baseModel;
           }
           if (variable === 'precipitation' || variable === 'cloud_cover') {
             const baseModel = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
-            if (baseModel === 'dwd_icon' && timeOffsetHours > 180) {
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 180) {
               return 'ncep_gfs013'; // GFS precipitation runs up to 10 days (240h)
             }
-            if (baseModel === 'ecmwf_ifs025' && timeOffsetHours > 240) {
+            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 240) {
               return 'ncep_gfs013';
             }
             return baseModel;
           }
-          if (targetModel === 'ecmwf_ifs025' && timeOffsetHours > 240) {
+          if (targetModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 240) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
-          if (targetModel === 'dwd_icon' && timeOffsetHours > 180) {
+          if (targetModel === 'dwd_icon' && debouncedTimeOffsetHours > 180) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
           return targetModel;
@@ -338,7 +371,7 @@ export function useOpenMeteoTileUrls({
             }
             if (meta.variables.includes(resolvedVar)) {
               const { validTimes } = meta;
-              const targetMs = Date.now() + timeOffsetHours * 3600000;
+              const targetMs = Date.now() + debouncedTimeOffsetHours * 3600000;
               let closestIdx = 0;
               let minDiff = Infinity;
               if (Array.isArray(validTimes) && validTimes.length) {
@@ -432,7 +465,7 @@ export function useOpenMeteoTileUrls({
           }
           if (meta.variables.includes(resolvedVar)) {
             const { validTimes } = meta;
-            const targetMs = Date.now() + timeOffsetHours * 3600000;
+            const targetMs = Date.now() + debouncedTimeOffsetHours * 3600000;
             let closestIdx = 0;
             let minDiff = Infinity;
             if (Array.isArray(validTimes) && validTimes.length) {
@@ -490,7 +523,7 @@ export function useOpenMeteoTileUrls({
       controller.abort(); 
       if (rafRef.current) cancelAnimationFrame(rafRef.current); 
     };
-  }, [activeModel, theme, timeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier]);
+  }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier]);
 
   // Unified Opacity Blending and Sliding Sync
   useEffect(() => {
@@ -503,14 +536,14 @@ export function useOpenMeteoTileUrls({
           2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
         ] : [
           'interpolate', ['linear'], ['zoom'],
-          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
+          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
+          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
+          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
         ];
         
-        const dampingFactor = timeOffsetHours > 240
-          ? Math.max(0.3, 1.0 - (timeOffsetHours - 240) * 0.005)
+        const dampingFactor = debouncedTimeOffsetHours > 240
+          ? Math.max(0.3, 1.0 - (debouncedTimeOffsetHours - 240) * 0.005)
           : 1.0;
         const finalOpacity = dampingFactor !== 1.0
           ? opacityExpression.map((val, idx) => (idx >= 4 && idx % 2 === 0 && typeof val === 'number' ? val * dampingFactor : val))
@@ -532,7 +565,7 @@ export function useOpenMeteoTileUrls({
     } catch (e) {
       console.warn('[MapWebGL] Failed to apply explicit blend parameter:', e);
     }
-  }, [mapInstance, activeLayers, activeSlots, isTransitioning]);
+  }, [mapInstance, activeLayers, activeSlots, isTransitioning, debouncedTimeOffsetHours]);
 
   // Paint repainting on Url/Layer updates
   useEffect(() => {
