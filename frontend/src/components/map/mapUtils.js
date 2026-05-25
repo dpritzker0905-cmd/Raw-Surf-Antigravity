@@ -8,6 +8,32 @@ import maplibregl from 'maplibre-gl';
 // Custom protocol active model lock to avoid premature tile discarding
 let activeModelLock = "";
 
+// Global Mutex to serialize all tile decoding requests and prevent parallel setToOmFile race condition OOM crashes
+class ProtocolMutex {
+  constructor() {
+    this.queue = [];
+    this.locked = false;
+  }
+  acquire() {
+    if (!this.locked) {
+      this.locked = true;
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => {
+      this.queue.push(resolve);
+    });
+  }
+  release() {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
+const protocolMutex = new ProtocolMutex();
+
 export const setMapActiveModelLock = (modelName) => {
   activeModelLock = modelName;
   console.log('[OM-Protocol] Active model lock target set to:', activeModelLock);
@@ -946,24 +972,33 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           const marineSettings = (hasWindow && window.__OM_MARINE_SETTINGS__) || null;
           const effectiveSettings = (isMarine && marineSettings) ? marineSettings : currentSettings;
 
-          // v3.13.5: Double-wrapped synchronous + asynchronous type-safe error boundaries
-          // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
+          // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
+          const runProtocol = async () => {
+            await protocolMutex.acquire();
+            try {
+              if (abortController.signal.aborted) {
+                return getSafeWorkerFallbackResponse(params.url, params.type);
+              }
+              return await omProtocol(params, abortController, effectiveSettings);
+            } catch (err) {
+              if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+                throw err;
+              }
+              console.error('[OM-Protocol] Async tile decoding error caught:', err, err.stack);
+              return getSafeWorkerFallbackResponse(params.url, params.type);
+            } finally {
+              protocolMutex.release();
+            }
+          };
+
           try {
-            return omProtocol(params, abortController, effectiveSettings)
-              .catch(err => {
-                if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-                  // Propagate the AbortError cleanly to let MapLibre know the cancellation succeeded
-                  throw err;
-                }
-                console.error('[OM-Protocol] Async tile decoding error caught:', err, err.stack);
-                return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
-              });
+            return runProtocol();
           } catch (syncErr) {
             if (syncErr.name === 'AbortError' || syncErr.message?.includes('aborted')) {
               throw syncErr;
             }
             console.error('[OM-Protocol] Sync tile parsing error:', syncErr, syncErr.stack);
-            return getSafeWorkerFallbackResponse(params.url, params.type); // Type-safe fallback!
+            return getSafeWorkerFallbackResponse(params.url, params.type);
           }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
