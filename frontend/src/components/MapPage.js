@@ -47,7 +47,7 @@ var MapPageContent = () => {
     if (user?.id && user.id !== 'dev-mock-user-id') {
       refreshUser();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
