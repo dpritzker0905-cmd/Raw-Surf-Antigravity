@@ -190,12 +190,17 @@ async def cancel_dispatch(
 
     now = datetime.now(timezone.utc)
 
-    # Bad weather waiver: Surfers can cancel due to bad weather to get full wallet credit and reschedule
+    # Bad weather waiver: Surfers can cancel due to bad weather to get full wallet credit and reschedule.
+    # BUT if the photographer has already driven (status is EN_ROUTE or ARRIVED), they must retain the fee for gas costs!
     is_bad_weather = False
     if cancel_data.reason:
         reason_lower = cancel_data.reason.lower()
         if any(keyword in reason_lower for keyword in ["weather", "storm", "rain", "lightning", "hurricane", "gale", "thunderstorm"]):
-            is_bad_weather = True
+            has_driven = dispatch.status in [DispatchRequestStatusEnum.EN_ROUTE, DispatchRequestStatusEnum.ARRIVED]
+            if not has_driven:
+                is_bad_weather = True
+            else:
+                logger.info(f"Cancellation reason is bad weather, but photographer already started driving/arrived ({dispatch.status.value}). Fee retained for gas costs.")
 
     # Calculate refund based on cancellation policy
     refund_amount = 0
