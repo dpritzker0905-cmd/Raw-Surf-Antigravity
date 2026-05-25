@@ -24,6 +24,37 @@ var ACTIVE_WIND_ENGINES = new Set();
 var TRAIL_FADE = 0.015;
 var TRAIL_FADE_THROTTLED = 0.05;
 
+// --- ZOOM-CALIBRATED SPEED TABLE ---
+// Replaces single exponential with piecewise function tuned per zoom range.
+// Each entry: { zoom, base } — interpolated linearly between breakpoints.
+var SPEED_TABLE = [
+  { zoom: 2,  base: 2200 },
+  { zoom: 4,  base: 2800 },
+  { zoom: 6,  base: 3200 },
+  { zoom: 8,  base: 3800 },
+  { zoom: 10, base: 4200 },
+  { zoom: 14, base: 5000 },
+];
+function getCalibratedSpeedScale(zoom, dt) {
+  // Find bracketing entries
+  var lo = SPEED_TABLE[0], hi = SPEED_TABLE[SPEED_TABLE.length - 1];
+  for (var i = 0; i < SPEED_TABLE.length - 1; i++) {
+    if (zoom >= SPEED_TABLE[i].zoom && zoom <= SPEED_TABLE[i + 1].zoom) {
+      lo = SPEED_TABLE[i];
+      hi = SPEED_TABLE[i + 1];
+      break;
+    }
+  }
+  if (zoom < SPEED_TABLE[0].zoom) { lo = hi = SPEED_TABLE[0]; }
+  if (zoom > SPEED_TABLE[SPEED_TABLE.length - 1].zoom) { lo = hi = SPEED_TABLE[SPEED_TABLE.length - 1]; }
+  // Linearly interpolate base factor
+  var t = (hi.zoom === lo.zoom) ? 0 : (zoom - lo.zoom) / (hi.zoom - lo.zoom);
+  var base = lo.base + t * (hi.base - lo.base);
+  // Apply Mercator decay from the interpolated zoom point
+  var refZoom = lo.zoom + t * (hi.zoom - lo.zoom);
+  return dt * base * Math.pow(0.55, zoom - refZoom);
+}
+
 /**
  * Bilinear interpolation on the wind grid O(1).
  * Grid is DENSE (extractWindAtOffset pads missing cells with zeros).
@@ -213,6 +244,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     particlesRef.current = particles;
     var wasActive = false;
     var lastDataId = null;
+    var lastHourOffset = null;
     var warmedUp = false; // Track if we've done the initial warm-up
     var coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
@@ -226,18 +258,30 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       if (!grid?.vectors?.length) return;
       wasActive = true;
 
-      // Redistribute particles only when MODEL changes (GFSEUROICON)
-      // NOT when bounds/vectors change from cache refresh that causes cluster burst
+      // Redistribute particles on MODEL change (full respawn) or
+      // timeline scrub (soft 30% expire for smooth transition)
       var sourceModel = grid.source || 'GFS';
+      var currentOffset = grid.hourOffset;
       if (lastDataId !== null && lastDataId !== sourceModel) {
+        // Full respawn on model switch
         var pts2 = particlesRef.current;
         for (var ri = 0; ri < pts2.length; ri++) {
           pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length);
         }
         ctx.clearRect(0, 0, cw, ch);
-        warmedUp = false; // Re-warm on model switch
+        warmedUp = false;
+      } else if (lastHourOffset !== null && lastHourOffset !== currentOffset) {
+        // Soft redistribute on timeline scrub — expire 30% of particles
+        // so they naturally respawn over ~1s, no flash
+        var pts2b = particlesRef.current;
+        var expireCount = Math.round(pts2b.length * 0.3);
+        for (var ri2 = 0; ri2 < expireCount; ri2++) {
+          var idx = Math.floor(Math.random() * pts2b.length);
+          pts2b[idx].age = pts2b[idx].maxAge; // will respawn next frame
+        }
       }
       lastDataId = sourceModel;
+      lastHourOffset = currentOffset;
 
       var zoom = mapInstance.getZoom();
       var centerLng = mapInstance.getCenter().lng;
@@ -257,9 +301,9 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
           for (var wi = 0; wi < pts3.length; wi++) {
             var wp = pts3[wi];
             var wWind = interpolateWind(grid, wp.lng, wp.lat);
-            var wScale = 0.016 * 3500 * Math.pow(0.60, zoom - 6);
+            var wScale = getCalibratedSpeedScale(zoom, 0.016);
             var wNoiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
-            var wTurbulence = 0.05 + 0.15 * Math.min(1.0, wWind.speed / 10);
+            var wTurbulence = 0.02 + 0.06 * Math.min(1.0, wWind.speed / 15);
             var wNs = wp.noiseSeed || 0;
             var wNoiseU = noise2D(wp.lng * wNoiseFreqScale + wNs, wp.lat * wNoiseFreqScale) * wTurbulence;
             var wNoiseV = noise2D(wp.lat * wNoiseFreqScale + wNs, wp.lng * wNoiseFreqScale + wNs) * wTurbulence;
@@ -325,7 +369,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       var DEG_PER_METER = 1 / 111320;
       var drawnThisFrame = 0;
 
-      var speedScale = dt * 3500 * Math.pow(0.60, zoom - 6);
+      var speedScale = getCalibratedSpeedScale(zoom, dt);
       var noiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
 
       for (var i = 0; i < pts.length; i += stride) {
@@ -340,7 +384,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
         var wind = interpolateWind(grid, p.lng, p.lat);
 
         // Turbulence noise to create beautiful micro-swirls
-        var turbulence = 0.05 + 0.15 * Math.min(1.0, wind.speed / 10);
+        var turbulence = 0.02 + 0.06 * Math.min(1.0, wind.speed / 15);
         var ns = p.noiseSeed || 0;
         var noiseU = noise2D(p.lng * noiseFreqScale + now * 0.001 + ns, p.lat * noiseFreqScale) * turbulence;
         var noiseV = noise2D(p.lat * noiseFreqScale + now * 0.001 + ns, p.lng * noiseFreqScale + ns) * turbulence;
