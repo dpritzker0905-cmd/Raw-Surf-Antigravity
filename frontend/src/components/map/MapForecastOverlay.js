@@ -83,42 +83,58 @@ export var MapForecastOverlay = ({
   // Don't show when no data loaded yet (AFTER all hooks React Rules of Hooks)
   if (!forecastData && !marineData && !isLoading) return null;
 
+  // Robust boundary persistence helper that clamps index and scans backward for last non-null value
+  const getClampedValue = (array, index) => {
+    if (!array || !Array.isArray(array) || array.length === 0) return null;
+    const clampedIndex = Math.max(0, Math.min(index, array.length - 1));
+    for (let i = clampedIndex; i >= 0; i--) {
+      if (array[i] !== null && array[i] !== undefined) {
+        return array[i];
+      }
+    }
+    for (let i = clampedIndex + 1; i < array.length; i++) {
+      if (array[i] !== null && array[i] !== undefined) {
+        return array[i];
+      }
+    }
+    return null;
+  };
+
   const wx = forecastData?.hourly || {};
   const marine = marineData?.hourly || {};
   const isLive = timeOffsetHours === 0;
 
   const liveWind = currentWeather;
   const windSpeed = isLive && liveWind?.wind_speed_10m != null
-    ? liveWind.wind_speed_10m : wx.wind_speed_10m?.[currentHourIndex];
+    ? liveWind.wind_speed_10m : getClampedValue(wx.wind_speed_10m, currentHourIndex);
   const windDir = isLive && liveWind?.wind_direction_10m != null
-    ? liveWind.wind_direction_10m : wx.wind_direction_10m?.[currentHourIndex];
+    ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex);
   const windGusts = isLive && liveWind?.wind_gusts_10m != null
-    ? liveWind.wind_gusts_10m : wx.wind_gusts_10m?.[currentHourIndex];
+    ? liveWind.wind_gusts_10m : getClampedValue(wx.wind_gusts_10m, currentHourIndex);
 
-  const precip = wx.precipitation?.[currentHourIndex];
-  const snowfall = wx.snowfall?.[currentHourIndex];
-  const temp = wx.temperature_2m?.[currentHourIndex];
-  const pressure = wx.surface_pressure?.[currentHourIndex];
+  const precip = getClampedValue(wx.precipitation, currentHourIndex);
+  const snowfall = getClampedValue(wx.snowfall, currentHourIndex);
+  const temp = getClampedValue(wx.temperature_2m, currentHourIndex);
+  const pressure = getClampedValue(wx.surface_pressure, currentHourIndex);
 
   const marineCurrent = marineData?.current || {};
-  const waveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : marine.wave_height?.[marineHourIndex];
-  const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : marine.wave_period?.[marineHourIndex];
-  const waveDir = isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : marine.wave_direction?.[marineHourIndex];
+  const waveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
+  const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex);
+  const waveDir = isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex);
   
-  const rawSwell1Height = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : marine.swell_wave_height?.[marineHourIndex];
+  const rawSwell1Height = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
   const swell1Height = rawSwell1Height != null ? rawSwell1Height : (activeModel === 'EURO' ? waveHeight : null);
   
-  const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : marine.swell_wave_period?.[marineHourIndex];
+  const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
   const swell1Period = rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null);
   
-  const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : marine.swell_wave_direction?.[marineHourIndex];
+  const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
   const swell1Dir = rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null);
   
-  // Swell 2 (secondary swell) — only GFS Wave provides this
-  // EURO and ICON marine models don't have secondary swell decomposition
-  const rawSwell2Height = marine.secondary_swell_wave_height?.[marineHourIndex];
-  const rawSwell2Period = marine.secondary_swell_wave_period?.[marineHourIndex];
-  const rawSwell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex];
+  // Swell 2 (secondary swell) — only GFS Wave provides this natively; stitched in from GFS Wave for other models
+  const rawSwell2Height = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
+  const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
+  const rawSwell2Dir = getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
   const swell2Height = rawSwell2Height != null ? rawSwell2Height : null;
   const swell2Period = rawSwell2Period != null ? rawSwell2Period : null;
   const swell2Dir = rawSwell2Dir != null ? rawSwell2Dir : null;
@@ -126,9 +142,9 @@ export var MapForecastOverlay = ({
 
   // Wind waves — GFS and ICON provide this, EURO does not
   // For EURO: estimate wind waves = total wave height minus primary swell height
-  const rawWindWaveHeight = marine.wind_wave_height?.[marineHourIndex];
-  const rawWindWavePeriod = marine.wind_wave_period?.[marineHourIndex];
-  const rawWindWaveDir = marine.wind_wave_direction?.[marineHourIndex];
+  const rawWindWaveHeight = getClampedValue(marine.wind_wave_height, marineHourIndex);
+  const rawWindWavePeriod = getClampedValue(marine.wind_wave_period, marineHourIndex);
+  const rawWindWaveDir = getClampedValue(marine.wind_wave_direction, marineHourIndex);
 
   let windWaveHeight, windWavePeriod, windWaveDir;
   if (rawWindWaveHeight != null) {
@@ -175,7 +191,7 @@ export var MapForecastOverlay = ({
       // Rain only
       cards.push({ icon: CloudRain, label: 'Rain', value: precip != null ? `${precip.toFixed(1)} mm/h` : '--', color: 'text-blue-400' });
     }
-    cards.push({ icon: Droplets, label: 'Prob', value: wx.precipitation_probability?.[currentHourIndex] != null ? `${wx.precipitation_probability[currentHourIndex]}%` : '--', color: 'text-indigo-400' });
+    cards.push({ icon: Droplets, label: 'Prob', value: getClampedValue(wx.precipitation_probability, currentHourIndex) != null ? `${getClampedValue(wx.precipitation_probability, currentHourIndex)}%` : '--', color: 'text-indigo-400' });
     if (temp != null) cards.push({ icon: Thermometer, label: 'Temp', value: `${Math.round(temp * 9/5 + 32)}°F`, color: 'text-amber-400' });
   }
 

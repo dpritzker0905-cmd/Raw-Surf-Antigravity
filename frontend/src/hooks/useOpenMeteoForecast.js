@@ -204,11 +204,16 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             
             Object.keys(baseHourly).forEach(key => {
               if (Array.isArray(baseHourly[key])) {
-                const stitchedArray = [...(selHourly[key] || [])];
-                for (let i = selLen; i < baseLen; i++) {
-                  stitchedArray.push(baseHourly[key][i]);
+                if (!selHourly[key] || selHourly[key].length === 0) {
+                  // Fall back and copy the entire base GFS array if the regional model lacks this variable entirely
+                  selHourly[key] = [...baseHourly[key]];
+                } else {
+                  const stitchedArray = [...selHourly[key]];
+                  for (let i = selLen; i < baseLen; i++) {
+                    stitchedArray.push(baseHourly[key][i]);
+                  }
+                  selHourly[key] = stitchedArray;
                 }
-                selHourly[key] = stitchedArray;
               }
             });
           }
@@ -234,11 +239,16 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             
             Object.keys(baseHourly).forEach(key => {
               if (Array.isArray(baseHourly[key])) {
-                const stitchedArray = [...(selHourly[key] || [])];
-                for (let i = selLen; i < baseLen; i++) {
-                  stitchedArray.push(baseHourly[key][i]);
+                if (!selHourly[key] || selHourly[key].length === 0) {
+                  // Fall back and copy the entire base GFS Wave array if the regional model lacks this variable entirely
+                  selHourly[key] = [...baseHourly[key]];
+                } else {
+                  const stitchedArray = [...selHourly[key]];
+                  for (let i = selLen; i < baseLen; i++) {
+                    stitchedArray.push(baseHourly[key][i]);
+                  }
+                  selHourly[key] = stitchedArray;
                 }
-                selHourly[key] = stitchedArray;
               }
             });
           }
