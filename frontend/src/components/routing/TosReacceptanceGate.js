@@ -24,11 +24,20 @@ const TosReacceptanceGate = ({ children }) => {
   const [tosSections, setTosSections] = useState([]);
   const [hasReadConfirm, setHasReadConfirm] = useState(false);
 
+  // localStorage key for caching TOS acceptance per user + version
+  const getTosKey = (userId) => `tos-accepted-${userId}-${CURRENT_TOS_VERSION}`;
+
   useEffect(() => {
     if (!user?.user_id && !user?.id) return;
     const tosUserId = user.user_id || user.id;
 
-    // Skip TOS check if no auth token (mock dev user or pre-login state)
+    // 1. Check localStorage cache first (instant, no API call)
+    if (localStorage.getItem(getTosKey(tosUserId))) {
+      setStatus('accepted');
+      return;
+    }
+
+    // 2. Skip API check if no auth token (mock dev user or pre-login state)
     const stored = localStorage.getItem('raw-surf-user');
     const hasToken = stored && JSON.parse(stored)?.access_token;
     if (!hasToken) {
@@ -36,9 +45,12 @@ const TosReacceptanceGate = ({ children }) => {
       return;
     }
 
+    // 3. Check server only if no local cache
     apiClient.get(`/compliance/tos-status/${tosUserId}?current_version=${CURRENT_TOS_VERSION}`)
       .then(res => {
         if (res.data.acknowledged) {
+          // Cache server confirmation locally
+          localStorage.setItem(getTosKey(tosUserId), Date.now().toString());
           setStatus('accepted');
         } else {
           // Fetch ToS content for display
@@ -59,29 +71,27 @@ const TosReacceptanceGate = ({ children }) => {
     const tosUserId = user.user_id || user.id;
     setSubmitting(true);
     try {
-      // Check if we have a real auth token — mock dev user won't have one
+      // Cache acceptance in localStorage immediately (survives remounts)
+      localStorage.setItem(getTosKey(tosUserId), Date.now().toString());
+
+      // Check if we have a real auth token
       const stored = localStorage.getItem('raw-surf-user');
       const hasToken = stored && JSON.parse(stored)?.access_token;
       
-      if (!hasToken) {
-        // No auth token (mock dev user or pre-login) — accept locally
-        console.log('[TOS] No auth token found, accepting locally');
-        setStatus('accepted');
-        return;
+      if (hasToken) {
+        // Try to record server-side (best-effort)
+        await apiClient.post('/compliance/acknowledge-tos', {
+          tos_version: CURRENT_TOS_VERSION
+        }, {
+          params: { user_id: tosUserId }
+        });
       }
 
-      await apiClient.post('/compliance/acknowledge-tos', {
-        tos_version: CURRENT_TOS_VERSION
-      }, {
-        params: { user_id: tosUserId }
-      });
       setStatus('accepted');
       toast.success('Terms accepted — welcome back!');
     } catch (error) {
-      const status = error?.response?.status;
-      const detail = error?.response?.data?.detail || error?.response?.data?.message || error.message;
-      console.error(`[TOS] Acceptance failed: status=${status}, detail=${detail}, userId=${tosUserId}`);
-      // Fail open — don't block the user
+      console.warn(`[TOS] Server record failed (cached locally):`, error?.response?.status || error.message);
+      // Already cached in localStorage — user won't be re-prompted
       setStatus('accepted');
     } finally {
       setSubmitting(false);
