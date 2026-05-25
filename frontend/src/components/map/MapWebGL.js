@@ -1,23 +1,13 @@
-import React, { useRef, useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import Map, { Source, Layer, Marker } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 
 import {
   getMapStyle,
-  FLORIDA_CENTER,
   mapboxTransformRequest,
-  findMarineInsertionLayer,
   ensureMapLibreInit,
-  trace,
-  OM_MODEL_MAP,
-  fetchModelMetadata,
-  safeMoveLayer,
-  registerOpenMeteoProtocol,
-  clearOpenMeteoCache,
-  safeSetPaintProperty,
-  setMapActiveModelLock
+  trace
 } from './mapUtils';
-import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
@@ -27,11 +17,19 @@ import { useMapRenderContract } from './useMapRenderContract';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
-import { OceanMask } from './OceanMask';
-import { LAYER_REGISTRY, resolveRasterSource, PRECIP_MODEL_MAP, MARINE_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry'; // eslint-disable-line
-import { validateModelAccess, resolveForecastWindow } from './LayerAccessResolver';
-import { markDOMReady, markMapReady } from '../../engine/init-sequencer';
+import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
+import { resolveForecastWindow } from './LayerAccessResolver';
+import { markDOMReady } from '../../engine/init-sequencer';
 import { useTemporalPreloader } from './useTemporalPreloader';
+
+// Custom Hooks for Modularization (Rule <800 LOC Compliance)
+import { useMapInitialization } from './useMapInitialization';
+import { useMapViewState } from './useMapViewState';
+import { useMapLongPress } from './useMapLongPress';
+import { useSpotClusteringData } from './useSpotClusteringData';
+import { useRasterAnchorInsertion } from './useRasterAnchorInsertion';
+import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
+import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -65,81 +63,65 @@ var MapWebGL = ({
     window.__MODEL_METADATA_CACHE__ = MODEL_METADATA_CACHE;
   }
   markDOMReady(); // Init sequencer: DOM is ready when component renders
+  
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
-  // v163: Ref to avoid stale closure for long-press callback
-  const longPressRef = useRef(onMapLongPress);
-  
-  const [viewState, setViewState] = useState({
-    longitude: FLORIDA_CENTER.lng, latitude: FLORIDA_CENTER.lat,
-    zoom: 7, pitch: 0, bearing: 0
-  });
 
-  const [mapInstance, setMapInstance] = useState(null);
-  const resolveTaskIdRef = useRef(0);
-  const [metadataRevision, setMetadataRevision] = useState(0);
-  const [activeSlots, setActiveSlots] = useState({});
-  const [isTransitioning, setIsTransitioning] = useState(true);
-  const cacheBustRef = useRef(Date.now());
-  const modelDebounceTimeoutRef = useRef(null);
-  
-  // v86: Refs to completely eliminate stale closures in transitions
-  const activeSlotsRef = useRef(activeSlots);
-  activeSlotsRef.current = activeSlots;
-  const closestTimeIdxRef = useRef(0);
-  const activeLayersRef = useRef(activeLayers);
-  activeLayersRef.current = activeLayers;
-  
-  // v86.1: Suppress AbortErrors from @openmeteo/weather-map-layer source cleanup
-  // These are expected when React unmounts Source components during layer switches
-  useEffect(() => {
-    const errorHandler = (event) => {
-      if (event.error?.name === 'AbortError' || 
-          (event.message && event.message.includes('aborted'))) {
-        event.preventDefault();
-        return true;
-      }
-    };
-    const rejectionHandler = (event) => {
-      if (event.reason?.name === 'AbortError' || 
-          (event.reason?.message && event.reason.message.includes('aborted'))) {
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('error', errorHandler);
-    window.addEventListener('unhandledrejection', rejectionHandler);
-    return () => {
-      window.removeEventListener('error', errorHandler);
-      window.removeEventListener('unhandledrejection', rejectionHandler);
-    };
-  }, []);
+  // 1. Map Initialization and Async Abort Interceptions
+  const { mapInstance } = useMapInitialization({ innerMapRef, mapInstanceRef });
+
+  // 2. Map View State tracking and FlyTo updates
+  const { viewState, onMove, onMoveEnd } = useMapViewState({ effectiveLocation, onMapMoveEnd, innerMapRef });
+
+  // 3. Map LongPress Contextmenu & Mobile touch holds
+  useMapLongPress({ mapInstance, onMapLongPress });
+
+  // 4. Raster anchor detection and OceanMask cleanups
+  const { marineBeforeId } = useRasterAnchorInsertion({ mapInstance });
+
+  // 5. Satellite background sync handling
+  useSatelliteBackgroundSync({ mapInstance, activeLayers });
+
+  // 6. Spot Clustering Data
+  const { spotClusters, spotGeoJSON } = useSpotClusteringData({ surfSpots, filter, mapInstance, viewState });
 
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
   const animFrameRef = useRef(null);
   
-  // Weather Engine: Completely decoupled from map lifecycle, runs on strict time intervals
-  // v3.12.4: Passes activeModel + tier-based forecastDays for multi-model support
+  // Weather Engine: Decoupled weather analytics
   const forecastDays = useMemo(() => resolveForecastWindow(userTier), [userTier]);
-  const { windData, windRevision } = useWeatherEngine({
+  const { windData } = useWeatherEngine({
     activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
   });
- // v3.9.9: Temporal preloader prefetch 1hr tiles
+
+  // Temporal Preloader
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance, activeModel, theme });
 
-  const [protocolReady, setProtocolReady] = useState(false);
-  useEffect(() => {
-    registerOpenMeteoProtocol(maplibregl, setProtocolReady);
-  }, []);
+  const activeMarineLayer = useMemo(() => {
+    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
+  }, [activeLayers]);
 
-  const activeWeatherVariable = useMemo(() => activeLayers[0] ? LAYER_REGISTRY[activeLayers[0]]?.omVariable || null : null, [activeLayers]);
+  // 7. Open-Meteo Tile Protocol and Sliding URL Ring Buffers
+  const {
+    protocolReady,
+    omTileUrls,
+    activeSlots,
+    isTransitioning,
+    closestTimeIdx
+  } = useOpenMeteoTileUrls({
+    mapInstance,
+    activeModel,
+    activeLayers,
+    theme,
+    timeOffsetHours,
+    userTier,
+    activeMarineLayer
+  });
 
-  useEffect(() => {
-    trace(activeLayers[0] || 'none', 'toggle_layer', 'MapWebGL', { activeLayers });
-    trace('all', 'select_model', 'MapWebGL', { activeModel });
-  }, [activeLayers, activeModel]);
+  // Shared Marine Orchestrator
+  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours, activeModel });
 
- // LRCM: Derived render type drives which renderer pipeline is active
   const activeRenderType = useMemo(() => {
     const layerId = activeLayers[0];
     if (!layerId) return 'none';
@@ -149,38 +131,6 @@ var MapWebGL = ({
     if (layer.type === 'marine') return 'marine';
     if ((layer.type === 'canvas' || layer.type === 'particle') && layer.id === 'wind') return 'wind';
     return 'none';
-  }, [activeLayers]);
-
-
-  const [omTileUrls, setOmTileUrls] = useState({});
-  const closestTimeIdx = useMemo(() => {
-    const model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
-    const meta = MODEL_METADATA_CACHE[model];
-    if (!meta || !meta.validTimes || !meta.validTimes.length) return 0;
-    const targetMs = Date.now() + timeOffsetHours * 3600000;
-    let closestIdx = 0;
-    let minDiff = Infinity;
-    for (let i = 0; i < meta.validTimes.length; i++) {
-      const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
-      if (diff < minDiff) { minDiff = diff; closestIdx = i; }
-    }
-    // Clamping defense to strictly avoid out-of-bounds indices on activeModel shifts
-    return Math.max(0, Math.min(meta.validTimes.length - 1, closestIdx));
-  }, [activeModel, timeOffsetHours, metadataRevision]);
-  closestTimeIdxRef.current = closestTimeIdx;
-
- // v69: initialOmUrls removed React <Source> now reads omTileUrls directly
- // v70: initialRadarUrl removed React <Source> reads radarTileUrl directly
-
-
- // v242: Global Render Contract single source of truth for map readiness
-  const renderContract = useMapRenderContract(mapInstance);
-
-  // Marine Orchestrator single-pipeline data fetching
-  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours, activeModel });
-
-  const activeMarineLayer = useMemo(() => {
-    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
   }, [activeLayers]);
 
   const marineWindData = useMemo(() => {
@@ -203,637 +153,30 @@ var MapWebGL = ({
     };
   }, [marineData, activeMarineLayer]);
 
- // v246: Layer Truth Diff Engine declared vs actual state comparison
-  // MUST be after all data source declarations (windData, marineData) to avoid TDZ
+  // Layer Truth Diff Engine
   const { issues: truthIssues, rasterVisible } = useLayerTruthDiff({
     mapInstance, activeLayers, activeRenderType, windData, marineData
   });
 
-  // v69: React <Source url={omTileUrls[key]}> now handles URL updates declaratively.
- // The old imperative queueRasterUpdate path is no longer needed react-map-gl
-  // calls setUrl() internally when the url prop changes.
-
-  const fetchMetadata = useCallback(async (modelToCheck, signal) => {
-    return fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, () => setMetadataRevision(prev => prev + 1), signal);
-  }, []);
-
-  // Pre-warm metadata cache on mount so layer toggles are instant
-  useEffect(() => {
-    ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'ncep_gfswave025', 'dwd_gwam'].forEach(m => fetchMetadata(m));
-  }, [fetchMetadata]);
-
-  // v3.13.6: Clear the Open-Meteo tile block cache when activeModel changes
-  // and coordinate with map style load lifecycle to prevent startup race conditions
-  useEffect(() => {
-    if (!activeModel) return;
-    
-    // Clear any pending transition debounce timeout completely before it fires
-    if (modelDebounceTimeoutRef.current) {
-      clearTimeout(modelDebounceTimeoutRef.current);
-    }
-    
-    let active = true;
-    
-    // Wrap active model initialization loop inside a 300ms debouncing window
-    modelDebounceTimeoutRef.current = setTimeout(() => {
-      if (!active) return;
-      
-      console.log(`[Raster] Model changed to ${activeModel}, transitioning and wiping block cache...`);
-      setIsTransitioning(true);
-      cacheBustRef.current = Date.now();
-      setMapActiveModelLock(activeModel); // Enforce active model lock to avoid out-of-order discarding
-      
-      // Synchronize deactivation: force layer opacities to 0 before cache is cleared to prevent texture flashes
-      if (mapInstance && mapInstance.isStyleLoaded()) {
-        safeSetPaintProperty(mapInstance, 'wind-particle-overlay', 'raster-opacity', 0);
-        safeSetPaintProperty(mapInstance, 'marine-canvas-layer', 'raster-opacity', 0);
-      }
-
-      clearOpenMeteoCache().then(() => {
-        if (!active) return;
-
-        const finishTransition = () => {
-          // Temporal safety window: defer setting transitioning to false by 120ms using rAF
-          setTimeout(() => {
-            requestAnimationFrame(() => {
-              if (!active) return;
-              console.log(`[Raster] Transition finished, activeModel: ${activeModel}`);
-              
-              if (mapInstance && mapInstance.isStyleLoaded()) {
-                try {
-                  const currentActiveLayers = activeLayersRef.current || [];
-                  const currentActiveSlots = activeSlotsRef.current || {};
-                  const currentClosestTimeIdx = closestTimeIdxRef.current || 0;
-                  
-                  currentActiveLayers.forEach(layerKey => {
-                    const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
-                    const opacityExpression = isMarine ? [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
-                    ] : [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
-                    ];
-                    
-                    [0, 1, 2].forEach(slotIdx => {
-                      const layerId = `${layerKey}-slot-${slotIdx}-layer`;
-                      const isActive = currentActiveSlots[layerKey] !== undefined
-                        ? currentActiveSlots[layerKey] === slotIdx
-                        : (currentClosestTimeIdx % 3) === slotIdx;
-                      
-                      if (mapInstance.getLayer(layerId)) {
-                        mapInstance.setLayoutProperty(layerId, 'visibility', 'visible');
-                        mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? opacityExpression : 0.0);
-                      }
-                    });
-                  });
-                  
-                  if (currentActiveLayers.includes('wind') && mapInstance.getLayer('wind-particle-overlay')) {
-                    mapInstance.setLayoutProperty('wind-particle-overlay', 'visibility', 'visible');
-                    mapInstance.setPaintProperty('wind-particle-overlay', 'raster-opacity', 0.25);
-                  }
-                  if (activeMarineLayer && mapInstance.getLayer('marine-canvas-layer')) {
-                    mapInstance.setLayoutProperty('marine-canvas-layer', 'visibility', 'visible');
-                    mapInstance.setPaintProperty('marine-canvas-layer', 'raster-opacity', 0.85);
-                  }
-                } catch (err) {
-                  console.warn('[MapWebGL] Transition rendering synchronization caught warning:', err.message);
-                }
-              }
-
-              setIsTransitioning(false);
-              if (mapInstance) {
-                try { mapInstance.triggerRepaint(); } catch(e) {}
-              }
-            });
-          }, 120);
-        };
-
-        if (mapInstance) {
-          if (mapInstance.isStyleLoaded()) {
-            finishTransition();
-          } else {
-            // Wait for map style to be fully loaded before revealing raster layers
-            mapInstance.once('load', finishTransition);
-            // Safety fallback timeout
-            setTimeout(() => {
-              if (active) {
-                console.log('[Raster] Style load safety fallback triggered');
-                finishTransition();
-              }
-            }, 2000);
-          }
-        }
-      });
-    }, 300);
-
-    return () => {
-      active = false;
-      if (modelDebounceTimeoutRef.current) {
-        clearTimeout(modelDebounceTimeoutRef.current);
-      }
-    };
-  }, [activeModel, mapInstance]);
-
-  // v77: Track logged fallbacks to prevent console spam during timeline scrubbing
-  const loggedFallbacks = useRef(new Set());
-  // but the heavy metadata fetch only runs when the browser is ready to paint.
-  const rafRef = useRef(null);
-  const pendingResolve = useRef(null);
-
-  useEffect(() => {
-    // v76: Resolve raster URLs for ACTIVE layers.
-    // Rain: per-model via PRECIP_MODEL_MAP (GFSgfs013, ICONdwd_icon, EUROecmwf)
-    // Marine: per-model via MARINE_MODEL_MAP (GFS/ICONgfswave, EUROecmwf_wam)
-    // Timeline: always valid_times_N index (never current_time_1H)
-    const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
-    let isMounted = true;
-    const taskId = ++resolveTaskIdRef.current;
-    
-    // Set up AbortController for this effect execution cycle
-    const controller = new AbortController();
-    const { signal } = controller;
-
-    const getUrlForIndex = (model, variable, idx) => {
-      const meta = MODEL_METADATA_CACHE[model];
-      const len = meta?.validTimes?.length || 0;
-      const clampedIdx = len > 0 ? Math.max(0, Math.min(len - 1, idx)) : 0;
-      const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-      const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
-      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}`;
-    };
-
-    const resolveAllUrls = async () => {
-      try {
-      try { validateModelAccess(activeModel || 'GFS', userTier); } 
-      catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
-
-      const tasks = Object.keys(LAYER_REGISTRY)
-        .filter(k => LAYER_REGISTRY[k].omVariable && activeLayers.includes(k))
-        .map(k => ({ layerKey: k, variable: LAYER_REGISTRY[k].omVariable, entry: LAYER_REGISTRY[k] }));
-
-      // v76: Model routing uses the exported maps from LayerRegistry
-      const resolveModel = (entry, variable) => {
-        // Pinned model (fog GFS visibility)
-        if (entry.omModel) return entry.omModel;
-        // Marine layers MARINE_MODEL_MAP
-        if (entry.omModelGroup === 'marine') {
-          return MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
-        }
-        // Rain/cloud PRECIP_MODEL_MAP (each model has its own precipitation tiles)
-        if (variable === 'precipitation' || variable === 'cloud_cover') {
-          return PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
-        }
-        // v77: Wind gusts on ECMWF tiles are unreliable at far-future 3h boundaries.
-        // Use wind_u_component_10m instead which is available at all time indices.
-        if (variable === 'wind_gusts_10m' && (activeModel === 'EURO')) {
-          return targetModel; // resolve normally, variable fallback handles the rest
-        }
-        // Default atmospheric
-        return targetModel;
-      };
-
-      // Parallel metadata pre-fetch with abort signal
-      const models = [...new Set(tasks.map(t => resolveModel(t.entry, t.variable)))];
-      window.__OM_ACTIVE_MODELS__ = models;
-      await Promise.all(models.map(m => fetchMetadata(m, signal)));
-      if (taskId !== resolveTaskIdRef.current) return;
-
-      const newUrls = {};
-      const newActiveSlots = {};
-      for (const { layerKey, variable, entry } of tasks) {
-        let layerModel = resolveModel(entry, variable);
-        let meta = await fetchMetadata(layerModel, signal);
-        if (taskId !== resolveTaskIdRef.current) return;
-        let resolvedVar = variable;
-        if (!meta.variables.includes(variable)) {
-          const VARIABLE_FALLBACKS = {
-            'wind_speed_10m': 'wind_gusts_10m', 'wind_gusts_10m': 'wind_u_component_10m', 'visibility': 'cloud_cover_low'
-          };
-          let currentVar = variable;
-          while (currentVar && !meta.variables.includes(currentVar)) {
-            const fb = VARIABLE_FALLBACKS[currentVar];
-            if (fb) currentVar = fb;
-            else break;
-          }
-          if (meta.variables.includes(currentVar)) {
-            resolvedVar = currentVar;
-            const fbKey = `${variable}-${layerModel}`;
-            if (!loggedFallbacks.current.has(fbKey)) {
-              loggedFallbacks.current.add(fbKey);
-              console.log(`[Raster] Variable fallback: ${variable} -> ${resolvedVar} for ${layerModel}`);
-            }
-          } else if (entry.omModelGroup === 'marine') {
-            layerModel = 'ncep_gfswave025';
-            if (window.__OM_ACTIVE_MODELS__ && !window.__OM_ACTIVE_MODELS__.includes(layerModel)) {
-              window.__OM_ACTIVE_MODELS__.push(layerModel);
-            }
-            meta = await fetchMetadata(layerModel, signal);
-            if (taskId !== resolveTaskIdRef.current) return;
-            if (meta.variables.includes(variable)) {
-              resolvedVar = variable;
-              const fbKey = `marine-${variable}`;
-              if (!loggedFallbacks.current.has(fbKey)) {
-                loggedFallbacks.current.add(fbKey);
-                console.log(`[Raster] Marine model fallback: ${layerModel} for ${variable}`);
-              }
-            }
-          }
-        }
-        if (meta.variables.includes(resolvedVar)) {
-          const { validTimes } = meta;
-          const targetMs = Date.now() + timeOffsetHours * 3600000;
-          let closestIdx = 0;
-          let minDiff = Infinity;
-          if (validTimes && validTimes.length) {
-            for (let i = 0; i < validTimes.length; i++) {
-              const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
-              if (diff < minDiff) { minDiff = diff; closestIdx = i; }
-            }
-          }
-          // Clamping defense to strictly avoid out-of-bounds indices on activeModel shifts
-          closestIdx = Math.max(0, Math.min(validTimes.length - 1, closestIdx));
-          const slotCurrent = closestIdx % 3;
-          newActiveSlots[layerKey] = slotCurrent;
-          const slotPrev = (closestIdx - 1 + 3) % 3;
-          const slotNext = (closestIdx + 1) % 3;
-          newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
-          newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
-          newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < validTimes.length - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
-        }
-      }
-
-      // Diagnostic: log marine tile URL resolution
-      const marineUrlCount = Object.keys(newUrls).filter(k => ['waves','swell_1','swell_2','wind_waves'].some(m => k.startsWith(m))).length;
-      if (marineUrlCount > 0) {
-        console.log(`[Raster] Resolved ${marineUrlCount} marine tile URLs:`, Object.keys(newUrls).filter(k => ['waves','swell_1','swell_2','wind_waves'].some(m => k.startsWith(m))));
-      }
-      const totalUrls = Object.keys(newUrls).length;
-      if (totalUrls === 0 && tasks.length > 0) {
-        console.warn('[Raster] WARNING: resolveAllUrls generated 0 URLs for', tasks.length, 'active layers:', tasks.map(t => `${t.layerKey}(${t.variable})`));
-      }
-
-      if (isMounted && taskId === resolveTaskIdRef.current) {
-        setOmTileUrls(prev => {
-          const filtered = {};
-          Object.keys(prev).forEach(key => {
-            const match = key.match(/^(.+)-slot-(\d+)$/);
-            if (match && activeLayers.includes(match[1])) {
-              filtered[key] = prev[key];
-            }
-          });
-          return { ...filtered, ...newUrls };
-        });
-        setActiveSlots(newActiveSlots);
-      }
-      } catch (err) {
-        // AbortError is expected when timeline slider moves rapidly — silently ignore
-        if (err.name === 'AbortError') return;
-        console.error('[Raster] resolveAllUrls error:', err);
-      }
-    };
-    
-    pendingResolve.current = resolveAllUrls;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      if (pendingResolve.current) pendingResolve.current().catch(e => {
-        if (e.name !== 'AbortError') console.error('[Raster] RAF resolve error:', e);
-      });
-    });
-    
-    return () => { 
-      isMounted = false; 
-      controller.abort(); 
-      if (rafRef.current) cancelAnimationFrame(rafRef.current); 
-    };
-  }, [activeModel, theme, timeOffsetHours, activeLayers, fetchMetadata, metadataRevision]);
-
-  // Sync ref to parent so useMapActions works
-  useEffect(() => {
-    if (innerMapRef.current) {
-      if (mapInstanceRef) mapInstanceRef.current = innerMapRef.current.getMap();
-    }
-  }, [mapInstanceRef, innerMapRef.current]);
-
-  const onMove = useCallback(evt => {
-    const nextViewState = { ...evt.viewState };
-    if (nextViewState.zoom < 2.0) {
-      nextViewState.zoom = 2.0;
-    }
-    setViewState(nextViewState);
-  }, []);
-
-  const moveEndTimerRef = useRef(null);
-  const onMoveEnd = useCallback(evt => {
-    if (!onMapMoveEnd) return;
-    clearTimeout(moveEndTimerRef.current);
-    moveEndTimerRef.current = setTimeout(() => onMapMoveEnd({ lat: evt.viewState.latitude, lng: evt.viewState.longitude }), 800);
-  }, [onMapMoveEnd]);
-
-  // Sync to effectiveLocation initially
-  useEffect(() => {
-    if (effectiveLocation && innerMapRef.current) {
-      const zoom = effectiveLocation.source === 'gps' ? 12 : 9;
-      innerMapRef.current.flyTo({
-        center: [effectiveLocation.lng, effectiveLocation.lat],
-        zoom
-      });
-    }
-  }, [effectiveLocation]);
-
-  // Use the existing supercluster hook
-  const clusteringOptions = useMemo(() => ({ radius: 60, maxZoom: 14 }), []);
-  
-  const spotsToCluster = useMemo(() => 
-    (filter === 'all' || filter === 'spots') ? surfSpots : [], 
-  [filter, surfSpots]);
-
- // Derive bounds for clustering must be an object {west,south,east,north}
-  // to match useMarkerClustering's bbox extraction (NOT a flat array)
-  const currentBounds = useMemo(() => {
-    if (!mapInstance) return { west: -180, south: -85, east: 180, north: 85 };
-    const b = mapInstance.getBounds();
-    return { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-  }, [mapInstance, viewState.longitude, viewState.latitude, viewState.zoom]);
-
-  const { clusters: spotClusters, supercluster } = useMarkerClustering(
-    spotsToCluster, currentBounds, viewState.zoom, clusteringOptions
-  );
-
-  const spotGeoJSON = useMemo(() => {
-    return {
-      type: 'FeatureCollection',
-      features: spotsToCluster.map(spot => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [spot.longitude, spot.latitude] },
-        properties: {
-          id: spot.id,
-          geofence_radius: spot.geofence_radius || 200
-        }
-      }))
-    };
-  }, [spotsToCluster]);
-
-  // Compute radar tile URL from frames + index (2026 hash-based format)
+  // Compute radar tile URL from frames + index
   const radarTileUrl = useMemo(() => {
     if (!radarFrames?.length || radarFrameIndex == null) return null;
     const frame = radarFrames[radarFrameIndex];
     if (!frame?.path) return null;
-    // 2026 API: color=7 (Universal Blue), smooth=1, snow=0, max zoom=7
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
   }, [radarFrames, radarFrameIndex]);
 
-  // v70: Radar URL updates handled declaratively via React <Source tiles={[radarTileUrl]}>
-
-  // Fix Map Dragging Bug: Memoize map style to prevent full map re-render on ViewState change
+  // Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
 
-  // v85: Find the first layer after water for marine raster insertion.
-  // Marine rasters sit above water fills, then OceanMask covers land bleed.
-  const [marineBeforeId, setMarineBeforeId] = useState(null);
-  const [maskLandExists, setMaskLandExists] = useState(false);
-  useEffect(() => {
-    if (!mapInstance) return;
-    const onStyleData = () => {
-      setMaskLandExists(!!mapInstance.getLayer('ocean-mask-fill'));
-      
-      let id = null;
-      try {
-        const style = mapInstance.getStyle();
-        if (style && style.layers && style.layers.length > 0) {
-          const layers = style.layers;
-          const layerIds = layers.map(l => l.id);
-          
-          // 1. Primary target anchor check
-          if (layerIds.includes('tunnel-minor-case-navigation')) {
-            id = 'tunnel-minor-case-navigation';
-          } else {
-            // 2. Scan style sheet array for valid fallback layer IDs (exclude water so layers are never covered by base map water)
-            const fallbackTargets = ['building', 'road-label', 'land-structure-polygon', 'road-structure-polygon'];
-            for (const target of fallbackTargets) {
-              const foundId = layerIds.find(lid => lid && (lid.includes(target) || target.includes(lid)));
-              if (foundId) {
-                id = foundId;
-                break;
-              }
-            }
-            
-            // 3. Default to the lowest symbol layer to prevent layers from drifting to top
-            if (!id) {
-              const symbolLayer = layers.find(l => l.type === 'symbol');
-              if (symbolLayer) {
-                id = symbolLayer.id;
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[MapWebGL] Anchor target validation failed, falling back...', err);
-      }
-
-      // Default fallback using standard utility if custom loop did not resolve
-      if (!id) {
-        id = findMarineInsertionLayer(mapInstance);
-      }
-
-      if (id) {
-        setMarineBeforeId(id);
-        if (!mapInstance.getLayer('marine-raster-anchor')) {
-          try {
-            const layerId = 'marine-raster-anchor';
-            if (!mapInstance.getLayer(layerId)) {
-              mapInstance.addLayer({
-                id: layerId,
-                type: 'background',
-                layout: { visibility: 'none' }
-              }, id);
-              console.log('[MapWebGL] Added marine-raster-anchor before', id);
-            }
-          } catch (err) {
-            console.error(`[MapWebGL] Layer insertion caught exception for layer marine-raster-anchor:`, err.message);
-          }
-        }
-      }
-    };
-    mapInstance.on('styledata', onStyleData);
-    onStyleData();
-    return () => mapInstance.off('styledata', onStyleData);
-  }, [mapInstance]);
-
-  // Cleanup: remove any leftover OceanMask layers from previous sessions
-  useEffect(() => {
-    if (!mapInstance) return;
-    const cleanup = () => {
-      const staleIds = [
-        'ocean-mask-buffer', 'ocean-mask-fill', 'ocean-mask-line',
-        'ocean-mask-inland-water', 'ocean-mask-inland-waterway'
-      ];
-      for (const lid of staleIds) {
-        try {
-          if (mapInstance.getLayer(lid)) {
-            mapInstance.removeLayer(lid);
-            console.log('[MapWebGL] Removed stale OceanMask layer:', lid);
-          }
-        } catch (e) {}
-      }
-      try {
-        if (mapInstance.getSource('ocean-mask-land')) {
-          mapInstance.removeSource('ocean-mask-land');
-          console.log('[MapWebGL] Removed stale OceanMask source');
-        }
-      } catch (e) {}
-    };
-    // Run after style loads
-    if (mapInstance.isStyleLoaded()) {
-      cleanup();
-    } else {
-      mapInstance.once('styledata', cleanup);
-    }
-  }, [mapInstance]);
-
-  // v86: ESRI Satellite Cognizance and Clean Background clearing
-  useEffect(() => {
-    if (!mapInstance) return;
-    const handleBackgroundClear = () => {
-      try {
-        if (activeLayers.includes('satellite')) {
-          // Clear background color assets cleanly to prevent overlap/blend artifact issues
-          if (mapInstance.getLayer('background')) {
-            safeSetPaintProperty(mapInstance, 'background', 'background-opacity', 0);
-          }
-        } else {
-          // Restore background opacity when satellite is inactive
-          if (mapInstance.getLayer('background')) {
-            safeSetPaintProperty(mapInstance, 'background', 'background-opacity', 1.0);
-          }
-        }
-      } catch (e) { /* ignore */ }
-    };
-    if (mapInstance.isStyleLoaded()) {
-      handleBackgroundClear();
-    } else {
-      mapInstance.once('style.load', handleBackgroundClear);
-    }
-  }, [mapInstance, activeLayers]);
-
-
-
-  // --- WIND PARTICLE ENGINE & MARINE OVERLAYS ---
-
-  // Capture the raw MapLibre instance once the map loads, set initial bounds,
-  // and force a repaint so layers render without needing user pan/scroll.
-  useEffect(() => {
-    const map = innerMapRef.current?.getMap?.();
-    if (map && !mapInstance) {
-      setMapInstance(map);
-      window.map = map;
-
-      // v239: Suppress async AbortErrors from MapLibre's internal tile-fetch pipeline.
-      // These fire AFTER setUrl() returns (asynchronous Promise rejection inside workers),
-      // so the try-catch in useRasterTransactions cannot intercept them.
-      map.on('error', (e) => {
-        if (e?.error?.name === 'AbortError' || e?.error?.message?.includes('aborted')) {
- return; // Swallow this is expected during raster source transitions
-        }
-        console.error('[MapLibre Error]', e?.error || e);
-      });
-      
-      // v86.4: Source-level AbortError suppression.
-      // Instead of patching removeSource (which React bypasses via internal calls),
-      // we intercept addSource to wrap each source's onRemove with error handling.
-      // This catches AbortErrors at the exact throw site — inside the source itself.
-      const origAddSource = map.addSource.bind(map);
-      map.addSource = function(id, sourceSpec) {
-        const result = origAddSource.call(this, id, sourceSpec);
-        try {
-          const src = this.getSource(id);
-          if (src && src.onRemove && !src.__abortPatched) {
-            src.__abortPatched = true;
-            const origOnRemove = src.onRemove.bind(src);
-            src.onRemove = function(...args) {
-              try {
-                return origOnRemove(...args);
-              } catch (e) {
-                if (e.name === 'AbortError' || e.name === 'DOMException' ||
-                    e.message?.includes('aborted') || e.message?.includes('abort')) {
-                  return; // Silently suppress
-                }
-                throw e;
-              }
-            };
-          }
-        } catch (e) { /* source not ready */ }
-        return result;
-      };
-      // Also re-patch on style load (style may not exist at init time)
-      map.on('style.load', () => {
-        try {
-          const style = map.getStyle();
-          if (style?.sources) {
-            Object.keys(style.sources).forEach(srcId => {
-              const src = map.getSource(srcId);
-              if (src && src.onRemove && !src.__abortPatched) {
-                src.__abortPatched = true;
-                const origOnRemove = src.onRemove.bind(src);
-                src.onRemove = function(...args) {
-                  try { return origOnRemove(...args); }
-                  catch (e) {
-                    if (e.name === 'AbortError' || e.name === 'DOMException' ||
-                        e.message?.includes('aborted')) return;
-                    throw e;
-                  }
-                };
-              }
-            });
-          }
-        } catch (e) {}
-      });
-
-      // Force render loop to paint custom-protocol tiles on mount
-      markMapReady(); // Init sequencer: map is ready
-      setTimeout(() => { try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ } }, 300);
-
-      // v163: Long-press/right-click handler (Ventusky/Windy style map pin)
-      map.on('contextmenu', (e) => {
-        e.preventDefault();
-        if (longPressRef.current) longPressRef.current(e.lngLat);
-      });
-      // Mobile: detect long-press via touch hold (500ms threshold)
-      let touchTimer = null;
-      let touchStartPos = null;
-      map.getCanvas().addEventListener('touchstart', (e) => {
-        if (e.touches.length !== 1) return;
-        const t = e.touches[0];
-        touchStartPos = { x: t.clientX, y: t.clientY };
-        touchTimer = setTimeout(() => {
-          if (!touchStartPos) return;
-          const rect = map.getCanvas().getBoundingClientRect();
-          const point = map.unproject([touchStartPos.x - rect.left, touchStartPos.y - rect.top]);
-          if (longPressRef.current) longPressRef.current({ lat: point.lat, lng: point.lng });
-          touchStartPos = null;
-        }, 500);
-      }, { passive: true });
-      map.getCanvas().addEventListener('touchmove', () => { clearTimeout(touchTimer); touchStartPos = null; }, { passive: true });
-      map.getCanvas().addEventListener('touchend', () => { clearTimeout(touchTimer); }, { passive: true });
-    }
-  });
-
-  // v163: Keep long-press ref in sync with latest callback
-  useEffect(() => { longPressRef.current = onMapLongPress; }, [onMapLongPress]);
-
-  // v3.13: Marine canvas fade. Wind canvas self-manages via active prop (CSS transition).
-  // NOTE: raster setPaintProperty removed — it permanently corrupted the zoom-interpolated
-  // opacity expression on every toggle, causing the 'blocked/stuck' layer appearance.
+  // Canvas fade effects for marine layer
   useEffect(() => {
     if (!mapInstance) return;
     const marineActive = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
     const mc = document.getElementById('marine-canvas-layer');
     if (!marineActive && mc) {
       mc.style.opacity = '0';
-      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) { /* canvas may already be gone */ }
+      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) {}
     }
     if (marineActive && mc) {
       const start = performance.now();
@@ -848,64 +191,11 @@ var MapWebGL = ({
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers]);
 
-  // v86.4: Stale source cleanup REMOVED.
-  // Sources are now kept mounted permanently to prevent AbortError during unmount.
-  // Inactive sources have visibility='none' and opacity=0, consuming minimal resources.
-  // This eliminates the AbortError overlay that was blocking the UI.
-
-  // v86: Unified Reactive Weather Raster Opacity and Transition Sync
-  useEffect(() => {
-    if (!mapInstance) return;
-    try {
-      activeLayers.forEach(layerKey => {
-        const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
-        const opacityExpression = isMarine ? [
-          'interpolate', ['linear'], ['zoom'],
-          2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
-        ] : [
-          'interpolate', ['linear'], ['zoom'],
-          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
-        ];
-        
-        [0, 1, 2].forEach(slot => {
-          const slotLayerId = `${layerKey}-slot-${slot}-layer`;
-          if (mapInstance.getLayer(slotLayerId)) {
-            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
-            const isActive = activeSlots[layerKey] !== undefined
-              ? activeSlots[layerKey] === slot
-              : (closestTimeIdxRef.current % 3) === slot;
-            if (!isTransitioning) {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? opacityExpression : 0.0);
-            } else {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.0);
-            }
-          }
-        });
-      });
-    } catch (e) {
-      console.warn('[MapWebGL] Failed to apply explicit blend parameter:', e);
-    }
-  }, [mapInstance, activeLayers, activeSlots, isTransitioning]);
-
-  // v3.13.1: Force instantaneous map repaint on layer toggles or tile URL updates
-  // Prevents mobile GPU rendering latency from blocking layer appearances.
-  useEffect(() => {
-    if (mapInstance) {
-      try { mapInstance.triggerRepaint(); } catch (e) { /* ignore mapInstance repaint errors */ }
-    }
-  }, [mapInstance, activeLayers, omTileUrls]);
-
-  // v86.3 removed: The effect that dimmed basemap 'water' fill-color when marine
-  // rasters were active was permanently corrupting the water color across themes.
-  // Light mode water would turn dark and never restore. Marine rasters now use
-  // lower opacity (0.45-0.70) to show wave data without modifying the base map.
+  // Global Render Contract single source of truth for map readiness
+  useMapRenderContract(mapInstance);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-
       <TruthOverlay
         activeLayers={activeLayers}
         activeRenderType={activeRenderType}
@@ -915,212 +205,200 @@ var MapWebGL = ({
         rasterVisible={rasterVisible}
       />
 
-    <Map
-      ref={innerMapRef}
-      mapLib={maplibregl}
-      {...viewState}
-      onMove={onMove}
-      onMoveEnd={onMoveEnd}
-      onClick={onMapClick}
-      mapStyle={currentMapStyle}
-      transformRequest={mapboxTransformRequest}
-      style={{ width: '100%', height: '100%' }}
-      maxPitch={60}
-      attributionControl={false}
-      minZoom={2.0}
-      renderWorldCopies={true}
-    >
-      {/* Geofence Visual Layer */}
-      <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
-        <Layer 
-          id="spot-geofences-layer"
-          type="circle"
-          paint={{
-            'circle-radius': [
-              'interpolate',
-              ['exponential', 2],
-              ['zoom'],
-              10, 5,
-              14, 25,
-              18, 150
-            ],
-            'circle-color': '#06b6d4',
-            'circle-opacity': 0.1,
-            'circle-stroke-width': 1,
-            'circle-stroke-color': '#06b6d4',
-            'circle-pitch-alignment': 'map'
-          }}
-        />
-      </Source>
-
-      {/* --- WEATHER LAYERS --- */}
-
- {/* Live Radar (RainViewer animated frames) */}
-      {radarTileUrl && (
-        <Source
-          id="radar-source"
-          type="raster"
-          tiles={[radarTileUrl]}
-          tileSize={256}
-          maxzoom={7}
-        >
+      <Map
+        ref={innerMapRef}
+        mapLib={maplibregl}
+        {...viewState}
+        onMove={onMove}
+        onMoveEnd={onMoveEnd}
+        onClick={onMapClick}
+        mapStyle={currentMapStyle}
+        transformRequest={mapboxTransformRequest}
+        style={{ width: '100%', height: '100%' }}
+        maxPitch={60}
+        attributionControl={false}
+        minZoom={2.0}
+        renderWorldCopies={true}
+      >
+        {/* Geofence Visual Layer */}
+        <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
           <Layer 
-            id="radar-layer" 
-            type="raster" 
-            layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
-            paint={{ 'raster-opacity': 0.65 }} 
+            id="spot-geofences-layer"
+            type="circle"
+            paint={{
+              'circle-radius': [
+                'interpolate',
+                ['exponential', 2],
+                ['zoom'],
+                10, 5,
+                14, 25,
+                18, 150
+              ],
+              'circle-color': '#06b6d4',
+              'circle-opacity': 0.1,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#06b6d4',
+              'circle-pitch-alignment': 'map'
+            }}
           />
         </Source>
-      )}
 
-      {/* ESRI True Satellite Imagery */}
-      <Source
-        id="esri-satellite-source"
-        type="raster"
-        tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']}
-        tileSize={256}
-        maxzoom={19}
-      >
-        <Layer
-          id="esri-satellite-layer"
-          beforeId={marineBeforeId || undefined}
+        {/* --- WEATHER LAYERS --- */}
+
+        {/* Live Radar (RainViewer animated frames) */}
+        {radarTileUrl && (
+          <Source
+            id="radar-source"
+            type="raster"
+            tiles={[radarTileUrl]}
+            tileSize={256}
+            maxzoom={7}
+          >
+            <Layer 
+              id="radar-layer" 
+              type="raster" 
+              layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
+              paint={{ 'raster-opacity': 0.65 }} 
+            />
+          </Source>
+        )}
+
+        {/* ESRI True Satellite Imagery */}
+        <Source
+          id="esri-satellite-source"
           type="raster"
-          layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
-          paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
-        />
-      </Source>
-
-      {/* v251: Open-Meteo Independent Static Tile Sources with Triple-Source Sliding Ring Buffer */}
-      {/* v86.4: Render Sources for ALL layer keys with resolved URLs (not just activeLayers).
-           This prevents Source unmount/remount when switching layers, which eliminates:
-           1) AbortError from @openmeteo/weather-map-layer onRemove cleanup
-           2) Tile re-loading delay (tiles stay cached in the mounted Source)
-           3) Error overlay blocking the entire UI */}
-      {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
-        return [0, 1, 2].map(slotIdx => {
-          const slotKey = `${layerKey}-slot-${slotIdx}`;
-          const url = omTileUrls[slotKey];
-          if (!url) return null;
-          const isActive = activeSlots[layerKey] !== undefined
-            ? activeSlots[layerKey] === slotIdx
-            : (closestTimeIdx % 3) === slotIdx;
-
-          return (
-            <Source
-              key={`${slotKey}-source`}
-              id={`${slotKey}-source`}
-              type="raster"
-              url={url}
-              tileSize={512}
-              maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
-            >
-              <Layer
-                id={`${slotKey}-layer`}
-                beforeId={marineBeforeId || undefined}
-                type="raster"
-                layout={{
-                  visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
-                }}
-                paint={{
-                  'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? (
-                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, 0.45,
-                      5, 0.55,
-                      8, 0.65,
-                      12, 0.70
-                    ] : [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
-                    ]
-                  ) : 0.0,
-                  'raster-resampling': 'linear',
-                  'raster-fade-duration': 150
-                }}
-              />
-            </Source>
-          );
-        });
-      })}
-
-      {/* OceanMask permanently disabled — causes lake/water disappearance and
-           doesn't restore base map layers on deactivation. Marine rasters use
-           lower opacity to let the base map show through naturally instead. */}
-
-      {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
-      <MarineParticleCanvas 
-        id="marine-canvas-layer"
-        mapInstance={mapInstance} 
-        active={!isTransitioning && !!activeMarineLayer}
-        data={marineWindData}
-        revision={marineData?.grid?.timestamp || Date.now()}
-      />
-
-      {/* v3.11.1: Extracted marker rendering for LOC compliance */}
-      <MapMarkerLayers
-        spotClusters={spotClusters}
-        livePhotographers={livePhotographers}
-        effectiveLocation={effectiveLocation}
-        activeDispatch={activeDispatch}
-        friendsOnMap={friendsOnMap}
-        filter={filter}
-        pulsingMarkers={pulsingMarkers}
-        onSpotClick={onSpotClick}
-        onPhotographerClick={onPhotographerClick}
-        mapRef={innerMapRef}
-      />
-
-      {/* v3.12.3: Canvas2D wind particles (Ventusky technique).
- WebGLWindLayer DISABLED MapLibre custom layer had WebGL state conflicts
-          making particles invisible. Canvas2D overlay uses same proven architecture
-          as MarineParticleCanvas and Ventusky.com (5 stacked Canvas2D layers). */}
-      <WindParticleOverlay
-        id="wind-particle-overlay"
-        mapInstance={mapInstance}
-        active={!isTransitioning && activeLayers.includes('wind')}
-        data={windData}
-        theme={theme}
-      />
-
-      {/* v163: Long-press / right-click marker (Ventusky/Windy style) */}
-      {longPressLocation && (
-        <Marker
-          longitude={longPressLocation.lng}
-          latitude={longPressLocation.lat}
-          anchor="bottom"
+          tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']}
+          tileSize={256}
+          maxzoom={19}
         >
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center',
-            filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
-            animation: 'markerDrop 0.3s ease-out',
-          }}>
+          <Layer
+            id="esri-satellite-layer"
+            beforeId={marineBeforeId || undefined}
+            type="raster"
+            layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
+            paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
+          />
+        </Source>
+
+        {/* Open-Meteo Independent Static Tile Sources with Triple-Source Sliding Ring Buffer */}
+        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
+          return [0, 1, 2].map(slotIdx => {
+            const slotKey = `${layerKey}-slot-${slotIdx}`;
+            const url = omTileUrls[slotKey];
+            if (!url) return null;
+            const isActive = activeSlots[layerKey] !== undefined
+              ? activeSlots[layerKey] === slotIdx
+              : (closestTimeIdx % 3) === slotIdx;
+
+            return (
+              <Source
+                key={`${slotKey}-source`}
+                id={`${slotKey}-source`}
+                type="raster"
+                url={url}
+                tileSize={512}
+                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
+              >
+                <Layer
+                  id={`${slotKey}-layer`}
+                  beforeId={marineBeforeId || undefined}
+                  type="raster"
+                  layout={{
+                    visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
+                  }}
+                  paint={{
+                    'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? (
+                      LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
+                        'interpolate', ['linear'], ['zoom'],
+                        2, 0.45,
+                        5, 0.55,
+                        8, 0.65,
+                        12, 0.70
+                      ] : [
+                        'interpolate', ['linear'], ['zoom'],
+                        2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+                        5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+                        8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+                        12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+                      ]
+                    ) : 0.0,
+                    'raster-resampling': 'linear',
+                    'raster-fade-duration': 150
+                  }}
+                />
+              </Source>
+            );
+          });
+        })}
+
+        {/* Marine Foam/Crest Engine */}
+        <MarineParticleCanvas 
+          id="marine-canvas-layer"
+          mapInstance={mapInstance} 
+          active={!isTransitioning && !!activeMarineLayer}
+          data={marineWindData}
+          revision={marineData?.grid?.timestamp || Date.now()}
+        />
+
+        {/* Marker Rendering Layer */}
+        <MapMarkerLayers
+          spotClusters={spotClusters}
+          livePhotographers={livePhotographers}
+          effectiveLocation={effectiveLocation}
+          activeDispatch={activeDispatch}
+          friendsOnMap={friendsOnMap}
+          filter={filter}
+          pulsingMarkers={pulsingMarkers}
+          onSpotClick={onSpotClick}
+          onPhotographerClick={onPhotographerClick}
+          mapRef={innerMapRef}
+        />
+
+        {/* Canvas2D Wind Particles Overlay */}
+        <WindParticleOverlay
+          id="wind-particle-overlay"
+          mapInstance={mapInstance}
+          active={!isTransitioning && activeLayers.includes('wind')}
+          data={windData}
+          theme={theme}
+        />
+
+        {/* Long-press / right-click map pin marker */}
+        {longPressLocation && (
+          <Marker
+            longitude={longPressLocation.lng}
+            latitude={longPressLocation.lat}
+            anchor="bottom"
+          >
             <div style={{
-              width: 32, height: 32, borderRadius: '50% 50% 50% 0',
-              background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-              transform: 'rotate(-45deg)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '2px solid white',
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5))',
+              animation: 'markerDrop 0.3s ease-out',
             }}>
               <div style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: 'white', transform: 'rotate(45deg)',
+                width: 32, height: 32, borderRadius: '50% 50% 50% 0',
+                background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                transform: 'rotate(-45deg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid white',
+              }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: 'white', transform: 'rotate(45deg)',
+                }} />
+              </div>
+              <div style={{
+                width: 2, height: 6, background: 'rgba(6,182,212,0.6)',
+                borderRadius: 1, marginTop: -2,
               }} />
+              <style>{`@keyframes markerDrop {
+                from { transform: translateY(-20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+              }`}</style>
             </div>
-            <div style={{
-              width: 2, height: 6, background: 'rgba(6,182,212,0.6)',
-              borderRadius: 1, marginTop: -2,
-            }} />
-            <style>{`@keyframes markerDrop {
-              from { transform: translateY(-20px); opacity: 0; }
-              to { transform: translateY(0); opacity: 1; }
-            }`}</style>
-          </div>
-        </Marker>
-      )}
-    </Map>
+          </Marker>
+        )}
+      </Map>
     </div>
   );
 };
