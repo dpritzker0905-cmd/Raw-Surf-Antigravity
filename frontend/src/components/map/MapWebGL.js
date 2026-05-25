@@ -1,6 +1,60 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import Map, { Source, Layer, Marker } from 'react-map-gl/maplibre';
+import Map, { Source, Layer, Marker, Popup } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
+
+function PressureMarker({ type, value, onClick }) {
+  const isLow = type === 'L';
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        cursor: 'pointer',
+        animation: 'pulseGlow 2s infinite ease-in-out',
+        filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))'
+      }}
+    >
+      <div style={{
+        width: 38,
+        height: 38,
+        borderRadius: '50%',
+        background: isLow ? 'linear-gradient(135deg, #dc2626, #991b1b)' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+        border: '2px solid white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 18,
+        boxShadow: isLow ? '0 0 12px rgba(220, 38, 38, 0.6)' : '0 0 12px rgba(37, 99, 235, 0.6)'
+      }}>
+        {type}
+      </div>
+      <span style={{
+        marginTop: 4,
+        background: 'rgba(15, 23, 42, 0.85)',
+        color: '#e2e8f0',
+        padding: '2px 6px',
+        borderRadius: 4,
+        fontSize: 11,
+        fontWeight: 'bold',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        whiteSpace: 'nowrap'
+      }}>
+        {value} hPa
+      </span>
+      <style>{`
+        @keyframes pulseGlow {
+          0% { transform: scale(1.0); opacity: 0.95; }
+          50% { transform: scale(1.06); opacity: 1.0; }
+          100% { transform: scale(1.0); opacity: 0.95; }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 import {
   getMapStyle,
@@ -66,6 +120,44 @@ var MapWebGL = ({
   
   const innerMapRef = useRef(null);
   const { theme } = useTheme();
+
+  const [activeSystemPopup, setActiveSystemPopup] = useState(null);
+
+  const lowSystem = useMemo(() => {
+    // Moves from 23.5° N, -78.0° W up towards the northeast Atlantic over 240 hours
+    const startLat = 23.5;
+    const endLat = 39.0;
+    const startLng = -78.0;
+    const endLng = -62.0;
+    
+    const ratio = Math.min(1, timeOffsetHours / 240);
+    const lat = startLat + (endLat - startLat) * ratio;
+    const lng = startLng + (endLng - startLng) * ratio;
+    
+    // Deepens from 996 hPa to 982 hPa
+    const pressure = Math.round(996 - 14 * ratio);
+    
+    return { lat, lng, pressure, type: 'L' };
+  }, [timeOffsetHours]);
+
+  const highSystem = useMemo(() => {
+    // Shifts gently from 32.0° N, -58.0° W towards 27.0° N, -68.0° W
+    const startLat = 32.0;
+    const endLat = 27.0;
+    const startLng = -58.0;
+    const endLng = -68.0;
+    
+    const ratio = Math.min(1, timeOffsetHours / 240);
+    const wave = Math.sin((timeOffsetHours / 240) * Math.PI * 2);
+    
+    const lat = startLat + (endLat - startLat) * ratio;
+    const lng = startLng + (endLng - startLng) * ratio;
+    
+    // fluctuates between 1024 and 1029 hPa
+    const pressure = Math.round(1024 + 5 * Math.abs(wave));
+    
+    return { lat, lng, pressure, type: 'H' };
+  }, [timeOffsetHours]);
 
   // 1. Map Initialization and Async Abort Interceptions
   const { mapInstance } = useMapInitialization({ innerMapRef, mapInstanceRef });
@@ -397,6 +489,97 @@ var MapWebGL = ({
               }`}</style>
             </div>
           </Marker>
+        )}
+
+        {/* Dynamic High/Low Pressure System Center Markers */}
+        {activeLayers.includes('pressure') && (
+          <>
+            {lowSystem && (
+              <Marker
+                longitude={lowSystem.lng}
+                latitude={lowSystem.lat}
+                anchor="center"
+              >
+                <PressureMarker 
+                  type="L" 
+                  value={lowSystem.pressure} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSystemPopup(lowSystem);
+                  }} 
+                />
+              </Marker>
+            )}
+            {highSystem && (
+              <Marker
+                longitude={highSystem.lng}
+                latitude={highSystem.lat}
+                anchor="center"
+              >
+                <PressureMarker 
+                  type="H" 
+                  value={highSystem.pressure} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveSystemPopup(highSystem);
+                  }} 
+                />
+              </Marker>
+            )}
+          </>
+        )}
+
+        {/* Dynamic High/Low System Info Popups */}
+        {activeSystemPopup && (
+          <Popup
+            longitude={activeSystemPopup.lng}
+            latitude={activeSystemPopup.lat}
+            anchor="top"
+            onClose={() => setActiveSystemPopup(null)}
+            closeButton={true}
+            closeOnClick={false}
+          >
+            <div style={{
+              padding: 10,
+              background: '#09090b',
+              color: '#f1f5f9',
+              borderRadius: 6,
+              border: '1px solid #27272a',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+              maxWidth: 240
+            }}>
+              <h4 style={{
+                fontWeight: 'bold',
+                fontSize: 13,
+                color: activeSystemPopup.type === 'L' ? '#fb7185' : '#38bdf8',
+                margin: 0
+              }}>
+                {activeSystemPopup.type === 'L' ? 'Low Pressure Storm Cell' : 'Bermuda High-Pressure Ridge'}
+              </h4>
+              <p style={{
+                fontSize: 11,
+                color: '#94a3b8',
+                marginTop: 4,
+                marginBottom: 8,
+                lineHeight: '1.4'
+              }}>
+                {activeSystemPopup.type === 'L' 
+                  ? 'Active cyclonic low system generating consistent swell energy and offshore wind fields.' 
+                  : 'Stable anticyclonic weather ridge providing gentle sea breezes and clear, sunny conditions.'}
+              </p>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: 11,
+                fontFamily: 'monospace',
+                borderTop: '1px solid #27272a',
+                paddingTop: 6
+              }}>
+                <span>Central Pressure:</span>
+                <span style={{ fontWeight: 'bold' }}>{activeSystemPopup.pressure} hPa</span>
+              </div>
+            </div>
+          </Popup>
         )}
       </Map>
     </div>

@@ -443,34 +443,34 @@ Object.keys(BASE_CUSTOM_COLOR_SCALES).forEach(function(key) {
 export function applyThemePressureScale(theme) {
   var colors;
   if (theme === 'beach') {
-    // Beach Theme: desaturated deep ocean teal-indigo (Lows) to sand/bronze (Highs)
+    // Beach Theme: desaturated ocean indigo/teal (Lows) to warm terracotta/bronze (Highs)
     colors = [
-      [8, 51, 68, 0.75],     // 970 hPa (deep ocean teal-indigo)
-      [79, 110, 138, 0.45],  // 990 hPa (muted sea-gray)
-      [180, 200, 210, 0.25], // 1005 hPa (pale sea-mist)
-      [253, 252, 248, 0.0],  // 1013 hPa (neutral fully transparent)
-      [242, 230, 210, 0.35], // 1025 hPa (soft beach sand)
-      [180, 130, 60, 0.65]   // 1045 hPa (warm coastal bronze)
+      [79, 70, 229, 0.7],    // 970 hPa (deep ocean purple-indigo)
+      [14, 116, 144, 0.45],  // 990 hPa (desaturated sea blue)
+      [103, 232, 249, 0.25], // 1005 hPa (light sea-mist)
+      [253, 252, 248, 0.0],  // 1013 hPa (neutral transparent)
+      [217, 119, 6, 0.45],   // 1025 hPa (desaturated terracotta)
+      [180, 83, 9, 0.65]     // 1045 hPa (warm coastal bronze)
     ];
   } else if (theme === 'light') {
-    // Light Theme: desaturated charcoal (Lows) to cream/gold (Highs)
+    // Light Theme: desaturated clear indigo/sky blue (Lows) to solar orange/coral (Highs)
     colors = [
-      [31, 41, 55, 0.75],    // 970 hPa (dark charcoal)
-      [75, 85, 99, 0.45],    // 990 hPa (cool slate)
-      [209, 213, 219, 0.2],  // 1005 hPa (light cool gray)
-      [255, 255, 255, 0.0],  // 1013 hPa (neutral fully transparent)
-      [245, 245, 240, 0.3],  // 1025 hPa (soft warm sand)
-      [251, 191, 36, 0.6]    // 1045 hPa (pale warm gold)
+      [99, 102, 241, 0.75],  // 970 hPa (clear indigo)
+      [59, 130, 246, 0.45],  // 990 hPa (soft sky blue)
+      [191, 219, 254, 0.2],   // 1005 hPa (light ice blue)
+      [255, 255, 255, 0.0],  // 1013 hPa (neutral transparent)
+      [245, 158, 11, 0.45],  // 1025 hPa (solar amber-gold)
+      [239, 68, 68, 0.65]    // 1045 hPa (desaturated coral red)
     ];
   } else {
-    // Dark Theme: desaturated violet-indigo (Lows) to bronze-amber (Highs)
+    // Dark Theme: desaturated neon electric violet/blue (Lows) to glowing amber/crimson (Highs)
     colors = [
-      [124, 58, 237, 0.7],   // 970 hPa (deep royal indigo)
-      [71, 85, 105, 0.4],    // 990 hPa (muted blue-gray)
-      [30, 41, 59, 0.2],     // 1005 hPa (dark slate-blue)
-      [15, 23, 42, 0.0],     // 1013 hPa (neutral fully transparent)
-      [120, 113, 108, 0.3],  // 1025 hPa (deep charcoal-amber)
-      [217, 119, 6, 0.65]    // 1045 hPa (muted amber/bronze)
+      [147, 51, 234, 0.7],   // 970 hPa (electric violet)
+      [37, 99, 235, 0.45],   // 990 hPa (neon blue)
+      [15, 118, 110, 0.25],  // 1005 hPa (muted cyan-gray)
+      [15, 23, 42, 0.0],     // 1013 hPa (neutral transparent)
+      [245, 158, 11, 0.5],    // 1025 hPa (glowing amber-gold)
+      [220, 38, 38, 0.7]     // 1045 hPa (neon crimson)
     ];
   }
 
