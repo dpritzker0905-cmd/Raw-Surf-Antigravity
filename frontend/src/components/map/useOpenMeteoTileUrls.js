@@ -44,7 +44,7 @@ export function useOpenMeteoTileUrls({
 
   // Protocol registration
   useEffect(() => {
-    registerOpenMeteoProtocol(maplibregl, setProtocolReady);
+    registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE);
   }, []);
 
   const fetchMetadata = useCallback(async (modelToCheck, signal) => {

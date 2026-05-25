@@ -664,7 +664,43 @@ function buildOceanPolygon(landGeoJSON) {
   };
 }
 
-export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
+export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE) {
+  // Register a global fetch interceptor to completely prevent 429 rate limits on latest.json metadata requests
+  if (typeof window !== 'undefined' && !window.__FETCH_INTERCEPTED__) {
+    window.__FETCH_INTERCEPTED__ = true;
+    const originalFetch = window.fetch;
+    window.fetch = function (input, init) {
+      const urlString = typeof input === 'string' ? input : input?.url || '';
+      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && MODEL_METADATA_CACHE) {
+        try {
+          const urlObj = new URL(urlString);
+          const parts = urlObj.pathname.split('/');
+          const model = parts[2];
+          if (model && MODEL_METADATA_CACHE[model] && MODEL_METADATA_CACHE[model].validTimes?.length) {
+            const meta = MODEL_METADATA_CACHE[model];
+            const responseData = {
+              completed: true,
+              crs_wkt: "",
+              last_modified_time: new Date().toISOString(),
+              reference_time: meta.referenceTime || new Date().toISOString(),
+              valid_times: meta.validTimes || [],
+              variables: meta.variables || []
+            };
+            console.log(`[OM-Protocol] Fetch intercept HIT for ${model} latest.json (<1ms)`);
+            return Promise.resolve(new Response(JSON.stringify(responseData), {
+              status: 200,
+              statusText: 'OK',
+              headers: { 'Content-Type': 'application/json' }
+            }));
+          }
+        } catch (err) {
+          console.warn('[OM-Protocol] Fetch intercept parsing error:', err);
+        }
+      }
+      return originalFetch.apply(this, arguments);
+    };
+  }
+
   import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
     // Forceful mutation to guarantee custom scales are used in all instances
     Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);
