@@ -151,10 +151,10 @@ export function useOpenMeteoTileUrls({
                       2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
                     ] : [
                       'interpolate', ['linear'], ['zoom'],
-                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.26 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.30 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.34 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
                     ];
                     
                     const dampingFactor = timeOffsetHours > 240
@@ -251,7 +251,7 @@ export function useOpenMeteoTileUrls({
         catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
         const tasks = Object.keys(LAYER_REGISTRY)
-          .filter(k => LAYER_REGISTRY[k].omVariable && activeLayers.includes(k))
+          .filter(k => LAYER_REGISTRY[k].omVariable)
           .map(k => ({ layerKey: k, variable: LAYER_REGISTRY[k].omVariable, entry: LAYER_REGISTRY[k] }));
 
         const resolveModel = (entry, variable) => {
@@ -356,7 +356,7 @@ export function useOpenMeteoTileUrls({
               const filtered = {};
               Object.keys(prev).forEach(key => {
                 const match = key.match(/^(.+)-slot-(\d+)$/);
-                if (match && activeLayers.includes(match[1])) {
+                if (match) {
                   filtered[key] = prev[key];
                 }
               });
@@ -445,7 +445,7 @@ export function useOpenMeteoTileUrls({
             const filtered = {};
             Object.keys(prev).forEach(key => {
               const match = key.match(/^(.+)-slot-(\d+)$/);
-              if (match && activeLayers.includes(match[1])) {
+              if (match) {
                 filtered[key] = prev[key];
               }
             });
@@ -487,10 +487,10 @@ export function useOpenMeteoTileUrls({
           2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
         ] : [
           'interpolate', ['linear'], ['zoom'],
-          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.26 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.30 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.34 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
         ];
         
         const dampingFactor = timeOffsetHours > 240

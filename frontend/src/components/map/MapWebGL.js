@@ -20,7 +20,7 @@ function PressureMarker({ type, value, onClick }) {
         width: 38,
         height: 38,
         borderRadius: '50%',
-        background: isLow ? 'linear-gradient(135deg, #dc2626, #991b1b)' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+        background: isLow ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'linear-gradient(135deg, #dc2626, #991b1b)',
         border: '2px solid white',
         display: 'flex',
         alignItems: 'center',
@@ -28,7 +28,7 @@ function PressureMarker({ type, value, onClick }) {
         color: 'white',
         fontWeight: 'bold',
         fontSize: 18,
-        boxShadow: isLow ? '0 0 12px rgba(220, 38, 38, 0.6)' : '0 0 12px rgba(37, 99, 235, 0.6)'
+        boxShadow: isLow ? '0 0 12px rgba(37, 99, 235, 0.6)' : '0 0 12px rgba(220, 38, 38, 0.6)'
       }}>
         {type}
       </div>
@@ -122,6 +122,11 @@ var MapWebGL = ({
   const { theme } = useTheme();
 
   const [activeSystemPopup, setActiveSystemPopup] = useState(null);
+
+  const handleMapClick = (e) => {
+    setActiveSystemPopup(null);
+    if (onMapClick) onMapClick(e);
+  };
 
   const lowSystem = useMemo(() => {
     // Moves from 23.5° N, -78.0° W up towards the northeast Atlantic over 240 hours
@@ -303,7 +308,7 @@ var MapWebGL = ({
         {...viewState}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
-        onClick={onMapClick}
+        onClick={handleMapClick}
         mapStyle={currentMapStyle}
         transformRequest={mapboxTransformRequest}
         style={{ width: '100%', height: '100%' }}
@@ -408,10 +413,10 @@ var MapWebGL = ({
                         12, 0.70
                       ] : [
                         'interpolate', ['linear'], ['zoom'],
-                        2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-                        5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.26 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-                        8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.30 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-                        12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.34 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+                        2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+                        5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+                        8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+                        12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
                       ]
                     ) : 0.0,
                     'raster-resampling': 'linear',
@@ -531,55 +536,92 @@ var MapWebGL = ({
 
         {/* Dynamic High/Low System Info Popups */}
         {activeSystemPopup && (
-          <Popup
-            longitude={activeSystemPopup.lng}
-            latitude={activeSystemPopup.lat}
-            anchor="top"
-            onClose={() => setActiveSystemPopup(null)}
-            closeButton={true}
-            closeOnClick={false}
-          >
-            <div style={{
-              padding: 10,
-              background: '#09090b',
-              color: '#f1f5f9',
-              borderRadius: 6,
-              border: '1px solid #27272a',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-              maxWidth: 240
-            }}>
-              <h4 style={{
-                fontWeight: 'bold',
-                fontSize: 13,
-                color: activeSystemPopup.type === 'L' ? '#fb7185' : '#38bdf8',
-                margin: 0
-              }}>
-                {activeSystemPopup.type === 'L' ? 'Low Pressure Storm Cell' : 'Bermuda High-Pressure Ridge'}
-              </h4>
-              <p style={{
-                fontSize: 11,
-                color: '#94a3b8',
-                marginTop: 4,
-                marginBottom: 8,
-                lineHeight: '1.4'
-              }}>
-                {activeSystemPopup.type === 'L' 
-                  ? 'Active cyclonic low system generating consistent swell energy and offshore wind fields.' 
-                  : 'Stable anticyclonic weather ridge providing gentle sea breezes and clear, sunny conditions.'}
-              </p>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: 11,
-                fontFamily: 'monospace',
-                borderTop: '1px solid #27272a',
-                paddingTop: 6
-              }}>
-                <span>Central Pressure:</span>
-                <span style={{ fontWeight: 'bold' }}>{activeSystemPopup.pressure} hPa</span>
+          <>
+            <style>{`
+              .maplibregl-popup-content {
+                background: transparent !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                border: none !important;
+              }
+              .maplibregl-popup-tip {
+                border-bottom-color: rgba(9, 9, 11, 0.75) !important;
+                border-top-color: rgba(9, 9, 11, 0.75) !important;
+                border-left-color: rgba(9, 9, 11, 0.75) !important;
+                border-right-color: rgba(9, 9, 11, 0.75) !important;
+              }
+              .maplibregl-popup-close-button {
+                color: rgba(255, 255, 255, 0.6) !important;
+                background: transparent !important;
+                border: none !important;
+                padding: 4px 8px !important;
+                font-size: 14px !important;
+                right: 8px !important;
+                top: 8px !important;
+                transition: color 0.15s ease !important;
+                outline: none !important;
+              }
+              .maplibregl-popup-close-button:hover {
+                color: #ffffff !important;
+                background: transparent !important;
+              }
+            `}</style>
+            <Popup
+              longitude={activeSystemPopup.lng}
+              latitude={activeSystemPopup.lat}
+              anchor="top"
+              onClose={() => setActiveSystemPopup(null)}
+              closeButton={true}
+              closeOnClick={false}
+            >
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  padding: 12,
+                  background: 'rgba(9, 9, 11, 0.75)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  color: '#f1f5f9',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6)',
+                  maxWidth: 240,
+                  position: 'relative'
+                }}
+              >
+                <h4 style={{
+                  fontWeight: 'bold',
+                  fontSize: 13,
+                  color: activeSystemPopup.type === 'L' ? '#38bdf8' : '#fb7185',
+                  margin: 0
+                }}>
+                  {activeSystemPopup.type === 'L' ? 'Low Pressure Storm Cell' : 'Bermuda High-Pressure Ridge'}
+                </h4>
+                <p style={{
+                  fontSize: 11,
+                  color: '#94a3b8',
+                  marginTop: 4,
+                  marginBottom: 8,
+                  lineHeight: '1.4'
+                }}>
+                  {activeSystemPopup.type === 'L' 
+                    ? 'Active cyclonic low system generating consistent swell energy and offshore wind fields.' 
+                    : 'Stable anticyclonic weather ridge providing gentle sea breezes and clear, sunny conditions.'}
+                </p>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  paddingTop: 6
+                }}>
+                  <span>Central Pressure:</span>
+                  <span style={{ fontWeight: 'bold' }}>{activeSystemPopup.pressure} hPa</span>
+                </div>
               </div>
-            </div>
-          </Popup>
+            </Popup>
+          </>
         )}
       </Map>
     </div>

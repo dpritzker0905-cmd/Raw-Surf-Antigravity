@@ -443,34 +443,34 @@ Object.keys(BASE_CUSTOM_COLOR_SCALES).forEach(function(key) {
 export function applyThemePressureScale(theme) {
   var colors;
   if (theme === 'beach') {
-    // Beach Theme: desaturated ocean indigo/teal (Lows) to warm terracotta/bronze (Highs)
+    // Beach Theme: desaturated ocean indigo/teal (Lows) to warm terracotta/bronze (Highs) - boosted contrast
     colors = [
-      [79, 70, 229, 0.7],    // 970 hPa (deep ocean purple-indigo)
-      [14, 116, 144, 0.45],  // 990 hPa (desaturated sea blue)
-      [103, 232, 249, 0.25], // 1005 hPa (light sea-mist)
+      [79, 70, 229, 0.95],   // 970 hPa (deep ocean purple-indigo)
+      [14, 116, 144, 0.85],  // 990 hPa (desaturated sea blue)
+      [103, 232, 249, 0.70], // 1005 hPa (light sea-mist)
       [253, 252, 248, 0.0],  // 1013 hPa (neutral transparent)
-      [217, 119, 6, 0.45],   // 1025 hPa (desaturated terracotta)
-      [180, 83, 9, 0.65]     // 1045 hPa (warm coastal bronze)
+      [217, 119, 6, 0.75],   // 1025 hPa (desaturated terracotta)
+      [180, 83, 9, 0.95]     // 1045 hPa (warm coastal bronze)
     ];
   } else if (theme === 'light') {
-    // Light Theme: desaturated clear indigo/sky blue (Lows) to solar orange/coral (Highs)
+    // Light Theme: desaturated clear indigo/sky blue (Lows) to solar orange/coral (Highs) - boosted contrast
     colors = [
-      [99, 102, 241, 0.75],  // 970 hPa (clear indigo)
-      [59, 130, 246, 0.45],  // 990 hPa (soft sky blue)
-      [191, 219, 254, 0.2],   // 1005 hPa (light ice blue)
+      [99, 102, 241, 0.95],  // 970 hPa (clear indigo)
+      [59, 130, 246, 0.85],  // 990 hPa (soft sky blue)
+      [191, 219, 254, 0.70], // 1005 hPa (light ice blue)
       [255, 255, 255, 0.0],  // 1013 hPa (neutral transparent)
-      [245, 158, 11, 0.45],  // 1025 hPa (solar amber-gold)
-      [239, 68, 68, 0.65]    // 1045 hPa (desaturated coral red)
+      [245, 158, 11, 0.75],  // 1025 hPa (solar amber-gold)
+      [239, 68, 68, 0.95]    // 1045 hPa (desaturated coral red)
     ];
   } else {
-    // Dark Theme: desaturated neon electric violet/blue (Lows) to glowing amber/crimson (Highs)
+    // Dark Theme: desaturated neon electric violet/blue (Lows) to glowing amber/crimson (Highs) - boosted contrast
     colors = [
-      [147, 51, 234, 0.7],   // 970 hPa (electric violet)
-      [37, 99, 235, 0.45],   // 990 hPa (neon blue)
-      [15, 118, 110, 0.25],  // 1005 hPa (muted cyan-gray)
+      [147, 51, 234, 0.95],  // 970 hPa (electric violet)
+      [37, 99, 235, 0.85],   // 990 hPa (neon blue)
+      [6, 182, 212, 0.70],   // 1005 hPa (vibrant cyan-blue)
       [15, 23, 42, 0.0],     // 1013 hPa (neutral transparent)
-      [245, 158, 11, 0.5],    // 1025 hPa (glowing amber-gold)
-      [220, 38, 38, 0.7]     // 1045 hPa (neon crimson)
+      [245, 158, 11, 0.75],  // 1025 hPa (glowing amber-gold)
+      [220, 38, 38, 0.95]    // 1045 hPa (neon crimson)
     ];
   }
 
