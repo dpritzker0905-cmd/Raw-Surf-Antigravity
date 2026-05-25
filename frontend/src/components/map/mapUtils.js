@@ -732,7 +732,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
                 tilejson: "2.2.0",
                 name: "om-safe-fallback",
                 version: "1.0.0",
-                tiles: ["data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg="],
+                tiles: ["om://transparent-tile"],
                 bounds: [-180, -85, 180, 85],
                 minzoom: 0,
                 maxzoom: 22
@@ -752,6 +752,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               return { data: new ArrayBuffer(0) };
             }
           };
+
+          // Intercept local transparent-tile requests seamlessly without causing Data URI fetch exceptions
+          if (params.url && params.url.includes('transparent-tile')) {
+            return getSafeWorkerFallbackResponse(params.url, 'image');
+          }
 
           // v3.14: Use ocean-clipped settings for marine variables so land pixels are transparent
           const isMarine = variable && MARINE_VARIABLES.has(variable);

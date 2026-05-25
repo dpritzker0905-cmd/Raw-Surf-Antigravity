@@ -81,7 +81,7 @@ export function useOpenMeteoTileUrls({
   const closestTimeIdx = useMemo(() => {
     const model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     const meta = MODEL_METADATA_CACHE[model];
-    if (!meta || !meta.validTimes || !meta.validTimes.length) return 0;
+    if (!meta || !Array.isArray(meta.validTimes) || !meta.validTimes.length) return 0;
     const targetMs = Date.now() + timeOffsetHours * 3600000;
     let closestIdx = 0;
     let minDiff = Infinity;
@@ -89,7 +89,10 @@ export function useOpenMeteoTileUrls({
       const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
       if (diff < minDiff) { minDiff = diff; closestIdx = i; }
     }
-    return Math.max(0, Math.min(meta.validTimes.length - 1, closestIdx));
+    // Clamp to 10-day physical tile limit (index 159 / 240h) to prevent out-of-bounds 404s
+    const maxAllowedIdx = Math.min(159, meta.validTimes.length - 1);
+    const resultIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
+    return isNaN(resultIdx) ? 0 : resultIdx;
   }, [activeModel, timeOffsetHours, metadataRevision]);
   
   useEffect(() => {
@@ -228,8 +231,8 @@ export function useOpenMeteoTileUrls({
 
     const getUrlForIndex = (model, variable, idx) => {
       const meta = MODEL_METADATA_CACHE[model];
-      const len = meta?.validTimes?.length || 0;
-      const clampedIdx = len > 0 ? Math.max(0, Math.min(len - 1, idx)) : 0;
+      const len = Array.isArray(meta?.validTimes) ? meta.validTimes.length : 0;
+      const clampedIdx = len > 0 ? Math.max(0, Math.min(len - 1, Number(idx) || 0)) : 0;
       const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
       const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
       return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}`;
@@ -319,20 +322,26 @@ export function useOpenMeteoTileUrls({
             const targetMs = Date.now() + timeOffsetHours * 3600000;
             let closestIdx = 0;
             let minDiff = Infinity;
-            if (validTimes && validTimes.length) {
+            if (Array.isArray(validTimes) && validTimes.length) {
               for (let i = 0; i < validTimes.length; i++) {
                 const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
                 if (diff < minDiff) { minDiff = diff; closestIdx = i; }
               }
             }
-            closestIdx = Math.max(0, Math.min(validTimes.length - 1, closestIdx));
+            // For GFS Wave and Precipitation models, clamp to the 10-day physical tile limit (index 159 / 240h) to avoid 404s
+            const isClampedModel = layerModel === 'ncep_gfswave025' || layerModel === 'ncep_gfs013' || layerModel === 'ncep_gfs025';
+            const maxAllowedIdx = isClampedModel ? Math.min(159, (validTimes?.length || 1) - 1) : (validTimes?.length || 1) - 1;
+            closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
+            if (isNaN(closestIdx)) closestIdx = 0;
+
             const slotCurrent = closestIdx % 3;
             newActiveSlots[layerKey] = slotCurrent;
             const slotPrev = (closestIdx - 1 + 3) % 3;
             const slotNext = (closestIdx + 1) % 3;
+            const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
             newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
             newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
-            newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < validTimes.length - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
           }
         }
 
