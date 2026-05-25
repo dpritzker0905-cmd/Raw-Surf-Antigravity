@@ -157,6 +157,16 @@ function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal) {
   var lngWidth = east - west;
   if (lngWidth < 0) lngWidth += 360;
 
+  // Pad boundaries by 50% on all sides to disperse particles wider
+  var padLng = lngWidth * 0.5;
+  var padLat = (north - south) * 0.5;
+  west -= padLng;
+  east += padLng;
+  south = Math.max(-85, south - padLat);
+  north = Math.min(85, north + padLat);
+  lngWidth = east - west;
+  if (lngWidth < 0) lngWidth += 360;
+
   var lng, lat;
   if (stratifyIdx != null && stratifyTotal > 0) {
     var cols = Math.ceil(Math.sqrt(stratifyTotal * Math.max(1, lngWidth) / Math.max(1, north - south)));
@@ -246,6 +256,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     var lastDataId = null;
     var lastHourOffset = null;
     var warmedUp = false; // Track if we've done the initial warm-up
+    var handleMapMove = function() { warmedUp = false; };
+    mapInstance.on('moveend', handleMapMove);
     var coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
 
@@ -476,6 +488,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       ACTIVE_WIND_ENGINES.delete(layerId);
       coordinator.unregister(layerId);
       window.removeEventListener('resize', onResize);
+      mapInstance.off('moveend', handleMapMove);
     };
   }, [mapInstance]);
 

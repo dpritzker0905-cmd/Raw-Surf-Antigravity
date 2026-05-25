@@ -56,13 +56,26 @@ export function useOpenMeteoTileUrls({
     );
   }, []);
 
-  // Pre-warm metadata cache on mount
+  // Pre-warm active model and wave fallbacks immediately, and defer the rest
   useEffect(() => {
-    [
-      'ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025',
-      'ecmwf_wam025', 'ncep_gfswave025', 'dwd_gwam'
-    ].forEach(m => fetchMetadata(m));
-  }, [fetchMetadata]);
+    const activeModelCode = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+    // 1. Prioritize active model and active wave model metadata immediately
+    fetchMetadata(activeModelCode);
+    fetchMetadata('ncep_gfswave025'); // Default wave model
+    
+    // 2. Defer other models by 2 seconds using a non-blocking setTimeout
+    const timer = setTimeout(() => {
+      const remainingModels = [
+        'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025',
+        'ecmwf_wam025', 'dwd_gwam'
+      ].filter(m => m !== activeModelCode);
+      
+      // Load remaining models in the background
+      remainingModels.forEach(m => fetchMetadata(m));
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [fetchMetadata, activeModel]);
 
   // Closest time index computation
   const closestTimeIdx = useMemo(() => {
