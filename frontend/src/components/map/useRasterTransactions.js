@@ -1,4 +1,4 @@
-﻿import { useRef, useCallback } from 'react';
+import { useRef, useCallback } from 'react';
 
 /**
  * useRasterTransactions (v243)
@@ -55,17 +55,6 @@ export function useRasterTransactions(mapInstance, renderContract) {
     try {
       const source = map.getSource(sourceId);
       if (!source) return false;
-
-      // Source-loading gate with rate-limited retry
-      if (map.isSourceLoaded && !map.isSourceLoaded(sourceId)) {
-        const loadState = sourceLoadState.current[sourceId];
-        const now = Date.now();
-        if (loadState && now - loadState.lastAttempt < MIN_RETRY_DELAY) {
-          return false;
-        }
-        sourceLoadState.current[sourceId] = { status: 'loading', lastAttempt: now };
-        return false;
-      }
 
       // Hard dedup right before commit
       const urlKey = isTilesArray ? JSON.stringify(url) : url;
