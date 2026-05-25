@@ -468,6 +468,33 @@ export var LIVE_FETCHED_MODELS = new Set();
 
 export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged, signal) {
   const cached = MODEL_METADATA_CACHE[modelToCheck];
+  if (cached) return cached;
+
+  // Try reading from localStorage persistent cache
+  try {
+    const stored = localStorage.getItem(`om_meta_${modelToCheck}`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Ensure the cache is fresh (less than 1 hour old)
+      if (parsed && parsed.validTimes && (Date.now() - (parsed.fetchedAt || 0) < 3600000)) {
+        MODEL_METADATA_CACHE[modelToCheck] = {
+          variables: parsed.variables || [],
+          validTimes: parsed.validTimes || [],
+          referenceTime: parsed.referenceTime || null
+        };
+        LIVE_FETCHED_MODELS.add(modelToCheck);
+        console.log(`[OM-Cache] Persistent metadata cache HIT for ${modelToCheck} (<1ms)`);
+        
+        if (onMetadataChanged) {
+          onMetadataChanged();
+        }
+        return MODEL_METADATA_CACHE[modelToCheck];
+      }
+    }
+  } catch (e) {
+    console.warn('[OM-Cache] Failed to read metadata from localStorage:', e);
+  }
+
   if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
     // If signal is already aborted, throw AbortError immediately
     if (signal?.aborted) {
@@ -503,6 +530,17 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
         MODEL_METADATA_CACHE[modelToCheck] = result;
         LIVE_FETCHED_MODELS.add(modelToCheck);
 
+        // Save to localStorage persistent cache
+        try {
+          localStorage.setItem(`om_meta_${modelToCheck}`, JSON.stringify({
+            ...result,
+            fetchedAt: Date.now()
+          }));
+          console.log(`[OM-Cache] Persistent metadata cache WARMED for ${modelToCheck}`);
+        } catch (e) {
+          // ignore
+        }
+
         if (hasChanged && onMetadataChanged) {
           onMetadataChanged();
         }
@@ -522,7 +560,7 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
         MODEL_METADATA_PROMISES[modelToCheck] = null;
       });
   }
-  return cached || { variables: [], validTimes: [], referenceTime: null };
+  return MODEL_METADATA_CACHE[modelToCheck] || cached || { variables: [], validTimes: [], referenceTime: null };
 }
 
 // v18: Shared utilities to completely prevent styledata event storms and mount race conditions
