@@ -23,6 +23,7 @@ import {
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner';
+import useActiveSession from '../hooks/useActiveSession';
 
 // --- Severity config ----------------------------------------------------------
 const SEVERITY_CONFIG = {
@@ -35,6 +36,7 @@ const SEVERITY_CONFIG = {
 const ViolationBanner = () => {
   const { user } = useAuth();
   const { theme } = useTheme();
+  const { activeSession } = useActiveSession();
   const location = useLocation();
   const isLight = theme === 'light';
 
@@ -107,7 +109,7 @@ const ViolationBanner = () => {
       <button
         onClick={() => setExpanded(true)}
         className={`fixed z-[200] transition-all animate-in slide-in-from-bottom-4 duration-300
-          bottom-24 md:bottom-6 right-4 md:right-6
+          ${activeSession ? 'bottom-[160px]' : 'bottom-24'} md:bottom-6 right-4 md:right-6
           flex items-center gap-2 px-4 py-2.5 rounded-full shadow-lg
           ${isCritical
             ? 'bg-red-600 hover:bg-red-700'
@@ -143,7 +145,7 @@ const ViolationBanner = () => {
   return (
     <div
       className={`fixed z-[200] animate-in slide-in-from-bottom-4 duration-300
-        bottom-24 md:bottom-6 right-4 md:right-6
+        ${activeSession ? 'bottom-[160px]' : 'bottom-24'} md:bottom-6 right-4 md:right-6
         w-[calc(100vw-2rem)] md:w-[420px] max-h-[70vh]
         rounded-2xl shadow-2xl overflow-hidden
         ${isLight ? 'bg-white border border-gray-200' : 'bg-zinc-900 border border-zinc-700'}

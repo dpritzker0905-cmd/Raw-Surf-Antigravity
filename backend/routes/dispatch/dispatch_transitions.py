@@ -18,6 +18,7 @@ from database import get_db
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchRequestStatusEnum, Booking, CreditTransaction, Notification,
+    SurfSpot,
 )
 
 from .schemas import CancelDispatchRequest
@@ -189,12 +190,63 @@ async def cancel_dispatch(
 
     now = datetime.now(timezone.utc)
 
+    # 1. Swell safety check (Rule 15): If swell height > 10ft, waive fee and refund fully
+    swell_height_ft = 0.0
+    if dispatch.spot_id:
+        try:
+            spot_result = await db.execute(
+                select(SurfSpot).where(SurfSpot.id == dispatch.spot_id)
+            )
+            spot = spot_result.scalar_one_or_none()
+            if spot:
+                # Try event log cache
+                try:
+                    import event_bus_core
+                    recent_weather = event_bus_core.get_recent_events(event_type="weather_updated", limit=50)
+                    spot_weather = next((w for w in recent_weather if w["payload"].get("spot_name") == spot.name), None)
+                    if spot_weather:
+                        swell_height_ft = float(spot_weather["payload"].get("swell_height_ft", 0))
+                except Exception as cache_err:
+                    logger.debug(f"Failed to check weather from event bus log: {cache_err}")
+
+                # Fallback to direct Open-Meteo call if under limit or cached data missing
+                if swell_height_ft <= 10.0:
+                    try:
+                        import httpx
+                        async with httpx.AsyncClient(timeout=3.0) as client:
+                            response = await client.get(
+                                "https://marine-api.open-meteo.com/v1/marine",
+                                params={
+                                    "latitude": spot.latitude,
+                                    "longitude": spot.longitude,
+                                    "current": "wave_height,swell_wave_height",
+                                    "timezone": "America/New_York"
+                                }
+                            )
+                            if response.status_code == 200:
+                                current_data = response.json().get("current", {})
+                                wave_height_m = current_data.get("wave_height", 0)
+                                wave_height_ft = wave_height_m * 3.28084 if wave_height_m else 0
+                                swell_height_m = current_data.get("swell_wave_height", 0)
+                                swell_height_ft = swell_height_m * 3.28084 if swell_height_m else 0
+                                swell_height_ft = max(wave_height_ft, swell_height_ft)
+                    except Exception as http_err:
+                        logger.debug(f"Failed to fetch real-time weather from Open-Meteo: {http_err}")
+        except Exception as spot_err:
+            logger.warning(f"Error checking swell height during cancel: {spot_err}")
+
+    safety_cancellation = swell_height_ft > 10.0
+
     # Calculate refund based on cancellation policy
     refund_amount = 0
     refund_type = 'none'
     photographer_fee_pct = 0
 
-    if dispatch.is_immediate:
+    if safety_cancellation:
+        refund_amount = dispatch.deposit_amount
+        refund_type = 'full'
+        logger.info(f"Swell safety threshold exceeded ({swell_height_ft:.1f} ft > 10 ft). Cancellation fee waived, full refund issued.")
+    elif dispatch.is_immediate:
         # On-Demand: Check status for refund eligibility
         if dispatch.status == DispatchRequestStatusEnum.SEARCHING_FOR_PRO:
             # Not accepted yet — full refund

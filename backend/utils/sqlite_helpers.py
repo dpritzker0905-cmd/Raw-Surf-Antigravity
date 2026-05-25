@@ -18,7 +18,7 @@ def get_db_path(filename: str) -> str:
     base_name = os.path.basename(filename)
     return os.path.join(BASE_DIR, base_name)
 
-def get_sqlite_connection(db_path: str, timeout: float = 30.0) -> sqlite3.Connection:
+def get_sqlite_connection(db_path: str, timeout: float = 10.0) -> sqlite3.Connection:
     """
     Establishes an active SQLite connection configured with:
     - Write-Ahead Logging (WAL) mode (allows concurrent reads during writes)
