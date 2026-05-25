@@ -23,6 +23,23 @@ const GalleryPricingModal = ({
   textSecondaryClass, borderClass, inputBgClass, cardBgClass, navigate,
   totalGalleryItems, showPricing
 }) => {
+  // Get platform fee based on user role and subscription tier
+  const getPlatformFeePercent = (u) => {
+    if (!u) return 20;
+    const role = u.role;
+    const tier = u.subscription_tier;
+    const isPremium = tier === 'premium' || tier === 'tier_3';
+    if (role === 'Approved Pro' || role === 'Verified Pro Photographer') {
+      return isPremium ? 10 : 12;
+    } else if (role === 'Photographer') {
+      return isPremium ? 15 : 20;
+    } else if (role === 'Hobbyist') {
+      return 25;
+    }
+    return 20;
+  };
+  const feePercent = getPlatformFeePercent(user);
+
   return (
     <>
       {/* Pricing Modal */}
@@ -110,7 +127,7 @@ const GalleryPricingModal = ({
             
             <div className={`p-3 rounded-lg ${isLight ? 'bg-green-50' : 'bg-green-500/10'}`}>
               <p className={`text-sm ${textSecondaryClass}`}>
-                <strong className="text-green-400">Platform fee:</strong> 20% of each sale. You receive 80%.
+                <strong className="text-green-400">Platform fee:</strong> {feePercent}% of each sale. You receive {100 - feePercent}%.
               </p>
             </div>
           </div>

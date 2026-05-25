@@ -33,6 +33,23 @@ const BookingPricingModal = (props) => {
  // Safe fallback -- prevent crash if bookingPricing hasn't loaded yet
   const safePricing = bookingPricing || {};
 
+  // Get platform fee based on user role and subscription tier
+  const getPlatformFeePercent = (u) => {
+    if (!u) return 20;
+    const role = u.role;
+    const tier = u.subscription_tier;
+    const isPremium = tier === 'premium' || tier === 'tier_3';
+    if (role === 'Approved Pro' || role === 'Verified Pro Photographer') {
+      return isPremium ? 10 : 12;
+    } else if (role === 'Photographer') {
+      return isPremium ? 15 : 20;
+    } else if (role === 'Hobbyist') {
+      return 25;
+    }
+    return 20;
+  };
+  const feePercent = getPlatformFeePercent(user);
+
   return (
     <>
       {/* Booking Pricing Modal - NUMERIC STEPPERS (no sliders) */}
@@ -440,7 +457,7 @@ const BookingPricingModal = (props) => {
             
             <div className={`p-3 rounded-lg ${isLight ? 'bg-amber-50' : 'bg-amber-500/10'}`}>
               <p className={`text-sm ${textSecondaryClass}`}>
-                <strong className="text-amber-400">Platform fee:</strong> 20% is deducted from bookings. You receive 80% of the total.
+                <strong className="text-amber-400">Platform fee:</strong> {feePercent}% is deducted from bookings. You receive {100 - feePercent}% of the total.
               </p>
             </div>
           </div>

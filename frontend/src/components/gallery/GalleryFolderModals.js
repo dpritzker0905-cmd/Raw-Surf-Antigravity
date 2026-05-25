@@ -1,4 +1,4 @@
-﻿/**
+/**
  * GalleryPageModals.js
  * Extracted folder management modals from GalleryPage.js
  * Includes: GalleryPricingModal, CreateFolderModal, RenameFolderModal,
@@ -43,10 +43,27 @@ export const GalleryFolderModals = ({
   handleCreateFolder, handleRenameFolder, confirmDeleteFolder,
   // Move/Copy
   showMoveToFolderModal, setShowMoveToFolderModal,
-  showCopyToFolderModal, setShowCopyToFolderModal,
   galleries, selectedItems,
   handleMoveToFolder, handleCopyToFolder,
+  user,
 }) => {
+  // Get platform fee based on user role and subscription tier
+  const getPlatformFeePercent = (u) => {
+    if (!u) return 20;
+    const role = u.role;
+    const tier = u.subscription_tier;
+    const isPremium = tier === 'premium' || tier === 'tier_3';
+    if (role === 'Approved Pro' || role === 'Verified Pro Photographer') {
+      return isPremium ? 10 : 12;
+    } else if (role === 'Photographer') {
+      return isPremium ? 15 : 20;
+    } else if (role === 'Hobbyist') {
+      return 25;
+    }
+    return 20;
+  };
+  const feePercent = getPlatformFeePercent(user);
+
   return (
     <>
       {/* Gallery Pricing Edit Modal */}
@@ -268,7 +285,7 @@ export const GalleryFolderModals = ({
 
             <div className="p-3 rounded-lg bg-green-500/10">
               <p className="text-sm text-muted-foreground">
-                <strong className="text-green-400">Platform fee:</strong> 20% is deducted from each sale. You receive 80% of all gallery purchases.
+                <strong className="text-green-400">Platform fee:</strong> {feePercent}% is deducted from each sale. You receive {100 - feePercent}% of all gallery purchases.
               </p>
             </div>
           </div>

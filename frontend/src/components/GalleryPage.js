@@ -730,6 +730,7 @@ export const GalleryPage = () => {
       {/* Gallery Pricing Modal */}
       {/* Extracted Folder & Pricing Modals */}
       <GalleryFolderModals
+        user={user}
         showGalleryPricingModal={showGalleryPricingModal}
         setShowGalleryPricingModal={setShowGalleryPricingModal}
         galleryPricing={galleryPricing}
