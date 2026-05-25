@@ -150,6 +150,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           const model = parts[2];
           if (model && MODEL_METADATA_CACHE[model] && MODEL_METADATA_CACHE[model].validTimes?.length) {
             const meta = MODEL_METADATA_CACHE[model];
+            WeatherTelemetry.trackCacheHit(model, 'MODEL_METADATA_CACHE');
             const responseData = {
               completed: true,
               crs_wkt: "",
@@ -163,18 +164,24 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               statusText: 'OK',
               headers: { 'Content-Type': 'application/json' }
             }));
+          } else if (model) {
+            WeatherTelemetry.trackCacheMiss(model, 'MODEL_METADATA_CACHE');
           }
         } catch (err) {
           console.warn('[OM-Protocol] Fetch intercept parsing error:', err);
         }
       }
 
+      const fetchStartTime = Date.now();
       const promise = originalFetch.apply(this, arguments);
 
       // Inspect response and register 404s for .om tile runs
       if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
         return promise.then(res => {
+          const duration = Date.now() - fetchStartTime;
           if (res.status === 404) {
+            WeatherTelemetry.trackTileResponse(urlString, duration, 'MISS', urlString);
+            WeatherTelemetry.trackTileError(urlString, duration, urlString, '404 Not Found');
             try {
               // Block the specific missing tile URL to prevent repeated 404 requests for it
               if (!MISSING_OM_TILES.has(urlString)) {
@@ -182,10 +189,37 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
                 console.warn(`[OM-Protocol] Precise tile registered as MISSING: ${urlString}. Future requests to this exact tile will be blocked.`);
               }
             } catch (e) { /* ignore */ }
+
+            // Serve 1x1 transparent PNG bytes instead of raw 404 to prevent browser image decoding exception crashes
+            const cleanPngBytes = new Uint8Array([
+              137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 96, 96, 96, 0, 0, 0, 5, 0, 1, 165, 246, 69, 64, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+            ]);
+            return new Response(cleanPngBytes, {
+              status: 200,
+              statusText: 'OK',
+              headers: { 'Content-Type': 'image/png' }
+            });
+          } else {
+            WeatherTelemetry.trackTileResponse(urlString, duration, 'HIT', urlString);
           }
           return res;
+        }).catch(err => {
+          const duration = Date.now() - fetchStartTime;
+          WeatherTelemetry.trackTileError(urlString, duration, urlString, err.message || 'Fetch failed');
+          
+          // Return valid transparent PNG on network failures as well to shield painter loop
+          const cleanPngBytes = new Uint8Array([
+            137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 96, 96, 96, 0, 0, 0, 5, 0, 1, 165, 246, 69, 64, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+          ]);
+          return new Response(cleanPngBytes, {
+            status: 200,
+            statusText: 'OK',
+            headers: { 'Content-Type': 'image/png' }
+          });
         });
       }
+
+
 
       return promise;
     };
@@ -356,12 +390,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
                 WeatherTelemetry.trackTileLoaded(tileKey, false);
                 return getSafeWorkerFallbackResponse(params.url, params.type);
               }
+              WeatherTelemetry.trackRasterDecodeStart(tileKey);
               const res = await omProtocol(params, abortController, effectiveSettings);
+              WeatherTelemetry.trackRasterDecodeEnd(tileKey, Date.now() - startTime);
               WeatherTelemetry.trackTileLoaded(tileKey, true);
               WeatherTelemetry.trackRasterDecoded(tileKey, Date.now() - startTime);
               return res;
             } catch (err) {
               WeatherTelemetry.trackTileLoaded(tileKey, false);
+              WeatherTelemetry.trackTileError(tileKey, Date.now() - startTime, tileKey, err.message || 'Decoding error');
               if (err.name === 'AbortError' || err.message?.includes('aborted')) {
                 throw err;
               }
@@ -370,6 +407,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             } finally {
               protocolMutex.release();
             }
+
           };
 
           try {

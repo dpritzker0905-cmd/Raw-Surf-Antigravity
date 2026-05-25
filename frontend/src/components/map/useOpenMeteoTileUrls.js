@@ -50,11 +50,13 @@ export function useOpenMeteoTileUrls({
 
     if (diff < 120) {
       // Rapid dragging / scrubbing timeline slider: debounce by 200ms
+      WeatherTelemetry.trackAnimationScrub(timeOffsetHours);
       debounceTimerRef.current = setTimeout(() => {
         setDebouncedTimeOffsetHours(timeOffsetHours);
       }, 200);
     } else {
       // Single click/tap or slow adjustment: update instantly
+      WeatherTelemetry.trackTimelineSeek(timeOffsetHours);
       setDebouncedTimeOffsetHours(timeOffsetHours);
     }
 
@@ -64,6 +66,24 @@ export function useOpenMeteoTileUrls({
       }
     };
   }, [timeOffsetHours]);
+
+  const prevModelRef = useRef(activeModel);
+  useEffect(() => {
+    if (activeModel !== prevModelRef.current) {
+      WeatherTelemetry.trackModelSwitch(activeModel);
+      prevModelRef.current = activeModel;
+    }
+  }, [activeModel]);
+
+  const prevLayersRef = useRef(activeLayers);
+  useEffect(() => {
+    const prev = prevLayersRef.current || [];
+    const added = activeLayers.filter(x => !prev.includes(x));
+    const removed = prev.filter(x => !activeLayers.includes(x));
+    added.forEach(layer => WeatherTelemetry.trackLayerAttach(layer));
+    removed.forEach(layer => WeatherTelemetry.trackLayerDetach(layer));
+    prevLayersRef.current = activeLayers;
+  }, [activeLayers]);
 
   const cacheBustRef = useRef(Date.now());
   const modelDebounceTimeoutRef = useRef(null);
@@ -84,6 +104,7 @@ export function useOpenMeteoTileUrls({
   useEffect(() => {
     WeatherTelemetry.updateState(activeModel, activeLayers, debouncedTimeOffsetHours);
   }, [activeModel, activeLayers, debouncedTimeOffsetHours]);
+
 
   // Dynamic theme pressure color scale synchronizer
   useEffect(() => {

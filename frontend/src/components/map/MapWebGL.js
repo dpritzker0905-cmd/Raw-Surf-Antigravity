@@ -1,6 +1,8 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import Map, { Source, Layer, Marker, Popup } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
+import { WeatherTelemetry } from './WeatherTelemetry';
+
 
 function PressureMarker({ type, value, onClick }) {
   const isLow = type === 'L';
@@ -290,6 +292,47 @@ var MapWebGL = ({
 
   // Global Render Contract single source of truth for map readiness
   useMapRenderContract(mapInstance);
+
+  // Self-healing observability for MapLibre errors and WebGL context events
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    const onError = (e) => {
+      console.error('[MapWebGL] Map instance error event:', e);
+      WeatherTelemetry.trackMapError(e.error?.message || 'MapError', e.error?.stack || '');
+    };
+
+    mapInstance.on('error', onError);
+
+    const canvas = mapInstance.getCanvas();
+    let onContextLost = null;
+    let onContextRestored = null;
+
+    if (canvas) {
+      onContextLost = (e) => {
+        e.preventDefault();
+        console.warn('[MapWebGL] WebGL context lost detected!');
+        WeatherTelemetry.trackWebGLContextLost();
+      };
+
+      onContextRestored = () => {
+        console.log('[MapWebGL] WebGL context restored successfully!');
+        WeatherTelemetry.trackWebGLContextRestored();
+      };
+
+      canvas.addEventListener('webglcontextlost', onContextLost);
+      canvas.addEventListener('webglcontextrestored', onContextRestored);
+    }
+
+    return () => {
+      mapInstance.off('error', onError);
+      if (canvas) {
+        if (onContextLost) canvas.removeEventListener('webglcontextlost', onContextLost);
+        if (onContextRestored) canvas.removeEventListener('webglcontextrestored', onContextRestored);
+      }
+    };
+  }, [mapInstance]);
+
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

@@ -196,9 +196,75 @@ class WeatherTelemetryEngine {
     this.emit('projection_transform_applied', { shaderId, durationMs });
   }
 
-  trackWebGLContextReset() {
+  // Event list: weather_picker_changed, model_switch, layer_attach, layer_detach, tile_requested, tile_loaded, tile_failed, tile_response, tile_error, raster_decode_start, raster_decode_end, render_start, render_completed, render_failed, WebGL_context_lost, WebGL_context_restored, map_error_event, cache_hit, cache_miss, animation_scrub_event, timeline_seek_event
+
+  trackModelSwitch(modelName) {
+    this.emit('model_switch', { model: modelName });
+  }
+
+  trackLayerAttach(layerId) {
+    this.emit('layer_attach', { layerId });
+  }
+
+  trackLayerDetach(layerId) {
+    this.emit('layer_detach', { layerId });
+  }
+
+  trackTileResponse(tileKey, duration, cacheStatus, url) {
+    this.emit('tile_response', { tileKey, duration, cacheStatus, url });
+  }
+
+  trackTileError(tileKey, duration, url, error) {
+    this.emit('tile_error', { tileKey, duration, url, error });
+  }
+
+  trackRasterDecodeStart(tileKey) {
+    this.emit('raster_decode_start', { tileKey });
+  }
+
+  trackRasterDecodeEnd(tileKey, duration) {
+    this.emit('raster_decode_end', { tileKey, duration });
+  }
+
+  trackRenderStart() {
+    this.emit('render_start');
+  }
+
+  trackRenderEnd(durationMs) {
+    this.emit('render_completed', { durationMs });
+  }
+
+  trackRenderFail(layerId, error) {
+    this.emit('render_failed', { layerId, error });
+  }
+
+  trackAnimationScrub(frameIndex) {
+    this.emit('animation_scrub_event', { frameIndex });
+  }
+
+  trackTimelineSeek(offsetHours) {
+    this.emit('timeline_seek_event', { offsetHours });
+  }
+
+  trackWebGLContextLost() {
     this.gpuStats.contextResets++;
-    this.emit('WebGL_context_reset', { resets: this.gpuStats.contextResets });
+    this.emit('WebGL_context_lost', { resets: this.gpuStats.contextResets });
+  }
+
+  trackWebGLContextRestored() {
+    this.emit('WebGL_context_restored');
+  }
+
+  trackMapError(errorType, message) {
+    this.emit('map_error_event', { errorType, message });
+  }
+
+  trackCacheHit(key, source) {
+    this.emit('cache_hit', { key, source });
+  }
+
+  trackCacheMiss(key, source) {
+    this.emit('cache_miss', { key, source });
   }
 
   // Failure Archiving and Replay Sandbox helper
