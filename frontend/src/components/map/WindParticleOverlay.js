@@ -197,11 +197,11 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     var isMobile = window.innerWidth < 768;
     var getCount = function() {
       var zoom = mapInstance.getZoom();
-      var base = isMobile ? 1800 : 4500;
-      if (zoom < 3) return Math.round(base * 0.5);
-      if (zoom < 5) return Math.round(base * 0.75);
-      if (zoom < 7) return base;
-      return Math.round(base * 1.25);
+      var base = isMobile ? 1800 : 3800;
+      if (zoom < 3) return Math.round(base * 0.3);
+      if (zoom < 5) return Math.round(base * 0.5);
+      if (zoom < 7) return Math.round(base * 0.75);
+      return base;
     };
     var PARTICLE_COUNT = getCount();
     console.log('[WindOverlay] Spawning ' + PARTICLE_COUNT + ' particles');
