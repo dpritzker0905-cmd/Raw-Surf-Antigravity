@@ -135,13 +135,14 @@ export const UploadPhotoModal = ({
   const [folderDropdownOpen, setFolderDropdownOpen] = useState(false);
   const fileInputRef = useRef(null);
   const abortRef = useRef(false);
+  const lastOpenRef = useRef(false);
 
   const isPaidPhotographer = user?.subscription_tier && ['basic', 'premium'].includes(user.subscription_tier);
   const pricing = resolveUploadPricing(selectedGallery, galleryPricing);
 
-  // Reset state when modal opens
+  // Reset state ONLY when the modal transitions from closed to open
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !lastOpenRef.current) {
       setFiles([]);
       setUploading(false);
       setCurrentUploadId(null);
@@ -151,6 +152,7 @@ export const UploadPhotoModal = ({
       setFolderDropdownOpen(false);
       abortRef.current = false;
     }
+    lastOpenRef.current = isOpen;
   }, [isOpen, targetFolderId, galleries]);
 
   // Cleanup previews on unmount
@@ -335,6 +337,19 @@ export const UploadPhotoModal = ({
 
     if (successCount > 0) {
       onUploaded();
+      
+      // Calculate remaining errors synchronously
+      const errorsNotRetried = files.filter(f => f.status === STATUS.ERROR && !queued.some(q => q.id === f.id)).length;
+      const finalErrors = errorsNotRetried + (indexedQueue.length - successCount);
+
+      if (finalErrors === 0) {
+        toast.success(`Successfully uploaded ${successCount} file${successCount !== 1 ? 's' : ''}!`);
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      } else {
+        toast.warning(`Uploaded ${successCount} file${successCount !== 1 ? 's' : ''} with ${finalErrors} error(s) remaining.`);
+      }
     }
   };
 
@@ -344,9 +359,7 @@ export const UploadPhotoModal = ({
   const errorFiles = files.filter(f => f.status === STATUS.ERROR);
   const totalCount = files.length;
 
-  const globalProgress = totalCount > 0 
-    ? Math.round(files.reduce((sum, f) => sum + (f.status === STATUS.DONE ? 100 : f.progress), 0) / totalCount)
-    : 0;
+
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!uploading && !open) onClose(); }}>
@@ -553,20 +566,6 @@ export const UploadPhotoModal = ({
                 ))}
               </div>
 
-              {/* -- Global Progress -- */}
-              {uploading && (
-                <div className="space-y-1.5">
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300 rounded-full"
-                      style={{ width: `${globalProgress}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Uploading- {globalProgress}%
-                  </p>
-                </div>
-              )}
 
               {/* -- Upload Complete Summary -- */}
               {uploadComplete && (
