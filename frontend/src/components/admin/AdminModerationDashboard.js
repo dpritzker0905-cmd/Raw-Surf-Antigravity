@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
 import { getFullUrl } from '../../utils/media';
+import DisputeDetailDialog from './moderation/DisputeDetailDialog';
+import ReviewReportDialog from './moderation/ReviewReportDialog';
 
 const STATUS_STYLES = {
   open: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -140,16 +142,14 @@ export const AdminModerationDashboard = () => {
     }
   };
 
-  const handleAddDisputeMessage = async (disputeId) => {
-    if (!newMessage.trim()) return;
+  const handleAddDisputeMessage = async (disputeId, messageText) => {
     setActionLoading(true);
     try {
       await apiClient.post(`/admin/disputes/${disputeId}/messages`, {
-        message: newMessage,
+        message: messageText,
         is_internal: false
       });
       toast.success('Message sent');
-      setNewMessage('');
       fetchDisputeDetail(disputeId);
     } catch (error) {
       toast.error('Failed to send message');
@@ -158,22 +158,12 @@ export const AdminModerationDashboard = () => {
     }
   };
 
-  const handleReviewReport = async (reportId) => {
-    if (!reviewAction) {
-      toast.error('Please select an action');
-      return;
-    }
+  const handleReviewReport = async (reportId, payload) => {
     setActionLoading(true);
     try {
-      await apiClient.put(`/admin/reports/${reportId}/review`, {
-        action_taken: reviewAction,
-        admin_notes: adminNotes,
-        escalate_to_dispute: reviewAction === 'escalate'
-      });
+      await apiClient.put(`/admin/reports/${reportId}/review`, payload);
       toast.success('Report reviewed');
       setShowReportReview(false);
-      setReviewAction('');
-      setAdminNotes('');
       fetchReports();
     } catch (error) {
       toast.error('Failed to review report');
@@ -578,213 +568,23 @@ export const AdminModerationDashboard = () => {
         </>
       )}
 
-      <Dialog open={showDisputeDetail} onOpenChange={setShowDisputeDetail}>
-        <DialogContent className="bg-card border-border text-foreground max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Scale className="w-5 h-5 text-red-400" />
-              Dispute Details
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedDispute && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={selectedDispute.status} />
-                  <PriorityBadge priority={selectedDispute.priority} />
-                </div>
-                <div className="flex gap-2">
-                  <Select
-                    value={selectedDispute.status}
-                    onValueChange={(v) => handleUpdateDispute(selectedDispute.id, { status: v })}
-                  >
-                    <SelectTrigger className="w-40 bg-muted border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                    {[['open','Open'],['under_review','Under Review'],['awaiting_response','Awaiting Response'],['escalated','Escalate'],['resolved_refund','Resolve (Refund)'],['resolved_no_action','Resolve (No Action)'],['closed','Close']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+      <DisputeDetailDialog
+        isOpen={showDisputeDetail}
+        onClose={() => setShowDisputeDetail(false)}
+        selectedDispute={selectedDispute}
+        handleUpdateDispute={handleUpdateDispute}
+        handleAddDisputeMessage={handleAddDisputeMessage}
+        actionLoading={actionLoading}
+        formatDate={formatDate}
+      />
 
-              <div>
-                <h3 className="font-semibold text-lg">{selectedDispute.subject}</h3>
-                <p className="text-muted-foreground mt-1">{selectedDispute.description}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {[['Complainant', selectedDispute.complainant], ['Respondent', selectedDispute.respondent]].map(([label, person]) => (
-                  <div key={label} className="p-3 bg-muted rounded-lg">
-                    <p className="text-xs text-gray-500 mb-2">{label}</p>
-                    <div className="flex items-center gap-2">
-                      <Avatar>
-                        <AvatarImage src={getFullUrl(person?.avatar_url)} />
-                        <AvatarFallback>{person?.full_name?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{person?.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{person?.email}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {selectedDispute.amount_disputed && (
-                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Amount Disputed</span>
-                    <span className="text-xl font-bold text-red-400">${selectedDispute.amount_disputed}</span>
-                  </div>
-                  {selectedDispute.amount_refunded && (
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-red-500/20">
-                      <span className="text-muted-foreground">Amount Refunded (Credit)</span>
-                      <span className="text-green-400">${selectedDispute.amount_refunded}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {['open', 'under_review', 'escalated'].includes(selectedDispute.status) && selectedDispute.amount_disputed && (
-                <div className="flex items-center gap-2">
-                  <Input aria-label="Refund amount"
-                    type="number"
-                    placeholder="Refund amount"
-                    value={refundAmount}
-                    onChange={(e) => setRefundAmount(e.target.value)}
-                    className="bg-muted border-border w-32"
-                  />
-                  <Button
-                    onClick={() => handleUpdateDispute(selectedDispute.id, {
-                      status: 'resolved_refund',
-                      amount_refunded: parseFloat(refundAmount)
-                    })}
-                    disabled={!refundAmount || actionLoading}
-                    className="bg-green-500 hover:bg-green-600"
-                  >
-                    Issue Credit Refund
-                  </Button>
-                </div>
-              )}
-
-              <div>
-                <h4 className="font-medium mb-2 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" />
-                  Messages ({selectedDispute.messages?.length || 0})
-                </h4>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {selectedDispute.messages?.map(msg => (
-                    <div 
-                      key={msg.id} 
-                      className={`p-2 rounded-lg ${msg.is_admin ? 'bg-red-500/10 border border-red-500/30' : 'bg-muted'}`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Avatar className="w-5 h-5">
-                          <AvatarImage src={getFullUrl(msg.sender?.avatar_url)} />
-                          <AvatarFallback className="text-xs">{msg.sender?.full_name?.[0]}</AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium">{msg.sender?.full_name}</span>
-                        {msg.is_admin && <Badge className="text-xs bg-red-500/20 text-red-400">Admin</Badge>}
-                        <span className="text-xs text-gray-500">{formatDate(msg.created_at)}</span>
-                      </div>
-                      <p className="text-sm text-gray-300">{msg.message}</p>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="flex gap-2 mt-3">
-                  <Input aria-label="Type a message..."
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    className="bg-muted border-border"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddDisputeMessage(selectedDispute.id)}
-                  />
-                  <Button aria-label="Loader2"
-                    onClick={() => handleAddDisputeMessage(selectedDispute.id)}
-                    disabled={!newMessage.trim() || actionLoading}
-                    className="bg-blue-500 hover:bg-blue-600"
-                  >
-                    {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showReportReview} onOpenChange={setShowReportReview}>
-        <DialogContent className="bg-card border-border text-foreground">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Flag className="w-5 h-5 text-orange-400" />
-              Review Report
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedReport && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Report Type</p>
-                <Badge variant="outline" className="capitalize">{selectedReport.report_type}</Badge>
-              </div>
-              
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Reason</p>
-                <Badge className="bg-red-500/20 text-red-400 capitalize">
-                  {selectedReport.reason?.replace(/_/g, ' ')}
-                </Badge>
-              </div>
-              
-              {selectedReport.description && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Description</p>
-                  <p className="text-foreground">{selectedReport.description}</p>
-                </div>
-              )}
-              
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Take Action</p>
-                <Select value={reviewAction} onValueChange={setReviewAction}>
-                  <SelectTrigger className="bg-muted border-border">
-                    <SelectValue placeholder="Select action..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[['no_action','No Action Needed'],['warning_sent','Send Warning'],['content_removed','Remove Content'],['user_suspended','Suspend User'],['user_banned','Ban User'],['escalate','Escalate to Dispute']].map(([v,l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Admin Notes</p>
-                <Textarea aria-label="Add notes about this decision..."
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Add notes about this decision..."
-                  className="bg-muted border-border"
-                />
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReportReview(false)}>
-              Cancel
-            </Button>
-            <Button aria-label="Loader2"
-              onClick={() => handleReviewReport(selectedReport?.id)}
-              disabled={!reviewAction || actionLoading}
-              className="bg-blue-500 hover:bg-blue-600"
-            >
-              {actionLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Submit Review
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ReviewReportDialog
+        isOpen={showReportReview}
+        onClose={() => setShowReportReview(false)}
+        selectedReport={selectedReport}
+        handleReviewReport={handleReviewReport}
+        actionLoading={actionLoading}
+      />
     </div>
   );
 };

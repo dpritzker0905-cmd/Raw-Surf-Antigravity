@@ -104,25 +104,6 @@ const UnifiedAdminConsole = () => {
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [suspendReason, setSuspendReason] = useState('');
   const [userToSuspend, setUserToSuspend] = useState(null);
-  
-  // Live Session Override states
-  const [simulatePhotographers, setSimulatePhotographers] = useState([]);
-  const [surfSpots, setSurfSpots] = useState([]);
-  const [loadingPhotographers, setLoadingPhotographers] = useState(false);
-  const [selectedPhotographer, setSelectedPhotographer] = useState('');
-  const [selectedSpot, setSelectedSpot] = useState('');
-  const [photographerSearch, setPhotographerSearch] = useState('');
-  const [spotSearch, setSpotSearch] = useState('');
-  const [sessionPrice, setSessionPrice] = useState('25');
-  const [spotNotes, setSpotNotes] = useState('');
-  const [conditionMedia, setConditionMedia] = useState(null);
-  const [conditionMediaType, setConditionMediaType] = useState(null);
-  const [mediaPreview, setMediaPreview] = useState(null);
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [forceStartLoading, setForceStartLoading] = useState(false);
-  const [forceEndLoading, setForceEndLoading] = useState(null);
-  const [_seedingSpots, _setSeedingSpots] = useState(false);
-  const fileInputRef = useRef(null);
 
   // Site Access Control states
   const [siteSettings, setSiteSettings] = useState(null);
@@ -185,32 +166,11 @@ const UnifiedAdminConsole = () => {
     }
   }, [user?.id]);
 
-  // Fetch session simulation data
-  const fetchSessionData = useCallback(async () => {
-    if (!user?.is_admin) return;
-    setLoadingPhotographers(true);
-    try {
-      const [photosRes, spotsRes, sessionsRes] = await Promise.all([
-        apiClient.get(`/admin/photographers`).catch(() => ({ data: [] })),
-        apiClient.get(`/surf-spots`).catch(() => ({ data: [] })),
-        apiClient.get(`/admin/active-sessions`).catch(() => ({ data: [] }))
-      ]);
-      setSimulatePhotographers(photosRes.data || []);
-      setSurfSpots(spotsRes.data || []);
-      setActiveSessions(sessionsRes.data || []);
-    } catch (error) {
-      logger.error('Failed to fetch simulation data:', error);
-    } finally {
-      setLoadingPhotographers(false);
-    }
-  }, [user?.is_admin]);
-
   useEffect(() => {
     if (user?.id) {
       fetchData();
-      fetchSessionData();
     }
-  }, [user?.id, fetchData, fetchSessionData]);
+  }, [user?.id, fetchData]);
 
   // User management handlers
   const handleSearch = async () => {
@@ -294,82 +254,7 @@ const UnifiedAdminConsole = () => {
     }
   };
 
-  // Session simulation handlers
-  const handleMediaSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    const isVideo = file.type.startsWith('video/');
-    const isImage = file.type.startsWith('image/');
-    
-    if (!isVideo && !isImage) {
-      toast.error('Please select an image or video file');
-      return;
-    }
-    
-    setConditionMediaType(isVideo ? 'video' : 'photo');
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setMediaPreview(e.target.result);
-      setConditionMedia(e.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
 
-  const clearMedia = () => {
-    setConditionMedia(null);
-    setConditionMediaType(null);
-    setMediaPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleForceStart = async () => {
-    if (!selectedPhotographer || !selectedSpot) {
-      toast.error('Please select both a photographer and a surf spot');
-      return;
-    }
-    
-    setForceStartLoading(true);
-    try {
-      const response = await apiClient.post(`/admin/force-start-session`, {
-        photographer_id: selectedPhotographer,
-        spot_id: selectedSpot,
-        session_price: parseFloat(sessionPrice) || 25,
-        condition_media: conditionMedia,
-        condition_media_type: conditionMediaType,
-        spot_notes: spotNotes
-      });
-      
-      toast.success(response.data.message, {
-        icon: <Radio className="w-4 h-4 text-red-500 animate-pulse" />
-      });
-      
-      // Refresh data and reset form
-      fetchSessionData();
-      setSelectedPhotographer('');
-      setSelectedSpot('');
-      setSpotNotes('');
-      clearMedia();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to force start session');
-    } finally {
-      setForceStartLoading(false);
-    }
-  };
-
-  const handleForceEnd = async (photographerId) => {
-    setForceEndLoading(photographerId);
-    try {
-      const response = await apiClient.post(`/admin/force-end-session/${photographerId}`);
-      toast.success(response.data.message);
-      fetchSessionData();
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to force end session');
-    } finally {
-      setForceEndLoading(null);
-    }
-  };
 
   // Persona handlers
   const handleSelectPersona = (persona) => {
@@ -384,16 +269,7 @@ const UnifiedAdminConsole = () => {
     toast.success('Exited God Mode - back to your real role');
   };
 
-  // Filter functions
-  const filteredPhotographers = simulatePhotographers.filter(p => 
-    p.full_name?.toLowerCase().includes(photographerSearch.toLowerCase()) ||
-    p.email?.toLowerCase().includes(photographerSearch.toLowerCase())
-  );
 
-  const filteredSpots = surfSpots.filter(s =>
-    s.name?.toLowerCase().includes(spotSearch.toLowerCase()) ||
-    s.region?.toLowerCase().includes(spotSearch.toLowerCase())
-  );
 
   if (!user?.is_admin) {
     return (
@@ -466,7 +342,7 @@ const UnifiedAdminConsole = () => {
             <Button aria-label="Refresh"
               variant="ghost"
               size="sm"
-              onClick={() => { fetchData(); fetchSessionData(); }}
+              onClick={() => { fetchData(); }}
               className={`${
                 theme === 'beach'
                   ? 'text-amber-700 hover:text-amber-900 hover:bg-amber-200/50'
@@ -658,32 +534,6 @@ const UnifiedAdminConsole = () => {
 
         {activeTab === 'sessions' && (
           <AdminSessionsPanel
-            loadingPhotographers={loadingPhotographers}
-            filteredPhotographers={filteredPhotographers}
-            filteredSpots={filteredSpots}
-            selectedPhotographer={selectedPhotographer}
-            setSelectedPhotographer={setSelectedPhotographer}
-            selectedSpot={selectedSpot}
-            setSelectedSpot={setSelectedSpot}
-            photographerSearch={photographerSearch}
-            setPhotographerSearch={setPhotographerSearch}
-            spotSearch={spotSearch}
-            setSpotSearch={setSpotSearch}
-            sessionPrice={sessionPrice}
-            setSessionPrice={setSessionPrice}
-            spotNotes={spotNotes}
-            setSpotNotes={setSpotNotes}
-            conditionMedia={conditionMedia}
-            conditionMediaType={conditionMediaType}
-            mediaPreview={mediaPreview}
-            handleMediaSelect={handleMediaSelect}
-            clearMedia={clearMedia}
-            fileInputRef={fileInputRef}
-            handleForceStart={handleForceStart}
-            forceStartLoading={forceStartLoading}
-            activeSessions={activeSessions}
-            handleForceEnd={handleForceEnd}
-            forceEndLoading={forceEndLoading}
             cardBgClass={cardBgClass}
             textClass={textClass}
             textSecondary={textSecondary}

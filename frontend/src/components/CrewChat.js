@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CrewChat - Real-time messaging for booking coordination
  * Features: Text, Voice (30s max), Images, Quick Actions, Emoji Picker, Reactions
  */
@@ -33,38 +33,7 @@ import { getFullUrl } from '../utils/media';
 import { formatDuration } from '../utils/formatTime';
 
 import useCrewChat, { MAX_VOICE_DURATION } from '../hooks/useCrewChat';
-import { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent } from './messages/crewChatUtils';
-
-// Quick Actions for surf coordination - Expanded with more useful options
-const QUICK_ACTIONS = [
-  // Status updates
- { id: 'omw', text: 'On my way! +-+-++-+G++', category: 'status', icon: '+-+-++-+GG' },
- { id: 'late', text: 'Running 5 mins late', category: 'status', icon: '+-+-+-' },
- { id: 'arrived', text: 'Just arrived at the spot', category: 'status', icon: '+-+-++G++-' },
- { id: 'parking', text: 'Looking for parking', category: 'status', icon: '+-+-++G-+-++-+-++-' },
- { id: 'paddling', text: 'Paddling out now!', category: 'status', icon: '+-+-++-+-' },
- { id: 'ready', text: 'Ready when you are! +-+-++-+GP-', category: 'status', icon: '+-+G+G-' },
-
-  // Wave conditions
- { id: 'pumping', text: 'Waves are pumping! +-+-++G+-', category: 'conditions', icon: '+-+-++G+-' },
- { id: 'glassy', text: "It's glassy out here! +-+-++G-+-", category: 'conditions', icon: '+-+G+-' },
- { id: 'choppy', text: 'Getting a bit choppy', category: 'conditions', icon: '+-+-++GG+-' },
- { id: 'crowded', text: 'Pretty crowded lineup', category: 'conditions', icon: '+-+-++G-+-' },
- { id: 'uncrowded', text: 'Lineup is empty! +-+-++-++G-', category: 'conditions', icon: '+-+-++-+GG+-+-++-' },
- { id: 'perfect', text: 'Conditions are PERFECT', category: 'conditions', icon: '+-+-++GG+-' },
-
-  // Logistics
- { id: 'gear', text: 'Bringing extra gear', category: 'logistics', icon: '+-+-++-++GG' },
- { id: 'wax', text: 'Got extra wax if needed', category: 'logistics', icon: '+-+-++-+-' },
- { id: 'drinks', text: 'Bringing drinks/snacks', category: 'logistics', icon: '+-+-++-+-' },
- { id: 'camera', text: 'Camera is ready! +-+-++G++-+', category: 'logistics', icon: '+-+-++G++-+' },
-
-  // Vibes
- { id: 'stoked', text: 'So stoked for this session!', category: 'vibes', icon: '+-+-++-+-' },
- { id: 'sunset', text: 'Staying for sunset +-+-++G+G-', category: 'vibes', icon: '+-+-++G+G-' },
- { id: 'thanks', text: 'Thanks for the session! +-+-++-+GP-', category: 'vibes', icon: '+-+-++GP-+-' },
- { id: 'again', text: "Let's do this again soon!", category: 'vibes', icon: '+-+-++G-+G++' },
-];
+import { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent, QUICK_ACTIONS } from './messages/crewChatUtils';
 
 // Quick Action Categories with colors
 

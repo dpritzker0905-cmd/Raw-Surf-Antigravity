@@ -1,10 +1,11 @@
 /**
  * AdminSessionsPanel - Force Start/End Live Sessions
  * Extracted from UnifiedAdminConsole.js (v76 decomposition)
+ * Absorbs all session state and logic autonomously.
  */
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Play, Square, Loader2, MapPin, Camera, Upload, X
+  Play, Square, Loader2, MapPin, Camera, Upload, X, Radio
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -13,40 +14,146 @@ import { Textarea } from '../ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getThemeTokens } from '../../utils/themeTokens';
+import apiClient from '../../lib/apiClient';
+import { toast } from 'sonner';
+import logger from '../../utils/logger';
 
 export const AdminSessionsPanel = ({
-  loadingPhotographers,
-  filteredPhotographers,
-  filteredSpots,
-  selectedPhotographer,
-  setSelectedPhotographer,
-  selectedSpot,
-  setSelectedSpot,
-  photographerSearch,
-  setPhotographerSearch,
-  spotSearch,
-  setSpotSearch,
-  sessionPrice,
-  setSessionPrice,
-  spotNotes,
-  setSpotNotes,
-  conditionMedia,
-  conditionMediaType,
-  mediaPreview,
-  handleMediaSelect,
-  clearMedia,
-  fileInputRef,
-  handleForceStart,
-  forceStartLoading,
-  activeSessions,
-  handleForceEnd,
-  forceEndLoading,
   cardBgClass,
   textClass,
   textSecondary,
 }) => {
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
+
+  // States
+  const [simulatePhotographers, setSimulatePhotographers] = useState([]);
+  const [surfSpots, setSurfSpots] = useState([]);
+  const [loadingPhotographers, setLoadingPhotographers] = useState(false);
+  const [selectedPhotographer, setSelectedPhotographer] = useState('');
+  const [selectedSpot, setSelectedSpot] = useState('');
+  const [photographerSearch, setPhotographerSearch] = useState('');
+  const [spotSearch, setSpotSearch] = useState('');
+  const [sessionPrice, setSessionPrice] = useState('25');
+  const [spotNotes, setSpotNotes] = useState('');
+  const [conditionMedia, setConditionMedia] = useState(null);
+  const [conditionMediaType, setConditionMediaType] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [forceStartLoading, setForceStartLoading] = useState(false);
+  const [forceEndLoading, setForceEndLoading] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Fetch session simulation data
+  const fetchSessionData = useCallback(async () => {
+    setLoadingPhotographers(true);
+    try {
+      const [photosRes, spotsRes, sessionsRes] = await Promise.all([
+        apiClient.get(`/admin/photographers`).catch(() => ({ data: [] })),
+        apiClient.get(`/surf-spots`).catch(() => ({ data: [] })),
+        apiClient.get(`/admin/active-sessions`).catch(() => ({ data: [] }))
+      ]);
+      setSimulatePhotographers(photosRes.data || []);
+      setSurfSpots(spotsRes.data || []);
+      setActiveSessions(sessionsRes.data || []);
+    } catch (error) {
+      logger.error('Failed to fetch simulation data:', error);
+    } finally {
+      setLoadingPhotographers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSessionData();
+  }, [fetchSessionData]);
+
+  // Media Handlers
+  const handleMediaSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    
+    if (!isVideo && !isImage) {
+      toast.error('Please select an image or video file');
+      return;
+    }
+    
+    setConditionMediaType(isVideo ? 'video' : 'photo');
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setMediaPreview(e.target.result);
+      setConditionMedia(e.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearMedia = () => {
+    setConditionMedia(null);
+    setConditionMediaType(null);
+    setMediaPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Force Start/End Handlers
+  const handleForceStart = async () => {
+    if (!selectedPhotographer || !selectedSpot) {
+      toast.error('Please select both a photographer and a surf spot');
+      return;
+    }
+    
+    setForceStartLoading(true);
+    try {
+      const response = await apiClient.post(`/admin/force-start-session`, {
+        photographer_id: selectedPhotographer,
+        spot_id: selectedSpot,
+        session_price: parseFloat(sessionPrice) || 25,
+        condition_media: conditionMedia,
+        condition_media_type: conditionMediaType,
+        spot_notes: spotNotes
+      });
+      
+      toast.success(response.data.message, {
+        icon: <Radio className="w-4 h-4 text-red-500 animate-pulse" />
+      });
+      
+      fetchSessionData();
+      setSelectedPhotographer('');
+      setSelectedSpot('');
+      setSpotNotes('');
+      clearMedia();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to force start session');
+    } finally {
+      setForceStartLoading(false);
+    }
+  };
+
+  const handleForceEnd = async (photographerId) => {
+    setForceEndLoading(photographerId);
+    try {
+      const response = await apiClient.post(`/admin/force-end-session/${photographerId}`);
+      toast.success(response.data.message);
+      fetchSessionData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to force end session');
+    } finally {
+      setForceEndLoading(null);
+    }
+  };
+
+  // Filter functions
+  const filteredPhotographers = simulatePhotographers.filter(p => 
+    p.full_name?.toLowerCase().includes(photographerSearch.toLowerCase()) ||
+    p.email?.toLowerCase().includes(photographerSearch.toLowerCase())
+  );
+
+  const filteredSpots = surfSpots.filter(s =>
+    s.name?.toLowerCase().includes(spotSearch.toLowerCase()) ||
+    s.region?.toLowerCase().includes(spotSearch.toLowerCase())
+  );
 
   return (
     <div className="space-y-4">

@@ -23,7 +23,7 @@ import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
-import { FLORIDA_CENTER, isValidLatLng, truncateCoord } from './map/mapUtils';
+import { FLORIDA_CENTER, isValidLatLng, truncateCoord, fitMapToAll } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
@@ -247,38 +247,7 @@ var MapPageContent = () => {
         
         // Fit bounds to all data points for 'ALL' filter
         if (newFilter === 'all') {
-          let minLng = Infinity, minLat = Infinity;
-          let maxLng = -Infinity, maxLat = -Infinity;
-          
-          surfSpots.forEach(spot => {
-            if (spot.latitude && spot.longitude) {
-              minLng = Math.min(minLng, spot.longitude);
-              minLat = Math.min(minLat, spot.latitude);
-              maxLng = Math.max(maxLng, spot.longitude);
-              maxLat = Math.max(maxLat, spot.latitude);
-            }
-          });
-          livePhotographers.forEach(p => {
-            if (p.current_latitude && p.current_longitude) {
-              minLng = Math.min(minLng, p.current_longitude);
-              minLat = Math.min(minLat, p.current_latitude);
-              maxLng = Math.max(maxLng, p.current_longitude);
-              maxLat = Math.max(maxLat, p.current_latitude);
-            }
-          });
-          
-          if (minLng !== Infinity) {
-            mapInstanceRef.current.fitBounds(
-              [[minLng, minLat], [maxLng, maxLat]], 
-              { padding: 50 }
-            );
-          } else {
-            // Default to Florida center if no data
-            mapInstanceRef.current.jumpTo({
-              center: [FLORIDA_CENTER.lng, FLORIDA_CENTER.lat], 
-              zoom: 7
-            });
-          }
+          fitMapToAll(mapInstanceRef.current, surfSpots, livePhotographers);
         }
       }, 100);
     }
