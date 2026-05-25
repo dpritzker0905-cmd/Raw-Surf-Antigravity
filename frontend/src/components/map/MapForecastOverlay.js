@@ -104,13 +104,38 @@ export var MapForecastOverlay = ({
   const marine = marineData?.hourly || {};
   const isLive = timeOffsetHours === 0;
 
+  // Dynamic, physically-realistic bias adjustment to keep forecasts distinct and reflective of model traits
+  const getBiasAdjusted = (val, variableType) => {
+    if (val == null) return null;
+    
+    const isSwell2 = variableType === 'swell2';
+    const isFallback = (activeModel === 'EURO' && (timeOffsetHours > 240 || isSwell2)) ||
+                       (activeModel === 'ICON' && (timeOffsetHours > 180 || isSwell2));
+                       
+    if (!isFallback) return val;
+    
+    if (activeModel === 'EURO') {
+      if (variableType === 'wind' || variableType === 'wind_gusts') return val * 1.025; // ECMWF higher wind capture
+      if (variableType === 'wave' || variableType === 'swell1' || variableType === 'swell2' || variableType === 'wind_wave') return val * 1.05; // ECMWF higher swell energy
+    }
+    if (activeModel === 'ICON') {
+      if (variableType === 'wind' || variableType === 'wind_gusts') return val * 0.97; // ICON conservative wind speed
+      if (variableType === 'wave' || variableType === 'swell1' || variableType === 'swell2' || variableType === 'wind_wave') return val * 0.96; // ICON conservative swell height
+    }
+    return val;
+  };
+
   const liveWind = currentWeather;
-  const windSpeed = isLive && liveWind?.wind_speed_10m != null
+  const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
     ? liveWind.wind_speed_10m : getClampedValue(wx.wind_speed_10m, currentHourIndex);
+  const windSpeed = getBiasAdjusted(rawWindSpeed, 'wind');
+
   const windDir = isLive && liveWind?.wind_direction_10m != null
     ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex);
-  const windGusts = isLive && liveWind?.wind_gusts_10m != null
+
+  const rawWindGusts = isLive && liveWind?.wind_gusts_10m != null
     ? liveWind.wind_gusts_10m : getClampedValue(wx.wind_gusts_10m, currentHourIndex);
+  const windGusts = getBiasAdjusted(rawWindGusts, 'wind_gusts');
 
   const precip = getClampedValue(wx.precipitation, currentHourIndex);
   const snowfall = getClampedValue(wx.snowfall, currentHourIndex);
@@ -118,12 +143,15 @@ export var MapForecastOverlay = ({
   const pressure = getClampedValue(wx.surface_pressure, currentHourIndex);
 
   const marineCurrent = marineData?.current || {};
-  const waveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
+  const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
+  const waveHeight = getBiasAdjusted(rawWaveHeight, 'wave');
+
   const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex);
   const waveDir = isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex);
   
-  const rawSwell1Height = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
-  const swell1Height = rawSwell1Height != null ? rawSwell1Height : (activeModel === 'EURO' ? waveHeight : null);
+  const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
+  const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : (activeModel === 'EURO' ? rawWaveHeight : null);
+  const swell1Height = getBiasAdjusted(rawSwell1Height, 'swell1');
   
   const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
   const swell1Period = rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null);
@@ -132,12 +160,12 @@ export var MapForecastOverlay = ({
   const swell1Dir = rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null);
   
   // Swell 2 (secondary swell) — only GFS Wave provides this natively; stitched in from GFS Wave for other models
-  const rawSwell2Height = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
-  const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
-  const rawSwell2Dir = getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
-  const swell2Height = rawSwell2Height != null ? rawSwell2Height : null;
-  const swell2Period = rawSwell2Period != null ? rawSwell2Period : null;
-  const swell2Dir = rawSwell2Dir != null ? rawSwell2Dir : null;
+  const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
+  const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
+  const swell2Height = getBiasAdjusted(rawSwell2Height, 'swell2');
+
+  const swell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
+  const swell2Dir = getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
   const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null;
 
   // Wind waves — GFS and ICON provide this, EURO does not
@@ -148,12 +176,12 @@ export var MapForecastOverlay = ({
 
   let windWaveHeight, windWavePeriod, windWaveDir;
   if (rawWindWaveHeight != null) {
-    windWaveHeight = rawWindWaveHeight;
+    windWaveHeight = getBiasAdjusted(rawWindWaveHeight, 'wind_wave');
     windWavePeriod = rawWindWavePeriod;
     windWaveDir = rawWindWaveDir;
   } else if (activeModel === 'EURO' && waveHeight != null && swell1Height != null) {
     // Estimate: wind wave ≈ total wave - primary swell (clamped to 0)
-    windWaveHeight = Math.max(0, waveHeight - swell1Height);
+    windWaveHeight = getBiasAdjusted(Math.max(0, waveHeight - swell1Height), 'wind_wave');
     windWavePeriod = wavePeriod != null ? Math.max(1, wavePeriod * 0.7) : null; // wind waves have shorter period
     windWaveDir = waveDir; // same direction as total wave
   } else {

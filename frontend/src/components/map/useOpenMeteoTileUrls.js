@@ -252,39 +252,30 @@ export function useOpenMeteoTileUrls({
           if (entry.omModel) return entry.omModel;
           if (entry.omModelGroup === 'marine') {
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
-            // Strategy 1 Fallback: DWD GWAM (168h limit) / ECMWF WAM (144h limit) run out.
-            // Dynamically upgrade to GFS wave (ncep_gfswave025) if past regional boundaries
-            if (baseModel === 'ecmwf_wam025' && timeOffsetHours > 140) {
+            // Extend native boundaries: ECMWF WAM (EURO) runs natively to 240 hours (10 days).
+            // DWD GWAM (ICON) runs natively to 180 hours (7.5 days).
+            if (baseModel === 'ecmwf_wam025' && timeOffsetHours > 240) {
               return 'ncep_gfswave025';
             }
-            if (baseModel === 'dwd_gwam' && timeOffsetHours > 160) {
-              return 'ncep_gfswave025';
-            }
-            if (timeOffsetHours > 180 && baseModel !== 'ncep_gfswave025') {
+            if (baseModel === 'dwd_gwam' && timeOffsetHours > 180) {
               return 'ncep_gfswave025';
             }
             return baseModel;
           }
           if (variable === 'precipitation' || variable === 'cloud_cover') {
             const baseModel = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
-            if (baseModel === 'dwd_icon' && timeOffsetHours > 160) {
-              return 'ncep_gfs013'; // GFS precipitation runs up to 10 days
+            if (baseModel === 'dwd_icon' && timeOffsetHours > 180) {
+              return 'ncep_gfs013'; // GFS precipitation runs up to 10 days (240h)
             }
-            if (baseModel === 'ecmwf_ifs025' && timeOffsetHours > 130) {
-              return 'ncep_gfs013';
-            }
-            if (timeOffsetHours > 180 && baseModel === 'dwd_icon') {
+            if (baseModel === 'ecmwf_ifs025' && timeOffsetHours > 240) {
               return 'ncep_gfs013';
             }
             return baseModel;
           }
-          if (targetModel === 'ecmwf_ifs025' && timeOffsetHours > 130) {
+          if (targetModel === 'ecmwf_ifs025' && timeOffsetHours > 240) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
-          if (targetModel === 'dwd_icon' && timeOffsetHours > 160) {
-            return 'ncep_gfs025';
-          }
-          if (timeOffsetHours > 180 && targetModel === 'dwd_icon') {
+          if (targetModel === 'dwd_icon' && timeOffsetHours > 180) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
           return targetModel;

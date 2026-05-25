@@ -747,8 +747,8 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     window.__OM_PROTOCOL_SETTINGS__ = settings;
 
     // Fetch land GeoJSON and build ocean clipping polygon for marine layers
-    // Use 110m resolution cached in localStorage for sub-1ms instant loading (reducing 2.5 MB to 300 KB)
-    const NE_LAND_110M_URL = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_land.geojson';
+    // Use 110m resolution cached in localStorage for sub-1ms instant loading (loaded from local public folder)
+    const NE_LAND_110M_URL = '/ne_110m_land.json';
     
     const applyLandMask = (landGeoJSON) => {
       const oceanPoly = buildOceanPolygon(landGeoJSON);
