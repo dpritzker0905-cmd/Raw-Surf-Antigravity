@@ -351,7 +351,7 @@ export var LIVE_FETCHED_MODELS = new Set();
 export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged) {
   const cached = MODEL_METADATA_CACHE[modelToCheck];
   if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
-    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`)
+    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json?skip_intercept=true`)
       .then(res => {
         if (!res.ok) throw new Error('Fetch failed');
         return res.json();

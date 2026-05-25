@@ -143,7 +143,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }
       }
 
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
+      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && !urlString.includes('time_step=') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
         try {
           const urlObj = new URL(urlString);
           const parts = urlObj.pathname.split('/');
