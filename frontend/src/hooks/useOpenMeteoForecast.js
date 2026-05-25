@@ -20,7 +20,9 @@ const MODEL_FORECAST_DAYS = { GFS: 16, EURO: 10, ICON: 7 };
 
 const WEATHER_VARS = [
   'precipitation',
+  'snowfall',
   'precipitation_probability',
+  'temperature_2m',
   'wind_speed_10m',
   'wind_direction_10m',
   'wind_gusts_10m',

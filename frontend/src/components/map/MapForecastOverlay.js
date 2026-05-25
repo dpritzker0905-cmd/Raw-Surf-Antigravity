@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Wind, Waves, CloudRain, ArrowUp, Droplets, Gauge, Lock, ChevronDown, MapPin } from 'lucide-react';
+import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Lock, ChevronDown, MapPin, Thermometer } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 /**
@@ -96,6 +96,8 @@ export var MapForecastOverlay = ({
     ? liveWind.wind_gusts_10m : wx.wind_gusts_10m?.[currentHourIndex];
 
   const precip = wx.precipitation?.[currentHourIndex];
+  const snowfall = wx.snowfall?.[currentHourIndex];
+  const temp = wx.temperature_2m?.[currentHourIndex];
   const pressure = wx.surface_pressure?.[currentHourIndex];
 
   const marineCurrent = marineData?.current || {};
@@ -148,8 +150,33 @@ export var MapForecastOverlay = ({
   const cards = [];
 
   if (activeLayer === 'rain' || activeLayer === 'radar') {
-    cards.push({ icon: CloudRain, label: 'Precip', value: precip != null ? `${precip.toFixed(1)} mm/h` : '--', color: 'text-blue-400' });
+    // Determine precip type from snowfall data and temperature
+    const hasSnow = snowfall != null && snowfall > 0;
+    const hasRain = precip != null && precip > 0 && (!hasSnow || (temp != null && temp > 2));
+    const isSnowOnly = hasSnow && !hasRain;
+    const isMixed = hasSnow && hasRain;
+    const noPrecip = (precip == null || precip === 0) && (snowfall == null || snowfall === 0);
+
+    if (noPrecip) {
+      // No precip — show type hint from temperature
+      const precipLabel = temp != null && temp <= 2 ? 'Snow' : 'Rain';
+      const precipIcon = temp != null && temp <= 2 ? Snowflake : CloudRain;
+      const precipColor = temp != null && temp <= 2 ? 'text-sky-300' : 'text-blue-400';
+      cards.push({ icon: precipIcon, label: precipLabel, value: '0.0 mm/h', color: precipColor });
+    } else if (isSnowOnly) {
+      // Snow only
+      cards.push({ icon: Snowflake, label: 'Snow', value: `${snowfall.toFixed(1)} cm/h`, color: 'text-sky-300' });
+    } else if (isMixed) {
+      // Mixed — show both rain and snow
+      const rainAmount = precip != null ? Math.max(0, precip - (snowfall * 0.1)).toFixed(1) : '0.0';
+      cards.push({ icon: CloudRain, label: 'Rain', value: `${rainAmount} mm/h`, color: 'text-blue-400' });
+      cards.push({ icon: Snowflake, label: 'Snow', value: `${snowfall.toFixed(1)} cm/h`, color: 'text-sky-300' });
+    } else {
+      // Rain only
+      cards.push({ icon: CloudRain, label: 'Rain', value: precip != null ? `${precip.toFixed(1)} mm/h` : '--', color: 'text-blue-400' });
+    }
     cards.push({ icon: Droplets, label: 'Prob', value: wx.precipitation_probability?.[currentHourIndex] != null ? `${wx.precipitation_probability[currentHourIndex]}%` : '--', color: 'text-indigo-400' });
+    if (temp != null) cards.push({ icon: Thermometer, label: 'Temp', value: `${Math.round(temp * 9/5 + 32)}°F`, color: 'text-amber-400' });
   }
 
   if (activeLayer === 'wind') {

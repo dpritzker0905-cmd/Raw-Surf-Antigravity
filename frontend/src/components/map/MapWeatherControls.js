@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun } from 'lucide-react';
+import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES } from './mapUtils';
@@ -106,7 +106,7 @@ export var MapWeatherControls = ({
   ];
 
   const layers = [
-    { id: 'rain', label: 'Rain', icon: CloudRain, color: 'text-blue-400' },
+    { id: 'rain', label: 'Precip', icon: CloudRain, color: 'text-blue-400' },
     { id: 'radar', label: 'Radar', icon: CloudRain, color: 'text-indigo-400' },
     { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-sky-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
@@ -139,7 +139,7 @@ export var MapWeatherControls = ({
     swell_1: 'Primary Swell (ft)',
     swell_2: 'Secondary Swell (ft)',
     wind_waves: 'Wind Waves (ft)',
-    rain: 'Precipitation (in/h)',
+    rain: 'Rain / Snow (in/h)',
     radar: 'Live Radar (dBZ)',
     satellite: 'Cloud Cover (%)',
     fog: 'Visibility / Fog',
