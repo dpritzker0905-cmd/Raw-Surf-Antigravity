@@ -344,7 +344,7 @@ export function smoothColorScale(baseScale, numSteps = 80) {
   };
 }
 
-var BASE_CUSTOM_COLOR_SCALES = {
+export var BASE_CUSTOM_COLOR_SCALES = {
   wave_height: {
     type: 'breakpoint',
     unit: 'm',
@@ -576,6 +576,51 @@ export function safeSetFilter(mapInstance, layerId, filter) {
   }
 }
 
+// Marine variables that should be clipped to ocean only
+const MARINE_VARIABLES = new Set([
+  'wave_height', 'swell_wave_height', 'secondary_swell_wave_height',
+  'wind_wave_height', 'swell_wave_period', 'swell_wave_direction',
+  'wind_wave_period', 'wind_wave_direction', 'wave_period', 'wave_direction',
+  'ocean_current_velocity', 'sea_surface_temperature'
+]);
+
+/**
+ * Build an ocean-only GeoJSON polygon from land GeoJSON.
+ * Creates a world bounding box with land polygons as holes.
+ */
+function buildOceanPolygon(landGeoJSON) {
+  if (!landGeoJSON?.features?.length) return null;
+
+  // World bounding box (outer ring, counter-clockwise)
+  const worldRing = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+
+  // Collect all land polygon rings as holes (clockwise for GeoJSON holes)
+  const holes = [];
+  for (const feature of landGeoJSON.features) {
+    const geom = feature.geometry;
+    if (!geom) continue;
+    if (geom.type === 'Polygon') {
+      // Only take the outer ring of each land polygon as a hole
+      if (geom.coordinates[0]) holes.push(geom.coordinates[0]);
+    } else if (geom.type === 'MultiPolygon') {
+      for (const poly of geom.coordinates) {
+        if (poly[0]) holes.push(poly[0]);
+      }
+    }
+  }
+
+  if (holes.length === 0) return null;
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [worldRing, ...holes]
+    },
+    properties: {}
+  };
+}
+
 export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
   import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
     // Forceful mutation to guarantee custom scales are used in all instances
@@ -590,21 +635,35 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
     };
     window.__OM_PROTOCOL_SETTINGS__ = settings;
 
+    // Fetch land GeoJSON and build ocean clipping polygon for marine layers
+    // Use 50m resolution for faster loading (sufficient for tile-level clipping)
+    const NE_LAND_50M_URL = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_land.geojson';
+    fetch(NE_LAND_50M_URL)
+      .then(r => r.json())
+      .then(landGeoJSON => {
+        const oceanPoly = buildOceanPolygon(landGeoJSON);
+        if (oceanPoly) {
+          const marineSettings = {
+            ...settings,
+            clippingOptions: {
+              geojson: oceanPoly,
+              fillRule: 'evenodd'
+            }
+          };
+          window.__OM_MARINE_SETTINGS__ = marineSettings;
+          console.log('[OM-Protocol] Ocean clipping polygon built:', oceanPoly.geometry.coordinates.length - 1, 'land holes');
+        }
+      })
+      .catch(err => {
+        console.warn('[OM-Protocol] Failed to build ocean clipping polygon:', err.message);
+      });
+
     if (maplibregl?.addProtocol) {
       try {
         maplibregl.addProtocol('om', (params, abortController) => {
           const hasWindow = typeof window !== 'undefined';
           const currentSettings = (hasWindow && window.__OM_PROTOCOL_SETTINGS__) || settings;
           const debug = (hasWindow && window.__RASTER_DEBUG__) || {};
-          
-          // Enforce network caching bypass rules to prevent ERR_CACHE_OPERATION_NOT_SUPPORTED on rapid switches
-          if (params) {
-            if (!params.headers) {
-              params.headers = {};
-            }
-            params.headers['Cache-Control'] = 'no-cache';
-            params.headers['Pragma'] = 'no-cache';
-          }
           
           // Safe one-time init log
           if (!debug.hasLoggedProtocol) {
@@ -615,7 +674,6 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
            let requestedModelFolder = "";
           let urlObj = null;
           let variable = "";
-          // Diagnostic: log each unique variable request
           try {
             urlObj = new URL(params.url.replace('om://', ''));
             const parts = urlObj.pathname.split('/');
@@ -623,9 +681,6 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               requestedModelFolder = parts[2];
             }
             variable = urlObj.searchParams.get('variable') || "";
-            if (variable && hasWindow && window.__RASTER_DEBUG__) {
-              console.log(`[OM-Protocol] Tile request: variable=${variable}, type=${params.type}, url: ${params.url?.substring(0, 120)}`);
-            }
           } catch (err) { /* ignore parse errors */ }
 
           const getSafeWorkerFallbackResponse = async (url, type) => {
@@ -635,7 +690,6 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
               !url.includes('.om');
 
             if (isAbortedJsonMeta) {
-              console.log('[OM-Protocol] Enforcing string-compliant mock TileJSON structure on metadata line.');
               const flawlessMockJson = {
                 tilejson: "2.2.0",
                 name: "om-safe-fallback",
@@ -661,37 +715,18 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady) {
             }
           };
 
+          // v3.14: Use ocean-clipped settings for marine variables so land pixels are transparent
+          const isMarine = variable && MARINE_VARIABLES.has(variable);
+          const marineSettings = (hasWindow && window.__OM_MARINE_SETTINGS__) || null;
+          const effectiveSettings = (isMarine && marineSettings) ? marineSettings : currentSettings;
+
           // v3.13.5: Double-wrapped synchronous + asynchronous type-safe error boundaries
           // Guarantee that the base map tiles survive even if a specific forecast block fails to decode or load
           try {
-            return omProtocol(params, abortController, currentSettings)
+            return omProtocol(params, abortController, effectiveSettings)
               .then(response => {
                 if (!isModelMatch(requestedModelFolder, activeModelLock)) {
-                  console.warn(`[OM-Protocol] Discarding tile for model ${requestedModelFolder} because active lock is ${activeModelLock}`);
                   return getSafeWorkerFallbackResponse(params.url, params.type);
-                }
-                
-                // Diagnostic logging
-                if (response && response.data) {
-                  if (params.type === 'json') {
-                    console.log(`[OM-Protocol-Diag] Resolved TileJSON for variable ${urlObj.searchParams.get('variable')}:`, {
-                      tilejson: response.data.tilejson,
-                      tiles: response.data.tiles,
-                      minzoom: response.data.minzoom,
-                      maxzoom: response.data.maxzoom
-                    });
-                  } else if (params.type === 'image') {
-                    const isBitmap = typeof ImageBitmap !== 'undefined' && response.data instanceof ImageBitmap;
-                    const isBuffer = response.data instanceof ArrayBuffer;
-                    console.log(`[OM-Protocol-Diag] Resolved image tile for ${urlObj.searchParams.get('variable')}:`, {
-                      dataType: isBitmap ? 'ImageBitmap' : isBuffer ? 'ArrayBuffer' : typeof response.data,
-                      width: isBitmap ? response.data.width : undefined,
-                      height: isBitmap ? response.data.height : undefined,
-                      byteLength: isBuffer ? response.data.byteLength : undefined
-                    });
-                  }
-                } else {
-                  console.warn('[OM-Protocol-Diag] omProtocol resolved with empty response/data');
                 }
 
                 return response;

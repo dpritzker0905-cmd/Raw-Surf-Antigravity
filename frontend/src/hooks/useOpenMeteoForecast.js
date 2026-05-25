@@ -111,39 +111,51 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const currentMarineVars = CURRENT_MARINE_VARS;
 
     try {
-      // Helper: fetch with signal, retry without if service worker can't clone Request
-      const safeFetch = async (url) => {
+      // Direct Open-Meteo URLs (fallback when Netlify proxy unavailable, e.g. local dev)
+      const DIRECT_URLS = {
+        wind: 'https://api.open-meteo.com/v1/forecast',
+        marine: 'https://marine-api.open-meteo.com/v1/marine',
+      };
+
+      // Helper: fetch via proxy, fall back to direct Open-Meteo if proxy returns HTML/404
+      const safeFetch = async (url, directType, directParams) => {
         try {
-          return await fetch(url, { signal: controller.signal });
+          const res = await fetch(url, { signal: controller.signal });
+          // If proxy returns HTML (e.g. CRA index.html for unknown route), fall back
+          const ct = res.headers.get('content-type') || '';
+          if (!res.ok || ct.includes('text/html')) {
+            console.log(`[OpenMeteo] Proxy unavailable (${res.status}), falling back to direct API for ${directType}`);
+            return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+          }
+          return res;
         } catch (e) {
           if (e.name === 'DataCloneError' || e.message?.includes('could not be cloned')) {
             if (process.env.NODE_ENV === 'development') logger.debug?.('[OpenMeteo] SW clone retry');
             return await fetch(url);
           }
+          // Network error — try direct
+          if (e.name !== 'AbortError') {
+            console.log(`[OpenMeteo] Proxy error (${e.message}), falling back to direct API for ${directType}`);
+            return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+          }
           throw e;
         }
       };
 
+      const wxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=${modelParam}&forecast_days=${forecastDays}&wind_speed_unit=kn`;
+      const marineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=${marineModel}&forecast_days=${Math.min(forecastDays, 16)}`;
+
       // Fetch weather and marine in parallel
       const [wxRes, marineRes] = await Promise.all([
         safeFetch(
-          `/api/weather-proxy?type=wind&` +
-          `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-          `&hourly=${WEATHER_VARS}` +
-          `&current=${CURRENT_WEATHER_VARS}` +
-          `&models=${modelParam}` +
-          `&forecast_days=${forecastDays}` +
-          `&wind_speed_unit=kn`
+          `/api/weather-proxy?type=wind&${wxParams}`,
+          'wind', wxParams
         ).then(r => ({ status: 'fulfilled', value: r }))
          .catch(e => ({ status: 'rejected', reason: e })),
 
         safeFetch(
-          `/api/weather-proxy?type=marine&` +
-          `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-          `&hourly=${hourlyMarineVars}` +
-          `&current=${currentMarineVars}` +
-          `&models=${marineModel}` +
-          `&forecast_days=${Math.min(forecastDays, 16)}`
+          `/api/weather-proxy?type=marine&${marineParams}`,
+          'marine', marineParams
         ).then(r => ({ status: 'fulfilled', value: r }))
          .catch(e => ({ status: 'rejected', reason: e }))
       ]);

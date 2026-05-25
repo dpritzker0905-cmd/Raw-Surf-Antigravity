@@ -1,7 +1,45 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Wind, Waves, CloudRain, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
+import { BASE_CUSTOM_COLOR_SCALES } from './mapUtils';
+
+// Convert meters to feet
+const M_TO_FT = 3.28084;
+
+/**
+ * Build a CSS linear-gradient string from RGBA color array + breakpoints.
+ * Colors are positioned proportionally along the gradient.
+ */
+function buildGradientCSS(scale) {
+  if (!scale?.colors?.length || !scale?.breakpoints?.length) return 'linear-gradient(to right, #888, #888)';
+  const colors = scale.colors;
+  const bp = scale.breakpoints;
+  const maxBp = bp[bp.length - 1];
+  const minBp = bp[0];
+  const range = maxBp - minBp || 1;
+
+  const stops = colors.map((c, i) => {
+    const pct = ((bp[i] - minBp) / range) * 100;
+    return `rgba(${c[0]},${c[1]},${c[2]},${Math.min(c[3] + 0.2, 1).toFixed(2)}) ${pct.toFixed(1)}%`;
+  });
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+}
+
+/**
+ * Build legend stops (labels) from breakpoints. Converts meters to feet for wave variables.
+ */
+function buildStops(scale, layerId) {
+  if (!scale?.breakpoints?.length) return [];
+  const isFeet = scale.unit === 'm' && ['wave_height', 'wave', 'swell_wave_height', 'secondary_swell_wave_height', 'wind_wave_height'].includes(layerId);
+  return scale.breakpoints.map((bp, i) => {
+    const val = isFeet ? bp * M_TO_FT : bp;
+    const isLast = i === scale.breakpoints.length - 1;
+    // Round nicely
+    const display = val < 1 ? val.toFixed(1) : Math.round(val);
+    return isLast ? `${display}+` : `${display}`;
+  });
+}
 
 /**
  * Compact weather controls chip-based layer selector + integrated timeline.
@@ -86,18 +124,74 @@ export var MapWeatherControls = ({
 
   const activeLayer = activeLayers[0] || null;
 
-  const legendConfig = {
-    satellite: { label: 'Cloud Cover (%)', gradient: 'from-transparent via-gray-300 via-gray-400 to-white', stops: ['0','20','40','60','80','100'] },
-    waves: { label: 'Combined Waves (ft)', gradient: 'bg-[linear-gradient(to_right,#dbeafe,#22d3ee,#2563eb,#9333ea,#be184a,#9f1239)]', stops: ['0','2','4','8','12','20+'] },
-    swell_1: { label: 'Primary Swell (ft)', gradient: 'bg-[linear-gradient(to_right,#cffafe,#22d3ee,#3b82f6,#4f46e5,#6d28d9,#5b21b6)]', stops: ['0','2','4','8','12','20+'] },
-    swell_2: { label: 'Secondary Swell (ft)', gradient: 'bg-[linear-gradient(to_right,#f3e8ff,#c084fc,#d946ef,#db2777,#be184a,#9f1239)]', stops: ['0','1','2','4','6','10+'] },
-    wind_waves: { label: 'Wind Waves (ft)', gradient: 'bg-[linear-gradient(to_right,#d1fae5,#34d399,#14b8a6,#0891b2,#1d4ed8,#1e3a8a)]', stops: ['0','1','2','4','6','10+'] },
-    fog: { label: 'Visibility / Fog', gradient: 'from-gray-500 via-gray-400 via-gray-300 to-transparent', stops: ['<1km','5km','10km','20km','40km','Clear'] },
-    wind: { label: 'Wind (kts)', gradient: 'from-teal-100 via-emerald-400 via-yellow-400 via-orange-500 to-rose-600', stops: ['0','5','10','20','30','50+'] },
-    rain: { label: 'Rain Forecast (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
-    radar: { label: 'Live Radar (in/h)', gradient: 'from-gray-300 via-blue-400 via-indigo-500 via-purple-600 to-fuchsia-600', stops: ['0','.1','.3','.5','1.0','2+'] },
-    pressure: { label: 'Pressure (hPa)', gradient: 'from-gray-100 via-blue-300 via-emerald-300 via-yellow-400 to-red-600', stops: ['980','990','1000','1010','1020','1030'] },
+  // Map layer IDs to their omVariable names for color scale lookup
+  const LAYER_TO_VARIABLE = {
+    waves: 'wave_height',
+    swell_1: 'swell_wave_height',
+    swell_2: 'secondary_swell_wave_height',
+    wind_waves: 'wind_wave_height',
+    rain: 'precipitation',
   };
+
+  // Legend labels and units per layer
+  const LEGEND_LABELS = {
+    waves: 'Combined Waves (ft)',
+    swell_1: 'Primary Swell (ft)',
+    swell_2: 'Secondary Swell (ft)',
+    wind_waves: 'Wind Waves (ft)',
+    rain: 'Precipitation (in/h)',
+    radar: 'Live Radar (dBZ)',
+    satellite: 'Cloud Cover (%)',
+    fog: 'Visibility / Fog',
+    wind: 'Wind Speed (kts)',
+    pressure: 'Pressure (hPa)',
+  };
+
+  // Build legend config dynamically from actual color scale data
+  const legendConfig = useMemo(() => {
+    const config = {};
+
+    // Data-driven legends from BASE_CUSTOM_COLOR_SCALES
+    Object.entries(LAYER_TO_VARIABLE).forEach(([layerId, variable]) => {
+      const scale = BASE_CUSTOM_COLOR_SCALES[variable];
+      if (scale) {
+        config[layerId] = {
+          label: LEGEND_LABELS[layerId] || layerId,
+          gradientCSS: buildGradientCSS(scale),
+          stops: buildStops(scale, variable),
+        };
+      }
+    });
+
+    // Static legends for layers without custom color scales
+    config.satellite = {
+      label: LEGEND_LABELS.satellite,
+      gradientCSS: 'linear-gradient(to right, transparent, rgba(200,200,200,0.4), rgba(180,180,180,0.6), rgba(240,240,240,0.8), white)',
+      stops: ['0%', '25%', '50%', '75%', '100%'],
+    };
+    config.fog = {
+      label: LEGEND_LABELS.fog,
+      gradientCSS: 'linear-gradient(to right, rgba(120,120,120,0.8), rgba(160,160,160,0.6), rgba(200,200,200,0.4), transparent)',
+      stops: ['<1km', '5km', '10km', '20km', 'Clear'],
+    };
+    config.wind = {
+      label: LEGEND_LABELS.wind,
+      gradientCSS: 'linear-gradient(to right, rgba(204,251,241,0.6), rgba(52,211,153,0.7), rgba(250,204,21,0.8), rgba(249,115,22,0.9), rgba(225,29,72,0.95))',
+      stops: ['0', '5', '15', '30', '50+'],
+    };
+    config.radar = {
+      label: LEGEND_LABELS.radar,
+      gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
+      stops: ['0', '.1', '.3', '.5', '2+'],
+    };
+    config.pressure = {
+      label: LEGEND_LABELS.pressure,
+      gradientCSS: 'linear-gradient(to right, rgba(200,200,255,0.5), rgba(147,197,253,0.6), rgba(110,231,183,0.7), rgba(250,204,21,0.8), rgba(239,68,68,0.9))',
+      stops: ['980', '995', '1010', '1020', '1040'],
+    };
+
+    return config;
+  }, []);
 
   const maxForecastDays = resolveForecastWindow(userTier);
   const maxForecastHours = maxForecastDays * 24;
@@ -403,7 +497,7 @@ export var MapWeatherControls = ({
         {activeLayer && legendConfig[activeLayer] && (
           <div className="mt-1">
             <div className={`text-[9px] ${textMuted} mb-0.5`}>{legendConfig[activeLayer].label}</div>
-            <div className={`h-1.5 w-full rounded-full ${legendConfig[activeLayer].gradient.startsWith('bg-[') ? '' : 'bg-gradient-to-r'} ${legendConfig[activeLayer].gradient}`} />
+            <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
             <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
               {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
             </div>
@@ -452,7 +546,7 @@ export var MapWeatherControls = ({
                 <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
                   <span>{legendConfig[activeLayer].label}</span>
                 </div>
-                <div className={`h-1.5 w-full rounded-full ${legendConfig[activeLayer].gradient.startsWith('bg-[') ? '' : 'bg-gradient-to-r'} ${legendConfig[activeLayer].gradient}`} />
+                <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
                 <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
                   {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
                 </div>
@@ -522,7 +616,7 @@ export var MapWeatherControls = ({
                   <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>
                     {legendConfig[activeLayer].label}
                   </div>
-                  <div className={`h-1.5 w-full rounded-full ${legendConfig[activeLayer].gradient.startsWith('bg-[') ? '' : 'bg-gradient-to-r'} ${legendConfig[activeLayer].gradient}`} />
+                  <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
                   <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5`}>
                     {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
                   </div>

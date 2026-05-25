@@ -16,13 +16,18 @@ if (typeof window !== 'undefined') {
     if (message && message.toString().includes('ResizeObserver')) {
       return true;
     }
+    // Suppress AbortErrors from @openmeteo/weather-map-layer source cleanup
+    if (error?.name === 'AbortError' || error?.name === 'DOMException' ||
+        (message && (message.toString().includes('aborted') || message.toString().includes('AbortError')))) {
+      return true;
+    }
     if (originalError) {
       return originalError(message, source, lineno, colno, error);
     }
     return false;
   };
 
-  // Suppress in event listener
+  // Suppress in event listener (capture phase to catch before React's dev overlay)
   window.addEventListener('error', function(e) {
     if (e.message && e.message.includes('ResizeObserver')) {
       e.stopImmediatePropagation();
@@ -30,7 +35,64 @@ if (typeof window !== 'undefined') {
       e.preventDefault();
       return true;
     }
+    // Suppress AbortErrors from map layer cleanup
+    if (e.error?.name === 'AbortError' || e.error?.name === 'DOMException' ||
+        (e.message && (e.message.includes('aborted') || e.message.includes('AbortError')))) {
+      e.stopImmediatePropagation();
+      e.stopPropagation();
+      e.preventDefault();
+      return true;
+    }
   }, true);
+
+  // Suppress unhandled AbortError promise rejections
+  window.addEventListener('unhandledrejection', function(e) {
+    if (e.reason?.name === 'AbortError' || e.reason?.name === 'DOMException' ||
+        (e.reason?.message && (e.reason.message.includes('aborted') || e.reason.message.includes('AbortError')))) {
+      e.stopImmediatePropagation();
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
+
+  // v86.4: Auto-dismiss CRA error overlay when it only contains AbortErrors.
+  if (process.env.NODE_ENV === 'development') {
+    const dismissAbortOverlay = () => {
+      document.querySelectorAll('iframe').forEach(iframe => {
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (doc) {
+            const text = doc.body?.textContent || '';
+            if ((text.includes('AbortError') || text.includes('signal is aborted') || 
+                 text.includes('user aborted')) && 
+                !text.includes('SyntaxError') && !text.includes('TypeError') &&
+                !text.includes('ReferenceError')) {
+              iframe.style.display = 'none';
+              iframe.remove();
+            }
+          }
+        } catch (e) { /* cross-origin iframe */ }
+      });
+    };
+    const overlayObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeName === 'IFRAME' || (node.nodeType === 1 && node.querySelector?.('iframe'))) {
+            setTimeout(dismissAbortOverlay, 150);
+            setTimeout(dismissAbortOverlay, 500);
+          }
+        }
+      }
+    });
+    const startObserving = () => {
+      if (document.body) {
+        overlayObserver.observe(document.body, { childList: true, subtree: true });
+      } else {
+        setTimeout(startObserving, 50);
+      }
+    };
+    startObserving();
+  }
 
   // Also patch ResizeObserver to not throw
   const RO = window.ResizeObserver;

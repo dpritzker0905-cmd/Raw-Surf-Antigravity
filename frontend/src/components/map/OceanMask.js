@@ -118,7 +118,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
 
   const active = propActive !== undefined ? propActive : !!activeMarineLayer;
 
-  console.log('[OceanMask] Render:', { active, propActive, activeMarineLayer, theme });
+  // Debug removed: was causing excessive console spam on every render
 
   // Load the Natural Earth land GeoJSON once at mount (local-first fallback chain)
   useEffect(() => {
@@ -332,7 +332,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               type: 'fill',
               source: waterSource,
               'source-layer': waterSourceLayer,
-              filter: ['match', ['get', 'class'], ['ocean', 'sea'], false, true],
+              filter: ['all', ['has', 'class'], ['match', ['get', 'class'], ['ocean', 'sea'], false, true]],
               paint: {
                 'fill-color': waterColor,
                 'fill-opacity': 1.0
@@ -345,7 +345,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-            mapInstance.setFilter(MASK_INLAND_WATER, ['match', ['get', 'class'], ['ocean', 'sea'], false, true]);
+            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['match', ['get', 'class'], ['ocean', 'sea'], false, true]]);
             mapInstance.setLayoutProperty(MASK_INLAND_WATER, 'visibility', 'visible');
           } catch (e) {}
         }
@@ -414,10 +414,10 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         // 6. Dynamically restore base map parks, forests, and green space fills
         repositionLanduse(mapInstance);
 
-        // 7. Force slot-based active marine raster layers BELOW MASK_BUFFER
+        // 7. Force slot-based active marine raster layers ABOVE buffer but BELOW land fill
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
         for (const ml of marineLayers) {
-          safeMoveLayer(mapInstance, ml, MASK_BUFFER);
+          safeMoveLayer(mapInstance, ml, MASK_FILL);
         }
 
       } else {
@@ -489,15 +489,15 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     };
   }, [mapInstance, triggerSync]);
 
-  // Dedicated marine-raster repositioning listener to ensure slots sit below buffer
+  // Dedicated marine-raster repositioning listener to ensure slots sit above buffer but below land fill
   useEffect(() => {
     if (!mapInstance) return;
     const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
     const repositionLayers = () => {
       const { active } = stateRef.current;
-      if (!active || !mapInstance.getLayer(MASK_BUFFER)) return;
+      if (!active || !mapInstance.getLayer(MASK_FILL)) return;
       for (const ml of marineRasterLayers) {
-        safeMoveLayer(mapInstance, ml, MASK_BUFFER);
+        safeMoveLayer(mapInstance, ml, MASK_FILL);
       }
     };
     mapInstance.on('styledata', repositionLayers);

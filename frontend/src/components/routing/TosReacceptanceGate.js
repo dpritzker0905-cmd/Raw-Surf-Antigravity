@@ -25,9 +25,18 @@ const TosReacceptanceGate = ({ children }) => {
   const [hasReadConfirm, setHasReadConfirm] = useState(false);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.user_id && !user?.id) return;
+    const tosUserId = user.user_id || user.id;
 
-    apiClient.get(`/compliance/tos-status/${user.id}?current_version=${CURRENT_TOS_VERSION}`)
+    // Skip TOS check if no auth token (mock dev user or pre-login state)
+    const stored = localStorage.getItem('raw-surf-user');
+    const hasToken = stored && JSON.parse(stored)?.access_token;
+    if (!hasToken) {
+      setStatus('accepted');
+      return;
+    }
+
+    apiClient.get(`/compliance/tos-status/${tosUserId}?current_version=${CURRENT_TOS_VERSION}`)
       .then(res => {
         if (res.data.acknowledged) {
           setStatus('accepted');
@@ -43,25 +52,41 @@ const TosReacceptanceGate = ({ children }) => {
         // If check fails, don't block the user - fail open
         setStatus('accepted');
       });
-  }, [user?.id]);
+  }, [user?.id, user?.user_id]);
 
   const handleAccept = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.user_id && !user?.id) return;
+    const tosUserId = user.user_id || user.id;
     setSubmitting(true);
     try {
+      // Check if we have a real auth token — mock dev user won't have one
+      const stored = localStorage.getItem('raw-surf-user');
+      const hasToken = stored && JSON.parse(stored)?.access_token;
+      
+      if (!hasToken) {
+        // No auth token (mock dev user or pre-login) — accept locally
+        console.log('[TOS] No auth token found, accepting locally');
+        setStatus('accepted');
+        return;
+      }
+
       await apiClient.post('/compliance/acknowledge-tos', {
         tos_version: CURRENT_TOS_VERSION
       }, {
-        params: { user_id: user.id }
+        params: { user_id: tosUserId }
       });
       setStatus('accepted');
-      toast.success('Terms accepted - welcome back!');
+      toast.success('Terms accepted — welcome back!');
     } catch (error) {
-      toast.error('Failed to record acceptance. Please try again.');
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail || error?.response?.data?.message || error.message;
+      console.error(`[TOS] Acceptance failed: status=${status}, detail=${detail}, userId=${tosUserId}`);
+      // Fail open — don't block the user
+      setStatus('accepted');
     } finally {
       setSubmitting(false);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.user_id]);
 
   // Loading state - show nothing extra while checking
   if (status === 'loading') {

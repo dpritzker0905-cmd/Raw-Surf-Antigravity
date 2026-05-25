@@ -90,6 +90,30 @@ var MapWebGL = ({
   const activeLayersRef = useRef(activeLayers);
   activeLayersRef.current = activeLayers;
   
+  // v86.1: Suppress AbortErrors from @openmeteo/weather-map-layer source cleanup
+  // These are expected when React unmounts Source components during layer switches
+  useEffect(() => {
+    const errorHandler = (event) => {
+      if (event.error?.name === 'AbortError' || 
+          (event.message && event.message.includes('aborted'))) {
+        event.preventDefault();
+        return true;
+      }
+    };
+    const rejectionHandler = (event) => {
+      if (event.reason?.name === 'AbortError' || 
+          (event.reason?.message && event.reason.message.includes('aborted'))) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', rejectionHandler);
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', rejectionHandler);
+    };
+  }, []);
+
   // Shared Weather Animation Controller
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
   const animFrameRef = useRef(null);
@@ -243,7 +267,10 @@ var MapWebGL = ({
                   
                   currentActiveLayers.forEach(layerKey => {
                     const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
-                    const opacityExpression = isMarine ? 0.70 : [
+                    const opacityExpression = isMarine ? [
+                      'interpolate', ['linear'], ['zoom'],
+                      2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
+                    ] : [
                       'interpolate', ['linear'], ['zoom'],
                       2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
                       5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
@@ -270,7 +297,7 @@ var MapWebGL = ({
                   }
                   if (activeMarineLayer && mapInstance.getLayer('marine-canvas-layer')) {
                     mapInstance.setLayoutProperty('marine-canvas-layer', 'visibility', 'visible');
-                    mapInstance.setPaintProperty('marine-canvas-layer', 'raster-opacity', 0.70);
+                    mapInstance.setPaintProperty('marine-canvas-layer', 'raster-opacity', 0.85);
                   }
                 } catch (err) {
                   console.warn('[MapWebGL] Transition rendering synchronization caught warning:', err.message);
@@ -340,6 +367,7 @@ var MapWebGL = ({
     };
 
     const resolveAllUrls = async () => {
+      try {
       try { validateModelAccess(activeModel || 'GFS', userTier); } 
       catch (err) { console.error('[MapWebGL] LAYER_ACCESS_DENIED:', err.message); return; }
 
@@ -461,12 +489,19 @@ var MapWebGL = ({
         });
         setActiveSlots(newActiveSlots);
       }
+      } catch (err) {
+        // AbortError is expected when timeline slider moves rapidly — silently ignore
+        if (err.name === 'AbortError') return;
+        console.error('[Raster] resolveAllUrls error:', err);
+      }
     };
     
     pendingResolve.current = resolveAllUrls;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(() => {
-      if (pendingResolve.current) pendingResolve.current();
+      if (pendingResolve.current) pendingResolve.current().catch(e => {
+        if (e.name !== 'AbortError') console.error('[Raster] RAF resolve error:', e);
+      });
     });
     
     return () => { 
@@ -563,7 +598,7 @@ var MapWebGL = ({
   useEffect(() => {
     if (!mapInstance) return;
     const onStyleData = () => {
-      setMaskLandExists(!!mapInstance.getLayer('ocean-mask-buffer'));
+      setMaskLandExists(!!mapInstance.getLayer('ocean-mask-fill'));
       
       let id = null;
       try {
@@ -628,6 +663,37 @@ var MapWebGL = ({
     return () => mapInstance.off('styledata', onStyleData);
   }, [mapInstance]);
 
+  // Cleanup: remove any leftover OceanMask layers from previous sessions
+  useEffect(() => {
+    if (!mapInstance) return;
+    const cleanup = () => {
+      const staleIds = [
+        'ocean-mask-buffer', 'ocean-mask-fill', 'ocean-mask-line',
+        'ocean-mask-inland-water', 'ocean-mask-inland-waterway'
+      ];
+      for (const lid of staleIds) {
+        try {
+          if (mapInstance.getLayer(lid)) {
+            mapInstance.removeLayer(lid);
+            console.log('[MapWebGL] Removed stale OceanMask layer:', lid);
+          }
+        } catch (e) {}
+      }
+      try {
+        if (mapInstance.getSource('ocean-mask-land')) {
+          mapInstance.removeSource('ocean-mask-land');
+          console.log('[MapWebGL] Removed stale OceanMask source');
+        }
+      } catch (e) {}
+    };
+    // Run after style loads
+    if (mapInstance.isStyleLoaded()) {
+      cleanup();
+    } else {
+      mapInstance.once('styledata', cleanup);
+    }
+  }, [mapInstance]);
+
   // v86: ESRI Satellite Cognizance and Clean Background clearing
   useEffect(() => {
     if (!mapInstance) return;
@@ -675,6 +741,57 @@ var MapWebGL = ({
         console.error('[MapLibre Error]', e?.error || e);
       });
       
+      // v86.4: Source-level AbortError suppression.
+      // Instead of patching removeSource (which React bypasses via internal calls),
+      // we intercept addSource to wrap each source's onRemove with error handling.
+      // This catches AbortErrors at the exact throw site — inside the source itself.
+      const origAddSource = map.addSource.bind(map);
+      map.addSource = function(id, sourceSpec) {
+        const result = origAddSource.call(this, id, sourceSpec);
+        try {
+          const src = this.getSource(id);
+          if (src && src.onRemove && !src.__abortPatched) {
+            src.__abortPatched = true;
+            const origOnRemove = src.onRemove.bind(src);
+            src.onRemove = function(...args) {
+              try {
+                return origOnRemove(...args);
+              } catch (e) {
+                if (e.name === 'AbortError' || e.name === 'DOMException' ||
+                    e.message?.includes('aborted') || e.message?.includes('abort')) {
+                  return; // Silently suppress
+                }
+                throw e;
+              }
+            };
+          }
+        } catch (e) { /* source not ready */ }
+        return result;
+      };
+      // Also re-patch on style load (style may not exist at init time)
+      map.on('style.load', () => {
+        try {
+          const style = map.getStyle();
+          if (style?.sources) {
+            Object.keys(style.sources).forEach(srcId => {
+              const src = map.getSource(srcId);
+              if (src && src.onRemove && !src.__abortPatched) {
+                src.__abortPatched = true;
+                const origOnRemove = src.onRemove.bind(src);
+                src.onRemove = function(...args) {
+                  try { return origOnRemove(...args); }
+                  catch (e) {
+                    if (e.name === 'AbortError' || e.name === 'DOMException' ||
+                        e.message?.includes('aborted')) return;
+                    throw e;
+                  }
+                };
+              }
+            });
+          }
+        } catch (e) {}
+      });
+
       // Force render loop to paint custom-protocol tiles on mount
       markMapReady(); // Init sequencer: map is ready
       setTimeout(() => { try { map.triggerRepaint(); } catch(e) { /* map may not be ready */ } }, 300);
@@ -731,25 +848,10 @@ var MapWebGL = ({
     return () => cancelAnimationFrame(animFrameRef.current);
   }, [mapInstance, activeLayers]);
 
-  useEffect(() => {
-    if (!mapInstance) return;
-    try {
-      const activeSourceIds = new Set();
-      activeLayers.forEach(l => {
-        [0, 1, 2].forEach(slot => activeSourceIds.add(`${l}-slot-${slot}-source`));
-      });
-      const style = mapInstance.getStyle();
-      if (style?.sources) {
-        Object.keys(style.sources).forEach(sourceId => {
-          if (sourceId.includes('-slot-') && !activeSourceIds.has(sourceId)) {
-            const layerId = sourceId.replace('-source', '-layer');
-            if (mapInstance.getLayer(layerId)) mapInstance.removeLayer(layerId);
-            if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
-          }
-        });
-      }
-    } catch (e) { /* empty */ }
-  }, [mapInstance, activeLayers]);
+  // v86.4: Stale source cleanup REMOVED.
+  // Sources are now kept mounted permanently to prevent AbortError during unmount.
+  // Inactive sources have visibility='none' and opacity=0, consuming minimal resources.
+  // This eliminates the AbortError overlay that was blocking the UI.
 
   // v86: Unified Reactive Weather Raster Opacity and Transition Sync
   useEffect(() => {
@@ -757,7 +859,10 @@ var MapWebGL = ({
     try {
       activeLayers.forEach(layerKey => {
         const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
-        const opacityExpression = isMarine ? 0.70 : [
+        const opacityExpression = isMarine ? [
+          'interpolate', ['linear'], ['zoom'],
+          2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
+        ] : [
           'interpolate', ['linear'], ['zoom'],
           2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
           5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
@@ -769,7 +874,9 @@ var MapWebGL = ({
           const slotLayerId = `${layerKey}-slot-${slot}-layer`;
           if (mapInstance.getLayer(slotLayerId)) {
             safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
-            const isActive = activeSlots[layerKey] === slot;
+            const isActive = activeSlots[layerKey] !== undefined
+              ? activeSlots[layerKey] === slot
+              : (closestTimeIdxRef.current % 3) === slot;
             if (!isTransitioning) {
               safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? opacityExpression : 0.0);
             } else {
@@ -790,6 +897,11 @@ var MapWebGL = ({
       try { mapInstance.triggerRepaint(); } catch (e) { /* ignore mapInstance repaint errors */ }
     }
   }, [mapInstance, activeLayers, omTileUrls]);
+
+  // v86.3 removed: The effect that dimmed basemap 'water' fill-color when marine
+  // rasters were active was permanently corrupting the water color across themes.
+  // Light mode water would turn dark and never restore. Marine rasters now use
+  // lower opacity (0.45-0.70) to show wave data without modifying the base map.
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -879,7 +991,12 @@ var MapWebGL = ({
       </Source>
 
       {/* v251: Open-Meteo Independent Static Tile Sources with Triple-Source Sliding Ring Buffer */}
-      {protocolReady && activeLayers.map(layerKey => {
+      {/* v86.4: Render Sources for ALL layer keys with resolved URLs (not just activeLayers).
+           This prevents Source unmount/remount when switching layers, which eliminates:
+           1) AbortError from @openmeteo/weather-map-layer onRemove cleanup
+           2) Tile re-loading delay (tiles stay cached in the mounted Source)
+           3) Error overlay blocking the entire UI */}
+      {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
         return [0, 1, 2].map(slotIdx => {
           const slotKey = `${layerKey}-slot-${slotIdx}`;
           const url = omTileUrls[slotKey];
@@ -899,19 +1016,20 @@ var MapWebGL = ({
             >
               <Layer
                 id={`${slotKey}-layer`}
-                beforeId={
-                  LAYER_REGISTRY[layerKey]?.type === 'marine'
-                    ? (maskLandExists ? 'ocean-mask-buffer' : marineBeforeId) || undefined
-                    : marineBeforeId || undefined
-                }
+                beforeId={marineBeforeId || undefined}
                 type="raster"
-                layout={{ 
-                  visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none' 
+                layout={{
+                  visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
                 }}
                 paint={{
-                  // Scale opacity down to 0.0 if not active to keep buffers ready but hidden
-                  'raster-opacity': (!isTransitioning && isActive) ? (
-                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0.70 : [
+                  'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? (
+                    LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
+                      'interpolate', ['linear'], ['zoom'],
+                      2, 0.45,
+                      5, 0.55,
+                      8, 0.65,
+                      12, 0.70
+                    ] : [
                       'interpolate', ['linear'], ['zoom'],
                       2, layerKey === 'wind' ? 0.17 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
                       5, layerKey === 'wind' ? 0.21 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
@@ -920,10 +1038,6 @@ var MapWebGL = ({
                     ]
                   ) : 0.0,
                   'raster-resampling': 'linear',
-                  'raster-hue-rotate': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'wind' ? 0 : layerKey === 'rain' ? -60 : layerKey === 'pressure' ? -45 : 0,
-                  'raster-contrast': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.10 : layerKey === 'wind' ? 0.10 : layerKey === 'pressure' ? 0.08 : layerKey === 'fog' ? 0.30 : 0.10,
-                  'raster-saturation': LAYER_REGISTRY[layerKey]?.type === 'marine' ? 0 : layerKey === 'satellite' ? -0.20 : layerKey === 'wind' ? 0.15 : layerKey === 'fog' ? -0.50 : layerKey === 'pressure' ? 0.10 : 0.12,
-                  'raster-brightness-min': layerKey === 'satellite' ? 0.15 : layerKey === 'rain' ? 0.03 : 0,
                   'raster-fade-duration': 150
                 }}
               />
@@ -932,16 +1046,9 @@ var MapWebGL = ({
         });
       })}
 
-      {/* v85: OceanMask — covers marine raster coastline bleed on land.
-           In the vector base map, this sits ABOVE marine rasters but BELOW
-           roads/labels/buildings, so land detail is preserved. */}
-      <OceanMask
-        mapInstance={mapInstance}
-        active={!isTransitioning && !!activeMarineLayer}
-        activeMarineLayer={activeMarineLayer}
-        theme={theme}
-        beforeId={marineBeforeId}
-      />
+      {/* OceanMask permanently disabled — causes lake/water disappearance and
+           doesn't restore base map layers on deactivation. Marine rasters use
+           lower opacity to let the base map show through naturally instead. */}
 
       {/* Marine Foam/Crest Engine (architecturally separated from wind) */}
       <MarineParticleCanvas 
