@@ -357,8 +357,12 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
         return res.json();
       })
       .then(data => {
+        const variables = data.variables || [];
+        if (variables.includes('wind_u_component_10m') && variables.includes('wind_v_component_10m') && !variables.includes('wind_speed_10m')) {
+          variables.push('wind_speed_10m');
+        }
         const result = {
-          variables: data.variables || [],
+          variables: variables,
           validTimes: data.valid_times || [],
           referenceTime: data.reference_time || null,
         };

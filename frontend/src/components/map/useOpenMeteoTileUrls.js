@@ -95,17 +95,39 @@ export function useOpenMeteoTileUrls({
   // Pre-warm active model and wave fallbacks immediately, and defer the rest
   useEffect(() => {
     const activeModelCode = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
-    // 1. Prioritize active model and regional/global wave models metadata immediately
-    fetchMetadata(activeModelCode);
-    fetchMetadata('ncep_gfswave025'); // Default wave model
-    fetchMetadata('ecmwf_wam025'); // EURO wave model
-    fetchMetadata('dwd_gwam'); // ICON wave model
     
-    // 2. Defer remaining atmospheric models by 2 seconds using a non-blocking setTimeout
+    // 1. Prioritize active model components immediately
+    fetchMetadata(activeModelCode);
+    
+    if (activeModel === 'GFS') {
+      fetchMetadata('ncep_gfs013');
+      fetchMetadata('ncep_gfswave025');
+    } else if (activeModel === 'EURO') {
+      fetchMetadata('ecmwf_ifs025');
+      fetchMetadata('ecmwf_wam025');
+    } else if (activeModel === 'ICON') {
+      fetchMetadata('dwd_icon');
+      fetchMetadata('dwd_gwam');
+    }
+
+    // Always fetch global fallbacks immediately
+    fetchMetadata('ncep_gfs025');
+    fetchMetadata('ncep_gfswave025');
+    
+    // 2. Defer remaining models by 2 seconds using a non-blocking setTimeout
     const timer = setTimeout(() => {
-      const remainingModels = [
-        'ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025'
-      ].filter(m => m !== activeModelCode);
+      const allModels = ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'dwd_gwam'];
+      const immediateList = [activeModelCode];
+      if (activeModel === 'GFS') {
+        immediateList.push('ncep_gfs013', 'ncep_gfswave025');
+      } else if (activeModel === 'EURO') {
+        immediateList.push('ecmwf_ifs025', 'ecmwf_wam025');
+      } else if (activeModel === 'ICON') {
+        immediateList.push('dwd_icon', 'dwd_gwam');
+      }
+      immediateList.push('ncep_gfs025', 'ncep_gfswave025');
+      
+      const remainingModels = allModels.filter(m => !immediateList.includes(m));
       
       // Load remaining models in the background
       remainingModels.forEach(m => fetchMetadata(m));

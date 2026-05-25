@@ -300,9 +300,17 @@ const LIMITED_MARINE_VARS = [
   'wave_height', 'wave_direction', 'wave_period'
 ];
 
-function generateDefaultTimes(intervalHours = 1, maxHours = 240) {
-  const start = new Date();
-  start.setMinutes(0, 0, 0);
+function getAlignedReferenceTime() {
+  const date = new Date(Date.now() - 12 * 3600000);
+  const hours = date.getUTCHours();
+  const alignedHours = Math.floor(hours / 6) * 6;
+  date.setUTCHours(alignedHours, 0, 0, 0);
+  return date.toISOString().replace(/\.\d+Z$/, 'Z');
+}
+const referenceTime = getAlignedReferenceTime();
+
+function generateDefaultTimes(intervalHours = 1, maxHours = 240, baseTimeStr = referenceTime) {
+  const start = new Date(baseTimeStr);
   const times = [];
   const startOffset = Math.floor(-24 / intervalHours) * intervalHours;
   const endOffset = Math.ceil(maxHours / intervalHours) * intervalHours;
@@ -313,9 +321,8 @@ function generateDefaultTimes(intervalHours = 1, maxHours = 240) {
   return times;
 }
 
-function generateGfsDefaultTimes() {
-  const start = new Date();
-  start.setMinutes(0, 0, 0);
+function generateGfsDefaultTimes(baseTimeStr = referenceTime) {
+  const start = new Date(baseTimeStr);
   const times = [];
   // GFS is hourly up to 120 hours (5 days)
   for (let i = -24; i <= 120; i++) {
@@ -335,16 +342,7 @@ const defaultTimesIconAtm = generateDefaultTimes(1, 120); // ICON atmospheric: 1
 const defaultTimesIconWav = generateDefaultTimes(3, 180); // ICON wave: 3h interval, max 7.5 days (180h)
 const defaultTimesEuro = generateDefaultTimes(3, 240);    // EURO atmospheric / wave: 3h interval, max 10 days (240h)
 
-function getAlignedReferenceTime() {
-  const date = new Date(Date.now() - 12 * 3600000);
-  const hours = date.getUTCHours();
-  const alignedHours = Math.floor(hours / 6) * 6;
-  date.setUTCHours(alignedHours, 0, 0, 0);
-  return date.toISOString().replace(/\.\d+Z$/, 'Z');
-}
-const referenceTime = getAlignedReferenceTime();
-
-const GFS_ATMOSPHERIC_VARS = DEFAULT_ATMOSPHERIC_VARS.filter(v => v !== 'wind_speed_10m');
+const GFS_ATMOSPHERIC_VARS = DEFAULT_ATMOSPHERIC_VARS;
 
 MODEL_METADATA_CACHE['ncep_gfs025'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimesGfs, referenceTime };
 MODEL_METADATA_CACHE['ncep_gfs013'] = { variables: GFS_ATMOSPHERIC_VARS, validTimes: defaultTimesGfs, referenceTime };
