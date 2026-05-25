@@ -344,9 +344,6 @@ export const UploadPhotoModal = ({
 
       if (finalErrors === 0) {
         toast.success(`Successfully uploaded ${successCount} file${successCount !== 1 ? 's' : ''}!`);
-        setTimeout(() => {
-          onClose();
-        }, 1200);
       } else {
         toast.warning(`Uploaded ${successCount} file${successCount !== 1 ? 's' : ''} with ${finalErrors} error(s) remaining.`);
       }
