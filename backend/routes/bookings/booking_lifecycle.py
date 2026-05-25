@@ -363,19 +363,76 @@ async def cancel_booking(
 
     hours_until_session = (session_time - now).total_seconds() / 3600
 
-    if hours_until_session > 48:
-        refund_percentage = 90
-    elif hours_until_session > 24:
-        refund_percentage = 50
-    else:
-        refund_percentage = 0
-
     is_photographer_cancelling = (booking.photographer_id == user_id)
-    if is_photographer_cancelling:
-        refund_percentage = 100
+
+    # Bad weather check (credited to wallet to reschedule later)
+    is_bad_weather = False
+    if not is_photographer_cancelling and data.reason:
+        reason_lower = data.reason.lower()
+        if any(keyword in reason_lower for keyword in ["weather", "storm", "rain", "lightning", "hurricane", "gale", "thunderstorm"]):
+            is_bad_weather = True
 
     total_paid = sum(p.paid_amount or 0 for p in booking.participants)
-    refund_amount = (total_paid * refund_percentage) / 100
+    retained_amount = 0.0
+
+    if is_photographer_cancelling:
+        refund_percentage = 100
+        refund_amount = total_paid
+    elif is_bad_weather:
+        # Surfer cancels due to bad weather -> full refund of session
+        # BUT photographer retains the travel surcharge fee for gas costs if they charge travel fees!
+        travel_surcharge = 0.0
+        photographer = booking.photographer
+        if photographer and photographer.charges_travel_fees and photographer.travel_surcharges:
+            if booking.latitude is not None and booking.longitude is not None:
+                if photographer.home_latitude is not None and photographer.home_longitude is not None:
+                    try:
+                        from utils.geo import haversine_distance
+                        distance = haversine_distance(
+                            photographer.home_latitude, photographer.home_longitude,
+                            booking.latitude, booking.longitude
+                        )
+                        tiers = photographer.travel_surcharges or []
+                        if isinstance(tiers, str):
+                            tiers = json.loads(tiers)
+                        for tier in tiers:
+                            min_m = tier.get("min_miles", 0)
+                            max_m = tier.get("max_miles", 999999)
+                            if min_m <= distance <= max_m:
+                                travel_surcharge = float(tier.get("surcharge", 0.0))
+                                break
+                    except Exception as e:
+                        logger.warning(f"Error calculating travel surcharge: {e}")
+
+        # Retained travel surcharge (capped at total_paid)
+        retained_amount = min(travel_surcharge, total_paid)
+        refund_amount = total_paid - retained_amount
+        refund_percentage = (refund_amount / total_paid * 100) if total_paid > 0 else 0.0
+
+        if retained_amount > 0:
+            # Transfer the retained travel surcharge directly to the photographer's wallet balance for gas
+            await add_credits(
+                user_id=booking.photographer_id,
+                amount=retained_amount,
+                transaction_type='booking_earning',
+                db=db,
+                description=f"Retained travel surcharge fee for gas costs (cancelled booking {booking_id})",
+                reference_type='booking',
+                reference_id=booking_id,
+                counterparty_id=booking.creator_id
+            )
+            logger.info(f"Bad weather cancellation: Surfer refunded ${refund_amount:.2f}, photographer retains travel fee of ${retained_amount:.2f} for gas costs.")
+        else:
+            logger.info(f"Bad weather cancellation: Surfer fully refunded ${refund_amount:.2f}.")
+    else:
+        # Standard cancellation policy
+        if hours_until_session > 48:
+            refund_percentage = 90
+        elif hours_until_session > 24:
+            refund_percentage = 50
+        else:
+            refund_percentage = 0
+        refund_amount = (total_paid * refund_percentage) / 100
 
     booking.status = 'Cancelled'
     booking.cancelled_at = now
