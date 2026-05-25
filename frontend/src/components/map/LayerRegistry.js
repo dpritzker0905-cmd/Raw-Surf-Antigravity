@@ -312,7 +312,7 @@ function generateDefaultTimes() {
 }
 
 const defaultTimes = generateDefaultTimes();
-const referenceTime = new Date().toISOString();
+const referenceTime = new Date(Date.now() - 12 * 3600000).toISOString();
 
 const GFS_ATMOSPHERIC_VARS = DEFAULT_ATMOSPHERIC_VARS.filter(v => v !== 'wind_speed_10m');
 

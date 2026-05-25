@@ -504,7 +504,7 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
         if (!res.ok || !contentType.includes('application/json')) {
           console.warn(`[OM-Protocol] Proxy failed or returned non-JSON (${res.status}, ${contentType}). Initiating direct-to-CDN metadata fallback fetch...`);
           // Bypassing netlify proxy and fetching straight from Open-Meteo edge CDN
-          const fallbackRes = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json`, { signal });
+          const fallbackRes = await fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json?skip_intercept=true`, { signal });
           if (!fallbackRes.ok) {
             throw new Error(`Direct edge CDN fetch failed: ${fallbackRes.status}`);
           }
@@ -664,7 +664,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     const originalFetch = globalCtx.fetch;
     globalCtx.fetch = function (input, init) {
       const urlString = typeof input === 'string' ? input : input?.url || '';
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && MODEL_METADATA_CACHE) {
+      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
         try {
           const urlObj = new URL(urlString);
           const parts = urlObj.pathname.split('/');
@@ -675,7 +675,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               completed: true,
               crs_wkt: "",
               last_modified_time: new Date().toISOString(),
-              reference_time: meta.referenceTime || new Date().toISOString(),
+              reference_time: meta.referenceTime || new Date(Date.now() - 12 * 3600000).toISOString(),
               valid_times: meta.validTimes || [],
               variables: meta.variables || []
             };
