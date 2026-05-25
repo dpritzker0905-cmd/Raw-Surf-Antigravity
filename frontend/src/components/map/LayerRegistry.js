@@ -30,6 +30,13 @@ export const PRECIP_MODEL_MAP = {
  'EURO': 'ecmwf_ifs025', // ECMWF HAS precipitation, 3-hourly (safe: valid_times_N)
 };
 
+// Wind overlays: GFS wind components are in ncep_gfs013. Others are on atmospheric models.
+export const WIND_MODEL_MAP = {
+  'GFS': 'ncep_gfs013',
+  'ICON': 'dwd_icon',
+  'EURO': 'ecmwf_ifs025',
+};
+
 // Marine waves: GFS Wave is the most complete (swell, wind_wave, secondary).
 // ECMWF WAM only has wave_height/period no swell/wind_wave decomposition.
 export const MARINE_MODEL_MAP = {
@@ -92,7 +99,7 @@ export var LAYER_REGISTRY = {
     id: "wind",
     type: "particle",
     source: "WIND_PARTICLES",
-    omVariable: "wind_speed_10m",
+    omVariable: "wind_u_component_10m",
     category: "model",
     renderMode: "webgl",
     updateFrequency: 1,

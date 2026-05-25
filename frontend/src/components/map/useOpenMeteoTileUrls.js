@@ -13,10 +13,12 @@ import {
 import {
   LAYER_REGISTRY,
   PRECIP_MODEL_MAP,
+  WIND_MODEL_MAP,
   MARINE_MODEL_MAP,
   MODEL_METADATA_CACHE
 } from './LayerRegistry';
 import { validateModelAccess } from './LayerAccessResolver';
+import { WeatherTelemetry } from './WeatherTelemetry';
 
 export function useOpenMeteoTileUrls({
   mapInstance,
@@ -77,6 +79,11 @@ export function useOpenMeteoTileUrls({
   useEffect(() => {
     registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE);
   }, []);
+
+  // Sync state changes with the diagnostics telemetry engine
+  useEffect(() => {
+    WeatherTelemetry.updateState(activeModel, activeLayers, debouncedTimeOffsetHours);
+  }, [activeModel, activeLayers, debouncedTimeOffsetHours]);
 
   // Dynamic theme pressure color scale synchronizer
   useEffect(() => {
@@ -315,6 +322,16 @@ export function useOpenMeteoTileUrls({
 
         const resolveModel = (entry, variable) => {
           if (entry.omModel) return entry.omModel;
+          if (variable === 'wind_u_component_10m') {
+            const baseModel = WIND_MODEL_MAP[activeModel] || 'ncep_gfs013';
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 180) {
+              return 'ncep_gfs013';
+            }
+            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 240) {
+              return 'ncep_gfs013';
+            }
+            return baseModel;
+          }
           if (entry.omModelGroup === 'marine') {
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
             // Extend native boundaries: ECMWF WAM (EURO) runs natively to 240 hours (10 days).

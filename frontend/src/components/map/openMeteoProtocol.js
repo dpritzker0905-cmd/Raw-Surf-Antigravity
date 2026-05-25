@@ -1,9 +1,5 @@
-/**
- * Open-Meteo Custom Protocol and Decoder.
- * Enforces a ProtocolMutex serialized concurrency lock to prevent parallel WASM OOM crashes.
- */
-
 import { CUSTOM_COLOR_SCALES } from './colorScales';
+import { WeatherTelemetry } from './WeatherTelemetry';
 
 // Custom protocol active model lock to avoid premature tile discarding
 let activeModelLock = "";
@@ -352,12 +348,20 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
           const runProtocol = async () => {
             await protocolMutex.acquire();
+            const tileKey = params.url || 'unknown-tile';
+            WeatherTelemetry.trackTileRequest(tileKey, tileKey);
+            const startTime = Date.now();
             try {
               if (abortController.signal.aborted) {
+                WeatherTelemetry.trackTileLoaded(tileKey, false);
                 return getSafeWorkerFallbackResponse(params.url, params.type);
               }
-              return await omProtocol(params, abortController, effectiveSettings);
+              const res = await omProtocol(params, abortController, effectiveSettings);
+              WeatherTelemetry.trackTileLoaded(tileKey, true);
+              WeatherTelemetry.trackRasterDecoded(tileKey, Date.now() - startTime);
+              return res;
             } catch (err) {
+              WeatherTelemetry.trackTileLoaded(tileKey, false);
               if (err.name === 'AbortError' || err.message?.includes('aborted')) {
                 throw err;
               }

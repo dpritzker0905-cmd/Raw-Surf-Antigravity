@@ -20,10 +20,11 @@ import { RootCauseAnalyzer } from './advanced/RootCauseAnalyzer';
 import { SimulationEngine } from './advanced/SimulationEngine';
 import { LiveSystemMap } from './advanced/LiveSystemMap';
 import { SocialIntelligencePanel } from './advanced/SocialIntelligencePanel';
+import { WeatherDiagnostics } from './advanced/WeatherDiagnostics';
 
 import { 
   Shield, Terminal, ShieldAlert, GitCommit, Image, Server,
-  ShieldCheck, Clock, Network, Cpu, Zap, Map, Sparkles
+  ShieldCheck, Clock, Network, Cpu, Zap, Map, Sparkles, Activity
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 
@@ -91,7 +92,8 @@ export const AdminApp: React.FC = () => {
     { id: 'root_cause', label: 'Root Cause Analyzer', icon: ShieldAlert },
     { id: 'simulation_engine', label: 'Simulation Sandbox', icon: Zap },
     { id: 'system_map', label: 'Live System Map', icon: Map },
-    { id: 'social_intelligence', label: 'Social Intelligence', icon: Sparkles }
+    { id: 'social_intelligence', label: 'Social Intelligence', icon: Sparkles },
+    { id: 'weather_diagnostics', label: 'Weather Diagnostics', icon: Activity }
   ];
 
   if (viewLegacyConsole) {
@@ -161,6 +163,8 @@ export const AdminApp: React.FC = () => {
         return <LiveSystemMap />;
       case 'social_intelligence':
         return <SocialIntelligencePanel />;
+      case 'weather_diagnostics':
+        return <WeatherDiagnostics />;
       default:
         return null;
     }
