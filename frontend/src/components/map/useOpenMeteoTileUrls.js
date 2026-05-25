@@ -371,14 +371,14 @@ export function useOpenMeteoTileUrls({
         }
 
         // Asynchronous slow-path (only used if cache is cold)
-        await Promise.all(models.map(m => fetchMetadata(m, signal)));
+        await Promise.all(models.map(m => fetchMetadata(m)));
         if (!isMounted) return;
 
         const newUrls = {};
         const newActiveSlots = {};
         for (const { layerKey, variable, entry } of tasks) {
           let layerModel = resolveModel(entry, variable);
-          let meta = await fetchMetadata(layerModel, signal);
+          let meta = await fetchMetadata(layerModel);
           if (!isMounted) return;
           let resolvedVar = variable;
           if (!meta.variables.includes(variable)) {
@@ -403,7 +403,7 @@ export function useOpenMeteoTileUrls({
               if (window.__OM_ACTIVE_MODELS__ && !window.__OM_ACTIVE_MODELS__.includes(layerModel)) {
                 window.__OM_ACTIVE_MODELS__.push(layerModel);
               }
-              meta = await fetchMetadata(layerModel, signal);
+              meta = await fetchMetadata(layerModel);
               if (!isMounted) return;
               if (meta.variables.includes(variable)) {
                 resolvedVar = variable;

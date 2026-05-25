@@ -465,7 +465,7 @@ export var LIVE_FETCHED_MODELS = new Set();
 
 export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged, signal) {
   const cached = MODEL_METADATA_CACHE[modelToCheck];
-  if (cached) return cached;
+  if (cached && LIVE_FETCHED_MODELS.has(modelToCheck)) return cached;
 
   // Try reading from localStorage persistent cache
   try {
@@ -492,7 +492,12 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
     console.warn('[OM-Cache] Failed to read metadata from localStorage:', e);
   }
 
-  if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
+  // If already in flight, return the active promise so callers await the fresh network data
+  if (MODEL_METADATA_PROMISES[modelToCheck]) {
+    return MODEL_METADATA_PROMISES[modelToCheck];
+  }
+
+  if (!LIVE_FETCHED_MODELS.has(modelToCheck)) {
     // If signal is already aborted, throw AbortError immediately
     if (signal?.aborted) {
       return Promise.reject(new DOMException('Aborted', 'AbortError'));
@@ -550,12 +555,15 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
           throw err; // Propagate AbortError cleanly
         }
         console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-        LIVE_FETCHED_MODELS.add(modelToCheck);
+        // CRITICAL BUGFIX: Do NOT add failed models to LIVE_FETCHED_MODELS, which would block future retry attempts
+        // LIVE_FETCHED_MODELS.add(modelToCheck);
         return cached || { variables: [], validTimes: [], referenceTime: null };
       })
       .finally(() => {
         MODEL_METADATA_PROMISES[modelToCheck] = null;
       });
+
+    return MODEL_METADATA_PROMISES[modelToCheck];
   }
   return MODEL_METADATA_CACHE[modelToCheck] || cached || { variables: [], validTimes: [], referenceTime: null };
 }
