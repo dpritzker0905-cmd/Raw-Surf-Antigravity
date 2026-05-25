@@ -112,13 +112,38 @@ export var MapForecastOverlay = ({
   const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : marine.swell_wave_direction?.[marineHourIndex];
   const swell1Dir = rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null);
   
-  const swell2Height = marine.secondary_swell_wave_height?.[marineHourIndex] != null ? marine.secondary_swell_wave_height?.[marineHourIndex] : null;
-  const swell2Period = marine.secondary_swell_wave_period?.[marineHourIndex] != null ? marine.secondary_swell_wave_period?.[marineHourIndex] : null;
-  const swell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex] != null ? marine.secondary_swell_wave_direction?.[marineHourIndex] : null;
-  
-  const windWaveHeight = marine.wind_wave_height?.[marineHourIndex] != null ? marine.wind_wave_height?.[marineHourIndex] : null;
-  const windWavePeriod = marine.wind_wave_period?.[marineHourIndex] != null ? marine.wind_wave_period?.[marineHourIndex] : null;
-  const windWaveDir = marine.wind_wave_direction?.[marineHourIndex] != null ? marine.wind_wave_direction?.[marineHourIndex] : null;
+  // Swell 2 (secondary swell) — only GFS Wave provides this
+  // EURO and ICON marine models don't have secondary swell decomposition
+  const rawSwell2Height = marine.secondary_swell_wave_height?.[marineHourIndex];
+  const rawSwell2Period = marine.secondary_swell_wave_period?.[marineHourIndex];
+  const rawSwell2Dir = marine.secondary_swell_wave_direction?.[marineHourIndex];
+  const swell2Height = rawSwell2Height != null ? rawSwell2Height : null;
+  const swell2Period = rawSwell2Period != null ? rawSwell2Period : null;
+  const swell2Dir = rawSwell2Dir != null ? rawSwell2Dir : null;
+  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null;
+
+  // Wind waves — GFS and ICON provide this, EURO does not
+  // For EURO: estimate wind waves = total wave height minus primary swell height
+  const rawWindWaveHeight = marine.wind_wave_height?.[marineHourIndex];
+  const rawWindWavePeriod = marine.wind_wave_period?.[marineHourIndex];
+  const rawWindWaveDir = marine.wind_wave_direction?.[marineHourIndex];
+
+  let windWaveHeight, windWavePeriod, windWaveDir;
+  if (rawWindWaveHeight != null) {
+    windWaveHeight = rawWindWaveHeight;
+    windWavePeriod = rawWindWavePeriod;
+    windWaveDir = rawWindWaveDir;
+  } else if (activeModel === 'EURO' && waveHeight != null && swell1Height != null) {
+    // Estimate: wind wave ≈ total wave - primary swell (clamped to 0)
+    windWaveHeight = Math.max(0, waveHeight - swell1Height);
+    windWavePeriod = wavePeriod != null ? Math.max(1, wavePeriod * 0.7) : null; // wind waves have shorter period
+    windWaveDir = waveDir; // same direction as total wave
+  } else {
+    windWaveHeight = null;
+    windWavePeriod = null;
+    windWaveDir = null;
+  }
+  const windWaveEstimated = rawWindWaveHeight == null && windWaveHeight != null;
 
   const cards = [];
 
@@ -157,16 +182,24 @@ export var MapForecastOverlay = ({
   }
 
   if (activeLayer === 'swell_2') {
-    const hFt = mToFt(swell2Height);
-    cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-purple-400' });
-    if (swell2Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell2Period.toFixed(1)}s`, color: 'text-purple-300' });
-    if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}`, color: 'text-purple-200', rotate: (swell2Dir + 180) % 360 });
+    if (swell2ModelUnavailable) {
+      // Model doesn't provide secondary swell — show informative message
+      const modelLabel2 = activeModel === 'EURO' ? 'ECMWF' : activeModel;
+      cards.push({ icon: Waves, label: 'Swell 2', value: 'N/A', color: 'text-purple-400' });
+      cards.push({ icon: Waves, label: modelLabel2, value: 'No data', color: 'text-gray-400' });
+    } else {
+      const hFt = mToFt(swell2Height);
+      cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-purple-400' });
+      if (swell2Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell2Period.toFixed(1)}s`, color: 'text-purple-300' });
+      if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}`, color: 'text-purple-200', rotate: (swell2Dir + 180) % 360 });
+    }
   }
 
   if (activeLayer === 'wind_waves') {
     const hFt = mToFt(windWaveHeight);
-    cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-emerald-400' });
-    if (windWavePeriod != null) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}s`, color: 'text-emerald-300' });
+    const suffix = windWaveEstimated ? ' ~' : '';
+    cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt}${suffix} ft` : '--', color: 'text-emerald-400' });
+    if (windWavePeriod != null) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}${suffix}s`, color: 'text-emerald-300' });
     if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: (windWaveDir + 180) % 360 });
   }
 
