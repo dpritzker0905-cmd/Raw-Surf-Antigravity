@@ -31,12 +31,22 @@ const WEATHER_VARS = [
 
 const CURRENT_WEATHER_VARS = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m';
 
-const MARINE_VARS = [
-  'wave_height', 'wave_period', 'wave_direction',
-  'swell_wave_height', 'swell_wave_period', 'swell_wave_direction',
-  'secondary_swell_wave_height', 'secondary_swell_wave_period', 'secondary_swell_wave_direction',
-  'wind_wave_height', 'wind_wave_period', 'wind_wave_direction',
-].join(',');
+const MODEL_SUPPORTED_MARINE_VARS = {
+  'ncep_gfswave025': [
+    'wave_height', 'wave_period', 'wave_direction',
+    'swell_wave_height', 'swell_wave_period', 'swell_wave_direction',
+    'secondary_swell_wave_height', 'secondary_swell_wave_period', 'secondary_swell_wave_direction',
+    'wind_wave_height', 'wind_wave_period', 'wind_wave_direction'
+  ],
+  'gwam': [
+    'wave_height', 'wave_period', 'wave_direction',
+    'swell_wave_height', 'swell_wave_period', 'swell_wave_direction',
+    'wind_wave_height', 'wind_wave_period', 'wind_wave_direction'
+  ],
+  'ecmwf_wam025': [
+    'wave_height', 'wave_period', 'wave_direction'
+  ]
+};
 
 const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
@@ -107,10 +117,12 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const marineModel = activeModel === 'EURO'
       ? 'ecmwf_wam025'
       : activeModel === 'ICON'
-        ? 'dwd_gwam'
+        ? 'gwam'
         : 'ncep_gfswave025';
-    const hourlyMarineVars = MARINE_VARS;
-    const currentMarineVars = CURRENT_MARINE_VARS;
+    
+    const supportedVars = MODEL_SUPPORTED_MARINE_VARS[marineModel] || MODEL_SUPPORTED_MARINE_VARS['ncep_gfswave025'];
+    const hourlyMarineVars = supportedVars.join(',');
+    const currentMarineVars = CURRENT_MARINE_VARS.split(',').filter(v => supportedVars.includes(v)).join(',');
 
     try {
       // Direct Open-Meteo URLs (fallback when Netlify proxy unavailable, e.g. local dev)

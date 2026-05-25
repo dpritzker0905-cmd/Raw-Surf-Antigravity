@@ -288,16 +288,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
 
           const getSafeWorkerFallbackResponse = async (url, type) => {
             // Explicitly verify that the URL request targets a cancelled metadata configuration block
-            const isAbortedJsonMeta = type === 'json' || 
-              (url && (url.includes('type=json') || url.includes('time_step=undefined') || url.includes('latest.json'))) && 
-              !url.includes('.om');
+            const isAbortedJsonMeta = type === 'json' || (typeof url === 'string' && !url.includes('.om'));
 
             if (isAbortedJsonMeta) {
               const flawlessMockJson = {
                 tilejson: "2.2.0",
                 name: "om-safe-fallback",
                 version: "1.0.0",
-                tiles: ["om://transparent-tile"],
+                tiles: ["om://transparent-tile/{z}/{x}/{y}.om"],
                 bounds: [-180, -85, 180, 85],
                 minzoom: 0,
                 maxzoom: 22,
@@ -335,7 +333,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
 
           // Intercept local transparent-tile requests seamlessly without causing Data URI fetch exceptions
           if (params.url && params.url.includes('transparent-tile')) {
-            return getSafeWorkerFallbackResponse(params.url, 'image');
+            return getSafeWorkerFallbackResponse(params.url, params.type || 'image');
           }
 
           // Zero-Latency Match Lock Fast-Path

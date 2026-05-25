@@ -170,7 +170,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       try {
         let data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, activeModelRef.current);
         if (window.__LRCM_EXEC_TRACE__) {
-          data = window.__LRCM_EXEC_TRACE__.push({ layer: 'marine', action: 'fetch', source: 'useMarineOrchestrator', timestamp: Date.now(), payload: data, stack: new Error().stack }) && data;
+          const isDebug = typeof window !== 'undefined' && window.__RASTER_DEBUG__?.enableTrace;
+          window.__LRCM_EXEC_TRACE__.push({
+            layer: 'marine',
+            action: 'fetch',
+            source: 'useMarineOrchestrator',
+            timestamp: Date.now(),
+            payload: data,
+            stack: isDebug ? new Error().stack : null
+          });
         }
 
         // Stale request discard
@@ -300,6 +308,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         timeoutId = setTimeout(() => {
           if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
             updateMarineGrid(source);
+          } else {
+            mapInstance.once('idle', () => {
+              if (activeMarineLayersRef.current) {
+                updateMarineGrid(source);
+              }
+            });
           }
         }, stableDelay);
       });

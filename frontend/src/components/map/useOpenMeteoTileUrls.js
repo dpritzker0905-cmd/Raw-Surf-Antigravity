@@ -74,7 +74,7 @@ export function useOpenMeteoTileUrls({
     // 2. Defer remaining atmospheric models by 2 seconds using a non-blocking setTimeout
     const timer = setTimeout(() => {
       const remainingModels = [
-        'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025'
+        'ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025'
       ].filter(m => m !== activeModelCode);
       
       // Load remaining models in the background
@@ -524,6 +524,7 @@ export function useOpenMeteoTileUrls({
           const slotLayerId = `${layerKey}-slot-${slot}-layer`;
           if (mapInstance.getLayer(slotLayerId)) {
             safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
+            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity-transition', { duration: 150 });
             const isActive = activeSlots[layerKey] !== undefined
               ? activeSlots[layerKey] === slot
               : (closestTimeIdxRef.current % 3) === slot;

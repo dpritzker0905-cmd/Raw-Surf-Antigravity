@@ -175,8 +175,12 @@ function isViewportInsideCachedBounds(viewport, cached) {
   let cEast = cached.east;
   if (cEast < cWest) cEast += 360;
 
+  // Clamp viewport latitude to cache range (fixes Polar cache failure when panning near poles)
+  const vSouth = Math.max(cached.south, Math.min(cached.north, viewport.south));
+  const vNorth = Math.max(cached.south, Math.min(cached.north, viewport.north));
+
   // Verify full coordinate containment within active cached hourly grid bounds
-  const isLatContained = viewport.south >= cached.south && viewport.north <= cached.north;
+  const isLatContained = vSouth >= cached.south && vNorth <= cached.north;
   const isLngContained = vWest >= cWest && vEast <= cEast;
   return isLatContained && isLngContained;
 }
@@ -541,8 +545,8 @@ function extractMarineAtOffset(cache, hourOffset) {
           s1_d = safeNum(c.swell_wave_direction != null ? c.swell_wave_direction : (activeModel === 'EURO' ? c.wave_direction : 0));
     const s2_h = safeNum(c.secondary_swell_wave_height != null ? c.secondary_swell_wave_height : 0), 
           s2_d = safeNum(c.secondary_swell_wave_direction != null ? c.secondary_swell_wave_direction : 0);
-    const ww_h = safeNum(c.wind_wave_height != null ? c.wind_wave_height : 0), 
-          ww_d = safeNum(c.wind_wave_direction != null ? c.wind_wave_direction : 0);
+    const ww_h = safeNum(c.wind_wave_height != null ? c.wind_wave_height : (activeModel === 'EURO' ? c.wave_height : 0)), 
+          ww_d = safeNum(c.wind_wave_direction != null ? c.wind_wave_direction : (activeModel === 'EURO' ? c.wave_direction : 0));
 
     const w_h_raw = r.hourly.wave_height?.[idx];
     const isOcean = (w_h_raw !== null && w_h_raw !== undefined);
@@ -567,7 +571,7 @@ function extractMarineAtOffset(cache, hourOffset) {
         wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
         swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : (activeModel === 'EURO' ? c.wave_period : null)), swell_wave_direction: s1_h > 0 ? s1_d : null,
         secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : null), secondary_swell_wave_direction: s2_h > 0 ? s2_d : null,
-        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : null), wind_wave_direction: ww_h > 0 ? ww_d : null,
+        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : (activeModel === 'EURO' ? c.wave_period : null)), wind_wave_direction: ww_h > 0 ? ww_d : null,
       },
     });
   });
@@ -664,15 +668,31 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
-    // v3.9.1: ALWAYS fetch hourly for 3 days (72h)
-    const marineVarList = ['wave_height','wave_direction','wave_period',
-       'swell_wave_height','swell_wave_direction','swell_wave_period',
-       'secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period',
-       'wind_wave_height','wind_wave_direction','wind_wave_period'];
+    // Open-Meteo model identifiers for Marine: GFS maps to ncep_gfswave025, ICON maps to gwam, EURO maps to ecmwf_wam025
+    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
+
+    // Authoritative mapping of supported marine variables per model to prevent 400s and minimize payload
+    const MODEL_SUPPORTED_VARS = {
+      'ncep_gfswave025': [
+        'wave_height', 'wave_direction', 'wave_period',
+        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+        'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+      ],
+      'gwam': [
+        'wave_height', 'wave_direction', 'wave_period',
+        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+      ],
+      'ecmwf_wam025': [
+        'wave_height', 'wave_direction', 'wave_period'
+      ]
+    };
+
+    const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
+    const marineVarList = MODEL_SUPPORTED_VARS[apiModel] || MODEL_SUPPORTED_VARS['ncep_gfswave025'];
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
 
-    // Open-Meteo model identifiers for Marine
-    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'dwd_gwam', EURO: 'ecmwf_wam025' };
     if (model && MARINE_OM_MODELS[model]) {
       body.models = [MARINE_OM_MODELS[model]];
     }

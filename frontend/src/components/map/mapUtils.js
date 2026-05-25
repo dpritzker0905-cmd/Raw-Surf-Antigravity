@@ -20,13 +20,14 @@ export function ensureMapLibreInit() {
 }
 
 export function trace(layer, action, source, payload) {
+  const isDebug = typeof window !== 'undefined' && window.__RASTER_DEBUG__?.enableTrace;
   (window.__LRCM_EXEC_TRACE__ = window.__LRCM_EXEC_TRACE__ || []).push({
     layer,
     action,
     source,
     timestamp: Date.now(),
     payload,
-    stack: new Error().stack
+    stack: isDebug ? new Error().stack : null
   });
   return payload;
 }

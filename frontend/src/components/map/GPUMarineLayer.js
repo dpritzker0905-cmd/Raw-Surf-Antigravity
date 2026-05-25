@@ -129,79 +129,7 @@ function isLikelyOcean(lat, lng, grid) {
   return typeof cell.speed === 'number' && cell.speed > 0 && Number.isFinite(cell.speed);
 }
 
-// v3.15: High-precision simplified Natural Earth land mask helper functions
-function prepareLandPolygons(geojson) {
-  if (!geojson?.features) return [];
-  const polys = [];
-  geojson.features.forEach(f => {
-    const geom = f.geometry;
-    if (!geom) return;
-    const rings = [];
-    if (geom.type === 'Polygon') {
-      rings.push(geom.coordinates);
-    } else if (geom.type === 'MultiPolygon') {
-      geom.coordinates.forEach(r => rings.push(r));
-    }
-    rings.forEach(ring => {
-      const outer = ring[0];
-      if (!outer || outer.length === 0) return;
-      let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
-      outer.forEach(pt => {
-        const lng = pt[0], lat = pt[1];
-        if (lng < west) west = lng;
-        if (lng > east) east = lng;
-        if (lat < south) south = lat;
-        if (lat > north) north = lat;
-      });
-      polys.push({
-        outer,
-        holes: ring.slice(1),
-        bbox: { west, east, south, north }
-      });
-    });
-  });
-  return polys;
-}
 
-function isPointInRing(lng, lat, ring) {
-  let inside = false;
-  const len = ring.length;
-  for (let i = 0, j = len - 1; i < len; j = i++) {
-    const xi = ring[i][0], yi = ring[i][1];
-    const xj = ring[j][0], yj = ring[j][1];
-    const intersect = ((yi > lat) !== (yj > lat))
-        && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-function isCoordOnLand(lng, lat, landPolygons) {
-  if (!landPolygons || landPolygons.length === 0) return false;
-  let nLng = lng;
-  while (nLng > 180) nLng -= 360;
-  while (nLng < -180) nLng += 360;
-  for (let i = 0; i < landPolygons.length; i++) {
-    const poly = landPolygons[i];
-    const bbox = poly.bbox;
-    if (nLng < bbox.west || nLng > bbox.east || lat < bbox.south || lat > bbox.north) {
-      continue;
-    }
-    if (isPointInRing(nLng, lat, poly.outer)) {
-      let inHole = false;
-      if (poly.holes) {
-        for (let k = 0; k < poly.holes.length; k++) {
-          if (isPointInRing(nLng, lat, poly.holes[k])) {
-            inHole = true;
-            break;
-          }
-        }
-      }
-      if (!inHole) return true;
-    }
-  }
-  return false;
-}
 
 /**
  * Checks if a longitude is within bounding box, accounting for Antimeridian wrap-around.
@@ -228,37 +156,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
   const particlesRef = useRef([]);
   const activeRef = useRef(active);
 
-  // v3.15: Reference to Natural Earth simplified global land mask polygons
-  const landPolygonsRef = useRef([]);
 
-  useEffect(() => {
-    fetch('/ne_50m_land.json')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(geojson => {
-        const polys = prepareLandPolygons(geojson);
-        landPolygonsRef.current = polys;
-        console.log(`[Marine] Loaded offline-friendly 50m land mask: ${polys.length} polygons`);
-      })
-      .catch(err => {
-        console.warn('[Marine] Local land mask failed, attempting CDN fallback:', err.message);
-        fetch('https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/50m/physical/ne_50m_land.json')
-          .then(res => {
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            return res.json();
-          })
-          .then(geojson => {
-            const polys = prepareLandPolygons(geojson);
-            landPolygonsRef.current = polys;
-            console.log(`[Marine] Loaded CDN fallback 50m land mask: ${polys.length} polygons`);
-          })
-          .catch(cdnErr => {
-            console.warn('[Marine] CDN land mask fallback also failed:', cdnErr.message);
-          });
-      });
-  }, []);
 
   useEffect(() => { activeRef.current = active; }, [active]);
   const prevDataIdRef = useRef(null);
@@ -319,10 +217,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
       const grid = dataRef.current;
       const zoom = mapInstance.getZoom();
-      const landPolys = landPolygonsRef.current;
-
-      const hasLandMask = landPolys && landPolys.length > 0;
-
       // Calculate the true visible longitude width (handles continuous bounds beautifully)
       let lngWidth = east - west;
       if (lngWidth < 0) lngWidth += 360;
@@ -333,9 +227,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (lng < -180) lng += 360;
 
         const lat = south + Math.random() * (north - south);
-        
-        // Land mask is authoritative — ALWAYS reject particles on land
-        if (hasLandMask && isCoordOnLand(lng, lat, landPolys)) continue;
         
         const inGrid = isWithinGridBounds(lat, lng, grid);
         if (inGrid && !isLikelyOcean(lat, lng, grid)) continue;
@@ -431,14 +322,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           continue;
         }
 
-        // Staggered land mask check: every 10 frames per particle.
-        // Land mask is AUTHORITATIVE — always reject particles on land.
-        const landPolys = landPolygonsRef.current;
+        // Staggered land grid check: every 10 frames per particle.
         if ((frameCount + i) % 10 === 0) {
-          if (landPolys && landPolys.length > 0 && isCoordOnLand(p.lng, p.lat, landPolys)) {
-            pts[i] = spawn();
-            continue;
-          }
           const inGrid = isWithinGridBounds(p.lat, p.lng, grid);
           if (inGrid && !isLikelyOcean(p.lat, p.lng, grid)) {
             pts[i] = spawn();
@@ -533,8 +418,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           const zoomScale = Math.max(0.2, Math.min(1.2, zoom / 7.0));
           const dynamicDashLen = p.dashLen * Math.min(1.8, 0.4 + h * 0.5) * zoomScale;
           const halfDash = dynamicDashLen / 2;
-          const dx = Math.cos(dirAngle) * halfDash;
-          const dy = -Math.sin(dirAngle) * halfDash;
+          const dx = Math.cos(dirAngle + Math.PI / 2) * halfDash;
+          const dy = -Math.sin(dirAngle + Math.PI / 2) * halfDash;
 
           // White foam crest broken dash with wave height color shift
           const hEnergy = Math.min(1, h / 4);
