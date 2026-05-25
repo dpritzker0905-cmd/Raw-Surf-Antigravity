@@ -145,17 +145,17 @@ export function useOpenMeteoTileUrls({
                       2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
                     ] : [
                       'interpolate', ['linear'], ['zoom'],
-                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.14 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.18 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.26 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
                     ];
                     
                     const dampingFactor = timeOffsetHours > 240
                       ? Math.max(0.3, 1.0 - (timeOffsetHours - 240) * 0.005)
                       : 1.0;
                     const finalOpacity = dampingFactor !== 1.0
-                      ? opacityExpression.map((val, idx) => (idx > 2 && typeof val === 'number' ? val * dampingFactor : val))
+                      ? opacityExpression.map((val, idx) => (idx >= 4 && idx % 2 === 0 && typeof val === 'number' ? val * dampingFactor : val))
                       : opacityExpression;
                     
                     [0, 1, 2].forEach(slotIdx => {
@@ -189,7 +189,7 @@ export function useOpenMeteoTileUrls({
                 try { mapInstance.triggerRepaint(); } catch(e) {}
               }
             });
-          }, 120);
+          }, 30);
         };
 
         if (mapInstance) {
@@ -206,7 +206,7 @@ export function useOpenMeteoTileUrls({
           }
         }
       });
-    }, 300);
+    }, 50);
 
     return () => {
       active = false;
@@ -304,7 +304,12 @@ export function useOpenMeteoTileUrls({
             let resolvedVar = variable;
             if (!meta.variables.includes(variable)) {
               const VARIABLE_FALLBACKS = {
-                'wind_speed_10m': 'wind_gusts_10m', 'wind_gusts_10m': 'wind_u_component_10m', 'visibility': 'cloud_cover_low'
+                'wind_speed_10m': 'wind_gusts_10m',
+                'wind_gusts_10m': 'wind_u_component_10m',
+                'visibility': 'cloud_cover_low',
+                'secondary_swell_wave_height': 'swell_wave_height',
+                'swell_wave_height': 'wave_height',
+                'wind_wave_height': 'wave_height'
               };
               let currentVar = variable;
               while (currentVar && !meta.variables.includes(currentVar)) {
@@ -378,7 +383,12 @@ export function useOpenMeteoTileUrls({
           let resolvedVar = variable;
           if (!meta.variables.includes(variable)) {
             const VARIABLE_FALLBACKS = {
-              'wind_speed_10m': 'wind_gusts_10m', 'wind_gusts_10m': 'wind_u_component_10m', 'visibility': 'cloud_cover_low'
+              'wind_speed_10m': 'wind_gusts_10m',
+              'wind_gusts_10m': 'wind_u_component_10m',
+              'visibility': 'cloud_cover_low',
+              'secondary_swell_wave_height': 'swell_wave_height',
+              'swell_wave_height': 'wave_height',
+              'wind_wave_height': 'wave_height'
             };
             let currentVar = variable;
             while (currentVar && !meta.variables.includes(currentVar)) {
@@ -388,11 +398,6 @@ export function useOpenMeteoTileUrls({
             }
             if (meta.variables.includes(currentVar)) {
               resolvedVar = currentVar;
-              const fbKey = `${variable}-${layerModel}`;
-              if (!loggedFallbacks.current.has(fbKey)) {
-                loggedFallbacks.current.add(fbKey);
-                console.log(`[Raster] Variable fallback: ${variable} -> ${resolvedVar} for ${layerModel}`);
-              }
             } else if (entry.omModelGroup === 'marine') {
               layerModel = 'ncep_gfswave025';
               if (window.__OM_ACTIVE_MODELS__ && !window.__OM_ACTIVE_MODELS__.includes(layerModel)) {
@@ -485,17 +490,17 @@ export function useOpenMeteoTileUrls({
           2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
         ] : [
           'interpolate', ['linear'], ['zoom'],
-          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
-          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.28 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
-          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.32 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
-          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.38 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
+          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.14 : layerKey === 'fog' ? 0.18 : layerKey === 'rain' ? 0.35 : 0.22,
+          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.18 : layerKey === 'fog' ? 0.25 : layerKey === 'rain' ? 0.42 : 0.28,
+          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.22 : layerKey === 'fog' ? 0.32 : layerKey === 'rain' ? 0.48 : 0.35,
+          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.26 : layerKey === 'fog' ? 0.38 : layerKey === 'rain' ? 0.52 : 0.40,
         ];
         
         const dampingFactor = timeOffsetHours > 240
           ? Math.max(0.3, 1.0 - (timeOffsetHours - 240) * 0.005)
           : 1.0;
         const finalOpacity = dampingFactor !== 1.0
-          ? opacityExpression.map((val, idx) => (idx > 2 && typeof val === 'number' ? val * dampingFactor : val))
+          ? opacityExpression.map((val, idx) => (idx >= 4 && idx % 2 === 0 && typeof val === 'number' ? val * dampingFactor : val))
           : opacityExpression;
         
         [0, 1, 2].forEach(slot => {
@@ -505,11 +510,8 @@ export function useOpenMeteoTileUrls({
             const isActive = activeSlots[layerKey] !== undefined
               ? activeSlots[layerKey] === slot
               : (closestTimeIdxRef.current % 3) === slot;
-            if (!isTransitioning) {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? finalOpacity : 0.0);
-            } else {
-              safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', 0.0);
-            }
+            // Removed isTransitioning opacity zero-out to prevent solid blank-out during model changes
+            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? finalOpacity : 0.0);
           }
         });
       });
