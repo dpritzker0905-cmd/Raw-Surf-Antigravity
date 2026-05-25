@@ -38,8 +38,16 @@ import { useMapSeo } from '../hooks/useMapSeo';
 import { useWeatherState } from '../hooks/useWeatherState';
 
 var MapPageContent = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { getEffectiveRole } = usePersona();
+
+  // Refresh user profile on mount to get latest subscription_tier from backend
+  // (admin tier changes update DB but not localStorage until refresh)
+  useEffect(() => {
+    if (user?.id && user.id !== 'dev-mock-user-id') {
+      refreshUser();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
