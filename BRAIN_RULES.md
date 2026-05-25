@@ -128,7 +128,7 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Decision Trail Auditing**: Every system state monitor recommendation and operational proposal must write detailed explanation logs into the SQLite caching DB to preserve full accountability.
 * **Stripe, Supabase, and Google Calendar Sync**: Executed operator decisions must trigger synchronized updates showing successful payment status transitions in Stripe checkout, scheduling slot updates in Google Calendar, and telemetry audit records in Supabase.
 
-### 16. Semantic Memory Rules
+### 16. Persistent Semantic Memory Rules
 * **Privacy-Safe Partitioning**: Every single semantic indexing and retrieval operation must strictly demand and filter by a unique `user_id`. Under no circumstances should cross-user semantic memory queries be allowed to run, protecting private surfer data.
 * **Time-Based Exponential Decay**: Semantic retrieval results must apply active time decay weighting $\lambda = 0.05$ (meaning a half-life of roughly 14 days) to ensure recent sessions and waves conditions matter more than older historical sessions:
   $$\text{score} = \text{cosine\_similarity} \cdot e^{-\lambda \cdot \Delta t}$$
@@ -153,7 +153,6 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Event Replayability**: All events must support time-range filtering (`replay_events`) using ISO 8601 UTC Z timestamps to reconstruct historical state sequences.
 * **Real-time Pub/Sub Streaming**: Event dispatches must broadcast in real-time to active listeners, maintaining low latency propagation (<500ms) with zero-coupling between producers and consumers.
 
-
 ### 20. Debug Consciousness Rules
 * **Pure Diagnostic Observation**: The Debug Consciousness Layer (DCL) must remain strictly read-only and analytics-only. It is forbidden from modifying production database states, bookings, payments, or executing workflows.
 * **Causal Failure Diagnosis**: Every root-cause failure analysis (`explain_failure`) must trace causality backward through correlation chains and return the mandated format (Root Cause Summary, First failing MCP, First failing event, Full event chain leading to failure, Suggested fix, and Confidence score).
@@ -164,4 +163,3 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 
 > [!IMPORTANT]
 > The MCP Maximize Protocol operates as a primary system binding. AI assistants must always inspect this rules checklist on each turn to preserve clean agent capabilities.
-
