@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePersona } from '../../contexts/PersonaContext';
 import apiClient from '../../lib/apiClient';
-import { getFullUrl } from '../../utils/media';
+import { getFullUrl, getOptimizedMediaUrl } from '../../utils/media';
 import { isGrom } from '../../constants/roles';
 import { submitPurchaseRequest } from '../../utils/gromPurchase';
 import { 
@@ -95,11 +95,10 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
   const isVideo = item.media_type === 'video' || item.type === 'video';
   
   // Resolve the correct preview URL  
-  const mediaUrl = getFullUrl(
-    isOwner 
-      ? (item.original_url || item.preview_url) 
-      : (item.is_purchased ? item.original_url : item.preview_url)
-  );
+  const rawUrl = isOwner 
+    ? (item.original_url || item.preview_url) 
+    : (item.is_purchased ? item.original_url : item.preview_url);
+  const mediaUrl = getOptimizedMediaUrl(rawUrl, { width: 1200, quality: 'auto' });
 
   // Fetch pricing info including session deals
   useEffect(() => {

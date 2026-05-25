@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -8,7 +8,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
-import { getFullUrl } from '../utils/media';
+import { getFullUrl, getOptimizedMediaUrl } from '../utils/media';
 import {
   Camera, MapPin, Star, Users, Image as ImageIcon,
   Calendar, Share2, ArrowLeft, Loader2,
@@ -302,7 +302,7 @@ export const GalleryStorefront = () => {
           <div className="flex flex-col md:flex-row items-start md:items-center gap-5">
             {/* Avatar */}
             <Avatar className="w-24 h-24 border-4 border-cyan-500/30 shadow-lg shadow-cyan-500/10">
-              <AvatarImage src={getFullUrl(photographer.avatar_url)} />
+              <AvatarImage src={getOptimizedMediaUrl(photographer.avatar_url, { width: 200, height: 200, quality: 80 })} />
               <AvatarFallback className="bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 text-cyan-400 text-2xl">
                 {photographer.full_name?.[0] || '?'}
               </AvatarFallback>
@@ -495,7 +495,7 @@ export const GalleryStorefront = () => {
                 <div className="aspect-[4/3] bg-zinc-800 relative overflow-hidden">
                   {gallery.cover_image_url ? (
                     <img loading="lazy" decoding="async"
-                      src={getFullUrl(gallery.cover_image_url)}
+                      src={getOptimizedMediaUrl(gallery.cover_image_url, { width: 800, quality: 'auto' })}
                       alt={gallery.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />

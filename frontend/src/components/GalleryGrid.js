@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Edit3, Trash2, Check, Loader2, Play, Image, MoreVertical, X } from 'lucide-react';
-import { getFullUrl } from '../utils/media';
+import { getFullUrl, getOptimizedMediaUrl } from '../utils/media';
 
 /**
  * GalleryGrid - Mobile-first gallery grid with tap-to-view UX.
@@ -28,10 +28,11 @@ export const GalleryGridItem = ({
   const [showMenu, setShowMenu] = useState(false);
   const videoRef = useRef(null);
 
-  const imgSrc = getFullUrl(
+  const imgSrc = getOptimizedMediaUrl(
     isVideo
       ? (item.thumbnail_url || item.preview_url)
-      : (item.preview_url || item.thumbnail_url)
+      : (item.preview_url || item.thumbnail_url),
+    { width: 800, quality: 'auto' }
   );
   const videoSrc = isVideo ? getFullUrl(item.preview_url || item.original_url) : null;
 

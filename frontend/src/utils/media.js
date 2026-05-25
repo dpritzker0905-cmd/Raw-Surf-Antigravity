@@ -118,3 +118,64 @@ export const getPostThumbnail = (thumbnailUrl, fullUrl) => {
   const resolved = getFullUrl(raw);
   return getSupabaseResizedUrl(resolved, { width: 800, quality: 75 });
 };
+
+/**
+ * Returns an optimized CDN URL if the host supports dynamic transformations (Cloudinary or Supabase).
+ * Fallbacks to getFullUrl(url) otherwise.
+ *
+ * @param {string|null|undefined} url - The raw media URL
+ * @param {Object} [options] - Target dimensions & quality parameters
+ * @param {number} [options.width] - Target width in px
+ * @param {number} [options.height] - Target height in px
+ * @param {number|string} [options.quality='auto'] - Target quality (e.g. 70, 80, 'auto')
+ * @param {string} [options.crop='fill'] - Cropping strategy
+ * @returns {string|null|undefined} Optimized absolute URL
+ */
+export const getOptimizedMediaUrl = (url, { width, height, quality = 'auto', crop = 'fill' } = {}) => {
+  if (!url) return url;
+  
+  // Resolve relative URLs first
+  const resolved = getFullUrl(url);
+  
+  // 1. Cloudinary Optimization
+  if (resolved.includes('res.cloudinary.com')) {
+    try {
+      const parts = resolved.split('/image/upload/');
+      if (parts.length === 2) {
+        const baseUrl = parts[0];
+        const rest = parts[1];
+        
+        // Build transformation string
+        const transList = ['f_auto'];
+        if (quality === 'auto') {
+          transList.push('q_auto');
+        } else if (quality) {
+          transList.push(`q_${quality}`);
+        }
+        if (width) {
+          transList.push(`w_${width}`);
+        }
+        if (height) {
+          transList.push(`h_${height}`);
+        }
+        if (width || height) {
+          transList.push(`c_${crop}`);
+        }
+        
+        const transStr = transList.join(',');
+        return `${baseUrl}/image/upload/${transStr}/${rest}`;
+      }
+    } catch (err) {
+      return resolved;
+    }
+  }
+  
+  // 2. Supabase Storage Optimization
+  if (resolved.includes(SUPABASE_STORAGE_HOST)) {
+    return getSupabaseResizedUrl(resolved, { width, height, resize: crop, quality: quality === 'auto' ? 75 : quality });
+  }
+  
+  // 3. Fallback
+  return resolved;
+};
+

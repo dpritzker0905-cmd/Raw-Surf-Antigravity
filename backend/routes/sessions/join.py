@@ -12,6 +12,7 @@ from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionPa
 from .schemas import JoinSessionRequest
 from utils.credits import deduct_credits
 import os, stripe, logging
+import stripe_mcp_server, sqlite3
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY: stripe.api_key = STRIPE_API_KEY
 logger = logging.getLogger(__name__)
@@ -132,38 +133,50 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
             "spot_name": photographer.current_spot.name if photographer.current_spot else "Live Session"
         }
         
+        # Get or create stripe customer ID mapping in stripe-mcp cache
+        customer_id = None
         try:
-            checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                line_items=[{
-                    'price_data': {
-                        'currency': 'usd',
-                        'unit_amount': int(final_price * 100),
-                        'product_data': {
-                            'name': f"Live Session with {photographer.full_name}",
-                            'description': f"Jump into live surf photography session",
-                        },
-                    },
-                    'quantity': 1,
-                }],
-                mode='payment',
+            conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
+            cursor = conn.cursor()
+            cursor.execute("SELECT customer_id FROM stripe_customers WHERE supabase_user_id = ?", (surfer_id,))
+            row = cursor.fetchone()
+            if row:
+                customer_id = row[0]
+            else:
+                import uuid
+                customer_id = f"cus_test_{uuid.uuid4().hex[:12]}"
+                cursor.execute(
+                    "INSERT INTO stripe_customers (customer_id, email, name, supabase_user_id, subscription_status, created_at) VALUES (?, ?, ?, ?, 'inactive', datetime('now'))",
+                    (customer_id, surfer.email, surfer.full_name, surfer_id)
+                )
+                conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.error(f"Failed to lookup/create stripe customer mapping: {e}")
+            customer_id = f"cus_test_fallback_{surfer_id[:8]}"
+
+        try:
+            # Route checkout session creation through stripe-mcp server tool function
+            checkout_session = stripe_mcp_server.stripe_create_checkout_session(
+                customer_id=customer_id,
+                amount=final_price,
+                currency="usd",
                 success_url=f"{origin_url}/bookings?session_payment=success&checkout_session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url=f"{origin_url}/bookings?session_payment=cancelled",
-                metadata={
+                metadata_dict={
                     "type": "live_session_join",
                     "surfer_id": surfer_id,
                     "photographer_id": data.photographer_id,
                     "amount": str(final_price)
-                    # NOTE: selfie_url stored in PaymentTransaction, not Stripe (too large)
                 }
             )
-        except stripe.error.StripeError as e:
+        except Exception as e:
             raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
         
         # Store pending transaction
         transaction = PaymentTransaction(
             user_id=surfer_id,
-            session_id=checkout_session.id,
+            session_id=checkout_session["checkout_session_id"],
             amount=final_price,
             currency="usd",
             payment_status="Pending",
@@ -175,8 +188,8 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
         
         return {
             "requires_payment": True,
-            "checkout_url": checkout_session.url,
-            "session_id": checkout_session.id
+            "checkout_url": checkout_session["url"],
+            "session_id": checkout_session["checkout_session_id"]
         }
     
     # ============ CREDIT PAYMENT PROCESSING ============

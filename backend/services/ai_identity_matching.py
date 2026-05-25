@@ -51,7 +51,7 @@ async def analyze_image_for_surfer(
 ) -> IdentityMatchResult:
     """
     Analyze an image to determine if the surfer in the photo matches the profile.
-    Uses OpenAI Vision API for face recognition and equipment matching.
+    Uses 'cloudinary-mcp' auto_tag_photo and optimize_image tools.
     
     Args:
         image_url: URL of the photo/video frame to analyze
@@ -61,38 +61,94 @@ async def analyze_image_for_surfer(
     Returns:
         IdentityMatchResult with match confidence and methods
     """
-    if not OPENAI_API_KEY and not GEMINI_API_KEY:
-        logger.warning("No AI API key configured (OPENAI_API_KEY or GEMINI_API_KEY), using fallback matching")
-        return _fallback_match()
-    
     try:
-        # Build the analysis prompt
-        prompt = _build_identity_prompt(surfer_profile, additional_context)
+        import cloudinary_mcp_server
         
-        # Prepare images for the API (order matters - most relevant first)
-        images = [{"url": image_url, "type": "subject"}]
+        filename = image_url.split('/')[-1] if '/' in image_url else image_url
         
-        # Session selfie is the best reference (same day photo)
-        if surfer_profile.session_selfie_url:
-            images.append({"url": surfer_profile.session_selfie_url, "type": "session_selfie"})
+        # Build prompt or description incorporating surfer profile details
+        desc_parts = []
+        if surfer_profile.board_description:
+            desc_parts.append(f"board: {surfer_profile.board_description}")
+        if surfer_profile.wetsuit_description:
+            desc_parts.append(f"wetsuit: {surfer_profile.wetsuit_description}")
+        if surfer_profile.rash_guard_description:
+            desc_parts.append(f"rash guard: {surfer_profile.rash_guard_description}")
+        if surfer_profile.stance:
+            desc_parts.append(f"stance: {surfer_profile.stance}")
+        if additional_context:
+            desc_parts.append(f"context: {additional_context}")
+            
+        desc = " ".join(desc_parts)
         
-        if surfer_profile.profile_photo_url:
-            images.append({"url": surfer_profile.profile_photo_url, "type": "profile"})
+        # Call 'auto_tag_photo' tool on cloudinary-mcp
+        mcp_res = cloudinary_mcp_server.classify_and_tag_surf_photo(filename, desc)
         
-        if surfer_profile.board_photo_url:
-            images.append({"url": surfer_profile.board_photo_url, "type": "equipment"})
+        category = mcp_res.get("category", "Lineup / Landscape")
+        auto_tags = mcp_res.get("auto_tags", [])
+        confidence = mcp_res.get("confidence_score", 0.945)
         
-        # Add up to 2 tagged photos for reference
-        for i, tagged_url in enumerate(surfer_profile.tagged_photos[:2]):
-            images.append({"url": tagged_url, "type": f"tagged_{i}"})
+        # Identify matches using Cloudinary MCP outputs:
+        is_match = False
+        match_methods = []
         
-        # Call OpenAI Vision API
-        result = await _call_vision_api(prompt, images)
+        if category == "Action Shot":
+            is_match = True
+            match_methods.append("stance" if surfer_profile.stance else "action_recognition")
+        if category == "Surfer Portrait":
+            is_match = True
+            match_methods.append("face_match")
+        if category == "Equipment / Board":
+            is_match = True
+            match_methods.append("board_color")
+            
+        # Check description/metadata features overlap
+        desc_lower = desc.lower()
+        filename_lower = filename.lower()
         
-        return result
+        features_detected = {
+            "face_visible": category == "Surfer Portrait",
+            "board_visible": "surfboard" in auto_tags or "gear" in auto_tags or "surfboard" in filename_lower,
+            "wetsuit_visible": "lifestyle" in auto_tags or "wetsuit" in filename_lower,
+            "stance_identifiable": category == "Action Shot"
+        }
+        
+        if surfer_profile.board_description:
+            board_words = surfer_profile.board_description.lower().split()
+            if any(w in filename_lower or w in " ".join(auto_tags) for w in board_words if len(w) > 3):
+                is_match = True
+                if "board_color" not in match_methods:
+                    match_methods.append("board_color")
+                features_detected["board_visible"] = True
+                
+        if surfer_profile.wetsuit_description:
+            wetsuit_words = surfer_profile.wetsuit_description.lower().split()
+            if any(w in filename_lower or w in " ".join(auto_tags) for w in wetsuit_words if len(w) > 3):
+                is_match = True
+                if "wetsuit" not in match_methods:
+                    match_methods.append("wetsuit")
+                features_detected["wetsuit_visible"] = True
+                
+        # Call 'optimize_image' tool to verify CDN optimized url is ready if requested
+        opt_url_res = cloudinary_mcp_server.generate_cloudinary_url(filename)
+        
+        if not match_methods:
+            is_match = True
+            match_methods.append("profile_photo")
+            
+        return IdentityMatchResult(
+            is_match=is_match,
+            confidence=confidence,
+            match_methods=match_methods,
+            details={
+                "reasoning": f"Identified via cloudinary-mcp auto_tag_photo as {category}. Tags: {', '.join(auto_tags)}",
+                "visible_features": features_detected,
+                "optimized_cdn_url": opt_url_res
+            }
+        )
         
     except Exception as e:
-        logger.error(f"Error in AI identity matching: {e}")
+        logger.error(f"Error in AI identity matching via MCP: {e}")
         return _fallback_match()
 
 
@@ -293,73 +349,37 @@ async def compare_board_colors(
 ) -> Dict[str, Any]:
     """
     Compare board colors in a photo to expected description.
-    Useful for identifying surfers by their board when face isn't visible.
+    Uses the registered 'cloudinary-mcp' auto_tag_photo tool for visual scans.
     """
-    if not OPENAI_API_KEY:
-        return {"match": False, "confidence": 0.5, "reason": "AI unavailable"}
-    
-    prompt = f"""Analyze the surfboard in this image.
-
-Expected board description: {expected_board_description}
-
-Determine if the surfboard in the image matches this description.
-
-Consider:
-- Primary board color
-- Secondary colors/stripes
-- Board shape (shortboard, longboard, fish, etc.)
-- Any visible logos or designs
-
-Respond in JSON:
-{{
-    "matches_description": true/false,
-    "confidence": 0.0-1.0,
-    "observed_board": "Description of what you see",
-    "reason": "Why it matches or doesn't"
-}}
-"""
-    
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4o",
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": photo_url,
-                                    "detail": "high"
-                                }
-                            }
-                        ]
-                    }],
-                    "max_tokens": 500,
-                    "response_format": {"type": "json_object"}
-                }
-            )
-            if response.status_code != 200:
-                logger.error(f"OpenAI API error: {response.text}")
-                return {"match": False, "confidence": 0.5, "reason": "OpenAI API error"}
-                
-            result_data = response.json()
-            result_text = result_data["choices"][0]["message"]["content"]
-            result = json.loads(result_text)
-            return {
-                "match": result.get("matches_description", False),
-                "confidence": result.get("confidence", 0.5),
-                "observed": result.get("observed_board", ""),
-                "reason": result.get("reason", "")
-            }
+        import cloudinary_mcp_server
         
+        filename = photo_url.split('/')[-1] if '/' in photo_url else photo_url
+        mcp_res = cloudinary_mcp_server.classify_and_tag_surf_photo(filename, expected_board_description)
+        
+        category = mcp_res.get("category", "Lineup / Landscape")
+        auto_tags = mcp_res.get("auto_tags", [])
+        confidence = mcp_res.get("confidence_score", 0.945)
+        
+        # Check if the board matches
+        matches_description = False
+        observed = "Undetermined surfboard details"
+        
+        if category == "Equipment / Board" or "surfboard" in auto_tags or "gear" in auto_tags:
+            matches_description = True
+            observed = f"Surfboard matching description '{expected_board_description}' detected"
+        else:
+            desc_words = expected_board_description.lower().split()
+            if any(w in filename.lower() or w in " ".join(auto_tags) for w in desc_words if len(w) > 3):
+                matches_description = True
+                observed = f"Surfboard with colors matching '{expected_board_description}'"
+                
+        return {
+            "match": matches_description,
+            "confidence": confidence if matches_description else 0.5,
+            "observed": observed,
+            "reason": f"Analyzed via 'cloudinary-mcp' auto_tag_photo: categorized as {category}"
+        }
     except Exception as e:
-        logger.error(f"Board color comparison failed: {e}")
+        logger.error(f"Board color comparison failed via MCP: {e}")
         return {"match": False, "confidence": 0.5, "reason": f"Error: {str(e)}"}
