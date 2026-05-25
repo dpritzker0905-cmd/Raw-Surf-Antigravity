@@ -377,7 +377,6 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
       })
       .catch(err => {
         console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-        LIVE_FETCHED_MODELS.add(modelToCheck);
         return cached || { variables: [], validTimes: [], referenceTime: null };
       })
       .finally(() => {

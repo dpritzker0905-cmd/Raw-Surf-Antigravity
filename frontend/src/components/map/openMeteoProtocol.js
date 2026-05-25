@@ -8,6 +8,9 @@ import { CUSTOM_COLOR_SCALES } from './colorScales';
 // Custom protocol active model lock to avoid premature tile discarding
 let activeModelLock = "";
 
+// Global registry for missing Open-Meteo model runs to block 404 tile storms
+const MISSING_OM_RUNS = new Set();
+
 export const setMapActiveModelLock = (modelName) => {
   activeModelLock = modelName;
   console.log('[OM-Protocol] Active model lock target set to:', activeModelLock);
@@ -123,6 +126,20 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     const originalFetch = globalCtx.fetch;
     globalCtx.fetch = function (input, init) {
       const urlString = typeof input === 'string' ? input : input?.url || '';
+      
+      // Fast-path: Block requests to known missing model runs in 0ms
+      if (urlString.includes('map-tiles.open-meteo.com')) {
+        for (const runPattern of MISSING_OM_RUNS) {
+          if (urlString.includes(runPattern)) {
+            // Serve 404 immediately in 0ms, preventing browser-blocking network storms
+            return Promise.resolve(new Response('OM Tile Missing', {
+              status: 404,
+              statusText: 'Not Found'
+            }));
+          }
+        }
+      }
+
       if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
         try {
           const urlObj = new URL(urlString);
@@ -148,7 +165,31 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           console.warn('[OM-Protocol] Fetch intercept parsing error:', err);
         }
       }
-      return originalFetch.apply(this, arguments);
+
+      const promise = originalFetch.apply(this, arguments);
+
+      // Inspect response and register 404s for .om tile runs
+      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+        return promise.then(res => {
+          if (res.status === 404) {
+            try {
+              const urlObj = new URL(urlString);
+              const pathParts = urlObj.pathname.split('/');
+              // Path layout: /data_spatial/ecmwf_ifs025/2026/05/25/0600Z/...
+              if (pathParts.length >= 7) {
+                const runPattern = `${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}/${pathParts[6]}`;
+                if (!MISSING_OM_RUNS.has(runPattern)) {
+                  MISSING_OM_RUNS.add(runPattern);
+                  console.warn(`[OM-Protocol] Model run registered as MISSING: ${runPattern}. Blocking future tile requests to prevent 404 storms.`);
+                }
+              }
+            } catch (e) { /* ignore */ }
+          }
+          return res;
+        });
+      }
+
+      return promise;
     };
   }
 
