@@ -44,6 +44,7 @@ export const GalleryFolderModals = ({
   handleCreateFolder, handleRenameFolder, confirmDeleteFolder,
   // Move/Copy
   showMoveToFolderModal, setShowMoveToFolderModal,
+  showCopyToFolderModal, setShowCopyToFolderModal,
   galleries, selectedItems,
   handleMoveToFolder, handleCopyToFolder,
   user,
