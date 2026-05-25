@@ -454,8 +454,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
           alpha *= (0.08 + speedFactor * 0.35);
           if (alpha < 0.01) continue;
 
-          // Dynamic theme-aware color (beach mode opacity is scaled by 0.88 for extra elegance)
-          var finalAlpha = themeRef.current === 'beach' ? alpha * 0.88 : alpha;
+          // Dynamic theme-aware color (beach mode opacity is scaled by 0.90 for extra elegance)
+          var finalAlpha = themeRef.current === 'beach' ? alpha * 0.90 : alpha;
           ctx.strokeStyle = getWindColor(wind.speed, finalAlpha, themeRef.current);
 
           // Speed-aware dynamic line width (0.7px - 2.0px) for premium look

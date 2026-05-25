@@ -131,6 +131,7 @@ export var MapWeatherControls = ({
     swell_2: 'secondary_swell_wave_height',
     wind_waves: 'wind_wave_height',
     rain: 'precipitation',
+    pressure: 'pressure_msl',
   };
 
   // Legend labels and units per layer
@@ -183,11 +184,6 @@ export var MapWeatherControls = ({
       label: LEGEND_LABELS.radar,
       gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
       stops: ['0', '.1', '.3', '.5', '2+'],
-    };
-    config.pressure = {
-      label: LEGEND_LABELS.pressure,
-      gradientCSS: 'linear-gradient(to right, rgba(200,200,255,0.5), rgba(147,197,253,0.6), rgba(110,231,183,0.7), rgba(250,204,21,0.8), rgba(239,68,68,0.9))',
-      stops: ['980', '995', '1010', '1020', '1040'],
     };
 
     return config;
