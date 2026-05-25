@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { getFullUrl } from '../../utils/media';
+import { usePersona } from '../../contexts/PersonaContext';
 
 
 /**
@@ -47,17 +48,41 @@ export const GalleryFolderModals = ({
   handleMoveToFolder, handleCopyToFolder,
   user,
 }) => {
+  const { getEffectiveRole } = usePersona();
+  const effectiveRole = getEffectiveRole(user?.role);
+
   // Get platform fee based on user role and subscription tier
   const getPlatformFeePercent = (u) => {
     if (!u) return 20;
-    const role = u.role;
-    const tier = u.subscription_tier;
+
+    let savedRates = null;
+    try {
+      const stored = localStorage.getItem('admin_commission_rates');
+      if (stored) {
+        savedRates = JSON.parse(stored);
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    const role = effectiveRole || u.role;
+    const tier = u.subscription_tier?.toLowerCase();
     const isPremium = tier === 'premium' || tier === 'tier_3';
+
     if (role === 'Approved Pro' || role === 'Verified Pro Photographer') {
+      if (savedRates) {
+        if (isPremium && savedRates.tier_3) return parseInt(savedRates.tier_3);
+        if (savedRates.tier_2) return parseInt(savedRates.tier_2);
+      }
       return isPremium ? 10 : 12;
     } else if (role === 'Photographer') {
+      if (savedRates) {
+        if (isPremium && savedRates.tier_3) return parseInt(savedRates.tier_3);
+        if (savedRates.tier_2) return parseInt(savedRates.tier_2);
+      }
       return isPremium ? 15 : 20;
     } else if (role === 'Hobbyist') {
+      if (savedRates && savedRates.free) return parseInt(savedRates.free);
       return 25;
     }
     return 20;

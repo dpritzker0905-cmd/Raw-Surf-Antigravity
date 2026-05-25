@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePersona } from '../../contexts/PersonaContext';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { isGrom } from '../../constants/roles';
@@ -25,6 +26,49 @@ import { getErrorMessage } from '../../utils/errors';
 
 export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetAsCover }) => {
   const { user } = useAuth();
+  const { getEffectiveRole } = usePersona();
+  const effectiveRole = getEffectiveRole(user?.role);
+
+  // Get platform fee based on user role and subscription tier
+  const getPlatformFeePercent = (u) => {
+    if (!u) return 20;
+
+    let savedRates = null;
+    try {
+      const stored = localStorage.getItem('admin_commission_rates');
+      if (stored) {
+        savedRates = JSON.parse(stored);
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    const role = effectiveRole || u.role;
+    const tier = u.subscription_tier?.toLowerCase();
+    const isPremium = tier === 'premium' || tier === 'tier_3';
+
+    if (role === 'Approved Pro' || role === 'Verified Pro Photographer') {
+      if (savedRates) {
+        if (isPremium && savedRates.tier_3) return parseInt(savedRates.tier_3);
+        if (savedRates.tier_2) return parseInt(savedRates.tier_2);
+      }
+      return isPremium ? 10 : 12;
+    } else if (role === 'Photographer') {
+      if (savedRates) {
+        if (isPremium && savedRates.tier_3) return parseInt(savedRates.tier_3);
+        if (savedRates.tier_2) return parseInt(savedRates.tier_2);
+      }
+      return isPremium ? 15 : 20;
+    } else if (role === 'Hobbyist') {
+      if (savedRates && savedRates.free) return parseInt(savedRates.free);
+      return 25;
+    }
+    return 20;
+  };
+
+  const feePercent = getPlatformFeePercent(user);
+  const photographerEarnRatio = (100 - feePercent) / 100;
+
   const [purchasing, setPurchasing] = useState(false);
   const [pricingInfo, setPricingInfo] = useState(null);
   const [loadingPricing, setLoadingPricing] = useState(true);
@@ -419,8 +463,8 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                     </p>
                   </div>
                   <div className="text-right text-sm text-gray-500">
-                    <p>You earn: ${((item.custom_price || item.price || 5) * 0.8).toFixed(2)}</p>
-                    <p className="text-xs">After 20% platform fee</p>
+                    <p>You earn: ${((item.custom_price || item.price || 5) * photographerEarnRatio).toFixed(2)}</p>
+                    <p className="text-xs">After {feePercent}% platform fee</p>
                   </div>
                 </div>
               )}
