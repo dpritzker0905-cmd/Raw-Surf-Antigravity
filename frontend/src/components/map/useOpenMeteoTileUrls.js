@@ -355,18 +355,12 @@ export function useOpenMeteoTileUrls({
   }, [activeModel, debouncedTimeOffsetHours, metadataRevision]);
   
   const activeMarineLayerRef = useRef(activeMarineLayer);
-  useEffect(() => {
-    activeMarineLayerRef.current = activeMarineLayer;
-  }, [activeMarineLayer]);
-
   const debouncedTimeOffsetHoursRef = useRef(debouncedTimeOffsetHours);
   useEffect(() => {
+    activeMarineLayerRef.current = activeMarineLayer;
     debouncedTimeOffsetHoursRef.current = debouncedTimeOffsetHours;
-  }, [debouncedTimeOffsetHours]);
-
-  useEffect(() => {
     closestTimeIdxRef.current = closestTimeIdx;
-  }, [closestTimeIdx]);
+  }, [activeMarineLayer, debouncedTimeOffsetHours, closestTimeIdx]);
 
   // Debounced model transition and block cache clear
   useEffect(() => {
@@ -517,8 +511,6 @@ export function useOpenMeteoTileUrls({
     const targetModel = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     let isMounted = true;
     
-    // Simple stateful taskId generation
-    const taskId = Date.now();
     const controller = new AbortController();
     const { signal } = controller;
 
@@ -615,10 +607,10 @@ export function useOpenMeteoTileUrls({
           let meta = MODEL_METADATA_CACHE[layerModel] || { variables: [], validTimes: [] };
           let resolvedVar = variable;
           if (!meta.variables.includes(variable)) {
-            const fb = resolveVariable(meta, variable);
-            if (fb) {
-              resolvedVar = fb;
-            } else if (entry.omModelGroup === 'marine') {
+            if (entry.omModelGroup === 'marine') {
+              // For marine layers, if the active model lacks the specific variable (e.g. ecmwf_wam025 lacks swell_wave_height),
+              // fall back to the authoritative global wave model ncep_gfswave025 which has full swell decomposition,
+              // rather than displaying the total wave_height from the same model.
               layerModel = 'ncep_gfswave025';
               if (!allCached) {
                 meta = await fetchMetadata(layerModel);
@@ -626,14 +618,23 @@ export function useOpenMeteoTileUrls({
               } else {
                 meta = MODEL_METADATA_CACHE[layerModel] || meta;
               }
-              const fb2 = resolveVariable(meta, variable);
-              if (fb2) {
-                resolvedVar = fb2;
-                const fbKey = `marine-${variable}`;
-                if (!loggedFallbacks.current.has(fbKey)) {
-                  loggedFallbacks.current.add(fbKey);
-                  console.log(`[MODEL] Marine model fallback: ${layerModel} for ${variable}`);
+              if (meta.variables.includes(variable)) {
+                resolvedVar = variable;
+              } else {
+                const fb2 = resolveVariable(meta, variable);
+                if (fb2) {
+                  resolvedVar = fb2;
                 }
+              }
+              const fbKey = `marine-${variable}`;
+              if (!loggedFallbacks.current.has(fbKey)) {
+                loggedFallbacks.current.add(fbKey);
+                console.log(`[MODEL] Marine model fallback: ${layerModel} for ${variable}`);
+              }
+            } else {
+              const fb = resolveVariable(meta, variable);
+              if (fb) {
+                resolvedVar = fb;
               }
             }
           }
