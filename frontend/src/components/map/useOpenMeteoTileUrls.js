@@ -20,6 +20,34 @@ import {
 import { validateModelAccess } from './LayerAccessResolver';
 import { WeatherTelemetry } from './WeatherTelemetry';
 
+const VARIABLE_FALLBACKS = {
+  'wind_speed_10m': 'wind_gusts_10m',
+  'wind_gusts_10m': 'wind_u_component_10m',
+  'visibility': 'cloud_cover_low',
+  'secondary_swell_wave_height': 'swell_wave_height',
+  'swell_wave_height': 'wave_height',
+  'wind_wave_height': 'wave_height'
+};
+
+const resolveVariable = (meta, variable) => {
+  let curr = variable;
+  while (curr && !meta.variables.includes(curr)) {
+    curr = VARIABLE_FALLBACKS[curr] || null;
+  }
+  return (curr && meta.variables.includes(curr)) ? curr : null;
+};
+
+const getOpacityExpression = (layerKey, isMarine) => isMarine ? [
+  'interpolate', ['linear'], ['zoom'],
+  2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
+] : [
+  'interpolate', ['linear'], ['zoom'],
+  2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
+  5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
+  8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
+  12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
+];
+
 export function useOpenMeteoTileUrls({
   mapInstance,
   activeModel,
@@ -72,20 +100,15 @@ export function useOpenMeteoTileUrls({
   }, [timeOffsetHours]);
 
   const prevModelRef = useRef(activeModel);
-  useEffect(() => {
-    if (activeModel !== prevModelRef.current) {
-      WeatherTelemetry.trackModelSwitch(activeModel);
-      prevModelRef.current = activeModel;
-    }
-  }, [activeModel]);
-
   const prevLayersRef = useRef(activeLayers);
   useEffect(() => {
+    if (activeModel !== prevModelRef.current) WeatherTelemetry.trackModelSwitch(activeModel);
+    prevModelRef.current = activeModel;
+  }, [activeModel]);
+  useEffect(() => {
     const prev = prevLayersRef.current || [];
-    const added = activeLayers.filter(x => !prev.includes(x));
-    const removed = prev.filter(x => !activeLayers.includes(x));
-    added.forEach(layer => WeatherTelemetry.trackLayerAttach(layer));
-    removed.forEach(layer => WeatherTelemetry.trackLayerDetach(layer));
+    activeLayers.filter(x => !prev.includes(x)).forEach(x => WeatherTelemetry.trackLayerAttach(x));
+    prev.filter(x => !activeLayers.includes(x)).forEach(x => WeatherTelemetry.trackLayerDetach(x));
     prevLayersRef.current = activeLayers;
   }, [activeLayers]);
 
@@ -130,9 +153,11 @@ export function useOpenMeteoTileUrls({
 
       // If a layer has no active slot (cold start)
       if (activeSlot === undefined) {
-        nextActive[layerKey] = targetSlot;
-        delete transitionStartTimesRef.current[layerKey];
-        changed = true;
+        if (isLoaded || isTransparent || isTimeout) {
+          nextActive[layerKey] = targetSlot;
+          delete transitionStartTimesRef.current[layerKey];
+          changed = true;
+        }
         return;
       }
 
@@ -184,45 +209,24 @@ export function useOpenMeteoTileUrls({
   useEffect(() => {
     if (!mapInstance) return;
 
-    const onSourceData = () => {
-      checkPendingTransitions();
-    };
-    const onIdle = () => {
-      checkPendingTransitions();
-    };
-
-    mapInstance.on('sourcedata', onSourceData);
-    mapInstance.on('idle', onIdle);
-
-    // Initial check
+    mapInstance.on('sourcedata', checkPendingTransitions);
+    mapInstance.on('idle', checkPendingTransitions);
     checkPendingTransitions();
 
     let intervalId = null;
     const activeKeys = Object.keys(activeSlots);
     const targetKeys = Object.keys(targetSlotsRef.current || {});
 
-    let hasDifference = activeKeys.length !== targetKeys.length;
-    if (!hasDifference) {
-      for (const key of activeKeys) {
-        if (activeSlots[key] !== targetSlotsRef.current[key]) {
-          hasDifference = true;
-          break;
-        }
-      }
-    }
+    const hasDifference = activeKeys.length !== targetKeys.length || activeKeys.some(k => activeSlots[k] !== targetSlotsRef.current[k]);
 
     if (hasDifference) {
-      intervalId = setInterval(() => {
-        checkPendingTransitions();
-      }, 100);
+      intervalId = setInterval(checkPendingTransitions, 100);
     }
 
     return () => {
-      mapInstance.off('sourcedata', onSourceData);
-      mapInstance.off('idle', onIdle);
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      mapInstance.off('sourcedata', checkPendingTransitions);
+      mapInstance.off('idle', checkPendingTransitions);
+      if (intervalId) clearInterval(intervalId);
     };
   }, [mapInstance, activeSlots, omTileUrls, checkPendingTransitions]);
 
@@ -325,16 +329,7 @@ export function useOpenMeteoTileUrls({
                   
                   currentActiveLayers.forEach(layerKey => {
                     const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
-                    const opacityExpression = isMarine ? [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
-                    ] : [
-                      'interpolate', ['linear'], ['zoom'],
-                      2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
-                      5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
-                      8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
-                      12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
-                    ];
+                    const opacityExpression = getOpacityExpression(layerKey, isMarine);
                     
                     const dampingFactor = debouncedTimeOffsetHours > 240
                       ? Math.max(0.3, 1.0 - (debouncedTimeOffsetHours - 240) * 0.005)
@@ -500,28 +495,14 @@ export function useOpenMeteoTileUrls({
             let meta = MODEL_METADATA_CACHE[layerModel];
             let resolvedVar = variable;
             if (!meta.variables.includes(variable)) {
-              const VARIABLE_FALLBACKS = {
-                'wind_speed_10m': 'wind_gusts_10m',
-                'wind_gusts_10m': 'wind_u_component_10m',
-                'visibility': 'cloud_cover_low',
-                'secondary_swell_wave_height': 'swell_wave_height',
-                'swell_wave_height': 'wave_height',
-                'wind_wave_height': 'wave_height'
-              };
-              let currentVar = variable;
-              while (currentVar && !meta.variables.includes(currentVar)) {
-                const fb = VARIABLE_FALLBACKS[currentVar];
-                if (fb) currentVar = fb;
-                else break;
-              }
-              if (meta.variables.includes(currentVar)) {
-                resolvedVar = currentVar;
+              const fb = resolveVariable(meta, variable);
+              if (fb) {
+                resolvedVar = fb;
               } else if (entry.omModelGroup === 'marine') {
                 layerModel = 'ncep_gfswave025';
                 meta = MODEL_METADATA_CACHE[layerModel] || meta;
-                if (meta.variables.includes(variable)) {
-                  resolvedVar = variable;
-                }
+                const fb2 = resolveVariable(meta, variable);
+                if (fb2) resolvedVar = fb2;
               }
             }
             if (meta.variables.includes(resolvedVar)) {
@@ -539,21 +520,46 @@ export function useOpenMeteoTileUrls({
               closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
               if (isNaN(closestIdx)) closestIdx = 0;
 
-              const slotCurrent = closestIdx % 3;
-              newActiveSlots[layerKey] = slotCurrent;
-              const slotPrev = (closestIdx - 1 + 3) % 3;
-              const slotNext = (closestIdx + 1) % 3;
-              const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
-              
-              newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
-              
-              if (isScrubbingRef.current) {
-                const currentUrls = omTileUrlsRef.current || {};
-                newUrls[`${layerKey}-slot-${slotPrev}`] = currentUrls[`${layerKey}-slot-${slotPrev}`] || 'om://transparent-tile';
-                newUrls[`${layerKey}-slot-${slotNext}`] = currentUrls[`${layerKey}-slot-${slotNext}`] || 'om://transparent-tile';
-              } else {
-                newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
-                newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+              const targetUrl = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
+              const currentUrls = omTileUrlsRef.current || {};
+              const currentActiveSlot = activeSlotsRef.current[layerKey];
+
+              let targetSlot = -1;
+              for (let s = 0; s < 3; s++) {
+                if (currentUrls[`${layerKey}-slot-${s}`] === targetUrl) {
+                  targetSlot = s;
+                  break;
+                }
+              }
+
+              if (targetSlot === -1) {
+                targetSlot = currentActiveSlot !== undefined ? (currentActiveSlot + 1) % 3 : 0;
+              }
+
+              newActiveSlots[layerKey] = targetSlot;
+              newUrls[`${layerKey}-slot-${targetSlot}`] = targetUrl;
+
+              if (currentActiveSlot !== undefined && currentActiveSlot !== targetSlot) {
+                newUrls[`${layerKey}-slot-${currentActiveSlot}`] = currentUrls[`${layerKey}-slot-${currentActiveSlot}`] || 'om://transparent-tile';
+                const thirdSlot = 3 - currentActiveSlot - targetSlot;
+                if (isScrubbingRef.current) {
+                  newUrls[`${layerKey}-slot-${thirdSlot}`] = currentUrls[`${layerKey}-slot-${thirdSlot}`] || 'om://transparent-tile';
+                } else {
+                  const slotPrevIdx = closestIdx - 1;
+                  const slotNextIdx = closestIdx + 1;
+                  const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
+                  const preloadIdx = (closestIdx % 2 === 0)
+                    ? (slotNextIdx < totalLen ? slotNextIdx : slotPrevIdx)
+                    : (slotPrevIdx >= 0 ? slotPrevIdx : slotNextIdx);
+                  if (preloadIdx >= 0 && preloadIdx < totalLen) {
+                    newUrls[`${layerKey}-slot-${thirdSlot}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, preloadIdx));
+                  } else {
+                    newUrls[`${layerKey}-slot-${thirdSlot}`] = 'om://transparent-tile';
+                  }
+                }
+              } else if (currentActiveSlot === undefined) {
+                newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
+                newUrls[`${layerKey}-slot-2`] = 'om://transparent-tile';
               }
             }
           }
@@ -570,6 +576,19 @@ export function useOpenMeteoTileUrls({
               return { ...filtered, ...newUrls };
             });
             targetSlotsRef.current = newActiveSlots;
+            
+            setActiveSlots(prev => {
+              const next = { ...prev };
+              let changed = false;
+              Object.keys(prev).forEach(k => {
+                if (newActiveSlots[k] === undefined) {
+                  delete next[k];
+                  changed = true;
+                }
+              });
+              return changed ? next : prev;
+            });
+
             checkPendingTransitions();
           }
           return;
@@ -583,7 +602,6 @@ export function useOpenMeteoTileUrls({
         const newActiveSlots = {};
         for (const { layerKey, variable, entry, isActive } of tasks) {
           if (!isActive) {
-            newActiveSlots[layerKey] = 0;
             newUrls[`${layerKey}-slot-0`] = 'om://transparent-tile';
             newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
             newUrls[`${layerKey}-slot-2`] = 'om://transparent-tile';
@@ -594,22 +612,9 @@ export function useOpenMeteoTileUrls({
           if (!isMounted) return;
           let resolvedVar = variable;
           if (!meta.variables.includes(variable)) {
-            const VARIABLE_FALLBACKS = {
-              'wind_speed_10m': 'wind_gusts_10m',
-              'wind_gusts_10m': 'wind_u_component_10m',
-              'visibility': 'cloud_cover_low',
-              'secondary_swell_wave_height': 'swell_wave_height',
-              'swell_wave_height': 'wave_height',
-              'wind_wave_height': 'wave_height'
-            };
-            let currentVar = variable;
-            while (currentVar && !meta.variables.includes(currentVar)) {
-              const fb = VARIABLE_FALLBACKS[currentVar];
-              if (fb) currentVar = fb;
-              else break;
-            }
-            if (meta.variables.includes(currentVar)) {
-              resolvedVar = currentVar;
+            const fb = resolveVariable(meta, variable);
+            if (fb) {
+              resolvedVar = fb;
             } else if (entry.omModelGroup === 'marine') {
               layerModel = 'ncep_gfswave025';
               if (window.__OM_ACTIVE_MODELS__ && !window.__OM_ACTIVE_MODELS__.includes(layerModel)) {
@@ -617,8 +622,9 @@ export function useOpenMeteoTileUrls({
               }
               meta = await fetchMetadata(layerModel);
               if (!isMounted) return;
-              if (meta.variables.includes(variable)) {
-                resolvedVar = variable;
+              const fb2 = resolveVariable(meta, variable);
+              if (fb2) {
+                resolvedVar = fb2;
                 const fbKey = `marine-${variable}`;
                 if (!loggedFallbacks.current.has(fbKey)) {
                   loggedFallbacks.current.add(fbKey);
@@ -642,21 +648,46 @@ export function useOpenMeteoTileUrls({
             closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
             if (isNaN(closestIdx)) closestIdx = 0;
 
-            const slotCurrent = closestIdx % 3;
-            newActiveSlots[layerKey] = slotCurrent;
-            const slotPrev = (closestIdx - 1 + 3) % 3;
-            const slotNext = (closestIdx + 1) % 3;
-            const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
-            
-            newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
-            
-            if (isScrubbingRef.current) {
-              const currentUrls = omTileUrlsRef.current || {};
-              newUrls[`${layerKey}-slot-${slotPrev}`] = currentUrls[`${layerKey}-slot-${slotPrev}`] || 'om://transparent-tile';
-              newUrls[`${layerKey}-slot-${slotNext}`] = currentUrls[`${layerKey}-slot-${slotNext}`] || 'om://transparent-tile';
-            } else {
-              newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
-              newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            const targetUrl = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            const currentUrls = omTileUrlsRef.current || {};
+            const currentActiveSlot = activeSlotsRef.current[layerKey];
+
+            let targetSlot = -1;
+            for (let s = 0; s < 3; s++) {
+              if (currentUrls[`${layerKey}-slot-${s}`] === targetUrl) {
+                targetSlot = s;
+                break;
+              }
+            }
+
+            if (targetSlot === -1) {
+              targetSlot = currentActiveSlot !== undefined ? (currentActiveSlot + 1) % 3 : 0;
+            }
+
+            newActiveSlots[layerKey] = targetSlot;
+            newUrls[`${layerKey}-slot-${targetSlot}`] = targetUrl;
+
+            if (currentActiveSlot !== undefined && currentActiveSlot !== targetSlot) {
+              newUrls[`${layerKey}-slot-${currentActiveSlot}`] = currentUrls[`${layerKey}-slot-${currentActiveSlot}`] || 'om://transparent-tile';
+              const thirdSlot = 3 - currentActiveSlot - targetSlot;
+              if (isScrubbingRef.current) {
+                newUrls[`${layerKey}-slot-${thirdSlot}`] = currentUrls[`${layerKey}-slot-${thirdSlot}`] || 'om://transparent-tile';
+              } else {
+                const slotPrevIdx = closestIdx - 1;
+                const slotNextIdx = closestIdx + 1;
+                const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
+                const preloadIdx = (closestIdx % 2 === 0)
+                  ? (slotNextIdx < totalLen ? slotNextIdx : slotPrevIdx)
+                  : (slotPrevIdx >= 0 ? slotPrevIdx : slotNextIdx);
+                if (preloadIdx >= 0 && preloadIdx < totalLen) {
+                  newUrls[`${layerKey}-slot-${thirdSlot}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, preloadIdx));
+                } else {
+                  newUrls[`${layerKey}-slot-${thirdSlot}`] = 'om://transparent-tile';
+                }
+              }
+            } else if (currentActiveSlot === undefined) {
+              newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
+              newUrls[`${layerKey}-slot-2`] = 'om://transparent-tile';
             }
           }
         }
@@ -673,6 +704,19 @@ export function useOpenMeteoTileUrls({
             return { ...filtered, ...newUrls };
           });
           targetSlotsRef.current = newActiveSlots;
+          
+          setActiveSlots(prev => {
+            const next = { ...prev };
+            let changed = false;
+            Object.keys(prev).forEach(k => {
+              if (newActiveSlots[k] === undefined) {
+                delete next[k];
+                changed = true;
+              }
+            });
+            return changed ? next : prev;
+          });
+
           checkPendingTransitions();
         }
       } catch (err) {
@@ -704,16 +748,7 @@ export function useOpenMeteoTileUrls({
     try {
       activeLayers.forEach(layerKey => {
         const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
-        const opacityExpression = isMarine ? [
-          'interpolate', ['linear'], ['zoom'],
-          2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
-        ] : [
-          'interpolate', ['linear'], ['zoom'],
-          2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
-          5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
-          8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
-          12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
-        ];
+        const opacityExpression = getOpacityExpression(layerKey, isMarine);
         
         const dampingFactor = debouncedTimeOffsetHours > 240
           ? Math.max(0.3, 1.0 - (debouncedTimeOffsetHours - 240) * 0.005)

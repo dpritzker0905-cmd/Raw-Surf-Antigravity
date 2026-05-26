@@ -70,7 +70,7 @@ class ConcurrencySemaphore {
     }
   }
 }
-const protocolMutex = new ConcurrencySemaphore(1);
+const protocolMutex = new ConcurrencySemaphore(3);
 
 // In-memory cache for decoded tile buffers to bypass WASM decode and fetch entirely on hits during timeline scrubs
 const DECODED_TILE_CACHE = new Map();
@@ -186,8 +186,13 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }
       }
 
+      let effectiveInit = init;
+      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+        effectiveInit = { ...init, cache: 'no-store' };
+      }
+
       const fetchStartTime = Date.now();
-      const promise = originalFetch.apply(this, arguments);
+      const promise = originalFetch.call(this, input, effectiveInit);
 
       // Inspect response and register 404s for .om tile runs
       if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
