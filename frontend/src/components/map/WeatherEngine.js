@@ -64,22 +64,28 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         return; // Return immediately to allow zero-overhead sleeping when wind is inactive
       }
 
+      // Scrubbing mode hard freeze (Request 3)
+      if (window.isScrubbingTimeline) {
+        console.log("[SCRUB] [FETCH] Wind fetch suppressed during active scrubbing");
+        return;
+      }
+
       const bounds = getBounds();
       if (!bounds) {
         retryTimer = setTimeout(attemptFetch, 1000); // Shorter retry window to capture bounds faster
         return;
       }
 
- // Check if in 429 cooldown wait and retry
+      // Check if in 429 cooldown wait and retry
       const cooldownMs = getRemainingCooldown('wind');
       if (cooldownMs > 0) {
         const waitMs = cooldownMs + 2000;
-        console.log(`[WeatherEngine] 429 cooldown active (${Math.ceil(cooldownMs/1000)}s), waiting ${Math.ceil(waitMs/1000)}s`);
+        console.log(`[FETCH] [WeatherEngine] 429 cooldown active (${Math.ceil(cooldownMs/1000)}s), waiting ${Math.ceil(waitMs/1000)}s`);
         retryTimer = setTimeout(attemptFetch, waitMs);
         return;
       }
 
-      console.log(`[WeatherEngine] Fetching wind (attempt ${retryCount + 1}/${MAX_RETRIES}, offset: ${timeOffsetRef.current}h)`);
+      console.log(`[FETCH] [WeatherEngine] Fetching wind (attempt ${retryCount + 1}/${MAX_RETRIES}, offset: ${timeOffsetRef.current}h)`);
       
       try {
         const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
@@ -87,7 +93,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         if (cancelled) return;
         
         if (data && data.vectors?.length > 0) {
- console.log(`[WeatherEngine] Wind data: ${data.vectors.length} vectors`);
+          console.log(`[CACHE] [WeatherEngine] Wind data: ${data.vectors.length} vectors`);
           windRevision.current += 1;
           setWindData(data);
           retryCount = 0; // Reset on success
@@ -97,10 +103,10 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           retryCount++;
           if (retryCount < MAX_RETRIES) {
             const delay = RETRY_DELAYS[retryCount] || 60000;
- console.log(`[WeatherEngine] No data (attempt ${retryCount}), retry in ${delay/1000}s`);
+            console.log(`[FETCH] [WeatherEngine] No data (attempt ${retryCount}), retry in ${delay/1000}s`);
             retryTimer = setTimeout(attemptFetch, delay);
           } else {
-            console.warn(`[WeatherEngine] Max retries (${MAX_RETRIES}) exhausted`);
+            console.warn(`[FETCH] [WeatherEngine] Max retries (${MAX_RETRIES}) exhausted`);
             // Try again in 2 minutes
             retryTimer = setTimeout(() => { retryCount = 0; attemptFetch(); }, 120000);
           }
@@ -110,7 +116,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         retryCount++;
         if (retryCount < MAX_RETRIES) {
           const delay = RETRY_DELAYS[retryCount] || 60000;
-          console.error(`[WeatherEngine] Error: ${e.message}, retry in ${delay/1000}s`);
+          console.error(`[FETCH] [WeatherEngine] Error: ${e.message}, retry in ${delay/1000}s`);
           retryTimer = setTimeout(attemptFetch, delay);
         }
       }
@@ -127,30 +133,30 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
   // ===== TIMELINE SCRUB (local cache re-index, ZERO API calls) =====
   // Uses extractWindAtOffset directly on the cached hourly data.
- // NEVER calls fetchWindData that would trigger a POST and cause 429s.
+  // NEVER calls fetchWindData that would trigger a POST and cause 429s.
   const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
     if (prevOffsetRef.current === timeOffsetHours) return;
     prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
 
- console.log(`[WeatherEngine] Timeline scrub: ${timeOffsetHours}h`);
+    console.log(`[SCRUB] [WeatherEngine] Timeline scrub: ${timeOffsetHours}h`);
 
     const t = setTimeout(() => {
       try {
         const cache = getWindHourlyCache();
         if (!cache?.results?.length) {
- console.log('[WeatherEngine] No cached data for timeline re-index');
+          console.log('[CACHE] [WeatherEngine] No cached data for timeline re-index');
           return;
         }
         const data = extractWindAtOffset(cache, timeOffsetHours);
         if (data && data.vectors?.length > 0) {
- console.log(`[WeatherEngine] Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
+          console.log(`[CACHE] [WeatherEngine] Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
           windRevision.current += 1;
           setWindData(data);
         }
       } catch (e) {
-        console.error('[WeatherEngine] Timeline re-index failed:', e.message);
+        console.error('[CACHE] [WeatherEngine] Timeline re-index failed:', e.message);
       }
     }, 150);
     return () => clearTimeout(t);
@@ -181,9 +187,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
         timer = setTimeout(async () => {
           timer = null;
+
+          // Scrubbing mode hard freeze (Request 3)
+          if (window.isScrubbingTimeline) {
+            console.log("[SCRUB] [FETCH] Wind fetch suppressed during active scrubbing");
+            return;
+          }
+
           try {
             const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
             if (data && data.vectors?.length > 0) {
+              console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors`);
               windRevision.current += 1;
               setWindData(data);
             }
@@ -204,7 +218,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   // v3.11.1: Subscribe to forecast pipeline for downstream engine consumers
   useEffect(() => {
     var unsub = onForecastUpdate(function(field) {
-      console.log('[WeatherEngine] Pipeline update:', field?.source, field?.grid?.width + 'x' + field?.grid?.height);
+      console.log('[TRANSITION] [WeatherEngine] Pipeline update:', field?.source, field?.grid?.width + 'x' + field?.grid?.height);
     });
     return unsub;
   }, []);

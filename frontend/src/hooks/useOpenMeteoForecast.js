@@ -68,6 +68,12 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
+    // Scrubbing mode hard freeze (Request 3)
+    if (window.isScrubbingTimeline) {
+      console.log("[SCRUB] [FETCH] Spot forecast fetch suppressed during active scrubbing");
+      return;
+    }
+
     const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}_${isExplicit ? 'explicit' : 'auto'}`;
     if (fetchKey === lastFetchKey.current) return;
 
@@ -112,7 +118,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
     const modelParam = MODEL_MAP[activeModel] || MODEL_MAP.GFS;
     const forecastDays = MODEL_FORECAST_DAYS[activeModel] || 16;
-    console.log(`[Forecast] Fetching ${activeModel} (${modelParam}), ${forecastDays}d`);
+    console.log(`[FETCH] [Forecast] Fetching ${activeModel} (${modelParam}), ${forecastDays}d`);
 
     const marineModel = activeModel === 'EURO'
       ? 'ecmwf_wam025'
@@ -242,7 +248,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       } else if (needBaseGfs && rx.wx_base?.ok) {
         // Fallback to base GFS weather data if the selected model failed (e.g. rate limit, 502/503/504)
         finalForecastData = await rx.wx_base.value.json();
-        console.log(`[Forecast] Selected weather model failed, falling back to base GFS weather data`);
+        console.log(`[FETCH] [Forecast] Selected weather model failed, falling back to base GFS weather data`);
       }
 
       // Marine Stitching:
@@ -277,7 +283,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       } else if (needBaseGfs && rx.marine_base?.ok) {
         // Fallback to base GFS marine data if selected model failed (e.g. due to land mask boundary differences)
         finalMarineData = await rx.marine_base.value.json();
-        console.log(`[Forecast] Selected marine model failed, falling back to base GFS Wave data`);
+        console.log(`[FETCH] [Forecast] Selected marine model failed, falling back to base GFS Wave data`);
       }
 
       // Weather Application:
@@ -285,7 +291,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         setForecastData(finalForecastData);
         if (finalForecastData.current) setCurrentWeather(finalForecastData.current);
         setIsStale(false);
-        console.log(`[Forecast] OK ${activeModel} (Stitched): ${finalForecastData.hourly?.wind_speed_10m?.length || 0}h records`);
+        console.log(`[FETCH] [Forecast] OK ${activeModel} (Stitched): ${finalForecastData.hourly?.wind_speed_10m?.length || 0}h records`);
       } else {
         lastFetchKey.current = ''; // Reset lock on error
         const status = rx.wx_sel.value?.status || rx.wx_sel.reason;

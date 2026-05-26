@@ -90,7 +90,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     const updateMarineGrid = async (source = 'unknown') => {
       if (isCommittingDataRef.current) {
-        console.log(`[Marine Trace] aborted (data commit in progress) source=${source}`);
+        console.log(`[FETCH] [Marine Trace] aborted (data commit in progress) source=${source}`);
+        return;
+      }
+
+      // Scrubbing mode hard freeze (Request 3)
+      if (window.isScrubbingTimeline) {
+        console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
         return;
       }
 
@@ -154,7 +160,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (!isRetry && cooldownRemaining > 0) {
         // Schedule ONE retry after cooldown expires instead of spamming
         if (!cooldownRetryRef.current) {
-          console.log(`[Marine] In cooldown (${Math.ceil(cooldownRemaining/1000)}s), scheduling retry`);
+          console.log(`[FETCH] [Marine] In cooldown (${Math.ceil(cooldownRemaining/1000)}s), scheduling retry`);
           cooldownRetryRef.current = setTimeout(() => {
             cooldownRetryRef.current = null;
             if (updateMarineGridRef.current && activeMarineLayersRef.current) {
@@ -217,13 +223,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
  // Data is null or empty increment circuit breaker
           consecutiveFailuresRef.current += 1;
           if (consecutiveFailuresRef.current >= 3) {
- console.warn('[Marine] Circuit breaker: 3 consecutive failures stopping until viewport changes.');
+            console.warn('[FETCH] [Marine] Circuit breaker: 3 consecutive failures stopping until viewport changes.');
             return; // Don't schedule more retries
           }
           const remaining = getRemainingCooldown('marine');
           marineRetryCountRef.current = (marineRetryCountRef.current || 0) + 1;
           if (marineRetryCountRef.current > 3) {
- console.warn('[Marine] Max retries (3) reached stopping.');
+            console.warn('[FETCH] [Marine] Max retries (3) reached stopping.');
             marineRetryCountRef.current = 0;
           } else if (remaining > 0 && !cooldownRetryRef.current) {
             cooldownRetryRef.current = setTimeout(() => {
@@ -252,6 +258,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     const enqueueMarineUpdate = (source) => {
       const now = Date.now();
+
+      // Scrubbing mode hard freeze (Request 3)
+      if (window.isScrubbingTimeline) {
+        console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
+        return;
+      }
 
       // HARD GATE: If a fetch is already in-flight, reject immediately
       if (locks.isFetching) return;
@@ -407,13 +419,19 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (cache?.results?.length) {
         const data = extractMarineAtOffset(cache, timeOffsetHours);
         if (data) {
-          console.log(`[Marine Orchestrator] Instant local timeline re-index: +${timeOffsetHours}h`);
+          console.log(`[SCRUB] [CACHE] [Marine Orchestrator] Instant local timeline re-index: +${timeOffsetHours}h`);
           setMarineData(data);
           return; // Skip API fetch entirely!
         }
       }
     } catch (e) {
-      console.warn('[Marine Orchestrator] Local timeline re-index failed:', e.message);
+      console.warn('[CACHE] [Marine Orchestrator] Local timeline re-index failed:', e.message);
+    }
+
+    // Scrubbing mode hard freeze (Request 3)
+    if (window.isScrubbingTimeline) {
+      console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
+      return;
     }
 
     // 2. Fall back to fetch if cache is unavailable or empty
@@ -427,7 +445,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   // v3.9.8: Trigger re-fetch when activeModel changes
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
-    console.log(`[Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
+
+    // Scrubbing mode hard freeze (Request 3)
+    if (window.isScrubbingTimeline) {
+      console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
+      return;
+    }
+
+    console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
     const t = setTimeout(() => {

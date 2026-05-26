@@ -10,7 +10,7 @@ const MISSING_OM_TILES = new Set();
 
 export const setMapActiveModelLock = (modelName) => {
   activeModelLock = modelName;
-  console.log('[OM-Protocol] Active model lock target set to:', activeModelLock);
+  console.log('[MODEL] [OM-Protocol] Active model lock target set to:', activeModelLock);
 };
 
 const getParentModel = (folder) => {
@@ -182,7 +182,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             WeatherTelemetry.trackCacheMiss(model, 'MODEL_METADATA_CACHE');
           }
         } catch (err) {
-          console.warn('[OM-Protocol] Fetch intercept parsing error:', err);
+          console.warn('[FETCH] [OM-Protocol] Fetch intercept parsing error:', err);
         }
       }
 
@@ -205,7 +205,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               // Block the specific missing tile URL to prevent repeated 404 requests for it
               if (!MISSING_OM_TILES.has(urlString)) {
                 MISSING_OM_TILES.add(urlString);
-                console.warn(`[OM-Protocol] Precise tile registered as MISSING: ${urlString}. Future requests to this exact tile will be blocked.`);
+                console.warn(`[FETCH] [OM-Protocol] Precise tile registered as MISSING: ${urlString}. Future requests to this exact tile will be blocked.`);
               }
             } catch (e) { /* ignore */ }
           } else {
@@ -253,7 +253,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           }
         };
         window.__OM_MARINE_SETTINGS__ = marineSettings;
-        console.log('[OM-Protocol] Ocean clipping polygon built:', oceanPoly.geometry.coordinates.length - 1, 'land holes');
+        console.log('[MODEL] [OM-Protocol] Ocean clipping polygon built:', oceanPoly.geometry.coordinates.length - 1, 'land holes');
       }
     };
 
@@ -261,16 +261,16 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     try {
       cachedMask = localStorage.getItem('om_land_mask_110m');
     } catch (e) {
-      console.warn('[OM-Protocol] LocalStorage access failed:', e);
+      console.warn('[CACHE] [OM-Protocol] LocalStorage access failed:', e);
     }
 
     if (cachedMask) {
       try {
         const parsed = JSON.parse(cachedMask);
         applyLandMask(parsed);
-        console.log('[OM-Protocol] Land mask hydrated instantly from localStorage cache (0ms)');
+        console.log('[CACHE] [OM-Protocol] Land mask hydrated instantly from localStorage cache (0ms)');
       } catch (err) {
-        console.warn('[OM-Protocol] Failed to parse cached land mask:', err);
+        console.warn('[CACHE] [OM-Protocol] Failed to parse cached land mask:', err);
         localStorage.removeItem('om_land_mask_110m');
         cachedMask = null;
       }
@@ -283,13 +283,13 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           applyLandMask(landGeoJSON);
           try {
             localStorage.setItem('om_land_mask_110m', JSON.stringify(landGeoJSON));
-            console.log('[OM-Protocol] Land mask cached in localStorage (300 KB)');
+            console.log('[CACHE] [OM-Protocol] Land mask cached in localStorage (300 KB)');
           } catch (e) {
-            console.warn('[OM-Protocol] Failed to cache land mask in localStorage:', e);
+            console.warn('[CACHE] [OM-Protocol] Failed to cache land mask in localStorage:', e);
           }
         })
         .catch(err => {
-          console.warn('[OM-Protocol] Failed to build ocean clipping polygon:', err.message);
+          console.warn('[MODEL] [OM-Protocol] Failed to build ocean clipping polygon:', err.message);
         });
     }
 
@@ -303,7 +303,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           // Safe one-time init log
           if (!debug.hasLoggedProtocol) {
             if (hasWindow && window.__RASTER_DEBUG__) window.__RASTER_DEBUG__.hasLoggedProtocol = true;
-            console.log('[OM-Protocol] Registered with', Object.keys(currentSettings.colorScales).length, 'color scales');
+            console.log('[MODEL] [OM-Protocol] Registered with', Object.keys(currentSettings.colorScales).length, 'color scales');
           }
           
            let requestedModelFolder = "";
@@ -414,7 +414,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               if (err.name === 'AbortError' || err.message?.includes('aborted')) {
                 throw err;
               }
-              console.error('[OM-Protocol] Async tile decoding error caught:', err, err.stack);
+              console.error('[TRANSITION] [OM-Protocol] Async tile decoding error caught:', err, err.stack);
               return getSafeWorkerFallbackResponse(params.url, params.type);
             } finally {
               protocolMutex.release();
@@ -428,8 +428,8 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             if (syncErr.name === 'AbortError' || syncErr.message?.includes('aborted')) {
               throw syncErr;
             }
-            console.error('[OM-Protocol] Sync tile parsing error:', syncErr, syncErr.stack);
-            return getSafeWorkerFallbackResponse(params.url, params.type);
+             console.error('[TRANSITION] [OM-Protocol] Sync tile parsing error:', syncErr, syncErr.stack);
+             return getSafeWorkerFallbackResponse(params.url, params.type);
           }
         });
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
@@ -450,13 +450,13 @@ export function clearOpenMeteoCache() {
     .then(({ clearBlockCache }) => {
       return clearBlockCache()
         .then(() => {
-          console.log('[OM-Protocol] Grid block cache cleared successfully');
+          console.log('[CACHE] [OM-Protocol] Grid block cache cleared successfully');
         })
         .catch(err => {
-          console.warn('[OM-Protocol] clearBlockCache execution failed:', err);
+          console.warn('[CACHE] [OM-Protocol] clearBlockCache execution failed:', err);
         });
     })
     .catch(err => {
-      console.warn('[OM-Protocol] Failed to import clearBlockCache:', err);
+      console.warn('[CACHE] [OM-Protocol] Failed to import clearBlockCache:', err);
     });
 }
