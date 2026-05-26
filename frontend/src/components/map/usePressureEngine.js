@@ -58,8 +58,10 @@ function checkIsLandCoord(lat, lng, mapInstance) {
       
       const pt = mapInstance.project([rLng, lat]);
       if (pt && pt.x >= 0 && pt.y >= 0) {
-        const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
-        return features && features.length > 0;
+        if (mapInstance.getLayer('ocean-mask-fill')) {
+          const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
+          return features && features.length > 0;
+        }
       }
     } catch (e) {}
   }

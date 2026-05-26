@@ -168,11 +168,13 @@ function checkIsLand(lat, lng, mapInstance, grid) {
       
       const pt = mapInstance.project([rLng, lat]);
       if (pt && pt.x >= 0 && pt.y >= 0) {
-        // Query the land mask fill layer from OceanMask
-        const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
-        mapChecked = true;
-        if (features && features.length > 0) {
-          mapConfirmedLand = true;
+        // Query the land mask fill layer from OceanMask only if it exists in the style
+        if (mapInstance.getLayer('ocean-mask-fill')) {
+          const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
+          mapChecked = true;
+          if (features && features.length > 0) {
+            mapConfirmedLand = true;
+          }
         }
       }
     } catch (e) {
