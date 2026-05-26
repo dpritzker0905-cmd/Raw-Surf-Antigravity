@@ -151,21 +151,6 @@ export function useOpenMeteoTileUrls({
         transitionStartTimesRef.current[layerKey] = now;
       }
 
-      // If a layer has no active slot (cold start)
-      if (activeSlot === undefined) {
-        if (isLoaded || isTransparent || isTimeout) {
-          nextActive[layerKey] = targetSlot;
-          delete transitionStartTimesRef.current[layerKey];
-          changed = true;
-        }
-        return;
-      }
-
-      if (activeSlot === targetSlot) {
-        delete transitionStartTimesRef.current[layerKey];
-        return;
-      }
-
       if (!transitionStartTimesRef.current[layerKey]) {
         transitionStartTimesRef.current[layerKey] = now;
       }
@@ -191,6 +176,21 @@ export function useOpenMeteoTileUrls({
         // Safe fallback
       }
       const isTimeout = elapsed > 2000;
+
+      // If a layer has no active slot (cold start)
+      if (activeSlot === undefined) {
+        if (isLoaded || isTransparent || isTimeout) {
+          nextActive[layerKey] = targetSlot;
+          delete transitionStartTimesRef.current[layerKey];
+          changed = true;
+        }
+        return;
+      }
+
+      if (activeSlot === targetSlot) {
+        delete transitionStartTimesRef.current[layerKey];
+        return;
+      }
 
       if (isLoaded || isTransparent || isTimeout) {
         console.log(`[Raster Transition] Transitioning layer '${layerKey}' from slot ${activeSlot} to ${targetSlot}. Reason: Loaded=${isLoaded}, Transparent=${isTransparent}, Timeout=${isTimeout} (${elapsed}ms)`);
