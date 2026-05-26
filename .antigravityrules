@@ -50,6 +50,10 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Real-Time Event Bus** $\rightarrow$ Call `realtime-event-bus-mcp` (`publish_event`, `subscribe_to_channel`, `pull_subscribed_events`, `get_recent_events`, `get_event_bus_metrics`) to ingest core operational event types, handle frontend/AI/notification subscriptions, manage agent mailbox pull queues, and monitor propagation latency metrics.
 * **Intelligent Simulation Engine** $\rightarrow$ Call `simulation-layer-mcp` (`run_system_simulation`, `get_simulation_history`, `evaluate_stress_vulnerability`) to model booking surges, cancellations, map browsing, storms, API latency delays, and compile horizontal autoscaling/caching optimization solutions.
 * **Web Scraping & Operations** $\rightarrow$ Call `playwright` or `firecrawl-mcp` rather than writing raw headless webdriver code.
+* **Episodic Session & Checkpoint Memory** $\rightarrow$ Call `mind` MCP (`checkpoint_query`, `checkpoint_load`, `checkpoint_save`, `checkpoint_done`, `memory_add`, `memory_query`, `space_get`) to recover active checkpoints, persist episodic decisions, and save session progress.
+* **Codebase Semantic Graph** $\rightarrow$ Call `trevec` MCP or CLI (`get_context`, `search_code`, `read_file_topology`, `repo_summary`, `neighbor_signatures`, `batch_context`) to retrieve structural codebase context, query functions/classes, and analyze file topology.
+* **Keypath Architectural Memory** $\rightarrow$ Call `memstate` MCP (`memstate_remember`, `memstate_get`, `memstate_list`) to save and retrieve structured, versioned keypath architectural facts and stack configuration rules.
+
 
 ### 2. Observe and Sync Tool Schemas
 When extending models, routes, or database schemas (e.g. `spots.py`, `marketplace.py` in the backend):
@@ -160,8 +164,21 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Dynamic Health Index Calculations**: The System Health Score ($0\text{-}100$) must be evaluated dynamically based on recent event logs, applying strict penalties for hard failures ($-15$ per error event), broken event chains ($-10$ per incomplete flow), and latency anomalies ($-5$ per propagation step $>500\text{ ms}$).
 * **Debug Memory Persistence**: Diagnosed root causes and anomalous traces must be committed to the isolated `debug_consciousness.db` failure logs to allow historical regression tracking and recurring pattern discoveries.
 
+### 21. Unified Memory & Codebase Context Rules (Mind, Trevec, Memstate)
+* **Recover (Session Start)**: You must check for active checkpoints using `checkpoint_query` first thing on startup, and load the correct checkpoint using `checkpoint_load` to instantly restore context.
+* **Orient (Retrieve Context)**: Proactively call `get_context` or `search_code` (Trevec) to retrieve relevant file locations, dependency graphs, and structural context before reading raw files. Run `read_file_topology` before editing any file to inspect existing imports and function boundaries.
+* **Persist & Save**: Periodically capture non-obvious details, architectural choices, and bugs using `memory_add` (Mind) with proper category tags (e.g. `cat:decision`, `cat:bugfix`, `cat:preference`) and `checkpoint_save`. Link related memories using `links_to` or `link_create` for deep relational recovery.
+* **Teardown (Session End)**: Always commit completed work summaries by calling `checkpoint_done` to serialize episodic session history before terminating the agent execution.
+* **Architecture Consistency**: Synchronize key stack decisions and constraints via `memstate_remember` to prevent repeated exploration of technology boundaries.
+* **Strict Anti-Patterns**:
+  - **NEVER** do significant work without an active checkpoint in **Mind**.
+  - **NEVER** let a session end without calling `checkpoint_done` to log a session summary.
+  - **NEVER** create a Mind memory without at least one tag (e.g. `cat:decision`).
+  - **ALWAYS** check file topology (`read_file_topology`) before editing a file.
+
 ---
 
 > [!IMPORTANT]
 > The MCP Maximize Protocol operates as a primary system binding. AI assistants must always inspect this rules checklist on each turn to preserve clean agent capabilities.
+
 
