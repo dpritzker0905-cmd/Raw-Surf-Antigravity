@@ -389,13 +389,17 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               return DECODED_TILE_CACHE.get(tileKey);
             }
 
+            if (abortController.signal.aborted) {
+              throw new DOMException('The user aborted a request.', 'AbortError');
+            }
+
             await protocolMutex.acquire();
             WeatherTelemetry.trackTileRequest(tileKey, tileKey);
             const startTime = Date.now();
             try {
               if (abortController.signal.aborted) {
                 WeatherTelemetry.trackTileLoaded(tileKey, false);
-                return getSafeWorkerFallbackResponse(params.url, params.type);
+                throw new DOMException('The user aborted a request.', 'AbortError');
               }
               WeatherTelemetry.trackRasterDecodeStart(tileKey);
               const res = await omProtocol(params, abortController, effectiveSettings);

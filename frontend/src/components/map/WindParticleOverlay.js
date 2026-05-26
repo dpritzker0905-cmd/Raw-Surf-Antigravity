@@ -275,8 +275,8 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
       var currentOffset = grid.hourOffset;
       var currentBoundsHash = grid.bounds ? `${grid.bounds.west.toFixed(2)}:${grid.bounds.east.toFixed(2)}` : '';
 
-      if (lastDataId !== null && (lastDataId !== sourceModel || lastBoundsHash !== currentBoundsHash)) {
-        // Full respawn on model switch or regional bounds shift
+      if (lastDataId !== null && lastDataId !== sourceModel) {
+        // Full respawn on model switch
         var pts2 = particlesRef.current;
         for (var ri = 0; ri < pts2.length; ri++) {
           pts2[ri] = spawnParticle(mapInstance, true, ri, pts2.length);
