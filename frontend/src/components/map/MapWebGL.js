@@ -86,6 +86,7 @@ import { useSpotClusteringData } from './useSpotClusteringData';
 import { useRasterAnchorInsertion } from './useRasterAnchorInsertion';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
+import { usePressureEngine } from './usePressureEngine';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -130,44 +131,15 @@ var MapWebGL = ({
     if (onMapClick) onMapClick(e);
   };
 
-  const lowSystem = useMemo(() => {
-    // Moves from 23.5° N, -78.0° W up towards the northeast Atlantic over 240 hours
-    const startLat = 23.5;
-    const endLat = 39.0;
-    const startLng = -78.0;
-    const endLng = -62.0;
-    
-    const ratio = Math.min(1, timeOffsetHours / 240);
-    const lat = startLat + (endLat - startLat) * ratio;
-    const lng = startLng + (endLng - startLng) * ratio;
-    
-    // Deepens from 996 hPa to 982 hPa
-    const pressure = Math.round(996 - 14 * ratio);
-    
-    return { lat, lng, pressure, type: 'L' };
-  }, [timeOffsetHours]);
-
-  const highSystem = useMemo(() => {
-    // Shifts gently from 32.0° N, -58.0° W towards 27.0° N, -68.0° W
-    const startLat = 32.0;
-    const endLat = 27.0;
-    const startLng = -58.0;
-    const endLng = -68.0;
-    
-    const ratio = Math.min(1, timeOffsetHours / 240);
-    const wave = Math.sin((timeOffsetHours / 240) * Math.PI * 2);
-    
-    const lat = startLat + (endLat - startLat) * ratio;
-    const lng = startLng + (endLng - startLng) * ratio;
-    
-    // fluctuates between 1024 and 1029 hPa
-    const pressure = Math.round(1024 + 5 * Math.abs(wave));
-    
-    return { lat, lng, pressure, type: 'H' };
-  }, [timeOffsetHours]);
-
   // 1. Map Initialization and Async Abort Interceptions
   const { mapInstance } = useMapInitialization({ innerMapRef, mapInstanceRef });
+
+  const { lowSystems = [], highSystems = [] } = usePressureEngine({
+    mapInstance,
+    activeLayers,
+    timeOffsetHours,
+    activeModel
+  });
 
   // 2. Map View State tracking and FlyTo updates
   const { viewState, onMove, onMoveEnd } = useMapViewState({ effectiveLocation, onMapMoveEnd, innerMapRef });
@@ -554,38 +526,40 @@ var MapWebGL = ({
         {/* Dynamic High/Low Pressure System Center Markers */}
         {activeLayers.includes('pressure') && (
           <>
-            {lowSystem && (
+            {lowSystems.map((low, i) => (
               <Marker
-                longitude={lowSystem.lng}
-                latitude={lowSystem.lat}
+                key={`low-${i}-${low.lat}-${low.lng}`}
+                longitude={low.lng}
+                latitude={low.lat}
                 anchor="center"
               >
                 <PressureMarker 
                   type="L" 
-                  value={lowSystem.pressure} 
+                  value={low.pressure} 
                   onClick={(e) => {
                     e.stopPropagation();
-                    setActiveSystemPopup(lowSystem);
+                    setActiveSystemPopup(low);
                   }} 
                 />
               </Marker>
-            )}
-            {highSystem && (
+            ))}
+            {highSystems.map((high, i) => (
               <Marker
-                longitude={highSystem.lng}
-                latitude={highSystem.lat}
+                key={`high-${i}-${high.lat}-${high.lng}`}
+                longitude={high.lng}
+                latitude={high.lat}
                 anchor="center"
               >
                 <PressureMarker 
                   type="H" 
-                  value={highSystem.pressure} 
+                  value={high.pressure} 
                   onClick={(e) => {
                     e.stopPropagation();
-                    setActiveSystemPopup(highSystem);
+                    setActiveSystemPopup(high);
                   }} 
                 />
               </Marker>
-            )}
+            ))}
           </>
         )}
 
