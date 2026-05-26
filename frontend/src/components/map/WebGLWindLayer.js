@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WebGLWindLayer MapLibre custom layer integration for GPU wind particles
  *
  * v3.8: React component wrapping WebGLWindEngine as a MapLibre CustomLayerInterface.
@@ -19,7 +19,7 @@ var LAYER_ID = 'webgl-wind-particles';
  * Creates a MapLibre CustomLayerInterface that delegates rendering
  * to the WebGLWindEngine.
  */
-function createCustomLayer(engine, activeRef, mapRef) {
+function createCustomLayer(engine, activeRef, mapRef, onErrorRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
@@ -31,6 +31,7 @@ function createCustomLayer(engine, activeRef, mapRef) {
         engine.init(gl);
       } catch (e) {
         console.error('[WebGLWind] Init failed:', e.message);
+        if (onErrorRef.current) onErrorRef.current();
       }
     },
 
@@ -59,6 +60,7 @@ function createCustomLayer(engine, activeRef, mapRef) {
         }
         if (errorCount === 3) {
           console.error('[WebGLWind] Too many errors, disabling GPU particles. Canvas2D fallback active.');
+          if (onErrorRef.current) onErrorRef.current();
         }
       }
     },
@@ -69,15 +71,17 @@ function createCustomLayer(engine, activeRef, mapRef) {
   };
 }
 
-export function WebGLWindLayer({ mapInstance, active, data, revision }) {
+export function WebGLWindLayer({ mapInstance, active, data, revision, onError }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
   const layerAddedRef = useRef(false);
+  const onErrorRef = useRef(onError);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
 
   // Initialize engine + add custom layer
   useEffect(() => {
@@ -90,7 +94,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision }) {
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, onErrorRef);
 
     // Wait for style load before adding layer
     const addLayer = () => {

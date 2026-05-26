@@ -4,16 +4,13 @@ import maplibregl from 'maplibre-gl';
 import { WeatherTelemetry } from './WeatherTelemetry';
 
 
-import {
-  getMapStyle,
-  mapboxTransformRequest,
-  ensureMapLibreInit,
-  trace
-} from './mapUtils';
+import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
+import { WebGLWindLayer } from './WebGLWindLayer';
+import { WebGLMarineLayer } from './WebGLMarineLayer';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
@@ -71,6 +68,8 @@ var MapWebGL = ({
   const { theme } = useTheme();
 
   const [activeSystemPopup, setActiveSystemPopup] = useState(null);
+  const [webglWindFailed, setWebglWindFailed] = useState(false);
+  const [webglMarineFailed, setWebglMarineFailed] = useState(false);
 
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);
@@ -138,7 +137,7 @@ var MapWebGL = ({
 
   // Weather Engine: Decoupled weather analytics
   const forecastDays = useMemo(() => resolveForecastWindow(userTier), [userTier]);
-  const { windData } = useWeatherEngine({
+  const { windData, windRevision } = useWeatherEngine({
     activeLayers,
     mapInstance,
     timeOffsetHours: debouncedTimeOffsetHours, // Synchronized & debounced to prevent CPU choke
@@ -406,13 +405,26 @@ var MapWebGL = ({
         })}
 
         {/* Marine Foam/Crest Engine */}
-        <MarineParticleCanvas 
-          id="marine-canvas-layer"
-          mapInstance={mapInstance} 
-          active={!isTransitioning && !!activeMarineLayer}
-          data={marineWindData}
-          revision={marineData?.grid?.timestamp || Date.now()}
-        />
+        {(!webglMarineFailed && !!activeMarineLayer) ? (
+          <WebGLMarineLayer
+            mapInstance={mapInstance}
+            active={!isTransitioning && !!activeMarineLayer}
+            data={marineWindData}
+            revision={marineData?.grid?.timestamp || 0}
+            onError={() => {
+              console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
+              setWebglMarineFailed(true);
+            }}
+          />
+        ) : (
+          <MarineParticleCanvas 
+            id="marine-canvas-layer"
+            mapInstance={mapInstance} 
+            active={!isTransitioning && !!activeMarineLayer}
+            data={marineWindData}
+            revision={marineData?.grid?.timestamp || Date.now()}
+          />
+        )}
 
         {/* Marker Rendering Layer */}
         <MapMarkerLayers
@@ -429,13 +441,26 @@ var MapWebGL = ({
         />
 
         {/* Canvas2D Wind Particles Overlay */}
-        <WindParticleOverlay
-          id="wind-particle-overlay"
-          mapInstance={mapInstance}
-          active={!isTransitioning && activeLayers.includes('wind')}
-          data={windData}
-          theme={theme}
-        />
+        {(!webglWindFailed && activeLayers.includes('wind')) ? (
+          <WebGLWindLayer
+            mapInstance={mapInstance}
+            active={!isTransitioning && activeLayers.includes('wind')}
+            data={windData}
+            revision={windRevision?.current || 0}
+            onError={() => {
+              console.warn('[MapWebGL] Fallback to Canvas2D Wind overlay triggered');
+              setWebglWindFailed(true);
+            }}
+          />
+        ) : (
+          <WindParticleOverlay
+            id="wind-particle-overlay"
+            mapInstance={mapInstance}
+            active={!isTransitioning && activeLayers.includes('wind')}
+            data={windData}
+            theme={theme}
+          />
+        )}
 
         {/* Long-press / right-click map pin marker */}
         {longPressLocation && (
