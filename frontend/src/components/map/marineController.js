@@ -490,7 +490,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   windRequestInFlight = true;
 
   try {
-    const { points, gridSize, bounds: gridBounds } = computeGridPoints(snappedBounds);
+    const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds);
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
@@ -741,7 +741,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   marineRequestInFlight = true;
 
   try {
-    const { points, gridSize, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
+    const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
@@ -927,7 +927,7 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
   pressureRequestInFlight = true;
 
   try {
-    const { points, gridSize, bounds: gridBounds } = computeGridPoints(snappedBounds, 'pressure');
+    const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'pressure');
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
