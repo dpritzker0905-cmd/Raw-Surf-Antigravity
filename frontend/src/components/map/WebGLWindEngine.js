@@ -31,7 +31,7 @@ uniform sampler2D u_wind;         // wind field texture (RG = u, BA = v)
 uniform vec2 u_wind_min;          // min u,v values for decoding
 uniform vec2 u_wind_max;          // max u,v values for decoding
 uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
-uniform float u_speed_factor;     // advection speed multiplier
+uniform vec2 u_speed_scale;       // scale-invariant speed scale
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
 uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
@@ -40,8 +40,8 @@ varying vec2 v_uv;
 // Decode position from 2-channel encoding (16-bit precision per axis)
 vec2 decodePos(vec4 color) {
   return vec2(
-    color.r / 255.0 + color.g,
-    color.b / 255.0 + color.a
+    color.r + color.g / 255.0,
+    color.b + color.a / 255.0
   );
 }
 
@@ -78,7 +78,7 @@ void main() {
  // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
  float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] [-/2, /2]
   float merc_scale = max(0.1, cos(lat_rad));
-  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_factor;
+  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_scale;
   pos = pos + offset;
 
   // Respawn logic: randomly drop particles (more likely when slow)
@@ -112,8 +112,8 @@ uniform vec2 u_wind_max;
 
 vec2 decodePos(vec4 color) {
   return vec2(
-    color.r / 255.0 + color.g,
-    color.b / 255.0 + color.a
+    color.r + color.g / 255.0,
+    color.b + color.a / 255.0
   );
 }
 
@@ -370,7 +370,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   this._windData = encodeWindTexture(gl, windGrid);
 };
 
-WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight) {
+WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom) {
   if (!this._initialized || !this._windData) return;
   if (!matrix || !matrix.length) return;
   if (!this.screenA || this._screenW !== screenWidth || this._screenH !== screenHeight) {
@@ -425,6 +425,15 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
 
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
 
+  // Compute scale-invariant advection step sizes
+  const z = typeof zoom === 'number' ? zoom : 6;
+  const baseScale = this.speedFactor * Math.pow(0.55, Math.max(0, z - 6)) * 0.05; // Normalizing 0.40 speedFactor to correct coordinate step sizes
+  const bounds = this._windData.bounds;
+  const lngSpan = Math.max(0.01, Math.abs(bounds.east - bounds.west));
+  const latSpan = Math.max(0.01, Math.abs(bounds.north - bounds.south));
+  const speedScaleX = Math.max(1.0e-5, baseScale / lngSpan);
+  const speedScaleY = Math.max(1.0e-5, baseScale / latSpan);
+
   // Step 1: Advect particles (ping-pong)
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
@@ -432,7 +441,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
-  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_factor'), this.speedFactor);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);

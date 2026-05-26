@@ -579,7 +579,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
 
-  var dashLengthScale = Math.max(0.3, Math.min(1.5, zoom / 6.0));
+  const zVal = typeof zoom === 'number' ? zoom : 6.0;
+  let dashLengthScale = 0.3;
+  if (zVal <= 12.0) {
+    dashLengthScale = 0.3 + (zVal - 6.0) * (1.5 - 0.3) / (12.0 - 6.0);
+  } else {
+    dashLengthScale = 1.5 + (zVal - 12.0) * (20.0 - 1.5) / (18.0 - 12.0);
+  }
+  dashLengthScale = Math.max(0.3, Math.min(20.0, dashLengthScale));
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_length_scale'), dashLengthScale);
 
   bindTexture(gl, this.particleStateA, 0);

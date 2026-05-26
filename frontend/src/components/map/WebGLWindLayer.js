@@ -50,7 +50,8 @@ function createCustomLayer(engine, activeRef, mapRef, onErrorRef) {
 
       try {
         const canvas = map.getCanvas();
-        engine.render(gl, matrix, canvas.width, canvas.height);
+        const zoom = map.getZoom();
+        engine.render(gl, matrix, canvas.width, canvas.height, zoom);
         // Request continuous repainting while active
         map.triggerRepaint();
       } catch (e) {
