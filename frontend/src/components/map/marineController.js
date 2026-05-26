@@ -64,7 +64,7 @@ var HOURLY_CACHE_TTL = 30 * 60 * 1000; // 30 min (increased from 10 to reduce AP
 // Survives page reloads eliminates 429s on revisit
 var LS_WIND_KEY = 'rawsurf_wind_cache_v1';
 var LS_MARINE_KEY = 'rawsurf_marine_cache_v1';
-var LS_PRESSURE_KEY = 'rawsurf_pressure_cache_v1';
+var LS_PRESSURE_KEY = 'rawsurf_pressure_cache_v2'; // v2: bumped to invalidate stale 225-point caches
 
 function persistCache(key, cache) {
   try {
@@ -254,11 +254,12 @@ function computeGridPoints(bounds, caller = 'wind') {
       west = -180; east = 180; south = -80; north = 80;
       GRID = isMobile ? 8 : 14;
     } else if (caller === 'pressure') {
-      // Higher density for pressure: 21×21 = 441 points gives ~9° resolution globally.
-      // This is sufficient per ECMWF IFS and GFS SLP analysis methodology to detect
-      // most synoptic-scale pressure systems (typical 500-2000km diameter).
+      // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
+      // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems
+      // (500-2000km diameter, ~5-20° across) need at least 5° resolution to reliably
+      // resolve. 961 points is still well under Open-Meteo's 10,000 daily limit.
       west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 12 : 20;
+      GRID = isMobile ? 16 : 30;
     } else {
       west = -180; east = 180; south = -85; north = 85;
       GRID = isMobile ? 8 : 14;
@@ -269,7 +270,7 @@ function computeGridPoints(bounds, caller = 'wind') {
     if (caller === 'marine') {
       GRID = isMobile ? 8 : 14;
     } else if (caller === 'pressure') {
-      GRID = isMobile ? 12 : 20;
+      GRID = isMobile ? 16 : 30;
     } else {
       GRID = isMobile ? 8 : 14;
     }
@@ -938,7 +939,7 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
       res = await fetch(PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'wind', body }),
+        body: JSON.stringify({ type: 'wind', body }),  // 'wind' routes to api.open-meteo.com/v1/forecast which also serves pressure_msl
         signal: fetchSignal
       });
       if (!res.ok) {

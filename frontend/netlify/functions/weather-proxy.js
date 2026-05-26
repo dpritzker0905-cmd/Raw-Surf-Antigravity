@@ -114,6 +114,7 @@ exports.handler = async function(event, context) {
     } else {
       const urls = {
         wind: 'https://api.open-meteo.com/v1/forecast',
+        pressure: 'https://api.open-meteo.com/v1/forecast',  // alias: pressure_msl comes from the same forecast endpoint
         marine: 'https://marine-api.open-meteo.com/v1/marine',
       };
       const base = urls[type];
