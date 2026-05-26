@@ -8,11 +8,6 @@ let activeModelLock = "";
 const MISSING_OM_RUNS = new Set();
 const MISSING_OM_TILES = new Set();
 
-let resolveLandMask = null;
-const landMaskPromise = new Promise((resolve) => {
-  resolveLandMask = resolve;
-});
-
 export const setMapActiveModelLock = (modelName) => {
   activeModelLock = modelName;
   console.log('[MODEL] [OM-Protocol] Active model lock target set to:', activeModelLock);
@@ -244,59 +239,59 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     window.__OM_PROTOCOL_SETTINGS__ = settings;
 
     // Fetch land GeoJSON and build ocean clipping polygon for marine layers
-    // Use 50m resolution loaded from local public folder
-    const NE_LAND_50M_URL = '/ne_50m_land.json';
+    // Use 110m resolution cached in localStorage for sub-1ms instant loading (loaded from local public folder)
+    const NE_LAND_110M_URL = '/ne_110m_land.json';
     
     const applyLandMask = (landGeoJSON) => {
-      try {
-        const oceanPoly = buildOceanPolygon(landGeoJSON);
-        if (oceanPoly) {
-          const marineSettings = {
-            ...settings,
-            clippingOptions: {
-              geojson: oceanPoly,
-              fillRule: 'evenodd'
-            }
-          };
-          window.__OM_MARINE_SETTINGS__ = marineSettings;
-          console.log('[MODEL] [OM-Protocol] Ocean clipping polygon built with ne_50m_land:', oceanPoly.geometry.coordinates.length - 1, 'land holes');
-        }
-      } catch (err) {
-        console.error('[MODEL] [OM-Protocol] Failed to build ocean polygon:', err);
-      } finally {
-        if (resolveLandMask) {
-          resolveLandMask();
-          resolveLandMask = null;
-        }
+      const oceanPoly = buildOceanPolygon(landGeoJSON);
+      if (oceanPoly) {
+        const marineSettings = {
+          ...settings,
+          clippingOptions: {
+            geojson: oceanPoly,
+            fillRule: 'evenodd'
+          }
+        };
+        window.__OM_MARINE_SETTINGS__ = marineSettings;
+        console.log('[MODEL] [OM-Protocol] Ocean clipping polygon built:', oceanPoly.geometry.coordinates.length - 1, 'land holes');
       }
     };
 
-    fetch(NE_LAND_50M_URL)
-      .then(r => {
-        if (!r.ok) throw new Error(`Status ${r.status}`);
-        return r.json();
-      })
-      .then(landGeoJSON => {
-        applyLandMask(landGeoJSON);
-      })
-      .catch(err => {
-        console.warn('[MODEL] [OM-Protocol] Failed to load 50m land GeoJSON, falling back to 110m:', err.message);
-        fetch('/ne_110m_land.json')
-          .then(r => {
-            if (!r.ok) throw new Error(`Status ${r.status}`);
-            return r.json();
-          })
-          .then(landGeoJSON => {
-            applyLandMask(landGeoJSON);
-          })
-          .catch(err2 => {
-            console.error('[MODEL] [OM-Protocol] All land GeoJSON load attempts failed:', err2);
-            if (resolveLandMask) {
-              resolveLandMask();
-              resolveLandMask = null;
-            }
-          });
-      });
+    let cachedMask = null;
+    try {
+      cachedMask = localStorage.getItem('om_land_mask_110m');
+    } catch (e) {
+      console.warn('[CACHE] [OM-Protocol] LocalStorage access failed:', e);
+    }
+
+    if (cachedMask) {
+      try {
+        const parsed = JSON.parse(cachedMask);
+        applyLandMask(parsed);
+        console.log('[CACHE] [OM-Protocol] Land mask hydrated instantly from localStorage cache (0ms)');
+      } catch (err) {
+        console.warn('[CACHE] [OM-Protocol] Failed to parse cached land mask:', err);
+        localStorage.removeItem('om_land_mask_110m');
+        cachedMask = null;
+      }
+    }
+
+    if (!cachedMask) {
+      fetch(NE_LAND_110M_URL)
+        .then(r => r.json())
+        .then(landGeoJSON => {
+          applyLandMask(landGeoJSON);
+          try {
+            localStorage.setItem('om_land_mask_110m', JSON.stringify(landGeoJSON));
+            console.log('[CACHE] [OM-Protocol] Land mask cached in localStorage (300 KB)');
+          } catch (e) {
+            console.warn('[CACHE] [OM-Protocol] Failed to cache land mask in localStorage:', e);
+          }
+        })
+        .catch(err => {
+          console.warn('[MODEL] [OM-Protocol] Failed to build ocean clipping polygon:', err.message);
+        });
+    }
 
     if (maplibregl?.addProtocol) {
       try {
@@ -381,6 +376,8 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
 
           // v3.14: Use ocean-clipped settings for marine variables so land pixels are transparent
           const isMarine = variable && MARINE_VARIABLES.has(variable);
+          const marineSettings = (hasWindow && window.__OM_MARINE_SETTINGS__) || null;
+          const effectiveSettings = (isMarine && marineSettings) ? marineSettings : currentSettings;
 
           // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
           const runProtocol = async () => {
@@ -391,13 +388,6 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               WeatherTelemetry.trackTileLoaded(tileKey, true);
               return DECODED_TILE_CACHE.get(tileKey);
             }
-
-            if (isMarine) {
-              await landMaskPromise;
-            }
-
-            const marineSettings = (hasWindow && window.__OM_MARINE_SETTINGS__) || null;
-            const effectiveSettings = (isMarine && marineSettings) ? marineSettings : currentSettings;
 
             await protocolMutex.acquire();
             WeatherTelemetry.trackTileRequest(tileKey, tileKey);

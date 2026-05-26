@@ -66,7 +66,6 @@ import {
 } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
-import OceanMask from './OceanMask';
 import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { useWeatherEngine } from './WeatherEngine';
@@ -292,17 +291,8 @@ var MapWebGL = ({
     if (!mapInstance) return;
 
     const onError = (e) => {
-      const msg = e.error?.message || e.message || '';
-      const isTileError = msg.includes('Tile') || msg.includes('404') || msg.includes('Failed to fetch') || msg.includes('status: 404');
-      const isAbortError = msg.includes('abort') || msg.includes('cancel');
-      if (isTileError || isAbortError) {
-        if (Math.random() < 0.01) {
-          console.log('[MapWebGL] Suppressed routine tile/abort error:', msg);
-        }
-        return;
-      }
       console.error('[MapWebGL] Map instance error event:', e);
-      WeatherTelemetry.trackMapError(msg, e.error?.stack || '');
+      WeatherTelemetry.trackMapError(e.error?.message || 'MapError', e.error?.stack || '');
     };
 
     mapInstance.on('error', onError);
@@ -363,15 +353,6 @@ var MapWebGL = ({
         minZoom={2.0}
         renderWorldCopies={true}
       >
-        {/* Ocean Mask for Land/Ocean clipping */}
-        <OceanMask
-          mapInstance={mapInstance}
-          active={!!activeMarineLayer}
-          activeMarineLayer={activeMarineLayer}
-          theme={theme}
-          beforeId={marineBeforeId || undefined}
-        />
-
         {/* Geofence Visual Layer */}
         <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
           <Layer 
@@ -436,7 +417,8 @@ var MapWebGL = ({
         {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
-            const url = omTileUrls[slotKey] || 'om://transparent-tile';
+            const url = omTileUrls[slotKey];
+            if (!url) return null;
             const isActive = activeSlots[layerKey] !== undefined
               ? activeSlots[layerKey] === slotIdx
               : (closestTimeIdx % 3) === slotIdx;
@@ -448,7 +430,7 @@ var MapWebGL = ({
                 type="raster"
                 url={url}
                 tileSize={512}
-                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 14 : 12}
+                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
               >
                 <Layer
                   id={`${slotKey}-layer`}

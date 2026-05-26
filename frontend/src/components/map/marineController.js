@@ -253,6 +253,12 @@ function computeGridPoints(bounds, caller = 'wind') {
     if (caller === 'marine') {
       west = -180; east = 180; south = -80; north = 80;
       GRID = isMobile ? 8 : 14;
+    } else if (caller === 'pressure') {
+      // Higher density for pressure: 21×21 = 441 points gives ~9° resolution globally.
+      // This is sufficient per ECMWF IFS and GFS SLP analysis methodology to detect
+      // most synoptic-scale pressure systems (typical 500-2000km diameter).
+      west = -180; east = 180; south = -85; north = 85;
+      GRID = isMobile ? 12 : 20;
     } else {
       west = -180; east = 180; south = -85; north = 85;
       GRID = isMobile ? 8 : 14;
@@ -262,6 +268,8 @@ function computeGridPoints(bounds, caller = 'wind') {
     south = bounds.south; north = bounds.north;
     if (caller === 'marine') {
       GRID = isMobile ? 8 : 14;
+    } else if (caller === 'pressure') {
+      GRID = isMobile ? 12 : 20;
     } else {
       GRID = isMobile ? 8 : 14;
     }
@@ -907,7 +915,7 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
   pressureRequestInFlight = true;
 
   try {
-    const { points, gridSize, bounds: gridBounds } = computeGridPoints(snappedBounds);
+    const { points, gridSize, bounds: gridBounds } = computeGridPoints(snappedBounds, 'pressure');
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 

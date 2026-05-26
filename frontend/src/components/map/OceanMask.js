@@ -428,8 +428,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
             try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
           }
         }
-
-
       }
     } catch (err) {
       console.error('[OceanMask] Error in syncLayers:', err);
@@ -468,9 +466,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
             try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
           }
         }
-
-
-
         setTimeout(() => { syncingRef.current = false; }, 300);
       }
     } else {

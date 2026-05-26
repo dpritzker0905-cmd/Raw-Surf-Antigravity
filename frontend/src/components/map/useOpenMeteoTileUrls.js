@@ -183,8 +183,7 @@ export function useOpenMeteoTileUrls({
       try {
         if (mapInstance.getSource(sourceId)) {
           const mapSource = mapInstance.getSource(sourceId);
-          const sourceUrl = mapSource.url || mapSource.options?.url || (mapSource.tiles && mapSource.tiles[0]);
-          const urlsMatch = mapSource && sourceUrl === targetUrl;
+          const urlsMatch = mapSource && mapSource.url === targetUrl;
           if (urlsMatch && mapInstance.isSourceLoaded(sourceId) === true) {
             isLoaded = true;
           }
@@ -281,8 +280,12 @@ export function useOpenMeteoTileUrls({
   }, [mapInstance, activeModel]);
 
   const checkPendingTransitions = useCallback(() => {
-    if (pendingTransitionsTimeoutRef.current) clearTimeout(pendingTransitionsTimeoutRef.current);
-    pendingTransitionsTimeoutRef.current = setTimeout(runTransitionsAudit, 50);
+    if (pendingTransitionsTimeoutRef.current) {
+      clearTimeout(pendingTransitionsTimeoutRef.current);
+    }
+    pendingTransitionsTimeoutRef.current = setTimeout(() => {
+      runTransitionsAudit();
+    }, 50);
   }, [runTransitionsAudit]);
 
   // Bind MapLibre events and run polling when active/target slots differ
@@ -310,10 +313,21 @@ export function useOpenMeteoTileUrls({
     };
   }, [mapInstance, activeSlots, omTileUrls, checkPendingTransitions]);
 
-  // Protocol registration, Telemetry state, and Pressure scale syncs
-  useEffect(() => { registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE); }, []);
-  useEffect(() => { WeatherTelemetry.updateState(activeModel, activeLayers, debouncedTimeOffsetHours); }, [activeModel, activeLayers, debouncedTimeOffsetHours]);
-  useEffect(() => { applyThemePressureScale(theme); }, [theme]);
+  // Protocol registration
+  useEffect(() => {
+    registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE);
+  }, []);
+
+  // Sync state changes with the diagnostics telemetry engine
+  useEffect(() => {
+    WeatherTelemetry.updateState(activeModel, activeLayers, debouncedTimeOffsetHours);
+  }, [activeModel, activeLayers, debouncedTimeOffsetHours]);
+
+
+  // Dynamic theme pressure color scale synchronizer
+  useEffect(() => {
+    applyThemePressureScale(theme);
+  }, [theme]);
 
   const fetchMetadata = useCallback(async (modelToCheck, signal) => {
     return fetchModelMetadata(
@@ -473,15 +487,22 @@ export function useOpenMeteoTileUrls({
             mapInstance.once('load', finishTransition);
             setTimeout(() => {
               if (active) {
-                const now = Date.now(), layers = activeLayersRef.current || [];
+                const now = Date.now();
                 let allowed = false;
+                const layers = activeLayersRef.current || [];
                 layers.forEach(layerKey => {
-                  if (now - (fallbackTimestamps[layerKey] || 0) >= 2000) {
+                  const lastTime = fallbackTimestamps[layerKey] || 0;
+                  if (now - lastTime >= 2000) {
                     fallbackTimestamps[layerKey] = now;
                     allowed = true;
                   }
                 });
-                if (allowed) console.log('[TRANSITION] Style load safety fallback triggered');
+
+                if (allowed) {
+                  console.log('[TRANSITION] Style load safety fallback triggered');
+                } else {
+                  console.log('[TRANSITION] fallback suppressed (rate limited)');
+                }
                 finishTransition();
               }
             }, 2000);
@@ -771,7 +792,9 @@ export function useOpenMeteoTileUrls({
   }, [mapInstance, activeLayers, activeSlots, isTransitioning, debouncedTimeOffsetHours]);
 
   useEffect(() => {
-    if (mapInstance) { try { mapInstance.triggerRepaint(); } catch (e) {} }
+    if (mapInstance) {
+      try { mapInstance.triggerRepaint(); } catch (e) { /* ignore */ }
+    }
   }, [mapInstance, activeLayers, omTileUrls]);
 
   return {

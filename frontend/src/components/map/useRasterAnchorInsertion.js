@@ -74,7 +74,37 @@ export function useRasterAnchorInsertion({ mapInstance }) {
     };
   }, [mapInstance]);
 
+  // Clean leftover OceanMask styles
+  useEffect(() => {
+    if (!mapInstance) return;
 
+    const cleanup = () => {
+      const staleIds = [
+        'ocean-mask-buffer', 'ocean-mask-fill', 'ocean-mask-line',
+        'ocean-mask-inland-water', 'ocean-mask-inland-waterway'
+      ];
+      for (const lid of staleIds) {
+        try {
+          if (mapInstance.getLayer(lid)) {
+            mapInstance.removeLayer(lid);
+            console.log('[MapWebGL] Removed stale OceanMask layer:', lid);
+          }
+        } catch (e) {}
+      }
+      try {
+        if (mapInstance.getSource('ocean-mask-land')) {
+          mapInstance.removeSource('ocean-mask-land');
+          console.log('[MapWebGL] Removed stale OceanMask source');
+        }
+      } catch (e) {}
+    };
+
+    if (mapInstance.isStyleLoaded()) {
+      cleanup();
+    } else {
+      mapInstance.once('styledata', cleanup);
+    }
+  }, [mapInstance]);
 
   return { marineBeforeId, maskLandExists };
 }

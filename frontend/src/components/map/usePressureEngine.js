@@ -87,9 +87,10 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         }
 
-        // Step 2: Bilinearly interpolate to high-density dense grid (45x45)
-        const denseRows = 45;
-        const denseCols = 45;
+        // Step 2: Bilinearly interpolate to high-density dense grid (60x60)
+        // 60x60 provides ~3° resolution globally — fine enough to detect most synoptic-scale systems
+        const denseRows = 60;
+        const denseCols = 60;
         const P = [];
         for (let dy = 0; dy < denseRows; dy++) {
           P[dy] = [];
@@ -171,13 +172,14 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
           const sorted = [...vals].sort((a, b) => a - b);
           const mean = vals.reduce((sum, v) => sum + v, 0) / vals.length;
-          // Use p30 and p65 to widen detection window for moderate/secondary pressure systems
-          const p30 = sorted[Math.floor(sorted.length * 0.30)];
-          const p65 = sorted[Math.floor(sorted.length * 0.65)];
+          // Per ECMWF IFS methodology: use p40/p55 percentiles for maximum sensitivity.
+          // This narrow "normal" band means more cells classify as low or high pressure.
+          const p40 = sorted[Math.floor(sorted.length * 0.40)];
+          const p55 = sorted[Math.floor(sorted.length * 0.55)];
           
           basinStats[basin] = {
-            lowThresh: Math.min(1013, p30),
-            highThresh: Math.max(1013, p65),
+            lowThresh: Math.min(1013.5, p40),
+            highThresh: Math.max(1012.5, p55),
             mean
           };
         }
@@ -239,7 +241,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 3) {
+              if (clusterCells.length >= 2) {
                 candidateLows.push(clusterCells);
               }
             }
@@ -296,7 +298,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 3) {
+              if (clusterCells.length >= 2) {
                 candidateHighs.push(clusterCells);
               }
             }
@@ -339,9 +341,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 0.5 hPa (wide net for moderate lows across all basins)
-          if (deviation >= 0.5) {
-            console.log(`[PressureSystem] cluster detected: type=L, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
+          if (deviation >= 0.3) {
             selectedLows.push({
               lat: extLat,
               lng: normExtLng,
@@ -389,9 +389,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 0.5 hPa (wide net for moderate/secondary highs)
-          if (deviation >= 0.5) {
-            console.log(`[PressureSystem] cluster detected: type=H, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
+          if (deviation >= 0.3) {
             selectedHighs.push({
               lat: extLat,
               lng: normExtLng,
@@ -404,12 +402,61 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         });
 
-        // Step 7: Greedy Haversine clustering to avoid label overlap (200km radius, keep strongest)
+        // Step 7: Add local extrema detection pass (NWS gradient-based method)
+        // This finds isolated pressure minima/maxima that BFS clustering might miss
+        for (let y = 2; y < denseRows - 2; y++) {
+          for (let x = 2; x < denseCols - 2; x++) {
+            const val = smoothedP[y][x];
+            const lat = south + (y / (denseRows - 1)) * (north - south);
+            const lng = west + (x / (denseCols - 1)) * (east - west);
+            let normLng = lng;
+            while (normLng > 180) normLng -= 360;
+            while (normLng < -180) normLng += 360;
+
+            // Check if this cell is a local minimum (low) in 5x5 neighborhood
+            let isLocalMin = true, isLocalMax = true;
+            for (let dy = -2; dy <= 2 && (isLocalMin || isLocalMax); dy++) {
+              for (let dx = -2; dx <= 2 && (isLocalMin || isLocalMax); dx++) {
+                if (dy === 0 && dx === 0) continue;
+                const ny = y + dy, nx = x + dx;
+                if (ny >= 0 && ny < denseRows && nx >= 0 && nx < denseCols) {
+                  if (smoothedP[ny][nx] <= val) isLocalMin = false;
+                  if (smoothedP[ny][nx] >= val) isLocalMax = false;
+                }
+              }
+            }
+
+            const basin = getBasin(lat, normLng);
+            const stats = basinStats[basin];
+
+            if (isLocalMin && val < stats.mean) {
+              // Check not already covered by BFS clusters
+              const alreadyFound = selectedLows.some(s => getHaversineDistance(lat, normLng, s.lat, s.lng) < 150);
+              if (!alreadyFound) {
+                selectedLows.push({
+                  lat, lng: normLng, pressure: Math.round(val), type: 'L',
+                  centroid: { lat, lng: normLng }, size: 1, basin
+                });
+              }
+            }
+            if (isLocalMax && val > stats.mean) {
+              const alreadyFound = selectedHighs.some(s => getHaversineDistance(lat, normLng, s.lat, s.lng) < 150);
+              if (!alreadyFound) {
+                selectedHighs.push({
+                  lat, lng: normLng, pressure: Math.round(val), type: 'H',
+                  centroid: { lat, lng: normLng }, size: 1, basin
+                });
+              }
+            }
+          }
+        }
+
+        // Step 8: Greedy Haversine clustering to avoid label overlap (150km radius, keep strongest)
         const finalLows = [];
         selectedLows
           .sort((a, b) => a.pressure - b.pressure)
           .forEach(low => {
-            const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 200);
+            const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 150);
             if (!isNear) {
               finalLows.push(low);
             }
@@ -419,13 +466,14 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         selectedHighs
           .sort((a, b) => b.pressure - a.pressure)
           .forEach(high => {
-            const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 200);
+            const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 150);
             if (!isNear) {
               finalHighs.push(high);
             }
           });
 
         if (isSubscribed) {
+          console.log(`[PressureEngine] Detection complete: ${finalLows.length}L + ${finalHighs.length}H systems (from ${selectedLows.length}+${selectedHighs.length} candidates, after 150km merge)`);
           setLowSystems(finalLows);
           setHighSystems(finalHighs);
           lastComputedVersionRef.current = version;
