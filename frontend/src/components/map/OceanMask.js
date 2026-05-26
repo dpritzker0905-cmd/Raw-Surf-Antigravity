@@ -61,8 +61,8 @@ const safeMoveLayer = (mapInstance, layerId, beforeId) => {
 };
 
 // Reposition base map landuse/park fills dynamically on top of the solid land mask
-const repositionLanduse = (mapInstance, active) => {
-  if (!mapInstance || active) return;
+const repositionLanduse = (mapInstance) => {
+  if (!mapInstance) return;
   try {
     const style = mapInstance.getStyle();
     if (!style || !style.layers) return;
@@ -415,23 +415,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         }
 
         // 6. Dynamically restore base map parks, forests, and green space fills
-        repositionLanduse(mapInstance, active);
-
-        // Toggle base map fill layers containing landuse/park keywords
-        const isParksEnabled = activeLayers.includes('parks') || activeLayers.includes('landuse');
-        if (style && style.layers) {
-          for (const layer of style.layers) {
-            const id = layer.id.toLowerCase();
-            const isLanduse = landuseKeywords.some(kw => id.includes(kw));
-            if (isLanduse && layer.type === 'fill') {
-              if (active && !isParksEnabled) {
-                try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'none'); } catch (e) {}
-              } else {
-                try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch (e) {}
-              }
-            }
-          }
-        }
+        repositionLanduse(mapInstance);
 
         // 7. Force slot-based active marine raster layers ABOVE buffer but BELOW land fill
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
