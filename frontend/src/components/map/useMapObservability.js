@@ -109,8 +109,6 @@ export function useMapObservability({ mapInstance, activeLayers, lowSystems = []
         const isMarineMismatch = mBounds && !isContained(vBounds, mBounds);
         const hasBoundsMismatch = isWindMismatch || isPressureMismatch || isMarineMismatch;
 
-        const outsideNARegionCount = systems.filter(s => s.lng < -130 || s.lng > -60).length;
-
         let hasFailingProjection = false;
         systems.forEach(s => {
           const pixel = mapInstance.project([s.lng, s.lat]);
@@ -119,7 +117,7 @@ export function useMapObservability({ mapInstance, activeLayers, lowSystems = []
           }
         });
 
-        if (hasBoundsMismatch || outsideNARegionCount > 0 || hasFailingProjection) {
+        if (hasBoundsMismatch || hasFailingProjection) {
           console.warn(`[PopupSystem][WARN] clipping detected - falling back to global projection mode`);
         }
 

@@ -21,17 +21,17 @@ function getBasin(lat, lng) {
   while (normLng < -180) normLng += 360;
 
   if (lat > 0) {
-    if (normLng >= -100 && normLng <= 20) {
+    if (normLng >= -20 && normLng <= 145) {
+      return 'Eurasia';
+    } else if (normLng < -20 && normLng >= -100) {
       return 'North Atlantic';
-    } else if (normLng > 20 && normLng < 120) {
-      return 'Indian Ocean';
     } else {
       return 'North Pacific';
     }
   } else {
     if (normLng >= -70 && normLng <= 20) {
       return 'South Atlantic';
-    } else if (normLng > 20 && normLng <= 140) {
+    } else if (normLng > 20 && normLng <= 145) {
       return 'Indian Ocean';
     } else {
       return 'South Pacific';
@@ -142,8 +142,10 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         const north = data.bounds.north;
         const west = data.bounds.west;
         const east = data.bounds.east;
+        const isGlobalLng = Math.abs(east - west) >= 350;
 
         const basinPressures = {
+          'Eurasia': [],
           'North Atlantic': [],
           'South Atlantic': [],
           'North Pacific': [],
@@ -164,22 +166,23 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         const basinStats = {};
         for (const [basin, vals] of Object.entries(basinPressures)) {
           if (vals.length === 0) {
-            basinStats[basin] = { lowThresh: 1011, highThresh: 1015, mean: 1013 };
+            basinStats[basin] = { lowThresh: 1012, highThresh: 1014, mean: 1013 };
             continue;
           }
           const sorted = [...vals].sort((a, b) => a - b);
           const mean = vals.reduce((sum, v) => sum + v, 0) / vals.length;
-          const p15 = sorted[Math.floor(sorted.length * 0.15)];
-          const p85 = sorted[Math.floor(sorted.length * 0.85)];
+          // Use p20 and p80 to lower false negative filtering globally and include moderate systems
+          const p20 = sorted[Math.floor(sorted.length * 0.20)];
+          const p80 = sorted[Math.floor(sorted.length * 0.80)];
           
           basinStats[basin] = {
-            lowThresh: Math.min(1011, p15),
-            highThresh: Math.max(1015, p85),
+            lowThresh: Math.min(1012, p20),
+            highThresh: Math.max(1014, p80),
             mean
           };
         }
 
-        // Step 5: Contiguous Component Labeling using BFS (8-neighbor Moore adjacency)
+        // Step 5: Contiguous Component Labeling using BFS (8-neighbor Moore adjacency with global longitude wrapping)
         const visitedLows = Array(denseRows).fill(null).map(() => Array(denseCols).fill(false));
         const visitedHighs = Array(denseRows).fill(null).map(() => Array(denseCols).fill(false));
         
@@ -210,18 +213,26 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                   for (let dx = -1; dx <= 1; dx++) {
                     if (dy === 0 && dx === 0) continue;
                     const ny = curr.y + dy;
-                    const nx = curr.x + dx;
+                    let nx = curr.x + dx;
 
-                    if (ny >= 0 && ny < denseRows && nx >= 0 && nx < denseCols && !visitedLows[ny][nx]) {
-                      const nLat = south + (ny / (denseRows - 1)) * (north - south);
-                      const nLng = west + (nx / (denseCols - 1)) * (east - west);
-                      const nVal = smoothedP[ny][nx];
-                      const nBasin = getBasin(nLat, nLng);
-                      const nStats = basinStats[nBasin];
+                    if (ny >= 0 && ny < denseRows) {
+                      if (isGlobalLng) {
+                        nx = (nx + denseCols) % denseCols;
+                      } else if (nx < 0 || nx >= denseCols) {
+                        continue;
+                      }
 
-                      if (nVal <= nStats.lowThresh) {
-                        visitedLows[ny][nx] = true;
-                        queue.push({ y: ny, x: nx });
+                      if (!visitedLows[ny][nx]) {
+                        const nLat = south + (ny / (denseRows - 1)) * (north - south);
+                        const nLng = west + (nx / (denseCols - 1)) * (east - west);
+                        const nVal = smoothedP[ny][nx];
+                        const nBasin = getBasin(nLat, nLng);
+                        const nStats = basinStats[nBasin];
+
+                        if (nVal <= nStats.lowThresh) {
+                          visitedLows[ny][nx] = true;
+                          queue.push({ y: ny, x: nx });
+                        }
                       }
                     }
                   }
@@ -259,18 +270,26 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                   for (let dx = -1; dx <= 1; dx++) {
                     if (dy === 0 && dx === 0) continue;
                     const ny = curr.y + dy;
-                    const nx = curr.x + dx;
+                    let nx = curr.x + dx;
 
-                    if (ny >= 0 && ny < denseRows && nx >= 0 && nx < denseCols && !visitedHighs[ny][nx]) {
-                      const nLat = south + (ny / (denseRows - 1)) * (north - south);
-                      const nLng = west + (nx / (denseCols - 1)) * (east - west);
-                      const nVal = smoothedP[ny][nx];
-                      const nBasin = getBasin(nLat, nLng);
-                      const nStats = basinStats[nBasin];
+                    if (ny >= 0 && ny < denseRows) {
+                      if (isGlobalLng) {
+                        nx = (nx + denseCols) % denseCols;
+                      } else if (nx < 0 || nx >= denseCols) {
+                        continue;
+                      }
 
-                      if (nVal >= nStats.highThresh) {
-                        visitedHighs[ny][nx] = true;
-                        queue.push({ y: ny, x: nx });
+                      if (!visitedHighs[ny][nx]) {
+                        const nLat = south + (ny / (denseRows - 1)) * (north - south);
+                        const nLng = west + (nx / (denseCols - 1)) * (east - west);
+                        const nVal = smoothedP[ny][nx];
+                        const nBasin = getBasin(nLat, nLng);
+                        const nStats = basinStats[nBasin];
+
+                        if (nVal >= nStats.highThresh) {
+                          visitedHighs[ny][nx] = true;
+                          queue.push({ y: ny, x: nx });
+                        }
                       }
                     }
                   }
@@ -284,18 +303,22 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         }
 
-        // Step 6: Define Centroids, Peak Extrema, and apply Deviation Anti-Spam filters
+        // Step 6: Define Centroids (using antimeridian-safe trigonometric averaging), Peak Extrema, and apply Deviation Anti-Spam filters
         const selectedLows = [];
         candidateLows.forEach(clusterCells => {
           let extremumCell = clusterCells[0];
           let sumLat = 0;
-          let sumLng = 0;
+          let sumCos = 0;
+          let sumSin = 0;
 
           clusterCells.forEach(cell => {
             const cLat = south + (cell.y / (denseRows - 1)) * (north - south);
             const cLng = west + (cell.x / (denseCols - 1)) * (east - west);
             sumLat += cLat;
-            sumLng += cLng;
+            
+            const rad = cLng * (Math.PI / 180);
+            sumCos += Math.cos(rad);
+            sumSin += Math.sin(rad);
 
             if (smoothedP[cell.y][cell.x] < smoothedP[extremumCell.y][extremumCell.x]) {
               extremumCell = cell;
@@ -303,7 +326,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           });
 
           const centroidLat = sumLat / clusterCells.length;
-          const centroidLng = sumLng / clusterCells.length;
+          const centroidLng = Math.atan2(sumSin, sumCos) * (180 / Math.PI);
           const extLat = south + (extremumCell.y / (denseRows - 1)) * (north - south);
           const extLng = west + (extremumCell.x / (denseCols - 1)) * (east - west);
           
@@ -316,8 +339,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 2 hPa
-          if (deviation >= 2) {
+          // Anti-Spam: Deviation must be >= 1.5 hPa (highly responsive to moderate systems)
+          if (deviation >= 1.5) {
             console.log(`[PressureSystem] cluster detected: type=L, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
             selectedLows.push({
               lat: extLat,
@@ -335,13 +358,17 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         candidateHighs.forEach(clusterCells => {
           let extremumCell = clusterCells[0];
           let sumLat = 0;
-          let sumLng = 0;
+          let sumCos = 0;
+          let sumSin = 0;
 
           clusterCells.forEach(cell => {
             const cLat = south + (cell.y / (denseRows - 1)) * (north - south);
             const cLng = west + (cell.x / (denseCols - 1)) * (east - west);
             sumLat += cLat;
-            sumLng += cLng;
+            
+            const rad = cLng * (Math.PI / 180);
+            sumCos += Math.cos(rad);
+            sumSin += Math.sin(rad);
 
             if (smoothedP[cell.y][cell.x] > smoothedP[extremumCell.y][extremumCell.x]) {
               extremumCell = cell;
@@ -349,7 +376,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           });
 
           const centroidLat = sumLat / clusterCells.length;
-          const centroidLng = sumLng / clusterCells.length;
+          const centroidLng = Math.atan2(sumSin, sumCos) * (180 / Math.PI);
           const extLat = south + (extremumCell.y / (denseRows - 1)) * (north - south);
           const extLng = west + (extremumCell.x / (denseCols - 1)) * (east - west);
 
@@ -362,8 +389,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 2 hPa
-          if (deviation >= 2) {
+          // Anti-Spam: Deviation must be >= 1.5 hPa (highly responsive to moderate systems)
+          if (deviation >= 1.5) {
             console.log(`[PressureSystem] cluster detected: type=H, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
             selectedHighs.push({
               lat: extLat,
