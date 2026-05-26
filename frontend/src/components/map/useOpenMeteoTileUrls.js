@@ -288,7 +288,7 @@ export function useOpenMeteoTileUrls({
     }, 50);
   }, [runTransitionsAudit]);
 
-  // Bind MapLibre events and run polling when active/target slots differ
+  // Bind MapLibre events and run audit when active/target slots differ
   useEffect(() => {
     if (!mapInstance) return;
 
@@ -296,20 +296,9 @@ export function useOpenMeteoTileUrls({
     mapInstance.on('idle', checkPendingTransitions);
     checkPendingTransitions();
 
-    let intervalId = null;
-    const activeKeys = Object.keys(activeSlots);
-    const targetKeys = Object.keys(targetSlotsRef.current || {});
-
-    const hasDifference = activeKeys.length !== targetKeys.length || activeKeys.some(k => activeSlots[k] !== targetSlotsRef.current[k]);
-
-    if (hasDifference) {
-      intervalId = setInterval(checkPendingTransitions, 100);
-    }
-
     return () => {
       mapInstance.off('sourcedata', checkPendingTransitions);
       mapInstance.off('idle', checkPendingTransitions);
-      if (intervalId) clearInterval(intervalId);
     };
   }, [mapInstance, activeSlots, omTileUrls, checkPendingTransitions]);
 

@@ -69,7 +69,7 @@ var LS_PRESSURE_KEY = 'rawsurf_pressure_cache_v2'; // v2: bumped to invalidate s
 function persistCache(key, cache) {
   try {
     const slim = { hash: cache.hash, results: cache.results, points: cache.points,
-      gridSize: cache.gridSize, bounds: cache.bounds, timestamp: cache.timestamp, model: cache.model };
+      gridSize: cache.gridSize, bounds: cache.bounds, timestamp: cache.timestamp, model: cache.model, isGlobal: cache.isGlobal };
     localStorage.setItem(key, JSON.stringify(slim));
   } catch (e) { /* localStorage full or unavailable ignore */ }
 }
@@ -206,6 +206,9 @@ export function isContainedInWindCache(bounds, model) {
   if (!bounds || !windHourlyCache.bounds || !windHourlyCache.results) return false;
   if (windHourlyCache.model !== (model || 'GFS')) return false;
   if (Date.now() - windHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
+  const isGlobalCached = !!windHourlyCache.isGlobal;
+  const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
+  if (isGlobalCached !== isGlobalViewport) return false;
   return isViewportInsideCachedBounds(bounds, windHourlyCache.bounds);
 }
 
@@ -213,6 +216,9 @@ export function isContainedInMarineCache(bounds, model) {
   if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
   if (marineHourlyCache.model !== (model || 'GFS')) return false;
   if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
+  const isGlobalCached = !!marineHourlyCache.isGlobal;
+  const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
+  if (isGlobalCached !== isGlobalViewport) return false;
   return isViewportInsideCachedBounds(bounds, marineHourlyCache.bounds);
 }
 
@@ -220,6 +226,9 @@ export function isContainedInPressureCache(bounds, model) {
   if (!bounds || !pressureHourlyCache.bounds || !pressureHourlyCache.results) return false;
   if (pressureHourlyCache.model !== (model || 'GFS')) return false;
   if (Date.now() - pressureHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
+  const isGlobalCached = !!pressureHourlyCache.isGlobal;
+  const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
+  if (isGlobalCached !== isGlobalViewport) return false;
   return isViewportInsideCachedBounds(bounds, pressureHourlyCache.bounds);
 }
 
@@ -550,7 +559,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       hash: viewHash, results, points, gridSize,
       bounds: gridBounds,
       timestamp: Date.now(),
-      model: model || 'GFS'
+      model: model || 'GFS',
+      isGlobal
     };
     persistCache(LS_WIND_KEY, windHourlyCache);
 
@@ -809,7 +819,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     marineHourlyCache = {
       hash: viewHash, results: allResults, points, gridSize,
       bounds: gridBounds, timestamp: Date.now(),
-      model: model || 'GFS'
+      model: model || 'GFS',
+      isGlobal
     };
     persistCache(LS_MARINE_KEY, marineHourlyCache);
 
@@ -977,7 +988,8 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
       hash: viewHash, results, points, gridSize,
       bounds: gridBounds,
       timestamp: Date.now(),
-      model: model || 'GFS'
+      model: model || 'GFS',
+      isGlobal
     };
     persistCache(LS_PRESSURE_KEY, pressureHourlyCache);
 
