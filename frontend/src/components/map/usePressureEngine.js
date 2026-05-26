@@ -171,13 +171,13 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
           const sorted = [...vals].sort((a, b) => a - b);
           const mean = vals.reduce((sum, v) => sum + v, 0) / vals.length;
-          // Use p20 and p80 to lower false negative filtering globally and include moderate systems
+          // Use p20 and p75 to lower false negative filtering globally and include moderate/secondary systems
           const p20 = sorted[Math.floor(sorted.length * 0.20)];
-          const p80 = sorted[Math.floor(sorted.length * 0.80)];
+          const p75 = sorted[Math.floor(sorted.length * 0.75)];
           
           basinStats[basin] = {
             lowThresh: Math.min(1012, p20),
-            highThresh: Math.max(1014, p80),
+            highThresh: Math.max(1013.5, p75),
             mean
           };
         }
@@ -389,8 +389,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 1.5 hPa (highly responsive to moderate systems)
-          if (deviation >= 1.5) {
+          // Anti-Spam: Deviation must be >= 1.2 hPa (highly responsive to moderate/secondary highs)
+          if (deviation >= 1.2) {
             console.log(`[PressureSystem] cluster detected: type=H, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
             selectedHighs.push({
               lat: extLat,
