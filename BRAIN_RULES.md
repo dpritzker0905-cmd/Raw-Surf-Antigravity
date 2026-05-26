@@ -165,6 +165,13 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 
 ### 21. Unified Memory & Codebase Context Rules (Mind, Trevec, Memstate)
 * **Recover (Session Start)**: You must check for active checkpoints using `checkpoint_query` first thing on startup, and load the correct checkpoint using `checkpoint_load` to instantly restore context.
+  * **Memory Ingestion Checklist**: Ensure the following newly installed local memory architectures are fully initialized and checked:
+    1. **Mind MCP Server** (Bun run stdio) & **Trevec CLI** (local structural codebase graph).
+    2. **treesitter-mcp** (Code Analysis parsing server: `treesitter_analyze_file`, `treesitter_get_ast`).
+    3. **docker-mcp gateway** (running under `--profile ai_coding`).
+    4. **Memgraph Platform** (MAGE graph analytics: `c:\Users\dprit\Raw-Surf\memgraph-platform`).
+    5. **Qdrant Vector Cluster** (AWS-hosted semantic search: `tools/qdrant-vector-db`).
+    6. **LangSmith Tracing** (smith.langchain.com LLM logs: `tools/langsmith-tracing`).
 * **Orient (Retrieve Context)**: Proactively call `get_context` or `search_code` (Trevec) to retrieve relevant file locations, dependency graphs, and structural context before reading raw files. Run `read_file_topology` before editing any file to inspect existing imports and function boundaries.
 * **AST & Code Parsing Tools**: Proactively utilize the `treesitter-mcp` CLI/server (installed at `C:\Users\dprit\AppData\Roaming\Python\Python314\Scripts\treesitter-mcp.exe`) to execute deep tree-sitter based analysis (`treesitter_analyze_file`, `treesitter_get_ast`) when doing granular syntax audits or dependency extractions.
 * **Docker & Graph Platforms**: Leverage the active `docker-mcp` gateway running under the `ai_coding` profile for containerized environment context. When graph-based visual queries or MAGE modeling are required, Memgraph Platform files are pre-staged in `c:\Users\dprit\Raw-Surf\memgraph-platform` (ports: Bolt `7687`, Lab `3000`). If WSL Service throws error code `Wsl/0x80070422`, ensure `WslService` startup type is flipped from `Disabled` to `Manual`/`Automatic`.
