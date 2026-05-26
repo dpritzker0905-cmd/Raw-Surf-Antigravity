@@ -41,6 +41,13 @@ These rules govern the use of our local memory layers (**Trevec**, **Mind**, and
 
 ---
 
+## 4. Docker MCP Gateway & Containerized Memory
+**Purpose**: High-performance containerized tool hosting, profile isolation, and secure server management.
+*   **Command**: `docker mcp gateway run --profile ai_coding`
+*   **Usage**: Proactively utilize the active `docker-mcp` gateway running under the `ai_coding` profile for unified container environment context, dynamic tool installation, and secure server isolation.
+
+---
+
 ## 💼 Memory Dispatch Guidelines
 
 | Task Type | Target System | Recommended Action / Tool |
@@ -48,6 +55,7 @@ These rules govern the use of our local memory layers (**Trevec**, **Mind**, and
 | **Code Research / Symbol Lookup** | **Trevec** | `get_context`, `search_code`, `read_file_topology` |
 | **Session Start / Recovery** | **Mind** | `checkpoint_query` ➔ `checkpoint_load` |
 | **Decisions, Bugfixes, Discoveries** | **Mind** | `memory_add` with tags and links (`links_to`) |
+| **Containerized Tools & Gateway** | **Docker Gateway** | `docker mcp gateway run --profile ai_coding` |
 | **Task Progress Updates** | **Mind** | `checkpoint_save` (update `pending` / `notes`) |
 | **Session Closure / Summary** | **Mind** | `checkpoint_done` with completed summary |
 | **Stack Constraints / Tech Specs** | **Memstate** | `memstate_remember` at structured keypath |
