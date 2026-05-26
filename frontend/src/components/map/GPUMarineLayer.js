@@ -439,8 +439,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (p.lng < -180) p.lng += 360;
 
         // Post-advection land kill: catch particles that drifted across coastlines during advection.
-        // Uses precise, highly optimized land-checking which combines fast grid checks and MapLibre.
-        if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
+        // Fast, O(1) grid-based check is extremely performant for high-frequency animation frames.
+        if (wave.isOcean < 0.5) {
           pts[i] = spawn();
           continue;
         }
