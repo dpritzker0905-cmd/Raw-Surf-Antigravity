@@ -50,7 +50,7 @@ function normalizeLng(lng) {
   return norm;
 }
 
-// Check if a coordinate is on land by querying the map style layer ocean-mask-fill
+// Check if a coordinate is on land by querying the map style layer water or ocean-mask-fill
 function checkIsLandCoord(lat, lng, mapInstance) {
   if (mapInstance && typeof window !== 'undefined') {
     try {
@@ -65,7 +65,20 @@ function checkIsLandCoord(lat, lng, mapInstance) {
         const width = container.clientWidth;
         const height = container.clientHeight;
         if (pt.x >= 0 && pt.x <= width && pt.y >= 0 && pt.y <= height) {
-          if (mapInstance.getLayer('ocean-mask-fill')) {
+          if (mapInstance.getLayer('water')) {
+            const features = mapInstance.queryRenderedFeatures(pt, { layers: ['water'] });
+            if (features && features.length > 0) {
+              const cls = features[0].properties?.class || '';
+              const isOceanBody = cls === 'ocean' || cls === 'sea' || cls === 'major_body' || cls === '';
+              if (isOceanBody) {
+                return false; // Ocean/sea -> Not land
+              } else {
+                return true; // Inland freshwater -> Land (block markers over freshwater)
+              }
+            } else {
+              return true; // No water feature -> Land terrain -> Block markers
+            }
+          } else if (mapInstance.getLayer('ocean-mask-fill')) {
             const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
             return features && features.length > 0;
           }
@@ -82,24 +95,24 @@ function getAdaptiveThreshold(lat, type) {
   if (type === 'H') {
     // Southern Hemisphere Subtropical Highs (very flat and wide ocean basins)
     if (lat < 0 && absLat >= 10 && absLat <= 45) {
-      return 0.20; // lower threshold for South Atlantic, South Pacific, Indian Ocean highs
+      return 0.15; // lowered from 0.20
     }
     // Northern Hemisphere Subtropical Highs (Azores, Bermuda)
     if (lat >= 0 && absLat >= 10 && absLat <= 45) {
-      return 0.30;
+      return 0.20; // lowered from 0.30
     }
     // Siberian / continental Asian highs (usually very strong but wide)
     if (lat >= 0 && absLat > 45 && absLat <= 70) {
-      return 0.40;
+      return 0.25; // lowered from 0.40
     }
     // Default Highs
-    return 0.50;
+    return 0.35; // lowered from 0.50
   } else {
     // Lows
     if (absLat >= 10 && absLat <= 45) {
-      return 0.45;
+      return 0.30; // lowered from 0.45
     }
-    return 0.65;
+    return 0.45; // lowered from 0.65
   }
 }
 

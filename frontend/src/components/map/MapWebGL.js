@@ -370,6 +370,7 @@ var MapWebGL = ({
           activeMarineLayer={activeMarineLayer}
           theme={theme}
           beforeId={marineBeforeId || undefined}
+          activeLayers={activeLayers}
         />
 
         {/* Geofence Visual Layer */}

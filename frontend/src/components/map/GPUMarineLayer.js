@@ -46,9 +46,12 @@ function isWithinGridBounds(lat, lng, grid) {
 /**
  * Bilinear interpolation on marine grid.
  */
-function interpolateMarine(grid, lng, lat, mapInstance) {
+function interpolateMarine(grid, lng, lat, mapInstance, fast = false) {
   // Hard block land advection: return zero motion if coordinate is on land
-  if (checkIsLand(lat, lng, mapInstance, grid)) {
+  const onLand = fast 
+    ? (grid && isWithinGridBounds(lat, lng, grid) && !isLikelyOcean(lat, lng, grid))
+    : checkIsLand(lat, lng, mapInstance, grid);
+  if (onLand) {
     return { u: 0, v: 0, speed: 0 };
   }
 
@@ -411,17 +414,17 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const p = pts[i];
         p.age += dt;
 
-        // 1. Strict Land Mask Check before wave checks
-        if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
-          if (Math.random() < 0.005) {
-            console.log(`[Marine] blocked by land mask`);
-          }
+        // 1. Strict Land Mask Check before wave checks (optimized O(1) grid lookup)
+        const isLandInitial = (grid && isWithinGridBounds(p.lat, p.lng, grid))
+          ? !isLikelyOcean(p.lat, p.lng, grid)
+          : false;
+        if (isLandInitial) {
           pts[i] = spawn();
           continue;
         }
 
-        // Interpolate wave vector at particle position
-        const wave = interpolateMarine(grid, p.lng, p.lat, mapInstance);
+        // Interpolate wave vector at particle position (fast mode)
+        const wave = interpolateMarine(grid, p.lng, p.lat, mapInstance, true);
 
         // 2. Wave height > threshold check
         if (wave.speed <= 0.001 || !Number.isFinite(wave.speed) || !Number.isFinite(wave.u) || !Number.isFinite(wave.v)) {
@@ -432,12 +435,12 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           continue;
         }
 
-        // Staggered land check: every 10 frames per particle.
+        // Staggered land check: every 10 frames per particle (optimized O(1) grid lookup).
         if ((frameCount + i) % 10 === 0) {
-          if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
-            if (Math.random() < 0.005) {
-              console.log(`[Marine] blocked by land mask`);
-            }
+          const isLandStaggered = (grid && isWithinGridBounds(p.lat, p.lng, grid))
+            ? !isLikelyOcean(p.lat, p.lng, grid)
+            : false;
+          if (isLandStaggered) {
             pts[i] = spawn();
             continue;
           }
@@ -464,11 +467,11 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
 
-        // Post-advection land mask check right before drawing to prevent edge bleed!
-        if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
-          if (Math.random() < 0.005) {
-            console.log(`[Marine] blocked by land mask`);
-          }
+        // Post-advection land mask check right before drawing to prevent edge bleed! (optimized O(1) grid lookup)
+        const isLandPost = (grid && isWithinGridBounds(p.lat, p.lng, grid))
+          ? !isLikelyOcean(p.lat, p.lng, grid)
+          : false;
+        if (isLandPost) {
           pts[i] = spawn();
           continue;
         }

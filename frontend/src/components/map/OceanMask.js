@@ -61,8 +61,8 @@ const safeMoveLayer = (mapInstance, layerId, beforeId) => {
 };
 
 // Reposition base map landuse/park fills dynamically on top of the solid land mask
-const repositionLanduse = (mapInstance) => {
-  if (!mapInstance) return;
+const repositionLanduse = (mapInstance, active) => {
+  if (!mapInstance || active) return;
   try {
     const style = mapInstance.getStyle();
     if (!style || !style.layers) return;
@@ -110,7 +110,7 @@ const waterFilter = [
   true
 ];
 
-export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId }) {
+export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId, activeLayers = [] }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
@@ -180,13 +180,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   }, []);
 
   // Maintain a stateRef updated on every render to completely prevent stale closure races
-  const stateRef = useRef({ mapInstance, active, theme, beforeId, maskData });
+  const stateRef = useRef({ mapInstance, active, theme, beforeId, maskData, activeLayers });
   useEffect(() => {
-    stateRef.current = { mapInstance, active, theme, beforeId, maskData };
+    stateRef.current = { mapInstance, active, theme, beforeId, maskData, activeLayers };
   });
 
   const syncLayers = useCallback(() => {
-    const { mapInstance, active, theme, beforeId, maskData } = stateRef.current;
+    const { mapInstance, active, theme, beforeId, maskData, activeLayers } = stateRef.current;
     if (!mapInstance) {
       console.log('[OceanMask] syncLayers bypassed, no map');
       return;
@@ -421,7 +421,23 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         }
 
         // 6. Dynamically restore base map parks, forests, and green space fills
-        repositionLanduse(mapInstance);
+        repositionLanduse(mapInstance, active);
+
+        // Toggle base map fill layers containing landuse/park keywords
+        const isParksEnabled = activeLayers.includes('parks') || activeLayers.includes('landuse');
+        if (style && style.layers) {
+          for (const layer of style.layers) {
+            const id = layer.id.toLowerCase();
+            const isLanduse = landuseKeywords.some(kw => id.includes(kw));
+            if (isLanduse && layer.type === 'fill') {
+              if (active && !isParksEnabled) {
+                try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'none'); } catch (e) {}
+              } else {
+                try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch (e) {}
+              }
+            }
+          }
+        }
 
         // 7. Force slot-based active marine raster layers ABOVE buffer but BELOW land fill
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
@@ -435,6 +451,17 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         for (const lid of historicalLayers) {
           if (mapInstance.getLayer(lid)) {
             try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
+          }
+        }
+
+        // Also restore all base map fill layers containing landuse/park keywords to visible
+        if (style && style.layers) {
+          for (const layer of style.layers) {
+            const id = layer.id.toLowerCase();
+            const isLanduse = landuseKeywords.some(kw => id.includes(kw));
+            if (isLanduse && layer.type === 'fill') {
+              try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch (e) {}
+            }
           }
         }
       }
@@ -475,12 +502,27 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
             try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
           }
         }
+
+        // Restore all base map fill layers containing landuse/park keywords to visible
+        try {
+          const style = mapInstance.getStyle();
+          if (style && style.layers) {
+            for (const layer of style.layers) {
+              const id = layer.id.toLowerCase();
+              const isLanduse = landuseKeywords.some(kw => id.includes(kw));
+              if (isLanduse && layer.type === 'fill') {
+                try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch (e) {}
+              }
+            }
+          }
+        } catch (e) {}
+
         setTimeout(() => { syncingRef.current = false; }, 300);
       }
     } else {
       triggerSync(0);
     }
-  }, [mapInstance, active, theme, beforeId, maskData, triggerSync]);
+  }, [mapInstance, active, theme, beforeId, maskData, triggerSync, activeLayers]);
 
   // Re-run sync on styles data changes
   useEffect(() => {
