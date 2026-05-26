@@ -434,6 +434,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const speedScaleX = Math.max(1.0e-5, baseScale / lngSpan);
   const speedScaleY = Math.max(1.0e-5, baseScale / latSpan);
 
+  if (this.frameCount === undefined) this.frameCount = 0;
+  this.frameCount++;
+  if (this.frameCount % 60 === 0) {
+    console.log(`[WIND-TELEMETRY] Frame: ${this.frameCount} | RAF tick executed | update() advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | velocity field bounds: min = [${this._windData.uMin[0].toFixed(2)}, ${this._windData.uMin[1].toFixed(2)}], max = [${this._windData.uMax[0].toFixed(2)}, ${this._windData.uMax[1].toFixed(2)}] | particle buffer mutated (State A/B ping-pong active) | draw call: gl.drawArrays(POINTS, 0, ${this.particleRes * this.particleRes}) | shader active: advectProgram + drawProgram + fadeProgram + screenProgram | uniforms: u_speed_scale, u_rand_seed, u_matrix, u_fade`);
+  }
+
   // Step 1: Advect particles (ping-pong)
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);

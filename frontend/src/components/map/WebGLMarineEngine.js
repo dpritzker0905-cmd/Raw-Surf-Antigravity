@@ -526,6 +526,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   const speedScaleX = Math.max(3.0e-4, baseScale / lngSpan);
   const speedScaleY = Math.max(3.0e-4, baseScale / latSpan);
 
+  if (this.frameCount === undefined) this.frameCount = 0;
+  this.frameCount++;
+  if (this.frameCount % 60 === 0) {
+    console.log(`[MARINE-TELEMETRY] Frame: ${this.frameCount} | RAF tick executed | wave/swell update advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | interpolation step: GFS-Wave / WW3 ocean grid bilinear lookup | particle buffer mutated (State A/B ping-pong active) | draw call: gl.drawElements(TRIANGLES, ${this.numGridIndices}, UNSIGNED_SHORT) (heatmap) + gl.drawArrays(LINES, 0, ${this.particleRes * this.particleRes * 2}) (crests) | shader active: heatmapProgram + advectProgram + drawProgram | uniforms: u_matrix, u_opacity, u_speed_scale, u_rand_seed, u_drop_rate`);
+  }
+
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_marine_grid'), 1);

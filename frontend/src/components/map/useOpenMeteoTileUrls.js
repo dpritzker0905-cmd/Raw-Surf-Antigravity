@@ -364,7 +364,10 @@ export function useOpenMeteoTileUrls({
 
   // Debounced model transition and block cache clear
   useEffect(() => {
-    if (!activeModel) return;
+    if (!activeModel) {
+      setIsTransitioning(false);
+      return;
+    }
     
     // Model Set Dedupe Guard (Request 2)
     if (lastProcessedModelRef.current === activeModel) {

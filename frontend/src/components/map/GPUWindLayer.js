@@ -1,4 +1,4 @@
-﻿// Data fetching has been moved to WeatherEngine.js to decouple from MapLibre events.
+// Data fetching has been moved to WeatherEngine.js to decouple from MapLibre events.
 // This file now only handles the GPU/Canvas particle rendering.
 
 /**
@@ -478,8 +478,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
         pointerEvents: 'none',
         zIndex: 5,
         // Opacity is driven synchronously by MapWebGL.js shared weather animation clock
-        opacity: 0,
-        transition: 'none'
+        opacity: active ? 1 : 0,
+        transition: 'opacity 0.3s ease'
       }}
     />
   );

@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
@@ -80,17 +80,19 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
     function validateSnapshot(s) {
       const violations = [];
 
-      // RULE 1: Only ONE overall weather raster layer visible at a time
+      // RULE 1: Only ONE overall weather raster family visible at a time
       // Filter to only our custom sources (they all end with '-source') and ignore the base satellite layer
       const visibleRasters = s.visibleRasterSources.filter(src => 
         typeof src === 'string' && src.endsWith('-source') && src !== 'satellite-source' && src !== 'esri-satellite-source'
       );
-      if (visibleRasters.length > 1) {
+      // Group by base layer family (e.g. 'wind', 'waves', 'pressure') to prevent false alerts on slot preloading
+      const baseFamilies = Array.from(new Set(visibleRasters.map(src => src.split('-')[0])));
+      if (baseFamilies.length > 1) {
         violations.push({
           layerId: s.activeLayer,
           type: "RASTER_OVERLAP",
           sources: visibleRasters,
-          hint: "Multiple raster layers visible simultaneously"
+          hint: `Multiple raster families visible: ${baseFamilies.join(', ')}`
         });
       }
 

@@ -18,7 +18,8 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { resolveForecastWindow } from './LayerAccessResolver';
-import { markDOMReady } from '../../engine/init-sequencer';
+import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
+import { initEngine } from '../../engine/engine-bootstrap';
 import { useTemporalPreloader } from './useTemporalPreloader';
 
 // Custom Hooks for Modularization (Rule <800 LOC Compliance)
@@ -225,6 +226,40 @@ var MapWebGL = ({
 
   // Global Render Contract single source of truth for map readiness
   useMapRenderContract(mapInstance);
+
+  // Controlled Engine Bootstrap v2 Start
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    const tryInit = () => {
+      const state = getInitState();
+      if (state === 'map-ready' || state === 'engine-ready' || state === 'layers-ready' || state === 'complete') {
+        try {
+          console.log('[MapWebGL] Sequencer is map-ready! Bootstrapping Weather Engine...');
+          initEngine({
+            mapInstance,
+            config: { userTier }
+          });
+          return true;
+        } catch (err) {
+          console.error('[MapWebGL] Weather Engine bootstrap error:', err);
+        }
+      }
+      return false;
+    };
+
+    if (tryInit()) return;
+
+    const unsubscribe = onStateChange((state) => {
+      if (state === 'map-ready') {
+        if (tryInit()) {
+          unsubscribe();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [mapInstance, userTier]);
 
   // Self-healing observability for MapLibre errors and WebGL context events
   useEffect(() => {
