@@ -12,7 +12,7 @@ import logger from '../utils/logger';
 
 const MODEL_MAP = {
   GFS:  'gfs_seamless',
-  EURO: 'ecmwf_ifs025',
+  EURO: 'ecmwf_ifs',
   ICON: 'dwd_icon',
 };
 
@@ -27,6 +27,7 @@ const WEATHER_VARS = [
   'wind_direction_10m',
   'wind_gusts_10m',
   'surface_pressure',
+  'pressure_msl',
 ].join(',');
 
 const CURRENT_WEATHER_VARS = 'wind_speed_10m,wind_direction_10m,wind_gusts_10m';
@@ -231,8 +232,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             
             Object.keys(baseHourly).forEach(key => {
               if (Array.isArray(baseHourly[key])) {
-                if (!selHourly[key] || selHourly[key].length === 0) {
-                  // Fall back and copy the entire base GFS array if the regional model lacks this variable entirely
+                const isAllNull = Array.isArray(selHourly[key]) && selHourly[key].every(v => v === null || v === undefined);
+                if (!selHourly[key] || selHourly[key].length === 0 || isAllNull) {
+                  // Fall back and copy the entire base GFS array if the regional model lacks this variable entirely or returns only nulls
                   selHourly[key] = [...baseHourly[key]];
                 } else {
                   const stitchedArray = [...selHourly[key]];
@@ -266,8 +268,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             
             Object.keys(baseHourly).forEach(key => {
               if (Array.isArray(baseHourly[key])) {
-                if (!selHourly[key] || selHourly[key].length === 0) {
-                  // Fall back and copy the entire base GFS Wave array if the regional model lacks this variable entirely
+                const isAllNull = Array.isArray(selHourly[key]) && selHourly[key].every(v => v === null || v === undefined);
+                if (!selHourly[key] || selHourly[key].length === 0 || isAllNull) {
+                  // Fall back and copy the entire base GFS Wave array if the regional model lacks this variable entirely or returns only nulls
                   selHourly[key] = [...baseHourly[key]];
                 } else {
                   const stitchedArray = [...selHourly[key]];

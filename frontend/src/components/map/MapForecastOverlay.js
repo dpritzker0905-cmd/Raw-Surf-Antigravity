@@ -140,7 +140,7 @@ export var MapForecastOverlay = ({
   const precip = getClampedValue(wx.precipitation, currentHourIndex);
   const snowfall = getClampedValue(wx.snowfall, currentHourIndex);
   const temp = getClampedValue(wx.temperature_2m, currentHourIndex);
-  const pressure = getClampedValue(wx.surface_pressure, currentHourIndex);
+  const pressure = getClampedValue(wx.pressure_msl, currentHourIndex) ?? getClampedValue(wx.surface_pressure, currentHourIndex);
 
   const marineCurrent = marineData?.current || {};
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);

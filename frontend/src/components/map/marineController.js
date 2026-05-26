@@ -486,7 +486,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const lons = points.map(p => p.reqLng);
 
     // Open-Meteo model identifiers
-    const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs025', ICON: 'dwd_icon' };
+    const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs', ICON: 'dwd_icon' };
 
     console.log(`[Wind] POST via proxy: ${points.length} grid points, forecast_days=${forecastDays}, model=${model || 'GFS'}`);
 
@@ -921,7 +921,7 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
     const lons = points.map(p => p.reqLng);
 
     // Open-Meteo model identifiers
-    const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs025', ICON: 'dwd_icon' };
+    const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs', ICON: 'dwd_icon' };
 
     console.log(`[Pressure] POST via proxy: ${points.length} grid points, forecast_days=${forecastDays}, model=${model || 'GFS'}`);
 
