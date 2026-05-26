@@ -321,6 +321,16 @@ export function useOpenMeteoTileUrls({
     return isNaN(resultIdx) ? 0 : resultIdx;
   }, [activeModel, debouncedTimeOffsetHours, metadataRevision]);
   
+  const activeMarineLayerRef = useRef(activeMarineLayer);
+  useEffect(() => {
+    activeMarineLayerRef.current = activeMarineLayer;
+  }, [activeMarineLayer]);
+
+  const debouncedTimeOffsetHoursRef = useRef(debouncedTimeOffsetHours);
+  useEffect(() => {
+    debouncedTimeOffsetHoursRef.current = debouncedTimeOffsetHours;
+  }, [debouncedTimeOffsetHours]);
+
   useEffect(() => {
     closestTimeIdxRef.current = closestTimeIdx;
   }, [closestTimeIdx]);
@@ -332,6 +342,7 @@ export function useOpenMeteoTileUrls({
     // Model Set Dedupe Guard (Request 2)
     if (lastProcessedModelRef.current === activeModel) {
       console.log(`[MODEL] Model ${activeModel} already active, skipping re-init`);
+      setIsTransitioning(false); // Safety exit to prevent permanent transition state deadlock
       return;
     }
     
@@ -384,8 +395,8 @@ export function useOpenMeteoTileUrls({
                     const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
                     const opacityExpression = getOpacityExpression(layerKey, isMarine);
                     
-                    const dampingFactor = debouncedTimeOffsetHours > 240
-                      ? Math.max(0.3, 1.0 - (debouncedTimeOffsetHours - 240) * 0.005)
+                    const dampingFactor = debouncedTimeOffsetHoursRef.current > 240
+                      ? Math.max(0.3, 1.0 - (debouncedTimeOffsetHoursRef.current - 240) * 0.005)
                       : 1.0;
                     const finalOpacity = dampingFactor !== 1.0
                       ? opacityExpression.map((val, idx) => (idx >= 4 && idx % 2 === 0 && typeof val === 'number' ? val * dampingFactor : val))
@@ -408,7 +419,7 @@ export function useOpenMeteoTileUrls({
                     mapInstance.setLayoutProperty('wind-particle-overlay', 'visibility', 'visible');
                     mapInstance.setPaintProperty('wind-particle-overlay', 'raster-opacity', 0.25);
                   }
-                  if (activeMarineLayer && mapInstance.getLayer('marine-canvas-layer')) {
+                  if (activeMarineLayerRef.current && mapInstance.getLayer('marine-canvas-layer')) {
                     mapInstance.setLayoutProperty('marine-canvas-layer', 'visibility', 'visible');
                     mapInstance.setPaintProperty('marine-canvas-layer', 'raster-opacity', 0.85);
                   }
@@ -462,7 +473,7 @@ export function useOpenMeteoTileUrls({
         clearTimeout(modelDebounceTimeoutRef.current);
       }
     };
-  }, [activeModel, mapInstance, activeMarineLayer, debouncedTimeOffsetHours]);
+  }, [activeModel, mapInstance]);
 
   // URL resolution logic
   const loggedFallbacks = useRef(new Set());
