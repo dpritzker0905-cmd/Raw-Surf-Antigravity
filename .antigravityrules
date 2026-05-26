@@ -190,10 +190,16 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
   - **NEVER** let a session end without calling `checkpoint_done` to log a session summary.
   - **NEVER** create a Mind memory without at least one tag (e.g. `cat:decision`).
   - **ALWAYS** check file topology (`read_file_topology`) before editing a file.
+  - **NEVER** stage, commit, or push changes directly to the `main` production branch. All updates, fixes, and rules modifications must be pushed exclusively to the `dev` branch.
+
+### 22. Git Branching & Deployment Constraints
+* **Exclusive Dev Branch Target**: AI assistants are strictly forbidden from staging, committing, or pushing any codebase modifications directly to the `main` branch. All branch targets for git push operations must be explicitly set to `dev` (`git push origin dev`).
+* **Dev Environment Targeting**: All production build verifications, local Netlify previews, and local server actions must explicitly target the `dev` environment or branch state. The `main` branch remains locked for manual gatekeeper verification and staging release controls.
 
 ---
 
 > [!IMPORTANT]
 > The MCP Maximize Protocol operates as a primary system binding. AI assistants must always inspect this rules checklist on each turn to preserve clean agent capabilities.
+
 
 
