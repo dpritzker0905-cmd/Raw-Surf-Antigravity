@@ -87,6 +87,7 @@ import { useRasterAnchorInsertion } from './useRasterAnchorInsertion';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
 import { usePressureEngine } from './usePressureEngine';
+import { useMapObservability } from './useMapObservability';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -139,6 +140,14 @@ var MapWebGL = ({
     activeLayers,
     timeOffsetHours,
     activeModel
+  });
+
+  useMapObservability({
+    mapInstance,
+    activeLayers,
+    lowSystems,
+    highSystems,
+    activeSystemPopup
   });
 
   // 2. Map View State tracking and FlyTo updates
