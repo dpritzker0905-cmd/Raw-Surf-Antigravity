@@ -57,17 +57,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     };
 
     const attemptFetch = async () => {
+      // Scrubbing mode hard freeze (Request 3)
+      if (window.isScrubbingTimeline) {
+        console.log("[SCRUB] [FETCH] Wind fetch suppressed during active scrubbing");
+        return;
+      }
+
       if (cancelled) return;
 
       // Check if wind is currently active
       if (!isWindActive) {
         return; // Return immediately to allow zero-overhead sleeping when wind is inactive
-      }
-
-      // Scrubbing mode hard freeze (Request 3)
-      if (window.isScrubbingTimeline) {
-        console.log("[SCRUB] [FETCH] Wind fetch suppressed during active scrubbing");
-        return;
       }
 
       const bounds = getBounds();
@@ -170,6 +170,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     let timer = null;
 
     const onMoveEnd = () => {
+      if (window.isScrubbingTimeline) return;
       if (timer) {
         clearTimeout(timer);
       }

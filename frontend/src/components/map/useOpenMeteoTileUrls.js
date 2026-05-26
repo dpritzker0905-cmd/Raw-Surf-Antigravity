@@ -87,7 +87,7 @@ export function useOpenMeteoTileUrls({
     }
 
     if (diff < 120) {
-      // Rapid dragging / scrubbing timeline slider: debounce by 200ms
+      // Rapid dragging / scrubbing timeline slider: debounce by 300ms (Fix 4)
       isScrubbingRef.current = true;
       window.isScrubbingTimeline = true;
       WeatherTelemetry.trackAnimationScrub(timeOffsetHours);
@@ -95,7 +95,7 @@ export function useOpenMeteoTileUrls({
         isScrubbingRef.current = false;
         window.isScrubbingTimeline = false;
         setDebouncedTimeOffsetHours(timeOffsetHours);
-      }, 200);
+      }, 300);
     } else {
       // Single click/tap or slow adjustment: update instantly
       isScrubbingRef.current = false;
@@ -140,14 +140,21 @@ export function useOpenMeteoTileUrls({
   const activeLayersRef = useRef(activeLayers);
   activeLayersRef.current = activeLayers;
 
+  // transitionQueue system for de-duplicating and batching transitions in a single frame tick (Fix 2 & 5)
+  const transitionQueueRef = useRef([]);
+
   const runTransitionsAudit = useCallback(() => {
     if (!mapInstance) return;
+
+    // Hard Scrub Lock: Disable all raster transitions while timeline scrubbing is active (Fix 1)
+    if (window.isScrubbingTimeline) {
+      return;
+    }
 
     const currentActive = activeSlotsRef.current || {};
     const targets = targetSlotsRef.current || {};
     const urls = omTileUrlsRef.current || {};
     let changed = false;
-    const nextActive = { ...currentActive };
     const now = Date.now();
 
     Object.keys(targets).forEach(layerKey => {
@@ -176,9 +183,6 @@ export function useOpenMeteoTileUrls({
       try {
         if (mapInstance.getSource(sourceId)) {
           const mapSource = mapInstance.getSource(sourceId);
-          // Only transition if the MapLibre source URL matches the target URL,
-          // which ensures MapLibre has processed the react-map-gl commit update,
-          // and isSourceLoaded is actually true for the NEW tile set.
           const urlsMatch = mapSource && mapSource.url === targetUrl;
           if (urlsMatch && mapInstance.isSourceLoaded(sourceId) === true) {
             isLoaded = true;
@@ -201,9 +205,18 @@ export function useOpenMeteoTileUrls({
           lastTransitionKey = transitionKey;
           lastTransitionTimestamp = nowMs;
 
-          nextActive[layerKey] = targetSlot;
-          delete transitionStartTimesRef.current[layerKey];
-          changed = true;
+          // Push cold-start transition to the batched queue (Fix 2)
+          const exists = transitionQueueRef.current.some(t => t.layerKey === layerKey && t.targetSlot === targetSlot);
+          if (!exists) {
+            transitionQueueRef.current.push({
+              layerKey,
+              activeSlot: undefined,
+              targetSlot,
+              timestamp: nowMs
+            });
+            delete transitionStartTimesRef.current[layerKey];
+            changed = true;
+          }
         }
         return;
       }
@@ -223,15 +236,46 @@ export function useOpenMeteoTileUrls({
         lastTransitionKey = transitionKey;
         lastTransitionTimestamp = nowMs;
 
-        console.log(`[TRANSITION] [Raster Transition] Transitioning layer '${layerKey}' from slot ${activeSlot} to ${targetSlot}. Reason: Loaded=${isLoaded}, Transparent=${isTransparent}, Timeout=${isTimeout} (${elapsed}ms)`);
-        nextActive[layerKey] = targetSlot;
-        delete transitionStartTimesRef.current[layerKey];
-        changed = true;
+        // Push standard transition to the batched queue (Fix 2)
+        const exists = transitionQueueRef.current.some(t => t.layerKey === layerKey && t.targetSlot === targetSlot);
+        if (!exists) {
+          transitionQueueRef.current.push({
+            layerKey,
+            activeSlot,
+            targetSlot,
+            timestamp: nowMs
+          });
+          delete transitionStartTimesRef.current[layerKey];
+          changed = true;
+        }
       }
     });
 
-    if (changed) {
-      setActiveSlots(nextActive);
+    if (changed && transitionQueueRef.current.length > 0) {
+      // Coalesce / batch all transitions in a single frame tick (Fix 2 & 5)
+      requestAnimationFrame(() => {
+        if (window.isScrubbingTimeline) {
+          transitionQueueRef.current = [];
+          return;
+        }
+
+        const nextActive = { ...activeSlotsRef.current };
+        let applied = false;
+
+        transitionQueueRef.current.forEach(t => {
+          if (nextActive[t.layerKey] !== t.targetSlot) {
+            console.log(`[TRANSITION] [Raster Queue Transition] Processing layer '${t.layerKey}' from slot ${t.activeSlot} to ${t.targetSlot}.`);
+            nextActive[t.layerKey] = t.targetSlot;
+            applied = true;
+          }
+        });
+
+        transitionQueueRef.current = [];
+
+        if (applied) {
+          setActiveSlots(nextActive);
+        }
+      });
     }
   }, [mapInstance, activeModel]);
 
@@ -499,6 +543,10 @@ export function useOpenMeteoTileUrls({
     };
 
     const resolveAllUrls = async () => {
+      // Hard check during timeline scrubbing (Fix 1)
+      if (window.isScrubbingTimeline) {
+        return;
+      }
       try {
         try { validateModelAccess(activeModel || 'GFS', userTier); } 
         catch (err) { console.error('[TRANSITION] LAYER_ACCESS_DENIED:', err.message); return; }

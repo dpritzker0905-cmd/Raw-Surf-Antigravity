@@ -43,6 +43,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const hasActivatedRef = useRef(false);
   const consecutiveFailuresRef = useRef(0); // v3.9: Circuit breaker
   const activeModelRef = useRef(activeModel);
+  const lastFetchedModelRef = useRef(null);
 
   useEffect(() => {
     activeModelRef.current = activeModel;
@@ -89,14 +90,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const locks = marineFetchLocksRef.current;
 
     const updateMarineGrid = async (source = 'unknown') => {
-      if (isCommittingDataRef.current) {
-        console.log(`[FETCH] [Marine Trace] aborted (data commit in progress) source=${source}`);
-        return;
-      }
-
       // Scrubbing mode hard freeze (Request 3)
       if (window.isScrubbingTimeline) {
         console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
+        return;
+      }
+
+      if (isCommittingDataRef.current) {
+        console.log(`[FETCH] [Marine Trace] aborted (data commit in progress) source=${source}`);
         return;
       }
 
@@ -257,13 +258,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const scheduledRef = { current: false };
 
     const enqueueMarineUpdate = (source) => {
-      const now = Date.now();
-
       // Scrubbing mode hard freeze (Request 3)
       if (window.isScrubbingTimeline) {
         console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
         return;
       }
+
+      const now = Date.now();
 
       // HARD GATE: If a fetch is already in-flight, reject immediately
       if (locks.isFetching) return;
@@ -337,6 +338,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const moveendDebounceRef = { timer: null };
 
     const onMoveEnd = () => {
+      if (window.isScrubbingTimeline) return;
       // Camera hash dedup (did the camera ACTUALLY move?)
       const center = mapInstance.getCenter();
       const zoom = mapInstance.getZoom();
@@ -446,12 +448,19 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
 
+    // Model Switch Guard (Request 2)
+    if (lastFetchedModelRef.current === activeModel) {
+      console.log(`[MODEL] Marine model ${activeModel} already active -> no-op`);
+      return;
+    }
+
     // Scrubbing mode hard freeze (Request 3)
     if (window.isScrubbingTimeline) {
       console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
       return;
     }
 
+    lastFetchedModelRef.current = activeModel;
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
