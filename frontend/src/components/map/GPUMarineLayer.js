@@ -46,7 +46,12 @@ function isWithinGridBounds(lat, lng, grid) {
 /**
  * Bilinear interpolation on marine grid.
  */
-function interpolateMarine(grid, lng, lat) {
+function interpolateMarine(grid, lng, lat, mapInstance) {
+  // Hard block land advection: return zero motion if coordinate is on land
+  if (checkIsLand(lat, lng, mapInstance, grid)) {
+    return { u: 0, v: 0, speed: 0 };
+  }
+
   const inGrid = isWithinGridBounds(lat, lng, grid);
   if (!inGrid) {
     // Synthesize a beautiful global swell field
@@ -167,13 +172,18 @@ function checkIsLand(lat, lng, mapInstance, grid) {
       while (rLng - centerLng < -180) rLng += 360;
       
       const pt = mapInstance.project([rLng, lat]);
-      if (pt && pt.x >= 0 && pt.y >= 0) {
-        // Query the land mask fill layer from OceanMask only if it exists in the style
-        if (mapInstance.getLayer('ocean-mask-fill')) {
-          const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
-          mapChecked = true;
-          if (features && features.length > 0) {
-            mapConfirmedLand = true;
+      const container = mapInstance.getContainer();
+      if (pt && container) {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        if (pt.x >= 0 && pt.x <= width && pt.y >= 0 && pt.y <= height) {
+          // Query the land mask fill layer from OceanMask only if it exists in the style
+          if (mapInstance.getLayer('ocean-mask-fill')) {
+            const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
+            mapChecked = true;
+            if (features && features.length > 0) {
+              mapConfirmedLand = true;
+            }
           }
         }
       }
@@ -304,7 +314,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           }
         }
 
-        const wave = interpolateMarine(grid, lng, lat);
+        const wave = interpolateMarine(grid, lng, lat, mapInstance);
         const spd = wave?.speed || 0;
         
         // 2. Wave height > threshold check
@@ -400,7 +410,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         }
 
         // Interpolate wave vector at particle position
-        const wave = interpolateMarine(grid, p.lng, p.lat);
+        const wave = interpolateMarine(grid, p.lng, p.lat, mapInstance);
 
         // 2. Wave height > threshold check
         if (wave.speed <= 0.001 || !Number.isFinite(wave.speed) || !Number.isFinite(wave.u) || !Number.isFinite(wave.v)) {

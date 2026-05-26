@@ -68,6 +68,34 @@ function checkIsLandCoord(lat, lng, mapInstance) {
   return false;
 }
 
+// Calculate scientifically adaptive prominence threshold based on latitude bands
+function getAdaptiveThreshold(lat, type) {
+  const absLat = Math.abs(lat);
+  if (type === 'H') {
+    // Southern Hemisphere Subtropical Highs (very flat and wide ocean basins)
+    if (lat < 0 && absLat >= 10 && absLat <= 45) {
+      return 0.20; // lower threshold for South Atlantic, South Pacific, Indian Ocean highs
+    }
+    // Northern Hemisphere Subtropical Highs (Azores, Bermuda)
+    if (lat >= 0 && absLat >= 10 && absLat <= 45) {
+      return 0.30;
+    }
+    // Siberian / continental Asian highs (usually very strong but wide)
+    if (lat >= 0 && absLat > 45 && absLat <= 70) {
+      return 0.40;
+    }
+    // Default Highs
+    return 0.50;
+  } else {
+    // Lows
+    if (absLat >= 10 && absLat <= 45) {
+      return 0.45;
+    }
+    return 0.65;
+  }
+}
+
+
 export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, activeModel }) {
   const [lowSystems, setLowSystems] = useState([]);
   const [highSystems, setHighSystems] = useState([]);
@@ -145,15 +173,15 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         }
 
-        // Step 3: Apply 3x3 mean filter to smooth isobar patterns
+        // Step 3: Apply 5x5 mean filter to smooth isobar patterns
         const smoothedP = [];
         for (let y = 0; y < denseRows; y++) {
           smoothedP[y] = [];
           for (let x = 0; x < denseCols; x++) {
             let sum = 0;
             let count = 0;
-            for (let dy = -1; dy <= 1; dy++) {
-              for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -2; dy <= 2; dy++) {
+              for (let dx = -2; dx <= 2; dx++) {
                 const ny = y + dy;
                 const nx = x + dx;
                 if (ny >= 0 && ny < denseRows && nx >= 0 && nx < denseCols) {
@@ -181,8 +209,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           for (let x = 0; x < denseCols; x++) {
             let sum = 0;
             let count = 0;
-            for (let dy = -3; dy <= 3; dy++) {
-              for (let dx = -3; dx <= 3; dx++) {
+            for (let dy = -6; dy <= 6; dy++) {
+              for (let dx = -6; dx <= 6; dx++) {
                 const ny = y + dy;
                 let nx = x + dx;
                 if (ny >= 0 && ny < denseRows) {
@@ -283,8 +311,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         for (const [key, cand] of lowCandidatesMap.entries()) {
           const prom = lowProm[cand.y][cand.x];
           const isLand = checkIsLandCoord(cand.lat, cand.lng, mapInstance);
+          const lowThreshold = getAdaptiveThreshold(cand.lat, 'L');
           
-          if (prom < 1.2) {
+          if (prom < lowThreshold) {
             console.log(`[Pressure] Rejected low candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): below prominence threshold`);
             continue;
           }
@@ -300,8 +329,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         for (const [key, cand] of highCandidatesMap.entries()) {
           const prom = highProm[cand.y][cand.x];
           const isLand = checkIsLandCoord(cand.lat, cand.lng, mapInstance);
+          const highThreshold = getAdaptiveThreshold(cand.lat, 'H');
           
-          if (prom < 1.2) {
+          if (prom < highThreshold) {
             console.log(`[Pressure] Rejected high candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): below prominence threshold`);
             continue;
           }
@@ -326,8 +356,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
             const lng = west + (x / (denseCols - 1)) * (east - west);
             const normLng = normalizeLng(lng);
             const prom = lowProm[y][x];
+            const lowThreshold = getAdaptiveThreshold(lat, 'L');
 
-            if (prom >= 1.2 && !checkIsLandCoord(lat, normLng, mapInstance)) {
+            if (prom >= lowThreshold && !checkIsLandCoord(lat, normLng, mapInstance)) {
               const clusterCells = [];
               const queue = [{ y, x }];
               visitedLows[y][x] = true;
@@ -354,8 +385,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                         const nLng = west + (nx / (denseCols - 1)) * (east - west);
                         const nNormLng = normalizeLng(nLng);
                         const nProm = lowProm[ny][nx];
+                        const nLowThreshold = getAdaptiveThreshold(nLat, 'L');
 
-                        if (nProm >= 1.2 && !checkIsLandCoord(nLat, nNormLng, mapInstance)) {
+                        if (nProm >= nLowThreshold && !checkIsLandCoord(nLat, nNormLng, mapInstance)) {
                           visitedLows[ny][nx] = true;
                           queue.push({ y: ny, x: nx });
                         }
@@ -365,7 +397,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 5) {
+              const minClusterSize = (absLat >= 10 && absLat <= 45) ? 3 : 4;
+              if (clusterCells.length >= minClusterSize) {
                 lowClusters.push(clusterCells);
                 clusterCells.forEach(cell => {
                   clusteredLowIndices.add(`${cell.y}_${cell.x}`);
@@ -394,8 +427,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
             const lng = west + (x / (denseCols - 1)) * (east - west);
             const normLng = normalizeLng(lng);
             const prom = highProm[y][x];
+            const highThreshold = getAdaptiveThreshold(lat, 'H');
 
-            if (prom >= 1.2 && !checkIsLandCoord(lat, normLng, mapInstance)) {
+            if (prom >= highThreshold && !checkIsLandCoord(lat, normLng, mapInstance)) {
               const clusterCells = [];
               const queue = [{ y, x }];
               visitedHighs[y][x] = true;
@@ -422,8 +456,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                         const nLng = west + (nx / (denseCols - 1)) * (east - west);
                         const nNormLng = normalizeLng(nLng);
                         const nProm = highProm[ny][nx];
+                        const nHighThreshold = getAdaptiveThreshold(nLat, 'H');
 
-                        if (nProm >= 1.2 && !checkIsLandCoord(nLat, nNormLng, mapInstance)) {
+                        if (nProm >= nHighThreshold && !checkIsLandCoord(nLat, nNormLng, mapInstance)) {
                           visitedHighs[ny][nx] = true;
                           queue.push({ y: ny, x: nx });
                         }
@@ -433,7 +468,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 5) {
+              const minClusterSize = (absLat >= 10 && absLat <= 45) ? 3 : 4;
+              if (clusterCells.length >= minClusterSize) {
                 highClusters.push(clusterCells);
                 clusterCells.forEach(cell => {
                   clusteredHighIndices.add(`${cell.y}_${cell.x}`);
@@ -456,7 +492,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const key = `${cand.y}_${cand.x}`;
           if (!clusteredLowIndices.has(key)) {
             const prom = lowProm[cand.y][cand.x];
-            if (prom >= 1.5) {
+            const lowThreshold = getAdaptiveThreshold(cand.lat, 'L');
+            const safetyThreshold = lowThreshold;
+            if (prom >= safetyThreshold) {
               unclusteredProminentLows.push(cand);
               console.log(`[Pressure] Extrema Safety Pass: Added un-clustered prominent low at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}], prominence=${prom.toFixed(2)} hPa`);
             } else {
@@ -470,7 +508,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const key = `${cand.y}_${cand.x}`;
           if (!clusteredHighIndices.has(key)) {
             const prom = highProm[cand.y][cand.x];
-            if (prom >= 1.5) {
+            const highThreshold = getAdaptiveThreshold(cand.lat, 'H');
+            const safetyThreshold = highThreshold;
+            if (prom >= safetyThreshold) {
               unclusteredProminentHighs.push(cand);
               console.log(`[Pressure] Extrema Safety Pass: Added un-clustered prominent high at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}], prominence=${prom.toFixed(2)} hPa`);
             } else {

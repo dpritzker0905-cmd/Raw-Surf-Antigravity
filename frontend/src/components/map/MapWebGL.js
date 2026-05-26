@@ -291,8 +291,17 @@ var MapWebGL = ({
     if (!mapInstance) return;
 
     const onError = (e) => {
+      const msg = e.error?.message || e.message || '';
+      const isTileError = msg.includes('Tile') || msg.includes('404') || msg.includes('Failed to fetch') || msg.includes('status: 404');
+      const isAbortError = msg.includes('abort') || msg.includes('cancel');
+      if (isTileError || isAbortError) {
+        if (Math.random() < 0.01) {
+          console.log('[MapWebGL] Suppressed routine tile/abort error:', msg);
+        }
+        return;
+      }
       console.error('[MapWebGL] Map instance error event:', e);
-      WeatherTelemetry.trackMapError(e.error?.message || 'MapError', e.error?.stack || '');
+      WeatherTelemetry.trackMapError(msg, e.error?.stack || '');
     };
 
     mapInstance.on('error', onError);
@@ -417,8 +426,7 @@ var MapWebGL = ({
         {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
-            const url = omTileUrls[slotKey];
-            if (!url) return null;
+            const url = omTileUrls[slotKey] || 'om://transparent-tile';
             const isActive = activeSlots[layerKey] !== undefined
               ? activeSlots[layerKey] === slotIdx
               : (closestTimeIdx % 3) === slotIdx;
