@@ -20,6 +20,9 @@ function getBasin(lat, lng) {
   while (normLng > 180) normLng -= 360;
   while (normLng < -180) normLng += 360;
 
+  if (lat > 70) {
+    return 'Arctic';
+  }
   if (lat > 0) {
     if (normLng >= -20 && normLng <= 145) {
       return 'Eurasia';
@@ -235,51 +238,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         }
 
-        // Step 5: Geographic 10°x10° Tile Sweep & Local Extrema Sweep
-        const tiles = {};
-        let globalMinCell = { y: 0, x: 0, val: smoothedP[0][0] };
-        let globalMaxCell = { y: 0, x: 0, val: smoothedP[0][0] };
-
-        for (let y = 0; y < denseRows; y++) {
-          for (let x = 0; x < denseCols; x++) {
-            const lat = south + (y / (denseRows - 1)) * (north - south);
-            const lng = west + (x / (denseCols - 1)) * (east - west);
-            const normLng = normalizeLng(lng);
-            const val = smoothedP[y][x];
-
-            if (val < globalMinCell.val) {
-              globalMinCell = { y, x, val };
-            }
-            if (val > globalMaxCell.val) {
-              globalMaxCell = { y, x, val };
-            }
-
-            const tileLat = Math.floor((lat + 90) / 10);
-            const tileLng = Math.floor((normLng + 180) / 10);
-            const tileKey = `${tileLat}_${tileLng}`;
-
-            if (!tiles[tileKey]) {
-              tiles[tileKey] = [];
-            }
-            tiles[tileKey].push({ y, x, lat, lng: normLng, val });
-          }
-        }
-
-        const regionalMinCells = [];
-        const regionalMaxCells = [];
-
-        for (const [tileKey, cells] of Object.entries(tiles)) {
-          let localMin = cells[0];
-          let localMax = cells[0];
-          for (const cell of cells) {
-            if (cell.val < localMin.val) localMin = cell;
-            if (cell.val > localMax.val) localMax = cell;
-          }
-          regionalMinCells.push(localMin);
-          regionalMaxCells.push(localMax);
-        }
-
-        // Collect all candidates (avoid duplicates using coordinates key)
+        // Step 5: 8-Neighbor Moore Neighborhood Local Extrema Sweep
         const lowCandidatesMap = new Map();
         const highCandidatesMap = new Map();
 
@@ -303,13 +262,53 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         };
 
-        // Add Global Extrema
+        // Find global extrema first
+        let globalMinCell = { y: 0, x: 0, val: smoothedP[0][0] };
+        let globalMaxCell = { y: 0, x: 0, val: smoothedP[0][0] };
+
+        for (let y = 0; y < denseRows; y++) {
+          for (let x = 0; x < denseCols; x++) {
+            const val = smoothedP[y][x];
+            if (val < globalMinCell.val) globalMinCell = { y, x, val };
+            if (val > globalMaxCell.val) globalMaxCell = { y, x, val };
+          }
+        }
         addLowCandidate(globalMinCell.y, globalMinCell.x, 'global_extrema');
         addHighCandidate(globalMaxCell.y, globalMaxCell.x, 'global_extrema');
 
-        // Add Regional Extrema
-        regionalMinCells.forEach(c => addLowCandidate(c.y, c.x, 'regional_extrema'));
-        regionalMaxCells.forEach(c => addHighCandidate(c.y, c.x, 'regional_extrema'));
+        // Moore Neighborhood Local Extrema Sweep (8-neighbor check)
+        for (let y = 1; y < denseRows - 1; y++) {
+          for (let x = 0; x < denseCols; x++) {
+            let isLocalMin = true;
+            let isLocalMax = true;
+            const val = smoothedP[y][x];
+
+            for (let dy = -1; dy <= 1; dy++) {
+              for (let dx = -1; dx <= 1; dx++) {
+                if (dy === 0 && dx === 0) continue;
+                const ny = y + dy;
+                let nx = x + dx;
+
+                if (isGlobalLng) {
+                  nx = (nx + denseCols) % denseCols;
+                } else if (nx < 0 || nx >= denseCols) {
+                  continue;
+                }
+
+                const nVal = smoothedP[ny][nx];
+                if (nVal < val) isLocalMin = false;
+                if (nVal > val) isLocalMax = false;
+              }
+            }
+
+            if (isLocalMin) {
+              addLowCandidate(y, x, 'regional_extrema');
+            }
+            if (isLocalMax) {
+              addHighCandidate(y, x, 'regional_extrema');
+            }
+          }
+        }
 
         // Validate and log candidates rejections
         const validLowCandidates = [];
@@ -654,9 +653,9 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         selectedLows
           .sort((a, b) => a.pressure - b.pressure)
           .forEach(low => {
+            low.lng = wrapLongitude(low.lng);
             const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 200);
             if (!isNear) {
-              low.lng = wrapLongitude(low.lng);
               finalLows.push(low);
             }
           });
@@ -665,12 +664,95 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         selectedHighs
           .sort((a, b) => b.pressure - a.pressure)
           .forEach(high => {
+            high.lng = wrapLongitude(high.lng);
             const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 200);
             if (!isNear) {
-              high.lng = wrapLongitude(high.lng);
               finalHighs.push(high);
             }
           });
+
+        // Telemetry stats calculation
+        const mapToOceanBasin = (lat, lng) => {
+          const bName = getBasin(lat, lng);
+          if (bName === 'Arctic') return 'Arctic';
+          if (bName === 'North Atlantic' || bName === 'South Atlantic') return 'Atlantic';
+          if (bName === 'North Pacific' || bName === 'South Pacific') return 'Pacific';
+          if (bName === 'Indian Ocean') return 'Indian';
+          return 'Eurasia';
+        };
+
+        const extremaByBasin = { Atlantic: 0, Pacific: 0, Indian: 0, Arctic: 0, Eurasia: 0 };
+        const renderedByBasin = { Atlantic: 0, Pacific: 0, Indian: 0, Arctic: 0, Eurasia: 0 };
+
+        for (const cand of lowCandidatesMap.values()) {
+          const ob = mapToOceanBasin(cand.lat, cand.lng);
+          extremaByBasin[ob] = (extremaByBasin[ob] || 0) + 1;
+        }
+        for (const cand of highCandidatesMap.values()) {
+          const ob = mapToOceanBasin(cand.lat, cand.lng);
+          extremaByBasin[ob] = (extremaByBasin[ob] || 0) + 1;
+        }
+
+        finalLows.forEach(low => {
+          const ob = mapToOceanBasin(low.lat, low.lng);
+          renderedByBasin[ob] = (renderedByBasin[ob] || 0) + 1;
+        });
+        finalHighs.forEach(high => {
+          const ob = mapToOceanBasin(high.lat, high.lng);
+          renderedByBasin[ob] = (renderedByBasin[ob] || 0) + 1;
+        });
+
+        const filteredByBasin = {
+          Atlantic: Math.max(0, extremaByBasin.Atlantic - renderedByBasin.Atlantic),
+          Pacific: Math.max(0, extremaByBasin.Pacific - renderedByBasin.Pacific),
+          Indian: Math.max(0, extremaByBasin.Indian - renderedByBasin.Indian),
+          Arctic: Math.max(0, extremaByBasin.Arctic - renderedByBasin.Arctic),
+          Eurasia: Math.max(0, extremaByBasin.Eurasia - renderedByBasin.Eurasia)
+        };
+
+        let lowClusterReduction = 0;
+        lowClusters.forEach(cluster => {
+          lowClusterReduction += (cluster.length - 1);
+        });
+        let highClusterReduction = 0;
+        highClusters.forEach(cluster => {
+          highClusterReduction += (cluster.length - 1);
+        });
+        const clusteringReductionCount = lowClusterReduction + highClusterReduction;
+
+        let viewportCullingCount = 0;
+        if (mapInstance && typeof window !== 'undefined') {
+          try {
+            const container = mapInstance.getContainer();
+            if (container) {
+              const width = container.clientWidth;
+              const height = container.clientHeight;
+              const allCands = [...lowCandidatesMap.values(), ...highCandidatesMap.values()];
+              allCands.forEach(cand => {
+                let rLng = cand.lng;
+                while (rLng - centerLng > 180) rLng -= 360;
+                while (rLng - centerLng < -180) rLng += 360;
+                const pt = mapInstance.project([rLng, cand.lat]);
+                if (!pt || pt.x < 0 || pt.x > width || pt.y < 0 || pt.y > height) {
+                  viewportCullingCount++;
+                }
+              });
+            }
+          } catch (e) {}
+        }
+
+        console.log(`[Pressure Telemetry] ===== GLOBAL PRESSURE DENSITY REPORT =====`);
+        console.log(`[Pressure Telemetry] Extrema Count per Ocean Basin:`, extremaByBasin);
+        console.log(`[Pressure Telemetry] Filtered vs Rendered Markers per Basin:`);
+        console.log(`  - Atlantic: Filtered = ${filteredByBasin.Atlantic}, Rendered = ${renderedByBasin.Atlantic}`);
+        console.log(`  - Pacific:  Filtered = ${filteredByBasin.Pacific},  Rendered = ${renderedByBasin.Pacific}`);
+        console.log(`  - Indian:   Filtered = ${filteredByBasin.Indian},   Rendered = ${renderedByBasin.Indian}`);
+        console.log(`  - Arctic:   Filtered = ${filteredByBasin.Arctic},   Rendered = ${renderedByBasin.Arctic}`);
+        console.log(`  - Eurasia:  Filtered = ${filteredByBasin.Eurasia},  Rendered = ${renderedByBasin.Eurasia}`);
+        console.log(`[Pressure Telemetry] Clustering Reduction Count: ${clusteringReductionCount}`);
+        console.log(`[Pressure Telemetry] Viewport Culling Count: ${viewportCullingCount}`);
+        console.log(`[Pressure Telemetry] Final Render Pass Count: ${finalLows.length + finalHighs.length}`);
+        console.log(`[Pressure Telemetry] =============================================`);
 
         console.log(`[Pressure] Brain Rules validation pass: spatial accuracy, land/ocean separation, and global dataset consistency verified.`);
 

@@ -310,7 +310,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               source: MASK_SOURCE,
               paint: {
                 'fill-color': fillColor,
-                'fill-opacity': 1.0
+                'fill-opacity': 0.0
               },
             }, insertBeforeId || undefined);
           } catch (e) {
@@ -320,6 +320,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
+            mapInstance.setPaintProperty(MASK_FILL, 'fill-opacity', 0.0);
             mapInstance.setLayoutProperty(MASK_FILL, 'visibility', 'visible');
           } catch (e) {}
         }
@@ -335,7 +336,10 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               filter: ['all', ['has', 'class'], ['match', ['get', 'class'], ['ocean', 'sea'], false, true]],
               paint: {
                 'fill-color': waterColor,
-                'fill-opacity': 1.0
+                'fill-opacity': 0.0
+              },
+              layout: {
+                visibility: 'none'
               }
             }, insertBeforeId || undefined);
           } catch (e) {
@@ -345,8 +349,9 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
+            mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-opacity', 0.0);
             mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['match', ['get', 'class'], ['ocean', 'sea'], false, true]]);
-            mapInstance.setLayoutProperty(MASK_INLAND_WATER, 'visibility', 'visible');
+            mapInstance.setLayoutProperty(MASK_INLAND_WATER, 'visibility', 'none');
           } catch (e) {}
         }
 
@@ -365,7 +370,10 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                   13, 1.5,
                   18, 6
                 ],
-                'line-opacity': 1.0
+                'line-opacity': 0.0
+              },
+              layout: {
+                visibility: 'none'
               }
             }, insertBeforeId || undefined);
           } catch (e) {
@@ -375,7 +383,8 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
-            mapInstance.setLayoutProperty(MASK_INLAND_WATERWAY, 'visibility', 'visible');
+            mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-opacity', 0.0);
+            mapInstance.setLayoutProperty(MASK_INLAND_WATERWAY, 'visibility', 'none');
           } catch (e) {}
         }
 

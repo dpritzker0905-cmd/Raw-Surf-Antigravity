@@ -186,8 +186,21 @@ function checkIsLand(lat, lng, mapInstance, grid) {
         const width = container.clientWidth;
         const height = container.clientHeight;
         if (pt.x >= 0 && pt.x <= width && pt.y >= 0 && pt.y <= height) {
-          // Query the land mask fill layer from OceanMask only if it exists in the style
-          if (mapInstance.getLayer('ocean-mask-fill')) {
+          if (mapInstance.getLayer('water')) {
+            const features = mapInstance.queryRenderedFeatures(pt, { layers: ['water'] });
+            mapChecked = true;
+            if (features && features.length > 0) {
+              const cls = features[0].properties?.class || '';
+              const isOceanBody = cls === 'ocean' || cls === 'sea' || cls === 'major_body' || cls === '';
+              if (!isOceanBody) {
+                mapConfirmedLand = true; // Inland freshwater (lake/river/reservoir) -> Block waves
+              } else {
+                mapConfirmedLand = false; // Ocean water -> Allow waves
+              }
+            } else {
+              mapConfirmedLand = true; // No water feature -> Land terrain -> Block waves
+            }
+          } else if (mapInstance.getLayer('ocean-mask-fill')) {
             const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
             mapChecked = true;
             if (features && features.length > 0) {
@@ -208,12 +221,14 @@ function checkIsLand(lat, lng, mapInstance, grid) {
       }
       return true;
     }
-    // If the map query projects to a valid pixel and says NO land, we can be confident it's ocean
     return false;
   }
 
-  // If not inside grid bounds and map query failed/offscreen, default to safe (treat as land)
-  return true;
+  // Fallback if map query not available (e.g. offscreen)
+  if (grid) {
+    return !isLikelyOcean(lat, lng, grid);
+  }
+  return false; // Default to ocean to let particles flow offscreen
 }
 
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
