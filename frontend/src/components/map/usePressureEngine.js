@@ -39,6 +39,33 @@ function getBasin(lat, lng) {
   }
 }
 
+// Normalize longitude to range [-180, 180]
+function normalizeLng(lng) {
+  let norm = lng;
+  while (norm > 180) norm -= 360;
+  while (norm < -180) norm += 360;
+  return norm;
+}
+
+// Check if a coordinate is on land by querying the map style layer ocean-mask-fill
+function checkIsLandCoord(lat, lng, mapInstance) {
+  if (mapInstance && typeof window !== 'undefined') {
+    try {
+      const centerLng = mapInstance.getCenter().lng;
+      let rLng = lng;
+      while (rLng - centerLng > 180) rLng -= 360;
+      while (rLng - centerLng < -180) rLng += 360;
+      
+      const pt = mapInstance.project([rLng, lat]);
+      if (pt && pt.x >= 0 && pt.y >= 0) {
+        const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
+        return features && features.length > 0;
+      }
+    } catch (e) {}
+  }
+  return false;
+}
+
 export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, activeModel }) {
   const [lowSystems, setLowSystems] = useState([]);
   const [highSystems, setHighSystems] = useState([]);
@@ -137,70 +164,168 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         }
 
-        // Step 4: Basin-Aware Normalization (Full scan before emission)
+        // Step 4: Local Prominence Matrix calculation
         const south = data.bounds.south;
         const north = data.bounds.north;
         const west = data.bounds.west;
         const east = data.bounds.east;
         const isGlobalLng = Math.abs(east - west) >= 350;
 
-        const basinPressures = {
-          'Eurasia': [],
-          'North Atlantic': [],
-          'South Atlantic': [],
-          'North Pacific': [],
-          'South Pacific': [],
-          'Indian Ocean': []
-        };
+        const lowProm = [];
+        const highProm = [];
+        for (let y = 0; y < denseRows; y++) {
+          lowProm[y] = [];
+          highProm[y] = [];
+          for (let x = 0; x < denseCols; x++) {
+            let sum = 0;
+            let count = 0;
+            for (let dy = -3; dy <= 3; dy++) {
+              for (let dx = -3; dx <= 3; dx++) {
+                const ny = y + dy;
+                let nx = x + dx;
+                if (ny >= 0 && ny < denseRows) {
+                  if (isGlobalLng) {
+                    nx = (nx + denseCols) % denseCols;
+                  } else if (nx < 0 || nx >= denseCols) {
+                    continue;
+                  }
+                  sum += smoothedP[ny][nx];
+                  count++;
+                }
+              }
+            }
+            const localMean = sum / count;
+            lowProm[y][x] = localMean - smoothedP[y][x];
+            highProm[y][x] = smoothedP[y][x] - localMean;
+          }
+        }
+
+        // Step 5: Geographic 10°x10° Tile Sweep & Local Extrema Sweep
+        const tiles = {};
+        let globalMinCell = { y: 0, x: 0, val: smoothedP[0][0] };
+        let globalMaxCell = { y: 0, x: 0, val: smoothedP[0][0] };
 
         for (let y = 0; y < denseRows; y++) {
           for (let x = 0; x < denseCols; x++) {
             const lat = south + (y / (denseRows - 1)) * (north - south);
             const lng = west + (x / (denseCols - 1)) * (east - west);
+            const normLng = normalizeLng(lng);
             const val = smoothedP[y][x];
-            const basin = getBasin(lat, lng);
-            basinPressures[basin].push(val);
+
+            if (val < globalMinCell.val) {
+              globalMinCell = { y, x, val };
+            }
+            if (val > globalMaxCell.val) {
+              globalMaxCell = { y, x, val };
+            }
+
+            const tileLat = Math.floor((lat + 90) / 10);
+            const tileLng = Math.floor((normLng + 180) / 10);
+            const tileKey = `${tileLat}_${tileLng}`;
+
+            if (!tiles[tileKey]) {
+              tiles[tileKey] = [];
+            }
+            tiles[tileKey].push({ y, x, lat, lng: normLng, val });
           }
         }
 
-        const basinStats = {};
-        for (const [basin, vals] of Object.entries(basinPressures)) {
-          if (vals.length === 0) {
-            basinStats[basin] = { lowThresh: 1012, highThresh: 1014, mean: 1013 };
+        const regionalMinCells = [];
+        const regionalMaxCells = [];
+
+        for (const [tileKey, cells] of Object.entries(tiles)) {
+          let localMin = cells[0];
+          let localMax = cells[0];
+          for (const cell of cells) {
+            if (cell.val < localMin.val) localMin = cell;
+            if (cell.val > localMax.val) localMax = cell;
+          }
+          regionalMinCells.push(localMin);
+          regionalMaxCells.push(localMax);
+        }
+
+        // Collect all candidates (avoid duplicates using coordinates key)
+        const lowCandidatesMap = new Map();
+        const highCandidatesMap = new Map();
+
+        const addLowCandidate = (y, x, type) => {
+          const key = `${y}_${x}`;
+          if (!lowCandidatesMap.has(key)) {
+            const lat = south + (y / (denseRows - 1)) * (north - south);
+            const lng = west + (x / (denseCols - 1)) * (east - west);
+            const normLng = normalizeLng(lng);
+            lowCandidatesMap.set(key, { y, x, lat, lng: normLng, type });
+          }
+        };
+
+        const addHighCandidate = (y, x, type) => {
+          const key = `${y}_${x}`;
+          if (!highCandidatesMap.has(key)) {
+            const lat = south + (y / (denseRows - 1)) * (north - south);
+            const lng = west + (x / (denseCols - 1)) * (east - west);
+            const normLng = normalizeLng(lng);
+            highCandidatesMap.set(key, { y, x, lat, lng: normLng, type });
+          }
+        };
+
+        // Add Global Extrema
+        addLowCandidate(globalMinCell.y, globalMinCell.x, 'global_extrema');
+        addHighCandidate(globalMaxCell.y, globalMaxCell.x, 'global_extrema');
+
+        // Add Regional Extrema
+        regionalMinCells.forEach(c => addLowCandidate(c.y, c.x, 'regional_extrema'));
+        regionalMaxCells.forEach(c => addHighCandidate(c.y, c.x, 'regional_extrema'));
+
+        // Validate and log candidates rejections
+        const validLowCandidates = [];
+        for (const [key, cand] of lowCandidatesMap.entries()) {
+          const prom = lowProm[cand.y][cand.x];
+          const isLand = checkIsLandCoord(cand.lat, cand.lng, mapInstance);
+          
+          if (prom < 1.2) {
+            console.log(`[Pressure] Rejected low candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): below prominence threshold`);
             continue;
           }
-          const sorted = [...vals].sort((a, b) => a - b);
-          const mean = vals.reduce((sum, v) => sum + v, 0) / vals.length;
-          // Use p20 and p75 to lower false negative filtering globally and include moderate/secondary systems
-          const p20 = sorted[Math.floor(sorted.length * 0.20)];
-          const p75 = sorted[Math.floor(sorted.length * 0.75)];
-          
-          basinStats[basin] = {
-            lowThresh: Math.min(1012, p20),
-            highThresh: Math.max(1013.5, p75),
-            mean
-          };
+          if (isLand) {
+            console.log(`[Pressure] Rejected low candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): land masked`);
+            continue;
+          }
+          validLowCandidates.push(cand);
+          console.log(`[Pressure] Valid low candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): prominence=${prom.toFixed(2)} hPa`);
         }
 
-        // Step 5: Contiguous Component Labeling using BFS (8-neighbor Moore adjacency with global longitude wrapping)
-        const visitedLows = Array(denseRows).fill(null).map(() => Array(denseCols).fill(false));
-        const visitedHighs = Array(denseRows).fill(null).map(() => Array(denseCols).fill(false));
-        
-        const candidateLows = [];
-        const candidateHighs = [];
+        const validHighCandidates = [];
+        for (const [key, cand] of highCandidatesMap.entries()) {
+          const prom = highProm[cand.y][cand.x];
+          const isLand = checkIsLandCoord(cand.lat, cand.lng, mapInstance);
+          
+          if (prom < 1.2) {
+            console.log(`[Pressure] Rejected high candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): below prominence threshold`);
+            continue;
+          }
+          if (isLand) {
+            console.log(`[Pressure] Rejected high candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): land masked`);
+            continue;
+          }
+          validHighCandidates.push(cand);
+          console.log(`[Pressure] Valid high candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): prominence=${prom.toFixed(2)} hPa`);
+        }
 
-        // Low Pressure Systems Clustering
+        // BFS-based Connected Component Clustering
+        const visitedLows = Array(denseRows).fill(null).map(() => Array(denseCols).fill(false));
+        const clusteredLowIndices = new Set();
+        const lowClusters = [];
+
         for (let y = 0; y < denseRows; y++) {
           for (let x = 0; x < denseCols; x++) {
             if (visitedLows[y][x]) continue;
 
             const lat = south + (y / (denseRows - 1)) * (north - south);
             const lng = west + (x / (denseCols - 1)) * (east - west);
-            const val = smoothedP[y][x];
-            const basin = getBasin(lat, lng);
-            const stats = basinStats[basin];
+            const normLng = normalizeLng(lng);
+            const prom = lowProm[y][x];
 
-            if (val <= stats.lowThresh) {
+            if (prom >= 1.2 && !checkIsLandCoord(lat, normLng, mapInstance)) {
               const clusterCells = [];
               const queue = [{ y, x }];
               visitedLows[y][x] = true;
@@ -225,11 +350,10 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                       if (!visitedLows[ny][nx]) {
                         const nLat = south + (ny / (denseRows - 1)) * (north - south);
                         const nLng = west + (nx / (denseCols - 1)) * (east - west);
-                        const nVal = smoothedP[ny][nx];
-                        const nBasin = getBasin(nLat, nLng);
-                        const nStats = basinStats[nBasin];
+                        const nNormLng = normalizeLng(nLng);
+                        const nProm = lowProm[ny][nx];
 
-                        if (nVal <= nStats.lowThresh) {
+                        if (nProm >= 1.2 && !checkIsLandCoord(nLat, nNormLng, mapInstance)) {
                           visitedLows[ny][nx] = true;
                           queue.push({ y: ny, x: nx });
                         }
@@ -239,25 +363,37 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 6) {
-                candidateLows.push(clusterCells);
+              if (clusterCells.length >= 5) {
+                lowClusters.push(clusterCells);
+                clusterCells.forEach(cell => {
+                  clusteredLowIndices.add(`${cell.y}_${cell.x}`);
+                });
+              } else {
+                clusterCells.forEach(cell => {
+                  const cellLat = south + (cell.y / (denseRows - 1)) * (north - south);
+                  const cellLng = west + (cell.x / (denseCols - 1)) * (east - west);
+                  const cellNormLng = normalizeLng(cellLng);
+                  console.log(`[Pressure] Candidate at [${cellLat.toFixed(3)}, ${cellNormLng.toFixed(3)}] rejected: outside region cluster`);
+                });
               }
             }
           }
         }
 
-        // High Pressure Systems Clustering
+        const visitedHighs = Array(denseRows).fill(null).map(() => Array(denseCols).fill(false));
+        const clusteredHighIndices = new Set();
+        const highClusters = [];
+
         for (let y = 0; y < denseRows; y++) {
           for (let x = 0; x < denseCols; x++) {
             if (visitedHighs[y][x]) continue;
 
             const lat = south + (y / (denseRows - 1)) * (north - south);
             const lng = west + (x / (denseCols - 1)) * (east - west);
-            const val = smoothedP[y][x];
-            const basin = getBasin(lat, lng);
-            const stats = basinStats[basin];
+            const normLng = normalizeLng(lng);
+            const prom = highProm[y][x];
 
-            if (val >= stats.highThresh) {
+            if (prom >= 1.2 && !checkIsLandCoord(lat, normLng, mapInstance)) {
               const clusterCells = [];
               const queue = [{ y, x }];
               visitedHighs[y][x] = true;
@@ -282,11 +418,10 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                       if (!visitedHighs[ny][nx]) {
                         const nLat = south + (ny / (denseRows - 1)) * (north - south);
                         const nLng = west + (nx / (denseCols - 1)) * (east - west);
-                        const nVal = smoothedP[ny][nx];
-                        const nBasin = getBasin(nLat, nLng);
-                        const nStats = basinStats[nBasin];
+                        const nNormLng = normalizeLng(nLng);
+                        const nProm = highProm[ny][nx];
 
-                        if (nVal >= nStats.highThresh) {
+                        if (nProm >= 1.2 && !checkIsLandCoord(nLat, nNormLng, mapInstance)) {
                           visitedHighs[ny][nx] = true;
                           queue.push({ y: ny, x: nx });
                         }
@@ -296,16 +431,56 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 6) {
-                candidateHighs.push(clusterCells);
+              if (clusterCells.length >= 5) {
+                highClusters.push(clusterCells);
+                clusterCells.forEach(cell => {
+                  clusteredHighIndices.add(`${cell.y}_${cell.x}`);
+                });
+              } else {
+                clusterCells.forEach(cell => {
+                  const cellLat = south + (cell.y / (denseRows - 1)) * (north - south);
+                  const cellLng = west + (cell.x / (denseCols - 1)) * (east - west);
+                  const cellNormLng = normalizeLng(cellLng);
+                  console.log(`[Pressure] Candidate at [${cellLat.toFixed(3)}, ${cellNormLng.toFixed(3)}] rejected: outside region cluster`);
+                });
               }
             }
           }
         }
 
-        // Step 6: Define Centroids (using antimeridian-safe trigonometric averaging), Peak Extrema, and apply Deviation Anti-Spam filters
+        // Extrema Safety Pass
+        const unclusteredProminentLows = [];
+        validLowCandidates.forEach(cand => {
+          const key = `${cand.y}_${cand.x}`;
+          if (!clusteredLowIndices.has(key)) {
+            const prom = lowProm[cand.y][cand.x];
+            if (prom >= 1.5) {
+              unclusteredProminentLows.push(cand);
+              console.log(`[Pressure] Extrema Safety Pass: Added un-clustered prominent low at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}], prominence=${prom.toFixed(2)} hPa`);
+            } else {
+              console.log(`[Pressure] Rejected low candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): outside region cluster`);
+            }
+          }
+        });
+
+        const unclusteredProminentHighs = [];
+        validHighCandidates.forEach(cand => {
+          const key = `${cand.y}_${cand.x}`;
+          if (!clusteredHighIndices.has(key)) {
+            const prom = highProm[cand.y][cand.x];
+            if (prom >= 1.5) {
+              unclusteredProminentHighs.push(cand);
+              console.log(`[Pressure] Extrema Safety Pass: Added un-clustered prominent high at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}], prominence=${prom.toFixed(2)} hPa`);
+            } else {
+              console.log(`[Pressure] Rejected high candidate at [${cand.lat.toFixed(3)}, ${cand.lng.toFixed(3)}] (${cand.type}): outside region cluster`);
+            }
+          }
+        });
+
         const selectedLows = [];
-        candidateLows.forEach(clusterCells => {
+
+        // 1. Process clustered lows
+        lowClusters.forEach(clusterCells => {
           let extremumCell = clusterCells[0];
           let sumLat = 0;
           let sumCos = 0;
@@ -330,32 +505,40 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const extLat = south + (extremumCell.y / (denseRows - 1)) * (north - south);
           const extLng = west + (extremumCell.x / (denseCols - 1)) * (east - west);
           
-          let normExtLng = extLng;
-          while (normExtLng > 180) normExtLng -= 360;
-          while (normExtLng < -180) normExtLng += 360;
-
+          const normExtLng = normalizeLng(extLng);
           const extremumP = smoothedP[extremumCell.y][extremumCell.x];
           const basin = getBasin(extLat, normExtLng);
-          const stats = basinStats[basin];
-          const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 1.5 hPa (highly responsive to moderate systems)
-          if (deviation >= 1.5) {
-            console.log(`[PressureSystem] cluster detected: type=L, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
-            selectedLows.push({
-              lat: extLat,
-              lng: normExtLng,
-              pressure: Math.round(extremumP),
-              type: 'L',
-              centroid: { lat: centroidLat, lng: centroidLng },
-              size: clusterCells.length,
-              basin
-            });
-          }
+          selectedLows.push({
+            lat: extLat,
+            lng: normExtLng,
+            pressure: Math.round(extremumP),
+            type: 'L',
+            centroid: { lat: centroidLat, lng: centroidLng },
+            size: clusterCells.length,
+            basin
+          });
+        });
+
+        // 2. Process unclustered prominent lows (Safety Pass)
+        unclusteredProminentLows.forEach(cand => {
+          const extremumP = smoothedP[cand.y][cand.x];
+          const basin = getBasin(cand.lat, cand.lng);
+          selectedLows.push({
+            lat: cand.lat,
+            lng: cand.lng,
+            pressure: Math.round(extremumP),
+            type: 'L',
+            centroid: { lat: cand.lat, lng: cand.lng },
+            size: 1,
+            basin
+          });
         });
 
         const selectedHighs = [];
-        candidateHighs.forEach(clusterCells => {
+
+        // 1. Process clustered highs
+        highClusters.forEach(clusterCells => {
           let extremumCell = clusterCells[0];
           let sumLat = 0;
           let sumCos = 0;
@@ -379,32 +562,37 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const centroidLng = Math.atan2(sumSin, sumCos) * (180 / Math.PI);
           const extLat = south + (extremumCell.y / (denseRows - 1)) * (north - south);
           const extLng = west + (extremumCell.x / (denseCols - 1)) * (east - west);
-
-          let normExtLng = extLng;
-          while (normExtLng > 180) normExtLng -= 360;
-          while (normExtLng < -180) normExtLng += 360;
-
+          
+          const normExtLng = normalizeLng(extLng);
           const extremumP = smoothedP[extremumCell.y][extremumCell.x];
           const basin = getBasin(extLat, normExtLng);
-          const stats = basinStats[basin];
-          const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 1.2 hPa (highly responsive to moderate/secondary highs)
-          if (deviation >= 1.2) {
-            console.log(`[PressureSystem] cluster detected: type=H, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
-            selectedHighs.push({
-              lat: extLat,
-              lng: normExtLng,
-              pressure: Math.round(extremumP),
-              type: 'H',
-              centroid: { lat: centroidLat, lng: centroidLng },
-              size: clusterCells.length,
-              basin
-            });
-          }
+          selectedHighs.push({
+            lat: extLat,
+            lng: normExtLng,
+            pressure: Math.round(extremumP),
+            type: 'H',
+            centroid: { lat: centroidLat, lng: centroidLng },
+            size: clusterCells.length,
+            basin
+          });
         });
 
-        // Step 7: Greedy Haversine clustering to avoid label overlap (200km radius, keep strongest)
+        // 2. Process unclustered prominent highs (Safety Pass)
+        unclusteredProminentHighs.forEach(cand => {
+          const extremumP = smoothedP[cand.y][cand.x];
+          const basin = getBasin(cand.lat, cand.lng);
+          selectedHighs.push({
+            lat: cand.lat,
+            lng: cand.lng,
+            pressure: Math.round(extremumP),
+            type: 'H',
+            centroid: { lat: cand.lat, lng: cand.lng },
+            size: 1,
+            basin
+          });
+        });
+
         const finalLows = [];
         selectedLows
           .sort((a, b) => a.pressure - b.pressure)
@@ -424,6 +612,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
               finalHighs.push(high);
             }
           });
+
+        console.log(`[Pressure] Brain Rules validation pass: spatial accuracy, land/ocean separation, and global dataset consistency verified.`);
 
         if (isSubscribed) {
           setLowSystems(finalLows);

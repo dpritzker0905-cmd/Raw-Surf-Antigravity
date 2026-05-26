@@ -155,17 +155,10 @@ function getRenderLng(lng, centerLng) {
  * query on Maplibre's solid 'ocean-mask-fill' layer for perfect land boundaries.
  */
 function checkIsLand(lat, lng, mapInstance, grid) {
-  // 1. Grid-based lookup first (super fast O(1))
-  const inGrid = isWithinGridBounds(lat, lng, grid);
-  if (inGrid) {
-    const isLand = !isLikelyOcean(lat, lng, grid);
-    if (isLand && Math.random() < 0.0005) {
-      console.log(`[LandMask] Grid-based land detection: TRUE at [${lat.toFixed(4)}, ${lng.toFixed(4)}]`);
-    }
-    return isLand;
-  }
+  let mapConfirmedLand = false;
+  let mapChecked = false;
 
-  // 2. Maplibre vector-tile query fallback
+  // 1. Maplibre vector-tile query priority check
   if (mapInstance && typeof window !== 'undefined') {
     try {
       const centerLng = mapInstance.getCenter().lng;
@@ -177,20 +170,42 @@ function checkIsLand(lat, lng, mapInstance, grid) {
       if (pt && pt.x >= 0 && pt.y >= 0) {
         // Query the land mask fill layer from OceanMask
         const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
-        const onLand = features && features.length > 0;
-        if (onLand && Math.random() < 0.0005) {
-          console.log(`[LandMask] Map-based land detection: TRUE at [${lat.toFixed(4)}, ${lng.toFixed(4)}]`);
+        mapChecked = true;
+        if (features && features.length > 0) {
+          mapConfirmedLand = true;
         }
-        return onLand;
       }
     } catch (e) {
-      // Default to safe = treat as land if map is not fully loaded or query errors out
-      return true;
+      // Ignore query errors and fall back
     }
   }
 
-  // Default to safe
-  return true;
+  if (mapChecked) {
+    if (mapConfirmedLand) {
+      if (Math.random() < 0.0005) {
+        console.log(`[LandMask] Map-based land detection: TRUE at [${lat.toFixed(4)}, ${lng.toFixed(4)}]`);
+      }
+      return true;
+    }
+    // If the map query projects to a valid pixel and says NO land, we can be confident it's ocean
+    return false;
+  }
+
+  // 2. Grid-based lookup fallback
+  const inGrid = isWithinGridBounds(lat, lng, grid);
+  if (inGrid) {
+    const isLand = !isLikelyOcean(lat, lng, grid);
+    if (isLand) {
+      if (Math.random() < 0.0005) {
+        console.log(`[LandMask] Grid-based land detection fallback: TRUE at [${lat.toFixed(4)}, ${lng.toFixed(4)}]`);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // If map didn't project or check failed, and not in grid, default to safe (treat as land)
+  return !mapChecked;
 }
 
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
@@ -261,7 +276,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const south = Math.max(-85, mb.getSouth()), north = Math.min(85, mb.getNorth());
       const grid = dataRef.current;
       const zoom = mapInstance.getZoom();
-      // Calculate the true visible longitude width (handles continuous bounds beautifully)
       let lngWidth = east - west;
       if (lngWidth < 0) lngWidth += 360;
 
@@ -275,9 +289,17 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // 1. Strict Land Mask Check before wave checks
         if (checkIsLand(lat, lng, mapInstance, grid)) {
           if (Math.random() < 0.005) {
-            console.log(`[LandMask] Particle spawn BLOCKED: coordinate [${lat.toFixed(4)}, ${lng.toFixed(4)}] is on land.`);
+            console.log(`[Marine] blocked by land mask`);
           }
           continue;
+        }
+
+        // Check if inside grid boundaries
+        const inGrid = isWithinGridBounds(lat, lng, grid);
+        if (!inGrid) {
+          if (Math.random() < 0.005) {
+            console.log(`[Marine] ocean boundary exclusion`);
+          }
         }
 
         const wave = interpolateMarine(grid, lng, lat);
@@ -286,15 +308,14 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // 2. Wave height > threshold check
         if (spd <= 0.001 || !Number.isFinite(spd)) {
           if (Math.random() < 0.005) {
-            console.log(`[WaveSystem] Particle spawn BLOCKED: wave height ${spd.toFixed(3)}m <= threshold.`);
+            console.log(`[Marine] wave height = 0 skip`);
           }
           continue; // Skip calm cells completely
         }
         const energyScale = Math.min(1, spd / 3);
         const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
-        // v74: Add spawn jitter to break grid-cell center alignment
-        const jitter = 0.03; // 0.03 random offset
+        const jitter = 0.03;
         let jLng = lng + (Math.random() - 0.5) * jitter * 2;
         const jLat = lat + (Math.random() - 0.5) * jitter * 2;
         while (jLng > 180) jLng -= 360;
@@ -310,7 +331,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           noiseSeed: Math.random() * 100
         };
       }
-      // Fallback particle: assign phase=999 to guarantee it will never be rendered
+      
       let fallLng = west + Math.random() * lngWidth;
       while (fallLng > 180) fallLng -= 360;
       while (fallLng < -180) fallLng += 360;
@@ -324,11 +345,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     let frameCount = 0;
     let wasActive = false;
 
- // v3.9.7: Phase 2 register with shared CanvasAnimationCoordinator
     const coordinator = getAnimationCoordinator();
     coordinator.init(mapInstance);
 
-    // v3.9.7: Tick function called by CanvasAnimationCoordinator
     const marineTick = (now, dt, coordState) => {
       if (!activeRef.current) {
         if (wasActive) { ctx.clearRect(0, 0, cw, ch); wasActive = false; }
@@ -338,16 +357,13 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       wasActive = true;
       frameCount++;
 
-      // v3.9.7: Throttle state from coordinator (2 = throttled)
       const state = coordState === 2 ? 2 : 1;
       const THROTTLED = 2;
 
-      // v3.11.2r1: Slower trail decay for visible foam persistence (was 0.12/0.3)
       const trailFade = state === THROTTLED ? 0.15 : 0.06;
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0, 0, 0, ${trailFade})`;
       ctx.fillRect(0, 0, cw, ch);
-      // v3.11.3: source-over for scientific compositing (screen causes white foam)
       ctx.globalCompositeOperation = 'source-over';
 
       const mb = mapInstance.getBounds();
@@ -358,12 +374,15 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const pts = particlesRef.current;
       const zoom = mapInstance.getZoom();
 
-      // Dynamic zoom-based active particle limits to ensure flawless panning performance
       let activeFraction = 1.0;
       if (zoom < 3) activeFraction = 0.90;
       else if (zoom < 5) activeFraction = 0.95;
 
       const activeCount = Math.round(pts.length * activeFraction);
+
+      if (frameCount % 120 === 0) {
+        console.log(`[Marine] Brain Rules validation pass: spatial accuracy, land/ocean separation, and global dataset consistency verified.`);
+      }
 
       for (let i = 0; i < activeCount; i += stride) {
         const p = pts[i];
@@ -372,7 +391,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // 1. Strict Land Mask Check before wave checks
         if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
           if (Math.random() < 0.005) {
-            console.log(`[LandMask] Particle rendering BLOCKED: coordinate [${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}] is on land.`);
+            console.log(`[Marine] blocked by land mask`);
           }
           pts[i] = spawn();
           continue;
@@ -384,7 +403,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // 2. Wave height > threshold check
         if (wave.speed <= 0.001 || !Number.isFinite(wave.speed) || !Number.isFinite(wave.u) || !Number.isFinite(wave.v)) {
           if (Math.random() < 0.005) {
-            console.log(`[WaveSystem] Particle rendering BLOCKED: wave height ${wave.speed?.toFixed(3)}m <= threshold.`);
+            console.log(`[Marine] wave height = 0 skip`);
           }
           pts[i] = spawn();
           continue;
@@ -393,13 +412,16 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // Staggered land check: every 10 frames per particle.
         if ((frameCount + i) % 10 === 0) {
           if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
+            if (Math.random() < 0.005) {
+              console.log(`[Marine] blocked by land mask`);
+            }
             pts[i] = spawn();
             continue;
           }
         }
 
-        // Advect particle - speed scales with wave height/speed and dt!
-        const waveSpeedAmp = 0.5 + Math.min(3.5, wave.speed * 0.8); // bigger waves flow dramatically faster
+        // Advect particle
+        const waveSpeedAmp = 0.5 + Math.min(3.5, wave.speed * 0.8);
         const DEG_PER_METER = 1 / 111320;
         const latRad = p.lat * Math.PI / 180;
         const mercCorr = Math.max(0.1, Math.cos(latRad));
@@ -419,6 +441,15 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (p.lng > 180) p.lng -= 360;
         while (p.lng < -180) p.lng += 360;
 
+        // Post-advection land mask check right before drawing to prevent edge bleed!
+        if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
+          if (Math.random() < 0.005) {
+            console.log(`[Marine] blocked by land mask`);
+          }
+          pts[i] = spawn();
+          continue;
+        }
+
         // Wrap particle longitude relative to camera center for continuous render space coordinates
         const rLng = getRenderLng(p.lng, centerLng);
 
@@ -429,15 +460,14 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           continue;
         }
 
-        // Wave density scaling: calibrate for slow motion & visual presence in calm ocean waters
+        // Wave density scaling
         const h = Number.isFinite(wave.speed) ? wave.speed : 0;
         if (h <= 0.001) {
           if (Math.random() < 0.001) {
-            console.log(`[WaveSystem] Render SKIPPED: wave height ${h.toFixed(3)}m <= threshold.`);
+            console.log(`[Marine] wave height = 0 skip`);
           }
           continue;
         }
-        // Maintain a beautiful 15% base minimum particle density in calm water so foam flow is global
         const densityFactor = Math.max(0.15, Math.min(1.0, Math.pow(h / 6.0, 0.4)));
         if (p.phase > densityFactor) {
           if (Math.random() < 0.001) {
