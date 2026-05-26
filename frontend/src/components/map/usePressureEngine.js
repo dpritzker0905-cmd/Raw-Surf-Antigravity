@@ -171,13 +171,13 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
           const sorted = [...vals].sort((a, b) => a - b);
           const mean = vals.reduce((sum, v) => sum + v, 0) / vals.length;
-          // Use p20 and p75 to lower false negative filtering globally and include moderate/secondary systems
-          const p20 = sorted[Math.floor(sorted.length * 0.20)];
-          const p75 = sorted[Math.floor(sorted.length * 0.75)];
+          // Use p30 and p65 to widen detection window for moderate/secondary pressure systems
+          const p30 = sorted[Math.floor(sorted.length * 0.30)];
+          const p65 = sorted[Math.floor(sorted.length * 0.65)];
           
           basinStats[basin] = {
-            lowThresh: Math.min(1012, p20),
-            highThresh: Math.max(1013.5, p75),
+            lowThresh: Math.min(1013, p30),
+            highThresh: Math.max(1013, p65),
             mean
           };
         }
@@ -239,7 +239,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 6) {
+              if (clusterCells.length >= 3) {
                 candidateLows.push(clusterCells);
               }
             }
@@ -296,7 +296,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              if (clusterCells.length >= 6) {
+              if (clusterCells.length >= 3) {
                 candidateHighs.push(clusterCells);
               }
             }
@@ -339,8 +339,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 1.5 hPa (highly responsive to moderate systems)
-          if (deviation >= 1.5) {
+          // Anti-Spam: Deviation must be >= 0.5 hPa (wide net for moderate lows across all basins)
+          if (deviation >= 0.5) {
             console.log(`[PressureSystem] cluster detected: type=L, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
             selectedLows.push({
               lat: extLat,
@@ -389,8 +389,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          // Anti-Spam: Deviation must be >= 1.2 hPa (highly responsive to moderate/secondary highs)
-          if (deviation >= 1.2) {
+          // Anti-Spam: Deviation must be >= 0.5 hPa (wide net for moderate/secondary highs)
+          if (deviation >= 0.5) {
             console.log(`[PressureSystem] cluster detected: type=H, size=${clusterCells.length}, extremum=${extremumP.toFixed(1)} hPa at [${extLat.toFixed(3)}, ${normExtLng.toFixed(3)}], basin=${basin}, deviation=${deviation.toFixed(1)}hPa`);
             selectedHighs.push({
               lat: extLat,

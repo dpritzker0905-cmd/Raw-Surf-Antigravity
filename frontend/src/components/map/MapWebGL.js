@@ -370,7 +370,6 @@ var MapWebGL = ({
           activeMarineLayer={activeMarineLayer}
           theme={theme}
           beforeId={marineBeforeId || undefined}
-          activeLayers={activeLayers}
         />
 
         {/* Geofence Visual Layer */}
@@ -449,7 +448,7 @@ var MapWebGL = ({
                 type="raster"
                 url={url}
                 tileSize={512}
-                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
+                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 14 : 12}
               >
                 <Layer
                   id={`${slotKey}-layer`}

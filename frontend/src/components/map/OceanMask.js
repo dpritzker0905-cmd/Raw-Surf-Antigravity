@@ -110,7 +110,7 @@ const waterFilter = [
   true
 ];
 
-export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId, activeLayers = [] }) {
+export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
@@ -180,13 +180,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   }, []);
 
   // Maintain a stateRef updated on every render to completely prevent stale closure races
-  const stateRef = useRef({ mapInstance, active, theme, beforeId, maskData, activeLayers });
+  const stateRef = useRef({ mapInstance, active, theme, beforeId, maskData });
   useEffect(() => {
-    stateRef.current = { mapInstance, active, theme, beforeId, maskData, activeLayers };
+    stateRef.current = { mapInstance, active, theme, beforeId, maskData };
   });
 
   const syncLayers = useCallback(() => {
-    const { mapInstance, active, theme, beforeId, maskData, activeLayers } = stateRef.current;
+    const { mapInstance, active, theme, beforeId, maskData } = stateRef.current;
     if (!mapInstance) {
       console.log('[OceanMask] syncLayers bypassed, no map');
       return;
@@ -320,7 +320,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
-            mapInstance.setPaintProperty(MASK_FILL, 'fill-opacity', 1.0);
             mapInstance.setLayoutProperty(MASK_FILL, 'visibility', 'visible');
           } catch (e) {}
         }
@@ -346,7 +345,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-            mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-opacity', 1.0);
             mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['match', ['get', 'class'], ['ocean', 'sea'], false, true]]);
             mapInstance.setLayoutProperty(MASK_INLAND_WATER, 'visibility', 'visible');
           } catch (e) {}
@@ -377,7 +375,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
-            mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-opacity', 1.0);
             mapInstance.setLayoutProperty(MASK_INLAND_WATERWAY, 'visibility', 'visible');
           } catch (e) {}
         }
@@ -432,16 +429,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         }
 
-        // Also restore all base map fill layers containing landuse/park keywords to visible
-        if (style && style.layers) {
-          for (const layer of style.layers) {
-            const id = layer.id.toLowerCase();
-            const isLanduse = landuseKeywords.some(kw => id.includes(kw));
-            if (isLanduse && layer.type === 'fill') {
-              try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch (e) {}
-            }
-          }
-        }
+
       }
     } catch (err) {
       console.error('[OceanMask] Error in syncLayers:', err);
@@ -481,26 +469,14 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         }
 
-        // Restore all base map fill layers containing landuse/park keywords to visible
-        try {
-          const style = mapInstance.getStyle();
-          if (style && style.layers) {
-            for (const layer of style.layers) {
-              const id = layer.id.toLowerCase();
-              const isLanduse = landuseKeywords.some(kw => id.includes(kw));
-              if (isLanduse && layer.type === 'fill') {
-                try { mapInstance.setLayoutProperty(layer.id, 'visibility', 'visible'); } catch (e) {}
-              }
-            }
-          }
-        } catch (e) {}
+
 
         setTimeout(() => { syncingRef.current = false; }, 300);
       }
     } else {
       triggerSync(0);
     }
-  }, [mapInstance, active, theme, beforeId, maskData, triggerSync, activeLayers]);
+  }, [mapInstance, active, theme, beforeId, maskData, triggerSync]);
 
   // Re-run sync on styles data changes
   useEffect(() => {
