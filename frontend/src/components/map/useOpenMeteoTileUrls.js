@@ -637,6 +637,8 @@ export function useOpenMeteoTileUrls({
     omTileUrls,
     activeSlots,
     isTransitioning,
-    closestTimeIdx
+    closestTimeIdx,
+    debouncedTimeOffsetHours
   };
+
 }

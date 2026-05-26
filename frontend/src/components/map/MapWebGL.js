@@ -188,12 +188,6 @@ var MapWebGL = ({
   const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
   const animFrameRef = useRef(null);
   
-  // Weather Engine: Decoupled weather analytics
-  const forecastDays = useMemo(() => resolveForecastWindow(userTier), [userTier]);
-  const { windData } = useWeatherEngine({
-    activeLayers, mapInstance, timeOffsetHours, activeModel, forecastDays
-  });
-
   // Temporal Preloader
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance, activeModel, theme });
 
@@ -202,12 +196,14 @@ var MapWebGL = ({
   }, [activeLayers]);
 
   // 7. Open-Meteo Tile Protocol and Sliding URL Ring Buffers
+
   const {
     protocolReady,
     omTileUrls,
     activeSlots,
     isTransitioning,
-    closestTimeIdx
+    closestTimeIdx,
+    debouncedTimeOffsetHours
   } = useOpenMeteoTileUrls({
     mapInstance,
     activeModel,
@@ -218,8 +214,24 @@ var MapWebGL = ({
     activeMarineLayer
   });
 
+  // Weather Engine: Decoupled weather analytics
+  const forecastDays = useMemo(() => resolveForecastWindow(userTier), [userTier]);
+  const { windData } = useWeatherEngine({
+    activeLayers,
+    mapInstance,
+    timeOffsetHours: debouncedTimeOffsetHours, // Synchronized & debounced to prevent CPU choke
+    activeModel,
+    forecastDays
+  });
+
   // Shared Marine Orchestrator
-  const { marineData } = useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours, activeModel });
+  const { marineData } = useMarineOrchestrator({
+    mapInstance,
+    activeLayers,
+    timeOffsetHours: debouncedTimeOffsetHours, // Synchronized & debounced to prevent CPU choke
+    activeModel
+  });
+
 
   const activeRenderType = useMemo(() => {
     const layerId = activeLayers[0];
