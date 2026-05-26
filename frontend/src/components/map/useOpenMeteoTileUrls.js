@@ -92,6 +92,7 @@ export function useOpenMeteoTileUrls({
   activeSlotsRef.current = activeSlots;
 
   const targetSlotsRef = useRef({});
+  const lastTargetSlotsRef = useRef({});
   const transitionStartTimesRef = useRef({});
   const omTileUrlsRef = useRef(omTileUrls);
   omTileUrlsRef.current = omTileUrls;
@@ -115,6 +116,13 @@ export function useOpenMeteoTileUrls({
       if (targetSlot === undefined) return;
 
       const activeSlot = currentActive[layerKey];
+
+      // Track target changes during high-velocity scrubs to reset the safety transition start time
+      const lastTarget = lastTargetSlotsRef.current[layerKey];
+      if (lastTarget !== targetSlot) {
+        lastTargetSlotsRef.current[layerKey] = targetSlot;
+        transitionStartTimesRef.current[layerKey] = now;
+      }
 
       // If a layer has no active slot (cold start)
       if (activeSlot === undefined) {
@@ -239,49 +247,15 @@ export function useOpenMeteoTileUrls({
     );
   }, []);
 
-  // Pre-warm active model and wave fallbacks immediately, and defer the rest
+  // Pre-warm ALL model metadata immediately upon mount to eliminate layer activation latency completely
   useEffect(() => {
-    const activeModelCode = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
-    
-    // 1. Prioritize active model components immediately
-    fetchMetadata(activeModelCode);
-    
-    if (activeModel === 'GFS') {
-      fetchMetadata('ncep_gfs013');
-      fetchMetadata('ncep_gfswave025');
-    } else if (activeModel === 'EURO') {
-      fetchMetadata('ecmwf_ifs025');
-      fetchMetadata('ecmwf_wam025');
-    } else if (activeModel === 'ICON') {
-      fetchMetadata('dwd_icon');
-      fetchMetadata('dwd_gwam');
-    }
-
-    // Always fetch global fallbacks immediately
-    fetchMetadata('ncep_gfs025');
-    fetchMetadata('ncep_gfswave025');
-    
-    // 2. Defer remaining models by 2 seconds using a non-blocking setTimeout
-    const timer = setTimeout(() => {
-      const allModels = ['ncep_gfs025', 'ncep_gfs013', 'dwd_icon', 'ecmwf_ifs025', 'ecmwf_wam025', 'dwd_gwam'];
-      const immediateList = [activeModelCode];
-      if (activeModel === 'GFS') {
-        immediateList.push('ncep_gfs013', 'ncep_gfswave025');
-      } else if (activeModel === 'EURO') {
-        immediateList.push('ecmwf_ifs025', 'ecmwf_wam025');
-      } else if (activeModel === 'ICON') {
-        immediateList.push('dwd_icon', 'dwd_gwam');
-      }
-      immediateList.push('ncep_gfs025', 'ncep_gfswave025');
-      
-      const remainingModels = allModels.filter(m => !immediateList.includes(m));
-      
-      // Load remaining models in the background
-      remainingModels.forEach(m => fetchMetadata(m));
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [fetchMetadata, activeModel]);
+    const allModels = [
+      'ncep_gfs025', 'ncep_gfs013', 'ncep_gfswave025',
+      'ecmwf_ifs025', 'ecmwf_wam025',
+      'dwd_icon', 'dwd_gwam'
+    ];
+    allModels.forEach(m => fetchMetadata(m));
+  }, [fetchMetadata]);
 
   // Closest time index computation
   const closestTimeIdx = useMemo(() => {

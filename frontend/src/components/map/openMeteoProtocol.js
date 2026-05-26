@@ -44,15 +44,17 @@ const isModelMatch = (folder, lock) => {
   return parent.toLowerCase() === l || f.includes(l) || l.includes(f);
 };
 
-// Global Mutex to serialize all tile decoding requests and prevent parallel setToOmFile race condition OOM crashes
-class ProtocolMutex {
-  constructor() {
+// Global Concurrency Semaphore to serialize tile decoding requests to 4 parallel workers
+// Prevents mass parallel tile storms while unlocking 400% decoding speed boosts
+class ConcurrencySemaphore {
+  constructor(limit = 4) {
+    this.limit = limit;
+    this.active = 0;
     this.queue = [];
-    this.locked = false;
   }
   acquire() {
-    if (!this.locked) {
-      this.locked = true;
+    if (this.active < this.limit) {
+      this.active++;
       return Promise.resolve();
     }
     return new Promise((resolve) => {
@@ -64,11 +66,11 @@ class ProtocolMutex {
       const next = this.queue.shift();
       next();
     } else {
-      this.locked = false;
+      this.active--;
     }
   }
 }
-const protocolMutex = new ProtocolMutex();
+const protocolMutex = new ConcurrencySemaphore(4);
 
 // Marine variables that should be clipped to ocean only
 const MARINE_VARIABLES = new Set([

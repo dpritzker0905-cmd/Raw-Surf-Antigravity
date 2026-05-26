@@ -110,10 +110,11 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
       abortRef.current = controller;
       var signal = controller.signal;
 
-      // Pre-fetch raw spatial JSON chunks for each of the next PRELOAD_STEPS valid model steps
-      for (var step = 1; step <= PRELOAD_STEPS; step++) {
-        var targetIdx = closestIdx + step;
-        if (targetIdx >= meta.validTimes.length) break;
+      // Pre-fetch raw spatial JSON chunks for surrounding steps (past and future) to pre-warm the connection pool
+      var steps = [-2, -1, 1, 2, 3];
+      for (var s = 0; s < steps.length; s++) {
+        var targetIdx = closestIdx + steps[s];
+        if (targetIdx < 0 || targetIdx >= meta.validTimes.length) continue;
 
         var cacheKey = model + ':' + resolvedVar + ':' + targetIdx;
         if (cacheRef.current.has(cacheKey)) continue;
