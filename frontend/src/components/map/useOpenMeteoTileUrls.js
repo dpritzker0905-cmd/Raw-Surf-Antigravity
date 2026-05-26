@@ -38,6 +38,7 @@ export function useOpenMeteoTileUrls({
   const [debouncedTimeOffsetHours, setDebouncedTimeOffsetHours] = useState(timeOffsetHours);
   const lastTimeOffsetChangeRef = useRef(0);
   const debounceTimerRef = useRef(null);
+  const isScrubbingRef = useRef(false);
 
   useEffect(() => {
     const now = Date.now();
@@ -50,12 +51,15 @@ export function useOpenMeteoTileUrls({
 
     if (diff < 120) {
       // Rapid dragging / scrubbing timeline slider: debounce by 200ms
+      isScrubbingRef.current = true;
       WeatherTelemetry.trackAnimationScrub(timeOffsetHours);
       debounceTimerRef.current = setTimeout(() => {
+        isScrubbingRef.current = false;
         setDebouncedTimeOffsetHours(timeOffsetHours);
       }, 200);
     } else {
       // Single click/tap or slow adjustment: update instantly
+      isScrubbingRef.current = false;
       WeatherTelemetry.trackTimelineSeek(timeOffsetHours);
       setDebouncedTimeOffsetHours(timeOffsetHours);
     }
@@ -161,7 +165,7 @@ export function useOpenMeteoTileUrls({
       } catch (e) {
         // Safe fallback
       }
-      const isTimeout = elapsed > 800;
+      const isTimeout = elapsed > 2000;
 
       if (isLoaded || isTransparent || isTimeout) {
         console.log(`[Raster Transition] Transitioning layer '${layerKey}' from slot ${activeSlot} to ${targetSlot}. Reason: Loaded=${isLoaded}, Transparent=${isTransparent}, Timeout=${isTimeout} (${elapsed}ms)`);
@@ -540,9 +544,17 @@ export function useOpenMeteoTileUrls({
               const slotPrev = (closestIdx - 1 + 3) % 3;
               const slotNext = (closestIdx + 1) % 3;
               const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
+              
               newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
-              newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
-              newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+              
+              if (isScrubbingRef.current) {
+                const currentUrls = omTileUrlsRef.current || {};
+                newUrls[`${layerKey}-slot-${slotPrev}`] = currentUrls[`${layerKey}-slot-${slotPrev}`] || 'om://transparent-tile';
+                newUrls[`${layerKey}-slot-${slotNext}`] = currentUrls[`${layerKey}-slot-${slotNext}`] || 'om://transparent-tile';
+              } else {
+                newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+                newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+              }
             }
           }
 
@@ -635,9 +647,17 @@ export function useOpenMeteoTileUrls({
             const slotPrev = (closestIdx - 1 + 3) % 3;
             const slotNext = (closestIdx + 1) % 3;
             const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
+            
             newUrls[`${layerKey}-slot-${slotCurrent}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
-            newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
-            newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            
+            if (isScrubbingRef.current) {
+              const currentUrls = omTileUrlsRef.current || {};
+              newUrls[`${layerKey}-slot-${slotPrev}`] = currentUrls[`${layerKey}-slot-${slotPrev}`] || 'om://transparent-tile';
+              newUrls[`${layerKey}-slot-${slotNext}`] = currentUrls[`${layerKey}-slot-${slotNext}`] || 'om://transparent-tile';
+            } else {
+              newUrls[`${layerKey}-slot-${slotPrev}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx > 0 ? getUrlForIndex(layerModel, resolvedVar, closestIdx - 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+              newUrls[`${layerKey}-slot-${slotNext}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', closestIdx < totalLen - 1 ? getUrlForIndex(layerModel, resolvedVar, closestIdx + 1) : getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            }
           }
         }
 

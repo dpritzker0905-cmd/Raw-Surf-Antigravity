@@ -44,10 +44,10 @@ const isModelMatch = (folder, lock) => {
   return parent.toLowerCase() === l || f.includes(l) || l.includes(f);
 };
 
-// Global Concurrency Semaphore to serialize tile decoding requests to 4 parallel workers
-// Prevents mass parallel tile storms while unlocking 400% decoding speed boosts
+// Global Concurrency Semaphore to serialize tile decoding requests to 1 parallel worker
+// Prevents parallel Emscripten heap allocations that trigger RuntimeError: Aborted(OOM) crashes
 class ConcurrencySemaphore {
-  constructor(limit = 4) {
+  constructor(limit = 1) {
     this.limit = limit;
     this.active = 0;
     this.queue = [];
@@ -70,7 +70,19 @@ class ConcurrencySemaphore {
     }
   }
 }
-const protocolMutex = new ConcurrencySemaphore(4);
+const protocolMutex = new ConcurrencySemaphore(1);
+
+// In-memory cache for decoded tile buffers to bypass WASM decode and fetch entirely on hits during timeline scrubs
+const DECODED_TILE_CACHE = new Map();
+const MAX_CACHE_SIZE = 150;
+
+function cacheDecodedTile(key, value) {
+  if (DECODED_TILE_CACHE.size >= MAX_CACHE_SIZE) {
+    const oldestKey = DECODED_TILE_CACHE.keys().next().value;
+    DECODED_TILE_CACHE.delete(oldestKey);
+  }
+  DECODED_TILE_CACHE.set(key, value);
+}
 
 // Marine variables that should be clipped to ocean only
 const MARINE_VARIABLES = new Set([
@@ -364,8 +376,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
 
           // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
           const runProtocol = async () => {
-            await protocolMutex.acquire();
             const tileKey = params.url || 'unknown-tile';
+
+            // 1. Fast-path: Return cached decoded tile immediately in 0ms on hits
+            if (DECODED_TILE_CACHE.has(tileKey)) {
+              WeatherTelemetry.trackTileLoaded(tileKey, true);
+              return DECODED_TILE_CACHE.get(tileKey);
+            }
+
+            await protocolMutex.acquire();
             WeatherTelemetry.trackTileRequest(tileKey, tileKey);
             const startTime = Date.now();
             try {
@@ -378,6 +397,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               WeatherTelemetry.trackRasterDecodeEnd(tileKey, Date.now() - startTime);
               WeatherTelemetry.trackTileLoaded(tileKey, true);
               WeatherTelemetry.trackRasterDecoded(tileKey, Date.now() - startTime);
+
+              // 2. Cache successful decoded result
+              if (res && res.data) {
+                cacheDecodedTile(tileKey, res);
+              }
               return res;
             } catch (err) {
               WeatherTelemetry.trackTileLoaded(tileKey, false);
@@ -416,6 +440,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
  * @returns {Promise<void>}
  */
 export function clearOpenMeteoCache() {
+  DECODED_TILE_CACHE.clear();
   return import('@openmeteo/weather-map-layer')
     .then(({ clearBlockCache }) => {
       return clearBlockCache()
