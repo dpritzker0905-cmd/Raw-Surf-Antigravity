@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WebGLWindEngine GPU-accelerated wind particle advection + trail fading
  *
  * v3.8: Replaces Canvas2D particle loop with WebGL ping-pong framebuffer
@@ -382,9 +382,47 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     this.screenB = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
     this._screenW = screenWidth; this._screenH = screenHeight;
   }
+  // WebGL State Isolation Protocol
   var prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
   var prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   var prevBlend = gl.getParameter(gl.BLEND);
+  var prevActiveTex = gl.getParameter(gl.ACTIVE_TEXTURE);
+  var prevArrayBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
+  var prevElementArrayBuffer = gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING);
+  var prevViewport = gl.getParameter(gl.VIEWPORT);
+
+  var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
+  var prevBlendDstRGB = gl.getParameter(gl.BLEND_DST_RGB);
+  var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
+  var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
+
+  var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
+  var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
+  var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
+  var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
+
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+  gl.disable(gl.STENCIL_TEST);
+  gl.disable(gl.SCISSOR_TEST);
+
+  // Capture textures on unit 0, 1, 2
+  gl.activeTexture(gl.TEXTURE0);
+  var prevTex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  gl.activeTexture(gl.TEXTURE1);
+  var prevTex1 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  gl.activeTexture(gl.TEXTURE2);
+  var prevTex2 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+
+  // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
+  var prevVAO = null;
+  var isWebGL2 = false;
+  if (gl.bindVertexArray) {
+    isWebGL2 = true;
+    prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
+    gl.bindVertexArray(null);
+  }
+
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
 
   // Step 1: Advect particles (ping-pong)
@@ -412,11 +450,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
- // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
+  // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
   gl.useProgram(this.fadeProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
- // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
+  // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
@@ -429,7 +467,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(fadePosLoc);
 
   // Step 3: Draw particles onto screen B with color ramp
- // v3.12.2: Re-enable blending particles drawn ON TOP of faded trails
+  // v3.12.2: Re-enable blending particles drawn ON TOP of faded trails
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.drawProgram);
@@ -454,7 +492,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
   gl.disableVertexAttribArray(idxLoc);
 
- // Copy screenB screenA
+  // Copy screenB screenA
   gl.useProgram(this.screenProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
@@ -469,7 +507,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disableVertexAttribArray(cpLoc);
 
   // Step 4: Composite to main framebuffer
- // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
+  // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
   // RGB-fade FBO has alpha=1.0, but screen shader outputs brightness-derived alpha.
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
@@ -480,11 +518,49 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  // Restore standard blending for subsequent MapLibre layers
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.disableVertexAttribArray(scrLoc);
-  if (!prevBlend) gl.disable(gl.BLEND);
+
+  // Restore State
+  gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
+  if (isWebGL2 && gl.bindVertexArray) {
+    gl.bindVertexArray(prevVAO);
+  }
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.useProgram(prevProg);
+  gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex0);
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex1);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex2);
+  gl.activeTexture(prevActiveTex);
+  
+  if (prevBlend) {
+    gl.enable(gl.BLEND);
+  } else {
+    gl.disable(gl.BLEND);
+  }
+  gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
+
+  if (prevDepthTest) {
+    gl.enable(gl.DEPTH_TEST);
+  } else {
+    gl.disable(gl.DEPTH_TEST);
+  }
+  gl.depthMask(prevDepthWriteMask);
+
+  if (prevStencilTest) {
+    gl.enable(gl.STENCIL_TEST);
+  } else {
+    gl.disable(gl.STENCIL_TEST);
+  }
+  if (prevScissorTest) {
+    gl.enable(gl.SCISSOR_TEST);
+  } else {
+    gl.disable(gl.SCISSOR_TEST);
+  }
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {

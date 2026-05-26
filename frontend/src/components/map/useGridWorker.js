@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useGridWorker.js Main-thread interface for GridParserWorker
  *
  * Provides a React hook and factory function for off-thread grid parsing.
@@ -107,5 +107,20 @@ export function useGridWorker() {
     });
   }, []);
 
-  return { parseWind: parseWind, parseMarine: parseMarine };
+  var calculatePressureExtrema = useCallback(function(pressures, coarseRows, coarseCols, bounds, timeOffsetHours, activeModel) {
+    if (!workerRef.current) {
+      return Promise.resolve(null);
+    }
+    return workerRef.current.parse({
+      type: 'calculatePressureExtrema',
+      pressures: pressures,
+      coarseRows: coarseRows,
+      coarseCols: coarseCols,
+      bounds: bounds,
+      timeOffsetHours: timeOffsetHours,
+      activeModel: activeModel
+    });
+  }, []);
+
+  return { parseWind: parseWind, parseMarine: parseMarine, calculatePressureExtrema: calculatePressureExtrema };
 }

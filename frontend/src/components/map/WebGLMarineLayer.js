@@ -173,7 +173,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
   }, [data, mapInstance]);
 
-  // Enforce continuous animation loop and layer ordering when active
+  // Enforce layer ordering when active
   useEffect(() => {
     if (!mapInstance || !active) return;
 
@@ -181,17 +181,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     for (const rasterId of marineRasterLayers) {
       safeMoveLayer(mapInstance, rasterId, LAYER_ID);
     }
-
-    let frameId;
-    const renderLoop = () => {
-      mapInstance.triggerRepaint();
-      frameId = requestAnimationFrame(renderLoop);
-    };
-    frameId = requestAnimationFrame(renderLoop);
-
-    return () => {
-      if (frameId) cancelAnimationFrame(frameId);
-    };
   }, [mapInstance, active]);
 
   return null;
