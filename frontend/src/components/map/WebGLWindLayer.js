@@ -97,29 +97,29 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef, onErrorRef);
 
-    // Wait for style load before adding layer
-    const addLayer = () => {
-      if (layerAddedRef.current) return;
-      try {
-        if (mapInstance.getLayer(LAYER_ID)) {
-          mapInstance.removeLayer(LAYER_ID);
+    // Dynamic layer style data sync: add layer and keep it present across style/theme reloads
+    const handleStyleData = () => {
+      if (!mapInstance) return;
+      if (!mapInstance.isStyleLoaded?.()) return;
+
+      if (!mapInstance.getLayer(LAYER_ID)) {
+        layerAddedRef.current = false;
+        try {
+          mapInstance.addLayer(customLayer);
+          layerAddedRef.current = true;
+          console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+        } catch (e) {
+          console.warn('[WebGLWind] Failed to add layer:', e.message);
         }
-        mapInstance.addLayer(customLayer);
-        layerAddedRef.current = true;
-        console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
-      } catch (e) {
-        console.warn('[WebGLWind] Failed to add layer:', e.message);
       }
     };
 
-    if (mapInstance.isStyleLoaded()) {
-      addLayer();
-    } else {
-      mapInstance.once('styledata', addLayer);
-    }
+    mapInstance.on('styledata', handleStyleData);
+    handleStyleData();
 
     return () => {
       try {
+        mapInstance.off('styledata', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }

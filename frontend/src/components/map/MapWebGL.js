@@ -443,7 +443,7 @@ var MapWebGL = ({
         {(!webglMarineFailed && !!activeMarineLayer) ? (
           <WebGLMarineLayer
             mapInstance={mapInstance}
-            active={!isTransitioning && !!activeMarineLayer}
+            active={!!activeMarineLayer}
             data={marineWindData}
             revision={marineData?.grid?.timestamp || 0}
             onError={() => {
@@ -455,7 +455,7 @@ var MapWebGL = ({
           <MarineParticleCanvas 
             id="marine-canvas-layer"
             mapInstance={mapInstance} 
-            active={!isTransitioning && !!activeMarineLayer}
+            active={!!activeMarineLayer}
             data={marineWindData}
             revision={marineData?.grid?.timestamp || Date.now()}
           />
@@ -479,7 +479,7 @@ var MapWebGL = ({
         {(!webglWindFailed && activeLayers.includes('wind')) ? (
           <WebGLWindLayer
             mapInstance={mapInstance}
-            active={!isTransitioning && activeLayers.includes('wind')}
+            active={activeLayers.includes('wind')}
             data={windData}
             revision={windRevision?.current || 0}
             onError={() => {
@@ -491,7 +491,7 @@ var MapWebGL = ({
           <WindParticleOverlay
             id="wind-particle-overlay"
             mapInstance={mapInstance}
-            active={!isTransitioning && activeLayers.includes('wind')}
+            active={activeLayers.includes('wind')}
             data={windData}
             theme={theme}
           />

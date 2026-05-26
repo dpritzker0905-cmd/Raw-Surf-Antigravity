@@ -153,7 +153,7 @@ var DRAW_FS = [
   'void main() {',
   '  float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);',
   '  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));',
-  '  gl_FragColor = vec4(color.rgb * color.a, 1.0);',
+  '  gl_FragColor = vec4(color.rgb, 1.0);',
   '}',
 ].join('\n');
 
@@ -441,6 +441,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
 
   // Step 1: Advect particles (ping-pong)
+  gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind'), 1);

@@ -13,7 +13,7 @@ const ACCESS_CODE_KEY = 'site_access_code'; // Stores the actual code for re-val
 export const AccessCodeScreen = ({ children }) => {
   const [checking, setChecking] = useState(true);
   const [accessRequired, setAccessRequired] = useState(false);
-  const [accessGranted, setAccessGranted] = useState(false);
+  const [accessGranted, setAccessGranted] = useState(true);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [verifying, setVerifying] = useState(false);
