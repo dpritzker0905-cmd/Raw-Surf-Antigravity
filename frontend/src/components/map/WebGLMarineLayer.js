@@ -14,7 +14,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
   return {
     id: LAYER_ID,
     type: 'custom',
-    renderingMode: '2d',
+    renderingMode: '3d',
     engine, // expose engine reference for debugging
 
     onAdd(_map, gl) {
@@ -32,6 +32,10 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
     },
 
     render(gl, matrix) {
+      if (this._renderLogged === undefined) {
+        this._renderLogged = true;
+        console.log("[WebGLMarineLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount);
+      }
       if (!activeRef.current || errorCount > 3) {
         if (this._wasActive) {
           engine.clearBuffers(gl);

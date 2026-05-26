@@ -19,14 +19,15 @@ var LAYER_ID = 'webgl-wind-particles';
  * Creates a MapLibre CustomLayerInterface that delegates rendering
  * to the WebGLWindEngine.
  */
-function createCustomLayer(engine, activeRef, mapRef, onErrorRef) {
+function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
     type: 'custom',
-    renderingMode: '2d',
+    renderingMode: '3d',
 
     onAdd(_map, gl) {
+      glRef.current = gl;
       try {
         engine.init(gl);
       } catch (e) {
@@ -36,6 +37,10 @@ function createCustomLayer(engine, activeRef, mapRef, onErrorRef) {
     },
 
     render(gl, matrix) {
+      if (this._renderLogged === undefined) {
+        this._renderLogged = true;
+        console.log("[WebGLWindLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount);
+      }
       if (!activeRef.current || errorCount > 3) {
         // v3.11.2r1: Clear FBOs when deactivated to prevent trail residue
         if (this._wasActive) {
@@ -68,6 +73,7 @@ function createCustomLayer(engine, activeRef, mapRef, onErrorRef) {
 
     onRemove(_map, gl) {
       engine.dispose(gl);
+      glRef.current = null;
     }
   };
 }
@@ -78,6 +84,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
   const mapRef = useRef(mapInstance);
   const layerAddedRef = useRef(false);
   const onErrorRef = useRef(onError);
+  const glRef = useRef(null);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
@@ -95,7 +102,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, onErrorRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef);
 
     // Dynamic layer style data sync: add layer and keep it present across style/theme reloads
     const handleStyleData = () => {
@@ -133,14 +140,13 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
   // Update wind data texture when data changes
   useEffect(() => {
     const engine = engineRef.current;
-    if (!engine || !data?.vectors?.length || !mapInstance) return;
+    const gl = glRef.current || mapInstance?.painter?.context?.gl;
+    if (!engine || !data?.vectors?.length || !mapInstance || !gl) return;
 
     try {
-      const gl = mapInstance.painter?.context?.gl;
-      if (gl) {
-        engine.setWindData(gl, data);
-        mapInstance.triggerRepaint();
-      }
+      console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
+      engine.setWindData(gl, data);
+      mapInstance.triggerRepaint();
     } catch (e) {
       console.warn('[WebGLWind] setWindData error:', e.message);
     }

@@ -143,6 +143,9 @@ void main() {
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
+  if (gl_Position.w == 0.0) {
+    gl_Position.w = 1.0;
+  }
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
   float period = 3.0 + particleHash * 4.0;
@@ -189,6 +192,9 @@ void main() {
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
+  if (gl_Position.w == 0.0) {
+    gl_Position.w = 1.0;
+  }
 }
 `;
 
@@ -285,6 +291,20 @@ function createTexture(gl, filter, data, width, height) {
   gl.bindTexture(gl.TEXTURE_2D, prevTex);
   return tex;
 }
+
+function unbindTexture(gl, tex) {
+  if (!tex) return;
+  var prevActive = gl.getParameter(gl.ACTIVE_TEXTURE);
+  var maxUnits = Math.min(16, gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8);
+  for (var u = 0; u < maxUnits; u++) {
+    gl.activeTexture(gl.TEXTURE0 + u);
+    if (gl.getParameter(gl.TEXTURE_BINDING_2D) === tex) {
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+  }
+  gl.activeTexture(prevActive);
+}
+
 
 function bindTexture(gl, tex, unit) {
   gl.activeTexture(gl.TEXTURE0 + unit);
@@ -436,8 +456,20 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid) {
 };
 
 WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
-  if (!this._initialized || !this._waveData) return;
-  if (!matrix || !matrix.length) return;
+  let projMatrix = matrix;
+  if (matrix && matrix.modelViewProjectionMatrix) {
+    projMatrix = matrix.modelViewProjectionMatrix;
+  }
+  if (!this._initialized || !this._waveData || !projMatrix || !projMatrix.length) {
+    if (this._renderLogged === undefined) {
+      this._renderLogged = 0;
+    }
+    this._renderLogged++;
+    if (this._renderLogged === 1 || this._renderLogged % 180 === 0) {
+      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "projMatrix:", !!projMatrix, "projMatrix.length:", projMatrix?.length);
+    }
+    return;
+  }
 
   // WebGL State Isolation Protocol
   var prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
@@ -457,17 +489,42 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
   var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
   var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
+  var prevColorMask = gl.getParameter(gl.COLOR_WRITEMASK);
 
   gl.disable(gl.DEPTH_TEST);
   gl.depthMask(false);
   gl.disable(gl.STENCIL_TEST);
   gl.disable(gl.SCISSOR_TEST);
+  gl.colorMask(true, true, true, true);
 
-  // Capture textures on unit 0 and 1
-  gl.activeTexture(gl.TEXTURE0);
-  var prevTex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  gl.activeTexture(gl.TEXTURE1);
-  var prevTex1 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  // Clear any existing WebGL errors from MapLibre's previous drawing operations
+  while (gl.getError() !== gl.NO_ERROR) {}
+
+  // Prevent MapLibre vertex attribute pollution by disabling all attribute arrays
+  var maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
+  for (var i = 0; i < maxAttribs; i++) {
+    try {
+      gl.disableVertexAttribArray(i);
+    } catch (e) {}
+  }
+
+
+  // Capture and unbind all texture units to prevent feedback loops with MapLibre's active drawing textures
+  var prevTextures2D = [];
+  var prevTexturesCube = [];
+  var maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
+  for (var u = 0; u < maxUnits; u++) {
+    gl.activeTexture(gl.TEXTURE0 + u);
+    prevTextures2D.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    try {
+      prevTexturesCube.push(gl.getParameter(gl.TEXTURE_BINDING_CUBE_MAP));
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    } catch (e) {
+      prevTexturesCube.push(null);
+    }
+  }
+
 
   // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
   var prevVAO = null;
@@ -478,7 +535,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.bindVertexArray(null);
   }
 
-  var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
+  var mat4 = projMatrix instanceof Float32Array ? projMatrix : new Float32Array(projMatrix);
   var time = (Date.now() - this._startTime) / 1000.0;
   const waveBounds = this._waveData.bounds;
 
@@ -528,7 +585,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
   if (this.frameCount === undefined) this.frameCount = 0;
   this.frameCount++;
-  if (this.frameCount % 60 === 0) {
+  if (this.frameCount === 1) {
+    console.log(`[MARINE-TELEMETRY] Frame 1 matrix: [${mat4[0].toFixed(4)}, ${mat4[1].toFixed(4)}, ${mat4[2].toFixed(4)}, ${mat4[3].toFixed(4)}] | prevColorMask: [${prevColorMask[0]}, ${prevColorMask[1]}, ${prevColorMask[2]}, ${prevColorMask[3]}]`);
+  }
+  if (this.frameCount === 1 || this.frameCount % 60 === 0) {
     console.log(`[MARINE-TELEMETRY] Frame: ${this.frameCount} | RAF tick executed | wave/swell update advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | interpolation step: GFS-Wave / WW3 ocean grid bilinear lookup | particle buffer mutated (State A/B ping-pong active) | draw call: gl.drawElements(TRIANGLES, ${this.numGridIndices}, UNSIGNED_SHORT) (heatmap) + gl.drawArrays(LINES, 0, ${this.particleRes * this.particleRes * 2}) (crests) | shader active: heatmapProgram + advectProgram + drawProgram | uniforms: u_matrix, u_opacity, u_speed_scale, u_rand_seed, u_drop_rate`);
   }
 
@@ -547,6 +607,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
 
+  unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
   gl.viewport(0, 0, this.particleRes, this.particleRes);
@@ -619,10 +680,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.useProgram(prevProg);
   gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex0);
-  gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex1);
+  for (var u = 0; u < prevTextures2D.length; u++) {
+    gl.activeTexture(gl.TEXTURE0 + u);
+    gl.bindTexture(gl.TEXTURE_2D, prevTextures2D[u]);
+    if (prevTexturesCube[u]) {
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
+    }
+  }
+
   gl.activeTexture(prevActiveTex);
   
   if (prevBlend) {
@@ -649,6 +714,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   } else {
     gl.disable(gl.SCISSOR_TEST);
   }
+  gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
 };
 
 WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;

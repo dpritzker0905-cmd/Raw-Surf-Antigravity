@@ -126,7 +126,7 @@ void main() {
   vec4 encoded = texture2D(u_particles, uv);
   vec2 pos = decodePos(encoded);
 
- // Convert [0,1] [lng, lat]
+  // Convert [0,1] [lng, lat]
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
 
@@ -140,6 +140,9 @@ void main() {
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
+  if (gl_Position.w == 0.0) {
+    gl_Position.w = 1.0;
+  }
  // v3.12.2: Ventusky-scale particles visible flowing streams
   gl_PointSize = 2.0 + clamp(v_speed / 8.0, 0.0, 3.0);
 }`;
@@ -218,6 +221,7 @@ function createProgram(gl, vs, fs) {
 }
 
 function createTexture(gl, filter, data, width, height) {
+  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
   const tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -231,16 +235,47 @@ function createTexture(gl, filter, data, width, height) {
   } else {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, data);
   }
+  gl.bindTexture(gl.TEXTURE_2D, prevTex);
   return tex;
 }
 
+function unbindTexture(gl, tex) {
+  if (!tex) return;
+  var prevActive = gl.getParameter(gl.ACTIVE_TEXTURE);
+  var maxUnits = Math.min(16, gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8);
+  for (var u = 0; u < maxUnits; u++) {
+    gl.activeTexture(gl.TEXTURE0 + u);
+    if (gl.getParameter(gl.TEXTURE_BINDING_2D) === tex) {
+      gl.bindTexture(gl.TEXTURE_2D, null);
+    }
+  }
+  gl.activeTexture(prevActive);
+}
+
+function logStepDetails(gl, stepName) {
+  var status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  var currentFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  var activeTex = gl.getParameter(gl.ACTIVE_TEXTURE);
+  var bindings = [];
+  for (var u = 0; u < 4; u++) {
+    gl.activeTexture(gl.TEXTURE0 + u);
+    bindings.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
+  }
+  gl.activeTexture(activeTex);
+  console.log("[WebGLWindEngine-DIAGNOSTIC] " + stepName + ": status=" + status + ", currentFBO=" + (currentFBO ? "yes" : "null") + ", textures=", bindings);
+}
+
+
 function createFBO(gl, filter, width, height) {
+  const prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   const tex = createTexture(gl, filter, null, width, height);
   const fbo = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   return { tex, fbo };
 }
+
 
 function bindTexture(gl, tex, unit) {
   gl.activeTexture(gl.TEXTURE0 + unit);
@@ -371,8 +406,20 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
 };
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom) {
-  if (!this._initialized || !this._windData) return;
-  if (!matrix || !matrix.length) return;
+  let projMatrix = matrix;
+  if (matrix && matrix.modelViewProjectionMatrix) {
+    projMatrix = matrix.modelViewProjectionMatrix;
+  }
+  if (!this._initialized || !this._windData || !projMatrix || !projMatrix.length) {
+    if (this._renderLogged === undefined) {
+      this._renderLogged = 0;
+    }
+    this._renderLogged++;
+    if (this._renderLogged === 1 || this._renderLogged % 180 === 0) {
+      console.log("[WebGLWindEngine] render returned early! _initialized:", this._initialized, "_windData:", !!this._windData, "projMatrix:", !!projMatrix, "projMatrix.length:", projMatrix?.length);
+    }
+    return;
+  }
   if (!this.screenA || this._screenW !== screenWidth || this._screenH !== screenHeight) {
     if (this.screenA) {
       gl.deleteFramebuffer(this.screenA.fbo); gl.deleteTexture(this.screenA.tex);
@@ -400,19 +447,41 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
   var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
   var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
+  var prevColorMask = gl.getParameter(gl.COLOR_WRITEMASK);
 
   gl.disable(gl.DEPTH_TEST);
   gl.depthMask(false);
   gl.disable(gl.STENCIL_TEST);
   gl.disable(gl.SCISSOR_TEST);
+  gl.colorMask(true, true, true, true);
 
-  // Capture textures on unit 0, 1, 2
-  gl.activeTexture(gl.TEXTURE0);
-  var prevTex0 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  gl.activeTexture(gl.TEXTURE1);
-  var prevTex1 = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  gl.activeTexture(gl.TEXTURE2);
-  var prevTex2 = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  // Clear any existing WebGL errors from MapLibre's previous drawing operations
+  while (gl.getError() !== gl.NO_ERROR) {}
+
+  // Prevent MapLibre vertex attribute pollution by disabling all attribute arrays
+  var maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
+  for (var i = 0; i < maxAttribs; i++) {
+    try {
+      gl.disableVertexAttribArray(i);
+    } catch (e) {}
+  }
+
+  // Capture and unbind all texture units to prevent feedback loops with MapLibre's active drawing textures
+  var prevTextures2D = [];
+  var prevTexturesCube = [];
+  var maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
+  for (var u = 0; u < maxUnits; u++) {
+    gl.activeTexture(gl.TEXTURE0 + u);
+    prevTextures2D.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    try {
+      prevTexturesCube.push(gl.getParameter(gl.TEXTURE_BINDING_CUBE_MAP));
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+    } catch (e) {
+      prevTexturesCube.push(null);
+    }
+  }
+
 
   // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
   var prevVAO = null;
@@ -423,7 +492,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.bindVertexArray(null);
   }
 
-  var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
+  var mat4 = projMatrix instanceof Float32Array ? projMatrix : new Float32Array(projMatrix);
 
   // Compute scale-invariant advection step sizes
   const z = typeof zoom === 'number' ? zoom : 6;
@@ -436,7 +505,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
 
   if (this.frameCount === undefined) this.frameCount = 0;
   this.frameCount++;
-  if (this.frameCount % 60 === 0) {
+  if (this.frameCount === 1) {
+    console.log(`[WIND-TELEMETRY] Frame 1 matrix:`, Array.from(mat4));
+  }
+  if (this.frameCount === 1 || this.frameCount % 60 === 0) {
     console.log(`[WIND-TELEMETRY] Frame: ${this.frameCount} | RAF tick executed | update() advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | velocity field bounds: min = [${this._windData.uMin[0].toFixed(2)}, ${this._windData.uMin[1].toFixed(2)}], max = [${this._windData.uMax[0].toFixed(2)}, ${this._windData.uMax[1].toFixed(2)}] | particle buffer mutated (State A/B ping-pong active) | draw call: gl.drawArrays(POINTS, 0, ${this.particleRes * this.particleRes}) | shader active: advectProgram + drawProgram + fadeProgram + screenProgram | uniforms: u_speed_scale, u_rand_seed, u_matrix, u_fade`);
   }
 
@@ -452,6 +524,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
+  unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
   gl.viewport(0, 0, this.particleRes, this.particleRes);
@@ -461,13 +534,19 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(advPosLoc);
   gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+  logStepDetails(gl, "Step 1");
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  var err1 = gl.getError();
+  if (err1 !== gl.NO_ERROR) {
+    console.error("[WebGLWindEngine] Step 1 Draw Error:", err1);
+  }
   gl.disableVertexAttribArray(advPosLoc);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
   // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
   gl.useProgram(this.fadeProgram);
+  unbindTexture(gl, this.screenB.tex);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
   gl.viewport(0, 0, screenWidth, screenHeight);
   // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
@@ -480,6 +559,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.enableVertexAttribArray(fadePosLoc);
   gl.vertexAttribPointer(fadePosLoc, 2, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  var err2 = gl.getError();
+  if (err2 !== gl.NO_ERROR) {
+    console.error("[WebGLWindEngine] Step 2 Draw Error:", err2);
+  }
   gl.disableVertexAttribArray(fadePosLoc);
 
   // Step 3: Draw particles onto screen B with color ramp
@@ -506,10 +589,15 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.enableVertexAttribArray(idxLoc);
   gl.vertexAttribPointer(idxLoc, 1, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
+  var err3 = gl.getError();
+  if (err3 !== gl.NO_ERROR) {
+    console.error("[WebGLWindEngine] Step 3 Draw Error:", err3);
+  }
   gl.disableVertexAttribArray(idxLoc);
 
   // Copy screenB screenA
   gl.useProgram(this.screenProgram);
+  unbindTexture(gl, this.screenA.tex);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
@@ -520,6 +608,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.enableVertexAttribArray(cpLoc);
   gl.vertexAttribPointer(cpLoc, 2, gl.FLOAT, false, 0, 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  var errCopy = gl.getError();
+  if (errCopy !== gl.NO_ERROR) {
+    console.error("[WebGLWindEngine] Copy Draw Error:", errCopy);
+  }
   gl.disableVertexAttribArray(cpLoc);
 
   // Step 4: Composite to main framebuffer
@@ -533,7 +625,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.85);
+  logStepDetails(gl, "Step 4");
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  var err4 = gl.getError();
+  if (err4 !== gl.NO_ERROR) {
+    console.error("[WebGLWindEngine] Step 4 Draw Error:", err4);
+  }
   gl.disableVertexAttribArray(scrLoc);
 
   // Restore State
@@ -545,12 +643,14 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.useProgram(prevProg);
   gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex0);
-  gl.activeTexture(gl.TEXTURE1);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex1);
-  gl.activeTexture(gl.TEXTURE2);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex2);
+  for (var u = 0; u < prevTextures2D.length; u++) {
+    gl.activeTexture(gl.TEXTURE0 + u);
+    gl.bindTexture(gl.TEXTURE_2D, prevTextures2D[u]);
+    if (prevTexturesCube[u]) {
+      gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
+    }
+  }
+
   gl.activeTexture(prevActiveTex);
   
   if (prevBlend) {
@@ -577,6 +677,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   } else {
     gl.disable(gl.SCISSOR_TEST);
   }
+  gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
