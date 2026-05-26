@@ -69,6 +69,7 @@
     "react-scripts": "5.0.1",
     "recharts": "^3.6.0",
     "sonner": "^2.0.3",
+    "spectorjs": "^0.9.30",
     "supercluster": "^8.0.1",
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
@@ -114,6 +115,7 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "15.15.0",
     "postcss": "^8.4.49",
+    "react-scan": "^0.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^6.0.3"
   }
