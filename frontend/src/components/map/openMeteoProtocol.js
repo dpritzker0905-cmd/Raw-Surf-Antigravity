@@ -189,16 +189,6 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
                 console.warn(`[OM-Protocol] Precise tile registered as MISSING: ${urlString}. Future requests to this exact tile will be blocked.`);
               }
             } catch (e) { /* ignore */ }
-
-            // Serve 1x1 transparent PNG bytes instead of raw 404 to prevent browser image decoding exception crashes
-            const cleanPngBytes = new Uint8Array([
-              137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 96, 96, 96, 0, 0, 0, 5, 0, 1, 165, 246, 69, 64, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
-            ]);
-            return new Response(cleanPngBytes, {
-              status: 200,
-              statusText: 'OK',
-              headers: { 'Content-Type': 'image/png' }
-            });
           } else {
             WeatherTelemetry.trackTileResponse(urlString, duration, 'HIT', urlString);
           }
@@ -206,16 +196,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }).catch(err => {
           const duration = Date.now() - fetchStartTime;
           WeatherTelemetry.trackTileError(urlString, duration, urlString, err.message || 'Fetch failed');
-          
-          // Return valid transparent PNG on network failures as well to shield painter loop
-          const cleanPngBytes = new Uint8Array([
-            137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 96, 96, 96, 96, 0, 0, 0, 5, 0, 1, 165, 246, 69, 64, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
-          ]);
-          return new Response(cleanPngBytes, {
-            status: 200,
-            statusText: 'OK',
-            headers: { 'Content-Type': 'image/png' }
-          });
+          throw err;
         });
       }
 

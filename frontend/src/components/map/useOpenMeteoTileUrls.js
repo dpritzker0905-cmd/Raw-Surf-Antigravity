@@ -141,7 +141,14 @@ export function useOpenMeteoTileUrls({
       let isLoaded = false;
       try {
         if (mapInstance.getSource(sourceId)) {
-          isLoaded = mapInstance.isSourceLoaded(sourceId) === true;
+          const mapSource = mapInstance.getSource(sourceId);
+          // Only transition if the MapLibre source URL matches the target URL,
+          // which ensures MapLibre has processed the react-map-gl commit update,
+          // and isSourceLoaded is actually true for the NEW tile set.
+          const urlsMatch = mapSource && mapSource.url === targetUrl;
+          if (urlsMatch && mapInstance.isSourceLoaded(sourceId) === true) {
+            isLoaded = true;
+          }
         }
       } catch (e) {
         // Safe fallback
