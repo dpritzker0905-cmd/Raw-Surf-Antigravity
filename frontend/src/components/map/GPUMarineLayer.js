@@ -160,10 +160,19 @@ function getRenderLng(lng, centerLng) {
  * query on Maplibre's solid 'ocean-mask-fill' layer for perfect land boundaries.
  */
 function checkIsLand(lat, lng, mapInstance, grid) {
+  // 1. Grid-based lookup priority check (zero-latency, 100% reliable data-level block)
+  if (grid && isWithinGridBounds(lat, lng, grid)) {
+    if (!isLikelyOcean(lat, lng, grid)) {
+      if (Math.random() < 0.0005) {
+        console.log(`[LandMask] Grid-based land detection: TRUE at [${lat.toFixed(4)}, ${lng.toFixed(4)}]`);
+      }
+      return true;
+    }
+  }
+
+  // 2. Maplibre vector-tile query check for high-resolution coastline clipping
   let mapConfirmedLand = false;
   let mapChecked = false;
-
-  // 1. Maplibre vector-tile query priority check
   if (mapInstance && typeof window !== 'undefined') {
     try {
       const centerLng = mapInstance.getCenter().lng;
@@ -188,7 +197,7 @@ function checkIsLand(lat, lng, mapInstance, grid) {
         }
       }
     } catch (e) {
-      // Ignore query errors and fall back
+      // Ignore query errors
     }
   }
 
@@ -203,21 +212,8 @@ function checkIsLand(lat, lng, mapInstance, grid) {
     return false;
   }
 
-  // 2. Grid-based lookup fallback
-  const inGrid = isWithinGridBounds(lat, lng, grid);
-  if (inGrid) {
-    const isLand = !isLikelyOcean(lat, lng, grid);
-    if (isLand) {
-      if (Math.random() < 0.0005) {
-        console.log(`[LandMask] Grid-based land detection fallback: TRUE at [${lat.toFixed(4)}, ${lng.toFixed(4)}]`);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  // If map didn't project or check failed, and not in grid, default to safe (treat as land)
-  return !mapChecked;
+  // If not inside grid bounds and map query failed/offscreen, default to safe (treat as land)
+  return true;
 }
 
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {

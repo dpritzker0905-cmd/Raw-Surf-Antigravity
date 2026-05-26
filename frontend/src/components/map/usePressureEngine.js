@@ -57,10 +57,15 @@ function checkIsLandCoord(lat, lng, mapInstance) {
       while (rLng - centerLng < -180) rLng += 360;
       
       const pt = mapInstance.project([rLng, lat]);
-      if (pt && pt.x >= 0 && pt.y >= 0) {
-        if (mapInstance.getLayer('ocean-mask-fill')) {
-          const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
-          return features && features.length > 0;
+      const container = mapInstance.getContainer();
+      if (pt && container) {
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        if (pt.x >= 0 && pt.x <= width && pt.y >= 0 && pt.y <= height) {
+          if (mapInstance.getLayer('ocean-mask-fill')) {
+            const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
+            return features && features.length > 0;
+          }
         }
       }
     } catch (e) {}
@@ -111,21 +116,21 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
     const handleUpdate = async () => {
       if (!isSubscribed) return;
 
-      const b = mapInstance.getBounds();
-      const bounds = {
-        west: b.getWest(),
-        south: b.getSouth(),
-        east: b.getEast(),
-        north: b.getNorth()
-      };
-
-      // Version tag to prevent redundant calculations
-      const version = `${activeModel}-${timeOffsetHours}-${bounds.west.toFixed(3)}-${bounds.east.toFixed(3)}-${bounds.south.toFixed(3)}-${bounds.north.toFixed(3)}`;
-      if (version === lastComputedVersionRef.current) {
-        return;
-      }
-
       try {
+        const b = mapInstance.getBounds();
+        if (!b) return;
+        const bounds = {
+          west: b.getWest(),
+          south: b.getSouth(),
+          east: b.getEast(),
+          north: b.getNorth()
+        };
+
+        // Version tag to prevent redundant calculations
+        const version = `${activeModel}-${timeOffsetHours}-${bounds.west.toFixed(3)}-${bounds.east.toFixed(3)}-${bounds.south.toFixed(3)}-${bounds.north.toFixed(3)}`;
+        if (version === lastComputedVersionRef.current) {
+          return;
+        }
         const data = await fetchPressureData(bounds, null, timeOffsetHours, false, 3, activeModel);
         if (!data || !data.pressures || data.pressures.length === 0 || !isSubscribed) {
           return;
@@ -353,6 +358,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
             if (visitedLows[y][x]) continue;
 
             const lat = south + (y / (denseRows - 1)) * (north - south);
+            const absLat = Math.abs(lat);
             const lng = west + (x / (denseCols - 1)) * (east - west);
             const normLng = normalizeLng(lng);
             const prom = lowProm[y][x];
@@ -424,6 +430,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
             if (visitedHighs[y][x]) continue;
 
             const lat = south + (y / (denseRows - 1)) * (north - south);
+            const absLat = Math.abs(lat);
             const lng = west + (x / (denseCols - 1)) * (east - west);
             const normLng = normalizeLng(lng);
             const prom = highProm[y][x];
@@ -635,12 +642,21 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           });
         });
 
+        const centerLng = mapInstance.getCenter() ? mapInstance.getCenter().lng : 0;
+        const wrapLongitude = (lng) => {
+          let rLng = lng;
+          while (rLng - centerLng > 180) rLng -= 360;
+          while (rLng - centerLng < -180) rLng += 360;
+          return rLng;
+        };
+
         const finalLows = [];
         selectedLows
           .sort((a, b) => a.pressure - b.pressure)
           .forEach(low => {
             const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 200);
             if (!isNear) {
+              low.lng = wrapLongitude(low.lng);
               finalLows.push(low);
             }
           });
@@ -651,6 +667,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           .forEach(high => {
             const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 200);
             if (!isNear) {
+              high.lng = wrapLongitude(high.lng);
               finalHighs.push(high);
             }
           });

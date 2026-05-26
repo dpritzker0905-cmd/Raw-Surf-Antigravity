@@ -66,6 +66,7 @@ import {
 } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
+import OceanMask from './OceanMask';
 import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { useWeatherEngine } from './WeatherEngine';
@@ -362,6 +363,15 @@ var MapWebGL = ({
         minZoom={2.0}
         renderWorldCopies={true}
       >
+        {/* Ocean Mask for Land/Ocean clipping */}
+        <OceanMask
+          mapInstance={mapInstance}
+          active={!!activeMarineLayer}
+          activeMarineLayer={activeMarineLayer}
+          theme={theme}
+          beforeId={marineBeforeId || undefined}
+        />
+
         {/* Geofence Visual Layer */}
         <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
           <Layer 
