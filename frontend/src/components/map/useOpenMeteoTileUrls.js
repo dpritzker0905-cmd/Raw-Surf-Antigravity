@@ -90,10 +90,122 @@ export function useOpenMeteoTileUrls({
   
   const activeSlotsRef = useRef(activeSlots);
   activeSlotsRef.current = activeSlots;
-  
+
+  const targetSlotsRef = useRef({});
+  const transitionStartTimesRef = useRef({});
+  const omTileUrlsRef = useRef(omTileUrls);
+  omTileUrlsRef.current = omTileUrls;
+
   const closestTimeIdxRef = useRef(0);
   const activeLayersRef = useRef(activeLayers);
   activeLayersRef.current = activeLayers;
+
+  const checkPendingTransitions = useCallback(() => {
+    if (!mapInstance) return;
+
+    const currentActive = activeSlotsRef.current || {};
+    const targets = targetSlotsRef.current || {};
+    const urls = omTileUrlsRef.current || {};
+    let changed = false;
+    const nextActive = { ...currentActive };
+    const now = Date.now();
+
+    Object.keys(targets).forEach(layerKey => {
+      const targetSlot = targets[layerKey];
+      if (targetSlot === undefined) return;
+
+      const activeSlot = currentActive[layerKey];
+
+      // If a layer has no active slot (cold start)
+      if (activeSlot === undefined) {
+        nextActive[layerKey] = targetSlot;
+        delete transitionStartTimesRef.current[layerKey];
+        changed = true;
+        return;
+      }
+
+      if (activeSlot === targetSlot) {
+        delete transitionStartTimesRef.current[layerKey];
+        return;
+      }
+
+      if (!transitionStartTimesRef.current[layerKey]) {
+        transitionStartTimesRef.current[layerKey] = now;
+      }
+
+      const elapsed = now - transitionStartTimesRef.current[layerKey];
+      const sourceId = `${layerKey}-slot-${targetSlot}-source`;
+      const targetUrl = urls[`${layerKey}-slot-${targetSlot}`];
+
+      const isTransparent = targetUrl === 'om://transparent-tile';
+      let isLoaded = false;
+      try {
+        if (mapInstance.getSource(sourceId)) {
+          isLoaded = mapInstance.isSourceLoaded(sourceId) === true;
+        }
+      } catch (e) {
+        // Safe fallback
+      }
+      const isTimeout = elapsed > 800;
+
+      if (isLoaded || isTransparent || isTimeout) {
+        console.log(`[Raster Transition] Transitioning layer '${layerKey}' from slot ${activeSlot} to ${targetSlot}. Reason: Loaded=${isLoaded}, Transparent=${isTransparent}, Timeout=${isTimeout} (${elapsed}ms)`);
+        nextActive[layerKey] = targetSlot;
+        delete transitionStartTimesRef.current[layerKey];
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      setActiveSlots(nextActive);
+    }
+  }, [mapInstance]);
+
+  // Bind MapLibre events and run polling when active/target slots differ
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    const onSourceData = () => {
+      checkPendingTransitions();
+    };
+    const onIdle = () => {
+      checkPendingTransitions();
+    };
+
+    mapInstance.on('sourcedata', onSourceData);
+    mapInstance.on('idle', onIdle);
+
+    // Initial check
+    checkPendingTransitions();
+
+    let intervalId = null;
+    const activeKeys = Object.keys(activeSlots);
+    const targetKeys = Object.keys(targetSlotsRef.current || {});
+
+    let hasDifference = activeKeys.length !== targetKeys.length;
+    if (!hasDifference) {
+      for (const key of activeKeys) {
+        if (activeSlots[key] !== targetSlotsRef.current[key]) {
+          hasDifference = true;
+          break;
+        }
+      }
+    }
+
+    if (hasDifference) {
+      intervalId = setInterval(() => {
+        checkPendingTransitions();
+      }, 100);
+    }
+
+    return () => {
+      mapInstance.off('sourcedata', onSourceData);
+      mapInstance.off('idle', onIdle);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [mapInstance, activeSlots, omTileUrls, checkPendingTransitions]);
 
   // Protocol registration
   useEffect(() => {
@@ -274,7 +386,7 @@ export function useOpenMeteoTileUrls({
 
               setIsTransitioning(false);
               if (mapInstance) {
-                try { mapInstance.triggerRepaint(); } catch(e) {}
+                try { mapInstance.triggerRepaint(); } catch (e) { /* ignore */ }
               }
             });
           }, 30);
@@ -464,7 +576,8 @@ export function useOpenMeteoTileUrls({
               });
               return { ...filtered, ...newUrls };
             });
-            setActiveSlots(newActiveSlots);
+            targetSlotsRef.current = newActiveSlots;
+            checkPendingTransitions();
           }
           return;
         }
@@ -558,7 +671,8 @@ export function useOpenMeteoTileUrls({
             });
             return { ...filtered, ...newUrls };
           });
-          setActiveSlots(newActiveSlots);
+          targetSlotsRef.current = newActiveSlots;
+          checkPendingTransitions();
         }
       } catch (err) {
         if (err.name === 'AbortError') return;
@@ -625,10 +739,9 @@ export function useOpenMeteoTileUrls({
     }
   }, [mapInstance, activeLayers, activeSlots, isTransitioning, debouncedTimeOffsetHours]);
 
-  // Paint repainting on Url/Layer updates
   useEffect(() => {
     if (mapInstance) {
-      try { mapInstance.triggerRepaint(); } catch (e) {}
+      try { mapInstance.triggerRepaint(); } catch (e) { /* ignore */ }
     }
   }, [mapInstance, activeLayers, omTileUrls]);
 
