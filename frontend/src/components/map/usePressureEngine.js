@@ -54,6 +54,7 @@ function normalizeLng(lng) {
 function checkIsLandCoord(lat, lng, mapInstance) {
   if (mapInstance && typeof window !== 'undefined') {
     try {
+      const zoom = mapInstance.getZoom();
       const centerLng = mapInstance.getCenter().lng;
       let rLng = lng;
       while (rLng - centerLng > 180) rLng -= 360;
@@ -76,7 +77,13 @@ function checkIsLandCoord(lat, lng, mapInstance) {
                 return true; // Inland freshwater -> Land (block markers over freshwater)
               }
             } else {
-              return true; // No water feature -> Land terrain -> Block markers
+              // No water feature found at this pixel.
+              // At low zoom (< 5), vector tiles don't reliably render water features for all ocean areas.
+              // Returning false (not land) prevents false rejection of valid ocean pressure centers.
+              if (zoom < 5) {
+                return false;
+              }
+              return true; // Higher zoom: No water feature -> Land terrain -> Block markers
             }
           } else if (mapInstance.getLayer('ocean-mask-fill')) {
             const features = mapInstance.queryRenderedFeatures(pt, { layers: ['ocean-mask-fill'] });
@@ -95,24 +102,24 @@ function getAdaptiveThreshold(lat, type) {
   if (type === 'H') {
     // Southern Hemisphere Subtropical Highs (very flat and wide ocean basins)
     if (lat < 0 && absLat >= 10 && absLat <= 45) {
-      return 0.15; // lowered from 0.20
+      return 0.08;
     }
     // Northern Hemisphere Subtropical Highs (Azores, Bermuda)
     if (lat >= 0 && absLat >= 10 && absLat <= 45) {
-      return 0.20; // lowered from 0.30
+      return 0.10;
     }
     // Siberian / continental Asian highs (usually very strong but wide)
     if (lat >= 0 && absLat > 45 && absLat <= 70) {
-      return 0.25; // lowered from 0.40
+      return 0.12;
     }
     // Default Highs
-    return 0.35; // lowered from 0.50
+    return 0.15;
   } else {
     // Lows
     if (absLat >= 10 && absLat <= 45) {
-      return 0.30; // lowered from 0.45
+      return 0.12;
     }
-    return 0.45; // lowered from 0.65
+    return 0.20;
   }
 }
 
@@ -415,7 +422,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              const minClusterSize = (absLat >= 10 && absLat <= 45) ? 3 : 4;
+              const minClusterSize = (absLat >= 10 && absLat <= 45) ? 1 : 2;
               if (clusterCells.length >= minClusterSize) {
                 lowClusters.push(clusterCells);
                 clusterCells.forEach(cell => {
@@ -487,7 +494,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 }
               }
 
-              const minClusterSize = (absLat >= 10 && absLat <= 45) ? 3 : 4;
+              const minClusterSize = (absLat >= 10 && absLat <= 45) ? 1 : 2;
               if (clusterCells.length >= minClusterSize) {
                 highClusters.push(clusterCells);
                 clusterCells.forEach(cell => {
@@ -667,7 +674,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           .sort((a, b) => a.pressure - b.pressure)
           .forEach(low => {
             low.lng = wrapLongitude(low.lng);
-            const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 200);
+            const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 150);
             if (!isNear) {
               finalLows.push(low);
             }
@@ -678,7 +685,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           .sort((a, b) => b.pressure - a.pressure)
           .forEach(high => {
             high.lng = wrapLongitude(high.lng);
-            const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 200);
+            const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 150);
             if (!isNear) {
               finalHighs.push(high);
             }
