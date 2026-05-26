@@ -59,10 +59,10 @@ function interpolateMarine(grid, lng, lat) {
   if (!inGrid) {
     // Out-of-grid = land, polar, or uncovered ocean — return zero to prevent land particle spawning.
     // WAVEWATCH III / GFS-Wave only provides wave data for ocean grid cells.
-    return { u: 0, v: 0, speed: 0 };
+    return { u: 0, v: 0, speed: 0, isOcean: 0 };
   }
   const { vectors, bounds, cols, rows } = grid;
-  if (!cols || !rows || vectors.length !== cols * rows) return { u: 0, v: 0, speed: 0 };
+  if (!cols || !rows || vectors.length !== cols * rows) return { u: 0, v: 0, speed: 0, isOcean: 0 };
   const { west, south, east, north } = bounds;
 
   // Wrap query longitude to grid bounds coordinate space
@@ -85,7 +85,7 @@ function interpolateMarine(grid, lng, lat) {
   const p10 = vectors[idx(yi, xi + 1)];
   const p01 = vectors[idx(yi + 1, xi)];
   const p11 = vectors[idx(yi + 1, xi + 1)];
-  if (!p00 || !p10 || !p01 || !p11) return { u: 0, v: 0, speed: 0 };
+  if (!p00 || !p10 || !p01 || !p11) return { u: 0, v: 0, speed: 0, isOcean: 0 };
 
   const u = (1 - fx) * (1 - fy) * p00.u + fx * (1 - fy) * p10.u +
             (1 - fx) * fy * p01.u + fx * fy * p11.u;
@@ -93,7 +93,15 @@ function interpolateMarine(grid, lng, lat) {
             (1 - fx) * fy * p01.v + fx * fy * p11.v;
   const speed = (1 - fx) * (1 - fy) * p00.speed + fx * (1 - fy) * p10.speed +
                 (1 - fx) * fy * p01.speed + fx * fy * p11.speed;
-  return { u, v, speed };
+
+  const p00_isOcean = p00.isOcean ? 1 : 0;
+  const p10_isOcean = p10.isOcean ? 1 : 0;
+  const p01_isOcean = p01.isOcean ? 1 : 0;
+  const p11_isOcean = p11.isOcean ? 1 : 0;
+  const isOcean = (1 - fx) * (1 - fy) * p00_isOcean + fx * (1 - fy) * p10_isOcean +
+                  (1 - fx) * fy * p01_isOcean + fx * fy * p11_isOcean;
+
+  return { u, v, speed, isOcean };
 }
 
 /**
@@ -186,13 +194,19 @@ function _getLandLayerIds(mapInstance) {
 }
 
 function checkIsLand(lat, lng, mapInstance, grid) {
+  if (!grid) return true;
+
   // 1. Grid-based lookup first (super fast O(1))
   const inGrid = isWithinGridBounds(lat, lng, grid);
-  if (inGrid) {
-    return !isLikelyOcean(lat, lng, grid);
-  }
+  if (!inGrid) return true; // Treat out-of-bounds as land
 
-  // 2. MapLibre vector-tile query fallback with layer filter for O(1) lookup
+  const wave = interpolateMarine(grid, lng, lat);
+  
+  // Fast deep water and deep land checks to bypass expensive vector tile queries
+  if (wave.isOcean >= 0.999) return false; // Definitely deep ocean
+  if (wave.isOcean <= 0.001) return true;  // Definitely deep land
+
+  // 2. Coastal Zone: MapLibre vector-tile query fallback with layer filter for O(1) lookup
   if (mapInstance && typeof window !== 'undefined') {
     try {
       const centerLng = mapInstance.getCenter().lng;
@@ -225,7 +239,7 @@ function checkIsLand(lat, lng, mapInstance, grid) {
       return true;
     }
   }
-  return true;
+  return wave.isOcean < 0.5;
 }
 
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
@@ -394,12 +408,6 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const p = pts[i];
         p.age += dt;
 
-        // Pre-advection land check (covers grid + vector-tile detection)
-        if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
-          pts[i] = spawn();
-          continue;
-        }
-
         // Interpolate wave vector at particle position
         const wave = interpolateMarine(grid, p.lng, p.lat);
 
@@ -431,8 +439,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (p.lng < -180) p.lng += 360;
 
         // Post-advection land kill: catch particles that drifted across coastlines during advection.
-        // Uses fast O(1) grid lookup only — if the grid says land, kill immediately before drawing.
-        if (grid && isWithinGridBounds(p.lat, p.lng, grid) && !isLikelyOcean(p.lat, p.lng, grid)) {
+        // Uses precise, highly optimized land-checking which combines fast grid checks and MapLibre.
+        if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
           pts[i] = spawn();
           continue;
         }

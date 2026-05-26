@@ -164,17 +164,15 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const mean = vals.reduce((sum, v) => sum + v, 0) / vals.length;
 
           // Per ECMWF IFS / GFS SLP analysis (refs 1-2):
-          // Use p20/p80 percentiles — only the most extreme 20% of cells in each
+          // Use p15/p85 percentiles — only the most extreme 15% of cells in each
           // basin classify as anomalous. This creates focused BFS clusters around
           // real pressure centers instead of continent-spanning blobs.
-          // Previous p40/p55 classified 85% of cells as anomalous, merging distinct
-          // cyclones into single clusters per Rossby wave theory (ref 17).
-          const p20 = sorted[Math.floor(sorted.length * 0.20)];
-          const p80 = sorted[Math.floor(sorted.length * 0.80)];
+          const p15 = sorted[Math.floor(sorted.length * 0.15)];
+          const p85 = sorted[Math.floor(sorted.length * 0.85)];
           
           basinStats[basin] = {
-            lowThresh: Math.min(1013.5, p20),
-            highThresh: Math.max(1012.5, p80),
+            lowThresh: Math.min(1013.5, p15),
+            highThresh: Math.max(1012.5, p85),
             mean
           };
         }
@@ -324,7 +322,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          if (deviation >= 0.3) {
+          if (deviation >= 1.6) {
             selectedLows.push({
               lat: extLat,
               lng: normExtLng,
@@ -358,7 +356,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           const stats = basinStats[basin];
           const deviation = Math.abs(extremumP - stats.mean);
 
-          if (deviation >= 0.3) {
+          if (deviation >= 1.6) {
             selectedHighs.push({
               lat: extLat,
               lng: normExtLng,
@@ -415,7 +413,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
                 const deviation = Math.abs(val - stats.mean);
                 // Only skip if another system is already found very close (300km)
                 const alreadyFound = selectedLows.some(s => getHaversineDistance(lat, normLng, s.lat, s.lng) < 300);
-                if (!alreadyFound && deviation >= 0.3) {
+                if (!alreadyFound && deviation >= 1.6) {
                   selectedLows.push({
                     lat, lng: normLng, pressure: Math.round(val), type: 'L',
                     size: 1, basin, deviation
@@ -425,7 +423,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
               if (isLocalMax && val > stats.mean) {
                 const deviation = Math.abs(val - stats.mean);
                 const alreadyFound = selectedHighs.some(s => getHaversineDistance(lat, normLng, s.lat, s.lng) < 300);
-                if (!alreadyFound && deviation >= 0.3) {
+                if (!alreadyFound && deviation >= 1.6) {
                   selectedHighs.push({
                     lat, lng: normLng, pressure: Math.round(val), type: 'H',
                     size: 1, basin, deviation
@@ -458,8 +456,8 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
             const deviation = Math.abs(val - stats.mean);
 
             // Positive Laplacian = concave up = local minimum region (low pressure)
-            // Threshold: Laplacian > 0.15 hPa (strong convergence) AND val below basin mean
-            if (laplacian > 0.15 && val < stats.mean && deviation >= 1.0) {
+            // Threshold: Laplacian > 0.3 hPa (strong convergence) AND val below basin mean
+            if (laplacian > 0.3 && val < stats.mean && deviation >= 2.0) {
               // Check not already near an existing detected system
               const alreadyFound = selectedLows.some(s => getHaversineDistance(lat, normLng, s.lat, s.lng) < 500);
               if (!alreadyFound) {
@@ -470,7 +468,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
               }
             }
             // Negative Laplacian = concave down = local maximum region (high pressure)
-            if (laplacian < -0.15 && val > stats.mean && deviation >= 1.0) {
+            if (laplacian < -0.3 && val > stats.mean && deviation >= 2.0) {
               const alreadyFound = selectedHighs.some(s => getHaversineDistance(lat, normLng, s.lat, s.lng) < 500);
               if (!alreadyFound) {
                 selectedHighs.push({
@@ -482,15 +480,15 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           }
         }
 
-        // Step 8: Greedy Haversine deduplication (500km radius, keep strongest deviation)
+        // Step 8: Greedy Haversine deduplication (750km radius, keep strongest deviation)
         // Per Rossby wave theory (ref 17): synoptic features are ~2000-6000km apart.
-        // 500km merge ensures close duplicates from different detection passes are
+        // 750km merge ensures close duplicates from different detection passes are
         // consolidated while real distinct systems remain separate.
         const finalLows = [];
         selectedLows
           .sort((a, b) => a.pressure - b.pressure) // deepest lows first
           .forEach(low => {
-            const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 500);
+            const isNear = finalLows.some(fl => getHaversineDistance(low.lat, low.lng, fl.lat, fl.lng) < 750);
             if (!isNear) {
               finalLows.push(low);
             }
@@ -500,7 +498,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
         selectedHighs
           .sort((a, b) => b.pressure - a.pressure) // strongest highs first
           .forEach(high => {
-            const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 500);
+            const isNear = finalHighs.some(fh => getHaversineDistance(high.lat, high.lng, fh.lat, fh.lng) < 750);
             if (!isNear) {
               finalHighs.push(high);
             }
