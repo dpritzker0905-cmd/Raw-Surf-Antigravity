@@ -60,8 +60,9 @@ const safeMoveLayer = (mapInstance, layerId, beforeId) => {
   } catch (e) {}
 };
 
-// Reposition base map landuse/park fills dynamically on top of the solid land mask
-const repositionLanduse = (mapInstance) => {
+// Reposition base map landuse/park fills dynamically on top of the solid land mask.
+// Returns an array of { id, beforeId } records so we can restore them on deactivation.
+const repositionLanduse = (mapInstance, movedRef) => {
   if (!mapInstance) return;
   try {
     const style = mapInstance.getStyle();
@@ -75,16 +76,52 @@ const repositionLanduse = (mapInstance) => {
     const anchorId = mapInstance.getLayer(MASK_INLAND_WATER) ? MASK_INLAND_WATER : (mapInstance.getLayer(MASK_LINE) ? MASK_LINE : null);
     if (!anchorId) return;
 
+    const moved = [];
     for (let i = 0; i < maskFillIdx; i++) {
       const layer = layers[i];
       const id = layer.id.toLowerCase();
       const isLanduse = landuseKeywords.some(kw => id.includes(kw));
       if (isLanduse && layer.type === 'fill') {
+        // Record original position: the layer that was immediately AFTER this one
+        const nextLayer = (i + 1 < layers.length) ? layers[i + 1].id : null;
+        moved.push({ id: layer.id, beforeId: nextLayer });
         safeMoveLayer(mapInstance, layer.id, anchorId);
       }
     }
+    if (movedRef && moved.length > 0) {
+      movedRef.current = moved;
+    }
   } catch (e) {
     console.warn('[OceanMask] Failed to reposition landuse layers:', e);
+  }
+};
+
+// Restore landuse layers to their original positions in the basemap stack
+const restoreLanduse = (mapInstance, movedRef) => {
+  if (!mapInstance || !movedRef?.current?.length) return;
+  try {
+    // Find a stable base-map anchor to place landuse layers before.
+    // 'marine-raster-anchor' is inserted at the correct base-map boundary.
+    // Fallback to 'building' or 'building-outline' which are always above landuse in base styles.
+    const anchorCandidates = ['marine-raster-anchor', 'building', 'building-outline', 'aeroway-polygon'];
+    let stableAnchor = null;
+    for (const c of anchorCandidates) {
+      if (mapInstance.getLayer(c)) { stableAnchor = c; break; }
+    }
+
+    // Restore in reverse order to maintain relative ordering
+    const records = [...movedRef.current].reverse();
+    for (const { id } of records) {
+      if (!mapInstance.getLayer(id)) continue;
+      try {
+        if (stableAnchor) {
+          mapInstance.moveLayer(id, stableAnchor);
+        }
+      } catch (e) {}
+    }
+    movedRef.current = [];
+  } catch (e) {
+    console.warn('[OceanMask] Failed to restore landuse layers:', e);
   }
 };
 
@@ -101,13 +138,13 @@ function buildLandMask(landGeoJSON) {
   return { type: 'FeatureCollection', features: polygons };
 }
 
-// Filter out inland lakes/rivers to keep buffer exclusively on ocean coastlines
-const waterFilter = [
-  'match',
-  ['get', 'class'],
-  ['lake', 'river', 'canal', 'stream', 'reservoir', 'pool', 'pond', 'spring', 'waterfall'],
-  false,
-  true
+// Filter: show all water features EXCEPT ocean/sea (which are handled by the base water layer)
+// Many water features (e.g., Lake Okeechobee) have no 'class' property at all,
+// so we must NOT use ['has', 'class'] as a guard — that rejects classless features.
+const inlandWaterFilter = [
+  'any',
+  ['!', ['has', 'class']],                                    // no class → treat as inland water (lakes etc.)
+  ['match', ['get', 'class'], ['ocean', 'sea'], false, true]   // has class → exclude ocean/sea only
 ];
 
 export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId }) {
@@ -115,6 +152,8 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
   const timeoutRef = useRef(null);
+  const syncLogRef = useRef(0);
+  const movedLanduseRef = useRef([]);
 
   const active = propActive !== undefined ? propActive : !!activeMarineLayer;
 
@@ -126,53 +165,60 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     fetchedRef.current = true;
 
     const loadLand = async () => {
-      // 1. Try local 50m land GeoJSON (2.76 MB, served locally in ~50ms, 100% reliable)
+      // === PROGRESSIVE LAND LOADING STRATEGY ===
+      // Phase 1: Load 50m instantly for fast initial display (~50ms)
+      // Phase 2: Upgrade to 10m from CDN in background for pixel-perfect coastlines
+
+      let phase1Loaded = false;
+
+      // Phase 1: Fast local load (50m or 110m)
       try {
-        console.log('[OceanMask] Loading local ne_50m_land.json...');
+        console.log('[OceanMask] Phase 1: Loading local ne_50m_land.json (instant)...');
         const r = await fetch('/ne_50m_land.json');
         if (!r.ok) throw new Error(`Status ${r.status}`);
         const geojson = await r.json();
         const mask = buildLandMask(geojson);
         if (mask) {
           setMaskData(mask);
-          console.log('[OceanMask] Loaded local 50m land:', geojson.features.length, 'land features');
-          return;
+          phase1Loaded = true;
+          console.log('[OceanMask] Phase 1 complete: 50m land loaded (' + geojson.features.length + ' features). Upgrading to 10m...');
         }
       } catch (e) {
-        console.warn('[OceanMask] Local 50m land fetch failed:', e);
-      }
-
-      // 2. Try local 110m land GeoJSON fallback (219 KB)
-      try {
-        console.log('[OceanMask] Loading local ne_110m_land.json fallback...');
-        const r = await fetch('/ne_110m_land.json');
-        if (!r.ok) throw new Error(`Status ${r.status}`);
-        const geojson = await r.json();
-        const mask = buildLandMask(geojson);
-        if (mask) {
-          setMaskData(mask);
-          console.log('[OceanMask] Loaded local 110m land fallback:', geojson.features.length, 'land features');
-          return;
+        console.warn('[OceanMask] Phase 1: 50m fetch failed, trying 110m:', e);
+        try {
+          const r = await fetch('/ne_110m_land.json');
+          if (!r.ok) throw new Error(`Status ${r.status}`);
+          const geojson = await r.json();
+          const mask = buildLandMask(geojson);
+          if (mask) {
+            setMaskData(mask);
+            phase1Loaded = true;
+            console.log('[OceanMask] Phase 1 complete: 110m fallback loaded. Upgrading to 10m...');
+          }
+        } catch (e2) {
+          console.warn('[OceanMask] Phase 1: 110m fallback also failed:', e2);
         }
-      } catch (e) {
-        console.warn('[OceanMask] Local 110m land fallback fetch failed:', e);
       }
 
-      // 3. Try remote 10m land CDN as final fallback (18.29 MB)
+      // Phase 2: Upgrade to 10m from CDN (runs regardless of Phase 1 success)
       try {
-        console.log('[OceanMask] Loading remote 10m land CDN as final fallback...');
+        console.log('[OceanMask] Phase 2: Fetching 10m land from CDN for precision coastlines...');
         const r = await fetch(NE_LAND_URL);
         if (!r.ok) throw new Error(`Status ${r.status}`);
         const geojson = await r.json();
         const mask = buildLandMask(geojson);
         if (mask) {
           setMaskData(mask);
-          console.log('[OceanMask] Loaded remote 10m land:', geojson.features.length, 'land features');
+          console.log('[OceanMask] Phase 2 complete: 10m land UPGRADED (' + geojson.features.length + ' features). Coastline precision maximized.');
           return;
         }
       } catch (e) {
-        console.error('[OceanMask] All land GeoJSON load attempts failed:', e);
-        fetchedRef.current = false;
+        if (phase1Loaded) {
+          console.warn('[OceanMask] Phase 2: 10m CDN unavailable, staying on Phase 1 data. Coastline precision limited.');
+        } else {
+          console.error('[OceanMask] All land GeoJSON load attempts failed:', e);
+          fetchedRef.current = false;
+        }
       }
     };
 
@@ -192,7 +238,11 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       return;
     }
 
-    console.log('[OceanMask] syncLayers running:', { active });
+    // Throttled log to prevent console spam (syncLayers fires on every styledata event)
+    syncLogRef.current++;
+    if (syncLogRef.current <= 3 || syncLogRef.current % 50 === 0) {
+      console.log('[OceanMask] syncLayers running:', { active, syncCount: syncLogRef.current });
+    }
 
     try {
       const style = mapInstance.getStyle();
@@ -221,6 +271,14 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);
           }
+        } else {
+          // Hot-swap source data for progressive loading (50m → 10m upgrade)
+          try {
+            const src = mapInstance.getSource(MASK_SOURCE);
+            if (src && src.setData) {
+              src.setData(maskData);
+            }
+          } catch (e) {}
         }
 
         const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
@@ -332,7 +390,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               type: 'fill',
               source: waterSource,
               'source-layer': waterSourceLayer,
-              filter: ['all', ['has', 'class'], ['match', ['get', 'class'], ['ocean', 'sea'], false, true]],
+              filter: inlandWaterFilter,
               paint: {
                 'fill-color': waterColor,
                 'fill-opacity': 1.0
@@ -345,7 +403,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try {
             if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
-            mapInstance.setFilter(MASK_INLAND_WATER, ['all', ['has', 'class'], ['match', ['get', 'class'], ['ocean', 'sea'], false, true]]);
+            mapInstance.setFilter(MASK_INLAND_WATER, inlandWaterFilter);
             mapInstance.setLayoutProperty(MASK_INLAND_WATER, 'visibility', 'visible');
           } catch (e) {}
         }
@@ -412,16 +470,18 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         }
 
         // 6. Dynamically restore base map parks, forests, and green space fills
-        repositionLanduse(mapInstance);
+        repositionLanduse(mapInstance, movedLanduseRef);
 
         // 7. Force slot-based active marine raster layers ABOVE buffer but BELOW land fill
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
+        marineLayers.push('webgl-marine-particles'); // Include WebGL custom marine particle layer
         for (const ml of marineLayers) {
           safeMoveLayer(mapInstance, ml, MASK_FILL);
         }
 
       } else {
-        // Active is false: Enforce permanent layer presence. Set visibility to 'none' instead of removing layers
+        // Active is false: Restore landuse layers to original positions, then hide mask layers
+        restoreLanduse(mapInstance, movedLanduseRef);
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
         for (const lid of historicalLayers) {
           if (mapInstance.getLayer(lid)) {
@@ -458,8 +518,9 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     if (!active) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (mapInstance) {
-        console.log('[OceanMask] Deactivating: setting visibility to none instead of removing layers immediately');
+        console.log('[OceanMask] Deactivating: restoring landuse + hiding mask layers');
         syncingRef.current = true;
+        restoreLanduse(mapInstance, movedLanduseRef);
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
         for (const lid of historicalLayers) {
           if (mapInstance.getLayer(lid)) {
@@ -469,7 +530,11 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         setTimeout(() => { syncingRef.current = false; }, 300);
       }
     } else {
+      // Force-clear syncing lock from any previous deactivation cooldown
+      syncingRef.current = false;
       triggerSync(0);
+      // Retry after potential race window to guarantee visibility
+      triggerSync(350);
     }
   }, [mapInstance, active, theme, beforeId, maskData, triggerSync]);
 
@@ -493,6 +558,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   useEffect(() => {
     if (!mapInstance) return;
     const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
+    marineRasterLayers.push('webgl-marine-particles');
     const repositionLayers = () => {
       const { active } = stateRef.current;
       if (!active || !mapInstance.getLayer(MASK_FILL)) return;

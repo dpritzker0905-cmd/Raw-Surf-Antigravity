@@ -74,7 +74,7 @@ export function useRasterAnchorInsertion({ mapInstance }) {
     };
   }, [mapInstance]);
 
-  // Clean leftover OceanMask styles
+  // Clean leftover OceanMask styles (restored from f5f6a3d known-good)
   useEffect(() => {
     if (!mapInstance) return;
 

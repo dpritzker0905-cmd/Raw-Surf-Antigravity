@@ -11,6 +11,7 @@ import MapMarkerLayers from './MapMarkerLayers';
 import { WindParticleOverlay } from './WindParticleOverlay';
 import { WebGLWindLayer } from './WebGLWindLayer';
 import { WebGLMarineLayer } from './WebGLMarineLayer';
+import { OceanMask } from './OceanMask';
 import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
@@ -70,7 +71,7 @@ var MapWebGL = ({
 
   const [activeSystemPopup, setActiveSystemPopup] = useState(null);
   const [webglWindFailed, setWebglWindFailed] = useState(false);
-  const [webglMarineFailed, setWebglMarineFailed] = useState(false);
+  const [webglMarineFailed, setWebglMarineFailed] = useState(true); // v3.17: Force Canvas2D path — WebGL marine heatmap duplicates OM raster tiles and GPU particles create grid-aligned pattern
 
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);
@@ -185,6 +186,29 @@ var MapWebGL = ({
       })
     };
   }, [marineData, activeMarineLayer]);
+
+  // v3.17: Imperative marine raster opacity sync — react-map-gl doesn't deep-compare
+  // interpolation expression values, so we force-apply via setPaintProperty
+  useEffect(() => {
+    if (!mapInstance || !activeMarineLayer) return;
+    const marineOpacity = [
+      'interpolate', ['linear'], ['zoom'],
+      2, 0.45,
+      5, 0.55,
+      8, 0.65,
+      12, 0.70
+    ];
+    const slots = [0, 1, 2];
+    const activeSlotIdx = activeSlots[activeMarineLayer];
+    for (const s of slots) {
+      const layerId = `${activeMarineLayer}-slot-${s}-layer`;
+      if (!mapInstance.getLayer(layerId)) continue;
+      const isActive = activeSlotIdx !== undefined ? activeSlotIdx === s : false;
+      try {
+        mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? marineOpacity : 0);
+      } catch (e) { /* layer may not exist yet */ }
+    }
+  }, [mapInstance, activeMarineLayer, activeSlots, isTransitioning]);
 
   // Layer Truth Diff Engine
   const { issues: truthIssues, rasterVisible } = useLayerTruthDiff({
@@ -455,7 +479,7 @@ var MapWebGL = ({
           <MarineParticleCanvas 
             id="marine-canvas-layer"
             mapInstance={mapInstance} 
-            active={!!activeMarineLayer}
+            active={!isTransitioning && !!activeMarineLayer}
             data={marineWindData}
             revision={marineData?.grid?.timestamp || Date.now()}
           />
@@ -491,7 +515,7 @@ var MapWebGL = ({
           <WindParticleOverlay
             id="wind-particle-overlay"
             mapInstance={mapInstance}
-            active={activeLayers.includes('wind')}
+            active={!isTransitioning && activeLayers.includes('wind')}
             data={windData}
             theme={theme}
           />

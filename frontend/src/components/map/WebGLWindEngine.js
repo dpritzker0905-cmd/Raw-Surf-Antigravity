@@ -89,10 +89,10 @@ void main() {
   // Random new position for respawned particles
   vec2 newPos = vec2(rand(seed + 1.3), rand(seed + 2.1));
 
-  // Out of bounds check
-  float oob = step(1.0, pos.x) + step(1.0, pos.y) +
-              step(0.0, -pos.x) + step(0.0, -pos.y);
-  drop = max(drop, step(0.5, oob));
+  // Out of bounds: wrap X (longitude) for antimeridian, drop Y (latitude)
+  pos.x = fract(pos.x);
+  float oobY = step(1.0, pos.y) + step(0.0, -pos.y);
+  drop = max(drop, step(0.5, oobY));
 
   pos = mix(pos, newPos, drop);
   gl_FragColor = encodePos(pos);
@@ -136,7 +136,9 @@ void main() {
   v_speed = length(wind);
 
   // Convert to Mercator for MapLibre
-  float x = (lng + 180.0) / 360.0;
+  // Wrap longitude to [-180, 180] for antimeridian crossing
+  float wrappedLng = lng - 360.0 * floor((lng + 180.0) / 360.0);
+  float x = (wrappedLng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);

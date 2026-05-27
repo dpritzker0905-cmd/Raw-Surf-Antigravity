@@ -193,6 +193,15 @@ function _getLandLayerIds(mapInstance) {
   }
 }
 
+// v3.17: Spatial cache for checkIsLand — avoids re-querying same screen locations
+const _landCache = new Map();
+const _LAND_CACHE_MAX = 2000;
+const _LAND_CACHE_RESOLUTION = 100; // ~0.01° quantization
+
+function _landCacheKey(lat, lng) {
+  return (Math.round(lat * _LAND_CACHE_RESOLUTION) << 16) | (Math.round(((lng + 180) % 360) * _LAND_CACHE_RESOLUTION) & 0xFFFF);
+}
+
 function checkIsLand(lat, lng, mapInstance, grid) {
   if (!grid) return true;
 
@@ -206,7 +215,12 @@ function checkIsLand(lat, lng, mapInstance, grid) {
   if (wave.isOcean >= 0.999) return false; // Definitely deep ocean
   if (wave.isOcean <= 0.001) return true;  // Definitely deep land
 
-  // 2. Coastal Zone: MapLibre vector-tile query fallback with layer filter for O(1) lookup
+  // 2. Check spatial cache before expensive vector tile query
+  const cacheKey = _landCacheKey(lat, lng);
+  if (_landCache.has(cacheKey)) return _landCache.get(cacheKey);
+
+  // 3. Coastal Zone: MapLibre vector-tile query fallback with layer filter
+  let result = wave.isOcean < 0.5; // default fallback
   if (mapInstance && typeof window !== 'undefined') {
     try {
       const centerLng = mapInstance.getCenter().lng;
@@ -221,25 +235,35 @@ function checkIsLand(lat, lng, mapInstance, grid) {
         const features = layerIds && layerIds.length > 0
           ? mapInstance.queryRenderedFeatures(pt, { layers: layerIds })
           : mapInstance.queryRenderedFeatures(pt);
-        if (!features || features.length === 0) return false;
-        // With layer filter, any hit = land. Without filter, check layer types.
-        if (layerIds && layerIds.length > 0) return true;
-        return features.some(f => {
-          const id = f.layer?.id || '';
-          return f.layer?.type === 'fill' && (
-            id.includes('land') || id.includes('landuse') || id.includes('landcover') ||
-            id.includes('building') || id.includes('park') || id.includes('national') ||
-            id.includes('structure') || id.includes('grass') || id.includes('wood') ||
-            id.includes('scrub') || id.includes('crop') || id.includes('sand') ||
-            id === 'ocean-mask-fill'
-          );
-        });
+        if (!features || features.length === 0) {
+          result = false;
+        } else if (layerIds && layerIds.length > 0) {
+          result = true;
+        } else {
+          result = features.some(f => {
+            const id = f.layer?.id || '';
+            return f.layer?.type === 'fill' && (
+              id.includes('land') || id.includes('landuse') || id.includes('landcover') ||
+              id.includes('building') || id.includes('park') || id.includes('national') ||
+              id.includes('structure') || id.includes('grass') || id.includes('wood') ||
+              id.includes('scrub') || id.includes('crop') || id.includes('sand') ||
+              id === 'ocean-mask-fill'
+            );
+          });
+        }
       }
     } catch (e) {
-      return true;
+      result = true;
     }
   }
-  return wave.isOcean < 0.5;
+
+  // Store in cache (evict oldest if full)
+  if (_landCache.size >= _LAND_CACHE_MAX) {
+    const oldestKey = _landCache.keys().next().value;
+    _landCache.delete(oldestKey);
+  }
+  _landCache.set(cacheKey, result);
+  return result;
 }
 
 export function MarineParticleCanvas({ mapInstance, active, data, revision, id = "marine-canvas-layer" }) {
@@ -330,12 +354,12 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // 2. Wave height > threshold check
         if (spd <= 0.001 || !Number.isFinite(spd)) continue;
         const energyScale = Math.min(1, spd / 3);
-        const maxAge = (0.8 + Math.random() * 2.0) * (0.3 + energyScale * 0.7);
+        const maxAge = (1.0 + Math.random() * 2.5) * (0.3 + energyScale * 0.7);
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
-        // v74: Add spawn jitter to break grid-cell center alignment
-        const jitter = 0.03; // 0.03 random offset
-        let jLng = lng + (Math.random() - 0.5) * jitter * 2;
-        const jLat = lat + (Math.random() - 0.5) * jitter * 2;
+        // v3.17: Jitter must cover full grid cell (GFS 0.25°) to eliminate grid-aligned clustering
+        const jitter = 0.25;
+        let jLng = lng + (Math.random() - 0.5) * jitter;
+        const jLat = lat + (Math.random() - 0.5) * jitter;
         while (jLng > 180) jLng -= 360;
         while (jLng < -180) jLng += 360;
 
@@ -343,7 +367,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           lng: jLng, lat: jLat,
           age: preAge ? Math.random() * maxAge * 0.8 : 0,
           maxAge,
-          dashLen: (3 + Math.random() * 8 * energyScale) * zoomScale,
+          dashLen: (3 + Math.random() * 10 * energyScale) * zoomScale,
           phase: Math.random(),
           energy: energyScale,
           noiseSeed: Math.random() * 100
@@ -381,8 +405,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       const state = coordState === 2 ? 2 : 1;
       const THROTTLED = 2;
 
-      // v3.11.2r1: Slower trail decay for visible foam persistence (was 0.12/0.3)
-      const trailFade = state === THROTTLED ? 0.15 : 0.06;
+      // v3.17: Slower trail decay for swell band persistence (Ventusky-style energy fronts)
+      const trailFade = state === THROTTLED ? 0.12 : 0.04;
       ctx.globalCompositeOperation = 'destination-out';
       ctx.fillStyle = `rgba(0, 0, 0, ${trailFade})`;
       ctx.fillRect(0, 0, cw, ch);
@@ -423,11 +447,13 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const latRad = p.lat * Math.PI / 180;
         const mercCorr = Math.max(0.1, Math.cos(latRad));
         const speedScale = dt * 1500 * Math.pow(0.62, zoom - 6) * waveSpeedAmp;
-        const turbulence = 0.40 + 0.40 * p.energy;
+        // v3.17: Ventusky-style directional coherence — high-energy swell propagates cleanly,
+        // calm seas get more turbulence (natural choppiness). Inverse energy scaling.
+        const turbulence = 0.45 * (1.0 - p.energy * 0.65);
         const ns = p.noiseSeed || 0;
-        const noiseFreqScale = 5 * Math.pow(1.4, zoom - 3);
-        const noiseU = noise2D(p.lng * noiseFreqScale + now * 0.001 + ns, p.lat * noiseFreqScale) * turbulence;
-        const noiseV = noise2D(p.lat * noiseFreqScale + now * 0.001 + ns, p.lng * noiseFreqScale + ns) * turbulence;
+        const noiseFreqScale = 4 * Math.pow(1.3, zoom - 3);
+        const noiseU = noise2D(p.lng * noiseFreqScale + now * 0.0008 + ns, p.lat * noiseFreqScale) * turbulence;
+        const noiseV = noise2D(p.lat * noiseFreqScale + now * 0.0008 + ns, p.lng * noiseFreqScale + ns) * turbulence;
         p.lng += (wave.u + noiseU) * DEG_PER_METER / mercCorr * speedScale;
         p.lat += (wave.v + noiseV) * DEG_PER_METER * speedScale;
 
@@ -439,8 +465,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         while (p.lng < -180) p.lng += 360;
 
         // Post-advection land kill: catch particles that drifted across coastlines during advection.
-        // Fast, O(1) grid-based check is extremely performant for high-frequency animation frames.
-        if (wave.isOcean < 0.5) {
+        // Uses precise, highly optimized land-checking which combines fast grid checks and MapLibre.
+        if (checkIsLand(p.lat, p.lng, mapInstance, grid)) {
           pts[i] = spawn();
           continue;
         }
@@ -493,8 +519,9 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
           alpha *= smoothstep(bn, bn - edgePadLat, p.lat);
           alpha *= MARINE_PARTICLE_ALPHA;
 
-          // Data-driven intensity: particles are more opaque in higher waves
-          const energyAlpha = Math.min(1.0, 0.2 + h * 0.3);
+          // v3.17: Aggressive wave height → intensity scaling (Ventusky-style energy representation)
+          // Calm seas (< 1m): very faint traces. Active swell (2-4m): visible energy. Storm (6m+): bright crests.
+          const energyAlpha = Math.min(1.0, 0.12 + Math.pow(h / 5.0, 0.6) * 0.88);
           alpha *= energyAlpha; alpha = Math.min(1.0, alpha);
 
           if (alpha < 0.01) continue;
@@ -507,20 +534,20 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
             dirAngle = Math.atan2(-wave.v, wave.u);
           }
           
-          // v3.16: Scale width and length down elegant when zoomed out to render as premium micro-particles
+          // v3.17: Scale dash length and width based on zoom + wave height for Ventusky-style crests
           const zoomScale = Math.max(0.2, Math.min(1.2, zoom / 7.0));
-          const dynamicDashLen = p.dashLen * Math.min(1.8, 0.4 + h * 0.5) * zoomScale;
+          const dynamicDashLen = p.dashLen * Math.min(2.2, 0.35 + h * 0.55) * zoomScale;
           const halfDash = dynamicDashLen / 2;
           const dx = Math.cos(dirAngle + Math.PI / 2) * halfDash;
           const dy = -Math.sin(dirAngle + Math.PI / 2) * halfDash;
 
-          // White foam crest broken dash with wave height color shift
-          const hEnergy = Math.min(1, h / 4);
-          const foamR = Math.round(210 + hEnergy * 45);
-          const foamG = Math.round(225 + hEnergy * 30);
+          // v3.17: White foam crests with subtle warm shift at high energy (storm intensity)
+          const hEnergy = Math.min(1, h / 5);
+          const foamR = Math.round(215 + hEnergy * 40);
+          const foamG = Math.round(228 + hEnergy * 27);
           const foamB = 255;
           ctx.strokeStyle = `rgba(${foamR}, ${foamG}, ${foamB}, ${alpha})`;
-          ctx.lineWidth = Math.max(0.6, Math.min(4.0, (0.5 + h * 0.5) * zoomScale));
+          ctx.lineWidth = Math.max(0.5, Math.min(4.5, (0.4 + h * 0.6) * zoomScale));
           ctx.lineCap = 'round';
 
           ctx.beginPath();
