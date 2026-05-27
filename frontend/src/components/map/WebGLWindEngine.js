@@ -110,6 +110,7 @@ varying float v_speed;
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
+uniform float u_zoom;  // v3.13.5: for close-zoom density boost
 
 vec2 decodePos(vec4 color) {
   return vec2(
@@ -144,9 +145,10 @@ void main() {
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;
   }
- // v3.13.3: Zero/very-low speed particles get zero size to prevent stationary dot
-  // artifacts that accumulate in the trail FBO and appear as horizontal line patterns.
-  gl_PointSize = v_speed < 0.5 ? 0.0 : 2.0 + clamp(v_speed / 8.0, 0.0, 3.0);
+ // v3.13.5: Close-zoom density enhancement — larger particles at high zoom
+  // for +20% visual density at the 3 closest zoom levels (≥8)
+  float zoomBoost = u_zoom >= 8.0 ? 1.2 : 1.0;
+  gl_PointSize = v_speed < 0.5 ? 0.0 : (2.0 + clamp(v_speed / 8.0, 0.0, 3.0)) * zoomBoost;
 }`;
 
 // v3.9.8: Color ramp LUT replaces fixed dark shader
@@ -593,6 +595,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var bnd = this._windData.bounds;
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z); // v3.13.5: close-zoom density boost
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);

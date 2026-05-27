@@ -58,17 +58,17 @@ void main() {
   float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   
-  // Wave drift — energy-proportional advection with Mercator correction
-  // Higher waves move faster (realistic deep-water group velocity behavior)
-  float energyBoost = 1.0 + smoothstep(1.0, 5.0, waveHeight) * 0.6;
+  // v3.13.5: Gentler energy boost for realistic basin-scale propagation
+  float energyBoost = 1.0 + smoothstep(1.0, 5.0, waveHeight) * 0.3;
   vec2 offset = vec2(waveVec.x / merc_scale, waveVec.y) * u_speed_scale * energyBoost;
   pos = pos + offset;
 
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // v3.13.4: Strict land discard + higher thresholds to eliminate land-bleed
-  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.95) {
+  // v3.13.5: Relaxed alpha threshold for better coastal/polar coverage.
+  // With LINEAR filtering on a 21×21 grid, strict thresholds create ~18° dead zones.
+  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.4) {
     drop = 1.0;
   }
 
@@ -120,8 +120,19 @@ void main() {
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
 
-  // v3.13.4: Strict land/calm discard — higher thresholds eliminate coastal fringe + land bleed
-  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.95) {
+  // v3.13.5: Relaxed alpha threshold for better coastal/polar coverage
+  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.4) {
+    gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
+    v_alpha = 0.0;
+    return;
+  }
+
+  // v3.13.5: ZOOM-ADAPTIVE DENSITY CULLING
+  // At low zoom, all 18K+ crests are visible simultaneously, creating visual noise.
+  // Discard a fraction of particles based on zoom to keep ocean coherent.
+  // zoom 0-2: show ~15% of particles; zoom 3-4: ~40%; zoom 5+: ~70%; zoom 8+: 100%
+  float densityThreshold = clamp((u_zoom - 1.0) / 8.0, 0.12, 1.0);
+  if (particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
@@ -129,17 +140,15 @@ void main() {
 
   vec2 dir = normalize(waveVec);
   
-  // v3.13.4: Per-particle random rotation jitter (±30°) to break uniform crest alignment.
-  // Without this, smooth wave direction fields create visible horizontal stripe patterns.
-  float rotJitter = (particleHash - 0.5) * 1.05; // ~±30° in radians
+  // Per-particle random rotation jitter (±30°) to break uniform crest alignment
+  float rotJitter = (particleHash - 0.5) * 1.05;
   float cosR = cos(rotJitter);
   float sinR = sin(rotJitter);
   vec2 jitteredDir = vec2(dir.x * cosR - dir.y * sinR, dir.x * sinR + dir.y * cosR);
   vec2 perp = vec2(-jitteredDir.y, jitteredDir.x);
   
-  // Zoom-aware pixel-to-degree conversion: 1 pixel = 360 / (256 * 2^zoom) degrees
+  // Zoom-aware pixel-to-degree conversion
   float pixelInDegrees = 360.0 / (256.0 * exp2(u_zoom));
-  // Shorter crests prevent visible horizontal stripe patterns from uniform alignment
   float crestPixels = max(2.0, pow(waveHeight, 0.7) * u_dash_length_scale);
   vec2 coordOffset = perp * crestPixels * pixelInDegrees * 0.5;
 
@@ -155,7 +164,6 @@ void main() {
   }
   lat = clamp(lat, -85.051129, 85.051129);
 
-  // Wrap longitude to [-180, 180] for antimeridian crossing
   float wrappedLng = lng - 360.0 * floor((lng + 180.0) / 360.0);
   float x = (wrappedLng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
@@ -166,18 +174,13 @@ void main() {
   }
 
   // Deep water wave period: T ≈ 0.9 * sqrt(H * 5.12)
-  // Taller waves pulse slower (longer period), matching real ocean physics
   float derivedPeriod = 0.9 * sqrt(max(waveHeight, 0.3) * 5.12);
-  // Per-particle variation (±40%) for organic natural feel
   float period = derivedPeriod * (0.6 + particleHash * 0.8);
   float phase = fract(u_time / period + particleHash);
   
-  // Smooth sinusoidal pulsation with extended visible range
   v_alpha = pow(sin(phase * 3.141592653589793), 0.7);
-  // Strong height-driven intensity: calm seas faint, storms bright
   float heightIntensity = smoothstep(0.0, 4.0, waveHeight);
   v_alpha *= mix(0.2, 1.0, heightIntensity);
-  // v3.13.4: No alpha floor — calm ocean particles should fully fade during pulsation cycle
 }
 `;
 
@@ -372,8 +375,10 @@ function encodeMarineTexture(gl, waveGrid) {
     const height = Math.min(1.0, v.speed / 10.0);
     // v3.13.3: Strict ocean mask — require explicit isOcean===true from API data.
     // The marine API returns null wave_height for land points, which sets isOcean=false.
-    const hasWaveData = v.speed > 0.1 && (Math.abs(v.u) > 0.005 || Math.abs(v.v) > 0.005);
-    const oceanFlag = (v.isOcean === true && hasWaveData) ? 255 : 0;
+    // v3.13.5: If the API says this is ocean (wave_height was not null), mark as ocean
+    // regardless of wave data magnitude. Calm oceans (Arctic, Mediterranean) still need coverage.
+    // The draw shader's waveHeight threshold (0.3m) handles filtering out truly calm areas.
+    const oceanFlag = (v.isOcean === true) ? 255 : 0;
     
     data[i * 4 + 0] = Math.floor(nu * 255);
     data[i * 4 + 1] = Math.floor(nv * 255);
@@ -412,10 +417,11 @@ function initParticleTexture(gl, resolution) {
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
-  // v3.13.4: 50% density + 50% speed reduction for coherent, smooth ocean feel
-  this.particleRes = 136;       // 136² = 18,496 crests (~50% less than 192²=36,864)
-  this.speedFactor = 0.10;      // 50% slower than 0.21 for calm, realistic drift
-  this.dropRate = 0.004;        // Lower recycling = less churn, more coherent
+  // v3.13.5: Global ocean field normalization
+  // Density now handled by zoom-adaptive culling in draw shader
+  this.particleRes = 136;       // 136² = 18,496 crests (zoom culling controls visible count)
+  this.speedFactor = 0.05;      // Further halved for calm basin-scale drift
+  this.dropRate = 0.003;        // Low recycling = coherent wave fronts
   this._initialized = false;
   this._waveData = null;
   this._startTime = Date.now();
