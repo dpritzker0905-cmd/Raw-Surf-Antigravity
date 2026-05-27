@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
-import { Home, Compass, MapPin, MessageCircle, Bell, User, Settings, LogOut, Shield, ShoppingBag, Sun, Moon, Waves, Eye, Lock, Plus } from 'lucide-react';
+import { Home, Compass, MapPin, MessageCircle, Bell, User, Settings, LogOut, Shield, ShoppingBag, Sun, Moon, Waves, Eye, Lock, Plus, Radio } from 'lucide-react';
 import apiClient from '../lib/apiClient';
 import { getUnreadCount } from '../services/notificationService';
 import { SurfPassport } from './SurfPassport';

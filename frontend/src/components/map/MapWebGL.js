@@ -352,6 +352,15 @@ var MapWebGL = ({
         minZoom={2.0}
         renderWorldCopies={true}
       >
+        {/* Ocean Mask — Land/Ocean clipping. Hides GFS raster grid diamonds at coastlines. */}
+        <OceanMask
+          mapInstance={mapInstance}
+          active={!!activeMarineLayer}
+          activeMarineLayer={activeMarineLayer}
+          theme={theme}
+          beforeId={marineBeforeId || undefined}
+        />
+
         {/* Geofence Visual Layer */}
         <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
           <Layer 
@@ -433,7 +442,11 @@ var MapWebGL = ({
               >
                 <Layer
                   id={`${slotKey}-layer`}
-                  beforeId={marineBeforeId || undefined}
+                  beforeId={
+                    LAYER_REGISTRY[layerKey]?.type === 'marine'
+                      ? (mapInstance?.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer' : (marineBeforeId || undefined))
+                      : (marineBeforeId || undefined)
+                  }
                   type="raster"
                   layout={{
                     visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'

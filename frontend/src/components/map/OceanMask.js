@@ -281,7 +281,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           } catch (e) {}
         }
 
-        const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
+        // Use marine-raster-anchor (below tunnel-minor-case) so OceanMask layers
+        // sit BELOW atmospheric rasters (which target tunnel-minor-case directly).
+        // This creates deterministic three-zone separation:
+        //   Zone 1: marine rasters → beforeId='ocean-mask-buffer' (below fill)
+        //   Zone 2: OceanMask      → beforeId='marine-raster-anchor' (middle)
+        //   Zone 3: atmospheric    → beforeId=marineBeforeId/tunnel-minor-case (above OceanMask)
+        const insertBeforeId = (mapInstance.getLayer('marine-raster-anchor') ? 'marine-raster-anchor' : beforeId) || findMarineInsertionLayer(mapInstance);
         const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
         const fillColor = tc.fill;
         const oceanColor = tc.ocean || 'rgba(16, 29, 43, 0.90)';
@@ -353,7 +359,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_BUFFER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', oceanColor);
             mapInstance.setLayoutProperty(MASK_BUFFER, 'visibility', 'visible');
           } catch (e) {}
@@ -376,7 +381,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_FILL, insertBeforeId);
             mapInstance.setPaintProperty(MASK_FILL, 'fill-color', fillColor);
             mapInstance.setLayoutProperty(MASK_FILL, 'visibility', 'visible');
           } catch (e) {}
@@ -401,7 +405,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
             mapInstance.setFilter(MASK_INLAND_WATER, inlandWaterFilter);
             mapInstance.setLayoutProperty(MASK_INLAND_WATER, 'visibility', 'visible');
@@ -431,7 +434,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
             mapInstance.setLayoutProperty(MASK_INLAND_WATERWAY, 'visibility', 'visible');
           } catch (e) {}
@@ -464,29 +466,20 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
             mapInstance.setLayoutProperty(MASK_LINE, 'visibility', 'visible');
           } catch (e) {}
         }
 
-        // 6. Dynamically restore base map parks, forests, and green space fills
-        repositionLanduse(mapInstance, movedLanduseRef);
-
-        // 7. Force slot-based active marine raster layers ABOVE buffer but BELOW land fill
-        const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-        marineLayers.push('webgl-marine-particles'); // Include WebGL custom marine particle layer
-        for (const ml of marineLayers) {
-          safeMoveLayer(mapInstance, ml, MASK_FILL);
-        }
 
       } else {
-        // Active is false: Restore landuse layers to original positions, then hide mask layers
-        restoreLanduse(mapInstance, movedLanduseRef);
-        const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
-        for (const lid of historicalLayers) {
+        // Active is false: REMOVE layers + source for deterministic re-creation on next activation
+        for (const lid of ALL_LAYERS) {
           if (mapInstance.getLayer(lid)) {
-            try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
+            try { mapInstance.removeLayer(lid); } catch (e) {}
           }
+        }
+        if (mapInstance.getSource(MASK_SOURCE)) {
+          try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
         }
       }
     } catch (err) {
@@ -518,14 +511,15 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     if (!active) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (mapInstance) {
-        console.log('[OceanMask] Deactivating: restoring landuse + hiding mask layers');
+        console.log('[OceanMask] Deactivating: removing mask layers for clean re-creation');
         syncingRef.current = true;
-        restoreLanduse(mapInstance, movedLanduseRef);
-        const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
-        for (const lid of historicalLayers) {
+        for (const lid of ALL_LAYERS) {
           if (mapInstance.getLayer(lid)) {
-            try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
+            try { mapInstance.removeLayer(lid); } catch (e) {}
           }
+        }
+        if (mapInstance.getSource(MASK_SOURCE)) {
+          try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
         }
         setTimeout(() => { syncingRef.current = false; }, 300);
       }
@@ -554,21 +548,6 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     };
   }, [mapInstance, triggerSync]);
 
-  // Dedicated marine-raster repositioning listener to ensure slots sit above buffer but below land fill
-  useEffect(() => {
-    if (!mapInstance) return;
-    const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-    marineRasterLayers.push('webgl-marine-particles');
-    const repositionLayers = () => {
-      const { active } = stateRef.current;
-      if (!active || !mapInstance.getLayer(MASK_FILL)) return;
-      for (const ml of marineRasterLayers) {
-        safeMoveLayer(mapInstance, ml, MASK_FILL);
-      }
-    };
-    mapInstance.on('styledata', repositionLayers);
-    return () => mapInstance.off('styledata', repositionLayers);
-  }, [mapInstance]);
 
   // Unmount cleanup
   useEffect(() => {
