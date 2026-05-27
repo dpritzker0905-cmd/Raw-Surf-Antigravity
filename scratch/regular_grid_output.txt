@@ -1,0 +1,151 @@
+
+--- OCCURRENCE 1 ---
+ion, west);
+  }
+  for (let i = 0; i <= stepsLon; i++) {
+    updateBounds(north, west + i * resolution);
+    updateBounds(south, east - i * resolution);
+  }
+  return [minY, minX, maxY, maxX];
+};
+class RegularGrid {
+  nx;
+  ny;
+  dx;
+  dy;
+  bounds;
+  longitudeWrap;
+  center;
+  constructor(data, ranges = null) {
+    this.dx = data.dx;
+    this.dy = data.dy;
+    if (!ranges) {
+      ranges = [
+        { start: 0, end: data.ny },
+        { start: 0, end: data.nx }
+      ];
+    } else {
+      if (ranges[0].start < 0 || ranges[0].start > data.ny || ranges[0].end < 0 || ranges[0].end > data.ny) {
+        throw new Error("Invalid y range");
+      }
+      if (ranges[1].start < 0 || ranges[1].start > data.nx || ranges[1].end < 0 || ranges[1].end > data.nx) {
+        throw new Error("Invalid x range");
+      }
+    }
+    this.nx = ranges[1].end - ranges[1].start;
+    this.ny = ranges[0].end - ranges[0].start;
+    const lonMin = data.lonMin + this.dx * ranges[1].start;
+    const latMin = data.latMin + this.dy * ranges[0].start;
+    const lonMax = data.lonMin + this.dx * ranges[1].end;
+    const latMax = data.latMin + this.dy * ranges[0].end;
+    this.bounds = [lonMin, latMin, lonMax, latMax];
+    this.longitudeWrap = lonMax - lonMin >= 359.875 ? true : false;
+  }
+  getLinearInterpolatedValue(values, lat, lon) {
+    if (!this.longitudeWrap) {
+      if (lon < this.bounds[0] || lon > this.bounds[2]) {
+        return NaN;
+      }
+    }
+    if (lat < this.bounds[1] || lat >= this.bounds[3]) {
+      return NaN;
+    }
+    const y = Math.floor((lat - this.bounds[1]) / this.dy);
+    const yFraction = (lat - this.bounds[1]) % this.dy / this.dy;
+    const x = Math.min(Math.floor((lon - this.bounds[0]) / this.dx), this.nx - 1);
+    const dx = this.longitudeWrap && lon >= this.bounds[2] - this.dx ? this.dx * 2 : this.dx;
+    const xFraction = (lon - this.bounds[0]) % dx / dx;
+    return interpolateLinear(values, x, y, xFraction, yFraction, this.nx, this.longitudeWrap);
+  }
+  getBounds() {
+  
+
+--- OCCURRENCE 2 ---
+"projectedFromBounds":
+      case "projectedFromProjectedOrigin":
+      case "projectedFromGeographicOrigin":
+        return new ProjectionGrid(data, ranges);
+      case "regular":
+        return new RegularGrid(data, ranges);
+      default: {
+        const _exhaustive = data;
+        throw new Error(`Unknown grid type: ${_exhaustive}`);
+      }
+    }
+  }
+}
+function Point(x, y) {
+  this.x = x;
+  this.y = y;
+}
+Point.prototype = {
+  /**
+   * Clone this point, returning a new point that can be modified
+   * without affecting the old one.
+   * @return {Point} the clone
+   */
+  clone() {
+    return new Point(this.x, this.y);
+  },
+  /**
+   * Add this point's x & y coordinates to another point,
+   * yielding a new point.
+   * @param {Point} p the other point
+   * @return {Point} output point
+   */
+  add(p) {
+    return this.clone()._add(p);
+  },
+  /**
+   * Subtract this point's x & y coordinates to from point,
+   * yielding a new point.
+   * @param {Point} p the other point
+   * @return {Point} output point
+   */
+  sub(p) {
+    return this.clone()._sub(p);
+  },
+  /**
+   * Multiply this point's x & y coordinates by point,
+   * yielding a new point.
+   * @param {Point} p the other point
+   * @return {Point} output point
+   */
+  multByPoint(p) {
+    return this.clone()._multByPoint(p);
+  },
+  /**
+   * Divide this point's x & y coordinates by point,
+   * yielding a new point.
+   * @param {Point} p the other point
+   * @return {Point} output point
+   */
+  divByPoint(p) {
+    return this.clone()._divByPoint(p);
+  },
+  /**
+   * Multiply this point's x & y coordinates by a factor,
+   * yielding a new point.
+   * @param {number} k factor
+   * @return {Point} output point
+   */
+  mult(k) {
+    return this.clone()._mult(k);
+  },
+  /**
+   * Divide this point's x & y coordinates by a factor,
+   * yielding a new point.
+   * @param {number} k factor
+   * @return {Point} output point
+   */
+  div(k) {
+    return this.clone()._div(k);
+  },
+  /**
+   * Rotate this point around the 0, 0 origin
+
+--- OCCURRENCE 3 ---
+for (let i = 0; i <= stepsLon; i++) {\n      updateBounds(north, west + i * resolution);\n      updateBounds(south, east - i * resolution);\n    }\n    return [minY, minX, maxY, maxX];\n  };\n  class RegularGrid {\n    nx;\n    ny;\n    dx;\n    dy;\n    bounds;\n    longitudeWrap;\n    center;\n    constructor(data, ranges = null) {\n      this.dx = data.dx;\n      this.dy = data.dy;\n      if (!ranges) {\n        ranges = [\n          { start: 0, end: data.ny },\n          { start: 0, end: data.nx }\n        ];\n      } else {\n        if (ranges[0].start < 0 || ranges[0].start > data.ny || ranges[0].end < 0 || ranges[0].end > data.ny) {\n          throw new Error("Invalid y range");\n        }\n        if (ranges[1].start < 0 || ranges[1].start > data.nx || ranges[1].end < 0 || ranges[1].end > data.nx) {\n          throw new Error("Invalid x range");\n        }\n      }\n      this.nx = ranges[1].end - ranges[1].start;\n      this.ny = ranges[0].end - ranges[0].start;\n      const lonMin = data.lonMin + this.dx * ranges[1].start;\n      const latMin = data.latMin + this.dy * ranges[0].start;\n      const lonMax = data.lonMin + this.dx * ranges[1].end;\n      const latMax = data.latMin + this.dy * ranges[0].end;\n      this.bounds = [lonMin, latMin, lonMax, latMax];\n      this.longitudeWrap = lonMax - lonMin >= 359.875 ? true : false;\n    }\n    getLinearInterpolatedValue(values, lat, lon) {\n      if (!this.longitudeWrap) {\n        if (lon < this.bounds[0] || lon > this.bounds[2]) {\n          return NaN;\n        }\n      }\n      if (lat < this.bounds[1] || lat >= this.bounds[3]) {\n        return NaN;\n      }\n      const y = Math.floor((lat - this.bounds[1]) / this.dy);\n      const yFraction = (lat - this.bounds[1]) % this.dy / this.dy;\n      const x = Math.min(Math.floor((lon - this.bounds[0]) / this.dx), this.nx - 1);\n      const dx = this.longitudeWrap && lon >= this.bounds[2] - this.dx ? this.dx * 2 : this.dx;\n      const xFraction = (lon - this.b
+
+--- OCCURRENCE 4 ---
+ounds":\n        case "projectedFromProjectedOrigin":\n        case "projectedFromGeographicOrigin":\n          return new ProjectionGrid(data, ranges);\n        case "regular":\n          return new RegularGrid(data, ranges);\n        default: {\n          const _exhaustive = data;\n          throw new Error(`Unknown grid type: ${_exhaustive}`);\n        }\n      }\n    }\n  }\n  self.onmessage = async (message) => {\n    const key = message.data.key;\n    if (message.data.type === "cancel") {\n      postMessage({ type: "cancelled", key });\n      return;\n    }\n    const { z, x, y } = message.data.tileIndex;\n    const values = message.data.data.values;\n    const ranges = message.data.ranges;\n    const domain = message.data.dataOptions.domain;\n    const tileSize = message.data.renderOptions.tileSize;\n    const colorScale = message.data.renderOptions.colorScale;\n    const clippingOptions = message.data.clippingOptions;\n    if (!values) {\n      throw new Error("No values provided");\n    }\n    if (message.data.type == "getImage") {\n      const pixels = tileSize * tileSize;\n      const rgba = new Uint8ClampedArray(pixels * 4);\n      const grid = GridFactory.create(domain.grid, ranges);\n      for (let i = 0; i < tileSize; i++) {\n        const lat = tile2lat(y + i / tileSize, z);\n        if (clippingOptions?.bounds) {\n          if (checkAgainstBounds(lat, clippingOptions.bounds[1], clippingOptions.bounds[3])) continue;\n        }\n        for (let j = 0; j < tileSize; j++) {\n          const ind = j + i * tileSize;\n          const lon = tile2lon(x + j / tileSize, z);\n          if (clippingOptions?.bounds) {\n            if (checkAgainstBounds(lon, clippingOptions.bounds[0], clippingOptions.bounds[2]))\n              continue;\n          }\n          const px = grid.getLinearInterpolatedValue(values, lat, lon);\n          if (isFinite(px)) {\n            const color = getColor(colorScale, px);\n            rgba[4 * ind] = color[0];\n            rgba[4 

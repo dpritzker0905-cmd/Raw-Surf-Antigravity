@@ -1,0 +1,191 @@
+
+--- MATCH 1 ---
+apbox-adapter] Could not obtain OffscreenCanvas 2D context");
+      }
+      ctx.drawImage(data, 0, 0);
+      const blob2 = await oc.convertToBlob({ type: "image/png" });
+      return URL.createObjectURL(blob2);
+    }
+  }
+  if (data instanceof ArrayBuffer) {
+    const blob2 = new Blob([new Uint8Array(data)], { type: "image/png" });
+    return URL.createObjectURL(blob2);
+  }
+  throw new Error(
+    `[mapbox-adapter] Unsupported tile data type: ${Object.prototype.toString.call(data)}`
+  );
+};
+const addMapboxProtocolSupport = (mapboxgl) => {
+  if (!mapboxgl?.Style?.getSourceType) {
+    throw new Error(
+      "[mapbox-adapter] mapboxgl.Style.getSourceType is not available. Make sure the Mapbox GL JS library is fully loaded before calling addMapboxProtocolSupport()."
+    );
+  }
+  const registry = createProtocolRegistry("mapbox-adapter");
+  function omLoad(superLoad) {
+    const optionsObj = this._options ?? this.options;
+    const originalUrl = optionsObj?.["url"] ?? this.url;
+    const protocol = originalUrl ? extractProtocol(originalUrl) : null;
+    if (!protocol) {
+      superLoad.call(this);
+      return;
+    }
+    if (!registry.has(protocol)) {
+      const err = new Error(`[mapbox-adapter] No handler registered for protocol: "${protocol}"`);
+      console.error(err.message);
+      this.fire?.("error", { error: err });
+      return;
+    }
+    const { handler, settings } = registry.get(protocol);
+    const abortController = new AbortController();
+    handler({ url: originalUrl, type: "json" }, abortController, settings).then((response) => {
+      if (!response?.data) {
+        throw new Error(
+          `[mapbox-adapter] Protocol handler returned no data for TileJSON: ${originalUrl}`
+        );
+      }
+      const tileJson = response.data;
+      if (optionsObj) {
+        delete optionsObj["url"];
+        optionsObj["tiles"] = tileJson["tiles"];
+        if (tileJson["bounds"] != null) optionsObj["bounds"] = tileJson["bounds"];
+        if (tileJson["minzoom"] != null) opt
+
+--- MATCH 2 ---
+ ArrayBuffer) {
+    const blob2 = new Blob([new Uint8Array(data)], { type: "image/png" });
+    return URL.createObjectURL(blob2);
+  }
+  throw new Error(
+    `[mapbox-adapter] Unsupported tile data type: ${Object.prototype.toString.call(data)}`
+  );
+};
+const addMapboxProtocolSupport = (mapboxgl) => {
+  if (!mapboxgl?.Style?.getSourceType) {
+    throw new Error(
+      "[mapbox-adapter] mapboxgl.Style.getSourceType is not available. Make sure the Mapbox GL JS library is fully loaded before calling addMapboxProtocolSupport()."
+    );
+  }
+  const registry = createProtocolRegistry("mapbox-adapter");
+  function omLoad(superLoad) {
+    const optionsObj = this._options ?? this.options;
+    const originalUrl = optionsObj?.["url"] ?? this.url;
+    const protocol = originalUrl ? extractProtocol(originalUrl) : null;
+    if (!protocol) {
+      superLoad.call(this);
+      return;
+    }
+    if (!registry.has(protocol)) {
+      const err = new Error(`[mapbox-adapter] No handler registered for protocol: "${protocol}"`);
+      console.error(err.message);
+      this.fire?.("error", { error: err });
+      return;
+    }
+    const { handler, settings } = registry.get(protocol);
+    const abortController = new AbortController();
+    handler({ url: originalUrl, type: "json" }, abortController, settings).then((response) => {
+      if (!response?.data) {
+        throw new Error(
+          `[mapbox-adapter] Protocol handler returned no data for TileJSON: ${originalUrl}`
+        );
+      }
+      const tileJson = response.data;
+      if (optionsObj) {
+        delete optionsObj["url"];
+        optionsObj["tiles"] = tileJson["tiles"];
+        if (tileJson["bounds"] != null) optionsObj["bounds"] = tileJson["bounds"];
+        if (tileJson["minzoom"] != null) optionsObj["minzoom"] = tileJson["minzoom"];
+        if (tileJson["maxzoom"] != null) optionsObj["maxzoom"] = tileJson["maxzoom"];
+        if (tileJson["attribution"] != null) optionsObj["attribution"] = tileJson["attribution"];
+        if (tile
+
+--- MATCH 3 ---
+  CASES,
+  COLOR_SCALES,
+  COLOR_SCALES_WITH_ALIASES,
+  DATA_RELEVANT_PARAMS,
+  DEFAULT_INTERVAL,
+  DEFAULT_TILE_SIZE,
+  DOMAIN_META_REGEX,
+  Fragment,
+  GridFactory,
+  LEVEL_PREFIX,
+  LEVEL_REGEX$1 as LEVEL_REGEX,
+  LEVEL_UNIT_REGEX,
+  OM_PREFIX_REGEX,
+  RESOLVE_DOMAIN_REGEX,
+  TILE_SUFFIX_REGEX,
+  TIME_SELECTED_REGEX,
+  TIME_STEP_REGEX,
+  VALID_TILE_SIZES,
+  VARIABLE_PREFIX,
+  VECTOR_TILE_EXTENT$1 as VECTOR_TILE_EXTENT,
+  WeatherMapLayerFileReader,
+  WorkerPool,
+  addLeafletProtocolSupport,
+  addMapboxProtocolSupport,
+  addOpenLayersProtocolSupport,
+  boundsIncluded,
+  capitalize,
+  checkAgainstBounds,
+  clearBlockCache,
+  clipRasterToPolygons,
+  closestModelRun,
+  command,
+  constrainBounds,
+  createClippingTester,
+  currentBounds,
+  defaultFileReaderConfig,
+  defaultOmProtocolSettings,
+  degreesToRadians,
+  derivative,
+  domainGroups,
+  domainOptions,
+  domainStep,
+  drawOnTiles,
+  ensureData,
+  fastAtan2,
+  generateArrows,
+  generateContours,
+  generateGridPoints,
+  getColor,
+  getColorScale,
+  getOrCreateState,
+  getProtocolInstance,
+  getRanges,
+  getValueFromLatLong,
+  hermite,
+  index,
+  interpolate,
+  lat2tile,
+  levelGroupVariables,
+  lon2tile,
+  modPositive,
+  normalizeLon,
+  normalizeUrl,
+  omProtocol,
+  pad,
+  radiansToDegrees,
+  ratio,
+  resolveClippingOptions,
+  resolveColorScale,
+  rotatePoint,
+  roundWithPrecision,
+  secondDerivative,
+  setClippingBounds,
+  sharedPolygonsPolygonCount,
+  sharedPolygonsRing,
+  sharedPolygonsRingCount,
+  snapBounds,
+  tile2lat,
+  tile2lon,
+  updateCurrentBounds,
+  variableOptions,
+  writeFeature,
+  writeGeometry,
+  writeLayer,
+  writeProperties,
+  writeValue,
+  zigzag
+};
+

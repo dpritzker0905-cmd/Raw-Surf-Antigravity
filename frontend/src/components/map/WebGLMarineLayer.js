@@ -14,16 +14,18 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
   return {
     id: LAYER_ID,
     type: 'custom',
-    renderingMode: '3d',
+    renderingMode: '2d',
     engine, // expose engine reference for debugging
 
-    onAdd(_map, gl) {
-      glRef.current = gl;
+    onAdd(_mapOrArgs, glArg) {
+      // v5 compat: MapLibre v5 may pass args object
+      var _gl = (glArg) ? glArg : (_mapOrArgs?.gl || _mapOrArgs?.painter?.context?.gl);
+      glRef.current = _gl;
       try {
-        engine.init(gl);
+        engine.init(_gl);
         if (dataRef.current?.vectors?.length) {
           console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors');
-          engine.setWaveData(gl, dataRef.current);
+          engine.setWaveData(_gl, dataRef.current);
         }
       } catch (e) {
         console.error('[WebGLMarine] Init failed:', e.message);
@@ -31,14 +33,50 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       }
     },
 
-    render(gl, matrix) {
+    render(glOrArgs, matrixArg) {
+      // v5 compat: MapLibre v5 passes (gl, matrixObj) where matrixObj may be a wrapper
+      var _gl, _matrix;
+      var isWebGLCtx = (glOrArgs instanceof WebGLRenderingContext || glOrArgs instanceof WebGL2RenderingContext);
+      if (isWebGLCtx) {
+        _gl = glOrArgs;
+        if (matrixArg && matrixArg.length >= 16) {
+          _matrix = matrixArg;
+        } else if (matrixArg && typeof matrixArg === 'object') {
+          _matrix = matrixArg.defaultProjectionData?.mainMatrix || matrixArg.mercatorMatrix || matrixArg.mainMatrix || matrixArg.modelViewProjectionMatrix;
+          if (!_matrix || !_matrix.length) {
+            for (var k in matrixArg) {
+              var v = matrixArg[k];
+              if (v && (v instanceof Float32Array || v instanceof Float64Array) && v.length === 16) {
+                _matrix = v;
+                break;
+              }
+            }
+          }
+          if (!_matrix || !_matrix.length) {
+            var _mapFb = mapRef.current;
+            if (_mapFb) {
+              try { _matrix = _mapFb.transform?.mercatorMatrix || _mapFb.transform?.projMatrix; } catch(e) {}
+            }
+          }
+        }
+        // Convert Float64Array → Float32Array for gl.uniformMatrix4fv compatibility
+        if (_matrix && _matrix instanceof Float64Array) {
+          _matrix = new Float32Array(_matrix);
+        }
+      } else if (glOrArgs && typeof glOrArgs === 'object' && glOrArgs.gl) {
+        _gl = glOrArgs.gl;
+        _matrix = glOrArgs.defaultProjectionData?.mainMatrix || glOrArgs.modelViewProjectionMatrix || glOrArgs.matrix;
+      } else {
+        _gl = glOrArgs;
+        _matrix = matrixArg;
+      }
       if (this._renderLogged === undefined) {
         this._renderLogged = true;
-        console.log("[WebGLMarineLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount);
+        console.log("[WebGLMarineLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount, "matrixType:", typeof _matrix, "matrixLen:", _matrix?.length);
       }
       if (!activeRef.current || errorCount > 3) {
         if (this._wasActive) {
-          engine.clearBuffers(gl);
+          engine.clearBuffers(_gl);
           this._wasActive = false;
         }
         return;
@@ -50,7 +88,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-        engine.render(gl, matrix, canvas.width, canvas.height, zoom);
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom);
         map.triggerRepaint();
       } catch (e) {
         errorCount++;
@@ -64,8 +102,9 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       }
     },
 
-    onRemove(_map, gl) {
-      engine.dispose(gl);
+    onRemove(_mapOrArgs, glArg) {
+      var _gl = (glArg) ? glArg : (_mapOrArgs?.gl || _mapOrArgs?.painter?.context?.gl);
+      engine.dispose(_gl);
       glRef.current = null;
     }
   };

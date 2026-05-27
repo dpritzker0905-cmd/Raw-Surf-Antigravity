@@ -1,0 +1,521 @@
+
+--- MATCH 1 ---
+ET Norway" },
+  { value: "meteoswiss", label: "MeteoSwiss" },
+  { value: "ukmo", label: "UKMO" }
+];
+const domainOptions = [
+  // BOM
+  // {
+  // 	value: 'bom_access_global',
+  // 	label: 'BOM Global',
+  // 	grid: {
+  //    type: 'regular',
+  // 		nx: 2048,
+  // 		ny: 1536,
+  // 		latMin: -89.941406,
+  // 		lonMin: -179.912109,
+  // 		dx: 360 / 2048,
+  // 		dy: 180 / 1536,
+  // 		zoom: 1,
+  // 	},
+  // 	time_interval: 'hourly',
+  // },
+  // CAMS
+  {
+    value: "cams_global",
+    label: "CAMS Global",
+    grid: {
+      type: "regular",
+      nx: 900,
+      ny: 451,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.4,
+      dy: 0.4,
+      zoom: 1
+    },
+    time_interval: "hourly",
+    // not all variables, some are 'hourly', some are '3_hourly'
+    model_interval: "12_hourly"
+  },
+  {
+    value: "cams_global_greenhouse_gases",
+    label: "CAMS Global Greenhouse Gases",
+    grid: {
+      type: "regular",
+      nx: 3600,
+      ny: 1801,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.1,
+      dy: 0.1,
+      zoom: 1
+    },
+    time_interval: "3_hourly",
+    model_interval: "daily"
+  },
+  // {
+  // 	value: 'cams_europe',
+  // 	label: 'CAMS Europe',
+  // 	grid: {
+  // 		type: 'regular',
+  // 		nx: 700,
+  // 		ny: 420,
+  // 		latMin: 71.95,
+  // 		lonMin: -24.95,
+  // 		dx: 0.1,
+  // 		dy: -0.1, // IMPORTANT: GRID is flipped! Therefore dy negative!
+  // 		zoom: 2
+  // 	},
+  // 	time_interval: 'hourly',
+  // 	model_interval: 'daily'
+  // },
+  // CMA
+  {
+    value: "cma_grapes_global",
+    label: "CMA GRAPES Global",
+    grid: {
+      type: "regular",
+      nx: 2880,
+      ny: 1440,
+      latMin: -89.9375,
+      lonMin: -180,
+      dx: 0.125,
+      dy: 0.125,
+      zoom: 1
+    },
+    time_interval: "3_hourly",
+    model_interval: "6_hourly"
+  },
+  // DMI
+  {
+    value: "dmi_harmonie_arome_europe",
+    label: "DMI Harmonie Arome Europe",
+    grid: {
+      type: "projectedFromGeographicOrigin",
+      nx: 1906,
+      ny: 1606,
+      latitude: 39.671,
+      longitude: -25.421997,
+      dx: 2e3,
+      dy: 2e3,
+      zoom: 4,
+      projection: {
+        λ0: 352,
+        ϕ0: 55.5,
+        ϕ1: 55.5,
+        ϕ2: 55.5,
+        radius: 6371229,
+        name: "LambertConformalConicProjection"
+      }
+    },
+    time_interval: "hourly",
+    model_interval: "3_hourly"
+  },
+  // DWD
+  {
+    value: "dwd_icon",
+    label: "DWD ICON",
+    grid: {
+      type: "regular",
+      nx: 2879,
+      ny: 1441,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.125,
+      dy: 0.125,
+      zoom: 1
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "dwd_icon_eu",
+    label: "DWD ICON EU",
+    grid: {
+      type: "regular",
+      nx: 1377,
+      ny: 657,
+      latMin: 29.5,
+      lonMin: -23.5,
+      dx: 0.0625,
+      dy: 0.0625,
+      zoom: 3.2
+    },
+    time_interval: "hourly",
+    model_interval: "3_hourly"
+  },
+  {
+    value: "dwd_icon_d2",
+    label: "DWD ICON D2",
+    grid: {
+      type: "regular",
+      nx: 1215,
+      ny: 746,
+      latMin: 43.18,
+      lonMin: -3.94,
+      dx: 0.02,
+      dy: 0.02,
+      zoom: 5.2
+    },
+    time_interval: "hourly",
+    model_interval: "3_hourly"
+  },
+  // Not availabe yet
+  // {
+  // 	value: 'dwd_icon_d2_15min',
+  // 	label: 'DWD ICON D2 15min',
+  // 	grid: {
+  // 		type: 'regular',
+  // 		nx: 1215,
+  // 		ny: 746,
+  // 		latMin: 43.18,
+  // 		lonMin: -3.94,
+  // 		dx: 0.02,
+  // 		dy: 0.02,
+  // 		zoom: 5.2
+  // 	},
+  // 	time_interval: '15_minute',
+  // 	model_interval: '3_hourly'
+  // },
+  {
+    value: "dwd_gwam",
+    label: "DWD GWAM",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 699,
+      latMin: -85.25,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "3_hourly",
+    model_interval: "12_hourly"
+  },
+  {
+    value: "dwd_ewam",
+    label: "DWD EWAM",
+    grid: {
+      type: "regular",
+      nx: 526,
+      ny: 721,
+      latMin: 30,
+      lonMin: -10.5,
+      dx: 0.1,
+      dy: 0.05,
+      zoom: 3.2
+    },
+    time_interval: "hourly",
+    model_interval: "12_hourly"
+  },
+  {
+    value: "dwd_icon_eps",
+    label: "DWD ICON EPS",
+    grid: {
+      type: "regular",
+      nx: 1439,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "hourly",
+    model_interval: "12_hourly"
+  },
+  {
+    value: "dwd_icon_eu_eps",
+    label: "DWD ICON EU EPS",
+    grid: {
+      type: "regular",
+      nx: 689,
+      ny: 329,
+      latMin: 29.5,
+      lonMin: -23.5,
+      dx: 0.125,
+      dy: 0.125,
+      zoom: 3.2
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "dwd_icon_d2_eps",
+    label: "DWD ICON D2 EPS",
+    grid: {
+      type: "regular",
+      nx: 1214,
+      // Note: -1px difference to use the same weights as official
+      ny: 745,
+      // Note: -1px difference to use the same weights as official
+      latMin: 43.18,
+      lonMin: -3.94,
+      dx: 0.02,
+      dy: 0.02,
+      zoom: 5.2
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  // GFS
+  {
+    value: "ncep_gfs025",
+    label: "GFS Global 0.25°",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_gfs013",
+    label: "GFS Global 0.13°",
+    grid: {
+      type: "regular",
+      nx: 3072,
+      ny: 1536,
+      latMin: -0.11714935 * (1536 - 1) / 2,
+      lonMin: -180,
+      dx: 360 / 3072,
+      dy: 0.11714935,
+      zoom: 1
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_gefs05",
+    label: "GEFS 0.5°",
+    grid: {
+      type: "regular",
+      nx: 720,
+      ny: 361,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.5,
+      dy: 0.5,
+      zoom: 1
+    },
+    time_interval: "6_hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_gefs025",
+    label: "GEFS 0.25°",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "6_hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_gfs_graphcast025",
+    label: "GFS GraphCast 0.25°",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "6_hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_aigfs025",
+    label: "GFS AIGFS 0.25°",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "6_hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_hgefs025_ensemble_mean",
+    label: "GFS HGEFS 0.25° Ensemble Mean",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "6_hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_hrrr_conus",
+    label: "GFS HRRR Conus",
+    grid: {
+      type: "projectedFromBounds",
+      nx: 1799,
+      ny: 1059,
+      latitudeBounds: [21.138, 47.8424],
+      longitudeBounds: [-122.72, -60.918],
+      zoom: 3.5,
+      projection: {
+        λ0: -97.5,
+        ϕ0: 0,
+        ϕ1: 38.5,
+        ϕ2: 38.5,
+        name: "LambertConformalConicProjection"
+      }
+    },
+    time_interval: "hourly",
+    model_interval: "hourly"
+  },
+  {
+    value: "ncep_hrrr_conus_15min",
+    label: "GFS HRRR Conus 15min",
+    grid: {
+      type: "projectedFromBounds",
+      nx: 1799,
+      ny: 1059,
+      latitudeBounds: [21.138, 47.8424],
+      longitudeBounds: [-122.72, -60.918],
+      zoom: 3.5,
+      projection: {
+        λ0: -97.5,
+        ϕ0: 0,
+        ϕ1: 38.5,
+        ϕ2: 38.5,
+        name: "LambertConformalConicProjection"
+      }
+    },
+    time_interval: "15_minute",
+    model_interval: "hourly"
+  },
+  {
+    value: "ncep_nbm_conus",
+    label: "GFS NBM Conus",
+    grid: {
+      type: "projectedFromGeographicOrigin",
+      nx: 2345,
+      ny: 1597,
+      latitude: 19.229,
+      longitude: 233.723 - 360,
+      dx: 2539.7,
+      dy: 2539.7,
+      zoom: 3.5,
+      projection: {
+        λ0: 265 - 360,
+        ϕ0: 0,
+        ϕ1: 25,
+        ϕ2: 25,
+        radius: 6371200,
+        name: "LambertConformalConicProjection"
+      }
+    },
+    time_interval: "hourly",
+    model_interval: "hourly"
+  },
+  {
+    value: "ncep_nam_conus",
+    label: "GFS NAM Conus",
+    grid: {
+      type: "projectedFromBounds",
+      nx: 1799,
+      ny: 1059,
+      latitudeBounds: [21.138, 47.8424],
+      longitudeBounds: [-122.72, -60.918],
+      zoom: 3.5,
+      projection: {
+        λ0: -97.5,
+        ϕ0: 0,
+        ϕ1: 38.5,
+        ϕ2: 38.5,
+        name: "LambertConformalConicProjection"
+      }
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_gfswave025",
+    label: "GFS Wave 0.25°",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 0.25,
+      dy: 0.25,
+      zoom: 1
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ncep_gfswave016",
+    label: "GFS Wave 0.16°",
+    grid: {
+      type: "regular",
+      nx: 2160,
+      ny: 406,
+      latMin: -15,
+      lonMin: -180,
+      dx: 360 / 2160,
+      dy: (52.5 + 15) / (406 - 1),
+      zoom: 1
+    },
+    time_interval: "hourly",
+    model_interval: "6_hourly"
+  },
+  // ECWMF
+  {
+    value: "ecmwf_ifs025",
+    label: "ECMWF IFS 0.25°",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonMin: -180,
+      dx: 360 / 1440,
+      dy: 180 / (721 - 1),
+      zoom: 1
+    },
+    time_interval: "3_hourly",
+    model_interval: "6_hourly"
+  },
+  {
+    value: "ecmwf_ifs025_ensemble",
+    label: "ECMWF IFS 0.25° Ensemble",
+    grid: {
+      type: "regular",
+      nx: 1440,
+      ny: 721,
+      latMin: -90,
+      lonM

@@ -1,0 +1,131 @@
+
+--- MATCH 1 ---
+n;
+      maxLon = leftMax;
+    }
+  } else {
+    if (minLon < clipMinLon) minLon = clipMinLon;
+    if (maxLon > clipMaxLon) maxLon = clipMaxLon;
+  }
+  return [minLon, minLat, maxLon, maxLat];
+};
+const checkAgainstBounds = (point, min, max) => {
+  if (max < min) {
+    if (point < min && point > max) {
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    if (point < min || point > max) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+};
+class GaussianGrid {
+  // should always be 1 for gaussian grids!
+  ny;
+  // nx contains all grid points in a single dimension
+  nx;
+  // nxStart can be used to read partial data
+  // it basically shifts the indices when accessing the data
+  nxStart;
+  latitudeLines;
+  constructor(data, ranges = null) {
+    this.latitudeLines = data.gaussianGridLatitudeLines;
+    if (!ranges) {
+      ranges = [
+        { start: 0, end: data.ny },
+        { start: 0, end: data.nx }
+      ];
+    }
+    this.nx = data.nx;
+    this.nxStart = ranges[1].start;
+    this.ny = data.ny;
+  }
+  getBounds() {
+    return [-180, -90, 180, 90];
+  }
+  getCenter() {
+    return { lng: 0, lat: 0 };
+  }
+  getCoveringRanges(south, _west, north, _east) {
+    
+
+--- MATCH 2 ---
+ineString\n          properties,\n          geom\n        });\n      }\n    }\n    pbf.writeMessage(3, writeLayer, {\n      name: "wind-arrows",\n      extent,\n      features\n    });\n  };\n  const checkAgainstBounds = (point, min, max) => {\n    if (max < min) {\n      if (point < min && point > max) {\n        return true;\n      } else {\n        return false;\n      }\n    } else {\n      if (point < min || point > max) {\n        return true;\n      } else {\n        return false;\n      }\n    }\n  };\n  const CASES = [\n    [],\n    // 0\n    [[[1, 2], [0, 1]]],\n    // 1\n    [[[2, 1], [1, 2]]],\n    // 2\n    [[[2, 1], [0, 1]]],\n    // 3\n    [[[1, 0], [2, 1]]],\n    // 4\n    [[[1, 2], [0, 1]], [[1, 0], [2, 1]]],\n    // 5\n    [[[1, 0], [1, 2]]],\n    // 6\n    [[[1, 0], [0, 1]]],\n    // 7\n    [[[0, 1], [1, 0]]],\n    // 8\n    [[[1, 2], [1, 0]]],\n    // 9\n    [[[0, 1], [1, 0]], [[2, 1], [1, 2]]],\n    // 10\n    [[[2, 1], [1, 0]]],\n    // 11\n    [[[0, 1], [2, 1]]],\n    // 12\n    [[[1, 2], [2, 1]]],\n    // 13\n    [[[0, 1], [1, 2]]],\n    // 14\n    []\n    // 15\n  ];\n  class Fragment {\n    start;\n    end;\n    points;\n    constructor(start, end) {\n    
+
+--- MATCH 3 ---
+ grid = GridFactory.create(domain.grid, ranges);\n      for (let i = 0; i < tileSize; i++) {\n        const lat = tile2lat(y + i / tileSize, z);\n        if (clippingOptions?.bounds) {\n          if (checkAgainstBounds(lat, clippingOptions.bounds[1], clippingOptions.bounds[3])) continue;\n        }\n        for (let j = 0; j < tileSize; j++) {\n          const ind = j + i * tileSize;\n          const lon = tile2lon(x + j / tileSize, z);\n          if (clippingOptions?.bounds) {\n            if (checkAgainstBounds(lon, clippingOptions.bounds[0], clippingOptions.bounds[2]))\n              continue;\n          }\n          const px = grid.getLinearInterpolatedValue(values, lat, lon);\n          if (isFinite(px)) {\n            const color = getColor(colorScale, px);\n            rgba[4 * ind] = color[0];\n            rgba[4 * ind + 1] = color[1];\n            rgba[4 * ind + 2] = color[2];\n            rgba[4 * ind + 3] = 255 * color[3];\n          }\n        }\n      }\n      const imageData = new ImageData(rgba, tileSize, tileSize);\n      const canvas = new OffscreenCanvas(tileSize, tileSize);\n      const context = canvas.getContext("2d");\n      if (!context) {\n        throw new 
+
+--- MATCH 4 ---
+n        for (let j = 0; j < tileSize; j++) {\n          const ind = j + i * tileSize;\n          const lon = tile2lon(x + j / tileSize, z);\n          if (clippingOptions?.bounds) {\n            if (checkAgainstBounds(lon, clippingOptions.bounds[0], clippingOptions.bounds[2]))\n              continue;\n          }\n          const px = grid.getLinearInterpolatedValue(values, lat, lon);\n          if (isFinite(px)) {\n            const color = getColor(colorScale, px);\n            rgba[4 * ind] = color[0];\n            rgba[4 * ind + 1] = color[1];\n            rgba[4 * ind + 2] = color[2];\n            rgba[4 * ind + 3] = 255 * color[3];\n          }\n        }\n      }\n      const imageData = new ImageData(rgba, tileSize, tileSize);\n      const canvas = new OffscreenCanvas(tileSize, tileSize);\n      const context = canvas.getContext("2d");\n      if (!context) {\n        throw new Error("Could not initialise canvas context");\n      }\n      context.putImageData(imageData, 0, 0);\n      let imageBitmap;\n      if (clippingOptions?.polygons) {\n        imageBitmap = clipRasterToPolygons(canvas, tileSize, z, x, y, clippingOptions);\n      } else {\n        imageBitmap = canvas.
+
+--- MATCH 5 ---
+E_EXTENT$1 as VECTOR_TILE_EXTENT,
+  WeatherMapLayerFileReader,
+  WorkerPool,
+  addLeafletProtocolSupport,
+  addMapboxProtocolSupport,
+  addOpenLayersProtocolSupport,
+  boundsIncluded,
+  capitalize,
+  checkAgainstBounds,
+  clearBlockCache,
+  clipRasterToPolygons,
+  closestModelRun,
+  command,
+  constrainBounds,
+  createClippingTester,
+  currentBounds,
+  defaultFileReaderConfig,
+  defaultOmProtocolSettings,
+  degreesToRadians,
+  derivative,
+  domainGroups,
+  domainOptions,
+  domainStep,
+  drawOnTiles,
+  ensureData,
+  fastAtan2,
+  generateArrows,
+  generateContours,
+  generateGridPoints,
+  getColor,
+  getColorScale,
+  getOrCreateState,
+  getProtocolInstance,
+  getRanges,
+  getValueFromLatLong,
+  hermite,
+  index,
+  interpolate,
+  lat2tile,
+  levelGroupVariables,
+  lon2tile,
+  modPositive,
+  normalizeLon,
+  normalizeUrl,
+  omProtocol,
+  pad,
+  radiansToDegrees,
+  ratio,
+  resolveClippingOptions,
+  resolveColorScale,
+  rotatePoint,
+  roundWithPrecision,
+  secondDerivative,
+  setClippingBounds,
+  sharedPolygonsPolygonCount,
+  sharedPolygonsRing,
+  sharedPolygonsRingCount,
+  snapBounds,
+  tile2lat,
+  tile2lon,
+  updateCurrentBounds,
+  variableOptions,
+  writeFeature,
+  writeGeometry,
+  wr

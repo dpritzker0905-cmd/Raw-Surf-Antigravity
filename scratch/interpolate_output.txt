@@ -1,0 +1,129 @@
+
+--- MATCH 1 ---
+ bounds[2])) continue;
+        const index2 = integralY + x;
+        const result = callback({ index: index2, lat, lon: adjustedLon });
+        if (result === false) return;
+      }
+    }
+  }
+}
+const interpolateLinear = (values, x, y, xFraction, yFraction, nx, longitudeWrap = false) => {
+  const index2 = y * nx + x;
+  let nextIndex;
+  if (longitudeWrap) {
+    nextIndex = y * nx + (x + 1) % nx;
+  } else {
+    nextIndex = index2 + 1;
+    if (nextIndex % nx === 0) {
+      return NaN;
+    }
+  }
+  if (index2 + nx > values.length) {
+    return NaN;
+  }
+  const p0 = values[index2];
+  const p1 = values[nextIndex];
+  const p2 = values[index2 + nx];
+  const p3 = values[nextIndex + nx];
+  const w0 = (1 - xFraction) * (1 - yFraction);
+  const w1 = xFraction * (1 - yFraction);
+  const w2 = (1 - xFraction) * yFraction;
+  const w3 = xFraction * yFraction;
+  const n0 = !isFinite(p0);
+  const n1 = !isFinite(p1);
+  const n2 = !isFinite(p2);
+  const n3 = !isFinite(p3);
+  if (!n0 && !n1 && !n2 && !n3) {
+    return roundWithPrecision(p0 * w0 + p1 * w1 + p2 * w2 + p3 * w3);
+  }
+  if (n0 && !n1 && !n2 && !n3) {
+    if (xFraction + yFraction < 1) return NaN;
+    const ws = w1 + w2 + w3;
+    return roundWi
+
+--- MATCH 2 ---
+dx * ranges[1].start;
+    this.minY = this.origin[1] + this.dy * ranges[0].start;
+  }
+  getLinearInterpolatedValue(values, lat, lon) {
+    const idx = this.findPointInterpolated(lat, lon);
+    return interpolateLinear(values, idx.x, idx.y, idx.xFraction, idx.yFraction, this.nx);
+  }
+  getBounds() {
+    if (!this.bounds) {
+      const borderPoints = this.getProjectedBorderPoints();
+      this.bounds = this.calculateGeographicBounds(borderPoints);
+    }
+    return this.bounds;
+  }
+  getCenter() {
+    if (!this.center) {
+      const bounds = this.getBounds();
+      this.center = this.getCenterFromBounds(bounds);
+    }
+    return this.center;
+  }
+  getCoveringRanges(south, west, north, east) {
+    const dx = this.dx;
+    const dy = this.dy;
+    const nx = this.nx;
+    const ny = this.ny;
+    let xPrecision, yPrecision;
+    if (String(dx).split(".")[1]) {
+      xPrecision = String(dx).split(".")[1].length;
+      yPrecision = String(dy).split(".")[1].length;
+    } else {
+      xPrecision = 2;
+      yPrecision = 2;
+    }
+    let [s, w, n, e] = getProjectedBounds(this.projection, [south, west, north, east]);
+    s = Number((s - s % dy).toFixed(yPrecision));
+    w = Number((w - w % dx).toFi
+
+--- MATCH 3 ---
+s.bounds[0]) / this.dx), this.nx - 1);
+    const dx = this.longitudeWrap && lon >= this.bounds[2] - this.dx ? this.dx * 2 : this.dx;
+    const xFraction = (lon - this.bounds[0]) % dx / dx;
+    return interpolateLinear(values, x, y, xFraction, yFraction, this.nx, this.longitudeWrap);
+  }
+  getBounds() {
+    return this.bounds;
+  }
+  getCenter() {
+    if (!this.center) {
+      this.center = {
+        lng: this.bounds[0] + this.dx * (this.nx * 0.5),
+        lat: this.bounds[1] + this.dy * (this.ny * 0.5)
+      };
+    }
+    return this.center;
+  }
+  getCoveringRanges(south, west, north, east) {
+    const dx = this.dx;
+    const dy = this.dy;
+    const nx = this.nx;
+    const ny = this.ny;
+    let xPrecision, yPrecision;
+    if (String(dx).split(".")[1]) {
+      xPrecision = String(dx).split(".")[1].length;
+      yPrecision = String(dy).split(".")[1].length;
+    } else {
+      xPrecision = 2;
+      yPrecision = 2;
+    }
+    const originX = this.bounds[0];
+    const originY = this.bounds[1];
+    const s = Number((south - south % dy).toFixed(yPrecision));
+    const w = Number((west - west % dx).toFixed(xPrecision));
+    const n = Number((north - north % dy + dy).toFixed(yPrecision));
+    
+
+--- MATCH 4 ---
+          const index2 = integralY + x;\n          const result = callback({ index: index2, lat, lon: adjustedLon });\n          if (result === false) return;\n        }\n      }\n    }\n  }\n  const interpolateLinear = (values, x, y, xFraction, yFraction, nx, longitudeWrap = false) => {\n    const index2 = y * nx + x;\n    let nextIndex;\n    if (longitudeWrap) {\n      nextIndex = y * nx + (x + 1) % nx;\n    } else {\n      nextIndex = index2 + 1;\n      if (nextIndex % nx === 0) {\n        return NaN;\n      }\n    }\n    if (index2 + nx > values.length) {\n      return NaN;\n    }\n    const p0 = values[index2];\n    const p1 = values[nextIndex];\n    const p2 = values[index2 + nx];\n    const p3 = values[nextIndex + nx];\n    const w0 = (1 - xFraction) * (1 - yFraction);\n    const w1 = xFraction * (1 - yFraction);\n    const w2 = (1 - xFraction) * yFraction;\n    const w3 = xFraction * yFraction;\n    const n0 = !isFinite(p0);\n    const n1 = !isFinite(p1);\n    const n2 = !isFinite(p2);\n    const n3 = !isFinite(p3);\n    if (!n0 && !n1 && !n2 && !n3) {\n      return roundWithPrecision(p0 * w0 + p1 * w1 + p2 * w2 + p3 * w3);\n    }\n    if (n0 && !n1 && !n2 && !n3) {\n      
+
+--- MATCH 5 ---
+start;\n      this.minY = this.origin[1] + this.dy * ranges[0].start;\n    }\n    getLinearInterpolatedValue(values, lat, lon) {\n      const idx = this.findPointInterpolated(lat, lon);\n      return interpolateLinear(values, idx.x, idx.y, idx.xFraction, idx.yFraction, this.nx);\n    }\n    getBounds() {\n      if (!this.bounds) {\n        const borderPoints = this.getProjectedBorderPoints();\n        this.bounds = this.calculateGeographicBounds(borderPoints);\n      }\n      return this.bounds;\n    }\n    getCenter() {\n      if (!this.center) {\n        const bounds = this.getBounds();\n        this.center = this.getCenterFromBounds(bounds);\n      }\n      return this.center;\n    }\n    getCoveringRanges(south, west, north, east) {\n      const dx = this.dx;\n      const dy = this.dy;\n      const nx = this.nx;\n      const ny = this.ny;\n      let xPrecision, yPrecision;\n      if (String(dx).split(".")[1]) {\n        xPrecision = String(dx).split(".")[1].length;\n        yPrecision = String(dy).split(".")[1].length;\n      } else {\n        xPrecision = 2;\n        yPrecision = 2;\n      }\n      let [s, w, n, e] = getProjectedBounds(this.projection, [south, west, north, eas
+
+--- MATCH 6 ---
+0]) / this.dx), this.nx - 1);\n      const dx = this.longitudeWrap && lon >= this.bounds[2] - this.dx ? this.dx * 2 : this.dx;\n      const xFraction = (lon - this.bounds[0]) % dx / dx;\n      return interpolateLinear(values, x, y, xFraction, yFraction, this.nx, this.longitudeWrap);\n    }\n    getBounds() {\n      return this.bounds;\n    }\n    getCenter() {\n      if (!this.center) {\n        this.center = {\n          lng: this.bounds[0] + this.dx * (this.nx * 0.5),\n          lat: this.bounds[1] + this.dy * (this.ny * 0.5)\n        };\n      }\n      return this.center;\n    }\n    getCoveringRanges(south, west, north, east) {\n      const dx = this.dx;\n      const dy = this.dy;\n      const nx = this.nx;\n      const ny = this.ny;\n      let xPrecision, yPrecision;\n      if (String(dx).split(".")[1]) {\n        xPrecision = String(dx).split(".")[1].length;\n        yPrecision = String(dy).split(".")[1].length;\n      } else {\n        xPrecision = 2;\n        yPrecision = 2;\n      }\n      const originX = this.bounds[0];\n      const originY = this.bounds[1];\n      const s = Number((south - south % dy).toFixed(yPrecision));\n      const w = Number((west - west % dx).toFix

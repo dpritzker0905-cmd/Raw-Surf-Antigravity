@@ -24,6 +24,12 @@ export const AccessCodeScreen = ({ children }) => {
 
   const checkAccess = async () => {
     try {
+      // Dev bypass: skip access code check on localhost
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        setAccessGranted(true);
+        setChecking(false);
+        return;
+      }
       // First check if access code is even enabled
       const response = await apiClient.get(`/site-access`);
       

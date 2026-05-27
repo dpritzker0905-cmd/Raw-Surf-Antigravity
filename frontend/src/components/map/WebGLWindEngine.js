@@ -406,17 +406,14 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
 };
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom) {
-  let projMatrix = matrix;
-  if (matrix && matrix.modelViewProjectionMatrix) {
-    projMatrix = matrix.modelViewProjectionMatrix;
-  }
-  if (!this._initialized || !this._windData || !projMatrix || !projMatrix.length) {
+  if (!this._initialized || !this._windData) return;
+  if (!matrix || !matrix.length) {
     if (this._renderLogged === undefined) {
       this._renderLogged = 0;
     }
     this._renderLogged++;
     if (this._renderLogged === 1 || this._renderLogged % 180 === 0) {
-      console.log("[WebGLWindEngine] render returned early! _initialized:", this._initialized, "_windData:", !!this._windData, "projMatrix:", !!projMatrix, "projMatrix.length:", projMatrix?.length);
+      console.log("[WebGLWindEngine] render returned early! _initialized:", this._initialized, "_windData:", !!this._windData, "matrix:", !!matrix, "matrix.length:", matrix?.length);
     }
     return;
   }
@@ -492,7 +489,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.bindVertexArray(null);
   }
 
-  var mat4 = projMatrix instanceof Float32Array ? projMatrix : new Float32Array(projMatrix);
+  var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
 
   // Compute scale-invariant advection step sizes
   const z = typeof zoom === 'number' ? zoom : 6;

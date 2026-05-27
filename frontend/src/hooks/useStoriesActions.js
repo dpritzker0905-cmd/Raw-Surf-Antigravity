@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
@@ -77,7 +77,7 @@ export default function useStoriesActions({
 
   // Supabase Realtime subscription for new stories
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !supabase) return;
 
     const channel = supabase
       .channel('stories-realtime')
@@ -157,7 +157,7 @@ export default function useStoriesActions({
 
     return () => {
       logger.debug('[Stories Realtime] Cleaning up subscription');
-      supabase.removeChannel(channel);
+      if (supabase) supabase.removeChannel(channel);
     };
   }, [user?.id, fetchStories]);
 

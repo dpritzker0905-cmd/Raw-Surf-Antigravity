@@ -456,17 +456,13 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid) {
 };
 
 WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
-  let projMatrix = matrix;
-  if (matrix && matrix.modelViewProjectionMatrix) {
-    projMatrix = matrix.modelViewProjectionMatrix;
-  }
-  if (!this._initialized || !this._waveData || !projMatrix || !projMatrix.length) {
+  if (!this._initialized || !this._waveData || !matrix || !matrix.length) {
     if (this._renderLogged === undefined) {
       this._renderLogged = 0;
     }
     this._renderLogged++;
     if (this._renderLogged === 1 || this._renderLogged % 180 === 0) {
-      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "projMatrix:", !!projMatrix, "projMatrix.length:", projMatrix?.length);
+      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "matrix:", !!matrix, "matrix.length:", matrix?.length);
     }
     return;
   }
@@ -535,7 +531,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.bindVertexArray(null);
   }
 
-  var mat4 = projMatrix instanceof Float32Array ? projMatrix : new Float32Array(projMatrix);
+  var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
   var time = (Date.now() - this._startTime) / 1000.0;
   const waveBounds = this._waveData.bounds;
 

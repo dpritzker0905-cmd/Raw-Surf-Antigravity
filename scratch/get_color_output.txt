@@ -1,0 +1,51 @@
+
+--- MATCH 1 ---
+.length - 1, res = -1;
+  while (lo <= hi) {
+    const mid = lo + hi >>> 1;
+    if (arr[mid] <= value) {
+      res = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return res;
+}
+const getColor = (colorScale, px) => {
+  switch (colorScale.type) {
+    case "rgba": {
+      const deltaPerIndex = (colorScale.max - colorScale.min) / colorScale.colors.length;
+      const index2 = Math.min(
+        colorScale.colors.length - 1,
+        Math.max(0, Math.floor((px - colorScale.min) / deltaPerIndex))
+      );
+      return colorScale.colors[index2];
+    }
+    case "breakpoint": {
+      const index2 = Math.max(0, findLastIndexLE(colorScale.breakpoints, px));
+      return colorScale.colors[index2];
+    }
+    default: {
+      const _exhaustive = colorScale;
+      throw new Error(`Unknown color scale: ${_exhaustive}`);
+    }
+  }
+};
+const transformScale = (scale, transform, maybeUnit) => {
+  const breakpoints = scale.breakpoints.map(transform);
+  const unit = maybeUnit || scale.unit;
+  return {
+    ...scale,
+    breakpoints,
+    unit
+  };
+};
+const COLOR_SCALES_WITH_ALIASES = {
+  ...COLOR_SCALES,
+  albedo: COLOR_SCALES["cloud_cover"],
+  boundary_layer_height: transformScale(
+  
+
+--- MATCH 2 ---
+o <= hi) {\n      const mid = lo + hi >>> 1;\n      if (arr[mid] <= value) {\n        res = mid;\n        lo = mid + 1;\n      } else {\n        hi = mid - 1;\n      }\n    }\n    return res;\n  }\n  const getColor = (colorScale, px) => {\n    switch (colorScale.type) {\n      case "rgba": {\n        const deltaPerIndex = (colorScale.max - colorScale.min) / colorScale.colors.length;\n        const index2 = Math.min(\n          colorScale.colors.length - 1,\n          Math.max(0, Math.floor((px - colorScale.min) / deltaPerIndex))\n        );\n        return colorScale.colors[index2];\n      }\n      case "breakpoint": {\n        const index2 = Math.max(0, findLastIndexLE(colorScale.breakpoints, px));\n        return colorScale.colors[index2];\n      }\n      default: {\n        const _exhaustive = colorScale;\n        throw new Error(`Unknown color scale: ${_exhaustive}`);\n      }\n    }\n  };\n  const transformScale = (scale, transform, maybeUnit) => {\n    const breakpoints = scale.breakpoints.map(transform);\n    const unit = maybeUnit || scale.unit;\n    return {\n      ...scale,\n      breakpoints,\n      unit\n    };\n  };\n  ({\n    boundary_layer_height: transformScale(\n  

@@ -1,0 +1,249 @@
+
+--- MATCH 1 ---
+ew Error("Missing valid times index");
+      }
+    }
+  } else {
+    date = new Date(metaResult.valid_times[0]);
+  }
+  parsedOmUrl.searchParams.delete("time_step");
+  return decodeURIComponent(
+    "om://" + parsedOmUrl.href.replace(
+      `${meta}.json`,
+      `${modelRun.getUTCFullYear()}/${pad(modelRun.getUTCMonth() + 1)}/${pad(modelRun.getUTCDate())}/${pad(modelRun.getUTCHours())}00Z/${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}00.om`
+    )
+  );
+};
+let cachedClippingInput = void 0;
+let cachedClippingResult = void 0;
+let useSAB = void 0;
+const getCachedResolvedClipping = (options) => {
+  if (options === cachedClippingInput) {
+    return cachedClippingResult;
+  }
+  cachedClippingInput = options;
+  cachedClippingResult = resolveClippingOptions(options, useSAB);
+  return cachedClippingResult;
+};
+const parseRequest = (url, settings) => {
+  const urlComponents = parseUrlComponents(url);
+  const resolver = settings.resolveRequest ?? defaultResolveRequest;
+  const { dataOptions, renderOptions } = resolver(urlComponents, settings);
+  useSAB = settings.fileReaderConfig.useSAB;
+  const resolvedClippingOptions = getCachedResolvedClipping(settings.clippingOptions);
+  setClippingBounds(resolvedClippingOptions?.bounds);
+  return {
+    baseUrl: urlComponents.baseUrl,
+    fileAndVariableKey: urlComponents.fileAndVariableKey,
+    tileIndex: urlComponents.tileIndex,
+    dataOptions,
+    renderOptions,
+    clippingOptions: resolve
+
+--- MATCH 2 ---
+tion: {
+        λ0: -2.5,
+        ϕ1: 54.9,
+        radius: 6371229,
+        name: "LambertAzimuthalEqualAreaProjection"
+      }
+    },
+    time_interval: "hourly",
+    model_interval: "3_hourly"
+  }
+];
+const inflightRequests = /* @__PURE__ */ new WeakMap();
+const MAX_STATES_WITH_DATA = 2;
+const STALE_THRESHOLD_MS = 1 * 60 * 1e3;
+let omProtocolInstance = void 0;
+const getProtocolInstance = (settings) => {
+  if (omProtocolInstance) {
+    if (settings.fileReaderConfig.useSAB !== omProtocolInstance.omFileReader.config.useSAB) {
+      throw new Error(
+        "omProtocol: useSAB setting differs from initial configuration. The protocol instance is shared and uses the first settings provided."
+      );
+    }
+    return omProtocolInstance;
+  }
+  const instance = {
+    omFileReader: new WeatherMapLayerFileReader(settings.fileReaderConfig),
+    stateByKey: /* @__PURE__ */ new Map()
+  };
+  omProtocolInstance = instance;
+  return instance;
+};
+const clearBlockCache = async () => {
+  await omProtocolInstance?.omFileReader.cache.clear();
+  omProtocolInstance?.stateByKey.clear();
+};
+const getRanges = (gridData, bounds) => {
+  if (bounds) {
+    const gridGetter = GridFactory.create(gridData, null);
+    const clampedBounds = constrainBounds(bounds, gridGetter.getBounds()) ?? bounds;
+    return gridGetter.getCoveringRanges(
+      clampedBounds[1],
+      clampedBounds[0],
+      clampedBounds[3],
+      clampedBounds[2]
+    );
+  } else {
+    return [
+      { start: 0, end: gridData.ny },
+      { 
+
+--- MATCH 3 ---
+er.config.useSAB) {
+      throw new Error(
+        "omProtocol: useSAB setting differs from initial configuration. The protocol instance is shared and uses the first settings provided."
+      );
+    }
+    return omProtocolInstance;
+  }
+  const instance = {
+    omFileReader: new WeatherMapLayerFileReader(settings.fileReaderConfig),
+    stateByKey: /* @__PURE__ */ new Map()
+  };
+  omProtocolInstance = instance;
+  return instance;
+};
+const clearBlockCache = async () => {
+  await omProtocolInstance?.omFileReader.cache.clear();
+  omProtocolInstance?.stateByKey.clear();
+};
+const getRanges = (gridData, bounds) => {
+  if (bounds) {
+    const gridGetter = GridFactory.create(gridData, null);
+    const clampedBounds = constrainBounds(bounds, gridGetter.getBounds()) ?? bounds;
+    return gridGetter.getCoveringRanges(
+      clampedBounds[1],
+      clampedBounds[0],
+      clampedBounds[3],
+      clampedBounds[2]
+    );
+  } else {
+    return [
+      { start: 0, end: gridData.ny },
+      { start: 0, end: gridData.nx }
+    ];
+  }
+};
+const getOrCreateState = (stateByKey, stateKey, dataOptions, omFileUrl) => {
+  const existingState = stateByKey.get(stateKey);
+  if (existingState) {
+    if (existingState.dataOptions.bounds && dataOptions.bounds) {
+      if (boundsIncluded(dataOptions.bounds, existingState.dataOptions.bounds)) {
+        touchState(stateByKey, stateKey, existingState);
+        return existingState;
+      }
+    } else if (existingState.dataOptions.bounds === void 0 && dataOptions.b
+
+--- MATCH 4 ---
+   inflightRequests.delete(state);
+      current.controller.abort();
+    } else {
+      current.subscriberCount -= 1;
+    }
+  };
+  if (signal) {
+    signal.addEventListener("abort", cleanup, { once: true });
+  }
+  try {
+    if (state.dataPromise) {
+      return await state.dataPromise;
+    }
+    const controller = new AbortController();
+    inflightRequests.set(state, { controller, subscriberCount });
+    state.dataPromise = (async () => {
+      try {
+        await omFileReader.setToOmFile(state.omFileUrl);
+        const data = await omFileReader.readVariable(
+          state.dataOptions.variable,
+          state.ranges,
+          controller.signal
+        );
+        if (postReadCallback) {
+          postReadCallback(omFileReader, data, state);
+        }
+        state.data = data;
+        return data;
+      } finally {
+        state.dataPromise = null;
+        inflightRequests.delete(state);
+      }
+    })();
+    return await state.dataPromise;
+  } finally {
+    if (signal) {
+      signal.removeEventListener("abort", cleanup);
+    }
+    cleanup();
+  }
+};
+const getValueFromLatLong = async (lat, lon, omUrl) => {
+  if (!omProtocolInstance) {
+    throw new Error("OmProtocolInstance is not initialized");
+  }
+  const url = await normalizeUrl(omUrl);
+  const { fileAndVariableKey } = parseUrlComponents(url);
+  const state = omProtocolInstance.stateByKey.get(fileAndVariableKey);
+  if (!state) {
+    throw new Error(`State not found for key: ${fileAndVariableKey}`);
+  }
+  state.lastAcce
+
+--- MATCH 5 ---
+tings) => {
+  const signal = abortController.signal;
+  if (signal.aborted) {
+    return makeAbortResult();
+  }
+  const instance = getProtocolInstance(settings);
+  const url = await normalizeUrl(params.url);
+  const request = parseRequest(url, settings);
+  const state = getOrCreateState(
+    instance.stateByKey,
+    request.fileAndVariableKey,
+    request.dataOptions,
+    request.baseUrl
+  );
+  if (signal.aborted) {
+    return makeAbortResult();
+  }
+  const data = await ensureData(state, instance.omFileReader, settings.postReadCallback, signal);
+  if (params.type == "json") {
+    return {
+      data: await getTilejson(params.url, request.dataOptions, request.clippingOptions)
+    };
+  }
+  if (params.type !== "image" && params.type !== "arrayBuffer") {
+    throw new Error(`Unsupported request type '${params.type}'`);
+  }
+  if (!request.tileIndex) {
+    throw new Error(`Tile coordinates required for ${params.type} request`);
+  }
+  const { data: tileData, cancelled } = await requestTile(
+    url,
+    request,
+    data,
+    state.ranges,
+    params.type,
+    signal
+  );
+  if (cancelled) {
+    return makeAbortResult();
+  } else {
+    return { data: tileData };
+  }
+};
+const normalizeUrl = async (url) => {
+  let normalized = url;
+  if (url.includes(".json")) {
+    normalized = await parseMetaJson(normalized);
+  }
+  return normalized;
+};
+const makeTileAbortedResponse = () => {
+  return { data: void 0, cancelled: true };
+};
+const makeEmptyVectorLayerResponse = () => {
+  return { data: n

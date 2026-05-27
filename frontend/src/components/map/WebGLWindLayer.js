@@ -24,27 +24,76 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
   return {
     id: LAYER_ID,
     type: 'custom',
-    renderingMode: '3d',
+    renderingMode: '2d',
 
-    onAdd(_map, gl) {
-      glRef.current = gl;
+    onAdd(_mapOrArgs, glArg) {
+      // v5 compat: MapLibre v5 may pass args object
+      var _gl = (glArg) ? glArg : (_mapOrArgs?.gl || _mapOrArgs?.painter?.context?.gl);
+      glRef.current = _gl;
       try {
-        engine.init(gl);
+        engine.init(_gl);
       } catch (e) {
         console.error('[WebGLWind] Init failed:', e.message);
         if (onErrorRef.current) onErrorRef.current();
       }
     },
 
-    render(gl, matrix) {
+    render(glOrArgs, matrixArg) {
+      // v5 compat: MapLibre v5 passes (gl, matrixObj) where matrixObj is a wrapper
+      // v4 API was (gl, Float32Array)
+      var _gl, _matrix;
+      var isWebGLCtx = (glOrArgs instanceof WebGLRenderingContext || glOrArgs instanceof WebGL2RenderingContext);
+      if (isWebGLCtx) {
+        // v4 or v5 with positional args — gl is a real WebGL context
+        _gl = glOrArgs;
+        // In v5, matrix may be a wrapper object instead of Float32Array
+        if (matrixArg && matrixArg.length >= 16) {
+          _matrix = matrixArg; // v4 style: Float32Array(16)
+        } else if (matrixArg && typeof matrixArg === 'object') {
+          // v5 style: Object with matrix properties
+          // Our shader expects mercator [0,1] coords → clip space, which is defaultProjectionData.mainMatrix (= mercatorMatrix)
+          // modelViewProjectionMatrix is NOT suitable (it's in a different coordinate space)
+          _matrix = matrixArg.defaultProjectionData?.mainMatrix || matrixArg.mercatorMatrix || matrixArg.mainMatrix || matrixArg.modelViewProjectionMatrix;
+          if (!_matrix || !_matrix.length) {
+            // Fallback: search all values for a Float32Array/Float64Array of length 16
+            for (var k in matrixArg) {
+              var v = matrixArg[k];
+              if (v && (v instanceof Float32Array || v instanceof Float64Array) && v.length === 16) {
+                _matrix = v;
+                break;
+              }
+            }
+          }
+          // Ultimate fallback: build matrix from map transform
+          if (!_matrix || !_matrix.length) {
+            var _mapFb = mapRef.current;
+            if (_mapFb) {
+              try {
+                _matrix = _mapFb.transform?.mercatorMatrix || _mapFb.transform?.projMatrix;
+              } catch(e) { /* ignore */ }
+            }
+          }
+        }
+        // Convert Float64Array → Float32Array for gl.uniformMatrix4fv compatibility
+        if (_matrix && _matrix instanceof Float64Array) {
+          _matrix = new Float32Array(_matrix);
+        }
+      } else if (glOrArgs && typeof glOrArgs === 'object' && glOrArgs.gl) {
+        // Pure v5 args-object style
+        _gl = glOrArgs.gl;
+        _matrix = glOrArgs.defaultProjectionData?.mainMatrix || glOrArgs.modelViewProjectionMatrix || glOrArgs.matrix;
+      } else {
+        _gl = glOrArgs;
+        _matrix = matrixArg;
+      }
       if (this._renderLogged === undefined) {
         this._renderLogged = true;
-        console.log("[WebGLWindLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount);
+        console.log("[WebGLWindLayer] render init: matrix", _matrix?.constructor?.name, "len:", _matrix?.length, "active:", activeRef.current);
       }
       if (!activeRef.current || errorCount > 3) {
         // v3.11.2r1: Clear FBOs when deactivated to prevent trail residue
         if (this._wasActive) {
-          engine.clearBuffers(gl);
+          engine.clearBuffers(_gl);
           this._wasActive = false;
         }
         return;
@@ -56,7 +105,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-        engine.render(gl, matrix, canvas.width, canvas.height, zoom);
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom);
         // Request continuous repainting while active
         map.triggerRepaint();
       } catch (e) {
@@ -71,8 +120,9 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
       }
     },
 
-    onRemove(_map, gl) {
-      engine.dispose(gl);
+    onRemove(_mapOrArgs, glArg) {
+      var _gl = (glArg) ? glArg : (_mapOrArgs?.gl || _mapOrArgs?.painter?.context?.gl);
+      engine.dispose(_gl);
       glRef.current = null;
     }
   };

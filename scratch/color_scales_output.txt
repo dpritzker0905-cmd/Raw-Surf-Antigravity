@@ -1,0 +1,1314 @@
+
+--- MATCH 1 ---
+import { LruBlockCache, OmHttpBackend, OmDataType } from "@openmeteo/file-reader";
+const COLOR_SCALES = {
+  cape: {
+    type: "breakpoint",
+    unit: "J/kg",
+    breakpoints: [0, 50, 150, 250, 500, 750, 1e3, 1500, 2e3, 2500, 3e3, 3500, 4e3],
+    colors: [
+      [0, 128, 0, 0],
+      [7, 134, 0, 0.1],
+      [22, 147, 0, 0.3],
+      [40, 160, 0, 0.5],
+      [96, 192, 0, 1],
+      [167, 223, 0, 1],
+      [255, 255, 0, 1],
+      [255, 210, 0, 1],
+      [255, 165, 0, 1],
+      [255, 124, 0, 1],
+      [255, 83, 0, 1],
+      [255, 41, 0, 1],
+      [255, 0, 0, 1]
+    ]
+  },
+  cloud_cover: {
+    type: "breakpoint",
+    unit: "%",
+    breakpoints: [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+    colors: {
+      light: [
+        [255, 255, 255, 0],
+        [249, 251, 253, 0.141],
+        [244, 247, 250, 0.4],
+        [233, 239, 244, 0.475],
+        [220, 226, 233, 0.55],
+        [209, 213, 219, 0.625],
+        [188, 193, 202, 0.7],
+        [166, 173, 184, 0.775],
+        [138, 147, 162, 0.85],
+        [104, 115, 133, 0.925]
+      ],
+      dark: [
+        [11, 18, 32, 0],
+        [31, 43, 64, 0.141],
+        [59, 71, 89, 0.4],
+        [89, 100, 116, 0.475],
+        [120, 131, 148, 0.55],
+        [156, 163, 175, 0.625],
+        [177, 183, 193, 0.7],
+        [198, 203, 210, 0.775],
+        [214, 219, 226, 0.85],
+        [226, 232, 239, 0.925]
+      ]
+    }
+  },
+  convective_inhibition: {
+    type: "breakpoint",
+    unit: "J/kg",
+    breakpoints: [0, 25, 50, 100, 150, 200, 300, 400, 500],
+    colors: [
+      [255, 255, 255, 0.5],
+      [255, 64, 255, 0.525],
+      [128, 0, 128, 0.55],
+      [64, 224, 208, 0.6],
+      [15, 193, 95, 0.65],
+      [0, 128, 0, 0.7],
+      [255, 165, 0, 0.8],
+      [255, 0, 0, 0.9],
+      [245, 245, 220, 1]
+    ]
+  },
+  convective_cloud_top: {
+    type: "breakpoint",
+    unit: "m",
+    breakpoints: [0, 500, 1e3, 1500, 2e3, 2500, 3e3, 4e3, 5e3, 6200],
+    colors: [
+      [192, 57, 43, 0],
+      [199, 61, 28, 0.15],
+      [205, 70, 14, 0.3],
+      [211, 83, 1, 0.375],
+      [220, 115, 4, 0.45],
+      [231, 152, 8, 0.525],
+      [240, 189, 13, 0.6],
+      [26, 193, 20, 0.725],
+      [26, 166, 157, 0.85],
+      [41, 128, 185, 1]
+    ]
+  },
+  geopotential_height: {
+    type: "breakpoint",
+    unit: "m",
+    breakpoints: [4600, 4800, 5e3, 5100, 5200, 5300, 5400, 5500, 5600, 5800, 6e3],
+    colors: [
+      [46, 139, 122, 0.7],
+      [57, 63, 138, 0.7],
+      [28, 28, 130, 0.7],
+      [8, 42, 115, 0.7],
+      [0, 73, 102, 0.7],
+      [0, 101, 76, 0.7],
+      [0, 100, 21, 0.7],
+      [28, 117, 0, 0.7],
+      [93, 146, 0, 0.7],
+      [154, 97, 0, 0.7],
+      [85, 0, 0, 0.7]
+    ]
+  },
+  precipitation: {
+    type: "breakpoint",
+    unit: "mm",
+    breakpoints: [0.01, 0.055, 0.11, 0.255, 0.45, 0.95, 2, 3, 4.95, 7.45, 10, 15, 20, 25, 30],
+    colors: [
+      [4, 59, 92, 0.091],
+      [134, 205, 250, 0.5],
+      [130, 203, 250, 0.7],
+      [118, 197, 250, 0.717],
+      [103, 188, 250, 0.74],
+      [64, 161, 251, 0.8],
+      [0, 96, 233, 0.814],
+      [0, 177, 236, 0.827],
+      [0, 241, 141, 0.851],
+      [66, 248, 0, 0.879],
+      [255, 221, 0, 0.905],
+      [255, 111, 0, 0.947],
+      [255, 0, 0, 0.976],
+      [215, 0, 94, 0.994],
+      [175, 0, 153, 1]
+    ]
+  },
+  precipitation_probability: {
+    type: "breakpoint",
+    unit: "%",
+    breakpoints: [0.1, 0.2, 0.3, 0.6, 1, 3, 6, 9, 15, 22, 30, 45, 60, 75, 100],
+    colors: [
+      [3, 47, 74, 0.02],
+      [6, 94, 148, 0.04],
+      [9, 140, 222, 0.06],
+      [134, 205, 250, 0.12],
+      [132, 203, 249, 0.2],
+      [122, 192, 246, 0.3],
+      [108, 174, 240, 0.386],
+      [95, 155, 233, 0.471],
+      [73, 234, 233, 0.6],
+      [46, 241, 78, 0.74],
+      [198, 251, 13, 0.758],
+      [255, 181, 0, 0.851],
+      [255, 132, 0, 0.921],
+      [255, 82, 0, 0.969],
+      [255, 0, 0, 1]
+    ]
+  },
+  pressure: {
+    type: "breakpoint",
+    unit: "hPa",
+    breakpoints: [
+      940,
+      950,
+      960,
+      970,
+      980,
+      990,
+      995,
+      1e3,
+      1005,
+      1010,
+      1015,
+      1020,
+      1025,
+      1030,
+      1040,
+      1050,
+      1060
+    ],
+    colors: [
+      [68, 68, 255, 1],
+      [95, 95, 255, 1],
+      [121, 121, 255, 1],
+      [148, 148, 255, 1],
+      [175, 175, 255, 1],
+      [202, 202, 255, 1],
+      [215, 215, 255, 1],
+      [228, 228, 255, 1],
+      [242, 242, 255, 1],
+      [255, 255, 255, 1],
+      [255, 236, 236, 1],
+      [255, 218, 218, 1],
+      [255, 199, 199, 1],
+      [255, 180, 180, 1],
+      [255, 143, 143, 1],
+      [255, 105, 105, 1],
+      [255, 68, 68, 1]
+    ]
+  },
+  relative: {
+    type: "breakpoint",
+    unit: "%",
+    breakpoints: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95],
+    colors: [
+      [207, 89, 126, 1],
+      [215, 95, 116, 1],
+      [223, 102, 106, 1],
+      [230, 124, 110, 1],
+      [233, 142, 115, 1],
+      [235, 156, 117, 1],
+      [237, 171, 119, 1],
+      [237, 186, 125, 1],
+      [236, 202, 135, 1],
+      [234, 215, 146, 1],
+      [233, 226, 156, 1],
+      [214, 225, 148, 1],
+      [188, 216, 141, 1],
+      [164, 207, 136, 1],
+      [128, 199, 117, 1],
+      [92, 194, 108, 1],
+      [65, 190, 120, 1],
+      [49, 176, 134, 1],
+      [29, 170, 139, 1],
+      [13, 160, 143, 1]
+    ]
+  },
+  shortwave: {
+    type: "breakpoint",
+    unit: "W/m²",
+    breakpoints: [0, 50, 100, 150, 200, 300, 400, 500, 600, 700, 800, 900, 1e3],
+    colors: [
+      [0, 147, 146, 1],
+      [13, 160, 143, 1],
+      [29, 170, 139, 1],
+      [49, 176, 134, 1],
+      [65, 190, 120, 1],
+      [128, 199, 117, 1],
+      [188, 216, 141, 1],
+      [233, 226, 156, 1],
+      [236, 202, 135, 1],
+      [237, 171, 119, 1],
+      [233, 142, 115, 1],
+      [223, 102, 106, 1],
+      [207, 89, 126, 1]
+    ]
+  },
+  snow_depth: {
+    type: "breakpoint",
+    unit: "m",
+    breakpoints: [0, 0.01, 0.05, 0.1, 0.2, 0.5, 1, 1.5, 2, 3, 4, 5],
+    colors: [
+      [0, 128, 0, 0],
+      [1, 129, 0, 1],
+      [4, 132, 0, 1],
+      [9, 136, 0, 1],
+      [19, 145, 0, 1],
+      [57, 170, 0, 1],
+      [142, 213, 0, 1],
+      [255, 255, 0, 1],
+      [255, 191, 0, 1],
+      [255, 64, 0, 1],
+      [213, 0, 71, 1],
+      [128, 0, 128, 1]
+    ]
+  },
+  soil_moisture: {
+    type: "breakpoint",
+    unit: "vol. %",
+    breakpoints: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5],
+    colors: [
+      [232, 200, 138, 0],
+      [222, 180, 125, 1],
+      [211, 159, 113, 1],
+      [198, 139, 103, 1],
+      [205, 173, 114, 1],
+      [211, 204, 125, 1],
+      [164, 245, 255, 1],
+      [136, 218, 246, 1],
+      [112, 184, 233, 1],
+      [94, 148, 214, 1],
+      [81, 114, 190, 1]
+    ]
+  },
+  swell: {
+    type: "breakpoint",
+    unit: "m",
+    breakpoints: [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 7, 8, 9, 10],
+    colors: [
+      [0, 0, 255, 0.7],
+      [0, 112, 223, 0.7],
+      [0, 192, 192, 0.7],
+      [0, 160, 80, 0.7],
+      [0, 128, 0, 0.7],
+      [24, 144, 0, 0.7],
+      [54, 160, 0, 0.7],
+      [130, 192, 0, 0.7],
+      [223, 220, 0, 0.7],
+      [255, 165, 0, 0.7],
+      [255, 124, 0, 0.7],
+      [255, 83, 0, 0.7],
+      [255, 41, 0, 0.7],
+      [255, 0, 0, 0.7]
+    ]
+  },
+  swell_period: {
+    type: "breakpoint",
+    unit: "s",
+    breakpoints: [0, 3, 5, 7, 9, 11, 13, 15, 17, 20],
+    colors: [
+      [160, 97, 75, 1],
+      [196, 146, 97, 1],
+      [211, 179, 120, 1],
+      [221, 209, 135, 1],
+      [182, 212, 103, 1],
+      [112, 201, 72, 1],
+      [53, 178, 67, 1],
+      [49, 177, 113, 1],
+      [44, 182, 166, 1],
+      [38, 121, 190, 1]
+    ]
+  },
+  temperature: {
+    type: "breakpoint",
+    unit: "°C",
+    breakpoints: [
+      -80,
+      -60,
+      -50,
+      -40,
+      -37.5,
+      -35,
+      -32.5,
+      -30,
+      -27.5,
+      -25,
+      -22.5,
+      -20,
+      -17.5,
+      -15,
+      -12.5,
+      -10,
+      -8,
+      -6,
+      -4,
+      -2,
+      0,
+      2,
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24,
+      26,
+      28,
+      30,
+      32,
+      34,
+      36,
+      38,
+      40,
+      42,
+      44,
+      46,
+      48,
+      50
+    ],
+    colors: [
+      [26, 242, 221, 1],
+      [22, 147, 178, 1],
+      [23, 101, 143, 1],
+      [47, 17, 189, 1],
+      [86, 15, 201, 1],
+      [131, 13, 213, 1],
+      [181, 10, 226, 1],
+      [239, 7, 239, 1],
+      [206, 6, 241, 1],
+      [171, 5, 243, 1],
+      [136, 4, 245, 1],
+      [100, 4, 247, 1],
+      [64, 3, 249, 1],
+      [26, 2, 251, 1],
+      [1, 14, 253, 1],
+      [0, 52, 255, 1],
+      [35, 110, 251, 1],
+      [69, 156, 247, 1],
+      [102, 192, 245, 1],
+      [134, 219, 245, 1],
+      [124, 245, 124, 1],
+      [90, 244, 90, 1],
+      [56, 244, 56, 1],
+      [21, 245, 21, 1],
+      [7, 224, 7, 1],
+      [4, 193, 4, 1],
+      [2, 161, 2, 1],
+      [0, 128, 0, 1],
+      [57, 170, 0, 1],
+      [142, 213, 0, 1],
+      [255, 255, 0, 1],
+      [255, 233, 0, 1],
+      [255, 210, 0, 1],
+      [255, 188, 0, 1],
+      [255, 165, 0, 1],
+      [255, 141, 0, 1],
+      [255, 118, 0, 1],
+      [255, 94, 0, 1],
+      [255, 71, 0, 1],
+      [255, 47, 0, 1],
+      [255, 24, 0, 1],
+      [255, 0, 0, 1],
+      [228, 0, 10, 1],
+      [201, 0, 18, 1],
+      [174, 0, 23, 1],
+      [147, 0, 26, 1]
+    ]
+  },
+  temperature_2m_anomaly: {
+    type: "breakpoint",
+    unit: "K",
+    breakpoints: [-5, -4, -3, -2, -1, 0.5, 0, 0.5, 1, 2, 3, 4, 5],
+    colors: [
+      [0, 0, 255, 1],
+      [51, 51, 255, 0.894],
+      [102, 102, 255, 0.775],
+      [153, 153, 255, 0.632],
+      [204, 204, 255, 0.447],
+      [255, 229, 229, 0.316],
+      [255, 255, 255, 0],
+      [255, 229, 229, 0.316],
+      [255, 204, 204, 0.447],
+      [255, 153, 153, 0.632],
+      [255, 102, 102, 0.775],
+      [255, 51, 51, 0.894],
+      [255, 0, 0, 1]
+    ]
+  },
+  thunderstorm: {
+    type: "breakpoint",
+    unit: "%",
+    breakpoints: [0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+    colors: [
+      [0, 0, 255, 0],
+      [0, 71, 236, 0.011],
+      [0, 131, 217, 0.032],
+      [0, 178, 140, 0.089],
+      [0, 140, 25, 0.164],
+      [44, 155, 0, 0.253],
+      [135, 193, 0, 0.354],
+      [232, 207, 0, 0.465],
+      [255, 146, 0, 0.586],
+      [255, 97, 0, 0.716],
+ 
+
+--- MATCH 2 ---
+st unit = maybeUnit || scale.unit;
+  return {
+    ...scale,
+    breakpoints,
+    unit
+  };
+};
+const COLOR_SCALES_WITH_ALIASES = {
+  ...COLOR_SCALES,
+  albedo: COLOR_SCALES["cloud_cover"],
+  boundary_layer_height: transformScale(
+    COLOR_SCALES["convective_cloud_top"],
+    (b) => b / 2
+  ),
+  cloud_base: COLOR_SCALES["convective_cloud_top"],
+  cloud_top: COLOR_SCALES["convective_cloud_top"],
+  convective_cloud_base: COLOR_SCALES["convective_cloud_top"],
+  dew_point: COLOR_SCALES["temperature"],
+  diffuse_radiation: COLOR_SCALES["shortwave"],
+  direct_radiation: COLOR_SCALES["shortwave"],
+  freezing_level_height: transformScale(
+    COLOR_SCALES["temperature"],
+    (b) => (b + 20) * 80,
+    "m"
+  ),
+  latent_heat_flux: {
+    ...COLOR_SCALES["temperature"],
+    unit: "W/m²"
+  },
+  sea_surface_temperature: COLOR_SCALES["temperature"],
+  sensible_heat_flux: {
+    ...COLOR_SCALES["temperature"],
+    unit: "W/m²"
+  },
+  rain: COLOR_SCALES["precipitation"],
+  showers: COLOR_SCALES["precipitation"],
+  snow_depth_water_equivalent: transformScale(
+    COLOR_SCALES["precipitation"],
+    (b) => b * 200
+  ),
+  snowfall_water_equivalent: COLOR_SCALES["precipitation"],
+  visibility: {
+    ...COLOR_SCALES["geopotential_height"],
+    unit: "W/m²"
+  },
+  wave: COLOR_SCALES["swell"],
+  wind_wave_height: COLOR_SCALES["swell"],
+  swell_wave_height: COLOR_SCALES["swell"],
+  secondary_swell_wave_height: COLOR_SCALES["swell"],
+  tertiary_swell_wave_height: COLOR_SCALES["swell"],
+  wave_peak_period: COLOR_SCALES["swell_period"],
+  wave_period: COLOR_SCALES["swell_period"],
+  swell_wave_period: COLOR_SCALES["swell_period"],
+  secondary_swell_wave_period: COLOR_SCALES["swell_period"],
+  tertiary_swell_wave_period: COLOR_SCALES["swell_period"]
+};
+const getOptionalColorScale = (variable, colorScalesSource) => {
+  const exactMatch = colorScalesSource[variable];
+  if (exactMatch) return exactMatch;
+  const parts = variable.split("_");
+  const lastIndex = parts.length - 1;
+  const scale = colorScalesSource[parts[0] + "_" + parts[1]] ?? colorScalesSource[parts[0]];
+  if (variable.includes("geopotential_height")) {
+    const m = variable.match(LEVEL_REGEX);
+    if (!m) {
+      return scale;
+    }
+    if (scale.type !== "breakpoint") {
+      return scale;
+    }
+    const levelNum = Number(m[1]);
+    const h500 = pressureHpaToIsaHeight(500);
+    const hLevel = pressureHpaToIsaHeight(levelNum);
+    const breakpoints = scale.breakpoints.map((breakpoint) => {
+      return breakpoint * hLevel / h500;
+    });
+    return {
+      ...scale,
+      breakpoints
+    };
+  }
+  if (["mean", "max", "min"].includes(parts[lastIndex])) {
+    return getOptionalColorScale(parts.slice(0, -1).join("_"), colorScalesSource);
+  } else if (parts[lastIndex] == "anomaly") {
+    return colorScalesSource["temperature_anomaly"];
+  }
+  return colorScalesSource[parts[0] + "_" + parts[1]] ?? colorScalesSource[parts[0]];
+};
+const getColorScale = (variable, dark, colorScalesSource = COLOR_SCALES_WITH_ALIASES) => {
+  const anyColorScale = getOptionalColorScale(variable, colorScalesSource) ?? colorScalesSource["temperature"];
+  if (!anyColorScale) {
+    throw new Error(`Unknown color scale for variable: ${variable}`);
+  }
+  return resolveColorScale(anyColorScale, dark);
+};
+const hasColorVariants = (colors) => {
+  return !Array.isArray(colors) && "light" in colors && "dark" in colors;
+};
+const resolveColorScale = (colorScale, dark) => {
+  switch (colorScale.type) {
+    case "rgba":
+      return colorScale;
+    case "breakpoint": {
+      if (hasColorVariants(colorScale.colors)) {
+        return {
+          ...colorScale,
+          colors: dark ? colorScale.colors.dark : colorScale.colors.light
+        };
+      }
+      return colorScale;
+    }
+    default: {
+      const _exhaustive = colorScale;
+      throw new Error(`Unknown color scale: ${_exhaustive}`);
+    }
+  }
+};
+const LEVEL_REGEX = /_(\d+)(hPa)?$/i;
+const pressureLevels = [
+  10,
+  15,
+  20,
+  30,
+  40,
+  50,
+  70,
+  75,
+  100,
+  125,
+  150,
+  175,
+  200,
+  225,
+  250,
+  275,
+  300,
+  325,
+  350,
+  375,
+  400,
+  425,
+  450,
+  475,
+  500,
+  525,
+  550,
+  575,
+  600,
+  625,
+  650,
+  675,
+  700,
+  725,
+  750,
+  775,
+  800,
+  825,
+  850,
+  875,
+  900,
+  925,
+  950,
+  970,
+  975,
+  985,
+  1e3,
+  1015
+];
+const heights = [
+  2,
+  10,
+  20,
+  30,
+  40,
+  50,
+  75,
+  80,
+  100,
+  120,
+  150,
+  200,
+  250,
+  300,
+  350,
+  400,
+  450,
+  500,
+  600,
+  700,
+  800,
+  1e3,
+  1250,
+  1500,
+  1750,
+  2e3,
+  2250,
+  2500,
+  2750,
+  3e3,
+  3250,
+  3500,
+  3750,
+  4e3,
+  4500,
+  5e3,
+  5500,
+  6e3
+];
+const variableOptions = [
+  { value: "aerosol_optical_depth", label: "Aerosol Optical Depth" },
+  { value: "albedo", label: "Albedo" },
+  { value: "alder_pollen", label: "Alder Pollen" },
+  { value: "ammonia", label: "Ammonia" },
+  { value: "birch_pollen", label: "Birch Pollen" },
+  { value: "boundary_layer_height", label: "Boundary Layer Height" },
+  { value: "cape", label: "CAPE" },
+  { value: "carbon_dioxide", label: "Carbon Dioxide" },
+  { value: "carbon_monoxide", label: "Carbon Monoxide" },
+  { value: "categorical_freezing_rain", label: "Categorical Freezing Rain" },
+  { value: "cloud_base", label: "Cloud Base" },
+  { value: "cloud_cover", label: "Cloud Cover" },
+  { value: "cloud_cover_anomaly", label: "Cloud Cover Anomaly" },
+  { value: "cloud_cover_high", label: "Cloud Cover High" },
+  { value: "cloud_cover_low", label: "Cloud Cover Low" },
+  { value: "cloud_cover_mean", label: "Cloud Cover Mean" },
+  { value: "cloud_cover_mid", label: "Cloud Cover Mid" },
+  { value: "cloud_cover_spread", label: "Cloud Cover Spread" },
+  { value: "cloud_top", label: "Cloud Top" },
+  { value: "convective_cloud_base", label: "Convective Cloud Base" },
+  { value: "convective_cloud_top", label: "Convective Cloud Top" },
+  { value: "convective_inhibition", label: "Convective Inhibition" },
+  { value: "dew_point", label: "Dew Point" },
+  { value: "dew_point_2m", label: "Dew Point (2m)" },
+  { value: "dew_point_2m_anomaly", label: "Dew Point (2m) Anomaly" },
+  { value: "dew_point_2m_mean", label: "Dew Point (2m) Mean" },
+  { value: "dew_point_2m_spread", label: "Dew Point (2m) Spread" },
+  { value: "diffuse_radiation", label: "Diffuse Radiation" },
+  { value: "direct_radiation", label: "Direct Radiation" },
+  { value: "direct_radiation_spread", label: "Direct Radiation Spread" },
+  { value: "dust", label: "Dust" },
+  { value: "freezing_level_height", label: "Freezing Level Height" },
+  { value: "freezing_rain_probability", label: "Freezing Rain Probability" },
+  { value: "formaldehyde", label: "Formaldehyde" },
+  { value: "grass_pollen", label: "Grass Pollen" },
+  { value: "glyoxal", label: "Glyoxal" },
+  { value: "hail", label: "Hail" },
+  { value: "ice_pellets_probability", label: "Ice Pellets Probability" },
+  { value: "invert_barometer_height", label: "Invert Barometer Height" },
+  { value: "k_index", label: "k Index" },
+  { value: "latent_heat_flux", label: "Latent Heat Flux" },
+  { value: "lifted_index", label: "Lifted Index" },
+  { value: "lightning_density", label: "Lightning Density" },
+  { value: "lightning_potential", label: "Lightning Potential" },
+  { value: "mass_density", label: "Mass Density" },
+  { value: "methane", label: "Methane" },
+  { value: "mugwort_pollen", label: "Mugwort Pollen" },
+  { value: "nitrogen_dioxide", label: "Nitrogen Dioxide" },
+  { value: "nitrogen_monoxide", label: "Nitrogen Monoxide" },
+  {
+    value: "non_methane_volatile_organic_compounds",
+    label: "Non Methane Volatile Organic Compounds"
+  },
+  { value: "ocean_u_current", label: "Ocean Current" },
+  // { value: 'ocean_v_current', label: 'Ocean Current' },
+  { value: "olive_pollen", label: "Olive Pollen" },
+  { value: "ozone", label: "Ozone" },
+  { value: "peroxyacyl_nitrates", label: "Peroxyacyl Nitrates" },
+  { value: "pm10_wildfires", label: "PM10 Wildfires" },
+  { value: "pm2_5", label: "PM2.5" },
+  { value: "pm2_5_total_organic_matter", label: "PM2.5 Total Organic Matter" },
+  { value: "pm10", label: "PM10" },
+  { value: "potential_evapotranspiration", label: "Potential Evapotranspiration" },
+  { value: "precipitation", label: "Precipitation" },
+  { value: "precipitation_anomaly", label: "Precipitation Anomaly" },
+  { value: "precipitation_anomaly_gt0", label: "Precipitation Anomaly GT0" },
+  { value: "precipitation_anomaly_gt10", label: "Precipitation Anomaly GT10" },
+  { value: "precipitation_anomaly_gt20", label: "Precipitation EFI" },
+  { value: "precipitation_efi", label: "Precipitation Probability" },
+  { value: "precipitation_mean", label: "Precipitation Mean" },
+  { value: "precipitation_probability", label: "Precipitation Probability" },
+  { value: "precipitation_sot90", label: "Precipitation SOT90" },
+  { value: "precipitation_spread", label: "Precipitation Spread" },
+  { value: "precipitation_type", label: "Precipitation Type" },
+  { value: "pressure_msl", label: "Pressure Mean Sea Level" },
+  { value: "pressure_msl_anomaly", label: "Pressure Mean Sea Level Anomaly" },
+  { value: "pressure_msl_anomaly_gt0", label: "Pressure Mean Sea Level Anomaly GT0" },
+  { value: "pressure_msl_mean", label: "Pressure Mean Sea Level Mean" },
+  { value: "pressure_msl_spread", label: "Pressure Mean Sea Level Spread" },
+  { value: "ragweed_pollen", label: "Ragweed Pollen" },
+  { value: "rain", label: "Rain" },
+  { value: "rain_probability", label: "Rain Probability" },
+  { value: "roughness_length", label: "Roughness Length" },
+  { value: "residential_elementary_carbon", label: "Residential Elementary Carbon" },
+  { value: "runoff", label: "Runoff" },
+  { value: "sea_ice_thickness", label: "Sea Ice Thickness" },
+  { value: "sea_level_height_msl", label: "Sea Level Height Mean Sea Level" },
+  { value: "sea_salt_aerosol", label: "Sea Salt Aerosol" },
+  { value: "sea_surface_temperature", label: "Sea Surface Temperature" },
+  { value: "sea_surface_temperature_anomaly", label: "Sea Surface Temperature Anomaly" },
+  { value: "sea_surface_temperature_mean", label: "Sea Surface Temperature Mean" },
+  { value: "sea_surface_temperature_spread", label: "Sea Surface Temperature Spre
+
+--- MATCH 3 ---
+s[1]] ?? colorScalesSource[parts[0]];
+};
+const getColorScale = (variable, dark, colorScalesSource = COLOR_SCALES_WITH_ALIASES) => {
+  const anyColorScale = getOptionalColorScale(variable, colorScalesSource) ?? colorScalesSource["temperature"];
+  if (!anyColorScale) {
+    throw new Error(`Unknown color scale for variable: ${variable}`);
+  }
+  return resolveColorScale(anyColorScale, dark);
+};
+const hasColorVariants = (colors) => {
+  return !Array.isArray(colors) && "light" in colors && "dark" in colors;
+};
+const resolveColorScale = (colorScale, dark) => {
+  switch (colorScale.type) {
+    case "rgba":
+      return colorScale;
+    case "breakpoint": {
+      if (hasColorVariants(colorScale.colors)) {
+        return {
+          ...colorScale,
+          colors: dark ? colorScale.colors.dark : colorScale.colors.light
+        };
+      }
+      return colorScale;
+    }
+    default: {
+      const _exhaustive = colorScale;
+      throw new Error(`Unknown color scale: ${_exhaustive}`);
+    }
+  }
+};
+const LEVEL_REGEX = /_(\d+)(hPa)?$/i;
+const pressureLevels = [
+  10,
+  15,
+  20,
+  30,
+  40,
+  50,
+  70,
+  75,
+  100,
+  125,
+  150,
+  175,
+  200,
+  225,
+  250,
+  275,
+  300,
+  325,
+  350,
+  375,
+  400,
+  425,
+  450,
+  475,
+  500,
+  525,
+  550,
+  575,
+  600,
+  625,
+  650,
+  675,
+  700,
+  725,
+  750,
+  775,
+  800,
+  825,
+  850,
+  875,
+  900,
+  925,
+  950,
+  970,
+  975,
+  985,
+  1e3,
+  1015
+];
+const heights = [
+  2,
+  10,
+  20,
+  30,
+  40,
+  50,
+  75,
+  80,
+  100,
+  120,
+  150,
+  200,
+  250,
+  300,
+  350,
+  400,
+  450,
+  500,
+  600,
+  700,
+  800,
+  1e3,
+  1250,
+  1500,
+  1750,
+  2e3,
+  2250,
+  2500,
+  2750,
+  3e3,
+  3250,
+  3500,
+  3750,
+  4e3,
+  4500,
+  5e3,
+  5500,
+  6e3
+];
+const variableOptions = [
+  { value: "aerosol_optical_depth", label: "Aerosol Optical Depth" },
+  { value: "albedo", label: "Albedo" },
+  { value: "alder_pollen", label: "Alder Pollen" },
+  { value: "ammonia", label: "Ammonia" },
+  { value: "birch_pollen", label: "Birch Pollen" },
+  { value: "boundary_layer_height", label: "Boundary Layer Height" },
+  { value: "cape", label: "CAPE" },
+  { value: "carbon_dioxide", label: "Carbon Dioxide" },
+  { value: "carbon_monoxide", label: "Carbon Monoxide" },
+  { value: "categorical_freezing_rain", label: "Categorical Freezing Rain" },
+  { value: "cloud_base", label: "Cloud Base" },
+  { value: "cloud_cover", label: "Cloud Cover" },
+  { value: "cloud_cover_anomaly", label: "Cloud Cover Anomaly" },
+  { value: "cloud_cover_high", label: "Cloud Cover High" },
+  { value: "cloud_cover_low", label: "Cloud Cover Low" },
+  { value: "cloud_cover_mean", label: "Cloud Cover Mean" },
+  { value: "cloud_cover_mid", label: "Cloud Cover Mid" },
+  { value: "cloud_cover_spread", label: "Cloud Cover Spread" },
+  { value: "cloud_top", label: "Cloud Top" },
+  { value: "convective_cloud_base", label: "Convective Cloud Base" },
+  { value: "convective_cloud_top", label: "Convective Cloud Top" },
+  { value: "convective_inhibition", label: "Convective Inhibition" },
+  { value: "dew_point", label: "Dew Point" },
+  { value: "dew_point_2m", label: "Dew Point (2m)" },
+  { value: "dew_point_2m_anomaly", label: "Dew Point (2m) Anomaly" },
+  { value: "dew_point_2m_mean", label: "Dew Point (2m) Mean" },
+  { value: "dew_point_2m_spread", label: "Dew Point (2m) Spread" },
+  { value: "diffuse_radiation", label: "Diffuse Radiation" },
+  { value: "direct_radiation", label: "Direct Radiation" },
+  { value: "direct_radiation_spread", label: "Direct Radiation Spread" },
+  { value: "dust", label: "Dust" },
+  { value: "freezing_level_height", label: "Freezing Level Height" },
+  { value: "freezing_rain_probability", label: "Freezing Rain Probability" },
+  { value: "formaldehyde", label: "Formaldehyde" },
+  { value: "grass_pollen", label: "Grass Pollen" },
+  { value: "glyoxal", label: "Glyoxal" },
+  { value: "hail", label: "Hail" },
+  { value: "ice_pellets_probability", label: "Ice Pellets Probability" },
+  { value: "invert_barometer_height", label: "Invert Barometer Height" },
+  { value: "k_index", label: "k Index" },
+  { value: "latent_heat_flux", label: "Latent Heat Flux" },
+  { value: "lifted_index", label: "Lifted Index" },
+  { value: "lightning_density", label: "Lightning Density" },
+  { value: "lightning_potential", label: "Lightning Potential" },
+  { value: "mass_density", label: "Mass Density" },
+  { value: "methane", label: "Methane" },
+  { value: "mugwort_pollen", label: "Mugwort Pollen" },
+  { value: "nitrogen_dioxide", label: "Nitrogen Dioxide" },
+  { value: "nitrogen_monoxide", label: "Nitrogen Monoxide" },
+  {
+    value: "non_methane_volatile_organic_compounds",
+    label: "Non Methane Volatile Organic Compounds"
+  },
+  { value: "ocean_u_current", label: "Ocean Current" },
+  // { value: 'ocean_v_current', label: 'Ocean Current' },
+  { value: "olive_pollen", label: "Olive Pollen" },
+  { value: "ozone", label: "Ozone" },
+  { value: "peroxyacyl_nitrates", label: "Peroxyacyl Nitrates" },
+  { value: "pm10_wildfires", label: "PM10 Wildfires" },
+  { value: "pm2_5", label: "PM2.5" },
+  { value: "pm2_5_total_organic_matter", label: "PM2.5 Total Organic Matter" },
+  { value: "pm10", label: "PM10" },
+  { value: "potential_evapotranspiration", label: "Potential Evapotranspiration" },
+  { value: "precipitation", label: "Precipitation" },
+  { value: "precipitation_anomaly", label: "Precipitation Anomaly" },
+  { value: "precipitation_anomaly_gt0", label: "Precipitation Anomaly GT0" },
+  { value: "precipitation_anomaly_gt10", label: "Precipitation Anomaly GT10" },
+  { value: "precipitation_anomaly_gt20", label: "Precipitation EFI" },
+  { value: "precipitation_efi", label: "Precipitation Probability" },
+  { value: "precipitation_mean", label: "Precipitation Mean" },
+  { value: "precipitation_probability", label: "Precipitation Probability" },
+  { value: "precipitation_sot90", label: "Precipitation SOT90" },
+  { value: "precipitation_spread", label: "Precipitation Spread" },
+  { value: "precipitation_type", label: "Precipitation Type" },
+  { value: "pressure_msl", label: "Pressure Mean Sea Level" },
+  { value: "pressure_msl_anomaly", label: "Pressure Mean Sea Level Anomaly" },
+  { value: "pressure_msl_anomaly_gt0", label: "Pressure Mean Sea Level Anomaly GT0" },
+  { value: "pressure_msl_mean", label: "Pressure Mean Sea Level Mean" },
+  { value: "pressure_msl_spread", label: "Pressure Mean Sea Level Spread" },
+  { value: "ragweed_pollen", label: "Ragweed Pollen" },
+  { value: "rain", label: "Rain" },
+  { value: "rain_probability", label: "Rain Probability" },
+  { value: "roughness_length", label: "Roughness Length" },
+  { value: "residential_elementary_carbon", label: "Residential Elementary Carbon" },
+  { value: "runoff", label: "Runoff" },
+  { value: "sea_ice_thickness", label: "Sea Ice Thickness" },
+  { value: "sea_level_height_msl", label: "Sea Level Height Mean Sea Level" },
+  { value: "sea_salt_aerosol", label: "Sea Salt Aerosol" },
+  { value: "sea_surface_temperature", label: "Sea Surface Temperature" },
+  { value: "sea_surface_temperature_anomaly", label: "Sea Surface Temperature Anomaly" },
+  { value: "sea_surface_temperature_mean", label: "Sea Surface Temperature Mean" },
+  { value: "sea_surface_temperature_spread", label: "Sea Surface Temperature Spread" },
+  { value: "sensible_heat_flux", label: "Sensible Heat Flux" },
+  { value: "secondary_swell_wave_height", label: "Secondary Swell Wave Height & Direction" },
+  { value: "secondary_swell_wave_period", label: "Secondary Swell Wave Period" },
+  { value: "secondary_inorganic_aerosol", label: "Secondary Inorganic Aerosol" },
+  { value: "secondary_swell_wave_direction", label: "Secondary Swell Wave Direction" },
+  { value: "showers", label: "Showers" },
+  { value: "showers_mean", label: "Showers Mean" },
+  { value: "showers_spread", label: "Showers Spread" },
+  { value: "shortwave_radiation", label: "Shortwave Solar Radiation" },
+  { value: "shortwave_radiation_spread", label: "Shortwave Solar Radiation Spread" },
+  { value: "snow_depth", label: "Snow Depth" },
+  { value: "snow_depth_water_equivalent", label: "Snow Depth Water Equivalent" },
+  { value: "snow_depth_water_equivalent_anomaly", label: "Snow Depth Water Equivalent Anomaly" },
+  { value: "snow_depth_water_equivalent_mean", label: "Snow Depth Water Equivalent Mean" },
+  { value: "snow_density", label: "Snow Density" },
+  { value: "snow_density_anomaly", label: "Snow Density Anomaly" },
+  { value: "snow_density_mean", label: "Snow Density Mean" },
+  { value: "snowfall", label: "Snowfall" },
+  { value: "snowfall_probability", label: "Snowfall Probability" },
+  { value: "snowfall_height", label: "Snowfall Height" },
+  { value: "snowfall_water_equivalent", label: "Snowfall Water Equivalent" },
+  { value: "snowfall_water_equivalent_anomaly", label: "Snowfall Water Equivalent Anomaly" },
+  { value: "snowfall_water_equivalent_mean", label: "Snowfall Water Equivalent Mean" },
+  { value: "snowfall_water_equivalent_spread", label: "Snowfall Water Equivalent Spread" },
+  { value: "sunshine_duration", label: "Sunshine Duration" },
+  { value: "sunshine_duration_anomaly", label: "Sunshine Duration Anomaly" },
+  { value: "sunshine_duration_mean", label: "Sunshine Duration Mean" },
+  { value: "sunshine_duration_spread", label: "Sunshine Duration Spread" },
+  { value: "sulphur_dioxide", label: "Sulphur Dioxide" },
+  { value: "surface_temperature", label: "Surface Temperature" },
+  { value: "surface_temperature_anomaly_gt0", label: "Surface Temperature Anomaly GT0" },
+  { value: "temperature_2m", label: "Temperature (2m)" },
+  { value: "swell_wave_height", label: "Swell Wave Height & Direction" },
+  // combined
+  { value: "swell_wave_direction", label: "Swell Wave Height & Direction" },
+  // combined
+  { value: "swell_wave_peak_period", label: "Swell Wave Peak Period" },
+  { value: "swell_wave_period", label: "Swell Wave Period" },
+  { value: "temperature_2m_anomaly", label: "Temperature (2m) Anomaly" },
+  { value: "temperature_2m_anomaly_gt0", label: "Temperature (2m) Anomaly GT0" },
+  { value: "temperature_2m_anomaly_gt1", label: "Temperature (2m) Anomaly GT1" },
+  { va
+
+--- MATCH 4 ---
+writeMessage(3, writeLayer, {\n      name: "grid",\n      extent,\n      features\n    });\n  };\n  const COLOR_SCALES = {\n    convective_cloud_top: {\n      type: "breakpoint",\n      unit: "m",\n      breakpoints: [0, 500, 1e3, 1500, 2e3, 2500, 3e3, 4e3, 5e3, 6200],\n      colors: [\n        [192, 57, 43, 0],\n        [199, 61, 28, 0.15],\n        [205, 70, 14, 0.3],\n        [211, 83, 1, 0.375],\n        [220, 115, 4, 0.45],\n        [231, 152, 8, 0.525],\n        [240, 189, 13, 0.6],\n        [26, 193, 20, 0.725],\n        [26, 166, 157, 0.85],\n        [41, 128, 185, 1]\n      ]\n    },\n    geopotential_height: {\n      type: "breakpoint",\n      unit: "m",\n      breakpoints: [4600, 4800, 5e3, 5100, 5200, 5300, 5400, 5500, 5600, 5800, 6e3],\n      colors: [\n        [46, 139, 122, 0.7],\n        [57, 63, 138, 0.7],\n        [28, 28, 130, 0.7],\n        [8, 42, 115, 0.7],\n        [0, 73, 102, 0.7],\n        [0, 101, 76, 0.7],\n        [0, 100, 21, 0.7],\n        [28, 117, 0, 0.7],\n        [93, 146, 0, 0.7],\n        [154, 97, 0, 0.7],\n        [85, 0, 0, 0.7]\n      ]\n    },\n    precipitation: {\n      type: "breakpoint",\n      unit: "mm",\n      breakpoints: [0.01, 0.055, 0.11, 0.255, 0.45, 0.95, 2, 3, 4.95, 7.45, 10, 15, 20, 25, 30],\n      colors: [\n        [4, 59, 92, 0.091],\n        [134, 205, 250, 0.5],\n        [130, 203, 250, 0.7],\n        [118, 197, 250, 0.717],\n        [103, 188, 250, 0.74],\n        [64, 161, 251, 0.8],\n        [0, 96, 233, 0.814],\n        [0, 177, 236, 0.827],\n        [0, 241, 141, 0.851],\n        [66, 248, 0, 0.879],\n        [255, 221, 0, 0.905],\n        [255, 111, 0, 0.947],\n        [255, 0, 0, 0.976],\n        [215, 0, 94, 0.994],\n        [175, 0, 153, 1]\n      ]\n    },\n    temperature: {\n      type: "breakpoint",\n      unit: "°C",\n      breakpoints: [\n        -80,\n        -60,\n        -50,\n        -40,\n        -37.5,\n        -35,\n        -32.5,\n        -30,\n        -27.5,\n        -25,\n        -22.5,\n        -20,\n        -17.5,\n        -15,\n        -12.5,\n        -10,\n        -8,\n        -6,\n        -4,\n        -2,\n        0,\n        2,\n        4,\n        6,\n        8,\n        10,\n        12,\n        14,\n        16,\n        18,\n        20,\n        22,\n        24,\n        26,\n        28,\n        30,\n        32,\n        34,\n        36,\n        38,\n        40,\n        42,\n        44,\n        46,\n        48,\n        50\n      ],\n      colors: [\n        [26, 242, 221, 1],\n        [22, 147, 178, 1],\n        [23, 101, 143, 1],\n        [47, 17, 189, 1],\n        [86, 15, 201, 1],\n        [131, 13, 213, 1],\n        [181, 10, 226, 1],\n        [239, 7, 239, 1],\n        [206, 6, 241, 1],\n        [171, 5, 243, 1],\n        [136, 4, 245, 1],\n        [100, 4, 247, 1],\n        [64, 3, 249, 1],\n        [26, 2, 251, 1],\n        [1, 14, 253, 1],\n        [0, 52, 255, 1],\n        [35, 110, 251, 1],\n        [69, 156, 247, 1],\n        [102, 192, 245, 1],\n        [134, 219, 245, 1],\n        [124, 245, 124, 1],\n        [90, 244, 90, 1],\n        [56, 244, 56, 1],\n        [21, 245, 21, 1],\n        [7, 224, 7, 1],\n        [4, 193, 4, 1],\n        [2, 161, 2, 1],\n        [0, 128, 0, 1],\n        [57, 170, 0, 1],\n        [142, 213, 0, 1],\n        [255, 255, 0, 1],\n        [255, 233, 0, 1],\n        [255, 210, 0, 1],\n        [255, 188, 0, 1],\n        [255, 165, 0, 1],\n        [255, 141, 0, 1],\n        [255, 118, 0, 1],\n        [255, 94, 0, 1],\n        [255, 71, 0, 1],\n        [255, 47, 0, 1],\n        [255, 24, 0, 1],\n        [255, 0, 0, 1],\n        [228, 0, 10, 1],\n        [201, 0, 18, 1],\n        [174, 0, 23, 1],\n        [147, 0, 26, 1]\n      ]\n    }\n  };\n  function findLastIndexLE(arr, value) {\n    let lo = 0, hi = arr.length - 1, res = -1;\n    while (lo <= hi) {\n      const mid = lo + hi >>> 1;\n      if (arr[mid] <= value) {\n        res = mid;\n        lo = mid + 1;\n      } else {\n        hi = mid - 1;\n      }\n    }\n    return res;\n  }\n  const getColor = (colorScale, px) => {\n    switch (colorScale.type) {\n      case "rgba": {\n        const deltaPerIndex = (colorScale.max - colorScale.min) / colorScale.colors.length;\n        const index2 = Math.min(\n          colorScale.colors.length - 1,\n          Math.max(0, Math.floor((px - colorScale.min) / deltaPerIndex))\n        );\n        return colorScale.colors[index2];\n      }\n      case "breakpoint": {\n        const index2 = Math.max(0, findLastIndexLE(colorScale.breakpoints, px));\n        return colorScale.colors[index2];\n      }\n      default: {\n        const _exhaustive = colorScale;\n        throw new Error(`Unknown color scale: ${_exhaustive}`);\n      }\n    }\n  };\n  const transformScale = (scale, transform, maybeUnit) => {\n    const breakpoints = scale.breakpoints.map(transform);\n    const unit = maybeUnit || scale.unit;\n    return {\n      ...scale,\n      breakpoints,\n      unit\n    };\n  };\n  ({\n    boundary_layer_height: transformScale(\n      COLOR_SCALES["convective_cloud_top"],\n      (b) => b / 2\n    ),\n    freezing_level_height: transformScale(\n      COLOR_SCALES["temperature"],\n      (b) => (b + 20) * 80,\n      "m"\n    ),\n    latent_heat_flux: {\n      ...COLOR_SCALES["temperature"]\n    },\n    sensible_heat_flux: {\n      ...COLOR_SCALES["temperature"]\n    },\n    snow_depth_water_equivalent: transformScale(\n      COLOR_SCALES["precipitation"],\n      (b) => b * 200\n    ),\n    visibility: {\n      ...COLOR_SCALES["geopotential_height"]\n    }\n  });\n  class GaussianGrid {\n    // should always be 1 for gaussian grids!\n    ny;\n    // nx contains all grid points in a single dimension\n    nx;\n    // nxStart can be used to read partial data\n    // it basically shifts the indices when accessing the data\n    nxStart;\n    latitudeLines;\n    constructor(data, ranges = null) {\n      this.latitudeLines = data.gaussianGridLatitudeLines;\n      if (!ranges) {\n        ranges = [\n          { start: 0, end: data.ny },\n          { start: 0, end: data.nx }\n        ];\n      }\n      this.nx = data.nx;\n      this.nxStart = ranges[1].start;\n      this.ny = data.ny;\n    }\n    getBounds() {\n      return [-180, -90, 180, 90];\n    }\n    getCenter() {\n      return { lng: 0, lat: 0 };\n    }\n    getCoveringRanges(south, _west, north, _east) {\n      const northY = this.yLower(north);\n      const southY = this.yLower(south) + 2;\n      let southX;\n      const southIntegral = this.integral(southY);\n      if (southY > this.latitudeLines * 2 || southIntegral >= this.nx) {\n        southX = this.nx;\n      } else {\n        southX = this.integral(southY) % this.nx;\n      }\n      let northX;\n      const moduloNorth = this.latitudeLines * 2 % northY;\n      if (moduloNorth < 2) {\n        northX = 0;\n      } else {\n        northX = this.integral(northY) % this.nx;\n      }\n      return [\n        { start: 0, end: this.ny },\n        { start: northX, end: southX }\n      ];\n    }\n    /**\n     * Number of points in the grid\n     */\n    get count() {\n      return 4 * this.latitudeLines * (this.latitudeLines + 9);\n    }\n    /**\n     * Get the number of points in a specific latitude line\n     * @param y - The latitude line index\n     */\n    nxOf(y) {\n      return y < this.latitudeLines ? 20 + y * 4 : (2 * this.latitudeLines - y - 1) * 4 + 20;\n    }\n    integral(y) {\n      return y < this.latitudeLines ? 2 * y * y + 18 * y - this.nxStart : this.count - (2 * (2 * this.latitudeLines - y) * (2 * this.latitudeLines - y) + 18 * (2 * this.latitudeLines - y)) - this.nxStart;\n    }\n    /**\n     * Get the latitude and longitude coordinates for a grid point\n     */\n    /*getCoordinates(gridpoint: number): { latitude: number; longitude: number } {\n    		const { y: y, x: x, nx: nx } = this.getPos(gridpoint);\n    \n    		const dx = 360 / nx;\n    		const dy = 180 / (2 * this.latitudeLines + 0.5);\n    \n    		const lon = x * dx;\n    		const adjustedLon = lon >= 180 ? lon - 360 : lon;\n    \n    		return {\n    			latitude: (this.latitudeLines - y - 1) * dy + dy / 2,\n    			longitude: adjustedLon\n    		};\n    	}*/\n    /**\n     * Find the grid point index for given latitude and longitude\n     */\n    /*findPoint(lat: number, lon: number): number {\n    		const dy = 180 / (2 * this.latitudeLines + 0.5);\n    		const y =\n    			(Math.round(this.latitudeLines - 1 - (lat - dy / 2) / dy) + 2 * this.latitudeLines) %\n    			(2 * this.latitudeLines);\n    \n    		const nx = this.nxOf(y);\n    		const dx = 360 / nx;\n    \n    		const x = (Math.round(lon / dx) + nx) % nx;\n    		return this.integral(y) + x;\n    	}*/\n    /*getPos(gridpoint: number): { y: number; x: number; nx: number } {\n    		const y =\n    			gridpoint < this.count / 2\n    				? Math.floor((Math.sqrt(2 * gridpoint + 81) - 9) / 2)\n    				: 2 * this.latitudeLines -\n    					1 -\n    					Math.floor((Math.sqrt(2 * (this.count - gridpoint - 1) + 81) - 9) / 2);\n    \n    		const integral = this.integral(y);\n    		const x = gridpoint - integral;\n    		const nx = this.nxOf(y);\n    \n    		return { y, x, nx };\n    	}*/\n    /// Values is the 1D array of all HRES values (6 million something values)\n    getLinearInterpolatedValue(values, lat, lon) {\n      const latitudeLines = this.latitudeLines;\n      const dy = 180 / (2 * latitudeLines + 0.5);\n      const yLower = modPositive(\n        Math.floor(latitudeLines - 1 - (lat - dy / 2) / dy),\n        2 * latitudeLines\n      );\n      const yFraction = modPositive(latitudeLines - 1 - (lat - dy / 2) / dy, 1);\n      const yUpper = yLower + 1;\n      const nxLower = this.nxOf(yLower);\n      const nxUpper = this.nxOf(yUpper);\n      const dxLower = 360 / nxLower;\n      const dxUpper = 360 / nxUpper;\n      const xLower0 = modPositive(Math.floor(lon / dxLower), nxLower);\n      const xUpper0 = modPositive(Math.floor(lon / dxUpper), nxUpper);\n      const integralLower = this.integral(yLower);\n      const integralUpper = this.integral(yUpper);\n      co
+
+--- MATCH 5 ---
+  fileReaderConfig: defaultFileReaderConfig,
+  // dynamic
+  clippingOptions: void 0,
+  colorScales: COLOR_SCALES_WITH_ALIASES,
+  domainOptions,
+  resolveRequest: defaultResolveRequest,
+  postReadCallback: void 0
+};
+const makeAbortResult = () => {
+  return { data: null };
+};
+const omProtocol = async (params, abortController, settings = defaultOmProtocolSettings) => {
+  const signal = abortController.signal;
+  if (signal.aborted) {
+    return makeAbortResult();
+  }
+  const instance = getProtocolInstance(settings);
+  const url = await normalizeUrl(params.url);
+  const request = parseRequest(url, settings);
+  const state = getOrCreateState(
+    instance.stateByKey,
+    request.fileAndVariableKey,
+    request.dataOptions,
+    request.baseUrl
+  );
+  if (signal.aborted) {
+    return makeAbortResult();
+  }
+  const data = await ensureData(state, instance.omFileReader, settings.postReadCallback, signal);
+  if (params.type == "json") {
+    return {
+      data: await getTilejson(params.url, request.dataOptions, request.clippingOptions)
+    };
+  }
+  if (params.type !== "image" && params.type !== "arrayBuffer") {
+    throw new Error(`Unsupported request type '${params.type}'`);
+  }
+  if (!request.tileIndex) {
+    throw new Error(`Tile coordinates required for ${params.type} request`);
+  }
+  const { data: tileData, cancelled } = await requestTile(
+    url,
+    request,
+    data,
+    state.ranges,
+    params.type,
+    signal
+  );
+  if (cancelled) {
+    return makeAbortResult();
+  } else {
+    return { data: tileData };
+  }
+};
+const normalizeUrl = async (url) => {
+  let normalized = url;
+  if (url.includes(".json")) {
+    normalized = await parseMetaJson(normalized);
+  }
+  return normalized;
+};
+const makeTileAbortedResponse = () => {
+  return { data: void 0, cancelled: true };
+};
+const makeEmptyVectorLayerResponse = () => {
+  return { data: new ArrayBuffer(0), cancelled: false };
+};
+const requestTile = async (url, request, data, ranges, type, signal) => {
+  if (!request.tileIndex) {
+    throw new Error("Tile coordinates required for tile request");
+  }
+  if (signal?.aborted) {
+    return makeTileAbortedResponse();
+  }
+  const key = `${type}:${url}`;
+  const tileType = `get${capitalize(type)}`;
+  if (tileType === "getArrayBuffer") {
+    if (!drawsArrows(request.renderOptions, data) && !request.renderOptions.drawContours && !request.renderOptions.drawGrid) {
+      return makeEmptyVectorLayerResponse();
+    }
+  }
+  return workerPool.requestTile({
+    type: tileType,
+    key,
+    tileIndex: request.tileIndex,
+    data,
+    ranges,
+    dataOptions: request.dataOptions,
+    renderOptions: request.renderOptions,
+    clippingOptions: request.clippingOptions,
+    signal
+  });
+};
+const getTilejson = async (fullUrl, dataOptions, clippingOptions) => {
+  const grid = GridFactory.create(dataOptions.domain.grid, null);
+  let bounds;
+  if (clippingOptions && clippingOptions.bounds) {
+    bounds = constrainBounds(grid.getBounds(), clippingOptions.bounds) ?? grid.getBounds();
+  } else {
+    bounds = grid.getBounds();
+  }
+  return {
+    tilejson: "3.0.0",
+    tiles: [fullUrl + "/{z}/{x}/{y}"],
+    attribution: '<a href="https://open-meteo.com/en/licence#maps">© Open-Meteo</a>',
+    minzoom: 0,
+    maxzoom: 12,
+    bounds
+  };
+};
+const drawsArrows = (renderOptions, data) => {
+  return renderOptions.drawArrows && data.directions !== void 0;
+};
+export {
+  CASES,
+  COLOR_SCALES,
+  COLOR_SCALES_WITH_ALIASES,
+  DATA_RELEVANT_PARAMS,
+  DEFAULT_INTERVAL,
+  DEFAULT_TILE_SIZE,
+  DOMAIN_META_REGEX,
+  Fragment,
+  GridFactory,
+  LEVEL_PREFIX,
+  LEVEL_REGEX$1 as LEVEL_REGEX,
+  LEVEL_UNIT_REGEX,
+  OM_PREFIX_REGEX,
+  RESOLVE_DOMAIN_REGEX,
+  TILE_SUFFIX_REGEX,
+  TIME_SELECTED_REGEX,
+  TIME_STEP_REGEX,
+  VALID_TILE_SIZES,
+  VARIABLE_PREFIX,
+  VECTOR_TILE_EXTENT$1 as VECTOR_TILE_EXTENT,
+  WeatherMapLayerFileReader,
+  WorkerPool,
+  addLeafletProtocolSupport,
+  addMapboxProtocolSupport,
+  addOpenLayersProtocolSupport,
+  boundsIncluded,
+  capitalize,
+  checkAgainstBounds,
+  clearBlockCache,
+  clipRasterToPolygons,
+  closestModelRun,
+  command,
+  constrainBounds,
+  createClippingTester,
+  currentBounds,
+  defaultFileReaderConfig,
+  defaultOmProtocolSettings,
+  degreesToRadians,
+  derivative,
+  domainGroups,
+  domainOptions,
+  domainStep,
+  drawOnTiles,
+  ensureData,
+  fastAtan2,
+  generateArrows,
+  generateContours,
+  generateGridPoints,
+  getColor,
+  getColorScale,
+  getOrCreateState,
+  getProtocolInstance,
+  getRanges,
+  getValueFromLatLong,
+  hermite,
+  index,
+  interpolate,
+  lat2tile,
+  levelGroupVariables,
+  lon2tile,
+  modPositive,
+  normalizeLon,
+  normalizeUrl,
+  omProtocol,
+  pad,
+  radiansToDegrees,
+  ratio,
+  resolveClippingOptions,
+  resolveColorScale,
+  rotatePoint,
+  roundWithPrecision,
+  secondDerivative,
+  setClippingBounds,
+  sharedPolygonsPolygonCount,
+  sharedPolygonsRing,
+  sharedPolygonsRingCount,
+  snapBounds,
+  tile2lat,
+  tile2lon,
+  updateCurrentBounds,
+  variableOptions,
+  writeFeature,
+  writeGeometry,
+  writeLayer,
+  writeProperties,
+  writeValue,
+  zigzag
+};
+
+
+--- MATCH 6 ---
+turn renderOptions.drawArrows && data.directions !== void 0;
+};
+export {
+  CASES,
+  COLOR_SCALES,
+  COLOR_SCALES_WITH_ALIASES,
+  DATA_RELEVANT_PARAMS,
+  DEFAULT_INTERVAL,
+  DEFAULT_TILE_SIZE,
+  DOMAIN_META_REGEX,
+  Fragment,
+  GridFactory,
+  LEVEL_PREFIX,
+  LEVEL_REGEX$1 as LEVEL_REGEX,
+  LEVEL_UNIT_REGEX,
+  OM_PREFIX_REGEX,
+  RESOLVE_DOMAIN_REGEX,
+  TILE_SUFFIX_REGEX,
+  TIME_SELECTED_REGEX,
+  TIME_STEP_REGEX,
+  VALID_TILE_SIZES,
+  VARIABLE_PREFIX,
+  VECTOR_TILE_EXTENT$1 as VECTOR_TILE_EXTENT,
+  WeatherMapLayerFileReader,
+  WorkerPool,
+  addLeafletProtocolSupport,
+  addMapboxProtocolSupport,
+  addOpenLayersProtocolSupport,
+  boundsIncluded,
+  capitalize,
+  checkAgainstBounds,
+  clearBlockCache,
+  clipRasterToPolygons,
+  closestModelRun,
+  command,
+  constrainBounds,
+  createClippingTester,
+  currentBounds,
+  defaultFileReaderConfig,
+  defaultOmProtocolSettings,
+  degreesToRadians,
+  derivative,
+  domainGroups,
+  domainOptions,
+  domainStep,
+  drawOnTiles,
+  ensureData,
+  fastAtan2,
+  generateArrows,
+  generateContours,
+  generateGridPoints,
+  getColor,
+  getColorScale,
+  getOrCreateState,
+  getProtocolInstance,
+  getRanges,
+  getValueFromLatLong,
+  hermite,
+  index,
+  interpolate,
+  lat2tile,
+  levelGroupVariables,
+  lon2tile,
+  modPositive,
+  normalizeLon,
+  normalizeUrl,
+  omProtocol,
+  pad,
+  radiansToDegrees,
+  ratio,
+  resolveClippingOptions,
+  resolveColorScale,
+  rotatePoint,
+  roundWithPrecision,
+  secondDerivative,
+  setClippingBounds,
+  sharedPolygonsPolygonCount,
+  sharedPolygonsRing,
+  sharedPolygonsRingCount,
+  snapBounds,
+  tile2lat,
+  tile2lon,
+  updateCurrentBounds,
+  variableOptions,
+  writeFeature,
+  writeGeometry,
+  writeLayer,
+  writeProperties,
+  writeValue,
+  zigzag
+};
+

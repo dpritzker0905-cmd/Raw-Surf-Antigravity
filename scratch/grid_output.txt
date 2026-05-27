@@ -1,0 +1,765 @@
+
+--- MATCH 1 ---
+s.end = other.end;
+  }
+  toArray() {
+    return this.points;
+  }
+}
+const index = (width, x, y, point) => {
+  x = x * 2 + point[0];
+  y = y * 2 + point[1];
+  return x + y * (width + 1) * 2;
+};
+function interpolate(x, y, point, threshold, multiplier, bld, tld, brd, trd, accept) {
+  if (point[0] === 0) {
+    accept(multiplier * (x - 1), multiplier * (y - ratio(bld, threshold, tld)));
+  } else if (point[0] === 2) {
+    accept(multiplier * x, multiplier * (y - ratio(brd, threshold, trd)));
+  } else if (point[1] === 0) {
+    accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));
+  } else {
+    accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);
+  }
+}
+const ratio = (a, b, c) => {
+  return (b - a) / (c - a);
+};
+const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT$1) => {
+  const features = [];
+  let cursor = [0, 0];
+  const buffer = 1;
+  const width = tileSize;
+  const height = tileSize;
+  const multiplier = extent / width;
+  let tld, bld;
+  let i, j;
+  const segments = {};
+  const fragmentByStartByLevel = /* @__PURE__ */ new Map();
+  const fragmentByEndByLevel = /* @__PURE__ */ new Map();
+  const isInsideClip = createClippingTester(clippingOptions);
+  for (i = 1 - buffer; i < height + buffer; i++) {
+    const latTop = tile2lat(y + i / height, z);
+    const latBottom = tile2lat(y + (i - 1) / height, z);
+    const lonBottom = tile2lon(x + (i - 1) / width, z);
+    let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);
+    let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);
+    let minR = Math.min(trd, brd);
+    let maxR = Math.max(trd, brd);
+    for (j = 0 - buffer; j < width + buffer; j++) {
+      const lon = tile2lon(x + j / width, z);
+      tld = trd;
+      bld = brd;
+      trd = grid.getLinearInterpolatedValue(values, latBottom, lon);
+      brd = grid.getLinearInterpolatedValue(values, latTop, lon);
+      const minL = minR;
+      const maxL = maxR;
+      minR = Math.min(trd, brd);
+      maxR = Math.max(trd, brd);
+      if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {
+        continue;
+      }
+      if (isInsideClip && !isInsideClip(lon, latBottom)) {
+        continue;
+      }
+      let intervalList;
+      if (intervals.length === 1) {
+        const interval = intervals[0];
+        const min = Math.min(minL, minR);
+        const max = Math.max(maxL, maxR);
+        const start = Math.ceil(min / interval) * inter
+
+--- MATCH 2 ---
+x = (width, x, y, point) => {
+  x = x * 2 + point[0];
+  y = y * 2 + point[1];
+  return x + y * (width + 1) * 2;
+};
+function interpolate(x, y, point, threshold, multiplier, bld, tld, brd, trd, accept) {
+  if (point[0] === 0) {
+    accept(multiplier * (x - 1), multiplier * (y - ratio(bld, threshold, tld)));
+  } else if (point[0] === 2) {
+    accept(multiplier * x, multiplier * (y - ratio(brd, threshold, trd)));
+  } else if (point[1] === 0) {
+    accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));
+  } else {
+    accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);
+  }
+}
+const ratio = (a, b, c) => {
+  return (b - a) / (c - a);
+};
+const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT$1) => {
+  const features = [];
+  let cursor = [0, 0];
+  const buffer = 1;
+  const width = tileSize;
+  const height = tileSize;
+  const multiplier = extent / width;
+  let tld, bld;
+  let i, j;
+  const segments = {};
+  const fragmentByStartByLevel = /* @__PURE__ */ new Map();
+  const fragmentByEndByLevel = /* @__PURE__ */ new Map();
+  const isInsideClip = createClippingTester(clippingOptions);
+  for (i = 1 - buffer; i < height + buffer; i++) {
+    const latTop = tile2lat(y + i / height, z);
+    const latBottom = tile2lat(y + (i - 1) / height, z);
+    const lonBottom = tile2lon(x + (i - 1) / width, z);
+    let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);
+    let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);
+    let minR = Math.min(trd, brd);
+    let maxR = Math.max(trd, brd);
+    for (j = 0 - buffer; j < width + buffer; j++) {
+      const lon = tile2lon(x + j / width, z);
+      tld = trd;
+      bld = brd;
+      trd = grid.getLinearInterpolatedValue(values, latBottom, lon);
+      brd = grid.getLinearInterpolatedValue(values, latTop, lon);
+      const minL = minR;
+      const maxL = maxR;
+      minR = Math.min(trd, brd);
+      maxR = Math.max(trd, brd);
+      if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {
+        continue;
+      }
+      if (isInsideClip && !isInsideClip(lon, latBottom)) {
+        continue;
+      }
+      let intervalList;
+      if (intervals.length === 1) {
+        const interval = intervals[0];
+        const min = Math.min(minL, minR);
+        const max = Math.max(maxL, maxR);
+        const start = Math.ceil(min / interval) * interval;
+        const end = Math.floor(max / interval) * interval;
+        inter
+
+--- MATCH 3 ---
+ - ratio(bld, threshold, tld)));
+  } else if (point[0] === 2) {
+    accept(multiplier * x, multiplier * (y - ratio(brd, threshold, trd)));
+  } else if (point[1] === 0) {
+    accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));
+  } else {
+    accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);
+  }
+}
+const ratio = (a, b, c) => {
+  return (b - a) / (c - a);
+};
+const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT$1) => {
+  const features = [];
+  let cursor = [0, 0];
+  const buffer = 1;
+  const width = tileSize;
+  const height = tileSize;
+  const multiplier = extent / width;
+  let tld, bld;
+  let i, j;
+  const segments = {};
+  const fragmentByStartByLevel = /* @__PURE__ */ new Map();
+  const fragmentByEndByLevel = /* @__PURE__ */ new Map();
+  const isInsideClip = createClippingTester(clippingOptions);
+  for (i = 1 - buffer; i < height + buffer; i++) {
+    const latTop = tile2lat(y + i / height, z);
+    const latBottom = tile2lat(y + (i - 1) / height, z);
+    const lonBottom = tile2lon(x + (i - 1) / width, z);
+    let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);
+    let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);
+    let minR = Math.min(trd, brd);
+    let maxR = Math.max(trd, brd);
+    for (j = 0 - buffer; j < width + buffer; j++) {
+      const lon = tile2lon(x + j / width, z);
+      tld = trd;
+      bld = brd;
+      trd = grid.getLinearInterpolatedValue(values, latBottom, lon);
+      brd = grid.getLinearInterpolatedValue(values, latTop, lon);
+      const minL = minR;
+      const maxL = maxR;
+      minR = Math.min(trd, brd);
+      maxR = Math.max(trd, brd);
+      if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {
+        continue;
+      }
+      if (isInsideClip && !isInsideClip(lon, latBottom)) {
+        continue;
+      }
+      let intervalList;
+      if (intervals.length === 1) {
+        const interval = intervals[0];
+        const min = Math.min(minL, minR);
+        const max = Math.max(maxL, maxR);
+        const start = Math.ceil(min / interval) * interval;
+        const end = Math.floor(max / interval) * interval;
+        intervalList = Array.from(
+          { length: 1 + (end - start) / interval },
+          (_, i2) => start + interval * i2
+        );
+      } else {
+        intervalList = intervals;
+      }
+      for (const threshold of intervalList) {
+        const tl = tld >= threshold;
+      
+
+--- MATCH 4 ---
+ccept(multiplier * x, multiplier * (y - ratio(brd, threshold, trd)));
+  } else if (point[1] === 0) {
+    accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));
+  } else {
+    accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);
+  }
+}
+const ratio = (a, b, c) => {
+  return (b - a) / (c - a);
+};
+const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT$1) => {
+  const features = [];
+  let cursor = [0, 0];
+  const buffer = 1;
+  const width = tileSize;
+  const height = tileSize;
+  const multiplier = extent / width;
+  let tld, bld;
+  let i, j;
+  const segments = {};
+  const fragmentByStartByLevel = /* @__PURE__ */ new Map();
+  const fragmentByEndByLevel = /* @__PURE__ */ new Map();
+  const isInsideClip = createClippingTester(clippingOptions);
+  for (i = 1 - buffer; i < height + buffer; i++) {
+    const latTop = tile2lat(y + i / height, z);
+    const latBottom = tile2lat(y + (i - 1) / height, z);
+    const lonBottom = tile2lon(x + (i - 1) / width, z);
+    let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);
+    let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);
+    let minR = Math.min(trd, brd);
+    let maxR = Math.max(trd, brd);
+    for (j = 0 - buffer; j < width + buffer; j++) {
+      const lon = tile2lon(x + j / width, z);
+      tld = trd;
+      bld = brd;
+      trd = grid.getLinearInterpolatedValue(values, latBottom, lon);
+      brd = grid.getLinearInterpolatedValue(values, latTop, lon);
+      const minL = minR;
+      const maxL = maxR;
+      minR = Math.min(trd, brd);
+      maxR = Math.max(trd, brd);
+      if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {
+        continue;
+      }
+      if (isInsideClip && !isInsideClip(lon, latBottom)) {
+        continue;
+      }
+      let intervalList;
+      if (intervals.length === 1) {
+        const interval = intervals[0];
+        const min = Math.min(minL, minR);
+        const max = Math.max(maxL, maxR);
+        const start = Math.ceil(min / interval) * interval;
+        const end = Math.floor(max / interval) * interval;
+        intervalList = Array.from(
+          { length: 1 + (end - start) / interval },
+          (_, i2) => start + interval * i2
+        );
+      } else {
+        intervalList = intervals;
+      }
+      for (const threshold of intervalList) {
+        const tl = tld >= threshold;
+        const tr = trd >= threshold;
+        const bl = bld >= threshold;
+ 
+
+--- MATCH 5 ---
+${pl}hPa`, label: `Wind (${pl}hPa)` });
+  variableOptions.push({ value: `wind_speed_${pl}hPa`, label: `Wind (${pl}hPa)` });
+}
+for (const height of heights) {
+  variableOptions.push({
+    value: `relative_humidity_${height}m`,
+    label: `Relative Humidity (${height}m)`
+  });
+  variableOptions.push({ value: `temperature_${height}m`, label: `Temperature (${height}m)` });
+  variableOptions.push({ value: `wind_${height}m`, label: `Wind (${height}m)` });
+  variableOptions.push({ value: `wind_u_component_${height}m`, label: `Wind (${height}m)` });
+  variableOptions.push({ value: `wind_v_component_${height}m`, label: `Wind (${height}m)` });
+  variableOptions.push({ value: `wind_speed_${height}m`, label: `Wind (${height}m)` });
+}
+const drawOnTiles = ["pressure_msl"];
+const generateArrows = (pbf, values, directions, grid, x, y, z, clippingOptions, extent = VECTOR_TILE_EXTENT$1, arrows = 25) => {
+  if (z === 0) {
+    arrows = 50;
+  }
+  if (z === 1) {
+    arrows = 40;
+  }
+  const features = [];
+  const size = extent / arrows;
+  let cursor = [0, 0];
+  const isInsideClip = createClippingTester(clippingOptions);
+  for (let tileY = 0; tileY < extent + 1; tileY += size) {
+    const lat = tile2lat(y + tileY / extent, z);
+    for (let tileX = 0; tileX < extent + 1; tileX += size) {
+      const lon = tile2lon(x + tileX / extent, z);
+      const center = [tileX, tileY];
+      const geom = [];
+      if (isInsideClip && !isInsideClip(lon, lat)) {
+        continue;
+      }
+      const speed = grid.getLinearInterpolatedValue(values, lat, lon);
+      const direction = degreesToRadians(
+        grid.getLinearInterpolatedValue(directions, lat, lon) + 180
+      );
+      const properties = {
+        value: speed,
+        direction
+      };
+      const rotation = direction;
+      let length = 0.85;
+      if (speed < 20) {
+        length = 0.8;
+      }
+      if (speed < 10) {
+        length = 0.75;
+      }
+      if (speed < 5) {
+        length = 0.7;
+      }
+      if (speed < 3) {
+        length = 0.6;
+      }
+      if (speed < 2) {
+        length = 0.55;
+      }
+      if (speed < 1) {
+        length = 0.5;
+      }
+      const [xt0, yt0] = rotatePoint(
+        center[0],
+        center[1],
+        rotation,
+        center[0] - 0.13 * size,
+        center[1] - (size * length / 2 - size * 0.22)
+      );
+      geom.push(command(1, 1));
+      geom.push(zigzag(xt0));
+      geom.push(zigzag(yt0));
+      cursor = [xt0, yt0];
+      let [xt1, yt1] = rotatePoint(
+        center[0],
+        center
+
+--- MATCH 6 ---
+ `Wind (${pl}hPa)` });
+}
+for (const height of heights) {
+  variableOptions.push({
+    value: `relative_humidity_${height}m`,
+    label: `Relative Humidity (${height}m)`
+  });
+  variableOptions.push({ value: `temperature_${height}m`, label: `Temperature (${height}m)` });
+  variableOptions.push({ value: `wind_${height}m`, label: `Wind (${height}m)` });
+  variableOptions.push({ value: `wind_u_component_${height}m`, label: `Wind (${height}m)` });
+  variableOptions.push({ value: `wind_v_component_${height}m`, label: `Wind (${height}m)` });
+  variableOptions.push({ value: `wind_speed_${height}m`, label: `Wind (${height}m)` });
+}
+const drawOnTiles = ["pressure_msl"];
+const generateArrows = (pbf, values, directions, grid, x, y, z, clippingOptions, extent = VECTOR_TILE_EXTENT$1, arrows = 25) => {
+  if (z === 0) {
+    arrows = 50;
+  }
+  if (z === 1) {
+    arrows = 40;
+  }
+  const features = [];
+  const size = extent / arrows;
+  let cursor = [0, 0];
+  const isInsideClip = createClippingTester(clippingOptions);
+  for (let tileY = 0; tileY < extent + 1; tileY += size) {
+    const lat = tile2lat(y + tileY / extent, z);
+    for (let tileX = 0; tileX < extent + 1; tileX += size) {
+      const lon = tile2lon(x + tileX / extent, z);
+      const center = [tileX, tileY];
+      const geom = [];
+      if (isInsideClip && !isInsideClip(lon, lat)) {
+        continue;
+      }
+      const speed = grid.getLinearInterpolatedValue(values, lat, lon);
+      const direction = degreesToRadians(
+        grid.getLinearInterpolatedValue(directions, lat, lon) + 180
+      );
+      const properties = {
+        value: speed,
+        direction
+      };
+      const rotation = direction;
+      let length = 0.85;
+      if (speed < 20) {
+        length = 0.8;
+      }
+      if (speed < 10) {
+        length = 0.75;
+      }
+      if (speed < 5) {
+        length = 0.7;
+      }
+      if (speed < 3) {
+        length = 0.6;
+      }
+      if (speed < 2) {
+        length = 0.55;
+      }
+      if (speed < 1) {
+        length = 0.5;
+      }
+      const [xt0, yt0] = rotatePoint(
+        center[0],
+        center[1],
+        rotation,
+        center[0] - 0.13 * size,
+        center[1] - (size * length / 2 - size * 0.22)
+      );
+      geom.push(command(1, 1));
+      geom.push(zigzag(xt0));
+      geom.push(zigzag(yt0));
+      cursor = [xt0, yt0];
+      let [xt1, yt1] = rotatePoint(
+        center[0],
+        center[1],
+        rotation,
+        center[0],
+        center[1] - size * length / 2
+      );
+      geom.p
+
+--- MATCH 7 ---
+ - this.nxStart;
+  }
+  /**
+   * Get the latitude and longitude coordinates for a grid point
+   */
+  /*getCoordinates(gridpoint: number): { latitude: number; longitude: number } {
+  		const { y: y, x: x, nx: nx } = this.getPos(gridpoint);
+  
+  		const dx = 360 / nx;
+  		const dy = 180 / (2 * this.latitudeLines + 0.5);
+  
+  		const lon = x * dx;
+  		const adjustedLon = lon >= 180 ? lon - 360 : lon;
+  
+  		return {
+  			latitude: (this.latitudeLines - y - 1) * dy + dy / 2,
+  			longitude: adjustedLon
+  		};
+  	}*/
+  /**
+   * Find the grid point index for given latitude and longitude
+   */
+  /*findPoint(lat: number, lon: number): number {
+  		const dy = 180 / (2 * this.latitudeLines + 0.5);
+  		const y =
+  			(Math.round(this.latitudeLines - 1 - (lat - dy / 2) / dy) + 2 * this.latitudeLines) %
+  			(2 * this.latitudeLines);
+  
+  		const nx = this.nxOf(y);
+  		const dx = 360 / nx;
+  
+  		const x = (Math.round(lon / dx) + nx) % nx;
+  		return this.integral(y) + x;
+  	}*/
+  /*getPos(gridpoint: number): { y: number; x: number; nx: number } {
+  		const y =
+  			gridpoint < this.count / 2
+  				? Math.floor((Math.sqrt(2 * gridpoint + 81) - 9) / 2)
+  				: 2 * this.latitudeLines -
+  					1 -
+  					Math.floor((Math.sqrt(2 * (this.count - gridpoint - 1) + 81) - 9) / 2);
+  
+  		const integral = this.integral(y);
+  		const x = gridpoint - integral;
+  		const nx = this.nxOf(y);
+  
+  		return { y, x, nx };
+  	}*/
+  /// Values is the 1D array of all HRES values (6 million something values)
+  getLinearInterpolatedValue(values, lat, lon) {
+    const latitudeLines = this.latitudeLines;
+    const dy = 180 / (2 * latitudeLines + 0.5);
+    const yLower = modPositive(
+      Math.floor(latitudeLines - 1 - (lat - dy / 2) / dy),
+      2 * latitudeLines
+    );
+    const yFraction = modPositive(latitudeLines - 1 - (lat - dy / 2) / dy, 1);
+    const yUpper = yLower + 1;
+    const nxLower = this.nxOf(yLower);
+    const nxUpper = this.nxOf(yUpper);
+    const dxLower = 360 / nxLower;
+    const dxUpper = 360 / nxUpper;
+    const xLower0 = modPositive(Math.floor(lon / dxLower), nxLower);
+    const xUpper0 = modPositive(Math.floor(lon / dxUpper), nxUpper);
+    const integralLower = this.integral(yLower);
+    const integralUpper = this.integral(yUpper);
+    const xFractionLower = modPositive(lon / dxLower, 1);
+    const xFractionUpper = modPositive(lon / dxUpper, 1);
+    const p0 = values[integralLower + xLower0];
+    const p1 = values[integralLower + (xLower0 + 1) % nxLower];
+    const p2 = 
+
+--- MATCH 8 ---
+er;
+  constructor(data, ranges = null) {
+    if (!ranges) {
+      ranges = [
+        { start: 0, end: data.ny },
+        { start: 0, end: data.nx }
+      ];
+    }
+    this.nx = ranges[1].end - ranges[1].start;
+    this.ny = ranges[0].end - ranges[0].start;
+    switch (data.type) {
+      case "projectedFromBounds": {
+        this.projection = createProjection(data.projection);
+        const sw = this.projection.forward(data.latitudeBounds[0], data.longitudeBounds[0]);
+        const ne = this.projection.forward(data.latitudeBounds[1], data.longitudeBounds[1]);
+        this.origin = sw;
+        this.dx = (ne[0] - sw[0]) / (data.nx - 1);
+        this.dy = (ne[1] - sw[1]) / (data.ny - 1);
+        break;
+      }
+      case "projectedFromGeographicOrigin": {
+        this.projection = createProjection(data.projection);
+        this.origin = this.projection.forward(data.latitude, data.longitude);
+        this.dx = data.dx;
+        this.dy = data.dy;
+        break;
+      }
+      case "projectedFromProjectedOrigin": {
+        this.projection = createProjection(data.projection);
+        this.origin = [data.projectedLongitudeOrigin, data.projectedLatitudeOrigin];
+        this.dx = data.dx;
+        this.dy = data.dy;
+        break;
+      }
+      default: {
+        const _exhaustive = data;
+        throw new Error(`Unknown projection: ${_exhaustive}`);
+      }
+    }
+    this.minX = this.origin[0] + this.dx * ranges[1].start;
+    this.minY = this.origin[1] + this.dy * ranges[0].start;
+  }
+  getLinearInterpolatedValue(values, lat, lon) {
+    const idx = this.findPointInterpolated(lat, lon);
+    return interpolateLinear(values, idx.x, idx.y, idx.xFraction, idx.yFraction, this.nx);
+  }
+  getBounds() {
+    if (!this.bounds) {
+      const borderPoints = this.getProjectedBorderPoints();
+      this.bounds = this.calculateGeographicBounds(borderPoints);
+    }
+    return this.bounds;
+  }
+  getCenter() {
+    if (!this.center) {
+      const bounds = this.getBounds();
+      this.center = this.getCenterFromBounds(bounds);
+    }
+    return this.center;
+  }
+  getCoveringRanges(south, west, north, east) {
+    const dx = this.dx;
+    const dy = this.dy;
+    const nx = this.nx;
+    const ny = this.ny;
+    let xPrecision, yPrecision;
+    if (String(dx).split(".")[1]) {
+      xPrecision = String(dx).split(".")[1].length;
+      yPrecision = String(dy).split(".")[1].length;
+    } else {
+      xPrecision = 2;
+      yPrecision = 2;
+    }
+    let [s, w, n, e] = getProjectedBounds(this.projection,
+
+--- MATCH 9 ---
+t = Math.ceil((north - south) / resolution);
+  const stepsLon = Math.ceil((east - west) / resolution);
+  for (let i = 0; i <= stepsLat; i++) {
+    updateBounds(north - i * resolution, east);
+    updateBounds(south + i * resolution, west);
+  }
+  for (let i = 0; i <= stepsLon; i++) {
+    updateBounds(north, west + i * resolution);
+    updateBounds(south, east - i * resolution);
+  }
+  return [minY, minX, maxY, maxX];
+};
+class RegularGrid {
+  nx;
+  ny;
+  dx;
+  dy;
+  bounds;
+  longitudeWrap;
+  center;
+  constructor(data, ranges = null) {
+    this.dx = data.dx;
+    this.dy = data.dy;
+    if (!ranges) {
+      ranges = [
+        { start: 0, end: data.ny },
+        { start: 0, end: data.nx }
+      ];
+    } else {
+      if (ranges[0].start < 0 || ranges[0].start > data.ny || ranges[0].end < 0 || ranges[0].end > data.ny) {
+        throw new Error("Invalid y range");
+      }
+      if (ranges[1].start < 0 || ranges[1].start > data.nx || ranges[1].end < 0 || ranges[1].end > data.nx) {
+        throw new Error("Invalid x range");
+      }
+    }
+    this.nx = ranges[1].end - ranges[1].start;
+    this.ny = ranges[0].end - ranges[0].start;
+    const lonMin = data.lonMin + this.dx * ranges[1].start;
+    const latMin = data.latMin + this.dy * ranges[0].start;
+    const lonMax = data.lonMin + this.dx * ranges[1].end;
+    const latMax = data.latMin + this.dy * ranges[0].end;
+    this.bounds = [lonMin, latMin, lonMax, latMax];
+    this.longitudeWrap = lonMax - lonMin >= 359.875 ? true : false;
+  }
+  getLinearInterpolatedValue(values, lat, lon) {
+    if (!this.longitudeWrap) {
+      if (lon < this.bounds[0] || lon > this.bounds[2]) {
+        return NaN;
+      }
+    }
+    if (lat < this.bounds[1] || lat >= this.bounds[3]) {
+      return NaN;
+    }
+    const y = Math.floor((lat - this.bounds[1]) / this.dy);
+    const yFraction = (lat - this.bounds[1]) % this.dy / this.dy;
+    const x = Math.min(Math.floor((lon - this.bounds[0]) / this.dx), this.nx - 1);
+    const dx = this.longitudeWrap && lon >= this.bounds[2] - this.dx ? this.dx * 2 : this.dx;
+    const xFraction = (lon - this.bounds[0]) % dx / dx;
+    return interpolateLinear(values, x, y, xFraction, yFraction, this.nx, this.longitudeWrap);
+  }
+  getBounds() {
+    return this.bounds;
+  }
+  getCenter() {
+    if (!this.center) {
+      this.center = {
+        lng: this.bounds[0] + this.dx * (this.nx * 0.5),
+        lat: this.bounds[1] + this.dy * (this.ny * 0.5)
+      };
+    }
+    return this.center;
+  }
+  getCoveringRanges(south, we
+
+--- MATCH 10 ---
+   if (state.dataPromise) {
+      return await state.dataPromise;
+    }
+    const controller = new AbortController();
+    inflightRequests.set(state, { controller, subscriberCount });
+    state.dataPromise = (async () => {
+      try {
+        await omFileReader.setToOmFile(state.omFileUrl);
+        const data = await omFileReader.readVariable(
+          state.dataOptions.variable,
+          state.ranges,
+          controller.signal
+        );
+        if (postReadCallback) {
+          postReadCallback(omFileReader, data, state);
+        }
+        state.data = data;
+        return data;
+      } finally {
+        state.dataPromise = null;
+        inflightRequests.delete(state);
+      }
+    })();
+    return await state.dataPromise;
+  } finally {
+    if (signal) {
+      signal.removeEventListener("abort", cleanup);
+    }
+    cleanup();
+  }
+};
+const getValueFromLatLong = async (lat, lon, omUrl) => {
+  if (!omProtocolInstance) {
+    throw new Error("OmProtocolInstance is not initialized");
+  }
+  const url = await normalizeUrl(omUrl);
+  const { fileAndVariableKey } = parseUrlComponents(url);
+  const state = omProtocolInstance.stateByKey.get(fileAndVariableKey);
+  if (!state) {
+    throw new Error(`State not found for key: ${fileAndVariableKey}`);
+  }
+  state.lastAccess = Date.now();
+  if (!state.data?.values) {
+    return { value: NaN };
+  }
+  const grid = GridFactory.create(state.dataOptions.domain.grid, state.ranges);
+  const lonNormalized = normalizeLon(lon);
+  const value = grid.getLinearInterpolatedValue(state.data.values, lat, lonNormalized);
+  return { value };
+};
+const evictStaleStates = (stateByKey, currentKey) => {
+  const now = Date.now();
+  for (const [key, state] of stateByKey) {
+    if (stateByKey.size <= MAX_STATES_WITH_DATA) {
+      const age2 = now - state.lastAccess;
+      if (age2 <= STALE_THRESHOLD_MS) break;
+    }
+    if (key === currentKey) continue;
+    const age = now - state.lastAccess;
+    const isStale = age > STALE_THRESHOLD_MS;
+    const exceedsMax = stateByKey.size > MAX_STATES_WITH_DATA;
+    if (isStale || exceedsMax) {
+      stateByKey.delete(key);
+    } else {
+      break;
+    }
+  }
+};
+const touchState = (stateByKey, key, state) => {
+  state.lastAccess = Date.now();
+  stateByKey.delete(key);
+  stateByKey.set(key, state);
+};
+const jsContent = '(function() {\n  "use strict";\n  const SHIFT_LEFT_32 = (1 << 16) * (1 << 16);\n  const SHIFT_RIGHT_32 = 1 / SHIFT_LEFT_32;\n  const TEXT_DECODER_MIN_LENGTH = 12;\n  const utf8TextDecoder = ty
+
+--- MATCH 11 ---
+ypeof valueIndex === "undefined") {\n        values.push(storedValue);\n        valueIndex = values.length - 1;\n        valuecache[valueKey] = valueIndex;\n      }\n      pbf.writeVarint(valueIndex);\n    }\n  };\n  const writeValue = (value, pbf) => {\n    const type = typeof value;\n    if (type === "string") {\n      pbf.writeStringField(1, value);\n    } else if (type === "boolean") {\n      pbf.writeBooleanField(7, value);\n    } else if (type === "number") {\n      const num = value;\n      if (num % 1 !== 0) {\n        pbf.writeDoubleField(3, num);\n      } else if (num < 0) {\n        pbf.writeSVarintField(6, num);\n      } else {\n        pbf.writeVarintField(5, num);\n      }\n    }\n  };\n  const generateArrows = (pbf, values, directions, grid, x, y, z, clippingOptions, extent = VECTOR_TILE_EXTENT, arrows = 25) => {\n    if (z === 0) {\n      arrows = 50;\n    }\n    if (z === 1) {\n      arrows = 40;\n    }\n    const features = [];\n    const size = extent / arrows;\n    let cursor = [0, 0];\n    const isInsideClip = createClippingTester(clippingOptions);\n    for (let tileY = 0; tileY < extent + 1; tileY += size) {\n      const lat = tile2lat(y + tileY / extent, z);\n      for (let tileX = 0; tileX < extent + 1; tileX += size) {\n        const lon = tile2lon(x + tileX / extent, z);\n        const center = [tileX, tileY];\n        const geom = [];\n        if (isInsideClip && !isInsideClip(lon, lat)) {\n          continue;\n        }\n        const speed = grid.getLinearInterpolatedValue(values, lat, lon);\n        const direction = degreesToRadians(\n          grid.getLinearInterpolatedValue(directions, lat, lon) + 180\n        );\n        const properties = {\n          value: speed,\n          direction\n        };\n        const rotation = direction;\n        let length = 0.85;\n        if (speed < 20) {\n          length = 0.8;\n        }\n        if (speed < 10) {\n          length = 0.75;\n        }\n        if (speed < 5) {\n          length = 0.7;\n        }\n        if (speed < 3) {\n          length = 0.6;\n        }\n        if (speed < 2) {\n          length = 0.55;\n        }\n        if (speed < 1) {\n          length = 0.5;\n        }\n        const [xt0, yt0] = rotatePoint(\n          center[0],\n          center[1],\n          rotation,\n          center[0] - 0.13 * size,\n          center[1] - (size * length / 2 - size * 0.22)\n        );\n        geom.push(command(1, 1));\n        geom.push(zigzag(xt0));\n        geom.push
+
+--- MATCH 12 ---
+- 1;\n        valuecache[valueKey] = valueIndex;\n      }\n      pbf.writeVarint(valueIndex);\n    }\n  };\n  const writeValue = (value, pbf) => {\n    const type = typeof value;\n    if (type === "string") {\n      pbf.writeStringField(1, value);\n    } else if (type === "boolean") {\n      pbf.writeBooleanField(7, value);\n    } else if (type === "number") {\n      const num = value;\n      if (num % 1 !== 0) {\n        pbf.writeDoubleField(3, num);\n      } else if (num < 0) {\n        pbf.writeSVarintField(6, num);\n      } else {\n        pbf.writeVarintField(5, num);\n      }\n    }\n  };\n  const generateArrows = (pbf, values, directions, grid, x, y, z, clippingOptions, extent = VECTOR_TILE_EXTENT, arrows = 25) => {\n    if (z === 0) {\n      arrows = 50;\n    }\n    if (z === 1) {\n      arrows = 40;\n    }\n    const features = [];\n    const size = extent / arrows;\n    let cursor = [0, 0];\n    const isInsideClip = createClippingTester(clippingOptions);\n    for (let tileY = 0; tileY < extent + 1; tileY += size) {\n      const lat = tile2lat(y + tileY / extent, z);\n      for (let tileX = 0; tileX < extent + 1; tileX += size) {\n        const lon = tile2lon(x + tileX / extent, z);\n        const center = [tileX, tileY];\n        const geom = [];\n        if (isInsideClip && !isInsideClip(lon, lat)) {\n          continue;\n        }\n        const speed = grid.getLinearInterpolatedValue(values, lat, lon);\n        const direction = degreesToRadians(\n          grid.getLinearInterpolatedValue(directions, lat, lon) + 180\n        );\n        const properties = {\n          value: speed,\n          direction\n        };\n        const rotation = direction;\n        let length = 0.85;\n        if (speed < 20) {\n          length = 0.8;\n        }\n        if (speed < 10) {\n          length = 0.75;\n        }\n        if (speed < 5) {\n          length = 0.7;\n        }\n        if (speed < 3) {\n          length = 0.6;\n        }\n        if (speed < 2) {\n          length = 0.55;\n        }\n        if (speed < 1) {\n          length = 0.5;\n        }\n        const [xt0, yt0] = rotatePoint(\n          center[0],\n          center[1],\n          rotation,\n          center[0] - 0.13 * size,\n          center[1] - (size * length / 2 - size * 0.22)\n        );\n        geom.push(command(1, 1));\n        geom.push(zigzag(xt0));\n        geom.push(zigzag(yt0));\n        cursor = [xt0, yt0];\n        let [xt1, yt1] = rotatePoint(\n          center[0],\n
+
+--- MATCH 13 ---
+\n    x = x * 2 + point[0];\n    y = y * 2 + point[1];\n    return x + y * (width + 1) * 2;\n  };\n  function interpolate(x, y, point, threshold, multiplier, bld, tld, brd, trd, accept) {\n    if (point[0] === 0) {\n      accept(multiplier * (x - 1), multiplier * (y - ratio(bld, threshold, tld)));\n    } else if (point[0] === 2) {\n      accept(multiplier * x, multiplier * (y - ratio(brd, threshold, trd)));\n    } else if (point[1] === 0) {\n      accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));\n    } else {\n      accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);\n    }\n  }\n  const ratio = (a, b, c) => {\n    return (b - a) / (c - a);\n  };\n  const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT) => {\n    const features = [];\n    let cursor = [0, 0];\n    const buffer = 1;\n    const width = tileSize;\n    const height = tileSize;\n    const multiplier = extent / width;\n    let tld, bld;\n    let i, j;\n    const segments = {};\n    const fragmentByStartByLevel = /* @__PURE__ */ new Map();\n    const fragmentByEndByLevel = /* @__PURE__ */ new Map();\n    const isInsideClip = createClippingTester(clippingOptions);\n    for (i = 1 - buffer; i < height + buffer; i++) {\n      const latTop = tile2lat(y + i / height, z);\n      const latBottom = tile2lat(y + (i - 1) / height, z);\n      const lonBottom = tile2lon(x + (i - 1) / width, z);\n      let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);\n      let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);\n      let minR = Math.min(trd, brd);\n      let maxR = Math.max(trd, brd);\n      for (j = 0 - buffer; j < width + buffer; j++) {\n        const lon = tile2lon(x + j / width, z);\n        tld = trd;\n        bld = brd;\n        trd = grid.getLinearInterpolatedValue(values, latBottom, lon);\n        brd = grid.getLinearInterpolatedValue(values, latTop, lon);\n        const minL = minR;\n        const maxL = maxR;\n        minR = Math.min(trd, brd);\n        maxR = Math.max(trd, brd);\n        if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {\n          continue;\n        }\n        if (isInsideClip && !isInsideClip(lon, latBottom)) {\n          continue;\n        }\n        let intervalList;\n        if (intervals.length === 1) {\n          const interval = intervals[0];\n          const min = Math.min(minL, minR);\n          const max = Math.
+
+--- MATCH 14 ---
+h + 1) * 2;\n  };\n  function interpolate(x, y, point, threshold, multiplier, bld, tld, brd, trd, accept) {\n    if (point[0] === 0) {\n      accept(multiplier * (x - 1), multiplier * (y - ratio(bld, threshold, tld)));\n    } else if (point[0] === 2) {\n      accept(multiplier * x, multiplier * (y - ratio(brd, threshold, trd)));\n    } else if (point[1] === 0) {\n      accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));\n    } else {\n      accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);\n    }\n  }\n  const ratio = (a, b, c) => {\n    return (b - a) / (c - a);\n  };\n  const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT) => {\n    const features = [];\n    let cursor = [0, 0];\n    const buffer = 1;\n    const width = tileSize;\n    const height = tileSize;\n    const multiplier = extent / width;\n    let tld, bld;\n    let i, j;\n    const segments = {};\n    const fragmentByStartByLevel = /* @__PURE__ */ new Map();\n    const fragmentByEndByLevel = /* @__PURE__ */ new Map();\n    const isInsideClip = createClippingTester(clippingOptions);\n    for (i = 1 - buffer; i < height + buffer; i++) {\n      const latTop = tile2lat(y + i / height, z);\n      const latBottom = tile2lat(y + (i - 1) / height, z);\n      const lonBottom = tile2lon(x + (i - 1) / width, z);\n      let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);\n      let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);\n      let minR = Math.min(trd, brd);\n      let maxR = Math.max(trd, brd);\n      for (j = 0 - buffer; j < width + buffer; j++) {\n        const lon = tile2lon(x + j / width, z);\n        tld = trd;\n        bld = brd;\n        trd = grid.getLinearInterpolatedValue(values, latBottom, lon);\n        brd = grid.getLinearInterpolatedValue(values, latTop, lon);\n        const minL = minR;\n        const maxL = maxR;\n        minR = Math.min(trd, brd);\n        maxR = Math.max(trd, brd);\n        if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {\n          continue;\n        }\n        if (isInsideClip && !isInsideClip(lon, latBottom)) {\n          continue;\n        }\n        let intervalList;\n        if (intervals.length === 1) {\n          const interval = intervals[0];\n          const min = Math.min(minL, minR);\n          const max = Math.max(maxL, maxR);\n          const start = Math.ceil(min / interval) * interval;\
+
+--- MATCH 15 ---
+ (y - ratio(brd, threshold, trd)));\n    } else if (point[1] === 0) {\n      accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));\n    } else {\n      accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);\n    }\n  }\n  const ratio = (a, b, c) => {\n    return (b - a) / (c - a);\n  };\n  const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT) => {\n    const features = [];\n    let cursor = [0, 0];\n    const buffer = 1;\n    const width = tileSize;\n    const height = tileSize;\n    const multiplier = extent / width;\n    let tld, bld;\n    let i, j;\n    const segments = {};\n    const fragmentByStartByLevel = /* @__PURE__ */ new Map();\n    const fragmentByEndByLevel = /* @__PURE__ */ new Map();\n    const isInsideClip = createClippingTester(clippingOptions);\n    for (i = 1 - buffer; i < height + buffer; i++) {\n      const latTop = tile2lat(y + i / height, z);\n      const latBottom = tile2lat(y + (i - 1) / height, z);\n      const lonBottom = tile2lon(x + (i - 1) / width, z);\n      let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);\n      let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);\n      let minR = Math.min(trd, brd);\n      let maxR = Math.max(trd, brd);\n      for (j = 0 - buffer; j < width + buffer; j++) {\n        const lon = tile2lon(x + j / width, z);\n        tld = trd;\n        bld = brd;\n        trd = grid.getLinearInterpolatedValue(values, latBottom, lon);\n        brd = grid.getLinearInterpolatedValue(values, latTop, lon);\n        const minL = minR;\n        const maxL = maxR;\n        minR = Math.min(trd, brd);\n        maxR = Math.max(trd, brd);\n        if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {\n          continue;\n        }\n        if (isInsideClip && !isInsideClip(lon, latBottom)) {\n          continue;\n        }\n        let intervalList;\n        if (intervals.length === 1) {\n          const interval = intervals[0];\n          const min = Math.min(minL, minR);\n          const max = Math.max(maxL, maxR);\n          const start = Math.ceil(min / interval) * interval;\n          const end = Math.floor(max / interval) * interval;\n          intervalList = Array.from(\n            { length: 1 + (end - start) / interval },\n            (_, i2) => start + interval * i2\n          );\n        } else {\n          intervalList = intervals;\n        }\n        for (
+
+--- MATCH 16 ---
+     accept(multiplier * (x - ratio(trd, threshold, tld)), multiplier * (y - 1));\n    } else {\n      accept(multiplier * (x - ratio(brd, threshold, bld)), multiplier * y);\n    }\n  }\n  const ratio = (a, b, c) => {\n    return (b - a) / (c - a);\n  };\n  const generateContours = (pbf, values, grid, x, y, z, tileSize, intervals, clippingOptions, extent = VECTOR_TILE_EXTENT) => {\n    const features = [];\n    let cursor = [0, 0];\n    const buffer = 1;\n    const width = tileSize;\n    const height = tileSize;\n    const multiplier = extent / width;\n    let tld, bld;\n    let i, j;\n    const segments = {};\n    const fragmentByStartByLevel = /* @__PURE__ */ new Map();\n    const fragmentByEndByLevel = /* @__PURE__ */ new Map();\n    const isInsideClip = createClippingTester(clippingOptions);\n    for (i = 1 - buffer; i < height + buffer; i++) {\n      const latTop = tile2lat(y + i / height, z);\n      const latBottom = tile2lat(y + (i - 1) / height, z);\n      const lonBottom = tile2lon(x + (i - 1) / width, z);\n      let trd = grid.getLinearInterpolatedValue(values, latBottom, lonBottom);\n      let brd = grid.getLinearInterpolatedValue(values, latTop, lonBottom);\n      let minR = Math.min(trd, brd);\n      let maxR = Math.max(trd, brd);\n      for (j = 0 - buffer; j < width + buffer; j++) {\n        const lon = tile2lon(x + j / width, z);\n        tld = trd;\n        bld = brd;\n        trd = grid.getLinearInterpolatedValue(values, latBottom, lon);\n        brd = grid.getLinearInterpolatedValue(values, latTop, lon);\n        const minL = minR;\n        const maxL = maxR;\n        minR = Math.min(trd, brd);\n        maxR = Math.max(trd, brd);\n        if (isNaN(tld) || isNaN(trd) || isNaN(brd) || isNaN(bld)) {\n          continue;\n        }\n        if (isInsideClip && !isInsideClip(lon, latBottom)) {\n          continue;\n        }\n        let intervalList;\n        if (intervals.length === 1) {\n          const interval = intervals[0];\n          const min = Math.min(minL, minR);\n          const max = Math.max(maxL, maxR);\n          const start = Math.ceil(min / interval) * interval;\n          const end = Math.floor(max / interval) * interval;\n          intervalList = Array.from(\n            { length: 1 + (end - start) / interval },\n            (_, i2) => start + interval * i2\n          );\n        } else {\n          intervalList = intervals;\n        }\n        for (const threshold of intervalList) {\n          const tl = tld >= threshol
+
+--- MATCH 17 ---
+er): { latitude: number; longitude: number } {\n    		const { y: y, x: x, nx: nx } = this.getPos(gridpoint);\n    \n    		const dx = 360 / nx;\n    		const dy = 180 / (2 * this.latitudeLines + 0.5);\n    \n    		const lon = x * dx;\n    		const adjustedLon = lon >= 180 ? lon - 360 : lon;\n    \n    		return {\n    			latitude: (this.latitudeLines - y - 1) * dy + dy / 2,\n    			longitude: adjustedLon\n    		};\n    	}*/\n    /**\n     * Find the grid point index for given latitude and longitude\n     */\n    /*findPoint(lat: number, lon: number): number {\n    		const dy = 180 / (2 * this.latitudeLines + 0.5);\n    		const y =\n    			(Math.round(this.latitudeLines - 1 - (lat - dy / 2) / dy) + 2 * this.latitudeLines) %\n    			(2 * this.latitudeLines);\n    \n    		const nx = this.nxOf(y);\n    		const dx = 360 / nx;\n    \n    		const x = (Math.round(lon / dx) + nx) % nx;\n    		return this.integral(y) + x;\n    	}*/\n    /*getPos(gridpoint: number): { y: number; x: number; nx: number } {\n    		const y =\n    			gridpoint < this.count / 2\n    				? Math.floor((Math.sqrt(2 * gridpoint + 81) - 9) / 2)\n    				: 2 * this.latitudeLines -\n    					1 -\n    					Math.floor((Math.sqrt(2 * (this.count - gridpoint - 1) + 81) - 9) / 2);\n    \n    		const integral = this.integral(y);\n    		const x = gridpoint - integral;\n    		const nx = this.nxOf(y);\n    \n    		return { y, x, nx };\n    	}*/\n    /// Values is the 1D array of all HRES values (6 million something values)\n    getLinearInterpolatedValue(values, lat, lon) {\n      const latitudeLines = this.latitudeLines;\n      const dy = 180 / (2 * latitudeLines + 0.5);\n      const yLower = modPositive(\n        Math.floor(latitudeLines - 1 - (lat - dy / 2) / dy),\n        2 * latitudeLines\n      );\n      const yFraction = modPositive(latitudeLines - 1 - (lat - dy / 2) / dy, 1);\n      const yUpper = yLower + 1;\n      const nxLower = this.nxOf(yLower);\n      const nxUpper = this.nxOf(yUpper);\n      const dxLower = 360 / nxLower;\n      const dxUpper = 360 / nxUpper;\n      const xLower0 = modPositive(Math.floor(lon / dxLower), nxLower);\n      const xUpper0 = modPositive(Math.floor(lon / dxUpper), nxUpper);\n      const integralLower = this.integral(yLower);\n      const integralUpper = this.integral(yUpper);\n      const xFractionLower = modPositive(lon / dxLower, 1);\n      const xFractionUpper = modPositive(lon / dxUpper, 1);\n      const p0 = values[integralLower + xLower0];\n      const p1 = valu
+
+--- MATCH 18 ---
+          { start: 0, end: data.nx }\n        ];\n      }\n      this.nx = ranges[1].end - ranges[1].start;\n      this.ny = ranges[0].end - ranges[0].start;\n      switch (data.type) {\n        case "projectedFromBounds": {\n          this.projection = createProjection(data.projection);\n          const sw = this.projection.forward(data.latitudeBounds[0], data.longitudeBounds[0]);\n          const ne = this.projection.forward(data.latitudeBounds[1], data.longitudeBounds[1]);\n          this.origin = sw;\n          this.dx = (ne[0] - sw[0]) / (data.nx - 1);\n          this.dy = (ne[1] - sw[1]) / (data.ny - 1);\n          break;\n        }\n        case "projectedFromGeographicOrigin": {\n          this.projection = createProjection(data.projection);\n          this.origin = this.projection.forward(data.latitude, data.longitude);\n          this.dx = data.dx;\n          this.dy = data.dy;\n          break;\n        }\n        case "projectedFromProjectedOrigin": {\n          this.projection = createProjection(data.projection);\n          this.origin = [data.projectedLongitudeOrigin, data.projectedLatitudeOrigin];\n          this.dx = data.dx;\n          this.dy = data.dy;\n          break;\n        }\n        default: {\n          const _exhaustive = data;\n          throw new Error(`Unknown projection: ${_exhaustive}`);\n        }\n      }\n      this.minX = this.origin[0] + this.dx * ranges[1].start;\n      this.minY = this.origin[1] + this.dy * ranges[0].start;\n    }\n    getLinearInterpolatedValue(values, lat, lon) {\n      const idx = this.findPointInterpolated(lat, lon);\n      return interpolateLinear(values, idx.x, idx.y, idx.xFraction, idx.yFraction, this.nx);\n    }\n    getBounds() {\n      if (!this.bounds) {\n        const borderPoints = this.getProjectedBorderPoints();\n        this.bounds = this.calculateGeographicBounds(borderPoints);\n      }\n      return this.bounds;\n    }\n    getCenter() {\n      if (!this.center) {\n        const bounds = this.getBounds();\n        this.center = this.getCenterFromBounds(bounds);\n      }\n      return this.center;\n    }\n    getCoveringRanges(south, west, north, east) {\n      const dx = this.dx;\n      const dy = this.dy;\n      const nx = this.nx;\n      const ny = this.ny;\n      let xPrecision, yPrecision;\n      if (String(dx).split(".")[1]) {\n        xPrecision = String(dx).split(".")[1].length;\n        yPrecision = String(dy).split(".")[1].length;\n      } else {\n        xPrecision = 2;\n 
+
+--- MATCH 19 ---
+psLat; i++) {\n      updateBounds(north - i * resolution, east);\n      updateBounds(south + i * resolution, west);\n    }\n    for (let i = 0; i <= stepsLon; i++) {\n      updateBounds(north, west + i * resolution);\n      updateBounds(south, east - i * resolution);\n    }\n    return [minY, minX, maxY, maxX];\n  };\n  class RegularGrid {\n    nx;\n    ny;\n    dx;\n    dy;\n    bounds;\n    longitudeWrap;\n    center;\n    constructor(data, ranges = null) {\n      this.dx = data.dx;\n      this.dy = data.dy;\n      if (!ranges) {\n        ranges = [\n          { start: 0, end: data.ny },\n          { start: 0, end: data.nx }\n        ];\n      } else {\n        if (ranges[0].start < 0 || ranges[0].start > data.ny || ranges[0].end < 0 || ranges[0].end > data.ny) {\n          throw new Error("Invalid y range");\n        }\n        if (ranges[1].start < 0 || ranges[1].start > data.nx || ranges[1].end < 0 || ranges[1].end > data.nx) {\n          throw new Error("Invalid x range");\n        }\n      }\n      this.nx = ranges[1].end - ranges[1].start;\n      this.ny = ranges[0].end - ranges[0].start;\n      const lonMin = data.lonMin + this.dx * ranges[1].start;\n      const latMin = data.latMin + this.dy * ranges[0].start;\n      const lonMax = data.lonMin + this.dx * ranges[1].end;\n      const latMax = data.latMin + this.dy * ranges[0].end;\n      this.bounds = [lonMin, latMin, lonMax, latMax];\n      this.longitudeWrap = lonMax - lonMin >= 359.875 ? true : false;\n    }\n    getLinearInterpolatedValue(values, lat, lon) {\n      if (!this.longitudeWrap) {\n        if (lon < this.bounds[0] || lon > this.bounds[2]) {\n          return NaN;\n        }\n      }\n      if (lat < this.bounds[1] || lat >= this.bounds[3]) {\n        return NaN;\n      }\n      const y = Math.floor((lat - this.bounds[1]) / this.dy);\n      const yFraction = (lat - this.bounds[1]) % this.dy / this.dy;\n      const x = Math.min(Math.floor((lon - this.bounds[0]) / this.dx), this.nx - 1);\n      const dx = this.longitudeWrap && lon >= this.bounds[2] - this.dx ? this.dx * 2 : this.dx;\n      const xFraction = (lon - this.bounds[0]) % dx / dx;\n      return interpolateLinear(values, x, y, xFraction, yFraction, this.nx, this.longitudeWrap);\n    }\n    getBounds() {\n      return this.bounds;\n    }\n    getCenter() {\n      if (!this.center) {\n        this.center = {\n          lng: this.bounds[0] + this.dx * (this.nx * 0.5),\n          lat: this.bounds[1] + this.dy * (this.ny * 0.5)\n  
+
+--- MATCH 20 ---
+`Unknown grid type: ${_exhaustive}`);\n        }\n      }\n    }\n  }\n  self.onmessage = async (message) => {\n    const key = message.data.key;\n    if (message.data.type === "cancel") {\n      postMessage({ type: "cancelled", key });\n      return;\n    }\n    const { z, x, y } = message.data.tileIndex;\n    const values = message.data.data.values;\n    const ranges = message.data.ranges;\n    const domain = message.data.dataOptions.domain;\n    const tileSize = message.data.renderOptions.tileSize;\n    const colorScale = message.data.renderOptions.colorScale;\n    const clippingOptions = message.data.clippingOptions;\n    if (!values) {\n      throw new Error("No values provided");\n    }\n    if (message.data.type == "getImage") {\n      const pixels = tileSize * tileSize;\n      const rgba = new Uint8ClampedArray(pixels * 4);\n      const grid = GridFactory.create(domain.grid, ranges);\n      for (let i = 0; i < tileSize; i++) {\n        const lat = tile2lat(y + i / tileSize, z);\n        if (clippingOptions?.bounds) {\n          if (checkAgainstBounds(lat, clippingOptions.bounds[1], clippingOptions.bounds[3])) continue;\n        }\n        for (let j = 0; j < tileSize; j++) {\n          const ind = j + i * tileSize;\n          const lon = tile2lon(x + j / tileSize, z);\n          if (clippingOptions?.bounds) {\n            if (checkAgainstBounds(lon, clippingOptions.bounds[0], clippingOptions.bounds[2]))\n              continue;\n          }\n          const px = grid.getLinearInterpolatedValue(values, lat, lon);\n          if (isFinite(px)) {\n            const color = getColor(colorScale, px);\n            rgba[4 * ind] = color[0];\n            rgba[4 * ind + 1] = color[1];\n            rgba[4 * ind + 2] = color[2];\n            rgba[4 * ind + 3] = 255 * color[3];\n          }\n        }\n      }\n      const imageData = new ImageData(rgba, tileSize, tileSize);\n      const canvas = new OffscreenCanvas(tileSize, tileSize);\n      const context = canvas.getContext("2d");\n      if (!context) {\n        throw new Error("Could not initialise canvas context");\n      }\n      context.putImageData(imageData, 0, 0);\n      let imageBitmap;\n      if (clippingOptions?.polygons) {\n        imageBitmap = clipRasterToPolygons(canvas, tileSize, z, x, y, clippingOptions);\n      } else {\n        imageBitmap = canvas.transferToImageBitmap();\n      }\n      postMessage({ type: "returnImage", tile: imageBitmap, key }, { transfer: [imageBitmap] });\n    } else 

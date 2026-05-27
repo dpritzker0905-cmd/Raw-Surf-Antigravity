@@ -1,0 +1,446 @@
+
+--- MATCH 1 ---
+        }
+      });
+      source.on("clear", () => {
+        for (const controller of inflight.values()) controller.abort();
+        inflight.clear();
+      });
+      Promise.resolve().then(() => resolve()).then(({ tileJson }) => {
+        if (tileJson["attribution"]) {
+          source.setAttributions(tileJson["attribution"]);
+        }
+      }).catch(() => {
+      });
+      return source;
+    }
+  };
+};
+const defaultFileReaderConfig = {
+  useSAB: false,
+  retries: 2,
+  eTagValidation: false
+};
+class WeatherMapLayerFileReader {
+  reader;
+  cache;
+  config;
+  allDerivationRules;
+  constructor(config = {}) {
+    this.config = {
+      ...defaultFileReaderConfig,
+      ...config
+    };
+    this.allDerivationRules = DEFAULT_DERIVATION_RULES;
+    this.cache = config.cache ?? new LruBlockCache(64 * 1024, 128);
+  }
+  async setToOmFile(omUrl) {
+    this.dispose();
+    const s3Backend = new OmHttpBackend({
+      url: omUrl,
+      eTagValidation: this.config.eTagValidation,
+      retries: this.config.retries
+    });
+    this.reader = await s3Backend.asCachedReader(this.cache);
+  }
+  getRanges(ranges, dimensions) {
+    if (ranges) {
+      return ranges;
+    } else {
+      return [
+        { start: 0, end: dimensions[0] },
+        { start: 0, end: dimensions[1] }
+      ];
+    }
+  }
+  /** Find the first derivation rule that matches the given variable name. */
+  findDerivationRule(variable) {
+    return this.allDerivationRules.find((rule) => {
+      if (typeof rule.pattern === "string") {
+        return variable.includes(rule.pattern);
+      } else {
+        return rule.pattern.test(variable);
+      }
+    });
+  }
+  /** Read variable data using a derivation rule. */
+  async readWithDerivationRule(variable, rule, ranges, signal) {
+    if (!this.reader) {
+      throw new Error("Reader not initialized. Call setToOmFile() first.");
+    }
+    const [primaryVar, secondaryVar] = rule.getSourceVars(variable);
+    const primaryReader = await this.reader.getChildByName(primaryVar);
+    if (!
+
+--- MATCH 2 ---
+);
+        }
+      }).catch(() => {
+      });
+      return source;
+    }
+  };
+};
+const defaultFileReaderConfig = {
+  useSAB: false,
+  retries: 2,
+  eTagValidation: false
+};
+class WeatherMapLayerFileReader {
+  reader;
+  cache;
+  config;
+  allDerivationRules;
+  constructor(config = {}) {
+    this.config = {
+      ...defaultFileReaderConfig,
+      ...config
+    };
+    this.allDerivationRules = DEFAULT_DERIVATION_RULES;
+    this.cache = config.cache ?? new LruBlockCache(64 * 1024, 128);
+  }
+  async setToOmFile(omUrl) {
+    this.dispose();
+    const s3Backend = new OmHttpBackend({
+      url: omUrl,
+      eTagValidation: this.config.eTagValidation,
+      retries: this.config.retries
+    });
+    this.reader = await s3Backend.asCachedReader(this.cache);
+  }
+  getRanges(ranges, dimensions) {
+    if (ranges) {
+      return ranges;
+    } else {
+      return [
+        { start: 0, end: dimensions[0] },
+        { start: 0, end: dimensions[1] }
+      ];
+    }
+  }
+  /** Find the first derivation rule that matches the given variable name. */
+  findDerivationRule(variable) {
+    return this.allDerivationRules.find((rule) => {
+      if (typeof rule.pattern === "string") {
+        return variable.includes(rule.pattern);
+      } else {
+        return rule.pattern.test(variable);
+      }
+    });
+  }
+  /** Read variable data using a derivation rule. */
+  async readWithDerivationRule(variable, rule, ranges, signal) {
+    if (!this.reader) {
+      throw new Error("Reader not initialized. Call setToOmFile() first.");
+    }
+    const [primaryVar, secondaryVar] = rule.getSourceVars(variable);
+    const primaryReader = await this.reader.getChildByName(primaryVar);
+    if (!primaryReader) {
+      throw new Error(`Primary variable ${primaryVar} not found`);
+    }
+    const secondaryReader = await this.reader.getChildByName(secondaryVar);
+    if (!secondaryReader) {
+      throw new Error(`Secondary variable ${secondaryVar} not found`);
+    }
+    const dimensions = primaryReader.getDimensions();
+  
+
+--- MATCH 3 ---
+n rule that matches the given variable name. */
+  findDerivationRule(variable) {
+    return this.allDerivationRules.find((rule) => {
+      if (typeof rule.pattern === "string") {
+        return variable.includes(rule.pattern);
+      } else {
+        return rule.pattern.test(variable);
+      }
+    });
+  }
+  /** Read variable data using a derivation rule. */
+  async readWithDerivationRule(variable, rule, ranges, signal) {
+    if (!this.reader) {
+      throw new Error("Reader not initialized. Call setToOmFile() first.");
+    }
+    const [primaryVar, secondaryVar] = rule.getSourceVars(variable);
+    const primaryReader = await this.reader.getChildByName(primaryVar);
+    if (!primaryReader) {
+      throw new Error(`Primary variable ${primaryVar} not found`);
+    }
+    const secondaryReader = await this.reader.getChildByName(secondaryVar);
+    if (!secondaryReader) {
+      throw new Error(`Secondary variable ${secondaryVar} not found`);
+    }
+    const dimensions = primaryReader.getDimensions();
+    const readRanges = this.getRanges(ranges, dimensions);
+    const readOptions = {
+      type: OmDataType.FloatArray,
+      ranges: readRanges,
+      intoSAB: this.config.useSAB,
+      signal
+    };
+    const primaryPromise = primaryReader.read(readOptions);
+    const secondaryPromise = secondaryReader.read(readOptions);
+    const [primaryData, secondaryData] = await Promise.all([primaryPromise, secondaryPromise]);
+    return rule.process(primaryData, secondaryData);
+  }
+  /**
+   * Read a single variable directly (no derivation).
+   */
+  async readSimpleVariable(variable, ranges, signal) {
+    if (!this.reader) {
+      throw new Error("Reader not initialized. Call setToOmFile() first.");
+    }
+    const variableReader = await this.reader.getChildByName(variable);
+    if (!variableReader) {
+      throw new Error(`Variable: ${variable} not found`);
+    }
+    const dimensions = variableReader.getDimensions();
+    const readRanges = this.getRanges(ranges, dimensions);
+    const valu
+
+--- MATCH 4 ---
+eSAB,
+      signal
+    };
+    const primaryPromise = primaryReader.read(readOptions);
+    const secondaryPromise = secondaryReader.read(readOptions);
+    const [primaryData, secondaryData] = await Promise.all([primaryPromise, secondaryPromise]);
+    return rule.process(primaryData, secondaryData);
+  }
+  /**
+   * Read a single variable directly (no derivation).
+   */
+  async readSimpleVariable(variable, ranges, signal) {
+    if (!this.reader) {
+      throw new Error("Reader not initialized. Call setToOmFile() first.");
+    }
+    const variableReader = await this.reader.getChildByName(variable);
+    if (!variableReader) {
+      throw new Error(`Variable: ${variable} not found`);
+    }
+    const dimensions = variableReader.getDimensions();
+    const readRanges = this.getRanges(ranges, dimensions);
+    const values = await variableReader.read({
+      type: OmDataType.FloatArray,
+      ranges: readRanges,
+      intoSAB: this.config.useSAB,
+      signal
+    });
+    return { values, directions: void 0 };
+  }
+  /**
+   * Read a specific variable from the file. Implements on the fly conversion for
+   * some variables, e.g. uv components are converted to speed and direction.
+   *
+   * @param variable The variable to read.
+   * @param ranges The ranges to read. If null, all dimensions are read.
+   * @param signal Optional AbortSignal
+   * @returns Promise resolving to data object containing values and optional directions
+   */
+  async readVariable(variable, ranges = null, signal) {
+    const derivationRule = this.findDerivationRule(variable);
+    if (derivationRule) {
+      return this.readWithDerivationRule(variable, derivationRule, ranges, signal);
+    } else {
+      return this.readSimpleVariable(variable, ranges, signal);
+    }
+  }
+  /**
+   * Prefetch data for a specific variable and range into the local cache.
+   * This is useful for warming up the cache for anticipated map movements.
+   */
+  async prefetchVariable(variable, ranges = null, signal) {
+    if (!this.reader) r
+
+--- MATCH 5 ---
+,
+      signal
+    });
+    return { values, directions: void 0 };
+  }
+  /**
+   * Read a specific variable from the file. Implements on the fly conversion for
+   * some variables, e.g. uv components are converted to speed and direction.
+   *
+   * @param variable The variable to read.
+   * @param ranges The ranges to read. If null, all dimensions are read.
+   * @param signal Optional AbortSignal
+   * @returns Promise resolving to data object containing values and optional directions
+   */
+  async readVariable(variable, ranges = null, signal) {
+    const derivationRule = this.findDerivationRule(variable);
+    if (derivationRule) {
+      return this.readWithDerivationRule(variable, derivationRule, ranges, signal);
+    } else {
+      return this.readSimpleVariable(variable, ranges, signal);
+    }
+  }
+  /**
+   * Prefetch data for a specific variable and range into the local cache.
+   * This is useful for warming up the cache for anticipated map movements.
+   */
+  async prefetchVariable(variable, ranges = null, signal) {
+    if (!this.reader) return;
+    const derivationRule = this.findDerivationRule(variable);
+    const varsToPrefetch = derivationRule ? derivationRule.getSourceVars(variable) : [variable];
+    await Promise.all(
+      varsToPrefetch.map(async (v) => {
+        const variableReader = await this.reader.getChildByName(v);
+        if (!variableReader) return;
+        const dimensions = variableReader.getDimensions();
+        const readRanges = this.getRanges(ranges, dimensions);
+        await variableReader.readPrefetch({
+          prefetchConcurrency: 1e3,
+          // concurrency limiting on requests is executed via the BlockCache
+          ranges: readRanges,
+          signal
+        });
+      })
+    );
+  }
+  dispose() {
+    if (this.reader) {
+      this.reader.dispose();
+    }
+    delete this.reader;
+  }
+}
+const DEFAULT_DERIVATION_RULES = [
+  // UV wind components -> speed and direction
+  {
+    pattern: /_[uv]_(component|current)/,
+    getSourceVars: (varia
+
+--- MATCH 6 ---
+Count <= 1) {
+      inflightRequests.delete(state);
+      current.controller.abort();
+    } else {
+      current.subscriberCount -= 1;
+    }
+  };
+  if (signal) {
+    signal.addEventListener("abort", cleanup, { once: true });
+  }
+  try {
+    if (state.dataPromise) {
+      return await state.dataPromise;
+    }
+    const controller = new AbortController();
+    inflightRequests.set(state, { controller, subscriberCount });
+    state.dataPromise = (async () => {
+      try {
+        await omFileReader.setToOmFile(state.omFileUrl);
+        const data = await omFileReader.readVariable(
+          state.dataOptions.variable,
+          state.ranges,
+          controller.signal
+        );
+        if (postReadCallback) {
+          postReadCallback(omFileReader, data, state);
+        }
+        state.data = data;
+        return data;
+      } finally {
+        state.dataPromise = null;
+        inflightRequests.delete(state);
+      }
+    })();
+    return await state.dataPromise;
+  } finally {
+    if (signal) {
+      signal.removeEventListener("abort", cleanup);
+    }
+    cleanup();
+  }
+};
+const getValueFromLatLong = async (lat, lon, omUrl) => {
+  if (!omProtocolInstance) {
+    throw new Error("OmProtocolInstance is not initialized");
+  }
+  const url = await normalizeUrl(omUrl);
+  const { fileAndVariableKey } = parseUrlComponents(url);
+  const state = omProtocolInstance.stateByKey.get(fileAndVariableKey);
+  if (!state) {
+    throw new Error(`State not found for key: ${fileAndVariableKey}`);
+  }
+  state.lastAccess = Date.now();
+  if (!state.data?.values) {
+    return { value: NaN };
+  }
+  const grid = GridFactory.create(state.dataOptions.domain.grid, state.ranges);
+  const lonNormalized = normalizeLon(lon);
+  const value = grid.getLinearInterpolatedValue(state.data.values, lat, lonNormalized);
+  return { value };
+};
+const evictStaleStates = (stateByKey, currentKey) => {
+  const now = Date.now();
+  for (const [key, state] of stateByKey) {
+    if (stateByKey.size <= MAX_STATES_WITH_DATA)
+
+--- MATCH 7 ---
+roller.abort();
+    } else {
+      current.subscriberCount -= 1;
+    }
+  };
+  if (signal) {
+    signal.addEventListener("abort", cleanup, { once: true });
+  }
+  try {
+    if (state.dataPromise) {
+      return await state.dataPromise;
+    }
+    const controller = new AbortController();
+    inflightRequests.set(state, { controller, subscriberCount });
+    state.dataPromise = (async () => {
+      try {
+        await omFileReader.setToOmFile(state.omFileUrl);
+        const data = await omFileReader.readVariable(
+          state.dataOptions.variable,
+          state.ranges,
+          controller.signal
+        );
+        if (postReadCallback) {
+          postReadCallback(omFileReader, data, state);
+        }
+        state.data = data;
+        return data;
+      } finally {
+        state.dataPromise = null;
+        inflightRequests.delete(state);
+      }
+    })();
+    return await state.dataPromise;
+  } finally {
+    if (signal) {
+      signal.removeEventListener("abort", cleanup);
+    }
+    cleanup();
+  }
+};
+const getValueFromLatLong = async (lat, lon, omUrl) => {
+  if (!omProtocolInstance) {
+    throw new Error("OmProtocolInstance is not initialized");
+  }
+  const url = await normalizeUrl(omUrl);
+  const { fileAndVariableKey } = parseUrlComponents(url);
+  const state = omProtocolInstance.stateByKey.get(fileAndVariableKey);
+  if (!state) {
+    throw new Error(`State not found for key: ${fileAndVariableKey}`);
+  }
+  state.lastAccess = Date.now();
+  if (!state.data?.values) {
+    return { value: NaN };
+  }
+  const grid = GridFactory.create(state.dataOptions.domain.grid, state.ranges);
+  const lonNormalized = normalizeLon(lon);
+  const value = grid.getLinearInterpolatedValue(state.data.values, lat, lonNormalized);
+  return { value };
+};
+const evictStaleStates = (stateByKey, currentKey) => {
+  const now = Date.now();
+  for (const [key, state] of stateByKey) {
+    if (stateByKey.size <= MAX_STATES_WITH_DATA) {
+      const age2 = now - state.lastAccess;
+      if (age2 <= STALE_

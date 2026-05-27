@@ -1,0 +1,187 @@
+
+--- MATCH 1 ---
+   )
+  );
+};
+let cachedClippingInput = void 0;
+let cachedClippingResult = void 0;
+let useSAB = void 0;
+const getCachedResolvedClipping = (options) => {
+  if (options === cachedClippingInput) {
+    return cachedClippingResult;
+  }
+  cachedClippingInput = options;
+  cachedClippingResult = resolveClippingOptions(options, useSAB);
+  return cachedClippingResult;
+};
+const parseRequest = (url, settings) => {
+  const urlComponents = parseUrlComponents(url);
+  const resolver = settings.resolveRequest ?? defaultResolveRequest;
+  const { dataOptions, renderOptions } = resolver(urlComponents, settings);
+  useSAB = settings.fileReaderConfig.useSAB;
+  const resolvedClippingOptions = getCachedResolvedClipping(settings.clippingOptions);
+  setClippingBounds(resolvedClippingOptions?.bounds);
+  return {
+    baseUrl: urlComponents.baseUrl,
+    fileAndVariableKey: urlComponents.fileAndVariableKey,
+    tileIndex: urlComponents.tileIndex,
+    dataOptions,
+    renderOptions,
+    clippingOptions: resolvedClippingOptions
+  };
+};
+const defaultResolveRequest = (urlComponents, settings) => {
+  const dataOptions = defaultResolveDataIdentity(urlComponents, settings.domainOptions);
+  const renderOptions = defaultResolveRenderOptions(
+    urlComponents,
+    dataOptions,
+    settings.colorScales
+  );
+  return { dataOptions, renderOptions };
+};
+const defaultResolveDataIdentity = (urlComponents, domainOptions2) => {
+  const { baseUrl, params } = urlComponents;
+  const match = baseUrl.match(RESOLVE_DOMAIN_REGEX);
+  const domainValue = match?.groups?.domain;
+  if (!domainValue) {
+    throw new Error(`Could not parse domain from URL: ${baseUrl}`);
+  }
+  const domain = domainOptions2.find((dm) => dm.value === domainValue);
+  if (!domain) {
+    throw new Error(`Invalid domain: ${domainValue}`);
+  }
+  const variable = params.get("variable");
+  if (!variable) {
+    throw new Error(`Variable is required but not defined`);
+  }
+  const mapBounds = currentBounds;
+  return { domain, variable, bounds: mapBounds };
+
+--- MATCH 2 ---
+const { dataOptions, renderOptions } = resolver(urlComponents, settings);
+  useSAB = settings.fileReaderConfig.useSAB;
+  const resolvedClippingOptions = getCachedResolvedClipping(settings.clippingOptions);
+  setClippingBounds(resolvedClippingOptions?.bounds);
+  return {
+    baseUrl: urlComponents.baseUrl,
+    fileAndVariableKey: urlComponents.fileAndVariableKey,
+    tileIndex: urlComponents.tileIndex,
+    dataOptions,
+    renderOptions,
+    clippingOptions: resolvedClippingOptions
+  };
+};
+const defaultResolveRequest = (urlComponents, settings) => {
+  const dataOptions = defaultResolveDataIdentity(urlComponents, settings.domainOptions);
+  const renderOptions = defaultResolveRenderOptions(
+    urlComponents,
+    dataOptions,
+    settings.colorScales
+  );
+  return { dataOptions, renderOptions };
+};
+const defaultResolveDataIdentity = (urlComponents, domainOptions2) => {
+  const { baseUrl, params } = urlComponents;
+  const match = baseUrl.match(RESOLVE_DOMAIN_REGEX);
+  const domainValue = match?.groups?.domain;
+  if (!domainValue) {
+    throw new Error(`Could not parse domain from URL: ${baseUrl}`);
+  }
+  const domain = domainOptions2.find((dm) => dm.value === domainValue);
+  if (!domain) {
+    throw new Error(`Invalid domain: ${domainValue}`);
+  }
+  const variable = params.get("variable");
+  if (!variable) {
+    throw new Error(`Variable is required but not defined`);
+  }
+  const mapBounds = currentBounds;
+  return { domain, variable, bounds: mapBounds };
+};
+const defaultResolveRenderOptions = (urlComponents, dataOptions, colorScales) => {
+  const { params } = urlComponents;
+  const dark = params.get("dark") === "true";
+  let colorScale;
+  if (colorScales.custom) {
+    colorScale = resolveColorScale(colorScales.custom, dark);
+  } else {
+    colorScale = getColorScale(dataOptions.variable, dark, colorScales);
+  }
+  const tileSize = parseTileSize(params.get("tile_size"));
+  let intervals = [DEFAULT_INTERVAL];
+  if (params.get("intervals")) {
+    intervals = params.get("in
+
+--- MATCH 3 ---
+EventListener("abort", abortHandler);
+        }
+        resolve(result);
+      };
+      pending2.resolvers.push(resolver);
+      if (request.signal) {
+        request.signal.addEventListener("abort", abortHandler, { once: true });
+      }
+    });
+  }
+}
+const workerPool = new WorkerPool();
+const defaultOmProtocolSettings = {
+  // static
+  fileReaderConfig: defaultFileReaderConfig,
+  // dynamic
+  clippingOptions: void 0,
+  colorScales: COLOR_SCALES_WITH_ALIASES,
+  domainOptions,
+  resolveRequest: defaultResolveRequest,
+  postReadCallback: void 0
+};
+const makeAbortResult = () => {
+  return { data: null };
+};
+const omProtocol = async (params, abortController, settings = defaultOmProtocolSettings) => {
+  const signal = abortController.signal;
+  if (signal.aborted) {
+    return makeAbortResult();
+  }
+  const instance = getProtocolInstance(settings);
+  const url = await normalizeUrl(params.url);
+  const request = parseRequest(url, settings);
+  const state = getOrCreateState(
+    instance.stateByKey,
+    request.fileAndVariableKey,
+    request.dataOptions,
+    request.baseUrl
+  );
+  if (signal.aborted) {
+    return makeAbortResult();
+  }
+  const data = await ensureData(state, instance.omFileReader, settings.postReadCallback, signal);
+  if (params.type == "json") {
+    return {
+      data: await getTilejson(params.url, request.dataOptions, request.clippingOptions)
+    };
+  }
+  if (params.type !== "image" && params.type !== "arrayBuffer") {
+    throw new Error(`Unsupported request type '${params.type}'`);
+  }
+  if (!request.tileIndex) {
+    throw new Error(`Tile coordinates required for ${params.type} request`);
+  }
+  const { data: tileData, cancelled } = await requestTile(
+    url,
+    request,
+    data,
+    state.ranges,
+    params.type,
+    signal
+  );
+  if (cancelled) {
+    return makeAbortResult();
+  } else {
+    return { data: tileData };
+  }
+};
+const normalizeUrl = async (url) => {
+  let normalized = url;
+  if (url.includes(".json")) {
+    normalized = await parseMetaJ
