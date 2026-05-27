@@ -135,6 +135,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
   const layerAddedRef = useRef(false);
   const onErrorRef = useRef(onError);
   const glRef = useRef(null);
+  const pendingDataRef = useRef(null); // Stash data that arrives before GL is ready
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
@@ -153,6 +154,23 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef);
+
+    // v3.13: After GL is ready, apply any pending wind data that arrived before onAdd
+    const origOnAdd = customLayer.onAdd.bind(customLayer);
+    customLayer.onAdd = function(_mapOrArgs, glArg) {
+      origOnAdd(_mapOrArgs, glArg);
+      // Apply pending data now that GL is available
+      const gl = glRef.current;
+      if (gl && pendingDataRef.current?.vectors?.length) {
+        try {
+          engine.setWindData(gl, pendingDataRef.current);
+          pendingDataRef.current = null;
+          mapInstance.triggerRepaint();
+        } catch (e) {
+          console.warn('[WebGLWind] Deferred setWindData error:', e.message);
+        }
+      }
+    };
 
     // Dynamic layer style data sync: add layer and keep it present across style/theme reloads
     const handleStyleData = () => {
@@ -191,11 +209,18 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
   useEffect(() => {
     const engine = engineRef.current;
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
-    if (!engine || !data?.vectors?.length || !mapInstance || !gl) return;
+    if (!engine || !data?.vectors?.length || !mapInstance) return;
+
+    // v3.13: If GL isn't ready yet (onAdd hasn't fired), stash data for deferred application
+    if (!gl) {
+      pendingDataRef.current = data;
+      return;
+    }
 
     try {
       console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
       engine.setWindData(gl, data);
+      pendingDataRef.current = null;
       mapInstance.triggerRepaint();
     } catch (e) {
       console.warn('[WebGLWind] setWindData error:', e.message);

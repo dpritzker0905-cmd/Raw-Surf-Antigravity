@@ -58,16 +58,17 @@ void main() {
   float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   
-  // Wave drift (slower ocean velocity with high-precision coordinate advection)
-  vec2 offset = vec2(waveVec.x / merc_scale, waveVec.y) * u_speed_scale;
+  // Wave drift — energy-proportional advection with Mercator correction
+  // Higher waves move faster (realistic deep-water group velocity behavior)
+  float energyBoost = 1.0 + smoothstep(1.0, 5.0, waveHeight) * 0.6;
+  vec2 offset = vec2(waveVec.x / merc_scale, waveVec.y) * u_speed_scale * energyBoost;
   pos = pos + offset;
 
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // Land or very small waves discard (threshold: 0.35m wave height)
-  // Also check ocean mask alpha to prevent particles drifting into coastal interpolation zone
-  if (waveHeight < 0.35 || length(waveVec) < 0.001 || waveData.a < 0.7) {
+  // Land or very small waves discard (0.15m threshold for dense ocean coverage)
+  if (waveHeight < 0.15 || length(waveVec) < 0.001 || waveData.a < 0.7) {
     drop = 1.0;
   }
 
@@ -117,8 +118,8 @@ void main() {
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
 
-  // Discard land/calm particles (alpha > 0.7 = predominantly ocean cell)
-  if (waveHeight < 0.35 || length(waveVec) < 0.001 || waveData.a < 0.7) {
+  // Discard land/calm particles (lower threshold = denser ocean coverage)
+  if (waveHeight < 0.15 || length(waveVec) < 0.001 || waveData.a < 0.7) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
@@ -129,8 +130,9 @@ void main() {
   
   // Zoom-aware pixel-to-degree conversion: 1 pixel = 360 / (256 * 2^zoom) degrees
   float pixelInDegrees = 360.0 / (256.0 * exp2(u_zoom));
-  // Non-linear crest length: sqrt makes small waves visible, big waves dramatic
-  float crestPixels = sqrt(waveHeight) * u_dash_length_scale;
+  // Non-linear crest length: pow(0.7) makes small waves visible, big waves dramatic
+  // Minimum 3px ensures even calm-ocean particles are perceptible
+  float crestPixels = max(3.0, pow(waveHeight, 0.7) * u_dash_length_scale);
   vec2 coordOffset = perp * crestPixels * pixelInDegrees * 0.5;
 
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
@@ -158,16 +160,18 @@ void main() {
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
   // Deep water wave period: T ≈ 0.9 * sqrt(H * 5.12)
   // Taller waves pulse slower (longer period), matching real ocean physics
-  float derivedPeriod = 0.9 * sqrt(max(waveHeight, 0.5) * 5.12);
-  // Per-particle variation (±30%) to avoid mechanical uniformity
-  float period = derivedPeriod * (0.7 + particleHash * 0.6);
+  float derivedPeriod = 0.9 * sqrt(max(waveHeight, 0.3) * 5.12);
+  // Per-particle variation (±40%) for organic natural feel
+  float period = derivedPeriod * (0.6 + particleHash * 0.8);
   float phase = fract(u_time / period + particleHash);
   
-  v_alpha = sin(phase * 3.141592653589793);
-  // Height-driven alpha: small waves (<1m) faint, big waves (>3m) bright
-  v_alpha *= clamp(waveHeight / 2.5, 0.2, 1.0);
-  // Minimum visibility floor
-  v_alpha = max(v_alpha, 0.15);
+  // Smooth sinusoidal pulsation with extended visible range
+  v_alpha = pow(sin(phase * 3.141592653589793), 0.7);
+  // Strong height-driven intensity: calm seas faint, storms bright
+  float heightIntensity = smoothstep(0.0, 4.0, waveHeight);
+  v_alpha *= mix(0.25, 1.0, heightIntensity);
+  // Minimum visibility floor — every ocean particle should be faintly visible
+  v_alpha = max(v_alpha, 0.12);
 }
 `;
 
@@ -179,16 +183,19 @@ varying float v_wave_height;
 void main() {
   if (v_alpha < 0.02) discard;
 
-  // Wave height drives crest brightness: 0-2m dim, 2-6m bright, 6m+ pure white
-  float energy = clamp(v_wave_height / 6.0, 0.0, 1.0);
+  // Wave height drives crest color: calm=soft cyan, moderate=bright white, storm=intense white
+  float energy = smoothstep(0.0, 6.0, v_wave_height);
   
-  // Bright white-cyan crests that stand out against the ocean heatmap
-  vec3 standardColor = vec3(0.9, 0.98, 1.0);
-  vec3 highEnergyColor = vec3(1.0, 1.0, 1.0);
-  vec3 finalColor = mix(standardColor, highEnergyColor, energy);
+  // 3-stop color ramp: soft blue-white → bright white → intense bright white
+  vec3 calmColor = vec3(0.78, 0.92, 1.0);     // soft cyan for calm ocean
+  vec3 activeColor = vec3(0.92, 0.98, 1.0);    // white-cyan for moderate swell
+  vec3 stormColor = vec3(1.0, 1.0, 1.0);       // pure white for high energy
+  vec3 finalColor = energy < 0.5 
+    ? mix(calmColor, activeColor, energy * 2.0)
+    : mix(activeColor, stormColor, (energy - 0.5) * 2.0);
 
-  // Boost alpha for visibility against dark ocean background
-  float boostedAlpha = v_alpha * 1.5;
+  // Progressive alpha boost: more visible particles in high-energy zones
+  float boostedAlpha = v_alpha * mix(1.2, 1.8, energy);
   boostedAlpha = min(boostedAlpha, 0.95);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
 }
@@ -261,16 +268,17 @@ void main() {
   // With LINEAR filtering on a coarse grid, alpha interpolates across the coast.
   // Threshold at 0.7 ensures only predominantly-ocean cells pass (crisp coastline).
   // The ocean-mask-fill vector layer on top provides precise coastline masking.
-  if (waveData.a < 0.7 || waveHeight < 0.05) {
+  if (waveData.a < 0.7 || waveHeight < 0.01) {
     discard;
   }
 
   vec3 rgb = getMarineColor(waveHeight);
   float alpha = u_opacity;
   
-  // Sharp coastline fade: narrow 0.7→0.95 band prevents gradient bleed onto land
-  float fade = smoothstep(0.05, 0.3, waveHeight) * smoothstep(0.7, 0.95, waveData.a);
-  alpha *= fade;
+  // Smooth coastline fade with rich ocean fill
+  float heightFade = smoothstep(0.01, 0.15, waveHeight);
+  float maskFade = smoothstep(0.7, 0.9, waveData.a);
+  alpha *= heightFade * maskFade;
 
   gl_FragColor = vec4(rgb * alpha, alpha);
 }
@@ -394,8 +402,8 @@ function initParticleTexture(gl, resolution) {
 
 function WebGLMarineEngine() {
   this.particleRes = 256;       // 256 * 256 = 65,536 lines
-  this.speedFactor = 0.05;      // Slower advection matching ocean drift
-  this.dropRate = 0.002;
+  this.speedFactor = 0.05;      // Ocean drift speed base
+  this.dropRate = 0.004;        // Faster recycling = denser coverage, fewer gaps
   this._initialized = false;
   this._waveData = null;
   this._startTime = Date.now();
@@ -433,9 +441,10 @@ WebGLMarineEngine.prototype.init = function(gl) {
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, vertexIds, gl.STATIC_DRAW);
 
-  // Static 64x64 grid mesh for heatmap rendering
-  const W = 64;
-  const H = 64;
+  // High-res 96x96 grid mesh for smooth continuous heatmap rendering
+  // (96×96 keeps indices within Uint16Array limit: 95*95*6 = 54,150 < 65,535)
+  const W = 96;
+  const H = 96;
   const gridUVs = new Float32Array(W * H * 2);
   for (let r = 0; r < H; r++) {
     for (let c = 0; c < W; c++) {
@@ -586,7 +595,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   
-  const waveOpacity = Math.min(0.40, Math.max(0.18, 0.18 + (zoom - 2) * 0.015));
+  const waveOpacity = Math.min(0.65, Math.max(0.35, 0.35 + (zoom - 2) * 0.025));
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), waveOpacity);
 
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_marine_grid'), 0);
@@ -680,7 +689,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   const zVal = typeof zoom === 'number' ? zoom : 6.0;
   // dashLengthScale = target pixel length per meter of wave height
   // At 1m wave: ~8px crest line, at 3m wave: ~24px crest line
-  const dashLengthScale = 8.0;
+  const dashLengthScale = 12.0;  // Larger crests for Ventusky-level visibility
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_length_scale'), dashLengthScale);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), zVal);
 

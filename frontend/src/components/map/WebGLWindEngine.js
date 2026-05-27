@@ -105,6 +105,7 @@ uniform float u_particles_res;
 uniform mat4 u_matrix;
 uniform vec2 u_dataBounds_min;   // [west, south] in degrees
 uniform vec2 u_dataBounds_max;   // [east, north] in degrees
+uniform float u_lng_offset;      // world-copy offset: -360, 0, or +360
 varying float v_speed;
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
@@ -126,8 +127,8 @@ void main() {
   vec4 encoded = texture2D(u_particles, uv);
   vec2 pos = decodePos(encoded);
 
-  // Convert [0,1] [lng, lat]
-  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
+  // Convert [0,1] to [lng, lat] then apply world-copy offset
+  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x) + u_lng_offset;
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
 
   // Speed for coloring
@@ -136,9 +137,7 @@ void main() {
   v_speed = length(wind);
 
   // Convert to Mercator for MapLibre
-  // Wrap longitude to [-180, 180] for antimeridian crossing
-  float wrappedLng = lng - 360.0 * floor((lng + 180.0) / 360.0);
-  float x = (wrappedLng + 180.0) / 360.0;
+  float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
@@ -428,6 +427,22 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     this.screenB = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
     this._screenW = screenWidth; this._screenH = screenHeight;
   }
+
+  // v3.13: Clear trail FBOs during zoom transitions to prevent ghosting/smearing.
+  // Screen-space trails don't move with the map, so rapid zoom creates visual noise.
+  var currentZoom = typeof zoom === 'number' ? zoom : 6;
+  if (this._lastRenderZoom !== undefined) {
+    var zoomDelta = Math.abs(currentZoom - this._lastRenderZoom);
+    if (zoomDelta > 0.15) {
+      // Significant zoom change — clear trail buffers
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
+      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
+      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+  }
+  this._lastRenderZoom = currentZoom;
   // WebGL State Isolation Protocol
   var prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
   var prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
@@ -505,10 +520,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   if (this.frameCount === undefined) this.frameCount = 0;
   this.frameCount++;
   if (this.frameCount === 1) {
-    console.log(`[WIND-TELEMETRY] Frame 1 matrix:`, Array.from(mat4));
-  }
-  if (this.frameCount === 1 || this.frameCount % 60 === 0) {
-    console.log(`[WIND-TELEMETRY] Frame: ${this.frameCount} | RAF tick executed | update() advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | velocity field bounds: min = [${this._windData.uMin[0].toFixed(2)}, ${this._windData.uMin[1].toFixed(2)}], max = [${this._windData.uMax[0].toFixed(2)}, ${this._windData.uMax[1].toFixed(2)}] | particle buffer mutated (State A/B ping-pong active) | draw call: gl.drawArrays(POINTS, 0, ${this.particleRes * this.particleRes}) | shader active: advectProgram + drawProgram + fadeProgram + screenProgram | uniforms: u_speed_scale, u_rand_seed, u_matrix, u_fade`);
+    console.log(`[WIND-TELEMETRY] Frame 1 | advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | bounds: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | ${this.particleRes * this.particleRes} particles`);
   }
 
   // Step 1: Advect particles (ping-pong)
@@ -533,7 +545,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(advPosLoc);
   gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
-  logStepDetails(gl, "Step 1");
+
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   var err1 = gl.getError();
   if (err1 !== gl.NO_ERROR) {
@@ -584,13 +596,18 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);
   var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
+  var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
   gl.enableVertexAttribArray(idxLoc);
   gl.vertexAttribPointer(idxLoc, 1, gl.FLOAT, false, 0, 0);
-  gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
-  var err3 = gl.getError();
-  if (err3 !== gl.NO_ERROR) {
-    console.error("[WebGLWindEngine] Step 3 Draw Error:", err3);
+
+  // v3.13: Draw particles for multiple world copies to fill the entire viewport at low zoom.
+  // At zoom < 3, the map shows more than 360° of longitude, so we need 3 copies.
+  // At higher zoom, a single copy at offset 0 is sufficient.
+  var worldOffsets = (z < 3.5) ? [0.0, -360.0, 360.0] : [0.0];
+  for (var wi = 0; wi < worldOffsets.length; wi++) {
+    gl.uniform1f(lngOffsetLoc, worldOffsets[wi]);
+    gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
   }
   gl.disableVertexAttribArray(idxLoc);
 
@@ -625,7 +642,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.85);
-  logStepDetails(gl, "Step 4");
+
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   var err4 = gl.getError();
   if (err4 !== gl.NO_ERROR) {

@@ -43,17 +43,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     const RETRY_DELAYS = [0, 8000, 15000, 30000, 60000];
 
     const getBounds = () => {
-      try {
-        const b = mapInstance.getBounds();
-        return {
-          west: b.getWest(),
-          south: Math.max(-85, b.getSouth()),
-          east: b.getEast(),
-          north: Math.min(85, b.getNorth())
-        };
-      } catch (e) {
-        return null;
-      }
+      // v3.13: Wind particles need GLOBAL coverage for the WebGL engine.
+      // The 3x longitude wrapping renders across the entire visible globe.
+      // Using viewport bounds would confine particles to a small region.
+      // computeGridPoints automatically uses a 15x15 global grid when
+      // lngSpan > 180, producing the correct 225-point global coverage.
+      return { west: -180, south: -85, east: 180, north: 85 };
     };
 
     const attemptFetch = async () => {
@@ -196,7 +191,9 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           }
 
           try {
-            const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
+            // v3.13: Always fetch with global bounds for wind
+            const globalBounds = { west: -180, south: -85, east: 180, north: 85 };
+            const data = await fetchWindData(globalBounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
             if (data && data.vectors?.length > 0) {
               console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors`);
               windRevision.current += 1;

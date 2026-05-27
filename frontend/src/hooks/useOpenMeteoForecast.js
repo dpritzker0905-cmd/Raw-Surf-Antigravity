@@ -142,11 +142,18 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
 
       // Helper: fetch via proxy, fall back to direct Open-Meteo if proxy returns HTML/404 (localhost only)
+      // v3.13: Do NOT fall back on 429 — that means the API itself is rate-limiting,
+      // retrying directly just burns more rate limit.
       const safeFetch = async (url, directType, directParams) => {
         try {
           const res = await fetch(url, { signal: controller.signal });
-          // If proxy returns HTML (e.g. CRA index.html for unknown route), fall back (localhost only)
           const ct = res.headers.get('content-type') || '';
+          // 429 = API rate limit — do NOT fall back to direct
+          if (res.status === 429) {
+            console.warn(`[OpenMeteo] Rate limited (429) for ${directType}, not retrying`);
+            return res; // Return the 429 response directly, let caller handle it
+          }
+          // HTML = proxy misconfigured (CRA catch-all), fall back to direct on localhost
           if (!res.ok || ct.includes('text/html')) {
             if (isLocalhost) {
               console.log(`[OpenMeteo] Proxy unavailable (${res.status}), falling back to direct API for ${directType}`);

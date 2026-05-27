@@ -58,7 +58,7 @@ var PRESSURE_CACHE = new Map();
 var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
 var pressureHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
-var HOURLY_CACHE_TTL = 30 * 60 * 1000; // 30 min (increased from 10 to reduce API calls)
+var HOURLY_CACHE_TTL = 60 * 60 * 1000; // 60 min (long cache to minimize API calls)
 
 // --- PERSISTENT CACHE (localStorage) ---
 // Survives page reloads eliminates 429s on revisit
@@ -89,10 +89,20 @@ function hydrateCache(key) {
 }
 
 // Hydrate from localStorage on module init
+// v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped
+// caches cause particles to be confined to a small region.
 var _hydratedWind = hydrateCache(LS_WIND_KEY);
 if (_hydratedWind) {
-  windHourlyCache = _hydratedWind;
-  console.log(`[Wind] Hydrated from localStorage: ${_hydratedWind.points?.length} pts, age ${Math.round((Date.now() - _hydratedWind.timestamp)/1000)}s`);
+  var _hydBounds = _hydratedWind.bounds;
+  var _hydLngSpan = _hydBounds ? Math.abs(_hydBounds.east - _hydBounds.west) : 0;
+  if (_hydLngSpan > 180) {
+    windHourlyCache = _hydratedWind;
+    console.log(`[Wind] Hydrated from localStorage: ${_hydratedWind.points?.length} pts, age ${Math.round((Date.now() - _hydratedWind.timestamp)/1000)}s (GLOBAL)`);
+  } else {
+    console.log(`[Wind] Rejected non-global localStorage cache (lngSpan=${_hydLngSpan.toFixed(0)}°, need >180°)`);
+    _hydratedWind = null;
+    try { localStorage.removeItem(LS_WIND_KEY); } catch(e) {}
+  }
 }
 var _hydratedMarine = hydrateCache(LS_MARINE_KEY);
 if (_hydratedMarine) {
@@ -118,7 +128,7 @@ if (lastKnownGoodPressure) console.log(`[Pressure] Pre-populated lastKnownGood: 
 var windCooldownUntil = 0;
 var marineCooldownUntil = 0;
 var pressureCooldownUntil = 0;
-var COOLDOWN_MS = 60000; // 60s longer cooldown to let Open-Meteo rate limit recover
+var COOLDOWN_MS = 300000; // 5 min cooldown — OpenMeteo free tier has aggressive rate limits
 
 // --- INFLIGHT ABORT CONTROLLERS ---
 var windAbortController = null;
@@ -519,8 +529,19 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         body: JSON.stringify({ type: 'wind', body }),
         signal: fetchSignal
       });
+      // v3.13: 429 = API rate limit, NOT proxy failure. Do NOT fall back to direct.
+      if (res.status === 429) {
+        enterCooldown('wind');
+        console.warn('[Wind] 429 from proxy, cooldown activated (not retrying direct)');
+        return lastKnownGoodWind;
+      }
       if (!res.ok) {
         throw new Error(`Proxy returned HTTP ${res.status}`);
+      }
+      // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
+      const windContentType = res.headers.get('content-type') || '';
+      if (!windContentType.includes('application/json')) {
+        throw new Error(`Proxy returned non-JSON content-type: ${windContentType.substring(0, 50)}`);
       }
       if (res.headers.get('X-Cache') === 'HIT') {
         console.log(`[Wind] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
@@ -562,7 +583,10 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       model: model || 'GFS',
       isGlobal
     };
-    persistCache(LS_WIND_KEY, windHourlyCache);
+    // v3.13: Only persist global wind caches to prevent viewport-scoped regression
+    if (isGlobal) {
+      persistCache(LS_WIND_KEY, windHourlyCache);
+    }
 
     const data = extractWindAtOffset(windHourlyCache, hourOffset);
     if (data) {
@@ -741,7 +765,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   marineRequestInFlight = true;
 
   try {
-    const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
+    let { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
     const lats = points.map(p => p.lat);
     const lons = points.map(p => p.reqLng);
 
@@ -783,8 +807,19 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         body: JSON.stringify({ type: 'marine', body }),
         signal: fetchSignal
       });
+      // v3.13: 429 = API rate limit, NOT proxy failure. Do NOT fall back to direct.
+      if (res.status === 429) {
+        enterCooldown('marine');
+        console.warn('[Marine] 429 from proxy, cooldown activated (not retrying direct)');
+        return lastKnownGoodMarine;
+      }
       if (!res.ok) {
         throw new Error(`Proxy returned HTTP ${res.status}`);
+      }
+      // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error(`Proxy returned non-JSON content-type: ${contentType.substring(0, 50)}`);
       }
       if (res.headers.get('X-Cache') === 'HIT') {
         console.log(`[Marine] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
@@ -792,12 +827,44 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     } catch (proxyErr) {
       if (isLocalhost) {
         console.log('[Marine] Proxy unavailable or error, direct API fallback:', proxyErr.message);
-        res = await fetch('https://marine-api.open-meteo.com/v1/marine', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: fetchSignal
-        });
+        // v3.13: Use GET with comma-separated params instead of POST bulk.
+        // OpenMeteo's free tier rate-limits POST heavily. GET is more lenient.
+        // Reduce grid to 6x6=36 points to stay well under rate limits.
+        const reducedGrid = 6;
+        const latStepReduced = (snappedBounds.north - snappedBounds.south) / reducedGrid;
+        const lngStepReduced = (snappedBounds.east - snappedBounds.west) / reducedGrid;
+        const reducedLats = [];
+        const reducedLons = [];
+        for (let yi = 0; yi <= reducedGrid; yi++) {
+          for (let xi = 0; xi <= reducedGrid; xi++) {
+            let lat = snappedBounds.south + yi * latStepReduced;
+            let lng = snappedBounds.west + xi * lngStepReduced;
+            while (lng > 180) lng -= 360;
+            while (lng < -180) lng += 360;
+            reducedLats.push(lat.toFixed(2));
+            reducedLons.push(lng.toFixed(2));
+          }
+        }
+        const getUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${reducedLats.join(',')}&longitude=${reducedLons.join(',')}&hourly=${marineVarList.join(',')}&forecast_days=3${(model && MARINE_OM_MODELS[model]) ? '&models=' + MARINE_OM_MODELS[model] : ''}`;
+        res = await fetch(getUrl, { signal: fetchSignal });
+        // If GET succeeded, update grid metrics so downstream uses the reduced grid
+        if (res.ok) {
+          const reducedPoints = [];
+          for (let yi = 0; yi <= reducedGrid; yi++) {
+            for (let xi = 0; xi <= reducedGrid; xi++) {
+              let lat = snappedBounds.south + yi * latStepReduced;
+              let lng = snappedBounds.west + xi * lngStepReduced;
+              let reqLng = lng;
+              while (reqLng > 180) reqLng -= 360;
+              while (reqLng < -180) reqLng += 360;
+              reducedPoints.push({ lat: +lat.toFixed(2), reqLng: +reqLng.toFixed(2), monotonicLng: +lng.toFixed(2) });
+            }
+          }
+          // Override points and gridSize for the reduced grid
+          points.length = 0;
+          reducedPoints.forEach(p => points.push(p));
+          gridSize = reducedGrid + 1;
+        }
       } else {
         console.error('[Marine] Proxy error, direct fallback skipped in production/dev:', proxyErr.message);
         throw proxyErr;
@@ -953,8 +1020,19 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
         body: JSON.stringify({ type: 'wind', body }),  // 'wind' routes to api.open-meteo.com/v1/forecast which also serves pressure_msl
         signal: fetchSignal
       });
+      // v3.13: 429 = API rate limit, NOT proxy failure.
+      if (res.status === 429) {
+        enterCooldown('pressure');
+        console.warn('[Pressure] 429 from proxy, cooldown activated (not retrying direct)');
+        return lastKnownGoodPressure;
+      }
       if (!res.ok) {
         throw new Error(`Proxy returned HTTP ${res.status}`);
+      }
+      // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
+      const pressContentType = res.headers.get('content-type') || '';
+      if (!pressContentType.includes('application/json')) {
+        throw new Error(`Proxy returned non-JSON content-type: ${pressContentType.substring(0, 50)}`);
       }
     } catch (proxyErr) {
       if (isLocalhost) {

@@ -71,7 +71,7 @@ var MapWebGL = ({
 
   const [activeSystemPopup, setActiveSystemPopup] = useState(null);
   const [webglWindFailed, setWebglWindFailed] = useState(false);
-  const [webglMarineFailed, setWebglMarineFailed] = useState(true); // v3.17: Force Canvas2D path — WebGL marine heatmap duplicates OM raster tiles and GPU particles create grid-aligned pattern
+  const [webglMarineFailed, setWebglMarineFailed] = useState(false); // WebGL marine provides GPU heatmap with built-in alpha-channel land masking
 
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);
