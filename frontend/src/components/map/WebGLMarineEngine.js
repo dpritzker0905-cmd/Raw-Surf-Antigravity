@@ -67,8 +67,8 @@ void main() {
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // v3.13.2: Strict land discard — matches draw shader thresholds
-  if (waveHeight < 0.25 || length(waveVec) < 0.01 || waveData.a < 0.9) {
+  // v3.13.4: Strict land discard + higher thresholds to eliminate land-bleed
+  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.95) {
     drop = 1.0;
   }
 
@@ -118,21 +118,29 @@ void main() {
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
 
-  // v3.13.2: Strict land/calm discard — higher thresholds prevent coastal fringe particles
-  if (waveHeight < 0.25 || length(waveVec) < 0.01 || waveData.a < 0.9) {
+  float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
+
+  // v3.13.4: Strict land/calm discard — higher thresholds eliminate coastal fringe + land bleed
+  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.95) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
   }
 
   vec2 dir = normalize(waveVec);
-  vec2 perp = vec2(-dir.y, dir.x);
+  
+  // v3.13.4: Per-particle random rotation jitter (±30°) to break uniform crest alignment.
+  // Without this, smooth wave direction fields create visible horizontal stripe patterns.
+  float rotJitter = (particleHash - 0.5) * 1.05; // ~±30° in radians
+  float cosR = cos(rotJitter);
+  float sinR = sin(rotJitter);
+  vec2 jitteredDir = vec2(dir.x * cosR - dir.y * sinR, dir.x * sinR + dir.y * cosR);
+  vec2 perp = vec2(-jitteredDir.y, jitteredDir.x);
   
   // Zoom-aware pixel-to-degree conversion: 1 pixel = 360 / (256 * 2^zoom) degrees
   float pixelInDegrees = 360.0 / (256.0 * exp2(u_zoom));
-  // Non-linear crest length: pow(0.7) makes small waves visible, big waves dramatic
-  // Minimum 3px ensures even calm-ocean particles are perceptible
-  float crestPixels = max(3.0, pow(waveHeight, 0.7) * u_dash_length_scale);
+  // Shorter crests prevent visible horizontal stripe patterns from uniform alignment
+  float crestPixels = max(2.0, pow(waveHeight, 0.7) * u_dash_length_scale);
   vec2 coordOffset = perp * crestPixels * pixelInDegrees * 0.5;
 
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
@@ -157,7 +165,6 @@ void main() {
     gl_Position.w = 1.0;
   }
 
-  float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
   // Deep water wave period: T ≈ 0.9 * sqrt(H * 5.12)
   // Taller waves pulse slower (longer period), matching real ocean physics
   float derivedPeriod = 0.9 * sqrt(max(waveHeight, 0.3) * 5.12);
@@ -169,9 +176,8 @@ void main() {
   v_alpha = pow(sin(phase * 3.141592653589793), 0.7);
   // Strong height-driven intensity: calm seas faint, storms bright
   float heightIntensity = smoothstep(0.0, 4.0, waveHeight);
-  v_alpha *= mix(0.25, 1.0, heightIntensity);
-  // Minimum visibility floor — every ocean particle should be faintly visible
-  v_alpha = max(v_alpha, 0.12);
+  v_alpha *= mix(0.2, 1.0, heightIntensity);
+  // v3.13.4: No alpha floor — calm ocean particles should fully fade during pulsation cycle
 }
 `;
 
@@ -406,11 +412,10 @@ function initParticleTexture(gl, resolution) {
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
-  // v3.13.3: Tuned for global bounds + realistic wave physics
-  // 30% density and speed reduction from v3.13.2 per user feedback.
-  this.particleRes = 192;       // 192² = 36,864 crests (~30% less than 224²=50,176)
-  this.speedFactor = 0.21;      // 30% slower than 0.3 for calmer, realistic drift
-  this.dropRate = 0.005;        // Slightly lower recycling for less visual churn
+  // v3.13.4: 50% density + 50% speed reduction for coherent, smooth ocean feel
+  this.particleRes = 136;       // 136² = 18,496 crests (~50% less than 192²=36,864)
+  this.speedFactor = 0.10;      // 50% slower than 0.21 for calm, realistic drift
+  this.dropRate = 0.004;        // Lower recycling = less churn, more coherent
   this._initialized = false;
   this._waveData = null;
   this._startTime = Date.now();
@@ -666,9 +671,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
 
   const zVal = typeof zoom === 'number' ? zoom : 6.0;
-  // dashLengthScale = target pixel length per meter of wave height
-  // At 1m wave: ~8px crest line, at 3m wave: ~24px crest line
-  const dashLengthScale = 12.0;  // Larger crests for Ventusky-level visibility
+  // v3.13.4: Reduced from 12.0 to 5.0 — shorter crests break visible horizontal stripe
+  // patterns that form when many particles share similar wave direction
+  const dashLengthScale = 5.0;
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_length_scale'), dashLengthScale);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), zVal);
 

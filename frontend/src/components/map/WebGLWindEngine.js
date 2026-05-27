@@ -353,10 +353,10 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.13.3: Further density reduction + artifact prevention
- this.particleRes = 330; // 330² = 108,900 particles (~7% thinner than 354²)
-  this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
-  this.speedFactor = 0.32;  // Tuned: better correlation with real wind speeds
+  // v3.13.4: Atmospheric transparency — continents must be clearly visible
+ this.particleRes = 296; // 296² = 87,616 particles (~10% thinner than 330²)
+  this.fadeOpacity = 0.990; // Faster trail decay — less cumulative opacity buildup
+  this.speedFactor = 0.32;  // Tuned: good correlation with real wind speeds
  this.dropRate = 0.0015; // Particles live longer continuous streams
   this.dropRateBump = 0.006;
   this._initialized = false;
@@ -642,7 +642,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.90);
+  // v3.13.4: Reduced from 0.90 to 0.65 — continents must be clearly visible
+  // beneath the wind layer. Wind should feel atmospheric, not solid fog.
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.65);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   var err4 = gl.getError();
