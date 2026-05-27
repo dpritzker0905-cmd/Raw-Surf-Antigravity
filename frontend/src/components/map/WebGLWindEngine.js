@@ -352,8 +352,8 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.13: Tuned for realistic wind speed + slightly thinner density
- this.particleRes = 372; // 372² = 138,384 particles (~6% thinner than 384²=147,456)
+  // v3.13.2: Further thinned + more opaque per user feedback
+ this.particleRes = 354; // 354² = 125,316 particles (~5% thinner than 372²)
   this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
   this.speedFactor = 0.32;  // Tuned: better correlation with real wind speeds
  this.dropRate = 0.0015; // Particles live longer continuous streams
@@ -641,7 +641,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.85);
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.90);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   var err4 = gl.getError();

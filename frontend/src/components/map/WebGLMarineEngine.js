@@ -67,8 +67,8 @@ void main() {
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // Land or very small waves discard (0.15m threshold for dense ocean coverage)
-  if (waveHeight < 0.15 || length(waveVec) < 0.001 || waveData.a < 0.7) {
+  // v3.13.2: Strict land discard — matches draw shader thresholds
+  if (waveHeight < 0.25 || length(waveVec) < 0.01 || waveData.a < 0.9) {
     drop = 1.0;
   }
 
@@ -118,8 +118,8 @@ void main() {
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
 
-  // Discard land/calm particles (lower threshold = denser ocean coverage)
-  if (waveHeight < 0.15 || length(waveVec) < 0.001 || waveData.a < 0.7) {
+  // v3.13.2: Strict land/calm discard — higher thresholds prevent coastal fringe particles
+  if (waveHeight < 0.25 || length(waveVec) < 0.01 || waveData.a < 0.9) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
@@ -364,8 +364,10 @@ function encodeMarineTexture(gl, waveGrid) {
     const nu = (v.u / maxVal) * 0.5 + 0.5;
     const nv = (v.v / maxVal) * 0.5 + 0.5;
     const height = Math.min(1.0, v.speed / 10.0);
-    // Alpha = ocean mask: 255 for ocean with wave data, 0 for land/no-data
-    const isOcean = (v.speed > 0.05 || Math.abs(v.u) > 0.001 || Math.abs(v.v) > 0.001) ? 255 : 0;
+    // v3.13.2: Strict ocean mask — use isOcean from data AND require meaningful wave data.
+    // Without this, bilinear filtering on the coarse grid bleeds particles onto land.
+    const hasWaveData = v.speed > 0.1 && (Math.abs(v.u) > 0.005 || Math.abs(v.v) > 0.005);
+    const isOcean = (v.isOcean !== false && hasWaveData) ? 255 : 0;
     
     data[i * 4 + 0] = Math.floor(nu * 255);
     data[i * 4 + 1] = Math.floor(nv * 255);
@@ -373,7 +375,9 @@ function encodeMarineTexture(gl, waveGrid) {
     data[i * 4 + 3] = isOcean;
   }
 
-  const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
+  // v3.13.2: Use NEAREST filtering to prevent bilinear interpolation from
+  // bleeding ocean particles into land cells on the coarse global grid.
+  const tex = createTexture(gl, gl.NEAREST, data, cols, rows);
   return {
     texture: tex,
     bounds
@@ -401,12 +405,12 @@ function initParticleTexture(gl, resolution) {
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
-  // v3.13: Tuned for global bounds (-180 to 180) operation
-  // With global bounds, lngSpan=360, so speedFactor must be ~18x larger
-  // than the old viewport-scoped value (0.05) to achieve similar visual speed.
-  // Wave particles should drift slowly, matching real ocean swell propagation.
-  this.particleRes = 224;       // 224² = 50,176 crests (cleaner density for global coverage)
-  this.speedFactor = 0.6;       // Scaled for global bounds (0.6/360 ≈ 0.00167 per axis)
+  // v3.13.2: Tuned for global bounds + realistic wave physics
+  // speedFactor / 360 (lng span) gives per-frame UV displacement.
+  // Deep water group velocity ≈ gT/(4π) ≈ 1.56T m/s. For T=10s swell, v≈15.6 m/s.
+  // Particles should drift slowly to match real ocean swell propagation.
+  this.particleRes = 224;       // 224² = 50,176 crests (cleaner density)
+  this.speedFactor = 0.3;       // Halved from 0.6: calmer, more realistic drift
   this.dropRate = 0.006;        // Moderate recycling for even ocean coverage
   this._initialized = false;
   this._waveData = null;
