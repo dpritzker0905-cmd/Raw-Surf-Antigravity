@@ -352,10 +352,10 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.12.2: Ventusky-parity trails and motion
- this.particleRes = 384; // 384 = 147,456 particles
+  // v3.13: Tuned for realistic wind speed + slightly thinner density
+ this.particleRes = 372; // 372² = 138,384 particles (~6% thinner than 384²=147,456)
   this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
-  this.speedFactor = 0.40;  // Visible directional flow
+  this.speedFactor = 0.32;  // Tuned: better correlation with real wind speeds
  this.dropRate = 0.0015; // Particles live longer continuous streams
   this.dropRateBump = 0.006;
   this._initialized = false;

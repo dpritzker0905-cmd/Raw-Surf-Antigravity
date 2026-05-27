@@ -149,11 +149,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         return;
       }
 
-      const b = mapInstance.getBounds();
-      const bounds = {
-        west: b.getWest(), south: b.getSouth(),
-        east: b.getEast(), north: b.getNorth()
-      };
+      // v3.13: Force global bounds for marine data.
+      // The WebGLMarineEngine needs global coverage — viewport bounds cause
+      // frantic particle speed (speed / small lngSpan = huge) and grid patterns.
+      const bounds = { west: -180, south: -85, east: 180, north: 85 };
 
       const requestId = ++marineRequestIdRef.current;
       // v3.9.5: Check cooldown before fetch to prevent spam

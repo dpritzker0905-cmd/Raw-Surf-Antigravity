@@ -401,9 +401,13 @@ function initParticleTexture(gl, resolution) {
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
-  this.particleRes = 256;       // 256 * 256 = 65,536 lines
-  this.speedFactor = 0.05;      // Ocean drift speed base
-  this.dropRate = 0.004;        // Faster recycling = denser coverage, fewer gaps
+  // v3.13: Tuned for global bounds (-180 to 180) operation
+  // With global bounds, lngSpan=360, so speedFactor must be ~18x larger
+  // than the old viewport-scoped value (0.05) to achieve similar visual speed.
+  // Wave particles should drift slowly, matching real ocean swell propagation.
+  this.particleRes = 224;       // 224² = 50,176 crests (cleaner density for global coverage)
+  this.speedFactor = 0.6;       // Scaled for global bounds (0.6/360 ≈ 0.00167 per axis)
+  this.dropRate = 0.006;        // Moderate recycling for even ocean coverage
   this._initialized = false;
   this._waveData = null;
   this._startTime = Date.now();
@@ -576,39 +580,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var time = (Date.now() - this._startTime) / 1000.0;
   const waveBounds = this._waveData.bounds;
 
-  // ==========================================
-  // PHASE 1: DRAW WAVE HEIGHT HEATMAP
-  // ==========================================
-  // Unbind potential feedback loop textures from units 0 and 1
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-  gl.viewport(0, 0, screenWidth, screenHeight);
-
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
-  gl.useProgram(this.heatmapProgram);
-  
-  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
-  
-  const waveOpacity = Math.min(0.65, Math.max(0.35, 0.35 + (zoom - 2) * 0.025));
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), waveOpacity);
-
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_marine_grid'), 0);
-  bindTexture(gl, this._waveData.texture, 0);
-
-  var gridUvLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
-  gl.enableVertexAttribArray(gridUvLoc);
-  gl.vertexAttribPointer(gridUvLoc, 2, gl.FLOAT, false, 0, 0);
-
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
-  gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
-  gl.disableVertexAttribArray(gridUvLoc);
+  // PHASE 1: HEATMAP — DISABLED
+  // The wave height heatmap is rendered by OpenMeteo raster tiles (LAYER_REGISTRY)
+  // via the tile source/layer in MapWebGL.js. Rendering a second GPU heatmap here
+  // causes visual conflict ("two wave systems" overlapping).
+  // Only the particle crest animation below renders from this engine.
 
   // ==========================================
   // PHASE 2: WAVE CREST PARTICLE SIMULATION

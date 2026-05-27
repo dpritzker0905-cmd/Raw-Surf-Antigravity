@@ -149,7 +149,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     engineRef.current = engine;
 
     const isMobile = window.innerWidth < 768;
-    engine.particleRes = isMobile ? 128 : 256;
+    engine.particleRes = isMobile ? 128 : 224;
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef);
 
