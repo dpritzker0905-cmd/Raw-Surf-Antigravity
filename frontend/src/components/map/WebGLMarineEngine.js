@@ -364,20 +364,21 @@ function encodeMarineTexture(gl, waveGrid) {
     const nu = (v.u / maxVal) * 0.5 + 0.5;
     const nv = (v.v / maxVal) * 0.5 + 0.5;
     const height = Math.min(1.0, v.speed / 10.0);
-    // v3.13.2: Strict ocean mask — use isOcean from data AND require meaningful wave data.
-    // Without this, bilinear filtering on the coarse grid bleeds particles onto land.
+    // v3.13.3: Strict ocean mask — require explicit isOcean===true from API data.
+    // The marine API returns null wave_height for land points, which sets isOcean=false.
     const hasWaveData = v.speed > 0.1 && (Math.abs(v.u) > 0.005 || Math.abs(v.v) > 0.005);
-    const isOcean = (v.isOcean !== false && hasWaveData) ? 255 : 0;
+    const oceanFlag = (v.isOcean === true && hasWaveData) ? 255 : 0;
     
     data[i * 4 + 0] = Math.floor(nu * 255);
     data[i * 4 + 1] = Math.floor(nv * 255);
     data[i * 4 + 2] = Math.floor(height * 255);
-    data[i * 4 + 3] = isOcean;
+    data[i * 4 + 3] = oceanFlag;
   }
 
-  // v3.13.2: Use NEAREST filtering to prevent bilinear interpolation from
-  // bleeding ocean particles into land cells on the coarse global grid.
-  const tex = createTexture(gl, gl.NEAREST, data, cols, rows);
+  // v3.13.3: Use LINEAR filtering for smooth wave field interpolation across the
+  // coarse global grid, but rely on strict alpha thresholds in shaders to prevent
+  // land bleeding. NEAREST causes visible grid artifacts with 15x15 global data.
+  const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
   return {
     texture: tex,
     bounds
@@ -405,13 +406,11 @@ function initParticleTexture(gl, resolution) {
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
-  // v3.13.2: Tuned for global bounds + realistic wave physics
-  // speedFactor / 360 (lng span) gives per-frame UV displacement.
-  // Deep water group velocity ≈ gT/(4π) ≈ 1.56T m/s. For T=10s swell, v≈15.6 m/s.
-  // Particles should drift slowly to match real ocean swell propagation.
-  this.particleRes = 224;       // 224² = 50,176 crests (cleaner density)
-  this.speedFactor = 0.3;       // Halved from 0.6: calmer, more realistic drift
-  this.dropRate = 0.006;        // Moderate recycling for even ocean coverage
+  // v3.13.3: Tuned for global bounds + realistic wave physics
+  // 30% density and speed reduction from v3.13.2 per user feedback.
+  this.particleRes = 192;       // 192² = 36,864 crests (~30% less than 224²=50,176)
+  this.speedFactor = 0.21;      // 30% slower than 0.3 for calmer, realistic drift
+  this.dropRate = 0.005;        // Slightly lower recycling for less visual churn
   this._initialized = false;
   this._waveData = null;
   this._startTime = Date.now();

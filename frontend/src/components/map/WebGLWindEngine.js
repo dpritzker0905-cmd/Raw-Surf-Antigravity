@@ -144,8 +144,9 @@ void main() {
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;
   }
- // v3.12.2: Ventusky-scale particles visible flowing streams
-  gl_PointSize = 2.0 + clamp(v_speed / 8.0, 0.0, 3.0);
+ // v3.13.3: Zero/very-low speed particles get zero size to prevent stationary dot
+  // artifacts that accumulate in the trail FBO and appear as horizontal line patterns.
+  gl_PointSize = v_speed < 0.5 ? 0.0 : 2.0 + clamp(v_speed / 8.0, 0.0, 3.0);
 }`;
 
 // v3.9.8: Color ramp LUT replaces fixed dark shader
@@ -352,8 +353,8 @@ function initParticleTexture(gl, resolution) {
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
-  // v3.13.2: Further thinned + more opaque per user feedback
- this.particleRes = 354; // 354² = 125,316 particles (~5% thinner than 372²)
+  // v3.13.3: Further density reduction + artifact prevention
+ this.particleRes = 330; // 330² = 108,900 particles (~7% thinner than 354²)
   this.fadeOpacity = 0.994; // Long flowing trails (~10s decay, Ventusky-style)
   this.speedFactor = 0.32;  // Tuned: better correlation with real wind speeds
  this.dropRate = 0.0015; // Particles live longer continuous streams
