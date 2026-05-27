@@ -66,9 +66,9 @@ void main() {
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // v3.13.5: Relaxed alpha threshold for better coastal/polar coverage.
-  // With LINEAR filtering on a 21×21 grid, strict thresholds create ~18° dead zones.
-  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.4) {
+  // v3.13.6: Lowered waveHeight threshold 0.3→0.1 for calm ocean life.
+  // Relaxed alpha from 0.4→0.3 for better coastal/polar coverage with LINEAR filtering.
+  if (waveHeight < 0.1 || length(waveVec) < 0.005 || waveData.a < 0.3) {
     drop = 1.0;
   }
 
@@ -120,18 +120,16 @@ void main() {
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
 
-  // v3.13.5: Relaxed alpha threshold for better coastal/polar coverage
-  if (waveHeight < 0.3 || length(waveVec) < 0.02 || waveData.a < 0.4) {
+  // v3.13.6: Lowered thresholds for calm ocean life
+  if (waveHeight < 0.1 || length(waveVec) < 0.005 || waveData.a < 0.3) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
   }
 
-  // v3.13.5: ZOOM-ADAPTIVE DENSITY CULLING
-  // At low zoom, all 18K+ crests are visible simultaneously, creating visual noise.
-  // Discard a fraction of particles based on zoom to keep ocean coherent.
-  // zoom 0-2: show ~15% of particles; zoom 3-4: ~40%; zoom 5+: ~70%; zoom 8+: 100%
-  float densityThreshold = clamp((u_zoom - 1.0) / 8.0, 0.12, 1.0);
+  // v3.13.6: ZOOM-ADAPTIVE DENSITY CULLING — tuned for calmer feel
+  // Min 35% particles at any zoom; scales to 100% at zoom 8+
+  float densityThreshold = clamp((u_zoom - 0.5) / 7.0, 0.35, 1.0);
   if (particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
@@ -178,9 +176,14 @@ void main() {
   float period = derivedPeriod * (0.6 + particleHash * 0.8);
   float phase = fract(u_time / period + particleHash);
   
-  v_alpha = pow(sin(phase * 3.141592653589793), 0.7);
+  // v3.13.6: Rolling swell perception — smoother sinusoidal with extended crest visibility
+  float rawPulse = sin(phase * 3.141592653589793);
+  // Wider crest peak: pow(0.5) makes crests visible for longer portion of cycle
+  v_alpha = pow(max(rawPulse, 0.0), 0.5);
+  
+  // Energy-driven intensity: calm=faint but visible, storms=bright
   float heightIntensity = smoothstep(0.0, 4.0, waveHeight);
-  v_alpha *= mix(0.2, 1.0, heightIntensity);
+  v_alpha *= mix(0.35, 1.0, heightIntensity);
 }
 `;
 
