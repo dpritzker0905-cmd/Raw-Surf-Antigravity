@@ -95,6 +95,7 @@ uniform vec2 u_dataBounds_max;     // bounds [east, north]
 uniform float u_time;              // elapsed time for pulsation
 uniform float u_dash_length_scale; // wave crest target pixel length per meter
 uniform float u_zoom;              // map zoom level for pixel-to-degree conversion
+uniform float u_lng_offset;        // v3.13.7: world-copy offset: -360, 0, or +360
 
 varying float v_alpha;
 varying float v_wave_height;
@@ -138,8 +139,8 @@ void main() {
 
   vec2 dir = normalize(waveVec);
   
-  // Per-particle random rotation jitter (±30°) to break uniform crest alignment
-  float rotJitter = (particleHash - 0.5) * 1.05;
+  // v3.13.7: Increased rotation jitter from ±30° to ±45° to break stripe patterns
+  float rotJitter = (particleHash - 0.5) * 1.57;
   float cosR = cos(rotJitter);
   float sinR = sin(rotJitter);
   vec2 jitteredDir = vec2(dir.x * cosR - dir.y * sinR, dir.x * sinR + dir.y * cosR);
@@ -162,8 +163,11 @@ void main() {
   }
   lat = clamp(lat, -85.051129, 85.051129);
 
-  float wrappedLng = lng - 360.0 * floor((lng + 180.0) / 360.0);
-  float x = (wrappedLng + 180.0) / 360.0;
+  // v3.13.7: Apply world-copy offset for seamless global wrapping (matches wind engine).
+  // Do NOT wrap to [-180,180] here — that forces all copies into a single tile.
+  // Instead, offset lng and convert directly to Mercator x.
+  lng += u_lng_offset;
+  float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
@@ -690,10 +694,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   bindTexture(gl, this._waveData.texture, 1);
 
   var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+  var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
   gl.enableVertexAttribArray(idLoc);
   gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
-  gl.drawArrays(gl.LINES, 0, this.particleRes * this.particleRes * 2);
+
+  // v3.13.7: Draw multiple world copies for seamless global wrapping.
+  // Matches wind engine's approach: at low zoom, draw 3 copies at -360, 0, +360.
+  var worldOffsets = (zVal < 3.5) ? [0.0, -360.0, 360.0] : [0.0];
+  for (var wi = 0; wi < worldOffsets.length; wi++) {
+    gl.uniform1f(lngOffsetLoc, worldOffsets[wi]);
+    gl.drawArrays(gl.LINES, 0, this.particleRes * this.particleRes * 2);
+  }
   gl.disableVertexAttribArray(idLoc);
 
   // Restore State
