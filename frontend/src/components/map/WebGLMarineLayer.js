@@ -1,14 +1,12 @@
 /**
  * WebGLMarineLayer.js
  * React wrapper bridging WebGLMarineEngine to MapLibre's CustomLayerInterface.
- *
- * FCE MIGRATION: Removed all layer ordering logic.
- * DELETED: safeMoveLayer, findMarineInsertionLayer, marine raster layer reordering,
- *          styledata-based insertion logic.
- * The layer is added once as a MapLibre custom layer. No stacking decisions.
+ * Receives evolved wave field data from RenderPlanDispatcher.
+ * Added once as a MapLibre custom layer — no stacking decisions.
  */
 import { useEffect, useRef } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
+import { registerMarineEngine, unregisterMarineEngine } from '../../engine/RenderPlanDispatcher';
 
 var LAYER_ID = 'webgl-marine-particles';
 
@@ -25,6 +23,8 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       glRef.current = _gl;
       try {
         engine.init(_gl);
+        // Register with RenderPlanDispatcher for evolved wave field data
+        registerMarineEngine(engine, _gl);
         if (dataRef.current?.vectors?.length) {
           console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors');
           engine.setWaveData(_gl, dataRef.current);
@@ -168,6 +168,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         }
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
+      unregisterMarineEngine();
       engine.dispose(mapInstance.painter?.context?.gl);
       engineRef.current = null;
     };

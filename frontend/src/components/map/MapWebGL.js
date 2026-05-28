@@ -104,8 +104,6 @@ var MapWebGL = ({
   // 3. Map LongPress Contextmenu & Mobile touch holds
   useMapLongPress({ mapInstance, onMapLongPress });
 
-  // DELETED: useRasterAnchorInsertion — no more beforeId/marineBeforeId
-
   // 5. Satellite background sync handling
   useSatelliteBackgroundSync({ mapInstance, activeLayers });
 
@@ -396,7 +394,7 @@ var MapWebGL = ({
         minZoom={2.0}
         renderWorldCopies={true}
       >
-        {/* Ocean Mask — Static land/ocean layers. NO ordering logic, NO beforeId. */}
+        {/* Ocean Mask — Static land/ocean layers */}
         <OceanMask
           mapInstance={mapInstance}
           active={renderPlan ? renderPlan.oceanMask.active : !!activeMarineLayer}
@@ -447,7 +445,7 @@ var MapWebGL = ({
           </Source>
         )}
 
-        {/* ESRI True Satellite Imagery — NO beforeId */}
+        {/* ESRI True Satellite Imagery */}
         <Source
           id="esri-satellite-source"
           type="raster"
@@ -463,7 +461,7 @@ var MapWebGL = ({
           />
         </Source>
 
-        {/* Open-Meteo Raster Tile Layers — NO beforeId, pure static stack */}
+        {/* Open-Meteo Raster Tile Layers — MapLibre-managed CDN tiles (intentional separate channel) */}
         {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;

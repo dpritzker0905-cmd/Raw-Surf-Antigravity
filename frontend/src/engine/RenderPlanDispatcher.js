@@ -92,7 +92,7 @@ function fieldToWindGrid(field) {
 function fieldToMarineGrid(field) {
   if (!field || !field.sources.marine) return null;
 
-  const { waveHeight, waveDir, swellHeight, swellDir } = field.grid;
+  const { waveHeight, waveDir, swellHeight, swellDir, landMask } = field.grid;
   const { cols, rows, bounds } = field;
   const size = cols * rows;
 
@@ -101,6 +101,7 @@ function fieldToMarineGrid(field) {
     const h = waveHeight[i];
     const dir = waveDir[i] * (Math.PI / 180);
     // Convert wave height + direction to u/v for advection visualization
+    // isOcean flag is REQUIRED by WebGLMarineEngine's shader (alpha channel = land mask)
     vectors[i] = {
       u: h * 0.5 * Math.sin(dir),
       v: h * 0.5 * Math.cos(dir),
@@ -109,6 +110,7 @@ function fieldToMarineGrid(field) {
       direction: waveDir[i],
       swellHeight: swellHeight ? swellHeight[i] : 0,
       swellDir: swellDir ? swellDir[i] : 0,
+      isOcean: landMask ? (landMask[i] === 0) : (h > 0),
     };
   }
 
@@ -148,10 +150,6 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
   const field = renderPlan._evolvedField;
   if (!field) return;
 
-  // Skip if field hasn't changed
-  if (field.revision === _lastFieldRevision) return;
-  _lastFieldRevision = field.revision;
-
   // ---- Dispatch to Wind Engine ----
   if (_windEngine && _windGL && field.sources.wind) {
     try {
@@ -168,8 +166,8 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
   if (_marineEngine && _marineGL && field.sources.marine) {
     try {
       const marineGrid = fieldToMarineGrid(field);
-      if (marineGrid && typeof _marineEngine.setMarineData === 'function') {
-        _marineEngine.setMarineData(_marineGL, marineGrid);
+      if (marineGrid) {
+        _marineEngine.setWaveData(_marineGL, marineGrid);
       }
     } catch (e) {
       console.warn('[RenderPlanDispatcher] Marine texture upload error:', e.message);

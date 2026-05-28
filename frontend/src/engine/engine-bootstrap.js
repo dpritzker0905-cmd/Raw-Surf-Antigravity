@@ -29,6 +29,8 @@ import { startPluginRenderLoop, stopPluginRenderLoop } from './render-orchestrat
 import { bindContext as bindGPUContext, destroyAll as destroyGPU } from './gpu-texture-manager';
 import { startSimulation, stopSimulation } from './SimulationLoop';
 import { startDispatcher, stopDispatcher } from './RenderPlanDispatcher';
+import { startHealthMonitor, stopHealthMonitor, recordFieldReset } from './SimulationHealthMonitor';
+import { onFieldReset } from './FieldEvolutionEngine';
 
 var _initialized = false;
 
@@ -76,6 +78,10 @@ export function initEngine(ctx) {
   // 4c. Start RenderPlan dispatcher (bridges evolved field → GPU renderers)
   startDispatcher();
 
+  // 4d. Start health monitor (runtime stability tracking)
+  startHealthMonitor();
+  onFieldReset(recordFieldReset);
+
   // 5. Mark engine ready (resolves waitForEngineBoot promises)
   markEngineReady();
 
@@ -90,6 +96,7 @@ export function initEngine(ctx) {
  */
 export function shutdownEngine() {
   if (!_initialized) return;
+  stopHealthMonitor();
   stopDispatcher();
   stopSimulation();
   stopPluginRenderLoop();

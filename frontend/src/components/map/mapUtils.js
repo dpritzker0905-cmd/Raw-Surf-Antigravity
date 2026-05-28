@@ -167,66 +167,8 @@ export var getMapStyle = function(themeOrLight, isSatellite) {
 };
 
 /**
- * Find the correct insertion layer for marine rasters in a Mapbox vector style.
- *
- * Strategy: Marine rasters go ABOVE the water fill layer. Then OceanMask
- * (a separate imperative layer) covers any coastline bleed on land areas.
- *   water → [MARINE RASTERS HERE] → [OceanMask] → land-structure → roads → labels
- *
- * Returns the id of the first layer AFTER the `water` fill (typically land-structure-polygon).
- */
-export var findMarineInsertionLayer = function(mapInstance) {
-  if (!mapInstance) return null;
-  var style = mapInstance.getStyle?.();
-  if (!style?.layers || style.layers.length === 0) return null;
 
-  // Search for the first label, text, symbol or coastline layer to insert BEFORE
-  for (var layer of style.layers) {
-    var id = layer.id;
-    var type = layer.type;
-    
-    const isTarget = type === 'symbol' || 
-                     id.includes('label') || 
-                     id.includes('coastline') || 
-                     id.includes('place') ||
-                     id.includes('poi-') ||
-                     id.includes('road') ||
-                     id.includes('track') ||
-                     id.includes('bridge') ||
-                     id.includes('tunnel') ||
-                     id.includes('road-label');
-                     
-    const isCustom = id.startsWith('ocean-mask-') || 
-                     id.endsWith('-layer') || 
-                     id.endsWith('-source') ||
-                     id === 'radar-layer' || 
-                     id === 'esri-satellite-layer' ||
-                     id === 'spot-geofences-layer' ||
-                     id === 'marine-raster-anchor';
-                     
-    if (isTarget && !isCustom) {
-      return id;
-    }
-  }
 
-  // Fallback Pass: return any non-custom, non-background, non-water layer
-  for (var layer of style.layers) {
-    var id = layer.id;
-    var isCustom = id.startsWith('ocean-mask-') || 
-                   id.endsWith('-layer') || 
-                   id.endsWith('-source') ||
-                   id === 'radar-layer' || 
-                   id === 'esri-satellite-layer' ||
-                   id === 'spot-geofences-layer' ||
-                   id === 'marine-raster-anchor';
-    if (isCustom) continue;
-    if (id !== 'background' && id !== 'water' && id !== 'water-depth' && id !== 'wetland') {
-      return id;
-    }
-  }
-
-  return null;
-};
 
 /**
  * Default tile layer configuration Mapbox raster tiles via Leaflet

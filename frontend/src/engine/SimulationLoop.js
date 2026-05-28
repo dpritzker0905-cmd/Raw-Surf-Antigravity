@@ -24,7 +24,9 @@ import { ParticleSystem, TRAIL_LENGTH } from './particle-system';
 import { onSimulationUpdate, onRender } from './render-orchestrator';
 import { composeRenderPlan } from './FieldCompositionEngine';
 import { cloneField } from './SimulationField';
-import { evolveField, getEvolutionDiagnostics } from './FieldEvolutionEngine';
+import { evolveField, getEvolutionDiagnostics, setBaseFieldRef, resetEnergyBaseline, onFieldReset } from './FieldEvolutionEngine';
+import { recordFieldReset } from './SimulationHealthMonitor';
+import { recordSimTick, recordCompose, advanceFrame } from './PerformanceBudget';
 
 // ========================================================================
 // SIMULATION STATE
@@ -117,6 +119,10 @@ export function bindField(field) {
 
     _evolutionTicks = 0;
 
+    // Set base field ref for emergency resets in FieldEvolutionEngine
+    setBaseFieldRef(field);
+    resetEnergyBaseline();
+
     console.log(`[SimLoop] New field bound: rev=${field.revision}, ${field.cols}×${field.rows}, sources=`, field.sources);
 
     // Bind wind field to RK4 particle system
@@ -186,6 +192,7 @@ export function bindConfig(config) {
  * @param {number} simTime - Total elapsed simulation time
  */
 function simulationTick(dt, simTime) {
+  const t0 = performance.now();
   _simTime = simTime;
   _frameIndex++;
 
@@ -220,6 +227,9 @@ function simulationTick(dt, simTime) {
   if (_marineParticles && _evolvedField.sources.marine) {
     _marineParticles.update(dt);
   }
+
+  recordSimTick(performance.now() - t0);
+  advanceFrame();
 }
 
 // ========================================================================

@@ -1,22 +1,13 @@
 /**
  * OceanMask v13 — Pure Data Mask + Static Layer Generator
  *
- * FCE MIGRATION: OceanMask no longer touches MapLibre layer ordering.
+ * FCE Architecture: OceanMask is a PASSIVE renderer.
  * It ONLY:
  *   1. Loads Natural Earth land GeoJSON (progressive: 50m → 10m)
  *   2. Generates a land mask for the SimulationField
- *   3. Adds/removes static visual layers (NO positioning, NO beforeId, NO safeMoveLayer)
+ *   3. Adds/removes static visual layers
  *
- * DELETED:
- *   - safeMoveLayer()
- *   - repositionLanduse()
- *   - restoreLanduse()
- *   - styledata event listeners
- *   - beforeId parameter
- *   - marine-raster-anchor dependency
- *   - findMarineInsertionLayer dependency
- *
- * RULE: This component is a PASSIVE renderer. It cannot make stacking decisions.
+ * RULE: This component cannot make stacking decisions.
  */
 
 /* eslint-disable no-empty */

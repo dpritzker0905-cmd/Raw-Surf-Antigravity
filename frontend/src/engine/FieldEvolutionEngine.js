@@ -34,6 +34,18 @@ const SMOOTHING_KERNEL_WEIGHT = 0.15; // 5-point Laplacian smoothing strength
 const MAX_WAVE_HEIGHT = 25.0;        // Physical clamp (meters)
 const MAX_WIND_SPEED = 80.0;         // Physical clamp (m/s)
 const MARINE_DRIFT_SCALE = 0.1;      // Wave → current drift factor
+const MAX_ENERGY_RATIO = 2.0;        // Divergence correction: max energy / initial
+const MEAN_WAVE_CEILING = 15.0;      // Wave normalization ceiling (meters)
+const NAN_RESET_THRESHOLD = 0.05;    // >5% NaN cells triggers emergency reset
+const DIVERGENCE_DAMPING = 0.95;     // Applied when energy exceeds budget
+
+// ========================================================================
+// ENERGY TRACKING STATE
+// ========================================================================
+
+let _initialWindEnergy = null;
+let _baseFieldRef = null;
+let _nanResetCallback = null;
 
 // ========================================================================
 // FIELD EVOLUTION STEP
@@ -76,6 +88,13 @@ export function evolveField(field, dt, simTime) {
 
   // ---- PHASE D: Stability Corrections ----
   applyStabilityCorrections(grid, cols, rows);
+
+  // ---- PHASE E: Divergence + Energy Budget ----
+  applyDivergenceCorrection(grid, cols, rows);
+  applyWaveNormalization(grid, cols, rows);
+
+  // ---- PHASE F: Emergency NaN Reset ----
+  checkAndResetIfUnstable(field, grid, cols, rows);
 
   // Update simulation time on the field
   field.time = Date.now();
@@ -342,5 +361,127 @@ export function getEvolutionDiagnostics(field) {
     windTotalEnergy: +(windEnergy / size).toFixed(4),
     waveTotalEnergy: +(waveEnergy / size).toFixed(4),
     gridSize: `${field.cols}×${field.rows}`,
+    initialWindEnergy: _initialWindEnergy !== null ? +_initialWindEnergy.toFixed(4) : null,
   };
+}
+
+// ========================================================================
+// PHASE E: DIVERGENCE CORRECTION
+// ========================================================================
+
+/**
+ * If wind energy exceeds MAX_ENERGY_RATIO × initial, apply global damping.
+ * Prevents runaway energy accumulation from turbulence injection.
+ */
+function applyDivergenceCorrection(grid, cols, rows) {
+  const size = cols * rows;
+  let energy = 0;
+  for (let i = 0; i < size; i++) {
+    energy += grid.windU[i] ** 2 + grid.windV[i] ** 2;
+  }
+  energy /= size;
+
+  // Capture initial energy baseline
+  if (_initialWindEnergy === null && energy > 0) {
+    _initialWindEnergy = energy;
+    return;
+  }
+
+  if (_initialWindEnergy === null || _initialWindEnergy === 0) return;
+
+  const ratio = energy / _initialWindEnergy;
+  if (ratio > MAX_ENERGY_RATIO) {
+    // Apply global damping to bring energy back within budget
+    const dampFactor = DIVERGENCE_DAMPING;
+    for (let i = 0; i < size; i++) {
+      grid.windU[i] *= dampFactor;
+      grid.windV[i] *= dampFactor;
+    }
+  }
+}
+
+/**
+ * If mean waveHeight exceeds ceiling, proportionally scale all cells down.
+ */
+function applyWaveNormalization(grid, cols, rows) {
+  const size = cols * rows;
+  let totalH = 0;
+  for (let i = 0; i < size; i++) {
+    totalH += grid.waveHeight[i];
+  }
+  const meanH = totalH / size;
+
+  if (meanH > MEAN_WAVE_CEILING) {
+    const scale = MEAN_WAVE_CEILING / meanH;
+    for (let i = 0; i < size; i++) {
+      grid.waveHeight[i] *= scale;
+      if (grid.swellHeight) grid.swellHeight[i] *= scale;
+    }
+  }
+}
+
+// ========================================================================
+// PHASE F: EMERGENCY RESET
+// ========================================================================
+
+/**
+ * If >5% of grid cells are NaN after all corrections, reset to base field.
+ * This is the last-resort safety net against numerical blowup.
+ */
+function checkAndResetIfUnstable(field, grid, cols, rows) {
+  const size = cols * rows;
+  let nanCount = 0;
+
+  for (let i = 0; i < size; i++) {
+    if (!isFinite(grid.windU[i])) nanCount++;
+    if (!isFinite(grid.windV[i])) nanCount++;
+    if (!isFinite(grid.waveHeight[i])) nanCount++;
+  }
+
+  const nanRatio = nanCount / (size * 3);
+
+  if (nanRatio > NAN_RESET_THRESHOLD && _baseFieldRef) {
+    console.error(`[FieldEvolution] EMERGENCY RESET — ${(nanRatio * 100).toFixed(1)}% NaN cells detected`);
+
+    // Copy base field data back into evolved grid
+    const base = _baseFieldRef.grid;
+    grid.windU.set(base.windU);
+    grid.windV.set(base.windV);
+    grid.waveHeight.set(base.waveHeight);
+    grid.waveDir.set(base.waveDir);
+    if (base.swellHeight) grid.swellHeight.set(base.swellHeight);
+    if (base.swellDir) grid.swellDir.set(base.swellDir);
+    if (base.pressure) grid.pressure.set(base.pressure);
+
+    // Re-baseline energy after reset
+    _initialWindEnergy = null;
+
+    // Notify health monitor
+    if (_nanResetCallback) _nanResetCallback();
+  }
+}
+
+/**
+ * Set the base field reference for emergency resets.
+ * Called from SimulationLoop when new data arrives.
+ *
+ * @param {import('./SimulationField').SimulationField} baseField
+ */
+export function setBaseFieldRef(baseField) {
+  _baseFieldRef = baseField;
+}
+
+/**
+ * Set callback for NaN reset events (used by SimulationHealthMonitor).
+ * @param {Function} fn
+ */
+export function onFieldReset(fn) {
+  _nanResetCallback = fn;
+}
+
+/**
+ * Reset energy tracking (called when new base data arrives).
+ */
+export function resetEnergyBaseline() {
+  _initialWindEnergy = null;
 }
