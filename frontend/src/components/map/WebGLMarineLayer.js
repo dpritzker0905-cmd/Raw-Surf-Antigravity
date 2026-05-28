@@ -1,11 +1,14 @@
 /**
  * WebGLMarineLayer.js
  * React wrapper bridging WebGLMarineEngine to MapLibre's CustomLayerInterface.
- * Strictly under 200 Lines of Code.
+ *
+ * FCE MIGRATION: Removed all layer ordering logic.
+ * DELETED: safeMoveLayer, findMarineInsertionLayer, marine raster layer reordering,
+ *          styledata-based insertion logic.
+ * The layer is added once as a MapLibre custom layer. No stacking decisions.
  */
 import { useEffect, useRef } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
-import { findMarineInsertionLayer } from './mapUtils';
 
 var LAYER_ID = 'webgl-marine-particles';
 
@@ -15,10 +18,9 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
     id: LAYER_ID,
     type: 'custom',
     renderingMode: '2d',
-    engine, // expose engine reference for debugging
+    engine,
 
     onAdd(_mapOrArgs, glArg) {
-      // v5 compat: MapLibre v5 may pass args object
       var _gl = (glArg) ? glArg : (_mapOrArgs?.gl || _mapOrArgs?.painter?.context?.gl);
       glRef.current = _gl;
       try {
@@ -34,7 +36,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
     },
 
     render(glOrArgs, matrixArg) {
-      // v5 compat: MapLibre v5 passes (gl, matrixObj) where matrixObj may be a wrapper
       var _gl, _matrix;
       var isWebGLCtx = (glOrArgs instanceof WebGLRenderingContext || glOrArgs instanceof WebGL2RenderingContext);
       if (isWebGLCtx) {
@@ -59,7 +60,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             }
           }
         }
-        // Convert Float64Array → Float32Array for gl.uniformMatrix4fv compatibility
         if (_matrix && _matrix instanceof Float64Array) {
           _matrix = new Float32Array(_matrix);
         }
@@ -110,22 +110,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
   };
 }
 
-function safeMoveLayer(map, layerId, beforeId) {
-  if (!map || !layerId || !map.getLayer(layerId)) return;
-  if (beforeId && map.getLayer(beforeId)) {
-    try {
-      const layers = map.getStyle()?.layers || [];
-      const idxLayer = layers.findIndex(l => l.id === layerId);
-      const idxBefore = layers.findIndex(l => l.id === beforeId);
-      if (idxLayer !== -1 && idxBefore !== -1 && idxLayer >= idxBefore) {
-        map.moveLayer(layerId, beforeId);
-      }
-    } catch (e) {
-      console.warn(`[WebGLMarine] safeMoveLayer error:`, e);
-    }
-  }
-}
-
 export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange, onError }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
@@ -142,6 +126,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   useEffect(() => { dataRef.current = data; }, [data]);
 
+  // Initialize engine + add custom layer (NO ordering logic)
   useEffect(() => {
     if (!mapInstance) return;
 
@@ -153,33 +138,21 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef);
 
-    // Dynamic layer ordering: insert wave particles directly before ocean-mask-buffer or marineBeforeId
+    // Add layer once when style is loaded. Re-add on theme/style changes.
     const handleStyleData = () => {
       if (!mapInstance) return;
       if (!mapInstance.isStyleLoaded?.()) return;
 
-      const hasMaskBuffer = !!mapInstance.getLayer('ocean-mask-buffer');
-      const insertionId = hasMaskBuffer ? 'ocean-mask-buffer' : findMarineInsertionLayer(mapInstance);
-
-      const beforeExists = !!(insertionId && mapInstance.getLayer(insertionId));
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
         try {
-          mapInstance.addLayer(customLayer, beforeExists ? insertionId : undefined);
+          mapInstance.addLayer(customLayer);
           layerAddedRef.current = true;
           console.log(`[WebGLMarine] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
           if (onAddedChangeRef.current) onAddedChangeRef.current(true);
         } catch (e) {
           console.warn('[WebGLMarine] Failed to add layer:', e.message);
         }
-      } else if (beforeExists) {
-        safeMoveLayer(mapInstance, LAYER_ID, insertionId);
-      }
-
-      // Move any active marine raster layer below the custom webgl-marine-particles layer
-      const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-      for (const rasterId of marineRasterLayers) {
-        safeMoveLayer(mapInstance, rasterId, LAYER_ID);
       }
     };
 
@@ -200,6 +173,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     };
   }, [mapInstance]);
 
+  // Update wave data texture when data changes
   useEffect(() => {
     const engine = engineRef.current;
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
@@ -215,16 +189,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       console.warn('[WebGLMarine] setWaveData error:', e.message);
     }
   }, [data, mapInstance]);
-
-  // Enforce layer ordering when active
-  useEffect(() => {
-    if (!mapInstance || !active) return;
-
-    const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-    for (const rasterId of marineRasterLayers) {
-      safeMoveLayer(mapInstance, rasterId, LAYER_ID);
-    }
-  }, [mapInstance, active]);
 
   return null;
 }

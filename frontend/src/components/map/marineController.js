@@ -11,82 +11,37 @@
  * - AbortController for inflight cancellation
  * - Cache-first architecture
  * - Last valid field preservation on failure
+ *
+ * Pressure data has been extracted to marineControllerPressure.js.
+ * Shared utilities live in marineControllerUtils.js.
  */
 
-// --- UTILITY FUNCTIONS (must be above module-init code that calls them) ---
-var safeNum = (v, fallback = 0) => {
-  const n = parseFloat(v);
-  return Number.isFinite(n) ? n : fallback;
-};
+import {
+  safeNum, getUV, PROXY_URL, isLocalhost, findClosestHourIndex,
+  HOURLY_CACHE_TTL, persistCache, hydrateCache,
+  isInCooldown, enterCooldown,
+  getSnapConfig, isViewportInsideCachedBounds, viewportCacheKey, computeGridPoints
+} from './marineControllerUtils';
 
-var getUV = (speed, dir) => {
-  if (speed === 0) return { u: 0, v: 0, speed: 0 };
-  const rad = dir * (Math.PI / 180);
-  return { u: -speed * Math.sin(rad), v: -speed * Math.cos(rad), speed };
-};
+// Re-export shared utilities for consumers that import from marineController
+export { getRemainingCooldown } from './marineControllerUtils';
 
-// --- PROXY CONFIG ---
-// v3.9.6: Route through Netlify serverless proxy to bypass client IP rate limits
-var PROXY_URL = '/api/weather-proxy';
-var isLocalhost = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
-
-function findClosestHourIndex(timeArray, targetMs) {
-  if (!timeArray || !timeArray.length) return 0;
-  let closestIdx = 0;
-  let minDiff = Infinity;
-  for (let i = 0; i < timeArray.length; i++) {
-    const timeStr = timeArray[i];
-    const ms = new Date(timeStr.endsWith('Z') ? timeStr : timeStr + 'Z').getTime();
-    const diff = Math.abs(ms - targetMs);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closestIdx = i;
-    }
-  }
-  return closestIdx;
-}
+// Re-export pressure domain for backwards compatibility
+export { fetchPressureData, extractPressureAtOffset, getPressureHourlyCache, isContainedInPressureCache } from './marineControllerPressure';
 
 // --- CACHES ---
 var MARINE_CACHE = new Map();
 var WIND_CACHE = new Map();
-var PRESSURE_CACHE = new Map();
 
 // --- HOURLY DATA CACHE (pre-fetched for timeline scrub) ---
 // Stores full API responses keyed by viewport hash so timeline
 // changes re-index locally instead of making new API calls.
 var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
-var pressureHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
-var HOURLY_CACHE_TTL = 60 * 60 * 1000; // 60 min (long cache to minimize API calls)
 
 // --- PERSISTENT CACHE (localStorage) ---
-// Survives page reloads eliminates 429s on revisit
 var LS_WIND_KEY = 'rawsurf_wind_cache_v1';
 var LS_MARINE_KEY = 'rawsurf_marine_cache_v1';
-var LS_PRESSURE_KEY = 'rawsurf_pressure_cache_v2'; // v2: bumped to invalidate stale 225-point caches
-
-function persistCache(key, cache) {
-  try {
-    const slim = { hash: cache.hash, results: cache.results, points: cache.points,
-      gridSize: cache.gridSize, bounds: cache.bounds, timestamp: cache.timestamp, model: cache.model, isGlobal: cache.isGlobal };
-    localStorage.setItem(key, JSON.stringify(slim));
-  } catch (e) { /* localStorage full or unavailable ignore */ }
-}
-
-function hydrateCache(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const cached = JSON.parse(raw);
-    if (!cached?.hash || !cached?.results || !cached?.timestamp) return null;
-    if (Date.now() - cached.timestamp > HOURLY_CACHE_TTL) {
-      localStorage.removeItem(key);
-      return null;
-    }
-    return cached;
-  } catch (e) { return null; }
-}
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped
@@ -109,108 +64,26 @@ if (_hydratedMarine) {
   marineHourlyCache = _hydratedMarine;
   console.log(`[Marine] Hydrated from localStorage: ${_hydratedMarine.points?.length} pts, age ${Math.round((Date.now() - _hydratedMarine.timestamp)/1000)}s`);
 }
-var _hydratedPressure = hydrateCache(LS_PRESSURE_KEY);
-if (_hydratedPressure) {
-  pressureHourlyCache = _hydratedPressure;
-  console.log(`[Pressure] Hydrated from localStorage: ${_hydratedPressure.points?.length} pts, age ${Math.round((Date.now() - _hydratedPressure.timestamp)/1000)}s`);
-}
 
 // --- LAST KNOWN GOOD FIELDS ---
 // Pre-populated from localStorage hydrated cache if available
 var lastKnownGoodWind = _hydratedWind ? extractWindAtOffset(_hydratedWind, 0) : null;
 var lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarine, 0) : null;
-var lastKnownGoodPressure = _hydratedPressure ? extractPressureAtOffset(_hydratedPressure, 0) : null;
 if (lastKnownGoodWind) console.log(`[Wind] Pre-populated lastKnownGood: ${lastKnownGoodWind.vectors.length} vectors`);
 if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${lastKnownGoodMarine.features?.length} features`);
-if (lastKnownGoodPressure) console.log(`[Pressure] Pre-populated lastKnownGood: ${lastKnownGoodPressure.pressures.length} pressures`);
-
-// --- 429 COOLDOWN STATE ---
-var windCooldownUntil = 0;
-var marineCooldownUntil = 0;
-var pressureCooldownUntil = 0;
-var COOLDOWN_MS = 300000; // 5 min cooldown — OpenMeteo free tier has aggressive rate limits
 
 // --- INFLIGHT ABORT CONTROLLERS ---
 var windAbortController = null;
 var marinAbortController = null;
-var pressureAbortController = null;
 
 // --- INFLIGHT LOCKS ---
 var windRequestInFlight = false;
 var marineRequestInFlight = false;
-var pressureRequestInFlight = false;
 
 // --- BOOTSTRAP MODE ---
 // First-load safety: always accept first valid response regardless of quality
 var BOOTSTRAP_WIND = true;
 var BOOTSTRAP_MARINE = true;
-var BOOTSTRAP_PRESSURE = true;
-
-/**
- * Check if we are in 429 cooldown for a given domain.
- */
-function isInCooldown(domain) {
-  const now = Date.now();
-  if (domain === 'wind') return now < windCooldownUntil;
-  if (domain === 'marine') return now < marineCooldownUntil;
-  if (domain === 'pressure') return now < pressureCooldownUntil;
-  return false;
-}
-
-function enterCooldown(domain) {
-  const until = Date.now() + COOLDOWN_MS;
-  if (domain === 'wind') windCooldownUntil = until;
-  if (domain === 'marine') marineCooldownUntil = until;
-  if (domain === 'pressure') pressureCooldownUntil = until;
-  console.warn(`[${domain}] 429 cooldown activated for ${COOLDOWN_MS / 1000}s`);
-}
-
-/**
- * Get remaining cooldown time for scheduling retries.
- */
-export function getRemainingCooldown(domain) {
-  const now = Date.now();
-  if (domain === 'wind') return Math.max(0, windCooldownUntil - now);
-  if (domain === 'marine') return Math.max(0, marineCooldownUntil - now);
-  if (domain === 'pressure') return Math.max(0, pressureCooldownUntil - now);
-  return 0;
-}
-
-/**
- * Dynamic snapping configurator based on current viewport size.
- * Prevents redundant API requests on minor pans while keeping resolution crisp.
- */
-function getSnapConfig(bounds) {
-  const lngSpan = Math.abs(bounds.east - bounds.west);
-  const latSpan = Math.abs(bounds.north - bounds.south);
-  const maxSpan = Math.max(lngSpan, latSpan);
-
-  // v4.2.0: Coarser snapping grid to maximize regional containment cache hits
-  if (maxSpan < 4) return { snap: 4.0, padding: 2.0 };
-  if (maxSpan < 12) return { snap: 4.0, padding: 2.0 };
-  if (maxSpan < 25) return { snap: 8.0, padding: 4.0 };
-  return { snap: 16.0, padding: 8.0 };
-}
-
-function isViewportInsideCachedBounds(viewport, cached) {
-  if (!viewport || !cached) return false;
-  let vWest = viewport.west;
-  let vEast = viewport.east;
-  if (vEast < vWest) vEast += 360;
-
-  let cWest = cached.west;
-  let cEast = cached.east;
-  if (cEast < cWest) cEast += 360;
-
-  // Clamp viewport latitude to cache range (fixes Polar cache failure when panning near poles)
-  const vSouth = Math.max(cached.south, Math.min(cached.north, viewport.south));
-  const vNorth = Math.max(cached.south, Math.min(cached.north, viewport.north));
-
-  // Verify full coordinate containment within active cached hourly grid bounds
-  const isLatContained = vSouth >= cached.south && vNorth <= cached.north;
-  const isLngContained = vWest >= cWest && vEast <= cEast;
-  return isLatContained && isLngContained;
-}
 
 export function isContainedInWindCache(bounds, model) {
   if (!bounds || !windHourlyCache.bounds || !windHourlyCache.results) return false;
@@ -231,93 +104,6 @@ export function isContainedInMarineCache(bounds, model) {
   if (isGlobalCached !== isGlobalViewport) return false;
   return isViewportInsideCachedBounds(bounds, marineHourlyCache.bounds);
 }
-
-export function isContainedInPressureCache(bounds, model) {
-  if (!bounds || !pressureHourlyCache.bounds || !pressureHourlyCache.results) return false;
-  if (pressureHourlyCache.model !== (model || 'GFS')) return false;
-  if (Date.now() - pressureHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
-  const isGlobalCached = !!pressureHourlyCache.isGlobal;
-  const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
-  if (isGlobalCached !== isGlobalViewport) return false;
-  return isViewportInsideCachedBounds(bounds, pressureHourlyCache.bounds);
-}
-
-/**
- * Generate a cache key from viewport bounds.
- * Snaps to 0.5-degree precision to allow cache hits on minor pans.
- */
-function viewportCacheKey(bounds, prefix) {
-  const snap = (v) => Math.round(v * 2) / 2;
-  return `${prefix}|${snap(bounds.south)}|${snap(bounds.north)}|${snap(bounds.west)}|${snap(bounds.east)}`;
-}
-
-/**
- * v3.8.5: High-density adaptive grid computation.
- * Regional zoom: 3131 = 961 pts at ~0.25 spacing (GFS native resolution)
- * Global zoom: 3131 = 961 pts at ~5.5 spacing (cyclone-scale detail)
- *
- * caller param: wind uses full grid, marine capped at 80 lat (API rejects polar regions)
- */
-function computeGridPoints(bounds, caller = 'wind') {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const lngSpan = bounds.east - bounds.west;
-  const latSpan = bounds.north - bounds.south;
-  const isGlobal = lngSpan > 180 || latSpan > 90;
-
-  // v4.1.0: Increased grid density for precision wind particle advection.
-  // 15×15=225 points (desktop), 9×9=81 points (mobile).
-  // Still well under Open-Meteo's 600 weighted calls/min rate limit.
-  let west, south, east, north, GRID;
-  if (isGlobal) {
-    if (caller === 'marine') {
-      // v3.13.3: Increased from 14 to 20 for better ocean coverage.
-      // 21×21=441 points gives ~18° per cell (was ~25°). Eliminates coverage gaps.
-      west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 10 : 20;
-    } else if (caller === 'pressure') {
-      // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
-      // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems
-      // (500-2000km diameter, ~5-20° across) need at least 5° resolution to reliably
-      // resolve. 961 points is still well under Open-Meteo's 10,000 daily limit.
-      west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 16 : 30;
-    } else {
-      west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 8 : 14;
-    }
-  } else {
-    west = bounds.west; east = bounds.east;
-    south = bounds.south; north = bounds.north;
-    if (caller === 'marine') {
-      GRID = isMobile ? 8 : 14;
-    } else if (caller === 'pressure') {
-      GRID = isMobile ? 16 : 30;
-    } else {
-      GRID = isMobile ? 8 : 14;
-    }
-  }
-
-  const latStep = (north - south) / GRID;
-  const lngStep = (east - west) / GRID;
-  const points = [];
-  for (let yi = 0; yi <= GRID; yi++) {
-    for (let xi = 0; xi <= GRID; xi++) {
-      let lat = south + yi * latStep;
-      let lng = west + xi * lngStep;
-      let reqLng = lng;
-      while (reqLng > 180) reqLng -= 360;
-      while (reqLng < -180) reqLng += 360;
-      points.push({
-        lat: +lat.toFixed(2),
-        reqLng: +reqLng.toFixed(2),
-        monotonicLng: +lng.toFixed(2)
-      });
-    }
-  }
-  return { points, gridSize: GRID + 1, isGlobal, bounds: { west, south, east, north } };
-}
-
-// safeNum and getUV are defined at top of file (above hydration code)
 
 // ========================================================================
 // EXTRACT WIND DATA AT A GIVEN HOUR OFFSET (from pre-fetched hourly cache)
@@ -370,36 +156,6 @@ function extractWindAtOffset(cache, hourOffset) {
   };
 }
 
-function extractPressureAtOffset(cache, hourOffset) {
-  const { results, points, gridSize, bounds } = cache;
-  const timeArray = results[0]?.hourly?.time;
-  const targetMs = Date.now() + hourOffset * 3600000;
-  const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-
-  const pressures = [];
-  points.forEach((pt, i) => {
-    const r = results[i];
-    if (!r?.hourly) {
-      pressures.push({ lat: pt.lat, lng: pt.monotonicLng, pressure: 1013 });
-      return;
-    }
-    const pressure = r.hourly.pressure_msl?.[idx];
-    if (pressure == null || isNaN(pressure)) {
-      pressures.push({ lat: pt.lat, lng: pt.monotonicLng, pressure: 1013 });
-      return;
-    }
-    pressures.push({ lat: pt.lat, lng: pt.monotonicLng, pressure });
-  });
-
-  if (pressures.length === 0) return null;
-  const sample = pressures[0];
-  console.log(`[Pressure] Timeline re-index: offset=${hourOffset}h, idx=${idx}, ${pressures.length} pressures, sample: pressure=${sample.pressure.toFixed(1)}`);
-  return {
-    pressures, bounds, cols: gridSize, rows: gridSize,
-    stale: false, source: cache.model || 'GFS', hourOffset
-  };
-}
-
 /** Public accessor for the wind hourly cache (used by WeatherEngine timeline scrub) */
 export function getWindHourlyCache() {
   return windHourlyCache;
@@ -409,12 +165,8 @@ export function getMarineHourlyCache() {
   return marineHourlyCache;
 }
 
-export function getPressureHourlyCache() {
-  return pressureHourlyCache;
-}
-
 /** Public re-index function for timeline scrub (zero API calls) */
-export { extractWindAtOffset, extractMarineAtOffset, extractPressureAtOffset };
+export { extractWindAtOffset, extractMarineAtOffset };
 
 // ========================================================================
 // WIND FETCH
@@ -910,185 +662,5 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     return lastKnownGoodMarine;
   } finally {
     marineRequestInFlight = false;
-  }
-}
-
-export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null) {
-  if (!bounds) { console.log('[Pressure] fetchPressureData: no bounds'); return lastKnownGoodPressure; }
-
-  // Zero-API scrubbing guard: Bypasses fetches during active timeline scrubbing
-  if (window.isScrubbingTimeline === true && !forceFetch) {
-    console.log(`[Pressure] Timeline scrubbing active: serving cache at offset=${hourOffset}h`);
-    return extractPressureAtOffset(pressureHourlyCache, hourOffset);
-  }
-
-  // Viewport containment caching hit (0ms load from memory)
-  if (!forceFetch && isContainedInPressureCache(bounds, model)) {
-    console.log(`[Pressure] Viewport containment HIT: zero-API pan served instantly from memory`);
-    return extractPressureAtOffset(pressureHourlyCache, hourOffset);
-  }
-
-  // Inflight lock
-  if (pressureRequestInFlight) {
-    console.log('[Pressure] fetchPressureData: request already inflight, returning cached');
-    return lastKnownGoodPressure;
-  }
-
-  // 429 cooldown check
-  if (!forceFetch && isInCooldown('pressure')) {
-    console.log(`[Pressure] fetchPressureData: in 429 cooldown, returning cached`);
-    return lastKnownGoodPressure;
-  }
-
-  // Adjust for Antimeridian / Pacific wrap
-  let west = bounds.west;
-  let east = bounds.east;
-  if (east < west) {
-    east += 360;
-  }
-
-  // Snap bounds
-  const { snap, padding } = getSnapConfig(bounds);
-  const latMinRaw = Math.floor((bounds.south - padding) / snap) * snap;
-  const latMaxRaw = Math.ceil((bounds.north + padding) / snap) * snap;
-  const lngMin = Math.floor((west - padding) / snap) * snap;
-  const lngMax = Math.ceil((east + padding) / snap) * snap;
-
-  // Clamp requested latitudes to Open-Meteo weather API limits [-85, 85]
-  const latMin = Math.max(-85, Math.min(85, latMinRaw));
-  const latMax = Math.max(-85, Math.min(85, latMaxRaw));
-
-  if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodPressure;
-
-  const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
-
-  const viewHash = viewportCacheKey(snappedBounds, `pressure_${model || 'GFS'}`);
-  if (pressureHourlyCache.hash === viewHash &&
-      pressureHourlyCache.model === (model || 'GFS') &&
-      Date.now() - pressureHourlyCache.timestamp < HOURLY_CACHE_TTL) {
-    console.log(`[Pressure] Cache HIT for offset=${hourOffset}h, model=${model || 'GFS'}`);
-    return extractPressureAtOffset(pressureHourlyCache, hourOffset);
-  }
-
-  // Stale viewport fallback only if same model
-  if (pressureHourlyCache.hash && pressureHourlyCache.model === (model || 'GFS') &&
-      Date.now() - pressureHourlyCache.timestamp < HOURLY_CACHE_TTL) {
-    const staleData = extractPressureAtOffset(pressureHourlyCache, hourOffset);
-    if (staleData && staleData.pressures.length > 0) {
-      console.log(`[Pressure] Stale cache served (viewport mismatch) ${staleData.pressures.length} pressures`);
-      lastKnownGoodPressure = staleData;
-    }
-  }
-
-  // Per-offset cache
-  const cacheKey = viewportCacheKey(snappedBounds, `pressure_${model || 'GFS'}_h${hourOffset}`);
-  if (PRESSURE_CACHE.has(cacheKey)) {
-    const cached = PRESSURE_CACHE.get(cacheKey);
-    if (Date.now() - cached.timestamp < 300000) {
-      console.log('[Pressure] Per-offset cache hit');
-      return cached.data;
-    }
-  }
-
-  if (pressureAbortController) pressureAbortController.abort();
-  pressureAbortController = new AbortController();
-  const fetchSignal = signal || pressureAbortController.signal;
-  pressureRequestInFlight = true;
-
-  try {
-    const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'pressure');
-    const lats = points.map(p => p.lat);
-    const lons = points.map(p => p.reqLng);
-
-    // Open-Meteo model identifiers
-    const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs', ICON: 'dwd_icon' };
-
-    console.log(`[Pressure] POST via proxy: ${points.length} grid points, forecast_days=${forecastDays}, model=${model || 'GFS'}`);
-
-    const body = {
-      latitude: lats, longitude: lons,
-      hourly: ['pressure_msl'],
-      forecast_days: forecastDays
-    };
-    if (model && OM_MODELS[model]) {
-      body.models = [OM_MODELS[model]];
-    }
-
-    let res;
-    try {
-      res = await fetch(PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'wind', body }),  // 'wind' routes to api.open-meteo.com/v1/forecast which also serves pressure_msl
-        signal: fetchSignal
-      });
-      // v3.13: 429 = API rate limit, NOT proxy failure.
-      if (res.status === 429) {
-        enterCooldown('pressure');
-        console.warn('[Pressure] 429 from proxy, cooldown activated (not retrying direct)');
-        return lastKnownGoodPressure;
-      }
-      if (!res.ok) {
-        throw new Error(`Proxy returned HTTP ${res.status}`);
-      }
-      // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
-      const pressContentType = res.headers.get('content-type') || '';
-      if (!pressContentType.includes('application/json')) {
-        throw new Error(`Proxy returned non-JSON content-type: ${pressContentType.substring(0, 50)}`);
-      }
-    } catch (proxyErr) {
-      if (isLocalhost) {
-        console.log('[Pressure] Proxy unavailable or error, direct API fallback:', proxyErr.message);
-        res = await fetch('https://api.open-meteo.com/v1/forecast', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: fetchSignal
-        });
-      } else {
-        console.error('[Pressure] Proxy error, direct fallback skipped in production/dev:', proxyErr.message);
-        throw proxyErr;
-      }
-    }
-
-    if (!res.ok) {
-      if (res.status === 429) {
-        enterCooldown('pressure');
-        return lastKnownGoodPressure;
-      }
-      throw new Error(`HTTP ${res.status}`);
-    }
-
-    const json = await res.json();
-    let results = Array.isArray(json) ? json
-      : (json?.hourly ? points.map(() => json) : null);
-    if (!results) { console.warn('[Pressure] Unexpected API response shape'); return lastKnownGoodPressure; }
-
-    pressureHourlyCache = {
-      hash: viewHash, results, points, gridSize,
-      bounds: gridBounds,
-      timestamp: Date.now(),
-      model: model || 'GFS',
-      isGlobal
-    };
-    persistCache(LS_PRESSURE_KEY, pressureHourlyCache);
-
-    const data = extractPressureAtOffset(pressureHourlyCache, hourOffset);
-    if (data) {
-      PRESSURE_CACHE.set(cacheKey, { data, timestamp: Date.now() });
-      lastKnownGoodPressure = data;
-      if (BOOTSTRAP_PRESSURE) { BOOTSTRAP_PRESSURE = false; console.log('[Pressure] BOOTSTRAP complete first valid data received'); }
-      console.log(`[Pressure] Fetch success: ${data.pressures.length} pressures, ${gridSize}x${gridSize} grid, offset: ${hourOffset}h`);
-      return data;
-    } else {
-      console.warn('[Pressure] Zero valid pressures from API');
-      return lastKnownGoodPressure;
-    }
-  } catch (err) {
-    if (err.name === 'AbortError') return lastKnownGoodPressure;
-    console.error(`[Pressure] Fetch failed: ${err.message}`);
-    return lastKnownGoodPressure;
-  } finally {
-    pressureRequestInFlight = false;
   }
 }

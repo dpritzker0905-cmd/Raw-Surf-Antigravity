@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Engine Bootstrap v2 Controlled Init Entry Point
  *
  * SAFE ENGINE START:
@@ -27,6 +27,7 @@ import {
 } from '../components/map/LayerRegistry';
 import { startPluginRenderLoop, stopPluginRenderLoop } from './render-orchestrator';
 import { bindContext as bindGPUContext, destroyAll as destroyGPU } from './gpu-texture-manager';
+import { startSimulation, stopSimulation } from './SimulationLoop';
 
 var _initialized = false;
 
@@ -68,6 +69,9 @@ export function initEngine(ctx) {
   // 4. Start the single render loop (fixed timestep v2)
   startPluginRenderLoop();
 
+  // 4b. Start SimulationLoop (RK4 physics — subscribes to render-orchestrator)
+  startSimulation();
+
   // 5. Mark engine ready (resolves waitForEngineBoot promises)
   markEngineReady();
 
@@ -82,6 +86,7 @@ export function initEngine(ctx) {
  */
 export function shutdownEngine() {
   if (!_initialized) return;
+  stopSimulation();
   stopPluginRenderLoop();
   destroyGPU();
   _initialized = false;

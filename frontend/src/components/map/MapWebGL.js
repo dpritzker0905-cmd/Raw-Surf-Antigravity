@@ -23,15 +23,20 @@ import { markDOMReady, getInitState, onStateChange } from '../../engine/init-seq
 import { initEngine } from '../../engine/engine-bootstrap';
 import { useTemporalPreloader } from './useTemporalPreloader';
 
+// FCE: Field Composition Engine + Live Simulation Bridge
+import { useSimulationField } from '../../engine/useSimulationField';
+import { useRenderPlanBridge } from '../../engine/useRenderPlanBridge';
+
 // Custom Hooks for Modularization (Rule <800 LOC Compliance)
 import { useMapInitialization } from './useMapInitialization';
 import { useMapViewState } from './useMapViewState';
 import { useMapLongPress } from './useMapLongPress';
 import { useSpotClusteringData } from './useSpotClusteringData';
-import { useRasterAnchorInsertion } from './useRasterAnchorInsertion';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
 import { useMapObservability } from './useMapObservability';
+
+// DELETED: useRasterAnchorInsertion — no more layer ordering hacks
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -71,7 +76,7 @@ var MapWebGL = ({
 
   const [activeSystemPopup, setActiveSystemPopup] = useState(null);
   const [webglWindFailed, setWebglWindFailed] = useState(false);
-  const [webglMarineFailed, setWebglMarineFailed] = useState(false); // WebGL marine provides GPU heatmap with built-in alpha-channel land masking
+  const [webglMarineFailed, setWebglMarineFailed] = useState(false);
 
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);
@@ -98,8 +103,7 @@ var MapWebGL = ({
   // 3. Map LongPress Contextmenu & Mobile touch holds
   useMapLongPress({ mapInstance, onMapLongPress });
 
-  // 4. Raster anchor detection and OceanMask cleanups
-  const { marineBeforeId } = useRasterAnchorInsertion({ mapInstance });
+  // DELETED: useRasterAnchorInsertion — no more beforeId/marineBeforeId
 
   // 5. Satellite background sync handling
   useSatelliteBackgroundSync({ mapInstance, activeLayers });
@@ -142,7 +146,7 @@ var MapWebGL = ({
   const { windData, windRevision } = useWeatherEngine({
     activeLayers,
     mapInstance,
-    timeOffsetHours: debouncedTimeOffsetHours, // Synchronized & debounced to prevent CPU choke
+    timeOffsetHours: debouncedTimeOffsetHours,
     activeModel,
     forecastDays
   });
@@ -151,10 +155,52 @@ var MapWebGL = ({
   const { marineData } = useMarineOrchestrator({
     mapInstance,
     activeLayers,
-    timeOffsetHours: debouncedTimeOffsetHours, // Synchronized & debounced to prevent CPU choke
+    timeOffsetHours: debouncedTimeOffsetHours,
     activeModel
   });
 
+  // ============================================================
+  // FCE: Field Composition Engine — Single Source of Truth
+  // SimulationField merges all data sources into unified state.
+  // SimulationLoop runs RK4 physics at 60Hz, produces RenderPlan.
+  // useRenderPlanBridge exposes the live RenderPlan to React.
+  // ============================================================
+  const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
+    windData,
+    marineData,
+    pressureData: null,
+    activeModel,
+    timeOffsetHours: debouncedTimeOffsetHours,
+    enableLogging: true,
+  });
+
+  // Live simulation bridge — drives RK4 physics independently of React
+  const simConfig = useMemo(() => ({
+    activeLayers,
+    activeMarineLayer,
+    theme,
+    oceanMaskEnabled: true,
+  }), [activeLayers, activeMarineLayer, theme]);
+
+  const {
+    renderPlan,
+    frameIndex: simFrameIndex,
+    diagnostics: simDiagnostics,
+  } = useRenderPlanBridge({
+    field: simulationField,
+    config: simConfig,
+    enabled: true,
+  });
+
+  // Expose FCE + simulation state for debugging
+  if (typeof window !== 'undefined') {
+    window.__FCE_FIELD__ = simulationField;
+    window.__FCE_RENDER_PLAN__ = renderPlan;
+    window.__FCE_DIAGNOSTICS__ = fieldDiagnostics;
+    window.__SIM_DIAGNOSTICS__ = simDiagnostics;
+    window.__SIM_FRAME__ = simFrameIndex;
+    window.__SIM_EVOLUTION__ = renderPlan?.evolution || null;
+  }
 
   const activeRenderType = useMemo(() => {
     const layerId = activeLayers[0];
@@ -187,16 +233,12 @@ var MapWebGL = ({
     };
   }, [marineData, activeMarineLayer]);
 
-  // v3.17: Imperative marine raster opacity sync — react-map-gl doesn't deep-compare
-  // interpolation expression values, so we force-apply via setPaintProperty
+  // v3.17: Imperative marine raster opacity sync
   useEffect(() => {
     if (!mapInstance || !activeMarineLayer) return;
     const marineOpacity = [
       'interpolate', ['linear'], ['zoom'],
-      2, 0.45,
-      5, 0.55,
-      8, 0.65,
-      12, 0.70
+      2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
     ];
     const slots = [0, 1, 2];
     const activeSlotIdx = activeSlots[activeMarineLayer];
@@ -206,7 +248,7 @@ var MapWebGL = ({
       const isActive = activeSlotIdx !== undefined ? activeSlotIdx === s : false;
       try {
         mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? marineOpacity : 0);
-      } catch (e) { /* layer may not exist yet */ }
+      } catch (e) {}
     }
   }, [mapInstance, activeMarineLayer, activeSlots, isTransitioning]);
 
@@ -352,13 +394,12 @@ var MapWebGL = ({
         minZoom={2.0}
         renderWorldCopies={true}
       >
-        {/* Ocean Mask — Land/Ocean clipping. Hides GFS raster grid diamonds at coastlines. */}
+        {/* Ocean Mask — Static land/ocean layers. NO ordering logic, NO beforeId. */}
         <OceanMask
           mapInstance={mapInstance}
-          active={!!activeMarineLayer}
+          active={renderPlan ? renderPlan.oceanMask.active : !!activeMarineLayer}
           activeMarineLayer={activeMarineLayer}
           theme={theme}
-          beforeId={marineBeforeId || undefined}
         />
 
         {/* Geofence Visual Layer */}
@@ -404,7 +445,7 @@ var MapWebGL = ({
           </Source>
         )}
 
-        {/* ESRI True Satellite Imagery */}
+        {/* ESRI True Satellite Imagery — NO beforeId */}
         <Source
           id="esri-satellite-source"
           type="raster"
@@ -414,14 +455,13 @@ var MapWebGL = ({
         >
           <Layer
             id="esri-satellite-layer"
-            beforeId={marineBeforeId || undefined}
             type="raster"
             layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
             paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
           />
         </Source>
 
-        {/* Open-Meteo Independent Static Tile Sources with Triple-Source Sliding Ring Buffer */}
+        {/* Open-Meteo Raster Tile Layers — NO beforeId, pure static stack */}
         {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
@@ -442,11 +482,6 @@ var MapWebGL = ({
               >
                 <Layer
                   id={`${slotKey}-layer`}
-                  beforeId={
-                    LAYER_REGISTRY[layerKey]?.type === 'marine'
-                      ? (mapInstance?.getLayer('ocean-mask-buffer') ? 'ocean-mask-buffer' : (marineBeforeId || undefined))
-                      : (marineBeforeId || undefined)
-                  }
                   type="raster"
                   layout={{
                     visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
@@ -455,10 +490,7 @@ var MapWebGL = ({
                     'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? (
                       LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
                         'interpolate', ['linear'], ['zoom'],
-                        2, 0.45,
-                        5, 0.55,
-                        8, 0.65,
-                        12, 0.70
+                        2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
                       ] : [
                         'interpolate', ['linear'], ['zoom'],
                         2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
@@ -512,7 +544,7 @@ var MapWebGL = ({
           mapRef={innerMapRef}
         />
 
-        {/* Canvas2D Wind Particles Overlay */}
+        {/* Wind Particles */}
         {(!webglWindFailed && activeLayers.includes('wind')) ? (
           <WebGLWindLayer
             mapInstance={mapInstance}
