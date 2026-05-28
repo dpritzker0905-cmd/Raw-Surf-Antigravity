@@ -233,24 +233,8 @@ var MapWebGL = ({
     };
   }, [marineData, activeMarineLayer]);
 
-  // v3.17: Imperative marine raster opacity sync
-  useEffect(() => {
-    if (!mapInstance || !activeMarineLayer) return;
-    const marineOpacity = [
-      'interpolate', ['linear'], ['zoom'],
-      2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
-    ];
-    const slots = [0, 1, 2];
-    const activeSlotIdx = activeSlots[activeMarineLayer];
-    for (const s of slots) {
-      const layerId = `${activeMarineLayer}-slot-${s}-layer`;
-      if (!mapInstance.getLayer(layerId)) continue;
-      const isActive = activeSlotIdx !== undefined ? activeSlotIdx === s : false;
-      try {
-        mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? marineOpacity : 0);
-      } catch (e) {}
-    }
-  }, [mapInstance, activeMarineLayer, activeSlots, isTransitioning]);
+  // Marine raster opacity is controlled declaratively via JSX paint props (single source of truth).
+  // Removed v3.17 imperative setPaintProperty sync — it raced with JSX and could set opacity to 0.
 
   // Layer Truth Diff Engine
   const { issues: truthIssues, rasterVisible } = useLayerTruthDiff({
