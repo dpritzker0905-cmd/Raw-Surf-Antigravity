@@ -223,6 +223,7 @@ uniform mat4 u_matrix;
 uniform vec2 u_dataBounds_min;   // [west, south]
 uniform vec2 u_dataBounds_max;   // [east, north]
 varying vec2 v_grid_uv;
+varying vec2 v_geo_coord;        // [lng, lat] for procedural layers
 
 void main() {
   v_grid_uv = a_grid_uv;
@@ -230,6 +231,8 @@ void main() {
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
   lat = clamp(lat, -85.051129, 85.051129);
+
+  v_geo_coord = vec2(lng, lat);
 
   // Wrap longitude to [-180, 180] for antimeridian crossing
   float wrappedLng = lng - 360.0 * floor((lng + 180.0) / 360.0);
@@ -243,63 +246,147 @@ void main() {
 }
 `;
 
+// ============================================================
+// OCEAN GPU v2 — Multi-Field Composite Fragment Shader
+// ============================================================
+// Produces a NASA-style ocean composite from existing marine data.
+// All layers are procedurally derived from the single wave data texture:
+//   R = swell direction u (normalized)
+//   G = swell direction v (normalized)
+//   B = wave height (0-10m normalized to 0-1)
+//   A = ocean mask (0=land, 1=ocean, LINEAR interpolated at coast)
+//
+// 5 composite layers:
+//   1. Bathymetry base color (depth from alpha gradient)
+//   2. Chlorophyll tint (latitude + coastal proximity)
+//   3. Wave energy boost (storm brightening)
+//   4. Shallow shelf glow (continental shelf turquoise)
+//   5. Directional swell lighting (anisotropic u/v bias)
+// ============================================================
 var HEATMAP_FS = `
 precision mediump float;
 varying vec2 v_grid_uv;
+varying vec2 v_geo_coord;
 uniform sampler2D u_marine_grid;
 uniform float u_opacity;
 
-vec3 getMarineColor(float h) {
-  // Breakpoints: 0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10
-  if (h <= 0.5) {
-    return mix(vec3(14.0/255.0, 25.0/255.0, 65.0/255.0), vec3(25.0/255.0, 45.0/255.0, 100.0/255.0), clamp(h / 0.5, 0.0, 1.0));
-  } else if (h <= 1.0) {
-    return mix(vec3(25.0/255.0, 45.0/255.0, 100.0/255.0), vec3(35.0/255.0, 75.0/255.0, 135.0/255.0), clamp((h - 0.5) / 0.5, 0.0, 1.0));
-  } else if (h <= 1.5) {
-    return mix(vec3(35.0/255.0, 75.0/255.0, 135.0/255.0), vec3(45.0/255.0, 110.0/255.0, 160.0/255.0), clamp((h - 1.0) / 0.5, 0.0, 1.0));
-  } else if (h <= 2.0) {
-    return mix(vec3(45.0/255.0, 110.0/255.0, 160.0/255.0), vec3(60.0/255.0, 140.0/255.0, 175.0/255.0), clamp((h - 1.5) / 0.5, 0.0, 1.0));
-  } else if (h <= 2.5) {
-    return mix(vec3(60.0/255.0, 140.0/255.0, 175.0/255.0), vec3(80.0/255.0, 175.0/255.0, 180.0/255.0), clamp((h - 2.0) / 0.5, 0.0, 1.0));
-  } else if (h <= 3.0) {
-    return mix(vec3(80.0/255.0, 175.0/255.0, 180.0/255.0), vec3(120.0/255.0, 205.0/255.0, 165.0/255.0), clamp((h - 2.5) / 0.5, 0.0, 1.0));
-  } else if (h <= 4.0) {
-    return mix(vec3(120.0/255.0, 205.0/255.0, 165.0/255.0), vec3(180.0/255.0, 220.0/255.0, 140.0/255.0), clamp((h - 3.0) / 1.0, 0.0, 1.0));
-  } else if (h <= 5.0) {
-    return mix(vec3(180.0/255.0, 220.0/255.0, 140.0/255.0), vec3(230.0/255.0, 210.0/255.0, 95.0/255.0), clamp((h - 4.0) / 1.0, 0.0, 1.0));
-  } else if (h <= 6.0) {
-    return mix(vec3(230.0/255.0, 210.0/255.0, 95.0/255.0), vec3(245.0/255.0, 150.0/255.0, 50.0/255.0), clamp((h - 5.0) / 1.0, 0.0, 1.0));
-  } else if (h <= 8.0) {
-    return mix(vec3(245.0/255.0, 150.0/255.0, 50.0/255.0), vec3(220.0/255.0, 80.0/255.0, 40.0/255.0), clamp((h - 6.0) / 2.0, 0.0, 1.0));
-  } else {
-    return mix(vec3(220.0/255.0, 80.0/255.0, 40.0/255.0), vec3(160.0/255.0, 30.0/255.0, 70.0/255.0), clamp((h - 8.0) / 2.0, 0.0, 1.0));
-  }
+// Procedural noise for organic chlorophyll patterns
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
 void main() {
   vec4 waveData = texture2D(u_marine_grid, v_grid_uv);
   float waveHeight = waveData.b * 10.0;
+  float oceanAlpha = waveData.a;
 
-  // Ocean mask: alpha channel encodes land (0) vs ocean (1)
-  // With LINEAR filtering on a coarse grid, alpha interpolates across the coast.
-  // Threshold at 0.7 ensures only predominantly-ocean cells pass (crisp coastline).
-  // The ocean-mask-fill vector layer on top provides precise coastline masking.
-  if (waveData.a < 0.7 || waveHeight < 0.01) {
+  // Ocean mask: discard land pixels
+  // With LINEAR filtering, alpha interpolates across coast.
+  // Threshold at 0.5 for v2 (was 0.7) — shelf glow needs the gradient range.
+  if (oceanAlpha < 0.5 || waveHeight < 0.001) {
     discard;
   }
 
-  vec3 rgb = getMarineColor(waveHeight);
-  float alpha = u_opacity;
-  
-  // Smooth coastline fade with rich ocean fill
-  float heightFade = smoothstep(0.01, 0.15, waveHeight);
-  float maskFade = smoothstep(0.7, 0.9, waveData.a);
-  alpha *= heightFade * maskFade;
+  // Decode swell direction from normalized [0,1] → [-1,1]
+  vec2 swellDir = (waveData.rg - 0.5) * 2.0;
+  float swellMag = length(swellDir);
 
-  gl_FragColor = vec4(rgb * alpha, alpha);
+  // ── LAYER 1: BATHYMETRY BASE COLOR ──
+  // Alpha gradient from LINEAR filtering = coastal proximity.
+  // Near coast (alpha ~0.5-0.8): shallow shelf
+  // Open ocean (alpha ~1.0): deep water
+  float depthFactor = smoothstep(0.5, 1.0, oceanAlpha);
+
+  // Deep abyss → mid ocean → surface color progression
+  vec3 abyssColor   = vec3(0.008, 0.035, 0.12);   // near-black deep blue
+  vec3 midOcean     = vec3(0.015, 0.08, 0.20);    // dark navy
+  vec3 surfaceOcean = vec3(0.025, 0.12, 0.28);    // rich ocean blue
+  vec3 baseColor = mix(surfaceOcean, mix(midOcean, abyssColor, depthFactor * 0.6), depthFactor);
+
+  // ── LAYER 2: CHLOROPHYLL TINT ──
+  // Latitude-driven bands: tropical waters are greener (upwelling zones)
+  // Polar waters are clearer/bluer. Coastal zones have higher nutrient density.
+  float absLat = abs(v_geo_coord.y);
+
+  // Tropical belt chlorophyll (equatorial upwelling)
+  float tropicalChl = smoothstep(35.0, 15.0, absLat) * 0.35;
+  // Temperate bloom zones (spring/summer productivity)
+  float temperateChl = smoothstep(25.0, 45.0, absLat) * smoothstep(65.0, 50.0, absLat) * 0.25;
+  // Coastal upwelling boost (near-shore nutrients — use alpha gradient)
+  float coastalChl = (1.0 - depthFactor) * 0.4;
+
+  // Organic variation with procedural noise
+  float chlNoise = noise(v_geo_coord * 0.15) * 0.3;
+  float chlDensity = clamp(tropicalChl + temperateChl + coastalChl + chlNoise - 0.1, 0.0, 0.8);
+
+  // Chlorophyll color: nutrient green-teal
+  vec3 chlColor = vec3(0.06, 0.45, 0.28);
+  baseColor = mix(baseColor, chlColor, chlDensity * 0.5);
+
+  // ── LAYER 3: WAVE ENERGY BOOST ──
+  // Storm zones brighten the ocean surface. Calm zones stay dark.
+  float waveEnergy = smoothstep(0.0, 6.0, waveHeight);
+  vec3 energyBoost = vec3(0.04, 0.07, 0.12) * waveEnergy;
+
+  // High-energy storm brightening (>4m waves)
+  float stormFactor = smoothstep(4.0, 8.0, waveHeight);
+  energyBoost += vec3(0.08, 0.06, 0.03) * stormFactor;
+
+  baseColor += energyBoost;
+
+  // ── LAYER 4: SHALLOW SHELF GLOW ──
+  // Continental shelf = turquoise/cyan brightening
+  // Bahamas, Florida shelf, reef zones pop with this
+  float shelfProximity = 1.0 - depthFactor;
+  float shelfGlow = smoothstep(0.0, 0.6, shelfProximity);
+
+  // Turquoise shelf color with latitude warmth variation
+  float warmth = smoothstep(50.0, 20.0, absLat); // warmer = more turquoise
+  vec3 shelfColor = mix(
+    vec3(0.05, 0.15, 0.18),  // cold shelf (grey-blue)
+    vec3(0.08, 0.28, 0.25),  // warm shelf (turquoise)
+    warmth
+  );
+  baseColor += shelfColor * shelfGlow * 0.7;
+
+  // ── LAYER 5: DIRECTIONAL SWELL LIGHTING ──
+  // Anisotropic light bias from wave direction creates "flow feel"
+  // Light direction simulates sun angle from upper-left
+  vec2 lightDir = normalize(vec2(-0.6, 0.8));
+  float directional = 0.0;
+  if (swellMag > 0.05) {
+    directional = dot(normalize(swellDir), lightDir);
+    directional = directional * 0.5 + 0.5; // remap [-1,1] → [0,1]
+    directional *= swellMag; // scale by swell strength
+  }
+  baseColor += vec3(0.02, 0.025, 0.035) * directional;
+
+  // ── FINAL COMPOSITE ──
+  float alpha = u_opacity;
+
+  // Coastline fade: smooth transition at ocean boundary
+  float maskFade = smoothstep(0.5, 0.85, oceanAlpha);
+  // Very low wave height areas get subtle fade (calm bays)
+  float heightFade = smoothstep(0.001, 0.2, waveHeight);
+  alpha *= maskFade * heightFade;
+
+  // Premultiplied alpha output
+  gl_FragColor = vec4(baseColor * alpha, alpha);
 }
 
 `;
+
 
 // --- Utility Functions ---
 
