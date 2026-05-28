@@ -462,7 +462,7 @@ var MapWebGL = ({
                 type="raster"
                 url={url}
                 tileSize={512}
-                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 12}
+                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 10}
               >
                 <Layer
                   id={`${slotKey}-layer`}
@@ -484,7 +484,7 @@ var MapWebGL = ({
                       ]
                     ) : 0.0,
                     'raster-resampling': 'linear',
-                    'raster-fade-duration': 150
+                    'raster-fade-duration': 0
                   }}
                 />
               </Source>
