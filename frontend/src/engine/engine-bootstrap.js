@@ -28,6 +28,7 @@ import {
 import { startPluginRenderLoop, stopPluginRenderLoop } from './render-orchestrator';
 import { bindContext as bindGPUContext, destroyAll as destroyGPU } from './gpu-texture-manager';
 import { startSimulation, stopSimulation } from './SimulationLoop';
+import { startDispatcher, stopDispatcher } from './RenderPlanDispatcher';
 
 var _initialized = false;
 
@@ -72,6 +73,9 @@ export function initEngine(ctx) {
   // 4b. Start SimulationLoop (RK4 physics — subscribes to render-orchestrator)
   startSimulation();
 
+  // 4c. Start RenderPlan dispatcher (bridges evolved field → GPU renderers)
+  startDispatcher();
+
   // 5. Mark engine ready (resolves waitForEngineBoot promises)
   markEngineReady();
 
@@ -86,6 +90,7 @@ export function initEngine(ctx) {
  */
 export function shutdownEngine() {
   if (!_initialized) return;
+  stopDispatcher();
   stopSimulation();
   stopPluginRenderLoop();
   destroyGPU();

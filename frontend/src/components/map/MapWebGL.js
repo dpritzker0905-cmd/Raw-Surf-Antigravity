@@ -26,6 +26,7 @@ import { useTemporalPreloader } from './useTemporalPreloader';
 // FCE: Field Composition Engine + Live Simulation Bridge
 import { useSimulationField } from '../../engine/useSimulationField';
 import { useRenderPlanBridge } from '../../engine/useRenderPlanBridge';
+import { getDispatcherDiagnostics } from '../../engine/RenderPlanDispatcher';
 
 // Custom Hooks for Modularization (Rule <800 LOC Compliance)
 import { useMapInitialization } from './useMapInitialization';
@@ -200,6 +201,7 @@ var MapWebGL = ({
     window.__SIM_DIAGNOSTICS__ = simDiagnostics;
     window.__SIM_FRAME__ = simFrameIndex;
     window.__SIM_EVOLUTION__ = renderPlan?.evolution || null;
+    window.__GPU_DISPATCHER__ = getDispatcherDiagnostics();
   }
 
   const activeRenderType = useMemo(() => {

@@ -12,6 +12,7 @@
  */
 import { useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
+import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 
 var LAYER_ID = 'webgl-wind-particles';
 
@@ -32,6 +33,8 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
       glRef.current = _gl;
       try {
         engine.init(_gl);
+        // Register with RenderPlanDispatcher for evolved field data
+        registerWindEngine(engine, _gl);
       } catch (e) {
         console.error('[WebGLWind] Init failed:', e.message);
         if (onErrorRef.current) onErrorRef.current();
@@ -200,6 +203,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
         }
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
+      unregisterWindEngine();
       engine.dispose(mapInstance.painter?.context?.gl);
       engineRef.current = null;
     };

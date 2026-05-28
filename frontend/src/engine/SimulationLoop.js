@@ -259,6 +259,13 @@ function renderCallback(alpha, simTime) {
 
     // Attach evolution diagnostics
     _renderPlan.evolution = getEvolutionDiagnostics(_evolvedField);
+
+    // Attach evolved field reference for GPU dispatcher (non-enumerable to keep plan clean)
+    Object.defineProperty(_renderPlan, '_evolvedField', {
+      value: _evolvedField,
+      enumerable: false,
+      configurable: true,
+    });
   }
 
   // Notify all subscribers (React bridge)
