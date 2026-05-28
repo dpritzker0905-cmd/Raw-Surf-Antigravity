@@ -4,7 +4,6 @@ import {
   OM_MODEL_MAP,
   fetchModelMetadata,
   registerOpenMeteoProtocol,
-  safeSetPaintProperty,
   applyThemePressureScale,
   trace
 } from './mapUtils';
@@ -17,7 +16,7 @@ import {
 } from './LayerRegistry';
 import { validateModelAccess } from './LayerAccessResolver';
 import { WeatherTelemetry } from './WeatherTelemetry';
-import { useModelTransition, getOpacityExpression, resolveVariable } from './useModelTransition';
+import { useModelTransition, resolveVariable } from './useModelTransition';
 
 // Global transition registry for deduplication (Request 1)
 let lastTransitionKey = null;
@@ -605,38 +604,10 @@ export function useOpenMeteoTileUrls({
     };
   }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier]);
 
-  // Unified Opacity Blending and Sliding Sync
-  useEffect(() => {
-    if (!mapInstance) return;
-    try {
-      activeLayers.forEach(layerKey => {
-        const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
-        const opacityExpression = getOpacityExpression(layerKey, isMarine);
-        
-        const dampingFactor = debouncedTimeOffsetHours > 240
-          ? Math.max(0.3, 1.0 - (debouncedTimeOffsetHours - 240) * 0.005)
-          : 1.0;
-        const finalOpacity = dampingFactor !== 1.0
-          ? opacityExpression.map((val, idx) => (idx >= 4 && idx % 2 === 0 && typeof val === 'number' ? val * dampingFactor : val))
-          : opacityExpression;
-        
-        [0, 1, 2].forEach(slot => {
-          const slotLayerId = `${layerKey}-slot-${slot}-layer`;
-          if (mapInstance.getLayer(slotLayerId)) {
-            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-fade-duration', 150);
-            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity-transition', { duration: 150 });
-            const isActive = activeSlots[layerKey] !== undefined
-              ? activeSlots[layerKey] === slot
-              : (closestTimeIdxRef.current % 3) === slot;
-            // Removed isTransitioning opacity zero-out to prevent solid blank-out during model changes
-            safeSetPaintProperty(mapInstance, slotLayerId, 'raster-opacity', isActive ? finalOpacity : 0.0);
-          }
-        });
-      });
-    } catch (e) {
-      console.warn('[TRANSITION] Failed to apply explicit blend parameter:', e);
-    }
-  }, [mapInstance, activeLayers, activeSlots, isTransitioning, debouncedTimeOffsetHours]);
+  // NOTE: Imperative opacity/fade override removed. All raster paint properties
+  // (raster-opacity, raster-fade-duration) are controlled EXCLUSIVELY via
+  // declarative JSX paint props in MapWebGL.js. Any imperative setPaintProperty
+  // calls create a dual-control race that causes heatmap disappearance.
 
   useEffect(() => {
     if (mapInstance) {
