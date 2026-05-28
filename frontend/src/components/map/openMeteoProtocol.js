@@ -486,7 +486,17 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               const res = await omProtocol(params, abortController, effectiveSettings);
               TILE_TRUTH.protocolCalls++;
               TILE_TRUTH.cacheMisses++;
-              TILE_TRUTH.recentTiles.push({ key: tileKey.slice(-60), source: 'DECODE', timestamp: Date.now(), marine: isMarine, ms: Date.now() - startTime, mask: TILE_TRUTH.currentMaskResolution });
+              const clipApplied = !!(effectiveSettings?.clippingOptions?.geojson);
+              TILE_TRUTH.recentTiles.push({
+                key: tileKey.slice(-60),
+                source: 'DECODE',
+                timestamp: Date.now(),
+                marine: isMarine,
+                ms: Date.now() - startTime,
+                mask: TILE_TRUTH.currentMaskResolution,
+                clipApplied,
+                settingsRef: isMarine ? 'marine' : 'default'
+              });
               if (TILE_TRUTH.recentTiles.length > 50) TILE_TRUTH.recentTiles.shift();
               WeatherTelemetry.trackRasterDecodeEnd(tileKey, Date.now() - startTime);
               WeatherTelemetry.trackTileLoaded(tileKey, true);

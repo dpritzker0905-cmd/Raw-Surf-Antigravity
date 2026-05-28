@@ -158,23 +158,36 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     const findInsertionPoint = () => {
       try {
         const style = mapInstance.getStyle();
-        if (!style?.layers) return null;
+        if (!style?.layers?.length) return null;
 
+        // Primary: insert BEFORE the first landuse/park/landcover/building layer
         for (const layer of style.layers) {
           const id = layer.id;
-          // Skip our own layers and custom layers
+          // Skip our own layers and react-map-gl layers
           if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
           if (id === 'background' || id === 'water' || id === 'water-depth' || id === 'wetland') continue;
 
-          // Insert BEFORE the first landuse, park, POI, or structural layer
           if (id.includes('landuse') || id.includes('park') || id.includes('landcover') ||
               id.includes('national') || id.includes('land-structure') ||
               id.includes('building') || id.includes('poi') ||
               layer.type === 'symbol') {
+            console.log(`[OceanMask] Insertion point: BEFORE '${id}'`);
             return id;
           }
         }
-      } catch (e) {}
+
+        // Fallback: insert BEFORE the first symbol layer (labels should always be on top)
+        for (const layer of style.layers) {
+          if (layer.type === 'symbol' && !layer.id.startsWith('ocean-mask-')) {
+            console.log(`[OceanMask] Fallback insertion: BEFORE symbol '${layer.id}'`);
+            return layer.id;
+          }
+        }
+
+        console.warn('[OceanMask] No insertion point found — mask will be added at TOP (may occlude features)');
+      } catch (e) {
+        console.warn('[OceanMask] findInsertionPoint error:', e);
+      }
       return null;
     };
 
