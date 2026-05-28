@@ -351,6 +351,26 @@ var MapWebGL = ({
     };
   }, [mapInstance]);
 
+  // Runtime diagnostic — call window.__MAP_DEBUG__() in console to inspect layer stack
+  useEffect(() => {
+    if (!mapInstance) return;
+    window.__MAP_DEBUG__ = () => {
+      const style = mapInstance.getStyle();
+      const layers = style?.layers?.map((l, i) => ({
+        idx: i,
+        id: l.id,
+        type: l.type,
+        visibility: l.layout?.visibility ?? 'visible',
+        opacity: l.paint?.['raster-opacity'] ?? l.paint?.['circle-opacity'] ?? l.paint?.['fill-opacity'] ?? l.paint?.['line-opacity'] ?? '-'
+      }));
+      console.table(layers);
+      console.log('[DEBUG] Total layers:', layers?.length);
+      console.log('[DEBUG] Active marine settings:', !!window.__OM_MARINE_SETTINGS__);
+      console.log('[DEBUG] Raster sources:', Object.keys(style?.sources || {}).filter(s => s.includes('slot')));
+      return layers;
+    };
+    return () => { delete window.__MAP_DEBUG__; };
+  }, [mapInstance]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -385,29 +405,6 @@ var MapWebGL = ({
           activeMarineLayer={activeMarineLayer}
           theme={theme}
         />
-
-        {/* Geofence Visual Layer */}
-        <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
-          <Layer 
-            id="spot-geofences-layer"
-            type="circle"
-            paint={{
-              'circle-radius': [
-                'interpolate',
-                ['exponential', 2],
-                ['zoom'],
-                10, 5,
-                14, 25,
-                18, 150
-              ],
-              'circle-color': '#06b6d4',
-              'circle-opacity': 0.1,
-              'circle-stroke-width': 1,
-              'circle-stroke-color': '#06b6d4',
-              'circle-pitch-alignment': 'map'
-            }}
-          />
-        </Source>
 
         {/* --- WEATHER LAYERS --- */}
 
@@ -513,6 +510,29 @@ var MapWebGL = ({
             revision={marineData?.grid?.timestamp || Date.now()}
           />
         )}
+
+        {/* Geofence Visual Layer — MUST be above weather rasters to remain visible */}
+        <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
+          <Layer 
+            id="spot-geofences-layer"
+            type="circle"
+            paint={{
+              'circle-radius': [
+                'interpolate',
+                ['exponential', 2],
+                ['zoom'],
+                10, 5,
+                14, 25,
+                18, 150
+              ],
+              'circle-color': '#06b6d4',
+              'circle-opacity': 0.1,
+              'circle-stroke-width': 1,
+              'circle-stroke-color': '#06b6d4',
+              'circle-pitch-alignment': 'map'
+            }}
+          />
+        </Source>
 
         {/* Marker Rendering Layer */}
         <MapMarkerLayers

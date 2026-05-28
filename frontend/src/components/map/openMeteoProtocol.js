@@ -259,11 +259,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         window.__OM_MARINE_SETTINGS__ = marineSettings;
         // Flush tile cache — tiles decoded with old mask have stale clipping
         DECODED_TILE_CACHE.clear();
-        // Invalidate library's internal clipping cache by clearing block cache
-        if (typeof clearBlockCache === 'function') {
-          try { clearBlockCache(); } catch (e) { /* optional */ }
-        }
-        console.log(`[MODEL] [OM-Protocol] Ocean clipping polygon built (${resolution}):`, oceanPoly.geometry.coordinates.length - 1, 'land holes — tile cache flushed');
+        // Signal MapLibre tile URL regeneration — MapLibre's internal SourceCache
+        // holds tiles decoded with the old mask. Changing the _cb param in URLs
+        // forces MapLibre to treat them as new sources and re-fetch through om://
+        window.dispatchEvent(new CustomEvent('om-mask-upgraded', { detail: { resolution } }));
+        console.log(`[MODEL] [OM-Protocol] Ocean clipping polygon built (${resolution}):`, oceanPoly.geometry.coordinates.length - 1, 'land holes — tile cache flushed + URL invalidation dispatched');
       }
     };
 

@@ -92,6 +92,18 @@ export function useOpenMeteoTileUrls({
   }, [activeLayers]);
 
   const cacheBustRef = useRef(Date.now());
+
+  // Listen for mask upgrades (110m→50m) — force MapLibre to re-fetch tiles
+  // with new cache buster so they decode with the upgraded clipping polygon
+  useEffect(() => {
+    const handleMaskUpgrade = () => {
+      cacheBustRef.current = Date.now();
+      setMetadataRevision(r => r + 1); // trigger URL regeneration
+      console.log('[TRANSITION] Mask upgraded — tile URLs invalidated');
+    };
+    window.addEventListener('om-mask-upgraded', handleMaskUpgrade);
+    return () => window.removeEventListener('om-mask-upgraded', handleMaskUpgrade);
+  }, []);
   
   const activeSlotsRef = useRef(activeSlots);
   activeSlotsRef.current = activeSlots;
