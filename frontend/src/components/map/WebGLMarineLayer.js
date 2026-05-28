@@ -146,9 +146,12 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
         try {
-          mapInstance.addLayer(customLayer);
+          // Insert BEFORE spot geofences so surf spots always render ABOVE ocean heatmap.
+          // Falls back to top-of-stack if geofence layer doesn't exist yet.
+          const beforeId = mapInstance.getLayer('spot-geofences-layer') ? 'spot-geofences-layer' : undefined;
+          mapInstance.addLayer(customLayer, beforeId);
           layerAddedRef.current = true;
-          console.log(`[WebGLMarine] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+          console.log(`[WebGLMarine] Layer added BEFORE '${beforeId || 'TOP'}' (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
           if (onAddedChangeRef.current) onAddedChangeRef.current(true);
         } catch (e) {
           console.warn('[WebGLMarine] Failed to add layer:', e.message);
