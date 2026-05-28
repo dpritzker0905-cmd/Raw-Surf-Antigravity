@@ -143,19 +143,24 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       if (!mapInstance) return;
       if (!mapInstance.isStyleLoaded?.()) return;
 
-      if (!mapInstance.getLayer(LAYER_ID)) {
-        layerAddedRef.current = false;
+      // Always remove any pre-existing layer to prevent stale orphan layers on style updates
+      if (mapInstance.getLayer(LAYER_ID)) {
         try {
-          // Insert BEFORE spot geofences so surf spots always render ABOVE ocean heatmap.
-          // Falls back to top-of-stack if geofence layer doesn't exist yet.
-          const beforeId = mapInstance.getLayer('spot-geofences-layer') ? 'spot-geofences-layer' : undefined;
-          mapInstance.addLayer(customLayer, beforeId);
-          layerAddedRef.current = true;
-          console.log(`[WebGLMarine] Layer added BEFORE '${beforeId || 'TOP'}' (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
-          if (onAddedChangeRef.current) onAddedChangeRef.current(true);
-        } catch (e) {
-          console.warn('[WebGLMarine] Failed to add layer:', e.message);
-        }
+          mapInstance.removeLayer(LAYER_ID);
+        } catch (e) {}
+      }
+
+      layerAddedRef.current = false;
+      try {
+        // Insert BEFORE spot geofences so surf spots always render ABOVE ocean heatmap.
+        // Falls back to top-of-stack if geofence layer doesn't exist yet.
+        const beforeId = mapInstance.getLayer('spot-geofences-layer') ? 'spot-geofences-layer' : undefined;
+        mapInstance.addLayer(customLayer, beforeId);
+        layerAddedRef.current = true;
+        console.log(`[WebGLMarine] Layer added BEFORE '${beforeId || 'TOP'}' (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+        if (onAddedChangeRef.current) onAddedChangeRef.current(true);
+      } catch (e) {
+        console.warn('[WebGLMarine] Failed to add layer:', e.message);
       }
     };
 
@@ -165,10 +170,10 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     return () => {
       try {
         mapInstance.off('styledata', handleStyleData);
-        if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
+        if (mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
-          if (onAddedChangeRef.current) onAddedChangeRef.current(false);
         }
+        if (onAddedChangeRef.current) onAddedChangeRef.current(false);
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
       unregisterMarineEngine();

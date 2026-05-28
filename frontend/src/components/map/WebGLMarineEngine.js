@@ -1,6 +1,6 @@
 /**
  * WebGLMarineEngine.js
- * GPU-accelerated wave crest simulation engine + continuous wave height heatmap.
+ * Ocean GPU v2 — Fully GPU-native, raster-free marine rendering engine.
  * Renders pulsing, perpendicular wave fronts using gl.drawArrays(gl.LINES)
  * overlayed on a smooth, continuous GPU wave height heatmap.
  * Strictly conforms to WebGL State Isolation Protocol and is < 600 lines of code.
@@ -18,7 +18,8 @@ void main() {
 var ADVECT_FS = `
 precision highp float;
 uniform sampler2D u_particles;
-uniform sampler2D u_marine_grid;
+uniform sampler2D u_waveTexture;
+uniform sampler2D u_oceanMaskTexture;
 uniform vec2 u_speed_scale;
 uniform vec2 u_dataBounds_min;
 uniform vec2 u_dataBounds_max;
@@ -50,15 +51,15 @@ void main() {
   vec4 encoded = texture2D(u_particles, v_uv);
   vec2 pos = decodePos(encoded);
 
-  vec4 waveData = texture2D(u_marine_grid, pos);
+  vec4 waveData = texture2D(u_waveTexture, pos);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   float waveHeight = waveData.b * 10.0;
+  float oceanFlag = texture2D(u_oceanMaskTexture, pos).r;
 
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
   float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   
-  // v3.13.5: Gentler energy boost for realistic basin-scale propagation
   float energyBoost = 1.0 + smoothstep(1.0, 5.0, waveHeight) * 0.3;
   vec2 offset = vec2(waveVec.x / merc_scale, waveVec.y) * u_speed_scale * energyBoost;
   pos = pos + offset;
@@ -66,13 +67,10 @@ void main() {
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  // v3.13.6: Lowered waveHeight threshold 0.3→0.1 for calm ocean life.
-  // Relaxed alpha from 0.4→0.3 for better coastal/polar coverage with LINEAR filtering.
-  if (waveHeight < 0.1 || length(waveVec) < 0.005 || waveData.a < 0.3) {
+  if (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3) {
     drop = 1.0;
   }
 
-  // Out of bounds: wrap X (longitude) for antimeridian, drop Y (latitude)
   pos.x = fract(pos.x);
   float oobY = step(1.0, pos.y) + step(0.0, -pos.y);
   drop = max(drop, step(0.5, oobY));
@@ -87,7 +85,8 @@ void main() {
 var DRAW_VS = `
 attribute float a_vertex_id;       // 0 to (numParticles * 2 - 1)
 uniform sampler2D u_particles;     // particle position texture (RG=x, BA=y)
-uniform sampler2D u_marine_grid;   // wave vector texture (R=u, G=v, B=height)
+uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height)
+uniform sampler2D u_oceanMaskTexture; // land/ocean binary mask
 uniform float u_particles_res;     // resolution of position texture (e.g. 256.0)
 uniform mat4 u_matrix;             // MapLibre projection matrix
 uniform vec2 u_dataBounds_min;     // bounds [west, south]
@@ -95,7 +94,7 @@ uniform vec2 u_dataBounds_max;     // bounds [east, north]
 uniform float u_time;              // elapsed time for pulsation
 uniform float u_dash_length_scale; // wave crest target pixel length per meter
 uniform float u_zoom;              // map zoom level for pixel-to-degree conversion
-uniform float u_lng_offset;        // v3.13.7: world-copy offset: -360, 0, or +360
+uniform float u_lng_offset;        // world-copy offset: -360, 0, or +360
 
 varying float v_alpha;
 varying float v_wave_height;
@@ -114,22 +113,20 @@ void main() {
     encodedPos.b + encodedPos.a / 255.0
   );
 
-  vec4 waveData = texture2D(u_marine_grid, pos);
+  vec4 waveData = texture2D(u_waveTexture, pos);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
+  float oceanFlag = texture2D(u_oceanMaskTexture, pos).r;
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
 
-  // v3.13.6: Lowered thresholds for calm ocean life
-  if (waveHeight < 0.1 || length(waveVec) < 0.005 || waveData.a < 0.3) {
+  if (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     return;
   }
 
-  // v3.13.6: ZOOM-ADAPTIVE DENSITY CULLING — tuned for calmer feel
-  // Min 35% particles at any zoom; scales to 100% at zoom 8+
   float densityThreshold = clamp((u_zoom - 0.5) / 7.0, 0.35, 1.0);
   if (particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
@@ -139,14 +136,12 @@ void main() {
 
   vec2 dir = normalize(waveVec);
   
-  // v3.13.7: Increased rotation jitter from ±30° to ±45° to break stripe patterns
   float rotJitter = (particleHash - 0.5) * 1.57;
   float cosR = cos(rotJitter);
   float sinR = sin(rotJitter);
   vec2 jitteredDir = vec2(dir.x * cosR - dir.y * sinR, dir.x * sinR + dir.y * cosR);
   vec2 perp = vec2(-jitteredDir.y, jitteredDir.x);
   
-  // Zoom-aware pixel-to-degree conversion
   float pixelInDegrees = 360.0 / (256.0 * exp2(u_zoom));
   float crestPixels = max(2.0, pow(waveHeight, 0.7) * u_dash_length_scale);
   vec2 coordOffset = perp * crestPixels * pixelInDegrees * 0.5;
@@ -163,9 +158,6 @@ void main() {
   }
   lat = clamp(lat, -85.051129, 85.051129);
 
-  // v3.13.7: Apply world-copy offset for seamless global wrapping (matches wind engine).
-  // Do NOT wrap to [-180,180] here — that forces all copies into a single tile.
-  // Instead, offset lng and convert directly to Mercator x.
   lng += u_lng_offset;
   float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
@@ -175,17 +167,13 @@ void main() {
     gl_Position.w = 1.0;
   }
 
-  // Deep water wave period: T ≈ 0.9 * sqrt(H * 5.12)
   float derivedPeriod = 0.9 * sqrt(max(waveHeight, 0.3) * 5.12);
   float period = derivedPeriod * (0.6 + particleHash * 0.8);
   float phase = fract(u_time / period + particleHash);
   
-  // v3.13.6: Rolling swell perception — smoother sinusoidal with extended crest visibility
   float rawPulse = sin(phase * 3.141592653589793);
-  // Wider crest peak: pow(0.5) makes crests visible for longer portion of cycle
   v_alpha = pow(max(rawPulse, 0.0), 0.5);
   
-  // Energy-driven intensity: calm=faint but visible, storms=bright
   float heightIntensity = smoothstep(0.0, 4.0, waveHeight);
   v_alpha *= mix(0.35, 1.0, heightIntensity);
 }
@@ -199,10 +187,8 @@ varying float v_wave_height;
 void main() {
   if (v_alpha < 0.02) discard;
 
-  // Wave height drives crest color: calm=soft cyan, moderate=bright white, storm=intense white
   float energy = smoothstep(0.0, 6.0, v_wave_height);
   
-  // 3-stop color ramp: soft blue-white → bright white → intense bright white
   vec3 calmColor = vec3(0.78, 0.92, 1.0);     // soft cyan for calm ocean
   vec3 activeColor = vec3(0.92, 0.98, 1.0);    // white-cyan for moderate swell
   vec3 stormColor = vec3(1.0, 1.0, 1.0);       // pure white for high energy
@@ -210,7 +196,6 @@ void main() {
     ? mix(calmColor, activeColor, energy * 2.0)
     : mix(activeColor, stormColor, (energy - 0.5) * 2.0);
 
-  // Progressive alpha boost: more visible particles in high-energy zones
   float boostedAlpha = v_alpha * mix(1.2, 1.8, energy);
   boostedAlpha = min(boostedAlpha, 0.95);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
@@ -223,7 +208,6 @@ uniform mat4 u_matrix;
 uniform vec2 u_dataBounds_min;   // [west, south]
 uniform vec2 u_dataBounds_max;   // [east, north]
 varying vec2 v_grid_uv;
-varying vec2 v_geo_coord;        // [lng, lat] for procedural layers
 
 void main() {
   v_grid_uv = a_grid_uv;
@@ -232,9 +216,6 @@ void main() {
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
   lat = clamp(lat, -85.051129, 85.051129);
 
-  v_geo_coord = vec2(lng, lat);
-
-  // Wrap longitude to [-180, 180] for antimeridian crossing
   float wrappedLng = lng - 360.0 * floor((lng + 180.0) / 360.0);
   float x = (wrappedLng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
@@ -246,40 +227,19 @@ void main() {
 }
 `;
 
-// ============================================================
-// OCEAN GPU v2.1 — Multi-Field Composite Fragment Shader
-// ============================================================
-// BRIGHTNESS FIX: v2.0 colors were ~10x too dark (0.008-0.12 range).
-// v2.1 uses the luminance range of the original working shader
-// (0.05-0.85) while keeping the 5-layer composite architecture.
-// ============================================================
 var HEATMAP_FS = `
 precision mediump float;
 varying vec2 v_grid_uv;
-varying vec2 v_geo_coord;
-uniform sampler2D u_marine_grid;
+uniform sampler2D u_waveTexture;
+uniform sampler2D u_chlorophyllTexture;
+uniform sampler2D u_bathymetryTexture;
+uniform sampler2D u_oceanMaskTexture;
 uniform float u_opacity;
 
-// Procedural noise for organic chlorophyll patterns
-float hash(vec2 p) {
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
-
-float noise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  float a = hash(i);
-  float b = hash(i + vec2(1.0, 0.0));
-  float c = hash(i + vec2(0.0, 1.0));
-  float d = hash(i + vec2(1.0, 1.0));
-  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
-
 void main() {
-  vec4 waveData = texture2D(u_marine_grid, v_grid_uv);
+  vec4 waveData = texture2D(u_waveTexture, v_grid_uv);
   float waveHeight = waveData.b * 10.0;
-  float oceanAlpha = waveData.a;
+  float oceanAlpha = texture2D(u_oceanMaskTexture, v_grid_uv).r;
 
   // Ocean mask: discard land pixels
   if (oceanAlpha < 0.5 || waveHeight < 0.001) {
@@ -290,85 +250,65 @@ void main() {
   vec2 swellDir = (waveData.rg - 0.5) * 2.0;
   float swellMag = length(swellDir);
 
-  // ── LAYER 1: BATHYMETRY BASE COLOR ──
-  // depthFactor: 0.0 = coast/shelf, 1.0 = deep ocean
-  float depthFactor = smoothstep(0.5, 1.0, oceanAlpha);
+  // ── LAYER 1: BASE DEPTH COLOR (Bathymetry-driven) ──
+  // deep ocean -> dark navy, mid ocean -> blue gradient, continental shelf -> turquoise glow, reefs -> bright shallow highlights
+  // depthFactor: 0.0 = shelf/reef, 1.0 = deep ocean
+  float depthFactor = texture2D(u_bathymetryTexture, v_grid_uv).r;
+  vec3 deepNavy = vec3(0.015, 0.04, 0.12);
+  vec3 midOceanBlue = vec3(0.04, 0.12, 0.28);
+  vec3 shelfTurquoise = vec3(0.08, 0.38, 0.44);
+  vec3 reefHighlight = vec3(0.18, 0.68, 0.62);
 
-  // Visible ocean blues — matching original shader luminance range
-  vec3 deepOcean    = vec3(0.055, 0.10, 0.26);   // deep navy blue
-  vec3 midOcean     = vec3(0.10,  0.22, 0.42);    // mid blue
-  vec3 shallowOcean = vec3(0.14,  0.35, 0.53);    // bright coastal blue
-
-  // Deep ocean = deepOcean, coast = shallowOcean
-  vec3 baseColor = mix(shallowOcean, mix(midOcean, deepOcean, depthFactor * 0.7), depthFactor);
-
-  // ── LAYER 2: WAVE HEIGHT COLOR RAMP ──
-  // Blend from cool blues to warm yellows/reds with wave height
-  // This ensures the heatmap is ALWAYS visible regardless of depth
-  vec3 waveColor;
-  if (waveHeight < 1.0) {
-    waveColor = mix(vec3(0.10, 0.18, 0.40), vec3(0.14, 0.30, 0.53), waveHeight);
-  } else if (waveHeight < 2.0) {
-    waveColor = mix(vec3(0.14, 0.30, 0.53), vec3(0.18, 0.44, 0.63), waveHeight - 1.0);
-  } else if (waveHeight < 3.0) {
-    waveColor = mix(vec3(0.18, 0.44, 0.63), vec3(0.31, 0.69, 0.70), waveHeight - 2.0);
-  } else if (waveHeight < 5.0) {
-    waveColor = mix(vec3(0.31, 0.69, 0.70), vec3(0.71, 0.80, 0.55), (waveHeight - 3.0) / 2.0);
-  } else if (waveHeight < 8.0) {
-    waveColor = mix(vec3(0.71, 0.80, 0.55), vec3(0.90, 0.55, 0.20), (waveHeight - 5.0) / 3.0);
+  vec3 baseDepthColor;
+  if (depthFactor < 0.2) {
+    baseDepthColor = mix(reefHighlight, shelfTurquoise, depthFactor / 0.2);
+  } else if (depthFactor < 0.6) {
+    baseDepthColor = mix(shelfTurquoise, midOceanBlue, (depthFactor - 0.2) / 0.4);
   } else {
-    waveColor = mix(vec3(0.90, 0.55, 0.20), vec3(0.75, 0.15, 0.25), clamp((waveHeight - 8.0) / 4.0, 0.0, 1.0));
+    baseDepthColor = mix(midOceanBlue, deepNavy, (depthFactor - 0.6) / 0.4);
   }
 
-  // Blend bathymetry base with wave color — wave height drives the mix
-  float waveInfluence = smoothstep(0.0, 3.0, waveHeight) * 0.7 + 0.3;
-  baseColor = mix(baseColor, waveColor, waveInfluence);
+  // ── LAYER 2: CHLOROPHYLL SATELLITE REALISM LAYER ──
+  // high chlorophyll -> green tint overlay
+  // (Chlorophyll precalculated including latitude bands, Gulf Stream and coastal blooms)
+  float chlDensity = texture2D(u_chlorophyllTexture, v_grid_uv).r;
+  vec3 chlorophyllGreen = vec3(0.06, 0.42, 0.24);
+  vec3 chlorophyllTint = chlorophyllGreen * chlDensity;
 
-  // ── LAYER 3: CHLOROPHYLL TINT ──
-  float absLat = abs(v_geo_coord.y);
-  float tropicalChl = smoothstep(35.0, 15.0, absLat) * 0.30;
-  float temperateChl = smoothstep(25.0, 45.0, absLat) * smoothstep(65.0, 50.0, absLat) * 0.20;
-  float coastalChl = (1.0 - depthFactor) * 0.25;
-  float chlNoise = noise(v_geo_coord * 0.15) * 0.15;
-  float chlDensity = clamp(tropicalChl + temperateChl + coastalChl + chlNoise - 0.08, 0.0, 0.6);
+  // ── LAYER 3: WAVE ENERGY MODULATION ──
+  // storm systems brighten ocean surface, calm zones remain dark and stable
+  float waveEnergy = smoothstep(0.0, 8.0, waveHeight);
+  vec3 stormBright = vec3(0.12, 0.28, 0.55); // Storm surge blue-white glow
+  vec3 calmStable = vec3(0.0, 0.0, 0.0);
+  vec3 waveEnergyBoost = mix(calmStable, stormBright, waveEnergy);
 
-  vec3 chlColor = vec3(0.12, 0.55, 0.38);
-  baseColor = mix(baseColor, chlColor, chlDensity * 0.35);
-
-  // ── LAYER 4: SHALLOW SHELF GLOW ──
+  // ── LAYER 4: SHALLOW WATER SHELF GLOW ──
+  // Bahamian / Florida style turquoise glow pop
   float shelfProximity = 1.0 - depthFactor;
-  float shelfGlow = smoothstep(0.0, 0.5, shelfProximity);
-  float warmth = smoothstep(50.0, 20.0, absLat);
-  vec3 shelfColor = mix(
-    vec3(0.15, 0.35, 0.42),   // cold shelf (steel blue)
-    vec3(0.22, 0.55, 0.52),   // warm shelf (turquoise)
-    warmth
-  );
-  baseColor += shelfColor * shelfGlow * 0.35;
+  float shelfGlowFactor = smoothstep(0.6, 1.0, shelfProximity);
+  vec3 shallowWaterShelfGlow = vec3(0.12, 0.52, 0.48) * shelfGlowFactor * 0.45;
 
   // ── LAYER 5: DIRECTIONAL SWELL LIGHTING ──
-  vec2 lightDir = normalize(vec2(-0.6, 0.8));
+  vec2 lightDir = normalize(vec2(-0.5, 0.7)); // light source from northwest/top-left
   float directional = 0.0;
   if (swellMag > 0.05) {
     directional = dot(normalize(swellDir), lightDir);
-    directional = directional * 0.5 + 0.5;
+    directional = directional * 0.5 + 0.5; // [0,1] bias
     directional *= swellMag;
   }
-  baseColor += vec3(0.04, 0.05, 0.07) * directional;
+  vec3 directionalSwellLighting = vec3(0.03, 0.05, 0.08) * directional;
 
-  // ── FINAL COMPOSITE ──
+  // ── FINAL PIXEL EQUATION (MANDATORY) ──
+  vec3 finalColor = baseDepthColor + chlorophyllTint + waveEnergyBoost + shallowWaterShelfGlow + directionalSwellLighting;
+
   float alpha = u_opacity;
-  float maskFade = smoothstep(0.5, 0.85, oceanAlpha);
+  float maskFade = smoothstep(0.3, 0.8, oceanAlpha);
   float heightFade = smoothstep(0.001, 0.15, waveHeight);
   alpha *= maskFade * heightFade;
 
-  // Premultiplied alpha output
-  gl_FragColor = vec4(baseColor * alpha, alpha);
+  gl_FragColor = vec4(finalColor * alpha, alpha);
 }
-
 `;
-
-
 
 // --- Utility Functions ---
 
@@ -426,7 +366,6 @@ function unbindTexture(gl, tex) {
   gl.activeTexture(prevActive);
 }
 
-
 function bindTexture(gl, tex, unit) {
   gl.activeTexture(gl.TEXTURE0 + unit);
   gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -443,31 +382,169 @@ function encodeMarineTexture(gl, waveGrid) {
     if (len > maxVal) maxVal = len;
   }
 
-  const data = new Uint8Array(cols * rows * 4);
+  // Allocate arrays for the four textures
+  const dataWave = new Uint8Array(cols * rows * 4);
+  const dataChl = new Uint8Array(cols * rows * 4);
+  const dataBath = new Uint8Array(cols * rows * 4);
+  const dataMask = new Uint8Array(cols * rows * 4);
+
+  // We calculate distance-to-land for a robust bathymetry shelf structure.
+  const grid = new Uint8Array(cols * rows);
+  for (let i = 0; i < vectors.length; i++) {
+    grid[i] = (vectors[i].isOcean === true) ? 1 : 0;
+  }
+
+  // Multi-pass distance transform in Javascript
+  const dist = new Float32Array(cols * rows);
+  dist.fill(Infinity);
+  
+  // Pass 1: Top-left to bottom-right
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = r * cols + c;
+      if (grid[idx] === 0) {
+        dist[idx] = 0;
+      } else {
+        let minD = Infinity;
+        if (r > 0) minD = Math.min(minD, dist[(r - 1) * cols + c] + 1);
+        if (c > 0) minD = Math.min(minD, dist[r * cols + (c - 1)] + 1);
+        dist[idx] = minD;
+      }
+    }
+  }
+  // Pass 2: Bottom-right to top-left
+  for (let r = rows - 1; r >= 0; r--) {
+    for (let c = cols - 1; c >= 0; c--) {
+      const idx = r * cols + c;
+      if (grid[idx] !== 0) {
+        let minD = dist[idx];
+        if (r < rows - 1) minD = Math.min(minD, dist[(r + 1) * cols + c] + 1);
+        if (c < cols - 1) minD = Math.min(minD, dist[r * cols + (c + 1)] + 1);
+        dist[idx] = minD;
+      }
+    }
+  }
+
+  // Procedural noise for organic chlorophyll patterns inside JS
+  function hash(x, y) {
+    const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return s - Math.floor(s);
+  }
+  function noise(x, y) {
+    const ix = Math.floor(x);
+    const iy = Math.floor(y);
+    const fx = x - ix;
+    const fy = y - iy;
+    const ux = fx * fx * (3.0 - 2.0 * fx);
+    const uy = fy * fy * (3.0 - 2.0 * fy);
+    const a = hash(ix, iy);
+    const b = hash(ix + 1, iy);
+    const c = hash(ix, iy + 1);
+    const d = hash(ix + 1, iy + 1);
+    return a * (1 - ux) * (1 - uy) + b * ux * (1 - uy) + c * (1 - ux) * uy + d * ux * uy;
+  }
+
   for (let i = 0; i < vectors.length; i++) {
     const v = vectors[i];
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+
+    const lng = bounds.west + (col / (cols - 1)) * (bounds.east - bounds.west);
+    const lat = bounds.south + (row / (rows - 1)) * (bounds.north - bounds.south);
+
+    // 1. Wave texture (RG = u/v vector, B = normalized wave height)
     const nu = (v.u / maxVal) * 0.5 + 0.5;
     const nv = (v.v / maxVal) * 0.5 + 0.5;
     const height = Math.min(1.0, v.speed / 10.0);
-    // v3.13.3: Strict ocean mask — require explicit isOcean===true from API data.
-    // The marine API returns null wave_height for land points, which sets isOcean=false.
-    // v3.13.5: If the API says this is ocean (wave_height was not null), mark as ocean
-    // regardless of wave data magnitude. Calm oceans (Arctic, Mediterranean) still need coverage.
-    // The draw shader's waveHeight threshold (0.3m) handles filtering out truly calm areas.
+
+    dataWave[i * 4 + 0] = Math.floor(nu * 255);
+    dataWave[i * 4 + 1] = Math.floor(nv * 255);
+    dataWave[i * 4 + 2] = Math.floor(height * 255);
+    dataWave[i * 4 + 3] = 255;
+
+    // 2. Bathymetry depth factor (0.0 = coastline, 1.0 = deep ocean)
+    const maxShelfDist = 8.0;
+    const depthFactor = grid[i] === 0 ? 0.0 : Math.min(1.0, dist[i] / maxShelfDist);
+    dataBath[i * 4 + 0] = Math.floor(depthFactor * 255);
+    dataBath[i * 4 + 1] = Math.floor(depthFactor * 255);
+    dataBath[i * 4 + 2] = Math.floor(depthFactor * 255);
+    dataBath[i * 4 + 3] = 255;
+
+    // 3. Chlorophyll density mapping
+    const absLat = Math.abs(lat);
+    let tropicalChl = 0.0;
+    if (absLat < 35.0) {
+      tropicalChl = (1.0 - (absLat / 35.0)) * 0.25;
+    }
+    let temperateChl = 0.0;
+    if (absLat > 25.0 && absLat < 65.0) {
+      const scale1 = (absLat - 25.0) / 20.0;
+      const scale2 = (65.0 - absLat) / 20.0;
+      temperateChl = Math.max(0.0, Math.min(scale1, scale2)) * 0.15;
+    }
+    let coastalChl = 0.0;
+    if (grid[i] === 1 && dist[i] <= 3.0) {
+      coastalChl = (1.0 - (dist[i] / 3.0)) * 0.35;
+    }
+
+    // Gulf Stream streaking
+    let gulfStreamChl = 0.0;
+    if (lng > -85 && lng < -35 && lat > 20 && lat < 50) {
+      const x1 = -80, y1 = 25, x2 = -40, y2 = 45;
+      const A = lat - y1;
+      const B = lng - x1;
+      const C = x2 - x1;
+      const D = y2 - y1;
+      const dotVal = B * C + A * D;
+      const lenSq = C * C + D * D;
+      let param = -1;
+      if (lenSq !== 0) param = dotVal / lenSq;
+      let xx, yy;
+      if (param < 0) {
+        xx = x1; yy = y1;
+      } else if (param > 1) {
+        xx = x2; yy = y2;
+      } else {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+      }
+      const dx = lng - xx;
+      const dy = lat - yy;
+      const streamDist = Math.sqrt(dx * dx + dy * dy);
+      if (streamDist < 5.0) {
+        const streamNoise = noise(lng * 0.5, lat * 0.5) * 0.15;
+        gulfStreamChl = (1.0 - (streamDist / 5.0)) * (0.2 + streamNoise);
+      }
+    }
+
+    const chlNoiseVal = noise(lng * 0.2, lat * 0.2) * 0.12;
+    const rawChl = tropicalChl + temperateChl + coastalChl + gulfStreamChl + chlNoiseVal;
+    const chlDensity = Math.max(0.0, Math.min(0.65, rawChl));
+
+    dataChl[i * 4 + 0] = Math.floor(chlDensity * 255);
+    dataChl[i * 4 + 1] = Math.floor(chlDensity * 255);
+    dataChl[i * 4 + 2] = Math.floor(chlDensity * 255);
+    dataChl[i * 4 + 3] = 255;
+
+    // 4. Land/ocean binary mask
     const oceanFlag = (v.isOcean === true) ? 255 : 0;
-    
-    data[i * 4 + 0] = Math.floor(nu * 255);
-    data[i * 4 + 1] = Math.floor(nv * 255);
-    data[i * 4 + 2] = Math.floor(height * 255);
-    data[i * 4 + 3] = oceanFlag;
+    dataMask[i * 4 + 0] = oceanFlag;
+    dataMask[i * 4 + 1] = oceanFlag;
+    dataMask[i * 4 + 2] = oceanFlag;
+    dataMask[i * 4 + 3] = oceanFlag;
   }
 
-  // v3.13.3: Use LINEAR filtering for smooth wave field interpolation across the
-  // coarse global grid, but rely on strict alpha thresholds in shaders to prevent
-  // land bleeding. NEAREST causes visible grid artifacts with 15x15 global data.
-  const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
+  // Create four linear-filtered textures
+  const waveTex = createTexture(gl, gl.LINEAR, dataWave, cols, rows);
+  const chlTex = createTexture(gl, gl.LINEAR, dataChl, cols, rows);
+  const bathTex = createTexture(gl, gl.LINEAR, dataBath, cols, rows);
+  const maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
+
   return {
-    texture: tex,
+    u_waveTexture: waveTex,
+    u_chlorophyllTexture: chlTex,
+    u_bathymetryTexture: bathTex,
+    u_oceanMaskTexture: maskTex,
     bounds
   };
 }
@@ -493,11 +570,9 @@ function initParticleTexture(gl, resolution) {
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
-  // v3.13.5: Global ocean field normalization
-  // Density now handled by zoom-adaptive culling in draw shader
-  this.particleRes = 136;       // 136² = 18,496 crests (zoom culling controls visible count)
-  this.speedFactor = 0.05;      // Further halved for calm basin-scale drift
-  this.dropRate = 0.003;        // Low recycling = coherent wave fronts
+  this.particleRes = 136;       // 136² = 18,496 crests
+  this.speedFactor = 0.05;      // drift speed scale
+  this.dropRate = 0.003;        // particle drop rate
   this._initialized = false;
   this._waveData = null;
   this._startTime = Date.now();
@@ -535,8 +610,6 @@ WebGLMarineEngine.prototype.init = function(gl) {
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, vertexIds, gl.STATIC_DRAW);
 
-  // High-res 96x96 grid mesh for smooth continuous heatmap rendering
-  // (96×96 keeps indices within Uint16Array limit: 95*95*6 = 54,150 < 65,535)
   const W = 96;
   const H = 96;
   const gridUVs = new Float32Array(W * H * 2);
@@ -577,17 +650,20 @@ WebGLMarineEngine.prototype.init = function(gl) {
 
   this.advFBO = gl.createFramebuffer();
   this._initialized = true;
-  console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests + 64x64 grid');
+  console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests + 96x96 grid');
 };
 
 WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid) {
   if (!waveGrid?.vectors?.length) return;
-  if (this._waveData?.texture) {
-    gl.deleteTexture(this._waveData.texture);
+  if (this._waveData) {
+    if (this._waveData.u_waveTexture) gl.deleteTexture(this._waveData.u_waveTexture);
+    if (this._waveData.u_chlorophyllTexture) gl.deleteTexture(this._waveData.u_chlorophyllTexture);
+    if (this._waveData.u_bathymetryTexture) gl.deleteTexture(this._waveData.u_bathymetryTexture);
+    if (this._waveData.u_oceanMaskTexture) gl.deleteTexture(this._waveData.u_oceanMaskTexture);
   }
   console.log('[WebGLMarineEngine] setWaveData input:', {vectors: waveGrid.vectors.length, cols: waveGrid.cols, rows: waveGrid.rows, hasBounds: !!waveGrid.bounds});
   this._waveData = encodeMarineTexture(gl, waveGrid);
-  console.log('[WebGLMarineEngine] setWaveData result:', {hasData: !!this._waveData, hasTexture: !!this._waveData?.texture, hasBounds: !!this._waveData?.bounds});
+  console.log('[WebGLMarineEngine] setWaveData result:', {hasData: !!this._waveData, hasWaveTexture: !!this._waveData?.u_waveTexture});
 };
 
 WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom) {
@@ -597,7 +673,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
     this._renderLogged++;
     if (this._renderLogged === 1 || this._renderLogged % 180 === 0) {
-      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "matrix:", !!matrix, "matrix.length:", matrix?.length);
+      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "matrix:", !!matrix);
     }
     return;
   }
@@ -628,10 +704,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.disable(gl.SCISSOR_TEST);
   gl.colorMask(true, true, true, true);
 
-  // Clear any existing WebGL errors from MapLibre's previous drawing operations
   while (gl.getError() !== gl.NO_ERROR) {}
 
-  // Prevent MapLibre vertex attribute pollution by disabling all attribute arrays
   var maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
   for (var i = 0; i < maxAttribs; i++) {
     try {
@@ -639,8 +713,6 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     } catch (e) {}
   }
 
-
-  // Capture and unbind all texture units to prevent feedback loops with MapLibre's active drawing textures
   var prevTextures2D = [];
   var prevTexturesCube = [];
   var maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
@@ -656,8 +728,6 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
   }
 
-
-  // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
   var prevVAO = null;
   var isWebGL2 = false;
   if (gl.bindVertexArray) {
@@ -669,26 +739,24 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
   var time = (Date.now() - this._startTime) / 1000.0;
   const waveBounds = this._waveData.bounds;
-  // ==========================================
-  // PHASE 1: WAVE HEIGHT HEATMAP (GPU-driven, replaces raster tiles)
-  // ==========================================
-  // Renders the wave data texture as a colored heatmap over the ocean.
-  // Uses the same data texture as particles (u_marine_grid).
-  // This REPLACES the OpenMeteo raster tile pipeline for marine layers,
-  // eliminating all SourceCache/tile/clipping issues.
   const z = typeof zoom === 'number' ? zoom : 6;
 
+  // ==========================================
+  // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
+  // ==========================================
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // premultiplied alpha
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
   gl.useProgram(this.heatmapProgram);
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_marine_grid'), 0);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
 
-  // Zoom-based opacity: matches the previous raster paint expression
-  // interpolate(['linear'], ['zoom'], 2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70)
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_oceanMaskTexture'), 3);
+
   var heatmapOpacity;
   if (z <= 2) heatmapOpacity = 0.45;
   else if (z <= 5) heatmapOpacity = 0.45 + (z - 2) / 3 * 0.10;
@@ -697,7 +765,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   else heatmapOpacity = 0.70;
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
 
-  bindTexture(gl, this._waveData.texture, 0);
+  bindTexture(gl, this._waveData.u_waveTexture, 0);
+  bindTexture(gl, this._waveData.u_chlorophyllTexture, 1);
+  bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
+  bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
 
   var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
@@ -708,7 +779,44 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.disableVertexAttribArray(heatUVLoc);
 
   // ==========================================
-  // PHASE 2: WAVE CREST PARTICLE SIMULATION
+  // PHASE 2: WAVE CREST RENDERER
+  // ==========================================
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+  gl.useProgram(this.drawProgram);
+  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
+  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_waveTexture'), 1);
+  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_oceanMaskTexture'), 2);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
+
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
+
+  const dashLengthScale = 5.0;
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_length_scale'), dashLengthScale);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
+
+  bindTexture(gl, this.particleStateA, 0);
+  bindTexture(gl, this._waveData.u_waveTexture, 1);
+  bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
+
+  var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+  var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
+  gl.enableVertexAttribArray(idLoc);
+  gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
+
+  var worldOffsets = (z < 3.5) ? [0.0, -360.0, 360.0] : [0.0];
+  for (var wi = 0; wi < worldOffsets.length; wi++) {
+    gl.uniform1f(lngOffsetLoc, worldOffsets[wi]);
+    gl.drawArrays(gl.LINES, 0, this.particleRes * this.particleRes * 2);
+  }
+  gl.disableVertexAttribArray(idLoc);
+
+  // ==========================================
+  // PHASE 3: PARTICLE ADVECTION SYSTEM (Simulate next state)
   // ==========================================
   const baseScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6));
   const lngSpan = Math.max(0.01, Math.abs(waveBounds.east - waveBounds.west));
@@ -716,19 +824,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   const speedScaleX = Math.max(3.0e-4, baseScale / lngSpan);
   const speedScaleY = Math.max(3.0e-4, baseScale / latSpan);
 
-  if (this.frameCount === undefined) this.frameCount = 0;
-  this.frameCount++;
-  if (this.frameCount === 1) {
-    console.log(`[MARINE-TELEMETRY] Frame 1 matrix: [${mat4[0].toFixed(4)}, ${mat4[1].toFixed(4)}, ${mat4[2].toFixed(4)}, ${mat4[3].toFixed(4)}] | prevColorMask: [${prevColorMask[0]}, ${prevColorMask[1]}, ${prevColorMask[2]}, ${prevColorMask[3]}]`);
-  }
-  if (this.frameCount === 1 || this.frameCount % 60 === 0) {
-    console.log(`[MARINE-TELEMETRY] Frame: ${this.frameCount} | RAF tick executed | wave/swell update advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | interpolation step: GFS-Wave / WW3 ocean grid bilinear lookup | particle buffer mutated (State A/B ping-pong active) | draw call: gl.drawElements(TRIANGLES, ${this.numGridIndices}, UNSIGNED_SHORT) (heatmap) + gl.drawArrays(LINES, 0, ${this.particleRes * this.particleRes * 2}) (crests) | shader active: heatmapProgram + advectProgram + drawProgram | uniforms: u_matrix, u_opacity, u_speed_scale, u_rand_seed, u_drop_rate`);
-  }
-
   gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
-  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_marine_grid'), 1);
+  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_waveTexture'), 1);
+  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_oceanMaskTexture'), 2);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
@@ -736,9 +836,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
 
-  // Unbind potential feedback loop textures from units 0 and 1
   gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
   gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
 
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
@@ -746,7 +846,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.viewport(0, 0, this.particleRes, this.particleRes);
 
   bindTexture(gl, this.particleStateA, 0);
-  bindTexture(gl, this._waveData.texture, 1);
+  bindTexture(gl, this._waveData.u_waveTexture, 1);
+  bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
 
   var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -761,51 +862,6 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var tmp = this.particleStateA;
   this.particleStateA = this.particleStateB;
   this.particleStateB = tmp;
-
-  // Draw wave crest lines
-  // Unbind potential feedback loop textures from units 0 and 1
-  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-  gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-  gl.viewport(0, 0, screenWidth, screenHeight);
-
-  gl.enable(gl.BLEND); // CRITICAL: Enable blend for particle rendering!
-  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-  gl.useProgram(this.drawProgram);
-  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
-  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_marine_grid'), 1);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
-  gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
-
-  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
-  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
-
-  const zVal = typeof zoom === 'number' ? zoom : 6.0;
-  // v3.13.4: Reduced from 12.0 to 5.0 — shorter crests break visible horizontal stripe
-  // patterns that form when many particles share similar wave direction
-  const dashLengthScale = 5.0;
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_length_scale'), dashLengthScale);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), zVal);
-
-  bindTexture(gl, this.particleStateA, 0);
-  bindTexture(gl, this._waveData.texture, 1);
-
-  var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
-  var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
-  gl.enableVertexAttribArray(idLoc);
-  gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
-
-  // v3.13.7: Draw multiple world copies for seamless global wrapping.
-  // Matches wind engine's approach: at low zoom, draw 3 copies at -360, 0, +360.
-  var worldOffsets = (zVal < 3.5) ? [0.0, -360.0, 360.0] : [0.0];
-  for (var wi = 0; wi < worldOffsets.length; wi++) {
-    gl.uniform1f(lngOffsetLoc, worldOffsets[wi]);
-    gl.drawArrays(gl.LINES, 0, this.particleRes * this.particleRes * 2);
-  }
-  gl.disableVertexAttribArray(idLoc);
 
   // Restore State
   gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
@@ -858,7 +914,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;
 
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
-  // No screen FBOs are used (direct drawing), so there is no trail residue.
+  // Direct drawing to screen FBO.
 };
 
 WebGLMarineEngine.prototype.dispose = function(gl) {
@@ -873,7 +929,12 @@ WebGLMarineEngine.prototype.dispose = function(gl) {
   if (this.advFBO) gl.deleteFramebuffer(this.advFBO);
   if (this.particleStateA) gl.deleteTexture(this.particleStateA);
   if (this.particleStateB) gl.deleteTexture(this.particleStateB);
-  if (this._waveData?.texture) gl.deleteTexture(this._waveData.texture);
+  if (this._waveData) {
+    if (this._waveData.u_waveTexture) gl.deleteTexture(this._waveData.u_waveTexture);
+    if (this._waveData.u_chlorophyllTexture) gl.deleteTexture(this._waveData.u_chlorophyllTexture);
+    if (this._waveData.u_bathymetryTexture) gl.deleteTexture(this._waveData.u_bathymetryTexture);
+    if (this._waveData.u_oceanMaskTexture) gl.deleteTexture(this._waveData.u_oceanMaskTexture);
+  }
   this._waveData = null;
   this._initialized = false;
   console.log('[WebGLMarine] Engine Disposed');

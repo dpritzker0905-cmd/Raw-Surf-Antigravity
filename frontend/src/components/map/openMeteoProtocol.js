@@ -352,9 +352,12 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             return getSafeWorkerFallbackResponse(params.url, params.type);
           }
 
-          // Marine identification (for telemetry only — marine tiles are no longer generated
-          // after Phase 4A GPU migration, but kept for safety)
+          // Marine identification: IMMEDIATELY return transparent fallback tile
+          // after Phase 4A GPU migration. No marine visualization can depend on MapLibre raster tiles.
           const isMarine = variable && MARINE_VARIABLES.has(variable);
+          if (isMarine) {
+            return getSafeWorkerFallbackResponse(params.url, params.type);
+          }
           const effectiveSettings = currentSettings;
 
           // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
