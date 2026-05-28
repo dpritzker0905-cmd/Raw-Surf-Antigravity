@@ -53,6 +53,10 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Episodic Session & Checkpoint Memory** $\rightarrow$ Call `mind` MCP (`checkpoint_query`, `checkpoint_load`, `checkpoint_save`, `checkpoint_done`, `memory_add`, `memory_query`, `space_get`) to recover active checkpoints, persist episodic decisions, and save session progress.
 * **Codebase Semantic Graph** $\rightarrow$ Call `trevec` MCP or CLI (`get_context`, `search_code`, `read_file_topology`, `repo_summary`, `neighbor_signatures`, `batch_context`) to retrieve structural codebase context, query functions/classes, and analyze file topology.
 * **Keypath Architectural Memory** $\rightarrow$ Call `memstate` MCP (`memstate_remember`, `memstate_get`, `memstate_list`) to save and retrieve structured, versioned keypath architectural facts and stack configuration rules.
+* **Supermemory MCP** $\rightarrow$ Persistent memory provider and RAG storage for Claude Desktop and OpenCode.
+  * URL: `https://mcp.supermemory.ai/mcp`
+  * API Key: `sm_E9Xrnuj9Cmptcm2SQEhjjd_gYLbXcRqWRNQmGxn38rnlLpBEIkozqVsSlIw6fAaZzT0UkudmIR3Oz6HCgWki2lI`
+  * Config: Registered manually at `C:\Users\dprit\AppData\Roaming\Claude\claude_desktop_config.json` and in `C:\Users\dprit\.config\opencode\opencode.jsonc`.
 
 
 ### 2. Observe and Sync Tool Schemas

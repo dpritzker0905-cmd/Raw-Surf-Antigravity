@@ -1,72 +1,41 @@
 <!-- trevec:rules:start -->
 
-# 🧠 Unified Memory & Codebase Context Rules
+## Trevec MCP Tools
 
-These rules govern the use of our local memory layers (**Trevec**, **Mind**, and **Memstate**). They are **MANDATORY** for all agent sessions to ensure persistent learning, zero-latency context retrieval, and seamless recovery from compaction.
+Use these MCP tools to retrieve precise, graph-aware code context instead of reading files manually.
 
----
+### get_context
+Retrieves relevant code context for a natural-language query. Returns relevant code nodes with file paths, spans, and related context. **Use this as your primary tool for understanding code.**
 
-## 1. Trevec — Structural Codebase Graph
-**Purpose**: Graph-aware code search, symbol lookup, and structural codebase context. Use Trevec instead of reading raw files manually.
+### search_code
+Hybrid search over indexed code nodes. Returns ranked results with file paths and signatures. Use for targeted symbol or keyword lookup.
 
-### Available Tools
-*   `get_context`: Natural-language search over codebase nodes. Returns relevant code spans and file paths. **Primary tool for codebase research.**
-*   `search_code`: Targeted keyword or symbol (functions, classes) lookup.
-*   `read_file_topology`: Structural map of a file (functions, imports, calls) — run before modifying any file.
-*   `repo_summary`: High-level codebase onboarding (counts, top modules, detected conventions).
-*   `neighbor_signatures`: Inspect external API dependencies of a set of files.
-*   `batch_context`: Execute multiple codebase queries in a single roundtrip.
+### read_file_topology
+Returns the structural topology of a file: all code nodes (functions, classes, methods) with their relationships (calls, imports, contains). Use to understand file structure before making changes.
 
----
+### repo_summary
+Returns a high-level overview of the repository: languages, file/node/edge counts, top-level modules, entry points, hotspots, and detected conventions. Use for onboarding or getting a quick sense of a codebase.
 
-## 2. Mind — Persistent Session & Checkpoint Engine
-**Purpose**: Long-term episodic memory, task checkpoints, design decisions, and post-compaction recovery.
+### neighbor_signatures
+Given a list of file paths, returns the external API surface those files depend on — imported symbols from other files with their signatures.
 
-### Session Lifecycle
-1.  **Recover (Session Start)**: Call `checkpoint_query` to find active checkpoints, then load the target checkpoint using `checkpoint_load` to instantly restore context.
-2.  **Orient**: Call `space_get` and `memory_query` with search keywords on the project space (e.g., `projects/raw-surf`) to load prior decisions.
-3.  **Persist**: As milestones are met or non-obvious facts are learned, call `memory_add` with category tags (e.g., `cat:decision`, `cat:bugfix`, `cat:preference`).
-4.  **Save Progress**: Update active checkpoints periodically using `checkpoint_save`.
-5.  **Complete (Session End)**: Call `checkpoint_done` to transform the active checkpoint into a session summary inside `sessions/<repo>` and delete the checkpoint.
+### batch_context
+Runs multiple `get_context` queries in a single call. Each query can have its own budget and anchor count. Reduces round-trips for multi-query workflows.
 
----
+### remember_turn
+Records a conversation turn into episodic memory. Call this when the user shares important context, decisions, or preferences that should persist across sessions.
 
-## 3. Memstate — Keypath-Structured Facts
-**Purpose**: Persistent, keypath-structured architectural stack rules and static configuration facts.
+### recall_history
+Searches episodic memory for past conversation context. Use when the user references previous discussions or when historical context would help answer a question.
 
-### Usage
-*   `memstate_remember`: Store a precise, versioned fact at an explicit keypath (e.g. `projects.raw-surf.stack.frontend` = `"React 18 + Craco + MapLibre GL"`).
-*   `memstate_get`: Retrieve a structured fact by its path.
-*   `memstate_list`: List all registered structured facts.
-
----
-
-## 4. Docker MCP Gateway & Containerized Memory
-**Purpose**: High-performance containerized tool hosting, profile isolation, and secure server management.
-*   **Command**: `docker mcp gateway run --profile ai_coding`
-*   **Usage**: Proactively utilize the active `docker-mcp` gateway running under the `ai_coding` profile for unified container environment context, dynamic tool installation, and secure server isolation.
-
----
-
-## 💼 Memory Dispatch Guidelines
-
-| Task Type | Target System | Recommended Action / Tool |
-| :--- | :--- | :--- |
-| **Code Research / Symbol Lookup** | **Trevec** | `get_context`, `search_code`, `read_file_topology` |
-| **Session Start / Recovery** | **Mind** | `checkpoint_query` ➔ `checkpoint_load` |
-| **Decisions, Bugfixes, Discoveries** | **Mind** | `memory_add` with tags and links (`links_to`) |
-| **Containerized Tools & Gateway** | **Docker Gateway** | `docker mcp gateway run --profile ai_coding` |
-| **Task Progress Updates** | **Mind** | `checkpoint_save` (update `pending` / `notes`) |
-| **Session Closure / Summary** | **Mind** | `checkpoint_done` with completed summary |
-| **Stack Constraints / Tech Specs** | **Memstate** | `memstate_remember` at structured keypath |
-
----
-
-## 🛑 Strict Rules (Anti-Patterns)
-*   **NEVER** do significant work without an active checkpoint in **Mind**.
-*   **NEVER** let a session end without calling `checkpoint_done` to log a session summary.
-*   **NEVER** create a Mind memory without at least one tag (e.g. `cat:decision`).
-*   **ALWAYS** link related Mind memories together using `links_to` or `link_create`.
-*   **ALWAYS** check file topology (`read_file_topology`) before editing a file.
+### Guidelines
+- Prefer `get_context` over reading raw files — it returns only the relevant code with graph context.
+- Use `search_code` for quick symbol lookups (function names, class names, error messages).
+- Use `read_file_topology` before modifying a file to understand its structure and dependencies.
+- Use `repo_summary` for onboarding or to get a quick overview of the codebase structure.
+- Use `neighbor_signatures` to discover imports/dependencies of specific files before editing.
+- Use `batch_context` when you need context for multiple queries — saves round-trips.
+- Call `remember_turn` for important decisions, preferences, or context the user shares.
+- Call `recall_history` when the user says "we discussed", "last time", or references prior work.
 
 <!-- trevec:rules:end -->
