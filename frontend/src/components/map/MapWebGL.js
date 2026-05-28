@@ -351,9 +351,11 @@ var MapWebGL = ({
     };
   }, [mapInstance]);
 
-  // Runtime diagnostic — call window.__MAP_DEBUG__() in console to inspect layer stack
+  // Runtime diagnostic — call window.__MAP_DEBUG__() or window.__SOURCECACHE_TRUTH__() in console
   useEffect(() => {
     if (!mapInstance) return;
+
+    // Layer stack inspector
     window.__MAP_DEBUG__ = () => {
       const style = mapInstance.getStyle();
       const layers = style?.layers?.map((l, i) => ({
@@ -361,7 +363,8 @@ var MapWebGL = ({
         id: l.id,
         type: l.type,
         visibility: l.layout?.visibility ?? 'visible',
-        opacity: l.paint?.['raster-opacity'] ?? l.paint?.['circle-opacity'] ?? l.paint?.['fill-opacity'] ?? l.paint?.['line-opacity'] ?? '-'
+        opacity: l.paint?.['raster-opacity'] ?? l.paint?.['circle-opacity'] ?? l.paint?.['fill-opacity'] ?? l.paint?.['line-opacity'] ?? '-',
+        fadeDuration: l.paint?.['raster-fade-duration'] ?? '-'
       }));
       console.table(layers);
       console.log('[DEBUG] Total layers:', layers?.length);
@@ -369,7 +372,67 @@ var MapWebGL = ({
       console.log('[DEBUG] Raster sources:', Object.keys(style?.sources || {}).filter(s => s.includes('slot')));
       return layers;
     };
-    return () => { delete window.__MAP_DEBUG__; };
+
+    // SourceCache deep inspector — reads MapLibre's INTERNAL tile state
+    window.__SOURCECACHE_TRUTH__ = () => {
+      const map = mapInstance;
+      const style = map.style;
+      if (!style) { console.error('Style not loaded'); return null; }
+
+      const report = {};
+      const tileManagers = style.tileManagers || style.sourceCaches || {};
+
+      for (const [name, tm] of Object.entries(tileManagers)) {
+        if (!name.includes('slot') && !name.includes('radar') && !name.includes('satellite')) continue;
+        const src = tm._source || tm.source || {};
+        const inView = tm._inViewTiles || tm._tiles || {};
+        const outCache = tm._outOfViewCache || tm._cache || {};
+
+        // Extract tile IDs from in-view tiles
+        const tileIds = [];
+        const allIds = typeof inView.getAllIds === 'function' ? inView.getAllIds() : Object.keys(inView);
+        for (const id of allIds) {
+          const tile = typeof inView.getTileById === 'function' ? inView.getTileById(id) : inView[id];
+          if (tile) {
+            tileIds.push({
+              id: String(id).slice(-30),
+              state: tile.state,
+              overscaledZ: tile.tileID?.overscaledZ ?? '?',
+              z: tile.tileID?.canonical?.z ?? '?',
+              x: tile.tileID?.canonical?.x ?? '?',
+              y: tile.tileID?.canonical?.y ?? '?',
+              hasTexture: !!(tile.texture || tile.data),
+              overscaled: (tile.tileID?.overscaledZ ?? 0) !== (tile.tileID?.canonical?.z ?? 0)
+            });
+          }
+        }
+
+        report[name] = {
+          sourceUrl: (src.url || src._options?.url || '').slice(-80),
+          sourceTiles: src.tiles?.map(t => t.slice(-60)),
+          inViewCount: tileIds.length,
+          outOfViewCount: outCache?.order?.length ?? outCache?.data?.size ?? '?',
+          tiles: tileIds,
+          overscaledCount: tileIds.filter(t => t.overscaled).length,
+          state: tm._state
+        };
+      }
+
+      console.log('%c═══ SOURCECACHE TRUTH ═══', 'color: #ff44ff; font-size: 16px; font-weight: bold');
+      for (const [name, data] of Object.entries(report)) {
+        console.log(`%c${name}`, 'color: #44aaff; font-weight: bold');
+        console.log('  Source URL:', data.sourceUrl);
+        console.log('  Source tiles:', data.sourceTiles);
+        console.log(`  In-view: ${data.inViewCount} | Out-of-view: ${data.outOfViewCount} | Overscaled: ${data.overscaledCount}`);
+        if (data.tiles.length > 0) console.table(data.tiles);
+      }
+      return report;
+    };
+
+    return () => {
+      delete window.__MAP_DEBUG__;
+      delete window.__SOURCECACHE_TRUTH__;
+    };
   }, [mapInstance]);
 
   return (

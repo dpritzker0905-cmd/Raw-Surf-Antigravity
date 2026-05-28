@@ -72,6 +72,62 @@ class ConcurrencySemaphore {
 }
 const protocolMutex = new ConcurrencySemaphore(3);
 
+// ─── RUNTIME TRUTH TELEMETRY ───────────────────────────────────────────────
+// Call window.__TILE_TRUTH__.report() in browser console for forensic dump
+const TILE_TRUTH = {
+  protocolCalls: 0,           // total omProtocol() invocations (actual decodes)
+  cacheHits: 0,               // DECODED_TILE_CACHE hits (skipped decodes)
+  cacheMisses: 0,             // DECODED_TILE_CACHE misses (went to decode)
+  cacheFlushes: 0,            // times DECODED_TILE_CACHE was cleared
+  maskUpgrades: [],           // [{resolution, timestamp, holeCount, cacheSize}]
+  urlInvalidations: 0,        // times om-mask-upgraded event dispatched
+  recentTiles: [],            // last 30 tile requests [{key, source, timestamp, marine}]
+  currentMaskResolution: null, // '110m' or '50m'
+  lastFlushTimestamp: null,
+  report() {
+    const r = {
+      '📊 Protocol Stats': {
+        'Total omProtocol() calls (actual decodes)': this.protocolCalls,
+        'DECODED_TILE_CACHE hits (skipped decodes)': this.cacheHits,
+        'DECODED_TILE_CACHE misses → decode': this.cacheMisses,
+        'Cache flush count': this.cacheFlushes,
+        'URL invalidation events': this.urlInvalidations,
+        'Current mask resolution': this.currentMaskResolution,
+        'Current cache size': DECODED_TILE_CACHE.size,
+        'Last flush': this.lastFlushTimestamp ? new Date(this.lastFlushTimestamp).toISOString() : 'never',
+      },
+      '🔄 Mask Upgrades': this.maskUpgrades,
+      '📦 Recent Tiles (last 30)': this.recentTiles.slice(-30).map(t => ({
+        ...t,
+        timestamp: new Date(t.timestamp).toISOString(),
+        age: `${((Date.now() - t.timestamp) / 1000).toFixed(1)}s ago`
+      })),
+      '⚠️  DIAGNOSIS': this.protocolCalls === 0
+        ? '🔴 NO TILES DECODED — SourceCache is serving everything from GPU cache'
+        : this.cacheHits > this.protocolCalls * 2
+          ? '🟡 HEAVY CACHE HITS — most tiles served from DECODED_TILE_CACHE'
+          : '🟢 TILES ACTIVELY DECODING — protocol pipeline is live',
+    };
+    console.log('%c═══ TILE TRUTH REPORT ═══', 'color: #00ff88; font-size: 16px; font-weight: bold');
+    console.table(r['📊 Protocol Stats']);
+    console.log('%cMask Upgrades:', 'color: #ffaa00; font-weight: bold', r['🔄 Mask Upgrades']);
+    console.log('%cRecent Tiles:', 'color: #00aaff; font-weight: bold');
+    console.table(r['📦 Recent Tiles (last 30)']);
+    console.log('%c' + r['⚠️  DIAGNOSIS'], 'font-size: 14px; font-weight: bold');
+    return r;
+  },
+  reset() {
+    this.protocolCalls = 0; this.cacheHits = 0; this.cacheMisses = 0;
+    this.cacheFlushes = 0; this.maskUpgrades = []; this.urlInvalidations = 0;
+    this.recentTiles = []; this.lastFlushTimestamp = null;
+    console.log('%c[TILE_TRUTH] Reset', 'color: #ff6600');
+  }
+};
+if (typeof window !== 'undefined') {
+  window.__TILE_TRUTH__ = TILE_TRUTH;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // In-memory cache for decoded tile buffers to bypass WASM decode and fetch entirely on hits during timeline scrubs
 const DECODED_TILE_CACHE = new Map();
 const MAX_CACHE_SIZE = 150;
@@ -259,10 +315,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         window.__OM_MARINE_SETTINGS__ = marineSettings;
         // Flush tile cache — tiles decoded with old mask have stale clipping
         DECODED_TILE_CACHE.clear();
+        TILE_TRUTH.cacheFlushes++;
+        TILE_TRUTH.lastFlushTimestamp = Date.now();
+        TILE_TRUTH.currentMaskResolution = resolution;
+        TILE_TRUTH.maskUpgrades.push({ resolution, timestamp: Date.now(), holeCount: oceanPoly.geometry.coordinates.length - 1, cacheSize: 0 });
         // Signal MapLibre tile URL regeneration — MapLibre's internal SourceCache
         // holds tiles decoded with the old mask. Changing the _cb param in URLs
         // forces MapLibre to treat them as new sources and re-fetch through om://
         window.dispatchEvent(new CustomEvent('om-mask-upgraded', { detail: { resolution } }));
+        TILE_TRUTH.urlInvalidations++;
         console.log(`[MODEL] [OM-Protocol] Ocean clipping polygon built (${resolution}):`, oceanPoly.geometry.coordinates.length - 1, 'land holes — tile cache flushed + URL invalidation dispatched');
       }
     };
@@ -402,6 +463,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
 
             // 1. Fast-path: Return cached decoded tile immediately in 0ms on hits
             if (DECODED_TILE_CACHE.has(tileKey)) {
+              TILE_TRUTH.cacheHits++;
+              TILE_TRUTH.recentTiles.push({ key: tileKey.slice(-60), source: 'CACHE_HIT', timestamp: Date.now(), marine: isMarine });
+              if (TILE_TRUTH.recentTiles.length > 50) TILE_TRUTH.recentTiles.shift();
               WeatherTelemetry.trackTileLoaded(tileKey, true);
               return DECODED_TILE_CACHE.get(tileKey);
             }
@@ -420,6 +484,10 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               }
               WeatherTelemetry.trackRasterDecodeStart(tileKey);
               const res = await omProtocol(params, abortController, effectiveSettings);
+              TILE_TRUTH.protocolCalls++;
+              TILE_TRUTH.cacheMisses++;
+              TILE_TRUTH.recentTiles.push({ key: tileKey.slice(-60), source: 'DECODE', timestamp: Date.now(), marine: isMarine, ms: Date.now() - startTime, mask: TILE_TRUTH.currentMaskResolution });
+              if (TILE_TRUTH.recentTiles.length > 50) TILE_TRUTH.recentTiles.shift();
               WeatherTelemetry.trackRasterDecodeEnd(tileKey, Date.now() - startTime);
               WeatherTelemetry.trackTileLoaded(tileKey, true);
               WeatherTelemetry.trackRasterDecoded(tileKey, Date.now() - startTime);
