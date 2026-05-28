@@ -257,7 +257,13 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           }
         };
         window.__OM_MARINE_SETTINGS__ = marineSettings;
-        console.log(`[MODEL] [OM-Protocol] Ocean clipping polygon built (${resolution}):`, oceanPoly.geometry.coordinates.length - 1, 'land holes');
+        // Flush tile cache — tiles decoded with old mask have stale clipping
+        DECODED_TILE_CACHE.clear();
+        // Invalidate library's internal clipping cache by clearing block cache
+        if (typeof clearBlockCache === 'function') {
+          try { clearBlockCache(); } catch (e) { /* optional */ }
+        }
+        console.log(`[MODEL] [OM-Protocol] Ocean clipping polygon built (${resolution}):`, oceanPoly.geometry.coordinates.length - 1, 'land holes — tile cache flushed');
       }
     };
 
