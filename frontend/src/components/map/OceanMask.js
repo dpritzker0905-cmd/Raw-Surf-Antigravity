@@ -244,20 +244,20 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         try { mapInstance.setPaintProperty(MASK_FILL, 'fill-color', tc.fill); } catch (e) {}
       }
 
-      // 3. Inland water (lakes) — ON TOP of fill to punch through
+      // 3. Inland water (lakes) — ABOVE fill to punch through, but BELOW roads/bridges
       if (!mapInstance.getLayer(MASK_INLAND_WATER)) {
         try {
           mapInstance.addLayer({
             id: MASK_INLAND_WATER, type: 'fill', source: waterSource, 'source-layer': waterSourceLayer,
             filter: inlandWaterFilter,
             paint: { 'fill-color': waterColor, 'fill-opacity': 1.0 },
-          });
+          }, insertBefore);
         } catch (e) {}
       } else {
         try { mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor); } catch (e) {}
       }
 
-      // 4. Waterways (rivers)
+      // 4. Waterways (rivers) — BELOW roads/bridges
       if (!mapInstance.getLayer(MASK_INLAND_WATERWAY)) {
         try {
           mapInstance.addLayer({
@@ -267,13 +267,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 13, 1.5, 18, 6],
               'line-opacity': 1.0,
             },
-          });
+          }, insertBefore);
         } catch (e) {}
       } else {
         try { mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor); } catch (e) {}
       }
 
-      // 5. Coastline outline
+      // 5. Coastline outline — BELOW roads/bridges
       if (!mapInstance.getLayer(MASK_LINE)) {
         try {
           mapInstance.addLayer({
@@ -285,7 +285,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               'line-blur': 0.5,
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-          });
+          }, insertBefore);
         } catch (e) {}
       }
     };
