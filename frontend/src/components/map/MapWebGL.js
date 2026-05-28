@@ -506,8 +506,8 @@ var MapWebGL = ({
           />
         </Source>
 
-        {/* Open-Meteo Raster Tile Layers — MapLibre-managed CDN tiles (intentional separate channel) */}
-        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
+        {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC ONLY (marine migrated to WebGLMarineEngine GPU heatmap) */}
+        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type !== 'marine').map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
             const url = omTileUrls[slotKey];
@@ -523,7 +523,7 @@ var MapWebGL = ({
                 type="raster"
                 url={url}
                 tileSize={512}
-                maxzoom={LAYER_REGISTRY[layerKey]?.type === 'marine' ? 9 : 10}
+                maxzoom={10}
               >
                 <Layer
                   id={`${slotKey}-layer`}
@@ -532,18 +532,13 @@ var MapWebGL = ({
                     visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
                   }}
                   paint={{
-                    'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? (
-                      LAYER_REGISTRY[layerKey]?.type === 'marine' ? [
-                        'interpolate', ['linear'], ['zoom'],
-                        2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70
-                      ] : [
+                    'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? [
                         'interpolate', ['linear'], ['zoom'],
                         2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
                         5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
                         8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
                         12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
-                      ]
-                    ) : 0.0,
+                      ] : 0.0,
                     'raster-resampling': 'linear',
                     'raster-fade-duration': 0
                   }}

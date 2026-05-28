@@ -600,17 +600,47 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
   var time = (Date.now() - this._startTime) / 1000.0;
   const waveBounds = this._waveData.bounds;
+  // ==========================================
+  // PHASE 1: WAVE HEIGHT HEATMAP (GPU-driven, replaces raster tiles)
+  // ==========================================
+  // Renders the wave data texture as a colored heatmap over the ocean.
+  // Uses the same data texture as particles (u_marine_grid).
+  // This REPLACES the OpenMeteo raster tile pipeline for marine layers,
+  // eliminating all SourceCache/tile/clipping issues.
+  const z = typeof zoom === 'number' ? zoom : 6;
 
-  // PHASE 1: HEATMAP — DISABLED
-  // The wave height heatmap is rendered by OpenMeteo raster tiles (LAYER_REGISTRY)
-  // via the tile source/layer in MapWebGL.js. Rendering a second GPU heatmap here
-  // causes visual conflict ("two wave systems" overlapping).
-  // Only the particle crest animation below renders from this engine.
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // premultiplied alpha
+
+  gl.useProgram(this.heatmapProgram);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_marine_grid'), 0);
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+
+  // Zoom-based opacity: matches the previous raster paint expression
+  // interpolate(['linear'], ['zoom'], 2, 0.45, 5, 0.55, 8, 0.65, 12, 0.70)
+  var heatmapOpacity;
+  if (z <= 2) heatmapOpacity = 0.45;
+  else if (z <= 5) heatmapOpacity = 0.45 + (z - 2) / 3 * 0.10;
+  else if (z <= 8) heatmapOpacity = 0.55 + (z - 5) / 3 * 0.10;
+  else if (z <= 12) heatmapOpacity = 0.65 + (z - 8) / 4 * 0.05;
+  else heatmapOpacity = 0.70;
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
+
+  bindTexture(gl, this._waveData.texture, 0);
+
+  var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+  gl.enableVertexAttribArray(heatUVLoc);
+  gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+  gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
+  gl.disableVertexAttribArray(heatUVLoc);
 
   // ==========================================
   // PHASE 2: WAVE CREST PARTICLE SIMULATION
   // ==========================================
-  const z = typeof zoom === 'number' ? zoom : 6;
   const baseScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6));
   const lngSpan = Math.max(0.01, Math.abs(waveBounds.east - waveBounds.west));
   const latSpan = Math.max(0.01, Math.abs(waveBounds.north - waveBounds.south));
