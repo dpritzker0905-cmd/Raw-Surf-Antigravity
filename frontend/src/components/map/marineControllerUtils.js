@@ -166,9 +166,8 @@ export function computeGridPoints(bounds, caller = 'wind') {
   let west, south, east, north, GRID;
   if (isGlobal) {
     if (caller === 'marine') {
-      // v3.13.3: Increased from 14 to 20 for better ocean coverage.
-      // 21×21=441 points gives ~18° per cell (was ~25°). Eliminates coverage gaps.
-      west = -180; east = 180; south = -85; north = 85;
+      // v3.13.3: Respect Open-Meteo's strict [-80, 80] latitude limits to prevent 400 Bad Request error.
+      west = -180; east = 180; south = -80; north = 80;
       GRID = isMobile ? 10 : 20;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
