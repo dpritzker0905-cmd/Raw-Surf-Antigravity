@@ -36,7 +36,6 @@ export function useOpenMeteoTileUrls({
   const [activeSlots, setActiveSlots] = useState({});
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [omTileUrls, setOmTileUrls] = useState({});
-  const [maskGeneration, setMaskGeneration] = useState(0); // Increments on mask upgrade → forces Source remount
 
   const [debouncedTimeOffsetHours, setDebouncedTimeOffsetHours] = useState(timeOffsetHours);
   const lastTimeOffsetChangeRef = useRef(0);
@@ -93,20 +92,9 @@ export function useOpenMeteoTileUrls({
 
   const cacheBustRef = useRef(Date.now());
 
-  // Listen for mask upgrades (110m→50m) — FORCE SOURCE RECREATION
-  // Instead of URL cache busting (which relies on MapLibre honoring setUrl), we increment
-  // maskGeneration which feeds into the Source `key` prop. React unmounts the old Source
-  // (MapLibre destroys SourceCache + all tiles + GPU textures) and mounts a new one.
-  useEffect(() => {
-    const handleMaskUpgrade = (e) => {
-      cacheBustRef.current = Date.now();
-      setMetadataRevision(r => r + 1); // trigger URL regeneration
-      setMaskGeneration(g => g + 1);   // trigger Source UNMOUNT/REMOUNT in MapWebGL
-      console.log(`[TRANSITION] Mask upgraded to ${e?.detail?.resolution || '?'} — SOURCE RECREATION triggered (gen ${maskGeneration + 1})`);
-    };
-    window.addEventListener('om-mask-upgraded', handleMaskUpgrade);
-    return () => window.removeEventListener('om-mask-upgraded', handleMaskUpgrade);
-  }, [maskGeneration]);
+  // NOTE: Marine mask upgrade listener REMOVED in Phase 4A.
+  // Marine rendering is now 100% GPU-driven — no mask polygon, no tile cache busting.
+  // The om-mask-upgraded event is no longer dispatched.
   
   const activeSlotsRef = useRef(activeSlots);
   activeSlotsRef.current = activeSlots;
@@ -625,8 +613,7 @@ export function useOpenMeteoTileUrls({
     activeSlots,
     isTransitioning,
     closestTimeIdx,
-    debouncedTimeOffsetHours,
-    maskGeneration
+    debouncedTimeOffsetHours
   };
 
 }

@@ -129,8 +129,7 @@ var MapWebGL = ({
     activeSlots,
     isTransitioning,
     closestTimeIdx,
-    debouncedTimeOffsetHours,
-    maskGeneration
+    debouncedTimeOffsetHours
   } = useOpenMeteoTileUrls({
     mapInstance,
     activeModel,
@@ -518,7 +517,7 @@ var MapWebGL = ({
 
             return (
               <Source
-                key={`${slotKey}-source-g${maskGeneration}`}
+                key={`${slotKey}-source`}
                 id={`${slotKey}-source`}
                 type="raster"
                 url={url}

@@ -140,7 +140,9 @@ function cacheDecodedTile(key, value) {
   DECODED_TILE_CACHE.set(key, value);
 }
 
-// Marine variables that should be clipped to ocean only
+// Marine variables — identification only (no longer used for raster clipping since Phase 4A GPU migration)
+// Marine rendering is now 100% GPU-driven via WebGLMarineEngine heatmap + particles.
+// This set is retained for data routing and telemetry identification.
 const MARINE_VARIABLES = new Set([
   'wave_height', 'swell_wave_height', 'secondary_swell_wave_height',
   'wind_wave_height', 'swell_wave_period', 'swell_wave_direction',
@@ -148,42 +150,12 @@ const MARINE_VARIABLES = new Set([
   'ocean_current_velocity', 'sea_surface_temperature'
 ]);
 
-/**
- * Build an ocean-only GeoJSON polygon from land GeoJSON.
- * Creates a world bounding box with land polygons as holes.
- */
-function buildOceanPolygon(landGeoJSON) {
-  if (!landGeoJSON?.features?.length) return null;
-
-  // World bounding box (outer ring, counter-clockwise)
-  const worldRing = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
-
-  // Collect all land polygon rings as holes (clockwise for GeoJSON holes)
-  const holes = [];
-  for (const feature of landGeoJSON.features) {
-    const geom = feature.geometry;
-    if (!geom) continue;
-    if (geom.type === 'Polygon') {
-      // Only take the outer ring of each land polygon as a hole
-      if (geom.coordinates[0]) holes.push(geom.coordinates[0]);
-    } else if (geom.type === 'MultiPolygon') {
-      for (const poly of geom.coordinates) {
-        if (poly[0]) holes.push(poly[0]);
-      }
-    }
-  }
-
-  if (holes.length === 0) return null;
-
-  return {
-    type: 'Feature',
-    geometry: {
-      type: 'Polygon',
-      coordinates: [worldRing, ...holes]
-    },
-    properties: {}
-  };
-}
+// NOTE: Marine ocean clipping polygon system (buildOceanPolygon, applyLandMask,
+// 110m/50m land mask loading) REMOVED in Phase 4A.
+// Marine rendering is now 100% GPU-driven via WebGLMarineEngine.
+// The GPU engine uses the isOcean flag from API data for coastline masking,
+// not GeoJSON polygon clipping. No land mask loading needed for marine.
+// OceanMask.js loads its own land GeoJSON for visual basemap masking.
 
 export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE) {
   // Register a global fetch interceptor to completely prevent 429 rate limits on latest.json metadata requests
@@ -293,83 +265,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       }
     };
     window.__OM_PROTOCOL_SETTINGS__ = settings;
-
-    // Fetch land GeoJSON and build ocean clipping polygon for marine layers
-    // Progressive loading: 110m instant from cache → 50m upgrade from public folder
-    // The 110m dataset (127 features) is too coarse — small islands are missing,
-    // causing heatmap to bleed onto their land ("island anchor" bug).
-    // The 50m dataset (1420 features) covers virtually all mapped islands.
-    const NE_LAND_110M_URL = '/ne_110m_land.json';
-    const NE_LAND_50M_URL = '/ne_50m_land.json';
-    
-    const applyLandMask = (landGeoJSON, resolution) => {
-      const oceanPoly = buildOceanPolygon(landGeoJSON);
-      if (oceanPoly) {
-        const marineSettings = {
-          ...settings,
-          clippingOptions: {
-            geojson: oceanPoly,
-            fillRule: 'evenodd'
-          }
-        };
-        window.__OM_MARINE_SETTINGS__ = marineSettings;
-        // Flush tile cache — tiles decoded with old mask have stale clipping
-        DECODED_TILE_CACHE.clear();
-        TILE_TRUTH.cacheFlushes++;
-        TILE_TRUTH.lastFlushTimestamp = Date.now();
-        TILE_TRUTH.currentMaskResolution = resolution;
-        TILE_TRUTH.maskUpgrades.push({ resolution, timestamp: Date.now(), holeCount: oceanPoly.geometry.coordinates.length - 1, cacheSize: 0 });
-        // Signal MapLibre tile URL regeneration — MapLibre's internal SourceCache
-        // holds tiles decoded with the old mask. Changing the _cb param in URLs
-        // forces MapLibre to treat them as new sources and re-fetch through om://
-        window.dispatchEvent(new CustomEvent('om-mask-upgraded', { detail: { resolution } }));
-        TILE_TRUTH.urlInvalidations++;
-        console.log(`[MODEL] [OM-Protocol] Ocean clipping polygon built (${resolution}):`, oceanPoly.geometry.coordinates.length - 1, 'land holes — tile cache flushed + URL invalidation dispatched');
-      }
-    };
-
-    // Phase 1: Instant 110m from localStorage cache (sub-1ms startup)
-    let phase1Loaded = false;
-    try {
-      const cachedMask = localStorage.getItem('om_land_mask_110m');
-      if (cachedMask) {
-        const parsed = JSON.parse(cachedMask);
-        applyLandMask(parsed, '110m-cache');
-        phase1Loaded = true;
-        console.log('[CACHE] [OM-Protocol] Phase 1: 110m land mask hydrated from localStorage (0ms)');
-      }
-    } catch (e) {
-      console.warn('[CACHE] [OM-Protocol] LocalStorage access failed:', e);
-    }
-
-    // Phase 1 fallback: fetch 110m from public folder if not cached
-    if (!phase1Loaded) {
-      fetch(NE_LAND_110M_URL)
-        .then(r => r.json())
-        .then(landGeoJSON => {
-          applyLandMask(landGeoJSON, '110m-fetch');
-          try {
-            localStorage.setItem('om_land_mask_110m', JSON.stringify(landGeoJSON));
-          } catch (e) { /* storage full */ }
-        })
-        .catch(err => {
-          console.warn('[MODEL] [OM-Protocol] Phase 1 (110m) fetch failed:', err.message);
-        });
-    }
-
-    // Phase 2: Upgrade to 50m from public folder (1420 features, covers small islands)
-    fetch(NE_LAND_50M_URL)
-      .then(r => {
-        if (!r.ok) throw new Error(`Status ${r.status}`);
-        return r.json();
-      })
-      .then(landGeoJSON => {
-        applyLandMask(landGeoJSON, '50m');
-        console.log('[MODEL] [OM-Protocol] Phase 2: 50m land mask UPGRADED (' + landGeoJSON.features.length + ' features)');
-      })
-      .catch(err => {
-        console.warn('[MODEL] [OM-Protocol] Phase 2 (50m) upgrade failed:', err.message, '— using 110m');
-      });
+    // NOTE: Marine ocean clipping polygon system REMOVED in Phase 4A.
+    // Marine rendering is now 100% GPU-driven via WebGLMarineEngine.
+    // The GPU engine uses isOcean flag from data texture for coastline masking.
+    // Removed: buildOceanPolygon, applyLandMask, 110m/50m land mask loading,
+    // om-mask-upgraded event dispatch, __OM_MARINE_SETTINGS__.
 
     if (maplibregl?.addProtocol) {
       try {
@@ -452,10 +352,10 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             return getSafeWorkerFallbackResponse(params.url, params.type);
           }
 
-          // v3.14: Use ocean-clipped settings for marine variables so land pixels are transparent
+          // Marine identification (for telemetry only — marine tiles are no longer generated
+          // after Phase 4A GPU migration, but kept for safety)
           const isMarine = variable && MARINE_VARIABLES.has(variable);
-          const marineSettings = (hasWindow && window.__OM_MARINE_SETTINGS__) || null;
-          const effectiveSettings = (isMarine && marineSettings) ? marineSettings : currentSettings;
+          const effectiveSettings = currentSettings;
 
           // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
           const runProtocol = async () => {
