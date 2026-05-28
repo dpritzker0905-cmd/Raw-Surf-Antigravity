@@ -406,6 +406,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
   var prevColorMask = gl.getParameter(gl.COLOR_WRITEMASK);
 
+  var prevCullFace = gl.getParameter(gl.CULL_FACE);
+  gl.disable(gl.CULL_FACE);
+
   gl.disable(gl.DEPTH_TEST);
   gl.depthMask(false);
   gl.disable(gl.STENCIL_TEST);
@@ -617,6 +620,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.disable(gl.SCISSOR_TEST);
   }
   gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
+
+  if (prevCullFace) {
+    gl.enable(gl.CULL_FACE);
+  } else {
+    gl.disable(gl.CULL_FACE);
+  }
 };
 
 WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;

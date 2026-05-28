@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Init Sequencer Deterministic Engine Boot Order
  *
  * GUARANTEES SAFE ORDERED BOOT:
@@ -22,7 +22,10 @@ var _stateListeners = [];
  */
 
 /** @returns {InitState} */
-export function getInitState() { return _state; }
+export function getInitState() { 
+  if (typeof window !== 'undefined') window.__GET_INIT_STATE__ = () => _state;
+  return _state; 
+}
 
 /** @param {InitState} next */
 export function setInitState(next) {
@@ -40,7 +43,9 @@ export function onStateChange(fn) {
 
 /** Called AFTER DOM + React mount */
 export function markDOMReady() {
-  _state = 'dom-ready';
+  if (_state === 'idle') {
+    _state = 'dom-ready';
+  }
 }
 
 /** Called AFTER MapLibre is fully initialized */

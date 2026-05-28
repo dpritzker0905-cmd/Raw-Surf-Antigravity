@@ -44,6 +44,7 @@ var _initialized = false;
  * @param {Object} [ctx.config]
  */
 export function initEngine(ctx) {
+  if (typeof window !== 'undefined') window.__INIT_ENGINE__ = initEngine;
   if (_initialized) return;
 
  // HARD SAFETY GATE prevents "ge/be before initialization" crash class

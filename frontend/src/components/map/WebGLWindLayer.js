@@ -177,8 +177,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
 
     // Dynamic layer style data sync: add layer and keep it present across style/theme reloads
     const handleStyleData = () => {
-      if (!mapInstance) return;
-      if (!mapInstance.isStyleLoaded?.()) return;
+      if (!mapInstance || !mapInstance.style) return;
 
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
