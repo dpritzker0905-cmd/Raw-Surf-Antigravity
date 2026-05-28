@@ -239,10 +239,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     window.__OM_PROTOCOL_SETTINGS__ = settings;
 
     // Fetch land GeoJSON and build ocean clipping polygon for marine layers
-    // Use 110m resolution cached in localStorage for sub-1ms instant loading (loaded from local public folder)
+    // Progressive loading: 110m instant from cache → 50m upgrade from public folder
+    // The 110m dataset (127 features) is too coarse — small islands are missing,
+    // causing heatmap to bleed onto their land ("island anchor" bug).
+    // The 50m dataset (1420 features) covers virtually all mapped islands.
     const NE_LAND_110M_URL = '/ne_110m_land.json';
+    const NE_LAND_50M_URL = '/ne_50m_land.json';
     
-    const applyLandMask = (landGeoJSON) => {
+    const applyLandMask = (landGeoJSON, resolution) => {
       const oceanPoly = buildOceanPolygon(landGeoJSON);
       if (oceanPoly) {
         const marineSettings = {
@@ -253,45 +257,52 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           }
         };
         window.__OM_MARINE_SETTINGS__ = marineSettings;
-        console.log('[MODEL] [OM-Protocol] Ocean clipping polygon built:', oceanPoly.geometry.coordinates.length - 1, 'land holes');
+        console.log(`[MODEL] [OM-Protocol] Ocean clipping polygon built (${resolution}):`, oceanPoly.geometry.coordinates.length - 1, 'land holes');
       }
     };
 
-    let cachedMask = null;
+    // Phase 1: Instant 110m from localStorage cache (sub-1ms startup)
+    let phase1Loaded = false;
     try {
-      cachedMask = localStorage.getItem('om_land_mask_110m');
+      const cachedMask = localStorage.getItem('om_land_mask_110m');
+      if (cachedMask) {
+        const parsed = JSON.parse(cachedMask);
+        applyLandMask(parsed, '110m-cache');
+        phase1Loaded = true;
+        console.log('[CACHE] [OM-Protocol] Phase 1: 110m land mask hydrated from localStorage (0ms)');
+      }
     } catch (e) {
       console.warn('[CACHE] [OM-Protocol] LocalStorage access failed:', e);
     }
 
-    if (cachedMask) {
-      try {
-        const parsed = JSON.parse(cachedMask);
-        applyLandMask(parsed);
-        console.log('[CACHE] [OM-Protocol] Land mask hydrated instantly from localStorage cache (0ms)');
-      } catch (err) {
-        console.warn('[CACHE] [OM-Protocol] Failed to parse cached land mask:', err);
-        localStorage.removeItem('om_land_mask_110m');
-        cachedMask = null;
-      }
-    }
-
-    if (!cachedMask) {
+    // Phase 1 fallback: fetch 110m from public folder if not cached
+    if (!phase1Loaded) {
       fetch(NE_LAND_110M_URL)
         .then(r => r.json())
         .then(landGeoJSON => {
-          applyLandMask(landGeoJSON);
+          applyLandMask(landGeoJSON, '110m-fetch');
           try {
             localStorage.setItem('om_land_mask_110m', JSON.stringify(landGeoJSON));
-            console.log('[CACHE] [OM-Protocol] Land mask cached in localStorage (300 KB)');
-          } catch (e) {
-            console.warn('[CACHE] [OM-Protocol] Failed to cache land mask in localStorage:', e);
-          }
+          } catch (e) { /* storage full */ }
         })
         .catch(err => {
-          console.warn('[MODEL] [OM-Protocol] Failed to build ocean clipping polygon:', err.message);
+          console.warn('[MODEL] [OM-Protocol] Phase 1 (110m) fetch failed:', err.message);
         });
     }
+
+    // Phase 2: Upgrade to 50m from public folder (1420 features, covers small islands)
+    fetch(NE_LAND_50M_URL)
+      .then(r => {
+        if (!r.ok) throw new Error(`Status ${r.status}`);
+        return r.json();
+      })
+      .then(landGeoJSON => {
+        applyLandMask(landGeoJSON, '50m');
+        console.log('[MODEL] [OM-Protocol] Phase 2: 50m land mask UPGRADED (' + landGeoJSON.features.length + ' features)');
+      })
+      .catch(err => {
+        console.warn('[MODEL] [OM-Protocol] Phase 2 (50m) upgrade failed:', err.message, '— using 110m');
+      });
 
     if (maplibregl?.addProtocol) {
       try {
