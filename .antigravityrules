@@ -57,6 +57,17 @@ AI assistants must proactively query and call tools from the active MCP suite be
   * URL: `https://mcp.supermemory.ai/mcp`
   * API Key: `sm_E9Xrnuj9Cmptcm2SQEhjjd_gYLbXcRqWRNQmGxn38rnlLpBEIkozqVsSlIw6fAaZzT0UkudmIR3Oz6HCgWki2lI`
   * Config: Registered manually at `C:\Users\dprit\AppData\Roaming\Claude\claude_desktop_config.json` and in `C:\Users\dprit\.config\opencode\opencode.jsonc`.
+* **ChromaDB Vector Store** $\rightarrow$ Vector database for in-memory and client-server prototyping, semantic queries, document tokenization, and embedding indexes.
+  * Setup: `chromadb.Client()` (in-memory) or `chroma run --path /chroma_db_path` (client-server).
+  * CLI/Packages: `pip install chromadb` (Python), `npm install chromadb` (JS).
+  * API Example:
+    ```python
+    import chromadb
+    client = chromadb.Client()
+    collection = client.get_or_create_collection("all-my-documents")
+    collection.add(documents=["Doc 1", "Doc 2"], ids=["doc1", "doc2"])
+    results = collection.query(query_texts=["search term"], n_results=2)
+    ```
 
 
 ### 2. Observe and Sync Tool Schemas
