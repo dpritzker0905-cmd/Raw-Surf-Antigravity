@@ -146,6 +146,38 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   useEffect(() => {
     if (!mapInstance) return;
 
+    /**
+     * Find the first base-map layer that should render ABOVE the land fill.
+     * This includes landuse (parks, green areas), POIs, roads, labels.
+     * Returns null if no suitable layer found (layers go on top).
+     *
+     * NOTE: This is a ONE-TIME lookup for initial layer placement.
+     * It is NOT reactive re-ordering — it does not listen to styledata
+     * or re-run when the style changes. This is architecturally safe.
+     */
+    const findInsertionPoint = () => {
+      try {
+        const style = mapInstance.getStyle();
+        if (!style?.layers) return null;
+
+        for (const layer of style.layers) {
+          const id = layer.id;
+          // Skip our own layers and custom layers
+          if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
+          if (id === 'background' || id === 'water' || id === 'water-depth' || id === 'wetland') continue;
+
+          // Insert BEFORE the first landuse, park, POI, or structural layer
+          if (id.includes('landuse') || id.includes('park') || id.includes('landcover') ||
+              id.includes('national') || id.includes('land-structure') ||
+              id.includes('building') || id.includes('poi') ||
+              layer.type === 'symbol') {
+            return id;
+          }
+        }
+      } catch (e) {}
+      return null;
+    };
+
     const addLayers = () => {
       if (!maskData || !active) return;
       try {
@@ -156,6 +188,9 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
       const { waterSource, waterSourceLayer, waterColor, waterwaySource, waterwaySourceLayer, waterwayColor } = resolveWaterSources(mapInstance.getStyle());
 
+      // One-time insertion point: BELOW parks/landuse, ABOVE water
+      const insertBefore = findInsertionPoint();
+
       // Source
       if (!mapInstance.getSource(MASK_SOURCE)) {
         try {
@@ -165,7 +200,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         try { mapInstance.getSource(MASK_SOURCE)?.setData(maskData); } catch (e) {}
       }
 
-      // 1. Coastline buffer (ocean-colored vignette)
+      // 1. Coastline buffer (ocean-colored vignette) — inserted BELOW parks
       if (!mapInstance.getLayer(MASK_BUFFER)) {
         try {
           mapInstance.addLayer({
@@ -178,25 +213,25 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               'line-blur': ['interpolate', ['linear'], ['zoom'], 2, 2.0, 7, 1.5, 9, 1.0, 14, 0.0],
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
-          });
+          }, insertBefore);
         } catch (e) {}
       } else {
         try { mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', tc.ocean); } catch (e) {}
       }
 
-      // 2. Solid land fill
+      // 2. Solid land fill — inserted BELOW parks so they render on top
       if (!mapInstance.getLayer(MASK_FILL)) {
         try {
           mapInstance.addLayer({
             id: MASK_FILL, type: 'fill', source: MASK_SOURCE,
             paint: { 'fill-color': tc.fill, 'fill-opacity': 1.0 },
-          });
+          }, insertBefore);
         } catch (e) {}
       } else {
         try { mapInstance.setPaintProperty(MASK_FILL, 'fill-color', tc.fill); } catch (e) {}
       }
 
-      // 3. Inland water (lakes)
+      // 3. Inland water (lakes) — ON TOP of fill to punch through
       if (!mapInstance.getLayer(MASK_INLAND_WATER)) {
         try {
           mapInstance.addLayer({
