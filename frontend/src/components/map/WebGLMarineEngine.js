@@ -391,7 +391,9 @@ function encodeMarineTexture(gl, waveGrid) {
   // We calculate distance-to-land for a robust bathymetry shelf structure.
   const grid = new Uint8Array(cols * rows);
   for (let i = 0; i < vectors.length; i++) {
-    grid[i] = (vectors[i].isOcean === true) ? 1 : 0;
+    const v = vectors[i];
+    const isOcean = !!(v.isOcean || (v.isOcean === undefined && (v.speed > 0.001 || v.u !== 0 || v.v !== 0)));
+    grid[i] = isOcean ? 1 : 0;
   }
 
   // Multi-pass distance transform in Javascript
@@ -527,7 +529,8 @@ function encodeMarineTexture(gl, waveGrid) {
     dataChl[i * 4 + 3] = 255;
 
     // 4. Land/ocean binary mask
-    const oceanFlag = (v.isOcean === true) ? 255 : 0;
+    const isOcean = !!(v.isOcean || (v.isOcean === undefined && (v.speed > 0.001 || v.u !== 0 || v.v !== 0)));
+    const oceanFlag = isOcean ? 255 : 0;
     dataMask[i * 4 + 0] = oceanFlag;
     dataMask[i * 4 + 1] = oceanFlag;
     dataMask[i * 4 + 2] = oceanFlag;
