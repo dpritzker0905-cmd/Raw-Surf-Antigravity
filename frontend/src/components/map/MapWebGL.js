@@ -575,7 +575,7 @@ var MapWebGL = ({
                   id={`${slotKey}-layer`}
                   type="raster"
                   layout={{
-                    visibility: (!isTransitioning && isVisualRaster) ? 'visible' : 'none'
+                    visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
                   }}
                   paint={{
                     'raster-opacity': (!isTransitioning && isVisualRaster && isActive) ? [

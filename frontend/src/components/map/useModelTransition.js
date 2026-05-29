@@ -158,8 +158,9 @@ export function useModelTransition({
                         : (currentClosestTimeIdx % 3) === slotIdx;
                       
                       if (mapInstance.getLayer(layerId)) {
+                        const isPreloaderOnly = ['wind', 'waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey);
                         mapInstance.setLayoutProperty(layerId, 'visibility', 'visible');
-                        mapInstance.setPaintProperty(layerId, 'raster-opacity', isActive ? finalOpacity : 0.0);
+                        mapInstance.setPaintProperty(layerId, 'raster-opacity', (isActive && !isPreloaderOnly) ? finalOpacity : 0.0);
                       }
                     });
                   });
