@@ -13,7 +13,7 @@ services:
     container_name: memgraph-lab
     pull_policy: always
     ports:
-      - "3000:3000"
+      - "3005:3000"
     depends_on:
       - memgraph
     environment:

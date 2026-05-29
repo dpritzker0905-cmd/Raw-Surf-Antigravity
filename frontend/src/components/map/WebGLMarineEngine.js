@@ -290,13 +290,6 @@ function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   const extVectors = vectors.map(v => ({ ...v }));
   extrapolateOceanData(extVectors, cols, rows);
 
-  let maxVal = 0.001;
-  for (let i = 0; i < extVectors.length; i++) {
-    const v = extVectors[i];
-    const len = Math.sqrt(v.u * v.u + v.v * v.v);
-    if (len > maxVal) maxVal = len;
-  }
-
   // Allocate arrays for the four textures
   const dataWave = new Uint8Array(cols * rows * 4);
   const dataChl = new Uint8Array(cols * rows * 4);
@@ -407,8 +400,8 @@ function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     let v_y = v.v;
 
     // 1. Wave texture (RG = u/v vector, B = normalized wave height, A = normalized wave period)
-    const nu = (u / maxVal) * 0.5 + 0.5;
-    const nv = (v_y / maxVal) * 0.5 + 0.5;
+    const nu = Math.max(0.0, Math.min(1.0, (u / 10.0) * 0.5 + 0.5));
+    const nv = Math.max(0.0, Math.min(1.0, (v_y / 10.0) * 0.5 + 0.5));
     const height = Math.min(1.0, speed / 10.0);
     const periodVal = v.period ? Math.min(1.0, v.period / 20.0) : 0.0;
 
@@ -571,7 +564,7 @@ function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); // Restore to default false
         
         gl.bindTexture(gl.TEXTURE_2D, prevTex);
-        console.log(`[WebGLMarineEngine] High-resolution land mask texture created (${maskCanvas.width}x${maskCanvas.height})`);
+        console.log(`[WebGLMarineEngine-Forensic] High-resolution land mask texture created (${maskCanvas.width}x${maskCanvas.height})`);
         
         if (engine) {
           engine._cachedMaskTex = maskTex;
@@ -740,6 +733,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     this._landGeoJSON = landGeoJSON;
   }
   const activeGeoJSON = landGeoJSON || this._landGeoJSON;
+  console.log(`[WebGLMarineEngine-Forensic] setWaveData: ${waveGrid.vectors.length} vectors, landGeoJSON present: ${!!activeGeoJSON}`);
 
   if (this._waveData) {
     if (this._waveData.u_waveTexture && this._waveData.u_waveTexture !== this._residentWaveTex) {
@@ -963,14 +957,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
 
   var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
-  var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');
+  var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
   gl.enableVertexAttribArray(idLoc);
   gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
 
-  var worldOffsets = [0.0, -360.0, 360.0];
+  var worldOffsets = [0.0, -1.0, 1.0];
   for (var wi = 0; wi < worldOffsets.length; wi++) {
-    gl.uniform1f(lngOffsetLoc, worldOffsets[wi]);
+    gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
     gl.drawArrays(gl.LINES, 0, this.particleRes * this.particleRes * 2);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.drawCallsPerFrame++;
@@ -981,11 +975,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // ==========================================
   // PHASE 3: PARTICLE ADVECTION SYSTEM (Simulate next state)
   // ==========================================
-  const baseScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6));
-  const lngSpan = Math.max(0.01, Math.abs(waveBounds.east - waveBounds.west));
-  const latSpan = Math.max(0.01, Math.abs(waveBounds.north - waveBounds.south));
-  const speedScaleX = Math.max(3.0e-4, baseScale / lngSpan);
-  const speedScaleY = Math.max(3.0e-4, baseScale / latSpan);
+  const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5;
 
   gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
   gl.useProgram(this.advectProgram);
@@ -994,7 +984,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_oceanMaskTexture'), 2);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
 
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);

@@ -183,14 +183,20 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
 
   // ---- Dispatch to Marine Engine ----
   if (_marineEngine && _marineGL && field.sources.marine) {
-    try {
-      const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
-      const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
-      if (marineGrid) {
-        _marineEngine.setWaveData(_marineGL, marineGrid);
+    const isRouteBActive = typeof window !== 'undefined' && window.__DECODED_OM_TILES__ && window.__DECODED_OM_TILES__.size > 0;
+    if (isRouteBActive) {
+      _marineEngine._dispatcherActive = false; // Relinquish control to client-side high-resolution viewport stitcher
+    } else {
+      try {
+        const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
+        const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
+        if (marineGrid) {
+          _marineEngine._dispatcherActive = true;
+          _marineEngine.setWaveData(_marineGL, marineGrid);
+        }
+      } catch (e) {
+        console.warn('[RenderPlanDispatcher] Marine texture upload error:', e.message);
       }
-    } catch (e) {
-      console.warn('[RenderPlanDispatcher] Marine texture upload error:', e.message);
     }
   }
 }

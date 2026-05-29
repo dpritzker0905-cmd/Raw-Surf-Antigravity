@@ -158,6 +158,39 @@ const MARINE_VARIABLES = new Set([
 // OceanMask.js loads its own land GeoJSON for visual basemap masking.
 
 export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE) {
+  // Initialize main-thread listener for BroadcastChannel cross-thread decoded tiles bridge
+  if (typeof window !== 'undefined') {
+    if (!window.__DECODED_OM_TILES__) {
+      window.__DECODED_OM_TILES__ = new Map();
+    }
+    try {
+      if (!window.__OM_BROADCAST_CHANNEL__) {
+        const channel = new BroadcastChannel('om-decoded-tiles');
+        channel.onmessage = (event) => {
+          const payload = event.data;
+          if (payload && payload.cacheKey && window.__DECODED_OM_TILES__) {
+            window.__DECODED_OM_TILES__.set(payload.cacheKey, {
+              values: payload.values,
+              directions: payload.directions,
+              bounds: payload.bounds,
+              variable: payload.variable,
+              timestamp: payload.timestamp
+            });
+            
+            if (window.__DECODED_OM_TILES__.size > 150) {
+              const oldestKey = window.__DECODED_OM_TILES__.keys().next().value;
+              window.__DECODED_OM_TILES__.delete(oldestKey);
+            }
+          }
+        };
+        window.__OM_BROADCAST_CHANNEL__ = channel;
+        console.log('[OM-Protocol] BroadcastChannel listener registered successfully on main thread.');
+      }
+    } catch (e) {
+      console.warn('[OM-Protocol] BroadcastChannel setup failed on main thread:', e);
+    }
+  }
+
   // Register a global fetch interceptor to completely prevent 429 rate limits on latest.json metadata requests
   const globalCtx = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof self !== 'undefined' ? self : {};
   if (globalCtx.fetch && !globalCtx.__FETCH_INTERCEPTED__) {
@@ -262,6 +295,38 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       colorScales: {
         ...defaultOmProtocolSettings.colorScales,
         ...CUSTOM_COLOR_SCALES
+      },
+      postReadCallback(omFileReader, data, state) {
+        if (!data || !data.values) return;
+        
+        const bounds = state.dataOptions?.bounds;
+        const variable = state.dataOptions?.variable;
+        if (bounds && variable) {
+          const cacheKey = `${variable}|${bounds.join(',')}`;
+          const tilePayload = {
+            cacheKey,
+            values: data.values,
+            directions: data.directions,
+            bounds: bounds,
+            variable: variable,
+            timestamp: Date.now()
+          };
+          
+          // Cross-thread communication: Broadcast decoded tile payload to main thread via BroadcastChannel
+          try {
+            const channel = new BroadcastChannel('om-decoded-tiles');
+            channel.postMessage(tilePayload);
+            channel.close();
+          } catch (e) {
+            // Worker-self fallback just in case
+            if (typeof self !== 'undefined') {
+              if (!self.__DECODED_OM_TILES_FALLBACK__) {
+                self.__DECODED_OM_TILES_FALLBACK__ = new Map();
+              }
+              self.__DECODED_OM_TILES_FALLBACK__.set(cacheKey, tilePayload);
+            }
+          }
+        }
       }
     };
     window.__OM_PROTOCOL_SETTINGS__ = settings;
@@ -352,12 +417,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             return getSafeWorkerFallbackResponse(params.url, params.type);
           }
 
-          // Marine identification: IMMEDIATELY return transparent fallback tile
-          // after Phase 4A GPU migration. No marine visualization can depend on MapLibre raster tiles.
+          // Marine identification: Let it run through the WASM decoder so our postReadCallback can cache
+          // the raw numerical wave heights/directions, but we will return a transparent fallback at the end.
           const isMarine = variable && MARINE_VARIABLES.has(variable);
-          if (isMarine) {
-            return getSafeWorkerFallbackResponse(params.url, params.type);
-          }
           const effectiveSettings = currentSettings;
 
           // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
@@ -370,6 +432,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               TILE_TRUTH.recentTiles.push({ key: tileKey.slice(-60), source: 'CACHE_HIT', timestamp: Date.now(), marine: isMarine });
               if (TILE_TRUTH.recentTiles.length > 50) TILE_TRUTH.recentTiles.shift();
               WeatherTelemetry.trackTileLoaded(tileKey, true);
+              if (isMarine) {
+                return getSafeWorkerFallbackResponse(params.url, params.type || 'image');
+              }
               return DECODED_TILE_CACHE.get(tileKey);
             }
 
@@ -408,6 +473,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               // 2. Cache successful decoded result
               if (res && res.data) {
                 cacheDecodedTile(tileKey, res);
+              }
+              if (isMarine) {
+                return getSafeWorkerFallbackResponse(params.url, params.type || 'image');
               }
               return res;
             } catch (err) {

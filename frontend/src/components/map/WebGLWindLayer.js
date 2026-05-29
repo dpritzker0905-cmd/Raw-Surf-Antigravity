@@ -192,11 +192,13 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
     };
 
     mapInstance.on('styledata', handleStyleData);
+    mapInstance.on('style.load', handleStyleData);
     handleStyleData();
 
     return () => {
       try {
         mapInstance.off('styledata', handleStyleData);
+        mapInstance.off('style.load', handleStyleData);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }

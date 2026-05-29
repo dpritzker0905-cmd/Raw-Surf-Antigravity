@@ -242,7 +242,7 @@ var MapWebGL = ({
 
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
-    return {
+    const res = {
       bounds: marineData.grid.bounds,
       cols: marineData.grid.cols,
       rows: marineData.grid.rows,
@@ -259,6 +259,10 @@ var MapWebGL = ({
         };
       })
     };
+    if (typeof window !== 'undefined') {
+      window.__MARINE_WIND_DATA__ = res;
+    }
+    return res;
   }, [marineData, activeMarineLayer]);
 
   // Marine raster opacity is controlled declaratively via JSX paint props (single source of truth).
@@ -383,6 +387,8 @@ var MapWebGL = ({
   useEffect(() => {
     if (!mapInstance) return;
 
+    window.__MAP_INSTANCE__ = mapInstance;
+
     // Layer stack inspector
     window.__MAP_DEBUG__ = () => {
       const style = mapInstance.getStyle();
@@ -418,35 +424,29 @@ var MapWebGL = ({
 
         // Extract tile IDs from in-view tiles
         const tileIds = [];
-        const allIds = typeof inView.getAllIds === 'function' ? inView.getAllIds() : Object.keys(inView);
-        for (const id of allIds) {
-          const tile = typeof inView.getTileById === 'function' ? inView.getTileById(id) : inView[id];
-          if (tile) {
-            tileIds.push({
-              id: String(id).slice(-30),
-              state: tile.state,
-              overscaledZ: tile.tileID?.overscaledZ ?? '?',
-              z: tile.tileID?.canonical?.z ?? '?',
-              x: tile.tileID?.canonical?.x ?? '?',
-              y: tile.tileID?.canonical?.y ?? '?',
-              hasTexture: !!(tile.texture || tile.data),
-              overscaled: (tile.tileID?.overscaledZ ?? 0) !== (tile.tileID?.canonical?.z ?? 0)
-            });
-          }
+        for (const [tileId, tile] of Object.entries(inView)) {
+          tileIds.push({
+            id: tileId,
+            state: tile.state,
+            loaded: tile.loaded,
+            zoom: tile.tileID?.canonical?.z || '?',
+            x: tile.tileID?.canonical?.x || '?',
+            y: tile.tileID?.canonical?.y || '?',
+            overscaled: tile.tileID?.overscaledZ > tile.tileID?.canonical?.z
+          });
         }
 
         report[name] = {
-          sourceUrl: (src.url || src._options?.url || '').slice(-80),
-          sourceTiles: src.tiles?.map(t => t.slice(-60)),
+          sourceUrl: src.url || '-',
+          sourceTiles: src.tiles || '-',
           inViewCount: tileIds.length,
-          outOfViewCount: outCache?.order?.length ?? outCache?.data?.size ?? '?',
-          tiles: tileIds,
+          outOfViewCount: Object.keys(outCache).length,
           overscaledCount: tileIds.filter(t => t.overscaled).length,
-          state: tm._state
+          tiles: tileIds
         };
       }
 
-      console.log('%c═══ SOURCECACHE TRUTH ═══', 'color: #ff44ff; font-size: 16px; font-weight: bold');
+      console.log('%c=== SourceCache Truth ===', 'font-size: 14px; font-weight: bold; color: #00ff88');
       for (const [name, data] of Object.entries(report)) {
         console.log(`%c${name}`, 'color: #44aaff; font-weight: bold');
         console.log('  Source URL:', data.sourceUrl);
@@ -458,6 +458,7 @@ var MapWebGL = ({
     };
 
     return () => {
+      delete window.__MAP_INSTANCE__;
       delete window.__MAP_DEBUG__;
       delete window.__SOURCECACHE_TRUTH__;
     };
