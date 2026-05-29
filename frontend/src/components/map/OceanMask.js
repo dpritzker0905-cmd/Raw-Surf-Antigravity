@@ -12,6 +12,7 @@
 
 /* eslint-disable no-empty */
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getSharedLandGeoJSON } from './WebGLMarineLayer';
 
 const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
 
@@ -79,7 +80,7 @@ function resolveWaterSources(style) {
   return { waterSource, waterSourceLayer, waterColor, waterwaySource, waterwaySourceLayer, waterwayColor };
 }
 
-export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme }) {
+export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, activeLayers = [] }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
 
@@ -93,48 +94,16 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     fetchedRef.current = true;
 
     const loadLand = async () => {
-      let phase1Loaded = false;
-
-      // Phase 1: Fast local load (50m)
       try {
-        const r = await fetch('/ne_50m_land.json');
-        if (!r.ok) throw new Error(`Status ${r.status}`);
-        const geojson = await r.json();
+        const geojson = await getSharedLandGeoJSON();
         const mask = buildLandMask(geojson);
         if (mask) {
           setMaskData(mask);
-          phase1Loaded = true;
-          console.log('[OceanMask] Phase 1: 50m land loaded (' + geojson.features.length + ' features)');
+          console.log('[OceanMask] Land GeoJSON loaded and conformed (' + geojson.features.length + ' features)');
         }
       } catch (e) {
-        try {
-          const r = await fetch('/ne_110m_land.json');
-          if (!r.ok) throw new Error(`Status ${r.status}`);
-          const geojson = await r.json();
-          const mask = buildLandMask(geojson);
-          if (mask) {
-            setMaskData(mask);
-            phase1Loaded = true;
-            console.log('[OceanMask] Phase 1: 110m fallback loaded');
-          }
-        } catch (e2) {}
-      }
-
-      // Phase 2: Upgrade to 10m from CDN
-      try {
-        const r = await fetch(NE_LAND_URL);
-        if (!r.ok) throw new Error(`Status ${r.status}`);
-        const geojson = await r.json();
-        const mask = buildLandMask(geojson);
-        if (mask) {
-          setMaskData(mask);
-          console.log('[OceanMask] Phase 2: 10m land UPGRADED (' + geojson.features.length + ' features)');
-        }
-      } catch (e) {
-        if (!phase1Loaded) {
-          console.error('[OceanMask] All land GeoJSON load attempts failed');
-          fetchedRef.current = false;
-        }
+        console.error('[OceanMask] All land GeoJSON load attempts failed', e);
+        fetchedRef.current = false;
       }
     };
     loadLand();
@@ -144,7 +113,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   // PHASE 2: Add/Remove STATIC visual layers (NO ordering logic)
   // ================================================================
   useEffect(() => {
-    if (!mapInstance) return;
+    if (!mapInstance || typeof mapInstance.getLayer !== 'function') return;
 
     /**
      * Find the first base-map layer that should render ABOVE the land fill.
@@ -157,10 +126,35 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
      */
     const findInsertionPoint = () => {
       try {
+        if (typeof mapInstance.getStyle !== 'function') return null;
         const style = mapInstance.getStyle();
         if (!style?.layers?.length) return null;
 
-        // Primary: insert BEFORE the first landuse/park/landcover/building layer
+        // Find the index of the 'water' layer
+        let waterIndex = -1;
+        for (let i = 0; i < style.layers.length; i++) {
+          if (style.layers[i].id === 'water') {
+            waterIndex = i;
+            break;
+          }
+        }
+
+        if (waterIndex !== -1) {
+          // Find the first layer after 'water' that is a land feature, road, label, etc.
+          for (let i = waterIndex + 1; i < style.layers.length; i++) {
+            const layer = style.layers[i];
+            const id = layer.id;
+            // Skip our own layers
+            if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
+            // Skip other water-related features if they happen to be grouped
+            if (id === 'water-depth' || id === 'wetland' || id.includes('waterway')) continue;
+
+            console.log(`[OceanMask] Insertion point (above water): BEFORE '${id}'`);
+            return id;
+          }
+        }
+
+        // Fallback: insert BEFORE the first landuse/park/landcover/building layer
         for (const layer of style.layers) {
           const id = layer.id;
           // Skip our own layers and react-map-gl layers
@@ -171,7 +165,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               id.includes('national') || id.includes('land-structure') ||
               id.includes('building') || id.includes('poi') ||
               layer.type === 'symbol') {
-            console.log(`[OceanMask] Insertion point: BEFORE '${id}'`);
+            console.log(`[OceanMask] Fallback insertion: BEFORE '${id}'`);
             return id;
           }
         }
@@ -193,28 +187,37 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
 
     const addLayers = () => {
       if (!maskData || !active) return;
+      if (!mapInstance || typeof mapInstance.getStyle !== 'function' || typeof mapInstance.getLayer !== 'function') return;
+
+      let style;
       try {
-        const style = mapInstance.getStyle();
+        style = mapInstance.getStyle();
         if (!style) return;
       } catch (e) { return; }
 
       const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
-      const { waterSource, waterSourceLayer, waterColor, waterwaySource, waterwaySourceLayer, waterwayColor } = resolveWaterSources(mapInstance.getStyle());
+      const { waterSource, waterSourceLayer, waterColor, waterwaySource, waterwaySourceLayer, waterwayColor } = resolveWaterSources(style);
 
       // One-time insertion point: BELOW parks/landuse, ABOVE water
       const insertBefore = findInsertionPoint();
 
       // Source
-      if (!mapInstance.getSource(MASK_SOURCE)) {
+      if (typeof mapInstance.getSource === 'function' && !mapInstance.getSource(MASK_SOURCE)) {
         try {
-          mapInstance.addSource(MASK_SOURCE, { type: 'geojson', data: maskData, tolerance: 0.375 });
+          if (typeof mapInstance.addSource === 'function') {
+            mapInstance.addSource(MASK_SOURCE, { type: 'geojson', data: maskData, tolerance: 0.375 });
+          }
         } catch (e) {}
       } else {
-        try { mapInstance.getSource(MASK_SOURCE)?.setData(maskData); } catch (e) {}
+        try { if (typeof mapInstance.getSource === 'function') mapInstance.getSource(MASK_SOURCE)?.setData(maskData); } catch (e) {}
       }
 
+      const isSatellite = activeLayers.includes('satellite');
+      const fillOpacity = 0.0; // Force transparent to expose all native high-res land cover and parks
+      const lineOpacity = isSatellite ? 0.0 : 1.0;
+
       // 1. Coastline buffer (ocean-colored vignette) — inserted BELOW parks
-      if (!mapInstance.getLayer(MASK_BUFFER)) {
+      if (typeof mapInstance.addLayer === 'function' && !mapInstance.getLayer(MASK_BUFFER)) {
         try {
           mapInstance.addLayer({
             id: MASK_BUFFER, type: 'line', source: MASK_SOURCE,
@@ -222,83 +225,108 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               'line-color': tc.ocean,
               'line-width': ['interpolate', ['exponential', 1.2], ['zoom'], 1, 4, 3, 6, 5, 8, 7, 6, 9, 4, 14, 1],
               'line-offset': ['interpolate', ['linear'], ['zoom'], 1, 2, 5, 3, 9, 2, 14, 0],
-              'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0.5, 5, 0.4, 9, 0.3, 14, 0.0],
+              'line-opacity': isSatellite ? 0.0 : ['interpolate', ['linear'], ['zoom'], 2, 0.5, 5, 0.4, 9, 0.3, 14, 0.0],
               'line-blur': ['interpolate', ['linear'], ['zoom'], 2, 1.5, 7, 1.0, 9, 0.5, 14, 0.0],
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
           }, insertBefore);
         } catch (e) {}
-      } else {
-        try { mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', tc.ocean); } catch (e) {}
+      } else if (typeof mapInstance.setPaintProperty === 'function' && mapInstance.getLayer(MASK_BUFFER)) {
+        try {
+          mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', tc.ocean);
+          mapInstance.setPaintProperty(MASK_BUFFER, 'line-opacity', isSatellite ? 0.0 : ['interpolate', ['linear'], ['zoom'], 2, 0.5, 5, 0.4, 9, 0.3, 14, 0.0]);
+        } catch (e) {}
       }
 
       // 2. Solid land fill — inserted BELOW parks so they render on top
-      if (!mapInstance.getLayer(MASK_FILL)) {
+      if (typeof mapInstance.addLayer === 'function' && !mapInstance.getLayer(MASK_FILL)) {
         try {
           mapInstance.addLayer({
             id: MASK_FILL, type: 'fill', source: MASK_SOURCE,
-            paint: { 'fill-color': tc.fill, 'fill-opacity': 1.0 },
+            paint: { 'fill-color': tc.fill, 'fill-opacity': fillOpacity },
           }, insertBefore);
         } catch (e) {}
-      } else {
-        try { mapInstance.setPaintProperty(MASK_FILL, 'fill-color', tc.fill); } catch (e) {}
+      } else if (typeof mapInstance.setPaintProperty === 'function' && mapInstance.getLayer(MASK_FILL)) {
+        try {
+          mapInstance.setPaintProperty(MASK_FILL, 'fill-color', tc.fill);
+          mapInstance.setPaintProperty(MASK_FILL, 'fill-opacity', fillOpacity);
+        } catch (e) {}
       }
 
       // 3. Inland water (lakes) — ABOVE fill to punch through, but BELOW roads/bridges
-      if (!mapInstance.getLayer(MASK_INLAND_WATER)) {
+      if (typeof mapInstance.addLayer === 'function' && !mapInstance.getLayer(MASK_INLAND_WATER)) {
         try {
           mapInstance.addLayer({
             id: MASK_INLAND_WATER, type: 'fill', source: waterSource, 'source-layer': waterSourceLayer,
             filter: inlandWaterFilter,
-            paint: { 'fill-color': waterColor, 'fill-opacity': 1.0 },
+            paint: { 'fill-color': waterColor, 'fill-opacity': isSatellite ? 0.0 : 1.0 },
           }, insertBefore);
         } catch (e) {}
-      } else {
-        try { mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor); } catch (e) {}
+      } else if (typeof mapInstance.setPaintProperty === 'function' && mapInstance.getLayer(MASK_INLAND_WATER)) {
+        try {
+          mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
+          mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-opacity', isSatellite ? 0.0 : 1.0);
+        } catch (e) {}
       }
 
       // 4. Waterways (rivers) — BELOW roads/bridges
-      if (!mapInstance.getLayer(MASK_INLAND_WATERWAY)) {
+      if (typeof mapInstance.addLayer === 'function' && !mapInstance.getLayer(MASK_INLAND_WATERWAY)) {
         try {
           mapInstance.addLayer({
             id: MASK_INLAND_WATERWAY, type: 'line', source: waterwaySource, 'source-layer': waterwaySourceLayer,
             paint: {
               'line-color': waterwayColor,
               'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 13, 1.5, 18, 6],
-              'line-opacity': 1.0,
+              'line-opacity': isSatellite ? 0.0 : 1.0,
             },
           }, insertBefore);
         } catch (e) {}
-      } else {
-        try { mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor); } catch (e) {}
+      } else if (typeof mapInstance.setPaintProperty === 'function' && mapInstance.getLayer(MASK_INLAND_WATERWAY)) {
+        try {
+          mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
+          mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-opacity', isSatellite ? 0.0 : 1.0);
+        } catch (e) {}
       }
 
       // 5. Coastline outline — BELOW roads/bridges
-      if (!mapInstance.getLayer(MASK_LINE)) {
+      if (typeof mapInstance.addLayer === 'function' && !mapInstance.getLayer(MASK_LINE)) {
         try {
           mapInstance.addLayer({
             id: MASK_LINE, type: 'line', source: MASK_SOURCE,
             paint: {
               'line-color': tc.line,
               'line-width': ['interpolate', ['linear'], ['zoom'], 2, tc.lw * 0.5, 6, tc.lw, 10, tc.lw * 1.5],
-              'line-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 0.0],
+              'line-opacity': isSatellite ? 0.0 : ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 0.0],
               'line-blur': 0.5,
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
           }, insertBefore);
         } catch (e) {}
+      } else if (typeof mapInstance.setPaintProperty === 'function' && mapInstance.getLayer(MASK_LINE)) {
+        try {
+          mapInstance.setPaintProperty(MASK_LINE, 'line-opacity', isSatellite ? 0.0 : ['interpolate', ['linear'], ['zoom'], 9, 0.8, 14, 0.0]);
+        } catch (e) {}
       }
     };
 
     const removeLayers = () => {
+      if (!mapInstance || typeof mapInstance.getLayer !== 'function') return;
       for (const lid of ALL_LAYERS) {
-        if (mapInstance.getLayer(lid)) {
-          try { mapInstance.removeLayer(lid); } catch (e) {}
+        try {
+          if (mapInstance.getLayer(lid)) {
+            if (typeof mapInstance.removeLayer === 'function') {
+              mapInstance.removeLayer(lid);
+            }
+          }
+        } catch (e) {}
+      }
+      try {
+        if (typeof mapInstance.getSource === 'function' && mapInstance.getSource(MASK_SOURCE)) {
+          if (typeof mapInstance.removeSource === 'function') {
+            mapInstance.removeSource(MASK_SOURCE);
+          }
         }
-      }
-      if (mapInstance.getSource(MASK_SOURCE)) {
-        try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
-      }
+      } catch (e) {}
     };
 
     if (active && maskData) {
@@ -311,7 +339,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     return () => {
       removeLayers();
     };
-  }, [mapInstance, active, theme, maskData]);
+  }, [mapInstance, active, theme, maskData, activeLayers]);
 
   return null;
 }

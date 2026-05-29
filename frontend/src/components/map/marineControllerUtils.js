@@ -168,7 +168,7 @@ export function computeGridPoints(bounds, caller = 'wind') {
     if (caller === 'marine') {
       // v3.13.3: Respect Open-Meteo's strict [-80, 80] latitude limits to prevent 400 Bad Request error.
       west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 10 : 20;
+      GRID = isMobile ? 20 : 40;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
       // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems
@@ -200,7 +200,7 @@ export function computeGridPoints(bounds, caller = 'wind') {
       let lat = south + yi * latStep;
       let lng = west + xi * lngStep;
       let reqLng = lng;
-      while (reqLng > 180) reqLng -= 360;
+      while (reqLng >= 180) reqLng -= 360;
       while (reqLng < -180) reqLng += 360;
       points.push({
         lat: +lat.toFixed(2),

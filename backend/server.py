@@ -62,6 +62,12 @@ async def ensure_database_tables():
     import models  # registers all models with Base.metadata
 
     async with engine.begin() as conn:
+        # Check if database is SQLite to skip PG-specific migration steps
+        if conn.dialect.name == "sqlite":
+            await conn.run_sync(Base.metadata.create_all)
+            logger.info("[DB Migration] SQLite database initialized successfully.")
+            return
+
         # ── STEP 1: Create any completely missing tables ──────────────────────
         result = await conn.execute(
             text("SELECT tablename FROM pg_tables WHERE schemaname='public'")

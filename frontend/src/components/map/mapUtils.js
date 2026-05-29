@@ -332,3 +332,95 @@ export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onM
   }
   return cached || { variables: [], validTimes: [], referenceTime: null };
 }
+
+/**
+ * Find the correct insertion layer for marine rasters in a Mapbox vector style.
+ *
+ * Strategy: Place marine rasters BELOW all land layers but ABOVE the background.
+ *   land (bg) -> [MARINE RASTERS HERE] -> landcover -> landuse -> water(transparent) -> roads -> labels
+ *
+ * Then make the `water` layer semi-transparent so the marine raster colors show
+ * through ocean/lake areas, while landcover/landuse/parks remain OPAQUE and block
+ * the marine raster on land.
+ *
+ * Returns the `landcover` layer id (the first fill layer after background).
+ */
+export var findMarineInsertionLayer = function(mapInstance) {
+  if (!mapInstance) return null;
+  var style = mapInstance.getStyle?.();
+  if (!style?.layers) return null;
+
+  // Primary: insert BEFORE 'ocean-mask-fill' so the vector land cover masks the WebGL layer perfectly
+  var hasMaskFill = style.layers.some(function(l) { return l.id === 'ocean-mask-fill'; });
+  if (hasMaskFill) return 'ocean-mask-fill';
+
+  // Fallback: Find the index of the 'water' layer
+  var waterIndex = -1;
+  for (var i = 0; i < style.layers.length; i++) {
+    if (style.layers[i].id === 'water') {
+      waterIndex = i;
+      break;
+    }
+  }
+
+  if (waterIndex !== -1) {
+    // Find the first layer after 'water' that is a land feature, road, label, etc.
+    for (var i = waterIndex + 1; i < style.layers.length; i++) {
+      var layer = style.layers[i];
+      var id = layer.id;
+      // Skip our own layers
+      if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
+      // Skip other water-related features if they happen to be grouped
+      if (id === 'water-depth' || id === 'wetland' || id.includes('waterway')) continue;
+
+      return id;
+    }
+  }
+
+  // Double Fallback: insert BEFORE the first landuse, park, landcover, building, or label layer
+  for (var layer of style.layers) {
+    var id = layer.id;
+    if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
+    if (id === 'background' || id === 'water' || id === 'water-depth' || id === 'wetland') continue;
+
+    if (id.includes('landuse') || id.includes('park') || id.includes('landcover') ||
+        id.includes('national') || id.includes('land-structure') ||
+        id.includes('building') || id.includes('poi') ||
+        layer.type === 'symbol') {
+      return id;
+    }
+  }
+  return null;
+};
+
+/**
+ * Configure the vector style's water layer for marine raster pass-through.
+ * Makes the water fill semi-transparent so marine rasters placed below it
+ * are visible over ocean/lake areas.
+ *
+ * @param {object} mapInstance - MapLibre GL map instance
+ * @param {boolean} marineActive - whether any marine layer is active
+ * @param {string} theme - current theme (dark/light/beach)
+ */
+export var configureWaterTransparency = function(mapInstance, marineActive, theme) {
+  if (!mapInstance) return;
+  try {
+    var style = mapInstance.getStyle?.();
+    if (!style?.layers) return;
+
+    // Check if water layer exists in the style
+    var hasWater = style.layers.some(function(l) { return l.id === 'water'; });
+    if (!hasWater) return;
+
+    if (marineActive) {
+      // Make water semi-transparent so marine raster shows through
+      // Use low opacity so wave colors are vivid but water tint is still visible
+      mapInstance.setPaintProperty('water', 'fill-opacity', 0.25);
+    } else {
+      // Restore to fully opaque when no marine layer is active
+      mapInstance.setPaintProperty('water', 'fill-opacity', 1.0);
+    }
+  } catch (e) {
+    // Style not ready or layer not found - silent fail
+  }
+};

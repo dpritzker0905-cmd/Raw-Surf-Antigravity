@@ -44,7 +44,12 @@ export function useSimulationField({
   const lastRevisionRef = useRef(0);
   const lastLogTimeRef = useRef(0);
 
-  // Memo keys: rebuild only when actual data references change
+  // Compute stable primitive dependency keys to bypass React object reference changes on every frame
+  const windDep = windData ? `${windData.vectors?.length || 0}-${windData.bounds?.west || 0}-${windData.revision || 0}` : 'null';
+  const marineDep = marineData ? `${marineData.grid?.vectors?.length || 0}-${marineData.grid?.timestamp || 0}-${marineData.revision || 0}` : 'null';
+  const pressureDep = pressureData ? `${pressureData.vectors?.length || 0}-${pressureData.bounds?.west || 0}-${pressureData.revision || 0}` : 'null';
+
+  // Memo keys: rebuild only when actual data values change
   const field = useMemo(() => {
     // Skip if no data at all
     if (!windData && !marineData && !pressureData) return null;
@@ -59,7 +64,7 @@ export function useSimulationField({
 
     lastRevisionRef.current = f.revision;
     return f;
-  }, [windData, marineData, pressureData, activeModel, timeOffsetHours]);
+  }, [windDep, marineDep, pressureDep, activeModel, timeOffsetHours]);
 
   // Generate diagnostics (cheap — only iterates once)
   const diagnostics = useMemo(() => {

@@ -39,10 +39,15 @@ async def health_check(
         await db.execute(text("SELECT 1"))
         health_data["database"]["connected"] = True
         
-        # Get table counts
-        result = await db.execute(
-            text("SELECT tablename FROM pg_tables WHERE schemaname='public'")
-        )
+        # Get table counts (handle both SQLite and PostgreSQL)
+        if db.bind.dialect.name == "sqlite":
+            result = await db.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table'")
+            )
+        else:
+            result = await db.execute(
+                text("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+            )
         tables = [row[0] for row in result.fetchall()]
         health_data["database"]["table_count"] = len(tables)
         

@@ -181,8 +181,9 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 ### 21. Unified Memory & Codebase Context Rules (Mind, Trevec, Memstate)
 * **Recover (Session Start)**: You must check for active checkpoints using `checkpoint_query` first thing on startup, and load the correct checkpoint using `checkpoint_load` to instantly restore context.
   * **Memory Ingestion Checklist**: Ensure the following newly installed local memory architectures are fully initialized and checked:
-    1. **Mind MCP Server** (Bun run stdio) & **Trevec CLI** (local structural codebase graph).
-    2. **treesitter-mcp** (Code Analysis parsing server: `treesitter_analyze_file`, `treesitter_get_ast`).
+    1. **codebase-memory-mcp** (high-performance local SQLite codebase knowledge graph with `auto_index = true` watcher) & **Trevec CLI** (local structural codebase graph).
+    2. **Mind MCP Server** (Bun run stdio).
+    3. **treesitter-mcp** (Code Analysis parsing server: `treesitter_analyze_file`, `treesitter_get_ast`).
     3. **docker-mcp gateway** (running under `--profile ai_coding`).
     4. **Memgraph Platform** (MAGE graph analytics: `c:\Users\dprit\Raw-Surf\memgraph-platform`).
     5. **Qdrant Vector Cluster** (AWS-hosted semantic search: `tools/qdrant-vector-db`).
@@ -191,11 +192,13 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
     8. **SpectorJS WebGL Debugger** (visual graphics inspector for MapLibre GPU: `tools/spectorjs`).
     9. **React Scan Profiler** (Million.js React re-render scan optimization: `tools/react-scan`).
     10. **PyArrow Memory Columnar** (high-performance columnar in-memory data structures: `tools/pyarrow`).
+    11. **VEKTOR Slipstream** (MAGMA 4-layer associative graph memory, sub-8ms local ONNX/SQLite HNSW recall).
 * **Orient (Retrieve Context)**: Proactively call `get_context` or `search_code` (Trevec) to retrieve relevant file locations, dependency graphs, and structural context before reading raw files. Run `read_file_topology` before editing any file to inspect existing imports and function boundaries.
 * **AST & Code Parsing Tools**: Proactively utilize the `treesitter-mcp` CLI/server (installed at `C:\Users\dprit\AppData\Roaming\Python\Python314\Scripts\treesitter-mcp.exe`) to execute deep tree-sitter based analysis (`treesitter_analyze_file`, `treesitter_get_ast`) when doing granular syntax audits or dependency extractions.
 * **Docker & Graph Platforms**: Leverage the active `docker-mcp` gateway running under the `ai_coding` profile for containerized environment context. When graph-based visual queries or MAGE modeling are required, Memgraph Platform files are pre-staged in `c:\Users\dprit\Raw-Surf\memgraph-platform` (ports: Bolt `7687`, Lab `3000`). If WSL Service throws error code `Wsl/0x80070422`, ensure `WslService` startup type is flipped from `Disabled` to `Manual`/`Automatic`.
 * **Qdrant Vector Database**: Connect to the hosted Qdrant Cloud Cluster using the endpoint URL `https://6c70bac3-ef81-4d4f-a0f8-ad53e8f5b266.eu-west-2-0.aws.cloud.qdrant.io:6333` and its API Key `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIiwic3ViamVjdCI6ImFwaS1rZXk6M2M1YjhkMGItMDljZC00ZWUyLWIyNjctYTRhYjZkNjZjMzBjIn0.BGHeTiVRZURsixjp82bOAQ_NuWhQa4Mtq-xrvkEuJag` (verified success v1.18.1) for indexing, cosine similarities, decay scoring, and surfer preference queries.
 * **LangSmith LLM Tracing**: Trace and monitor LLM calls, chain runs, and operational trace points on `smith.langchain.com` (active v0.8.5). The LangSmith API Key is securely stored in **Mind episodic memory (`tools/langsmith-tracing`)**; retrieve it semantic-first to set environment variables (`LANGSMITH_API_KEY`, `LANGSMITH_TRACING="true"`) when running automated telemetry or diagnostic flows.
+* **VEKTOR Slipstream**: Leverage the local MAGMA 4-layer associative memory (semantic · causal · temporal · entity) for sub-8ms high-performance agent contextual recall. Ensure the license activation is persistent, and invoke the local server whenever context synthesis or long-term associative memory indexing is required.
 * **Persist & Save**: Periodically capture non-obvious details, architectural choices, and bugs using `memory_add` (Mind) with proper category tags (e.g. `cat:decision`, `cat:bugfix`, `cat:preference`) and `checkpoint_save`. Link related memories using `links_to` or `link_create` for deep relational recovery.
 * **Teardown (Session End)**: Always commit completed work summaries by calling `checkpoint_done` to serialize episodic session history before terminating the agent execution.
 * **Architecture Consistency**: Synchronize key stack decisions and constraints via `memstate_remember` to prevent repeated exploration of technology boundaries.

@@ -171,7 +171,7 @@ function evolveWindField(windU, windV, cols, rows, dt, simTime) {
  * @param {number} simTime
  */
 function evolveWaveField(grid, cols, rows, dt, simTime) {
-  const { waveHeight, waveDir, swellHeight, swellDir } = grid;
+  const { waveHeight, waveDir, swellHeight, swellDir, wavePeriod, swellPeriod, windWavePeriod } = grid;
 
   // Semi-Lagrangian advection for wave height
   // Each cell's energy drifts in the wave direction
@@ -179,10 +179,10 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
     for (let x = 1; x < cols - 1; x++) {
       const i = y * cols + x;
 
-      // Wave propagation direction → velocity
+      // Wave propagation direction → velocity (meteorological vector sign)
       const dir = waveDir[i] * (Math.PI / 180);
-      const driftX = Math.sin(dir) * WAVE_PROPAGATION_SPEED * dt;
-      const driftY = Math.cos(dir) * WAVE_PROPAGATION_SPEED * dt;
+      const driftX = -Math.sin(dir) * WAVE_PROPAGATION_SPEED * dt;
+      const driftY = -Math.cos(dir) * WAVE_PROPAGATION_SPEED * dt;
 
       // Upstream sample (semi-Lagrangian)
       const srcX = x - driftX;
@@ -218,12 +218,21 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
         swellHeight[i] *= WAVE_DECAY;
       }
 
-      // Direction smoothing (3-point average)
+      // Direction and Period smoothing (3-point average)
       const iW = y * cols + (x - 1);
       const iE = y * cols + (x + 1);
       waveDir[i] = (waveDir[iW] + waveDir[i] + waveDir[iE]) / 3;
       if (swellDir) {
         swellDir[i] = (swellDir[iW] + swellDir[i] + swellDir[iE]) / 3;
+      }
+      if (wavePeriod) {
+        wavePeriod[i] = (wavePeriod[iW] + wavePeriod[i] + wavePeriod[iE]) / 3;
+      }
+      if (swellPeriod) {
+        swellPeriod[i] = (swellPeriod[iW] + swellPeriod[i] + swellPeriod[iE]) / 3;
+      }
+      if (windWavePeriod) {
+        windWavePeriod[i] = (windWavePeriod[iW] + windWavePeriod[i] + windWavePeriod[iE]) / 3;
       }
     }
   }
@@ -307,6 +316,20 @@ function applyStabilityCorrections(grid, cols, rows) {
       if (!isFinite(grid.swellHeight[i])) grid.swellHeight[i] = 0;
       if (grid.swellHeight[i] < 0) grid.swellHeight[i] = 0;
       if (grid.swellHeight[i] > MAX_WAVE_HEIGHT) grid.swellHeight[i] = MAX_WAVE_HEIGHT;
+    }
+
+    // Period stability clamping (0-30s)
+    if (grid.wavePeriod) {
+      if (!isFinite(grid.wavePeriod[i]) || grid.wavePeriod[i] < 0) grid.wavePeriod[i] = 0;
+      if (grid.wavePeriod[i] > 30.0) grid.wavePeriod[i] = 30.0;
+    }
+    if (grid.swellPeriod) {
+      if (!isFinite(grid.swellPeriod[i]) || grid.swellPeriod[i] < 0) grid.swellPeriod[i] = 0;
+      if (grid.swellPeriod[i] > 30.0) grid.swellPeriod[i] = 30.0;
+    }
+    if (grid.windWavePeriod) {
+      if (!isFinite(grid.windWavePeriod[i]) || grid.windWavePeriod[i] < 0) grid.windWavePeriod[i] = 0;
+      if (grid.windWavePeriod[i] > 30.0) grid.windWavePeriod[i] = 30.0;
     }
 
     // Pressure sanity (300-1100 hPa or zero)
@@ -449,8 +472,13 @@ function checkAndResetIfUnstable(field, grid, cols, rows) {
     grid.windV.set(base.windV);
     grid.waveHeight.set(base.waveHeight);
     grid.waveDir.set(base.waveDir);
+    if (base.wavePeriod && grid.wavePeriod) grid.wavePeriod.set(base.wavePeriod);
     if (base.swellHeight) grid.swellHeight.set(base.swellHeight);
     if (base.swellDir) grid.swellDir.set(base.swellDir);
+    if (base.swellPeriod && grid.swellPeriod) grid.swellPeriod.set(base.swellPeriod);
+    if (base.windWaveHeight && grid.windWaveHeight) grid.windWaveHeight.set(base.windWaveHeight);
+    if (base.windWaveDir && grid.windWaveDir) grid.windWaveDir.set(base.windWaveDir);
+    if (base.windWavePeriod && grid.windWavePeriod) grid.windWavePeriod.set(base.windWavePeriod);
     if (base.pressure) grid.pressure.set(base.pressure);
 
     // Re-baseline energy after reset

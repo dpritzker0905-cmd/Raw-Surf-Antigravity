@@ -65,7 +65,14 @@ void main() {
   vec2 seed = (pos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
 
-  if (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3) {
+  // Detect NaN or extreme values
+  bool isNan = !(pos.x >= 0.0 || pos.x < 0.0) || 
+               !(pos.y >= 0.0 || pos.y < 0.0) || 
+               !(waveHeight >= 0.0 || waveHeight < 0.0) ||
+               !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
+               !(waveVec.y >= 0.0 || waveVec.y < 0.0);
+
+  if (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3 || isNan) {
     drop = 1.0;
   }
 
@@ -74,7 +81,12 @@ void main() {
   drop = max(drop, step(0.5, oobY));
 
   vec2 newPos = vec2(rand(seed + 1.3), rand(seed + 2.1));
-  pos = mix(pos, newPos, drop);
+  if (drop > 0.5) {
+    pos = newPos;
+  }
+
+  // Prevent pole clamping leakage
+  pos.y = clamp(pos.y, 0.001, 0.999);
 
   gl_FragColor = encodePos(pos);
 }
@@ -93,9 +105,11 @@ uniform float u_time;              // elapsed time for pulsation
 uniform float u_dash_length_scale; // wave crest target pixel length per meter
 uniform float u_zoom;              // map zoom level for pixel-to-degree conversion
 uniform float u_lng_offset;        // world-copy offset: -360, 0, or +360
+uniform float u_debug_mode;        // debug mode selector
 
 varying float v_alpha;
 varying float v_wave_height;
+varying vec4 v_debug_color;
 
 void main() {
   float particleIndex = floor(a_vertex_id / 2.0);
@@ -119,20 +133,45 @@ void main() {
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
 
-  if (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3) {
+  bool bypassDiscard = (u_debug_mode > 7.5);
+
+  // Detect NaN or extreme values
+  bool isNan = !(pos.x >= 0.0 || pos.x < 0.0) || 
+               !(pos.y >= 0.0 || pos.y < 0.0) || 
+               !(waveHeight >= 0.0 || waveHeight < 0.0) ||
+               !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
+               !(waveVec.y >= 0.0 || waveVec.y < 0.0);
+
+  if (!bypassDiscard && (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3 || isNan)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
+    v_debug_color = vec4(0.0);
     return;
   }
 
   float densityThreshold = clamp((u_zoom - 0.5) / 7.0, 0.35, 1.0);
-  if (particleHash > densityThreshold) {
+  if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
+    v_debug_color = vec4(0.0);
     return;
   }
 
-  vec2 dir = normalize(waveVec);
+  if (u_debug_mode > 0.5) {
+    if (u_debug_mode < 5.5) { // 'part_uv' -> 5.0
+      v_debug_color = vec4(p_uv.x, p_uv.y, 0.0, 1.0);
+    } else if (u_debug_mode < 6.5) { // 'part_pos' -> 6.0
+      v_debug_color = vec4(pos.x, pos.y, 0.0, 1.0);
+    } else if (u_debug_mode < 7.5) { // 'part_offset' -> 7.0
+      v_debug_color = vec4(waveVec.x * 0.5 + 0.5, waveVec.y * 0.5 + 0.5, 0.0, 1.0);
+    } else { // 'part_fbo' -> 8.0
+      v_debug_color = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+  } else {
+    v_debug_color = vec4(0.0);
+  }
+
+  vec2 dir = length(waveVec) > 0.0001 ? normalize(waveVec) : vec2(1.0, 0.0);
   
   float rotJitter = (particleHash - 0.5) * 1.57;
   float cosR = cos(rotJitter);
@@ -141,7 +180,7 @@ void main() {
   vec2 perp = vec2(-jitteredDir.y, jitteredDir.x);
   
   float pixelInDegrees = 360.0 / (256.0 * exp2(u_zoom));
-  float crestPixels = max(2.0, pow(waveHeight, 0.7) * u_dash_length_scale);
+  float crestPixels = max(2.0, pow(max(0.001, waveHeight), 0.7) * u_dash_length_scale);
   vec2 coordOffset = perp * crestPixels * pixelInDegrees * 0.5;
 
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x);
@@ -181,8 +220,14 @@ export const DRAW_FS = `
 precision mediump float;
 varying float v_alpha;
 varying float v_wave_height;
+varying vec4 v_debug_color;
 
 void main() {
+  if (v_debug_color.a > 0.5) {
+    gl_FragColor = v_debug_color;
+    return;
+  }
+
   if (v_alpha < 0.02) discard;
 
   float energy = smoothstep(0.0, 6.0, v_wave_height);
@@ -205,17 +250,18 @@ attribute vec2 a_grid_uv;
 uniform mat4 u_matrix;
 uniform vec2 u_dataBounds_min;   // [west, south]
 uniform vec2 u_dataBounds_max;   // [east, north]
+uniform float u_lng_offset;
 varying vec2 v_grid_uv;
 
 void main() {
   v_grid_uv = a_grid_uv;
   
   float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
+  lng += u_lng_offset;
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
   lat = clamp(lat, -85.051129, 85.051129);
 
-  float wrappedLng = lng - 360.0 * floor((lng + 180.0) / 360.0);
-  float x = (wrappedLng + 180.0) / 360.0;
+  float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
@@ -233,11 +279,74 @@ uniform sampler2D u_chlorophyllTexture;
 uniform sampler2D u_bathymetryTexture;
 uniform sampler2D u_oceanMaskTexture;
 uniform float u_opacity;
+uniform float u_debug_mode;
+uniform float u_theme;
+
+vec3 getThemedWaveColor(float h, float theme) {
+  // Define breakpoints. h ranges from 0.0 to 6.1+ meters
+  float t = clamp(h / 6.1, 0.0, 1.0);
+  
+  vec3 c0, c1, c2, c3, c4, c5;
+  
+  if (theme > 1.5) {
+    // Beach Mode: luxurious tropical crystal sand/lagoon to Bahamian turquoise, emerald, coral peach, sunset orange, volcanic amber
+    c0 = vec3(0.95, 0.92, 0.82); // 0.0m
+    c1 = vec3(0.1, 0.65, 0.62);  // 0.61m
+    c2 = vec3(0.05, 0.5, 0.4);   // 1.22m
+    c3 = vec3(0.95, 0.55, 0.45); // 2.44m
+    c4 = vec3(0.95, 0.4, 0.1);   // 3.66m
+    c5 = vec3(0.7, 0.25, 0.05);  // 6.1m
+  } else if (theme > 0.5) {
+    // Light Mode: clean, high-fidelity sky/ocean colors
+    c0 = vec3(0.85, 0.93, 1.0);  // 0.0m
+    c1 = vec3(0.2, 0.7, 0.85);   // 0.61m
+    c2 = vec3(0.15, 0.4, 0.8);   // 1.22m
+    c3 = vec3(0.4, 0.2, 0.75);   // 2.44m
+    c4 = vec3(0.8, 0.2, 0.45);   // 3.66m
+    c5 = vec3(0.75, 0.05, 0.2);  // 6.1m
+  } else {
+    // Dark Mode: vibrant glowing neon colors (navy to electric cyan, royal blue, purple, neon pink, neon crimson)
+    c0 = vec3(0.01, 0.02, 0.08); // 0.0m
+    c1 = vec3(0.0, 0.8, 0.9);    // 0.61m
+    c2 = vec3(0.1, 0.3, 0.9);    // 1.22m
+    c3 = vec3(0.6, 0.1, 0.9);    // 2.44m
+    c4 = vec3(0.9, 0.0, 0.4);    // 3.66m
+    c5 = vec3(1.0, 0.0, 0.1);    // 6.1m
+  }
+  
+  if (t < 0.1) {
+    return mix(c0, c1, t / 0.1);
+  } else if (t < 0.2) {
+    return mix(c1, c2, (t - 0.1) / 0.1);
+  } else if (t < 0.4) {
+    return mix(c2, c3, (t - 0.2) / 0.2);
+  } else if (t < 0.6) {
+    return mix(c3, c4, (t - 0.4) / 0.2);
+  } else {
+    return mix(c4, c5, (t - 0.6) / 0.4);
+  }
+}
 
 void main() {
+  float oceanAlpha = texture2D(u_oceanMaskTexture, v_grid_uv).r;
   vec4 waveData = texture2D(u_waveTexture, v_grid_uv);
   float waveHeight = waveData.b * 10.0;
-  float oceanAlpha = texture2D(u_oceanMaskTexture, v_grid_uv).r;
+
+  if (u_debug_mode > 0.5) {
+    if (u_debug_mode < 1.5) { // 'uv' -> 1.0
+      gl_FragColor = vec4(v_grid_uv.x, v_grid_uv.y, 0.0, u_opacity);
+      return;
+    } else if (u_debug_mode < 2.5) { // 'mask' -> 2.0
+      gl_FragColor = vec4(oceanAlpha, oceanAlpha, oceanAlpha, u_opacity);
+      return;
+    } else if (u_debug_mode < 3.5) { // 'grid' -> 3.0
+      gl_FragColor = vec4(0.0, 1.0, 0.0, u_opacity);
+      return;
+    } else if (u_debug_mode < 4.5) { // 'mercator' -> 4.0
+      gl_FragColor = vec4(v_grid_uv.x, 1.0 - v_grid_uv.y, 1.0, u_opacity);
+      return;
+    }
+  }
 
   // Ocean mask: discard land pixels
   if (oceanAlpha < 0.5 || waveHeight < 0.001) {
@@ -267,24 +376,25 @@ void main() {
   }
 
   // ── LAYER 2: CHLOROPHYLL SATELLITE REALISM LAYER ──
-  // high chlorophyll -> green tint overlay
-  // (Chlorophyll precalculated including latitude bands, Gulf Stream and coastal blooms)
   float chlDensity = texture2D(u_chlorophyllTexture, v_grid_uv).r;
   vec3 chlorophyllGreen = vec3(0.06, 0.42, 0.24);
-  vec3 chlorophyllTint = chlorophyllGreen * chlDensity;
 
-  // ── LAYER 3: WAVE ENERGY MODULATION ──
-  // storm systems brighten ocean surface, calm zones remain dark and stable
-  float waveEnergy = smoothstep(0.0, 8.0, waveHeight);
-  vec3 stormBright = vec3(0.12, 0.28, 0.55); // Storm surge blue-white glow
-  vec3 calmStable = vec3(0.0, 0.0, 0.0);
-  vec3 waveEnergyBoost = mix(calmStable, stormBright, waveEnergy);
-
-  // ── LAYER 4: SHALLOW WATER SHELF GLOW ──
-  // Bahamian / Florida style turquoise glow pop
+  // ── LAYER 3: SHALLOW WATER SHELF GLOW ──
   float shelfProximity = 1.0 - depthFactor;
   float shelfGlowFactor = smoothstep(0.6, 1.0, shelfProximity);
   vec3 shallowWaterShelfGlow = vec3(0.12, 0.52, 0.48) * shelfGlowFactor * 0.45;
+
+  // ── LAYER 4: THEMED WAVE HEATMAP COLORS & BASE BLENDING ──
+  vec3 waveColor = getThemedWaveColor(waveHeight, u_theme);
+  
+  // Blend detailed bathymetry/chlorophyll with active wave height colors dynamically
+  // Low waves (calm) -> mostly show detailed natural ocean floor/shelf structures
+  // High waves (active/storms) -> blend into the vibrant themed wave height heatmap
+  float waveBlend = smoothstep(0.15, 3.5, waveHeight);
+  vec3 baseColor = baseDepthColor + shallowWaterShelfGlow;
+  vec3 baseWithChl = mix(baseColor, baseColor + chlorophyllGreen * chlDensity, 0.4);
+  
+  vec3 blendedWaveColor = mix(baseWithChl, waveColor, waveBlend);
 
   // ── LAYER 5: DIRECTIONAL SWELL LIGHTING ──
   vec2 lightDir = normalize(vec2(-0.5, 0.7)); // light source from northwest/top-left
@@ -297,7 +407,7 @@ void main() {
   vec3 directionalSwellLighting = vec3(0.03, 0.05, 0.08) * directional;
 
   // ── FINAL PIXEL EQUATION (MANDATORY) ──
-  vec3 finalColor = baseDepthColor + chlorophyllTint + waveEnergyBoost + shallowWaterShelfGlow + directionalSwellLighting;
+  vec3 finalColor = blendedWaveColor + directionalSwellLighting;
 
   float alpha = u_opacity;
   float maskFade = smoothstep(0.3, 0.8, oceanAlpha);

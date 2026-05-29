@@ -145,6 +145,119 @@ exports.handler = async function(event, context) {
       };
     }
 
+    // If it's a POST request and contains coordinate lists, translate and chunk to GET
+    let isTranslatedPost = false;
+
+    if (event.httpMethod === 'POST' && body && Array.isArray(body.latitude) && Array.isArray(body.longitude)) {
+      const lats = body.latitude;
+      const lons = body.longitude;
+      
+      if (lats.length > 800) {
+        // Chunking path
+        const CHUNK_SIZE = 800;
+        const chunks = [];
+        for (let i = 0; i < lats.length; i += CHUNK_SIZE) {
+          chunks.push({
+            latitude: lats.slice(i, i + CHUNK_SIZE),
+            longitude: lons.slice(i, i + CHUNK_SIZE)
+          });
+        }
+        
+        console.log(`[weather-proxy] Chunking POST request into ${chunks.length} chunks of size ${CHUNK_SIZE}`);
+        
+        const chunkResults = [];
+        for (let index = 0; index < chunks.length; index++) {
+          const chunk = chunks[index];
+          const params = new URLSearchParams();
+          for (const [key, val] of Object.entries(body)) {
+            if (key === 'latitude') {
+              params.append(key, chunk.latitude.join(','));
+            } else if (key === 'longitude') {
+              params.append(key, chunk.longitude.join(','));
+            } else if (Array.isArray(val)) {
+              params.append(key, val.join(','));
+            } else {
+              params.append(key, val);
+            }
+          }
+          
+          const chunkUrl = `${targetUrl}?${params.toString()}`;
+          console.log(`[weather-proxy] Fetching chunk ${index + 1}/${chunks.length} (size: ${chunk.latitude.length})`);
+          
+          let chunkRes;
+          let attempt = 0;
+          const maxAttempts = 3;
+          let delay = 100;
+          
+          while (attempt < maxAttempts) {
+            attempt++;
+            try {
+              chunkRes = await fetch(chunkUrl, { method: 'GET' });
+              if (chunkRes.ok || (chunkRes.status !== 502 && chunkRes.status !== 503 && chunkRes.status !== 504)) {
+                break;
+              }
+            } catch (err) {
+              if (attempt >= maxAttempts) throw err;
+            }
+            if (attempt < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+              delay *= 2;
+            }
+          }
+          
+          if (!chunkRes || !chunkRes.ok) {
+            throw new Error(`Chunk ${index + 1} fetch failed with status ${chunkRes ? chunkRes.status : 'unknown'}`);
+          }
+          
+          const chunkData = await chunkRes.json();
+          chunkResults.push(chunkData);
+          
+          if (index < chunks.length - 1) {
+            await new Promise(r => setTimeout(r, 600)); // Rate limit buffer
+          }
+        }
+        
+        // Merge results
+        let mergedData = [];
+        chunkResults.forEach(data => {
+          if (Array.isArray(data)) {
+            mergedData = mergedData.concat(data);
+          } else {
+            mergedData.push(data);
+          }
+        });
+        
+        // Cache the merged results
+        cache.set(cacheKey, { data: mergedData, timestamp: Date.now() });
+        if (cache.size > 100) {
+          const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+          for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
+        }
+        
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Cache': 'MISS',
+            'Access-Control-Allow-Origin': '*',
+          },
+          body: JSON.stringify(mergedData)
+        };
+      } else {
+        // Single GET query path for <= 800 coordinates
+        const params = new URLSearchParams();
+        for (const [key, val] of Object.entries(body)) {
+          if (Array.isArray(val)) {
+            params.append(key, val.join(','));
+          } else {
+            params.append(key, val);
+          }
+        }
+        targetUrl = `${targetUrl}?${params.toString()}`;
+        isTranslatedPost = true;
+      }
+    }
+
     // Forward to Open-Meteo with a robust retry wrapper (try up to 3 times with 100ms exponential backoff on 502/503/504)
     let apiRes;
     let attempt = 0;
@@ -154,11 +267,11 @@ exports.handler = async function(event, context) {
     while (attempt < maxAttempts) {
       attempt++;
       try {
-        console.log(`[weather-proxy] Forwarding ${type} ${event.httpMethod} to ${targetUrl} (attempt ${attempt}/${maxAttempts})`);
+        console.log(`[weather-proxy] Forwarding ${type} ${isTranslatedPost ? 'GET (translated)' : event.httpMethod} to ${targetUrl} (attempt ${attempt}/${maxAttempts})`);
         const fetchOptions = {
-          method: event.httpMethod,
+          method: isTranslatedPost ? 'GET' : event.httpMethod,
         };
-        if (event.httpMethod === 'POST') {
+        if (event.httpMethod === 'POST' && !isTranslatedPost) {
           fetchOptions.headers = { 'Content-Type': 'application/json' };
           fetchOptions.body = JSON.stringify(body);
         }

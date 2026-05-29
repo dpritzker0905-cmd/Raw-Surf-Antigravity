@@ -379,8 +379,8 @@ function extractMarineAtOffset(cache, hourOffset) {
     const r = results[i];
     if (!r?.hourly) {
       gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
-        waves: { u: 0, v: 0, speed: 0 }, swell_1: { u: 0, v: 0, speed: 0 },
-        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 },
+        waves: { u: 0, v: 0, speed: 0, period: 0 }, swell_1: { u: 0, v: 0, speed: 0, period: 0 },
+        swell_2: { u: 0, v: 0, speed: 0, period: 0 }, wind_waves: { u: 0, v: 0, speed: 0, period: 0 },
         isOcean: false });
       return;
     }
@@ -408,15 +408,17 @@ function extractMarineAtOffset(cache, hourOffset) {
 
     if (w_h === 0 && s1_h === 0 && ww_h === 0) {
       gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
-        waves: { u: 0, v: 0, speed: 0 }, swell_1: { u: 0, v: 0, speed: 0 },
-        swell_2: { u: 0, v: 0, speed: 0 }, wind_waves: { u: 0, v: 0, speed: 0 },
+        waves: { u: 0, v: 0, speed: 0, period: 0 }, swell_1: { u: 0, v: 0, speed: 0, period: 0 },
+        swell_2: { u: 0, v: 0, speed: 0, period: 0 }, wind_waves: { u: 0, v: 0, speed: 0, period: 0 },
         isOcean });
       return;
     }
 
     gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
-      waves: getUV(w_h, w_d), swell_1: getUV(s1_h, s1_d),
-      swell_2: getUV(s2_h, s2_d), wind_waves: getUV(ww_h, ww_d),
+      waves: { ...getUV(w_h, w_d), period: safeNum(c.wave_period) },
+      swell_1: { ...getUV(s1_h, s1_d), period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : (activeModel === 'EURO' ? c.wave_period : 0)) },
+      swell_2: { ...getUV(s2_h, s2_d), period: safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : 0) },
+      wind_waves: { ...getUV(ww_h, ww_d), period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : (activeModel === 'EURO' ? c.wave_period : 0)) },
       isOcean });
 
     features.push({
@@ -593,7 +595,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
           for (let xi = 0; xi <= reducedGrid; xi++) {
             let lat = snappedBounds.south + yi * latStepReduced;
             let lng = snappedBounds.west + xi * lngStepReduced;
-            while (lng > 180) lng -= 360;
+            while (lng >= 180) lng -= 360;
             while (lng < -180) lng += 360;
             reducedLats.push(lat.toFixed(2));
             reducedLons.push(lng.toFixed(2));
@@ -609,7 +611,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
               let lat = snappedBounds.south + yi * latStepReduced;
               let lng = snappedBounds.west + xi * lngStepReduced;
               let reqLng = lng;
-              while (reqLng > 180) reqLng -= 360;
+              while (reqLng >= 180) reqLng -= 360;
               while (reqLng < -180) reqLng += 360;
               reducedPoints.push({ lat: +lat.toFixed(2), reqLng: +reqLng.toFixed(2), monotonicLng: +lng.toFixed(2) });
             }

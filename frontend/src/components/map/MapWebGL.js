@@ -4,7 +4,7 @@ import maplibregl from 'maplibre-gl';
 import { WeatherTelemetry } from './WeatherTelemetry';
 
 
-import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace } from './mapUtils';
+import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
 import MapMarkerLayers from './MapMarkerLayers';
@@ -87,6 +87,10 @@ var MapWebGL = ({
   // 1. Map Initialization and Async Abort Interceptions
   const { mapInstance } = useMapInitialization({ innerMapRef, mapInstanceRef });
 
+  const activeMarineLayer = useMemo(() => {
+    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
+  }, [activeLayers]);
+
   const lowSystems = [];
   const highSystems = [];
 
@@ -107,6 +111,33 @@ var MapWebGL = ({
   // 5. Satellite background sync handling
   useSatelliteBackgroundSync({ mapInstance, activeLayers });
 
+  // v85: Find the landcover layer — marine rasters insert BELOW it (above background).
+  // Then make the water layer semi-transparent so raster/WebGL colors show through ocean.
+  const [marineBeforeId, setMarineBeforeId] = useState(null);
+  useEffect(() => {
+    if (!mapInstance) return;
+    const onStyleData = () => {
+      var id = findMarineInsertionLayer(mapInstance);
+      if (id) {
+        setMarineBeforeId(id);
+      }
+    };
+    mapInstance.on('styledata', onStyleData);
+    onStyleData();
+    return () => {
+      if (mapInstance) {
+        mapInstance.off('styledata', onStyleData);
+      }
+    };
+  }, [mapInstance]);
+
+
+
+  // v85: Toggle water layer transparency when marine layers activate/deactivate
+  useEffect(() => {
+    configureWaterTransparency(mapInstance, !!activeMarineLayer, theme);
+  }, [mapInstance, activeMarineLayer, theme]);
+
   // 6. Spot Clustering Data
   const { spotClusters, spotGeoJSON } = useSpotClusteringData({ surfSpots, filter, mapInstance, viewState });
 
@@ -116,10 +147,6 @@ var MapWebGL = ({
   
   // Temporal Preloader
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance, activeModel, theme });
-
-  const activeMarineLayer = useMemo(() => {
-    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
-  }, [activeLayers]);
 
   // 7. Open-Meteo Tile Protocol and Sliding URL Ring Buffers
 
@@ -227,6 +254,7 @@ var MapWebGL = ({
           u: layerData?.u || 0,
           v: layerData?.v || 0,
           speed: layerData?.speed || 0,
+          period: layerData?.period || 0,
           isOcean: v.isOcean
         };
       })
@@ -467,6 +495,7 @@ var MapWebGL = ({
           active={renderPlan ? renderPlan.oceanMask.active : !!activeMarineLayer}
           activeMarineLayer={activeMarineLayer}
           theme={theme}
+          activeLayers={activeLayers}
         />
 
         {/* --- WEATHER LAYERS --- */}
@@ -502,6 +531,7 @@ var MapWebGL = ({
             type="raster"
             layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
             paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
+            beforeId={marineBeforeId || undefined}
           />
         </Source>
 
@@ -554,6 +584,9 @@ var MapWebGL = ({
             active={!!activeMarineLayer}
             data={marineWindData}
             revision={marineData?.grid?.timestamp || 0}
+            beforeId={marineBeforeId}
+            theme={theme}
+            activeLayers={activeLayers}
             onError={() => {
               console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
               setWebglMarineFailed(true);

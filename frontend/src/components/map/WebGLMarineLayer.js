@@ -4,13 +4,36 @@
  * Receives evolved wave field data from RenderPlanDispatcher.
  * Added once as a MapLibre custom layer — no stacking decisions.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine } from '../../engine/RenderPlanDispatcher';
 
 var LAYER_ID = 'webgl-marine-particles';
 
-function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef) {
+export function getSharedLandGeoJSON() {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+
+  if (window.__LAND_GEOJSON_CACHE__) {
+    return Promise.resolve(window.__LAND_GEOJSON_CACHE__);
+  }
+
+  if (!window.__LAND_GEOJSON_PROMISE__) {
+    window.__LAND_GEOJSON_PROMISE__ = fetch('/ne_50m_land.json')
+      .then(res => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .catch(() => fetch('/ne_110m_land.json').then(res => res.json()))
+      .then(geojson => {
+        window.__LAND_GEOJSON_CACHE__ = geojson;
+        return geojson;
+      });
+  }
+
+  return window.__LAND_GEOJSON_PROMISE__;
+}
+
+function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
@@ -27,7 +50,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         registerMarineEngine(engine, _gl);
         if (dataRef.current?.vectors?.length) {
           console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors');
-          engine.setWaveData(_gl, dataRef.current);
+          engine.setWaveData(_gl, dataRef.current, landGeoJSONRef.current);
         }
       } catch (e) {
         console.error('[WebGLMarine] Init failed:', e.message);
@@ -81,6 +104,13 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         }
         return;
       }
+
+      // Prevent rendering the heatmap/particles over land before the high-res mask is loaded and active in the WebGL engine
+      const isHighResActive = engine.isHighResMaskLoaded && engine.isHighResMaskLoaded();
+      if (!isHighResActive && !landGeoJSONFailedRef.current) {
+        return;
+      }
+
       this._wasActive = true;
       const map = mapRef.current;
       if (!map) return;
@@ -88,7 +118,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom);
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current);
         map.triggerRepaint();
       } catch (e) {
         errorCount++;
@@ -110,7 +140,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
   };
 }
 
-export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange, onError }) {
+export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange, onError, beforeId, theme, activeLayers }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -119,12 +149,51 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const onErrorRef = useRef(onError);
   const dataRef = useRef(data);
   const glRef = useRef(null);
+  const themeRef = useRef(theme);
+  const beforeIdRef = useRef(beforeId);
+
+  const [landGeoJSON, setLandGeoJSON] = useState(null);
+  const landGeoJSONRef = useRef(null);
+  const landGeoJSONFailedRef = useRef(false);
 
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onAddedChangeRef.current = onAddedChange; }, [onAddedChange]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { themeRef.current = theme; }, [theme]);
+  useEffect(() => { beforeIdRef.current = beforeId; }, [beforeId]);
+
+  // Load high-resolution land polygons on mount
+  useEffect(() => {
+    let activeFetch = true;
+    landGeoJSONFailedRef.current = false;
+
+    getSharedLandGeoJSON()
+      .then(geojson => {
+        if (geojson && activeFetch) {
+          setLandGeoJSON(geojson);
+          landGeoJSONRef.current = geojson;
+          console.log('[WebGLMarineLayer] High-resolution land GeoJSON loaded for GPU mask (shared)');
+          
+          // Force active wave texture upgrade to high-res land mask immediately
+          const engine = engineRef.current;
+          const gl = glRef.current || mapInstance?.painter?.context?.gl;
+          if (engine && gl && dataRef.current?.vectors?.length) {
+            console.log('[WebGLMarineLayer] Upgrading active GPU wave texture to high-resolution land mask');
+            engine.setWaveData(gl, dataRef.current, geojson);
+            if (mapInstance) mapInstance.triggerRepaint();
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('[WebGLMarineLayer] Failed to load land GeoJSON for high-res masking:', err);
+        if (activeFetch) {
+          landGeoJSONFailedRef.current = true;
+        }
+      });
+    return () => { activeFetch = false; };
+  }, [mapInstance]);
 
   // Initialize engine + add custom layer (NO ordering logic)
   useEffect(() => {
@@ -134,9 +203,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     engineRef.current = engine;
 
     const isMobile = window.innerWidth < 768;
-    engine.particleRes = isMobile ? 80 : 136;
+    engine.particleRes = isMobile ? 192 : 296;
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef);
 
     // Add layer once when style is loaded. Re-add on theme/style changes.
     const handleStyleData = () => {
@@ -146,16 +215,28 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
         try {
-          // Insert BEFORE spot geofences so surf spots always render ABOVE ocean heatmap.
-          // Falls back to top-of-stack if geofence layer doesn't exist yet.
-          const beforeId = mapInstance.getLayer('spot-geofences-layer') ? 'spot-geofences-layer' : undefined;
-          mapInstance.addLayer(customLayer, beforeId);
+          // Insert BEFORE beforeId or ocean-mask-fill so land mask renders on top, naturally clipping any bleed.
+          // Falls back to landuse or spot-geofences-layer if mask layer doesn't exist yet.
+          let targetBeforeId = beforeIdRef.current;
+          if (!targetBeforeId) targetBeforeId = mapInstance.getLayer('ocean-mask-fill') ? 'ocean-mask-fill' : undefined;
+          if (!targetBeforeId) targetBeforeId = mapInstance.getLayer('landuse') ? 'landuse' : undefined;
+          if (!targetBeforeId) targetBeforeId = mapInstance.getLayer('spot-geofences-layer') ? 'spot-geofences-layer' : undefined;
+
+          mapInstance.addLayer(customLayer, targetBeforeId);
           layerAddedRef.current = true;
-          console.log(`[WebGLMarine] Layer added BEFORE '${beforeId || 'TOP'}' (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
+          console.log(`[WebGLMarine] Layer added BEFORE '${targetBeforeId || 'TOP'}' (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
           if (onAddedChangeRef.current) onAddedChangeRef.current(true);
         } catch (e) {
           console.warn('[WebGLMarine] Failed to add layer:', e.message);
         }
+      } else {
+        // Safeguard: ensure the layer is positioned BEFORE targetBeforeId or 'ocean-mask-fill' if it exists.
+        try {
+          const targetBefore = beforeIdRef.current || (mapInstance.getLayer('ocean-mask-fill') ? 'ocean-mask-fill' : undefined);
+          if (targetBefore && mapInstance.getLayer(targetBefore)) {
+            mapInstance.moveLayer(LAYER_ID, targetBefore);
+          }
+        } catch (e) {}
       }
     };
 
@@ -185,14 +266,26 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     try {
       console.log(`[WebGLMarine] setWaveData triggered by effect:`, data.vectors.length, 'vectors');
-      engine.setWaveData(gl, data);
+      engine.setWaveData(gl, data, landGeoJSONRef.current);
       if (mapInstance) {
         mapInstance.triggerRepaint();
       }
     } catch (e) {
       console.warn('[WebGLMarine] setWaveData error:', e.message);
     }
-  }, [data, mapInstance]);
+  }, [data, mapInstance, landGeoJSON]);
+
+  // Enforce layer order safeguard on every active / data / revision / beforeId / activeLayers / theme change
+  useEffect(() => {
+    if (!mapInstance) return;
+    try {
+      const targetBefore = beforeId || (mapInstance.getLayer('ocean-mask-fill') ? 'ocean-mask-fill' : undefined);
+      if (mapInstance.getLayer(LAYER_ID) && targetBefore && mapInstance.getLayer(targetBefore)) {
+        mapInstance.moveLayer(LAYER_ID, targetBefore);
+        console.log(`[WebGLMarine] Robust safeguard: Moved '${LAYER_ID}' before '${targetBefore}'`);
+      }
+    } catch (e) {}
+  }, [mapInstance, active, data, revision, beforeId, activeLayers, theme]);
 
   return null;
 }

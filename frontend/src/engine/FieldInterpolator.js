@@ -58,10 +58,13 @@ export function interpolateFields(fieldA, fieldB, t) {
       windV:          new Float32Array(size),
       waveHeight:     new Float32Array(size),
       waveDir:        new Float32Array(size),
+      wavePeriod:     new Float32Array(size),
       swellHeight:    new Float32Array(size),
       swellDir:       new Float32Array(size),
+      swellPeriod:    new Float32Array(size),
       windWaveHeight: new Float32Array(size),
       windWaveDir:    new Float32Array(size),
+      windWavePeriod: new Float32Array(size),
       pressure:       new Float32Array(size),
       landMask:       new Uint8Array(size),
     };
@@ -76,8 +79,11 @@ export function interpolateFields(fieldA, fieldB, t) {
   lerpArray(gA.windU, gB.windU, gO.windU, clampedT, size);
   lerpArray(gA.windV, gB.windV, gO.windV, clampedT, size);
   lerpArray(gA.waveHeight, gB.waveHeight, gO.waveHeight, clampedT, size);
+  lerpArray(gA.wavePeriod, gB.wavePeriod, gO.wavePeriod, clampedT, size);
   lerpArray(gA.swellHeight, gB.swellHeight, gO.swellHeight, clampedT, size);
+  lerpArray(gA.swellPeriod, gB.swellPeriod, gO.swellPeriod, clampedT, size);
   lerpArray(gA.windWaveHeight, gB.windWaveHeight, gO.windWaveHeight, clampedT, size);
+  lerpArray(gA.windWavePeriod, gB.windWavePeriod, gO.windWavePeriod, clampedT, size);
   lerpArray(gA.pressure, gB.pressure, gO.pressure, clampedT, size);
 
   // Circular interpolation for direction fields (0-360°)

@@ -115,23 +115,26 @@ export function injectMarineData(field, marineData) {
 
       const gv = gridVectors[srcIdx];
 
-      // Wave height + direction
+      // Wave height + direction + period
       field.grid.waveHeight[dstIdx] = gv.waves?.speed || 0;
       field.grid.waveDir[dstIdx] = gv.waves?.speed > 0
         ? Math.atan2(-gv.waves.u, -gv.waves.v) * (180 / Math.PI) + 180
         : 0;
+      field.grid.wavePeriod[dstIdx] = gv.waves?.period || 0;
 
       // Primary swell
       field.grid.swellHeight[dstIdx] = gv.swell_1?.speed || 0;
       field.grid.swellDir[dstIdx] = gv.swell_1?.speed > 0
         ? Math.atan2(-gv.swell_1.u, -gv.swell_1.v) * (180 / Math.PI) + 180
         : 0;
+      field.grid.swellPeriod[dstIdx] = gv.swell_1?.period || 0;
 
       // Wind waves
       field.grid.windWaveHeight[dstIdx] = gv.wind_waves?.speed || 0;
       field.grid.windWaveDir[dstIdx] = gv.wind_waves?.speed > 0
         ? Math.atan2(-gv.wind_waves.u, -gv.wind_waves.v) * (180 / Math.PI) + 180
         : 0;
+      field.grid.windWavePeriod[dstIdx] = gv.wind_waves?.period || 0;
 
       // Land mask from ocean detection
       field.grid.landMask[dstIdx] = gv.isOcean ? 0 : 1;

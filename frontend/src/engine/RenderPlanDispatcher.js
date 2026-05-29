@@ -84,30 +84,49 @@ function fieldToWindGrid(field) {
 }
 
 /**
- * Convert SimulationField's wave data into marine renderer format.
+ * Convert SimulationField's wave data into marine renderer format,
+ * mapping active sub-layer variables (waves, swell_1, swell_2, wind_waves)
+ * to prevent SimulationLoop background updates from overriding active layers.
  *
  * @param {import('./SimulationField').SimulationField} field
+ * @param {string} activeMarineLayer - Which sub-layer is currently active
  * @returns {Object|null} Marine data in renderer format
  */
-function fieldToMarineGrid(field) {
+function fieldToMarineGrid(field, activeMarineLayer) {
   if (!field || !field.sources.marine) return null;
 
-  const { waveHeight, waveDir, swellHeight, swellDir, landMask } = field.grid;
+  const { waveHeight, waveDir, swellHeight, swellDir, windWaveHeight, windWaveDir, landMask, wavePeriod, swellPeriod, windWavePeriod } = field.grid;
   const { cols, rows, bounds } = field;
   const size = cols * rows;
 
+  let hSrc = waveHeight;
+  let dirSrc = waveDir;
+  let periodSrc = wavePeriod;
+
+  if (activeMarineLayer === 'swell_1' || activeMarineLayer === 'swell_2') {
+    hSrc = swellHeight;
+    dirSrc = swellDir;
+    periodSrc = swellPeriod;
+  } else if (activeMarineLayer === 'wind_waves') {
+    hSrc = windWaveHeight;
+    dirSrc = windWaveDir;
+    periodSrc = windWavePeriod;
+  }
+
   const vectors = new Array(size);
   for (let i = 0; i < size; i++) {
-    const h = waveHeight[i];
-    const dir = waveDir[i] * (Math.PI / 180);
-    // Convert wave height + direction to u/v for advection visualization
+    const h = hSrc ? hSrc[i] : waveHeight[i];
+    const dir = (dirSrc ? dirSrc[i] : waveDir[i]) * (Math.PI / 180);
+    const period = periodSrc ? periodSrc[i] : 0;
+    // Convert wave height + direction to u/v for advection visualization (meteorological velocity vector)
     // isOcean flag is REQUIRED by WebGLMarineEngine's shader (alpha channel = land mask)
     vectors[i] = {
-      u: h * 0.5 * Math.sin(dir),
-      v: h * 0.5 * Math.cos(dir),
+      u: -h * Math.sin(dir),
+      v: -h * Math.cos(dir),
       speed: h,
       height: h,
-      direction: waveDir[i],
+      direction: dirSrc ? dirSrc[i] : waveDir[i],
+      period: period,
       swellHeight: swellHeight ? swellHeight[i] : 0,
       swellDir: swellDir ? swellDir[i] : 0,
       isOcean: landMask ? (landMask[i] === 0) : (h > 0),
@@ -165,7 +184,8 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
   // ---- Dispatch to Marine Engine ----
   if (_marineEngine && _marineGL && field.sources.marine) {
     try {
-      const marineGrid = fieldToMarineGrid(field);
+      const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
+      const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
       if (marineGrid) {
         _marineEngine.setWaveData(_marineGL, marineGrid);
       }

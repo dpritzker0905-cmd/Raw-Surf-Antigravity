@@ -46,6 +46,7 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
   useEffect(function () {
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(function () {
+      if (typeof window !== 'undefined' && window.isScrubbingTimeline) return;
       var lk = activeLayers?.[0];
       if (!lk || !mapInstance) return;
       var entry = LAYER_REGISTRY[lk];
