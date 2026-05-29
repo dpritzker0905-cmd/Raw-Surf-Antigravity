@@ -549,8 +549,8 @@ var MapWebGL = ({
           />
         </Source>
 
-        {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC & MARINE SLOTS (marine returns transparent 1x1 PNG to activate tile preloading/caching) */}
-        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
+        {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC SLOTS */}
+        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster').map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
             const url = omTileUrls[slotKey];
