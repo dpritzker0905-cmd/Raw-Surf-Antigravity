@@ -230,7 +230,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
               'line-color': tc.ocean,
               'line-width': ['interpolate', ['exponential', 1.2], ['zoom'], 1, 4, 3, 6, 5, 8, 7, 6, 9, 4, 14, 1],
               'line-offset': ['interpolate', ['linear'], ['zoom'], 1, 2, 5, 3, 9, 2, 14, 0],
-              'line-opacity': (isSatellite || isMarineActive) ? 0.0 : ['interpolate', ['linear'], ['zoom'], 2, 0.5, 5, 0.4, 9, 0.3, 14, 0.0],
+              'line-opacity': 0.0,
               'line-blur': ['interpolate', ['linear'], ['zoom'], 2, 1.5, 7, 1.0, 9, 0.5, 14, 0.0],
             },
             layout: { 'line-join': 'round', 'line-cap': 'round' },
@@ -239,7 +239,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       } else if (typeof mapInstance.setPaintProperty === 'function' && mapInstance.getLayer(MASK_BUFFER)) {
         try {
           safeSetPaintProperty(mapInstance, MASK_BUFFER, 'line-color', tc.ocean);
-          safeSetPaintProperty(mapInstance, MASK_BUFFER, 'line-opacity', (isSatellite || isMarineActive) ? 0.0 : ['interpolate', ['linear'], ['zoom'], 2, 0.5, 5, 0.4, 9, 0.3, 14, 0.0]);
+          safeSetPaintProperty(mapInstance, MASK_BUFFER, 'line-opacity', 0.0);
         } catch (e) {}
       }
 

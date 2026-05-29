@@ -381,7 +381,7 @@ export function useOpenMeteoTileUrls({
         catch (err) { console.error('[TRANSITION] LAYER_ACCESS_DENIED:', err.message); return; }
 
         const tasks = Object.keys(LAYER_REGISTRY)
-          .filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type !== 'marine') // Marine layers use GPU heatmap, not raster tiles
+          .filter(k => LAYER_REGISTRY[k].omVariable) // Atmospheric & Marine layers both resolved as tasks
           .map(k => ({
             layerKey: k,
             variable: LAYER_REGISTRY[k].omVariable,

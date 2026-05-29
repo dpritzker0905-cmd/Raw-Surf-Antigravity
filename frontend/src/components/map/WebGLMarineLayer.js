@@ -33,16 +33,18 @@ export function getSharedLandGeoJSON() {
   return window.__LAND_GEOJSON_PROMISE__;
 }
 
-function stitchViewportGrid(viewportBounds, targetCols = 128, targetRows = 128) {
+function stitchViewportGrid(viewportBounds, targetVariable, targetCols = 128, targetRows = 128) {
   if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__) return null;
   
   const { west, south, east, north } = viewportBounds;
   const lngSpan = east - west;
   const latSpan = north - south;
   
-  // 1. Gather all cached tiles that overlap with the viewport
+  // 1. Gather all cached tiles that overlap with the viewport and match targetVariable
   const overlappingTiles = [];
   for (const [key, tile] of window.__DECODED_OM_TILES__.entries()) {
+    if (tile.variable !== targetVariable) continue;
+    
     const [tWest, tSouth, tEast, tNorth] = tile.bounds;
     // Check overlap
     const overlapX = Math.max(west, tWest) <= Math.min(east, tEast);
@@ -87,7 +89,7 @@ function stitchViewportGrid(viewportBounds, targetCols = 128, targetRows = 128) 
         const tileDim = Math.sqrt(bestTile.values.length);
         
         const tx = Math.max(0, Math.min(tileDim - 1, ((lng - tWest) / tLngSpan) * (tileDim - 1)));
-        const ty = Math.max(0, Math.min(tileDim - 1, ((lat - tSouth) / tLatSpan) * (tileDim - 1)));
+        const ty = Math.max(0, Math.min(tileDim - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileDim - 1)));
         
         // Bilinear interpolation
         const x0 = Math.floor(tx);
@@ -177,7 +179,7 @@ function stitchViewportGrid(viewportBounds, targetCols = 128, targetRows = 128) 
   };
 }
 
-function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef) {
+function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
@@ -272,15 +274,25 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
           const east = bounds.getEast();
           const north = bounds.getNorth();
           
+          let targetVariable = 'wave_height';
+          const activeLayersList = (activeLayersRef && activeLayersRef.current) || [];
+          if (activeLayersList.includes('swell_1')) {
+            targetVariable = 'swell_wave_height';
+          } else if (activeLayersList.includes('swell_2')) {
+            targetVariable = 'secondary_swell_wave_height';
+          } else if (activeLayersList.includes('wind_waves')) {
+            targetVariable = 'wind_wave_height';
+          }
+
           const latestTileTimestamp = Array.from(window.__DECODED_OM_TILES__.values())
             .reduce((max, tile) => Math.max(max, tile.timestamp), 0);
           
           const boundsKey = `${west.toFixed(2)},${south.toFixed(2)},${east.toFixed(2)},${north.toFixed(2)}`;
-          const stitchKey = `${boundsKey}|${window.__DECODED_OM_TILES__.size}|${latestTileTimestamp}`;
+          const stitchKey = `${boundsKey}|${targetVariable}|${window.__DECODED_OM_TILES__.size}|${latestTileTimestamp}`;
           
           if (stitchKey !== this._lastStitchKey) {
             const viewportBounds = { west, south, east, north };
-            const stitchedGrid = stitchViewportGrid(viewportBounds, 128, 128);
+            const stitchedGrid = stitchViewportGrid(viewportBounds, targetVariable, 128, 128);
             if (stitchedGrid) {
               engine.setWaveData(_gl, stitchedGrid, landGeoJSONRef.current);
               this._lastStitchKey = stitchKey;
@@ -357,6 +369,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const glRef = useRef(null);
   const themeRef = useRef(theme);
   const beforeIdRef = useRef(beforeId);
+  const activeLayersRef = useRef(activeLayers);
 
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   const landGeoJSONRef = useRef(null);
@@ -369,6 +382,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   useEffect(() => { dataRef.current = data; }, [data]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { beforeIdRef.current = beforeId; }, [beforeId]);
+  useEffect(() => { activeLayersRef.current = activeLayers; }, [activeLayers]);
 
   // Load high-resolution land polygons on mount
   useEffect(() => {
@@ -420,7 +434,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 296;
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef);
 
     // Add layer once when style is loaded. Re-add on theme/style changes.
     const handleStyleData = () => {

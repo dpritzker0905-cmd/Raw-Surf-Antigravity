@@ -73,6 +73,7 @@ export function useModelTransition({
 }) {
   const modelDebounceTimeoutRef = useRef(null);
   const lastProcessedModelRef = useRef(null);
+  const lastProcessedMapRef = useRef(null); // Track map instance to prevent early-return deadlock
 
   // Debounced model transition and block cache clear
   useEffect(() => {
@@ -81,8 +82,13 @@ export function useModelTransition({
       return;
     }
     
+    if (!mapInstance) {
+      setIsTransitioning(false);
+      return;
+    }
+    
     // Model Set Dedupe Guard (Request 2)
-    if (lastProcessedModelRef.current === activeModel) {
+    if (lastProcessedModelRef.current === activeModel && lastProcessedMapRef.current === mapInstance) {
       console.log(`[MODEL] Model ${activeModel} already active, skipping re-init`);
       setIsTransitioning(false); // Safety exit to prevent permanent transition state deadlock
       return;
@@ -95,6 +101,7 @@ export function useModelTransition({
     }
     
     lastProcessedModelRef.current = activeModel;
+    lastProcessedMapRef.current = mapInstance;
     
     // Synced immediately to prevent the 50ms race condition
     setMapActiveModelLock(activeModel);

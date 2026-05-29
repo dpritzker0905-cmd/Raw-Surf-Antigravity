@@ -546,9 +546,26 @@ function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
 
   let maskTex;
   if (landGeoJSON) {
-    if (engine && engine._cachedMaskTex && landGeoJSON === engine._cachedMaskGeoJSON) {
+    const boundsChanged = !engine || !engine._cachedMaskBounds ||
+      engine._cachedMaskBounds.west !== bounds.west ||
+      engine._cachedMaskBounds.south !== bounds.south ||
+      engine._cachedMaskBounds.east !== bounds.east ||
+      engine._cachedMaskBounds.north !== bounds.north;
+
+    if (engine && engine._cachedMaskTex && landGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
       maskTex = engine._cachedMaskTex;
     } else {
+      if (engine && engine._cachedMaskTex) {
+        gl.deleteTexture(engine._cachedMaskTex);
+        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+          window.__RAW_GPU__.textureCount--;
+          const dpr = (typeof window !== 'undefined') ? (window.devicePixelRatio || 1) : 1;
+          const w = Math.floor(2048 * dpr);
+          const h = Math.floor(1024 * dpr);
+          window.__RAW_GPU__.gpuMemoryEstimate -= w * h * 4;
+        }
+        engine._cachedMaskTex = null;
+      }
       try {
         const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
         const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
@@ -569,6 +586,7 @@ function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         if (engine) {
           engine._cachedMaskTex = maskTex;
           engine._cachedMaskGeoJSON = landGeoJSON;
+          engine._cachedMaskBounds = { ...bounds };
           if (typeof window !== 'undefined' && window.__RAW_GPU__) {
             window.__RAW_GPU__.textureCount++;
             window.__RAW_GPU__.gpuMemoryEstimate += maskCanvas.width * maskCanvas.height * 4;

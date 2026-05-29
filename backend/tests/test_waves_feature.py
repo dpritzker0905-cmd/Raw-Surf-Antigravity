@@ -11,7 +11,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://dev--rawsurf.netlify
 
 # Test credentials
 TEST_EMAIL = "photographer@surf.com"
-TEST_PASSWORD = "photo123"
+TEST_PASSWORD = "Test123!"
 
 
 class TestWavesAPI:
@@ -30,6 +30,19 @@ class TestWavesAPI:
             "email": TEST_EMAIL,
             "password": TEST_PASSWORD
         })
+        if response.status_code != 200:
+            # Try to register if not present in fresh db
+            self.session.post(f"{BASE_URL}/api/auth/signup", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+                "full_name": "Test Photographer",
+                "username": "testphotographer",
+                "role": "Approved Pro"
+            })
+            response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD
+            })
         if response.status_code == 200:
             data = response.json()
             # API returns id directly, not nested in user object
@@ -133,6 +146,18 @@ class TestWaveUploadAPI:
             "email": TEST_EMAIL,
             "password": TEST_PASSWORD
         })
+        if response.status_code != 200:
+            self.session.post(f"{BASE_URL}/api/auth/signup", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+                "full_name": "Test Photographer",
+                "username": "testphotographer",
+                "role": "Approved Pro"
+            })
+            response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD
+            })
         if response.status_code == 200:
             data = response.json()
             # API returns id directly, not nested in user object
@@ -193,6 +218,18 @@ class TestWaveCreationAPI:
             "email": TEST_EMAIL,
             "password": TEST_PASSWORD
         })
+        if response.status_code != 200:
+            self.session.post(f"{BASE_URL}/api/auth/signup", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+                "full_name": "Test Photographer",
+                "username": "testphotographer",
+                "role": "Approved Pro"
+            })
+            response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD
+            })
         if response.status_code == 200:
             data = response.json()
             # API returns id directly, not nested in user object
@@ -302,6 +339,18 @@ class TestUserWavesAPI:
             "email": TEST_EMAIL,
             "password": TEST_PASSWORD
         })
+        if response.status_code != 200:
+            self.session.post(f"{BASE_URL}/api/auth/signup", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+                "full_name": "Test Photographer",
+                "username": "testphotographer",
+                "role": "Approved Pro"
+            })
+            response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD
+            })
         if response.status_code == 200:
             data = response.json()
             # API returns id directly, not nested in user object
@@ -340,6 +389,18 @@ class TestPostModelWavesFields:
             "email": TEST_EMAIL,
             "password": TEST_PASSWORD
         })
+        if response.status_code != 200:
+            self.session.post(f"{BASE_URL}/api/auth/signup", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD,
+                "full_name": "Test Photographer",
+                "username": "testphotographer",
+                "role": "Approved Pro"
+            })
+            response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+                "email": TEST_EMAIL,
+                "password": TEST_PASSWORD
+            })
         if response.status_code == 200:
             data = response.json()
             # API returns id directly, not nested in user object

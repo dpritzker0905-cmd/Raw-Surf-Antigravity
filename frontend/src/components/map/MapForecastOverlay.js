@@ -21,6 +21,106 @@ var degToCompass = (deg) => {
   return dirs[Math.round(deg / 22.5) % 16];
 };
 
+function sampleValueFromDecodedTiles(lat, lng, targetVariable) {
+  if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__ || lat == null || lng == null) {
+    return null;
+  }
+  
+  const matchingTiles = [];
+  for (const tile of window.__DECODED_OM_TILES__.values()) {
+    if (tile.variable === targetVariable) {
+      matchingTiles.push(tile);
+    }
+  }
+  
+  if (matchingTiles.length === 0) return null;
+  
+  let bestTile = null;
+  for (const tile of matchingTiles) {
+    if (!tile.bounds || tile.bounds.length !== 4) continue;
+    const [tWest, tSouth, tEast, tNorth] = tile.bounds;
+    if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
+      bestTile = tile;
+      break;
+    }
+  }
+  
+  if (!bestTile && matchingTiles.length > 0) {
+    bestTile = matchingTiles[0];
+  }
+  
+  if (!bestTile || !bestTile.values || !bestTile.values.length) return null;
+  
+  const [tWest, tSouth, tEast, tNorth] = bestTile.bounds;
+  const tLngSpan = tEast - tWest;
+  const tLatSpan = tNorth - tSouth;
+  
+  const tileDim = Math.sqrt(bestTile.values.length);
+  if (!tileDim || isNaN(tileDim)) return null;
+  
+  const tx = Math.max(0, Math.min(tileDim - 1, ((lng - tWest) / tLngSpan) * (tileDim - 1)));
+  const ty = Math.max(0, Math.min(tileDim - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileDim - 1)));
+  
+  const x0 = Math.floor(tx);
+  const x1 = Math.min(tileDim - 1, x0 + 1);
+  const y0 = Math.floor(ty);
+  const y1 = Math.min(tileDim - 1, y0 + 1);
+  
+  const dx = tx - x0;
+  const dy = ty - y0;
+  
+  const idx00 = y0 * tileDim + x0;
+  const idx10 = y0 * tileDim + x1;
+  const idx01 = y1 * tileDim + x0;
+  const idx11 = y1 * tileDim + x1;
+  
+  const raw00 = bestTile.values[idx00];
+  const raw10 = bestTile.values[idx10];
+  const raw01 = bestTile.values[idx01];
+  const raw11 = bestTile.values[idx11];
+  
+  const v00 = (typeof raw00 === 'number' && !isNaN(raw00)) ? raw00 : 0;
+  const v10 = (typeof raw10 === 'number' && !isNaN(raw10)) ? raw10 : 0;
+  const v01 = (typeof raw01 === 'number' && !isNaN(raw01)) ? raw01 : 0;
+  const v11 = (typeof raw11 === 'number' && !isNaN(raw11)) ? raw11 : 0;
+  
+  const value = v00 * (1 - dx) * (1 - dy) +
+                v10 * dx * (1 - dy) +
+                v01 * (1 - dx) * dy +
+                v11 * dx * dy;
+                
+  let direction = null;
+  if (bestTile.directions) {
+    const d00 = bestTile.directions[idx00] || 0;
+    const d10 = bestTile.directions[idx10] || 0;
+    const d01 = bestTile.directions[idx01] || 0;
+    const d11 = bestTile.directions[idx11] || 0;
+    
+    const r00 = d00 * Math.PI / 180;
+    const r10 = d10 * Math.PI / 180;
+    const r01 = d01 * Math.PI / 180;
+    const r11 = d11 * Math.PI / 180;
+    
+    const sinAvg = Math.sin(r00) * (1 - dx) * (1 - dy) +
+                   Math.sin(r10) * dx * (1 - dy) +
+                   Math.sin(r01) * (1 - dx) * dy +
+                   Math.sin(r11) * dx * dy;
+                   
+    const cosAvg = Math.cos(r00) * (1 - dx) * (1 - dy) +
+                   Math.cos(r10) * dx * (1 - dy) +
+                   Math.cos(r01) * (1 - dx) * dy +
+                   Math.cos(r11) * dx * dy;
+                   
+    direction = (Math.atan2(sinAvg, cosAvg) * 180 / Math.PI + 360) % 360;
+  }
+  
+  if (value !== null && value !== undefined && typeof window !== 'undefined' && window.__OM_SAMPLER_DEBUG__) {
+    console.log(`[OM-Sampler] Coordinate (${lat.toFixed(4)}, ${lng.toFixed(4)}) variable: ${targetVariable} -> Sampled Value: ${value.toFixed(2)}, Dir: ${direction}`);
+  }
+
+  return { value, direction };
+}
+
 export var MapForecastOverlay = ({
   forecastData,
   marineData,
@@ -125,48 +225,96 @@ export var MapForecastOverlay = ({
     return val;
   };
 
+  // --- Grid-Truth Synchronization Upgrade ---
+  const lat = selectedSpot?.latitude || longPressLocation?.lat;
+  const lng = selectedSpot?.longitude || longPressLocation?.lng;
+
+  const sampledWaves = sampleValueFromDecodedTiles(lat, lng, 'wave_height');
+  const sampledSwell1 = sampleValueFromDecodedTiles(lat, lng, 'swell_wave_height');
+  const sampledSwell2 = sampleValueFromDecodedTiles(lat, lng, 'secondary_swell_wave_height');
+  const sampledWindWaves = sampleValueFromDecodedTiles(lat, lng, 'wind_wave_height');
+
+  const sampledWindU = sampleValueFromDecodedTiles(lat, lng, 'wind_u_component_10m');
+  const sampledWindV = sampleValueFromDecodedTiles(lat, lng, 'wind_v_component_10m');
+  let sampledWind = null;
+  if (sampledWindU && sampledWindV) {
+    const u = sampledWindU.value;
+    const v = sampledWindV.value;
+    const speed = Math.sqrt(u * u + v * v);
+    const direction = (Math.atan2(u, v) * 180 / Math.PI + 360) % 360;
+    sampledWind = { value: speed, direction };
+  }
+
+  const sampledPressure = sampleValueFromDecodedTiles(lat, lng, 'pressure_msl');
+  const sampledRain = sampleValueFromDecodedTiles(lat, lng, 'precipitation');
+
   const liveWind = currentWeather;
   const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
     ? liveWind.wind_speed_10m : getClampedValue(wx.wind_speed_10m, currentHourIndex);
-  const windSpeed = getBiasAdjusted(rawWindSpeed, 'wind');
+  const windSpeed = (activeLayer === 'wind' && sampledWind)
+    ? sampledWind.value
+    : getBiasAdjusted(rawWindSpeed, 'wind');
 
-  const windDir = isLive && liveWind?.wind_direction_10m != null
-    ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex);
+  const windDir = (activeLayer === 'wind' && sampledWind)
+    ? sampledWind.direction
+    : (isLive && liveWind?.wind_direction_10m != null
+      ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex));
 
   const rawWindGusts = isLive && liveWind?.wind_gusts_10m != null
     ? liveWind.wind_gusts_10m : getClampedValue(wx.wind_gusts_10m, currentHourIndex);
   const windGusts = getBiasAdjusted(rawWindGusts, 'wind_gusts');
 
-  const precip = getClampedValue(wx.precipitation, currentHourIndex);
+  const precip = (activeLayer === 'rain' && sampledRain)
+    ? sampledRain.value
+    : getClampedValue(wx.precipitation, currentHourIndex);
+
   const snowfall = getClampedValue(wx.snowfall, currentHourIndex);
   const temp = getClampedValue(wx.temperature_2m, currentHourIndex);
-  const pressure = getClampedValue(wx.pressure_msl, currentHourIndex) ?? getClampedValue(wx.surface_pressure, currentHourIndex);
+  
+  const pressure = (activeLayer === 'pressure' && sampledPressure)
+    ? sampledPressure.value
+    : (getClampedValue(wx.pressure_msl, currentHourIndex) ?? getClampedValue(wx.surface_pressure, currentHourIndex));
 
   const marineCurrent = marineData?.current || {};
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
-  const waveHeight = getBiasAdjusted(rawWaveHeight, 'wave');
+  const waveHeight = (activeLayer === 'waves' && sampledWaves)
+    ? sampledWaves.value
+    : getBiasAdjusted(rawWaveHeight, 'wave');
 
   const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex);
-  const waveDir = isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex);
+  
+  const waveDir = (activeLayer === 'waves' && sampledWaves && sampledWaves.direction != null)
+    ? sampledWaves.direction
+    : (isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex));
   
   const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
   const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : (activeModel === 'EURO' ? rawWaveHeight : null);
-  const swell1Height = getBiasAdjusted(rawSwell1Height, 'swell1');
+  const swell1Height = (activeLayer === 'swell_1' && sampledSwell1)
+    ? sampledSwell1.value
+    : getBiasAdjusted(rawSwell1Height, 'swell1');
   
   const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
   const swell1Period = rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null);
   
   const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
-  const swell1Dir = rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null);
+  const swell1Dir = (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
+    ? sampledSwell1.direction
+    : (rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null));
   
   // Swell 2 (secondary swell) — only GFS Wave provides this natively; stitched in from GFS Wave for other models
   const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
   const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
-  const swell2Height = getBiasAdjusted(rawSwell2Height, 'swell2');
+  const swell2Height = (activeLayer === 'swell_2' && sampledSwell2)
+    ? sampledSwell2.value
+    : getBiasAdjusted(rawSwell2Height, 'swell2');
 
   const swell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
-  const swell2Dir = getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
-  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null;
+  
+  const swell2Dir = (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
+    ? sampledSwell2.direction
+    : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
+    
+  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null && !sampledSwell2;
 
   // Wind waves — GFS and ICON provide this, EURO does not
   // For EURO: estimate wind waves = total wave height minus primary swell height
@@ -175,21 +323,25 @@ export var MapForecastOverlay = ({
   const rawWindWaveDir = getClampedValue(marine.wind_wave_direction, marineHourIndex);
 
   let windWaveHeight, windWavePeriod, windWaveDir;
-  if (rawWindWaveHeight != null) {
+  if (activeLayer === 'wind_waves' && sampledWindWaves) {
+    windWaveHeight = sampledWindWaves.value;
+    windWavePeriod = rawWindWavePeriod;
+    windWaveDir = sampledWindWaves.direction != null ? sampledWindWaves.direction : rawWindWaveDir;
+  } else if (rawWindWaveHeight != null) {
     windWaveHeight = getBiasAdjusted(rawWindWaveHeight, 'wind_wave');
     windWavePeriod = rawWindWavePeriod;
     windWaveDir = rawWindWaveDir;
   } else if (activeModel === 'EURO' && waveHeight != null && swell1Height != null) {
     // Estimate: wind wave ≈ total wave - primary swell (clamped to 0)
     windWaveHeight = getBiasAdjusted(Math.max(0, waveHeight - swell1Height), 'wind_wave');
-    windWavePeriod = wavePeriod != null ? Math.max(1, wavePeriod * 0.7) : null; // wind waves have shorter period
-    windWaveDir = waveDir; // same direction as total wave
+    windWavePeriod = wavePeriod != null ? Math.max(1, wavePeriod * 0.7) : null;
+    windWaveDir = waveDir;
   } else {
     windWaveHeight = null;
     windWavePeriod = null;
     windWaveDir = null;
   }
-  const windWaveEstimated = rawWindWaveHeight == null && windWaveHeight != null;
+  const windWaveEstimated = rawWindWaveHeight == null && windWaveHeight != null && activeLayer !== 'wind_waves';
 
   const cards = [];
 

@@ -169,6 +169,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         channel.onmessage = (event) => {
           const payload = event.data;
           if (payload && payload.cacheKey && window.__DECODED_OM_TILES__) {
+            console.log(`[OM-Protocol-Main] Decoded tile received. Variable: ${payload.variable}, Bounds: ${payload.bounds?.join(',')}, ValueCount: ${payload.values?.length}`);
             window.__DECODED_OM_TILES__.set(payload.cacheKey, {
               values: payload.values,
               directions: payload.directions,
@@ -312,12 +313,17 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             timestamp: Date.now()
           };
           
-          // Cross-thread communication: Broadcast decoded tile payload to main thread via BroadcastChannel
+          // Cross-thread communication: Broadcast decoded tile payload to main thread via persistent BroadcastChannel
           try {
-            const channel = new BroadcastChannel('om-decoded-tiles');
-            channel.postMessage(tilePayload);
-            channel.close();
+            const globalCtx = typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : globalThis);
+            if (!globalCtx.__OM_BROADCAST_CHANNEL_WORKER__) {
+              globalCtx.__OM_BROADCAST_CHANNEL_WORKER__ = new BroadcastChannel('om-decoded-tiles');
+              console.log('[OM-Protocol-Worker] Persistent BroadcastChannel initialized successfully.');
+            }
+            globalCtx.__OM_BROADCAST_CHANNEL_WORKER__.postMessage(tilePayload);
+            console.log(`[OM-Protocol-Worker] Broadcasted decoded tile for ${variable} (bounds: ${bounds.join(',')})`);
           } catch (e) {
+            console.warn('[OM-Protocol-Worker] BroadcastChannel failed to send in worker:', e);
             // Worker-self fallback just in case
             if (typeof self !== 'undefined') {
               if (!self.__DECODED_OM_TILES_FALLBACK__) {
@@ -426,15 +432,12 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           const runProtocol = async () => {
             const tileKey = params.url || 'unknown-tile';
 
-            // 1. Fast-path: Return cached decoded tile immediately in 0ms on hits
-            if (DECODED_TILE_CACHE.has(tileKey)) {
+            // 1. Fast-path: Return cached decoded tile immediately in 0ms on hits (exempt marine variables to guarantee main-thread broadcast updates)
+            if (!isMarine && DECODED_TILE_CACHE.has(tileKey)) {
               TILE_TRUTH.cacheHits++;
               TILE_TRUTH.recentTiles.push({ key: tileKey.slice(-60), source: 'CACHE_HIT', timestamp: Date.now(), marine: isMarine });
               if (TILE_TRUTH.recentTiles.length > 50) TILE_TRUTH.recentTiles.shift();
               WeatherTelemetry.trackTileLoaded(tileKey, true);
-              if (isMarine) {
-                return getSafeWorkerFallbackResponse(params.url, params.type || 'image');
-              }
               return DECODED_TILE_CACHE.get(tileKey);
             }
 
@@ -516,6 +519,10 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
  */
 export function clearOpenMeteoCache() {
   DECODED_TILE_CACHE.clear();
+  if (typeof window !== 'undefined' && window.__DECODED_OM_TILES__) {
+    window.__DECODED_OM_TILES__.clear();
+    console.log('[CACHE] [OM-Protocol] Main-thread window.__DECODED_OM_TILES__ cleared successfully');
+  }
   return import('@openmeteo/weather-map-layer')
     .then(({ clearBlockCache }) => {
       return clearBlockCache()
