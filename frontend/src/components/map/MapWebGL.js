@@ -20,7 +20,7 @@ import TruthOverlay from './TruthOverlay';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
-import { initEngine } from '../../engine/engine-bootstrap';
+import { initEngine, shutdownEngine } from '../../engine/engine-bootstrap';
 import { useTemporalPreloader } from './useTemporalPreloader';
 
 // FCE: Field Composition Engine + Live Simulation Bridge
@@ -312,6 +312,8 @@ var MapWebGL = ({
   // Controlled Engine Bootstrap v2 Start
   useEffect(() => {
     if (!mapInstance) return;
+    let didInit = false;
+    let unsubscribe = null;
 
     const tryInit = () => {
       const state = getInitState();
@@ -322,6 +324,7 @@ var MapWebGL = ({
             mapInstance,
             config: { userTier }
           });
+          didInit = true;
           return true;
         } catch (err) {
           console.error('[MapWebGL] Weather Engine bootstrap error:', err);
@@ -330,17 +333,27 @@ var MapWebGL = ({
       return false;
     };
 
-    if (tryInit()) return;
+    const initialized = tryInit();
 
-    const unsubscribe = onStateChange((state) => {
-      if (state === 'map-ready') {
-        if (tryInit()) {
-          unsubscribe();
+    if (!initialized) {
+      unsubscribe = onStateChange((state) => {
+        if (state === 'map-ready') {
+          if (tryInit()) {
+            if (unsubscribe) unsubscribe();
+          }
         }
-      }
-    });
+      });
+    }
 
-    return () => unsubscribe();
+    return () => {
+      if (didInit) {
+        console.log('[MapWebGL] Clean unmount: shutting down weather simulation engine');
+        shutdownEngine();
+      }
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [mapInstance, userTier]);
 
   // Self-healing observability for MapLibre errors and WebGL context events
@@ -537,7 +550,7 @@ var MapWebGL = ({
         </Source>
 
         {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC & MARINE SLOTS (marine returns transparent 1x1 PNG to activate tile preloading/caching) */}
-        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type !== 'marine').map(layerKey => {
+        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster').map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
             const url = omTileUrls[slotKey];

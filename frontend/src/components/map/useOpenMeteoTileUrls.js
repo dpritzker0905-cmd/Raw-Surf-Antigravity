@@ -381,7 +381,7 @@ export function useOpenMeteoTileUrls({
         catch (err) { console.error('[TRANSITION] LAYER_ACCESS_DENIED:', err.message); return; }
 
         const tasks = Object.keys(LAYER_REGISTRY)
-          .filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type !== 'marine') // Include wind and atmospheric layers
+          .filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster') // Include strictly atmospheric raster layers
           .map(k => ({
             layerKey: k,
             variable: LAYER_REGISTRY[k].omVariable,
