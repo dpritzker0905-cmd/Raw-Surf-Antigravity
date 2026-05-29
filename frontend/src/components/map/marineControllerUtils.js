@@ -160,9 +160,8 @@ export function computeGridPoints(bounds, caller = 'wind') {
   const latSpan = bounds.north - bounds.south;
   const isGlobal = lngSpan > 180 || latSpan > 90;
 
-  // v4.1.0: Increased grid density for precision wind particle advection.
-  // 15×15=225 points (desktop), 9×9=81 points (mobile).
-  // Still well under Open-Meteo's 600 weighted calls/min rate limit.
+  // Keep global wind dense enough for synoptic flow while allowing the proxy
+  // to split requests into URL-safe chunks.
   let west, south, east, north, GRID;
   if (isGlobal) {
     if (caller === 'marine') {
@@ -178,7 +177,7 @@ export function computeGridPoints(bounds, caller = 'wind') {
       GRID = isMobile ? 16 : 30;
     } else {
       west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 20 : 50;
+      GRID = isMobile ? 16 : 26;
     }
   } else {
     west = bounds.west; east = bounds.east;

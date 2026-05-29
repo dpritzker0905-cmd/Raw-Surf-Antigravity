@@ -164,6 +164,70 @@ var DRAW_FS = [
   '}',
 ].join('\n');
 
+var HEATMAP_VS = `
+attribute vec2 a_grid_uv;
+uniform mat4 u_matrix;
+uniform vec2 u_dataBounds_min;
+uniform vec2 u_dataBounds_max;
+uniform float u_lng_offset;
+varying vec2 v_uv;
+void main() {
+  v_uv = a_grid_uv;
+  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x) + u_lng_offset;
+  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
+  lat = clamp(lat, -85.051129, 85.051129);
+  float x = (lng + 180.0) / 360.0;
+  float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
+  gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
+  if (gl_Position.w == 0.0) {
+    gl_Position.w = 1.0;
+  }
+}`;
+
+var HEATMAP_FS = `
+precision mediump float;
+uniform sampler2D u_wind;
+uniform vec2 u_wind_min;
+uniform vec2 u_wind_max;
+uniform float u_opacity;
+uniform float u_theme;
+varying vec2 v_uv;
+
+vec3 ramp(float t, float theme) {
+  vec3 calm;
+  vec3 breeze;
+  vec3 fresh;
+  vec3 gale;
+  if (theme > 1.5) {
+    calm = vec3(0.04, 0.45, 0.40);
+    breeze = vec3(0.05, 0.78, 0.70);
+    fresh = vec3(1.00, 0.68, 0.30);
+    gale = vec3(1.00, 0.95, 0.86);
+  } else if (theme > 0.5) {
+    calm = vec3(0.78, 0.88, 0.95);
+    breeze = vec3(0.25, 0.70, 0.95);
+    fresh = vec3(0.18, 0.38, 0.90);
+    gale = vec3(0.96, 0.98, 1.00);
+  } else {
+    calm = vec3(0.00, 0.04, 0.10);
+    breeze = vec3(0.00, 0.85, 1.00);
+    fresh = vec3(0.95, 0.12, 0.80);
+    gale = vec3(1.00, 1.00, 1.00);
+  }
+  if (t < 0.45) return mix(calm, breeze, t / 0.45);
+  if (t < 0.78) return mix(breeze, fresh, (t - 0.45) / 0.33);
+  return mix(fresh, gale, (t - 0.78) / 0.22);
+}
+
+void main() {
+  vec4 encoded = texture2D(u_wind, v_uv);
+  vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
+  float speed = length(wind);
+  float t = clamp(speed / 45.0, 0.0, 1.0);
+  float alpha = u_opacity * smoothstep(0.4, 4.0, speed);
+  gl_FragColor = vec4(ramp(t, u_theme) * alpha, alpha);
+}`;
+
 var SCREEN_VS = `
 attribute vec2 a_pos;
 varying vec2 v_uv;
@@ -378,13 +442,16 @@ WebGLWindEngine.prototype.init = function(gl) {
   var screenFS = createShader(gl, gl.FRAGMENT_SHADER, SCREEN_FS);
   var fadeVS = createShader(gl, gl.VERTEX_SHADER, SCREEN_VS);
   var fadeFS = createShader(gl, gl.FRAGMENT_SHADER, FADE_FS);
-  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS) {
+  var heatVS = createShader(gl, gl.VERTEX_SHADER, HEATMAP_VS);
+  var heatFS = createShader(gl, gl.FRAGMENT_SHADER, HEATMAP_FS);
+  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS || !heatVS || !heatFS) {
     console.error('[WebGLWind] Failed to compile shaders'); return;
   }
   this.advectProgram = createProgram(gl, advVS, advFS);
   this.drawProgram = createProgram(gl, drawVS, drawFS);
   this.screenProgram = createProgram(gl, screenVS, screenFS);
   this.fadeProgram = createProgram(gl, fadeVS, fadeFS);
+  this.heatmapProgram = createProgram(gl, heatVS, heatFS);
   this.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
@@ -393,6 +460,39 @@ WebGLWindEngine.prototype.init = function(gl) {
   this.particleIndexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+  const gridW = 72;
+  const gridH = 48;
+  const gridUVs = new Float32Array(gridW * gridH * 2);
+  for (let r = 0; r < gridH; r++) {
+    for (let c = 0; c < gridW; c++) {
+      const idx = (r * gridW + c) * 2;
+      gridUVs[idx + 0] = c / (gridW - 1);
+      gridUVs[idx + 1] = r / (gridH - 1);
+    }
+  }
+  const gridIndices = new Uint16Array((gridW - 1) * (gridH - 1) * 6);
+  let gi = 0;
+  for (let r = 0; r < gridH - 1; r++) {
+    for (let c = 0; c < gridW - 1; c++) {
+      const i0 = r * gridW + c;
+      const i1 = i0 + 1;
+      const i2 = (r + 1) * gridW + c;
+      const i3 = i2 + 1;
+      gridIndices[gi++] = i0;
+      gridIndices[gi++] = i1;
+      gridIndices[gi++] = i2;
+      gridIndices[gi++] = i1;
+      gridIndices[gi++] = i3;
+      gridIndices[gi++] = i2;
+    }
+  }
+  this.heatmapGridBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.heatmapGridBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, gridUVs, gl.STATIC_DRAW);
+  this.heatmapIndexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, gridIndices, gl.STATIC_DRAW);
+  this.heatmapIndexCount = gridIndices.length;
   this.particleStateA = initParticleTexture(gl, this.particleRes);
   this.particleStateB = initParticleTexture(gl, this.particleRes);
   this.advFBO = gl.createFramebuffer();
@@ -409,7 +509,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   this._windData = encodeWindTexture(gl, windGrid);
 };
 
-WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom) {
+WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme) {
   if (!this._initialized || !this._windData) return;
   if (!matrix || !matrix.length) {
     if (this._renderLogged === undefined) {
@@ -510,6 +610,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
 
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
+  var themeVal = theme === 'light' ? 1.0 : (theme === 'beach' ? 2.0 : 0.0);
 
   // Compute scale-invariant advection step sizes
   const z = typeof zoom === 'number' ? zoom : 6;
@@ -525,6 +626,34 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   if (this.frameCount === 1) {
     console.log(`[WIND-TELEMETRY] Frame 1 | advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | bounds: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | ${this.particleRes * this.particleRes} particles`);
   }
+
+  // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+  gl.viewport(0, 0, screenWidth, screenHeight);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.useProgram(this.heatmapProgram);
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bounds.west, bounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bounds.east, bounds.north);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind'), 0);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), 0.36);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
+  bindTexture(gl, this._windData.texture, 0);
+  var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+  var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
+  gl.bindBuffer(gl.ARRAY_BUFFER, this.heatmapGridBuffer);
+  gl.enableVertexAttribArray(heatUVLoc);
+  gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
+  var heatOffsets = z < 3.5 ? [0.0, -360.0, 360.0] : [0.0];
+  for (var hi = 0; hi < heatOffsets.length; hi++) {
+    gl.uniform1f(heatOffsetLoc, heatOffsets[hi]);
+    gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
+  }
+  gl.disableVertexAttribArray(heatUVLoc);
 
   // Step 1: Advect particles (ping-pong)
   gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
@@ -658,6 +787,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
 
   // Restore State
   gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
   if (isWebGL2 && gl.bindVertexArray) {
     gl.bindVertexArray(prevVAO);
   }
@@ -708,8 +838,11 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   if (this.drawProgram) gl.deleteProgram(this.drawProgram);
   if (this.screenProgram) gl.deleteProgram(this.screenProgram);
   if (this.fadeProgram) gl.deleteProgram(this.fadeProgram);
+  if (this.heatmapProgram) gl.deleteProgram(this.heatmapProgram);
   if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
   if (this.particleIndexBuffer) gl.deleteBuffer(this.particleIndexBuffer);
+  if (this.heatmapGridBuffer) gl.deleteBuffer(this.heatmapGridBuffer);
+  if (this.heatmapIndexBuffer) gl.deleteBuffer(this.heatmapIndexBuffer);
   if (this.advFBO) gl.deleteFramebuffer(this.advFBO);
   if (this.particleStateA) gl.deleteTexture(this.particleStateA);
   if (this.particleStateB) gl.deleteTexture(this.particleStateB);
@@ -740,4 +873,3 @@ WebGLWindEngine.prototype.clearBuffers = function(gl) {
     console.warn('[WebGLWind] clearBuffers error:', e.message);
   }
 };
-

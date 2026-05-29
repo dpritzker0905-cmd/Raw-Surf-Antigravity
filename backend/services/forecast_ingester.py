@@ -82,10 +82,16 @@ async def ingest_global_model(model_type: str):
             
             await asyncio.sleep(2.0)  # Safe rate limit respect
 
-    # Save to disk
+    if not aggregated_data:
+        logger.error(f"[Forecast Ingester] Refusing to overwrite {model_type} cache with empty data.")
+        return False
+
+    # Save to disk atomically so readers never see a partial or failed batch.
     cache_file = CACHE_DIR / f"{model_type}_global.json"
-    with open(cache_file, 'w') as f:
+    tmp_file = cache_file.with_suffix(cache_file.suffix + ".tmp")
+    with open(tmp_file, 'w') as f:
         json.dump(aggregated_data, f)
+    os.replace(tmp_file, cache_file)
         
     logger.info(f"[Forecast Ingester] Completed {model_type}. Saved {len(aggregated_data)} points to {cache_file.name}.")
     return True

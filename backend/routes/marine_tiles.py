@@ -23,6 +23,21 @@ async def get_marine_tile(layer: str):
         # Fallback empty response if the ingestion task hasn't run yet
         return JSONResponse(status_code=404, content={"error": f"Cache for {layer} not yet available. Please try again shortly."})
 
+    try:
+        with open(cache_file, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={"error": f"Cache for {layer} is invalid. Please try again shortly."}
+        )
+
+    if not isinstance(payload, list) or len(payload) == 0:
+        return JSONResponse(
+            status_code=503,
+            content={"error": f"Cache for {layer} is empty. Please try again shortly."}
+        )
+
     # Serve the JSON file directly. This allows Nginx/Uvicorn to optimize delivery,
     # and automatically supports gzip middleware for massive compression on the 5MB payload.
     return FileResponse(

@@ -320,7 +320,6 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
   // Draw base heatmap instantly using fallback grid mask texture if land mask is loading.
   // ==========================================
-  /*
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -377,7 +376,6 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
   }
   gl.disableVertexAttribArray(heatUVLoc);
-  */
 
   // ==========================================
   // PHASE 2: WAVE CREST RENDERER

@@ -661,6 +661,7 @@ var MapWebGL = ({
             active={activeLayers.includes('wind')}
             data={windData}
             revision={windRevision?.current || 0}
+            theme={theme}
             onError={() => {
               console.warn('[MapWebGL] Fallback to Canvas2D Wind overlay triggered');
               setWebglWindFailed(true);

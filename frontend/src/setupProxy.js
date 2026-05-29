@@ -246,7 +246,7 @@ function proxyPostToOpenMeteo(targetUrl, bodyPayload, cacheKey, res, type) {
   const lats = bodyPayload.latitude;
   const lons = bodyPayload.longitude;
 
-  if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length <= 800) {
+  if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length <= 250) {
     // No need to chunk, just make a single GET request
     const params = new URLSearchParams();
     for (const [key, val] of Object.entries(bodyPayload)) {

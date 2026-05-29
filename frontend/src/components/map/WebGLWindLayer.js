@@ -20,7 +20,7 @@ var LAYER_ID = 'webgl-wind-particles';
  * Creates a MapLibre CustomLayerInterface that delegates rendering
  * to the WebGLWindEngine.
  */
-function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
+function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
@@ -108,7 +108,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom);
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current);
         // Request continuous repainting while active
         map.triggerRepaint();
       } catch (e) {
@@ -131,7 +131,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef) {
   };
 }
 
-export function WebGLWindLayer({ mapInstance, active, data, revision, onError }) {
+export function WebGLWindLayer({ mapInstance, active, data, revision, onError, theme }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -139,11 +139,13 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
   const onErrorRef = useRef(onError);
   const glRef = useRef(null);
   const pendingDataRef = useRef(null); // Stash data that arrives before GL is ready
+  const themeRef = useRef(theme);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
+  useEffect(() => { themeRef.current = theme; }, [theme]);
 
   // Initialize engine + add custom layer
   useEffect(() => {
@@ -156,7 +158,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError })
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRef);
 
     // v3.13: After GL is ready, apply any pending wind data that arrived before onAdd
     const origOnAdd = customLayer.onAdd.bind(customLayer);

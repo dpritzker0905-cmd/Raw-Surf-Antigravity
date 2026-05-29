@@ -152,9 +152,9 @@ exports.handler = async function(event, context) {
       const lats = body.latitude;
       const lons = body.longitude;
       
-      if (lats.length > 800) {
+      if (lats.length > 250) {
         // Chunking path
-        const CHUNK_SIZE = 800;
+        const CHUNK_SIZE = 250;
         const chunks = [];
         for (let i = 0; i < lats.length; i += CHUNK_SIZE) {
           chunks.push({
