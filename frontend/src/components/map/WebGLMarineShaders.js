@@ -195,7 +195,7 @@ void main() {
     return;
   }
 
-  float densityThreshold = clamp((u_zoom - 0.5) / 7.0, 0.35, 1.0);
+  float densityThreshold = smoothstep(2.0, 8.0, u_zoom) * 0.85 + 0.15;
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
@@ -243,8 +243,11 @@ void main() {
     gl_Position.w = 1.0;
   }
 
-  float derivedPeriod = 0.9 * sqrt(max(waveHeight, 0.3) * 5.12);
-  float period = derivedPeriod * (0.6 + particleHash * 0.8);
+  float modelPeriod = waveData.a * 20.0;
+  // Physical derived wave period: small waves pulse fast, solid swells pulse slow and majestic!
+  float derivedPeriod = 6.0 + waveHeight * 2.0;
+  float periodVal = modelPeriod > 0.5 ? modelPeriod : derivedPeriod;
+  float period = periodVal * (0.6 + particleHash * 0.8);
   float phase = fract(u_time / period + particleHash);
   
   float rawPulse = sin(phase * 3.141592653589793);
@@ -339,16 +342,16 @@ uniform float u_debug_mode;
 uniform float u_theme;
 
 float getNonlinearT(float h) {
-  if (h < 0.5) {
-    return (h / 0.5) * 0.1;
-  } else if (h < 1.5) {
-    return 0.1 + ((h - 0.5) / 1.0) * 0.3;
-  } else if (h < 2.5) {
-    return 0.4 + ((h - 1.5) / 1.0) * 0.3;
-  } else if (h < 4.0) {
-    return 0.7 + ((h - 2.5) / 1.5) * 0.2;
+  if (h < 0.3) {
+    return (h / 0.3) * 0.1;
+  } else if (h < 1.0) {
+    return 0.1 + ((h - 0.3) / 0.7) * 0.35;
+  } else if (h < 2.0) {
+    return 0.45 + ((h - 1.0) / 1.0) * 0.3;
+  } else if (h < 3.5) {
+    return 0.75 + ((h - 2.0) / 1.5) * 0.15;
   } else {
-    return 0.9 + clamp((h - 4.0) / 4.0, 0.0, 1.0) * 0.1;
+    return 0.9 + clamp((h - 3.5) / 4.5, 0.0, 1.0) * 0.1;
   }
 }
 
@@ -399,6 +402,7 @@ vec3 getThemedWaveColor(float h, float theme) {
 void main() {
   float oceanAlpha = texture2D(u_oceanMaskTexture, v_grid_uv).r;
   vec4 waveData = texture2D(u_waveTexture, v_grid_uv);
+  float depthFactor = texture2D(u_bathymetryTexture, v_grid_uv).r;
   float waveHeight = waveData.b * 10.0;
 
   if (u_debug_mode > 0.5) {
@@ -429,7 +433,6 @@ void main() {
   // ── LAYER 1: BASE DEPTH COLOR (Bathymetry-driven) ──
   // deep ocean -> dark navy, mid ocean -> blue gradient, continental shelf -> turquoise glow, reefs -> bright shallow highlights
   // depthFactor: 0.0 = shelf/reef, 1.0 = deep ocean
-  float depthFactor = texture2D(u_bathymetryTexture, v_grid_uv).r;
   vec3 deepNavy, midOceanBlue, shelfTurquoise, reefHighlight;
   vec3 shallowWaterShelfGlowColor;
 
@@ -473,7 +476,7 @@ void main() {
   // Conformal 3D-Volumetric Blending:
   // Flat water shows detailed natural floor/shelf, rising waves smoothly overlay waveColors
   // while keeping volumetric shadows and reefs highlights fully intact.
-  float waveBlend = smoothstep(0.0, 2.5, waveHeight);
+  float waveBlend = smoothstep(0.1, 0.8, waveHeight);
   vec3 baseColor = baseDepthColor + shallowWaterShelfGlow;
   vec3 baseWithChl = mix(baseColor, baseColor + chlorophyllGreen * chlDensity, 0.4);
   

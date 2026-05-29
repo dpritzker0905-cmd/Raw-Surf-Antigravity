@@ -15,7 +15,7 @@ const CACHE_TTL_MS = 600_000; // 10 minutes — aggressive caching to stay withi
 
 // Server-side 429 tracking: prevent repeated upstream requests during rate limit window
 const rateLimitUntil = {};  // { wind: timestamp, marine: timestamp }
-const RATE_LIMIT_BACKOFF_MS = 300_000; // 5 min backoff after a 429
+const RATE_LIMIT_BACKOFF_MS = 60_000; // 60s backoff after a 429 (was 300s — too aggressive for dev)
 
 // Route to correct Open-Meteo API
 const API_MAP = {
@@ -92,9 +92,11 @@ function generateSyntheticData(type, bodyPayload) {
       const wind_wave_period = [];
       const wind_wave_direction = [];
 
-      const baseHeight = 1.6 + 0.8 * Math.sin(lat / 10) * Math.cos(lon / 15);
+      // Realistic coastal wave heights (0.4-1.2m typical for SE US coast)
+      // Reduced from 1.6 base to 0.5 to match realistic nearshore conditions
+      const baseHeight = 0.5 + 0.3 * Math.sin(lat / 10) * Math.cos(lon / 15);
       const baseDir = (120 + 80 * Math.sin(lat / 20) * Math.cos(lon / 30) + 360) % 360;
-      const basePeriod = 8.0 + 2.0 * Math.cos(lat / 15);
+      const basePeriod = 7.0 + 1.5 * Math.cos(lat / 15);
 
       for (let h = 0; h < numHours; h++) {
         const tVar = Math.sin(h / 6) * 0.3 + Math.cos(h / 12) * 0.2;

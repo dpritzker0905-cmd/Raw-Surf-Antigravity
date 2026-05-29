@@ -23,7 +23,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { LAYER_REGISTRY, MARINE_MODEL_MAP, PRECIP_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry';
+import { LAYER_REGISTRY, MARINE_MODEL_MAP, WIND_MODEL_MAP, PRECIP_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { LIVE_FETCHED_MODELS } from './mapUtils';
 
 var OM_MODEL_MAP = { GFS: 'ncep_gfs025', EURO: 'ecmwf_ifs025', ICON: 'dwd_icon' };
@@ -59,6 +59,13 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
         model = entry.omModel;
       } else if (entry.omModelGroup === 'marine') {
         model = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
+      } else if (variable === 'wind_u_component_10m') {
+        model = WIND_MODEL_MAP[activeModel] || 'ncep_gfs013';
+        if (model === 'dwd_icon' && currentHour > 115) {
+          model = 'ncep_gfs013';
+        } else if (model === 'ecmwf_ifs025' && currentHour > 228) {
+          model = 'ncep_gfs013';
+        }
       } else if (variable === 'precipitation' || variable === 'cloud_cover') {
         model = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
       } else {
@@ -110,6 +117,35 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
       var controller = new AbortController();
       abortRef.current = controller;
       var signal = controller.signal;
+
+      // Programmatic GRIB pre-warmer for marine layers (avoids MapLibre rasters entirely)
+      if (entry.omModelGroup === 'marine') {
+        if (typeof window !== 'undefined' && window.__FETCH_OM_TILE__) {
+          var marineSteps = [0, 1, 2, 3]; // current, next, and future seek steps
+          var heightVar = resolvedVar;
+          var periodVar = resolvedVar.replace('_height', '_period').replace('wave_height', 'wave_period');
+          
+          for (var s = 0; s < marineSteps.length; s++) {
+            var targetIdx = closestIdx + marineSteps[s];
+            if (targetIdx < 0 || targetIdx >= meta.validTimes.length) continue;
+            
+            var cacheKeyH = model + ':' + heightVar + ':' + targetIdx;
+            if (!cacheRef.current.has(cacheKeyH)) {
+              cacheRef.current.add(cacheKeyH);
+              window.__FETCH_OM_TILE__(heightVar, targetIdx, model);
+            }
+            
+            var cacheKeyP = model + ':' + periodVar + ':' + targetIdx;
+            if (!cacheRef.current.has(cacheKeyP)) {
+              cacheRef.current.add(cacheKeyP);
+              window.__FETCH_OM_TILE__(periodVar, targetIdx, model);
+            }
+          }
+        }
+        return; // Exits early! Zero raster tile fetches or sources are created.
+      }
+
+
 
       // Pre-fetch raw spatial JSON chunks for surrounding steps (past and future) to pre-warm the connection pool
       var steps = [-2, -1, 1, 2, 3];

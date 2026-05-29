@@ -31,11 +31,13 @@ const WAVE_DECAY = 0.9998;           // Swell energy decay per tick
 const WAVE_PROPAGATION_SPEED = 0.3;  // Grid cells per tick for wave propagation
 const WIND_WAVE_COUPLING = 0.002;    // Wind → wave energy transfer rate
 const SMOOTHING_KERNEL_WEIGHT = 0.15; // 5-point Laplacian smoothing strength
-const MAX_WAVE_HEIGHT = 25.0;        // Physical clamp (meters)
+const MAX_WAVE_HEIGHT = 12.0;        // Physical clamp (meters) — reduced from 25m to prevent unrealistic overestimation
 const MAX_WIND_SPEED = 80.0;         // Physical clamp (m/s)
+const KNOTS_TO_MS = 0.514444;        // Knot to m/s conversion factor
+const MAX_WIND_SPEED_KNOTS = MAX_WIND_SPEED / KNOTS_TO_MS; // Clamped speed in knots (~155.5 kts)
 const MARINE_DRIFT_SCALE = 0.1;      // Wave → current drift factor
 const MAX_ENERGY_RATIO = 2.0;        // Divergence correction: max energy / initial
-const MEAN_WAVE_CEILING = 15.0;      // Wave normalization ceiling (meters)
+const MEAN_WAVE_CEILING = 6.0;       // Wave normalization ceiling (meters) — reduced from 15m to match coastal reality
 const NAN_RESET_THRESHOLD = 0.05;    // >5% NaN cells triggers emergency reset
 const DIVERGENCE_DAMPING = 0.95;     // Applied when energy exceeds budget
 
@@ -173,6 +175,10 @@ function evolveWindField(windU, windV, cols, rows, dt, simTime) {
 function evolveWaveField(grid, cols, rows, dt, simTime) {
   const { waveHeight, waveDir, swellHeight, swellDir, wavePeriod, swellPeriod, windWavePeriod } = grid;
 
+  // Double-buffering to prevent spatial advection order-dependence and directional bias
+  const nextWaveHeight = new Float32Array(waveHeight.length);
+  nextWaveHeight.set(waveHeight);
+
   // Semi-Lagrangian advection for wave height
   // Each cell's energy drifts in the wave direction
   for (let y = 1; y < rows - 1; y++) {
@@ -188,8 +194,10 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
       const srcX = x - driftX;
       const srcY = y - driftY;
 
+      let nextH = waveHeight[i];
+
       if (srcX >= 0 && srcX < cols - 1 && srcY >= 0 && srcY < rows - 1) {
-        // Bilinear interpolation from upstream
+        // Bilinear interpolation from upstream (strictly read from immutable waveHeight source buffer)
         const x0 = Math.floor(srcX);
         const y0 = Math.floor(srcY);
         const fx = srcX - x0;
@@ -207,11 +215,11 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
           fx * fy * waveHeight[i11];
 
         // Blend: mostly preserve current, slowly advect
-        waveHeight[i] = waveHeight[i] * 0.95 + upstreamHeight * 0.05;
+        nextH = waveHeight[i] * 0.95 + upstreamHeight * 0.05;
       }
 
-      // Energy decay (swell dissipation)
-      waveHeight[i] *= WAVE_DECAY;
+      // Energy decay (swell dissipation) and commit to double buffer
+      nextWaveHeight[i] = nextH * WAVE_DECAY;
 
       // Swell height also decays
       if (swellHeight) {
@@ -236,6 +244,9 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
       }
     }
   }
+
+  // Swap waveHeight buffers back into grid to complete the time-step
+  waveHeight.set(nextWaveHeight);
 }
 
 // ========================================================================
@@ -259,13 +270,16 @@ function applyWindWaveCoupling(grid, cols, rows, dt) {
     // Only apply over ocean
     if (landMask && landMask[i] === 1) continue;
 
-    const windSpeed = Math.sqrt(windU[i] * windU[i] + windV[i] * windV[i]);
+    const windSpeedKnots = Math.sqrt(windU[i] * windU[i] + windV[i] * windV[i]);
+    const windSpeedMS = windSpeedKnots * KNOTS_TO_MS;
 
-    // Energy transfer: proportional to wind speed squared
+    // Energy transfer: proportional to wind speed in m/s squared
     // Stronger winds grow waves faster (Sverdrup–Munk approximation)
-    const energyInput = windSpeed * windSpeed * WIND_WAVE_COUPLING * dt;
-
-    waveHeight[i] += energyInput;
+    // CAPPED: wave height may not exceed 120% of current value from wind coupling alone.
+    // This prevents unbounded growth that causes deep-water overestimation.
+    const energyInput = windSpeedMS * windSpeedMS * WIND_WAVE_COUPLING * dt;
+    const maxGrowth = Math.max(0.1, waveHeight[i]) * 0.002; // Cap growth per tick to 0.2% of current height
+    waveHeight[i] += Math.min(energyInput, maxGrowth);
 
     // Wind direction influences wave direction (slow rotation toward wind)
     const windDir = (Math.atan2(windU[i], windV[i]) * 180 / Math.PI + 360) % 360;
@@ -296,8 +310,8 @@ function applyStabilityCorrections(grid, cols, rows) {
     if (!isFinite(grid.windU[i])) grid.windU[i] = 0;
     if (!isFinite(grid.windV[i])) grid.windV[i] = 0;
     const windSpd = Math.sqrt(grid.windU[i] ** 2 + grid.windV[i] ** 2);
-    if (windSpd > MAX_WIND_SPEED) {
-      const scale = MAX_WIND_SPEED / windSpd;
+    if (windSpd > MAX_WIND_SPEED_KNOTS) {
+      const scale = MAX_WIND_SPEED_KNOTS / windSpd;
       grid.windU[i] *= scale;
       grid.windV[i] *= scale;
     }

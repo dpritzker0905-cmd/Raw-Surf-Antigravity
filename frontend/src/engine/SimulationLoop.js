@@ -109,10 +109,13 @@ export function bindField(field) {
       windV:          new Float32Array(field.grid.windV),
       waveHeight:     new Float32Array(field.grid.waveHeight),
       waveDir:        new Float32Array(field.grid.waveDir),
+      wavePeriod:     new Float32Array(field.grid.wavePeriod),
       swellHeight:    new Float32Array(field.grid.swellHeight),
       swellDir:       new Float32Array(field.grid.swellDir),
+      swellPeriod:    new Float32Array(field.grid.swellPeriod),
       windWaveHeight: new Float32Array(field.grid.windWaveHeight),
       windWaveDir:    new Float32Array(field.grid.windWaveDir),
+      windWavePeriod: new Float32Array(field.grid.windWavePeriod),
       pressure:       new Float32Array(field.grid.pressure),
       landMask:       new Uint8Array(field.grid.landMask),
     };

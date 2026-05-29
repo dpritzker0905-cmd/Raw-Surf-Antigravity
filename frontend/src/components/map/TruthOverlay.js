@@ -4,8 +4,8 @@ import { LAYER_REGISTRY } from './LayerRegistry';
 function getLayerTruth(layerId, rasterVisible) {
   const layer = LAYER_REGISTRY[layerId];
   if (!layer) return "OFF";
-  if (layer.type === "raster" || layer.omVariable) return rasterVisible ? "LOADED" : "LOADING";
-  return "ACTIVE";
+  if (layer.type === "raster" || layer.type === "particle") return rasterVisible ? "LOADED" : "LOADING";
+  return "OFF";
 }
 
 /**

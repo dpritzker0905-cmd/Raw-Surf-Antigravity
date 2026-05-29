@@ -537,7 +537,7 @@ var MapWebGL = ({
         </Source>
 
         {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC & MARINE SLOTS (marine returns transparent 1x1 PNG to activate tile preloading/caching) */}
-        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
+        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type !== 'marine').map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
             const url = omTileUrls[slotKey];
@@ -559,7 +559,7 @@ var MapWebGL = ({
                   id={`${slotKey}-layer`}
                   type="raster"
                   layout={{
-                    visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
+                    visibility: (!isTransitioning && activeLayers.includes(layerKey) && !['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey)) ? 'visible' : 'none'
                   }}
                   paint={{
                     'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? [
@@ -588,6 +588,7 @@ var MapWebGL = ({
             beforeId={marineBeforeId}
             theme={theme}
             activeLayers={activeLayers}
+            timeOffsetHours={timeOffsetHours}
             onError={() => {
               console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
               setWebglMarineFailed(true);

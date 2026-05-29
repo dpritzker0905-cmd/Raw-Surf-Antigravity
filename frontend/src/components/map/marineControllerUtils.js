@@ -178,7 +178,7 @@ export function computeGridPoints(bounds, caller = 'wind') {
       GRID = isMobile ? 16 : 30;
     } else {
       west = -180; east = 180; south = -85; north = 85;
-      GRID = isMobile ? 8 : 14;
+      GRID = isMobile ? 20 : 50;
     }
   } else {
     west = bounds.west; east = bounds.east;

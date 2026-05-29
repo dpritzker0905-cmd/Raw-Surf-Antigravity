@@ -21,14 +21,39 @@ var degToCompass = (deg) => {
   return dirs[Math.round(deg / 22.5) % 16];
 };
 
-function sampleValueFromDecodedTiles(lat, lng, targetVariable) {
+function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffsetHours = 0, activeModel = 'GFS') {
   if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__ || lat == null || lng == null) {
     return null;
+  }
+
+  // Resolve the correct model for the variable to lookup its validTimes for accurate index matching
+  const isMarine = targetVariable.includes('wave') || targetVariable.includes('swell');
+  const model = isMarine 
+    ? (activeModel === 'EURO' ? 'ecmwf_wam025' : (activeModel === 'ICON' ? 'dwd_gwam' : 'ncep_gfswave025'))
+    : (activeModel === 'EURO' ? 'ecmwf_ifs025' : (activeModel === 'ICON' ? 'dwd_icon' : 'ncep_gfs013'));
+
+  const meta = window.__MODEL_METADATA_CACHE__?.[model];
+  let targetIdx = 0;
+
+  if (meta && Array.isArray(meta.validTimes) && meta.validTimes.length > 0) {
+    const targetMs = Date.now() + timeOffsetHours * 3600000;
+    let minDiff = Infinity;
+    for (let i = 0; i < meta.validTimes.length; i++) {
+      const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
+      if (diff < minDiff) {
+        minDiff = diff;
+        targetIdx = i;
+      }
+    }
+  } else {
+    // Fallback: standard GFS/OM intervals (3-hourly for marine, 1-hourly for atmospheric)
+    const hoursPerStep = isMarine ? 3 : 1;
+    targetIdx = Math.round(timeOffsetHours / hoursPerStep);
   }
   
   const matchingTiles = [];
   for (const tile of window.__DECODED_OM_TILES__.values()) {
-    if (tile.variable === targetVariable) {
+    if (tile.variable === targetVariable && tile.timeIndex === targetIdx) {
       matchingTiles.push(tile);
     }
   }
@@ -55,39 +80,99 @@ function sampleValueFromDecodedTiles(lat, lng, targetVariable) {
   const tLngSpan = tEast - tWest;
   const tLatSpan = tNorth - tSouth;
   
-  const tileDim = Math.sqrt(bestTile.values.length);
-  if (!tileDim || isNaN(tileDim)) return null;
+  const tileCols = bestTile.nx || Math.sqrt(bestTile.values.length);
+  const tileRows = bestTile.ny || Math.sqrt(bestTile.values.length);
+  if (!tileCols || isNaN(tileCols)) return null;
   
-  const tx = Math.max(0, Math.min(tileDim - 1, ((lng - tWest) / tLngSpan) * (tileDim - 1)));
-  const ty = Math.max(0, Math.min(tileDim - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileDim - 1)));
+  const tx = Math.max(0, Math.min(tileCols - 1, ((lng - tWest) / tLngSpan) * (tileCols - 1)));
+  const ty = Math.max(0, Math.min(tileRows - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileRows - 1)));
   
   const x0 = Math.floor(tx);
-  const x1 = Math.min(tileDim - 1, x0 + 1);
+  const x1 = Math.min(tileCols - 1, x0 + 1);
   const y0 = Math.floor(ty);
-  const y1 = Math.min(tileDim - 1, y0 + 1);
+  const y1 = Math.min(tileRows - 1, y0 + 1);
   
   const dx = tx - x0;
   const dy = ty - y0;
   
-  const idx00 = y0 * tileDim + x0;
-  const idx10 = y0 * tileDim + x1;
-  const idx01 = y1 * tileDim + x0;
-  const idx11 = y1 * tileDim + x1;
+  const idx00 = y0 * tileCols + x0;
+  const idx10 = y0 * tileCols + x1;
+  const idx01 = y1 * tileCols + x0;
+  const idx11 = y1 * tileCols + x1;
   
   const raw00 = bestTile.values[idx00];
   const raw10 = bestTile.values[idx10];
   const raw01 = bestTile.values[idx01];
   const raw11 = bestTile.values[idx11];
   
-  const v00 = (typeof raw00 === 'number' && !isNaN(raw00)) ? raw00 : 0;
-  const v10 = (typeof raw10 === 'number' && !isNaN(raw10)) ? raw10 : 0;
-  const v01 = (typeof raw01 === 'number' && !isNaN(raw01)) ? raw01 : 0;
-  const v11 = (typeof raw11 === 'number' && !isNaN(raw11)) ? raw11 : 0;
+  const isPeriod = targetVariable.includes('period');
   
-  const value = v00 * (1 - dx) * (1 - dy) +
-                v10 * dx * (1 - dy) +
-                v01 * (1 - dx) * dy +
-                v11 * dx * dy;
+  let value;
+  if (isPeriod) {
+    let weightSum = 0;
+    let weightedVal = 0;
+    
+    if (raw00 != null && !isNaN(raw00) && raw00 > 0) {
+      const w = (1 - dx) * (1 - dy);
+      weightedVal += raw00 * w;
+      weightSum += w;
+    }
+    if (raw10 != null && !isNaN(raw10) && raw10 > 0) {
+      const w = dx * (1 - dy);
+      weightedVal += raw10 * w;
+      weightSum += w;
+    }
+    if (raw01 != null && !isNaN(raw01) && raw01 > 0) {
+      const w = (1 - dx) * dy;
+      weightedVal += raw01 * w;
+      weightSum += w;
+    }
+    if (raw11 != null && !isNaN(raw11) && raw11 > 0) {
+      const w = dx * dy;
+      weightedVal += raw11 * w;
+      weightSum += w;
+    }
+    
+    if (weightSum > 0) {
+      value = weightedVal / weightSum;
+    } else {
+      value = 0;
+    }
+  } else {
+    const v00 = (typeof raw00 === 'number' && !isNaN(raw00)) ? raw00 : 0;
+    const v10 = (typeof raw10 === 'number' && !isNaN(raw10)) ? raw10 : 0;
+    const v01 = (typeof raw01 === 'number' && !isNaN(raw01)) ? raw01 : 0;
+    const v11 = (typeof raw11 === 'number' && !isNaN(raw11)) ? raw11 : 0;
+    
+    value = v00 * (1 - dx) * (1 - dy) +
+            v10 * dx * (1 - dy) +
+            v01 * (1 - dx) * dy +
+            v11 * dx * dy;
+  }
+
+  // Apply Nearshore Coastal Wave Decay:
+  // Detect land proximity by counting how many neighbors are null, NaN, or 0.
+  // Physical nearshore wave transformation (shoaling & bathymetric friction) decays deep-water waves.
+  const isWaveHeightVar = targetVariable.includes('height') && (targetVariable.includes('wave') || targetVariable.includes('swell'));
+  if (isWaveHeightVar && value > 0) {
+    let landCount = 0;
+    if (raw00 == null || isNaN(raw00) || raw00 === 0) landCount++;
+    if (raw10 == null || isNaN(raw10) || raw10 === 0) landCount++;
+    if (raw01 == null || isNaN(raw01) || raw01 === 0) landCount++;
+    if (raw11 == null || isNaN(raw11) || raw11 === 0) landCount++;
+    
+    if (landCount > 0) {
+      // 1 land neighbor  -> 0.65x decay (outer transition shelf)
+      // 2 land neighbors -> 0.45x decay (outer breaker line)
+      // 3+ land neighbors -> 0.35x decay (beach shoreline, e.g., Cape Canaveral)
+      const decayFactor = landCount === 1 ? 0.65 : (landCount === 2 ? 0.45 : 0.35);
+      value = value * decayFactor;
+      
+      if (typeof window !== 'undefined' && window.__OM_SAMPLER_DEBUG__) {
+        console.log(`[Nearshore-Decay] Coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)}) variable: ${targetVariable} is nearshore. Land neighbors: ${landCount}/4, Decay: ${decayFactor.toFixed(2)}x -> Value: ${value.toFixed(2)}`);
+      }
+    }
+  }
                 
   let direction = null;
   if (bestTile.directions) {
@@ -229,13 +314,18 @@ export var MapForecastOverlay = ({
   const lat = selectedSpot?.latitude || longPressLocation?.lat;
   const lng = selectedSpot?.longitude || longPressLocation?.lng;
 
-  const sampledWaves = sampleValueFromDecodedTiles(lat, lng, 'wave_height');
-  const sampledSwell1 = sampleValueFromDecodedTiles(lat, lng, 'swell_wave_height');
-  const sampledSwell2 = sampleValueFromDecodedTiles(lat, lng, 'secondary_swell_wave_height');
-  const sampledWindWaves = sampleValueFromDecodedTiles(lat, lng, 'wind_wave_height');
+  const sampledWaves = sampleValueFromDecodedTiles(lat, lng, 'wave_height', timeOffsetHours, activeModel);
+  const sampledSwell1 = sampleValueFromDecodedTiles(lat, lng, 'swell_wave_height', timeOffsetHours, activeModel);
+  const sampledSwell2 = sampleValueFromDecodedTiles(lat, lng, 'secondary_swell_wave_height', timeOffsetHours, activeModel);
+  const sampledWindWaves = sampleValueFromDecodedTiles(lat, lng, 'wind_wave_height', timeOffsetHours, activeModel);
 
-  const sampledWindU = sampleValueFromDecodedTiles(lat, lng, 'wind_u_component_10m');
-  const sampledWindV = sampleValueFromDecodedTiles(lat, lng, 'wind_v_component_10m');
+  const sampledWavePeriod = sampleValueFromDecodedTiles(lat, lng, 'wave_period', timeOffsetHours, activeModel);
+  const sampledSwell1Period = sampleValueFromDecodedTiles(lat, lng, 'swell_wave_period', timeOffsetHours, activeModel);
+  const sampledSwell2Period = sampleValueFromDecodedTiles(lat, lng, 'secondary_swell_wave_period', timeOffsetHours, activeModel);
+  const sampledWindWavesPeriod = sampleValueFromDecodedTiles(lat, lng, 'wind_wave_period', timeOffsetHours, activeModel);
+
+  const sampledWindU = sampleValueFromDecodedTiles(lat, lng, 'wind_u_component_10m', timeOffsetHours, activeModel);
+  const sampledWindV = sampleValueFromDecodedTiles(lat, lng, 'wind_v_component_10m', timeOffsetHours, activeModel);
   let sampledWind = null;
   if (sampledWindU && sampledWindV) {
     const u = sampledWindU.value;
@@ -245,8 +335,8 @@ export var MapForecastOverlay = ({
     sampledWind = { value: speed, direction };
   }
 
-  const sampledPressure = sampleValueFromDecodedTiles(lat, lng, 'pressure_msl');
-  const sampledRain = sampleValueFromDecodedTiles(lat, lng, 'precipitation');
+  const sampledPressure = sampleValueFromDecodedTiles(lat, lng, 'pressure_msl', timeOffsetHours, activeModel);
+  const sampledRain = sampleValueFromDecodedTiles(lat, lng, 'precipitation', timeOffsetHours, activeModel);
 
   const liveWind = currentWeather;
   const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
@@ -281,7 +371,9 @@ export var MapForecastOverlay = ({
     ? sampledWaves.value
     : getBiasAdjusted(rawWaveHeight, 'wave');
 
-  const wavePeriod = isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex);
+  const wavePeriod = (sampledWavePeriod && sampledWavePeriod.value > 0)
+    ? sampledWavePeriod.value
+    : (isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex));
   
   const waveDir = (activeLayer === 'waves' && sampledWaves && sampledWaves.direction != null)
     ? sampledWaves.direction
@@ -294,7 +386,9 @@ export var MapForecastOverlay = ({
     : getBiasAdjusted(rawSwell1Height, 'swell1');
   
   const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
-  const swell1Period = rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null);
+  const swell1Period = (sampledSwell1Period && sampledSwell1Period.value > 0)
+    ? sampledSwell1Period.value
+    : (rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null));
   
   const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
   const swell1Dir = (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
@@ -308,7 +402,10 @@ export var MapForecastOverlay = ({
     ? sampledSwell2.value
     : getBiasAdjusted(rawSwell2Height, 'swell2');
 
-  const swell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
+  const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
+  const swell2Period = (sampledSwell2Period && sampledSwell2Period.value > 0)
+    ? sampledSwell2Period.value
+    : rawSwell2Period;
   
   const swell2Dir = (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
     ? sampledSwell2.direction
@@ -325,11 +422,11 @@ export var MapForecastOverlay = ({
   let windWaveHeight, windWavePeriod, windWaveDir;
   if (activeLayer === 'wind_waves' && sampledWindWaves) {
     windWaveHeight = sampledWindWaves.value;
-    windWavePeriod = rawWindWavePeriod;
+    windWavePeriod = (sampledWindWavesPeriod && sampledWindWavesPeriod.value > 0) ? sampledWindWavesPeriod.value : rawWindWavePeriod;
     windWaveDir = sampledWindWaves.direction != null ? sampledWindWaves.direction : rawWindWaveDir;
   } else if (rawWindWaveHeight != null) {
     windWaveHeight = getBiasAdjusted(rawWindWaveHeight, 'wind_wave');
-    windWavePeriod = rawWindWavePeriod;
+    windWavePeriod = (sampledWindWavesPeriod && sampledWindWavesPeriod.value > 0) ? sampledWindWavesPeriod.value : rawWindWavePeriod;
     windWaveDir = rawWindWaveDir;
   } else if (activeModel === 'EURO' && waveHeight != null && swell1Height != null) {
     // Estimate: wind wave ≈ total wave - primary swell (clamped to 0)
@@ -393,7 +490,9 @@ export var MapForecastOverlay = ({
   if (activeLayer === 'waves') {
     const hFt = mToFt(waveHeight);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-blue-300' });
-    if (wavePeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${wavePeriod.toFixed(1)}s`, color: 'text-blue-200' });
+    // Prioritize swell period for surf waves infocard to show true long-period swell instead of wind-chop polluted mean wave period
+    const displayPeriod = (swell1Period != null && swell1Period > (wavePeriod || 0)) ? swell1Period : wavePeriod;
+    if (displayPeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${displayPeriod.toFixed(1)}s`, color: 'text-blue-200' });
     if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}`, color: 'text-blue-200', rotate: (waveDir + 180) % 360 });
   }
 

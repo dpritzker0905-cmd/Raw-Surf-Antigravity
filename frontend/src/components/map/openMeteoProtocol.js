@@ -169,13 +169,16 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         channel.onmessage = (event) => {
           const payload = event.data;
           if (payload && payload.cacheKey && window.__DECODED_OM_TILES__) {
-            console.log(`[OM-Protocol-Main] Decoded tile received. Variable: ${payload.variable}, Bounds: ${payload.bounds?.join(',')}, ValueCount: ${payload.values?.length}`);
+            console.log(`[OM-Protocol-Main] Decoded tile received. Variable: ${payload.variable}, Bounds: ${payload.bounds?.join(',')}, ValueCount: ${payload.values?.length}, Dimensions: ${payload.nx}x${payload.ny}, TimeIndex: ${payload.timeIndex}`);
             window.__DECODED_OM_TILES__.set(payload.cacheKey, {
               values: payload.values,
               directions: payload.directions,
               bounds: payload.bounds,
               variable: payload.variable,
-              timestamp: payload.timestamp
+              timestamp: payload.timestamp,
+              nx: payload.nx,
+              ny: payload.ny,
+              timeIndex: payload.timeIndex
             });
             
             if (window.__DECODED_OM_TILES__.size > 150) {
@@ -287,7 +290,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     };
   }
 
-  import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings }) => {
+  import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings, GridFactory }) => {
     // Forceful mutation to guarantee custom scales are used in all instances
     Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);
 
@@ -298,22 +301,108 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         ...CUSTOM_COLOR_SCALES
       },
       postReadCallback(omFileReader, data, state) {
+        console.log("[OM-Protocol-Callback] postReadCallback triggered! Data exists:", !!data, "values exists:", !!data?.values, "state exists:", !!state);
         if (!data || !data.values) return;
         
-        const bounds = state.dataOptions?.bounds;
+        let bounds = state.dataOptions?.bounds;
         const variable = state.dataOptions?.variable;
+        let resolvedGrid = null;
+        
+        if (state.dataOptions?.domain?.grid) {
+          try {
+            resolvedGrid = GridFactory.create(state.dataOptions.domain.grid, null);
+            if (!bounds) {
+              bounds = resolvedGrid.getBounds();
+              console.log(`[OM-Protocol-Callback] Resolved bounds from domain grid:`, bounds);
+            }
+          } catch (e) {
+            console.warn(`[OM-Protocol-Callback] Failed to get grid bounds:`, e.message);
+          }
+        }
+        
         if (bounds && variable) {
-          const cacheKey = `${variable}|${bounds.join(',')}`;
+          let timeIndex = 0;
+          if (state.omFileUrl) {
+            const match = state.omFileUrl.match(/time_step=valid_times_(\d+)/);
+            if (match) {
+              timeIndex = parseInt(match[1], 10);
+            } else {
+              // Forensic Date-Time Extraction and Metadata Matching
+              const timeMatch = state.omFileUrl.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):?(\d{2})?:?(\d{2})?/);
+              if (timeMatch) {
+                const year = parseInt(timeMatch[1], 10);
+                const month = parseInt(timeMatch[2], 10) - 1;
+                const day = parseInt(timeMatch[3], 10);
+                const hour = parseInt(timeMatch[4], 10);
+                const min = timeMatch[5] ? parseInt(timeMatch[5], 10) : 0;
+                const sec = timeMatch[6] ? parseInt(timeMatch[6], 10) : 0;
+                const targetTimeMs = Date.UTC(year, month, day, hour, min, sec);
+                
+                let model = state.dataOptions?.domain?.value;
+                if (!model) {
+                  const urlParts = state.omFileUrl.split('/');
+                  model = urlParts.find(p => p.includes('wave') || p.includes('wam') || p.includes('gwam') || p.includes('gfs') || p.includes('icon') || p.includes('ifs') || p.includes('ecmwf'));
+                }
+                if (!model) model = 'ncep_gfswave025';
+                
+                const meta = MODEL_METADATA_CACHE?.[model];
+                if (meta && Array.isArray(meta.validTimes) && meta.validTimes.length > 0) {
+                  let minDiff = Infinity;
+                  for (let i = 0; i < meta.validTimes.length; i++) {
+                    const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetTimeMs);
+                    if (diff < minDiff) {
+                      minDiff = diff;
+                      timeIndex = i;
+                    }
+                  }
+                  console.log(`[FORENSIC-INDEX] Match successful: url date ${new Date(targetTimeMs).toISOString()} maps to validTimes index ${timeIndex} (${meta.validTimes[timeIndex]}) for model ${model}`);
+                } else {
+                  // Fallback: estimate timeIndex using forecast hours diff from reference time
+                  const refTime = meta?.referenceTime ? new Date(meta.referenceTime) : new Date();
+                  const hoursDiff = Math.round((targetTimeMs - refTime.getTime()) / 3600000);
+                  const hoursPerStep = (model.includes('wave') || model.includes('wam') || model.includes('gwam')) ? 3 : 1;
+                  timeIndex = Math.max(0, Math.round(hoursDiff / hoursPerStep));
+                  console.log(`[FORENSIC-INDEX] validTimes cache miss: url date ${new Date(targetTimeMs).toISOString()} estimated index ${timeIndex} for model ${model}`);
+                }
+              }
+            }
+          }
+          if (timeIndex === 0 && state.ranges && state.ranges[0]) {
+            timeIndex = state.ranges[0].start;
+          }
+          const cacheKey = `${variable}|${bounds.join(',')}|${timeIndex}`;
           const tilePayload = {
             cacheKey,
             values: data.values,
             directions: data.directions,
             bounds: bounds,
             variable: variable,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            nx: resolvedGrid ? resolvedGrid.nx : undefined,
+            ny: resolvedGrid ? resolvedGrid.ny : undefined,
+            timeIndex
           };
           
           // Cross-thread communication: Broadcast decoded tile payload to main thread via persistent BroadcastChannel
+          if (typeof window !== 'undefined' && window.__DECODED_OM_TILES__) {
+            console.log(`[OM-Protocol-Direct] Stored decoded tile directly on main thread. Variable: ${variable}, Bounds: ${bounds.join(',')}, ValueCount: ${data.values?.length}, Dimensions: ${tilePayload.nx}x${tilePayload.ny}, TimeIndex: ${timeIndex}`);
+            window.__DECODED_OM_TILES__.set(cacheKey, {
+              values: data.values,
+              directions: data.directions,
+              bounds: bounds,
+              variable: variable,
+              timestamp: Date.now(),
+              nx: tilePayload.nx,
+              ny: tilePayload.ny,
+              timeIndex
+            });
+            
+            if (window.__DECODED_OM_TILES__.size > 150) {
+              const oldestKey = window.__DECODED_OM_TILES__.keys().next().value;
+              window.__DECODED_OM_TILES__.delete(oldestKey);
+            }
+          }
+
           try {
             const globalCtx = typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : globalThis);
             if (!globalCtx.__OM_BROADCAST_CHANNEL_WORKER__) {
@@ -336,6 +425,25 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       }
     };
     window.__OM_PROTOCOL_SETTINGS__ = settings;
+
+    // Global programmatic GRIB tile prefetcher for marine waves (bypasses MapLibre entirely)
+    window.__FETCH_OM_TILE__ = async (variable, timeIndex, model = 'ncep_gfswave025') => {
+      if (typeof window === 'undefined') return;
+      const url = `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${timeIndex}&variable=${variable}`;
+      
+      const abortController = new AbortController();
+      const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
+      
+      try {
+        // 1. Fetch JSON metadata first to initialize domain grid structure
+        await omProtocol({ url, type: 'json' }, abortController, currentSettings);
+        
+        // 2. Request top-level tile (0/0/0) to trigger ensureData GRIB load and decode in postReadCallback
+        await omProtocol({ url: `${url}/0/0/0`, type: 'arrayBuffer' }, abortController, currentSettings);
+      } catch (e) {
+        // Fail silently
+      }
+    };
     // NOTE: Marine ocean clipping polygon system REMOVED in Phase 4A.
     // Marine rendering is now 100% GPU-driven via WebGLMarineEngine.
     // The GPU engine uses isOcean flag from data texture for coastline masking.
@@ -348,6 +456,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           const hasWindow = typeof window !== 'undefined';
           const currentSettings = (hasWindow && window.__OM_PROTOCOL_SETTINGS__) || settings;
           const debug = (hasWindow && window.__RASTER_DEBUG__) || {};
+          console.log("[OM-Protocol] addProtocol callback triggered! URL:", params.url, "hasWindow:", hasWindow, "hasCallback:", typeof currentSettings.postReadCallback === 'function');
           
           // Safe one-time init log
           if (!debug.hasLoggedProtocol) {

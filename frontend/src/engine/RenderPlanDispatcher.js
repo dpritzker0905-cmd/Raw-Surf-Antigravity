@@ -186,8 +186,18 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     const isRouteBActive = typeof window !== 'undefined' && window.__DECODED_OM_TILES__ && window.__DECODED_OM_TILES__.size > 0;
     if (isRouteBActive) {
       _marineEngine._dispatcherActive = false; // Relinquish control to client-side high-resolution viewport stitcher
+      // FORENSIC: Log once when yielding
+      if (!dispatchRenderPlan._routeBYieldLogged) {
+        console.log(`[FORENSIC-DISPATCH] Route C yielding to Route B (${window.__DECODED_OM_TILES__.size} decoded tiles present)`);
+        dispatchRenderPlan._routeBYieldLogged = true;
+      }
     } else {
       try {
+        // FORENSIC: Log when Route C is active
+        if (!dispatchRenderPlan._routeCActiveLogged) {
+          console.log(`[FORENSIC-DISPATCH] Route C ACTIVE — SimulationLoop feeding marine engine (no decoded tiles)`);
+          dispatchRenderPlan._routeCActiveLogged = true;
+        }
         const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
         const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
         if (marineGrid) {
