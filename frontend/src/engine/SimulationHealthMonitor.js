@@ -38,6 +38,7 @@ let _unsubscribe = null;
 let _initialWindEnergy = null;
 let _lastCallbackTime = 0;
 let _sampleIndex = 0;
+let _lastFieldRevision = -1;
 
 // Rolling buffers
 const _jitterSamples = new Float32Array(SAMPLE_WINDOW);
@@ -162,6 +163,12 @@ function onPlanReceived(renderPlan, frameIndex) {
   if (!renderPlan) return;
 
   const field = renderPlan._evolvedField;
+  if (field && field.revision !== _lastFieldRevision) {
+    console.log('[SimHealth] New field revision detected (' + field.revision + '), re-baselining energy calculation');
+    _initialWindEnergy = null;
+    _lastFieldRevision = field.revision;
+  }
+
   const idx = _sampleIndex % SAMPLE_WINDOW;
 
   // Measure all metrics
