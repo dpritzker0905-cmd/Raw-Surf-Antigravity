@@ -165,13 +165,16 @@ To prevent regressions, maintain high performance, and ensure clean codebase str
 * **Rule**: No module in the `frontend/src/components/map/` or `frontend/src/engine/` folder may exceed **800 lines of code**.
 * **Implication**: Any addition of rendering features, complex equations, or helpers must be factored out into modular utility files (e.g. `WebGLMarineTextureEncoder.js` or `LayerAccessResolver.js`).
 
-### 2. 0% MapLibre Raster Layer Footprint for Simulation Layers
-* **Rule**: Standard raster mounts, sources, and paint properties in `MapWebGL.js` and `useOpenMeteoTileUrls.js` are **exclusively restricted** to layers of type `'raster'` in the `LAYER_REGISTRY` (e.g. `rain`, `satellite`, `pressure`, `fog`).
-* **Implication**: Marine wave variables and wind advection particle variables must **never** mount raster sources/layers in MapLibre. They rely on direct programmatic GRIB fetches and are rendered inside custom GPU engines.
+### 2. 0% Visual MapLibre Raster Layer Footprint for Simulation Layers
+* **Rule**: Wind and marine wave layers are **strictly isolated** from MapLibre's built-in raster renderer (opacity = 0.0, visibility = 'none').
+* **Implication**: They mount standard raster Sources and Layers solely to trigger background tile preloading via the custom protocol (populating `window.__DECODED_OM_TILES__`), but are **never visually drawn by MapLibre itself**. Visual representation is handled exclusively by custom hardware-accelerated GPU custom layers (`WebGLWindLayer` and `WebGLMarineLayer`).
 
 ### 3. Mutex-Serialized WASM Decoding
 * **Rule**: All spatial tile decodes must go through the serialized `ConcurrencySemaphore` in `openMeteoProtocol.js` (configured to a maximum of 3 concurrent requests).
 * **Reason**: Prevents concurrent Emscripten heap allocations, preventing browser memory exhaustion and `RuntimeError: Aborted(OOM)` crashes during rapid seek operations.
+
+### 4. Absolute Enforcement of Live Real Data Over Persistent Mocks
+* **Rule**: Canonical simulation metrics must flow from authentic, live spatial forecast grids (binary GRIB or direct programmatic coords). Synthetic or static fallback models (such as local in-memory sine waves) are strictly restricted to dev-environment proxy rate-limit shielding inside `setupProxy.js` and must **never** be written to the persistent database, production cache files (`wind_global.json`/`marine_global.json`), or client-side telemetry state.
 
 ---
 

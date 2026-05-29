@@ -550,7 +550,7 @@ var MapWebGL = ({
         </Source>
 
         {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC & MARINE SLOTS (marine returns transparent 1x1 PNG to activate tile preloading/caching) */}
-        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster').map(layerKey => {
+        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable).map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
             const url = omTileUrls[slotKey];
@@ -558,6 +558,9 @@ var MapWebGL = ({
             const isActive = activeSlots[layerKey] !== undefined
               ? activeSlots[layerKey] === slotIdx
               : (closestTimeIdx % 3) === slotIdx;
+
+            // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer
+            const isVisualRaster = activeLayers.includes(layerKey) && !['wind', 'waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey);
 
             return (
               <Source
@@ -572,15 +575,15 @@ var MapWebGL = ({
                   id={`${slotKey}-layer`}
                   type="raster"
                   layout={{
-                    visibility: (!isTransitioning && activeLayers.includes(layerKey) && !['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey)) ? 'visible' : 'none'
+                    visibility: (!isTransitioning && isVisualRaster) ? 'visible' : 'none'
                   }}
                   paint={{
-                    'raster-opacity': (!isTransitioning && activeLayers.includes(layerKey) && isActive) ? [
+                    'raster-opacity': (!isTransitioning && isVisualRaster && isActive) ? [
                         'interpolate', ['linear'], ['zoom'],
-                        2, layerKey === 'wind' ? 0.24 : layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
-                        5, layerKey === 'wind' ? 0.28 : layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
-                        8, layerKey === 'wind' ? 0.33 : layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
-                        12, layerKey === 'wind' ? 0.38 : layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
+                        2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
+                        5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
+                        8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
+                        12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
                       ] : 0.0,
                     'raster-resampling': 'linear',
                     'raster-fade-duration': 0
