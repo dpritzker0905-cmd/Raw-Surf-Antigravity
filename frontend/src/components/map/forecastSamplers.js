@@ -193,10 +193,13 @@ export async function fetchExactMarinePoint(lat, lng, model) {
   };
 
   try {
+    // Route EURO through GribStream, others through Open-Meteo
+    const proxyType = (apiModel === 'ecmwf_wam025') ? 'gribstream_marine' : 'marine';
+
     const res = await fetch('/api/weather-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'marine', body })
+      body: JSON.stringify({ type: proxyType, body })
     });
     if (!res.ok) {
       // v5.9.1: LOUD error diagnostics — never silently swallow exact-point failures

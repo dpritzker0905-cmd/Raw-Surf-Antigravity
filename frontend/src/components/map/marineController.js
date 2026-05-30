@@ -576,7 +576,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
       ],
       'ecmwf_wam025': [
-        'wave_height', 'wave_direction', 'wave_period'
+        'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period'
       ]
     };
 
@@ -588,13 +588,16 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       body.models = [MARINE_OM_MODELS[model]];
     }
 
+    // Determine proxy type: EURO uses GribStream, others use Open-Meteo
+    const proxyType = (model === 'EURO') ? 'gribstream_marine' : 'marine';
+
     // v3.9.6: Proxy-first, direct fallback
     let res;
     try {
       res = await fetch(PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'marine', body }),
+        body: JSON.stringify({ type: proxyType, body }),
         signal: fetchSignal
       });
       // v3.13: 429 = API rate limit, NOT proxy failure. Do NOT fall back to direct.

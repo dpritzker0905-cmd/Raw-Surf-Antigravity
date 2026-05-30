@@ -24,6 +24,24 @@ const API_MAP = {
   pressure: 'https://api.open-meteo.com/v1/forecast'
 };
 
+// GribStream IFS Wave API for EURO marine data
+const GRIBSTREAM_URL = 'https://gribstream.com/api/v2/ifswave/timeseries';
+const GRIBSTREAM_API_TOKEN = process.env.GRIBSTREAM_API_TOKEN || '';
+
+const OM_TO_GRIBSTREAM_VARS = {
+  wave_height: { name: 'swh', level: 'sfc', info: '' },
+  wave_direction: { name: 'mwd', level: 'sfc', info: '' },
+  wave_period: { name: 'mwp', level: 'sfc', info: '' },
+  wave_peak_period: { name: 'pp1d', level: 'sfc', info: '' },
+};
+
+const GRIBSTREAM_KEY_TO_OM = {
+  'swh|sfc|': 'wave_height',
+  'mwd|sfc|': 'wave_direction',
+  'mwp|sfc|': 'wave_period',
+  'pp1d|sfc|': 'wave_peak_period',
+};
+
 function generateSyntheticData(type, bodyPayload) {
   const lats = bodyPayload.latitude || [];
   const lons = bodyPayload.longitude || [];
@@ -369,6 +387,97 @@ function proxyPostToOpenMeteo(targetUrl, bodyPayload, cacheKey, res, type) {
   })();
 }
 
+function proxyPostToGribStream(bodyPayload, cacheKey, res) {
+  if (!GRIBSTREAM_API_TOKEN) {
+    console.error('[weather-proxy] GRIBSTREAM_API_TOKEN not set');
+    return res.status(500).json({ error: 'GRIBSTREAM_API_TOKEN not configured' });
+  }
+
+  const lats = bodyPayload.latitude || [];
+  const lons = bodyPayload.longitude || [];
+  const forecastDays = bodyPayload.forecast_days || 3;
+
+  const coordinates = lats.map((lat, i) => ({ lat: +lat, lon: +lons[i] }));
+  const now = new Date();
+  const fromTime = now.toISOString();
+  const untilTime = new Date(now.getTime() + forecastDays * 24 * 3600000).toISOString();
+  const variables = Object.values(OM_TO_GRIBSTREAM_VARS);
+
+  const gribBody = { fromTime, untilTime, coordinates, variables };
+
+  console.log(`[weather-proxy] GribStream POST: ${coordinates.length} coords, ${forecastDays}d`);
+
+  (async () => {
+    try {
+      const fetchRes = await fetch(GRIBSTREAM_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${GRIBSTREAM_API_TOKEN}`,
+        },
+        body: JSON.stringify(gribBody),
+      });
+
+      if (!fetchRes.ok) {
+        const errText = await fetchRes.text().catch(() => 'unknown');
+        console.error(`[weather-proxy] GribStream error: ${fetchRes.status} ${errText.substring(0, 200)}`);
+        return res.status(fetchRes.status).json({ error: `GribStream HTTP ${fetchRes.status}` });
+      }
+
+      const rows = await fetchRes.json();
+      console.log(`[weather-proxy] GribStream response: ${rows.length} rows`);
+
+      // Normalize: group by (lat, lon), build Open-Meteo shape
+      const grouped = new Map();
+      for (const row of rows) {
+        const key = `${row.lat},${row.lon}`;
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(row);
+      }
+
+      const results = [];
+      for (const [key, coordRows] of grouped) {
+        coordRows.sort((a, b) => a.forecasted_time.localeCompare(b.forecasted_time));
+        const [lat, lon] = key.split(',').map(Number);
+        const hourly = { time: [] };
+        for (const omVar of Object.values(GRIBSTREAM_KEY_TO_OM)) {
+          hourly[omVar] = [];
+        }
+        for (const row of coordRows) {
+          const t = row.forecasted_time;
+          hourly.time.push(t ? t.replace(':00Z', '').replace('Z', '') : '');
+          for (const [gsKey, omVar] of Object.entries(GRIBSTREAM_KEY_TO_OM)) {
+            const val = row[gsKey];
+            hourly[omVar].push(val != null ? val : null);
+          }
+        }
+        results.push({
+          latitude: lat, longitude: lon,
+          generationtime_ms: 0, utc_offset_seconds: 0,
+          timezone: 'GMT', timezone_abbreviation: 'GMT', elevation: 0,
+          hourly_units: { time: 'iso8601', wave_height: 'm', wave_direction: '°', wave_period: 's', wave_peak_period: 's' },
+          hourly,
+        });
+      }
+
+      cache.set(cacheKey, { data: results, timestamp: Date.now() });
+      if (cache.size > 100) {
+        const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+        for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
+      }
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('X-Cache', 'MISS');
+      res.setHeader('X-Source', 'GribStream');
+      res.status(200).json(results);
+    } catch (err) {
+      console.error(`[weather-proxy] GribStream fetch error:`, err.message);
+      res.status(502).json({ error: 'GribStream error', message: err.message });
+    }
+  })();
+}
+
 
 module.exports = function(app) {
   // GET handler: useOpenMeteoForecast single-point requests
@@ -420,6 +529,18 @@ module.exports = function(app) {
         const parsed = JSON.parse(body);
         const type = parsed.type;
         const apiBody = parsed.body;
+
+        // Route GribStream requests to dedicated handler
+        if (type === 'gribstream_marine') {
+          const cacheKey = `POST_gribstream_${JSON.stringify(apiBody).substring(0, 200)}`;
+          const cached = cache.get(cacheKey);
+          if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('X-Cache', 'HIT');
+            return res.status(200).json(cached.data);
+          }
+          return proxyPostToGribStream(apiBody, cacheKey, res);
+        }
 
         if (!type || !apiBody || !API_MAP[type]) {
           return res.status(400).json({ error: `Missing/unknown type: ${type}` });

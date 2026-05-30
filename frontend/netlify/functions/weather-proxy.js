@@ -44,6 +44,26 @@ const API_URLS = {
   marine: 'https://marine-api.open-meteo.com/v1/marine',
 };
 
+// GribStream IFS Wave API for EURO marine data
+const GRIBSTREAM_URL = 'https://gribstream.com/api/v2/ifswave/timeseries';
+const GRIBSTREAM_API_TOKEN = process.env.GRIBSTREAM_API_TOKEN || '';
+
+// Map Open-Meteo variable names → GribStream variable selectors
+const OM_TO_GRIBSTREAM_VARS = {
+  wave_height: { name: 'swh', level: 'sfc', info: '' },
+  wave_direction: { name: 'mwd', level: 'sfc', info: '' },
+  wave_period: { name: 'mwp', level: 'sfc', info: '' },
+  wave_peak_period: { name: 'pp1d', level: 'sfc', info: '' },
+};
+
+// Reverse map: GribStream response key → Open-Meteo variable name
+const GRIBSTREAM_KEY_TO_OM = {
+  'swh|sfc|': 'wave_height',
+  'mwd|sfc|': 'wave_direction',
+  'mwp|sfc|': 'wave_period',
+  'pp1d|sfc|': 'wave_peak_period',
+};
+
 /**
  * Forward a POST request with JSON body directly to Open-Meteo.
  * This avoids the 414 Request-URI Too Large error that occurs when
@@ -148,6 +168,111 @@ async function chunkedGetFallback(targetUrl, body) {
   return { status: 200, data: mergedData, error: null };
 }
 
+/**
+ * Forward a marine request to GribStream IFS Wave API.
+ * Transforms Open-Meteo-shaped input into GribStream format,
+ * then normalizes the response back to Open-Meteo shape.
+ */
+async function forwardToGribStream(body) {
+  if (!GRIBSTREAM_API_TOKEN) {
+    throw new Error('GRIBSTREAM_API_TOKEN not configured');
+  }
+
+  const lats = body.latitude || [];
+  const lons = body.longitude || [];
+  const forecastDays = body.forecast_days || 3;
+
+  // Build coordinate array
+  const coordinates = lats.map((lat, i) => ({
+    lat: +lat,
+    lon: +lons[i],
+  }));
+
+  // Time range
+  const now = new Date();
+  const fromTime = now.toISOString();
+  const untilTime = new Date(now.getTime() + forecastDays * 24 * 3600000).toISOString();
+
+  // Variable selectors
+  const variables = Object.values(OM_TO_GRIBSTREAM_VARS);
+
+  const gribBody = { fromTime, untilTime, coordinates, variables };
+
+  console.log(`[weather-proxy] GribStream POST: ${coordinates.length} coords, ${forecastDays}d`);
+
+  const response = await fetch(GRIBSTREAM_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${GRIBSTREAM_API_TOKEN}`,
+    },
+    body: JSON.stringify(gribBody),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => 'unknown');
+    throw new Error(`GribStream HTTP ${response.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const rows = await response.json();
+  console.log(`[weather-proxy] GribStream response: ${rows.length} rows`);
+
+  // Normalize: group rows by (lat, lon), build Open-Meteo shape
+  const grouped = new Map();
+  for (const row of rows) {
+    const key = `${row.lat},${row.lon}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(row);
+  }
+
+  const results = [];
+  for (const [key, coordRows] of grouped) {
+    // Sort by forecasted_time ascending
+    coordRows.sort((a, b) => a.forecasted_time.localeCompare(b.forecasted_time));
+
+    const [lat, lon] = key.split(',').map(Number);
+    const hourly = { time: [] };
+
+    // Initialize arrays for each variable
+    for (const omVar of Object.values(GRIBSTREAM_KEY_TO_OM)) {
+      hourly[omVar] = [];
+    }
+
+    for (const row of coordRows) {
+      // GribStream returns ISO timestamps like "2026-05-31T00:00:00Z"
+      // Open-Meteo uses "2026-05-31T00:00" (no Z, no seconds)
+      const t = row.forecasted_time;
+      hourly.time.push(t ? t.replace(':00Z', '').replace('Z', '') : '');
+
+      for (const [gsKey, omVar] of Object.entries(GRIBSTREAM_KEY_TO_OM)) {
+        const val = row[gsKey];
+        hourly[omVar].push(val != null ? val : null);
+      }
+    }
+
+    results.push({
+      latitude: lat,
+      longitude: lon,
+      generationtime_ms: 0,
+      utc_offset_seconds: 0,
+      timezone: 'GMT',
+      timezone_abbreviation: 'GMT',
+      elevation: 0,
+      hourly_units: {
+        time: 'iso8601',
+        wave_height: 'm',
+        wave_direction: '°',
+        wave_period: 's',
+        wave_peak_period: 's',
+      },
+      hourly,
+    });
+  }
+
+  return results;
+}
+
 exports.handler = async function(event, context) {
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -207,6 +332,55 @@ exports.handler = async function(event, context) {
           statusCode: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
           body: JSON.stringify({ error: 'Missing type or body' })
+        };
+      }
+    }
+
+    // ========================================================================
+    // GribStream routing for EURO marine data (must be before API_URLS check)
+    // ========================================================================
+    if (type === 'gribstream_marine' && event.httpMethod === 'POST' && body) {
+      console.log(`[weather-proxy] Routing to GribStream for EURO marine`);
+      const cacheKeyGS = getCacheKey('gribstream_marine', body, event);
+      const cachedGS = cache.get(cacheKeyGS);
+      if (cachedGS && Date.now() - cachedGS.timestamp < CACHE_TTL) {
+        console.log(`[weather-proxy] GribStream cache HIT`);
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Cache': 'HIT',
+            'X-Cache-Age': String(Math.round((Date.now() - cachedGS.timestamp) / 1000)),
+            'Access-Control-Allow-Origin': '*',
+          },
+          body: JSON.stringify(cachedGS.data)
+        };
+      }
+
+      try {
+        const gsData = await forwardToGribStream(body);
+        cache.set(cacheKeyGS, { data: gsData, timestamp: Date.now() });
+        if (cache.size > 100) {
+          const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+          for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
+        }
+        console.log(`[weather-proxy] GribStream success: ${gsData.length} points`);
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Cache': 'MISS',
+            'X-Source': 'GribStream',
+            'Access-Control-Allow-Origin': '*',
+          },
+          body: JSON.stringify(gsData)
+        };
+      } catch (gsErr) {
+        console.error(`[weather-proxy] GribStream error:`, gsErr.message);
+        return {
+          statusCode: 502,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ error: 'GribStream error', message: gsErr.message })
         };
       }
     }
