@@ -240,9 +240,10 @@ export var MapForecastOverlay = ({
     if (exactPoint.requestedModel && exactPoint.requestedModel !== activeModel) {
       return false;
     }
-    // v6.2: Provider check
-    const expectedProv = activeModel === 'EURO' ? 'copernicus' : 'open-meteo';
-    if (exactPoint.provider && exactPoint.provider !== expectedProv) {
+    // v6.3: Provider check — exact-point for EURO uses copernicus,
+    // but grid data for EURO uses open-meteo. Check against exact-point expectation.
+    const expectedExactProv = activeModel === 'EURO' ? 'copernicus' : 'open-meteo';
+    if (exactPoint.provider && exactPoint.provider !== expectedExactProv) {
       return false;
     }
     return true;
@@ -448,11 +449,14 @@ export var MapForecastOverlay = ({
   // v5.9.4: Display source diagnostic — tracks which data source won for each value.
   // Console: window.__MARINE_DISPLAY_SOURCE_DIAG__
   if (typeof window !== 'undefined' && isMarineLayer) {
-    const expectedProv = activeModel === 'EURO' ? 'copernicus' : 'open-meteo';
+    // v6.3: Split provider expectations — grid always open-meteo, exact-point EURO→copernicus
+    const expectedGridProv = 'open-meteo';
+    const expectedExactProv = activeModel === 'EURO' ? 'copernicus' : 'open-meteo';
     window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
       activeModel, activeLayer, timeOffsetHours,
       selectedPoint: (lat != null) ? { lat, lng } : null,
-      expectedProvider: expectedProv,
+      expectedGridProvider: expectedGridProv,
+      expectedExactProvider: expectedExactProv,
       exactPointStatus,
       exactPointValid: isExactPointValid,
       exactPointBelongsTo: useExactPoint ? {

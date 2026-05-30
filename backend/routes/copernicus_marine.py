@@ -47,11 +47,13 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
             detail="At least one coordinate pair is required"
         )
 
-    # Cap at 1000 points to prevent abuse
-    if len(req.latitude) > 1000:
+    # v6.3: Cap at 10 points — only exact-point requests (1-2 coords) should
+    # reach this endpoint. Grid requests now use Open-Meteo ecmwf_wam025.
+    if len(req.latitude) > 10:
         raise HTTPException(
             status_code=400,
-            detail=f"Too many points ({len(req.latitude)}). Maximum is 1000."
+            detail=f"Too many points ({len(req.latitude)}). Maximum is 10. "
+                   f"Grid requests should use Open-Meteo ecmwf_wam025 model."
         )
 
     start = time.time()

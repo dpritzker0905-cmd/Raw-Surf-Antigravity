@@ -41,7 +41,7 @@ var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, 
 
 // --- PERSISTENT CACHE (localStorage) ---
 var LS_WIND_KEY = 'rawsurf_wind_cache_v3'; // v5.5: bumped to invalidate stale direction data
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v6'; // v6.2: bumped to invalidate caches with broken grid sampler
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v7'; // v6.3: EURO grid uses open-meteo, only exact-point uses copernicus
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped
@@ -65,7 +65,9 @@ if (_hydratedMarine) {
   // Prevents stale Open-Meteo GFS/ICON cache from being used for EURO (Copernicus).
   var _hydMarineProvider = _hydratedMarine.provider || 'open-meteo';
   var _hydMarineModel = _hydratedMarine.model || 'GFS';
-  var _expectedProvider = (_hydMarineModel === 'EURO') ? 'copernicus' : 'open-meteo';
+  // v6.3: EURO grid now comes from Open-Meteo (ecmwf_wam025), NOT Copernicus.
+  // Only exact-point requests use Copernicus. So grid provider is always open-meteo.
+  var _expectedProvider = 'open-meteo';
   if (_hydMarineProvider !== _expectedProvider) {
     console.log(`[Marine] Rejected hydrated cache: provider=${_hydMarineProvider}, expected=${_expectedProvider} for model=${_hydMarineModel}`);
     _hydratedMarine = null;
@@ -99,9 +101,10 @@ function getModelSafeMarine(requestedModel) {
     console.log(`[Marine] lastKnownGood model mismatch: cached=${cachedModel}, wanted=${wanted} — returning null`);
     return null;
   }
-  // v6.2: Provider validation — EURO expects copernicus, GFS/ICON expect open-meteo
+  // v6.3: Grid data always comes from open-meteo (EURO grid uses ecmwf_wam025).
+  // Only exact-point uses copernicus for EURO, but grid/lastKnownGood is always open-meteo.
   const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
-  const expectedProvider = (wanted === 'EURO') ? 'copernicus' : 'open-meteo';
+  const expectedProvider = 'open-meteo';
   if (cachedProvider !== expectedProvider) {
     console.log(`[Marine] lastKnownGood provider mismatch: cached=${cachedProvider}, expected=${expectedProvider} for model=${wanted} — returning null`);
     return null;
@@ -544,8 +547,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
   // v3.9.3: Hourly cache re-index locally snaped to active model to avoid collisions
-  // v6.2: Include provider in cache keys to prevent cross-provider hits
-  const expectedProvider = (model === 'EURO') ? 'copernicus' : 'open-meteo';
+  // v6.3: Grid provider is always open-meteo (EURO grid uses ecmwf_wam025, not Copernicus).
+  // Only exact-point requests use Copernicus for EURO.
+  const expectedProvider = 'open-meteo';
   const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${expectedProvider}`);
   if (marineHourlyCache.hash === viewHash &&
       marineHourlyCache.model === (model || 'GFS') &&
@@ -618,8 +622,12 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       body.models = [MARINE_OM_MODELS[model]];
     }
 
-    // Determine proxy type: EURO uses Copernicus Marine backend, others use Open-Meteo
-    const proxyType = (model === 'EURO') ? 'copernicus_marine' : 'marine';
+    // v6.3: Grid requests ALWAYS go through Open-Meteo, even for EURO.
+    // EURO grid uses ecmwf_wam025 model (same ECMWF WAM data, 0.25° resolution).
+    // Copernicus is reserved for exact-point only (forecastSamplers.js) to prevent
+    // Render OOM: sending 729 global grid points to copernicusmarine.open_dataset()
+    // downloads the entire global ocean NetCDF (~2-4GB) into memory, killing 512MB instances.
+    const proxyType = 'marine';
 
     // v3.9.6: Proxy-first, direct fallback
     let res;

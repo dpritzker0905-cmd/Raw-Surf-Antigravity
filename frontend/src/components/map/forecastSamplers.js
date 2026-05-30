@@ -67,9 +67,9 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
     return null;
   }
 
-  // v6.1: Provider guard — reject grid data if provider doesn't match expected.
-  // GFS/ICON expect open-meteo, EURO expects copernicus.
-  const EXPECTED_PROVIDERS = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
+  // v6.3: Grid provider guard — grid data always comes from Open-Meteo, even for EURO.
+  // EURO grid uses ecmwf_wam025 model. Only exact-point uses Copernicus.
+  const EXPECTED_PROVIDERS = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'open-meteo' };
   const expectedProvider = activeModel ? EXPECTED_PROVIDERS[activeModel] : null;
   if (expectedProvider && grid.__provider && grid.__provider !== expectedProvider) {
     return null;

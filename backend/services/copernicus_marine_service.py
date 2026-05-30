@@ -22,6 +22,7 @@ RULES:
 """
 
 import os
+import gc
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
@@ -102,11 +103,18 @@ def _fetch_sync(
 
     username, password = _check_credentials()
 
-    # Compute bounding box with padding for nearest-neighbor selection
-    lat_min = min(latitudes) - 0.5
-    lat_max = max(latitudes) + 0.5
-    lon_min = min(longitudes) - 0.5
-    lon_max = max(longitudes) + 0.5
+    # Compute bounding box — tight padding per coordinate, not global extremes.
+    # v6.3: Use ±1° around each coordinate instead of ±0.5° of min/max extremes.
+    # For 1-2 exact points this gives a ~2°×2° box (~200km) — tiny, not global.
+    lat_min = min(latitudes) - 1.0
+    lat_max = max(latitudes) + 1.0
+    lon_min = min(longitudes) - 1.0
+    lon_max = max(longitudes) + 1.0
+    # Clamp to valid ranges
+    lat_min = max(-90, lat_min)
+    lat_max = min(90, lat_max)
+    lon_min = max(-180, lon_min)
+    lon_max = min(180, lon_max)
 
     # Time range
     now = datetime.now(timezone.utc)
@@ -205,9 +213,11 @@ def _fetch_sync(
                 "hourly": {"time": []},
             })
 
-    # Close dataset
+    # Close dataset and explicitly free memory
     try:
         ds.close()
+        del ds
+        gc.collect()
     except Exception:
         pass
 
