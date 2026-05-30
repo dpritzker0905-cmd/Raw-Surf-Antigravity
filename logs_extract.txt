@@ -1,1 +1,895 @@
-=== Found 0 model responses ===
+=== Found 1687 matches in transcript ===
+
+--- Match at line 16170 (Type: CODE_ACTION, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:51:15Z
+Completed At: 2026-05-29T04:51:17Z
+The following changes were made by the replace_file_content tool to: C:\Users\dprit\.gemini\antigravity\brain\c9a6ec3d-c904-427c-9911-cbbb7d605aec\task.md. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -6,11 +6,11 @@
+ - `[x]` Phase 2: Implement Grid-Truth Bilinear Sampling in Infobox
+   - `[x]` Write `sampleValueFromDecodedTiles(lat, lng, targetVariable)` in `MapForecastOverlay.js`.
+   - `[x]` Integrate sampled values into wave height, direction, swell, wind, pressure, and rain readouts in `MapForecastOverlay.js`.
+-- `[ ]` Phase 3: Repair Cross-Thread Communication & Caching in openMeteoProtocol
+-  - `[ ]` Implement persistent `BroadcastChannel` in `postReadCallback` (worker/callback thread) to resolve the synchronous close race.
+-  - `[ ]` Bypass `DECODED_TILE_CACHE` for marine variables in `runProtocol` to ensure every tile decodes an
+--------------------------------------------------
+
+--- Match at line 16180 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:51:43Z
+Completed At: 2026-05-29T04:51:43Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11539/output.txt`
+Total Lines: 53
+Total Bytes: 4627
+Showing lines 1 to 53
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: ## Console messages
+2: Showing 1-50 of 133 (Page 1 of 3).
+3: Next page: 1
+4: msgid=50143 [debug] [apiClient] GET /hashtags/trending?limit=5 (1 args)
+5: msgid=50144 [debug] [apiClient] GET /dispatch/user/dev-mock-user-id/active (1 args)
+6: msgid=50145 [debug] [apiClient] GET /notifications/dev-mock-user-id/unread-count (1 args)
+7: msgid=50146 [debug] [apiClient] GET /messages/unread-counts/dev-mock-user-id (1 args)
+8: msgid=50147 [debug] [apiClient] GET /photographers/live (1 args)
+9: ms
+--------------------------------------------------
+
+--- Match at line 16184 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'transition']
+Snippet:
+Created At: 2026-05-29T04:51:48Z
+Completed At: 2026-05-29T04:51:48Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11543/output.txt`
+Total Lines: 54
+Total Bytes: 4596
+Showing lines 1 to 54
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: ## Console messages
+2: Showing 51-100 of 241 (Page 2 of 5).
+3: Next page: 2
+4: Previous page: 0
+5: msgid=50194 [log] [Marine] === STARTING FOAM ENGINE (marine-canvas-layer) === (1 args)
+6: msgid=50195 [log] [Marine] Spawning up to 2200 foam particles (max baseline) (1 args)
+7: msgid=50196 [log] [Coordinator] Initialized single RAF for all Canvas2D layers (1 args)
+8: msgid=50197 [log] [Coordinator] Registered: marine-canvas-layer (total: 1) (1 args)
+9: msgid=50198 [log] [WindOverlay] ===
+--------------------------------------------------
+
+--- Match at line 16188 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'transition']
+Snippet:
+Created At: 2026-05-29T04:51:54Z
+Completed At: 2026-05-29T04:51:54Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11547/output.txt`
+Total Lines: 54
+Total Bytes: 4878
+Showing lines 1 to 54
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: ## Console messages
+2: Showing 101-150 of 345 (Page 3 of 7).
+3: Next page: 3
+4: Previous page: 1
+5: msgid=50245 [log] [OceanMask-Forensic] addLayers: theme=light, isSatellite=false, isMarineActive=true (1 args)
+6: msgid=50246 [log] [OceanMask] Insertion point (above water): BEFORE 'land-structure-polygon' (1 args)
+7: msgid=50247 [log] [OceanMask-Forensic] Adding layer ocean-mask-buffer (1 args)
+8: msgid=50248 [log] [OceanMask-Forensic] Adding layer ocean-mask-fill (1 args)
+9: msgid=5024
+--------------------------------------------------
+
+--- Match at line 16196 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom']
+Snippet:
+Created At: 2026-05-29T04:52:05Z
+Completed At: 2026-05-29T04:52:06Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11555/output.txt`
+Total Lines: 54
+Total Bytes: 4694
+Showing lines 1 to 54
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: ## Console messages
+2: Showing 201-250 of 576 (Page 5 of 12).
+3: Next page: 5
+4: Previous page: 3
+5: msgid=50348 [log] [WebGLMarineEngine-Forensic] setWaveData: 1681 vectors, landGeoJSON present: true (1 args)
+6: msgid=50349 [log] [WebGLMarineEngine] setWaveData input: [object Object] (2 args)
+7: msgid=50350 [log] [WebGLMarineEngine] setWaveData result: [object Object] (2 args)
+8: msgid=50351 [log] [WebGLMarineEngine-Forensic] setWaveData: 1681 vectors, landGeoJSON present: true (1 args
+--------------------------------------------------
+
+--- Match at line 16200 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom']
+Snippet:
+Created At: 2026-05-29T04:52:10Z
+Completed At: 2026-05-29T04:52:11Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11559/output.txt`
+Total Lines: 54
+Total Bytes: 4657
+Showing lines 1 to 54
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: ## Console messages
+2: Showing 251-300 of 690 (Page 6 of 14).
+3: Next page: 6
+4: Previous page: 4
+5: msgid=50398 [log] [WebGLMarineEngine] setWaveData result: [object Object] (2 args)
+6: msgid=50399 [log] [WebGLMarineEngine-Forensic] setWaveData: 1681 vectors, landGeoJSON present: true (1 args)
+7: msgid=50400 [log] [WebGLMarineEngine] setWaveData input: [object Object] (2 args)
+8: msgid=50401 [log] [WebGLMarineEngine] setWaveData result: [object Object] (2 args)
+9: msgid=50402 [log] [We
+--------------------------------------------------
+
+--- Match at line 16216 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:52:41Z
+Completed At: 2026-05-29T04:52:41Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/task.md`
+Total Lines: 19
+Total Bytes: 1482
+Showing lines 1 to 19
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Task: Grid-Truth Synchronization Engine Upgrade
+2: 
+3: - `[x]` Phase 1: Mount Marine Tile Sources/Layers
+4:   - `[x]` Modify `MapWebGL.js` to include marine layers in the custom raster loop.
+5:   - `[x]` Modify `useOpenMeteoTileUrls.js` to include marine layers in task url resolution.
+6: - `[x]` Phase 2: Implement Grid-Truth Bilinear Sampling in Infobox
+7:   - `[x]` Write `sampleValueFromDecodedTiles(lat, lng, targetVariable)` in `MapForecastOverlay.js`.
+8:   - `[x]` Integrate sampled values into wave height, directi
+--------------------------------------------------
+
+--- Match at line 16236 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom']
+Snippet:
+Created At: 2026-05-29T04:53:04Z
+Completed At: 2026-05-29T04:53:04Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/WebGLMarineEngine.js`
+Total Lines: 1173
+Total Bytes: 45582
+Showing lines 520 to 765
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+520:     updateTexture(gl, waveTex, dataWave, cols, rows);
+521:     updateTexture(gl, chlTex, dataChl, cols, rows);
+522:     updateTexture(gl, bathTex, dataBath, cols, rows);
+523:   } else {
+524:     if (engine) {
+525:       if (engine._residentWaveTex) {
+526:         safeDeleteTexture(gl, engine._residentWaveTex, engine);
+527:         safeDeleteTexture(gl, engine._residentChlTex, engine);
+528:         safeDeleteTexture(gl, engine._residentBathTex, engine);
+529:         if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+
+--------------------------------------------------
+
+--- Match at line 16246 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['cover']
+Snippet:
+Created At: 2026-05-29T04:53:15Z
+Completed At: 2026-05-29T04:53:15Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/WebGLMarineLayer.js`
+Total Lines: 521
+Total Bytes: 20599
+Showing lines 30 to 180
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+30:       });
+31:   }
+32: 
+33:   return window.__LAND_GEOJSON_PROMISE__;
+34: }
+35: 
+36: function stitchViewportGrid(viewportBounds, targetVariable, targetCols = 128, targetRows = 128) {
+37:   if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__) return null;
+38:   
+39:   const { west, south, east, north } = viewportBounds;
+40:   const lngSpan = east - west;
+41:   const latSpan = north - south;
+42:   
+43:   // 1. Gather all cached tiles that overlap with the viewport and match targetVariable
+44:   const overlappingTiles
+--------------------------------------------------
+
+--- Match at line 16262 (Type: RUN_COMMAND, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:53:34Z
+Completed At: 2026-05-29T04:53:34Z
+
+				The command completed successfully.
+				Output:
+				diff --git a/frontend/src/components/map/useOpenMeteoTileUrls.js b/frontend/src/components/map/useOpenMeteoTileUrls.js
+index 33cfd9bd..86e5cf8e 100644
+--- a/frontend/src/components/map/useOpenMeteoTileUrls.js
++++ b/frontend/src/components/map/useOpenMeteoTileUrls.js
+@@ -381,7 +381,7 @@ export function useOpenMeteoTileUrls({
+         catch (err) { console.error('[TRANSITION] LAYER_ACCESS_DENIED:', err.message); return; }
+ 
+         const tasks = Object.keys(LAYER_REGISTRY)
+-          .filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type !== 'marine') // Marine layers use GPU heatmap, not raster tiles
++          .filter(k => LAYER_REGISTRY[k].omVariable) // Atmospheric & Marine layers both resolved as tasks
+           .map(k => ({
+             layerKey: k,
+             variable: LAYER_REGISTRY[k].omVariable,
+
+
+--------------------------------------------------
+
+--- Match at line 16268 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['visibility']
+Snippet:
+Created At: 2026-05-29T04:53:41Z
+Completed At: 2026-05-29T04:53:41Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/LayerRegistry.js`
+Total Lines: 362
+Total Bytes: 11489
+Showing lines 40 to 120
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+40: // Marine waves: GFS Wave is the most complete (swell, wind_wave, secondary).
+41: // ECMWF WAM only has wave_height/period no swell/wind_wave decomposition.
+42: export const MARINE_MODEL_MAP = {
+43:   'GFS':  'ncep_gfswave025',  // Full: wave, swell, wind_wave, secondary swell
+44:   'ICON': 'dwd_gwam',         // DWD ICON-based global wave model
+45:   'EURO': 'ecmwf_wam025',     // Limited: wave_height/period only
+46: };
+47: 
+48: // BACKWARD-COMPATIBLE STATIC REGISTRY 
+49: 
+50: export var LAYER_REGISTRY = {
+51:   rain: {
+52:     i
+--------------------------------------------------
+
+--- Match at line 16292 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:54:12Z
+Completed At: 2026-05-29T04:54:13Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/openMeteoProtocol.js`
+Total Lines: 540
+Total Bytes: 24436
+Showing lines 451 to 540
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+451:             try {
+452:               if (abortController.signal.aborted) {
+453:                 WeatherTelemetry.trackTileLoaded(tileKey, false);
+454:                 throw new DOMException('The user aborted a request.', 'AbortError');
+455:               }
+456:               WeatherTelemetry.trackRasterDecodeStart(tileKey);
+457:               const res = await omProtocol(params, abortController, effectiveSettings);
+458:               TILE_TRUTH.protocolCalls++;
+459:               TILE_TRUTH.cacheMisses++;
+460:               
+--------------------------------------------------
+
+--- Match at line 16306 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'visibility']
+Snippet:
+Created At: 2026-05-29T04:54:30Z
+Completed At: 2026-05-29T04:54:30Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js`
+Total Lines: 707
+Total Bytes: 25375
+Showing lines 520 to 570
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+520:         )}
+521: 
+522:         {/* ESRI True Satellite Imagery */}
+523:         <Source
+524:           id="esri-satellite-source"
+525:           type="raster"
+526:           tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']}
+527:           tileSize={256}
+528:           maxzoom={19}
+529:         >
+530:           <Layer
+531:             id="esri-satellite-layer"
+532:             type="raster"
+533:             layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'no
+--------------------------------------------------
+
+--- Match at line 16310 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition', 'hidden']
+Snippet:
+Created At: 2026-05-29T04:54:39Z
+Completed At: 2026-05-29T04:54:39Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11669/output.txt`
+Total Lines: 4
+Total Bytes: 5438
+Showing lines 1 to 4
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: Script ran on page and returned:
+2: ```json
+3: [{"text":"Raw Surf","className":"flex items-center justify-center xl:justify-start gap-2 group cursor-pointer w-full"},{"text":"Create","className":"w-full flex items-center justify-center xl:justify-start gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900"},{"text":"Log out","className":"w-full flex-1 flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-gray-600 hover:bg-g
+--------------------------------------------------
+
+--- Match at line 16319 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16320 (Type: RUN_COMMAND, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:54:58Z
+Completed At: 2026-05-29T04:54:59Z
+
+				The command completed successfully.
+				Output:
+				
+C:\Users\dprit\.gemini\antigravity\brain\c9a6ec3d-c904-427c-9911-cbbb7d605aec\.system_generated\steps\11615\output.txt:
+76:msgid=50218 [log] [TRANSITION] [Raster Queue Transition] Processing layer 'rain' from slot undefined to 0. (1 args)
+C:\Users\dprit\.gemini\antigravity\brain\c9a6ec3d-c904-427c-9911-cbbb7d605aec\.system_generated\steps\11615\output.txt:
+77:msgid=50219 [log] [TRANSITION] [Raster Queue Transition] Processing layer 'satellite' from slot undefined to 0. (1 
+args)
+C:\Users\dprit\.gemini\antigravity\brain\c9a6ec3d-c904-427c-9911-cbbb7d605aec\.system_generated\steps\11615\output.txt:
+78:msgid=50220 [log] [TRANSITION] [Raster Queue Transition] Processing layer 'pressure' from slot undefined to 0. (1 
+args)
+C:\Users\dprit\.gemini\antigravity\brain\c9a6ec3d-c904-427c-9911-cbbb7d605aec\.system_generated\steps\11615\output.txt:
+79:msgid=50221 [
+--------------------------------------------------
+
+--- Match at line 16327 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['visibility']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16330 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['visibility']
+Snippet:
+Created At: 2026-05-29T04:55:15Z
+Completed At: 2026-05-29T04:55:15Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11689/output.txt`
+Total Lines: 4
+Total Bytes: 8782
+Showing lines 1 to 4
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: Script ran on page and returned:
+2: ```json
+3: {"sources":["mapbox-traffic","mapbox-incidents","composite","radar-source","esri-satellite-source","rain-slot-0-source","rain-slot-1-source","rain-slot-2-source","satellite-slot-0-source","satellite-slot-1-source","satellite-slot-2-source","pressure-slot-0-source","pressure-slot-1-source","pressure-slot-2-source","fog-slot-0-source","fog-slot-1-source","fog-slot-2-source","wind-slot-0-source","wind-slot-1-source","wind-slot-2-source","waves-s
+--------------------------------------------------
+
+--- Match at line 16332 (Type: GREP_SEARCH, Source: MODEL) ---
+Keywords found: ['visibility']
+Snippet:
+Created At: 2026-05-29T04:55:18Z
+Completed At: 2026-05-29T04:55:18Z
+{"File":"c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js","LineNumber":157,"LineContent":"    isTransitioning,"}
+{"File":"c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js","LineNumber":562,"LineContent":"                    visibility: (!isTransitioning \u0026\u0026 activeLayers.includes(layerKey)) ? 'visible' : 'none'"}
+{"File":"c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js","LineNumber":565,"LineContent":"                    'raster-opacity': (!isTransitioning \u0026\u0026 activeLayers.includes(layerKey) \u0026\u0026 isActive) ? ["}
+{"File":"c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js","LineNumber":600,"LineContent":"            active={!isTransitioning \u0026\u0026 !!activeMarineLayer}"}
+{"File":"c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js","LineNumber":659,"LineContent":"            active={!isTransitioning \u0026\u0026 activeL
+--------------------------------------------------
+
+--- Match at line 16336 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'transition', 'visibility']
+Snippet:
+Created At: 2026-05-29T04:55:23Z
+Completed At: 2026-05-29T04:55:24Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/useModelTransition.js`
+Total Lines: 220
+Total Bytes: 8553
+Showing lines 1 to 220
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: /**
+2:  * useModelTransition.js
+3:  *
+4:  * Model transition orchestration hook, extracted from useOpenMeteoTileUrls.js for LOC compliance.
+5:  * Handles model switching, cache busting, opacity restoration, and transition state management.
+6:  */
+7: 
+8: import { useEffect, useRef, useCallback } from 'react';
+9: import {
+10:   safeSetPaintProperty,
+11:   setMapActiveModelLock,
+12:   clearOpenMeteoCache,
+13: } from './mapUtils';
+14: import { LAYER_REGISTRY } from './LayerRegistry';
+15: 
+16: // --- Shared Constants (also used by us
+--------------------------------------------------
+
+--- Match at line 16343 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16344 (Type: GREP_SEARCH, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:55:38Z
+Completed At: 2026-05-29T04:55:38Z
+{"File":"c:\\Users\\dprit\\Raw-Surf\\frontend\\src\\components\\map\\useOpenMeteoTileUrls.js","LineNumber":236,"LineContent":"            console.log(`[TRANSITION] [Raster Queue Transition] Processing layer '${t.layerKey}' from slot ${t.activeSlot} to ${t.targetSlot}.`);"}
+--------------------------------------------------
+
+--- Match at line 16345 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16346 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:55:40Z
+Completed At: 2026-05-29T04:55:40Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/useOpenMeteoTileUrls.js`
+Total Lines: 620
+Total Bytes: 23725
+Showing lines 180 to 250
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+180:             transitionQueueRef.current.push({
+181:               layerKey,
+182:               activeSlot: undefined,
+183:               targetSlot,
+184:               timestamp: nowMs
+185:             });
+186:             delete transitionStartTimesRef.current[layerKey];
+187:             changed = true;
+188:           }
+189:         }
+190:         return;
+191:       }
+192: 
+193:       if (activeSlot === targetSlot) {
+194:         delete transitionStartTimesRef.current[layerKey];
+195:         return;
+196:       }
+197: 
+198
+--------------------------------------------------
+
+--- Match at line 16347 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16348 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:55:43Z
+Completed At: 2026-05-29T04:55:43Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/useOpenMeteoTileUrls.js`
+Total Lines: 620
+Total Bytes: 23725
+Showing lines 110 to 180
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+110:   activeLayersRef.current = activeLayers;
+111: 
+112:   // transitionQueue system for de-duplicating and batching transitions in a single frame tick (Fix 2 & 5)
+113:   const transitionQueueRef = useRef([]);
+114: 
+115:   const runTransitionsAudit = useCallback(() => {
+116:     if (!mapInstance) return;
+117: 
+118:     // Hard Scrub Lock: Disable all raster transitions while timeline scrubbing is active to prevent tile flood
+119:     if (window.isScrubbingTimeline || isScrubbingRef.current) {
+120:       return;
+121:     }
+122
+--------------------------------------------------
+
+--- Match at line 16366 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom']
+Snippet:
+Created At: 2026-05-29T04:56:12Z
+Completed At: 2026-05-29T04:56:13Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js`
+Total Lines: 707
+Total Bytes: 25375
+Showing lines 571 to 615
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+571:                       ] : 0.0,
+572:                     'raster-resampling': 'linear',
+573:                     'raster-fade-duration': 0
+574:                   }}
+575:                 />
+576:               </Source>
+577:             );
+578:           });
+579:         })}
+580: 
+581:         {/* Marine Foam/Crest Engine */}
+582:         {(!webglMarineFailed && !!activeMarineLayer) ? (
+583:           <WebGLMarineLayer
+584:             mapInstance={mapInstance}
+585:             active={!!activeMarineLayer}
+586:             data={marineW
+--------------------------------------------------
+
+--- Match at line 16387 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition', 'visibility']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16389 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16391 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition', 'visibility']
+Snippet:
+I have completed a forensic audit of the marine simulation layers, custom protocol, WebGL canvas layers, and model transition orchestrators. I found the **exact root cause** of the stale heatmap rendering and empty infobox sampling!
+
+---
+
+### 🔍 Forensic Audit Debug Findings
+
+#### 1. The Model Transition Deadlock (The Blocker)
+In `useModelTransition.js` (recently extracted from `useOpenMeteoTileUrls.js` for LOC compliance), when the map is first mounted:
+1. `mapInstance` is initially `null` or `undefined`.
+2. The hook runs with `activeModel = "GFS"`, sets the reference state `lastProcessedModelRef.current = "GFS"`, sets `isTransitioning(true)`, but **returns early** because `mapInstance` is falsy (meaning it completely skips calling the cleanup and `finishTransition` routines).
+3. Once the MapLibre component fully mounts, `mapInstance` becomes truthy and triggers the effect's `useEffect` dependencies (`[activeModel, mapInstance]`).
+4. However, the very first line of the hook is the dedu
+--------------------------------------------------
+
+--- Match at line 16393 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16394 (Type: CODE_ACTION, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:56:58Z
+Completed At: 2026-05-29T04:56:59Z
+The following changes were made by the replace_file_content tool to: c:\Users\dprit\Raw-Surf\frontend\src\components\map\useModelTransition.js. If relevant, proactively run terminal commands to execute this code for the USER. Don't ask for permission.
+[diff_block_start]
+@@ -73,6 +73,7 @@
+ }) {
+   const modelDebounceTimeoutRef = useRef(null);
+   const lastProcessedModelRef = useRef(null);
++  const lastProcessedMapRef = useRef(null); // Track map instance to prevent early-return deadlock
+ 
+   // Debounced model transition and block cache clear
+   useEffect(() => {
+@@ -80,8 +80,13 @@
+       return;
+     }
+     
++    if (!mapInstance) {
++      setIsTransitioning(false);
++      return;
++    }
++    
+     // Model Set Dedupe Guard (Request 2)
+-    if (lastProcessedModelRef.current === activeModel) {
++    if (lastProcessedModelRef.current === activeModel && lastProcessedMapRef.current === mapInstance) {
+       console.log(`[MO
+--------------------------------------------------
+
+--- Match at line 16405 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16412 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'transition']
+Snippet:
+Created At: 2026-05-29T04:57:48Z
+Completed At: 2026-05-29T04:57:50Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11771/output.txt`
+Total Lines: 92
+Total Bytes: 8267
+Showing lines 1 to 92
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: ## Console messages
+2: Showing 1-90 of 90 (Page 1 of 1).
+3: msgid=56559 [debug] [apiClient] GET /hashtags/trending?limit=5 (1 args)
+4: msgid=56560 [debug] [apiClient] GET /dispatch/user/dev-mock-user-id/active (1 args)
+5: msgid=56561 [debug] [apiClient] GET /notifications/dev-mock-user-id/unread-count (1 args)
+6: msgid=56562 [debug] [apiClient] GET /messages/unread-counts/dev-mock-user-id (1 args)
+7: msgid=56563 [debug] [apiClient] GET /photographers/live (1 args)
+8: msgid=56564 [debug]
+--------------------------------------------------
+
+--- Match at line 16413 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['visibility']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16417 (Type: USER_INPUT, Source: USER_EXPLICIT) ---
+Keywords found: ['zoom', 'cover', 'hidden']
+Snippet:
+<USER_REQUEST>
+I think that the heat map layer is hidden, when I zoom out really fast, I see something getting covered up, fast. Do a log forensics
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-05-29T00:57:55-04:00.
+</ADDITIONAL_METADATA>
+--------------------------------------------------
+
+--- Match at line 16419 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom']
+Snippet:
+Created At: 2026-05-29T04:58:05Z
+Completed At: 2026-05-29T04:58:09Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/WebGLMarineLayer.js`
+Total Lines: 521
+Total Bytes: 20599
+Showing lines 240 to 270
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+240:         _gl = glOrArgs;
+241:         _matrix = matrixArg;
+242:       }
+243:       if (this._renderLogged === undefined) {
+244:         this._renderLogged = true;
+245:         console.log("[WebGLMarineLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount, "matrixType:", typeof _matrix, "matrixLen:", _matrix?.length);
+246:       }
+247:       if (!activeRef.current || errorCount > 3) {
+248:         if (this._wasActive) {
+249:           engine.clearBuffers(_gl);
+250:           this._wasActive = false;
+25
+--------------------------------------------------
+
+--- Match at line 16432 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['cover']
+Snippet:
+Created At: 2026-05-29T04:58:30Z
+Completed At: 2026-05-29T04:58:31Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/mapUtils.js`
+Total Lines: 427
+Total Bytes: 15537
+Showing lines 348 to 390
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+348: export var findMarineInsertionLayer = function(mapInstance) {
+349:   if (!mapInstance) return null;
+350:   var style = mapInstance.getStyle?.();
+351:   if (!style?.layers) return null;
+352: 
+353:   // Primary: insert BEFORE 'ocean-mask-fill' so the vector land cover masks the WebGL layer perfectly
+354:   var hasMaskFill = style.layers.some(function(l) { return l.id === 'ocean-mask-fill'; });
+355:   if (hasMaskFill) return 'ocean-mask-fill';
+356: 
+357:   // Fallback: Find the index of the 'water' layer
+358:   var waterIndex = -1;
+359:
+--------------------------------------------------
+
+--- Match at line 16436 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom']
+Snippet:
+Created At: 2026-05-29T04:58:37Z
+Completed At: 2026-05-29T04:58:37Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/OceanMask.js`
+Total Lines: 373
+Total Bytes: 15701
+Showing lines 1 to 373
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: /**
+2:  * OceanMask v13 — Pure Data Mask + Static Layer Generator
+3:  *
+4:  * FCE Architecture: OceanMask is a PASSIVE renderer.
+5:  * It ONLY:
+6:  *   1. Loads Natural Earth land GeoJSON (progressive: 50m → 10m)
+7:  *   2. Generates a land mask for the SimulationField
+8:  *   3. Adds/removes static visual layers
+9:  *
+10:  * RULE: This component cannot make stacking decisions.
+11:  */
+12: 
+13: /* eslint-disable no-empty */
+14: import { useEffect, useRef, useState, useCallback } from 'react';
+15: import { getSharedLandGeoJSON } from './
+--------------------------------------------------
+
+--- Match at line 16452 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['visibility']
+Snippet:
+Created At: 2026-05-29T04:59:16Z
+Completed At: 2026-05-29T04:59:17Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11811/output.txt`
+Total Lines: 4
+Total Bytes: 1228360
+Showing lines 1 to 4
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: Script ran on page and returned:
+2: ```json
+3: [{"tagName":"HEAD","text":"\n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        \n        Surf Map - Raw Surf\n        window.addEventListener(\"error\",function(e){if(e.error instanceof
+--------------------------------------------------
+
+--- Match at line 16458 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition', 'hidden']
+Snippet:
+Created At: 2026-05-29T04:59:31Z
+Completed At: 2026-05-29T04:59:32Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/.system_generated/steps/11817/output.txt`
+Total Lines: 4
+Total Bytes: 6059
+Showing lines 1 to 4
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: Script ran on page and returned:
+2: ```json
+3: [{"type":"submit","text":"Raw Surf","ariaChecked":null,"className":"flex items-center justify-center xl:justify-start gap-2 group cursor-pointer w-full"},{"type":"submit","text":"Create","ariaChecked":null,"className":"w-full flex items-center justify-center xl:justify-start gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900"},{"type":"submit","text":"Log out","ariaChecked":null,"class
+--------------------------------------------------
+
+--- Match at line 16471 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'transition', 'visibility']
+Snippet:
+Created At: 2026-05-29T04:59:50Z
+Completed At: 2026-05-29T04:59:51Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/heatmap_bug_report.md`
+Total Lines: 143
+Total Bytes: 5314
+Showing lines 1 to 143
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Phase 3.2 Forensic Report — Hard Reset Strategy
+2: 
+3: ## Strategy Shift: Source Recreation > URL Cache Busting
+4: 
+5: ### Why URL Cache Busting Was Insufficient
+6: 
+7: Even though I proved `setUrl()` → `load(true)` → `reload(true)` invalidates tiles in
+8: MapLibre source code, the approach has a weakness:
+9: 
+10: ```
+11: setUrl(newUrl) → MapLibre re-fetches TileJSON → marks tiles "expired" → re-fetches
+12: ```
+13: 
+14: But "expired" tiles are **re-fetched in-place** — the SourceCache object itself pe
+--------------------------------------------------
+
+--- Match at line 16473 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition']
+Snippet:
+Created At: 2026-05-29T04:59:53Z
+Completed At: 2026-05-29T04:59:53Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/walkthrough.md`
+Total Lines: 350
+Total Bytes: 35351
+Showing lines 1 to 350
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Walkthrough: Performance Residency & Simulation Stability Authority (Ocean GPU v2.2 - v2.7)
+2: 
+3: This walkthrough details the structural, mathematical, and telemetry enhancements introduced in **RAW SURF Ocean GPU** to achieve persistent GPU texture residency, conformal Mercator advection, timeline scrubbing locks, retina-stable mask rendering, dynamic diagnostic HUD telemetry, coordinate varying interpolation stability, and React render loop de-confliction.
+4: 
+5: ---
+6: 
+7: ## 1. 💾 Persistent GPU Reside
+--------------------------------------------------
+
+--- Match at line 16477 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['hide']
+Snippet:
+Created At: 2026-05-29T04:59:57Z
+Completed At: 2026-05-29T04:59:58Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/logs_extract_first.txt`
+Total Lines: 1543
+Total Bytes: 83878
+Showing lines 1 to 800
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: === Found 64 GPS-stair matches ===
+2: 
+3: --- Match 1 at index 279582 ---
+4:  91 deletions(-)
+5: --------------------------------------------------
+6: === Conv 4e63c47c-02ba-4f38-b1d8-3862de616759 Step 11897 ===
+7: <USER_REQUEST>
+8: The issue is not fixed. Do a visual check as well. The coastal mask making the coast bigger is still present. The islands grow more than 4 times as big as they are. This needs to be fixed so no coastal mask is visual making land grow. Also the staircasing GPS(?) masking around the continents isn't removed either. Keep
+--------------------------------------------------
+
+--- Match at line 16481 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'transition', 'visibility']
+Snippet:
+Created At: 2026-05-29T05:00:02Z
+Completed At: 2026-05-29T05:00:02Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/useModelTransition.js`
+Total Lines: 227
+Total Bytes: 8828
+Showing lines 1 to 227
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: /**
+2:  * useModelTransition.js
+3:  *
+4:  * Model transition orchestration hook, extracted from useOpenMeteoTileUrls.js for LOC compliance.
+5:  * Handles model switching, cache busting, opacity restoration, and transition state management.
+6:  */
+7: 
+8: import { useEffect, useRef, useCallback } from 'react';
+9: import {
+10:   safeSetPaintProperty,
+11:   setMapActiveModelLock,
+12:   clearOpenMeteoCache,
+13: } from './mapUtils';
+14: import { LAYER_REGISTRY } from './LayerRegistry';
+15: 
+16: // --- Shared Constants (also used by us
+--------------------------------------------------
+
+--- Match at line 16491 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['transition', 'visibility']
+Snippet:
+Created At: 2026-05-29T05:00:13Z
+Completed At: 2026-05-29T05:00:14Z
+File Path: `file:///C:/Users/dprit/.gemini/antigravity/brain/c9a6ec3d-c904-427c-9911-cbbb7d605aec/implementation_plan.md`
+Total Lines: 51
+Total Bytes: 3314
+Showing lines 1 to 51
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: # Implementation Plan: Grid-Truth Synchronization & Model Transition Deadlock Fix
+2: 
+3: This plan restores 100% visual and data integrity for all marine simulation layers across GFS, ICON, and EURO models, correcting the wave heatmap colors and floating infobox point-sampled values.
+4: 
+5: ## Core Problem Statement
+6: During our deep-dive forensic audit, we discovered the root cause of the empty `window.__DECODED_OM_TILES__` cache and inactive wave tile loading:
+7: 1. **Model Transition Deadlock in `use
+--------------------------------------------------
+
+--- Match at line 16493 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom']
+Snippet:
+Created At: 2026-05-29T05:00:16Z
+Completed At: 2026-05-29T05:00:16Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/OceanMask.js`
+Total Lines: 373
+Total Bytes: 15701
+Showing lines 1 to 373
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+1: /**
+2:  * OceanMask v13 — Pure Data Mask + Static Layer Generator
+3:  *
+4:  * FCE Architecture: OceanMask is a PASSIVE renderer.
+5:  * It ONLY:
+6:  *   1. Loads Natural Earth land GeoJSON (progressive: 50m → 10m)
+7:  *   2. Generates a land mask for the SimulationField
+8:  *   3. Adds/removes static visual layers
+9:  *
+10:  * RULE: This component cannot make stacking decisions.
+11:  */
+12: 
+13: /* eslint-disable no-empty */
+14: import { useEffect, useRef, useState, useCallback } from 'react';
+15: import { getSharedLandGeoJSON } from './
+--------------------------------------------------
+
+--- Match at line 16497 (Type: VIEW_FILE, Source: MODEL) ---
+Keywords found: ['zoom', 'visibility']
+Snippet:
+Created At: 2026-05-29T05:00:20Z
+Completed At: 2026-05-29T05:00:21Z
+File Path: `file:///c:/Users/dprit/Raw-Surf/frontend/src/components/map/MapWebGL.js`
+Total Lines: 707
+Total Bytes: 25375
+Showing lines 500 to 650
+The following code has been modified to include a line number before every line, in the format: <line_number>: <original_line>. Please note that any changes targeting the original code should remove the line number, colon, and leading space.
+500:         />
+501: 
+502:         {/* --- WEATHER LAYERS --- */}
+503: 
+504:         {/* Live Radar (RainViewer animated frames) */}
+505:         {radarTileUrl && (
+506:           <Source
+507:             id="radar-source"
+508:             type="raster"
+509:             tiles={[radarTileUrl]}
+510:             tileSize={256}
+511:             maxzoom={7}
+512:           >
+513:             <Layer 
+514:               id="radar-layer" 
+515:               type="raster" 
+516:               layout={{ visibility: activeLayers.includes('radar') ? 'v
+--------------------------------------------------
+
+--- Match at line 16502 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['zoom', 'cover']
+Snippet:
+
+--------------------------------------------------
+
+--- Match at line 16504 (Type: PLANNER_RESPONSE, Source: MODEL) ---
+Keywords found: ['zoom', 'cover', 'hide', 'transition', 'visibility', 'hidden']
+Snippet:
+
+--------------------------------------------------

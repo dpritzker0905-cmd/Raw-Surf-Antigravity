@@ -1,0 +1,92 @@
+class ProjectionGrid {
+  projection;
+  // origin in projected coordinates
+  origin;
+  dx;
+  //meters
+  dy;
+  //meters
+  // minX and minY are the same as origin[0] and origin[1], if the grid is not "reduced" via the ranges
+  minX;
+  minY;
+  nx;
+  ny;
+  bounds;
+  center;
+  constructor(data, ranges = null) {
+    if (!ranges) {
+      ranges = [
+        { start: 0, end: data.ny },
+        { start: 0, end: data.nx }
+      ];
+    }
+    this.nx = ranges[1].end - ranges[1].start;
+    this.ny = ranges[0].end - ranges[0].start;
+    switch (data.type) {
+      case "projectedFromBounds": {
+        this.projection = createProjection(data.projection);
+        const sw = this.projection.forward(data.latitudeBounds[0], data.longitudeBounds[0]);
+        const ne = this.projection.forward(data.latitudeBounds[1], data.longitudeBounds[1]);
+        this.origin = sw;
+        this.dx = (ne[0] - sw[0]) / (data.nx - 1);
+        this.dy = (ne[1] - sw[1]) / (data.ny - 1);
+        break;
+      }
+      case "projectedFromGeographicOrigin": {
+        this.projection = createProjection(data.projection);
+        this.origin = this.projection.forward(data.latitude, data.longitude);
+        this.dx = data.dx;
+        this.dy = data.dy;
+        break;
+      }
+      case "projectedFromProjectedOrigin": {
+        this.projection = createProjection(data.projection);
+        this.origin = [data.projectedLongitudeOrigin, data.projectedLatitudeOrigin];
+        this.dx = data.dx;
+        this.dy = data.dy;
+        break;
+      }
+      default: {
+        const _exhaustive = data;
+        throw new Error(`Unknown projection: ${_exhaustive}`);
+      }
+    }
+    this.minX = this.origin[0] + this.dx * ranges[1].start;
+    this.minY = this.origin[1] + this.dy * ranges[0].start;
+  }
+  getLinearInterpolatedValue(values, lat, lon) {
+    const idx = this.findPointInterpolated(lat, lon);
+    return interpolateLinear(values, idx.x, idx.y, idx.xFraction, idx.yFraction, this.nx);
+  }
+  getBounds() {
+    if (!this.bounds) {
+      const borderPoints = this.getProjectedBorderPoints();
+      this.bounds = this.calculateGeographicBounds(borderPoints);
+    }
+    return this.bounds;
+  }
+  getCenter() {
+    if (!this.center) {
+      const bounds = this.getBounds();
+      this.center = this.getCenterFromBounds(bounds);
+    }
+    return this.center;
+  }
+  getCoveringRanges(south, west, north, east) {
+    const dx = this.dx;
+    const dy = this.dy;
+    const nx = this.nx;
+    const ny = this.ny;
+    let xPrecision, yPrecision;
+    if (String(dx).split(".")[1]) {
+      xPrecision = String(dx).split(".")[1].length;
+      yPrecision = String(dy).split(".")[1].length;
+    } else {
+      xPrecision = 2;
+      yPrecision = 2;
+    }
+    let [s, w, n, e] = getProjectedBounds(this.projection, [south, west, north, east]);
+    s = Number((s - s % dy).toFixed(yPrecision));
+    w = Number((w - w % dx).toFixed(xPrecision));
+    n = Number((n - n % dy + dy).toFixed(yPrecision));
+    e = Number((e - e % dx + dx).toFixed(xPrecisi

@@ -1,31 +1,47 @@
-import json
 import os
+import json
+import re
 
-TRANSCRIPT_PATH = r"C:\Users\dprit\.gemini\antigravity\brain\b97d8ab7-4ee5-420f-b778-b93f174dae99\.system_generated\logs\transcript.jsonl"
+log_path = r"C:\Users\dprit\.gemini\antigravity\brain\c9a6ec3d-c904-427c-9911-cbbb7d605aec\.system_generated\logs\transcript.jsonl"
+out_path = r"C:\Users\dprit\Raw-Surf\logs_extract.txt"
 
-def search():
-    if not os.path.exists(TRANSCRIPT_PATH):
-        print(f"Transcript path not found: {TRANSCRIPT_PATH}")
-        return
+keywords = ["zoom", "cover", "hide", "transition", "visibility", "hidden"]
+
+with open(log_path, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+
+print(f"Total lines in transcript: {len(lines)}")
+
+matches = []
+for idx, line in enumerate(lines):
+    try:
+        js = json.loads(line)
+        content = js.get("content", "")
+        # Also check tool_calls
+        tool_calls_str = ""
+        if "tool_calls" in js:
+            tool_calls_str = json.dumps(js["tool_calls"])
         
-    print(f"Searching transcript: {TRANSCRIPT_PATH}")
-    with open(TRANSCRIPT_PATH, "r", encoding="utf-8") as f:
-        for i, line in enumerate(f):
-            try:
-                data = json.loads(line)
-                content = str(data.get("content", ""))
-                tool_calls = str(data.get("tool_calls", ""))
-                
-                # Check for access code keywords
-                for keyword in ["access_code", "access code", "site_access_code", "verify"]:
-                    if keyword.lower() in content.lower() or keyword.lower() in tool_calls.lower():
-                        print(f"--- Match found on line {i+1} ---")
-                        print(f"Content preview: {content[:300]}...")
-                        if "site_access_code" in content or "site_access_code" in tool_calls:
-                            print(f"Content: {content}")
-                        break
-            except Exception as e:
-                pass
+        full_text = content + " " + tool_calls_str
+        
+        found = []
+        for kw in keywords:
+            if re.search(r'\b' + kw, full_text, re.IGNORECASE):
+                found.append(kw)
+        
+        if found:
+            matches.append((idx, js.get("type"), js.get("source"), found, content[:1000]))
+    except Exception as e:
+        pass
 
-if __name__ == "__main__":
-    search()
+print(f"Found {len(matches)} matches")
+
+with open(out_path, 'w', encoding='utf-8') as out:
+    out.write(f"=== Found {len(matches)} matches in transcript ===\n")
+    for m in matches[-50:]:  # Let's print the last 50 matches (most recent)
+        out.write(f"\n--- Match at line {m[0]} (Type: {m[1]}, Source: {m[2]}) ---\n")
+        out.write(f"Keywords found: {m[3]}\n")
+        out.write(f"Snippet:\n{m[4]}\n")
+        out.write("-" * 50 + "\n")
+
+print("Successfully wrote search results to logs_extract.txt")

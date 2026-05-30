@@ -1,0 +1,65 @@
+const ensureData = async (state, omFileReader, postReadCallback, signal) => {
+  if (state.data) return state.data;
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  const inflight = inflightRequests.get(state);
+  const subscriberCount = (inflight?.subscriberCount ?? 0) + 1;
+  if (inflight) {
+    inflight.subscriberCount = subscriberCount;
+  }
+  let finished = false;
+  const cleanup = () => {
+    if (finished) return;
+    finished = true;
+    const current = inflightRequests.get(state);
+    if (!current) return;
+    if (current.subscriberCount <= 1) {
+      inflightRequests.delete(state);
+      current.controller.abort();
+    } else {
+      current.subscriberCount -= 1;
+    }
+  };
+  if (signal) {
+    signal.addEventListener("abort", cleanup, { once: true });
+  }
+  try {
+    if (state.dataPromise) {
+      return await state.dataPromise;
+    }
+    const controller = new AbortController();
+    inflightRequests.set(state, { controller, subscriberCount });
+    state.dataPromise = (async () => {
+      try {
+        await omFileReader.setToOmFile(state.omFileUrl);
+        const data = await omFileReader.readVariable(
+          state.dataOptions.variable,
+          state.ranges,
+          controller.signal
+        );
+        if (postReadCallback) {
+          postReadCallback(omFileReader, data, state);
+        }
+        state.data = data;
+        return data;
+      } finally {
+        state.dataPromise = null;
+        inflightRequests.delete(state);
+      }
+    })();
+    return await state.dataPromise;
+  } finally {
+    if (signal) {
+      signal.removeEventListener("abort", cleanup);
+    }
+    cleanup();
+  }
+};
+const getValueFromLatLong = async (lat, lon, omUrl) => {
+  if (!omProtocolInstance) {
+    throw new Error("OmProtocolInstance is not initialized");
+  }
+  const url = await normalizeUrl(omUrl);
+  const { fileAndVariableKey } = parseUrlComponents(url);
+  const state = omProtocolInstance.stateByKey.get(fileAndVariableKey);
+  if (!state) {
+    thr

@@ -124,22 +124,25 @@ void main() {
 `;
 
 export const DRAW_VS = `
-attribute highp float a_vertex_id;       // 0 to (numParticles * 2 - 1)
+attribute highp float a_vertex_id;       // 0 to (numParticles - 1), one vertex per particle
 uniform sampler2D u_particles;     // particle position texture (RG=x, BA=y)
-uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height)
+uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height, A=period)
 uniform sampler2D u_oceanMaskTexture; // land/ocean binary mask
-uniform float u_particles_res;     // resolution of position texture (e.g. 256.0)
+uniform float u_particles_res;     // resolution of position texture (e.g. 296.0)
 uniform mat4 u_matrix;             // MapLibre projection matrix
 uniform vec2 u_dataBounds_min;     // bounds [west, south]
 uniform vec2 u_dataBounds_max;     // bounds [east, north]
-uniform float u_time;              // elapsed time for pulsation
-uniform float u_dash_length_scale; // wave crest target pixel length per meter
-uniform float u_zoom;              // map zoom level for pixel-to-degree conversion
+uniform float u_time;              // elapsed time for animation
+uniform float u_dash_length_scale; // wave crest target pixel size scale
+uniform float u_zoom;              // map zoom level
 uniform float u_merc_offset;       // world-copy offset in Mercator units (-1.0, 0.0, or +1.0)
 uniform float u_debug_mode;        // debug mode selector
+uniform float u_max_point_size;    // GPU max point size from ALIASED_POINT_SIZE_RANGE
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
+varying highp vec2 v_screen_dir;   // wave propagation direction in screen space
+varying highp float v_aspect;      // elongation ratio for foam dash
 varying highp vec4 v_debug_color;
 
 float mercatorYToLat(float y) {
@@ -148,8 +151,8 @@ float mercatorYToLat(float y) {
 }
 
 void main() {
-  float particleIndex = floor(a_vertex_id / 2.0);
-  float vertexType = mod(a_vertex_id, 2.0); // 0.0 = start, 1.0 = end
+  // v5.1: One vertex per particle (gl.POINTS foam sprites), not two (gl.LINES needles)
+  float particleIndex = a_vertex_id;
 
   float col = mod(particleIndex, u_particles_res);
   float row = floor(particleIndex / u_particles_res);
@@ -192,7 +195,10 @@ void main() {
   if (!bypassDiscard && (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
+    v_screen_dir = vec2(1.0, 0.0);
+    v_aspect = 4.0;
     v_debug_color = vec4(0.0);
+    gl_PointSize = 0.0;
     return;
   }
 
@@ -200,62 +206,87 @@ void main() {
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
+    v_screen_dir = vec2(1.0, 0.0);
+    v_aspect = 4.0;
     v_debug_color = vec4(0.0);
+    gl_PointSize = 0.0;
     return;
   }
 
+  // Debug mode colors (unchanged from v5.0)
   if (u_debug_mode > 0.5) {
-    if (u_debug_mode < 5.5) { // 'part_uv' -> 5.0
+    if (u_debug_mode < 5.5) {
       v_debug_color = vec4(p_uv.x, p_uv.y, 0.0, 1.0);
-    } else if (u_debug_mode < 6.5) { // 'part_pos' -> 6.0
+    } else if (u_debug_mode < 6.5) {
       v_debug_color = vec4(pos.x, pos.y, 0.0, 1.0);
-    } else if (u_debug_mode < 7.5) { // 'part_offset' -> 7.0
+    } else if (u_debug_mode < 7.5) {
       v_debug_color = vec4(waveVec.x * 0.5 + 0.5, waveVec.y * 0.5 + 0.5, 0.0, 1.0);
-    } else { // 'part_fbo' -> 8.0
+    } else {
       v_debug_color = vec4(1.0, 0.0, 0.0, 1.0);
     }
   } else {
     v_debug_color = vec4(0.0);
   }
 
+  // === SCREEN-SPACE DIRECTION (Correction #1) ===
+  // Project both the particle position and a nearby point along the forecast
+  // wave direction through u_matrix. This produces a screen-space propagation
+  // vector that stays correct under map rotation, pitch, and zoom.
   vec2 dir = length(waveVec) > 0.0001 ? normalize(waveVec) : vec2(1.0, 0.0);
-  
-  float rotJitter = (particleHash - 0.5) * 1.57;
-  float cosR = cos(rotJitter);
-  float sinR = sin(rotJitter);
-  vec2 jitteredDir = vec2(dir.x * cosR - dir.y * sinR, dir.x * sinR + dir.y * cosR);
-  vec2 perp = vec2(-jitteredDir.y, jitteredDir.x);
-  
-  float pixelInMercator = 1.0 / (256.0 * exp2(u_zoom));
-  float crestPixels = max(2.0, pow(max(0.001, waveHeight), 0.7) * u_dash_length_scale);
-  vec2 coordOffset = perp * crestPixels * pixelInMercator * 0.5;
 
   vec2 vertexPos = pos;
-  if (vertexType < 0.5) {
-    vertexPos -= coordOffset;
-  } else {
-    vertexPos += coordOffset;
-  }
-
   vertexPos.x += u_merc_offset;
+  vec4 clipPos = u_matrix * vec4(vertexPos.x, vertexPos.y, 0.0, 1.0);
 
-  gl_Position = u_matrix * vec4(vertexPos.x, vertexPos.y, 0.0, 1.0);
+  float eps = 1.0 / (256.0 * exp2(u_zoom)) * 20.0;
+  vec2 offsetMerc = vertexPos + dir * eps;
+  vec4 clipPosOffset = u_matrix * vec4(offsetMerc.x, offsetMerc.y, 0.0, 1.0);
+
+  vec2 ndc0 = clipPos.xy / max(clipPos.w, 0.001);
+  vec2 ndc1 = clipPosOffset.xy / max(clipPosOffset.w, 0.001);
+  vec2 screenDelta = ndc1 - ndc0;
+
+  v_screen_dir = length(screenDelta) > 0.0001
+    ? normalize(screenDelta)
+    : vec2(1.0, 0.0);
+
+  gl_Position = clipPos;
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;
   }
 
+  // === POINT SIZE (Correction #4: no rotation, variation in size only) ===
+  float baseCrestSize = pow(max(0.001, waveHeight), 0.5) * u_dash_length_scale;
+  float zoomScale = smoothstep(2.0, 10.0, u_zoom) * 1.5 + 0.5;
+  float sizeVariation = 0.85 + particleHash * 0.3;
+  float pointSize = baseCrestSize * zoomScale * sizeVariation;
+  pointSize = clamp(pointSize, 3.0, u_max_point_size);
+  gl_PointSize = pointSize;
+
+  // === FOAM DASH ASPECT RATIO ===
+  // Per-particle variation in elongation (3.5:1 to 5:1), dash length variety
+  v_aspect = 3.5 + particleHash * 1.5;
+
+  // === WAVE-TRAIN PHASE (Correction #3: aesthetic, not physical wavelength) ===
+  // spatialFreq is a VISUAL wave-train parameter, not a true wavelength.
+  // Period and direction come from real forecast data.
   float modelPeriod = waveData.a * 20.0;
-  // Physical derived wave period: small waves pulse fast, solid swells pulse slow and majestic!
   float derivedPeriod = 6.0 + waveHeight * 2.0;
   float periodVal = modelPeriod > 0.5 ? modelPeriod : derivedPeriod;
-  float period = periodVal * (0.6 + particleHash * 0.8);
-  float phase = fract(u_time / period + particleHash);
-  
+
+  float visualSpatialFreq = 80.0 / max(1.0, periodVal);
+  float spatialPhase = dot(pos, dir) * visualSpatialFreq;
+  float temporalPhase = u_time / max(2.0, periodVal * (0.8 + particleHash * 0.4));
+  float phase = fract(spatialPhase + temporalPhase);
+
   float rawPulse = sin(phase * 3.141592653589793);
-  v_alpha = pow(max(rawPulse, 0.0), 0.5);
-  
+  v_alpha = pow(max(rawPulse, 0.0), 0.6);
+
   float heightIntensity = smoothstep(0.0, 4.0, waveHeight);
   v_alpha *= mix(0.35, 1.0, heightIntensity);
+
+  // Slight opacity variation per particle (Correction #4: variation in opacity, NOT rotation)
+  v_alpha *= 0.8 + particleHash * 0.4;
 }
 `;
 
@@ -263,8 +294,15 @@ export const DRAW_FS = `
 precision mediump float;
 varying highp float v_alpha;
 varying highp float v_wave_height;
+varying highp vec2 v_screen_dir;   // wave propagation direction in screen space
+varying highp float v_aspect;      // elongation ratio for foam dash
 varying highp vec4 v_debug_color;
 uniform float u_theme;
+
+// Simple hash for foam breakup noise
+float foamHash(vec2 p) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 void main() {
   if (v_debug_color.a > 0.5) {
@@ -274,33 +312,68 @@ void main() {
 
   if (v_alpha < 0.02) discard;
 
+  // === WAVE-ALIGNED FOAM DASH GLYPH ===
+  // Transform gl_PointCoord into wave-aligned local coordinates.
+  // v_screen_dir = wave propagation direction in screen space.
+  // Crests run perpendicular to propagation.
+  vec2 uv = gl_PointCoord * 2.0 - 1.0; // centered [-1, 1]
+
+  vec2 crestAxis = vec2(-v_screen_dir.y, v_screen_dir.x); // perpendicular to propagation
+  vec2 waveAxis = v_screen_dir;                             // along propagation
+
+  float alongCrest = dot(uv, crestAxis);   // long axis of the dash
+  float acrossCrest = dot(uv, waveAxis);   // short axis (narrow)
+
+  // Elongated ellipse: wide along crest, narrow across
+  float ex = alongCrest;
+  float ey = acrossCrest * v_aspect; // v_aspect stretches the narrow axis
+
+  float ellipseDist = sqrt(ex * ex + ey * ey);
+
+  // Soft feathered edge falloff
+  float shape = 1.0 - smoothstep(0.5, 1.0, ellipseDist);
+
+  // Foam breakup noise along the crest for organic feel
+  vec2 noiseCoord = vec2(alongCrest * 3.0 + v_wave_height, acrossCrest * 2.0);
+  float breakup = foamHash(floor(noiseCoord * 4.0 + 0.5));
+  shape *= mix(0.55, 1.0, breakup);
+
+  // Soften the dash tips
+  float tipFade = 1.0 - smoothstep(0.55, 0.95, abs(alongCrest));
+  shape *= tipFade;
+
+  float alpha = v_alpha * shape;
+  if (alpha < 0.01) discard;
+
+  // === THEMED CREST COLORS (unchanged from v5.0) ===
   float energy = smoothstep(0.0, 6.0, v_wave_height);
-  
+
   vec3 calmColor, activeColor, stormColor;
-  
+
   if (u_theme > 1.5) {
-    // Beach Mode: luxurious tropical sun-kissed look
-    calmColor = vec3(0.05, 0.70, 0.60);     // tropical Bahamian emerald-turquoise
-    activeColor = vec3(1.00, 0.65, 0.45);    // warm coral peach
-    stormColor = vec3(1.00, 0.98, 0.92);     // sunny warm white
+    // Beach Mode
+    calmColor = vec3(0.05, 0.70, 0.60);
+    activeColor = vec3(1.00, 0.65, 0.45);
+    stormColor = vec3(1.00, 0.98, 0.92);
   } else if (u_theme > 0.5) {
-    // Light Mode: clean, bright sky/ocean look
-    calmColor = vec3(0.10, 0.35, 0.80);     // deep ocean blue
-    activeColor = vec3(0.40, 0.75, 0.95);    // bright sky-cyan
-    stormColor = vec3(1.00, 1.00, 1.00);     // crisp white
+    // Light Mode
+    calmColor = vec3(0.10, 0.35, 0.80);
+    activeColor = vec3(0.40, 0.75, 0.95);
+    stormColor = vec3(1.00, 1.00, 1.00);
   } else {
-    // Dark Mode: vibrant glowing neon look
-    calmColor = vec3(0.00, 0.90, 1.00);     // glowing electric cyan
-    activeColor = vec3(1.00, 0.10, 0.80);    // neon magenta
-    stormColor = vec3(1.00, 1.00, 1.00);     // pure glowing white
+    // Dark Mode
+    calmColor = vec3(0.00, 0.90, 1.00);
+    activeColor = vec3(1.00, 0.10, 0.80);
+    stormColor = vec3(1.00, 1.00, 1.00);
   }
 
-  vec3 finalColor = energy < 0.5 
+  vec3 finalColor = energy < 0.5
     ? mix(calmColor, activeColor, energy * 2.0)
     : mix(activeColor, stormColor, (energy - 0.5) * 2.0);
 
-  float boostedAlpha = v_alpha * mix(1.2, 1.8, energy);
-  boostedAlpha = min(boostedAlpha, 0.95);
+  // Premultiplied alpha output (Correction #5: gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+  float boostedAlpha = alpha * mix(1.2, 1.8, energy);
+  boostedAlpha = min(boostedAlpha, 0.85);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
 }
 `;

@@ -98,13 +98,21 @@ WebGLMarineEngine.prototype.init = function(gl) {
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
   const numParticles = this.particleRes * this.particleRes;
-  const vertexIds = new Float32Array(numParticles * 2);
-  for (let i = 0; i < vertexIds.length; i++) {
+  // v5.1: One vertex per particle (gl.POINTS), not two (gl.LINES)
+  const vertexIds = new Float32Array(numParticles);
+  for (let i = 0; i < numParticles; i++) {
     vertexIds[i] = i;
   }
   this.vertexIdBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, vertexIds, gl.STATIC_DRAW);
+
+  // Correction #2: Query GPU point size limits for safety
+  const pointSizeRange = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
+  this._maxPointSize = pointSizeRange ? Math.min(pointSizeRange[1], 64.0) : 64.0;
+  this._minPointSize = pointSizeRange ? pointSizeRange[0] : 1.0;
+  this._needsQuadFallback = this._maxPointSize < 8.0;
+  console.log(`[WebGLMarine] Point size range: ${this._minPointSize} - ${this._maxPointSize}${this._needsQuadFallback ? ' (QUAD FALLBACK RECOMMENDED)' : ''}`);
 
   const W = 96;
   const H = 96;
@@ -403,9 +411,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
 
-  const dashLengthScale = 5.0;
+  const dashLengthScale = 8.0;
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_length_scale'), dashLengthScale);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_point_size'), this._maxPointSize || 64.0);
 
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._waveData.u_waveTexture, 1);
@@ -420,12 +429,31 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var worldOffsets = [0.0, -1.0, 1.0];
   for (var wi = 0; wi < worldOffsets.length; wi++) {
     gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
-    gl.drawArrays(gl.LINES, 0, this.particleRes * this.particleRes * 2);
+    gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.drawCallsPerFrame++;
     }
   }
   gl.disableVertexAttribArray(idLoc);
+
+  // === CREST DIAGNOSTICS (Correction #2) ===
+  if (typeof window !== 'undefined') {
+    if (!this._diagLogCount) this._diagLogCount = 0;
+    this._diagLogCount++;
+    window.__CREST_DIAG__ = {
+      rendererMode: 'point_sprite_v5.1',
+      drawPrimitive: 'gl.POINTS',
+      particleCount: this.particleRes * this.particleRes,
+      particleRes: this.particleRes,
+      maxPointSize: this._maxPointSize,
+      minPointSize: this._minPointSize,
+      needsQuadFallback: this._needsQuadFallback || false,
+      dashLengthScale: dashLengthScale,
+      zoom: z,
+      waveTextureBounds: waveBounds,
+      frameCount: this._diagLogCount
+    };
+  }
 
   // ==========================================
   // PHASE 3: PARTICLE ADVECTION SYSTEM (Simulate next state)

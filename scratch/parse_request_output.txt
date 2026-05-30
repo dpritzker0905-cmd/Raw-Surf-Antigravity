@@ -1,0 +1,118 @@
+const parseRequest = (url, settings) => {
+  const urlComponents = parseUrlComponents(url);
+  const resolver = settings.resolveRequest ?? defaultResolveRequest;
+  const { dataOptions, renderOptions } = resolver(urlComponents, settings);
+  useSAB = settings.fileReaderConfig.useSAB;
+  const resolvedClippingOptions = getCachedResolvedClipping(settings.clippingOptions);
+  setClippingBounds(resolvedClippingOptions?.bounds);
+  return {
+    baseUrl: urlComponents.baseUrl,
+    fileAndVariableKey: urlComponents.fileAndVariableKey,
+    tileIndex: urlComponents.tileIndex,
+    dataOptions,
+    renderOptions,
+    clippingOptions: resolvedClippingOptions
+  };
+};
+const defaultResolveRequest = (urlComponents, settings) => {
+  const dataOptions = defaultResolveDataIdentity(urlComponents, settings.domainOptions);
+  const renderOptions = defaultResolveRenderOptions(
+    urlComponents,
+    dataOptions,
+    settings.colorScales
+  );
+  return { dataOptions, renderOptions };
+};
+const defaultResolveDataIdentity = (urlComponents, domainOptions2) => {
+  const { baseUrl, params } = urlComponents;
+  const match = baseUrl.match(RESOLVE_DOMAIN_REGEX);
+  const domainValue = match?.groups?.domain;
+  if (!domainValue) {
+    throw new Error(`Could not parse domain from URL: ${baseUrl}`);
+  }
+  const domain = domainOptions2.find((dm) => dm.value === domainValue);
+  if (!domain) {
+    throw new Error(`Invalid domain: ${domainValue}`);
+  }
+  const variable = params.get("variable");
+  if (!variable) {
+    throw new Error(`Variable is required but not defined`);
+  }
+  const mapBounds = currentBounds;
+  return { domain, variable, bounds: mapBounds };
+};
+const defaultResolveRenderOptions = (urlComponents, dataOptions, colorScales) => {
+  const { params } = urlComponents;
+  const dark = params.get("dark") === "true";
+  let colorScale;
+  if (colorScales.custom) {
+    colorScale = resolveColorScale(colorScales.custom, dark);
+  } else {
+    colorScale = getColorScale(dataOptions.variable, dark, colorScales);
+  }
+  const tileSize = parseTileSize(params.get("tile_size"));
+  let intervals = [DEFAULT_INTERVAL];
+  if (params.get("intervals")) {
+    intervals = params.get("intervals")?.split(",").map((interval) => Number(interval));
+  } else if (colorScale.type === "breakpoint") {
+    intervals = colorScale.breakpoints;
+  }
+  const drawGrid = params.get("grid") === "true";
+  const drawArrows = params.get("arrows") === "true";
+  const drawContours = params.get("contours") === "true";
+  return {
+    tileSize,
+    drawGrid,
+    drawArrows,
+    drawContours,
+    colorScale,
+    intervals
+  };
+};
+const parseTileSize = (value) => {
+  const tileSize = value ? Number(value) : DEFAULT_TILE_SIZE;
+  if (!VALID_TILE_SIZES.includes(tileSize)) {
+    throw new Error(`Invalid tile size, please use one of: ${VALID_TILE_SIZES.join(", ")}`);
+  }
+  return tileSize;
+};
+const domainGroups = [
+  // { value: 'bom', label: 'BOM Australia' },
+  { value: "cams", label: "CAMS" },
+  { value: "cma", label: "CMA China" },
+  { value: "dmi", label: "DMI Denmark" },
+  { value: "dwd", label: "DWD Germany" },
+  { value: "ecmwf", label: "ECMWF" },
+  { value: "cmc_gem", label: "GEM Canada" },
+  { value: "geosphere", label: "Geosphere Austria" },
+  { value: "ncep", label: "NOAA U.S." },
+  { value: "italia_meteo", label: "ItaliaMeteo" },
+  { value: "jma", label: "JMA Japan" },
+  { value: "kma", label: "KMA Korea" },
+  { value: "knmi", label: "KNMI Netherlands" },
+  { value: "meteofrance", label: "Météo-France" },
+  { value: "metno", label: "MET Norway" },
+  { value: "meteoswiss", label: "MeteoSwiss" },
+  { value: "ukmo", label: "UKMO" }
+];
+const domainOptions = [
+  // BOM
+  // {
+  // 	value: 'bom_access_global',
+  // 	label: 'BOM Global',
+  // 	grid: {
+  //    type: 'regular',
+  // 		nx: 2048,
+  // 		ny: 1536,
+  // 		latMin: -89.941406,
+  // 		lonMin: -179.912109,
+  // 		dx: 360 / 2048,
+  // 		dy: 180 / 1536,
+  // 		zoom: 1,
+  // 	},
+  // 	time_interval: 'hourly',
+  // },
+  // CAMS
+  {
+    value: "cams_global",
+    l
