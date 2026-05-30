@@ -14,7 +14,7 @@
 export var MARINE_MODEL_CAPABILITIES = {
   GFS: { waves: true, swell_1: true, swell_2: true, wind_waves: true, apiModel: 'ncep_gfswave025' },
   ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true, apiModel: 'dwd_gwam' },
-  EURO: { waves: true, swell_1: false, swell_2: false, wind_waves: false, apiModel: 'ecmwf_wam025' }
+  EURO: { waves: true, swell_1: true, swell_2: true, wind_waves: true, apiModel: 'ecmwf_wam025' }
 };
 
 /**

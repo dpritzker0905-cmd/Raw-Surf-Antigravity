@@ -18,14 +18,9 @@
 
 import { MARINE_MODEL_CAPABILITIES } from './marineControllerUtils';
 
-// v5.9.3: Variables that EURO (ecmwf_wam025) does NOT support.
-// sampleValueFromDecodedTiles must return null for these when activeModel is EURO,
-// regardless of what stale GFS tiles remain in __DECODED_OM_TILES__.
-var EURO_UNSUPPORTED_MARINE_VARS = new Set([
-  'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
-  'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
-  'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
-]);
+// v5.9.3→v6.0: With Copernicus Marine, EURO now supports all wave components.
+// Set kept (empty) so model-gate code paths remain structurally intact.
+var EURO_UNSUPPORTED_MARINE_VARS = new Set([]);
 var ICON_UNSUPPORTED_MARINE_VARS = new Set([
   'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'
 ]);
@@ -188,7 +183,10 @@ export async function fetchExactMarinePoint(lat, lng, model) {
       'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
     ],
     'ecmwf_wam025': [
-      'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period'
+      'wave_height', 'wave_direction', 'wave_period',
+      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
     ]
   };
 
@@ -203,8 +201,8 @@ export async function fetchExactMarinePoint(lat, lng, model) {
   };
 
   try {
-    // Route EURO through GribStream, others through Open-Meteo
-    const proxyType = (apiModel === 'ecmwf_wam025') ? 'gribstream_marine' : 'marine';
+    // Route EURO through Copernicus Marine backend, others through Open-Meteo
+    const proxyType = (apiModel === 'ecmwf_wam025') ? 'copernicus_marine' : 'marine';
 
     const res = await fetch('/api/weather-proxy', {
       method: 'POST',

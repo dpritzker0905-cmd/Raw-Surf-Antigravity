@@ -576,7 +576,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
       ],
       'ecmwf_wam025': [
-        'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period'
+        'wave_height', 'wave_direction', 'wave_period',
+        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+        'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
       ]
     };
 
@@ -588,8 +591,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       body.models = [MARINE_OM_MODELS[model]];
     }
 
-    // Determine proxy type: EURO uses GribStream, others use Open-Meteo
-    const proxyType = (model === 'EURO') ? 'gribstream_marine' : 'marine';
+    // Determine proxy type: EURO uses Copernicus Marine backend, others use Open-Meteo
+    const proxyType = (model === 'EURO') ? 'copernicus_marine' : 'marine';
 
     // v3.9.6: Proxy-first, direct fallback
     let res;
@@ -687,8 +690,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     if (!allResults) { console.warn('[Marine] Unexpected API response shape'); return getModelSafeMarine(model); }
 
     // Cache full hourly response
-    // v5.9.5: Detect provider from API response (__provider tag set by proxy for GribStream)
-    var detectedProvider = (allResults[0]?.__provider === 'gribstream') ? 'gribstream' : 'open-meteo';
+    // v6.0: Detect provider from API response (__provider tag set by Copernicus Marine backend)
+    var detectedProvider = (allResults[0]?.__provider === 'copernicus') ? 'copernicus' : 'open-meteo';
     marineHourlyCache = {
       hash: viewHash, results: allResults, points, gridSize,
       bounds: gridBounds, timestamp: Date.now(),

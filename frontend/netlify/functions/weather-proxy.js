@@ -44,25 +44,8 @@ const API_URLS = {
   marine: 'https://marine-api.open-meteo.com/v1/marine',
 };
 
-// GribStream IFS Wave API for EURO marine data
-const GRIBSTREAM_URL = 'https://gribstream.com/api/v2/ifswave/timeseries';
-const GRIBSTREAM_API_TOKEN = process.env.GRIBSTREAM_API_TOKEN || '';
-
-// Map Open-Meteo variable names → GribStream variable selectors
-const OM_TO_GRIBSTREAM_VARS = {
-  wave_height: { name: 'swh', level: 'sfc', info: '' },
-  wave_direction: { name: 'mwd', level: 'sfc', info: '' },
-  wave_period: { name: 'mwp', level: 'sfc', info: '' },
-  wave_peak_period: { name: 'pp1d', level: 'sfc', info: '' },
-};
-
-// Reverse map: GribStream response key → Open-Meteo variable name
-const GRIBSTREAM_KEY_TO_OM = {
-  'swh|sfc|': 'wave_height',
-  'mwd|sfc|': 'wave_direction',
-  'mwp|sfc|': 'wave_period',
-  'pp1d|sfc|': 'wave_peak_period',
-};
+// Copernicus Marine backend URL (FastAPI on Render)
+const BACKEND_API_URL = process.env.BACKEND_API_URL || '';
 
 /**
  * Forward a POST request with JSON body directly to Open-Meteo.
@@ -169,114 +152,31 @@ async function chunkedGetFallback(targetUrl, body) {
 }
 
 /**
- * Forward a marine request to GribStream IFS Wave API.
- * Transforms Open-Meteo-shaped input into GribStream format,
- * then normalizes the response back to Open-Meteo shape.
- *
- * v5.9.5: Time-window fix — floor fromTime to 3h boundary minus 6h
- * so the nearest live forecast step is always included.
+ * Forward a marine request to the Copernicus Marine backend (FastAPI on Render).
+ * The backend handles authentication, data fetching from CMEMS, and returns
+ * Open-Meteo-shaped JSON directly — no transformation needed here.
  */
-async function forwardToGribStream(body) {
-  if (!GRIBSTREAM_API_TOKEN) {
-    throw new Error('GRIBSTREAM_API_TOKEN not configured');
+async function forwardToCopernicus(body) {
+  if (!BACKEND_API_URL) {
+    throw new Error('BACKEND_API_URL not configured for Copernicus Marine');
   }
 
-  const lats = body.latitude || [];
-  const lons = body.longitude || [];
-  const forecastDays = body.forecast_days || 3;
+  const targetUrl = `${BACKEND_API_URL}/api/copernicus-marine`;
+  console.log(`[weather-proxy] Copernicus POST: ${(body.latitude || []).length} coords → ${targetUrl}`);
 
-  // Build coordinate array
-  const coordinates = lats.map((lat, i) => ({
-    lat: +lat,
-    lon: +lons[i],
-  }));
-
-  // v5.9.5: Time range — floor to 3h UTC boundary minus 6h to capture current step.
-  // IFS Wave publishes at 0Z/6Z/12Z/18Z; using exact `now` can miss the live step.
-  const now = new Date();
-  const threeHourMs = 3 * 3600000;
-  const flooredMs = Math.floor(now.getTime() / threeHourMs) * threeHourMs;
-  const fromTime = new Date(flooredMs - 6 * 3600000).toISOString();
-  const untilTime = new Date(now.getTime() + forecastDays * 24 * 3600000).toISOString();
-
-  // Variable selectors
-  const variables = Object.values(OM_TO_GRIBSTREAM_VARS);
-
-  const gribBody = { fromTime, untilTime, coordinates, variables };
-
-  console.log(`[weather-proxy] GribStream POST: ${coordinates.length} coords, ${forecastDays}d, from=${fromTime}`);
-
-  const response = await fetch(GRIBSTREAM_URL, {
+  const response = await fetch(targetUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': `Bearer ${GRIBSTREAM_API_TOKEN}`,
-    },
-    body: JSON.stringify(gribBody),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const errText = await response.text().catch(() => 'unknown');
-    throw new Error(`GribStream HTTP ${response.status}: ${errText.substring(0, 200)}`);
+    throw new Error(`Copernicus backend HTTP ${response.status}: ${errText.substring(0, 300)}`);
   }
 
-  const rows = await response.json();
-  console.log(`[weather-proxy] GribStream response: ${rows.length} rows`);
-
-  // Normalize: group rows by (lat, lon), build Open-Meteo shape
-  const grouped = new Map();
-  for (const row of rows) {
-    const key = `${row.lat},${row.lon}`;
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key).push(row);
-  }
-
-  const results = [];
-  for (const [key, coordRows] of grouped) {
-    // Sort by forecasted_time ascending
-    coordRows.sort((a, b) => a.forecasted_time.localeCompare(b.forecasted_time));
-
-    const [lat, lon] = key.split(',').map(Number);
-    const hourly = { time: [] };
-
-    // Initialize arrays for each variable
-    for (const omVar of Object.values(GRIBSTREAM_KEY_TO_OM)) {
-      hourly[omVar] = [];
-    }
-
-    for (const row of coordRows) {
-      // GribStream returns ISO timestamps like "2026-05-31T00:00:00Z"
-      // Open-Meteo uses "2026-05-31T00:00" (no Z, no seconds)
-      const t = row.forecasted_time;
-      hourly.time.push(t ? t.replace(':00Z', '').replace('Z', '') : '');
-
-      for (const [gsKey, omVar] of Object.entries(GRIBSTREAM_KEY_TO_OM)) {
-        const val = row[gsKey];
-        hourly[omVar].push(val != null ? val : null);
-      }
-    }
-
-    results.push({
-      latitude: lat,
-      longitude: lon,
-      generationtime_ms: 0,
-      utc_offset_seconds: 0,
-      timezone: 'GMT',
-      timezone_abbreviation: 'GMT',
-      elevation: 0,
-      __provider: 'gribstream', // v5.9.5: Provider tag for source tracking
-      hourly_units: {
-        time: 'iso8601',
-        wave_height: 'm',
-        wave_direction: '°',
-        wave_period: 's',
-        wave_peak_period: 's',
-      },
-      hourly,
-    });
-  }
-
+  const results = await response.json();
+  console.log(`[weather-proxy] Copernicus success: ${Array.isArray(results) ? results.length : '?'} points`);
   return results;
 }
 
@@ -344,50 +244,50 @@ exports.handler = async function(event, context) {
     }
 
     // ========================================================================
-    // GribStream routing for EURO marine data (must be before API_URLS check)
+    // Copernicus Marine routing for EURO marine data (replaces GribStream)
     // ========================================================================
-    if (type === 'gribstream_marine' && event.httpMethod === 'POST' && body) {
-      console.log(`[weather-proxy] Routing to GribStream for EURO marine`);
-      const cacheKeyGS = getCacheKey('gribstream_marine', body, event);
-      const cachedGS = cache.get(cacheKeyGS);
-      if (cachedGS && Date.now() - cachedGS.timestamp < CACHE_TTL) {
-        console.log(`[weather-proxy] GribStream cache HIT`);
+    if (type === 'copernicus_marine' && event.httpMethod === 'POST' && body) {
+      console.log(`[weather-proxy] Routing to Copernicus for EURO marine`);
+      const cacheKeyCM = getCacheKey('copernicus_marine', body, event);
+      const cachedCM = cache.get(cacheKeyCM);
+      if (cachedCM && Date.now() - cachedCM.timestamp < CACHE_TTL) {
+        console.log(`[weather-proxy] Copernicus cache HIT`);
         return {
           statusCode: 200,
           headers: {
             'Content-Type': 'application/json',
             'X-Cache': 'HIT',
-            'X-Cache-Age': String(Math.round((Date.now() - cachedGS.timestamp) / 1000)),
+            'X-Cache-Age': String(Math.round((Date.now() - cachedCM.timestamp) / 1000)),
             'Access-Control-Allow-Origin': '*',
           },
-          body: JSON.stringify(cachedGS.data)
+          body: JSON.stringify(cachedCM.data)
         };
       }
 
       try {
-        const gsData = await forwardToGribStream(body);
-        cache.set(cacheKeyGS, { data: gsData, timestamp: Date.now() });
+        const cmData = await forwardToCopernicus(body);
+        cache.set(cacheKeyCM, { data: cmData, timestamp: Date.now() });
         if (cache.size > 100) {
           const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
           for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
         }
-        console.log(`[weather-proxy] GribStream success: ${gsData.length} points`);
+        console.log(`[weather-proxy] Copernicus success: ${Array.isArray(cmData) ? cmData.length : '?'} points`);
         return {
           statusCode: 200,
           headers: {
             'Content-Type': 'application/json',
             'X-Cache': 'MISS',
-            'X-Source': 'GribStream',
+            'X-Source': 'Copernicus',
             'Access-Control-Allow-Origin': '*',
           },
-          body: JSON.stringify(gsData)
+          body: JSON.stringify(cmData)
         };
-      } catch (gsErr) {
-        console.error(`[weather-proxy] GribStream error:`, gsErr.message);
+      } catch (cmErr) {
+        console.error(`[weather-proxy] Copernicus error:`, cmErr.message);
         return {
           statusCode: 502,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: JSON.stringify({ error: 'GribStream error', message: gsErr.message })
+          body: JSON.stringify({ error: 'Copernicus Marine error', message: cmErr.message })
         };
       }
     }
