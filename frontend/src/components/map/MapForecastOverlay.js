@@ -113,8 +113,10 @@ export var MapForecastOverlay = ({
           swell_wave_period: selected.swell_wave_period,
           secondary_swell_wave_height: selected.secondary_swell_wave_height,
           secondary_swell_wave_direction: selected.secondary_swell_wave_direction,
+          secondary_swell_wave_period: selected.secondary_swell_wave_period,
           wind_wave_height: selected.wind_wave_height,
           wind_wave_direction: selected.wind_wave_direction,
+          wind_wave_period: selected.wind_wave_period,
         },
         source: 'exact_point_api',
         timestamp: new Date().toISOString()
@@ -303,9 +305,12 @@ export var MapForecastOverlay = ({
         : getBiasAdjusted(rawSwell1Height, 'swell1');
   
   const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
-  const swell1Period = (sampledSwell1Period && sampledSwell1Period.value > 0)
-    ? sampledSwell1Period.value
-    : (rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null));
+  // v5.9: Exact-point priority for Swell 1 period (was missing — decoded tiles could override)
+  const swell1Period = (exactPoint?.swell_wave_period != null && exactPoint.swell_wave_period > 0)
+    ? exactPoint.swell_wave_period
+    : (sampledSwell1Period && sampledSwell1Period.value > 0)
+      ? sampledSwell1Period.value
+      : (rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null));
   
   const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
   const swell1Dir = (activeLayer === 'swell_1' && exactPoint?.swell_wave_direction != null)
@@ -433,39 +438,92 @@ export var MapForecastOverlay = ({
   if (activeLayer === 'waves') {
     const hFt = mToFt(waveHeight);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-blue-300' });
-    // Prioritize swell period for surf waves infocard to show true long-period swell instead of wind-chop polluted mean wave period
-    const displayPeriod = (swell1Period != null && swell1Period > (wavePeriod || 0)) ? swell1Period : wavePeriod;
-    if (displayPeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${displayPeriod.toFixed(1)}s`, color: 'text-blue-200' });
+    // v5.9: Waves layer shows the exact combined wave_period, NOT swell1Period override.
+    // The old logic used max(swell1Period, wavePeriod) which allowed stale decoded-tile
+    // swell periods (e.g. 16.2s) to override the correct exact-point wave_period (7.5s).
+    if (wavePeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${wavePeriod.toFixed(1)}s`, color: 'text-blue-200' });
     if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}`, color: 'text-blue-200', rotate: (waveDir + 180) % 360 });
   }
 
   if (activeLayer === 'swell_1') {
+    const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
     const hFt = mToFt(swell1Height);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-cyan-400' });
-    if (swell1Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
-    if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: (swell1Dir + 180) % 360 });
+    if (!swell1LowEnergy) {
+      if (swell1Period != null && swell1Period > 0) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
+      if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: (swell1Dir + 180) % 360 });
+    } else {
+      cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+    }
   }
 
   if (activeLayer === 'swell_2') {
+    // v5.9: Low-energy direction suppression threshold
+    const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
     if (swell2ModelUnavailable) {
       // Model doesn't provide secondary swell — show informative message
       const modelLabel2 = activeModel === 'EURO' ? 'ECMWF' : activeModel;
       cards.push({ icon: Waves, label: 'Swell 2', value: 'N/A', color: 'text-purple-400' });
       cards.push({ icon: Waves, label: modelLabel2, value: 'No data', color: 'text-gray-400' });
+    } else if (swell2LowEnergy) {
+      // v5.9: Secondary swell is trace-level (<0.10m / ~0.3ft) — suppress direction
+      const hFt = mToFt(swell2Height);
+      cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '0.0 ft', color: 'text-purple-400' });
+      cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
     } else {
       const hFt = mToFt(swell2Height);
       cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-purple-400' });
-      if (swell2Period != null) cards.push({ icon: Waves, label: 'Period', value: `${swell2Period.toFixed(1)}s`, color: 'text-purple-300' });
+      if (swell2Period != null && swell2Period > 0) cards.push({ icon: Waves, label: 'Period', value: `${swell2Period.toFixed(1)}s`, color: 'text-purple-300' });
       if (swell2Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell2Dir), value: `${Math.round(swell2Dir)}`, color: 'text-purple-200', rotate: (swell2Dir + 180) % 360 });
     }
   }
 
   if (activeLayer === 'wind_waves') {
+    const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
     const hFt = mToFt(windWaveHeight);
     const suffix = windWaveEstimated ? ' ~' : '';
     cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt}${suffix} ft` : '--', color: 'text-emerald-400' });
-    if (windWavePeriod != null) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}${suffix}s`, color: 'text-emerald-300' });
-    if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: (windWaveDir + 180) % 360 });
+    if (!windWaveLowEnergy) {
+      if (windWavePeriod != null && windWavePeriod > 0) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}${suffix}s`, color: 'text-emerald-300' });
+      if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: (windWaveDir + 180) % 360 });
+    } else {
+      cards.push({ icon: Wind, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+    }
+  }
+
+  // v5.9: Period source chain diagnostics
+  if (typeof window !== 'undefined') {
+    const decodedTileSwell1P = sampledSwell1Period?.value ?? null;
+    const decodedTileWaveP = sampledWavePeriod?.value ?? null;
+    window.__MARINE_PERIOD_DIAG__ = {
+      point: lat != null ? { lat, lng } : null,
+      activeModel,
+      activeLayer,
+      timeOffsetHours,
+      exactPoint: exactPoint ? {
+        wave_height: exactPoint.wave_height, wave_period: exactPoint.wave_period, wave_direction: exactPoint.wave_direction,
+        swell_wave_height: exactPoint.swell_wave_height, swell_wave_period: exactPoint.swell_wave_period, swell_wave_direction: exactPoint.swell_wave_direction,
+        secondary_swell_wave_height: exactPoint.secondary_swell_wave_height, secondary_swell_wave_period: exactPoint.secondary_swell_wave_period, secondary_swell_wave_direction: exactPoint.secondary_swell_wave_direction,
+        wind_wave_height: exactPoint.wind_wave_height, wind_wave_period: exactPoint.wind_wave_period, wind_wave_direction: exactPoint.wind_wave_direction,
+        selectedTime: exactPoint.time, source: exactPoint.source
+      } : null,
+      decodedTileSample: { wavePeriod: decodedTileWaveP, swell1Period: decodedTileSwell1P },
+      marineGridSample: marineGridSample ? { value: marineGridSample.value, period: marineGridSample.period, direction: marineGridSample.direction, source: marineGridSample.source } : null,
+      rawHourlyFallback: { wavePeriod: getClampedValue(marine.wave_period, marineHourIndex), swell1Period: rawSwell1Period },
+      displayedCards: cards.map(c => ({ label: c.label, value: c.value })),
+      displayedPeriodSource: activeLayer === 'waves'
+        ? (exactPoint?.wave_period != null && exactPoint.wave_period > 0 ? 'exactPoint.wave_period'
+          : marineGridSample?.period > 0 ? 'marineGrid.period'
+          : decodedTileWaveP > 0 ? 'decodedTile.wave_period'
+          : 'rawHourly.wave_period')
+        : activeLayer === 'swell_1'
+          ? (exactPoint?.swell_wave_period > 0 ? 'exactPoint.swell_wave_period'
+            : decodedTileSwell1P > 0 ? 'decodedTile.swell_wave_period'
+            : 'rawHourly.swell_wave_period')
+          : activeLayer,
+      v59_fix: 'Waves layer no longer overrides wave_period with swell1Period; swell1Period now uses exactPoint first',
+      lowEnergyThreshold: '0.10m for direction suppression'
+    };
   }
 
   if (cards.length === 0) return null;

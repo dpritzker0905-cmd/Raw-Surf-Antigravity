@@ -214,8 +214,9 @@ void main() {
 
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
 
-  // v5.4: raised waveVec magnitude threshold to reduce noisy near-zero directions
-  if (!bypassDiscard && (waveHeight < 0.05 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
+  // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
+  // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
+  if (!bypassDiscard && (waveHeight < 0.10 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
