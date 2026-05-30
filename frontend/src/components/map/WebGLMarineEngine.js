@@ -464,7 +464,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     };
 
     window.__CREST_DIAG__ = {
-      rendererMode: 'quad_ribbon_v5.3',
+      rendererMode: 'quad_ribbon_v5.4_behavior_polish',
       drawPrimitive: 'gl.TRIANGLES',
       particleCount: numParts,
       vertexCount: numParts * 6,
@@ -475,6 +475,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       waveTextureBounds: waveBounds,
       frameCount: this._diagLogCount,
       densitySurvival: densityPct.toFixed(0) + '%',
+      baseAlphaFloor: { formula: 'mix(0.55, 0.85, smoothstep(0,4,h)) * (0.9+hash*0.2)', minValue: 0.55 },
+      blinkReductionEnabled: true,
+      orientationStabilized: { waveVecThreshold: 0.02, dirNormalizeThreshold: 0.01, epsMultiplier: 50, pixelDeltaMin: 2.0 },
+      beachModeCrestPalette: { calm: 'rgb(235,250,230)', active: 'rgb(255,235,184)', storm: 'rgb(255,250,230)', highlight: 'rgb(255,250,230)' },
+      phaseFormula: 'fract(dot(pos, dir) * (800/max(36,T²)) - time / (T * (0.85+hash*0.3)))',
       crestLength_CSS: {
         formula: '(mix(18,40,smoothstep(0.1,4,h))+smallBoost*6)*zoomScale → min 32px',
         at_0_3m: cssLen(0.3).toFixed(0) + 'px',
@@ -499,7 +504,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         at_18s: (800 / 324).toFixed(1) + ' (clamped to 3.0)'
       },
       waveMotionVsWhitecap: {
-        baseRippleMinShape: 0.35,
+        baseRippleMinShape: 0.5,
         whitecapOnset: '0.5m',
         whitecapFull: '3.0m',
         whitecapBlend: 0.45
@@ -508,7 +513,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         enabled: true,
         gaussianWidth: 20,
         trailingWashDecay: 3.5,
-        foamNoiseOctaves: 2
+        foamNoiseOctaves: 2,
+        foamNoiseScrollSpeed: 0.3
       },
       gpuPointSizeRange: { min: this._minPointSize, max: this._maxPointSize },
       activeMarineLayer: (typeof window.__DATA_DIAG__ !== 'undefined' && window.__DATA_DIAG__.activeMarineLayer) || 'unknown'

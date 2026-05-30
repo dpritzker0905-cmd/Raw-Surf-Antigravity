@@ -206,7 +206,8 @@ void main() {
 
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
 
-  if (!bypassDiscard && (waveHeight < 0.05 || length(waveVec) < 0.005 || oceanFlag < 0.3 || isNan || isOob)) {
+  // v5.4: raised waveVec magnitude threshold to reduce noisy near-zero directions
+  if (!bypassDiscard && (waveHeight < 0.05 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
@@ -236,14 +237,16 @@ void main() {
     v_debug_color = vec4(0.0);
   }
 
-  // === SCREEN-SPACE DIRECTION IN PIXEL COORDINATES ===
-  vec2 dir = length(waveVec) > 0.0001 ? normalize(waveVec) : vec2(1.0, 0.0);
+  // === v5.4: STABILIZED SCREEN-SPACE DIRECTION ===
+  // Higher magnitude threshold prevents jittery near-zero directions
+  vec2 dir = length(waveVec) > 0.01 ? normalize(waveVec) : vec2(1.0, 0.0);
 
   vec2 vertexPos = pos;
   vertexPos.x += u_merc_offset;
   vec4 clipPos = u_matrix * vec4(vertexPos.x, vertexPos.y, 0.0, 1.0);
 
-  float eps = 1.0 / (256.0 * exp2(u_zoom)) * 20.0;
+  // Larger eps (50×) for more stable screen-space direction across frames
+  float eps = 1.0 / (256.0 * exp2(u_zoom)) * 50.0;
   vec2 offsetMerc = vertexPos + dir * eps;
   vec4 clipPosOffset = u_matrix * vec4(offsetMerc.x, offsetMerc.y, 0.0, 1.0);
 
@@ -253,9 +256,10 @@ void main() {
   vec2 pixel0 = (ndc0 + 1.0) * 0.5 * u_viewport;
   vec2 pixel1 = (ndc1 + 1.0) * 0.5 * u_viewport;
 
-  // Screen-space basis vectors in device pixels
-  vec2 waveDir = length(pixel1 - pixel0) > 0.01
-    ? normalize(pixel1 - pixel0)
+  // Stabilized: require at least 2 device pixels of delta for valid direction
+  vec2 pixelDelta = pixel1 - pixel0;
+  vec2 waveDir = length(pixelDelta) > 2.0
+    ? normalize(pixelDelta)
     : vec2(1.0, 0.0);
   vec2 crestDir = vec2(-waveDir.y, waveDir.x); // perpendicular = crest axis
 
@@ -312,16 +316,14 @@ void main() {
   float trainPhase = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
   v_phase = trainPhase;
 
-  // === v5.3: WAVE MOTION ALPHA (base ripple, always visible) ===
-  float rawPulse = sin(trainPhase * 3.141592653589793);
-  v_alpha = pow(max(rawPulse, 0.0), 0.5);
-
-  // Stable minimum alpha: small waves never fade below 0.65×
+  // === v5.4: STABLE BASE ALPHA (anti-blink) ===
+  // Alpha is NEVER driven to zero by phase. Phase only drives FS roll highlight.
+  // Base alpha is height-aware and always visible.
   float heightAlpha = smoothstep(0.0, 4.0, waveHeight);
-  v_alpha *= mix(0.65, 1.0, heightAlpha);
+  v_alpha = mix(0.55, 0.85, heightAlpha);
 
-  // Per-particle brightness variation
-  v_alpha *= 0.85 + particleHash * 0.3;
+  // Per-particle brightness variation (±10%)
+  v_alpha *= 0.9 + particleHash * 0.2;
 
   // === v5.3: WHITECAP STRENGTH (separate from base ripple) ===
   // Only significant for waves with real breaking potential
@@ -402,23 +404,26 @@ void main() {
   // Combined rolling intensity
   float rollIntensity = max(leadingFoam, max(trailingWash, quietAhead));
 
-  // === WAVE MOTION vs WHITECAP SEPARATION ===
-  // Base ripple: always visible, modulated by roll (min 0.35 shape)
-  float baseRipple = mix(0.35, 1.0, rollIntensity);
+  // === v5.4: WAVE MOTION vs WHITECAP SEPARATION (anti-blink) ===
+  // Base ripple: always visible, gently modulated by roll (min 0.5 shape)
+  // The ribbon never disappears — only the highlight moves.
+  float baseRipple = mix(0.5, 1.0, rollIntensity);
 
   // Whitecap layer: only for waves with breaking potential
   float whitecapRoll = leadingFoam * v_whitecap;
 
   shape *= baseRipple;
 
-  // === PROCEDURAL FOAM BREAKUP (multi-octave) ===
+  // === v5.4: SPATIALLY ANCHORED FOAM BREAKUP ===
+  // Noise is position-based (stable). Time component scrolls gently (0.3×),
+  // not rapidly (was 2.0×). Wider smoothstep prevents pop-on/off.
   float n1 = foamNoise(vec2(alongCrest * 5.0 + v_wave_height, acrossCrest * 4.0));
-  float n2 = foamNoise(vec2(alongCrest * 9.0 - v_phase * 2.0, acrossCrest * 7.0 + v_wave_height));
-  float foamBreakup = mix(n1, n2, 0.4);
-  foamBreakup = smoothstep(0.15, 0.65, foamBreakup);
+  float n2 = foamNoise(vec2(alongCrest * 8.0 - v_phase * 0.3, acrossCrest * 6.0 + v_wave_height * 0.5));
+  float foamBreakup = mix(n1, n2, 0.35);
+  foamBreakup = smoothstep(0.1, 0.75, foamBreakup);
 
   // Period-aware density: short period = denser choppy foam, long period = cleaner
-  float periodDensity = mix(0.45, 0.7, v_period_norm);
+  float periodDensity = mix(0.5, 0.75, v_period_norm);
   shape *= mix(periodDensity, 1.0, foamBreakup);
 
   float alpha = v_alpha * shape;
@@ -430,11 +435,11 @@ void main() {
   vec3 calmColor, activeColor, stormColor, foamHighlight;
 
   if (u_theme > 1.5) {
-    // Beach Mode
-    calmColor = vec3(0.05, 0.70, 0.60);
-    activeColor = vec3(1.00, 0.65, 0.45);
-    stormColor = vec3(1.00, 0.98, 0.92);
-    foamHighlight = vec3(1.00, 0.98, 0.92);
+    // Beach Mode — v5.4: pale seafoam-white to contrast green heatmap
+    calmColor = vec3(0.92, 0.98, 0.90);    // pale seafoam-white (was teal 0.05,0.70,0.60)
+    activeColor = vec3(1.00, 0.92, 0.72);  // warm sunlit foam (was orange 1.00,0.65,0.45)
+    stormColor = vec3(1.00, 0.98, 0.90);   // warm white
+    foamHighlight = vec3(1.00, 0.98, 0.90);
   } else if (u_theme > 0.5) {
     // Light Mode
     calmColor = vec3(0.10, 0.35, 0.80);
