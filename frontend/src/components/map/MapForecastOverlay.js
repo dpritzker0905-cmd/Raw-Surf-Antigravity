@@ -217,9 +217,9 @@ export var MapForecastOverlay = ({
   const sampledSwell2 = sampleValueFromDecodedTiles(lat, lng, 'secondary_swell_wave_height', timeOffsetHours, activeModel);
   const sampledWindWaves = sampleValueFromDecodedTiles(lat, lng, 'wind_wave_height', timeOffsetHours, activeModel);
 
-  // v4.1: Marine grid fallback — samples directly from the heatmap's data source
-  // to guarantee infobox values match the visual colors on the map.
-  const marineGridSample = sampleFromMarineGrid(lat, lng);
+  // v5.9.4: Marine grid fallback — samples directly from the heatmap's data source.
+  // Model guard prevents GFS grid values leaking into EURO/ICON infobox.
+  const marineGridSample = sampleFromMarineGrid(lat, lng, activeModel);
 
   const sampledWavePeriod = sampleValueFromDecodedTiles(lat, lng, 'wave_period', timeOffsetHours, activeModel);
   const sampledSwell1Period = sampleValueFromDecodedTiles(lat, lng, 'swell_wave_period', timeOffsetHours, activeModel);
@@ -269,23 +269,23 @@ export var MapForecastOverlay = ({
 
   const marineCurrent = marineData?.current || {};
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
-  // v5.7.1: Exact-point API data is the top priority for infobox accuracy.
-  // The coarse global grid (27×27) is demoted — it can be 1000+ km off near coasts.
+  // v5.9.4: Exact-point API data is the top priority for infobox accuracy.
+  // Decoded tiles (~0.25° resolution) are #2; coarse grid (27×27, ~13°) is #3.
   // Priority: exact API point → decoded tile → coarse grid → raw hourly fallback.
   const waveHeight = (activeLayer === 'waves' && exactPoint?.wave_height != null)
     ? exactPoint.wave_height
-    : (activeLayer === 'waves' && marineGridSample)
-      ? marineGridSample.value
-      : (activeLayer === 'waves' && sampledWaves)
-        ? sampledWaves.value
+    : (activeLayer === 'waves' && sampledWaves)
+      ? sampledWaves.value
+      : (activeLayer === 'waves' && marineGridSample)
+        ? marineGridSample.value
         : getBiasAdjusted(rawWaveHeight, 'wave');
 
   const wavePeriod = (activeLayer === 'waves' && exactPoint?.wave_period != null && exactPoint.wave_period > 0)
     ? exactPoint.wave_period
-    : (activeLayer === 'waves' && marineGridSample?.period > 0)
-      ? marineGridSample.period
-      : (sampledWavePeriod && sampledWavePeriod.value > 0)
-        ? sampledWavePeriod.value
+    : (sampledWavePeriod && sampledWavePeriod.value > 0)
+      ? sampledWavePeriod.value
+      : (activeLayer === 'waves' && marineGridSample?.period > 0)
+        ? marineGridSample.period
         : (isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex));
   
   const waveDir = (activeLayer === 'waves' && exactPoint?.wave_direction != null)
@@ -309,10 +309,10 @@ export var MapForecastOverlay = ({
     const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : null;
     swell1Height = (activeLayer === 'swell_1' && exactPoint?.swell_wave_height != null)
       ? exactPoint.swell_wave_height
-      : (activeLayer === 'swell_1' && marineGridSample)
-        ? marineGridSample.value
-        : (activeLayer === 'swell_1' && sampledSwell1)
-          ? sampledSwell1.value
+      : (activeLayer === 'swell_1' && sampledSwell1)
+        ? sampledSwell1.value
+        : (activeLayer === 'swell_1' && marineGridSample)
+          ? marineGridSample.value
           : getBiasAdjusted(rawSwell1Height, 'swell1');
 
     const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
@@ -325,10 +325,10 @@ export var MapForecastOverlay = ({
     const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
     swell1Dir = (activeLayer === 'swell_1' && exactPoint?.swell_wave_direction != null)
       ? exactPoint.swell_wave_direction
-      : (activeLayer === 'swell_1' && marineGridSample?.direction != null)
-        ? marineGridSample.direction
-        : (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
-          ? sampledSwell1.direction
+      : (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
+        ? sampledSwell1.direction
+        : (activeLayer === 'swell_1' && marineGridSample?.direction != null)
+          ? marineGridSample.direction
           : (rawSwell1Dir != null ? rawSwell1Dir : null);
   }
   
@@ -345,27 +345,27 @@ export var MapForecastOverlay = ({
     const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
     swell2Height = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_height != null)
       ? exactPoint.secondary_swell_wave_height
-      : (activeLayer === 'swell_2' && marineGridSample)
-        ? marineGridSample.value
-        : (activeLayer === 'swell_2' && sampledSwell2)
-          ? sampledSwell2.value
+      : (activeLayer === 'swell_2' && sampledSwell2)
+        ? sampledSwell2.value
+        : (activeLayer === 'swell_2' && marineGridSample)
+          ? marineGridSample.value
           : getBiasAdjusted(rawSwell2Height, 'swell2');
 
     const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
     swell2Period = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_period != null && exactPoint.secondary_swell_wave_period > 0)
       ? exactPoint.secondary_swell_wave_period
-      : (activeLayer === 'swell_2' && marineGridSample?.period > 0)
-        ? marineGridSample.period
-        : (sampledSwell2Period && sampledSwell2Period.value > 0)
-          ? sampledSwell2Period.value
+      : (sampledSwell2Period && sampledSwell2Period.value > 0)
+        ? sampledSwell2Period.value
+        : (activeLayer === 'swell_2' && marineGridSample?.period > 0)
+          ? marineGridSample.period
           : rawSwell2Period;
 
     swell2Dir = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_direction != null)
       ? exactPoint.secondary_swell_wave_direction
-      : (activeLayer === 'swell_2' && marineGridSample?.direction != null)
-        ? marineGridSample.direction
-        : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
-          ? sampledSwell2.direction
+      : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
+        ? sampledSwell2.direction
+        : (activeLayer === 'swell_2' && marineGridSample?.direction != null)
+          ? marineGridSample.direction
           : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
   }
 
@@ -386,14 +386,14 @@ export var MapForecastOverlay = ({
     windWaveHeight = exactPoint.wind_wave_height;
     windWavePeriod = exactPoint.wind_wave_period > 0 ? exactPoint.wind_wave_period : rawWindWavePeriod;
     windWaveDir = exactPoint.wind_wave_direction != null ? exactPoint.wind_wave_direction : rawWindWaveDir;
-  } else if (activeLayer === 'wind_waves' && marineGridSample) {
-    windWaveHeight = marineGridSample.value;
-    windWavePeriod = marineGridSample.period > 0 ? marineGridSample.period : rawWindWavePeriod;
-    windWaveDir = marineGridSample.direction != null ? marineGridSample.direction : rawWindWaveDir;
   } else if (activeLayer === 'wind_waves' && sampledWindWaves) {
     windWaveHeight = sampledWindWaves.value;
     windWavePeriod = (sampledWindWavesPeriod && sampledWindWavesPeriod.value > 0) ? sampledWindWavesPeriod.value : rawWindWavePeriod;
     windWaveDir = sampledWindWaves.direction != null ? sampledWindWaves.direction : rawWindWaveDir;
+  } else if (activeLayer === 'wind_waves' && marineGridSample) {
+    windWaveHeight = marineGridSample.value;
+    windWavePeriod = marineGridSample.period > 0 ? marineGridSample.period : rawWindWavePeriod;
+    windWaveDir = marineGridSample.direction != null ? marineGridSample.direction : rawWindWaveDir;
   } else if (rawWindWaveHeight != null) {
     windWaveHeight = getBiasAdjusted(rawWindWaveHeight, 'wind_wave');
     windWavePeriod = (sampledWindWavesPeriod && sampledWindWavesPeriod.value > 0) ? sampledWindWavesPeriod.value : rawWindWavePeriod;
@@ -404,6 +404,25 @@ export var MapForecastOverlay = ({
     windWaveDir = null;
   }
   const windWaveEstimated = false; // v5.9.2: No more estimation
+
+  // v5.9.4: Display source diagnostic — tracks which data source won for each value.
+  // Console: window.__MARINE_DISPLAY_SOURCE_DIAG__
+  if (typeof window !== 'undefined' && isMarineLayer) {
+    window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
+      activeModel, activeLayer, timeOffsetHours,
+      gridSourceModel: window.__MARINE_WIND_DATA__?.__sourceModel || null,
+      waveHeight: {
+        value: waveHeight, source: (exactPoint?.wave_height != null) ? 'exact_point' : sampledWaves ? 'decoded_tile' : marineGridSample ? 'marine_grid' : 'raw_hourly'
+      },
+      wavePeriod: {
+        value: wavePeriod, source: (exactPoint?.wave_period != null && exactPoint.wave_period > 0) ? 'exact_point' : (sampledWavePeriod?.value > 0) ? 'decoded_tile' : (marineGridSample?.period > 0) ? 'marine_grid' : 'raw_hourly'
+      },
+      swell1Height: { value: swell1Height, source: swell1Supported ? ((exactPoint?.swell_wave_height != null) ? 'exact_point' : sampledSwell1 ? 'decoded_tile' : marineGridSample ? 'marine_grid' : 'raw_hourly') : 'unsupported' },
+      swell2Height: { value: swell2Height, source: swell2Supported ? ((exactPoint?.secondary_swell_wave_height != null) ? 'exact_point' : sampledSwell2 ? 'decoded_tile' : marineGridSample ? 'marine_grid' : 'raw_hourly') : 'unsupported' },
+      windWaveHeight: { value: windWaveHeight, source: windWavesSupported ? ((exactPoint?.wind_wave_height != null) ? 'exact_point' : sampledWindWaves ? 'decoded_tile' : marineGridSample ? 'marine_grid' : 'raw_hourly') : 'unsupported' },
+      timestamp: new Date().toISOString()
+    };
+  }
 
   const cards = [];
 

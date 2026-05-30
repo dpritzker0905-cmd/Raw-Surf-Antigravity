@@ -40,16 +40,26 @@ var ICON_UNSUPPORTED_MARINE_VARS = new Set([
  * using the SAME data source as WebGLMarineEngine (bilinear interpolation).
  * Falls back gracefully to null if grid data isn't available.
  *
+ * v5.9.4: Added activeModel parameter to prevent cross-model grid leakage.
+ * Returns null if the grid was produced by a different model than requested.
+ *
  * @param {number|null} lat
  * @param {number|null} lng
+ * @param {string} [activeModel] - 'GFS' | 'ICON' | 'EURO' — if provided, rejects grid data from a different model
  * @returns {{ value: number, direction: number|null, period: number|null, source: string } | null}
  */
-export function sampleFromMarineGrid(lat, lng) {
+export function sampleFromMarineGrid(lat, lng, activeModel) {
   if (typeof window === 'undefined' || !window.__MARINE_WIND_DATA__ || lat == null || lng == null) {
     return null;
   }
   const grid = window.__MARINE_WIND_DATA__;
   if (!grid.vectors?.length || !grid.cols || !grid.rows || !grid.bounds) return null;
+
+  // v5.9.4: Model guard — reject grid data from a different model to prevent
+  // GFS values leaking into EURO/ICON infobox during model switch transitions.
+  if (activeModel && grid.__sourceModel && grid.__sourceModel !== activeModel) {
+    return null;
+  }
 
   const { west, south, east, north } = grid.bounds;
   const lngSpan = east - west;
