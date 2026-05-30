@@ -155,9 +155,6 @@ export var MapForecastOverlay = ({
   const currentHourIndex = useMemo(() => findHourIndex(forecastData?.hourly?.time, timeOffsetHours), [forecastData, timeOffsetHours]);
   const marineHourIndex = useMemo(() => findHourIndex(marineData?.hourly?.time, timeOffsetHours), [marineData, timeOffsetHours]);
 
-  // Don't show when no data loaded yet (AFTER all hooks React Rules of Hooks)
-  if (!forecastData && !marineData && !isLoading) return null;
-
   const wx = forecastData?.hourly || {};
   const marine = marineData?.hourly || {};
   const isLive = timeOffsetHours === 0;
@@ -699,6 +696,7 @@ export var MapForecastOverlay = ({
     });
   }
 
+  if (!forecastData && !marineData && !isLoading) return null;
   if (cards.length === 0) return null;
 
   const modelLabel = { GFS: 'GFS', EURO: 'ECMWF', ICON: 'ICON' }[activeModel] || activeModel;
