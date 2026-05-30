@@ -172,6 +172,9 @@ async function chunkedGetFallback(targetUrl, body) {
  * Forward a marine request to GribStream IFS Wave API.
  * Transforms Open-Meteo-shaped input into GribStream format,
  * then normalizes the response back to Open-Meteo shape.
+ *
+ * v5.9.5: Time-window fix — floor fromTime to 3h boundary minus 6h
+ * so the nearest live forecast step is always included.
  */
 async function forwardToGribStream(body) {
   if (!GRIBSTREAM_API_TOKEN) {
@@ -188,9 +191,12 @@ async function forwardToGribStream(body) {
     lon: +lons[i],
   }));
 
-  // Time range
+  // v5.9.5: Time range — floor to 3h UTC boundary minus 6h to capture current step.
+  // IFS Wave publishes at 0Z/6Z/12Z/18Z; using exact `now` can miss the live step.
   const now = new Date();
-  const fromTime = now.toISOString();
+  const threeHourMs = 3 * 3600000;
+  const flooredMs = Math.floor(now.getTime() / threeHourMs) * threeHourMs;
+  const fromTime = new Date(flooredMs - 6 * 3600000).toISOString();
   const untilTime = new Date(now.getTime() + forecastDays * 24 * 3600000).toISOString();
 
   // Variable selectors
@@ -198,7 +204,7 @@ async function forwardToGribStream(body) {
 
   const gribBody = { fromTime, untilTime, coordinates, variables };
 
-  console.log(`[weather-proxy] GribStream POST: ${coordinates.length} coords, ${forecastDays}d`);
+  console.log(`[weather-proxy] GribStream POST: ${coordinates.length} coords, ${forecastDays}d, from=${fromTime}`);
 
   const response = await fetch(GRIBSTREAM_URL, {
     method: 'POST',
@@ -259,6 +265,7 @@ async function forwardToGribStream(body) {
       timezone: 'GMT',
       timezone_abbreviation: 'GMT',
       elevation: 0,
+      __provider: 'gribstream', // v5.9.5: Provider tag for source tracking
       hourly_units: {
         time: 'iso8601',
         wave_height: 'm',

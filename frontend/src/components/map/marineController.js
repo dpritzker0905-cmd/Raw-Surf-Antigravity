@@ -41,7 +41,7 @@ var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, 
 
 // --- PERSISTENT CACHE (localStorage) ---
 var LS_WIND_KEY = 'rawsurf_wind_cache_v3'; // v5.5: bumped to invalidate stale direction data
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v3'; // v5.5: bumped to invalidate stale direction data
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v4'; // v5.9.5: bumped to invalidate caches lacking provider tag
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped
@@ -687,10 +687,13 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     if (!allResults) { console.warn('[Marine] Unexpected API response shape'); return getModelSafeMarine(model); }
 
     // Cache full hourly response
+    // v5.9.5: Detect provider from API response (__provider tag set by proxy for GribStream)
+    var detectedProvider = (allResults[0]?.__provider === 'gribstream') ? 'gribstream' : 'open-meteo';
     marineHourlyCache = {
       hash: viewHash, results: allResults, points, gridSize,
       bounds: gridBounds, timestamp: Date.now(),
       model: model || 'GFS',
+      provider: detectedProvider,
       isGlobal
     };
     persistCache(LS_MARINE_KEY, marineHourlyCache);

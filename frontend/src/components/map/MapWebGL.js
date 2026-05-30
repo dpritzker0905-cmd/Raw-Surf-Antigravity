@@ -302,6 +302,7 @@ var MapWebGL = ({
     if (typeof window !== 'undefined') {
       window.__MARINE_WIND_DATA__ = res;
       window.__MARINE_WIND_DATA__.__sourceModel = activeModel; // v5.9.3: Model tag for diagnostics
+      window.__MARINE_WIND_DATA__.__provider = marineData?.grid?.provider || 'unknown'; // v5.9.5: Provider tracking
     }
     return res;
   }, [marineData, activeMarineLayer, activeModel]);

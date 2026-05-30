@@ -398,8 +398,11 @@ function proxyPostToGribStream(bodyPayload, cacheKey, res) {
   const forecastDays = bodyPayload.forecast_days || 3;
 
   const coordinates = lats.map((lat, i) => ({ lat: +lat, lon: +lons[i] }));
+  // v5.9.5: Floor to 3h UTC boundary minus 6h to capture current forecast step
   const now = new Date();
-  const fromTime = now.toISOString();
+  const threeHourMs = 3 * 3600000;
+  const flooredMs = Math.floor(now.getTime() / threeHourMs) * threeHourMs;
+  const fromTime = new Date(flooredMs - 6 * 3600000).toISOString();
   const untilTime = new Date(now.getTime() + forecastDays * 24 * 3600000).toISOString();
   const variables = Object.values(OM_TO_GRIBSTREAM_VARS);
 
@@ -456,6 +459,7 @@ function proxyPostToGribStream(bodyPayload, cacheKey, res) {
           latitude: lat, longitude: lon,
           generationtime_ms: 0, utc_offset_seconds: 0,
           timezone: 'GMT', timezone_abbreviation: 'GMT', elevation: 0,
+          __provider: 'gribstream', // v5.9.5: Provider tag
           hourly_units: { time: 'iso8601', wave_height: 'm', wave_direction: '°', wave_period: 's', wave_peak_period: 's' },
           hourly,
         });

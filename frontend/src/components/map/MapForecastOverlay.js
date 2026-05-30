@@ -411,6 +411,8 @@ export var MapForecastOverlay = ({
     window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
       activeModel, activeLayer, timeOffsetHours,
       gridSourceModel: window.__MARINE_WIND_DATA__?.__sourceModel || null,
+      gridProvider: window.__MARINE_WIND_DATA__?.__provider || null, // v5.9.5
+      exactPointProvider: exactPointResponse?.provider || null, // v5.9.5
       waveHeight: {
         value: waveHeight, source: (exactPoint?.wave_height != null) ? 'exact_point' : sampledWaves ? 'decoded_tile' : marineGridSample ? 'marine_grid' : 'raw_hourly'
       },

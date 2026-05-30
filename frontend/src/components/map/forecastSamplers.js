@@ -243,6 +243,7 @@ export async function fetchExactMarinePoint(lat, lng, model) {
       snappedLng: result.longitude,
       forecastDays,
       apiModel,
+      provider: result.__provider || 'open-meteo', // v5.9.5: Source tracking
       source: 'exact_point_api'
     };
 
