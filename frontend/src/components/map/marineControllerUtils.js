@@ -169,7 +169,7 @@ export function computeGridPoints(bounds, caller = 'wind') {
       // v3.14: Reduced from 40 to 15 to keep point count (256) under proxy chunk threshold (250)
       // and eliminate multi-chunk requests that trigger rate limits.
       west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 10 : 15;
+      GRID = isMobile ? 9 : 14;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
       // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems
