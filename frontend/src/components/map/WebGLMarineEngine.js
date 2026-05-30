@@ -436,22 +436,51 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   }
   gl.disableVertexAttribArray(idLoc);
 
-  // === CREST DIAGNOSTICS (Correction #2) ===
+  // === CREST DIAGNOSTICS (v5.2) ===
   if (typeof window !== 'undefined') {
     if (!this._diagLogCount) this._diagLogCount = 0;
     this._diagLogCount++;
+    var zf = Math.max(0, Math.min(1, (z - 2) / 8));
+    var zoomScale = 0.4 + zf * 0.6;
     window.__CREST_DIAG__ = {
-      rendererMode: 'point_sprite_v5.1',
+      rendererMode: 'point_sprite_v5.2_rolling_whitewater',
       drawPrimitive: 'gl.POINTS',
       particleCount: this.particleRes * this.particleRes,
       particleRes: this.particleRes,
       maxPointSize: this._maxPointSize,
       minPointSize: this._minPointSize,
       needsQuadFallback: this._needsQuadFallback || false,
-      dashLengthScale: dashLengthScale,
       zoom: z,
       waveTextureBounds: waveBounds,
-      frameCount: this._diagLogCount
+      frameCount: this._diagLogCount,
+      sizeCurve: {
+        formula: 'mix(14,34,smoothstep(0.15,3.0,h)) + (1-smoothstep(0.8,1.8,h))*6',
+        zoomScale: zoomScale.toFixed(3),
+        theoretical_0_2m: (20.0 * zoomScale).toFixed(1) + 'px',
+        theoretical_1m: (24.0 * zoomScale).toFixed(1) + 'px',
+        theoretical_3m: (34.0 * zoomScale).toFixed(1) + 'px',
+        minClamp: 6,
+        maxClamp: this._maxPointSize
+      },
+      alphaCurve: {
+        formula: 'pulse^0.5 * mix(0.6,1.0,smoothstep(0,4,h)) * (0.85+hash*0.3)',
+        minAlphaFloor: 0.6,
+        pulseExponent: 0.5
+      },
+      periodSpacing: {
+        formula: 'mix(22,6,smoothstep(4,18,period))',
+        shortPeriod_4s_freq: 22.0,
+        longPeriod_18s_freq: 6.0,
+        temporalJitter: '±15%'
+      },
+      rollingWhitewater: {
+        enabled: true,
+        leadingEdgeGaussianWidth: 50,
+        trailingWashDecay: 5.0,
+        minShapeMultiplier: 0.25,
+        foamNoiseOctaves: 2
+      },
+      activeMarineLayer: (typeof window.__DATA_DIAG__ !== 'undefined' && window.__DATA_DIAG__.activeMarineLayer) || 'unknown'
     };
   }
 

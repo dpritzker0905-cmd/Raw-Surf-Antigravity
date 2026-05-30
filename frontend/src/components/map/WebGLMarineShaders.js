@@ -128,14 +128,14 @@ attribute highp float a_vertex_id;       // 0 to (numParticles - 1), one vertex 
 uniform sampler2D u_particles;     // particle position texture (RG=x, BA=y)
 uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height, A=period)
 uniform sampler2D u_oceanMaskTexture; // land/ocean binary mask
-uniform float u_particles_res;     // resolution of position texture (e.g. 296.0)
+uniform float u_particles_res;     // resolution of position texture
 uniform mat4 u_matrix;             // MapLibre projection matrix
 uniform vec2 u_dataBounds_min;     // bounds [west, south]
 uniform vec2 u_dataBounds_max;     // bounds [east, north]
-uniform float u_time;              // elapsed time for animation
-uniform float u_dash_length_scale; // wave crest target pixel size scale
+uniform float u_time;              // elapsed time in seconds
+uniform float u_dash_length_scale; // global size multiplier (normalized around 8.0)
 uniform float u_zoom;              // map zoom level
-uniform float u_merc_offset;       // world-copy offset in Mercator units (-1.0, 0.0, or +1.0)
+uniform float u_merc_offset;       // world-copy offset (-1.0, 0.0, or +1.0)
 uniform float u_debug_mode;        // debug mode selector
 uniform float u_max_point_size;    // GPU max point size from ALIASED_POINT_SIZE_RANGE
 
@@ -143,6 +143,8 @@ varying highp float v_alpha;
 varying highp float v_wave_height;
 varying highp vec2 v_screen_dir;   // wave propagation direction in screen space
 varying highp float v_aspect;      // elongation ratio for foam dash
+varying highp float v_phase;       // v5.2: wave-train phase for rolling whitewater
+varying highp float v_period_norm; // v5.2: normalized period [0=short choppy, 1=long swell]
 varying highp vec4 v_debug_color;
 
 float mercatorYToLat(float y) {
@@ -151,7 +153,7 @@ float mercatorYToLat(float y) {
 }
 
 void main() {
-  // v5.1: One vertex per particle (gl.POINTS foam sprites), not two (gl.LINES needles)
+  // v5.1+: One vertex per particle (gl.POINTS foam sprites)
   float particleIndex = a_vertex_id;
 
   float col = mod(particleIndex, u_particles_res);
@@ -164,11 +166,9 @@ void main() {
     encodedPos.b + encodedPos.a / 255.0
   );
 
-  // Convert global Mercator coordinates to geographic lng/lat
   float lng = pos.x * 360.0 - 180.0;
   float lat = mercatorYToLat(pos.y);
 
-  // Map to local texture coordinate of u_waveTexture and u_oceanMaskTexture
   float tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
   float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
   vec2 tex_uv = vec2(tex_u, tex_v);
@@ -183,7 +183,6 @@ void main() {
 
   bool bypassDiscard = (u_debug_mode > 7.5);
 
-  // Detect NaN or extreme values
   bool isNan = !(pos.x >= 0.0 || pos.x < 0.0) || 
                !(pos.y >= 0.0 || pos.y < 0.0) || 
                !(waveHeight >= 0.0 || waveHeight < 0.0) ||
@@ -192,11 +191,14 @@ void main() {
 
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
 
-  if (!bypassDiscard && (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3 || isNan || isOob)) {
+  // v5.2: lowered discard threshold from 0.1 to 0.05 so small waves pass through
+  if (!bypassDiscard && (waveHeight < 0.05 || length(waveVec) < 0.005 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0;
     v_screen_dir = vec2(1.0, 0.0);
     v_aspect = 4.0;
+    v_phase = 0.0;
+    v_period_norm = 0.5;
     v_debug_color = vec4(0.0);
     gl_PointSize = 0.0;
     return;
@@ -208,12 +210,14 @@ void main() {
     v_alpha = 0.0;
     v_screen_dir = vec2(1.0, 0.0);
     v_aspect = 4.0;
+    v_phase = 0.0;
+    v_period_norm = 0.5;
     v_debug_color = vec4(0.0);
     gl_PointSize = 0.0;
     return;
   }
 
-  // Debug mode colors (unchanged from v5.0)
+  // Debug mode colors (unchanged)
   if (u_debug_mode > 0.5) {
     if (u_debug_mode < 5.5) {
       v_debug_color = vec4(p_uv.x, p_uv.y, 0.0, 1.0);
@@ -228,10 +232,7 @@ void main() {
     v_debug_color = vec4(0.0);
   }
 
-  // === SCREEN-SPACE DIRECTION (Correction #1) ===
-  // Project both the particle position and a nearby point along the forecast
-  // wave direction through u_matrix. This produces a screen-space propagation
-  // vector that stays correct under map rotation, pitch, and zoom.
+  // === SCREEN-SPACE DIRECTION (unchanged from v5.1) ===
   vec2 dir = length(waveVec) > 0.0001 ? normalize(waveVec) : vec2(1.0, 0.0);
 
   vec2 vertexPos = pos;
@@ -255,38 +256,52 @@ void main() {
     gl_Position.w = 1.0;
   }
 
-  // === POINT SIZE (Correction #4: no rotation, variation in size only) ===
-  float baseCrestSize = pow(max(0.001, waveHeight), 0.5) * u_dash_length_scale;
-  float zoomScale = smoothstep(2.0, 10.0, u_zoom) * 1.5 + 0.5;
+  // === v5.2: RECALIBRATED POINT SIZE ===
+  // Nonlinear energy ramp: small waves get a visible baseline, large waves scale up.
+  // 0.2m → ~20px base, 1.0m → ~24px, 3.0m → ~34px (before zoom scaling).
+  float sizeEnergy = smoothstep(0.15, 3.0, waveHeight);
+  float smallBoost = (1.0 - smoothstep(0.8, 1.8, waveHeight)) * 6.0;
+  float globalScale = u_dash_length_scale / 8.0; // normalized: 8.0 → 1.0x
+  float baseSize = (mix(14.0, 34.0, sizeEnergy) + smallBoost) * globalScale;
+  float zoomFactor = smoothstep(2.0, 10.0, u_zoom);
   float sizeVariation = 0.85 + particleHash * 0.3;
-  float pointSize = baseCrestSize * zoomScale * sizeVariation;
-  pointSize = clamp(pointSize, 3.0, u_max_point_size);
+  float pointSize = baseSize * (0.4 + zoomFactor * 0.6) * sizeVariation;
+  pointSize = clamp(pointSize, 6.0, u_max_point_size);
   gl_PointSize = pointSize;
 
-  // === FOAM DASH ASPECT RATIO ===
-  // Per-particle variation in elongation (3.5:1 to 5:1), dash length variety
+  // Foam dash aspect ratio (3.5:1 to 5:1)
   v_aspect = 3.5 + particleHash * 1.5;
 
-  // === WAVE-TRAIN PHASE (Correction #3: aesthetic, not physical wavelength) ===
-  // spatialFreq is a VISUAL wave-train parameter, not a true wavelength.
-  // Period and direction come from real forecast data.
+  // === v5.2: PERIOD-BASED CREST SPACING ===
+  // Short-period wind waves → tight choppy bands (high spatial freq)
+  // Long-period swell → wide organized sets (low spatial freq)
   float modelPeriod = waveData.a * 20.0;
   float derivedPeriod = 6.0 + waveHeight * 2.0;
   float periodVal = modelPeriod > 0.5 ? modelPeriod : derivedPeriod;
 
-  float visualSpatialFreq = 80.0 / max(1.0, periodVal);
-  float spatialPhase = dot(pos, dir) * visualSpatialFreq;
-  float temporalPhase = u_time / max(2.0, periodVal * (0.8 + particleHash * 0.4));
-  float phase = fract(spatialPhase + temporalPhase);
+  float periodNorm = smoothstep(4.0, 18.0, periodVal);
+  v_period_norm = periodNorm;
 
-  float rawPulse = sin(phase * 3.141592653589793);
-  v_alpha = pow(max(rawPulse, 0.0), 0.6);
+  // Spatial frequency: visual crest spacing, NOT physical wavelength
+  float spatialFreq = mix(22.0, 6.0, periodNorm);
 
-  float heightIntensity = smoothstep(0.0, 4.0, waveHeight);
-  v_alpha *= mix(0.35, 1.0, heightIntensity);
+  // Temporal advance: crests move forward at period-dependent speed
+  // Per-particle jitter (±15%) breaks lockstep while keeping coherent trains
+  float temporalSpeed = u_time / max(2.0, periodVal * (0.85 + particleHash * 0.3));
+  float trainPhase = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
+  v_phase = trainPhase;
 
-  // Slight opacity variation per particle (Correction #4: variation in opacity, NOT rotation)
-  v_alpha *= 0.8 + particleHash * 0.4;
+  // === v5.2: RECALIBRATED ALPHA ===
+  // Phase-driven pulse with HIGHER floor so small waves stay visible
+  float rawPulse = sin(trainPhase * 3.141592653589793);
+  v_alpha = pow(max(rawPulse, 0.0), 0.5);
+
+  // Higher minimum alpha for small waves (was 0.35 → now 0.6)
+  float heightAlpha = smoothstep(0.0, 4.0, waveHeight);
+  v_alpha *= mix(0.6, 1.0, heightAlpha);
+
+  // Per-particle opacity variation (no rotation, just brightness)
+  v_alpha *= 0.85 + particleHash * 0.3;
 }
 `;
 
@@ -296,12 +311,25 @@ varying highp float v_alpha;
 varying highp float v_wave_height;
 varying highp vec2 v_screen_dir;   // wave propagation direction in screen space
 varying highp float v_aspect;      // elongation ratio for foam dash
+varying highp float v_phase;       // v5.2: wave-train phase for rolling whitewater
+varying highp float v_period_norm; // v5.2: normalized period [0=short choppy, 1=long swell]
 varying highp vec4 v_debug_color;
 uniform float u_theme;
 
-// Simple hash for foam breakup noise
+// Multi-octave procedural noise for organic foam breakup
 float foamHash(vec2 p) {
   return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float foamNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float a = foamHash(i);
+  float b = foamHash(i + vec2(1.0, 0.0));
+  float c = foamHash(i + vec2(0.0, 1.0));
+  float d = foamHash(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
 void main() {
@@ -312,10 +340,7 @@ void main() {
 
   if (v_alpha < 0.02) discard;
 
-  // === WAVE-ALIGNED FOAM DASH GLYPH ===
-  // Transform gl_PointCoord into wave-aligned local coordinates.
-  // v_screen_dir = wave propagation direction in screen space.
-  // Crests run perpendicular to propagation.
+  // === WAVE-ALIGNED LOCAL COORDINATES ===
   vec2 uv = gl_PointCoord * 2.0 - 1.0; // centered [-1, 1]
 
   vec2 crestAxis = vec2(-v_screen_dir.y, v_screen_dir.x); // perpendicular to propagation
@@ -324,54 +349,94 @@ void main() {
   float alongCrest = dot(uv, crestAxis);   // long axis of the dash
   float acrossCrest = dot(uv, waveAxis);   // short axis (narrow)
 
-  // Elongated ellipse: wide along crest, narrow across
+  // === ELONGATED ELLIPSE SHAPE ===
   float ex = alongCrest;
-  float ey = acrossCrest * v_aspect; // v_aspect stretches the narrow axis
-
+  float ey = acrossCrest * v_aspect;
   float ellipseDist = sqrt(ex * ex + ey * ey);
-
-  // Soft feathered edge falloff
   float shape = 1.0 - smoothstep(0.5, 1.0, ellipseDist);
 
-  // Foam breakup noise along the crest for organic feel
-  vec2 noiseCoord = vec2(alongCrest * 3.0 + v_wave_height, acrossCrest * 2.0);
-  float breakup = foamHash(floor(noiseCoord * 4.0 + 0.5));
-  shape *= mix(0.55, 1.0, breakup);
-
-  // Soften the dash tips
+  // Soften dash tips
   float tipFade = 1.0 - smoothstep(0.55, 0.95, abs(alongCrest));
   shape *= tipFade;
+
+  // === v5.2: ROLLING WHITEWATER ===
+  // Map acrossCrest to [0,1] within the visible foam band.
+  // waveLocal=0 is behind the crest (wave already passed),
+  // waveLocal=1 is ahead (propagation direction).
+  float waveLocal = clamp(acrossCrest * v_aspect * 0.5 + 0.5, 0.0, 1.0);
+
+  // Rolling front sweeps 0→1 as v_phase advances (Tessendorf-style whitecap)
+  float rollFront = fract(v_phase);
+
+  // Signed distance from the rolling breaking front
+  float d = waveLocal - rollFront;
+
+  // Leading edge: bright narrow Gaussian peak at the breaking front
+  float leadingFoam = exp(-d * d * 50.0);
+
+  // Trailing wash: exponential decay behind the front (d < 0 = behind)
+  float behindFront = max(0.0, -d);
+  float trailingWash = exp(-behindFront * 5.0) * 0.45;
+
+  // Ahead of front: quiet water, dimmer
+  float aheadFront = max(0.0, d);
+  float quietAhead = exp(-aheadFront * 12.0) * 0.2;
+
+  // Combined rolling intensity
+  float rollIntensity = max(leadingFoam, max(trailingWash, quietAhead));
+
+  // Modulate shape: never fully invisible (min 0.25), rolling front peaks to 1.0
+  shape *= mix(0.25, 1.0, rollIntensity);
+
+  // === PROCEDURAL FOAM BREAKUP (multi-octave) ===
+  // Two noise octaves at different scales for organic foam texture
+  float n1 = foamNoise(vec2(alongCrest * 5.0 + v_wave_height, acrossCrest * 4.0));
+  float n2 = foamNoise(vec2(alongCrest * 9.0 - v_phase * 2.0, acrossCrest * 7.0 + v_wave_height));
+  float foamBreakup = mix(n1, n2, 0.4);
+  foamBreakup = smoothstep(0.15, 0.65, foamBreakup);
+
+  // Period-aware density: short period = denser choppy foam, long period = cleaner
+  float periodDensity = mix(0.45, 0.7, v_period_norm);
+  shape *= mix(periodDensity, 1.0, foamBreakup);
 
   float alpha = v_alpha * shape;
   if (alpha < 0.01) discard;
 
-  // === THEMED CREST COLORS (unchanged from v5.0) ===
+  // === THEMED CREST COLORS ===
   float energy = smoothstep(0.0, 6.0, v_wave_height);
 
-  vec3 calmColor, activeColor, stormColor;
+  vec3 calmColor, activeColor, stormColor, foamHighlight;
 
   if (u_theme > 1.5) {
     // Beach Mode
     calmColor = vec3(0.05, 0.70, 0.60);
     activeColor = vec3(1.00, 0.65, 0.45);
     stormColor = vec3(1.00, 0.98, 0.92);
+    foamHighlight = vec3(1.00, 0.98, 0.92); // warm white
   } else if (u_theme > 0.5) {
     // Light Mode
     calmColor = vec3(0.10, 0.35, 0.80);
     activeColor = vec3(0.40, 0.75, 0.95);
     stormColor = vec3(1.00, 1.00, 1.00);
+    foamHighlight = vec3(1.00, 1.00, 1.00); // pure white
   } else {
     // Dark Mode
     calmColor = vec3(0.00, 0.90, 1.00);
     activeColor = vec3(1.00, 0.10, 0.80);
     stormColor = vec3(1.00, 1.00, 1.00);
+    foamHighlight = vec3(0.85, 0.95, 1.00); // cool cyan-white
   }
 
   vec3 finalColor = energy < 0.5
     ? mix(calmColor, activeColor, energy * 2.0)
     : mix(activeColor, stormColor, (energy - 0.5) * 2.0);
 
-  // Premultiplied alpha output (Correction #5: gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+  // === LEADING EDGE WHITECAP HIGHLIGHT ===
+  // Brighter white/cyan tint at the breaking front, stronger for bigger waves
+  float whiteBlend = leadingFoam * 0.35 * smoothstep(0.3, 3.0, v_wave_height);
+  finalColor = mix(finalColor, foamHighlight, whiteBlend);
+
+  // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
   float boostedAlpha = alpha * mix(1.2, 1.8, energy);
   boostedAlpha = min(boostedAlpha, 0.85);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
