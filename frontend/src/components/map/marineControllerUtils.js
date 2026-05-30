@@ -167,12 +167,12 @@ export function computeGridPoints(bounds, caller = 'wind') {
     if (caller === 'marine') {
       // v4.1: Extended north boundary to 85° for Norwegian/Barents Sea/Arctic coverage.
       // GFS Wave 0.25° has data up to ~77.5°N; points above return null → isOcean=false (handled).
-      // v5.6: Increased from 20→40 (1681 pts) to resolve coastal direction accuracy.
-      // At 21×21 (18° spacing), Florida's E coast had no dedicated cell — Atlantic vs Gulf
-      // wave directions were indistinguishable. 41×41 (9° spacing) gives 1-2 cells per coast.
-      // 1681 points is within Open-Meteo limits and matches pressure grid density approach.
+      // v5.6 REVERTED: 41×41 (1681 pts) caused Open-Meteo upstream 429 via Netlify proxy.
+      // Proxy returns 429 directly without chunked-GET fallback, blanking marine entirely.
+      // Restored 21×21 (441 pts) — the known-good global baseline.
+      // Direction accuracy to be addressed via regional refinement, not global grid inflation.
       west = -180; east = 180; south = -80; north = 85;
-      GRID = isMobile ? 20 : 40;
+      GRID = isMobile ? 14 : 20;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
       // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems

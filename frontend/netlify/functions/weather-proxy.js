@@ -268,12 +268,9 @@ exports.handler = async function(event, context) {
         apiRes = await forwardAsUpstreamPost(targetUrl, body);
 
         if (apiRes.status === 429) {
-          console.warn(`[weather-proxy] Upstream POST 429 for ${type}`);
-          return {
-            statusCode: 429,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true })
-          };
+          console.warn(`[weather-proxy] Upstream POST 429 for ${type}, will try chunked GET fallback`);
+          // Fall through to chunked GET — don't return 429 immediately.
+          // The chunked GET has 800ms inter-chunk delay designed for rate limit avoidance.
         }
 
         if (apiRes.ok) {
