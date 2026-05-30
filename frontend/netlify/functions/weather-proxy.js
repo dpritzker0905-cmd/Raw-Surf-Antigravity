@@ -193,6 +193,27 @@ exports.handler = async function(event, context) {
             attempt++;
             try {
               chunkRes = await fetch(chunkUrl, { method: 'GET' });
+              // 429 = rate limit — abort immediately, don't retry
+              if (chunkRes.status === 429) {
+                console.warn(`[weather-proxy] Chunk ${index + 1} hit 429 rate limit, aborting remaining chunks`);
+                let errorDetail = '';
+                try { errorDetail = await chunkRes.text(); } catch(e) {}
+                return {
+                  statusCode: 429,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                  },
+                  body: JSON.stringify({ 
+                    error: 'Rate limit exceeded', 
+                    statusCode: 429,
+                    isRateLimit: true,
+                    chunk: index + 1,
+                    totalChunks: chunks.length,
+                    detail: errorDetail 
+                  })
+                };
+              }
               if (chunkRes.ok || (chunkRes.status !== 502 && chunkRes.status !== 503 && chunkRes.status !== 504)) {
                 break;
               }
@@ -206,7 +227,21 @@ exports.handler = async function(event, context) {
           }
           
           if (!chunkRes || !chunkRes.ok) {
-            throw new Error(`Chunk ${index + 1} fetch failed with status ${chunkRes ? chunkRes.status : 'unknown'}`);
+            const failStatus = chunkRes ? chunkRes.status : 502;
+            console.error(`[weather-proxy] Chunk ${index + 1} failed with status ${failStatus}`);
+            return {
+              statusCode: failStatus,
+              headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+              },
+              body: JSON.stringify({ 
+                error: `Chunk fetch failed`, 
+                statusCode: failStatus,
+                chunk: index + 1,
+                totalChunks: chunks.length
+              })
+            };
           }
           
           const chunkData = await chunkRes.json();

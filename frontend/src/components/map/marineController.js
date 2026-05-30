@@ -290,6 +290,17 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         return lastKnownGoodWind;
       }
       if (!res.ok) {
+        // v3.14: Check if proxy 500 wraps a rate-limit (chunk 429 → proxy 500 regression)
+        if (res.status === 500) {
+          try {
+            const errBody = await res.clone().json();
+            if (errBody?.isRateLimit || errBody?.message?.includes('429') || errBody?.statusCode === 429) {
+              enterCooldown('wind');
+              console.warn('[Wind] Proxy 500 wrapping rate-limit, cooldown activated');
+              return lastKnownGoodWind;
+            }
+          } catch(e) { /* not JSON, proceed with normal error */ }
+        }
         throw new Error(`Proxy returned HTTP ${res.status}`);
       }
       // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
@@ -570,6 +581,17 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         return lastKnownGoodMarine;
       }
       if (!res.ok) {
+        // v3.14: Check if proxy 500 wraps a rate-limit (chunk 429 → proxy 500 regression)
+        if (res.status === 500) {
+          try {
+            const errBody = await res.clone().json();
+            if (errBody?.isRateLimit || errBody?.message?.includes('429') || errBody?.statusCode === 429) {
+              enterCooldown('marine');
+              console.warn('[Marine] Proxy 500 wrapping rate-limit, cooldown activated');
+              return lastKnownGoodMarine;
+            }
+          } catch(e) { /* not JSON, proceed with normal error */ }
+        }
         throw new Error(`Proxy returned HTTP ${res.status}`);
       }
       // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
