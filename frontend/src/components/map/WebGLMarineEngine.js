@@ -464,7 +464,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     };
 
     window.__CREST_DIAG__ = {
-      rendererMode: 'quad_ribbon_v5.4_behavior_polish',
+      rendererMode: 'quad_ribbon_v5.5_direction_fix',
       drawPrimitive: 'gl.TRIANGLES',
       particleCount: numParts,
       vertexCount: numParts * 6,
@@ -516,8 +516,28 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         foamNoiseOctaves: 2,
         foamNoiseScrollSpeed: 0.3
       },
+      directionFix_v55: {
+        fix: 'waveVec.y = -waveVec.y after texture decode',
+        reason: 'Geographic +v=north but Mercator +y=south (y=0=NorthPole)',
+        affectsShaders: ['ADVECT_FS', 'DRAW_VS'],
+        cacheInvalidated: 'rawsurf_marine_cache_v2 → v3'
+      },
       gpuPointSizeRange: { min: this._minPointSize, max: this._maxPointSize },
       activeMarineLayer: (typeof window.__DATA_DIAG__ !== 'undefined' && window.__DATA_DIAG__.activeMarineLayer) || 'unknown'
+    };
+
+    // v5.5: Direction forensics diagnostic
+    window.__MARINE_DIRECTION_DIAG__ = {
+      convention: {
+        openMeteo: 'FROM direction (meteorological), 0°=N, 90°=E, 180°=S, 270°=W',
+        getUV: 'u=-h*sin(dir), v=-h*cos(dir) → geographic travel vector (TOWARD)',
+        texture: 'RG = unit(u,v)*0.5+0.5 → geographic convention preserved',
+        shader_v55: 'waveVec.y negated after decode → Mercator convention (TOWARD)',
+        infobox: 'atan2(-u,-v) → reconstructs FROM direction (meteorological)'
+      },
+      fix_applied: 'v5.5: waveVec.y = -waveVec.y in ADVECT_FS + DRAW_VS',
+      cache_version: 'v3 (bumped from v2 to invalidate stale data)',
+      howToVerify: 'Open console: window.__MARINE_DIRECTION_DIAG__; then check Florida coast swell travels WSW (FROM ENE)'
     };
   }
 

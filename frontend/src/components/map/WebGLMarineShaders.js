@@ -65,6 +65,11 @@ void main() {
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
+  // v5.5: Negate y for Mercator convention. Geographic +v=northward, but
+  // Mercator +y=southward (y=0 is North Pole). Without this flip, the N-S
+  // component of all wave advection is inverted (e.g. ENE swell travels
+  // WNW instead of WSW off Florida).
+  waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
   float oceanFlag = texture2D(u_oceanMaskTexture, tex_uv).r;
 
@@ -190,6 +195,9 @@ void main() {
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
+  // v5.5: Negate y for Mercator convention (geographic +v=north, Mercator +y=south).
+  // Without this, the N-S component of wave travel direction is inverted.
+  waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
   float oceanFlag = texture2D(u_oceanMaskTexture, tex_uv).r;
