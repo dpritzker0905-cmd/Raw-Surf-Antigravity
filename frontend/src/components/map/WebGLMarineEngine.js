@@ -98,21 +98,22 @@ WebGLMarineEngine.prototype.init = function(gl) {
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
   const numParticles = this.particleRes * this.particleRes;
-  // v5.1: One vertex per particle (gl.POINTS), not two (gl.LINES)
-  const vertexIds = new Float32Array(numParticles);
-  for (let i = 0; i < numParticles; i++) {
+  // v5.3: Six vertices per particle (2 triangles = 1 quad ribbon)
+  const numVertices = numParticles * 6;
+  const vertexIds = new Float32Array(numVertices);
+  for (let i = 0; i < numVertices; i++) {
     vertexIds[i] = i;
   }
   this.vertexIdBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, vertexIds, gl.STATIC_DRAW);
+  this._numQuadVertices = numVertices;
 
-  // Correction #2: Query GPU point size limits for safety
+  // Keep point-size range query for diagnostics
   const pointSizeRange = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
   this._maxPointSize = pointSizeRange ? Math.min(pointSizeRange[1], 64.0) : 64.0;
   this._minPointSize = pointSizeRange ? pointSizeRange[0] : 1.0;
-  this._needsQuadFallback = this._maxPointSize < 8.0;
-  console.log(`[WebGLMarine] Point size range: ${this._minPointSize} - ${this._maxPointSize}${this._needsQuadFallback ? ' (QUAD FALLBACK RECOMMENDED)' : ''}`);
+  console.log(`[WebGLMarine] v5.3 quad ribbon renderer. ${numParticles} particles × 6 verts = ${numVertices} vertices. GPU point size range: ${this._minPointSize}-${this._maxPointSize}`);
 
   const W = 96;
   const H = 96;
@@ -410,11 +411,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
-
-  const dashLengthScale = 8.0;
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_length_scale'), dashLengthScale);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_point_size'), this._maxPointSize || 64.0);
+
+  // v5.3: viewport and DPR uniforms for pixel-space quad expansion
+  var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_viewport'), gl.drawingBufferWidth, gl.drawingBufferHeight);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_device_pixel_ratio'), dpr);
 
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._waveData.u_waveTexture, 1);
@@ -426,60 +428,89 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.enableVertexAttribArray(idLoc);
   gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
 
+  // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
+  var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
   var worldOffsets = [0.0, -1.0, 1.0];
   for (var wi = 0; wi < worldOffsets.length; wi++) {
     gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
-    gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
+    gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.drawCallsPerFrame++;
     }
   }
   gl.disableVertexAttribArray(idLoc);
 
-  // === CREST DIAGNOSTICS (v5.2) ===
+  // === CREST DIAGNOSTICS (v5.3) ===
   if (typeof window !== 'undefined') {
     if (!this._diagLogCount) this._diagLogCount = 0;
     this._diagLogCount++;
-    var zf = Math.max(0, Math.min(1, (z - 2) / 8));
-    var zoomScale = 0.4 + zf * 0.6;
+    var dprDiag = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
+    var zoomScale53 = (Math.min(1, Math.max(0, (z - 2) / 10)) * 0.6 + 0.4);
+    var numParts = this.particleRes * this.particleRes;
+    var densityPct = Math.min(1, (Math.min(1, Math.max(0, (z - 2) / 8)) * 0.6 + 0.3)) * 100;
+
+    // Actual CSS pixel sizes at key wave heights (post-zoom, pre-variation)
+    var cssLen = function(h) {
+      var e = Math.min(1, Math.max(0, (h - 0.1) / 3.9));
+      var sb = Math.max(0, 1 - Math.min(1, Math.max(0, (h - 0.5) / 1.0)));
+      var hl = (18 + 22 * e + sb * 6) * zoomScale53;
+      return Math.max(hl, 16) * 2;
+    };
+    var cssTh = function(h) {
+      var e = Math.min(1, Math.max(0, (h - 0.1) / 3.9));
+      var sb = Math.max(0, 1 - Math.min(1, Math.max(0, (h - 0.5) / 1.0)));
+      var ht = (3 + 5 * e + sb * 2) * zoomScale53;
+      return Math.max(ht, 2.5) * 2;
+    };
+
     window.__CREST_DIAG__ = {
-      rendererMode: 'point_sprite_v5.2_rolling_whitewater',
-      drawPrimitive: 'gl.POINTS',
-      particleCount: this.particleRes * this.particleRes,
+      rendererMode: 'quad_ribbon_v5.3',
+      drawPrimitive: 'gl.TRIANGLES',
+      particleCount: numParts,
+      vertexCount: numParts * 6,
       particleRes: this.particleRes,
-      maxPointSize: this._maxPointSize,
-      minPointSize: this._minPointSize,
-      needsQuadFallback: this._needsQuadFallback || false,
+      devicePixelRatio: dprDiag,
+      viewport: { w: gl.drawingBufferWidth, h: gl.drawingBufferHeight },
       zoom: z,
       waveTextureBounds: waveBounds,
       frameCount: this._diagLogCount,
-      sizeCurve: {
-        formula: 'mix(14,34,smoothstep(0.15,3.0,h)) + (1-smoothstep(0.8,1.8,h))*6',
-        zoomScale: zoomScale.toFixed(3),
-        theoretical_0_2m: (20.0 * zoomScale).toFixed(1) + 'px',
-        theoretical_1m: (24.0 * zoomScale).toFixed(1) + 'px',
-        theoretical_3m: (34.0 * zoomScale).toFixed(1) + 'px',
-        minClamp: 6,
-        maxClamp: this._maxPointSize
+      densitySurvival: densityPct.toFixed(0) + '%',
+      crestLength_CSS: {
+        formula: '(mix(18,40,smoothstep(0.1,4,h))+smallBoost*6)*zoomScale → min 32px',
+        at_0_3m: cssLen(0.3).toFixed(0) + 'px',
+        at_1m: cssLen(1.0).toFixed(0) + 'px',
+        at_3m: cssLen(3.0).toFixed(0) + 'px',
+        at_5m: cssLen(5.0).toFixed(0) + 'px',
+        minGuaranteed: '32px'
       },
-      alphaCurve: {
-        formula: 'pulse^0.5 * mix(0.6,1.0,smoothstep(0,4,h)) * (0.85+hash*0.3)',
-        minAlphaFloor: 0.6,
-        pulseExponent: 0.5
+      crestThickness_CSS: {
+        formula: '(mix(3,8,smoothstep(0.1,4,h))+smallBoost*2)*zoomScale → min 5px',
+        at_0_3m: cssTh(0.3).toFixed(0) + 'px',
+        at_1m: cssTh(1.0).toFixed(0) + 'px',
+        at_3m: cssTh(3.0).toFixed(0) + 'px',
+        at_5m: cssTh(5.0).toFixed(0) + 'px',
+        minGuaranteed: '5px'
       },
       periodSpacing: {
-        formula: 'mix(22,6,smoothstep(4,18,period))',
-        shortPeriod_4s_freq: 22.0,
-        longPeriod_18s_freq: 6.0,
-        temporalJitter: '±15%'
+        formula: '800 / max(36, T²), clamped [3,25] (deep-water inspired)',
+        at_6s: (800 / 36).toFixed(1),
+        at_10s: (800 / 100).toFixed(1),
+        at_14s: (800 / 196).toFixed(1),
+        at_18s: (800 / 324).toFixed(1) + ' (clamped to 3.0)'
+      },
+      waveMotionVsWhitecap: {
+        baseRippleMinShape: 0.35,
+        whitecapOnset: '0.5m',
+        whitecapFull: '3.0m',
+        whitecapBlend: 0.45
       },
       rollingWhitewater: {
         enabled: true,
-        leadingEdgeGaussianWidth: 50,
-        trailingWashDecay: 5.0,
-        minShapeMultiplier: 0.25,
+        gaussianWidth: 20,
+        trailingWashDecay: 3.5,
         foamNoiseOctaves: 2
       },
+      gpuPointSizeRange: { min: this._minPointSize, max: this._maxPointSize },
       activeMarineLayer: (typeof window.__DATA_DIAG__ !== 'undefined' && window.__DATA_DIAG__.activeMarineLayer) || 'unknown'
     };
   }

@@ -124,7 +124,7 @@ void main() {
 `;
 
 export const DRAW_VS = `
-attribute highp float a_vertex_id;       // 0 to (numParticles - 1), one vertex per particle
+attribute highp float a_vertex_id;       // 0 to (numParticles*6 - 1), six vertices per particle
 uniform sampler2D u_particles;     // particle position texture (RG=x, BA=y)
 uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height, A=period)
 uniform sampler2D u_oceanMaskTexture; // land/ocean binary mask
@@ -133,18 +133,18 @@ uniform mat4 u_matrix;             // MapLibre projection matrix
 uniform vec2 u_dataBounds_min;     // bounds [west, south]
 uniform vec2 u_dataBounds_max;     // bounds [east, north]
 uniform float u_time;              // elapsed time in seconds
-uniform float u_dash_length_scale; // global size multiplier (normalized around 8.0)
 uniform float u_zoom;              // map zoom level
 uniform float u_merc_offset;       // world-copy offset (-1.0, 0.0, or +1.0)
 uniform float u_debug_mode;        // debug mode selector
-uniform float u_max_point_size;    // GPU max point size from ALIASED_POINT_SIZE_RANGE
+uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
+uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
-varying highp vec2 v_screen_dir;   // wave propagation direction in screen space
-varying highp float v_aspect;      // elongation ratio for foam dash
-varying highp float v_phase;       // v5.2: wave-train phase for rolling whitewater
-varying highp float v_period_norm; // v5.2: normalized period [0=short choppy, 1=long swell]
+varying highp vec2 v_local_uv;     // v5.3: quad local coords [-1,1] (replaces gl_PointCoord)
+varying highp float v_phase;       // wave-train phase for rolling whitewater
+varying highp float v_period_norm; // normalized period [0=short choppy, 1=long swell]
+varying highp float v_whitecap;    // v5.3: whitecap foam strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
 
 float mercatorYToLat(float y) {
@@ -153,9 +153,24 @@ float mercatorYToLat(float y) {
 }
 
 void main() {
-  // v5.1+: One vertex per particle (gl.POINTS foam sprites)
-  float particleIndex = a_vertex_id;
+  // === v5.3: QUAD RIBBON EXPANSION ===
+  // 6 vertices per particle (2 triangles). Vertex ID encodes both particle and corner.
+  float particleIndex = floor(a_vertex_id / 6.0);
+  float cornerIndex = a_vertex_id - particleIndex * 6.0;
 
+  // Map corner index to local quad UV: tri1=(0,1,2) tri2=(3,4,5)
+  // 0→BL(-1,-1) 1→BR(1,-1) 2→TL(-1,1) 3→TL(-1,1) 4→BR(1,-1) 5→TR(1,1)
+  vec2 cornerUV;
+  if (cornerIndex < 0.5) cornerUV = vec2(-1.0, -1.0);
+  else if (cornerIndex < 1.5) cornerUV = vec2(1.0, -1.0);
+  else if (cornerIndex < 2.5) cornerUV = vec2(-1.0, 1.0);
+  else if (cornerIndex < 3.5) cornerUV = vec2(-1.0, 1.0);
+  else if (cornerIndex < 4.5) cornerUV = vec2(1.0, -1.0);
+  else cornerUV = vec2(1.0, 1.0);
+
+  v_local_uv = cornerUV;
+
+  // Decode particle position from texture
   float col = mod(particleIndex, u_particles_res);
   float row = floor(particleIndex / u_particles_res);
   vec2 p_uv = (vec2(col, row) + 0.5) / u_particles_res;
@@ -183,56 +198,45 @@ void main() {
 
   bool bypassDiscard = (u_debug_mode > 7.5);
 
-  bool isNan = !(pos.x >= 0.0 || pos.x < 0.0) || 
-               !(pos.y >= 0.0 || pos.y < 0.0) || 
+  bool isNan = !(pos.x >= 0.0 || pos.x < 0.0) ||
+               !(pos.y >= 0.0 || pos.y < 0.0) ||
                !(waveHeight >= 0.0 || waveHeight < 0.0) ||
                !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
                !(waveVec.y >= 0.0 || waveVec.y < 0.0);
 
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
 
-  // v5.2: lowered discard threshold from 0.1 to 0.05 so small waves pass through
   if (!bypassDiscard && (waveHeight < 0.05 || length(waveVec) < 0.005 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
-    v_alpha = 0.0;
-    v_screen_dir = vec2(1.0, 0.0);
-    v_aspect = 4.0;
-    v_phase = 0.0;
-    v_period_norm = 0.5;
+    v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
-    gl_PointSize = 0.0;
     return;
   }
 
-  float densityThreshold = smoothstep(2.0, 8.0, u_zoom) * 0.85 + 0.15;
+  // === v5.3: HEIGHT-AWARE DENSITY THRESHOLD ===
+  // 30% visible at zoom 2 (was 15%), 90% at zoom 10. Big waves get a boost.
+  float baseVisibility = smoothstep(2.0, 10.0, u_zoom) * 0.6 + 0.3;
+  float heightBoost = smoothstep(0.5, 3.0, waveHeight) * 0.1;
+  float densityThreshold = min(baseVisibility + heightBoost, 1.0);
+
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
-    v_alpha = 0.0;
-    v_screen_dir = vec2(1.0, 0.0);
-    v_aspect = 4.0;
-    v_phase = 0.0;
-    v_period_norm = 0.5;
+    v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
-    gl_PointSize = 0.0;
     return;
   }
 
-  // Debug mode colors (unchanged)
+  // Debug mode colors
   if (u_debug_mode > 0.5) {
-    if (u_debug_mode < 5.5) {
-      v_debug_color = vec4(p_uv.x, p_uv.y, 0.0, 1.0);
-    } else if (u_debug_mode < 6.5) {
-      v_debug_color = vec4(pos.x, pos.y, 0.0, 1.0);
-    } else if (u_debug_mode < 7.5) {
-      v_debug_color = vec4(waveVec.x * 0.5 + 0.5, waveVec.y * 0.5 + 0.5, 0.0, 1.0);
-    } else {
-      v_debug_color = vec4(1.0, 0.0, 0.0, 1.0);
-    }
+    if (u_debug_mode < 5.5) v_debug_color = vec4(p_uv.x, p_uv.y, 0.0, 1.0);
+    else if (u_debug_mode < 6.5) v_debug_color = vec4(pos.x, pos.y, 0.0, 1.0);
+    else if (u_debug_mode < 7.5) v_debug_color = vec4(waveVec.x * 0.5 + 0.5, waveVec.y * 0.5 + 0.5, 0.0, 1.0);
+    else v_debug_color = vec4(1.0, 0.0, 0.0, 1.0);
   } else {
     v_debug_color = vec4(0.0);
   }
 
-  // === SCREEN-SPACE DIRECTION (unchanged from v5.1) ===
+  // === SCREEN-SPACE DIRECTION IN PIXEL COORDINATES ===
   vec2 dir = length(waveVec) > 0.0001 ? normalize(waveVec) : vec2(1.0, 0.0);
 
   vec2 vertexPos = pos;
@@ -243,38 +247,56 @@ void main() {
   vec2 offsetMerc = vertexPos + dir * eps;
   vec4 clipPosOffset = u_matrix * vec4(offsetMerc.x, offsetMerc.y, 0.0, 1.0);
 
+  // Convert to pixel space for direction computation
   vec2 ndc0 = clipPos.xy / max(clipPos.w, 0.001);
   vec2 ndc1 = clipPosOffset.xy / max(clipPosOffset.w, 0.001);
-  vec2 screenDelta = ndc1 - ndc0;
+  vec2 pixel0 = (ndc0 + 1.0) * 0.5 * u_viewport;
+  vec2 pixel1 = (ndc1 + 1.0) * 0.5 * u_viewport;
 
-  v_screen_dir = length(screenDelta) > 0.0001
-    ? normalize(screenDelta)
+  // Screen-space basis vectors in device pixels
+  vec2 waveDir = length(pixel1 - pixel0) > 0.01
+    ? normalize(pixel1 - pixel0)
     : vec2(1.0, 0.0);
+  vec2 crestDir = vec2(-waveDir.y, waveDir.x); // perpendicular = crest axis
 
-  gl_Position = clipPos;
-  if (gl_Position.w == 0.0) {
-    gl_Position.w = 1.0;
-  }
+  // === v5.3: INDEPENDENT CREST LENGTH AND THICKNESS (CSS pixels) ===
+  float sizeEnergy = smoothstep(0.1, 4.0, waveHeight);
+  float smallBoost = (1.0 - smoothstep(0.5, 1.5, waveHeight));
 
-  // === v5.2: RECALIBRATED POINT SIZE ===
-  // Nonlinear energy ramp: small waves get a visible baseline, large waves scale up.
-  // 0.2m → ~20px base, 1.0m → ~24px, 3.0m → ~34px (before zoom scaling).
-  float sizeEnergy = smoothstep(0.15, 3.0, waveHeight);
-  float smallBoost = (1.0 - smoothstep(0.8, 1.8, waveHeight)) * 6.0;
-  float globalScale = u_dash_length_scale / 8.0; // normalized: 8.0 → 1.0x
-  float baseSize = (mix(14.0, 34.0, sizeEnergy) + smallBoost) * globalScale;
-  float zoomFactor = smoothstep(2.0, 10.0, u_zoom);
-  float sizeVariation = 0.85 + particleHash * 0.3;
-  float pointSize = baseSize * (0.4 + zoomFactor * 0.6) * sizeVariation;
-  pointSize = clamp(pointSize, 6.0, u_max_point_size);
-  gl_PointSize = pointSize;
+  // Crest LENGTH: 36-80 CSS px total (halfLength = 18-40)
+  float halfLength = mix(18.0, 40.0, sizeEnergy) + smallBoost * 6.0;
 
-  // Foam dash aspect ratio (3.5:1 to 5:1)
-  v_aspect = 3.5 + particleHash * 1.5;
+  // Crest THICKNESS: 6-16 CSS px total (halfThickness = 3-8)
+  float halfThickness = mix(3.0, 8.0, sizeEnergy) + smallBoost * 2.0;
 
-  // === v5.2: PERIOD-BASED CREST SPACING ===
-  // Short-period wind waves → tight choppy bands (high spatial freq)
-  // Long-period swell → wide organized sets (low spatial freq)
+  // Zoom scaling (gentler)
+  float zoomScale = smoothstep(2.0, 12.0, u_zoom) * 0.6 + 0.4;
+  halfLength *= zoomScale;
+  halfThickness *= zoomScale;
+
+  // Per-particle size variation
+  halfLength *= 0.85 + particleHash * 0.3;
+  halfThickness *= 0.9 + particleHash * 0.2;
+
+  // Guaranteed minimums (CSS pixels)
+  halfLength = max(halfLength, 16.0);
+  halfThickness = max(halfThickness, 2.5);
+
+  // Convert CSS pixels to device pixels
+  float dpr = max(u_device_pixel_ratio, 1.0);
+  float deviceHalfLength = halfLength * dpr;
+  float deviceHalfThickness = halfThickness * dpr;
+
+  // === OFFSET QUAD CORNER IN PIXEL SPACE, CONVERT BACK TO CLIP ===
+  vec2 cornerPixel = pixel0
+    + crestDir * cornerUV.x * deviceHalfLength
+    + waveDir * cornerUV.y * deviceHalfThickness;
+
+  vec2 cornerNdc = cornerPixel / u_viewport * 2.0 - 1.0;
+  gl_Position = vec4(cornerNdc * clipPos.w, clipPos.z, clipPos.w);
+
+  // === v5.3: DEEP-WATER-INSPIRED PERIOD SPACING ===
+  // L ≈ g·T²/(2π) → spatialFreq ∝ 1/T². Cap for visual range.
   float modelPeriod = waveData.a * 20.0;
   float derivedPeriod = 6.0 + waveHeight * 2.0;
   float periodVal = modelPeriod > 0.5 ? modelPeriod : derivedPeriod;
@@ -282,26 +304,28 @@ void main() {
   float periodNorm = smoothstep(4.0, 18.0, periodVal);
   v_period_norm = periodNorm;
 
-  // Spatial frequency: visual crest spacing, NOT physical wavelength
-  float spatialFreq = mix(22.0, 6.0, periodNorm);
+  float spatialFreq = 800.0 / max(36.0, periodVal * periodVal);
+  spatialFreq = clamp(spatialFreq, 3.0, 25.0);
 
-  // Temporal advance: crests move forward at period-dependent speed
-  // Per-particle jitter (±15%) breaks lockstep while keeping coherent trains
+  // Temporal advance with per-particle jitter (±15%)
   float temporalSpeed = u_time / max(2.0, periodVal * (0.85 + particleHash * 0.3));
   float trainPhase = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
   v_phase = trainPhase;
 
-  // === v5.2: RECALIBRATED ALPHA ===
-  // Phase-driven pulse with HIGHER floor so small waves stay visible
+  // === v5.3: WAVE MOTION ALPHA (base ripple, always visible) ===
   float rawPulse = sin(trainPhase * 3.141592653589793);
   v_alpha = pow(max(rawPulse, 0.0), 0.5);
 
-  // Higher minimum alpha for small waves (was 0.35 → now 0.6)
+  // Stable minimum alpha: small waves never fade below 0.65×
   float heightAlpha = smoothstep(0.0, 4.0, waveHeight);
-  v_alpha *= mix(0.6, 1.0, heightAlpha);
+  v_alpha *= mix(0.65, 1.0, heightAlpha);
 
-  // Per-particle opacity variation (no rotation, just brightness)
+  // Per-particle brightness variation
   v_alpha *= 0.85 + particleHash * 0.3;
+
+  // === v5.3: WHITECAP STRENGTH (separate from base ripple) ===
+  // Only significant for waves with real breaking potential
+  v_whitecap = smoothstep(0.5, 3.0, waveHeight);
 }
 `;
 
@@ -309,10 +333,10 @@ export const DRAW_FS = `
 precision mediump float;
 varying highp float v_alpha;
 varying highp float v_wave_height;
-varying highp vec2 v_screen_dir;   // wave propagation direction in screen space
-varying highp float v_aspect;      // elongation ratio for foam dash
-varying highp float v_phase;       // v5.2: wave-train phase for rolling whitewater
-varying highp float v_period_norm; // v5.2: normalized period [0=short choppy, 1=long swell]
+varying highp vec2 v_local_uv;     // v5.3: quad local coords [-1,1] x=alongCrest y=acrossCrest
+varying highp float v_phase;       // wave-train phase for rolling whitewater
+varying highp float v_period_norm; // normalized period [0=short choppy, 1=long swell]
+varying highp float v_whitecap;    // v5.3: whitecap strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
 uniform float u_theme;
 
@@ -340,56 +364,54 @@ void main() {
 
   if (v_alpha < 0.02) discard;
 
-  // === WAVE-ALIGNED LOCAL COORDINATES ===
-  vec2 uv = gl_PointCoord * 2.0 - 1.0; // centered [-1, 1]
+  // === v5.3: QUAD LOCAL COORDINATES (replaces gl_PointCoord) ===
+  // v_local_uv.x = along crest axis [-1,1], v_local_uv.y = across wave axis [-1,1]
+  float alongCrest = v_local_uv.x;
+  float acrossCrest = v_local_uv.y;
 
-  vec2 crestAxis = vec2(-v_screen_dir.y, v_screen_dir.x); // perpendicular to propagation
-  vec2 waveAxis = v_screen_dir;                             // along propagation
+  // === RIBBON SHAPE: soft ellipse without aspect compression ===
+  // Length/thickness already handled in VS quad expansion
+  float ellipseDist = length(v_local_uv);
+  float shape = 1.0 - smoothstep(0.55, 1.0, ellipseDist);
 
-  float alongCrest = dot(uv, crestAxis);   // long axis of the dash
-  float acrossCrest = dot(uv, waveAxis);   // short axis (narrow)
-
-  // === ELONGATED ELLIPSE SHAPE ===
-  float ex = alongCrest;
-  float ey = acrossCrest * v_aspect;
-  float ellipseDist = sqrt(ex * ex + ey * ey);
-  float shape = 1.0 - smoothstep(0.5, 1.0, ellipseDist);
-
-  // Soften dash tips
-  float tipFade = 1.0 - smoothstep(0.55, 0.95, abs(alongCrest));
+  // Soften ribbon tips along crest axis
+  float tipFade = 1.0 - smoothstep(0.6, 0.95, abs(alongCrest));
   shape *= tipFade;
 
-  // === v5.2: ROLLING WHITEWATER ===
-  // Map acrossCrest to [0,1] within the visible foam band.
-  // waveLocal=0 is behind the crest (wave already passed),
-  // waveLocal=1 is ahead (propagation direction).
-  float waveLocal = clamp(acrossCrest * v_aspect * 0.5 + 0.5, 0.0, 1.0);
+  // === ROLLING WHITEWATER ACROSS RIBBON WIDTH ===
+  // Map acrossCrest [-1,1] to waveLocal [0,1]
+  float waveLocal = clamp(acrossCrest * 0.5 + 0.5, 0.0, 1.0);
 
-  // Rolling front sweeps 0→1 as v_phase advances (Tessendorf-style whitecap)
+  // Rolling front sweeps 0→1 as v_phase advances
   float rollFront = fract(v_phase);
 
   // Signed distance from the rolling breaking front
   float d = waveLocal - rollFront;
 
-  // Leading edge: bright narrow Gaussian peak at the breaking front
-  float leadingFoam = exp(-d * d * 50.0);
+  // Leading edge: bright Gaussian peak at the breaking front
+  float leadingFoam = exp(-d * d * 20.0);
 
-  // Trailing wash: exponential decay behind the front (d < 0 = behind)
+  // Trailing wash: exponential decay behind the front
   float behindFront = max(0.0, -d);
-  float trailingWash = exp(-behindFront * 5.0) * 0.45;
+  float trailingWash = exp(-behindFront * 3.5) * 0.5;
 
-  // Ahead of front: quiet water, dimmer
+  // Ahead of front: quiet water
   float aheadFront = max(0.0, d);
-  float quietAhead = exp(-aheadFront * 12.0) * 0.2;
+  float quietAhead = exp(-aheadFront * 8.0) * 0.25;
 
   // Combined rolling intensity
   float rollIntensity = max(leadingFoam, max(trailingWash, quietAhead));
 
-  // Modulate shape: never fully invisible (min 0.25), rolling front peaks to 1.0
-  shape *= mix(0.25, 1.0, rollIntensity);
+  // === WAVE MOTION vs WHITECAP SEPARATION ===
+  // Base ripple: always visible, modulated by roll (min 0.35 shape)
+  float baseRipple = mix(0.35, 1.0, rollIntensity);
+
+  // Whitecap layer: only for waves with breaking potential
+  float whitecapRoll = leadingFoam * v_whitecap;
+
+  shape *= baseRipple;
 
   // === PROCEDURAL FOAM BREAKUP (multi-octave) ===
-  // Two noise octaves at different scales for organic foam texture
   float n1 = foamNoise(vec2(alongCrest * 5.0 + v_wave_height, acrossCrest * 4.0));
   float n2 = foamNoise(vec2(alongCrest * 9.0 - v_phase * 2.0, acrossCrest * 7.0 + v_wave_height));
   float foamBreakup = mix(n1, n2, 0.4);
@@ -412,29 +434,29 @@ void main() {
     calmColor = vec3(0.05, 0.70, 0.60);
     activeColor = vec3(1.00, 0.65, 0.45);
     stormColor = vec3(1.00, 0.98, 0.92);
-    foamHighlight = vec3(1.00, 0.98, 0.92); // warm white
+    foamHighlight = vec3(1.00, 0.98, 0.92);
   } else if (u_theme > 0.5) {
     // Light Mode
     calmColor = vec3(0.10, 0.35, 0.80);
     activeColor = vec3(0.40, 0.75, 0.95);
     stormColor = vec3(1.00, 1.00, 1.00);
-    foamHighlight = vec3(1.00, 1.00, 1.00); // pure white
+    foamHighlight = vec3(1.00, 1.00, 1.00);
   } else {
     // Dark Mode
     calmColor = vec3(0.00, 0.90, 1.00);
     activeColor = vec3(1.00, 0.10, 0.80);
     stormColor = vec3(1.00, 1.00, 1.00);
-    foamHighlight = vec3(0.85, 0.95, 1.00); // cool cyan-white
+    foamHighlight = vec3(0.85, 0.95, 1.00);
   }
 
-  vec3 finalColor = energy < 0.5
+  vec3 baseColor = energy < 0.5
     ? mix(calmColor, activeColor, energy * 2.0)
     : mix(activeColor, stormColor, (energy - 0.5) * 2.0);
 
-  // === LEADING EDGE WHITECAP HIGHLIGHT ===
-  // Brighter white/cyan tint at the breaking front, stronger for bigger waves
-  float whiteBlend = leadingFoam * 0.35 * smoothstep(0.3, 3.0, v_wave_height);
-  finalColor = mix(finalColor, foamHighlight, whiteBlend);
+  // === WHITECAP HIGHLIGHT (separate from base ripple) ===
+  // Bright white/cyan at the breaking front, proportional to v_whitecap
+  float whiteBlend = whitecapRoll * 0.45;
+  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);
 
   // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
   float boostedAlpha = alpha * mix(1.2, 1.8, energy);
