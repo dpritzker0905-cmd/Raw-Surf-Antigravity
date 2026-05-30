@@ -44,12 +44,17 @@ var ICON_UNSUPPORTED_MARINE_VARS = new Set([
  * v5.9.4: Added activeModel parameter to prevent cross-model grid leakage.
  * Returns null if the grid was produced by a different model than requested.
  *
+ * v6.2: Added activeLayer parameter. Grid vectors store per-component data
+ * (waves, swell_1, swell_2, wind_waves). Without activeLayer, the function
+ * was reading undefined top-level v.speed/v.u/v.v — always returning 0/null.
+ *
  * @param {number|null} lat
  * @param {number|null} lng
- * @param {string} [activeModel] - 'GFS' | 'ICON' | 'EURO' — if provided, rejects grid data from a different model
+ * @param {string} [activeModel] - 'GFS' | 'ICON' | 'EURO'
+ * @param {string} [activeLayer] - 'waves' | 'swell_1' | 'swell_2' | 'wind_waves'
  * @returns {{ value: number, direction: number|null, period: number|null, source: string } | null}
  */
-export function sampleFromMarineGrid(lat, lng, activeModel) {
+export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
   if (typeof window === 'undefined' || !window.__MARINE_WIND_DATA__ || lat == null || lng == null) {
     return null;
   }
@@ -102,38 +107,53 @@ export function sampleFromMarineGrid(lat, lng, activeModel) {
   const v01 = grid.vectors[idx01];
   const v11 = grid.vectors[idx11];
 
+  // v6.2: Map activeLayer to the correct grid vector component key.
+  // Grid vectors have: { waves: {u,v,speed,period}, swell_1: {...}, swell_2: {...}, wind_waves: {...} }
+  const LAYER_TO_COMPONENT = { waves: 'waves', swell_1: 'swell_1', swell_2: 'swell_2', wind_waves: 'wind_waves' };
+  const componentKey = LAYER_TO_COMPONENT[activeLayer] || 'waves';
+
+  // Helper to extract component data from a grid vector
+  const getComp = (vec) => vec?.[componentKey] || null;
+
   // All 4 corners must be ocean for a valid interpolation
   if (!v00?.isOcean || !v10?.isOcean || !v01?.isOcean || !v11?.isOcean) {
     // Partial ocean: use nearest ocean neighbor by geographic distance.
-    // v5.7.1: Previously used highest-speed corner, which picked grid points
-    // 1000+ km away (e.g., open Atlantic at 34°N 69°W for a Cape Canaveral click).
-    const oceanCorners = [v00, v10, v01, v11].filter(v => v?.isOcean && v.speed > 0);
+    const oceanCorners = [v00, v10, v01, v11].filter(v => {
+      if (!v?.isOcean) return false;
+      const c = getComp(v);
+      return c && c.speed > 0;
+    });
     if (oceanCorners.length === 0) return null;
     const best = oceanCorners.reduce((a, b) => {
       const dA = Math.pow(a.lat - lat, 2) + Math.pow(a.lng - lng, 2);
       const dB = Math.pow(b.lat - lat, 2) + Math.pow(b.lng - lng, 2);
       return dA < dB ? a : b;
     });
-    // Compute direction from u,v components
-    const dir = best.u !== 0 || best.v !== 0
-      ? (Math.atan2(-best.u, -best.v) * 180 / Math.PI + 360) % 360
+    const comp = getComp(best);
+    if (!comp) return null;
+    const dir = comp.u !== 0 || comp.v !== 0
+      ? (Math.atan2(-comp.u, -comp.v) * 180 / Math.PI + 360) % 360
       : null;
-    return { value: best.speed, direction: dir, period: best.period || null, source: 'marine_grid_nearest' };
+    return { value: comp.speed, direction: dir, period: comp.period || null, source: 'marine_grid_nearest' };
   }
 
-  // Bilinear interpolation of wave height (speed field is wave height in marine context)
-  const height = v00.speed * (1 - dx) * (1 - dy) +
-                 v10.speed * dx * (1 - dy) +
-                 v01.speed * (1 - dx) * dy +
-                 v11.speed * dx * dy;
+  // Get component data from each corner
+  const c00 = getComp(v00), c10 = getComp(v10), c01 = getComp(v01), c11 = getComp(v11);
+  if (!c00 || !c10 || !c01 || !c11) return null;
+
+  // Bilinear interpolation of wave height (speed field = wave height in marine context)
+  const height = c00.speed * (1 - dx) * (1 - dy) +
+                 c10.speed * dx * (1 - dy) +
+                 c01.speed * (1 - dx) * dy +
+                 c11.speed * dx * dy;
 
   // Bilinear interpolation of period
-  const p00 = v00.period || 0, p10 = v10.period || 0, p01 = v01.period || 0, p11 = v11.period || 0;
+  const p00 = c00.period || 0, p10 = c10.period || 0, p01 = c01.period || 0, p11 = c11.period || 0;
   const period = p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
 
   // Circular interpolation of direction from u,v
-  const avgU = v00.u * (1 - dx) * (1 - dy) + v10.u * dx * (1 - dy) + v01.u * (1 - dx) * dy + v11.u * dx * dy;
-  const avgV = v00.v * (1 - dx) * (1 - dy) + v10.v * dx * (1 - dy) + v01.v * (1 - dx) * dy + v11.v * dx * dy;
+  const avgU = c00.u * (1 - dx) * (1 - dy) + c10.u * dx * (1 - dy) + c01.u * (1 - dx) * dy + c11.u * dx * dy;
+  const avgV = c00.v * (1 - dx) * (1 - dy) + c10.v * dx * (1 - dy) + c01.v * (1 - dx) * dy + c11.v * dx * dy;
   const direction = (avgU !== 0 || avgV !== 0)
     ? (Math.atan2(-avgU, -avgV) * 180 / Math.PI + 360) % 360
     : null;
@@ -259,6 +279,11 @@ export async function fetchExactMarinePoint(lat, lng, model) {
       hourly: result.hourly,
       snappedLat: result.latitude,
       snappedLng: result.longitude,
+      // v6.2: Store the requested coordinates and model so consumers can verify
+      // the response still matches the current selected point (stale-state guard)
+      requestedLat: rLat,
+      requestedLng: rLng,
+      requestedModel: model || 'GFS',
       forecastDays,
       apiModel,
       provider: detectedProvider,
@@ -361,6 +386,11 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     time: times[bestIdx],
     snappedLat: cachedResponse.snappedLat,
     snappedLng: cachedResponse.snappedLng,
+    // v6.2: Carry forward request metadata for stale-state detection
+    requestedLat: cachedResponse.requestedLat,
+    requestedLng: cachedResponse.requestedLng,
+    requestedModel: cachedResponse.requestedModel,
+    provider: cachedResponse.provider,
     forecastDays: cachedResponse.forecastDays,
     timeRangeStart: times[0],
     timeRangeEnd: times[times.length - 1],

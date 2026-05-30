@@ -41,7 +41,7 @@ var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, 
 
 // --- PERSISTENT CACHE (localStorage) ---
 var LS_WIND_KEY = 'rawsurf_wind_cache_v3'; // v5.5: bumped to invalidate stale direction data
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v5'; // v6.1: bumped to invalidate caches lacking provider guard
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v6'; // v6.2: bumped to invalidate caches with broken grid sampler
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped
@@ -97,6 +97,13 @@ function getModelSafeMarine(requestedModel) {
   const wanted = requestedModel || 'GFS';
   if (cachedModel !== wanted) {
     console.log(`[Marine] lastKnownGood model mismatch: cached=${cachedModel}, wanted=${wanted} — returning null`);
+    return null;
+  }
+  // v6.2: Provider validation — EURO expects copernicus, GFS/ICON expect open-meteo
+  const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
+  const expectedProvider = (wanted === 'EURO') ? 'copernicus' : 'open-meteo';
+  if (cachedProvider !== expectedProvider) {
+    console.log(`[Marine] lastKnownGood provider mismatch: cached=${cachedProvider}, expected=${expectedProvider} for model=${wanted} — returning null`);
     return null;
   }
   return lastKnownGoodMarine;
@@ -537,16 +544,20 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
   // v3.9.3: Hourly cache re-index locally snaped to active model to avoid collisions
-  const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}`);
+  // v6.2: Include provider in cache keys to prevent cross-provider hits
+  const expectedProvider = (model === 'EURO') ? 'copernicus' : 'open-meteo';
+  const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${expectedProvider}`);
   if (marineHourlyCache.hash === viewHash &&
       marineHourlyCache.model === (model || 'GFS') &&
+      (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
-    console.log(`[Marine] Cache HIT for offset=${hourOffset}h, model=${model || 'GFS'}`);
+    console.log(`[Marine] Cache HIT for offset=${hourOffset}h, model=${model || 'GFS'}, provider=${expectedProvider}`);
     return extractMarineAtOffset(marineHourlyCache, hourOffset);
   }
 
   // v3.9.5: Stale viewport fallback for marine snap to model
   if (marineHourlyCache.hash && marineHourlyCache.model === (model || 'GFS') &&
+      (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const staleData = extractMarineAtOffset(marineHourlyCache, hourOffset);
     if (staleData && staleData.features?.length > 0) {
@@ -554,11 +565,12 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       lastKnownGoodMarine = staleData;
       lastKnownGoodMarineModel = model || 'GFS';
       lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
+      lastKnownGoodMarine.__provider = expectedProvider;
     }
   }
 
-  // Per-offset cache
-  const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_h${hourOffset}`);
+  // Per-offset cache — v6.2: includes provider
+  const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${expectedProvider}_h${hourOffset}`);
   if (MARINE_CACHE.has(cacheKey)) {
     const cached = MARINE_CACHE.get(cacheKey);
     if (Date.now() - cached.timestamp < 300000) return cached.data;
@@ -722,6 +734,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       lastKnownGoodMarine = result;
       lastKnownGoodMarineModel = model || 'GFS';
       lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
+      lastKnownGoodMarine.__provider = detectedProvider;
  if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; console.log('[Marine] BOOTSTRAP complete first valid data received'); }
       console.log(`[Marine] Fetch success: ${result.features.length} features, ${gridSize}x${gridSize} grid`);
       return result;
