@@ -439,9 +439,11 @@ export var MapForecastOverlay = ({
     const hFt = mToFt(waveHeight);
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-blue-300' });
     // v5.9: Waves layer shows the exact combined wave_period, NOT swell1Period override.
-    // The old logic used max(swell1Period, wavePeriod) which allowed stale decoded-tile
-    // swell periods (e.g. 16.2s) to override the correct exact-point wave_period (7.5s).
     if (wavePeriod != null) cards.push({ icon: Waves, label: 'Period', value: `${wavePeriod.toFixed(1)}s`, color: 'text-blue-200' });
+    // v5.9 Task 4: Peak period shown separately and explicitly labeled
+    if (exactPoint?.wave_peak_period != null && exactPoint.wave_peak_period > 0) {
+      cards.push({ icon: Waves, label: 'Peak', value: `${exactPoint.wave_peak_period.toFixed(1)}s`, color: 'text-blue-100' });
+    }
     if (waveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(waveDir), value: `${Math.round(waveDir)}`, color: 'text-blue-200', rotate: (waveDir + 180) % 360 });
   }
 
@@ -451,6 +453,9 @@ export var MapForecastOverlay = ({
     cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-cyan-400' });
     if (!swell1LowEnergy) {
       if (swell1Period != null && swell1Period > 0) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
+      if (exactPoint?.swell_wave_peak_period != null && exactPoint.swell_wave_peak_period > 0) {
+        cards.push({ icon: Waves, label: 'Peak', value: `${exactPoint.swell_wave_peak_period.toFixed(1)}s`, color: 'text-cyan-200' });
+      }
       if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: (swell1Dir + 180) % 360 });
     } else {
       cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
