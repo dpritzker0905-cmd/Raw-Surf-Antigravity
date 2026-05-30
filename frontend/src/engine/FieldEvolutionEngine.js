@@ -173,7 +173,7 @@ function evolveWindField(windU, windV, cols, rows, dt, simTime) {
  * @param {number} simTime
  */
 function evolveWaveField(grid, cols, rows, dt, simTime) {
-  const { waveHeight, waveDir, swellHeight, swellDir, wavePeriod, swellPeriod, windWavePeriod } = grid;
+  const { waveHeight, waveDir, swellHeight, swellDir, wavePeriod, swellPeriod, windWavePeriod, swell2Height, swell2Dir, swell2Period } = grid;
 
   // Double-buffering to prevent spatial advection order-dependence and directional bias
   const nextWaveHeight = new Float32Array(waveHeight.length);
@@ -241,6 +241,17 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
       }
       if (windWavePeriod) {
         windWavePeriod[i] = (windWavePeriod[iW] + windWavePeriod[i] + windWavePeriod[iE]) / 3;
+      }
+
+      // Secondary swell decay + smoothing
+      if (swell2Height) {
+        swell2Height[i] *= WAVE_DECAY;
+      }
+      if (swell2Dir) {
+        swell2Dir[i] = (swell2Dir[iW] + swell2Dir[i] + swell2Dir[iE]) / 3;
+      }
+      if (swell2Period) {
+        swell2Period[i] = (swell2Period[iW] + swell2Period[i] + swell2Period[iE]) / 3;
       }
     }
   }
@@ -344,6 +355,21 @@ function applyStabilityCorrections(grid, cols, rows) {
     if (grid.windWavePeriod) {
       if (!isFinite(grid.windWavePeriod[i]) || grid.windWavePeriod[i] < 0) grid.windWavePeriod[i] = 0;
       if (grid.windWavePeriod[i] > 30.0) grid.windWavePeriod[i] = 30.0;
+    }
+
+    // Secondary swell clamping
+    if (grid.swell2Height) {
+      if (!isFinite(grid.swell2Height[i])) grid.swell2Height[i] = 0;
+      if (grid.swell2Height[i] < 0) grid.swell2Height[i] = 0;
+      if (grid.swell2Height[i] > MAX_WAVE_HEIGHT) grid.swell2Height[i] = MAX_WAVE_HEIGHT;
+    }
+    if (grid.swell2Dir) {
+      if (!isFinite(grid.swell2Dir[i])) grid.swell2Dir[i] = 0;
+      grid.swell2Dir[i] = ((grid.swell2Dir[i] % 360) + 360) % 360;
+    }
+    if (grid.swell2Period) {
+      if (!isFinite(grid.swell2Period[i]) || grid.swell2Period[i] < 0) grid.swell2Period[i] = 0;
+      if (grid.swell2Period[i] > 30.0) grid.swell2Period[i] = 30.0;
     }
 
     // Pressure sanity (300-1100 hPa or zero)
@@ -453,6 +479,7 @@ function applyWaveNormalization(grid, cols, rows) {
     for (let i = 0; i < size; i++) {
       grid.waveHeight[i] *= scale;
       if (grid.swellHeight) grid.swellHeight[i] *= scale;
+      if (grid.swell2Height) grid.swell2Height[i] *= scale;
     }
   }
 }
@@ -493,6 +520,9 @@ function checkAndResetIfUnstable(field, grid, cols, rows) {
     if (base.windWaveHeight && grid.windWaveHeight) grid.windWaveHeight.set(base.windWaveHeight);
     if (base.windWaveDir && grid.windWaveDir) grid.windWaveDir.set(base.windWaveDir);
     if (base.windWavePeriod && grid.windWavePeriod) grid.windWavePeriod.set(base.windWavePeriod);
+    if (base.swell2Height && grid.swell2Height) grid.swell2Height.set(base.swell2Height);
+    if (base.swell2Dir && grid.swell2Dir) grid.swell2Dir.set(base.swell2Dir);
+    if (base.swell2Period && grid.swell2Period) grid.swell2Period.set(base.swell2Period);
     if (base.pressure) grid.pressure.set(base.pressure);
 
     // Re-baseline energy after reset

@@ -116,23 +116,33 @@ export function injectMarineData(field, marineData) {
       const gv = gridVectors[srcIdx];
 
       // Wave height + direction + period
+      // v5.0: Direction fix — removed erroneous +180 that flipped all directions.
+      // atan2(-u, -v) correctly reconstructs meteorological direction from getUV() components.
+      // +360 % 360 handles negative angles without introducing a 180° offset.
       field.grid.waveHeight[dstIdx] = gv.waves?.speed || 0;
       field.grid.waveDir[dstIdx] = gv.waves?.speed > 0
-        ? Math.atan2(-gv.waves.u, -gv.waves.v) * (180 / Math.PI) + 180
+        ? (Math.atan2(-gv.waves.u, -gv.waves.v) * (180 / Math.PI) + 360) % 360
         : 0;
       field.grid.wavePeriod[dstIdx] = gv.waves?.period || 0;
 
       // Primary swell
       field.grid.swellHeight[dstIdx] = gv.swell_1?.speed || 0;
       field.grid.swellDir[dstIdx] = gv.swell_1?.speed > 0
-        ? Math.atan2(-gv.swell_1.u, -gv.swell_1.v) * (180 / Math.PI) + 180
+        ? (Math.atan2(-gv.swell_1.u, -gv.swell_1.v) * (180 / Math.PI) + 360) % 360
         : 0;
       field.grid.swellPeriod[dstIdx] = gv.swell_1?.period || 0;
+
+      // Secondary swell (swell_2)
+      field.grid.swell2Height[dstIdx] = gv.swell_2?.speed || 0;
+      field.grid.swell2Dir[dstIdx] = gv.swell_2?.speed > 0
+        ? (Math.atan2(-gv.swell_2.u, -gv.swell_2.v) * (180 / Math.PI) + 360) % 360
+        : 0;
+      field.grid.swell2Period[dstIdx] = gv.swell_2?.period || 0;
 
       // Wind waves
       field.grid.windWaveHeight[dstIdx] = gv.wind_waves?.speed || 0;
       field.grid.windWaveDir[dstIdx] = gv.wind_waves?.speed > 0
-        ? Math.atan2(-gv.wind_waves.u, -gv.wind_waves.v) * (180 / Math.PI) + 180
+        ? (Math.atan2(-gv.wind_waves.u, -gv.wind_waves.v) * (180 / Math.PI) + 360) % 360
         : 0;
       field.grid.windWavePeriod[dstIdx] = gv.wind_waves?.period || 0;
 

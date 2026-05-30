@@ -40,8 +40,8 @@ var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bo
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
 
 // --- PERSISTENT CACHE (localStorage) ---
-var LS_WIND_KEY = 'rawsurf_wind_cache_v1';
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v1';
+var LS_WIND_KEY = 'rawsurf_wind_cache_v2';
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v2';
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped

@@ -97,7 +97,7 @@ function fieldToWindGrid(field) {
 function fieldToMarineGrid(field, activeMarineLayer) {
   if (!field || !field.sources.marine) return null;
 
-  const { waveHeight, waveDir, swellHeight, swellDir, windWaveHeight, windWaveDir, landMask, wavePeriod, swellPeriod, windWavePeriod } = field.grid;
+  const { waveHeight, waveDir, swellHeight, swellDir, swell2Height, swell2Dir, windWaveHeight, windWaveDir, landMask, wavePeriod, swellPeriod, swell2Period, windWavePeriod } = field.grid;
   const { cols, rows, bounds } = field;
   const size = cols * rows;
 
@@ -105,10 +105,16 @@ function fieldToMarineGrid(field, activeMarineLayer) {
   let dirSrc = waveDir;
   let periodSrc = wavePeriod;
 
-  if (activeMarineLayer === 'swell_1' || activeMarineLayer === 'swell_2') {
+  if (activeMarineLayer === 'swell_1') {
     hSrc = swellHeight;
     dirSrc = swellDir;
     periodSrc = swellPeriod;
+  } else if (activeMarineLayer === 'swell_2') {
+    // v5.0: Fix — swell_2 now correctly uses secondary swell fields
+    // instead of duplicating primary swell data
+    hSrc = swell2Height;
+    dirSrc = swell2Dir;
+    periodSrc = swell2Period;
   } else if (activeMarineLayer === 'wind_waves') {
     hSrc = windWaveHeight;
     dirSrc = windWaveDir;

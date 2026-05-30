@@ -450,30 +450,34 @@ export var MapForecastOverlay = ({
 
   const marineCurrent = marineData?.current || {};
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
-  // v4.1: Prefer decoded tile sample → marine grid fallback → raw API data
-  const waveHeight = (activeLayer === 'waves' && sampledWaves)
-    ? sampledWaves.value
-    : (activeLayer === 'waves' && marineGridSample)
-      ? marineGridSample.value
+  // v5.0: Marine grid sample is AUTHORITATIVE — it's the same data driving the heatmap.
+  // Decoded tile samples are only used as fallback when grid sample is unavailable.
+  const waveHeight = (activeLayer === 'waves' && marineGridSample)
+    ? marineGridSample.value
+    : (activeLayer === 'waves' && sampledWaves)
+      ? sampledWaves.value
       : getBiasAdjusted(rawWaveHeight, 'wave');
 
-  const wavePeriod = (sampledWavePeriod && sampledWavePeriod.value > 0)
-    ? sampledWavePeriod.value
-    : (activeLayer === 'waves' && marineGridSample?.period > 0)
-      ? marineGridSample.period
+  const wavePeriod = (activeLayer === 'waves' && marineGridSample?.period > 0)
+    ? marineGridSample.period
+    : (sampledWavePeriod && sampledWavePeriod.value > 0)
+      ? sampledWavePeriod.value
       : (isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex));
   
-  const waveDir = (activeLayer === 'waves' && sampledWaves && sampledWaves.direction != null)
-    ? sampledWaves.direction
-    : (activeLayer === 'waves' && marineGridSample?.direction != null)
-      ? marineGridSample.direction
+  const waveDir = (activeLayer === 'waves' && marineGridSample?.direction != null)
+    ? marineGridSample.direction
+    : (activeLayer === 'waves' && sampledWaves && sampledWaves.direction != null)
+      ? sampledWaves.direction
       : (isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex));
   
   const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
   const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : (activeModel === 'EURO' ? rawWaveHeight : null);
-  const swell1Height = (activeLayer === 'swell_1' && sampledSwell1)
-    ? sampledSwell1.value
-    : getBiasAdjusted(rawSwell1Height, 'swell1');
+  // v5.0: marineGridSample already contains the swell_1 sub-layer data when activeLayer === 'swell_1'
+  const swell1Height = (activeLayer === 'swell_1' && marineGridSample)
+    ? marineGridSample.value
+    : (activeLayer === 'swell_1' && sampledSwell1)
+      ? sampledSwell1.value
+      : getBiasAdjusted(rawSwell1Height, 'swell1');
   
   const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
   const swell1Period = (sampledSwell1Period && sampledSwell1Period.value > 0)
@@ -481,27 +485,36 @@ export var MapForecastOverlay = ({
     : (rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null));
   
   const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
-  const swell1Dir = (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
-    ? sampledSwell1.direction
-    : (rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null));
+  const swell1Dir = (activeLayer === 'swell_1' && marineGridSample?.direction != null)
+    ? marineGridSample.direction
+    : (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
+      ? sampledSwell1.direction
+      : (rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null));
   
   // Swell 2 (secondary swell) — only GFS Wave provides this natively; stitched in from GFS Wave for other models
   const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
   const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
-  const swell2Height = (activeLayer === 'swell_2' && sampledSwell2)
-    ? sampledSwell2.value
-    : getBiasAdjusted(rawSwell2Height, 'swell2');
+  // v5.0: marineGridSample already contains the swell_2 sub-layer data when activeLayer === 'swell_2'
+  const swell2Height = (activeLayer === 'swell_2' && marineGridSample)
+    ? marineGridSample.value
+    : (activeLayer === 'swell_2' && sampledSwell2)
+      ? sampledSwell2.value
+      : getBiasAdjusted(rawSwell2Height, 'swell2');
 
   const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
-  const swell2Period = (sampledSwell2Period && sampledSwell2Period.value > 0)
-    ? sampledSwell2Period.value
-    : rawSwell2Period;
+  const swell2Period = (activeLayer === 'swell_2' && marineGridSample?.period > 0)
+    ? marineGridSample.period
+    : (sampledSwell2Period && sampledSwell2Period.value > 0)
+      ? sampledSwell2Period.value
+      : rawSwell2Period;
   
-  const swell2Dir = (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
-    ? sampledSwell2.direction
-    : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
+  const swell2Dir = (activeLayer === 'swell_2' && marineGridSample?.direction != null)
+    ? marineGridSample.direction
+    : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
+      ? sampledSwell2.direction
+      : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
     
-  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null && !sampledSwell2;
+  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null && !sampledSwell2 && !marineGridSample;
 
   // Wind waves — GFS and ICON provide this, EURO does not
   // For EURO: estimate wind waves = total wave height minus primary swell height
@@ -510,7 +523,12 @@ export var MapForecastOverlay = ({
   const rawWindWaveDir = getClampedValue(marine.wind_wave_direction, marineHourIndex);
 
   let windWaveHeight, windWavePeriod, windWaveDir;
-  if (activeLayer === 'wind_waves' && sampledWindWaves) {
+  // v5.0: Marine grid sample is authoritative for wind_waves too
+  if (activeLayer === 'wind_waves' && marineGridSample) {
+    windWaveHeight = marineGridSample.value;
+    windWavePeriod = marineGridSample.period > 0 ? marineGridSample.period : rawWindWavePeriod;
+    windWaveDir = marineGridSample.direction != null ? marineGridSample.direction : rawWindWaveDir;
+  } else if (activeLayer === 'wind_waves' && sampledWindWaves) {
     windWaveHeight = sampledWindWaves.value;
     windWavePeriod = (sampledWindWavesPeriod && sampledWindWavesPeriod.value > 0) ? sampledWindWavesPeriod.value : rawWindWavePeriod;
     windWaveDir = sampledWindWaves.direction != null ? sampledWindWaves.direction : rawWindWaveDir;

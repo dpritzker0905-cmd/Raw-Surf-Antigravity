@@ -227,6 +227,37 @@ var MapWebGL = ({
     window.__SIM_FRAME__ = simFrameIndex;
     window.__SIM_EVOLUTION__ = renderPlan?.evolution || null;
     window.__GPU_DISPATCHER__ = getDispatcherDiagnostics();
+
+    // v5.0: Data Freshness Diagnostic — callable from console as window.__DATA_DIAG__
+    window.__DATA_DIAG__ = {
+      wind: {
+        hasData: !!windData,
+        vectorCount: windData?.vectors?.length || 0,
+        gridSize: windData ? `${windData.cols}×${windData.rows}` : 'none',
+        source: windData?.source || 'unknown',
+        hourOffset: windData?.hourOffset ?? null,
+        stale: windData?.stale ?? null,
+      },
+      marine: {
+        hasData: !!marineData,
+        featureCount: marineData?.features?.length || 0,
+        gridVectorCount: marineData?.grid?.vectors?.length || 0,
+        gridSize: marineData?.grid ? `${marineData.grid.cols}×${marineData.grid.rows}` : 'none',
+        gridTimestamp: marineData?.grid?.timestamp ? new Date(marineData.grid.timestamp).toISOString() : null,
+        ageSec: marineData?.grid?.timestamp ? Math.round((Date.now() - marineData.grid.timestamp) / 1000) : null,
+      },
+      activeLayer: activeLayers[0] || 'none',
+      activeMarineLayer: activeMarineLayer || 'none',
+      activeModel,
+      timeOffsetHours: debouncedTimeOffsetHours,
+      fce: {
+        fieldRevision: simulationField?.revision || null,
+        fieldSources: simulationField?.sources || null,
+        renderPlanExists: !!renderPlan,
+        simFrame: simFrameIndex,
+      },
+      timestamp: new Date().toISOString(),
+    };
   }
 
   const activeRenderType = useMemo(() => {

@@ -23,10 +23,16 @@
  * @property {Float32Array} windV      - V-component of wind (knots), row-major
  * @property {Float32Array} waveHeight - Significant wave height (meters)
  * @property {Float32Array} waveDir    - Wave direction (degrees, meteorological)
+ * @property {Float32Array} wavePeriod - Mean wave period (seconds)
  * @property {Float32Array} swellHeight - Primary swell height (meters)
  * @property {Float32Array} swellDir   - Primary swell direction (degrees)
+ * @property {Float32Array} swellPeriod - Primary swell period (seconds)
+ * @property {Float32Array} swell2Height - Secondary swell height (meters)
+ * @property {Float32Array} swell2Dir   - Secondary swell direction (degrees)
+ * @property {Float32Array} swell2Period - Secondary swell period (seconds)
  * @property {Float32Array} windWaveHeight - Wind-wave height (meters)
  * @property {Float32Array} windWaveDir - Wind-wave direction (degrees)
+ * @property {Float32Array} windWavePeriod - Wind-wave period (seconds)
  * @property {Float32Array} pressure   - Mean sea level pressure (hPa)
  * @property {Uint8Array}   landMask   - 1 = land, 0 = ocean
  */
@@ -86,6 +92,9 @@ export function createEmptyField(cols, rows, bounds, model = 'GFS') {
       swellHeight:    new Float32Array(size),
       swellDir:       new Float32Array(size),
       swellPeriod:    new Float32Array(size),
+      swell2Height:   new Float32Array(size),
+      swell2Dir:      new Float32Array(size),
+      swell2Period:   new Float32Array(size),
       windWaveHeight: new Float32Array(size),
       windWaveDir:    new Float32Array(size),
       windWavePeriod: new Float32Array(size),
