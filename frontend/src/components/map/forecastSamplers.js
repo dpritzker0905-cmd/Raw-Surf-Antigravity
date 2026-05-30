@@ -67,12 +67,19 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
     return null;
   }
 
-  // v6.3: Grid provider guard — grid data always comes from Open-Meteo, even for EURO.
-  // EURO grid uses ecmwf_wam025 model. Only exact-point uses Copernicus.
-  const EXPECTED_PROVIDERS = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'open-meteo' };
-  const expectedProvider = activeModel ? EXPECTED_PROVIDERS[activeModel] : null;
-  if (expectedProvider && grid.__provider && grid.__provider !== expectedProvider) {
-    return null;
+  // v6.6: Grid provider guard
+  if (activeModel === 'GFS' || activeModel === 'ICON') {
+    if (grid.__provider !== 'open-meteo') return null;
+  } else if (activeModel === 'EURO') {
+    if (activeLayer === 'waves') {
+      if (grid.__provider !== 'open-meteo') return null;
+    } else if (['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
+      const isValidCopernicus = grid.__gridProvider === 'copernicus' &&
+                                grid.__componentLayer === activeLayer;
+      if (!isValidCopernicus) return null;
+    } else {
+      return null;
+    }
   }
 
   const { west, south, east, north } = grid.bounds;
@@ -613,3 +620,116 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
 
   return { value, direction };
 }
+
+export function writeOverlayDiagnostics(params) {
+  if (typeof window === 'undefined') return;
+  const {
+    lat, lng, activeModel, activeLayer, timeOffsetHours, exactPoint,
+    sampledSwell1Period, sampledWavePeriod, marineGridSample, marine,
+    marineHourIndex, swell1Supported, cards, waveHeight, swell1Height,
+    swell2Height, windWaveHeight, swell2ModelUnavailable, windWavesSupported,
+    marineData, exactPointStatus, isExactPointValid, wavePeriod, waveDir,
+    swell1Dir, swell2Dir, windWaveDir, blockFallbacks, isExactPointAuthority,
+    sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
+    useExactPoint, rawWaveHeight, rawSwell1Height, rawSwell2Height, rawWindWaveHeight,
+    rawWindWavePeriod, rawWindWaveDir, mToFt, degToCompass,
+    currentHourIndex, wx
+  } = params;
+
+  // Consolidate into a single lightweight diagnostic payload (saves ~130 LOC)
+  window.__MARINE_DIAG__ = {
+    activeModel,
+    activeLayer,
+    timeOffsetHours,
+    selectedPoint: lat != null ? { lat, lng } : null,
+    exactPointStatus,
+    exactPointValid: isExactPointValid,
+    fallbackBlocked: blockFallbacks,
+    gridProvider: marineData?.grid?.__gridProvider || 'open-meteo',
+    gridComponentLayer: marineData?.grid?.__componentLayer || null,
+    displayedValues: {
+      waveHeight: mToFt(waveHeight),
+      wavePeriod,
+      waveDir,
+      swell1Height: mToFt(swell1Height),
+      swell2Height: mToFt(swell2Height),
+      windWaveHeight: mToFt(windWaveHeight)
+    },
+    exactPointValues: useExactPoint ? {
+      wave_height: useExactPoint.wave_height,
+      wave_period: useExactPoint.wave_period,
+      wave_direction: useExactPoint.wave_direction,
+      swell_wave_height: useExactPoint.swell_wave_height,
+      swell_wave_period: useExactPoint.swell_wave_period,
+      swell_wave_direction: useExactPoint.swell_wave_direction,
+      secondary_swell_wave_height: useExactPoint.secondary_swell_wave_height,
+      secondary_swell_wave_period: useExactPoint.secondary_swell_wave_period,
+      wind_wave_height: useExactPoint.wind_wave_height,
+      wind_wave_period: useExactPoint.wind_wave_period,
+      wind_wave_direction: useExactPoint.wind_wave_direction
+    } : null,
+    timestamp: new Date().toISOString()
+  };
+
+  // Maintain legacy interfaces for backwards-compatible test assertions and devtools queries
+  window.__MARINE_DISPLAY_SOURCE_DIAG__ = window.__MARINE_DIAG__;
+  window.__MARINE_LAYER_VALUE_DIAG__ = { displayed: window.__MARINE_DIAG__.displayedValues };
+  window.__MARINE_PERIOD_DIAG__ = { displayedPeriodSource: activeLayer === 'waves' ? 'waves' : 'swell_1' };
+  window.__MARINE_MODEL_CAPABILITY_DIAG__ = { activeModel };
+  window.__EURO_MARINE_PROVIDER_DIAG__ = {
+    model: activeModel,
+    activeLayer,
+    gridProvider: window.__MARINE_DIAG__.gridProvider,
+    exactPointStatus,
+    exactPointValid: isExactPointValid
+  };
+}
+
+
+export var mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
+
+export var degToCompass = (deg) => {
+  if (deg == null) return '';
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(deg / 22.5) % 16];
+};
+
+export function findHourIndex(timeArray, timeOffsetHours) {
+  if (!timeArray) return 0;
+  const targetTime = new Date();
+  targetTime.setHours(targetTime.getHours() + timeOffsetHours);
+  const targetTs = targetTime.getTime();
+
+  let closest = 0;
+  let minDiff = Infinity;
+  timeArray.forEach((t, i) => {
+    const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
+    if (diff < minDiff) { minDiff = diff; closest = i; }
+  });
+  return closest;
+}
+
+export function getClampedValue(array, index) {
+  if (!array || !Array.isArray(array) || array.length === 0) return null;
+  const clampedIndex = Math.max(0, Math.min(index, array.length - 1));
+  for (let i = clampedIndex; i >= 0; i--) {
+    if (array[i] !== null && array[i] !== undefined) return array[i];
+  }
+  for (let i = clampedIndex + 1; i < array.length; i++) {
+    if (array[i] !== null && array[i] !== undefined) return array[i];
+  }
+  return null;
+}
+
+export function getBiasAdjusted(val, variableType, activeModel, timeOffsetHours) {
+  if (val == null) return null;
+  const isSwell2 = variableType === 'swell2';
+  const isFallback = (activeModel === 'ICON' && (timeOffsetHours > 180 || isSwell2));
+  if (!isFallback) return val;
+  if (activeModel === 'ICON') {
+    if (variableType === 'wind' || variableType === 'wind_gusts') return val * 0.97;
+    if (variableType === 'wave' || variableType === 'swell1' || variableType === 'wind_wave') return val * 0.96;
+  }
+  return val;
+}
+

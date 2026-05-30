@@ -88,6 +88,54 @@ function findClosestHourIndex(timeArray, targetMs) {
 }
 
 /**
+ * Clamp bounds around their geographic center if they exceed the maximum safe dimensions (30° lat x 60° lon) for the Copernicus backend.
+ */
+function clampBounds(bounds) {
+  var latMin = bounds.south;
+  var latMax = bounds.north;
+  var lonMin = bounds.west;
+  var lonMax = bounds.east;
+
+  // Handle wrap
+  if (lonMax < lonMin) lonMax += 360;
+
+  var latCenter = (latMax + latMin) / 2;
+  var lonCenter = (lonMax + lonMin) / 2;
+
+  var latDiff = latMax - latMin;
+  var lonDiff = lonMax - lonMin;
+
+  var clampedSouth = latMin;
+  var clampedNorth = latMax;
+  var clampedWest = lonMin;
+  var clampedEast = lonMax;
+
+  var isClamped = false;
+
+  if (latDiff > 30) {
+    clampedSouth = latCenter - 15;
+    clampedNorth = latCenter + 15;
+    isClamped = true;
+  }
+  if (lonDiff > 60) {
+    clampedWest = lonCenter - 30;
+    clampedEast = lonCenter + 30;
+    isClamped = true;
+  }
+
+  // Normalize lon to [-180, 180]
+  if (clampedWest > 180) clampedWest -= 360;
+  if (clampedWest < -180) clampedWest += 360;
+  if (clampedEast > 180) clampedEast -= 360;
+  if (clampedEast < -180) clampedEast += 360;
+
+  return {
+    bounds: { west: clampedWest, south: clampedSouth, east: clampedEast, north: clampedNorth },
+    isClamped: isClamped
+  };
+}
+
+/**
  * Fetch a Copernicus regional grid for a EURO component layer.
  *
  * @param {Object} viewportBounds - { west, south, east, north }
@@ -97,18 +145,51 @@ function findClosestHourIndex(timeArray, targetMs) {
  * @returns {Object|null} Grid data in marineData.grid format, or null on error
  */
 export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOffset, zoom) {
-  if (!COMPONENT_LAYERS.includes(layer)) return null;
-  if (!viewportBounds) return null;
+  if (!COMPONENT_LAYERS.includes(layer)) {
+    if (typeof window !== 'undefined') {
+      window.__COPERNICUS_GRID_DIAG__ = {
+        layer, skipped: true, skippedReason: 'component_layer_mismatch',
+        timestamp: new Date().toISOString(), zoom
+      };
+    }
+    return null;
+  }
+  if (!viewportBounds) {
+    if (typeof window !== 'undefined') {
+      window.__COPERNICUS_GRID_DIAG__ = {
+        layer, skipped: true, skippedReason: 'missing_viewport_bounds',
+        timestamp: new Date().toISOString(), zoom
+      };
+    }
+    return null;
+  }
   if (zoom < MIN_ZOOM) {
     console.log(`[CopernicusGrid] Zoom ${zoom} < ${MIN_ZOOM}, skipping component grid`);
+    if (typeof window !== 'undefined') {
+      window.__COPERNICUS_GRID_DIAG__ = {
+        layer, skipped: true, skippedReason: 'zoom_too_low',
+        timestamp: new Date().toISOString(), zoom
+      };
+    }
     return null;
   }
 
   var vars = COPERNICUS_LAYER_VARS[layer];
   var fields = LAYER_FIELD_MAP[layer];
-  if (!vars || !fields) return null;
+  if (!vars || !fields) {
+    if (typeof window !== 'undefined') {
+      window.__COPERNICUS_GRID_DIAG__ = {
+        layer, skipped: true, skippedReason: 'unsupported_layer_vars',
+        timestamp: new Date().toISOString(), zoom
+      };
+    }
+    return null;
+  }
 
-  var { points, gridSize, bounds } = computeRegionalGrid(viewportBounds);
+  // v6.6: Clamp bounds around the center to ensure backend safety (max 30° x 60°)
+  var { bounds: clampedBBox, isClamped } = clampBounds(viewportBounds);
+
+  var { points, gridSize, bounds } = computeRegionalGrid(clampedBBox);
   var lats = points.map(function(p) { return p.lat; });
   var lons = points.map(function(p) { return p.lng; });
 
@@ -120,7 +201,7 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
     models: ['ecmwf_wam025']
   };
 
-  console.log(`[CopernicusGrid] Fetching ${layer}: ${points.length} pts, vars=${vars.join(',')}`);
+  console.log(`[CopernicusGrid] Fetching ${layer}: ${points.length} pts, vars=${vars.join(',')}, clamped=${isClamped}`);
 
   try {
     var res = await fetch('/api/weather-proxy', {
@@ -131,12 +212,26 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
 
     if (!res.ok) {
       console.error(`[CopernicusGrid] HTTP ${res.status} for ${layer}`);
+      if (typeof window !== 'undefined') {
+        window.__COPERNICUS_GRID_DIAG__ = {
+          layer, skipped: true, skippedReason: 'backend_error',
+          httpStatus: res.status, timestamp: new Date().toISOString(), zoom
+        };
+      }
       return null;
     }
 
     var json = await res.json();
     var results = Array.isArray(json) ? json : null;
-    if (!results || results.length === 0) return null;
+    if (!results || results.length === 0) {
+      if (typeof window !== 'undefined') {
+        window.__COPERNICUS_GRID_DIAG__ = {
+          layer, skipped: true, skippedReason: 'empty_backend_results',
+          timestamp: new Date().toISOString(), zoom
+        };
+      }
+      return null;
+    }
 
     // Find the target time index
     var timeArray = results[0]?.hourly?.time;
@@ -203,7 +298,10 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
         nonzeroCount, vars, hourOffset,
         bbox: bounds,
         timestamp: new Date().toISOString(),
-        zoom
+        zoom,
+        isClamped: isClamped,
+        skipped: nonzeroCount === 0,
+        skippedReason: nonzeroCount === 0 ? 'no_nonzero_points' : null
       };
     }
 
@@ -226,6 +324,12 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
     };
   } catch (err) {
     console.error(`[CopernicusGrid] Fetch failed for ${layer}:`, err.message);
+    if (typeof window !== 'undefined') {
+      window.__COPERNICUS_GRID_DIAG__ = {
+        layer, skipped: true, skippedReason: 'fetch_exception',
+        error: err.message, timestamp: new Date().toISOString(), zoom
+      };
+    }
     return null;
   }
 }

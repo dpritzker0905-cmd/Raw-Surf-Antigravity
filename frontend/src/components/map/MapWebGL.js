@@ -274,10 +274,22 @@ var MapWebGL = ({
 
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
-    // v6.5: Dynamic grid capability: if Copernicus regional grid provided component data,
-    // treat the layer as grid-supported. Static MARINE_GRID_CAPABILITIES only covers Open-Meteo.
+
+    const isEuroComponent = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
+    
+    // v6.6: Tight dynamic grid capability validation: if Copernicus regional grid provided component data,
+    // it MUST match the active model and component layer exactly.
     const hasCopernicusGrid = marineData?.grid?.__gridProvider === 'copernicus' &&
-                              marineData?.grid?.__gridSupportsLayer === true;
+                              marineData?.grid?.__gridSupportsLayer === true &&
+                              marineData?.grid?.__componentLayer === activeMarineLayer &&
+                              activeModel === 'EURO';
+
+    // If it's a EURO component layer and the Copernicus grid componentLayer doesn't match yet,
+    // return null synchronously to trigger/await fetch and avoid rendering stale/zero data.
+    if (isEuroComponent && !hasCopernicusGrid) {
+      return null;
+    }
+
     const layerSupported = isGridLayerSupported(activeModel, activeMarineLayer) || hasCopernicusGrid;
     const res = {
       bounds: marineData.grid.bounds,
