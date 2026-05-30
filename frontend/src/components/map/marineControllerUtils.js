@@ -5,6 +5,30 @@
  * Extracted from marineController.js for LOC compliance.
  */
 
+// ========================================================================
+// MARINE MODEL CAPABILITY MAP — Single source of truth
+// Declares which wave component layers each model natively supports.
+// Consumed by: marineController, MapForecastOverlay, useOpenMeteoTileUrls.
+// Verified against Open-Meteo API 2026-05-30.
+// ========================================================================
+export var MARINE_MODEL_CAPABILITIES = {
+  GFS: { waves: true, swell_1: true, swell_2: true, wind_waves: true, apiModel: 'ncep_gfswave025' },
+  ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true, apiModel: 'dwd_gwam' },
+  EURO: { waves: true, swell_1: false, swell_2: false, wind_waves: false, apiModel: 'ecmwf_wam025' }
+};
+
+/**
+ * Check if a given marine layer is natively supported by the active model.
+ * @param {string} model - 'GFS' | 'ICON' | 'EURO'
+ * @param {string} layer - 'waves' | 'swell_1' | 'swell_2' | 'wind_waves'
+ * @returns {boolean}
+ */
+export function isLayerSupportedByModel(model, layer) {
+  var caps = MARINE_MODEL_CAPABILITIES[model];
+  if (!caps) return false;
+  return !!caps[layer];
+}
+
 // --- UTILITY FUNCTIONS ---
 export var safeNum = (v, fallback = 0) => {
   const n = parseFloat(v);

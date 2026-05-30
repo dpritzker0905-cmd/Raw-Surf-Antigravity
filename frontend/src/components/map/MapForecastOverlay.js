@@ -7,6 +7,7 @@ import {
   selectExactPointHour,
   sampleValueFromDecodedTiles
 } from './forecastSamplers';
+import { MARINE_MODEL_CAPABILITIES, isLayerSupportedByModel } from './marineControllerUtils';
 
 /**
  * Floating forecast data readout renders alongside tile overlays when
@@ -189,18 +190,15 @@ export var MapForecastOverlay = ({
     if (val == null) return null;
     
     const isSwell2 = variableType === 'swell2';
-    const isFallback = (activeModel === 'EURO' && (timeOffsetHours > 240 || isSwell2)) ||
-                       (activeModel === 'ICON' && (timeOffsetHours > 180 || isSwell2));
+    const isFallback = (activeModel === 'ICON' && (timeOffsetHours > 180 || isSwell2));
                        
     if (!isFallback) return val;
     
-    if (activeModel === 'EURO') {
-      if (variableType === 'wind' || variableType === 'wind_gusts') return val * 1.025; // ECMWF higher wind capture
-      if (variableType === 'wave' || variableType === 'swell1' || variableType === 'swell2' || variableType === 'wind_wave') return val * 1.05; // ECMWF higher swell energy
-    }
+    // v5.9.2: EURO bias removed — EURO only has combined waves, no component data to bias.
+    // Only ICON retains bias adjustments for genuinely supported layers.
     if (activeModel === 'ICON') {
       if (variableType === 'wind' || variableType === 'wind_gusts') return val * 0.97; // ICON conservative wind speed
-      if (variableType === 'wave' || variableType === 'swell1' || variableType === 'swell2' || variableType === 'wind_wave') return val * 0.96; // ICON conservative swell height
+      if (variableType === 'wave' || variableType === 'swell1' || variableType === 'wind_wave') return val * 0.96; // ICON conservative swell height
     }
     return val;
   };
@@ -294,7 +292,8 @@ export var MapForecastOverlay = ({
         : (isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex));
   
   const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
-  const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : (activeModel === 'EURO' ? rawWaveHeight : null);
+  // v5.9.2: No EURO synthesis — unsupported swell_1 stays null
+  const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : null;
   // v5.0: marineGridSample already contains the swell_1 sub-layer data when activeLayer === 'swell_1'
   const swell1Height = (activeLayer === 'swell_1' && exactPoint?.swell_wave_height != null)
     ? exactPoint.swell_wave_height
@@ -310,7 +309,7 @@ export var MapForecastOverlay = ({
     ? exactPoint.swell_wave_period
     : (sampledSwell1Period && sampledSwell1Period.value > 0)
       ? sampledSwell1Period.value
-      : (rawSwell1Period != null ? rawSwell1Period : (activeModel === 'EURO' ? wavePeriod : null));
+      : (rawSwell1Period != null ? rawSwell1Period : null);
   
   const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
   const swell1Dir = (activeLayer === 'swell_1' && exactPoint?.swell_wave_direction != null)
@@ -319,7 +318,7 @@ export var MapForecastOverlay = ({
       ? marineGridSample.direction
       : (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
         ? sampledSwell1.direction
-        : (rawSwell1Dir != null ? rawSwell1Dir : (activeModel === 'EURO' ? waveDir : null));
+        : (rawSwell1Dir != null ? rawSwell1Dir : null);
   
   // Swell 2 (secondary swell) — only GFS Wave provides this natively; stitched in from GFS Wave for other models
   const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
@@ -350,17 +349,23 @@ export var MapForecastOverlay = ({
         ? sampledSwell2.direction
         : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
     
-  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null && !sampledSwell2 && !marineGridSample && exactPoint?.secondary_swell_wave_height == null;
+  // v5.9.2: Use capability map instead of ad-hoc model checks
+  const swell2ModelUnavailable = !isLayerSupportedByModel(activeModel, 'swell_2') && rawSwell2Height == null && !sampledSwell2 && !marineGridSample && exactPoint?.secondary_swell_wave_height == null;
 
-  // Wind waves — GFS and ICON provide this, EURO does not
-  // For EURO: estimate wind waves = total wave height minus primary swell height
+  // Wind waves — only show real data from models that support it (GFS, ICON)
   const rawWindWaveHeight = getClampedValue(marine.wind_wave_height, marineHourIndex);
   const rawWindWavePeriod = getClampedValue(marine.wind_wave_period, marineHourIndex);
   const rawWindWaveDir = getClampedValue(marine.wind_wave_direction, marineHourIndex);
 
+  // v5.9.2: Check if wind_waves is supported by the active model
+  const windWavesSupported = isLayerSupportedByModel(activeModel, 'wind_waves');
   let windWaveHeight, windWavePeriod, windWaveDir;
-  // v5.0: Marine grid sample is authoritative for wind_waves too
-  if (activeLayer === 'wind_waves' && exactPoint?.wind_wave_height != null) {
+  if (!windWavesSupported) {
+    // Model doesn't support wind_wave decomposition — no fake data
+    windWaveHeight = null;
+    windWavePeriod = null;
+    windWaveDir = null;
+  } else if (activeLayer === 'wind_waves' && exactPoint?.wind_wave_height != null) {
     windWaveHeight = exactPoint.wind_wave_height;
     windWavePeriod = exactPoint.wind_wave_period > 0 ? exactPoint.wind_wave_period : rawWindWavePeriod;
     windWaveDir = exactPoint.wind_wave_direction != null ? exactPoint.wind_wave_direction : rawWindWaveDir;
@@ -376,17 +381,12 @@ export var MapForecastOverlay = ({
     windWaveHeight = getBiasAdjusted(rawWindWaveHeight, 'wind_wave');
     windWavePeriod = (sampledWindWavesPeriod && sampledWindWavesPeriod.value > 0) ? sampledWindWavesPeriod.value : rawWindWavePeriod;
     windWaveDir = rawWindWaveDir;
-  } else if (activeModel === 'EURO' && waveHeight != null && swell1Height != null) {
-    // Estimate: wind wave ≈ total wave - primary swell (clamped to 0)
-    windWaveHeight = getBiasAdjusted(Math.max(0, waveHeight - swell1Height), 'wind_wave');
-    windWavePeriod = wavePeriod != null ? Math.max(1, wavePeriod * 0.7) : null;
-    windWaveDir = waveDir;
   } else {
     windWaveHeight = null;
     windWavePeriod = null;
     windWaveDir = null;
   }
-  const windWaveEstimated = rawWindWaveHeight == null && windWaveHeight != null && activeLayer !== 'wind_waves';
+  const windWaveEstimated = false; // v5.9.2: No more estimation
 
   const cards = [];
 
@@ -448,17 +448,25 @@ export var MapForecastOverlay = ({
   }
 
   if (activeLayer === 'swell_1') {
-    const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
-    const hFt = mToFt(swell1Height);
-    cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-cyan-400' });
-    if (!swell1LowEnergy) {
-      if (swell1Period != null && swell1Period > 0) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
-      if (exactPoint?.swell_wave_peak_period != null && exactPoint.swell_wave_peak_period > 0) {
-        cards.push({ icon: Waves, label: 'Peak', value: `${exactPoint.swell_wave_peak_period.toFixed(1)}s`, color: 'text-cyan-200' });
-      }
-      if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: (swell1Dir + 180) % 360 });
+    // v5.9.2: Check model capability before showing component data
+    const swell1Supported = isLayerSupportedByModel(activeModel, 'swell_1');
+    if (!swell1Supported) {
+      const modelLabel1 = activeModel === 'EURO' ? 'ECMWF' : activeModel;
+      cards.push({ icon: Waves, label: 'Swell', value: 'N/A', color: 'text-cyan-400' });
+      cards.push({ icon: Waves, label: modelLabel1, value: 'No data', color: 'text-gray-400' });
     } else {
-      cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+      const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
+      const hFt = mToFt(swell1Height);
+      cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-cyan-400' });
+      if (!swell1LowEnergy) {
+        if (swell1Period != null && swell1Period > 0) cards.push({ icon: Waves, label: 'Period', value: `${swell1Period.toFixed(1)}s`, color: 'text-cyan-300' });
+        if (exactPoint?.swell_wave_peak_period != null && exactPoint.swell_wave_peak_period > 0) {
+          cards.push({ icon: Waves, label: 'Peak', value: `${exactPoint.swell_wave_peak_period.toFixed(1)}s`, color: 'text-cyan-200' });
+        }
+        if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: (swell1Dir + 180) % 360 });
+      } else {
+        cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+      }
     }
   }
 
@@ -484,15 +492,21 @@ export var MapForecastOverlay = ({
   }
 
   if (activeLayer === 'wind_waves') {
-    const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
-    const hFt = mToFt(windWaveHeight);
-    const suffix = windWaveEstimated ? ' ~' : '';
-    cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt}${suffix} ft` : '--', color: 'text-emerald-400' });
-    if (!windWaveLowEnergy) {
-      if (windWavePeriod != null && windWavePeriod > 0) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}${suffix}s`, color: 'text-emerald-300' });
-      if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: (windWaveDir + 180) % 360 });
+    // v5.9.2: Check model capability before showing component data
+    if (!windWavesSupported) {
+      const modelLabelWw = activeModel === 'EURO' ? 'ECMWF' : activeModel;
+      cards.push({ icon: Wind, label: 'Wind Waves', value: 'N/A', color: 'text-emerald-400' });
+      cards.push({ icon: Wind, label: modelLabelWw, value: 'No data', color: 'text-gray-400' });
     } else {
-      cards.push({ icon: Wind, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+      const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
+      const hFt = mToFt(windWaveHeight);
+      cards.push({ icon: Wind, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-emerald-400' });
+      if (!windWaveLowEnergy) {
+        if (windWavePeriod != null && windWavePeriod > 0) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}s`, color: 'text-emerald-300' });
+        if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: (windWaveDir + 180) % 360 });
+      } else {
+        cards.push({ icon: Wind, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+      }
     }
   }
 
@@ -529,6 +543,24 @@ export var MapForecastOverlay = ({
       v59_fix: 'Waves layer no longer overrides wave_period with swell1Period; swell1Period now uses exactPoint first',
       lowEnergyThreshold: '0.10m for direction suppression',
       exactPointError: typeof window !== 'undefined' ? window.__MARINE_EXACT_POINT_ERROR__ : null
+    };
+
+    // v5.9.2: Model capability diagnostics — confirms no fake/synthetic component data
+    window.__MARINE_MODEL_CAPABILITY_DIAG__ = {
+      activeModel,
+      capabilities: MARINE_MODEL_CAPABILITIES[activeModel] || null,
+      layerSupport: {
+        waves: isLayerSupportedByModel(activeModel, 'waves'),
+        swell_1: isLayerSupportedByModel(activeModel, 'swell_1'),
+        swell_2: isLayerSupportedByModel(activeModel, 'swell_2'),
+        wind_waves: isLayerSupportedByModel(activeModel, 'wind_waves'),
+      },
+      displayedValues: {
+        waveHeight, swell1Height, swell2Height, windWaveHeight,
+        swell2ModelUnavailable,
+        windWavesSupported,
+      },
+      truthContract: 'v5.9.2: No cross-model component synthesis. Unsupported layers show N/A.',
     };
   }
 

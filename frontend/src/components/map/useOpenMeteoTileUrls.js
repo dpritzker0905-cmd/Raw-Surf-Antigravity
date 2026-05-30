@@ -456,29 +456,21 @@ export function useOpenMeteoTileUrls({
           let resolvedVar = variable;
           if (!meta.variables.includes(variable)) {
             if (entry.omModelGroup === 'marine') {
-              // For marine layers, if the active model lacks the specific variable (e.g. ecmwf_wam025 lacks swell_wave_height),
-              // fall back to the authoritative global wave model ncep_gfswave025 which has full swell decomposition,
-              // rather than displaying the total wave_height from the same model.
-              layerModel = 'ncep_gfswave025';
-              if (!allCached) {
-                meta = await fetchMetadata(layerModel);
-                if (!isMounted) return;
-              } else {
-                meta = MODEL_METADATA_CACHE[layerModel] || meta;
-              }
-              if (meta.variables.includes(variable)) {
-                resolvedVar = variable;
-              } else {
-                const fb2 = resolveVariable(meta, variable);
-                if (fb2) {
-                  resolvedVar = fb2;
-                }
-              }
+              // v5.9.2: If the active marine model lacks the requested variable
+              // (e.g. ecmwf_wam025 lacks swell_wave_height), render transparent tile
+              // instead of silently serving GFS Wave data labeled as ECMWF.
+              // The infobox capability check (isLayerSupportedByModel) will show "N/A".
               const fbKey = `marine-${variable}`;
               if (!loggedFallbacks.current.has(fbKey)) {
                 loggedFallbacks.current.add(fbKey);
-                console.log(`[MODEL] Marine model fallback: ${layerModel} for ${variable}`);
+                console.log(`[MODEL] Marine variable ${variable} unavailable on ${layerModel} — transparent tile (no cross-model fallback)`);
               }
+              // Force transparent tile — skip URL generation for this layer
+              newActiveSlots[layerKey] = 0;
+              newUrls[`${layerKey}-slot-0`] = 'om://transparent-tile';
+              newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
+              newUrls[`${layerKey}-slot-2`] = 'om://transparent-tile';
+              continue;
             } else {
               const fb = resolveVariable(meta, variable);
               if (fb) {
