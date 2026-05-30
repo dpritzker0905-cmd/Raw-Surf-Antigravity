@@ -33,285 +33,6 @@ export function getSharedLandGeoJSON() {
   return window.__LAND_GEOJSON_PROMISE__;
 }
 
-function stitchViewportGrid(viewportBounds, targetVariable, targetCols = 128, targetRows = 128, timeOffsetHours = 0) {
-  if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__) return null;
-  
-  const { west, south, east, north } = viewportBounds;
-  const lngSpan = east - west;
-  const latSpan = north - south;
-  
-  // 1. Locate the active model's metadata to resolve exact validTimes bounding indices
-  const activeLayersList = (window.__OM_ACTIVE_MODELS__) || ['ncep_gfswave025'];
-  // Prioritize the marine model in the active models list to avoid wind model index offsets
-  const model = activeLayersList.find(m => m.includes('wave') || m.includes('wam') || m.includes('gwam')) || 'ncep_gfswave025';
-  const meta = window.__MODEL_METADATA_CACHE__?.[model];
-  
-  let idx0 = 0;
-  let idx1 = 0;
-  let frac = 0.0;
-  
-  if (meta && Array.isArray(meta.validTimes) && meta.validTimes.length > 0) {
-    const targetMs = Date.now() + timeOffsetHours * 3600000;
-    let found = false;
-    for (let i = 0; i < meta.validTimes.length - 1; i++) {
-      const t0 = new Date(meta.validTimes[i]).getTime();
-      const t1 = new Date(meta.validTimes[i + 1]).getTime();
-      if (targetMs >= t0 && targetMs <= t1) {
-        idx0 = i;
-        idx1 = i + 1;
-        frac = (targetMs - t0) / (t1 - t0);
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      const tFirst = new Date(meta.validTimes[0]).getTime();
-      if (targetMs < tFirst) {
-        idx0 = 0;
-        idx1 = 0;
-        frac = 0.0;
-      } else {
-        const lastIdx = meta.validTimes.length - 1;
-        idx0 = lastIdx;
-        idx1 = lastIdx;
-        frac = 0.0;
-      }
-    }
-  } else {
-    // Fallback if metadata is not loaded yet: assume standard 3-hourly intervals for global wave models
-    const hoursPerStep = 3;
-    idx0 = Math.floor(timeOffsetHours / hoursPerStep);
-    idx1 = idx0 + 1;
-    frac = (timeOffsetHours / hoursPerStep) - idx0;
-  }
-
-  // 2. Gather all cached tiles that overlap with the viewport and match targetVariable + timeIndex
-  const overlappingTiles0 = [];
-  const overlappingTiles1 = [];
-  
-  const periodVariable = targetVariable.replace('_height', '_period').replace('wave_height', 'wave_period');
-  const periodTiles0 = [];
-  const periodTiles1 = [];
-  
-  for (const [key, tile] of window.__DECODED_OM_TILES__.entries()) {
-    const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-    // Check overlap
-    const overlapX = Math.max(west, tWest) <= Math.min(east, tEast);
-    const overlapY = Math.max(south, tSouth) <= Math.min(north, tNorth);
-    if (!overlapX || !overlapY) continue;
-    
-    if (tile.variable === targetVariable) {
-      if (tile.timeIndex === idx0) overlappingTiles0.push(tile);
-      if (tile.timeIndex === idx1) overlappingTiles1.push(tile);
-    } else if (tile.variable === periodVariable) {
-      if (tile.timeIndex === idx0) periodTiles0.push(tile);
-      if (tile.timeIndex === idx1) periodTiles1.push(tile);
-    }
-  }
-  
-  if (overlappingTiles0.length === 0) return null;
-  
-  const hasHour1 = overlappingTiles1.length > 0;
-  const effectiveFrac = hasHour1 ? frac : 0.0;
-
-  // Print active interpolation ratios for verification
-  if (typeof window !== 'undefined' && !stitchViewportGrid._forensicTemporalLogged) {
-    console.log(`[FORENSIC-TEMPORAL] stitchViewportGrid: timeOffsetHours=${timeOffsetHours.toFixed(3)}, idx0=${idx0}, idx1=${idx1}, frac=${effectiveFrac.toFixed(3)}, hasHour1=${hasHour1}, tiles0=${overlappingTiles0.length}, tiles1=${overlappingTiles1.length}`);
-    stitchViewportGrid._forensicTemporalLogged = true;
-  }
-
-  // 3. Bilinear interpolation helper function
-  const sampleTile = (tile, lng, lat) => {
-    if (!tile) return { val: 0, dir: 0, valid: false, landNeighbors: 4 };
-    const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-    const tLngSpan = tEast - tWest;
-    const tLatSpan = tNorth - tSouth;
-    
-    const tileCols = tile.nx || Math.sqrt(tile.values.length);
-    const tileRows = tile.ny || Math.sqrt(tile.values.length);
-    
-    const tx = Math.max(0, Math.min(tileCols - 1, ((lng - tWest) / tLngSpan) * (tileCols - 1)));
-    const ty = Math.max(0, Math.min(tileRows - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileRows - 1)));
-    
-    const x0 = Math.floor(tx);
-    const x1 = Math.min(tileCols - 1, x0 + 1);
-    const y0 = Math.floor(ty);
-    const y1 = Math.min(tileRows - 1, y0 + 1);
-    
-    const dx = tx - x0;
-    const dy = ty - y0;
-    
-    const idx00 = y0 * tileCols + x0;
-    const idx10 = y0 * tileCols + x1;
-    const idx01 = y1 * tileCols + x0;
-    const idx11 = y1 * tileCols + x1;
-    
-    const raw00 = tile.values[idx00];
-    const raw10 = tile.values[idx10];
-    const raw01 = tile.values[idx01];
-    const raw11 = tile.values[idx11];
-    
-    const valid00 = (typeof raw00 === 'number' && !isNaN(raw00));
-    const valid10 = (typeof raw10 === 'number' && !isNaN(raw10));
-    const valid01 = (typeof raw01 === 'number' && !isNaN(raw01));
-    const valid11 = (typeof raw11 === 'number' && !isNaN(raw11));
-    const landNeighbors = (valid00 ? 0 : 1) + (valid10 ? 0 : 1) + (valid01 ? 0 : 1) + (valid11 ? 0 : 1);
-    
-    const v00 = valid00 ? raw00 : 0;
-    const v10 = valid10 ? raw10 : 0;
-    const v01 = valid01 ? raw01 : 0;
-    const v11 = valid11 ? raw11 : 0;
-    
-    const valid = valid00 || valid10 || valid01 || valid11;
-    
-    const val = v00 * (1.0 - dx) * (1.0 - dy) +
-                v10 * dx * (1.0 - dy) +
-                v01 * (1.0 - dx) * dy +
-                v11 * dx * dy;
-                
-    let dir = 0;
-    if (tile.directions) {
-      const d00 = tile.directions[idx00] || 0;
-      const d10 = tile.directions[idx10] || 0;
-      const d01 = tile.directions[idx01] || 0;
-      const d11 = tile.directions[idx11] || 0;
-      
-      const r00 = d00 * Math.PI / 180;
-      const r10 = d10 * Math.PI / 180;
-      const r01 = d01 * Math.PI / 180;
-      const r11 = d11 * Math.PI / 180;
-      
-      const sinAvg = Math.sin(r00) * (1.0 - dx) * (1.0 - dy) +
-                     Math.sin(r10) * dx * (1.0 - dy) +
-                     Math.sin(r01) * (1.0 - dx) * dy +
-                     Math.sin(r11) * dx * dy;
-                     
-      const cosAvg = Math.cos(r00) * (1.0 - dx) * (1.0 - dy) +
-                     Math.cos(r10) * dx * (1.0 - dy) +
-                     Math.cos(r01) * (1.0 - dx) * dy +
-                     Math.cos(r11) * dx * dy;
-                     
-      dir = (Math.atan2(sinAvg, cosAvg) * 180 / Math.PI + 360) % 360;
-    }
-    
-    return { val, dir, valid, landNeighbors };
-  };
-
-  // 4. Initialize target grid vectors
-  const size = targetCols * targetRows;
-  const vectors = new Array(size);
-  
-  for (let r = 0; r < targetRows; r++) {
-    const lat = south + (r / (targetRows - 1)) * latSpan;
-    for (let c = 0; c < targetCols; c++) {
-      const lng = west + (c / (targetCols - 1)) * lngSpan;
-      const idx = r * targetCols + c;
-      
-      // Find the best tile that covers this (lng, lat) for hour 0
-      let tile0 = null;
-      for (const tile of overlappingTiles0) {
-        const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-        if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
-          tile0 = tile;
-          break;
-        }
-      }
-      if (!tile0 && overlappingTiles0.length > 0) tile0 = overlappingTiles0[0];
-      
-      // Find the best tile that covers this (lng, lat) for hour 1
-      let tile1 = null;
-      if (hasHour1) {
-        for (const tile of overlappingTiles1) {
-          const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-          if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
-            tile1 = tile;
-            break;
-          }
-        }
-        if (!tile1 && overlappingTiles1.length > 0) tile1 = overlappingTiles1[0];
-      }
-      
-      const sample0 = sampleTile(tile0, lng, lat);
-      const sample1 = sampleTile(tile1, lng, lat);
-      
-      let pt0 = null;
-      for (const tile of periodTiles0) {
-        const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-        if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
-          pt0 = tile;
-          break;
-        }
-      }
-      if (!pt0 && periodTiles0.length > 0) pt0 = periodTiles0[0];
-      
-      let pt1 = null;
-      if (hasHour1) {
-        for (const tile of periodTiles1) {
-          const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-          if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
-            pt1 = tile;
-            break;
-          }
-        }
-        if (!pt1 && periodTiles1.length > 0) pt1 = periodTiles1[0];
-      }
-      
-      const pSample0 = sampleTile(pt0, lng, lat);
-      const pSample1 = sampleTile(pt1, lng, lat);
-      
-      const isOceanPoint = sample0.valid || (hasHour1 && sample1.valid);
-      const landNeighborCount = hasHour1
-        ? Math.round(sample0.landNeighbors * (1.0 - effectiveFrac) + sample1.landNeighbors * effectiveFrac)
-        : sample0.landNeighbors;
-        
-      if (isOceanPoint) {
-        let h = sample0.val * (1.0 - effectiveFrac) + sample1.val * effectiveFrac;
-        
-        // Nearshore Coastal Wave Decay
-        if (landNeighborCount > 0) {
-          const decayFactor = landNeighborCount >= 3 ? 0.35
-                            : landNeighborCount === 2 ? 0.45
-                            : 0.65;
-          h *= decayFactor;
-        }
-        
-        // Interpolate direction (unit vectors to prevent wrapping artifacts)
-        const r0 = sample0.dir * Math.PI / 180;
-        const r1 = sample1.dir * Math.PI / 180;
-        const sinAvg = Math.sin(r0) * (1.0 - effectiveFrac) + Math.sin(r1) * effectiveFrac;
-        const cosAvg = Math.cos(r0) * (1.0 - effectiveFrac) + Math.cos(r1) * effectiveFrac;
-        const dir = (Math.atan2(sinAvg, cosAvg) * 180 / Math.PI + 360) % 360;
-        
-        const period = pSample0.val * (1.0 - effectiveFrac) + pSample1.val * effectiveFrac;
-        const dirRad = dir * Math.PI / 180;
-        
-        vectors[idx] = {
-          u: -h * Math.sin(dirRad),
-          v: -h * Math.cos(dirRad),
-          speed: h,
-          height: h,
-          direction: dir,
-          period: period,
-          swellHeight: 0,
-          swellDir: dir,
-          isOcean: true
-        };
-      } else {
-        vectors[idx] = {
-          u: 0, v: 0, speed: 0, height: 0, direction: 0, period: 0, swellHeight: 0, swellDir: 0, isOcean: false
-        };
-      }
-    }
-  }
-  
-  return {
-    vectors,
-    cols: targetCols,
-    rows: targetRows,
-    bounds: { west, south, east, north },
-    isRouteB: true
-  };
-}
 
 function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef) {
   let errorCount = 0;
@@ -320,7 +41,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
     type: 'custom',
     renderingMode: '2d',
     engine,
-    _lastStitchKey: '',
 
     onAdd(_mapOrArgs, glArg) {
       var _gl = (glArg) ? glArg : (_mapOrArgs?.gl || _mapOrArgs?.painter?.context?.gl);
@@ -330,13 +50,8 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         // Register with RenderPlanDispatcher for evolved wave field data
         registerMarineEngine(engine, _gl);
         if (dataRef.current?.vectors?.length) {
-          const routeBActive = typeof window !== 'undefined' && window.__DECODED_OM_TILES__ && window.__DECODED_OM_TILES__.size > 0;
-          if (!routeBActive) {
-            console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors (Route A)');
-            engine.setWaveData(_gl, dataRef.current, landGeoJSONRef.current);
-          } else {
-            console.log(`[FORENSIC-ROUTE-A] Skipping onAdd initial data — Route B active (${window.__DECODED_OM_TILES__.size} tiles)`);
-          }
+          console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors (FCE direct-grid)');
+          engine.setWaveData(_gl, dataRef.current, landGeoJSONRef.current);
         }
       } catch (e) {
         console.error('[WebGLMarine] Init failed:', e.message);
@@ -399,77 +114,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
 
-        // Stitch viewport-specific high-resolution grid from client-side dynamic OM tiles cache
-        if (typeof window !== 'undefined' && window.__DECODED_OM_TILES__) {
-          const bounds = map.getBounds();
-          const west = bounds.getWest();
-          const south = bounds.getSouth();
-          const east = bounds.getEast();
-          const north = bounds.getNorth();
-          
-          let targetVariable = 'wave_height';
-          const activeLayersList = (activeLayersRef && activeLayersRef.current) || [];
-          if (activeLayersList.includes('swell_1')) {
-            targetVariable = 'swell_wave_height';
-          } else if (activeLayersList.includes('swell_2')) {
-            targetVariable = 'secondary_swell_wave_height';
-          } else if (activeLayersList.includes('wind_waves')) {
-            targetVariable = 'wind_wave_height';
-          }
-
-          // FORENSIC: Log tile cache state periodically
-          if (!this._forensicLogCount) this._forensicLogCount = 0;
-          if (this._forensicLogCount < 5) {
-            const tileVars = new Set();
-            for (const t of window.__DECODED_OM_TILES__.values()) tileVars.add(t.variable);
-            console.log(`[FORENSIC-RENDER] Tile cache: ${window.__DECODED_OM_TILES__.size} tiles, vars=[${[...tileVars].join(',')}], target=${targetVariable}, activeLayers=[${activeLayersList.join(',')}]`);
-          }
-
-          const latestTileTimestamp = Array.from(window.__DECODED_OM_TILES__.values())
-            .reduce((max, tile) => Math.max(max, tile.timestamp), 0);
-          
-          const boundsKey = `${west.toFixed(2)},${south.toFixed(2)},${east.toFixed(2)},${north.toFixed(2)}`;
-          const timeOffset = (timeOffsetHoursRef && timeOffsetHoursRef.current) || 0;
-          const stitchKey = `${boundsKey}|${targetVariable}|${window.__DECODED_OM_TILES__.size}|${latestTileTimestamp}|${timeOffset.toFixed(3)}`;
-          
-          if (stitchKey !== this._lastStitchKey) {
-            stitchViewportGrid._decayLogCount = 0; // Reset decay logging for new stitch
-            stitchViewportGrid._forensicTemporalLogged = false; // Reset temporal logging
-            const viewportBounds = { west, south, east, north };
-            const stitchedGrid = stitchViewportGrid(viewportBounds, targetVariable, 128, 128, timeOffset);
-            if (stitchedGrid) {
-              // FORENSIC: Log stitched grid statistics
-              let minH = Infinity, maxH = 0, sumH = 0, oceanCount = 0, decayedCount = 0;
-              for (let vi = 0; vi < stitchedGrid.vectors.length; vi++) {
-                const vec = stitchedGrid.vectors[vi];
-                if (vec && vec.isOcean) {
-                  oceanCount++;
-                  if (vec.height < minH) minH = vec.height;
-                  if (vec.height > maxH) maxH = vec.height;
-                  sumH += vec.height;
-                }
-              }
-              const meanH = oceanCount > 0 ? sumH / oceanCount : 0;
-              if (this._forensicLogCount < 5) {
-                console.log(`[FORENSIC-STITCH] Grid stats: ${stitchedGrid.vectors.length} vectors, ${oceanCount} ocean pts, wave heights: min=${minH.toFixed(3)}m max=${maxH.toFixed(3)}m mean=${meanH.toFixed(3)}m (${(meanH*3.281).toFixed(1)}ft)`);
-                this._forensicLogCount++;
-              }
-              engine.setWaveData(_gl, stitchedGrid, landGeoJSONRef.current);
-              this._lastStitchKey = stitchKey;
-            } else {
-              engine._isRouteBActive = false;
-              if (this._forensicLogCount < 5) {
-                console.log(`[FORENSIC-STITCH] stitchViewportGrid returned NULL for target=${targetVariable}`);
-                this._forensicLogCount++;
-              }
-            }
-          }
-        } else {
-          if (!this._forensicNoTilesLogged) {
-            console.log('[FORENSIC-RENDER] No __DECODED_OM_TILES__ — Route B inactive');
-            this._forensicNoTilesLogged = true;
-          }
-        }
 
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current);
         map.triggerRepaint();
@@ -575,15 +219,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           if (engine && gl) {
             engine._landGeoJSON = geojson;
             if (!engine._dispatcherActive && dataRef.current?.vectors?.length) {
-              const routeBActive = typeof window !== 'undefined' && window.__DECODED_OM_TILES__ && window.__DECODED_OM_TILES__.size > 0;
-              if (!routeBActive) {
-                console.log('[WebGLMarineLayer] Upgrading active GPU wave texture to high-resolution land mask (Route A)');
-                engine.setWaveData(gl, dataRef.current, geojson);
-              } else {
-                console.log('[FORENSIC-ROUTE-A] landGeoJSON loaded but Route B active — skipping Route A data upload, stash mask only');
-                engine._landGeoJSON = geojson;
-                engine._cachedMaskGeoJSON = geojson;
-              }
+              console.log('[WebGLMarineLayer] Upgrading active GPU wave texture to high-resolution land mask');
+              engine.setWaveData(gl, dataRef.current, geojson);
               if (mapInstance) mapInstance.triggerRepaint();
             } else {
               console.log('[WebGLMarineLayer] High-resolution land mask stashed; background dispatcher will apply it on the next frame');
@@ -677,21 +314,24 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       return;
     }
 
-    // CRITICAL: If Route B (decoded om:// tiles) is actively rendering high-res stitched grid,
-    // DON'T overwrite it with Route A's raw deep-water marineController data.
-    const isRouteBActive = !!engine._isRouteBActive;
-    if (isRouteBActive) {
-      console.log(`[FORENSIC-ROUTE-A] Skipping React data effect — Route B is actively rendering high-res stitched grid.`);
-      return;
-    }
-
     try {
-      // FORENSIC: Log what Route A is uploading
+      // Diagnostic: expose marine data props for console verification
+      if (typeof window !== 'undefined') {
+        window.__MARINE_DATA_PROPS__ = {
+          vectorCount: data.vectors.length,
+          cols: data.cols,
+          rows: data.rows,
+          bounds: data.bounds,
+          sampleSpeed: data.vectors[0]?.speed,
+          timestamp: Date.now()
+        };
+      }
+      // FORENSIC: Log what FCE direct-grid is uploading
       let maxS = 0, sumS = 0, cnt = 0;
       for (const vec of data.vectors) {
         if (vec && vec.speed > 0) { cnt++; sumS += vec.speed; if (vec.speed > maxS) maxS = vec.speed; }
       }
-      console.log(`[FORENSIC-ROUTE-A] setWaveData: ${data.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (Route A — marineController JSON API)`);
+      console.log(`[WebGLMarine] setWaveData: ${data.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (FCE direct-grid)`);
       engine.setWaveData(gl, data, landGeoJSONRef.current);
       if (mapInstance) {
         mapInstance.triggerRepaint();

@@ -37,21 +37,7 @@ let _dispatchCount = 0;
 // GPU texture upload is expensive — don't do it every frame
 const DISPATCH_INTERVAL = 6;
 
-const MARINE_LAYER_VARIABLES = {
-  waves: 'wave_height',
-  swell_1: 'swell_wave_height',
-  swell_2: 'secondary_swell_wave_height',
-  wind_waves: 'wind_wave_height',
-};
 
-function hasRelevantDecodedMarineTiles(activeMarineLayer) {
-  if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__) return false;
-  const targetVariable = MARINE_LAYER_VARIABLES[activeMarineLayer] || 'wave_height';
-  for (const tile of window.__DECODED_OM_TILES__.values()) {
-    if (tile?.variable === targetVariable) return true;
-  }
-  return false;
-}
 
 // ========================================================================
 // FIELD → GPU TEXTURE CONVERSION
@@ -197,32 +183,25 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     }
   }
 
-  // ---- Dispatch to Marine Engine ----
   if (_marineEngine && _marineGL && field.sources.marine) {
     const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
-    const isRouteBActive = hasRelevantDecodedMarineTiles(activeMarineLayer);
-    if (isRouteBActive) {
-      _marineEngine._dispatcherActive = false; // Relinquish control to client-side high-resolution viewport stitcher
-      // FORENSIC: Log once when yielding
-      if (!dispatchRenderPlan._routeBYieldLogged) {
-        console.log(`[FORENSIC-DISPATCH] Route C yielding to Route B (${window.__DECODED_OM_TILES__.size} decoded tiles present)`);
-        dispatchRenderPlan._routeBYieldLogged = true;
-      }
-    } else {
-      try {
-        // FORENSIC: Log when Route C is active
-        if (!dispatchRenderPlan._routeCActiveLogged) {
-          console.log(`[FORENSIC-DISPATCH] Route C ACTIVE — SimulationLoop feeding marine engine (no decoded tiles)`);
-          dispatchRenderPlan._routeCActiveLogged = true;
+    try {
+      const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
+      if (marineGrid) {
+        _marineEngine._dispatcherActive = true;
+        _marineEngine.setWaveData(_marineGL, marineGrid);
+        // Diagnostic: expose dispatch status for console verification
+        if (typeof window !== 'undefined') {
+          window.__FCE_DISPATCH_STATUS__ = {
+            lastDispatchFrame: _dispatchCount,
+            marineVectors: marineGrid.vectors.length,
+            activeLayer: activeMarineLayer,
+            timestamp: Date.now()
+          };
         }
-        const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
-        if (marineGrid) {
-          _marineEngine._dispatcherActive = true;
-          _marineEngine.setWaveData(_marineGL, marineGrid);
-        }
-      } catch (e) {
-        console.warn('[RenderPlanDispatcher] Marine texture upload error:', e.message);
       }
+    } catch (e) {
+      console.warn('[RenderPlanDispatcher] Marine texture upload error:', e.message);
     }
   }
 }

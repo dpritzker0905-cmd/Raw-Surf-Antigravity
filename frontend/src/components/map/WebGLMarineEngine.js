@@ -213,7 +213,6 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   
   console.log('[WebGLMarineEngine] setWaveData input:', {vectors: waveGrid.vectors.length, cols: waveGrid.cols, rows: waveGrid.rows, hasBounds: !!waveGrid.bounds, hasGeoJSON: !!activeGeoJSON});
   this._waveData = encodeMarineTexture(gl, waveGrid, activeGeoJSON, this);
-  this._isRouteBActive = !!waveGrid.isRouteB;
   console.log('[WebGLMarineEngine] setWaveData result:', {hasData: !!this._waveData, hasWaveTexture: !!this._waveData?.u_waveTexture});
 };
 
@@ -320,6 +319,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
   // Draw base heatmap instantly using fallback grid mask texture if land mask is loading.
   // ==========================================
+  /*
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -376,6 +376,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
   }
   gl.disableVertexAttribArray(heatUVLoc);
+  */
 
   // ==========================================
   // PHASE 2: WAVE CREST RENDERER

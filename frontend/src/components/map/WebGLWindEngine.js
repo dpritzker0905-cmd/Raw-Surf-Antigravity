@@ -429,6 +429,11 @@ function WebGLWindEngine() {
   this._windData = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
  this._maxWindSpeed = 50; // m/s maps to ramp max
+
+  // Diagnostic: expose wind engine for console verification
+  if (typeof window !== 'undefined') {
+    window.__WIND_ENGINE__ = this;
+  }
 }
 export default WebGLWindEngine;
 
