@@ -47,13 +47,13 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
             detail="At least one coordinate pair is required"
         )
 
-    # v6.3: Cap at 10 points — only exact-point requests (1-2 coords) should
-    # reach this endpoint. Grid requests now use Open-Meteo ecmwf_wam025.
-    if len(req.latitude) > 10:
+    # v6.5: Cap at 150 points — supports exact-point (1-2) and regional grid (11×11=121).
+    # Global grid requests (729+) are still rejected.
+    if len(req.latitude) > 150:
         raise HTTPException(
             status_code=400,
-            detail=f"Too many points ({len(req.latitude)}). Maximum is 10. "
-                   f"Grid requests should use Open-Meteo ecmwf_wam025 model."
+            detail=f"Too many points ({len(req.latitude)}). Maximum is 150. "
+                   f"Global grid requests should use Open-Meteo ecmwf_wam025 model."
         )
 
     # v6.4: Clamp forecast_days to 3 max — prevents old clients from requesting 10 days
@@ -65,6 +65,19 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
         f"{len(req.latitude)} points, forecast_days={clamped_days} (requested={req.forecast_days})"
     )
 
+    # v6.5: Validate and pass through hourly variable filter
+    ALLOWED_VARS = {
+        'wave_height', 'wave_direction', 'wave_period',
+        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+        'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period',
+    }
+    filtered_vars = None
+    if req.hourly and len(req.hourly) > 0:
+        filtered_vars = [v for v in req.hourly if v in ALLOWED_VARS]
+        if not filtered_vars:
+            filtered_vars = None  # Fall back to all vars if none valid
+
     try:
         from services.copernicus_marine_service import fetch_euro_marine
 
@@ -72,6 +85,7 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
             latitudes=req.latitude,
             longitudes=req.longitude,
             forecast_days=clamped_days,
+            variables=filtered_vars,
         )
 
         elapsed = time.time() - start

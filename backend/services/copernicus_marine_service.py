@@ -71,6 +71,7 @@ async def fetch_euro_marine(
     latitudes: List[float],
     longitudes: List[float],
     forecast_days: int = 3,
+    variables: Optional[List[str]] = None,
 ) -> List[dict]:
     """
     Fetch EURO marine wave data from Copernicus Marine Service.
@@ -79,6 +80,8 @@ async def fetch_euro_marine(
         latitudes: List of latitude values
         longitudes: List of longitude values
         forecast_days: Number of forecast days (default 3)
+        variables: Optional list of Open-Meteo variable names to fetch.
+                   If None, fetches all 12. Reduces memory for component grids.
 
     Returns:
         List of Open-Meteo-shaped result dicts, one per coordinate pair.
@@ -88,7 +91,7 @@ async def fetch_euro_marine(
     # Run the blocking Copernicus fetch in a thread pool
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(
-        None, _fetch_sync, latitudes, longitudes, forecast_days
+        None, _fetch_sync, latitudes, longitudes, forecast_days, variables
     )
 
 
@@ -96,6 +99,7 @@ def _fetch_sync(
     latitudes: List[float],
     longitudes: List[float],
     forecast_days: int,
+    variables: Optional[List[str]] = None,
 ) -> List[dict]:
     """Synchronous Copernicus fetch (runs in thread pool)."""
     import copernicusmarine
@@ -104,39 +108,65 @@ def _fetch_sync(
     username, password = _check_credentials()
 
     # Compute bounding box — tight padding for nearest-grid-cell selection.
-    # v6.4: Use ±0.15° around each coordinate (was ±1.0°).
-    # Copernicus grid is 0.083° (≈10km). ±0.15° captures the nearest 4 grid cells
-    # in a tiny ~0.3°×0.3° box (~33km×33km) instead of 2°×2° (~220km).
-    lat_min = min(latitudes) - 0.15
-    lat_max = max(latitudes) + 0.15
-    lon_min = min(longitudes) - 0.15
-    lon_max = max(longitudes) + 0.15
+    # v6.4: Use ±0.15° for exact-point (1-2 points).
+    # v6.5: For regional grids (>2 points), use the provided coordinate extent directly.
+    if len(latitudes) <= 2:
+        lat_min = min(latitudes) - 0.15
+        lat_max = max(latitudes) + 0.15
+        lon_min = min(longitudes) - 0.15
+        lon_max = max(longitudes) + 0.15
+    else:
+        # Regional grid: coordinates already define the bbox, add minimal padding
+        lat_min = min(latitudes) - 0.05
+        lat_max = max(latitudes) + 0.05
+        lon_min = min(longitudes) - 0.05
+        lon_max = max(longitudes) + 0.05
     # Clamp to valid ranges
     lat_min = max(-90, lat_min)
     lat_max = min(90, lat_max)
     lon_min = max(-180, lon_min)
     lon_max = min(180, lon_max)
 
+    # v6.5: Hard cap bbox size to prevent global/large-area requests
+    bbox_lat_range = lat_max - lat_min
+    bbox_lon_range = lon_max - lon_min
+    if bbox_lat_range > 30 or bbox_lon_range > 60:
+        raise ValueError(
+            f"Bbox too large: {bbox_lat_range:.1f}° x {bbox_lon_range:.1f}°. "
+            f"Max: 30° x 60°."
+        )
+
     # v6.4: Cap forecast_days at 3 as backend safety net.
-    # Frontend should send 1, but clamp here in case of stale clients.
     forecast_days = min(forecast_days, 3)
+
+    # v6.5: If specific variables requested, only fetch those Copernicus vars.
+    # Maps Open-Meteo names → Copernicus names for the subset.
+    OM_TO_COPERNICUS = {v[1]: v[0] for v in VARIABLE_MAP}
+    if variables and len(variables) > 0:
+        requested_cop_vars = []
+        for om_var in variables:
+            if om_var in OM_TO_COPERNICUS:
+                requested_cop_vars.append(OM_TO_COPERNICUS[om_var])
+        fetch_vars = requested_cop_vars if requested_cop_vars else COPERNICUS_VARS
+    else:
+        fetch_vars = COPERNICUS_VARS
 
     # Time range
     now = datetime.now(timezone.utc)
-    # Start 6 hours ago to capture the latest analysis step
     start_time = now - timedelta(hours=6)
     end_time = now + timedelta(days=forecast_days)
 
     logger.info(
         f"[Copernicus] Fetching {len(latitudes)} points, "
         f"bbox=[{lat_min:.2f},{lat_max:.2f},{lon_min:.2f},{lon_max:.2f}], "
+        f"vars={len(fetch_vars)}/{len(COPERNICUS_VARS)}, "
         f"time=[{start_time.isoformat()},{end_time.isoformat()}]"
     )
 
     try:
         ds = copernicusmarine.open_dataset(
             dataset_id=DATASET_ID,
-            variables=COPERNICUS_VARS,
+            variables=fetch_vars,
             minimum_latitude=lat_min,
             maximum_latitude=lat_max,
             minimum_longitude=lon_min,

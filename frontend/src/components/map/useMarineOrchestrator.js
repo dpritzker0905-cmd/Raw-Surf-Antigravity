@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache } from './marineController';
+import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 
 /**
  * useMarineOrchestrator (v238)
@@ -45,9 +46,21 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const activeModelRef = useRef(activeModel);
   const lastFetchedModelRef = useRef(null);
 
+  // v6.5: Derive the active marine layer for Copernicus component grid routing
+  const activeMarineLayer = useMemo(() => {
+    const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+    return activeLayers.find(l => MARINE_LAYERS.includes(l)) || null;
+  }, [activeLayers]);
+  const activeMarineLayerRef = useRef(activeMarineLayer);
+  const lastFetchedLayerRef = useRef(null);
+
   useEffect(() => {
     activeModelRef.current = activeModel;
   }, [activeModel]);
+
+  useEffect(() => {
+    activeMarineLayerRef.current = activeMarineLayer;
+  }, [activeMarineLayer]);
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -200,6 +213,31 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();
 
+          // v6.5: For EURO component layers, fetch Copernicus regional grid
+          const currentLayer = activeMarineLayerRef.current;
+          if (activeModelRef.current === 'EURO' && currentLayer && COMPONENT_LAYERS.includes(currentLayer)) {
+            try {
+              const b = mapInstance.getBounds();
+              const vpBounds = {
+                west: b.getWest(), south: b.getSouth(),
+                east: b.getEast(), north: b.getNorth()
+              };
+              const componentGrid = await fetchCopernicusComponentGrid(
+                vpBounds, currentLayer, timeOffsetRef.current, zoom
+              );
+              if (componentGrid && componentGrid.features?.length > 0) {
+                data = mergeComponentGrid(data, componentGrid, currentLayer);
+                console.log(`[Marine] Copernicus ${currentLayer} grid merged: ${componentGrid.grid?.vectors?.length} vectors`);
+              }
+            } catch (err) {
+              console.warn(`[Marine] Copernicus component grid failed:`, err.message);
+              // Continue with base Open-Meteo data — component will show zero/no-data
+            }
+          }
+
+          // Stale request discard (re-check after async Copernicus fetch)
+          if (requestId !== marineRequestIdRef.current) return;
+
           isCommittingDataRef.current = true;
           isInternalMapUpdateRef.current = true;
 
@@ -207,7 +245,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             if (JSON.stringify(prev) === JSON.stringify(data)) {
               return prev;
             }
-            // Silenced: marineData state set
             marineRevision.current += 1;
             return data;
           });
@@ -468,6 +505,24 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }, 350);
     return () => clearTimeout(t);
   }, [activeModel, mapInstance]);
+
+  // v6.5: Re-fetch when active marine layer changes while EURO is active
+  // This triggers Copernicus component grid fetch on layer switch (e.g. waves → swell_1)
+  useEffect(() => {
+    if (!mapInstance || !activeMarineLayersRef.current) return;
+    if (activeModelRef.current !== 'EURO') return;
+    if (!activeMarineLayer || !COMPONENT_LAYERS.includes(activeMarineLayer)) return;
+    if (lastFetchedLayerRef.current === activeMarineLayer) return;
+
+    lastFetchedLayerRef.current = activeMarineLayer;
+    console.log(`[Marine] EURO layer changed to ${activeMarineLayer}, triggering component grid fetch...`);
+    marineFetchLocksRef.current.lastHash = null;
+    marineFetchLocksRef.current.lastTime = 0;
+    const t = setTimeout(() => {
+      manualMarineTriggerRef.current?.();
+    }, 350);
+    return () => clearTimeout(t);
+  }, [activeMarineLayer, mapInstance]);
 
   return { marineData };
 }

@@ -274,9 +274,11 @@ var MapWebGL = ({
 
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
-    // v6.4: Use GRID capabilities (not exact-point) for heatmap rendering.
-    // EURO grid only supports combined waves — component layers are all zeroes.
-    const layerSupported = isGridLayerSupported(activeModel, activeMarineLayer);
+    // v6.5: Dynamic grid capability: if Copernicus regional grid provided component data,
+    // treat the layer as grid-supported. Static MARINE_GRID_CAPABILITIES only covers Open-Meteo.
+    const hasCopernicusGrid = marineData?.grid?.__gridProvider === 'copernicus' &&
+                              marineData?.grid?.__gridSupportsLayer === true;
+    const layerSupported = isGridLayerSupported(activeModel, activeMarineLayer) || hasCopernicusGrid;
     const res = {
       bounds: marineData.grid.bounds,
       cols: marineData.grid.cols,
