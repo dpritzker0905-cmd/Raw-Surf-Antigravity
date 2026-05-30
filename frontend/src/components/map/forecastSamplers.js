@@ -13,7 +13,22 @@
  *   - NO React, NO DOM manipulation
  *   - Pure data sampling + caching
  *   - Marine directions are forecast-authoritative (no mutation)
+ *   - v5.9.3: No cross-model sampling — unsupported model/var returns null
  */
+
+import { MARINE_MODEL_CAPABILITIES } from './marineControllerUtils';
+
+// v5.9.3: Variables that EURO (ecmwf_wam025) does NOT support.
+// sampleValueFromDecodedTiles must return null for these when activeModel is EURO,
+// regardless of what stale GFS tiles remain in __DECODED_OM_TILES__.
+var EURO_UNSUPPORTED_MARINE_VARS = new Set([
+  'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
+  'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+  'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
+]);
+var ICON_UNSUPPORTED_MARINE_VARS = new Set([
+  'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'
+]);
 
 // ========================================================================
 // 1. MARINE GRID SAMPLER — bilinear interpolation on the live heatmap grid
@@ -314,6 +329,11 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__ || lat == null || lng == null) {
     return null;
   }
+
+  // v5.9.3: Model capability gate — refuse to sample tiles for unsupported variables.
+  // Prevents stale GFS tiles from being returned as EURO/ICON data.
+  if (activeModel === 'EURO' && EURO_UNSUPPORTED_MARINE_VARS.has(targetVariable)) return null;
+  if (activeModel === 'ICON' && ICON_UNSUPPORTED_MARINE_VARS.has(targetVariable)) return null;
 
   // Resolve the correct model for the variable to lookup its validTimes for accurate index matching
   const isMarine = targetVariable.includes('wave') || targetVariable.includes('swell');

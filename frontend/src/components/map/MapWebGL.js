@@ -18,6 +18,7 @@ import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
+import { isLayerSupportedByModel } from './marineControllerUtils';
 import { resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
 import { initEngine, shutdownEngine } from '../../engine/engine-bootstrap';
@@ -273,12 +274,20 @@ var MapWebGL = ({
 
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
+    // v5.9.3: Check if the active model supports this marine layer.
+    // If unsupported (e.g. EURO + swell_1), use the layer's own data (which will be zeroed)
+    // instead of falling back to combined 'waves' data, which would create a misleading heatmap.
+    const layerSupported = isLayerSupportedByModel(activeModel, activeMarineLayer);
     const res = {
       bounds: marineData.grid.bounds,
       cols: marineData.grid.cols,
       rows: marineData.grid.rows,
       vectors: marineData.grid.vectors.map(v => {
-        const layerData = v[activeMarineLayer] || v['waves'];
+        // Only fall back to 'waves' if the model natively supports this layer.
+        // For unsupported layers, use the layer's own data (zeroed from API) to avoid false heatmap.
+        const layerData = layerSupported
+          ? (v[activeMarineLayer] || v['waves'])
+          : v[activeMarineLayer]; // no fallback — will be {u:0,v:0,speed:0} from extractMarineAtOffset
         return {
           lat: v.lat,
           lng: v.lng,
@@ -292,9 +301,10 @@ var MapWebGL = ({
     };
     if (typeof window !== 'undefined') {
       window.__MARINE_WIND_DATA__ = res;
+      window.__MARINE_WIND_DATA__.__sourceModel = activeModel; // v5.9.3: Model tag for diagnostics
     }
     return res;
-  }, [marineData, activeMarineLayer]);
+  }, [marineData, activeMarineLayer, activeModel]);
 
   // Marine raster opacity is controlled declaratively via JSX paint props (single source of truth).
   // Removed v3.17 imperative setPaintProperty sync — it raced with JSX and could set opacity to 0.

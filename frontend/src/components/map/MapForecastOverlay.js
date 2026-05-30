@@ -66,6 +66,11 @@ export var MapForecastOverlay = ({
       setExactPoint(null);
       return;
     }
+    // v5.9.3: Clear stale data synchronously before async fetch.
+    // Prevents GFS exactPoint component values from persisting during EURO fetch.
+    setExactPointResponse(null);
+    setExactPoint(null);
+
     // Debounce: cancel previous fetch
     if (exactPointFetchRef.current) exactPointFetchRef.current.cancelled = true;
     const token = { cancelled: false };
@@ -291,66 +296,78 @@ export var MapForecastOverlay = ({
         ? marineGridSample.direction
         : (isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex));
   
-  const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
-  // v5.9.2: No EURO synthesis — unsupported swell_1 stays null
-  const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : null;
-  // v5.0: marineGridSample already contains the swell_1 sub-layer data when activeLayer === 'swell_1'
-  const swell1Height = (activeLayer === 'swell_1' && exactPoint?.swell_wave_height != null)
-    ? exactPoint.swell_wave_height
-    : (activeLayer === 'swell_1' && marineGridSample)
-      ? marineGridSample.value
-      : (activeLayer === 'swell_1' && sampledSwell1)
-        ? sampledSwell1.value
-        : getBiasAdjusted(rawSwell1Height, 'swell1');
-  
-  const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
-  // v5.9: Exact-point priority for Swell 1 period (was missing — decoded tiles could override)
-  const swell1Period = (exactPoint?.swell_wave_period != null && exactPoint.swell_wave_period > 0)
-    ? exactPoint.swell_wave_period
-    : (sampledSwell1Period && sampledSwell1Period.value > 0)
-      ? sampledSwell1Period.value
-      : (rawSwell1Period != null ? rawSwell1Period : null);
-  
-  const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
-  const swell1Dir = (activeLayer === 'swell_1' && exactPoint?.swell_wave_direction != null)
-    ? exactPoint.swell_wave_direction
-    : (activeLayer === 'swell_1' && marineGridSample?.direction != null)
-      ? marineGridSample.direction
-      : (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
-        ? sampledSwell1.direction
-        : (rawSwell1Dir != null ? rawSwell1Dir : null);
-  
-  // Swell 2 (secondary swell) — only GFS Wave provides this natively; stitched in from GFS Wave for other models
-  const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
-  const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
-  // v5.7.2: Exact-point priority for Swell 2 (previously missing)
-  const swell2Height = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_height != null)
-    ? exactPoint.secondary_swell_wave_height
-    : (activeLayer === 'swell_2' && marineGridSample)
-      ? marineGridSample.value
-      : (activeLayer === 'swell_2' && sampledSwell2)
-        ? sampledSwell2.value
-        : getBiasAdjusted(rawSwell2Height, 'swell2');
+  // v5.9.3: Model capability gate for swell_1 — prevents cross-model leaks
+  const swell1Supported = isLayerSupportedByModel(activeModel, 'swell_1');
+  let swell1Height, swell1Period, swell1Dir;
+  if (!swell1Supported) {
+    // Model doesn't support swell_1 decomposition — force all values null
+    swell1Height = null;
+    swell1Period = null;
+    swell1Dir = null;
+  } else {
+    const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
+    const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : null;
+    swell1Height = (activeLayer === 'swell_1' && exactPoint?.swell_wave_height != null)
+      ? exactPoint.swell_wave_height
+      : (activeLayer === 'swell_1' && marineGridSample)
+        ? marineGridSample.value
+        : (activeLayer === 'swell_1' && sampledSwell1)
+          ? sampledSwell1.value
+          : getBiasAdjusted(rawSwell1Height, 'swell1');
 
-  const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
-  const swell2Period = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_period != null && exactPoint.secondary_swell_wave_period > 0)
-    ? exactPoint.secondary_swell_wave_period
-    : (activeLayer === 'swell_2' && marineGridSample?.period > 0)
-      ? marineGridSample.period
-      : (sampledSwell2Period && sampledSwell2Period.value > 0)
-        ? sampledSwell2Period.value
-        : rawSwell2Period;
+    const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
+    swell1Period = (exactPoint?.swell_wave_period != null && exactPoint.swell_wave_period > 0)
+      ? exactPoint.swell_wave_period
+      : (sampledSwell1Period && sampledSwell1Period.value > 0)
+        ? sampledSwell1Period.value
+        : (rawSwell1Period != null ? rawSwell1Period : null);
+
+    const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
+    swell1Dir = (activeLayer === 'swell_1' && exactPoint?.swell_wave_direction != null)
+      ? exactPoint.swell_wave_direction
+      : (activeLayer === 'swell_1' && marineGridSample?.direction != null)
+        ? marineGridSample.direction
+        : (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
+          ? sampledSwell1.direction
+          : (rawSwell1Dir != null ? rawSwell1Dir : null);
+  }
   
-  const swell2Dir = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_direction != null)
-    ? exactPoint.secondary_swell_wave_direction
-    : (activeLayer === 'swell_2' && marineGridSample?.direction != null)
-      ? marineGridSample.direction
-      : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
-        ? sampledSwell2.direction
-        : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
-    
-  // v5.9.2: Use capability map instead of ad-hoc model checks
-  const swell2ModelUnavailable = !isLayerSupportedByModel(activeModel, 'swell_2') && rawSwell2Height == null && !sampledSwell2 && !marineGridSample && exactPoint?.secondary_swell_wave_height == null;
+  // v5.9.3: Model capability gate for swell_2
+  const swell2Supported = isLayerSupportedByModel(activeModel, 'swell_2');
+  let swell2Height, swell2Period, swell2Dir;
+  const swell2ModelUnavailable = !swell2Supported;
+  if (!swell2Supported) {
+    swell2Height = null;
+    swell2Period = null;
+    swell2Dir = null;
+  } else {
+    const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
+    const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
+    swell2Height = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_height != null)
+      ? exactPoint.secondary_swell_wave_height
+      : (activeLayer === 'swell_2' && marineGridSample)
+        ? marineGridSample.value
+        : (activeLayer === 'swell_2' && sampledSwell2)
+          ? sampledSwell2.value
+          : getBiasAdjusted(rawSwell2Height, 'swell2');
+
+    const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
+    swell2Period = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_period != null && exactPoint.secondary_swell_wave_period > 0)
+      ? exactPoint.secondary_swell_wave_period
+      : (activeLayer === 'swell_2' && marineGridSample?.period > 0)
+        ? marineGridSample.period
+        : (sampledSwell2Period && sampledSwell2Period.value > 0)
+          ? sampledSwell2Period.value
+          : rawSwell2Period;
+
+    swell2Dir = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_direction != null)
+      ? exactPoint.secondary_swell_wave_direction
+      : (activeLayer === 'swell_2' && marineGridSample?.direction != null)
+        ? marineGridSample.direction
+        : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
+          ? sampledSwell2.direction
+          : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
+  }
 
   // Wind waves — only show real data from models that support it (GFS, ICON)
   const rawWindWaveHeight = getClampedValue(marine.wind_wave_height, marineHourIndex);

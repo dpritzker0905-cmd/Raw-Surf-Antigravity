@@ -69,8 +69,27 @@ if (_hydratedMarine) {
 // Pre-populated from localStorage hydrated cache if available
 var lastKnownGoodWind = _hydratedWind ? extractWindAtOffset(_hydratedWind, 0) : null;
 var lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarine, 0) : null;
+// v5.9.3: Tag lastKnownGood with its source model to prevent cross-model leaks
+var lastKnownGoodMarineModel = _hydratedMarine?.model || 'GFS';
+if (lastKnownGoodMarine) lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
 if (lastKnownGoodWind) console.log(`[Wind] Pre-populated lastKnownGood: ${lastKnownGoodWind.vectors.length} vectors`);
-if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${lastKnownGoodMarine.features?.length} features`);
+if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${lastKnownGoodMarine.features?.length} features, model=${lastKnownGoodMarineModel}`);
+
+/**
+ * v5.9.3: Model-safe accessor for lastKnownGoodMarine.
+ * Returns null if the cached data is from a different model,
+ * preventing GFS component data from being served as EURO.
+ */
+function getModelSafeMarine(requestedModel) {
+  if (!lastKnownGoodMarine) return null;
+  const cachedModel = lastKnownGoodMarineModel || 'GFS';
+  const wanted = requestedModel || 'GFS';
+  if (cachedModel !== wanted) {
+    console.log(`[Marine] lastKnownGood model mismatch: cached=${cachedModel}, wanted=${wanted} — returning null`);
+    return null;
+  }
+  return lastKnownGoodMarine;
+}
 
 // --- INFLIGHT ABORT CONTROLLERS ---
 var windAbortController = null;
@@ -457,7 +476,7 @@ function extractMarineAtOffset(cache, hourOffset) {
 // v3.9.1: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
 // ========================================================================
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null) {
-  if (!bounds) return lastKnownGoodMarine;
+  if (!bounds) return getModelSafeMarine(model);
 
   // Viewport containment caching hit (0ms load from memory)
   if (!forceFetch && isContainedInMarineCache(bounds, model)) {
@@ -467,11 +486,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   if (marineRequestInFlight) {
     console.log('[Marine] fetchMarineData: request inflight, returning cached');
-    return lastKnownGoodMarine;
+    return getModelSafeMarine(model);
   }
   if (!forceFetch && isInCooldown('marine')) {
     console.log('[Marine] fetchMarineData: in cooldown, returning cached');
-    return lastKnownGoodMarine;
+    return getModelSafeMarine(model);
   }
 
   // Adjust for Antimeridian / Pacific wrap (ensure east is always greater than west)
@@ -498,7 +517,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     latMax = 85;
   }
 
-  if (lngMax <= lngMin) return lastKnownGoodMarine;
+  if (lngMax <= lngMin) return getModelSafeMarine(model);
 
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
@@ -518,6 +537,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     if (staleData && staleData.features?.length > 0) {
       console.log(`[Marine] Stale cache served (viewport mismatch) ${staleData.features.length} features`);
       lastKnownGoodMarine = staleData;
+      lastKnownGoodMarineModel = model || 'GFS';
+      lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
     }
   }
 
@@ -580,7 +601,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       if (res.status === 429) {
         enterCooldown('marine');
         console.warn('[Marine] 429 from proxy, cooldown activated (not retrying direct)');
-        return lastKnownGoodMarine;
+        return getModelSafeMarine(model);
       }
       if (!res.ok) {
         // v3.14: Check if proxy 500 wraps a rate-limit (chunk 429 → proxy 500 regression)
@@ -590,7 +611,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
             if (errBody?.isRateLimit || errBody?.message?.includes('429') || errBody?.statusCode === 429) {
               enterCooldown('marine');
               console.warn('[Marine] Proxy 500 wrapping rate-limit, cooldown activated');
-              return lastKnownGoodMarine;
+              return getModelSafeMarine(model);
             }
           } catch(e) { /* not JSON, proceed with normal error */ }
         }
@@ -652,7 +673,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     }
 
     if (!res.ok) {
-      if (res.status === 429) { enterCooldown('marine'); return lastKnownGoodMarine; }
+      if (res.status === 429) { enterCooldown('marine'); return getModelSafeMarine(model); }
       console.error(`[Marine] Fetch failed: HTTP ${res.status}`);
       return null;
     }
@@ -660,7 +681,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const data = await res.json();
     let allResults = Array.isArray(data) ? data
       : (data?.hourly ? points.map(() => data) : null);
-    if (!allResults) { console.warn('[Marine] Unexpected API response shape'); return lastKnownGoodMarine; }
+    if (!allResults) { console.warn('[Marine] Unexpected API response shape'); return getModelSafeMarine(model); }
 
     // Cache full hourly response
     marineHourlyCache = {
@@ -675,17 +696,19 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     if (result) {
       MARINE_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
       lastKnownGoodMarine = result;
+      lastKnownGoodMarineModel = model || 'GFS';
+      lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
  if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; console.log('[Marine] BOOTSTRAP complete first valid data received'); }
       console.log(`[Marine] Fetch success: ${result.features.length} features, ${gridSize}x${gridSize} grid`);
       return result;
     } else {
       console.warn('[Marine] Zero valid features from API');
-      return lastKnownGoodMarine;
+      return getModelSafeMarine(model);
     }
   } catch (err) {
-    if (err.name === 'AbortError') return lastKnownGoodMarine;
+    if (err.name === 'AbortError') return getModelSafeMarine(model);
     console.error(`[Marine] Fetch failed: ${err.message}`);
-    return lastKnownGoodMarine;
+    return getModelSafeMarine(model);
   } finally {
     marineRequestInFlight = false;
   }
