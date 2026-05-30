@@ -146,15 +146,33 @@ export async function fetchExactMarinePoint(lat, lng, model) {
   const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
   const forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
 
+  // v5.9.1: Model-specific variable map — aligned with marineController.js MODEL_SUPPORTED_VARS.
+  // CRITICAL: Only request variables the model actually supports.
+  // Open-Meteo returns 400 for any unsupported variable, killing the ENTIRE request.
+  // Verified 2026-05-30: secondary_swell_wave_peak_period does NOT exist in Open-Meteo.
+  var EXACT_POINT_VARS = {
+    'ncep_gfswave025': [
+      'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period',
+      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
+      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
+    ],
+    'gwam': [
+      'wave_height', 'wave_direction', 'wave_period',
+      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+    ],
+    'ecmwf_wam025': [
+      'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period'
+    ]
+  };
+
+  var hourlyVars = EXACT_POINT_VARS[apiModel] || EXACT_POINT_VARS['ncep_gfswave025'];
+
   const body = {
     latitude: [rLat],
     longitude: [rLng],
-    hourly: [
-      'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period',
-      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
-      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period', 'secondary_swell_wave_peak_period',
-      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
-    ],
+    hourly: hourlyVars,
     forecast_days: forecastDays,
     models: [apiModel]
   };
@@ -165,10 +183,31 @@ export async function fetchExactMarinePoint(lat, lng, model) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'marine', body })
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // v5.9.1: LOUD error diagnostics — never silently swallow exact-point failures
+      var errText = '';
+      try { errText = await res.text(); } catch(e) { errText = '(could not read body)'; }
+      console.error(`[ExactPoint] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel}`, errText.substring(0, 300));
+      if (typeof window !== 'undefined') {
+        window.__MARINE_EXACT_POINT_ERROR__ = {
+          status: res.status,
+          point: { lat: rLat, lng: rLng },
+          model: apiModel,
+          requestedVars: hourlyVars,
+          responseText: errText.substring(0, 500),
+          timestamp: new Date().toISOString()
+        };
+      }
+      return null;
+    }
     const json = await res.json();
     const result = Array.isArray(json) ? json[0] : json;
     if (!result?.hourly) return null;
+
+    // Clear any previous error on success
+    if (typeof window !== 'undefined') {
+      window.__MARINE_EXACT_POINT_ERROR__ = null;
+    }
 
     const data = {
       hourly: result.hourly,
@@ -188,7 +227,17 @@ export async function fetchExactMarinePoint(lat, lng, model) {
 
     return data;
   } catch (err) {
-    console.warn('[ExactPoint] Marine fetch failed:', err.message);
+    console.error('[ExactPoint] Marine fetch exception:', err.message);
+    if (typeof window !== 'undefined') {
+      window.__MARINE_EXACT_POINT_ERROR__ = {
+        status: 'exception',
+        point: { lat: rLat, lng: rLng },
+        model: apiModel,
+        requestedVars: hourlyVars,
+        error: err.message,
+        timestamp: new Date().toISOString()
+      };
+    }
     return null;
   }
 }
@@ -228,7 +277,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     secondary_swell_wave_height: h.secondary_swell_wave_height?.[bestIdx] ?? null,
     secondary_swell_wave_direction: h.secondary_swell_wave_direction?.[bestIdx] ?? null,
     secondary_swell_wave_period: h.secondary_swell_wave_period?.[bestIdx] ?? null,
-    secondary_swell_wave_peak_period: h.secondary_swell_wave_peak_period?.[bestIdx] ?? null,
+    // NOTE: secondary_swell_wave_peak_period does NOT exist in Open-Meteo (verified 2026-05-30)
     wind_wave_height: h.wind_wave_height?.[bestIdx] ?? null,
     wind_wave_direction: h.wind_wave_direction?.[bestIdx] ?? null,
     wind_wave_period: h.wind_wave_period?.[bestIdx] ?? null,

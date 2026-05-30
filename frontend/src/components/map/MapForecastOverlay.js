@@ -527,7 +527,8 @@ export var MapForecastOverlay = ({
             : 'rawHourly.swell_wave_period')
           : activeLayer,
       v59_fix: 'Waves layer no longer overrides wave_period with swell1Period; swell1Period now uses exactPoint first',
-      lowEnergyThreshold: '0.10m for direction suppression'
+      lowEnergyThreshold: '0.10m for direction suppression',
+      exactPointError: typeof window !== 'undefined' ? window.__MARINE_EXACT_POINT_ERROR__ : null
     };
   }
 
