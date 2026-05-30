@@ -545,7 +545,7 @@ export var MapForecastOverlay = ({
       } : null,
       decodedTileSample: { wavePeriod: decodedTileWaveP, swell1Period: decodedTileSwell1P },
       marineGridSample: marineGridSample ? { value: marineGridSample.value, period: marineGridSample.period, direction: marineGridSample.direction, source: marineGridSample.source } : null,
-      rawHourlyFallback: { wavePeriod: getClampedValue(marine.wave_period, marineHourIndex), swell1Period: rawSwell1Period },
+      rawHourlyFallback: { wavePeriod: getClampedValue(marine.wave_period, marineHourIndex), swell1Period: swell1Supported ? getClampedValue(marine.swell_wave_period, marineHourIndex) : null },
       displayedCards: cards.map(c => ({ label: c.label, value: c.value })),
       displayedPeriodSource: activeLayer === 'waves'
         ? (exactPoint?.wave_period != null && exactPoint.wave_period > 0 ? 'exactPoint.wave_period'
