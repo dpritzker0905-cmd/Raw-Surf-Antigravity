@@ -18,7 +18,7 @@ import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
-import { isLayerSupportedByModel } from './marineControllerUtils';
+import { isGridLayerSupported } from './marineControllerUtils';
 import { resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
 import { initEngine, shutdownEngine } from '../../engine/engine-bootstrap';
@@ -274,20 +274,20 @@ var MapWebGL = ({
 
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
-    // v5.9.3: Check if the active model supports this marine layer.
-    // If unsupported (e.g. EURO + swell_1), use the layer's own data (which will be zeroed)
-    // instead of falling back to combined 'waves' data, which would create a misleading heatmap.
-    const layerSupported = isLayerSupportedByModel(activeModel, activeMarineLayer);
+    // v6.4: Use GRID capabilities (not exact-point) for heatmap rendering.
+    // EURO grid only supports combined waves — component layers are all zeroes.
+    const layerSupported = isGridLayerSupported(activeModel, activeMarineLayer);
     const res = {
       bounds: marineData.grid.bounds,
       cols: marineData.grid.cols,
       rows: marineData.grid.rows,
       vectors: marineData.grid.vectors.map(v => {
-        // Only fall back to 'waves' if the model natively supports this layer.
-        // For unsupported layers, use the layer's own data (zeroed from API) to avoid false heatmap.
+        // Only fall back to 'waves' if the model's GRID natively supports this layer.
+        // For unsupported grid layers (EURO swell/wind_waves), use the layer's own data
+        // (zeroed from API) to avoid rendering a misleading heatmap.
         const layerData = layerSupported
           ? (v[activeMarineLayer] || v['waves'])
-          : v[activeMarineLayer]; // no fallback — will be {u:0,v:0,speed:0} from extractMarineAtOffset
+          : v[activeMarineLayer]; // no fallback — will be {u:0,v:0,speed:0}
         return {
           lat: v.lat,
           lng: v.lng,

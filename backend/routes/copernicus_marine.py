@@ -56,10 +56,13 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
                    f"Grid requests should use Open-Meteo ecmwf_wam025 model."
         )
 
+    # v6.4: Clamp forecast_days to 3 max — prevents old clients from requesting 10 days
+    clamped_days = min(req.forecast_days, 3)
+
     start = time.time()
     logger.info(
         f"[Copernicus Route] POST /copernicus-marine: "
-        f"{len(req.latitude)} points, forecast_days={req.forecast_days}"
+        f"{len(req.latitude)} points, forecast_days={clamped_days} (requested={req.forecast_days})"
     )
 
     try:
@@ -68,7 +71,7 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
         results = await fetch_euro_marine(
             latitudes=req.latitude,
             longitudes=req.longitude,
-            forecast_days=req.forecast_days,
+            forecast_days=clamped_days,
         )
 
         elapsed = time.time() - start

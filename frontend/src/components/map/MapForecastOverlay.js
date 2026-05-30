@@ -7,7 +7,7 @@ import {
   selectExactPointHour,
   sampleValueFromDecodedTiles
 } from './forecastSamplers';
-import { MARINE_MODEL_CAPABILITIES, isLayerSupportedByModel } from './marineControllerUtils';
+import { MARINE_MODEL_CAPABILITIES, MARINE_GRID_CAPABILITIES, MARINE_EXACT_CAPABILITIES, isLayerSupportedByModel, isGridLayerSupported } from './marineControllerUtils';
 
 /**
  * Floating forecast data readout renders alongside tile overlays when
@@ -599,7 +599,14 @@ export var MapForecastOverlay = ({
         }
         if (swell1Dir != null) cards.push({ icon: ArrowUp, label: degToCompass(swell1Dir), value: `${Math.round(swell1Dir)}`, color: 'text-cyan-200', rotate: (swell1Dir + 180) % 360 });
       } else {
-        cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+        // v6.4: Distinguish real Trace (data below threshold) from no-grid-data.
+        // EURO grid (Open-Meteo ecmwf_wam025) doesn't provide swell components.
+        const gridHasData = isGridLayerSupported(activeModel, 'swell_1');
+        if (!gridHasData && !useExactPoint?.swell_wave_height) {
+          cards.push({ icon: Waves, label: 'Status', value: 'No heatmap', color: 'text-gray-500' });
+        } else {
+          cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+        }
       }
     }
   }
@@ -616,7 +623,13 @@ export var MapForecastOverlay = ({
       // v5.9: Secondary swell is trace-level (<0.10m / ~0.3ft) — suppress direction
       const hFt = mToFt(swell2Height);
       cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '0.0 ft', color: 'text-purple-400' });
-      cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+      // v6.4: Distinguish real Trace from no-grid-data
+      const gridHasSwell2 = isGridLayerSupported(activeModel, 'swell_2');
+      if (!gridHasSwell2 && !useExactPoint?.secondary_swell_wave_height) {
+        cards.push({ icon: Waves, label: 'Status', value: 'No heatmap', color: 'text-gray-500' });
+      } else {
+        cards.push({ icon: Waves, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+      }
     } else {
       const hFt = mToFt(swell2Height);
       cards.push({ icon: Waves, label: 'Height', value: hFt != null ? `${hFt} ft` : '--', color: 'text-purple-400' });
@@ -639,7 +652,13 @@ export var MapForecastOverlay = ({
         if (windWavePeriod != null && windWavePeriod > 0) cards.push({ icon: Wind, label: 'Period', value: `${windWavePeriod.toFixed(1)}s`, color: 'text-emerald-300' });
         if (windWaveDir != null) cards.push({ icon: ArrowUp, label: degToCompass(windWaveDir), value: `${Math.round(windWaveDir)}`, color: 'text-emerald-200', rotate: (windWaveDir + 180) % 360 });
       } else {
-        cards.push({ icon: Wind, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+        // v6.4: Distinguish real Trace from no-grid-data
+        const gridHasWindWaves = isGridLayerSupported(activeModel, 'wind_waves');
+        if (!gridHasWindWaves && !useExactPoint?.wind_wave_height) {
+          cards.push({ icon: Wind, label: 'Status', value: 'No heatmap', color: 'text-gray-500' });
+        } else {
+          cards.push({ icon: Wind, label: 'Status', value: 'Trace', color: 'text-gray-500' });
+        }
       }
     }
   }
@@ -694,7 +713,21 @@ export var MapForecastOverlay = ({
         swell2ModelUnavailable,
         windWavesSupported,
       },
-      truthContract: 'v5.9.2: No cross-model component synthesis. Unsupported layers show N/A.',
+      truthContract: 'v6.4: Grid/ExactPoint capability split. No cross-model synthesis.',
+    };
+
+    // v6.4: EURO marine provider diagnostics
+    window.__EURO_MARINE_PROVIDER_DIAG__ = {
+      model: activeModel,
+      activeLayer,
+      gridProvider: 'open-meteo',
+      gridSupportsLayer: isGridLayerSupported(activeModel, activeLayer),
+      exactPointProvider: activeModel === 'EURO' ? 'copernicus' : 'open-meteo',
+      exactPointSupportsLayer: isLayerSupportedByModel(activeModel, activeLayer),
+      exactPointStatus,
+      exactPointValid: isExactPointValid,
+      gridCapabilities: MARINE_GRID_CAPABILITIES[activeModel] || null,
+      exactCapabilities: MARINE_EXACT_CAPABILITIES[activeModel] || null,
     };
   }
 

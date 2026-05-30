@@ -201,7 +201,14 @@ export async function fetchExactMarinePoint(lat, lng, model) {
 
   const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
   const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
-  const forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
+  let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
+
+  // v6.4: EURO exact-point goes through Copernicus which loads entire bbox into memory.
+  // Reduce forecast window to 1 day (current + 24h) to minimize Render memory usage.
+  // 10 days × 12 vars × 3-hourly = ~80 timesteps → 1 day = ~8 timesteps (10x reduction).
+  if (provider === 'copernicus') {
+    forecastDays = 1;
+  }
 
   // v5.9.1: Model-specific variable map — aligned with marineController.js MODEL_SUPPORTED_VARS.
   // CRITICAL: Only request variables the model actually supports.

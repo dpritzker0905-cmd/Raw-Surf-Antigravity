@@ -41,7 +41,7 @@ var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, 
 
 // --- PERSISTENT CACHE (localStorage) ---
 var LS_WIND_KEY = 'rawsurf_wind_cache_v3'; // v5.5: bumped to invalidate stale direction data
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v7'; // v6.3: EURO grid uses open-meteo, only exact-point uses copernicus
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v8'; // v6.4: capability split (grid vs exact-point)
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped

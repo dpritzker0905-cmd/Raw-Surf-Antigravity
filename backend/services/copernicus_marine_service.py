@@ -103,18 +103,23 @@ def _fetch_sync(
 
     username, password = _check_credentials()
 
-    # Compute bounding box — tight padding per coordinate, not global extremes.
-    # v6.3: Use ±1° around each coordinate instead of ±0.5° of min/max extremes.
-    # For 1-2 exact points this gives a ~2°×2° box (~200km) — tiny, not global.
-    lat_min = min(latitudes) - 1.0
-    lat_max = max(latitudes) + 1.0
-    lon_min = min(longitudes) - 1.0
-    lon_max = max(longitudes) + 1.0
+    # Compute bounding box — tight padding for nearest-grid-cell selection.
+    # v6.4: Use ±0.15° around each coordinate (was ±1.0°).
+    # Copernicus grid is 0.083° (≈10km). ±0.15° captures the nearest 4 grid cells
+    # in a tiny ~0.3°×0.3° box (~33km×33km) instead of 2°×2° (~220km).
+    lat_min = min(latitudes) - 0.15
+    lat_max = max(latitudes) + 0.15
+    lon_min = min(longitudes) - 0.15
+    lon_max = max(longitudes) + 0.15
     # Clamp to valid ranges
     lat_min = max(-90, lat_min)
     lat_max = min(90, lat_max)
     lon_min = max(-180, lon_min)
     lon_max = min(180, lon_max)
+
+    # v6.4: Cap forecast_days at 3 as backend safety net.
+    # Frontend should send 1, but clamp here in case of stale clients.
+    forecast_days = min(forecast_days, 3)
 
     # Time range
     now = datetime.now(timezone.utc)

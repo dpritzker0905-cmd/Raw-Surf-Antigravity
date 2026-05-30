@@ -6,25 +6,54 @@
  */
 
 // ========================================================================
-// MARINE MODEL CAPABILITY MAP — Single source of truth
-// Declares which wave component layers each model natively supports.
-// Consumed by: marineController, MapForecastOverlay, useOpenMeteoTileUrls.
-// Verified against Open-Meteo API 2026-05-30.
+// MARINE MODEL CAPABILITY MAPS — v6.4 Split: Grid vs ExactPoint
+//
+// GRID capabilities: What the heatmap/animation grid can render.
+//   - GFS/ICON: Open-Meteo returns all component fields.
+//   - EURO: Open-Meteo ecmwf_wam025 returns ONLY combined waves (null for swell/wind_wave).
+//
+// EXACT-POINT capabilities: What the exact-point API can fetch for infobox.
+//   - GFS/ICON: Open-Meteo returns all supported component fields.
+//   - EURO: Copernicus returns ALL component data (VHM0_SW1, VHM0_SW2, VHM0_WW, etc.)
+//
+// Verified against Open-Meteo API + Copernicus Marine 2026-05-30.
 // ========================================================================
+export var MARINE_GRID_CAPABILITIES = {
+  GFS:  { waves: true, swell_1: true, swell_2: true, wind_waves: true },
+  ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true },
+  EURO: { waves: true, swell_1: false, swell_2: false, wind_waves: false }
+};
+
+export var MARINE_EXACT_CAPABILITIES = {
+  GFS:  { waves: true, swell_1: true, swell_2: true, wind_waves: true },
+  ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true },
+  EURO: { waves: true, swell_1: true, swell_2: true, wind_waves: true }
+};
+
+// Backward compat alias — MARINE_MODEL_CAPABILITIES = exact-point capabilities + apiModel
 export var MARINE_MODEL_CAPABILITIES = {
-  GFS: { waves: true, swell_1: true, swell_2: true, wind_waves: true, apiModel: 'ncep_gfswave025' },
-  ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true, apiModel: 'dwd_gwam' },
-  EURO: { waves: true, swell_1: true, swell_2: true, wind_waves: true, apiModel: 'ecmwf_wam025' }
+  GFS: { ...MARINE_EXACT_CAPABILITIES.GFS, apiModel: 'ncep_gfswave025' },
+  ICON: { ...MARINE_EXACT_CAPABILITIES.ICON, apiModel: 'dwd_gwam' },
+  EURO: { ...MARINE_EXACT_CAPABILITIES.EURO, apiModel: 'ecmwf_wam025' }
 };
 
 /**
- * Check if a given marine layer is natively supported by the active model.
- * @param {string} model - 'GFS' | 'ICON' | 'EURO'
- * @param {string} layer - 'waves' | 'swell_1' | 'swell_2' | 'wind_waves'
- * @returns {boolean}
+ * Check if a given marine layer is supported by the model's EXACT-POINT API.
+ * Used for infobox display — controls whether component values are shown.
  */
 export function isLayerSupportedByModel(model, layer) {
-  var caps = MARINE_MODEL_CAPABILITIES[model];
+  var caps = MARINE_EXACT_CAPABILITIES[model];
+  if (!caps) return false;
+  return !!caps[layer];
+}
+
+/**
+ * v6.4: Check if a given marine layer can be rendered on the GRID heatmap.
+ * Used for WebGL heatmap — controls whether the visual layer has real data.
+ * EURO grid (Open-Meteo ecmwf_wam025) only supports combined waves.
+ */
+export function isGridLayerSupported(model, layer) {
+  var caps = MARINE_GRID_CAPABILITIES[model];
   if (!caps) return false;
   return !!caps[layer];
 }
