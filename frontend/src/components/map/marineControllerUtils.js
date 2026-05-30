@@ -165,11 +165,11 @@ export function computeGridPoints(bounds, caller = 'wind') {
   let west, south, east, north, GRID;
   if (isGlobal) {
     if (caller === 'marine') {
-      // v3.13.3: Respect Open-Meteo's strict [-80, 80] latitude limits to prevent 400 Bad Request error.
-      // v4.0: Increased from 14→24 (625 pts) for accurate spatial resolution.
-      // Wind (729 pts) and pressure (961 pts) both work fine through proxy chunking.
-      west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 12 : 24;
+      // v4.1: Extended north boundary to 85° for Norwegian/Barents Sea/Arctic coverage.
+      // GFS Wave 0.25° has data up to ~77.5°N; points above return null → isOcean=false (handled).
+      // v4.1: Increased from 24→30 (961 pts) matching pressure grid density for fine ocean detail.
+      west = -180; east = 180; south = -80; north = 85;
+      GRID = isMobile ? 14 : 30;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
       // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems

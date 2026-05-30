@@ -487,13 +487,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const lngMin = Math.floor((west - padding) / snap) * snap;
   const lngMax = Math.ceil((east + padding) / snap) * snap;
 
-  // Clamp requested latitudes to Open-Meteo marine API limits [-80, 80]
-  // v3.10.0: Clamp to guarantee a 0.5 deg span so polar fetches never hit equal-clamped latMax <= latMin early exits.
-  let latMin = Math.max(-80, Math.min(79.5, latMinRaw));
-  let latMax = Math.max(-79.5, Math.min(80, latMaxRaw));
+  // Clamp requested latitudes to Open-Meteo marine API limits [-80, 85]
+  // v4.1: Extended north to 85° for Norwegian/Barents Sea coverage. GFS Wave has data up to ~77.5°N;
+  // points above return null which isOcean=false handles. South stays at -80 (Antarctic ice shelf).
+  let latMin = Math.max(-80, Math.min(84.5, latMinRaw));
+  let latMax = Math.max(-79.5, Math.min(85, latMaxRaw));
   if (latMax <= latMin) {
     latMin = -80;
-    latMax = 80;
+    latMax = 85;
   }
 
   if (lngMax <= lngMin) return lastKnownGoodMarine;

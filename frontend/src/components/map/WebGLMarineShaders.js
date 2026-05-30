@@ -343,16 +343,17 @@ uniform float u_debug_mode;
 uniform float u_theme;
 
 float getNonlinearT(float h) {
-  if (h < 0.3) {
-    return (h / 0.3) * 0.1;
-  } else if (h < 1.0) {
-    return 0.1 + ((h - 0.3) / 0.7) * 0.35;
-  } else if (h < 2.0) {
-    return 0.45 + ((h - 1.0) / 1.0) * 0.3;
-  } else if (h < 3.5) {
-    return 0.75 + ((h - 2.0) / 1.5) * 0.15;
+  // v4.1: Refined breakpoints — 0.5-1.5m gets 35% of color range for best open-ocean differentiation
+  if (h < 0.5) {
+    return (h / 0.5) * 0.15;
+  } else if (h < 1.5) {
+    return 0.15 + ((h - 0.5) / 1.0) * 0.35;
+  } else if (h < 3.0) {
+    return 0.50 + ((h - 1.5) / 1.5) * 0.30;
+  } else if (h < 5.0) {
+    return 0.80 + ((h - 3.0) / 2.0) * 0.12;
   } else {
-    return 0.9 + clamp((h - 3.5) / 4.5, 0.0, 1.0) * 0.1;
+    return 0.92 + clamp((h - 5.0) / 5.0, 0.0, 1.0) * 0.08;
   }
 }
 
@@ -362,41 +363,42 @@ vec3 getThemedWaveColor(float h, float theme) {
   vec3 c0, c1, c2, c3, c4, c5;
   
   if (theme > 1.5) {
-    // Beach Mode: luxurious tropical crystal sand/lagoon to Bahamian turquoise, emerald, coral peach, sunset orange, volcanic amber
-    c0 = vec3(0.02, 0.42, 0.38); // 0.0m - Flat Calm Emerald
-    c1 = vec3(0.05, 0.72, 0.65); // 0.5m - Bright Bahamian Turquoise
-    c2 = vec3(1.00, 0.65, 0.48); // 1.5m - Soft Warm Coral Peach
-    c3 = vec3(1.00, 0.45, 0.18); // 2.5m - Radiant Sunset Orange
-    c4 = vec3(0.85, 0.30, 0.05); // 4.0m - Volcanic Golden Amber
-    c5 = vec3(1.00, 0.95, 0.90); // 8.0m+ - Intense Sunlit White-Rose
+    // Beach Mode: tropical lagoon → warm coral → sunset → volcanic amber
+    c0 = vec3(0.02, 0.38, 0.35); // 0.0m - Deep Calm Emerald-Teal
+    c1 = vec3(0.05, 0.65, 0.58); // 0.5m - Lagoon Turquoise
+    c2 = vec3(0.95, 0.60, 0.40); // 1.5m - Warm Coral Peach
+    c3 = vec3(1.00, 0.40, 0.15); // 3.0m - Radiant Sunset Orange
+    c4 = vec3(0.85, 0.25, 0.05); // 5.0m - Volcanic Golden Amber
+    c5 = vec3(1.00, 0.95, 0.90); // 10.0m+ - Intense Sunlit White-Rose
   } else if (theme > 0.5) {
-    // Light Mode: clean, high-fidelity sky/ocean colors
-    c0 = vec3(0.80, 0.88, 0.95); // 0.0m - Soft Oceanic Slate
-    c1 = vec3(0.30, 0.75, 0.92); // 0.5m - Sparkling Sky-Cyan
-    c2 = vec3(0.15, 0.48, 0.85); // 1.5m - Clear Azure Blue
-    c3 = vec3(0.45, 0.25, 0.82); // 2.5m - Vibrant Royal Purple
-    c4 = vec3(0.85, 0.22, 0.55); // 4.0m - Radiant Neon Orchid
-    c5 = vec3(1.00, 1.00, 1.00); // 8.0m+ - Pure Crisp Glowing White
+    // Light Mode: clean ocean-sky progression
+    c0 = vec3(0.78, 0.87, 0.94); // 0.0m - Pale Oceanic Mist
+    c1 = vec3(0.30, 0.70, 0.90); // 0.5m - Sky-Cyan
+    c2 = vec3(0.12, 0.42, 0.85); // 1.5m - Deep Azure Blue
+    c3 = vec3(0.42, 0.20, 0.82); // 3.0m - Vibrant Royal Purple
+    c4 = vec3(0.85, 0.18, 0.50); // 5.0m - Neon Orchid
+    c5 = vec3(1.00, 1.00, 1.00); // 10.0m+ - Pure Crisp White
   } else {
-    // Dark Mode: vibrant glowing neon colors (navy to electric cyan, royal blue, purple, neon pink, neon crimson)
+    // Dark Mode: cosmic navy → subtle teal → electric cyan → blue-violet → magenta → white
     c0 = vec3(0.01, 0.02, 0.08); // 0.0m - Deep Cosmic Navy-Indigo
-    c1 = vec3(0.00, 0.92, 1.00); // 0.5m - Electric Neon Cyan
-    c2 = vec3(0.10, 0.35, 1.00); // 1.5m - Glowing Royal Blue
-    c3 = vec3(1.00, 0.10, 0.75); // 2.5m - Neon Electric Magenta
-    c4 = vec3(1.00, 0.00, 0.25); // 4.0m - Neon Hot Crimson
-    c5 = vec3(1.00, 1.00, 1.00); // 8.0m+ - Pure Glowing Neon White
+    c1 = vec3(0.00, 0.55, 0.75); // 0.5m - Cool Deep Teal (subtle, not blinding)
+    c2 = vec3(0.00, 0.92, 1.00); // 1.5m - Electric Cyan (vivid mid-range)
+    c3 = vec3(0.35, 0.15, 1.00); // 3.0m - Vivid Electric Blue-Violet
+    c4 = vec3(1.00, 0.10, 0.75); // 5.0m - Neon Magenta
+    c5 = vec3(1.00, 1.00, 1.00); // 10.0m+ - Pure Glowing Neon White
   }
   
-  if (t < 0.1) {
-    return mix(c0, c1, t / 0.1);
-  } else if (t < 0.4) {
-    return mix(c1, c2, (t - 0.1) / 0.3);
-  } else if (t < 0.7) {
-    return mix(c2, c3, (t - 0.4) / 0.3);
-  } else if (t < 0.9) {
-    return mix(c3, c4, (t - 0.7) / 0.2);
+  // v4.1: Interpolation bands aligned to new getNonlinearT breakpoints
+  if (t < 0.15) {
+    return mix(c0, c1, t / 0.15);
+  } else if (t < 0.50) {
+    return mix(c1, c2, (t - 0.15) / 0.35);
+  } else if (t < 0.80) {
+    return mix(c2, c3, (t - 0.50) / 0.30);
+  } else if (t < 0.92) {
+    return mix(c3, c4, (t - 0.80) / 0.12);
   } else {
-    return mix(c4, c5, (t - 0.9) / 0.1);
+    return mix(c4, c5, (t - 0.92) / 0.08);
   }
 }
 

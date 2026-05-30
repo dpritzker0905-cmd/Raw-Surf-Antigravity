@@ -21,6 +21,85 @@ var degToCompass = (deg) => {
   return dirs[Math.round(deg / 22.5) % 16];
 };
 
+/**
+ * v4.1: Sample wave data directly from the marine grid that drives the heatmap.
+ * This ensures the infobox shows values consistent with the visual heatmap colors,
+ * using the SAME data source as WebGLMarineEngine (bilinear interpolation on the grid).
+ * Falls back gracefully to null if grid data isn't available.
+ */
+function sampleFromMarineGrid(lat, lng) {
+  if (typeof window === 'undefined' || !window.__MARINE_WIND_DATA__ || lat == null || lng == null) {
+    return null;
+  }
+  const grid = window.__MARINE_WIND_DATA__;
+  if (!grid.vectors?.length || !grid.cols || !grid.rows || !grid.bounds) return null;
+
+  const { west, south, east, north } = grid.bounds;
+  const lngSpan = east - west;
+  const latSpan = north - south;
+
+  // Normalize longitude into grid bounds
+  let normLng = lng;
+  if (normLng < west) normLng += 360;
+  if (normLng > east) normLng -= 360;
+  if (normLng < west || normLng > east || lat < south || lat > north) return null;
+
+  // Compute fractional grid coordinates
+  const fx = ((normLng - west) / lngSpan) * (grid.cols - 1);
+  const fy = ((lat - south) / latSpan) * (grid.rows - 1);
+
+  const x0 = Math.floor(fx);
+  const x1 = Math.min(grid.cols - 1, x0 + 1);
+  const y0 = Math.floor(fy);
+  const y1 = Math.min(grid.rows - 1, y0 + 1);
+
+  const dx = fx - x0;
+  const dy = fy - y0;
+
+  const idx00 = y0 * grid.cols + x0;
+  const idx10 = y0 * grid.cols + x1;
+  const idx01 = y1 * grid.cols + x0;
+  const idx11 = y1 * grid.cols + x1;
+
+  const v00 = grid.vectors[idx00];
+  const v10 = grid.vectors[idx10];
+  const v01 = grid.vectors[idx01];
+  const v11 = grid.vectors[idx11];
+
+  // All 4 corners must be ocean for a valid interpolation
+  if (!v00?.isOcean || !v10?.isOcean || !v01?.isOcean || !v11?.isOcean) {
+    // Partial ocean: use nearest ocean neighbor
+    const nearest = [v00, v10, v01, v11].filter(v => v?.isOcean && v.speed > 0);
+    if (nearest.length === 0) return null;
+    const best = nearest.reduce((a, b) => (a.speed > b.speed ? a : b));
+    // Compute direction from u,v components
+    const dir = best.u !== 0 || best.v !== 0
+      ? (Math.atan2(-best.u, -best.v) * 180 / Math.PI + 360) % 360
+      : null;
+    return { value: best.speed, direction: dir, period: best.period || null, source: 'marine_grid' };
+  }
+
+  // Bilinear interpolation of wave height (speed field is wave height in marine context)
+  const height = v00.speed * (1 - dx) * (1 - dy) +
+                 v10.speed * dx * (1 - dy) +
+                 v01.speed * (1 - dx) * dy +
+                 v11.speed * dx * dy;
+
+  // Bilinear interpolation of period
+  const p00 = v00.period || 0, p10 = v10.period || 0, p01 = v01.period || 0, p11 = v11.period || 0;
+  const period = p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
+
+  // Circular interpolation of direction from u,v
+  const avgU = v00.u * (1 - dx) * (1 - dy) + v10.u * dx * (1 - dy) + v01.u * (1 - dx) * dy + v11.u * dx * dy;
+  const avgV = v00.v * (1 - dx) * (1 - dy) + v10.v * dx * (1 - dy) + v01.v * (1 - dx) * dy + v11.v * dx * dy;
+  const direction = (avgU !== 0 || avgV !== 0)
+    ? (Math.atan2(-avgU, -avgV) * 180 / Math.PI + 360) % 360
+    : null;
+
+  return { value: height, direction, period: period > 0 ? period : null, source: 'marine_grid' };
+}
+
+
 function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffsetHours = 0, activeModel = 'GFS') {
   if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__ || lat == null || lng == null) {
     return null;
@@ -319,6 +398,10 @@ export var MapForecastOverlay = ({
   const sampledSwell2 = sampleValueFromDecodedTiles(lat, lng, 'secondary_swell_wave_height', timeOffsetHours, activeModel);
   const sampledWindWaves = sampleValueFromDecodedTiles(lat, lng, 'wind_wave_height', timeOffsetHours, activeModel);
 
+  // v4.1: Marine grid fallback — samples directly from the heatmap's data source
+  // to guarantee infobox values match the visual colors on the map.
+  const marineGridSample = sampleFromMarineGrid(lat, lng);
+
   const sampledWavePeriod = sampleValueFromDecodedTiles(lat, lng, 'wave_period', timeOffsetHours, activeModel);
   const sampledSwell1Period = sampleValueFromDecodedTiles(lat, lng, 'swell_wave_period', timeOffsetHours, activeModel);
   const sampledSwell2Period = sampleValueFromDecodedTiles(lat, lng, 'secondary_swell_wave_period', timeOffsetHours, activeModel);
@@ -367,17 +450,24 @@ export var MapForecastOverlay = ({
 
   const marineCurrent = marineData?.current || {};
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
+  // v4.1: Prefer decoded tile sample → marine grid fallback → raw API data
   const waveHeight = (activeLayer === 'waves' && sampledWaves)
     ? sampledWaves.value
-    : getBiasAdjusted(rawWaveHeight, 'wave');
+    : (activeLayer === 'waves' && marineGridSample)
+      ? marineGridSample.value
+      : getBiasAdjusted(rawWaveHeight, 'wave');
 
   const wavePeriod = (sampledWavePeriod && sampledWavePeriod.value > 0)
     ? sampledWavePeriod.value
-    : (isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex));
+    : (activeLayer === 'waves' && marineGridSample?.period > 0)
+      ? marineGridSample.period
+      : (isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex));
   
   const waveDir = (activeLayer === 'waves' && sampledWaves && sampledWaves.direction != null)
     ? sampledWaves.direction
-    : (isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex));
+    : (activeLayer === 'waves' && marineGridSample?.direction != null)
+      ? marineGridSample.direction
+      : (isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex));
   
   const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
   const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : (activeModel === 'EURO' ? rawWaveHeight : null);
