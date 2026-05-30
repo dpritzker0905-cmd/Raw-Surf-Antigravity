@@ -389,8 +389,12 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     let speed = v.speed;
     let u = v.u;
     let v_y = v.v;
-    const nu = Math.max(0.0, Math.min(1.0, (u / 10.0) * 0.5 + 0.5));
-    const nv = Math.max(0.0, Math.min(1.0, (v_y / 10.0) * 0.5 + 0.5));
+    // v4.0: Encode direction as unit vector (RG channels) for full ±1.0 precision.
+    // Height is stored separately in B channel. Previously divided by 10.0 which
+    // crushed the directional signal to ±0.17 for typical 1-2m waves.
+    const mag = Math.sqrt(u * u + v_y * v_y);
+    const nu = mag > 0.001 ? Math.max(0.0, Math.min(1.0, (u / mag) * 0.5 + 0.5)) : 0.5;
+    const nv = mag > 0.001 ? Math.max(0.0, Math.min(1.0, (v_y / mag) * 0.5 + 0.5)) : 0.5;
     const height = Math.min(1.0, speed / 10.0);
     const periodVal = v.period ? Math.min(1.0, v.period / 20.0) : 0.0;
 

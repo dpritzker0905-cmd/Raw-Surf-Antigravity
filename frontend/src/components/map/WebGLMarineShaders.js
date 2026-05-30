@@ -72,8 +72,9 @@ void main() {
   float merc_scale = max(0.1, cos(lat_rad));
   
   float energyBoost = 1.0 + smoothstep(1.0, 5.0, waveHeight) * 0.3;
-  // Step in Mercator units: scale waveVec by merc_scale and stable speed factor u_speed_scale
-  vec2 offset = (waveVec / merc_scale) * u_speed_scale * energyBoost;
+  // v4.0: waveVec is now a unit direction vector (RG encode direction only).
+  // Scale by waveHeight * 0.1 to restore height-proportional advection speed.
+  vec2 offset = (waveVec * waveHeight * 0.1 / merc_scale) * u_speed_scale * energyBoost;
   
   vec2 nextPos = pos + offset;
   nextPos.x = fract(nextPos.x);
@@ -488,7 +489,8 @@ void main() {
   if (swellMag > 0.05) {
     directional = dot(normalize(swellDir), lightDir);
     directional = directional * 0.5 + 0.5; // [0,1] bias
-    directional *= swellMag;
+    // v4.0: swellDir is now unit vector, scale by height for proportional lighting
+    directional *= smoothstep(0.2, 3.0, waveHeight);
   }
   vec3 directionalSwellLighting = vec3(0.03, 0.05, 0.08) * directional;
 

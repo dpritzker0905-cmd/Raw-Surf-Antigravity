@@ -166,10 +166,10 @@ export function computeGridPoints(bounds, caller = 'wind') {
   if (isGlobal) {
     if (caller === 'marine') {
       // v3.13.3: Respect Open-Meteo's strict [-80, 80] latitude limits to prevent 400 Bad Request error.
-      // v3.14: Reduced from 40 to 15 to keep point count (256) under proxy chunk threshold (250)
-      // and eliminate multi-chunk requests that trigger rate limits.
+      // v4.0: Increased from 14→24 (625 pts) for accurate spatial resolution.
+      // Wind (729 pts) and pressure (961 pts) both work fine through proxy chunking.
       west = -180; east = 180; south = -80; north = 80;
-      GRID = isMobile ? 9 : 14;
+      GRID = isMobile ? 12 : 24;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
       // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems
@@ -185,7 +185,7 @@ export function computeGridPoints(bounds, caller = 'wind') {
     west = bounds.west; east = bounds.east;
     south = bounds.south; north = bounds.north;
     if (caller === 'marine') {
-      GRID = isMobile ? 8 : 14;
+      GRID = isMobile ? 10 : 20;
     } else if (caller === 'pressure') {
       GRID = isMobile ? 16 : 30;
     } else {
