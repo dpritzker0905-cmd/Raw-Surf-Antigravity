@@ -167,9 +167,12 @@ export function computeGridPoints(bounds, caller = 'wind') {
     if (caller === 'marine') {
       // v4.1: Extended north boundary to 85° for Norwegian/Barents Sea/Arctic coverage.
       // GFS Wave 0.25° has data up to ~77.5°N; points above return null → isOcean=false (handled).
-      // v4.1: Increased from 24→30 (961 pts) matching pressure grid density for fine ocean detail.
+      // v5.6: Increased from 20→40 (1681 pts) to resolve coastal direction accuracy.
+      // At 21×21 (18° spacing), Florida's E coast had no dedicated cell — Atlantic vs Gulf
+      // wave directions were indistinguishable. 41×41 (9° spacing) gives 1-2 cells per coast.
+      // 1681 points is within Open-Meteo limits and matches pressure grid density approach.
       west = -180; east = 180; south = -80; north = 85;
-      GRID = isMobile ? 14 : 20;
+      GRID = isMobile ? 20 : 40;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
       // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems
