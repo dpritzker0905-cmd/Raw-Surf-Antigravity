@@ -690,8 +690,7 @@ export var MapForecastOverlay = ({
       swell1Dir, swell2Dir, windWaveDir, blockFallbacks, isExactPointAuthority,
       sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
       sampledSwell2Period, sampledWindWavesPeriod, useExactPoint,
-      rawWaveHeight, rawSwell1Height, rawSwell2Height, rawWindWaveHeight,
-      rawWindWavePeriod, rawWindWaveDir, mToFt, degToCompass,
+      rawWaveHeight, mToFt, degToCompass,
       currentHourIndex, wx
     });
   }

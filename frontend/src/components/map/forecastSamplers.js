@@ -631,8 +631,7 @@ export function writeOverlayDiagnostics(params) {
     marineData, exactPointStatus, isExactPointValid, wavePeriod, waveDir,
     swell1Dir, swell2Dir, windWaveDir, blockFallbacks, isExactPointAuthority,
     sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
-    useExactPoint, rawWaveHeight, rawSwell1Height, rawSwell2Height, rawWindWaveHeight,
-    rawWindWavePeriod, rawWindWaveDir, mToFt, degToCompass,
+    useExactPoint, rawWaveHeight, mToFt, degToCompass,
     currentHourIndex, wx
   } = params;
 
