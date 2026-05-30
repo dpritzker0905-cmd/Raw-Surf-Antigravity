@@ -226,13 +226,15 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
         swellHeight[i] *= WAVE_DECAY;
       }
 
-      // Direction and Period smoothing (3-point average)
+      // Direction smoothing REMOVED in v5.7.2:
+      // The 3-point linear average (waveDir[iW] + waveDir[i] + waveDir[iE]) / 3
+      // is INVALID for circular data. At 0°/360° boundary, averaging 350° + 0° + 10°
+      // gives 120° — a 120° error. This caused 60-90° animation spins.
+      // Marine directions are now forecast-authoritative and not mutated by FCE.
+
+      // Period smoothing — linear averaging IS valid for periods (scalar, non-circular)
       const iW = y * cols + (x - 1);
       const iE = y * cols + (x + 1);
-      waveDir[i] = (waveDir[iW] + waveDir[i] + waveDir[iE]) / 3;
-      if (swellDir) {
-        swellDir[i] = (swellDir[iW] + swellDir[i] + swellDir[iE]) / 3;
-      }
       if (wavePeriod) {
         wavePeriod[i] = (wavePeriod[iW] + wavePeriod[i] + wavePeriod[iE]) / 3;
       }
@@ -243,12 +245,9 @@ function evolveWaveField(grid, cols, rows, dt, simTime) {
         windWavePeriod[i] = (windWavePeriod[iW] + windWavePeriod[i] + windWavePeriod[iE]) / 3;
       }
 
-      // Secondary swell decay + smoothing
+      // Secondary swell decay (height only — direction frozen)
       if (swell2Height) {
         swell2Height[i] *= WAVE_DECAY;
-      }
-      if (swell2Dir) {
-        swell2Dir[i] = (swell2Dir[iW] + swell2Dir[i] + swell2Dir[iE]) / 3;
       }
       if (swell2Period) {
         swell2Period[i] = (swell2Period[iW] + swell2Period[i] + swell2Period[iE]) / 3;
@@ -292,12 +291,10 @@ function applyWindWaveCoupling(grid, cols, rows, dt) {
     const maxGrowth = Math.max(0.1, waveHeight[i]) * 0.002; // Cap growth per tick to 0.2% of current height
     waveHeight[i] += Math.min(energyInput, maxGrowth);
 
-    // Wind direction influences wave direction (slow rotation toward wind)
-    const windDir = (Math.atan2(windU[i], windV[i]) * 180 / Math.PI + 360) % 360;
-    let dirDiff = windDir - waveDir[i];
-    if (dirDiff > 180) dirDiff -= 360;
-    if (dirDiff < -180) dirDiff += 360;
-    waveDir[i] += dirDiff * 0.002 * dt; // Very slow directional coupling
+    // Wind direction coupling to waveDir REMOVED in v5.7.2:
+    // waveDir[i] += dirDiff * 0.002 * dt was rotating wave directions toward
+    // wind direction every tick (~15Hz), causing slow directional drift.
+    // Marine wave directions are now forecast-authoritative.
   }
 }
 

@@ -107,20 +107,28 @@ function sampleFromMarineGrid(lat, lng) {
 
 // ========================================================================
 // EXACT POINT MARINE FETCH — bypasses coarse global grid for infobox accuracy
-// v5.7.1: Queries Open-Meteo for a single exact lat/lng via the existing proxy.
-// This eliminates the 207° direction error caused by sampling grid corners
-// hundreds of km away from the actual clicked point.
+// v5.7.2: Queries Open-Meteo for a single exact lat/lng via the existing proxy.
+// Caches the FULL response by lat/lng/model so timeline scrubs don't re-fetch.
 // ========================================================================
 var _exactPointCache = new Map();
 var EXACT_POINT_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-async function fetchExactMarinePoint(lat, lng, model, hourOffset) {
+// Model-specific forecast day limits (Open-Meteo marine models)
+var MARINE_MODEL_LIMITS = {
+  'ncep_gfswave025': 16,   // GFS Wave: 16 days
+  'gwam': 7,               // DWD GWAM (ICON marine): 7.5 days
+  'ecmwf_wam025': 10,      // ECMWF WAM: 10 days
+};
+
+async function fetchExactMarinePoint(lat, lng, model) {
   if (lat == null || lng == null) return null;
 
-  // Round to 2 decimal places for cache key (same precision as Open-Meteo snaps to)
+  // Round to 2 decimal places (same precision as Open-Meteo snaps to)
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
-  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}_${hourOffset || 0}`;
+  // v5.7.2: Cache by lat/lng/model only — NOT hourOffset.
+  // The full multi-day response is cached and the correct hour is selected at render time.
+  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}`;
 
   const cached = _exactPointCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
@@ -130,15 +138,20 @@ async function fetchExactMarinePoint(lat, lng, model, hourOffset) {
   const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
   const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
 
+  // v5.7.2: Request the model's full forecast range so timeline scrubs
+  // can pick any hour without re-fetching.
+  const forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
+
   const body = {
     latitude: [rLat],
     longitude: [rLng],
     hourly: [
       'wave_height', 'wave_direction', 'wave_period',
       'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
       'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
     ],
-    forecast_days: 1,
+    forecast_days: forecastDays,
     models: [apiModel]
   };
 
@@ -153,30 +166,14 @@ async function fetchExactMarinePoint(lat, lng, model, hourOffset) {
     const result = Array.isArray(json) ? json[0] : json;
     if (!result?.hourly) return null;
 
-    // Find closest hour index
-    const targetMs = Date.now() + (hourOffset || 0) * 3600000;
-    const times = result.hourly.time;
-    let bestIdx = 0, minDiff = Infinity;
-    for (let i = 0; i < times.length; i++) {
-      const diff = Math.abs(new Date(times[i] + 'Z').getTime() - targetMs);
-      if (diff < minDiff) { minDiff = diff; bestIdx = i; }
-    }
-
+    // Cache the FULL response (all hours) so timeline scrubs don't re-fetch
     const data = {
-      wave_height: result.hourly.wave_height?.[bestIdx],
-      wave_direction: result.hourly.wave_direction?.[bestIdx],
-      wave_period: result.hourly.wave_period?.[bestIdx],
-      swell_wave_height: result.hourly.swell_wave_height?.[bestIdx],
-      swell_wave_direction: result.hourly.swell_wave_direction?.[bestIdx],
-      swell_wave_period: result.hourly.swell_wave_period?.[bestIdx],
-      wind_wave_height: result.hourly.wind_wave_height?.[bestIdx],
-      wind_wave_direction: result.hourly.wind_wave_direction?.[bestIdx],
-      wind_wave_period: result.hourly.wind_wave_period?.[bestIdx],
-      source: 'exact_point_api',
-      hourIndex: bestIdx,
-      time: times[bestIdx],
+      hourly: result.hourly,
       snappedLat: result.latitude,
-      snappedLng: result.longitude
+      snappedLng: result.longitude,
+      forecastDays,
+      apiModel,
+      source: 'exact_point_api'
     };
 
     _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
@@ -191,6 +188,50 @@ async function fetchExactMarinePoint(lat, lng, model, hourOffset) {
     console.warn('[ExactPoint] Marine fetch failed:', err.message);
     return null;
   }
+}
+
+/**
+ * Select the correct hour from a cached exact-point response.
+ * Returns an object with all variable values for that hour, or null.
+ */
+function selectExactPointHour(cachedResponse, hourOffset) {
+  if (!cachedResponse?.hourly?.time) return null;
+  const times = cachedResponse.hourly.time;
+  const h = cachedResponse.hourly;
+  const targetMs = Date.now() + (hourOffset || 0) * 3600000;
+
+  let bestIdx = 0, minDiff = Infinity;
+  for (let i = 0; i < times.length; i++) {
+    const diff = Math.abs(new Date(times[i] + 'Z').getTime() - targetMs);
+    if (diff < minDiff) { minDiff = diff; bestIdx = i; }
+  }
+
+  // If best match is > 3 hours away, consider it a miss (model doesn't cover this time)
+  if (minDiff > 3 * 3600000) return null;
+
+  return {
+    wave_height: h.wave_height?.[bestIdx] ?? null,
+    wave_direction: h.wave_direction?.[bestIdx] ?? null,
+    wave_period: h.wave_period?.[bestIdx] ?? null,
+    swell_wave_height: h.swell_wave_height?.[bestIdx] ?? null,
+    swell_wave_direction: h.swell_wave_direction?.[bestIdx] ?? null,
+    swell_wave_period: h.swell_wave_period?.[bestIdx] ?? null,
+    secondary_swell_wave_height: h.secondary_swell_wave_height?.[bestIdx] ?? null,
+    secondary_swell_wave_direction: h.secondary_swell_wave_direction?.[bestIdx] ?? null,
+    secondary_swell_wave_period: h.secondary_swell_wave_period?.[bestIdx] ?? null,
+    wind_wave_height: h.wind_wave_height?.[bestIdx] ?? null,
+    wind_wave_direction: h.wind_wave_direction?.[bestIdx] ?? null,
+    wind_wave_period: h.wind_wave_period?.[bestIdx] ?? null,
+    source: 'exact_point_api',
+    hourIndex: bestIdx,
+    time: times[bestIdx],
+    snappedLat: cachedResponse.snappedLat,
+    snappedLng: cachedResponse.snappedLng,
+    forecastDays: cachedResponse.forecastDays,
+    timeRangeStart: times[0],
+    timeRangeEnd: times[times.length - 1],
+    matchDiffMs: minDiff
+  };
 }
 
 
@@ -404,14 +445,16 @@ export var MapForecastOverlay = ({
     setIsCollapsed(isImmersiveMode);
   }, [isImmersiveMode]);
 
-  // v5.7.1: Fetch exact-point marine data for selected/long-pressed location.
-  // This gives true API values instead of coarse 27×27 global grid interpolation.
+  // v5.7.2: Fetch exact-point marine data for selected/long-pressed location.
+  // Caches the FULL multi-day response; hour selection happens at render time.
   const pointLat = selectedSpot?.latitude || longPressLocation?.lat;
   const pointLng = selectedSpot?.longitude || longPressLocation?.lng;
   const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
+  const [exactPointResponse, setExactPointResponse] = useState(null);
 
   useEffect(() => {
     if (!pointLat || !pointLng || !isMarineLayer) {
+      setExactPointResponse(null);
       setExactPoint(null);
       return;
     }
@@ -420,23 +463,57 @@ export var MapForecastOverlay = ({
     const token = { cancelled: false };
     exactPointFetchRef.current = token;
 
-    fetchExactMarinePoint(pointLat, pointLng, activeModel, timeOffsetHours).then(data => {
+    // v5.7.2: Fetch by lat/lng/model only (not hourOffset).
+    // Timeline scrubs use the cached full response.
+    fetchExactMarinePoint(pointLat, pointLng, activeModel).then(data => {
       if (!token.cancelled && data) {
-        setExactPoint(data);
-        // Set diagnostic global
-        if (typeof window !== 'undefined') {
-          window.__MARINE_POINT_DIAG__ = {
-            point: { lat: pointLat, lng: pointLng },
-            activeModel, activeLayer, forecastHour: timeOffsetHours,
-            rawOpenMeteoExactPoint: data,
-            source: 'exact_point_api',
-            timestamp: new Date().toISOString()
-          };
-        }
+        setExactPointResponse(data);
       }
     });
     return () => { token.cancelled = true; };
-  }, [pointLat, pointLng, activeModel, activeLayer, timeOffsetHours, isMarineLayer]);
+  }, [pointLat, pointLng, activeModel, isMarineLayer]);
+
+  // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
+  // This is synchronous and instant — no network request on scrub.
+  useEffect(() => {
+    if (!exactPointResponse) {
+      setExactPoint(null);
+      return;
+    }
+    const selected = selectExactPointHour(exactPointResponse, timeOffsetHours);
+    setExactPoint(selected);
+    // Enhanced diagnostic
+    if (typeof window !== 'undefined' && selected) {
+      const targetTimestamp = new Date(Date.now() + timeOffsetHours * 3600000).toISOString();
+      window.__MARINE_POINT_DIAG__ = {
+        point: { lat: pointLat, lng: pointLng },
+        activeModel, activeLayer, timeOffsetHours,
+        targetTimestamp,
+        requestedForecastDays: exactPointResponse.forecastDays,
+        returnedTimeRange: {
+          start: selected.timeRangeStart,
+          end: selected.timeRangeEnd
+        },
+        selectedHourIndex: selected.hourIndex,
+        selectedTimestamp: selected.time,
+        matchDiffMs: selected.matchDiffMs,
+        exactPointValues: {
+          wave_height: selected.wave_height,
+          wave_direction: selected.wave_direction,
+          wave_period: selected.wave_period,
+          swell_wave_height: selected.swell_wave_height,
+          swell_wave_direction: selected.swell_wave_direction,
+          swell_wave_period: selected.swell_wave_period,
+          secondary_swell_wave_height: selected.secondary_swell_wave_height,
+          secondary_swell_wave_direction: selected.secondary_swell_wave_direction,
+          wind_wave_height: selected.wind_wave_height,
+          wind_wave_direction: selected.wind_wave_direction,
+        },
+        source: 'exact_point_api',
+        timestamp: new Date().toISOString()
+      };
+    }
+  }, [exactPointResponse, timeOffsetHours, activeLayer, activeModel, pointLat, pointLng]);
 
   const bgClass = isLight
     ? 'bg-white/90 border-gray-200'
@@ -635,27 +712,33 @@ export var MapForecastOverlay = ({
   // Swell 2 (secondary swell) — only GFS Wave provides this natively; stitched in from GFS Wave for other models
   const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
   const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
-  // v5.0: marineGridSample already contains the swell_2 sub-layer data when activeLayer === 'swell_2'
-  const swell2Height = (activeLayer === 'swell_2' && marineGridSample)
-    ? marineGridSample.value
-    : (activeLayer === 'swell_2' && sampledSwell2)
-      ? sampledSwell2.value
-      : getBiasAdjusted(rawSwell2Height, 'swell2');
+  // v5.7.2: Exact-point priority for Swell 2 (previously missing)
+  const swell2Height = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_height != null)
+    ? exactPoint.secondary_swell_wave_height
+    : (activeLayer === 'swell_2' && marineGridSample)
+      ? marineGridSample.value
+      : (activeLayer === 'swell_2' && sampledSwell2)
+        ? sampledSwell2.value
+        : getBiasAdjusted(rawSwell2Height, 'swell2');
 
   const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
-  const swell2Period = (activeLayer === 'swell_2' && marineGridSample?.period > 0)
-    ? marineGridSample.period
-    : (sampledSwell2Period && sampledSwell2Period.value > 0)
-      ? sampledSwell2Period.value
-      : rawSwell2Period;
+  const swell2Period = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_period != null && exactPoint.secondary_swell_wave_period > 0)
+    ? exactPoint.secondary_swell_wave_period
+    : (activeLayer === 'swell_2' && marineGridSample?.period > 0)
+      ? marineGridSample.period
+      : (sampledSwell2Period && sampledSwell2Period.value > 0)
+        ? sampledSwell2Period.value
+        : rawSwell2Period;
   
-  const swell2Dir = (activeLayer === 'swell_2' && marineGridSample?.direction != null)
-    ? marineGridSample.direction
-    : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
-      ? sampledSwell2.direction
-      : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
+  const swell2Dir = (activeLayer === 'swell_2' && exactPoint?.secondary_swell_wave_direction != null)
+    ? exactPoint.secondary_swell_wave_direction
+    : (activeLayer === 'swell_2' && marineGridSample?.direction != null)
+      ? marineGridSample.direction
+      : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
+        ? sampledSwell2.direction
+        : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
     
-  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null && !sampledSwell2 && !marineGridSample;
+  const swell2ModelUnavailable = activeModel !== 'GFS' && rawSwell2Height == null && !sampledSwell2 && !marineGridSample && exactPoint?.secondary_swell_wave_height == null;
 
   // Wind waves — GFS and ICON provide this, EURO does not
   // For EURO: estimate wind waves = total wave height minus primary swell height
