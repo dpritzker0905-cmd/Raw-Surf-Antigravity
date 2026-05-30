@@ -1,12 +1,16 @@
 /**
  * Netlify serverless proxy for Open-Meteo API.
  * 
- * Routes wind/marine grid POST requests through Netlify's IP,
+ * Routes wind/marine/pressure grid POST requests through Netlify's IP,
  * bypassing client-side 429 rate limits. Caches responses for 30 min.
  * 
+ * v4.2: Uses upstream POST (native Open-Meteo JSON body) instead of
+ * converting to GET URLs, which caused 414 Request-URI Too Large with
+ * large coordinate arrays (961+ points).
+ * 
  * Usage from frontend:
- *   POST /.netlify/functions/weather-proxy
- *   Body: { type: "wind"|"marine", body: <original POST body> }
+ *   POST /api/weather-proxy
+ *   Body: { type: "wind"|"marine"|"pressure", body: <original POST body> }
  */
 
 // In-memory cache (persists across warm invocations)
@@ -33,6 +37,117 @@ function getCacheKey(type, body, event) {
   }
 }
 
+// Target API URLs
+const API_URLS = {
+  wind: 'https://api.open-meteo.com/v1/forecast',
+  pressure: 'https://api.open-meteo.com/v1/forecast',
+  marine: 'https://marine-api.open-meteo.com/v1/marine',
+};
+
+/**
+ * Forward a POST request with JSON body directly to Open-Meteo.
+ * This avoids the 414 Request-URI Too Large error that occurs when
+ * large coordinate arrays are converted to GET query parameters.
+ */
+async function forwardAsUpstreamPost(targetUrl, body) {
+  const response = await fetch(targetUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return response;
+}
+
+/**
+ * Fallback: chunk large requests into small GET requests.
+ * Chunk size = 60 to keep URLs safely under 8KB.
+ * Used only if upstream POST fails.
+ */
+async function chunkedGetFallback(targetUrl, body) {
+  const lats = body.latitude;
+  const lons = body.longitude;
+  const CHUNK_SIZE = 60; // Safe for URL length limits (~60 coords * ~8 chars * 2 = ~960 bytes)
+  const chunks = [];
+  for (let i = 0; i < lats.length; i += CHUNK_SIZE) {
+    chunks.push({
+      latitude: lats.slice(i, i + CHUNK_SIZE),
+      longitude: lons.slice(i, i + CHUNK_SIZE)
+    });
+  }
+
+  console.log(`[weather-proxy] GET chunking fallback: ${chunks.length} chunks of ${CHUNK_SIZE}`);
+
+  const chunkResults = [];
+  for (let index = 0; index < chunks.length; index++) {
+    const chunk = chunks[index];
+    const params = new URLSearchParams();
+    for (const [key, val] of Object.entries(body)) {
+      if (key === 'latitude') {
+        params.append(key, chunk.latitude.join(','));
+      } else if (key === 'longitude') {
+        params.append(key, chunk.longitude.join(','));
+      } else if (Array.isArray(val)) {
+        params.append(key, val.join(','));
+      } else {
+        params.append(key, String(val));
+      }
+    }
+
+    const chunkUrl = `${targetUrl}?${params.toString()}`;
+    console.log(`[weather-proxy] GET chunk ${index + 1}/${chunks.length} (${chunk.latitude.length} pts, URL ${chunkUrl.length} bytes)`);
+
+    let chunkRes;
+    let attempt = 0;
+    const maxAttempts = 3;
+    let delay = 200;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      try {
+        chunkRes = await fetch(chunkUrl, { method: 'GET' });
+        if (chunkRes.status === 429) {
+          console.warn(`[weather-proxy] GET chunk ${index + 1} hit 429, aborting`);
+          return { status: 429, data: null, error: 'Rate limit exceeded on GET chunk' };
+        }
+        if (chunkRes.ok || (chunkRes.status !== 502 && chunkRes.status !== 503 && chunkRes.status !== 504)) {
+          break;
+        }
+      } catch (err) {
+        if (attempt >= maxAttempts) throw err;
+      }
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+      }
+    }
+
+    if (!chunkRes || !chunkRes.ok) {
+      const failStatus = chunkRes ? chunkRes.status : 502;
+      return { status: failStatus, data: null, error: `Chunk ${index + 1} failed with ${failStatus}` };
+    }
+
+    const chunkData = await chunkRes.json();
+    chunkResults.push(chunkData);
+
+    // Rate limit buffer between chunks
+    if (index < chunks.length - 1) {
+      await new Promise(r => setTimeout(r, 800));
+    }
+  }
+
+  // Merge results
+  let mergedData = [];
+  chunkResults.forEach(data => {
+    if (Array.isArray(data)) {
+      mergedData = mergedData.concat(data);
+    } else {
+      mergedData.push(data);
+    }
+  });
+
+  return { status: 200, data: mergedData, error: null };
+}
+
 exports.handler = async function(event, context) {
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -50,10 +165,7 @@ exports.handler = async function(event, context) {
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*'
-      },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: 'GET or POST only' })
     };
   }
@@ -112,12 +224,7 @@ exports.handler = async function(event, context) {
       }
       targetUrl = `https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json`;
     } else {
-      const urls = {
-        wind: 'https://api.open-meteo.com/v1/forecast',
-        pressure: 'https://api.open-meteo.com/v1/forecast',  // alias: pressure_msl comes from the same forecast endpoint
-        marine: 'https://marine-api.open-meteo.com/v1/marine',
-      };
-      const base = urls[type];
+      const base = API_URLS[type];
       if (!base) {
         return {
           statusCode: 400,
@@ -145,155 +252,85 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // If it's a POST request and contains coordinate lists, translate and chunk to GET
-    let isTranslatedPost = false;
-
+    // ========================================================================
+    // POST with coordinate arrays → use upstream POST (not GET translation!)
+    // This is the critical fix for 414 Request-URI Too Large.
+    // ========================================================================
     if (event.httpMethod === 'POST' && body && Array.isArray(body.latitude) && Array.isArray(body.longitude)) {
-      const lats = body.latitude;
-      const lons = body.longitude;
-      
-      if (lats.length > 250) {
-        // Chunking path
-        const CHUNK_SIZE = 250;
-        const chunks = [];
-        for (let i = 0; i < lats.length; i += CHUNK_SIZE) {
-          chunks.push({
-            latitude: lats.slice(i, i + CHUNK_SIZE),
-            longitude: lons.slice(i, i + CHUNK_SIZE)
-          });
+      const numPoints = body.latitude.length;
+      console.log(`[weather-proxy] POST ${type}: ${numPoints} points, trying upstream POST first`);
+
+      let apiRes;
+      let data;
+
+      // Strategy 1: Forward as upstream POST (no URL length issue)
+      try {
+        apiRes = await forwardAsUpstreamPost(targetUrl, body);
+
+        if (apiRes.status === 429) {
+          console.warn(`[weather-proxy] Upstream POST 429 for ${type}`);
+          return {
+            statusCode: 429,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true })
+          };
         }
-        
-        console.log(`[weather-proxy] Chunking POST request into ${chunks.length} chunks of size ${CHUNK_SIZE}`);
-        
-        const chunkResults = [];
-        for (let index = 0; index < chunks.length; index++) {
-          const chunk = chunks[index];
-          const params = new URLSearchParams();
-          for (const [key, val] of Object.entries(body)) {
-            if (key === 'latitude') {
-              params.append(key, chunk.latitude.join(','));
-            } else if (key === 'longitude') {
-              params.append(key, chunk.longitude.join(','));
-            } else if (Array.isArray(val)) {
-              params.append(key, val.join(','));
-            } else {
-              params.append(key, val);
-            }
-          }
-          
-          const chunkUrl = `${targetUrl}?${params.toString()}`;
-          console.log(`[weather-proxy] Fetching chunk ${index + 1}/${chunks.length} (size: ${chunk.latitude.length})`);
-          
-          let chunkRes;
-          let attempt = 0;
-          const maxAttempts = 3;
-          let delay = 100;
-          
-          while (attempt < maxAttempts) {
-            attempt++;
-            try {
-              chunkRes = await fetch(chunkUrl, { method: 'GET' });
-              // 429 = rate limit — abort immediately, don't retry
-              if (chunkRes.status === 429) {
-                console.warn(`[weather-proxy] Chunk ${index + 1} hit 429 rate limit, aborting remaining chunks`);
-                let errorDetail = '';
-                try { errorDetail = await chunkRes.text(); } catch(e) {}
-                return {
-                  statusCode: 429,
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                  },
-                  body: JSON.stringify({ 
-                    error: 'Rate limit exceeded', 
-                    statusCode: 429,
-                    isRateLimit: true,
-                    chunk: index + 1,
-                    totalChunks: chunks.length,
-                    detail: errorDetail 
-                  })
-                };
-              }
-              if (chunkRes.ok || (chunkRes.status !== 502 && chunkRes.status !== 503 && chunkRes.status !== 504)) {
-                break;
-              }
-            } catch (err) {
-              if (attempt >= maxAttempts) throw err;
-            }
-            if (attempt < maxAttempts) {
-              await new Promise(resolve => setTimeout(resolve, delay));
-              delay *= 2;
-            }
-          }
-          
-          if (!chunkRes || !chunkRes.ok) {
-            const failStatus = chunkRes ? chunkRes.status : 502;
-            console.error(`[weather-proxy] Chunk ${index + 1} failed with status ${failStatus}`);
-            return {
-              statusCode: failStatus,
-              headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-              },
-              body: JSON.stringify({ 
-                error: `Chunk fetch failed`, 
-                statusCode: failStatus,
-                chunk: index + 1,
-                totalChunks: chunks.length
-              })
-            };
-          }
-          
-          const chunkData = await chunkRes.json();
-          chunkResults.push(chunkData);
-          
-          if (index < chunks.length - 1) {
-            await new Promise(r => setTimeout(r, 600)); // Rate limit buffer
-          }
+
+        if (apiRes.ok) {
+          data = await apiRes.json();
+          console.log(`[weather-proxy] Upstream POST success for ${type}: ${numPoints} points`);
+        } else {
+          const errText = await apiRes.text().catch(() => 'unknown');
+          console.warn(`[weather-proxy] Upstream POST failed (${apiRes.status}): ${errText.substring(0, 200)}`);
+          // Fall through to GET chunking fallback
         }
-        
-        // Merge results
-        let mergedData = [];
-        chunkResults.forEach(data => {
-          if (Array.isArray(data)) {
-            mergedData = mergedData.concat(data);
-          } else {
-            mergedData.push(data);
-          }
-        });
-        
-        // Cache the merged results
-        cache.set(cacheKey, { data: mergedData, timestamp: Date.now() });
-        if (cache.size > 100) {
-          const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-          for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
-        }
-        
-        return {
-          statusCode: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Cache': 'MISS',
-            'Access-Control-Allow-Origin': '*',
-          },
-          body: JSON.stringify(mergedData)
-        };
-      } else {
-        // Single GET query path for <= 800 coordinates
-        const params = new URLSearchParams();
-        for (const [key, val] of Object.entries(body)) {
-          if (Array.isArray(val)) {
-            params.append(key, val.join(','));
-          } else {
-            params.append(key, val);
-          }
-        }
-        targetUrl = `${targetUrl}?${params.toString()}`;
-        isTranslatedPost = true;
+      } catch (postErr) {
+        console.warn(`[weather-proxy] Upstream POST error: ${postErr.message}`);
+        // Fall through to GET chunking fallback
       }
+
+      // Strategy 2: Chunked GET fallback (if POST failed)
+      if (!data) {
+        console.log(`[weather-proxy] Falling back to chunked GET for ${type}`);
+        const result = await chunkedGetFallback(targetUrl, body);
+        if (result.status === 429) {
+          return {
+            statusCode: 429,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true })
+          };
+        }
+        if (result.status !== 200 || !result.data) {
+          return {
+            statusCode: result.status || 502,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ error: result.error || 'Chunked GET failed', statusCode: result.status })
+          };
+        }
+        data = result.data;
+      }
+
+      // Cache and return
+      cache.set(cacheKey, { data, timestamp: Date.now() });
+      if (cache.size > 100) {
+        const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+        for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
+      }
+
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Cache': 'MISS',
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify(data)
+      };
     }
 
-    // Forward to Open-Meteo with a robust retry wrapper (try up to 3 times with 100ms exponential backoff on 502/503/504)
+    // ========================================================================
+    // Simple GET passthrough (single-point requests, tile metadata, etc.)
+    // ========================================================================
     let apiRes;
     let attempt = 0;
     const maxAttempts = 3;
@@ -302,32 +339,27 @@ exports.handler = async function(event, context) {
     while (attempt < maxAttempts) {
       attempt++;
       try {
-        console.log(`[weather-proxy] Forwarding ${type} ${isTranslatedPost ? 'GET (translated)' : event.httpMethod} to ${targetUrl} (attempt ${attempt}/${maxAttempts})`);
-        const fetchOptions = {
-          method: isTranslatedPost ? 'GET' : event.httpMethod,
-        };
-        if (event.httpMethod === 'POST' && !isTranslatedPost) {
+        console.log(`[weather-proxy] Forwarding ${type} ${event.httpMethod} to ${targetUrl.substring(0, 120)}... (attempt ${attempt}/${maxAttempts})`);
+        const fetchOptions = { method: event.httpMethod };
+        if (event.httpMethod === 'POST' && body) {
           fetchOptions.headers = { 'Content-Type': 'application/json' };
           fetchOptions.body = JSON.stringify(body);
         }
         apiRes = await fetch(targetUrl, fetchOptions);
-        
-        // Break early if successful or if it's not a temporary gateway error (like 502/503/504)
+
         if (apiRes.ok || (apiRes.status !== 502 && apiRes.status !== 503 && apiRes.status !== 504)) {
           break;
         }
-        
+
         console.warn(`[weather-proxy] Attempt ${attempt} failed with status ${apiRes.status}. Retrying in ${delay}ms...`);
       } catch (fetchErr) {
-        if (attempt >= maxAttempts) {
-          throw fetchErr;
-        }
+        if (attempt >= maxAttempts) throw fetchErr;
         console.warn(`[weather-proxy] Attempt ${attempt} threw error: ${fetchErr.message}. Retrying in ${delay}ms...`);
       }
-      
+
       if (attempt < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2; // Exponential backoff
+        delay *= 2;
       }
     }
 
@@ -337,20 +369,27 @@ exports.handler = async function(event, context) {
       try {
         if (apiRes) errorText = await apiRes.text();
       } catch (e) { /* ignore */ }
-      
-      console.error(`[weather-proxy] Open-Meteo error after ${attempt} attempts: ${status} ${errorText}`);
+
+      console.error(`[weather-proxy] Open-Meteo error after ${attempt} attempts: ${status} ${errorText.substring(0, 200)}`);
+
+      // Check if this is a wrapped rate limit
+      if (status === 429) {
+        return {
+          statusCode: 429,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true })
+        };
+      }
+
       return {
         statusCode: status,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify({ 
-          error: `Open-Meteo Gateway Error`, 
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({
+          error: 'Open-Meteo Gateway Error',
           statusCode: status,
           isGatewayError: true,
           attempts: attempt,
-          detail: errorText 
+          detail: errorText.substring(0, 500)
         })
       };
     }
@@ -359,7 +398,6 @@ exports.handler = async function(event, context) {
 
     // Cache the response
     cache.set(cacheKey, { data, timestamp: Date.now() });
-    // Evict old entries (keep cache bounded)
     if (cache.size > 100) {
       const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
       for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
@@ -379,10 +417,7 @@ exports.handler = async function(event, context) {
     console.error(`[weather-proxy] Error:`, err);
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: 'Proxy error', message: err.message })
     };
   }

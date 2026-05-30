@@ -246,7 +246,7 @@ function proxyPostToOpenMeteo(targetUrl, bodyPayload, cacheKey, res, type) {
   const lats = bodyPayload.latitude;
   const lons = bodyPayload.longitude;
 
-  if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length <= 250) {
+  if (!Array.isArray(lats) || !Array.isArray(lons) || lats.length <= 60) {
     // No need to chunk, just make a single GET request
     const params = new URLSearchParams();
     for (const [key, val] of Object.entries(bodyPayload)) {
@@ -260,8 +260,8 @@ function proxyPostToOpenMeteo(targetUrl, bodyPayload, cacheKey, res, type) {
     return proxyToOpenMeteo(fullUrl, cacheKey, res, type);
   }
 
-  // Chunking logic (max 250 locations per chunk to avoid HTTP 414 Request-URI Too Large)
-  const CHUNK_SIZE = 250;
+  // Chunking logic (max 60 locations per chunk to avoid HTTP 414 Request-URI Too Large)
+  const CHUNK_SIZE = 60;
   const chunks = [];
   for (let i = 0; i < lats.length; i += CHUNK_SIZE) {
     chunks.push({

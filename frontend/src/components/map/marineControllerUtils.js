@@ -169,7 +169,7 @@ export function computeGridPoints(bounds, caller = 'wind') {
       // GFS Wave 0.25° has data up to ~77.5°N; points above return null → isOcean=false (handled).
       // v4.1: Increased from 24→30 (961 pts) matching pressure grid density for fine ocean detail.
       west = -180; east = 180; south = -80; north = 85;
-      GRID = isMobile ? 14 : 30;
+      GRID = isMobile ? 14 : 20;
     } else if (caller === 'pressure') {
       // Higher density for pressure: 31×31 = 961 points gives ~5.5° resolution globally.
       // Per ECMWF IFS and GFS SLP analysis: synoptic-scale pressure systems
