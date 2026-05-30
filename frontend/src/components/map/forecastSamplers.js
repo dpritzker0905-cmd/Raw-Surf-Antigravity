@@ -1,0 +1,443 @@
+/**
+ * forecastSamplers.js — Marine data sampling utilities
+ *
+ * Extracted from MapForecastOverlay.js (v5.7.2 refactor) to keep
+ * the overlay component under 800 LOC.
+ *
+ * Contains three independent sampling pathways:
+ *   1. sampleFromMarineGrid()      — samples the live WebGL marine grid
+ *   2. fetchExactMarinePoint()     — exact-point Open-Meteo API fetch
+ *   3. sampleValueFromDecodedTiles() — samples decoded OM raster tiles
+ *
+ * RULES:
+ *   - NO React, NO DOM manipulation
+ *   - Pure data sampling + caching
+ *   - Marine directions are forecast-authoritative (no mutation)
+ */
+
+// ========================================================================
+// 1. MARINE GRID SAMPLER — bilinear interpolation on the live heatmap grid
+// ========================================================================
+
+/**
+ * Sample wave data directly from the marine grid that drives the heatmap.
+ * Ensures the infobox shows values consistent with the visual heatmap colors,
+ * using the SAME data source as WebGLMarineEngine (bilinear interpolation).
+ * Falls back gracefully to null if grid data isn't available.
+ *
+ * @param {number|null} lat
+ * @param {number|null} lng
+ * @returns {{ value: number, direction: number|null, period: number|null, source: string } | null}
+ */
+export function sampleFromMarineGrid(lat, lng) {
+  if (typeof window === 'undefined' || !window.__MARINE_WIND_DATA__ || lat == null || lng == null) {
+    return null;
+  }
+  const grid = window.__MARINE_WIND_DATA__;
+  if (!grid.vectors?.length || !grid.cols || !grid.rows || !grid.bounds) return null;
+
+  const { west, south, east, north } = grid.bounds;
+  const lngSpan = east - west;
+  const latSpan = north - south;
+
+  // Normalize longitude into grid bounds
+  let normLng = lng;
+  if (normLng < west) normLng += 360;
+  if (normLng > east) normLng -= 360;
+  if (normLng < west || normLng > east || lat < south || lat > north) return null;
+
+  // Compute fractional grid coordinates
+  const fx = ((normLng - west) / lngSpan) * (grid.cols - 1);
+  const fy = ((lat - south) / latSpan) * (grid.rows - 1);
+
+  const x0 = Math.floor(fx);
+  const x1 = Math.min(grid.cols - 1, x0 + 1);
+  const y0 = Math.floor(fy);
+  const y1 = Math.min(grid.rows - 1, y0 + 1);
+
+  const dx = fx - x0;
+  const dy = fy - y0;
+
+  const idx00 = y0 * grid.cols + x0;
+  const idx10 = y0 * grid.cols + x1;
+  const idx01 = y1 * grid.cols + x0;
+  const idx11 = y1 * grid.cols + x1;
+
+  const v00 = grid.vectors[idx00];
+  const v10 = grid.vectors[idx10];
+  const v01 = grid.vectors[idx01];
+  const v11 = grid.vectors[idx11];
+
+  // All 4 corners must be ocean for a valid interpolation
+  if (!v00?.isOcean || !v10?.isOcean || !v01?.isOcean || !v11?.isOcean) {
+    // Partial ocean: use nearest ocean neighbor by geographic distance.
+    // v5.7.1: Previously used highest-speed corner, which picked grid points
+    // 1000+ km away (e.g., open Atlantic at 34°N 69°W for a Cape Canaveral click).
+    const oceanCorners = [v00, v10, v01, v11].filter(v => v?.isOcean && v.speed > 0);
+    if (oceanCorners.length === 0) return null;
+    const best = oceanCorners.reduce((a, b) => {
+      const dA = Math.pow(a.lat - lat, 2) + Math.pow(a.lng - lng, 2);
+      const dB = Math.pow(b.lat - lat, 2) + Math.pow(b.lng - lng, 2);
+      return dA < dB ? a : b;
+    });
+    // Compute direction from u,v components
+    const dir = best.u !== 0 || best.v !== 0
+      ? (Math.atan2(-best.u, -best.v) * 180 / Math.PI + 360) % 360
+      : null;
+    return { value: best.speed, direction: dir, period: best.period || null, source: 'marine_grid_nearest' };
+  }
+
+  // Bilinear interpolation of wave height (speed field is wave height in marine context)
+  const height = v00.speed * (1 - dx) * (1 - dy) +
+                 v10.speed * dx * (1 - dy) +
+                 v01.speed * (1 - dx) * dy +
+                 v11.speed * dx * dy;
+
+  // Bilinear interpolation of period
+  const p00 = v00.period || 0, p10 = v10.period || 0, p01 = v01.period || 0, p11 = v11.period || 0;
+  const period = p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
+
+  // Circular interpolation of direction from u,v
+  const avgU = v00.u * (1 - dx) * (1 - dy) + v10.u * dx * (1 - dy) + v01.u * (1 - dx) * dy + v11.u * dx * dy;
+  const avgV = v00.v * (1 - dx) * (1 - dy) + v10.v * dx * (1 - dy) + v01.v * (1 - dx) * dy + v11.v * dx * dy;
+  const direction = (avgU !== 0 || avgV !== 0)
+    ? (Math.atan2(-avgU, -avgV) * 180 / Math.PI + 360) % 360
+    : null;
+
+  return { value: height, direction, period: period > 0 ? period : null, source: 'marine_grid' };
+}
+
+// ========================================================================
+// 2. EXACT POINT MARINE FETCH — single-point API for infobox accuracy
+// ========================================================================
+
+var _exactPointCache = new Map();
+var EXACT_POINT_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+// Model-specific forecast day limits (Open-Meteo marine models)
+var MARINE_MODEL_LIMITS = {
+  'ncep_gfswave025': 16,   // GFS Wave: 16 days
+  'gwam': 7,               // DWD GWAM (ICON marine): 7.5 days
+  'ecmwf_wam025': 10,      // ECMWF WAM: 10 days
+};
+
+/**
+ * Fetch the FULL multi-day forecast for a single point.
+ * Caches by lat/lng/model so timeline scrubs don't re-fetch.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @param {string} model - 'GFS' | 'ICON' | 'EURO'
+ * @returns {Promise<Object|null>} Full response with hourly arrays
+ */
+export async function fetchExactMarinePoint(lat, lng, model) {
+  if (lat == null || lng == null) return null;
+
+  const rLat = +lat.toFixed(2);
+  const rLng = +lng.toFixed(2);
+  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}`;
+
+  const cached = _exactPointCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
+    return cached.data;
+  }
+
+  const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
+  const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
+  const forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
+
+  const body = {
+    latitude: [rLat],
+    longitude: [rLng],
+    hourly: [
+      'wave_height', 'wave_direction', 'wave_period',
+      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+    ],
+    forecast_days: forecastDays,
+    models: [apiModel]
+  };
+
+  try {
+    const res = await fetch('/api/weather-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'marine', body })
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const result = Array.isArray(json) ? json[0] : json;
+    if (!result?.hourly) return null;
+
+    const data = {
+      hourly: result.hourly,
+      snappedLat: result.latitude,
+      snappedLng: result.longitude,
+      forecastDays,
+      apiModel,
+      source: 'exact_point_api'
+    };
+
+    _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
+    // Evict old entries
+    if (_exactPointCache.size > 50) {
+      const oldest = [..._exactPointCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+      for (let i = 0; i < 10; i++) _exactPointCache.delete(oldest[i][0]);
+    }
+
+    return data;
+  } catch (err) {
+    console.warn('[ExactPoint] Marine fetch failed:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Select the correct hour from a cached exact-point response.
+ * Returns an object with all variable values for that hour, or null.
+ *
+ * @param {Object} cachedResponse - Full response from fetchExactMarinePoint
+ * @param {number} hourOffset - Hours from now
+ * @returns {Object|null} Variable values for the matched hour
+ */
+export function selectExactPointHour(cachedResponse, hourOffset) {
+  if (!cachedResponse?.hourly?.time) return null;
+  const times = cachedResponse.hourly.time;
+  const h = cachedResponse.hourly;
+  const targetMs = Date.now() + (hourOffset || 0) * 3600000;
+
+  let bestIdx = 0, minDiff = Infinity;
+  for (let i = 0; i < times.length; i++) {
+    const diff = Math.abs(new Date(times[i] + 'Z').getTime() - targetMs);
+    if (diff < minDiff) { minDiff = diff; bestIdx = i; }
+  }
+
+  // If best match is > 3 hours away, consider it a miss (model doesn't cover this time)
+  if (minDiff > 3 * 3600000) return null;
+
+  return {
+    wave_height: h.wave_height?.[bestIdx] ?? null,
+    wave_direction: h.wave_direction?.[bestIdx] ?? null,
+    wave_period: h.wave_period?.[bestIdx] ?? null,
+    swell_wave_height: h.swell_wave_height?.[bestIdx] ?? null,
+    swell_wave_direction: h.swell_wave_direction?.[bestIdx] ?? null,
+    swell_wave_period: h.swell_wave_period?.[bestIdx] ?? null,
+    secondary_swell_wave_height: h.secondary_swell_wave_height?.[bestIdx] ?? null,
+    secondary_swell_wave_direction: h.secondary_swell_wave_direction?.[bestIdx] ?? null,
+    secondary_swell_wave_period: h.secondary_swell_wave_period?.[bestIdx] ?? null,
+    wind_wave_height: h.wind_wave_height?.[bestIdx] ?? null,
+    wind_wave_direction: h.wind_wave_direction?.[bestIdx] ?? null,
+    wind_wave_period: h.wind_wave_period?.[bestIdx] ?? null,
+    source: 'exact_point_api',
+    hourIndex: bestIdx,
+    time: times[bestIdx],
+    snappedLat: cachedResponse.snappedLat,
+    snappedLng: cachedResponse.snappedLng,
+    forecastDays: cachedResponse.forecastDays,
+    timeRangeStart: times[0],
+    timeRangeEnd: times[times.length - 1],
+    matchDiffMs: minDiff
+  };
+}
+
+// ========================================================================
+// 3. DECODED TILE SAMPLER — bilinear interpolation on OM raster tiles
+// ========================================================================
+
+/**
+ * Sample a single weather/marine variable from decoded Open-Meteo tiles.
+ * Uses bilinear interpolation with circular averaging for directions
+ * and nearshore coastal wave decay for wave heights.
+ *
+ * @param {number|null} lat
+ * @param {number|null} lng
+ * @param {string} targetVariable - e.g. 'wave_height', 'swell_wave_direction'
+ * @param {number} timeOffsetHours
+ * @param {string} activeModel - 'GFS' | 'EURO' | 'ICON'
+ * @returns {{ value: number, direction: number|null } | null}
+ */
+export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffsetHours = 0, activeModel = 'GFS') {
+  if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__ || lat == null || lng == null) {
+    return null;
+  }
+
+  // Resolve the correct model for the variable to lookup its validTimes for accurate index matching
+  const isMarine = targetVariable.includes('wave') || targetVariable.includes('swell');
+  const model = isMarine 
+    ? (activeModel === 'EURO' ? 'ecmwf_wam025' : (activeModel === 'ICON' ? 'dwd_gwam' : 'ncep_gfswave025'))
+    : (activeModel === 'EURO' ? 'ecmwf_ifs025' : (activeModel === 'ICON' ? 'dwd_icon' : 'ncep_gfs013'));
+
+  const meta = window.__MODEL_METADATA_CACHE__?.[model];
+  let targetIdx = 0;
+
+  if (meta && Array.isArray(meta.validTimes) && meta.validTimes.length > 0) {
+    const targetMs = Date.now() + timeOffsetHours * 3600000;
+    let minDiff = Infinity;
+    for (let i = 0; i < meta.validTimes.length; i++) {
+      const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
+      if (diff < minDiff) {
+        minDiff = diff;
+        targetIdx = i;
+      }
+    }
+  } else {
+    // Fallback: standard GFS/OM intervals (3-hourly for marine, 1-hourly for atmospheric)
+    const hoursPerStep = isMarine ? 3 : 1;
+    targetIdx = Math.round(timeOffsetHours / hoursPerStep);
+  }
+  
+  const matchingTiles = [];
+  for (const tile of window.__DECODED_OM_TILES__.values()) {
+    if (tile.variable === targetVariable && tile.timeIndex === targetIdx) {
+      matchingTiles.push(tile);
+    }
+  }
+  
+  if (matchingTiles.length === 0) return null;
+  
+  let bestTile = null;
+  for (const tile of matchingTiles) {
+    if (!tile.bounds || tile.bounds.length !== 4) continue;
+    const [tWest, tSouth, tEast, tNorth] = tile.bounds;
+    if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
+      bestTile = tile;
+      break;
+    }
+  }
+  
+  if (!bestTile && matchingTiles.length > 0) {
+    bestTile = matchingTiles[0];
+  }
+  
+  if (!bestTile || !bestTile.values || !bestTile.values.length) return null;
+  
+  const [tWest, tSouth, tEast, tNorth] = bestTile.bounds;
+  const tLngSpan = tEast - tWest;
+  const tLatSpan = tNorth - tSouth;
+  
+  const tileCols = bestTile.nx || Math.sqrt(bestTile.values.length);
+  const tileRows = bestTile.ny || Math.sqrt(bestTile.values.length);
+  if (!tileCols || isNaN(tileCols)) return null;
+  
+  const tx = Math.max(0, Math.min(tileCols - 1, ((lng - tWest) / tLngSpan) * (tileCols - 1)));
+  const ty = Math.max(0, Math.min(tileRows - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileRows - 1)));
+  
+  const x0 = Math.floor(tx);
+  const x1 = Math.min(tileCols - 1, x0 + 1);
+  const y0 = Math.floor(ty);
+  const y1 = Math.min(tileRows - 1, y0 + 1);
+  
+  const dx = tx - x0;
+  const dy = ty - y0;
+  
+  const idx00 = y0 * tileCols + x0;
+  const idx10 = y0 * tileCols + x1;
+  const idx01 = y1 * tileCols + x0;
+  const idx11 = y1 * tileCols + x1;
+  
+  const raw00 = bestTile.values[idx00];
+  const raw10 = bestTile.values[idx10];
+  const raw01 = bestTile.values[idx01];
+  const raw11 = bestTile.values[idx11];
+  
+  const isPeriod = targetVariable.includes('period');
+  
+  let value;
+  if (isPeriod) {
+    let weightSum = 0;
+    let weightedVal = 0;
+    
+    if (raw00 != null && !isNaN(raw00) && raw00 > 0) {
+      const w = (1 - dx) * (1 - dy);
+      weightedVal += raw00 * w;
+      weightSum += w;
+    }
+    if (raw10 != null && !isNaN(raw10) && raw10 > 0) {
+      const w = dx * (1 - dy);
+      weightedVal += raw10 * w;
+      weightSum += w;
+    }
+    if (raw01 != null && !isNaN(raw01) && raw01 > 0) {
+      const w = (1 - dx) * dy;
+      weightedVal += raw01 * w;
+      weightSum += w;
+    }
+    if (raw11 != null && !isNaN(raw11) && raw11 > 0) {
+      const w = dx * dy;
+      weightedVal += raw11 * w;
+      weightSum += w;
+    }
+    
+    if (weightSum > 0) {
+      value = weightedVal / weightSum;
+    } else {
+      value = 0;
+    }
+  } else {
+    const v00 = (typeof raw00 === 'number' && !isNaN(raw00)) ? raw00 : 0;
+    const v10 = (typeof raw10 === 'number' && !isNaN(raw10)) ? raw10 : 0;
+    const v01 = (typeof raw01 === 'number' && !isNaN(raw01)) ? raw01 : 0;
+    const v11 = (typeof raw11 === 'number' && !isNaN(raw11)) ? raw11 : 0;
+    
+    value = v00 * (1 - dx) * (1 - dy) +
+            v10 * dx * (1 - dy) +
+            v01 * (1 - dx) * dy +
+            v11 * dx * dy;
+  }
+
+  // Apply Nearshore Coastal Wave Decay:
+  // Detect land proximity by counting how many neighbors are null, NaN, or 0.
+  // Physical nearshore wave transformation (shoaling & bathymetric friction) decays deep-water waves.
+  const isWaveHeightVar = targetVariable.includes('height') && (targetVariable.includes('wave') || targetVariable.includes('swell'));
+  if (isWaveHeightVar && value > 0) {
+    let landCount = 0;
+    if (raw00 == null || isNaN(raw00) || raw00 === 0) landCount++;
+    if (raw10 == null || isNaN(raw10) || raw10 === 0) landCount++;
+    if (raw01 == null || isNaN(raw01) || raw01 === 0) landCount++;
+    if (raw11 == null || isNaN(raw11) || raw11 === 0) landCount++;
+    
+    if (landCount > 0) {
+      // 1 land neighbor  -> 0.65x decay (outer transition shelf)
+      // 2 land neighbors -> 0.45x decay (outer breaker line)
+      // 3+ land neighbors -> 0.35x decay (beach shoreline, e.g., Cape Canaveral)
+      const decayFactor = landCount === 1 ? 0.65 : (landCount === 2 ? 0.45 : 0.35);
+      value = value * decayFactor;
+      
+      if (typeof window !== 'undefined' && window.__OM_SAMPLER_DEBUG__) {
+        console.log(`[Nearshore-Decay] Coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)}) variable: ${targetVariable} is nearshore. Land neighbors: ${landCount}/4, Decay: ${decayFactor.toFixed(2)}x -> Value: ${value.toFixed(2)}`);
+      }
+    }
+  }
+                
+  let direction = null;
+  if (bestTile.directions) {
+    const d00 = bestTile.directions[idx00] || 0;
+    const d10 = bestTile.directions[idx10] || 0;
+    const d01 = bestTile.directions[idx01] || 0;
+    const d11 = bestTile.directions[idx11] || 0;
+    
+    const r00 = d00 * Math.PI / 180;
+    const r10 = d10 * Math.PI / 180;
+    const r01 = d01 * Math.PI / 180;
+    const r11 = d11 * Math.PI / 180;
+    
+    const sinAvg = Math.sin(r00) * (1 - dx) * (1 - dy) +
+                   Math.sin(r10) * dx * (1 - dy) +
+                   Math.sin(r01) * (1 - dx) * dy +
+                   Math.sin(r11) * dx * dy;
+                   
+    const cosAvg = Math.cos(r00) * (1 - dx) * (1 - dy) +
+                   Math.cos(r10) * dx * (1 - dy) +
+                   Math.cos(r01) * (1 - dx) * dy +
+                   Math.cos(r11) * dx * dy;
+                   
+    direction = (Math.atan2(sinAvg, cosAvg) * 180 / Math.PI + 360) % 360;
+  }
+  
+  if (value !== null && value !== undefined && typeof window !== 'undefined' && window.__OM_SAMPLER_DEBUG__) {
+    console.log(`[OM-Sampler] Coordinate (${lat.toFixed(4)}, ${lng.toFixed(4)}) variable: ${targetVariable} -> Sampled Value: ${value.toFixed(2)}, Dir: ${direction}`);
+  }
+
+  return { value, direction };
+}
