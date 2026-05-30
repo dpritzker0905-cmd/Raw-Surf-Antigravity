@@ -18,9 +18,15 @@
 
 import { MARINE_MODEL_CAPABILITIES } from './marineControllerUtils';
 
-// v5.9.3→v6.0: With Copernicus Marine, EURO now supports all wave components.
-// Set kept (empty) so model-gate code paths remain structurally intact.
-var EURO_UNSUPPORTED_MARINE_VARS = new Set([]);
+// v6.1: EURO marine now comes from Copernicus, NOT Open-Meteo decoded tiles.
+// Block ALL marine variables from decoded tile sampling for EURO to prevent
+// stale Open-Meteo tile data from leaking into the Copernicus-sourced infobox.
+var EURO_UNSUPPORTED_MARINE_VARS = new Set([
+  'wave_height', 'wave_direction', 'wave_period',
+  'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+  'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+  'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+]);
 var ICON_UNSUPPORTED_MARINE_VARS = new Set([
   'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'
 ]);
@@ -53,6 +59,14 @@ export function sampleFromMarineGrid(lat, lng, activeModel) {
   // v5.9.4: Model guard — reject grid data from a different model to prevent
   // GFS values leaking into EURO/ICON infobox during model switch transitions.
   if (activeModel && grid.__sourceModel && grid.__sourceModel !== activeModel) {
+    return null;
+  }
+
+  // v6.1: Provider guard — reject grid data if provider doesn't match expected.
+  // GFS/ICON expect open-meteo, EURO expects copernicus.
+  const EXPECTED_PROVIDERS = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
+  const expectedProvider = activeModel ? EXPECTED_PROVIDERS[activeModel] : null;
+  if (expectedProvider && grid.__provider && grid.__provider !== expectedProvider) {
     return null;
   }
 
@@ -155,7 +169,10 @@ export async function fetchExactMarinePoint(lat, lng, model) {
 
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
-  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}`;
+  // v6.1: Include provider in cache key to prevent Copernicus/Open-Meteo cross-hits
+  const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
+  const provider = PROVIDER_MAP[model] || 'open-meteo';
+  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}_${provider}`;
 
   const cached = _exactPointCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
@@ -235,15 +252,45 @@ export async function fetchExactMarinePoint(lat, lng, model) {
       window.__MARINE_EXACT_POINT_ERROR__ = null;
     }
 
+    // v6.1: Detect provider from response, default based on proxy type
+    const detectedProvider = result.__provider || (proxyType === 'copernicus_marine' ? 'copernicus' : 'open-meteo');
+
     const data = {
       hourly: result.hourly,
       snappedLat: result.latitude,
       snappedLng: result.longitude,
       forecastDays,
       apiModel,
-      provider: result.__provider || 'open-meteo', // v5.9.5: Source tracking
+      provider: detectedProvider,
       source: 'exact_point_api'
     };
+
+    // v6.1: Copernicus Marine diagnostic (never prints credentials)
+    if (typeof window !== 'undefined' && proxyType === 'copernicus_marine') {
+      const hourly = result.hourly || {};
+      window.__COPERNICUS_MARINE_DIAG__ = {
+        backendConfigured: true,
+        provider: 'copernicus',
+        snappedLat: result.latitude,
+        snappedLng: result.longitude,
+        selectedTimestamp: new Date().toISOString(),
+        nonNullCounts: {
+          wave_height: hourly.wave_height?.filter(v => v != null).length || 0,
+          wave_direction: hourly.wave_direction?.filter(v => v != null).length || 0,
+          wave_period: hourly.wave_period?.filter(v => v != null).length || 0,
+          swell_wave_height: hourly.swell_wave_height?.filter(v => v != null).length || 0,
+          swell_wave_direction: hourly.swell_wave_direction?.filter(v => v != null).length || 0,
+          swell_wave_period: hourly.swell_wave_period?.filter(v => v != null).length || 0,
+          secondary_swell_wave_height: hourly.secondary_swell_wave_height?.filter(v => v != null).length || 0,
+          secondary_swell_wave_direction: hourly.secondary_swell_wave_direction?.filter(v => v != null).length || 0,
+          secondary_swell_wave_period: hourly.secondary_swell_wave_period?.filter(v => v != null).length || 0,
+          wind_wave_height: hourly.wind_wave_height?.filter(v => v != null).length || 0,
+          wind_wave_direction: hourly.wind_wave_direction?.filter(v => v != null).length || 0,
+          wind_wave_period: hourly.wind_wave_period?.filter(v => v != null).length || 0,
+        },
+        timestamp: new Date().toISOString()
+      };
+    }
 
     _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
     // Evict old entries
@@ -391,8 +438,11 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
     }
   }
   
-  if (!bestTile && matchingTiles.length > 0) {
-    bestTile = matchingTiles[0];
+  // v6.1: REMOVED dangerous fallback that used matchingTiles[0] when no tile
+  // contained the selected lat/lng. This caused sampling from geographically
+  // wrong tiles, producing fake values (e.g., 6.5ft/13s at Cape Canaveral).
+  if (!bestTile) {
+    return null; // no_containing_tile — refuse to sample from non-containing tile
   }
   
   if (!bestTile || !bestTile.values || !bestTile.values.length) return null;

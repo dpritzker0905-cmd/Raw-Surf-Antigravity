@@ -71,7 +71,7 @@ export var HOURLY_CACHE_TTL = 60 * 60 * 1000; // 60 min (long cache to minimize 
 export function persistCache(key, cache) {
   try {
     const slim = { hash: cache.hash, results: cache.results, points: cache.points,
-      gridSize: cache.gridSize, bounds: cache.bounds, timestamp: cache.timestamp, model: cache.model, isGlobal: cache.isGlobal };
+      gridSize: cache.gridSize, bounds: cache.bounds, timestamp: cache.timestamp, model: cache.model, provider: cache.provider || 'open-meteo', isGlobal: cache.isGlobal };
     localStorage.setItem(key, JSON.stringify(slim));
   } catch (e) { /* localStorage full or unavailable ignore */ }
 }

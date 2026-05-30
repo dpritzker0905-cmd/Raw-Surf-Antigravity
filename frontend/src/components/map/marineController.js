@@ -41,7 +41,7 @@ var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, 
 
 // --- PERSISTENT CACHE (localStorage) ---
 var LS_WIND_KEY = 'rawsurf_wind_cache_v3'; // v5.5: bumped to invalidate stale direction data
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v4'; // v5.9.5: bumped to invalidate caches lacking provider tag
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v5'; // v6.1: bumped to invalidate caches lacking provider guard
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped
@@ -61,8 +61,19 @@ if (_hydratedWind) {
 }
 var _hydratedMarine = hydrateCache(LS_MARINE_KEY);
 if (_hydratedMarine) {
-  marineHourlyCache = _hydratedMarine;
-  console.log(`[Marine] Hydrated from localStorage: ${_hydratedMarine.points?.length} pts, age ${Math.round((Date.now() - _hydratedMarine.timestamp)/1000)}s`);
+  // v6.1: Reject hydrated cache if provider doesn't match expected for the model.
+  // Prevents stale Open-Meteo GFS/ICON cache from being used for EURO (Copernicus).
+  var _hydMarineProvider = _hydratedMarine.provider || 'open-meteo';
+  var _hydMarineModel = _hydratedMarine.model || 'GFS';
+  var _expectedProvider = (_hydMarineModel === 'EURO') ? 'copernicus' : 'open-meteo';
+  if (_hydMarineProvider !== _expectedProvider) {
+    console.log(`[Marine] Rejected hydrated cache: provider=${_hydMarineProvider}, expected=${_expectedProvider} for model=${_hydMarineModel}`);
+    _hydratedMarine = null;
+    try { localStorage.removeItem(LS_MARINE_KEY); } catch(e) {}
+  } else {
+    marineHourlyCache = _hydratedMarine;
+    console.log(`[Marine] Hydrated from localStorage: ${_hydratedMarine.points?.length} pts, age ${Math.round((Date.now() - _hydratedMarine.timestamp)/1000)}s, provider=${_hydMarineProvider}`);
+  }
 }
 
 // --- LAST KNOWN GOOD FIELDS ---
@@ -465,9 +476,13 @@ function extractMarineAtOffset(cache, hourOffset) {
   });
 
   if (features.length === 0) return null;
+
+  // v6.1: Propagate provider and source model to grid for infobox/WebGL verification
+  const provider = cache.provider || 'open-meteo';
   return {
     type: 'FeatureCollection', features,
-    grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now() }
+    grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now(),
+            __sourceModel: activeModel, __provider: provider, provider: provider }
   };
 }
 
