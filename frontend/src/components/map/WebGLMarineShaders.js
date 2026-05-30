@@ -222,11 +222,12 @@ void main() {
     return;
   }
 
-  // === v5.3: HEIGHT-AWARE DENSITY THRESHOLD ===
-  // 30% visible at zoom 2 (was 15%), 90% at zoom 10. Big waves get a boost.
-  float baseVisibility = smoothstep(2.0, 10.0, u_zoom) * 0.6 + 0.3;
-  float heightBoost = smoothstep(0.5, 3.0, waveHeight) * 0.1;
-  float densityThreshold = min(baseVisibility + heightBoost, 1.0);
+  // === v5.8: AGGRESSIVE ZOOM-DENSITY CURVE ===
+  // zoom 2 → ~12%, zoom 4-5 → ~25%, zoom 7-8 → ~55%, zoom 10+ → ~90%
+  float baseVisibility = mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom));
+  // Height boost: big waves survive culling even at far zoom, but capped
+  float heightBoost = smoothstep(1.0, 4.0, waveHeight) * mix(0.02, 0.10, smoothstep(5.0, 10.0, u_zoom));
+  float densityThreshold = clamp(baseVisibility + heightBoost, 0.08, 0.95);
 
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
@@ -307,7 +308,7 @@ void main() {
   vec2 cornerNdc = cornerPixel / u_viewport * 2.0 - 1.0;
   gl_Position = vec4(cornerNdc * clipPos.w, clipPos.z, clipPos.w);
 
-  // === v5.3: DEEP-WATER-INSPIRED PERIOD SPACING ===
+  // === v5.8: DEEP-WATER PERIOD SPACING + WAVE-TRAIN ENVELOPE ===
   // L ≈ g·T²/(2π) → spatialFreq ∝ 1/T². Cap for visual range.
   float modelPeriod = waveData.a * 20.0;
   float derivedPeriod = 6.0 + waveHeight * 2.0;
@@ -319,21 +320,32 @@ void main() {
   float spatialFreq = 800.0 / max(36.0, periodVal * periodVal);
   spatialFreq = clamp(spatialFreq, 3.0, 25.0);
 
-  // Temporal advance with per-particle jitter (±15%)
-  float temporalSpeed = u_time / max(2.0, periodVal * (0.85 + particleHash * 0.3));
+  // v5.8: COHERENT temporal phase — no per-particle hash jitter on speed.
+  // All ribbons in the same wave train advance at the same rate.
+  float temporalSpeed = u_time / max(2.0, periodVal);
   float trainPhase = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
   v_phase = trainPhase;
 
-  // === v5.4: STABLE BASE ALPHA (anti-blink) ===
-  // Alpha is NEVER driven to zero by phase. Phase only drives FS roll highlight.
-  // Base alpha is height-aware and always visible.
-  float heightAlpha = smoothstep(0.0, 4.0, waveHeight);
-  v_alpha = mix(0.55, 0.85, heightAlpha);
+  // === v5.8: WAVE-TRAIN ENVELOPE — period controls visible band spacing ===
+  // Short-period wind waves: tighter, more frequent visible bands.
+  // Long-period swell: wider spacing, organized sets.
+  // Modulates alpha softly (never fully invisible) to create visible wave sets.
+  float train = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
+  float crestBand = 1.0 - smoothstep(0.08, 0.30, abs(train - 0.5));
+  float trainEnvelope = mix(0.25, 1.0, crestBand);
 
-  // Per-particle brightness variation (±10%)
+  // === v5.8: ZOOM-AWARE ALPHA (far = subtler, close = detailed) ===
+  float heightAlpha = smoothstep(0.0, 4.0, waveHeight);
+  float zoomAlphaScale = mix(0.45, 1.0, smoothstep(3.0, 9.0, u_zoom));
+  v_alpha = mix(0.50, 0.85, heightAlpha) * zoomAlphaScale;
+
+  // v5.8: Apply wave-train envelope for visible period spacing
+  v_alpha *= trainEnvelope;
+
+  // Per-particle brightness variation (±10%) — subtle, NOT on phase speed
   v_alpha *= 0.9 + particleHash * 0.2;
 
-  // === v5.3: WHITECAP STRENGTH (separate from base ripple) ===
+  // === WHITECAP STRENGTH (separate from base ripple) ===
   // Only significant for waves with real breaking potential
   v_whitecap = smoothstep(0.5, 3.0, waveHeight);
 }
