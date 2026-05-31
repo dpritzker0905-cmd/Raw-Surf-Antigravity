@@ -129,7 +129,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
       const q = (v) => Number(v).toFixed(2);
       const z = Math.round(zoom * 2) / 2;
-      const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}`;
+      const model = activeModelRef.current;
+      const layer = activeMarineLayerRef.current || 'waves';
+      const timeOffset = timeOffsetRef.current;
+      const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}:${model}:${layer}:${timeOffset}`;
 
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry';
 
@@ -444,9 +447,38 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           return;
         }
 
-        // Silenced: fetchMarineData result trace
+        if (typeof window !== 'undefined') {
+          let nzCount = 0;
+          if (data?.grid?.vectors) {
+            for (const v of data.grid.vectors) {
+              if (v) {
+                const comp = v[currentLayer] || v.waves || v.swell_1 || v.swell_2 || v.wind_waves || v;
+                if (comp && comp.speed > 0) nzCount++;
+              }
+            }
+          }
+          window.__MARINE_FETCH_DIAG__ = {
+            activeModel: activeModelRef.current,
+            activeLayer: currentLayer,
+            timeOffsetHours: timeOffsetRef.current,
+            provider: data?.grid?.__provider || data?.grid?.provider || 'none',
+            gridProvider: data?.grid?.__gridProvider || 'none',
+            requestSummary: `Grid points query bounds=[${bounds.west}, ${bounds.south}, ${bounds.east}, ${bounds.north}]`,
+            httpStatus: data ? 200 : 502,
+            elapsedMs: Date.now() - now,
+            cacheHit: data ? (data.grid?.__estimated ? false : true) : false,
+            inFlightDeduped: locks.isFetching,
+            vectorCount: data?.grid?.vectors?.length || 0,
+            nonzeroCount: nzCount,
+            timestamp: new Date().toISOString()
+          };
+        }
 
-        if (data && (data.features?.length > 0 || (isEuroComponent && data.grid?.vectors?.length > 0) || (isEuroComponent && data.grid?.__skippedReason === 'zoom_too_low'))) {
+        const hasFeatures = data?.features?.length > 0;
+        const hasGridVectors = data?.grid?.vectors?.length > 0;
+        const hasSkippedZoom = data?.grid?.__skippedReason === 'zoom_too_low' || data?.grid?.skippedReason === 'zoom_too_low';
+
+        if (data && (hasFeatures || hasGridVectors || hasSkippedZoom)) {
           consecutiveFailuresRef.current = 0; // Reset circuit breaker on success
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();
@@ -551,7 +583,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         const zoom = mapInstance.getZoom();
         const q = (v) => Number(v).toFixed(2);
         const z = Math.round(zoom * 2) / 2;
-        const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}`;
+        const model = activeModelRef.current;
+        const layer = activeMarineLayerRef.current || 'waves';
+        const timeOffset = timeOffsetRef.current;
+        const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}:${model}:${layer}:${timeOffset}`;
         if (locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) {
           return;
         }

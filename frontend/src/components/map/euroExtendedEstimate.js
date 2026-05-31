@@ -121,6 +121,86 @@ export function blendPeriod(periods, weights) {
 }
 
 /**
+ * Bilinearly interpolates/resamples component values from a source grid at a specific lat/lng.
+ */
+export function resampleFromGrid(lat, lng, grid, componentKey) {
+  if (!grid || !grid.vectors?.length || !grid.bounds || !grid.cols || !grid.rows) {
+    return null;
+  }
+
+  const { west, south, east, north } = grid.bounds;
+  const lngSpan = east - west;
+  const latSpan = north - south;
+
+  // Normalize longitude into grid bounds
+  let normLng = lng;
+  if (normLng < west) normLng += 360;
+  if (normLng > east) normLng -= 360;
+  
+  if (normLng < west || normLng > east || lat < south || lat > north) {
+    return null;
+  }
+
+  // Compute fractional coordinates
+  const fx = ((normLng - west) / lngSpan) * (grid.cols - 1);
+  const fy = ((lat - south) / latSpan) * (grid.rows - 1);
+
+  const x0 = Math.floor(fx);
+  const x1 = Math.min(grid.cols - 1, x0 + 1);
+  const y0 = Math.floor(fy);
+  const y1 = Math.min(grid.rows - 1, y0 + 1);
+
+  const dx = fx - x0;
+  const dy = fy - y0;
+
+  const idx00 = y0 * grid.cols + x0;
+  const idx10 = y0 * grid.cols + x1;
+  const idx01 = y1 * grid.cols + x0;
+  const idx11 = y1 * grid.cols + x1;
+
+  const v00 = grid.vectors[idx00];
+  const v10 = grid.vectors[idx10];
+  const v01 = grid.vectors[idx01];
+  const v11 = grid.vectors[idx11];
+
+  if (!v00 || !v10 || !v01 || !v11) return null;
+
+  const getVal = (v) => {
+    // Grid vectors can be nested or flat
+    const c = v?.[componentKey] !== undefined ? v[componentKey] : v;
+    return c || { u: 0, v: 0, speed: 0, period: 0 };
+  };
+
+  const c00 = getVal(v00);
+  const c10 = getVal(v10);
+  const c01 = getVal(v01);
+  const c11 = getVal(v11);
+
+  // Interpolate speed, period, u, v
+  const speed = c00.speed * (1 - dx) * (1 - dy) +
+                c10.speed * dx * (1 - dy) +
+                c01.speed * (1 - dx) * dy +
+                c11.speed * dx * dy;
+
+  const period = (c00.period || 0) * (1 - dx) * (1 - dy) +
+                 (c10.period || 0) * dx * (1 - dy) +
+                 (c01.period || 0) * (1 - dx) * dy +
+                 (c11.period || 0) * dx * dy;
+
+  const u = (c00.u || 0) * (1 - dx) * (1 - dy) +
+            (c10.u || 0) * dx * (1 - dy) +
+            (c01.u || 0) * (1 - dx) * dy +
+            (c11.u || 0) * dx * dy;
+
+  const v = (c00.v || 0) * (1 - dx) * (1 - dy) +
+            (c10.v || 0) * dx * (1 - dy) +
+            (c01.v || 0) * (1 - dx) * dy +
+            (c11.v || 0) * dx * dy;
+
+  return { u, v, speed, period };
+}
+
+/**
  * Calculates Point Extended Estimate past native EURO coverage.
  */
 export function estimateEuroPoint(targetHour, nativeLimit, activeLayer, euroAnchor, gfsTarget, gfsAnchor, iconTarget, iconAnchor) {
@@ -243,10 +323,7 @@ export function estimateEuroGrid(targetHour, nativeLimit, activeLayer, euroAncho
     }
 
     const cEuroAnchor = getComp(vEuroAnchor, componentKey);
-    const vGfsAnchor = gfsAnchorGrid.vectors[i];
-    const vGfsTarget = gfsTargetGrid.vectors[i];
-
-    if (!cEuroAnchor || !vGfsAnchor || !vGfsTarget) {
+    if (!cEuroAnchor) {
       vectors.push({
         lat, lng, isOcean,
         [componentKey]: { u: 0, v: 0, speed: 0, period: 0 }
@@ -254,8 +331,9 @@ export function estimateEuroGrid(targetHour, nativeLimit, activeLayer, euroAncho
       return;
     }
 
-    const cGfsAnchor = getComp(vGfsAnchor, componentKey);
-    const cGfsTarget = getComp(vGfsTarget, componentKey);
+    // Geographically resample GFS at this coordinate to align grids
+    const cGfsAnchor = resampleFromGrid(lat, lng, gfsAnchorGrid, componentKey);
+    const cGfsTarget = resampleFromGrid(lat, lng, gfsTargetGrid, componentKey);
 
     if (!cGfsAnchor || !cGfsTarget) {
       vectors.push({
@@ -284,21 +362,18 @@ export function estimateEuroGrid(targetHour, nativeLimit, activeLayer, euroAncho
     let validIcon = false;
 
     if (isIconValid) {
-      const vIconAnchor = iconAnchorGrid.vectors[i];
-      const vIconTarget = iconTargetGrid.vectors[i];
-      if (vIconAnchor && vIconTarget) {
-        const cIconAnchor = getComp(vIconAnchor, componentKey);
-        const cIconTarget = getComp(vIconTarget, componentKey);
-        if (cIconAnchor && cIconTarget && cIconTarget.speed != null) {
-          validIcon = true;
-          const dIconTarget = cIconTarget.u !== 0 || cIconTarget.v !== 0
-            ? (Math.atan2(-cIconTarget.u, -cIconTarget.v) * 180 / Math.PI + 360) % 360
-            : null;
+      // Geographically resample ICON at this coordinate to align grids
+      const cIconAnchor = resampleFromGrid(lat, lng, iconAnchorGrid, componentKey);
+      const cIconTarget = resampleFromGrid(lat, lng, iconTargetGrid, componentKey);
+      if (cIconAnchor && cIconTarget && cIconTarget.speed != null) {
+        validIcon = true;
+        const dIconTarget = cIconTarget.u !== 0 || cIconTarget.v !== 0
+          ? (Math.atan2(-cIconTarget.u, -cIconTarget.v) * 180 / Math.PI + 360) % 360
+          : null;
 
-          hIconTrend = Math.max(0, hEuroAnchor + (cIconTarget.speed - cIconAnchor.speed));
-          pIconTrend = cIconAnchor.period > 0 ? Math.max(2, pEuroAnchor + (cIconTarget.period - cIconAnchor.period)) : pEuroAnchor;
-          dIconTrend = dIconTarget;
-        }
+        hIconTrend = Math.max(0, hEuroAnchor + (cIconTarget.speed - cIconAnchor.speed));
+        pIconTrend = cIconAnchor.period > 0 ? Math.max(2, pEuroAnchor + (cIconTarget.period - cIconAnchor.period)) : pEuroAnchor;
+        dIconTrend = dIconTarget;
       }
     }
 
@@ -513,10 +588,7 @@ export function estimateIconGrid(targetHour, nativeLimit, activeLayer, iconAncho
     }
 
     const cIconAnchor = getComp(vIconAnchor, componentKey);
-    const vGfsAnchor = gfsAnchorGrid.vectors[i];
-    const vGfsTarget = gfsTargetGrid.vectors[i];
-
-    if (!cIconAnchor || !vGfsAnchor || !vGfsTarget) {
+    if (!cIconAnchor) {
       vectors.push({
         lat, lng, isOcean,
         [componentKey]: { u: 0, v: 0, speed: 0, period: 0 }
@@ -524,8 +596,9 @@ export function estimateIconGrid(targetHour, nativeLimit, activeLayer, iconAncho
       return;
     }
 
-    const cGfsAnchor = getComp(vGfsAnchor, componentKey);
-    const cGfsTarget = getComp(vGfsTarget, componentKey);
+    // Geographically resample GFS at this coordinate to align grids
+    const cGfsAnchor = resampleFromGrid(lat, lng, gfsAnchorGrid, componentKey);
+    const cGfsTarget = resampleFromGrid(lat, lng, gfsTargetGrid, componentKey);
 
     if (!cGfsAnchor || !cGfsTarget) {
       vectors.push({

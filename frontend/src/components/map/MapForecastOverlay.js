@@ -31,6 +31,8 @@ export var MapForecastOverlay = ({
   // v163: Spot-specific and long-press location support
   selectedSpot = null,
   longPressLocation = null,
+  defaultSnappedLat = null,
+  defaultSnappedLng = null,
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -46,8 +48,8 @@ export var MapForecastOverlay = ({
 
   // v5.7.2: Fetch exact-point marine data for selected/long-pressed location.
   // Caches the FULL multi-day response; hour selection happens at render time.
-  const pointLat = selectedSpot?.latitude || longPressLocation?.lat;
-  const pointLng = selectedSpot?.longitude || longPressLocation?.lng;
+  const pointLat = selectedSpot?.latitude || longPressLocation?.lat || defaultSnappedLat;
+  const pointLng = selectedSpot?.longitude || longPressLocation?.lng || defaultSnappedLng;
   const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
   const [exactPointResponse, setExactPointResponse] = useState(null);
 
@@ -259,10 +261,10 @@ export var MapForecastOverlay = ({
   // Block ALL fallbacks while loading or if exact point is valid/success.
   const isExactPointAuthority = isMarineLayer && (pointLat != null) && (pointLng != null);
   
-  // v6.9: Grid Fallback on Point Error: if exact point failed/timed out/has no coverage,
-  // but the Copernicus heatmap grid is valid, use the grid sample.
+  // v6.9: Grid Fallback on Point Error: if exact point is loading, failed, timed out,
+  // or has no coverage, but the visual/blended heatmap grid is valid, use the grid sample.
   const useExactPoint = isExactPointValid ? effectiveExactPoint : null;
-  const useGridFallback = isExactPointAuthority && !useExactPoint && !isExactPointLoading;
+  const useGridFallback = isExactPointAuthority && !useExactPoint && (isExactPointLoading || isExactPointTimeout || isExactPointError || effectiveExactPointStatus === 'exact_no_time_coverage');
   
   const blockFallbacks = isExactPointAuthority && !useGridFallback;
 

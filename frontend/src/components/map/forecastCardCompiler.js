@@ -112,19 +112,19 @@ export function compileForecastCards({
 
     const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
 
-    if (isExactPointAuthority && isExactPointLoading) {
+    if (isExactPointAuthority && isExactPointLoading && waveHeight == null) {
       displayHeight = 'Loading...';
       displayPeriod = 'Loading...';
       displayDir = 'Loading...';
-    } else if (isExactPointAuthority && isExactPointTimeout) {
+    } else if (isExactPointAuthority && isExactPointTimeout && waveHeight == null) {
       displayHeight = 'Timeout';
       displayPeriod = 'Timeout';
       displayDir = 'Timeout';
-    } else if (isExactPointAuthority && isExactPointError) {
+    } else if (isExactPointAuthority && isExactPointError && waveHeight == null) {
       displayHeight = 'Unavailable';
       displayPeriod = 'Unavailable';
       displayDir = 'Unavailable';
-    } else if (isNoCoverage) {
+    } else if (isNoCoverage && waveHeight == null) {
       displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -177,19 +177,19 @@ export function compileForecastCards({
 
       const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
 
-      if (isExactPointAuthority && isExactPointLoading) {
+      if (isExactPointAuthority && isExactPointLoading && swell1Height == null) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
-      } else if (isExactPointAuthority && isExactPointTimeout) {
+      } else if (isExactPointAuthority && isExactPointTimeout && swell1Height == null) {
         displayHeight = 'Timeout';
         displayPeriod = 'Timeout';
         displayDir = 'Timeout';
-      } else if (isExactPointAuthority && isExactPointError) {
+      } else if (isExactPointAuthority && isExactPointError && swell1Height == null) {
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
-      } else if (isNoCoverage) {
+      } else if (isNoCoverage && swell1Height == null) {
         displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -257,19 +257,19 @@ export function compileForecastCards({
 
       const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
 
-      if (isExactPointAuthority && isExactPointLoading) {
+      if (isExactPointAuthority && isExactPointLoading && swell2Height == null) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
-      } else if (isExactPointAuthority && isExactPointTimeout) {
+      } else if (isExactPointAuthority && isExactPointTimeout && swell2Height == null) {
         displayHeight = 'Timeout';
         displayPeriod = 'Timeout';
         displayDir = 'Timeout';
-      } else if (isExactPointAuthority && isExactPointError) {
+      } else if (isExactPointAuthority && isExactPointError && swell2Height == null) {
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
-      } else if (isNoCoverage) {
+      } else if (isNoCoverage && swell2Height == null) {
         displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -331,19 +331,19 @@ export function compileForecastCards({
 
       const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
 
-      if (isExactPointAuthority && isExactPointLoading) {
+      if (isExactPointAuthority && isExactPointLoading && windWaveHeight == null) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
-      } else if (isExactPointAuthority && isExactPointTimeout) {
+      } else if (isExactPointAuthority && isExactPointTimeout && windWaveHeight == null) {
         displayHeight = 'Timeout';
         displayPeriod = 'Timeout';
         displayDir = 'Timeout';
-      } else if (isExactPointAuthority && isExactPointError) {
+      } else if (isExactPointAuthority && isExactPointError && windWaveHeight == null) {
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
-      } else if (isNoCoverage) {
+      } else if (isNoCoverage && windWaveHeight == null) {
         displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -404,6 +404,34 @@ export function compileForecastCards({
       label: 'Confidence',
       value: `${Math.round(confidenceVal * 100)}% (lower)`,
       color: 'text-amber-500'
+    });
+  } else if (isExactPointAuthority && isExactPointLoading && waveHeight != null) {
+    cards.push({
+      icon: Waves,
+      label: 'Source',
+      value: 'Loading (Grid Fallback)',
+      color: 'text-cyan-400 animate-pulse'
+    });
+  } else if (isExactPointAuthority && isExactPointTimeout && waveHeight != null) {
+    cards.push({
+      icon: Waves,
+      label: 'Source',
+      value: 'Timeout (Grid Fallback)',
+      color: 'text-amber-400'
+    });
+  } else if (isExactPointAuthority && isExactPointError && waveHeight != null) {
+    cards.push({
+      icon: Waves,
+      label: 'Source',
+      value: 'Unavailable (Grid Fallback)',
+      color: 'text-rose-400'
+    });
+  } else if (isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage' && waveHeight != null) {
+    cards.push({
+      icon: Waves,
+      label: 'Source',
+      value: activeModel === 'EURO' ? 'No CMEMS coverage (Grid Fallback)' : 'No coverage (Grid Fallback)',
+      color: 'text-amber-400'
     });
   }
 

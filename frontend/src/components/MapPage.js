@@ -116,6 +116,46 @@ var MapPageContent = () => {
     return null;
   }, [userLocation, ipLocation]);
 
+  // General snaps utility to nearest surf spot (ocean water coordinate)
+  const findNearestSpotToCoord = useCallback((lat, lng) => {
+    if (lat == null || lng == null || !surfSpots?.length) return null;
+    let nearest = null;
+    let minDist = Infinity;
+    for (const spot of surfSpots) {
+      if (spot.latitude != null && spot.longitude != null) {
+        const d = Math.pow(spot.latitude - lat, 2) + Math.pow(spot.longitude - lng, 2);
+        if (d < minDist) {
+          minDist = d;
+          nearest = spot;
+        }
+      }
+    }
+    return nearest;
+  }, [surfSpots]);
+
+  // Snapped coordinates priority queue: Spot -> GPS snapped -> Map center snapped -> IP snapped -> Mavericks CA
+  const snappedCoordinates = useMemo(() => {
+    if (selectedSpot?.latitude != null && selectedSpot?.longitude != null) {
+      return { lat: selectedSpot.latitude, lng: selectedSpot.longitude, source: 'spot' };
+    }
+    if (longPressLocation?.lat != null && longPressLocation?.lng != null) {
+      return { lat: longPressLocation.lat, lng: longPressLocation.lng, source: 'long_press' };
+    }
+    if (userLocation?.lat != null && userLocation?.lng != null) {
+      const nearest = findNearestSpotToCoord(userLocation.lat, userLocation.lng);
+      if (nearest) return { lat: nearest.latitude, lng: nearest.longitude, source: 'gps_snapped', name: nearest.name };
+    }
+    if (mapCenter?.lat != null && mapCenter?.lng != null) {
+      const nearest = findNearestSpotToCoord(mapCenter.lat, mapCenter.lng);
+      if (nearest) return { lat: nearest.latitude, lng: nearest.longitude, source: 'center_snapped', name: nearest.name };
+    }
+    if (ipLocation?.lat != null && ipLocation?.lng != null) {
+      const nearest = findNearestSpotToCoord(ipLocation.lat, ipLocation.lng);
+      if (nearest) return { lat: nearest.latitude, lng: nearest.longitude, source: 'ip_snapped', name: nearest.name };
+    }
+    return { lat: 37.4984, lng: -122.4975, source: 'fallback_mavericks', name: 'Mavericks' };
+  }, [selectedSpot, longPressLocation, userLocation, mapCenter, ipLocation, surfSpots, findNearestSpotToCoord]);
+
   const {
     selectedSpot,
     setSelectedSpot,
@@ -159,13 +199,24 @@ var MapPageContent = () => {
     isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
 
- // Open-Meteo 16-day forecast driven by: selected spot > long-press > map center > user location
-  // v163: Spot/long-press coordinates take priority for accurate readouts
-  const forecastLat = selectedSpot?.latitude || longPressLocation?.lat || mapCenter?.lat || effectiveLocation?.lat || FLORIDA_CENTER.lat;
-  const forecastLng = selectedSpot?.longitude || longPressLocation?.lng || mapCenter?.lng || effectiveLocation?.lng || FLORIDA_CENTER.lng;
- // v3.9.4: Disable spot forecast when weather layers active they compete for rate limit
- // v3.9.6: REGRESSION FIX Re-enable. Spot forecast is only 1 weighted API call.
-  // The infobox depends on this data. The real rate-limit problem is the 441-point POST.
+  // Snapped ocean/water coordinates to avoid querying land cells
+  const forecastLat = snappedCoordinates.lat;
+  const forecastLng = snappedCoordinates.lng;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__MARINE_BOOT_DIAG__ = {
+        activeModel,
+        activeLayers,
+        timeOffsetHours,
+        gpsAvailable: !!userLocation,
+        ipAvailable: !!ipLocation,
+        snappedCoordinates,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }, [activeModel, activeLayers, timeOffsetHours, userLocation, ipLocation, snappedCoordinates]);
+
   const hasWeatherLayer = activeLayers.length > 0;
   const {
     forecastData,
@@ -424,20 +475,7 @@ var MapPageContent = () => {
       className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50]`}
       data-testid="map-page-container"
     >
-      {isImmersiveMode && (
-        <style>{`
-          [data-testid="bottom-nav"], .bottom-nav-container {
-            transform: translateY(100%);
-            opacity: 0;
-            pointer-events: none !important;
-          }
-          .top-rail-container, .top-rail-container *,
-          .right-controls-container, .right-controls-container *,
-          .nearest-spot-card-container, .nearest-spot-card-container * {
-            pointer-events: none !important;
-          }
-        `}</style>
-      )}
+      {isImmersiveMode && <style>{`[data-testid="bottom-nav"], .bottom-nav-container { transform: translateY(100%); opacity: 0; pointer-events: none !important; } .top-rail-container, .top-rail-container *, .right-controls-container, .right-controls-container *, .nearest-spot-card-container, .nearest-spot-card-container * { pointer-events: none !important; }`}</style>}
       {/* Map Container - Fill entire view */}
       <div className="absolute inset-0 z-0" data-testid="map-container">
         <MapWebGL 
@@ -636,6 +674,8 @@ var MapPageContent = () => {
           isImmersiveMode={isImmersiveMode}
           selectedSpot={selectedSpot}
           longPressLocation={longPressLocation}
+          defaultSnappedLat={snappedCoordinates?.lat}
+          defaultSnappedLng={snappedCoordinates?.lng}
         />
       )}
 
@@ -750,11 +790,9 @@ var MapPageContent = () => {
     </div>
   );
 };
-
 export var MapPage = () => (
   <MapErrorBoundary>
     <MapPageContent />
   </MapErrorBoundary>
 );
-
 export default MapPage;

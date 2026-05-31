@@ -434,6 +434,22 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       }
 
       console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched, clearing active textures`);
+      if (typeof window !== 'undefined') {
+        window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
+          activeModel: activeModelRef.current,
+          activeLayer: activeMarineLayer,
+          timeOffsetHours: timeOffsetHoursRef.current,
+          provider: 'none',
+          gridProvider: 'none',
+          sourceModel: 'none',
+          componentLayer: 'none',
+          vectorCount: 0,
+          nonzeroCount: 0,
+          renderAccepted: false,
+          rejectionReason: 'Empty grid data or layer switched (buffers cleared)',
+          timestamp: new Date().toISOString()
+        };
+      }
       lastUploadedGridRef.current = {
         activeModel: '',
         activeMarineLayer: '',
@@ -476,21 +492,52 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (gridModel !== activeModelRef.current) {
       isValid = false;
     }
-    if (isEuro) {
-      if (isWaves && gridProvider !== 'open-meteo') {
-        isValid = false;
-      }
-      if (isComponent && (gridProvider !== 'copernicus' || componentLayer !== activeMarineLayer)) {
-        isValid = false;
-      }
-    } else {
-      if (gridProvider !== 'open-meteo') {
-        isValid = false;
+    if (isValid) {
+      if (gridProvider === 'estimated') {
+        if (componentLayer !== activeMarineLayer) {
+          isValid = false;
+        }
+      } else if (isEuro) {
+        if (isWaves) {
+          if (gridProvider !== 'open-meteo') {
+            isValid = false;
+          }
+        } else {
+          if (gridProvider !== 'copernicus' || componentLayer !== activeMarineLayer) {
+            isValid = false;
+          }
+        }
+      } else {
+        if (gridProvider !== 'open-meteo') {
+          isValid = false;
+        }
       }
     }
 
     if (!isValid) {
-      console.log(`[WebGLMarine-Validate] Grid does not match active intent (model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}), skipping commit`);
+      console.log(`[WebGLMarine-Validate] Grid does not match active intent (model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}), skipping commit`);
+      if (typeof window !== 'undefined') {
+        let nzCount = 0;
+        if (data.vectors) {
+          for (const vec of data.vectors) {
+            if (vec && vec.speed > 0) nzCount++;
+          }
+        }
+        window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
+          activeModel: activeModelRef.current,
+          activeLayer: activeMarineLayer,
+          timeOffsetHours: timeOffsetHoursRef.current,
+          provider: data?.__provider || 'none',
+          gridProvider,
+          sourceModel: gridModel,
+          componentLayer,
+          vectorCount: data.vectors?.length || 0,
+          nonzeroCount: nzCount,
+          renderAccepted: false,
+          rejectionReason: `Grid does not match active intent (model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider})`,
+          timestamp: new Date().toISOString()
+        };
+      }
       return;
     }
 
@@ -567,12 +614,71 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           if (vec && vec.speed > 0) { cnt++; sumS += vec.speed; if (vec.speed > maxS) maxS = vec.speed; }
         }
         console.log(`[WebGLMarine] setWaveData: ${data.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (FCE direct-grid)`);
+        
+        const uploadStart = Date.now();
         engine.setWaveData(gl, data, landGeoJSONRef.current);
+        const uploadElapsed = Date.now() - uploadStart;
+
+        if (typeof window !== 'undefined') {
+          window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
+            activeModel: activeModelRef.current,
+            activeLayer: activeMarineLayer,
+            timeOffsetHours: timeOffsetHoursRef.current,
+            provider: data?.__provider || 'none',
+            gridProvider,
+            sourceModel: gridModel,
+            componentLayer,
+            vectorCount: data.vectors.length,
+            nonzeroCount: nonzeroCount,
+            renderAccepted: true,
+            rejectionReason: null,
+            elapsedMs: uploadElapsed,
+            timestamp: new Date().toISOString()
+          };
+          window.__MARINE_RENDER_SOURCE_DIAG__ = {
+            heatmapProvider: gridProvider,
+            gridProvider,
+            sourceModel: gridModel,
+            componentLayer,
+            activeModel: activeModelRef.current,
+            activeLayer: activeMarineLayer,
+            timeOffsetHours: timeOffsetHoursRef.current,
+            vectorCount: data.vectors.length,
+            nonzeroCount: nonzeroCount,
+            timestamp: new Date().toISOString()
+          };
+          window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
+            infoboxSource: window.__MARINE_POINT_DIAG__?.source || 'unknown',
+            infoboxProvider: window.__MARINE_POINT_DIAG__?.provider || 'unknown',
+            heatmapProvider: gridProvider,
+            activeModel: activeModelRef.current,
+            activeLayer: activeMarineLayer,
+            timeOffsetHours: timeOffsetHoursRef.current,
+            timestamp: new Date().toISOString()
+          };
+        }
+
         if (mapInstance) {
           mapInstance.triggerRepaint();
         }
       } catch (e) {
         console.warn('[WebGLMarine] setWaveData error:', e.message);
+        if (typeof window !== 'undefined') {
+          window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
+            activeModel: activeModelRef.current,
+            activeLayer: activeMarineLayer,
+            timeOffsetHours: timeOffsetHoursRef.current,
+            provider: data?.__provider || 'none',
+            gridProvider,
+            sourceModel: gridModel,
+            componentLayer,
+            vectorCount: data.vectors?.length || 0,
+            nonzeroCount: nonzeroCount,
+            renderAccepted: false,
+            rejectionReason: `Upload Exception: ${e.message}`,
+            timestamp: new Date().toISOString()
+          };
+        }
       }
     };
 

@@ -115,7 +115,13 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
     if (grid.__gridProvider === 'copernicus' || grid.__gridProvider === 'estimated') {
       return vec;
     }
-    return vec?.[componentKey] || null;
+    if (vec?.[componentKey] !== undefined) {
+      return vec[componentKey];
+    }
+    if (vec?.speed !== undefined) {
+      return vec;
+    }
+    return null;
   };
 
   // All 4 corners must be ocean for a valid interpolation
