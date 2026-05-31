@@ -52,6 +52,35 @@ var MapPageContent = () => {
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
 
+  const {
+    selectedSpot,
+    setSelectedSpot,
+    selectedPhotographer,
+    setSelectedPhotographer,
+    bottomSheetOpen,
+    setBottomSheetOpen,
+    showFeaturedPanel,
+    setShowFeaturedPanel,
+    filter,
+    setFilter,
+    unifiedDrawerOpen,
+    setUnifiedDrawerOpen,
+    activeShootersAtSpot,
+    setActiveShootersAtSpot,
+    showJumpInModal,
+    setShowJumpInModal,
+    showGPSGuide,
+    setShowGPSGuide,
+    showLocationPicker,
+    setShowLocationPicker,
+    showIpBanner,
+    setShowIpBanner,
+    pulsingMarkers,
+    setPulsingMarkers,
+    isImmersiveMode,
+    setIsImmersiveMode,
+  } = useMapState();
+
  // v3.7: Track map center for forecast overlay data tracks what user is looking at
   const [mapCenter, setMapCenter] = useState(null);
   // v163: Long-press marker location (Ventusky/Windy style)
@@ -155,35 +184,6 @@ var MapPageContent = () => {
     }
     return { lat: 37.4984, lng: -122.4975, source: 'fallback_mavericks', name: 'Mavericks' };
   }, [selectedSpot, longPressLocation, userLocation, mapCenter, ipLocation, surfSpots, findNearestSpotToCoord]);
-
-  const {
-    selectedSpot,
-    setSelectedSpot,
-    selectedPhotographer,
-    setSelectedPhotographer,
-    bottomSheetOpen,
-    setBottomSheetOpen,
-    showFeaturedPanel,
-    setShowFeaturedPanel,
-    filter,
-    setFilter,
-    unifiedDrawerOpen,
-    setUnifiedDrawerOpen,
-    activeShootersAtSpot,
-    setActiveShootersAtSpot,
-    showJumpInModal,
-    setShowJumpInModal,
-    showGPSGuide,
-    setShowGPSGuide,
-    showLocationPicker,
-    setShowLocationPicker,
-    showIpBanner,
-    setShowIpBanner,
-    pulsingMarkers,
-    setPulsingMarkers,
-    isImmersiveMode,
-    setIsImmersiveMode,
-  } = useMapState();
 
  // Weather Mapping State extracted into useWeatherState hook (v125 decomposition)
   const {
