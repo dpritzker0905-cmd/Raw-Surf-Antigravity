@@ -349,7 +349,7 @@ var MapWebGL = ({
     };
     res.__sourceModel = activeModel;
     res.__provider = marineData?.grid?.provider || 'unknown';
-    res.__gridProvider = marineData?.grid?.__gridProvider || 'none';
+    res.__gridProvider = marineData?.grid?.__gridProvider || marineData?.grid?.provider || 'none';
     res.__componentLayer = marineData?.grid?.__componentLayer || 'none';
     res.__gridSupportsLayer = layerSupported;
     res.activeMarineLayer = activeMarineLayer;

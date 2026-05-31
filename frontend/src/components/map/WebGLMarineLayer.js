@@ -326,98 +326,54 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     if (!engine || !gl) return;
 
-    // v6.9: Expose exhaustive diagnostics detailing exact render source, provider, and stale clearance states
+    // Expose forensic diagnostics detailing active states
     if (typeof window !== 'undefined') {
-      const activeModel = activeModelRef.current || data?.__sourceModel || window.__DATA_DIAG__?.activeModel || 'unknown';
       const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
-      let nonzeroCount = 0;
-      if (data?.vectors) {
-        for (const vec of data.vectors) {
-          if (vec && vec.speed > 0) nonzeroCount++;
-        }
-      }
+      const dispatcherActive = !!engine?._dispatcherActive;
+      const visualSource = dispatcherActive ? 'render_plan_dispatcher' : 'direct_mapwebgl';
       
-      const gridProvider = data?.__gridProvider || 'none';
-      const componentLayer = data?.__componentLayer || 'none';
-      const renderedProvider = data?.__provider || 'none';
-      const renderedVectorCount = data?.vectors?.length || 0;
-      const staleRenderBlocked = !data?.vectors?.length;
-
-      const isEuro = activeModel === 'EURO';
-      const isWaves = activeMarineLayer === 'waves';
-      const isComponent = ['swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
-
-      let maxH = 0;
-      let sumH = 0;
-      let cntH = 0;
+      let maxH = 0, sumH = 0, cntH = 0;
       if (data?.vectors) {
         for (const vec of data.vectors) {
           if (vec && vec.speed > 0) {
-            cntH++;
-            sumH += vec.speed;
-            if (vec.speed > maxH) maxH = vec.speed;
+            cntH++; sumH += vec.speed; if (vec.speed > maxH) maxH = vec.speed;
           }
         }
       }
-      const meanH = cntH > 0 ? sumH / cntH : 0;
 
-      const dispatcherActive = !!engine?._dispatcherActive;
-      const visualSource = dispatcherActive ? 'render_plan_dispatcher' : 'direct_mapwebgl';
-
-      window.__WebGLMarineLayer_DIAG__ = {
-        activeModel,
-        activeMarineLayer,
-        gridProvider,
-        componentLayer,
-        renderedLayer: activeMarineLayer,
-        renderedProvider,
-        renderedVectorCount,
-        renderedNonzeroCount: nonzeroCount,
-        staleRenderBlocked,
-        timestamp: new Date().toISOString()
-      };
-
-      const exactDiag = window.__MARINE_DIAG__ || {};
-      const exactProvider = exactDiag.exactPointValues ? (isEuro && isWaves ? 'open-meteo' : 'copernicus') : 'none';
-      const exactStatus = exactDiag.exactPointStatus || 'idle';
-      const exactElapsedMs = window.__LAST_EXACT_FETCH_ELAPSED_MS__ || null;
-
-      window.__MARINE_VISUAL_TRUTH_DIAG__ = {
-        activeModel,
-        activeMarineLayer,
-        visualSource,
-        gridProvider,
-        exactProvider,
-        gridComponentLayer: componentLayer,
-        dispatcherActive,
-        renderedVectorCount,
-        renderedNonzeroCount: nonzeroCount,
-        maxHeight: maxH,
-        meanHeight: meanH,
-        bounds: data?.bounds || null,
-        timestamp: new Date().toISOString(),
-        sourceModel: activeModel
-      };
-
-      const heatmapAvailable = isEuro
-        ? (isWaves || (isComponent && gridProvider === 'copernicus'))
-        : true;
-      const heatmapUnavailableReason = (isEuro && isComponent && gridProvider !== 'copernicus')
-        ? 'heatmap_loading_or_failed'
-        : null;
-
-      window.__EURO_MARINE_TRUTH_DIAG__ = {
-        activeModel,
+      window.__MARINE_RENDER_FORENSIC_DIAG__ = {
+        activeModel: activeModelRef.current,
         activeLayer: activeMarineLayer,
-        exactProvider,
-        exactStatus,
-        exactElapsedMs,
-        requestedVars: exactDiag.exactPointValues ? Object.keys(exactDiag.exactPointValues) : [],
-        heatmapAvailable,
-        heatmapUnavailableReason,
-        renderedVectorCount,
-        renderedNonzeroCount: nonzeroCount,
-        staleRenderBlocked,
+        timeOffsetHours: timeOffsetHoursRef.current,
+        sourcePath: visualSource,
+        marineData: {
+          model: data?.__sourceModel || 'unknown',
+          provider: data?.__provider || 'none',
+          gridProvider: data?.__gridProvider || 'none',
+          componentLayer: data?.__componentLayer || 'none'
+        },
+        field: {
+          model: activeModelRef.current,
+          provider: data?.__gridProvider || 'none',
+          componentLayer: data?.__componentLayer || 'none'
+        },
+        vectorCount: data?.vectors?.length || 0,
+        nonzeroCount: cntH,
+        maxHeight: maxH,
+        meanHeight: cntH > 0 ? sumH / cntH : 0,
+        renderAccepted: !!data?.vectors?.length,
+        rejectionReason: data?.vectors?.length ? null : 'Empty vector data',
+        clearCalled: false,
+        clearReason: null,
+        dispatcherActiveBefore: dispatcherActive,
+        dispatcherActiveAfter: dispatcherActive,
+        waveDataPresentBefore: !!engine?._waveData,
+        waveDataPresentAfter: !!engine?._waveData,
+        directUploadBlockedReason: dispatcherActive ? 'RenderPlanDispatcher is active' : null,
+        cacheHit: false,
+        cacheSource: 'none',
+        networkStatus: data ? 200 : 502,
+        rateLimitStatus: 'ok',
         timestamp: new Date().toISOString()
       };
     }
@@ -442,6 +398,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
       console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched, clearing active textures`);
       if (typeof window !== 'undefined') {
+        const dispatcherActive = !!engine?._dispatcherActive;
+        const waveDataPresentBefore = !!engine?._waveData;
+
         window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
           activeModel: activeModelRef.current,
           activeLayer: activeMarineLayer,
@@ -454,6 +413,42 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           nonzeroCount: 0,
           renderAccepted: false,
           rejectionReason: 'Empty grid data or layer switched (buffers cleared)',
+          timestamp: new Date().toISOString()
+        };
+
+        window.__MARINE_RENDER_FORENSIC_DIAG__ = {
+          activeModel: activeModelRef.current,
+          activeLayer: activeMarineLayer,
+          timeOffsetHours: timeOffsetHoursRef.current,
+          sourcePath: isFallbackSafeZero ? 'held_last_good' : 'cleared',
+          marineData: {
+            model: activeModelRef.current,
+            provider: isFallbackSafeZero ? 'fallback_safe_zero' : 'none',
+            gridProvider: isFallbackSafeZero ? 'fallback_safe_zero' : 'none',
+            componentLayer: 'none'
+          },
+          field: {
+            model: activeModelRef.current,
+            provider: 'none',
+            componentLayer: 'none'
+          },
+          vectorCount: 0,
+          nonzeroCount: 0,
+          maxHeight: 0,
+          meanHeight: 0,
+          renderAccepted: false,
+          rejectionReason: 'Empty grid data or layer switched',
+          clearCalled: !isFallbackSafeZero && modelOrLayerChanged,
+          clearReason: !isFallbackSafeZero && modelOrLayerChanged ? 'Layer switched or stale grid' : null,
+          dispatcherActiveBefore: dispatcherActive,
+          dispatcherActiveAfter: dispatcherActive,
+          waveDataPresentBefore: waveDataPresentBefore,
+          waveDataPresentAfter: isFallbackSafeZero || !modelOrLayerChanged ? waveDataPresentBefore : false,
+          directUploadBlockedReason: null,
+          cacheHit: false,
+          cacheSource: 'none',
+          networkStatus: isFallbackSafeZero ? 429 : 502,
+          rateLimitStatus: isFallbackSafeZero ? 'rate_limited' : 'ok',
           timestamp: new Date().toISOString()
         };
       }
@@ -478,7 +473,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       return;
     }
 
-    if (engine._dispatcherActive) {
+    if (engine._dispatcherActive && !window.isScrubbingTimeline) {
       console.log(`[WebGLMarine] Skipping React effect setWaveData because RenderPlanDispatcher is active`);
       return;
     }
@@ -542,6 +537,44 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           nonzeroCount: nzCount,
           renderAccepted: false,
           rejectionReason: `Grid does not match active intent (model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider})`,
+          timestamp: new Date().toISOString()
+        };
+
+        const dispatcherActive = !!engine?._dispatcherActive;
+        const waveDataPresentBefore = !!engine?._waveData;
+        window.__MARINE_RENDER_FORENSIC_DIAG__ = {
+          activeModel: activeModelRef.current,
+          activeLayer: activeMarineLayer,
+          timeOffsetHours: timeOffsetHoursRef.current,
+          sourcePath: 'direct_mapwebgl',
+          marineData: {
+            model: gridModel,
+            provider: gridProvider,
+            gridProvider: gridProvider,
+            componentLayer: componentLayer
+          },
+          field: {
+            model: gridModel,
+            provider: gridProvider,
+            componentLayer: componentLayer
+          },
+          vectorCount: data.vectors?.length || 0,
+          nonzeroCount: nzCount,
+          maxHeight: 0,
+          meanHeight: 0,
+          renderAccepted: false,
+          rejectionReason: `Grid does not match active intent (model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider})`,
+          clearCalled: false,
+          clearReason: null,
+          dispatcherActiveBefore: dispatcherActive,
+          dispatcherActiveAfter: dispatcherActive,
+          waveDataPresentBefore: waveDataPresentBefore,
+          waveDataPresentAfter: waveDataPresentBefore,
+          directUploadBlockedReason: null,
+          cacheHit: false,
+          cacheSource: 'none',
+          networkStatus: 502,
+          rateLimitStatus: 'ok',
           timestamp: new Date().toISOString()
         };
       }
@@ -667,6 +700,43 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
             activeModel: activeModelRef.current,
             activeLayer: activeMarineLayer,
             timeOffsetHours: timeOffsetHoursRef.current,
+            timestamp: new Date().toISOString()
+          };
+
+          // Populate unified forensic diagnostics
+          window.__MARINE_RENDER_FORENSIC_DIAG__ = {
+            activeModel: activeModelRef.current,
+            activeLayer: activeMarineLayer,
+            timeOffsetHours: timeOffsetHoursRef.current,
+            sourcePath: 'direct_mapwebgl',
+            marineData: {
+              model: gridModel,
+              provider: gridProvider,
+              gridProvider: gridProvider,
+              componentLayer: componentLayer
+            },
+            field: {
+              model: gridModel,
+              provider: gridProvider,
+              componentLayer: componentLayer
+            },
+            vectorCount: data.vectors.length,
+            nonzeroCount: nonzeroCount,
+            maxHeight: maxS,
+            meanHeight: cnt > 0 ? sumS / cnt : 0,
+            renderAccepted: true,
+            rejectionReason: null,
+            clearCalled: false,
+            clearReason: null,
+            dispatcherActiveBefore: !!engine?._dispatcherActive,
+            dispatcherActiveAfter: !!engine?._dispatcherActive,
+            waveDataPresentBefore: !!engine?._waveData,
+            waveDataPresentAfter: true,
+            directUploadBlockedReason: null,
+            cacheHit: false,
+            cacheSource: 'none',
+            networkStatus: 200,
+            rateLimitStatus: 'ok',
             timestamp: new Date().toISOString()
           };
         }

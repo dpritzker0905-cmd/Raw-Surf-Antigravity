@@ -354,6 +354,10 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
   }
 
   if (_marineEngine && _marineGL && field.sources.marine) {
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) {
+      // Suspend dispatcher marine uploads during active scrubbing to allow direct React path to drive smooth rendering
+      return;
+    }
     const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
     const activeModel = renderPlan.activeModel || renderPlan.model || 'GFS';
     const gridModel = field.sourceModel || 'unknown';
@@ -416,10 +420,10 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
       }
     }
 
-    // Detect Confirmed Hard Mismatch
+    // Detect Confirmed Hard Mismatch (Fix: do not treat temporary loading/cooldown misses as hard mismatch layers)
     const isModelMismatch = (field.model !== activeModel) || (gridModel !== 'unknown' && gridModel !== 'none' && gridModel !== activeModel);
     const isComponentMismatch = (gridProvider === 'copernicus' && componentLayer !== 'none' && componentLayer !== 'unknown' && componentLayer !== activeMarineLayer);
-    const isLayerDisabled = !activeMarineLayer || activeMarineLayer === 'none' || !renderPlan.waveField.active;
+    const isLayerDisabled = !activeMarineLayer || activeMarineLayer === 'none';
     const isHardMismatch = isModelMismatch || isComponentMismatch || isLayerDisabled;
 
     try {
@@ -462,6 +466,9 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
         }
       }
 
+      const dispatcherActiveBefore = !!_marineEngine._dispatcherActive;
+      const waveDataPresentBefore = !!_marineEngine._waveData;
+
       if (gridToUpload) {
         _marineEngine._dispatcherActive = true;
         _marineEngine.setWaveData(_marineGL, gridToUpload);
@@ -503,6 +510,43 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
         };
         window.__FCE_DISPATCH_STATUS__ = diag;
         window.__MARINE_RENDER_SOURCE_DIAG__ = diag;
+
+        // Build exhaustive forensic diagnostics
+        window.__MARINE_RENDER_FORENSIC_DIAG__ = {
+          activeModel,
+          activeLayer: activeMarineLayer,
+          timeOffsetHours: field.hourOffset,
+          sourcePath: usingLastGood ? 'held_last_good' : isHardMismatch ? 'cleared' : 'render_plan_dispatcher',
+          marineData: {
+            model: gridModel,
+            provider: gridProvider,
+            gridProvider: gridProvider,
+            componentLayer: componentLayer
+          },
+          field: {
+            model: field.model,
+            provider: field.gridProvider,
+            componentLayer: field.componentLayer
+          },
+          vectorCount: gridToUpload ? gridToUpload.vectors.length : 0,
+          nonzeroCount: gridToUpload ? gridToUpload.nonzeroCount : 0,
+          maxHeight: gridToUpload ? gridToUpload.maxHeight : 0,
+          meanHeight: gridToUpload ? gridToUpload.meanHeight : 0,
+          renderAccepted: isValid,
+          rejectionReason: isValid ? null : (rejectionReason || 'Mismatch guard'),
+          clearCalled: isHardMismatch,
+          clearReason: isHardMismatch ? (isLayerDisabled ? 'Layer disabled' : isModelMismatch ? 'Model mismatch' : 'Component layer mismatch') : null,
+          dispatcherActiveBefore,
+          dispatcherActiveAfter: !!_marineEngine._dispatcherActive,
+          waveDataPresentBefore,
+          waveDataPresentAfter: !!_marineEngine._waveData,
+          directUploadBlockedReason: 'RenderPlanDispatcher is active',
+          cacheHit: usingLastGood,
+          cacheSource: usingLastGood ? 'last_good_cache' : 'none',
+          networkStatus: isValid ? 200 : 502,
+          rateLimitStatus: gridProvider === 'fallback_safe_zero' ? 'rate_limited' : 'ok',
+          timestamp: new Date().toISOString()
+        };
       }
     } catch (e) {
       console.warn('[RenderPlanDispatcher] Marine texture upload error:', e.message);
