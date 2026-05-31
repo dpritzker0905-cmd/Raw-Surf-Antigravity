@@ -489,9 +489,11 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
             rejectionReason = `EURO Waves provider mismatch: gridProvider=${gridProvider} vs open-meteo`;
           }
         } else {
-          if (gridProvider !== 'copernicus' || componentLayer !== activeMarineLayer) {
+          // v7.0: Accept copernicus, gfs_estimated_backdrop, and gfs_estimated_fallback for EURO components
+          const validEuroProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback'];
+          if (!validEuroProviders.includes(gridProvider) || componentLayer !== activeMarineLayer) {
             isValid = false;
-            rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} vs copernicus or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
+            rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} vs copernicus/gfs_estimated or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }
         }
       } else {

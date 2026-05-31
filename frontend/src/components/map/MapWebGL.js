@@ -300,7 +300,12 @@ var MapWebGL = ({
     const hasCopernicusGrid = (marineData?.grid?.__gridProvider === 'copernicus' &&
                               marineData?.grid?.__gridSupportsLayer === true &&
                               marineData?.grid?.__componentLayer === activeMarineLayer &&
-                              activeModel === 'EURO') || hasEstimatedGrid;
+                              activeModel === 'EURO') || hasEstimatedGrid ||
+                              // v7.0: Accept GFS estimated backdrop/fallback for EURO components (honest provenance)
+                              ((['gfs_estimated_backdrop', 'gfs_estimated_fallback'].includes(marineData?.grid?.__gridProvider)) &&
+                               marineData?.grid?.__gridSupportsLayer === true &&
+                               marineData?.grid?.__componentLayer === activeMarineLayer &&
+                               activeModel === 'EURO');
 
     // If it's a EURO component layer and the Copernicus grid componentLayer doesn't match yet,
     // return null synchronously to trigger/await fetch and avoid rendering stale/zero data.
@@ -376,7 +381,7 @@ var MapWebGL = ({
       window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
     }
     return res;
-  }, [marineData, activeMarineLayer, activeModel]);
+  }, [marineData, activeMarineLayer, activeModel, timeOffsetHours]);
 
   // Marine raster opacity is controlled declaratively via JSX paint props (single source of truth).
   // Removed v3.17 imperative setPaintProperty sync — it raced with JSX and could set opacity to 0.

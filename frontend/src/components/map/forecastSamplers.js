@@ -65,9 +65,11 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
     if (activeLayer === 'waves') {
       if (grid.__provider !== 'open-meteo' && grid.__provider !== 'estimated') return null;
     } else if (['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
-      const isValidCopernicus = (grid.__gridProvider === 'copernicus' || grid.__gridProvider === 'estimated') &&
-                                grid.__componentLayer === activeLayer;
-      if (!isValidCopernicus) return null;
+      // v7.0: Accept copernicus, estimated, and GFS estimated backdrop/fallback providers
+      const validProviders = ['copernicus', 'estimated', 'gfs_estimated_backdrop', 'gfs_estimated_fallback'];
+      const isValidProvider = validProviders.includes(grid.__gridProvider) &&
+                              grid.__componentLayer === activeLayer;
+      if (!isValidProvider) return null;
     } else {
       return null;
     }

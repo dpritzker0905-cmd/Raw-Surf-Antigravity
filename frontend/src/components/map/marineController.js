@@ -88,32 +88,60 @@ if (lastKnownGoodMarine) lastKnownGoodMarine.__sourceModel = lastKnownGoodMarine
 if (lastKnownGoodWind) console.log(`[Wind] Pre-populated lastKnownGood: ${lastKnownGoodWind.vectors.length} vectors`);
 if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${lastKnownGoodMarine.features?.length} features, model=${lastKnownGoodMarineModel}`);
 
-/**
- * v5.9.3: Model-safe accessor for lastKnownGoodMarine.
- * Returns null if the cached data is from a different model,
- * preventing GFS component data from being served as EURO.
- */
+var _perModelHourCache = new Map();
+var PER_MODEL_HOUR_CACHE_MAX = 50;
+var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
+function _cacheMarineResult(model, hourOffset, data) {
+  if (!data) return;
+  const key = `${model || 'GFS'}_${hourOffset}`;
+  _perModelHourCache.set(key, { data, timestamp: Date.now() });
+  if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
+    const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    for (let i = 0; i < 10; i++) _perModelHourCache.delete(oldest[i][0]);
+  }
+}
+
+/** v7.0: Per-model/hour cache accessor. Falls back to nearest hour within ±6h. */
 function getModelSafeMarine(requestedModel, requestedHourOffset) {
-  if (!lastKnownGoodMarine) return null;
-  const cachedModel = lastKnownGoodMarineModel || 'GFS';
   const wanted = requestedModel || 'GFS';
-  if (cachedModel !== wanted) {
-    console.log(`[Marine] lastKnownGood model mismatch: cached=${cachedModel}, wanted=${wanted} — returning null`);
-    return null;
+  const wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
+  const exactKey = `${wanted}_${wantedHour}`;
+  const exact = _perModelHourCache.get(exactKey);
+  if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+    return exact.data;
   }
-  if (requestedHourOffset !== undefined && lastKnownGoodMarine.hourOffset !== requestedHourOffset) {
-    console.log(`[Marine] lastKnownGood hour mismatch: cached=${lastKnownGoodMarine.hourOffset}h, wanted=${requestedHourOffset}h — returning null`);
-    return null;
+
+  // 2. Nearest hour within ±6h in the same model
+  let bestEntry = null;
+  let bestDiff = Infinity;
+  for (const [key, entry] of _perModelHourCache.entries()) {
+    if (!key.startsWith(wanted + '_')) continue;
+    if (Date.now() - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL) continue;
+    const cachedHour = parseInt(key.split('_')[1], 10);
+    const diff = Math.abs(cachedHour - wantedHour);
+    if (diff < bestDiff && diff <= 6) {
+      bestDiff = diff;
+      bestEntry = entry;
+    }
   }
-  // v6.3: Grid data always comes from open-meteo (EURO grid uses ecmwf_wam025).
-  // Only exact-point uses copernicus for EURO, but grid/lastKnownGood is always open-meteo.
-  const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
-  const expectedProvider = 'open-meteo';
-  if (cachedProvider !== expectedProvider) {
-    console.log(`[Marine] lastKnownGood provider mismatch: cached=${cachedProvider}, expected=${expectedProvider} for model=${wanted} — returning null`);
-    return null;
+  if (bestEntry) {
+    const staleResult = { ...bestEntry.data };
+    staleResult.__staleHour = true;
+    staleResult.__originalHour = bestEntry.data.hourOffset;
+    return staleResult;
   }
-  return lastKnownGoodMarine;
+
+  // 3. Fall back to legacy single lastKnownGood (model-safe only)
+  if (lastKnownGoodMarine) {
+    const cachedModel = lastKnownGoodMarineModel || 'GFS';
+    if (cachedModel === wanted) {
+      const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
+      if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated') {
+        return lastKnownGoodMarine;
+      }
+    }
+  }
+  return null;
 }
 
 function createFallbackSafeZeroGrid(model, failureReason) {
@@ -224,7 +252,7 @@ function extractWindAtOffset(cache, hourOffset) {
 
   if (vectors.length === 0) return null;
   const sample = vectors[0];
-  console.log(`[Wind] Timeline re-index: offset=${hourOffset}h, idx=${idx}, ${vectors.length} vectors, sample: speed=${sample.speed.toFixed(1)}`);
+
   return {
     vectors, bounds, cols: gridSize, rows: gridSize,
     stale: false, source: cache.model || 'GFS', hourOffset
@@ -254,7 +282,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 
   // Viewport containment caching hit (0ms load from memory)
   if (!forceFetch && isContainedInWindCache(bounds, model)) {
-    console.log(`[Wind] Viewport containment HIT: zero-API pan served instantly from memory`);
+    console.log(`[Wind] Viewport containment HIT`);
     return extractWindAtOffset(windHourlyCache, hourOffset);
   }
 
@@ -299,7 +327,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       windHourlyCache.model === (model || 'GFS') &&
       Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     // Exact cache hit: extract data at the requested offset without API call
-    console.log(`[Wind] Cache HIT for offset=${hourOffset}h, model=${model || 'GFS'}`);
+
     return extractWindAtOffset(windHourlyCache, hourOffset);
   }
 
@@ -308,7 +336,6 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const staleData = extractWindAtOffset(windHourlyCache, hourOffset);
     if (staleData && staleData.vectors.length > 0) {
-      console.log(`[Wind] Stale cache served (viewport mismatch) ${staleData.vectors.length} vectors`);
       lastKnownGoodWind = staleData;
     }
   }
@@ -318,7 +345,6 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   if (WIND_CACHE.has(cacheKey)) {
     const cached = WIND_CACHE.get(cacheKey);
     if (Date.now() - cached.timestamp < 300000) {
-      console.log('[Wind] Per-offset cache hit');
       return cached.data;
     }
   }
@@ -336,7 +362,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     // Open-Meteo model identifiers
     const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs', ICON: 'dwd_icon' };
 
-    console.log(`[Wind] POST via proxy: ${points.length} grid points, forecast_days=${forecastDays}, model=${model || 'GFS'}`);
+
 
     const body = {
       latitude: lats, longitude: lons,
@@ -384,7 +410,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         throw new Error(`Proxy returned non-JSON content-type: ${windContentType.substring(0, 50)}`);
       }
       if (res.headers.get('X-Cache') === 'HIT') {
-        console.log(`[Wind] Proxy cache HIT (age: ${res.headers.get('X-Cache-Age')}s)`);
+
       }
     } catch (proxyErr) {
       if (isLocalhost) {
@@ -432,8 +458,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     if (data) {
       WIND_CACHE.set(cacheKey, { data, timestamp: Date.now() });
       lastKnownGoodWind = data;
- if (BOOTSTRAP_WIND) { BOOTSTRAP_WIND = false; console.log('[Wind] BOOTSTRAP complete first valid data received'); }
-      console.log(`[Wind] Fetch success: ${data.vectors.length} vectors, ${gridSize}x${gridSize} grid, offset: ${hourOffset}h`);
+      console.log(`[Wind] Fetch: ${data.vectors.length} vectors, offset: ${hourOffset}h`);
       return data;
     } else {
       console.warn('[Wind] Zero valid vectors from API');
@@ -644,14 +669,20 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       }
       const forecastDays = Math.min(maxForecastDays, requestedDays);
 
-      // 2. Active variable filtering to minimize payload and prevent rate limit timeouts
+      // 2. Active variable filtering — ALWAYS layer-scoped to minimize payload
+      // v7.0: Removed "fetch all vars for <=2 days" shortcut that defeated rate-limit protection
       let activeVars = [];
       if (activeLayer === 'waves') {
         activeVars = ['wave_height', 'wave_direction', 'wave_period'];
       } else if (activeLayer === 'swell_1') {
         activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
       } else if (activeLayer === 'swell_2') {
-        activeVars = ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'];
+        // v7.0: gwam (ICON) doesn't support secondary_swell — fall back to primary swell for grid
+        if (apiModel === 'gwam') {
+          activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
+        } else {
+          activeVars = ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'];
+        }
       } else if (activeLayer === 'wind_waves') {
         activeVars = ['wind_wave_height', 'wind_wave_direction', 'wind_wave_period'];
       } else {
@@ -663,13 +694,12 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         marineVarList = MODEL_SUPPORTED_VARS[apiModel].slice(0, 3);
       }
 
-      // For GFS/ICON loads under 48h, fetch all variables so switching layers within 48h is instant
-      if (forecastDays <= 2) {
-        marineVarList = MODEL_SUPPORTED_VARS[apiModel];
-      }
-
       const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: forecastDays };
       if (model && MARINE_OM_MODELS[model]) body.models = [MARINE_OM_MODELS[model]];
+
+      // v7.0: Request size logging for 429/502 diagnosis
+      const estPayloadKB = Math.round(JSON.stringify({ type: 'marine', body }).length / 1024);
+      console.log(`[Marine] POST: ${points.length}pts × ${marineVarList.length}vars × ${forecastDays}d = ~${estPayloadKB}KB | model=${apiModel} layer=${activeLayer} prefetch=${isPrefetch}`);
 
       let res;
       try {
@@ -699,41 +729,18 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         if (!ct.includes('application/json')) throw new Error('Non-JSON response');
       } catch (err) {
         if (isLocalhost) {
-          const reducedGrid = 6;
-          const latStepReduced = (snappedBounds.north - snappedBounds.south) / reducedGrid;
-          const lngStepReduced = (snappedBounds.east - snappedBounds.west) / reducedGrid;
-          const reducedLats = [], reducedLons = [];
-          for (let yi = 0; yi <= reducedGrid; yi++) {
-            for (let xi = 0; xi <= reducedGrid; xi++) {
-              let lat = snappedBounds.south + yi * latStepReduced;
-              let lng = snappedBounds.west + xi * lngStepReduced;
-              while (lng >= 180) lng -= 360;
-              while (lng < -180) lng += 360;
-              reducedLats.push(lat.toFixed(2));
-              reducedLons.push(lng.toFixed(2));
-            }
+          const rg = 6, rLats = [], rLons = [], rPts = [];
+          for (let y = 0; y <= rg; y++) for (let x = 0; x <= rg; x++) {
+            let lat = snappedBounds.south + y * (snappedBounds.north - snappedBounds.south) / rg;
+            let lng = snappedBounds.west + x * (snappedBounds.east - snappedBounds.west) / rg;
+            while (lng >= 180) lng -= 360; while (lng < -180) lng += 360;
+            rLats.push(lat.toFixed(2)); rLons.push(lng.toFixed(2));
+            rPts.push({ lat: +lat.toFixed(2), reqLng: +lng.toFixed(2), monotonicLng: +(snappedBounds.west + x * (snappedBounds.east - snappedBounds.west) / rg).toFixed(2) });
           }
-          const getUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${reducedLats.join(',')}&longitude=${reducedLons.join(',')}&hourly=${marineVarList.join(',')}&forecast_days=${forecastDays}${(model && MARINE_OM_MODELS[model]) ? '&models=' + MARINE_OM_MODELS[model] : ''}`;
+          const getUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${rLats.join(',')}&longitude=${rLons.join(',')}&hourly=${marineVarList.join(',')}&forecast_days=${forecastDays}${(model && MARINE_OM_MODELS[model]) ? '&models=' + MARINE_OM_MODELS[model] : ''}`;
           res = await fetch(getUrl, { signal: fetchSignal });
-          if (res.ok) {
-            const reducedPoints = [];
-            for (let yi = 0; yi <= reducedGrid; yi++) {
-              for (let xi = 0; xi <= reducedGrid; xi++) {
-                let lat = snappedBounds.south + yi * latStepReduced;
-                let lng = snappedBounds.west + xi * lngStepReduced;
-                let reqLng = lng;
-                while (reqLng >= 180) reqLng -= 360;
-                while (reqLng < -180) reqLng += 360;
-                reducedPoints.push({ lat: +lat.toFixed(2), reqLng: +reqLng.toFixed(2), monotonicLng: +lng.toFixed(2) });
-              }
-            }
-            points.length = 0;
-            reducedPoints.forEach(p => points.push(p));
-            gridSize = reducedGrid + 1;
-          }
-        } else {
-          throw err;
-        }
+          if (res.ok) { points.length = 0; rPts.forEach(p => points.push(p)); gridSize = rg + 1; }
+        } else { throw err; }
       }
 
       if (!res.ok) {
@@ -763,16 +770,15 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         lastKnownGoodMarineModel = model || 'GFS';
         lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
         lastKnownGoodMarine.__provider = detectedProvider;
+        _cacheMarineResult(model || 'GFS', hourOffset, result);
         if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; }
         
-        // 3. SWR Background prefetch triggered asynchronously once the 2-day initial load is committed
+        // v7.0: Gated SWR background prefetch — cooldown + inflight + 5s delay
         if (forecastDays < maxForecastDays && !isPrefetch && !signal?.aborted) {
           setTimeout(() => {
-            console.log(`[Marine SWR] Triggering background prefetch for full ${maxForecastDays} days (${activeLayer})...`);
-            fetchMarineData(bounds, zoom, null, hourOffset, true, model, activeLayer, true).catch(err => {
-              console.warn('[Marine SWR] Background prefetch failed:', err.message);
-            });
-          }, 1000);
+            if (isInCooldown('marine') || inFlightMarineRequests.size > 0) return;
+            fetchMarineData(bounds, zoom, null, hourOffset, true, model, activeLayer, true).catch(() => {});
+          }, 5000);
         }
         
         return result;
