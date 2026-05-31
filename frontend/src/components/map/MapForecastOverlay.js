@@ -103,6 +103,8 @@ export var MapForecastOverlay = ({
             setExactPointStatus('exact_backend_error');
           } else if (data.status === 'empty') {
             setExactPointStatus('exact_empty');
+          } else if (['copernicus_credentials_missing', 'copernicus_backend_502', 'copernicus_timeout'].includes(data.status)) {
+            setExactPointStatus(data.status);
           } else {
             setExactPointResponse(data);
             setExactPointStatus('exact_success');
@@ -217,8 +219,8 @@ export var MapForecastOverlay = ({
   })();
 
   const isExactPointLoading = ['exact_loading', 'exact_stale_rejected'].includes(effectiveExactPointStatus);
-  const isExactPointTimeout = effectiveExactPointStatus === 'exact_timeout';
-  const isExactPointError = ['exact_backend_error', 'exact_empty', 'exact_error', 'error'].includes(effectiveExactPointStatus);
+  const isExactPointTimeout = ['exact_timeout', 'copernicus_timeout'].includes(effectiveExactPointStatus);
+  const isExactPointError = ['exact_backend_error', 'exact_empty', 'exact_error', 'error', 'copernicus_credentials_missing', 'copernicus_backend_502'].includes(effectiveExactPointStatus);
 
   // v6.6: For selected marine points, exact-point is THE authority.
   // Block ALL fallbacks while loading or if exact point is valid/success.
@@ -441,6 +443,7 @@ export var MapForecastOverlay = ({
     isExactPointLoading,
     isExactPointTimeout,
     isExactPointError,
+    exactPointStatus: effectiveExactPointStatus,
     useExactPoint,
     waveHeight,
     wavePeriod,
@@ -450,6 +453,7 @@ export var MapForecastOverlay = ({
     swell1Period,
     swell1Dir,
     swell2ModelUnavailable,
+    swell2Supported,
     swell2Height,
     swell2Period,
     swell2Dir,
@@ -519,11 +523,13 @@ export var MapForecastOverlay = ({
       return 'ready';
     }
     const diag = typeof window !== 'undefined' ? window.__COPERNICUS_GRID_DIAG__ : null;
-    if (diag?.skippedReason === 'zoom_too_low') {
-      return 'zoom_too_low';
+    if (!diag) {
+      return 'loading';
     }
-    if (diag?.skippedReason === 'fetch_exception' || diag?.skippedReason === 'backend_error') {
-      return 'unavailable';
+    if (diag.layer === activeLayer) {
+      if (diag.skipped) {
+        return diag.skippedReason || 'unavailable';
+      }
     }
     return 'loading';
   }, [marineData, activeModel, activeLayer]);
@@ -620,6 +626,36 @@ export var MapForecastOverlay = ({
                 <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-amber-400 font-semibold flex items-center gap-1.5">
                   <Lock className="w-3 h-3 text-amber-400" />
                   <span>Zoom In for Heatmap</span>
+                </div>
+              )}
+              {heatmapStatus === 'copernicus_credentials_missing' && (
+                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-rose-400" />
+                  <span>Config Error (Credentials)</span>
+                </div>
+              )}
+              {heatmapStatus === 'copernicus_backend_502' && (
+                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-rose-400" />
+                  <span>Heatmap Backend Error (502)</span>
+                </div>
+              )}
+              {heatmapStatus === 'copernicus_timeout' && (
+                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-rose-400" />
+                  <span>Heatmap Timeout</span>
+                </div>
+              )}
+              {heatmapStatus === 'copernicus_empty_time_range' && (
+                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-rose-400" />
+                  <span>Out of Time Range</span>
+                </div>
+              )}
+              {heatmapStatus === 'copernicus_no_nonzero_vectors' && (
+                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-amber-400 font-semibold flex items-center gap-1.5">
+                  <Lock className="w-3 h-3 text-amber-400" />
+                  <span>Calm/Zero Data (No Waves)</span>
                 </div>
               )}
               {heatmapStatus === 'unavailable' && (

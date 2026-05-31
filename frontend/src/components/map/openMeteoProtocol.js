@@ -175,6 +175,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               directions: payload.directions,
               bounds: payload.bounds,
               variable: payload.variable,
+              model: payload.model,
               timestamp: payload.timestamp,
               nx: payload.nx,
               ny: payload.ny,
@@ -370,13 +371,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           if (timeIndex === 0 && state.ranges && state.ranges[0]) {
             timeIndex = state.ranges[0].start;
           }
-          const cacheKey = `${variable}|${bounds.join(',')}|${timeIndex}`;
+          const cacheKey = `${variable}|${model}|${bounds.join(',')}|${timeIndex}`;
           const tilePayload = {
             cacheKey,
             values: data.values,
             directions: data.directions,
             bounds: bounds,
             variable: variable,
+            model: model,
             timestamp: Date.now(),
             nx: resolvedGrid ? resolvedGrid.nx : undefined,
             ny: resolvedGrid ? resolvedGrid.ny : undefined,
@@ -385,12 +387,13 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           
           // Cross-thread communication: Broadcast decoded tile payload to main thread via persistent BroadcastChannel
           if (typeof window !== 'undefined' && window.__DECODED_OM_TILES__) {
-            console.log(`[OM-Protocol-Direct] Stored decoded tile directly on main thread. Variable: ${variable}, Bounds: ${bounds.join(',')}, ValueCount: ${data.values?.length}, Dimensions: ${tilePayload.nx}x${tilePayload.ny}, TimeIndex: ${timeIndex}`);
+            console.log(`[OM-Protocol-Direct] Stored decoded tile directly on main thread. Variable: ${variable}, Model: ${model}, Bounds: ${bounds.join(',')}, ValueCount: ${data.values?.length}, Dimensions: ${tilePayload.nx}x${tilePayload.ny}, TimeIndex: ${timeIndex}`);
             window.__DECODED_OM_TILES__.set(cacheKey, {
               values: data.values,
               directions: data.directions,
               bounds: bounds,
               variable: variable,
+              model: model,
               timestamp: Date.now(),
               nx: tilePayload.nx,
               ny: tilePayload.ny,

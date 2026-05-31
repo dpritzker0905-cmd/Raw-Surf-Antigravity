@@ -279,9 +279,20 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       var errText = '';
       try { errText = await res.text(); } catch(e) { errText = '(could not read body)'; }
       console.error(`[ExactPoint Forensic] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel} | Elapsed: ${elapsed.toFixed(2)}s`, errText.substring(0, 300));
+      
+      var statusStr = 'error';
+      if (res.status === 503 || errText.toLowerCase().includes('credentials')) {
+        statusStr = 'copernicus_credentials_missing';
+      } else if (res.status === 502) {
+        statusStr = errText.toLowerCase().includes('timeout') ? 'copernicus_timeout' : 'copernicus_backend_502';
+      } else if (res.status === 504 || errText.toLowerCase().includes('gateway timeout')) {
+        statusStr = 'copernicus_timeout';
+      }
+
       if (typeof window !== 'undefined') {
         window.__MARINE_EXACT_POINT_ERROR__ = {
-          status: res.status,
+          status: statusStr,
+          httpStatus: res.status,
           point: { lat: rLat, lng: rLng },
           model: apiModel,
           requestedVars: hourlyVars,
@@ -289,7 +300,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           timestamp: new Date().toISOString()
         };
       }
-      return null;
+      return { status: statusStr };
     }
     const json = await res.json();
     const result = Array.isArray(json) ? json[0] : json;
@@ -502,7 +513,7 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   
   const matchingTiles = [];
   for (const tile of window.__DECODED_OM_TILES__.values()) {
-    if (tile.variable === targetVariable && tile.timeIndex === targetIdx) {
+    if (tile.variable === targetVariable && tile.timeIndex === targetIdx && tile.model === model) {
       matchingTiles.push(tile);
     }
   }

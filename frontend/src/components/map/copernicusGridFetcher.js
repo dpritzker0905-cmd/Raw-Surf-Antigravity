@@ -203,10 +203,33 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
 
     if (!res.ok) {
       console.error(`[CopernicusGrid] HTTP ${res.status} for ${layer}`);
+      var skippedReason = 'backend_error';
+      var detail = 'unknown';
+      try {
+        var errJson = await res.json();
+        detail = errJson.detail || errJson.message || errJson.error || 'unknown';
+      } catch (e) {
+        try {
+          detail = await res.text();
+        } catch (e2) {}
+      }
+
+      if (res.status === 503 || (typeof detail === 'string' && detail.toLowerCase().includes('credentials'))) {
+        skippedReason = 'copernicus_credentials_missing';
+      } else if (res.status === 502) {
+        if (typeof detail === 'string' && detail.toLowerCase().includes('timeout')) {
+          skippedReason = 'copernicus_timeout';
+        } else {
+          skippedReason = 'copernicus_backend_502';
+        }
+      } else if (res.status === 504 || (typeof detail === 'string' && detail.toLowerCase().includes('gateway timeout'))) {
+        skippedReason = 'copernicus_timeout';
+      }
+
       if (typeof window !== 'undefined') {
         window.__COPERNICUS_GRID_DIAG__ = {
-          layer, skipped: true, skippedReason: 'backend_error',
-          httpStatus: res.status, timestamp: new Date().toISOString(), zoom
+          layer, skipped: true, skippedReason: skippedReason,
+          httpStatus: res.status, errorDetail: detail, timestamp: new Date().toISOString(), zoom
         };
       }
       return null;
@@ -226,8 +249,17 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
 
     // Find the target time index
     var timeArray = results[0]?.hourly?.time;
+    if (!timeArray || timeArray.length === 0) {
+      if (typeof window !== 'undefined') {
+        window.__COPERNICUS_GRID_DIAG__ = {
+          layer, skipped: true, skippedReason: 'copernicus_empty_time_range',
+          timestamp: new Date().toISOString(), zoom
+        };
+      }
+      return null;
+    }
     var targetMs = Date.now() + hourOffset * 3600000;
-    var idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+    var idx = findClosestHourIndex(timeArray, targetMs);
 
     // Build grid vectors in the same shape as extractMarineAtOffset
     var gridVectors = [];
@@ -292,7 +324,7 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
         zoom,
         isClamped: isClamped,
         skipped: nonzeroCount === 0,
-        skippedReason: nonzeroCount === 0 ? 'no_nonzero_points' : null
+        skippedReason: nonzeroCount === 0 ? 'copernicus_no_nonzero_vectors' : null
       };
     }
 
