@@ -520,26 +520,24 @@ export var MapForecastOverlay = ({
     if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
       return null;
     }
-    const isCopernicusGrid = renderMarineData?.grid?.__gridProvider === 'copernicus' &&
-                            renderMarineData?.grid?.__componentLayer === activeLayer &&
-                            renderMarineData?.grid?.vectors?.length > 0;
-                            
+    
     const webglDiag = typeof window !== 'undefined' ? window.__WebGLMarineLayer_DIAG__ : null;
     const isWebGLRendered = webglDiag?.renderedProvider === 'copernicus' && 
-                            webglDiag?.activeLayer === activeLayer && 
-                            webglDiag?.renderedCount > 0;
+                            webglDiag?.activeMarineLayer === activeLayer && 
+                            webglDiag?.componentLayer === activeLayer &&
+                            webglDiag?.renderedVectorCount > 0 &&
+                            webglDiag?.renderedNonzeroCount > 0;
 
-    if (isCopernicusGrid && isWebGLRendered) {
-      const nzCount = renderMarineData.grid.vectors.filter(v => (v[activeLayer]?.speed || 0) > 0).length;
-      if (nzCount === 0) {
-        return 'copernicus_no_nonzero_vectors';
-      }
+    if (isWebGLRendered) {
       return 'ready';
     }
     
     // Check if the backend request skipped/failed
     const diag = typeof window !== 'undefined' ? window.__COPERNICUS_GRID_DIAG__ : null;
     if (diag && diag.layer === activeLayer && diag.skipped) {
+      if (diag.skippedReason === 'copernicus_no_nonzero_vectors' || diag.skippedReason === 'no_nonzero_vectors') {
+        return 'copernicus_no_nonzero_vectors';
+      }
       return diag.skippedReason || 'unavailable';
     }
     

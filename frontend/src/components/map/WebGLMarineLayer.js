@@ -186,6 +186,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const beforeIdRef = useRef(beforeId);
   const activeLayersRef = useRef(activeLayers);
   const timeOffsetHoursRef = useRef(timeOffsetHours);
+  const lastUploadedGridRef = useRef({ vectorsLength: 0, firstSpeed: 0, lastSpeed: 0, cols: 0, rows: 0, timestamp: 0 });
 
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   const landGeoJSONRef = useRef(null);
@@ -407,6 +408,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (!data?.vectors?.length) {
       console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched, clearing active textures`);
+      lastUploadedGridRef.current = { vectorsLength: 0, firstSpeed: 0, lastSpeed: 0, cols: 0, rows: 0, timestamp: 0 };
       engine.clearBuffers(gl);
       if (mapInstance) {
         mapInstance.triggerRepaint();
@@ -418,6 +420,31 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       console.log(`[WebGLMarine] Skipping React effect setWaveData because RenderPlanDispatcher is active`);
       return;
     }
+
+    const firstVecSpeed = data.vectors[0]?.speed || 0;
+    const lastVecSpeed = data.vectors[data.vectors.length - 1]?.speed || 0;
+    const currentTimestamp = data.timestamp || revision || 0;
+
+    const gridChanged = lastUploadedGridRef.current.vectorsLength !== data.vectors.length ||
+                        lastUploadedGridRef.current.cols !== data.cols ||
+                        lastUploadedGridRef.current.rows !== data.rows ||
+                        lastUploadedGridRef.current.firstSpeed !== firstVecSpeed ||
+                        lastUploadedGridRef.current.lastSpeed !== lastVecSpeed ||
+                        lastUploadedGridRef.current.timestamp !== currentTimestamp;
+
+    if (!gridChanged) {
+      // Data is identical, skip setWaveData upload to avoid rendering churn
+      return;
+    }
+
+    lastUploadedGridRef.current = {
+      vectorsLength: data.vectors.length,
+      cols: data.cols,
+      rows: data.rows,
+      firstSpeed: firstVecSpeed,
+      lastSpeed: lastVecSpeed,
+      timestamp: currentTimestamp
+    };
 
     try {
       // Diagnostic: expose marine data props for console verification
@@ -444,7 +471,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     } catch (e) {
       console.warn('[WebGLMarine] setWaveData error:', e.message);
     }
-  }, [data, mapInstance, landGeoJSON]);
+  }, [data, revision, mapInstance, landGeoJSON]);
 
   // Enforce layer order safeguard ONLY on beforeId or active or mapInstance changes (NOT high-frequency data/revision)
   useEffect(() => {

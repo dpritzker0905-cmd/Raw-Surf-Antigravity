@@ -143,6 +143,7 @@ uniform float u_merc_offset;       // world-copy offset (-1.0, 0.0, or +1.0)
 uniform float u_debug_mode;        // debug mode selector
 uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
 uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
+uniform float u_edgeFeatherEnabled;
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -347,10 +348,13 @@ void main() {
   v_alpha *= 0.9 + particleHash * 0.2;
 
   // Smoothstep boundary feathering so particles dissolve softly near grid edges
-  float distToEdgeX = min(tex_u, 1.0 - tex_u);
-  float distToEdgeY = min(tex_v, 1.0 - tex_v);
-  float minDistToEdge = min(distToEdgeX, distToEdgeY);
-  float edgeFade = smoothstep(0.0, 0.10, minDistToEdge);
+  float edgeFade = 1.0;
+  if (u_edgeFeatherEnabled > 0.5) {
+    float distToEdgeX = min(tex_u, 1.0 - tex_u);
+    float distToEdgeY = min(tex_v, 1.0 - tex_v);
+    float minDistToEdge = min(distToEdgeX, distToEdgeY);
+    edgeFade = smoothstep(0.0, 0.10, minDistToEdge);
+  }
   v_alpha *= edgeFade;
 
   // === WHITECAP STRENGTH (separate from base ripple) ===
@@ -534,6 +538,7 @@ uniform sampler2D u_oceanMaskTexture;
 uniform float u_opacity;
 uniform float u_debug_mode;
 uniform float u_theme;
+uniform float u_edgeFeatherEnabled;
 
 float getNonlinearT(float h) {
   // v4.1: Refined breakpoints — 0.5-1.5m gets 35% of color range for best open-ocean differentiation
@@ -697,11 +702,13 @@ void main() {
   alpha *= maskFade;
 
   // Smoothstep edge feathering to dissolve regional bounds softly
-  float edgeDistX = min(v_grid_uv.x, 1.0 - v_grid_uv.x);
-  float edgeDistY = min(v_grid_uv.y, 1.0 - v_grid_uv.y);
-  float minEdgeDist = min(edgeDistX, edgeDistY);
-  float feather = smoothstep(0.0, 0.10, minEdgeDist);
-  alpha *= feather;
+  if (u_edgeFeatherEnabled > 0.5) {
+    float edgeDistX = min(v_grid_uv.x, 1.0 - v_grid_uv.x);
+    float edgeDistY = min(v_grid_uv.y, 1.0 - v_grid_uv.y);
+    float minEdgeDist = min(edgeDistX, edgeDistY);
+    float feather = smoothstep(0.0, 0.10, minEdgeDist);
+    alpha *= feather;
+  }
 
   gl_FragColor = vec4(finalColor * alpha, alpha);
 }

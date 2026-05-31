@@ -341,6 +341,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_oceanMaskTexture'), 3);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
+  
+  const isRegionalGrid = (waveBounds.east - waveBounds.west < 359.9);
+  const edgeFeatherEnabledVal = isRegionalGrid ? 1.0 : 0.0;
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
 
   if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
     window.__GPU_DEBUG__ = { mode: null };
@@ -397,6 +401,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
 
   let drawDebugModeVal = 0.0;
   if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
