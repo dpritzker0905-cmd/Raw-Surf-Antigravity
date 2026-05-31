@@ -19,6 +19,7 @@ import { compileForecastCards } from './forecastCardCompiler';
 export var MapForecastOverlay = ({
   forecastData,
   marineData,
+  renderMarineData,
   currentWeather,
   activeLayer,
   activeModel,
@@ -505,7 +506,8 @@ export var MapForecastOverlay = ({
       sampledSwell1Period, sampledWavePeriod, marineGridSample, marine,
       marineHourIndex, swell1Supported, cards, waveHeight, swell1Height,
       swell2Height, windWaveHeight, swell2ModelUnavailable, windWavesSupported,
-      marineData, exactPointStatus: effectiveExactPointStatus, isExactPointValid, wavePeriod, waveDir,
+      marineData: renderMarineData,
+      exactPointStatus: effectiveExactPointStatus, isExactPointValid, wavePeriod, waveDir,
       swell1Dir, swell2Dir, windWaveDir, blockFallbacks, isExactPointAuthority,
       sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
       sampledSwell2Period, sampledWindWavesPeriod, useExactPoint,
@@ -518,9 +520,14 @@ export var MapForecastOverlay = ({
     if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
       return null;
     }
-    const isCopernicusGrid = marineData?.grid?.__gridProvider === 'copernicus' &&
-                            marineData?.grid?.__componentLayer === activeLayer;
+    const isCopernicusGrid = renderMarineData?.grid?.__gridProvider === 'copernicus' &&
+                            renderMarineData?.grid?.__componentLayer === activeLayer &&
+                            renderMarineData?.grid?.vectors?.length > 0;
     if (isCopernicusGrid) {
+      const nzCount = renderMarineData.grid.vectors.filter(v => (v[activeLayer]?.speed || 0) > 0).length;
+      if (nzCount === 0) {
+        return 'copernicus_no_nonzero_vectors';
+      }
       return 'ready';
     }
     const diag = typeof window !== 'undefined' ? window.__COPERNICUS_GRID_DIAG__ : null;
@@ -533,7 +540,7 @@ export var MapForecastOverlay = ({
       }
     }
     return 'loading';
-  }, [marineData, activeModel, activeLayer]);
+  }, [renderMarineData, activeModel, activeLayer]);
 
   if (!forecastData && !marineData && !isLoading) return null;
   if (cards.length === 0) return null;

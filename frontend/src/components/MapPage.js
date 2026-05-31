@@ -56,6 +56,7 @@ var MapPageContent = () => {
   const [mapCenter, setMapCenter] = useState(null);
   // v163: Long-press marker location (Ventusky/Windy style)
   const [longPressLocation, setLongPressLocation] = useState(null);
+  const [renderMarineData, setRenderMarineData] = useState(null);
 
   // User location hook - handles GPS and location-related state
   const {
@@ -457,6 +458,7 @@ var MapPageContent = () => {
           radarFrames={radarFrames}
           radarFrameIndex={radarFrameIndex}
           timeOffsetHours={timeOffsetHours}
+          onMarineDataChange={setRenderMarineData}
           userTier={user ? (user.subscription_tier || user.tier_id || 'tier_1') : 'guest'}
           onMapClick={(e) => {
             if (e.originalEvent && !e.originalEvent.defaultPrevented) {
@@ -623,6 +625,7 @@ var MapPageContent = () => {
         <MapForecastOverlay
           forecastData={forecastData}
           marineData={forecastMarineData}
+          renderMarineData={renderMarineData}
           currentWeather={currentWeather}
           activeLayer={activeLayers[0]}
           activeModel={activeModel}

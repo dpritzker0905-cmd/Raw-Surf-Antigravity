@@ -517,6 +517,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
 
     lastFetchedModelRef.current = activeModel;
+    lastFetchedLayerRef.current = null; // Clear layer ref so re-entering components works perfectly
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
@@ -526,12 +527,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     return () => clearTimeout(t);
   }, [activeModel, mapInstance]);
 
-  // v6.5: Re-fetch when active marine layer changes while EURO is active
+  // v6.15: Re-fetch when active marine layer changes while EURO is active
   // This triggers Copernicus component grid fetch on layer switch (e.g. waves → swell_1)
   useEffect(() => {
-    if (!mapInstance || !activeMarineLayersRef.current) return;
-    if (activeModelRef.current !== 'EURO') return;
-    if (!activeMarineLayer || !COMPONENT_LAYERS.includes(activeMarineLayer)) {
+    if (!mapInstance) return;
+    if (activeModel !== 'EURO' || !activeMarineLayer || !COMPONENT_LAYERS.includes(activeMarineLayer)) {
       lastFetchedLayerRef.current = null;
       return;
     }
@@ -545,7 +545,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       manualMarineTriggerRef.current?.();
     }, 350);
     return () => clearTimeout(t);
-  }, [activeMarineLayer, mapInstance]);
+  }, [activeMarineLayer, activeModel, mapInstance]);
 
   return { marineData };
 }

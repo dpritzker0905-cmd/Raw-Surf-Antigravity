@@ -2,8 +2,6 @@ import React, { useRef, useState, useMemo, useEffect } from 'react';
 import Map, { Source, Layer, Marker, Popup } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { WeatherTelemetry } from './WeatherTelemetry';
-
-
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
@@ -23,13 +21,9 @@ import { resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
 import { initEngine, shutdownEngine } from '../../engine/engine-bootstrap';
 import { useTemporalPreloader } from './useTemporalPreloader';
-
-// FCE: Field Composition Engine + Live Simulation Bridge
 import { useSimulationField } from '../../engine/useSimulationField';
 import { useRenderPlanBridge } from '../../engine/useRenderPlanBridge';
 import { getDispatcherDiagnostics } from '../../engine/RenderPlanDispatcher';
-
-// Custom Hooks for Modularization (Rule <800 LOC Compliance)
 import { useMapInitialization } from './useMapInitialization';
 import { useMapViewState } from './useMapViewState';
 import { useMapLongPress } from './useMapLongPress';
@@ -37,9 +31,6 @@ import { useSpotClusteringData } from './useSpotClusteringData';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
 import { useMapObservability } from './useMapObservability';
-
-// DELETED: useRasterAnchorInsertion — no more layer ordering hacks
-
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 var MapWebGL = ({
@@ -65,6 +56,7 @@ var MapWebGL = ({
   onMapMoveEnd,
   onMapLongPress,
   longPressLocation,
+  onMarineDataChange,
 }) => {
   // v3.9.7: Explicit init never at import time
   ensureMapLibreInit();
@@ -131,10 +123,6 @@ var MapWebGL = ({
       }
     };
   }, [mapInstance]);
-
-
-
-  // v85: Toggle water layer transparency when marine layers activate/deactivate
   useEffect(() => {
     configureWaterTransparency(mapInstance, !!activeMarineLayer, theme);
   }, [mapInstance, activeMarineLayer, theme]);
@@ -186,12 +174,12 @@ var MapWebGL = ({
     activeModel
   });
 
-  // ============================================================
+  useEffect(() => {
+    if (onMarineDataChange) {
+      onMarineDataChange(marineData);
+    }
+  }, [marineData, onMarineDataChange]);
   // FCE: Field Composition Engine — Single Source of Truth
-  // SimulationField merges all data sources into unified state.
-  // SimulationLoop runs RK4 physics at 60Hz, produces RenderPlan.
-  // useRenderPlanBridge exposes the live RenderPlan to React.
-  // ============================================================
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
     windData,
     marineData,
@@ -301,6 +289,7 @@ var MapWebGL = ({
           mismatchReason: `EURO component layer ${activeMarineLayer} requested but Copernicus grid componentLayer is ${marineData?.grid?.__componentLayer || 'none'}`,
           timestamp: new Date().toISOString()
         };
+        window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
       }
       return null;
     }
@@ -352,6 +341,7 @@ var MapWebGL = ({
         mismatch: false,
         timestamp: new Date().toISOString()
       };
+      window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
     }
     return res;
   }, [marineData, activeMarineLayer, activeModel]);
@@ -684,8 +674,6 @@ var MapWebGL = ({
             );
           });
         })}
-
-        {/* Marine Foam/Crest Engine */}
         {(!webglMarineFailed && !!activeMarineLayer) ? (
           <WebGLMarineLayer
             mapInstance={mapInstance}
@@ -710,8 +698,6 @@ var MapWebGL = ({
             revision={marineData?.grid?.timestamp || Date.now()}
           />
         )}
-
-        {/* Geofence Visual Layer — MUST be above weather rasters to remain visible */}
         <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
           <Layer 
             id="spot-geofences-layer"
@@ -747,8 +733,6 @@ var MapWebGL = ({
           onPhotographerClick={onPhotographerClick}
           mapRef={innerMapRef}
         />
-
-        {/* Wind Particles */}
         {(!webglWindFailed && activeLayers.includes('wind')) ? (
           <WebGLWindLayer
             mapInstance={mapInstance}
@@ -770,8 +754,6 @@ var MapWebGL = ({
             theme={theme}
           />
         )}
-
-        {/* Long-press / right-click map pin marker */}
         {longPressLocation && (
           <Marker
             longitude={longPressLocation.lng}
