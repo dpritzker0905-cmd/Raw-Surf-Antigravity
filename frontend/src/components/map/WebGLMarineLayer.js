@@ -636,6 +636,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
             timestamp: new Date().toISOString()
           };
           window.__MARINE_RENDER_SOURCE_DIAG__ = {
+            sourcePath: 'direct_mapwebgl',
             heatmapProvider: gridProvider,
             gridProvider,
             sourceModel: gridModel,
@@ -643,8 +644,13 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
             activeModel: activeModelRef.current,
             activeLayer: activeMarineLayer,
             timeOffsetHours: timeOffsetHoursRef.current,
+            bounds: data.bounds ? { ...data.bounds } : null,
+            cols: data.cols,
+            rows: data.rows,
             vectorCount: data.vectors.length,
             nonzeroCount: nonzeroCount,
+            maxHeight: maxS,
+            meanHeight: cnt > 0 ? sumS / cnt : 0,
             timestamp: new Date().toISOString()
           };
           window.__MARINE_DISPLAY_SOURCE_DIAG__ = {

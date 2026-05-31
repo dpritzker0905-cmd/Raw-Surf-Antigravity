@@ -208,7 +208,12 @@ export function viewportCacheKey(bounds, prefix) {
  * caller param: wind uses full grid, marine capped at 80 lat (API rejects polar regions)
  */
 export function computeGridPoints(bounds, caller = 'wind') {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  let isMobile = false;
+  if (typeof window !== 'undefined') {
+    const ua = navigator.userAgent || '';
+    const isHandheld = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
+    isMobile = isHandheld && window.innerWidth < 768;
+  }
   const lngSpan = bounds.east - bounds.west;
   const latSpan = bounds.north - bounds.south;
   const isGlobal = lngSpan > 180 || latSpan > 90;

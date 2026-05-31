@@ -188,15 +188,17 @@ var MapWebGL = ({
     activeModel,
     timeOffsetHours: debouncedTimeOffsetHours,
     enableLogging: true,
+    activeMarineLayer,
   });
 
   // Live simulation bridge — drives RK4 physics independently of React
   const simConfig = useMemo(() => ({
     activeLayers,
     activeMarineLayer,
+    activeModel,
     theme,
     oceanMaskEnabled: true,
-  }), [activeLayers, activeMarineLayer, theme]);
+  }), [activeLayers, activeMarineLayer, activeModel, theme]);
 
   const {
     renderPlan,

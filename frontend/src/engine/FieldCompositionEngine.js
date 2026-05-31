@@ -112,6 +112,7 @@ export function composeRenderPlan(field, config) {
   const {
     activeLayers = [],
     activeMarineLayer = null,
+    activeModel = null,
     theme = 'dark',
     oceanMaskEnabled = true,
   } = config;
@@ -194,6 +195,7 @@ export function composeRenderPlan(field, config) {
     revision,
     timestamp: Date.now(),
     model: field?.model || 'GFS',
+    activeModel: activeModel || field?.model || 'GFS',
     hourOffset: field?.hourOffset || 0,
   };
 }

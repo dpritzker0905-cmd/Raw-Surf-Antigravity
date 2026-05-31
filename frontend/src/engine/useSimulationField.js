@@ -40,6 +40,7 @@ export function useSimulationField({
   activeModel = 'GFS',
   timeOffsetHours = 0,
   enableLogging = false,
+  activeMarineLayer = null,
 }) {
   const lastRevisionRef = useRef(0);
   const lastLogTimeRef = useRef(0);
@@ -60,11 +61,12 @@ export function useSimulationField({
       pressureData,
       model: activeModel,
       hourOffset: timeOffsetHours,
+      activeMarineLayer,
     });
 
     lastRevisionRef.current = f.revision;
     return f;
-  }, [windDep, marineDep, pressureDep, activeModel, timeOffsetHours]);
+  }, [windDep, marineDep, pressureDep, activeModel, timeOffsetHours, activeMarineLayer]);
 
   // Generate diagnostics (cheap — only iterates once)
   const diagnostics = useMemo(() => {

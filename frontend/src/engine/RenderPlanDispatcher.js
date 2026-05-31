@@ -203,26 +203,98 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
 
   if (_marineEngine && _marineGL && field.sources.marine) {
     const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
+    const activeModel = renderPlan.activeModel || renderPlan.model || 'GFS';
+    const gridModel = field.sourceModel || 'unknown';
+    const gridProvider = field.gridProvider || 'none';
+    const componentLayer = field.componentLayer || 'none';
+
+    // 1. Model Mismatch: field model must match the currently selected active model
+    let isValid = (field.model === activeModel);
+
+    // 2. Source Model Mismatch: actual grid source model must match active model
+    if (isValid && gridModel !== 'unknown' && gridModel !== activeModel) {
+      isValid = false;
+    }
+
+    // 3. Component Layer Mismatch (for Copernicus or Estimated)
+    const isEuro = activeModel === 'EURO';
+    const isWaves = activeMarineLayer === 'waves';
+    if (isValid) {
+      if (gridProvider === 'estimated') {
+        if (componentLayer !== activeMarineLayer) {
+          isValid = false;
+        }
+      } else if (isEuro) {
+        if (isWaves) {
+          if (gridProvider !== 'open-meteo') {
+            isValid = false;
+          }
+        } else {
+          if (gridProvider !== 'copernicus' || componentLayer !== activeMarineLayer) {
+            isValid = false;
+          }
+        }
+      } else {
+        if (gridProvider !== 'open-meteo') {
+          isValid = false;
+        }
+      }
+    }
+
+    // 4. Bounds Mismatch: open-meteo must be global bounds, copernicus regional cannot be global
+    if (isValid && field.bounds) {
+      const isGlobalBounds = Math.abs(field.bounds.west - (-180)) < 1.0 && Math.abs(field.bounds.east - 180) < 1.0;
+      if (gridProvider === 'open-meteo') {
+        if (!isGlobalBounds) {
+          isValid = false;
+        }
+      } else if (gridProvider === 'copernicus' || gridProvider === 'estimated') {
+        if (isGlobalBounds) {
+          isValid = false;
+        }
+      }
+    }
+
     try {
       const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
-      if (marineGrid) {
+      
+      // 5. Nonzero Count Mismatch: nonzeroCount > 0 unless UI explicitly showing trace/no-data
+      if (isValid && marineGrid && marineGrid.nonzeroCount === 0) {
+        isValid = false;
+      }
+
+      if (isValid && marineGrid) {
         _marineEngine._dispatcherActive = true;
         _marineEngine.setWaveData(_marineGL, marineGrid);
-        // Diagnostic: expose dispatch status for console verification
-        if (typeof window !== 'undefined') {
-          window.__FCE_DISPATCH_STATUS__ = {
-            lastDispatchFrame: _dispatchCount,
-            marineVectors: marineGrid.vectors.length,
-            activeLayer: activeMarineLayer,
-            nonzeroCount: marineGrid.nonzeroCount,
-            maxHeight: marineGrid.maxHeight,
-            meanHeight: marineGrid.meanHeight,
-            sourceModel: field.model || 'unknown',
-            provider: field.model === 'EURO' ? 'copernicus' : 'open-meteo',
-            isOverridingReactData: true,
-            timestamp: Date.now()
-          };
-        }
+      } else {
+        // Mismatch or invalid: clear buffers to prevent stale/tight heatmap rendering
+        _marineEngine.clearBuffers(_marineGL);
+      }
+
+      // Diagnostic: expose dispatch status for console verification
+      if (typeof window !== 'undefined') {
+        const diag = {
+          sourcePath: 'render_plan_dispatcher',
+          activeModel,
+          activeMarineLayer,
+          activeLayer: activeMarineLayer,
+          provider: gridProvider,
+          gridProvider,
+          bounds: field.bounds ? { ...field.bounds } : null,
+          cols: field.cols,
+          rows: field.rows,
+          vectorCount: marineGrid ? marineGrid.vectors.length : 0,
+          nonzeroCount: marineGrid ? marineGrid.nonzeroCount : 0,
+          maxHeight: marineGrid ? marineGrid.maxHeight : 0,
+          meanHeight: marineGrid ? marineGrid.meanHeight : 0,
+          timeOffsetHours: field.hourOffset,
+          isOverridingReactData: true,
+          renderAccepted: isValid,
+          rejectionReason: isValid ? null : `Mismatch guard triggered: model=${gridModel} vs ${activeModel}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}, isEuro=${isEuro}`,
+          timestamp: new Date().toISOString()
+        };
+        window.__FCE_DISPATCH_STATUS__ = diag;
+        window.__MARINE_RENDER_SOURCE_DIAG__ = diag;
       }
     } catch (e) {
       console.warn('[RenderPlanDispatcher] Marine texture upload error:', e.message);

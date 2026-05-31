@@ -72,6 +72,17 @@ export var MapForecastOverlay = ({
     return exactPointStatus;
   })();
 
+  // Decoupled refs to prevent high-frequency grid updates and timeline scrubbing from triggering redundant fetches
+  const marineDataRef = useRef(marineData);
+  useEffect(() => {
+    marineDataRef.current = marineData;
+  }, [marineData]);
+
+  const timeOffsetHoursRef = useRef(timeOffsetHours);
+  useEffect(() => {
+    timeOffsetHoursRef.current = timeOffsetHours;
+  }, [timeOffsetHours]);
+
   useEffect(() => {
     // Update the ref to currentPointKey inside the coordinate/model/layer-change useEffect
     prevPointKeyRef.current = currentPointKey;
@@ -84,7 +95,7 @@ export var MapForecastOverlay = ({
     }
 
     const isUserExplicitSelection = !!(selectedSpot || longPressLocation);
-    const hasGrid = marineData?.grid?.vectors?.length > 0;
+    const hasGrid = marineDataRef.current?.grid?.vectors?.length > 0;
 
     // v7.0: Eager default snap request mitigation
     if (!isUserExplicitSelection && !hasGrid) {
@@ -113,7 +124,7 @@ export var MapForecastOverlay = ({
         controller.abort();
       }, 18000);
 
-      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, timeOffsetHours).then(data => {
+      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, timeOffsetHoursRef.current).then(data => {
         clearTimeout(fetchTimeoutId);
         if (!token.cancelled) {
           if (data) {
@@ -150,7 +161,7 @@ export var MapForecastOverlay = ({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, isMarineLayer, currentPointKey, selectedSpot, longPressLocation, marineData, timeOffsetHours]);
+  }, [pointLat, pointLng, activeModel, isMarineLayer, currentPointKey, selectedSpot, longPressLocation]);
 
   // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
   // This is synchronous and instant — no network request on scrub.
