@@ -32,6 +32,7 @@ let _marineGL = null;
 let _unsubscribe = null;
 let _lastFieldRevision = 0;
 let _dispatchCount = 0;
+const _lastGoodGridsCache = {};
 
 // Throttle GPU texture uploads to ~10Hz (every 6th frame at 60Hz)
 // GPU texture upload is expensive — don't do it every frame
@@ -212,7 +213,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     let isValid = (field.model === activeModel);
 
     // 2. Source Model Mismatch: actual grid source model must match active model
-    if (isValid && gridModel !== 'unknown' && gridModel !== activeModel) {
+    if (isValid && gridModel !== 'unknown' && gridModel !== 'none' && gridModel !== activeModel) {
       isValid = false;
     }
 
@@ -241,19 +242,21 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
       }
     }
 
-    // 4. Bounds Mismatch: open-meteo must be global bounds, copernicus regional cannot be global
+    // 4. Bounds Mismatch: copernicus regional cannot be global
     if (isValid && field.bounds) {
       const isGlobalBounds = Math.abs(field.bounds.west - (-180)) < 1.0 && Math.abs(field.bounds.east - 180) < 1.0;
-      if (gridProvider === 'open-meteo') {
-        if (!isGlobalBounds) {
-          isValid = false;
-        }
-      } else if (gridProvider === 'copernicus' || gridProvider === 'estimated') {
+      if (gridProvider === 'copernicus' || gridProvider === 'estimated') {
         if (isGlobalBounds) {
           isValid = false;
         }
       }
     }
+
+    // Detect Confirmed Hard Mismatch
+    const isModelMismatch = (field.model !== activeModel) || (gridModel !== 'unknown' && gridModel !== 'none' && gridModel !== activeModel);
+    const isComponentMismatch = (gridProvider === 'copernicus' && componentLayer !== 'none' && componentLayer !== 'unknown' && componentLayer !== activeMarineLayer);
+    const isLayerDisabled = !activeMarineLayer || activeMarineLayer === 'none' || !renderPlan.waveField.active;
+    const isHardMismatch = isModelMismatch || isComponentMismatch || isLayerDisabled;
 
     try {
       const marineGrid = fieldToMarineGrid(field, activeMarineLayer);
@@ -263,16 +266,42 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
         isValid = false;
       }
 
+      // Populate Cache or Retrieve from Cache
+      const cacheKey = `${activeModel}_${activeMarineLayer}_${field.hourOffset}`;
+      let gridToUpload = null;
+      let usingLastGood = false;
+
       if (isValid && marineGrid) {
-        _marineEngine._dispatcherActive = true;
-        _marineEngine.setWaveData(_marineGL, marineGrid);
+        gridToUpload = marineGrid;
+        // Save to cache
+        _lastGoodGridsCache[cacheKey] = {
+          marineGrid,
+          model: activeModel,
+          layer: activeMarineLayer,
+          provider: gridProvider,
+          timestamp: Date.now(),
+          hourOffset: field.hourOffset
+        };
       } else {
-        // Mismatch or invalid: clear buffers to prevent stale/tight heatmap rendering
+        // Retrieve from cache if transient error
+        const cached = _lastGoodGridsCache[cacheKey];
+        if (cached && !isHardMismatch) {
+          gridToUpload = cached.marineGrid;
+          usingLastGood = true;
+        }
+      }
+
+      if (gridToUpload) {
+        _marineEngine._dispatcherActive = true;
+        _marineEngine.setWaveData(_marineGL, gridToUpload);
+      } else if (isHardMismatch) {
+        // Confirmed hard mismatch: clear buffers to prevent stale/tight heatmap rendering
         _marineEngine.clearBuffers(_marineGL);
       }
 
       // Diagnostic: expose dispatch status for console verification
       if (typeof window !== 'undefined') {
+        const cached = _lastGoodGridsCache[cacheKey];
         const diag = {
           sourcePath: 'render_plan_dispatcher',
           activeModel,
@@ -283,14 +312,22 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
           bounds: field.bounds ? { ...field.bounds } : null,
           cols: field.cols,
           rows: field.rows,
-          vectorCount: marineGrid ? marineGrid.vectors.length : 0,
-          nonzeroCount: marineGrid ? marineGrid.nonzeroCount : 0,
-          maxHeight: marineGrid ? marineGrid.maxHeight : 0,
-          meanHeight: marineGrid ? marineGrid.meanHeight : 0,
+          vectorCount: gridToUpload ? gridToUpload.vectors.length : 0,
+          nonzeroCount: gridToUpload ? gridToUpload.nonzeroCount : 0,
+          maxHeight: gridToUpload ? gridToUpload.maxHeight : 0,
+          meanHeight: gridToUpload ? gridToUpload.meanHeight : 0,
           timeOffsetHours: field.hourOffset,
           isOverridingReactData: true,
+          
           renderAccepted: isValid,
-          rejectionReason: isValid ? null : `Mismatch guard triggered: model=${gridModel} vs ${activeModel}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}, isEuro=${isEuro}`,
+          renderHeldLastGood: usingLastGood || (!isValid && !isHardMismatch),
+          clearReason: isHardMismatch ? (isLayerDisabled ? 'Layer disabled' : isModelMismatch ? 'Model mismatch' : 'Component layer mismatch') : null,
+          rejectionReason: isValid ? null : `Mismatch guard: model=${gridModel} vs ${activeModel}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}, hard=${isHardMismatch}`,
+          lastGoodAgeMs: cached ? (Date.now() - cached.timestamp) : null,
+          lastGoodModel: cached ? cached.model : null,
+          lastGoodLayer: cached ? cached.layer : null,
+          lastGoodProvider: cached ? cached.provider : null,
+          
           timestamp: new Date().toISOString()
         };
         window.__FCE_DISPATCH_STATUS__ = diag;

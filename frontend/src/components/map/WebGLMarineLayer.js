@@ -433,6 +433,13 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
+      const isFallbackSafeZero = data?.__provider === 'fallback_safe_zero' || data?.grid?.__provider === 'fallback_safe_zero';
+
+      if (isFallbackSafeZero || !modelOrLayerChanged) {
+        console.log(`[WebGLMarine-Hold] Holding last valid marine texture during transient error or empty data (model/layer unchanged)`);
+        return; // DO NOT CLEAR TEXTURES! Just hold last good resident state!
+      }
+
       console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched, clearing active textures`);
       if (typeof window !== 'undefined') {
         window.__WEBGL_MARINE_UPLOAD_DIAG__ = {

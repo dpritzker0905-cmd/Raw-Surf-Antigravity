@@ -240,6 +240,10 @@ var MapWebGL = ({
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
 
+    if (marineData.__renderable === false || marineData.grid.__renderable === false) {
+      return null;
+    }
+
     const gridModel = marineData.grid.__sourceModel || marineData.__sourceModel;
     const gridProvider = marineData.grid.__gridProvider || 'none';
     const isEuroComponent = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);

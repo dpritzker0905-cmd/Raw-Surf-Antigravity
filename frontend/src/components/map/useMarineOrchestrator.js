@@ -521,6 +521,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             console.warn('[FETCH] [Marine] Circuit breaker: 3 consecutive failures stopping until model, layer, or viewport changes.');
             return; // Don't schedule more retries
           }
+
+          // Cap retries: if this failure was itself on a retry attempt, stop scheduling further retries
+          const isRetry = ['cooldown_retry', 'delayed_retry'].includes(source);
+          if (isRetry) {
+            console.warn('[FETCH] [Marine] Retry failed. Silently halting automatic retries until user interaction/model/layer changes.');
+            return;
+          }
+
           const remaining = getRemainingCooldown('marine');
           marineRetryCountRef.current = (marineRetryCountRef.current || 0) + 1;
           if (marineRetryCountRef.current > 3) {

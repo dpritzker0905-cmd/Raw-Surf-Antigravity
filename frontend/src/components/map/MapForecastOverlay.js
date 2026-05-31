@@ -13,7 +13,7 @@ import {
   getClampedValue,
   getBiasAdjusted
 } from './forecastSamplers';
-import { isLayerSupportedByModel, isGridLayerSupported } from './marineControllerUtils';
+import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { compileForecastCards } from './forecastCardCompiler';
 
 export var MapForecastOverlay = ({
@@ -99,6 +99,15 @@ export var MapForecastOverlay = ({
 
     // v7.0: Eager default snap request mitigation
     if (!isUserExplicitSelection && !hasGrid) {
+      setExactPointResponse(null);
+      setExactPoint(null);
+      setExactPointStatus('idle');
+      return;
+    }
+
+    // background/default snapped exact-point requests should be heavily throttled and never run while marine grid fetch is failing/cooling down
+    if (!isUserExplicitSelection && typeof isInCooldown === 'function' && isInCooldown('marine')) {
+      console.log("[Forecast] Suppressing background snap prewarm because marine fetch is cooling down/failing");
       setExactPointResponse(null);
       setExactPoint(null);
       setExactPointStatus('idle');

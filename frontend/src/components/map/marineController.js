@@ -112,6 +112,28 @@ function getModelSafeMarine(requestedModel) {
   return lastKnownGoodMarine;
 }
 
+function createFallbackSafeZeroGrid(model, failureReason) {
+  return {
+    type: 'FeatureCollection',
+    features: [],
+    grid: {
+      vectors: [],
+      bounds: { west: -180, south: -80, east: 180, north: 85 },
+      cols: 27,
+      rows: 27,
+      __provider: 'fallback_safe_zero',
+      __gridProvider: 'none',
+      __renderable: false,
+      __failureReason: failureReason
+    },
+    __sourceModel: model || 'GFS',
+    __provider: 'fallback_safe_zero',
+    __gridProvider: 'none',
+    __renderable: false,
+    __failureReason: failureReason
+  };
+}
+
 // --- INFLIGHT ABORT CONTROLLERS ---
 var windAbortController = null;
 var marinAbortController = null;
@@ -720,15 +742,21 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     }
 
     if (!res.ok) {
-      if (res.status === 429) { enterCooldown('marine'); return getModelSafeMarine(model); }
+      if (res.status === 429) { 
+        enterCooldown('marine'); 
+        return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'rate_limited'); 
+      }
       console.error(`[Marine] Fetch failed: HTTP ${res.status}`);
-      return null;
+      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, res.status === 502 ? 'proxy_502' : 'fetch_error');
     }
 
     const data = await res.json();
     let allResults = Array.isArray(data) ? data
       : (data?.hourly ? points.map(() => data) : null);
-    if (!allResults) { console.warn('[Marine] Unexpected API response shape'); return getModelSafeMarine(model); }
+    if (!allResults) { 
+      console.warn('[Marine] Unexpected API response shape'); 
+      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'invalid_response'); 
+    }
 
     // Cache full hourly response
     // v6.0: Detect provider from API response (__provider tag set by Copernicus Marine backend)
@@ -749,17 +777,19 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       lastKnownGoodMarineModel = model || 'GFS';
       lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
       lastKnownGoodMarine.__provider = detectedProvider;
- if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; console.log('[Marine] BOOTSTRAP complete first valid data received'); }
+      if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; console.log('[Marine] BOOTSTRAP complete first valid data received'); }
       console.log(`[Marine] Fetch success: ${result.features.length} features, ${gridSize}x${gridSize} grid`);
       return result;
     } else {
       console.warn('[Marine] Zero valid features from API');
-      return getModelSafeMarine(model);
+      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'empty_response');
     }
   } catch (err) {
-    if (err.name === 'AbortError') return getModelSafeMarine(model);
+    if (err.name === 'AbortError') {
+      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'abort');
+    }
     console.error(`[Marine] Fetch failed: ${err.message}`);
-    return getModelSafeMarine(model);
+    return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'fetch_error');
   } finally {
     marineRequestInFlight = false;
   }
