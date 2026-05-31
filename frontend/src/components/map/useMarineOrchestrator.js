@@ -4,7 +4,7 @@ import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } fr
 import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 
 /**
- * useMarineOrchestrator (v238)
+ * useMarineOrchestrator (v239)
  * SINGLE-PIPELINE viewport-driven marine data orchestrator.
  * RULE: This hook has ZERO knowledge of rendering. It only manages data.
  */
