@@ -198,8 +198,10 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     vectorsLength: 0,
     nonzeroCount: 0,
     sampleSum: 0,
-    timestamp: 0
+    timestamp: 0,
+    timeOffsetHours: 0
   });
+  const scrubUploadTimeoutRef = useRef(null);
 
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   const landGeoJSONRef = useRef(null);
@@ -421,6 +423,16 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
 
     if (!data?.vectors?.length) {
+      const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
+      const lastSig = lastUploadedGridRef.current;
+      const modelOrLayerChanged = lastSig.activeModel !== activeModelRef.current ||
+                                  lastSig.activeMarineLayer !== activeMarineLayer;
+
+      if (window.isScrubbingTimeline && !modelOrLayerChanged) {
+        console.log(`[WebGLMarine-Scrub] Holding last valid marine texture during active scrubbing (model/layer unchanged)`);
+        return;
+      }
+
       console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched, clearing active textures`);
       lastUploadedGridRef.current = {
         activeModel: '',
@@ -433,7 +445,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         vectorsLength: 0,
         nonzeroCount: 0,
         sampleSum: 0,
-        timestamp: 0
+        timestamp: 0,
+        timeOffsetHours: 0
       };
       engine.clearBuffers(gl);
       if (mapInstance) {
@@ -452,7 +465,35 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const gridProvider = data.grid?.__gridProvider || data.__gridProvider || 'none';
     const componentLayer = data.grid?.__componentLayer || data.__componentLayer || 'none';
     const boundsStr = data.bounds ? `${data.bounds.west.toFixed(2)}:${data.bounds.south.toFixed(2)}:${data.bounds.east.toFixed(2)}:${data.bounds.north.toFixed(2)}` : 'none';
-    
+
+    // Make sure we have vectors and they match the active model and active marine layer
+    const isEuro = activeModelRef.current === 'EURO';
+    const isWaves = activeMarineLayer === 'waves';
+    const isComponent = ['swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
+
+    // Validate that the grid is matching the active view intent
+    let isValid = true;
+    if (gridModel !== activeModelRef.current) {
+      isValid = false;
+    }
+    if (isEuro) {
+      if (isWaves && gridProvider !== 'open-meteo') {
+        isValid = false;
+      }
+      if (isComponent && (gridProvider !== 'copernicus' || componentLayer !== activeMarineLayer)) {
+        isValid = false;
+      }
+    } else {
+      if (gridProvider !== 'open-meteo') {
+        isValid = false;
+      }
+    }
+
+    if (!isValid) {
+      console.log(`[WebGLMarine-Validate] Grid does not match active intent (model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}), skipping commit`);
+      return;
+    }
+
     let nonzeroCount = 0;
     let sampleSum = 0;
     if (data.vectors) {
@@ -485,7 +526,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
                         lastSig.vectorsLength !== data.vectors.length ||
                         lastSig.nonzeroCount !== nonzeroCount ||
                         Math.abs(lastSig.sampleSum - sampleSum) > 0.001 ||
-                        lastSig.timestamp !== currentTimestamp;
+                        lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
 
     if (!gridChanged) {
       // Data is identical, skip setWaveData upload to avoid rendering churn
@@ -503,34 +544,53 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       vectorsLength: data.vectors.length,
       nonzeroCount: nonzeroCount,
       sampleSum: sampleSum,
-      timestamp: currentTimestamp
+      timestamp: currentTimestamp,
+      timeOffsetHours: timeOffsetHoursRef.current
     };
 
-    try {
-      // Diagnostic: expose marine data props for console verification
-      if (typeof window !== 'undefined') {
-        window.__MARINE_DATA_PROPS__ = {
-          vectorCount: data.vectors.length,
-          cols: data.cols,
-          rows: data.rows,
-          bounds: data.bounds,
-          sampleSpeed: data.vectors[0]?.speed,
-          timestamp: Date.now()
-        };
+    const doUpload = () => {
+      try {
+        // Diagnostic: expose marine data props for console verification
+        if (typeof window !== 'undefined') {
+          window.__MARINE_DATA_PROPS__ = {
+            vectorCount: data.vectors.length,
+            cols: data.cols,
+            rows: data.rows,
+            bounds: data.bounds,
+            sampleSpeed: data.vectors[0]?.speed,
+            timestamp: Date.now()
+          };
+        }
+        // FORENSIC: Log what FCE direct-grid is uploading
+        let maxS = 0, sumS = 0, cnt = 0;
+        for (const vec of data.vectors) {
+          if (vec && vec.speed > 0) { cnt++; sumS += vec.speed; if (vec.speed > maxS) maxS = vec.speed; }
+        }
+        console.log(`[WebGLMarine] setWaveData: ${data.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (FCE direct-grid)`);
+        engine.setWaveData(gl, data, landGeoJSONRef.current);
+        if (mapInstance) {
+          mapInstance.triggerRepaint();
+        }
+      } catch (e) {
+        console.warn('[WebGLMarine] setWaveData error:', e.message);
       }
-      // FORENSIC: Log what FCE direct-grid is uploading
-      let maxS = 0, sumS = 0, cnt = 0;
-      for (const vec of data.vectors) {
-        if (vec && vec.speed > 0) { cnt++; sumS += vec.speed; if (vec.speed > maxS) maxS = vec.speed; }
-      }
-      console.log(`[WebGLMarine] setWaveData: ${data.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (FCE direct-grid)`);
-      engine.setWaveData(gl, data, landGeoJSONRef.current);
-      if (mapInstance) {
-        mapInstance.triggerRepaint();
-      }
-    } catch (e) {
-      console.warn('[WebGLMarine] setWaveData error:', e.message);
+    };
+
+    if (window.isScrubbingTimeline) {
+      if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
+      scrubUploadTimeoutRef.current = setTimeout(() => {
+        doUpload();
+      }, 80);
+    } else {
+      if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
+      doUpload();
     }
+
+    return () => {
+      if (scrubUploadTimeoutRef.current) {
+        clearTimeout(scrubUploadTimeoutRef.current);
+      }
+    };
   }, [data, revision, mapInstance, landGeoJSON]);
 
   // Enforce layer order safeguard ONLY on beforeId or active or mapInstance changes (NOT high-frequency data/revision)

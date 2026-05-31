@@ -51,10 +51,14 @@ const MODEL_SUPPORTED_MARINE_VARS = {
 
 const CURRENT_MARINE_VARS = 'wave_height,wave_period,wave_direction,swell_wave_height,swell_wave_period,swell_wave_direction';
 
-// Module-level rate limiter shared across all instances
+// Module-level rate limiter and shared forecast cache / request deduplicator
 let lastGlobalFetchTime = 0;
 let lastGlobalModel = '';
 const MIN_FETCH_INTERVAL = 2_000;
+
+const forecastCache = new Map();
+const inFlightRequests = new Map();
+const CACHE_TTL = 120_000; // 2 minutes
 
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false }) => {
   const [forecastData, setForecastData] = useState(null);
@@ -76,6 +80,37 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     }
 
     const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}_${isExplicit ? 'explicit' : 'auto'}`;
+    
+    // 1. Check in-memory cache
+    const cached = forecastCache.get(fetchKey);
+    if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+      console.log(`[CACHE] [Forecast] Serving cached forecast for ${fetchKey}`);
+      setForecastData(cached.forecastData);
+      setMarineData(cached.marineData);
+      setCurrentWeather(cached.currentWeather);
+      setIsStale(false);
+      setIsLoading(false);
+      return;
+    }
+
+    // 2. Check in-flight requests
+    if (inFlightRequests.has(fetchKey)) {
+      console.log(`[DEDUPE] [Forecast] Reusing in-flight request for ${fetchKey}`);
+      setIsLoading(true);
+      try {
+        const result = await inFlightRequests.get(fetchKey);
+        setForecastData(result.forecastData);
+        setMarineData(result.marineData);
+        setCurrentWeather(result.currentWeather);
+        setIsStale(result.isStale);
+      } catch (e) {
+        // Ignored
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     if (fetchKey === lastFetchKey.current) return;
 
     // Rate limit - bypass when model changes (user action, must be responsive)
@@ -131,186 +166,207 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const hourlyMarineVars = supportedVars.join(',');
     const currentMarineVars = CURRENT_MARINE_VARS.split(',').filter(v => supportedVars.includes(v)).join(',');
 
-    try {
-      // Direct Open-Meteo URLs (fallback when Netlify proxy unavailable, e.g. local dev)
-      const DIRECT_URLS = {
-        wind: 'https://api.open-meteo.com/v1/forecast',
-        marine: 'https://marine-api.open-meteo.com/v1/marine',
-      };
+    const fetchPromise = (async () => {
+      try {
+        // Direct Open-Meteo URLs (fallback when Netlify proxy unavailable, e.g. local dev)
+        const DIRECT_URLS = {
+          wind: 'https://api.open-meteo.com/v1/forecast',
+          marine: 'https://marine-api.open-meteo.com/v1/marine',
+        };
 
-      const isLocalhost = typeof window !== 'undefined' && 
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
+        const isLocalhost = typeof window !== 'undefined' && 
+          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
 
-      // Helper: fetch via proxy, fall back to direct Open-Meteo if proxy returns HTML/404 (localhost only)
-      // v3.13: Do NOT fall back on 429 — that means the API itself is rate-limiting,
-      // retrying directly just burns more rate limit.
-      const safeFetch = async (url, directType, directParams) => {
-        try {
-          const res = await fetch(url, { signal: controller.signal });
-          const ct = res.headers.get('content-type') || '';
-          // 429 = API rate limit — do NOT fall back to direct
-          if (res.status === 429) {
-            console.warn(`[OpenMeteo] Rate limited (429) for ${directType}, not retrying`);
-            return res; // Return the 429 response directly, let caller handle it
-          }
-          // HTML = proxy misconfigured (CRA catch-all), fall back to direct on localhost
-          if (!res.ok || ct.includes('text/html')) {
-            if (isLocalhost) {
-              console.log(`[OpenMeteo] Proxy unavailable (${res.status}), falling back to direct API for ${directType}`);
-              return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+        // Helper: fetch via proxy, fall back to direct Open-Meteo if proxy returns HTML/404 (localhost only)
+        // v3.13: Do NOT fall back on 429 — that means the API itself is rate-limiting,
+        // retrying directly just burns more rate limit.
+        const safeFetch = async (url, directType, directParams) => {
+          try {
+            const res = await fetch(url, { signal: controller.signal });
+            const ct = res.headers.get('content-type') || '';
+            // 429 = API rate limit — do NOT fall back to direct
+            if (res.status === 429) {
+              console.warn(`[OpenMeteo] Rate limited (429) for ${directType}, not retrying`);
+              return res; // Return the 429 response directly, let caller handle it
             }
-            throw new Error(`Proxy unavailable (${res.status})`);
-          }
-          return res;
-        } catch (e) {
-          if (e.name === 'DataCloneError' || e.message?.includes('could not be cloned')) {
-            if (process.env.NODE_ENV === 'development') logger.debug?.('[OpenMeteo] SW clone retry');
-            return await fetch(url);
-          }
-          // Network error — try direct (localhost only)
-          if (e.name !== 'AbortError') {
-            if (isLocalhost) {
-              console.log(`[OpenMeteo] Proxy error (${e.message}), falling back to direct API for ${directType}`);
-              return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+            // HTML = proxy misconfigured (CRA catch-all), fall back to direct on localhost
+            if (!res.ok || ct.includes('text/html')) {
+              if (isLocalhost) {
+                console.log(`[OpenMeteo] Proxy unavailable (${res.status}), falling back to direct API for ${directType}`);
+                return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+              }
+              throw new Error(`Proxy unavailable (${res.status})`);
+            }
+            return res;
+          } catch (e) {
+            if (e.name === 'DataCloneError' || e.message?.includes('could not be cloned')) {
+              if (process.env.NODE_ENV === 'development') logger.debug?.('[OpenMeteo] SW clone retry');
+              return await fetch(url);
+            }
+            // Network error — try direct (localhost only)
+            if (e.name !== 'AbortError') {
+              if (isLocalhost) {
+                console.log(`[OpenMeteo] Proxy error (${e.message}), falling back to direct API for ${directType}`);
+                return await fetch(`${DIRECT_URLS[directType]}?${directParams}`, { signal: controller.signal });
+              }
+              throw e;
             }
             throw e;
           }
-          throw e;
-        }
-      };
+        };
 
-      const wxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=${modelParam}&forecast_days=${forecastDays}&wind_speed_unit=kn`;
-      const marineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=${marineModel}&forecast_days=${Math.min(forecastDays, 16)}`;
+        const wxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=${modelParam}&forecast_days=${forecastDays}&wind_speed_unit=kn`;
+        const marineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=${marineModel}&forecast_days=${Math.min(forecastDays, 16)}`;
 
-      // Disable redundant base GFS weather and marine requests to eradicate rate limit storms
-      // and prevent displaying fallback GFS data as the active model's truth when rate-limited.
-      const needBaseGfs = false;
-      const needBaseGfsMarine = false;
-      const gfsWxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=gfs_seamless&forecast_days=16&wind_speed_unit=kn`;
-      const gfsMarineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=ncep_gfswave025&forecast_days=16`;
+        // Disable redundant base GFS weather and marine requests to eradicate rate limit storms
+        // and prevent displaying fallback GFS data as the active model's truth when rate-limited.
+        const needBaseGfs = false;
+        const needBaseGfsMarine = false;
+        const gfsWxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=gfs_seamless&forecast_days=16&wind_speed_unit=kn`;
+        const gfsMarineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=ncep_gfswave025&forecast_days=16`;
 
-      const fetchQueue = [];
+        const fetchQueue = [];
 
-      // 1. Weather Selected
-      fetchQueue.push(
-        safeFetch(`/api/weather-proxy?type=wind&${wxParams}`, 'wind', wxParams)
-          .then(r => ({ type: 'wx_sel', ok: r.ok, value: r }))
-          .catch(e => ({ type: 'wx_sel', ok: false, reason: e }))
-      );
-
-      // 2. Marine Selected
-      fetchQueue.push(
-        safeFetch(`/api/weather-proxy?type=marine&${marineParams}`, 'marine', marineParams)
-          .then(r => ({ type: 'marine_sel', ok: r.ok, value: r }))
-          .catch(e => ({ type: 'marine_sel', ok: false, reason: e }))
-      );
-
-      if (needBaseGfs) {
-        // 3. Weather Base GFS (16 days)
+        // 1. Weather Selected
         fetchQueue.push(
-          safeFetch(`/api/weather-proxy?type=wind&${gfsWxParams}`, 'wind', gfsWxParams)
-            .then(r => ({ type: 'wx_base', ok: r.ok, value: r }))
-            .catch(e => ({ type: 'wx_base', ok: false, reason: e }))
+          safeFetch(`/api/weather-proxy?type=wind&${wxParams}`, 'wind', wxParams)
+            .then(r => ({ type: 'wx_sel', ok: r.ok, value: r }))
+            .catch(e => ({ type: 'wx_sel', ok: false, reason: e }))
         );
-      }
 
-      if (needBaseGfsMarine) {
-        // 4. Marine Base GFS (16 days)
+        // 2. Marine Selected
         fetchQueue.push(
-          safeFetch(`/api/weather-proxy?type=marine&${gfsMarineParams}`, 'marine', gfsMarineParams)
-            .then(r => ({ type: 'marine_base', ok: r.ok, value: r }))
-            .catch(e => ({ type: 'marine_base', ok: false, reason: e }))
+          safeFetch(`/api/weather-proxy?type=marine&${marineParams}`, 'marine', marineParams)
+            .then(r => ({ type: 'marine_sel', ok: r.ok, value: r }))
+            .catch(e => ({ type: 'marine_sel', ok: false, reason: e }))
         );
-      }
 
-      const results = await Promise.all(fetchQueue);
-      const rx = {};
-      results.forEach(res => {
-        rx[res.type] = res;
-      });
-
-      // Weather Stitching:
-      let finalForecastData = null;
-      if (rx.wx_sel.ok) {
-        finalForecastData = await rx.wx_sel.value.json();
-        
-        if (needBaseGfs && rx.wx_base?.ok) {
-          const baseData = await rx.wx_base.value.json();
-          if (finalForecastData.hourly && baseData.hourly) {
-            const selHourly = finalForecastData.hourly;
-            const baseHourly = baseData.hourly;
-            const selLen = selHourly.time?.length || 0;
-            const baseLen = baseHourly.time?.length || 0;
-            
-            Object.keys(baseHourly).forEach(key => {
-              if (Array.isArray(baseHourly[key])) {
-                const isAllNull = Array.isArray(selHourly[key]) && selHourly[key].every(v => v === null || v === undefined);
-                if (!selHourly[key] || selHourly[key].length === 0 || isAllNull) {
-                  // Fall back and copy the entire base GFS array if the regional model lacks this variable entirely or returns only nulls
-                  selHourly[key] = [...baseHourly[key]];
-                } else {
-                  const stitchedArray = [...selHourly[key]];
-                  for (let i = selLen; i < baseLen; i++) {
-                    stitchedArray.push(baseHourly[key][i]);
-                  }
-                  selHourly[key] = stitchedArray;
-                }
-              }
-            });
-          }
+        if (needBaseGfs) {
+          // 3. Weather Base GFS (16 days)
+          fetchQueue.push(
+            safeFetch(`/api/weather-proxy?type=wind&${gfsWxParams}`, 'wind', gfsWxParams)
+              .then(r => ({ type: 'wx_base', ok: r.ok, value: r }))
+              .catch(e => ({ type: 'wx_base', ok: false, reason: e }))
+          );
         }
-      } else if (needBaseGfs && rx.wx_base?.ok) {
-        // Fallback to base GFS weather data if the selected model failed (e.g. rate limit, 502/503/504)
-        finalForecastData = await rx.wx_base.value.json();
-        console.log(`[FETCH] [Forecast] Selected weather model failed, falling back to base GFS weather data`);
-      }
 
-      // Marine Stitching:
-      let finalMarineData = null;
-      if (rx.marine_sel.ok) {
-        finalMarineData = await rx.marine_sel.value.json();
-        
-        if (needBaseGfs && rx.marine_base?.ok) {
-          const baseData = await rx.marine_base.value.json();
-          if (finalMarineData.hourly && baseData.hourly) {
-            const selHourly = finalMarineData.hourly;
-            const baseHourly = baseData.hourly;
-            const selLen = selHourly.time?.length || 0;
-            const baseLen = baseHourly.time?.length || 0;
-            
-            Object.keys(baseHourly).forEach(key => {
-              if (Array.isArray(baseHourly[key])) {
-                const isAllNull = Array.isArray(selHourly[key]) && selHourly[key].every(v => v === null || v === undefined);
-                if (!selHourly[key] || selHourly[key].length === 0 || isAllNull) {
-                  // Fall back and copy the entire base GFS Wave array if the regional model lacks this variable entirely or returns only nulls
-                  selHourly[key] = [...baseHourly[key]];
-                } else {
-                  const stitchedArray = [...selHourly[key]];
-                  for (let i = selLen; i < baseLen; i++) {
-                    stitchedArray.push(baseHourly[key][i]);
-                  }
-                  selHourly[key] = stitchedArray;
-                }
-              }
-            });
-          }
+        if (needBaseGfsMarine) {
+          // 4. Marine Base GFS (16 days)
+          fetchQueue.push(
+            safeFetch(`/api/weather-proxy?type=marine&${gfsMarineParams}`, 'marine', gfsMarineParams)
+              .then(r => ({ type: 'marine_base', ok: r.ok, value: r }))
+              .catch(e => ({ type: 'marine_base', ok: false, reason: e }))
+          );
         }
-      } else if (needBaseGfs && rx.marine_base?.ok) {
-        // Fallback to base GFS marine data if selected model failed (e.g. due to land mask boundary differences)
-        finalMarineData = await rx.marine_base.value.json();
-        console.log(`[FETCH] [Forecast] Selected marine model failed, falling back to base GFS Wave data`);
-      }
 
-      // Weather Application:
-      if (finalForecastData) {
-        setForecastData(finalForecastData);
-        if (finalForecastData.current) setCurrentWeather(finalForecastData.current);
+        const results = await Promise.all(fetchQueue);
+        const rx = {};
+        results.forEach(res => {
+          rx[res.type] = res;
+        });
+
+        // Weather Stitching:
+        let finalForecastData = null;
+        let finalCurrentWeather = null;
+        if (rx.wx_sel.ok) {
+          finalForecastData = await rx.wx_sel.value.json();
+          if (finalForecastData?.current) {
+            finalCurrentWeather = finalForecastData.current;
+          }
+          
+          if (needBaseGfs && rx.wx_base?.ok) {
+            const baseData = await rx.wx_base.value.json();
+            if (finalForecastData.hourly && baseData.hourly) {
+              const selHourly = finalForecastData.hourly;
+              const baseHourly = baseData.hourly;
+              const selLen = selHourly.time?.length || 0;
+              const baseLen = baseHourly.time?.length || 0;
+              
+              Object.keys(baseHourly).forEach(key => {
+                if (Array.isArray(baseHourly[key])) {
+                  const isAllNull = Array.isArray(selHourly[key]) && selHourly[key].every(v => v === null || v === undefined);
+                  if (!selHourly[key] || selHourly[key].length === 0 || isAllNull) {
+                    selHourly[key] = [...baseHourly[key]];
+                  } else {
+                    const stitchedArray = [...selHourly[key]];
+                    for (let i = selLen; i < baseLen; i++) {
+                      stitchedArray.push(baseHourly[key][i]);
+                    }
+                    selHourly[key] = stitchedArray;
+                  }
+                }
+              });
+            }
+          }
+        } else if (needBaseGfs && rx.wx_base?.ok) {
+          finalForecastData = await rx.wx_base.value.json();
+          if (finalForecastData?.current) {
+            finalCurrentWeather = finalForecastData.current;
+          }
+          console.log(`[FETCH] [Forecast] Selected weather model failed, falling back to base GFS weather data`);
+        }
+
+        // Marine Stitching:
+        let finalMarineData = null;
+        if (rx.marine_sel.ok) {
+          finalMarineData = await rx.marine_sel.value.json();
+          
+          if (needBaseGfs && rx.marine_base?.ok) {
+            const baseData = await rx.marine_base.value.json();
+            if (finalMarineData.hourly && baseData.hourly) {
+              const selHourly = finalMarineData.hourly;
+              const baseHourly = baseData.hourly;
+              const selLen = selHourly.time?.length || 0;
+              const baseLen = baseHourly.time?.length || 0;
+              
+              Object.keys(baseHourly).forEach(key => {
+                if (Array.isArray(baseHourly[key])) {
+                  const isAllNull = Array.isArray(selHourly[key]) && selHourly[key].every(v => v === null || v === undefined);
+                  if (!selHourly[key] || selHourly[key].length === 0 || isAllNull) {
+                    selHourly[key] = [...baseHourly[key]];
+                  } else {
+                    const stitchedArray = [...selHourly[key]];
+                    for (let i = selLen; i < baseLen; i++) {
+                      stitchedArray.push(baseHourly[key][i]);
+                    }
+                    selHourly[key] = stitchedArray;
+                  }
+                }
+              });
+            }
+          }
+        } else if (needBaseGfs && rx.marine_base?.ok) {
+          finalMarineData = await rx.marine_base.value.json();
+          console.log(`[FETCH] [Forecast] Selected marine model failed, falling back to base GFS Wave data`);
+        }
+
+        return {
+          forecastData: finalForecastData,
+          marineData: finalMarineData,
+          currentWeather: finalCurrentWeather,
+          isStale: !finalForecastData || !finalMarineData
+        };
+
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          logger.error('[OpenMeteo] Fetch error:', err);
+        }
+        throw err;
+      }
+    })();
+
+    inFlightRequests.set(fetchKey, fetchPromise);
+
+    try {
+      const result = await fetchPromise;
+      
+      if (result.forecastData) {
+        setForecastData(result.forecastData);
+        if (result.currentWeather) setCurrentWeather(result.currentWeather);
         setIsStale(false);
-        console.log(`[FETCH] [Forecast] OK ${activeModel} (Stitched): ${finalForecastData.hourly?.wind_speed_10m?.length || 0}h records`);
+        console.log(`[FETCH] [Forecast] OK ${activeModel} (Stitched): ${result.forecastData.hourly?.wind_speed_10m?.length || 0}h records`);
       } else {
-        lastFetchKey.current = ''; // Reset lock on error
-        const status = rx.wx_sel.value?.status || rx.wx_sel.reason;
-        logger.warn(`[OpenMeteo] Weather fetch failed (${status}).`);
+        lastFetchKey.current = '';
         setIsStale(true);
         if (isCoordinateMoved || isExplicit) {
           setForecastData(null);
@@ -318,23 +374,33 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       }
 
-      // Marine Application:
-      if (finalMarineData) {
-        setMarineData(finalMarineData);
+      if (result.marineData) {
+        setMarineData(result.marineData);
       } else {
-        lastFetchKey.current = ''; // Reset lock on error
-        const status = rx.marine_sel.value?.status || rx.marine_sel.reason;
-        const is400 = rx.marine_sel.value?.status === 400;
-        logger.warn(`[OpenMeteo] Marine fetch failed (${status}).`);
+        lastFetchKey.current = '';
         setIsStale(true);
-        if (isCoordinateMoved || isExplicit || is400) {
+        if (isCoordinateMoved || isExplicit) {
           setMarineData(null);
         }
       }
+
+      if (result.forecastData || result.marineData) {
+        forecastCache.set(fetchKey, {
+          forecastData: result.forecastData,
+          marineData: result.marineData,
+          currentWeather: result.currentWeather,
+          timestamp: Date.now()
+        });
+        
+        if (forecastCache.size > 30) {
+          const oldestKey = [...forecastCache.keys()][0];
+          forecastCache.delete(oldestKey);
+        }
+      }
+
     } catch (err) {
-      lastFetchKey.current = ''; // Reset lock on abort/error
+      lastFetchKey.current = '';
       if (err.name !== 'AbortError') {
-        logger.error('[OpenMeteo] Fetch error:', err);
         setIsStale(true);
         if (isCoordinateMoved || isExplicit) {
           setForecastData(null);
@@ -343,6 +409,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       }
     } finally {
+      inFlightRequests.delete(fetchKey);
       setIsLoading(false);
     }
   }, [latitude, longitude, activeModel, enabled, isExplicit]);

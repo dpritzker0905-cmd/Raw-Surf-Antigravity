@@ -325,6 +325,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var time = (Date.now() - this._startTime) / 1000.0;
   const waveBounds = this._waveData.bounds;
   const z = typeof zoom === 'number' ? zoom : 6;
+  const smoothstepVal = (edge0, edge1, x) => {
+    const t = Math.max(0.0, Math.min(1.0, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3.0 - 2.0 * t);
+  };
+  const motionScale = 0.75 + 0.25 * smoothstepVal(4.0, 7.0, z);
+  this.motionScale = motionScale;
 
   // ==========================================
   // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
@@ -419,6 +425,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
 
   // v5.3: viewport and DPR uniforms for pixel-space quad expansion
   var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
@@ -453,7 +460,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // ==========================================
   // PHASE 3: PARTICLE ADVECTION SYSTEM (Simulate next state)
   // ==========================================
-  const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5;
+  const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5 * motionScale;
 
   gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
   gl.useProgram(this.advectProgram);

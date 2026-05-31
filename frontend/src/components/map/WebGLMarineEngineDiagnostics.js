@@ -45,6 +45,9 @@ export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
     zoom: z,
     waveTextureBounds: waveBounds,
     frameCount: engine._diagLogCount,
+    motionScale: engine.motionScale || 1.0,
+    effectivePhaseSpeed: ((engine.motionScale || 1.0) * 1.0).toFixed(2) + 'x',
+    period: 'dynamic',
     densityCurve_v58: {
       zoom: z,
       survivalPercent: densityAtZoom(z).toFixed(1) + '%',

@@ -144,6 +144,7 @@ uniform float u_debug_mode;        // debug mode selector
 uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
 uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
 uniform float u_edgeFeatherEnabled;
+uniform float u_motion_scale;
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -324,7 +325,7 @@ void main() {
 
   // v5.8: COHERENT temporal phase — no per-particle hash jitter on speed.
   // All ribbons in the same wave train advance at the same rate.
-  float temporalSpeed = u_time / max(2.0, periodVal);
+  float temporalSpeed = (u_time * u_motion_scale) / max(2.0, periodVal);
   float trainPhase = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
   v_phase = trainPhase;
 

@@ -125,9 +125,9 @@ export function compileForecastCards({
       displayPeriod = 'Unavailable';
       displayDir = 'Unavailable';
     } else if (isNoCoverage) {
-      displayHeight = 'No Coverage';
-      displayPeriod = 'No Coverage';
-      displayDir = 'No Coverage';
+      displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+      displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+      displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
     } else {
       const hFt = mToFt(waveHeight);
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
@@ -189,9 +189,9 @@ export function compileForecastCards({
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
       } else if (isNoCoverage) {
-        displayHeight = 'No Coverage';
-        displayPeriod = 'No Coverage';
-        displayDir = 'No Coverage';
+        displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+        displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+        displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
         const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
         const hFt = mToFt(swell1Height);
@@ -268,9 +268,9 @@ export function compileForecastCards({
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
       } else if (isNoCoverage) {
-        displayHeight = 'No Coverage';
-        displayPeriod = 'No Coverage';
-        displayDir = 'No Coverage';
+        displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+        displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+        displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
         const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
         const hFt = mToFt(swell2Height);
@@ -341,9 +341,9 @@ export function compileForecastCards({
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
       } else if (isNoCoverage) {
-        displayHeight = 'No Coverage';
-        displayPeriod = 'No Coverage';
-        displayDir = 'No Coverage';
+        displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+        displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
+        displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
         const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
         const hFt = mToFt(windWaveHeight);
