@@ -129,15 +129,16 @@ export function compileForecastCards({
       displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
     } else {
+      const isEst = exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate';
       const hFt = mToFt(waveHeight);
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-      displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
-      if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s`;
+      displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
+      if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
       if (useExactPoint?.wave_peak_period != null && useExactPoint.wave_peak_period > 0) {
         displayPeak = `${useExactPoint.wave_peak_period.toFixed(1)}s`;
       }
       if (waveDir != null) {
-        displayDir = `${Math.round(waveDir)}`;
+        displayDir = `${Math.round(waveDir)}${isEst ? '° (est.)' : ''}`;
         displayCompass = degToCompass(waveDir);
       }
     }
@@ -193,17 +194,18 @@ export function compileForecastCards({
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
+        const isEst = exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate';
         const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
         const hFt = mToFt(swell1Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
         if (!swell1LowEnergy) {
-          if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s`;
+          if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
           if (useExactPoint?.swell_wave_peak_period != null && useExactPoint.swell_wave_peak_period > 0) {
             displayPeak = `${useExactPoint.swell_wave_peak_period.toFixed(1)}s`;
           }
           if (swell1Dir != null) {
-            displayDir = `${Math.round(swell1Dir)}`;
+            displayDir = `${Math.round(swell1Dir)}${isEst ? '° (est.)' : ''}`;
             displayCompass = degToCompass(swell1Dir);
           }
         } else {
@@ -272,14 +274,15 @@ export function compileForecastCards({
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
+        const isEst = exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate';
         const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
         const hFt = mToFt(swell2Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
         if (!swell2LowEnergy) {
-          if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s`;
+          if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
           if (swell2Dir != null) {
-            displayDir = `${Math.round(swell2Dir)}`;
+            displayDir = `${Math.round(swell2Dir)}${isEst ? '° (est.)' : ''}`;
             displayCompass = degToCompass(swell2Dir);
           }
         } else {
@@ -345,14 +348,15 @@ export function compileForecastCards({
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
+        const isEst = exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate';
         const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
         const hFt = mToFt(windWaveHeight);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
         if (!windWaveLowEnergy) {
-          if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s`;
+          if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
           if (windWaveDir != null) {
-            displayDir = `${Math.round(windWaveDir)}`;
+            displayDir = `${Math.round(windWaveDir)}${isEst ? '° (est.)' : ''}`;
             displayCompass = degToCompass(windWaveDir);
           }
         } else {
@@ -384,6 +388,23 @@ export function compileForecastCards({
         }
       }
     }
+  }
+
+  if (exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate') {
+    const confidenceVal = useExactPoint?.confidence || 0;
+    const modelLabel = exactPointStatus === 'euro_extended_estimate' ? 'EURO' : 'ICON';
+    cards.push({
+      icon: Waves,
+      label: 'Source',
+      value: `${modelLabel} Extended Est.`,
+      color: 'text-amber-400'
+    });
+    cards.push({
+      icon: Gauge,
+      label: 'Confidence',
+      value: `${Math.round(confidenceVal * 100)}% (lower)`,
+      color: 'text-amber-500'
+    });
   }
 
   return cards;

@@ -18,19 +18,9 @@
 
 import { MARINE_MODEL_CAPABILITIES } from './marineControllerUtils';
 import { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted } from './forecastHelpers';
+import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 
-// v6.1: EURO marine now comes from Copernicus, NOT Open-Meteo decoded tiles.
-// Block ALL marine variables from decoded tile sampling for EURO to prevent
-// stale Open-Meteo tile data from leaking into the Copernicus-sourced infobox.
-var EURO_UNSUPPORTED_MARINE_VARS = new Set([
-  'wave_height', 'wave_direction', 'wave_period',
-  'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
-  'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
-  'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
-]);
-var ICON_UNSUPPORTED_MARINE_VARS = new Set([
-  'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'
-]);
+// Sets moved to forecastHelpers.js to respect 800 LOC limit.
 
 // ========================================================================
 // 1. MARINE GRID SAMPLER — bilinear interpolation on the live heatmap grid
@@ -73,9 +63,9 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
     if (grid.__provider !== 'open-meteo') return null;
   } else if (activeModel === 'EURO') {
     if (activeLayer === 'waves') {
-      if (grid.__provider !== 'open-meteo') return null;
+      if (grid.__provider !== 'open-meteo' && grid.__provider !== 'estimated') return null;
     } else if (['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
-      const isValidCopernicus = grid.__gridProvider === 'copernicus' &&
+      const isValidCopernicus = (grid.__gridProvider === 'copernicus' || grid.__gridProvider === 'estimated') &&
                                 grid.__componentLayer === activeLayer;
       if (!isValidCopernicus) return null;
     } else {
@@ -122,7 +112,7 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
 
   // Helper to extract component data from a grid vector
   const getComp = (vec) => {
-    if (grid.__gridProvider === 'copernicus') {
+    if (grid.__gridProvider === 'copernicus' || grid.__gridProvider === 'estimated') {
       return vec;
     }
     return vec?.[componentKey] || null;
@@ -206,6 +196,15 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   const startTime = Date.now();
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
+  
+  if (model === 'EURO' && !signal?.aborted) {
+    // Proactively pre-warm GFS and ICON exact point data in background for Extended Estimate
+    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal).catch(() => {});
+    fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal).catch(() => {});
+  } else if (model === 'ICON' && !signal?.aborted) {
+    // Proactively pre-warm GFS exact point data in background for ICON Extended Estimate
+    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal).catch(() => {});
+  }
   
   // v6.7: Route EURO waves exact-point through Open-Meteo ecmwf_wam025 since
   // combined waves maps perfectly and resolves in <200ms, bypassing Copernicus.
@@ -358,6 +357,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           requestedLat: rLat,
           requestedLng: rLng,
           requestedModel: model || 'GFS',
+          activeLayer,
           forecastDays,
           apiModel,
           provider: detectedProvider,
@@ -464,8 +464,133 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
  */
 export function selectExactPointHour(cachedResponse, hourOffset) {
   if (!cachedResponse?.hourly?.time) return null;
+
   const times = cachedResponse.hourly.time;
   const h = cachedResponse.hourly;
+
+  const isEuro = cachedResponse.requestedModel === 'EURO';
+  const hasCombinedWaves = cachedResponse.hourly.wave_height !== undefined;
+  const nativeLimit = hasCombinedWaves ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS;
+
+  if (isEuro && hourOffset > nativeLimit) {
+    const activeLayer = cachedResponse.activeLayer || (hasCombinedWaves ? 'waves' : 'swell_1');
+    const rLat = +cachedResponse.requestedLat.toFixed(2);
+    const rLng = +cachedResponse.requestedLng.toFixed(2);
+    const gfsKey = `${rLat}_${rLng}_GFS_${activeLayer}_open-meteo`;
+    const iconKey = `${rLat}_${rLng}_ICON_${activeLayer}_open-meteo`;
+
+    const gfsData = _exactPointCache.get(gfsKey)?.data;
+    const iconData = _exactPointCache.get(iconKey)?.data;
+
+    const anchorIdxEuro = findHourIndex(cachedResponse.hourly.time, nativeLimit);
+    const anchorIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, nativeLimit) : 0;
+    const targetIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, hourOffset) : 0;
+
+    const anchorIdxIcon = iconData ? findHourIndex(iconData.hourly.time, nativeLimit) : 0;
+    const targetIdxIcon = iconData ? findHourIndex(iconData.hourly.time, hourOffset) : 0;
+
+    const euroAnchor = {};
+    const gfsAnchor = {};
+    const gfsTarget = {};
+    const iconAnchor = {};
+    const iconTarget = {};
+
+    const vars = [
+      'wave_height', 'wave_direction', 'wave_period',
+      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+    ];
+
+    vars.forEach(v => {
+      euroAnchor[v] = cachedResponse.hourly[v]?.[anchorIdxEuro];
+      if (gfsData) {
+        gfsAnchor[v] = gfsData.hourly[v]?.[anchorIdxGfs];
+        gfsTarget[v] = gfsData.hourly[v]?.[targetIdxGfs];
+      }
+      if (iconData) {
+        iconAnchor[v] = iconData.hourly[v]?.[anchorIdxIcon];
+        iconTarget[v] = iconData.hourly[v]?.[targetIdxIcon];
+      }
+    });
+
+    const est = estimateEuroPoint(hourOffset, nativeLimit, activeLayer, euroAnchor, gfsTarget, gfsAnchor, iconTarget, iconAnchor);
+    if (est) {
+      const targetTimeStr = new Date(Date.now() + hourOffset * 3600000).toISOString();
+      return {
+        ...est,
+        status: 'euro_extended_estimate',
+        source: 'euro_extended_estimate',
+        hourIndex: targetIdxGfs,
+        time: targetTimeStr,
+        snappedLat: cachedResponse.snappedLat,
+        snappedLng: cachedResponse.snappedLng,
+        requestedLat: cachedResponse.requestedLat,
+        requestedLng: cachedResponse.requestedLng,
+        requestedModel: cachedResponse.requestedModel,
+        provider: 'estimated',
+        forecastDays: cachedResponse.forecastDays,
+        timeRangeStart: cachedResponse.hourly.time[0],
+        timeRangeEnd: targetTimeStr,
+        matchDiffMs: 0
+      };
+    }
+  }
+
+  const isIcon = cachedResponse.requestedModel === 'ICON';
+  if (isIcon && hourOffset > ICON_LIMIT) {
+    const activeLayer = cachedResponse.activeLayer || 'waves';
+    const rLat = +cachedResponse.requestedLat.toFixed(2);
+    const rLng = +cachedResponse.requestedLng.toFixed(2);
+    const gfsKey = `${rLat}_${rLng}_GFS_${activeLayer}_open-meteo`;
+
+    const gfsData = _exactPointCache.get(gfsKey)?.data;
+
+    const anchorIdxIcon = findHourIndex(cachedResponse.hourly.time, ICON_LIMIT);
+    const anchorIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, ICON_LIMIT) : 0;
+    const targetIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, hourOffset) : 0;
+
+    const iconAnchor = {};
+    const gfsAnchor = {};
+    const gfsTarget = {};
+
+    const vars = [
+      'wave_height', 'wave_direction', 'wave_period',
+      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+    ];
+
+    vars.forEach(v => {
+      iconAnchor[v] = cachedResponse.hourly[v]?.[anchorIdxIcon];
+      if (gfsData) {
+        gfsAnchor[v] = gfsData.hourly[v]?.[anchorIdxGfs];
+        gfsTarget[v] = gfsData.hourly[v]?.[targetIdxGfs];
+      }
+    });
+
+    const est = estimateIconPoint(hourOffset, ICON_LIMIT, activeLayer, iconAnchor, gfsTarget, gfsAnchor);
+    if (est) {
+      const targetTimeStr = new Date(Date.now() + hourOffset * 3600000).toISOString();
+      return {
+        ...est,
+        status: 'icon_extended_estimate',
+        source: 'icon_extended_estimate',
+        hourIndex: targetIdxGfs,
+        time: targetTimeStr,
+        snappedLat: cachedResponse.snappedLat,
+        snappedLng: cachedResponse.snappedLng,
+        requestedLat: cachedResponse.requestedLat,
+        requestedLng: cachedResponse.requestedLng,
+        requestedModel: cachedResponse.requestedModel,
+        provider: 'estimated',
+        forecastDays: cachedResponse.forecastDays,
+        timeRangeStart: cachedResponse.hourly.time[0],
+        timeRangeEnd: targetTimeStr,
+        matchDiffMs: 0
+      };
+    }
+  }
+
   const bestIdx = findHourIndex(times, hourOffset);
   const targetTime = new Date();
   targetTime.setHours(targetTime.getHours() + (hourOffset || 0));
@@ -514,217 +639,8 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   };
 }
 
-// ========================================================================
-// 3. DECODED TILE SAMPLER — bilinear interpolation on OM raster tiles
-// ========================================================================
-
-/**
- * Sample a single weather/marine variable from decoded Open-Meteo tiles.
- * Uses bilinear interpolation with circular averaging for directions
- * and nearshore coastal wave decay for wave heights.
- *
- * @param {number|null} lat
- * @param {number|null} lng
- * @param {string} targetVariable - e.g. 'wave_height', 'swell_wave_direction'
- * @param {number} timeOffsetHours
- * @param {string} activeModel - 'GFS' | 'EURO' | 'ICON'
- * @returns {{ value: number, direction: number|null } | null}
- */
-export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffsetHours = 0, activeModel = 'GFS') {
-  if (typeof window === 'undefined' || !window.__DECODED_OM_TILES__ || lat == null || lng == null) {
-    return null;
-  }
-
-  // v5.9.3: Model capability gate — refuse to sample tiles for unsupported variables.
-  // Prevents stale GFS tiles from being returned as EURO/ICON data.
-  if (activeModel === 'EURO' && EURO_UNSUPPORTED_MARINE_VARS.has(targetVariable)) return null;
-  if (activeModel === 'ICON' && ICON_UNSUPPORTED_MARINE_VARS.has(targetVariable)) return null;
-
-  // Resolve the correct model for the variable to lookup its validTimes for accurate index matching
-  const isMarine = targetVariable.includes('wave') || targetVariable.includes('swell');
-  const model = isMarine 
-    ? (activeModel === 'EURO' ? 'ecmwf_wam025' : (activeModel === 'ICON' ? 'dwd_gwam' : 'ncep_gfswave025'))
-    : (activeModel === 'EURO' ? 'ecmwf_ifs025' : (activeModel === 'ICON' ? 'dwd_icon' : 'ncep_gfs013'));
-
-  const meta = window.__MODEL_METADATA_CACHE__?.[model];
-  let targetIdx = 0;
-
-  if (meta && Array.isArray(meta.validTimes) && meta.validTimes.length > 0) {
-    const targetMs = Date.now() + timeOffsetHours * 3600000;
-    let minDiff = Infinity;
-    for (let i = 0; i < meta.validTimes.length; i++) {
-      const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
-      if (diff < minDiff) {
-        minDiff = diff;
-        targetIdx = i;
-      }
-    }
-  } else {
-    // Fallback: standard GFS/OM intervals (3-hourly for marine, 1-hourly for atmospheric)
-    const hoursPerStep = isMarine ? 3 : 1;
-    targetIdx = Math.round(timeOffsetHours / hoursPerStep);
-  }
-  
-  const matchingTiles = [];
-  for (const tile of window.__DECODED_OM_TILES__.values()) {
-    if (tile.variable === targetVariable && tile.timeIndex === targetIdx && tile.model === model) {
-      matchingTiles.push(tile);
-    }
-  }
-  
-  if (matchingTiles.length === 0) return null;
-  
-  let bestTile = null;
-  for (const tile of matchingTiles) {
-    if (!tile.bounds || tile.bounds.length !== 4) continue;
-    const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-    if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
-      bestTile = tile;
-      break;
-    }
-  }
-  
-  // v6.1: REMOVED dangerous fallback that used matchingTiles[0] when no tile
-  // contained the selected lat/lng. This caused sampling from geographically
-  // wrong tiles, producing fake values (e.g., 6.5ft/13s at Cape Canaveral).
-  if (!bestTile) {
-    return null; // no_containing_tile — refuse to sample from non-containing tile
-  }
-  
-  if (!bestTile || !bestTile.values || !bestTile.values.length) return null;
-  
-  const [tWest, tSouth, tEast, tNorth] = bestTile.bounds;
-  const tLngSpan = tEast - tWest;
-  const tLatSpan = tNorth - tSouth;
-  
-  const tileCols = bestTile.nx || Math.sqrt(bestTile.values.length);
-  const tileRows = bestTile.ny || Math.sqrt(bestTile.values.length);
-  if (!tileCols || isNaN(tileCols)) return null;
-  
-  const tx = Math.max(0, Math.min(tileCols - 1, ((lng - tWest) / tLngSpan) * (tileCols - 1)));
-  const ty = Math.max(0, Math.min(tileRows - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileRows - 1)));
-  
-  const x0 = Math.floor(tx);
-  const x1 = Math.min(tileCols - 1, x0 + 1);
-  const y0 = Math.floor(ty);
-  const y1 = Math.min(tileRows - 1, y0 + 1);
-  
-  const dx = tx - x0;
-  const dy = ty - y0;
-  
-  const idx00 = y0 * tileCols + x0;
-  const idx10 = y0 * tileCols + x1;
-  const idx01 = y1 * tileCols + x0;
-  const idx11 = y1 * tileCols + x1;
-  
-  const raw00 = bestTile.values[idx00];
-  const raw10 = bestTile.values[idx10];
-  const raw01 = bestTile.values[idx01];
-  const raw11 = bestTile.values[idx11];
-  
-  const isPeriod = targetVariable.includes('period');
-  
-  let value;
-  if (isPeriod) {
-    let weightSum = 0;
-    let weightedVal = 0;
-    
-    if (raw00 != null && !isNaN(raw00) && raw00 > 0) {
-      const w = (1 - dx) * (1 - dy);
-      weightedVal += raw00 * w;
-      weightSum += w;
-    }
-    if (raw10 != null && !isNaN(raw10) && raw10 > 0) {
-      const w = dx * (1 - dy);
-      weightedVal += raw10 * w;
-      weightSum += w;
-    }
-    if (raw01 != null && !isNaN(raw01) && raw01 > 0) {
-      const w = (1 - dx) * dy;
-      weightedVal += raw01 * w;
-      weightSum += w;
-    }
-    if (raw11 != null && !isNaN(raw11) && raw11 > 0) {
-      const w = dx * dy;
-      weightedVal += raw11 * w;
-      weightSum += w;
-    }
-    
-    if (weightSum > 0) {
-      value = weightedVal / weightSum;
-    } else {
-      value = 0;
-    }
-  } else {
-    const v00 = (typeof raw00 === 'number' && !isNaN(raw00)) ? raw00 : 0;
-    const v10 = (typeof raw10 === 'number' && !isNaN(raw10)) ? raw10 : 0;
-    const v01 = (typeof raw01 === 'number' && !isNaN(raw01)) ? raw01 : 0;
-    const v11 = (typeof raw11 === 'number' && !isNaN(raw11)) ? raw11 : 0;
-    
-    value = v00 * (1 - dx) * (1 - dy) +
-            v10 * dx * (1 - dy) +
-            v01 * (1 - dx) * dy +
-            v11 * dx * dy;
-  }
-
-  // Apply Nearshore Coastal Wave Decay:
-  // Detect land proximity by counting how many neighbors are null, NaN, or 0.
-  // Physical nearshore wave transformation (shoaling & bathymetric friction) decays deep-water waves.
-  const isWaveHeightVar = targetVariable.includes('height') && (targetVariable.includes('wave') || targetVariable.includes('swell'));
-  if (isWaveHeightVar && value > 0) {
-    let landCount = 0;
-    if (raw00 == null || isNaN(raw00) || raw00 === 0) landCount++;
-    if (raw10 == null || isNaN(raw10) || raw10 === 0) landCount++;
-    if (raw01 == null || isNaN(raw01) || raw01 === 0) landCount++;
-    if (raw11 == null || isNaN(raw11) || raw11 === 0) landCount++;
-    
-    if (landCount > 0) {
-      // 1 land neighbor  -> 0.65x decay (outer transition shelf)
-      // 2 land neighbors -> 0.45x decay (outer breaker line)
-      // 3+ land neighbors -> 0.35x decay (beach shoreline, e.g., Cape Canaveral)
-      const decayFactor = landCount === 1 ? 0.65 : (landCount === 2 ? 0.45 : 0.35);
-      value = value * decayFactor;
-      
-      if (typeof window !== 'undefined' && window.__OM_SAMPLER_DEBUG__) {
-        console.log(`[Nearshore-Decay] Coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)}) variable: ${targetVariable} is nearshore. Land neighbors: ${landCount}/4, Decay: ${decayFactor.toFixed(2)}x -> Value: ${value.toFixed(2)}`);
-      }
-    }
-  }
-                
-  let direction = null;
-  if (bestTile.directions) {
-    const d00 = bestTile.directions[idx00] || 0;
-    const d10 = bestTile.directions[idx10] || 0;
-    const d01 = bestTile.directions[idx01] || 0;
-    const d11 = bestTile.directions[idx11] || 0;
-    
-    const r00 = d00 * Math.PI / 180;
-    const r10 = d10 * Math.PI / 180;
-    const r01 = d01 * Math.PI / 180;
-    const r11 = d11 * Math.PI / 180;
-    
-    const sinAvg = Math.sin(r00) * (1 - dx) * (1 - dy) +
-                   Math.sin(r10) * dx * (1 - dy) +
-                   Math.sin(r01) * (1 - dx) * dy +
-                   Math.sin(r11) * dx * dy;
-                   
-    const cosAvg = Math.cos(r00) * (1 - dx) * (1 - dy) +
-                   Math.cos(r10) * dx * (1 - dy) +
-                   Math.cos(r01) * (1 - dx) * dy +
-                   Math.cos(r11) * dx * dy;
-                   
-    direction = (Math.atan2(sinAvg, cosAvg) * 180 / Math.PI + 360) % 360;
-  }
-  
-  if (value !== null && value !== undefined && typeof window !== 'undefined' && window.__OM_SAMPLER_DEBUG__) {
-    console.log(`[OM-Sampler] Coordinate (${lat.toFixed(4)}, ${lng.toFixed(4)}) variable: ${targetVariable} -> Sampled Value: ${value.toFixed(2)}, Dir: ${direction}`);
-  }
-
-  return { value, direction };
-}
-
 export { writeOverlayDiagnostics } from './forecastDiagnostics';
 
 // Re-export helper functions from modularized forecastHelpers.js to respect LOC limits
-export { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted } from './forecastHelpers';
+export { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted, sampleValueFromDecodedTiles } from './forecastHelpers';
 

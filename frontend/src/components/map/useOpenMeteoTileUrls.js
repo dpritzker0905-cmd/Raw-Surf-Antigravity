@@ -403,12 +403,6 @@ export function useOpenMeteoTileUrls({
           }
           if (entry.omModelGroup === 'marine') {
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
-            if (baseModel === 'ecmwf_wam025' && debouncedTimeOffsetHours > 228) {
-              return 'ncep_gfswave025';
-            }
-            if (baseModel === 'dwd_gwam' && debouncedTimeOffsetHours > 168) {
-              return 'ncep_gfswave025';
-            }
             return baseModel;
           }
           if (variable === 'precipitation' || variable === 'cloud_cover') {

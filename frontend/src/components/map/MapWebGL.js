@@ -284,12 +284,17 @@ var MapWebGL = ({
       return null;
     }
     
+    const hasEstimatedGrid = marineData?.grid?.__gridProvider === 'estimated' &&
+                             marineData?.grid?.__gridSupportsLayer === true &&
+                             marineData?.grid?.__componentLayer === activeMarineLayer &&
+                             (activeModel === 'EURO' || activeModel === 'ICON');
+
     // v6.6: Tight dynamic grid capability validation: if Copernicus regional grid provided component data,
     // it MUST match the active model and component layer exactly.
-    const hasCopernicusGrid = marineData?.grid?.__gridProvider === 'copernicus' &&
+    const hasCopernicusGrid = (marineData?.grid?.__gridProvider === 'copernicus' &&
                               marineData?.grid?.__gridSupportsLayer === true &&
                               marineData?.grid?.__componentLayer === activeMarineLayer &&
-                              activeModel === 'EURO';
+                              activeModel === 'EURO') || hasEstimatedGrid;
 
     // If it's a EURO component layer and the Copernicus grid componentLayer doesn't match yet,
     // return null synchronously to trigger/await fetch and avoid rendering stale/zero data.
@@ -358,6 +363,8 @@ var MapWebGL = ({
         isEuroComponent,
         hasCopernicusGrid,
         mismatch: false,
+        heatmapProvider: res.__provider,
+        infoboxProvider: (window.__EURO_EXTENDED_ESTIMATE_DIAG__?.isEstimated) ? 'estimated' : res.__provider,
         timestamp: new Date().toISOString()
       };
       window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;

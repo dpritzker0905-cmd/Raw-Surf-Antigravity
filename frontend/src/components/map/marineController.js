@@ -616,7 +616,13 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
     const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
     const marineVarList = MODEL_SUPPORTED_VARS[apiModel] || MODEL_SUPPORTED_VARS['ncep_gfswave025'];
-    const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: 3 };
+    
+    let forecastDays = 3;
+    if (apiModel === 'ncep_gfswave025') forecastDays = 16;
+    else if (apiModel === 'gwam') forecastDays = 7;
+    else if (apiModel === 'ecmwf_wam025') forecastDays = 10;
+
+    const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: forecastDays };
 
     if (model && MARINE_OM_MODELS[model]) {
       body.models = [MARINE_OM_MODELS[model]];
@@ -687,7 +693,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
             reducedLons.push(lng.toFixed(2));
           }
         }
-        const getUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${reducedLats.join(',')}&longitude=${reducedLons.join(',')}&hourly=${marineVarList.join(',')}&forecast_days=3${(model && MARINE_OM_MODELS[model]) ? '&models=' + MARINE_OM_MODELS[model] : ''}`;
+        const getUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${reducedLats.join(',')}&longitude=${reducedLons.join(',')}&hourly=${marineVarList.join(',')}&forecast_days=${forecastDays}${(model && MARINE_OM_MODELS[model]) ? '&models=' + MARINE_OM_MODELS[model] : ''}`;
         res = await fetch(getUrl, { signal: fetchSignal });
         // If GET succeeded, update grid metrics so downstream uses the reduced grid
         if (res.ok) {
