@@ -362,10 +362,15 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
 
     // 1. Model Mismatch: field model must match the currently selected active model
     let isValid = (field.model === activeModel);
+    let rejectionReason = null;
+    if (!isValid) {
+      rejectionReason = `Model mismatch: field.model=${field.model} vs activeModel=${activeModel}`;
+    }
 
     // 2. Source Model Mismatch: actual grid source model must match active model
     if (isValid && gridModel !== 'unknown' && gridModel !== 'none' && gridModel !== activeModel) {
       isValid = false;
+      rejectionReason = `Source model mismatch: gridModel=${gridModel} vs activeModel=${activeModel}`;
     }
 
     // 3. Component Layer Mismatch (for Copernicus or Estimated)
@@ -374,23 +379,28 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     if (isValid) {
       if (gridProvider === 'fallback_safe_zero') {
         isValid = false;
+        rejectionReason = `fallback_safe_zero grid rejected`;
       } else if (gridProvider === 'estimated') {
         if (componentLayer !== activeMarineLayer) {
           isValid = false;
+          rejectionReason = `Estimated component layer mismatch: componentLayer=${componentLayer} vs activeMarineLayer=${activeMarineLayer}`;
         }
       } else if (isEuro) {
         if (isWaves) {
           if (gridProvider !== 'open-meteo') {
             isValid = false;
+            rejectionReason = `EURO Waves provider mismatch: gridProvider=${gridProvider} vs open-meteo`;
           }
         } else {
           if (gridProvider !== 'copernicus' || componentLayer !== activeMarineLayer) {
             isValid = false;
+            rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} vs copernicus or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }
         }
       } else {
         if (gridProvider !== 'open-meteo') {
           isValid = false;
+          rejectionReason = `Non-EURO provider mismatch: gridProvider=${gridProvider} vs open-meteo`;
         }
       }
     }
@@ -398,9 +408,10 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     // 4. Bounds Mismatch: copernicus regional cannot be global
     if (isValid && field.bounds) {
       const isGlobalBounds = Math.abs(field.bounds.west - (-180)) < 1.0 && Math.abs(field.bounds.east - 180) < 1.0;
-      if (gridProvider === 'copernicus' || gridProvider === 'estimated') {
+      if (gridProvider === 'copernicus') {
         if (isGlobalBounds) {
           isValid = false;
+          rejectionReason = `Copernicus regional grid cannot have global bounds`;
         }
       }
     }
@@ -417,6 +428,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
       // 5. Nonzero Count Mismatch: nonzeroCount > 0 unless UI explicitly showing trace/no-data
       if (isValid && marineGrid && marineGrid.nonzeroCount === 0) {
         isValid = false;
+        rejectionReason = `Zero nonzeroCount grid rejected`;
       }
 
       // Populate Cache or Retrieve from Cache
@@ -481,7 +493,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
           renderAccepted: isValid,
           renderHeldLastGood: usingLastGood || (!isValid && !isHardMismatch),
           clearReason: isHardMismatch ? (isLayerDisabled ? 'Layer disabled' : isModelMismatch ? 'Model mismatch' : 'Component layer mismatch') : null,
-          rejectionReason: isValid ? null : (gridProvider === 'fallback_safe_zero' ? 'fallback_safe_zero rejected, holding last valid grid' : `Mismatch guard: model=${gridModel} vs ${activeModel}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}, hard=${isHardMismatch}`),
+          rejectionReason: isValid ? null : (rejectionReason || `Mismatch guard: model=${gridModel} vs ${activeModel}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}, hard=${isHardMismatch}`),
           lastGoodAgeMs: cached ? (Date.now() - cached.timestamp) : null,
           lastGoodModel: cached ? cached.model : null,
           lastGoodLayer: cached ? cached.layer : null,

@@ -175,6 +175,20 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
 // ========================================================================
 
 var _exactPointCache = new Map();
+
+export function hasCacheForModel(lat, lng, model, activeLayer = 'waves') {
+  if (lat == null || lng == null) return false;
+  const rLat = +lat.toFixed(2);
+  const rLng = +lng.toFixed(2);
+  const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
+  let provider = PROVIDER_MAP[model] || 'open-meteo';
+  if (model === 'EURO' && activeLayer === 'waves') {
+    provider = 'open-meteo';
+  }
+  const cacheKey = `${rLat}_${rLng}_${model}_${activeLayer}_${provider}`;
+  return _exactPointCache.has(cacheKey);
+}
+
 var _inFlightExactPointRequests = new Map();
 var EXACT_POINT_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
@@ -493,6 +507,21 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     const gfsData = _exactPointCache.get(gfsKey)?.data;
     const iconData = _exactPointCache.get(iconKey)?.data;
 
+    if (!gfsData) {
+      return {
+        status: 'estimate_pending_sources',
+        source: 'exact_point_api',
+        requestedLat: cachedResponse.requestedLat,
+        requestedLng: cachedResponse.requestedLng,
+        requestedModel: cachedResponse.requestedModel,
+        activeLayer: cachedResponse.activeLayer,
+        provider: 'estimated',
+        timeRangeStart: cachedResponse.hourly.time[0],
+        timeRangeEnd: cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1],
+        hourly: cachedResponse.hourly
+      };
+    }
+
     const anchorIdxEuro = findHourIndex(cachedResponse.hourly.time, nativeLimit);
     const anchorIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, nativeLimit) : 0;
     const targetIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, hourOffset) : 0;
@@ -556,6 +585,21 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     const gfsKey = `${rLat}_${rLng}_GFS_${activeLayer}_open-meteo`;
 
     const gfsData = _exactPointCache.get(gfsKey)?.data;
+
+    if (!gfsData) {
+      return {
+        status: 'estimate_pending_sources',
+        source: 'exact_point_api',
+        requestedLat: cachedResponse.requestedLat,
+        requestedLng: cachedResponse.requestedLng,
+        requestedModel: cachedResponse.requestedModel,
+        activeLayer: cachedResponse.activeLayer,
+        provider: 'estimated',
+        timeRangeStart: cachedResponse.hourly.time[0],
+        timeRangeEnd: cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1],
+        hourly: cachedResponse.hourly
+      };
+    }
 
     const anchorIdxIcon = findHourIndex(cachedResponse.hourly.time, ICON_LIMIT);
     const anchorIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, ICON_LIMIT) : 0;

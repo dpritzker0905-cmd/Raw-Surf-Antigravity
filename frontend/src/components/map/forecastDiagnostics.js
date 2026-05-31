@@ -16,7 +16,8 @@ export function writeOverlayDiagnostics(params) {
     swell1Dir, swell2Dir, windWaveDir, blockFallbacks, isExactPointAuthority,
     sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
     useExactPoint, rawWaveHeight, mToFt, degToCompass,
-    currentHourIndex, wx, exactPointResponse
+    currentHourIndex, wx, exactPointResponse,
+    hasGfs, hasIcon
   } = params;
 
   // Consolidate into a single lightweight diagnostic payload (saves ~130 LOC)
@@ -82,5 +83,66 @@ export function writeOverlayDiagnostics(params) {
     gridProvider: window.__MARINE_DIAG__.gridProvider,
     exactPointStatus,
     exactPointValid: isExactPointValid
+  };
+
+  // Build high-telemetry EURO MARINE FORENSIC DIAGNOSTIC Object
+  const isWaves = activeLayer === 'waves';
+  const nativeLimit = activeModel === 'EURO' ? (isWaves ? 240 : 72) : 168;
+
+  let mode = 'unavailable';
+  if (exactPointStatus === 'estimate_pending_sources') {
+    mode = 'estimate_pending_sources';
+  } else if (exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate') {
+    mode = 'extended_estimate';
+  } else if (activeModel === 'EURO') {
+    mode = isWaves ? 'native_open_meteo' : 'native_copernicus';
+  } else if (activeModel === 'GFS' || activeModel === 'ICON') {
+    mode = 'native_open_meteo';
+  }
+
+  const hasGfsAnchor = !!hasGfs;
+  const hasGfsTarget = !!hasGfs;
+  const hasIconAnchor = !!hasIcon;
+  const hasIconTarget = !!hasIcon;
+
+  const estimateCreated = exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate';
+  let estimateReasonIfNot = null;
+  if (!estimateCreated && timeOffsetHours > nativeLimit) {
+    if (!hasGfs) {
+      estimateReasonIfNot = 'GFS cache data missing';
+    } else {
+      estimateReasonIfNot = 'Extended estimate computation skipped or failed';
+    }
+  }
+
+  const fceDiag = window.__FCE_DISPATCH_STATUS__ || {};
+  const heatmapVectorCount = fceDiag.vectorCount || 0;
+  const heatmapNonzeroCount = fceDiag.nonzeroCount || 0;
+  const renderAccepted = fceDiag.renderAccepted ?? false;
+  const renderRejectedReason = fceDiag.rejectionReason || null;
+  const fetchElapsedMs = window.__LAST_EXACT_FETCH_ELAPSED_MS__ || null;
+
+  window.__EURO_MARINE_FORENSIC_DIAG__ = {
+    activeModel,
+    activeLayer,
+    timeOffsetHours,
+    nativeLimit,
+    mode,
+    exactProvider: exactPoint?.provider || (exactPointResponse?.provider) || null,
+    gridProvider: marineData?.grid?.__gridProvider || marineData?.grid?.provider || null,
+    componentLayer: marineData?.grid?.__componentLayer || null,
+    exactTimeRangeStart: exactPoint?.timeRangeStart || exactPointResponse?.hourly?.time?.[0] || null,
+    exactTimeRangeEnd: exactPoint?.timeRangeEnd || exactPointResponse?.hourly?.time?.[exactPointResponse?.hourly?.time?.length - 1] || null,
+    hasGfsAnchor,
+    hasGfsTarget,
+    hasIconAnchor,
+    hasIconTarget,
+    estimateCreated,
+    estimateReasonIfNot,
+    heatmapVectorCount,
+    heatmapNonzeroCount,
+    renderAccepted,
+    renderRejectedReason,
+    fetchElapsedMs
   };
 }

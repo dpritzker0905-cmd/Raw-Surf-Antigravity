@@ -247,11 +247,12 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
   var lats = points.map(function(p) { return p.lat; });
   var lons = points.map(function(p) { return p.lng; });
 
+  var forecastDays = Math.min(3, Math.max(1, Math.ceil((hourOffset + 1) / 24)));
   var body = {
     latitude: lats,
     longitude: lons,
     hourly: vars,
-    forecast_days: 1,
+    forecast_days: forecastDays,
     models: ['ecmwf_wam025']
   };
 
@@ -471,6 +472,28 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
  * @returns {Object|null} Grid data in marineData.grid format, or null on error
  */
 export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOffset, zoom) {
+  if (hourOffset > 72) {
+    if (typeof window !== 'undefined') {
+      window.__COPERNICUS_GRID_DIAG__ = {
+        layer,
+        componentLayer: layer,
+        provider: 'copernicus',
+        backendPointCount: 0,
+        renderPointCount: 0,
+        nonzeroCount: 0,
+        bbox: null,
+        zoom,
+        cacheHit: false,
+        isStale: false,
+        elapsedMs: 0,
+        skipped: true,
+        skippedReason: 'past_native_coverage',
+        timestamp: new Date().toISOString()
+      };
+    }
+    return null;
+  }
+
   if (!viewportBounds) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {

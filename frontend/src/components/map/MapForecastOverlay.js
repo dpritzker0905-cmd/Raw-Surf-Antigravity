@@ -11,7 +11,8 @@ import {
   degToCompass,
   findHourIndex,
   getClampedValue,
-  getBiasAdjusted
+  getBiasAdjusted,
+  hasCacheForModel
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { compileForecastCards } from './forecastCardCompiler';
@@ -39,6 +40,7 @@ export var MapForecastOverlay = ({
   const [exactPoint, setExactPoint] = useState(null);
   // v6.7: Exact-point status machine: idle | exact_loading | exact_success | exact_timeout | exact_backend_error | exact_empty | exact_stale_rejected
   const [exactPointStatus, setExactPointStatus] = useState('idle');
+  const [estimateTrigger, setEstimateTrigger] = useState(0);
   const exactPointFetchRef = useRef(null);
   const isLight = theme === 'light';
 
@@ -182,6 +184,17 @@ export var MapForecastOverlay = ({
     const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
     setExactPoint(selected);
 
+    // v7.2: If selectExactPointHour returned estimate_pending_sources, trigger background prewarms
+    if (selected?.status === 'estimate_pending_sources' && pointLat && pointLng) {
+      console.log("[Forecast Overlay] Pending estimate sources. Launching background prewarm...");
+      const gfsPromise = fetchExactMarinePoint(pointLat, pointLng, 'GFS', activeLayer, null, timeOffsetHours);
+      const iconPromise = activeModel === 'EURO' ? fetchExactMarinePoint(pointLat, pointLng, 'ICON', activeLayer, null, timeOffsetHours) : Promise.resolve(null);
+      Promise.all([gfsPromise, iconPromise]).then(() => {
+        console.log("[Forecast Overlay] Background prewarms completed. Re-triggering overlay...");
+        setEstimateTrigger(prev => prev + 1);
+      });
+    }
+
     // Enhanced diagnostic and Scrubber Truth logging
     if (selected) {
       const targetTs = Date.now() + timeOffsetHours * 3600000;
@@ -194,10 +207,12 @@ export var MapForecastOverlay = ({
       let sourceStr = 'exact_point_api';
       if (selected.status === 'exact_no_time_coverage') {
         sourceStr = 'no_coverage';
+      } else if (selected.status === 'estimate_pending_sources') {
+        sourceStr = 'estimate_pending_sources';
       }
 
       console.log(
-        `%c[FORECAST SCRUBBER TRUTH] InfoBox Sync:\n` +
+        `%c[FORECAST SCRUBUB SCRUBBER TRUTH] InfoBox Sync:\n` +
         `  - activeModel: ${activeModel}\n` +
         `  - activeLayer: ${activeLayer}\n` +
         `  - marker lat/lng: ${pointLat?.toFixed(4)}, ${pointLng?.toFixed(4)}\n` +
@@ -243,7 +258,7 @@ export var MapForecastOverlay = ({
         };
       }
     }
-  }, [effectiveExactPointResponse, timeOffsetHours, activeLayer, activeModel, pointLat, pointLng]);
+  }, [effectiveExactPointResponse, timeOffsetHours, activeLayer, activeModel, pointLat, pointLng, estimateTrigger]);
 
   const bgClass = isLight
     ? 'bg-white/90 border-gray-200'
@@ -578,6 +593,9 @@ export var MapForecastOverlay = ({
 
   // v6.6: Call external diagnostics helper to keep component extremely lightweight
   if (typeof window !== 'undefined') {
+    const hasGfs = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'GFS', activeLayer) : false;
+    const hasIcon = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'ICON', activeLayer) : false;
+
     writeOverlayDiagnostics({
       lat, lng, activeModel, activeLayer, timeOffsetHours, exactPoint: effectiveExactPoint,
       sampledSwell1Period, sampledWavePeriod, marineGridSample, marine,
@@ -589,7 +607,8 @@ export var MapForecastOverlay = ({
       sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
       sampledSwell2Period, sampledWindWavesPeriod, useExactPoint,
       rawWaveHeight, mToFt, degToCompass,
-      currentHourIndex, wx, exactPointResponse: effectiveExactPointResponse
+      currentHourIndex, wx, exactPointResponse: effectiveExactPointResponse,
+      hasGfs, hasIcon
     });
   }
 
