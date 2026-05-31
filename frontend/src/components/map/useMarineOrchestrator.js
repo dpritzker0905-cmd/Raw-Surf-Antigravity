@@ -187,7 +187,29 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       // Silenced: fetchMarineData call
       locks.isFetching = true;
       try {
-        let data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, activeModelRef.current);
+        const currentLayer = activeMarineLayerRef.current;
+        const isEuroComponent = activeModelRef.current === 'EURO' && currentLayer && COMPONENT_LAYERS.includes(currentLayer);
+        
+        let data = null;
+        if (isEuroComponent) {
+          // Bypass global Open-Meteo fetch to avoid timeouts, redundant requests, and save roundtrip latency
+          data = {
+            type: 'FeatureCollection',
+            features: [],
+            grid: {
+              vectors: [],
+              bounds: { west: -180, south: -85, east: 180, north: 85 },
+              cols: 0,
+              rows: 0,
+              timestamp: Date.now(),
+              __sourceModel: 'EURO',
+              provider: 'copernicus'
+            }
+          };
+        } else {
+          data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, activeModelRef.current);
+        }
+
         if (window.__LRCM_EXEC_TRACE__) {
           const isDebug = typeof window !== 'undefined' && window.__RASTER_DEBUG__?.enableTrace;
           window.__LRCM_EXEC_TRACE__.push({
@@ -208,7 +230,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
         // Silenced: fetchMarineData result trace
 
-        if (data && data.features?.length > 0) {
+        if (data && (data.features?.length > 0 || (isEuroComponent && data.grid?.vectors?.length > 0))) {
           consecutiveFailuresRef.current = 0; // Reset circuit breaker on success
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();

@@ -523,22 +523,26 @@ export var MapForecastOverlay = ({
     const isCopernicusGrid = renderMarineData?.grid?.__gridProvider === 'copernicus' &&
                             renderMarineData?.grid?.__componentLayer === activeLayer &&
                             renderMarineData?.grid?.vectors?.length > 0;
-    if (isCopernicusGrid) {
+                            
+    const webglDiag = typeof window !== 'undefined' ? window.__WebGLMarineLayer_DIAG__ : null;
+    const isWebGLRendered = webglDiag?.renderedProvider === 'copernicus' && 
+                            webglDiag?.activeLayer === activeLayer && 
+                            webglDiag?.renderedCount > 0;
+
+    if (isCopernicusGrid && isWebGLRendered) {
       const nzCount = renderMarineData.grid.vectors.filter(v => (v[activeLayer]?.speed || 0) > 0).length;
       if (nzCount === 0) {
         return 'copernicus_no_nonzero_vectors';
       }
       return 'ready';
     }
+    
+    // Check if the backend request skipped/failed
     const diag = typeof window !== 'undefined' ? window.__COPERNICUS_GRID_DIAG__ : null;
-    if (!diag) {
-      return 'loading';
+    if (diag && diag.layer === activeLayer && diag.skipped) {
+      return diag.skippedReason || 'unavailable';
     }
-    if (diag.layer === activeLayer) {
-      if (diag.skipped) {
-        return diag.skippedReason || 'unavailable';
-      }
-    }
+    
     return 'loading';
   }, [renderMarineData, activeModel, activeLayer]);
 
