@@ -52,7 +52,8 @@ export var MapForecastOverlay = ({
 
   // v6.7: Clear stale exact-point state synchronously using refs instead of render-time setState.
   // This blocks the old state from leaking even for a single frame, preventing React hooks ordering crashes.
-  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${activeLayer}`;
+  const isEuroComponentLayer = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
+  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}`;
   const prevPointKeyRef = useRef(currentPointKey);
   const isStale = currentPointKey !== prevPointKeyRef.current;
 
@@ -129,7 +130,7 @@ export var MapForecastOverlay = ({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, isMarineLayer, activeLayer, currentPointKey]);
+  }, [pointLat, pointLng, activeModel, isMarineLayer, currentPointKey]);
 
   // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
   // This is synchronous and instant — no network request on scrub.

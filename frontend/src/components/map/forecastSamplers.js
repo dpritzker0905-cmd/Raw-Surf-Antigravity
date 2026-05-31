@@ -173,6 +173,7 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
 // ========================================================================
 
 var _exactPointCache = new Map();
+var _inFlightExactPointRequests = new Map();
 var EXACT_POINT_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 // Model-specific forecast day limits (Open-Meteo marine models)
@@ -216,185 +217,215 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     return cached.data;
   }
 
-  const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
-  const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
-  let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
+  // Group Copernicus component requests under EURO_COMPONENTS to share the in-flight fetch
+  const isEuroComponent = model === 'EURO' && provider === 'copernicus';
+  const inFlightKey = isEuroComponent
+    ? `${rLat}_${rLng}_EURO_COMPONENTS`
+    : cacheKey;
 
-  if (provider === 'copernicus') {
-    forecastDays = 3;
+  if (_inFlightExactPointRequests.has(inFlightKey)) {
+    console.log(`[ExactPoint] Sharing in-flight request for: ${inFlightKey}`);
+    return _inFlightExactPointRequests.get(inFlightKey);
   }
 
-  let hourlyVars;
-  if (model === 'EURO') {
-    if (activeLayer === 'waves') {
-      hourlyVars = ['wave_height', 'wave_direction', 'wave_period'];
-    } else {
-      // Combined 9-variable component request for swell_1 + swell_2 + wind_waves
-      hourlyVars = [
-        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
-        'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
-        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
-      ];
+  const fetchPromise = (async () => {
+    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
+    const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
+    let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
+
+    if (provider === 'copernicus') {
+      forecastDays = 3;
     }
-  } else {
-    // Keep GFS & ICON fully compatible with original behaviors
-    const EXACT_POINT_VARS = {
-      'ncep_gfswave025': [
-        'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period',
-        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
-        'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
-        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
-      ],
-      'gwam': [
-        'wave_height', 'wave_direction', 'wave_period',
-        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
-        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
-      ]
+
+    let hourlyVars;
+    if (model === 'EURO') {
+      if (activeLayer === 'waves') {
+        hourlyVars = ['wave_height', 'wave_direction', 'wave_period'];
+      } else {
+        // Combined 9-variable component request for swell_1 + swell_2 + wind_waves
+        hourlyVars = [
+          'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+          'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+          'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+        ];
+      }
+    } else {
+      // Keep GFS & ICON fully compatible with original behaviors
+      const EXACT_POINT_VARS = {
+        'ncep_gfswave025': [
+          'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period',
+          'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
+          'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+          'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
+        ],
+        'gwam': [
+          'wave_height', 'wave_direction', 'wave_period',
+          'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+          'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+        ]
+      };
+      hourlyVars = EXACT_POINT_VARS[apiModel] || EXACT_POINT_VARS['ncep_gfswave025'];
+    }
+
+    const body = {
+      latitude: [rLat],
+      longitude: [rLng],
+      hourly: hourlyVars,
+      forecast_days: forecastDays,
+      models: [apiModel]
     };
-    hourlyVars = EXACT_POINT_VARS[apiModel] || EXACT_POINT_VARS['ncep_gfswave025'];
-  }
 
-  const body = {
-    latitude: [rLat],
-    longitude: [rLng],
-    hourly: hourlyVars,
-    forecast_days: forecastDays,
-    models: [apiModel]
-  };
+    // Use standalone signal for Copernicus component layers to avoid premature cancellation by React hook debounces
+    let fetchSignal = signal;
+    let standaloneTimeoutId = null;
+    if (isEuroComponent) {
+      const controller = new AbortController();
+      standaloneTimeoutId = setTimeout(() => controller.abort(), 18000);
+      fetchSignal = controller.signal;
+    }
 
-  try {
-    const proxyType = (provider === 'copernicus') ? 'copernicus_marine' : 'marine';
+    try {
+      const proxyType = (provider === 'copernicus') ? 'copernicus_marine' : 'marine';
 
-    const res = await fetch('/api/weather-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: proxyType, body }),
-      signal
-    });
-    if (!res.ok) {
+      const res = await fetch('/api/weather-proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: proxyType, body }),
+        signal: fetchSignal
+      });
+      if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
+
+      if (!res.ok) {
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (typeof window !== 'undefined') {
+          window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
+        }
+        var errText = '';
+        try { errText = await res.text(); } catch(e) { errText = '(could not read body)'; }
+        console.error(`[ExactPoint Forensic] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel} | Elapsed: ${elapsed.toFixed(2)}s`, errText.substring(0, 300));
+        
+        var statusStr = 'error';
+        if (res.status === 503 || errText.toLowerCase().includes('credentials')) {
+          statusStr = 'copernicus_credentials_missing';
+        } else if (res.status === 502) {
+          statusStr = errText.toLowerCase().includes('timeout') ? 'copernicus_timeout' : 'copernicus_backend_502';
+        } else if (res.status === 504 || errText.toLowerCase().includes('gateway timeout')) {
+          statusStr = 'copernicus_timeout';
+        }
+
+        if (typeof window !== 'undefined') {
+          window.__MARINE_EXACT_POINT_ERROR__ = {
+            status: statusStr,
+            httpStatus: res.status,
+            point: { lat: rLat, lng: rLng },
+            model: apiModel,
+            requestedVars: hourlyVars,
+            responseText: errText.substring(0, 500),
+            timestamp: new Date().toISOString()
+          };
+        }
+        return { status: statusStr };
+      }
+      const json = await res.json();
+      const result = Array.isArray(json) ? json[0] : json;
+      if (!result?.hourly) return null;
+
+      if (typeof window !== 'undefined') {
+        window.__MARINE_EXACT_POINT_ERROR__ = null;
+      }
+
+      const detectedProvider = result.__provider || (proxyType === 'copernicus_marine' ? 'copernicus' : 'open-meteo');
+
+      const data = {
+        hourly: result.hourly,
+        snappedLat: result.latitude,
+        snappedLng: result.longitude,
+        requestedLat: rLat,
+        requestedLng: rLng,
+        requestedModel: model || 'GFS',
+        forecastDays,
+        apiModel,
+        provider: detectedProvider,
+        source: 'exact_point_api'
+      };
+
       const elapsed = (Date.now() - startTime) / 1000;
       if (typeof window !== 'undefined') {
         window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
       }
-      var errText = '';
-      try { errText = await res.text(); } catch(e) { errText = '(could not read body)'; }
-      console.error(`[ExactPoint Forensic] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel} | Elapsed: ${elapsed.toFixed(2)}s`, errText.substring(0, 300));
-      
-      var statusStr = 'error';
-      if (res.status === 503 || errText.toLowerCase().includes('credentials')) {
-        statusStr = 'copernicus_credentials_missing';
-      } else if (res.status === 502) {
-        statusStr = errText.toLowerCase().includes('timeout') ? 'copernicus_timeout' : 'copernicus_backend_502';
-      } else if (res.status === 504 || errText.toLowerCase().includes('gateway timeout')) {
-        statusStr = 'copernicus_timeout';
-      }
+      console.log(`[ExactPoint Forensic] Model: ${model} | Layer: ${activeLayer} | Provider: ${detectedProvider} | Elapsed: ${elapsed.toFixed(2)}s | Variables: ${JSON.stringify(hourlyVars)}`);
 
-      if (typeof window !== 'undefined') {
-        window.__MARINE_EXACT_POINT_ERROR__ = {
-          status: statusStr,
-          httpStatus: res.status,
-          point: { lat: rLat, lng: rLng },
-          model: apiModel,
-          requestedVars: hourlyVars,
-          responseText: errText.substring(0, 500),
+      if (typeof window !== 'undefined' && proxyType === 'copernicus_marine') {
+        const hourly = result.hourly || {};
+        window.__COPERNICUS_MARINE_DIAG__ = {
+          backendConfigured: true,
+          provider: 'copernicus',
+          snappedLat: result.latitude,
+          snappedLng: result.longitude,
+          selectedTimestamp: new Date().toISOString(),
+          nonNullCounts: {
+            wave_height: hourly.wave_height?.filter(v => v != null).length || 0,
+            wave_direction: hourly.wave_direction?.filter(v => v != null).length || 0,
+            wave_period: hourly.wave_period?.filter(v => v != null).length || 0,
+            swell_wave_height: hourly.swell_wave_height?.filter(v => v != null).length || 0,
+            swell_wave_direction: hourly.swell_wave_direction?.filter(v => v != null).length || 0,
+            swell_wave_period: hourly.swell_wave_period?.filter(v => v != null).length || 0,
+            secondary_swell_wave_height: hourly.secondary_swell_wave_height?.filter(v => v != null).length || 0,
+            secondary_swell_wave_direction: hourly.secondary_swell_wave_direction?.filter(v => v != null).length || 0,
+            secondary_swell_wave_period: hourly.secondary_swell_wave_period?.filter(v => v != null).length || 0,
+            wind_wave_height: hourly.wind_wave_height?.filter(v => v != null).length || 0,
+            wind_wave_direction: hourly.wind_wave_direction?.filter(v => v != null).length || 0,
+            wind_wave_period: hourly.wind_wave_period?.filter(v => v != null).length || 0,
+          },
           timestamp: new Date().toISOString()
         };
       }
-      return { status: statusStr };
-    }
-    const json = await res.json();
-    const result = Array.isArray(json) ? json[0] : json;
-    if (!result?.hourly) return null;
 
-    if (typeof window !== 'undefined') {
-      window.__MARINE_EXACT_POINT_ERROR__ = null;
-    }
-
-    const detectedProvider = result.__provider || (proxyType === 'copernicus_marine' ? 'copernicus' : 'open-meteo');
-
-    const data = {
-      hourly: result.hourly,
-      snappedLat: result.latitude,
-      snappedLng: result.longitude,
-      requestedLat: rLat,
-      requestedLng: rLng,
-      requestedModel: model || 'GFS',
-      forecastDays,
-      apiModel,
-      provider: detectedProvider,
-      source: 'exact_point_api'
-    };
-
-    const elapsed = (Date.now() - startTime) / 1000;
-    if (typeof window !== 'undefined') {
-      window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
-    }
-    console.log(`[ExactPoint Forensic] Model: ${model} | Layer: ${activeLayer} | Provider: ${detectedProvider} | Elapsed: ${elapsed.toFixed(2)}s | Variables: ${JSON.stringify(hourlyVars)}`);
-
-    if (typeof window !== 'undefined' && proxyType === 'copernicus_marine') {
-      const hourly = result.hourly || {};
-      window.__COPERNICUS_MARINE_DIAG__ = {
-        backendConfigured: true,
-        provider: 'copernicus',
-        snappedLat: result.latitude,
-        snappedLng: result.longitude,
-        selectedTimestamp: new Date().toISOString(),
-        nonNullCounts: {
-          wave_height: hourly.wave_height?.filter(v => v != null).length || 0,
-          wave_direction: hourly.wave_direction?.filter(v => v != null).length || 0,
-          wave_period: hourly.wave_period?.filter(v => v != null).length || 0,
-          swell_wave_height: hourly.swell_wave_height?.filter(v => v != null).length || 0,
-          swell_wave_direction: hourly.swell_wave_direction?.filter(v => v != null).length || 0,
-          swell_wave_period: hourly.swell_wave_period?.filter(v => v != null).length || 0,
-          secondary_swell_wave_height: hourly.secondary_swell_wave_height?.filter(v => v != null).length || 0,
-          secondary_swell_wave_direction: hourly.secondary_swell_wave_direction?.filter(v => v != null).length || 0,
-          secondary_swell_wave_period: hourly.secondary_swell_wave_period?.filter(v => v != null).length || 0,
-          wind_wave_height: hourly.wind_wave_height?.filter(v => v != null).length || 0,
-          wind_wave_direction: hourly.wind_wave_direction?.filter(v => v != null).length || 0,
-          wind_wave_period: hourly.wind_wave_period?.filter(v => v != null).length || 0,
-        },
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    if (model === 'EURO' && provider === 'copernicus') {
-      const componentLayers = ['swell_1', 'swell_2', 'wind_waves'];
-      for (const compLayer of componentLayers) {
-        const k = `${rLat}_${rLng}_EURO_${compLayer}_copernicus`;
-        _exactPointCache.set(k, { data, timestamp: Date.now() });
+      if (model === 'EURO' && provider === 'copernicus') {
+        const componentLayers = ['swell_1', 'swell_2', 'wind_waves'];
+        for (const compLayer of componentLayers) {
+          const k = `${rLat}_${rLng}_EURO_${compLayer}_copernicus`;
+          _exactPointCache.set(k, { data, timestamp: Date.now() });
+        }
+      } else {
+        _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
       }
-    } else {
-      _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
-    }
 
-    if (_exactPointCache.size > 50) {
-      const oldest = [..._exactPointCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-      for (let i = 0; i < 10; i++) _exactPointCache.delete(oldest[i][0]);
-    }
+      if (_exactPointCache.size > 50) {
+        const oldest = [..._exactPointCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+        for (let i = 0; i < 10; i++) _exactPointCache.delete(oldest[i][0]);
+      }
 
-    return data;
-  } catch (err) {
-    const elapsed = (Date.now() - startTime) / 1000;
-    if (typeof window !== 'undefined') {
-      window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
+      return data;
+    } catch (err) {
+      if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
+      const elapsed = (Date.now() - startTime) / 1000;
+      if (typeof window !== 'undefined') {
+        window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
+      }
+      if (err.name === 'AbortError') {
+        console.warn(`[ExactPoint Forensic] TIMEOUT: Fetch aborted after ${elapsed.toFixed(2)}s for model=${apiModel} (Florida snappy cap)`);
+        return { status: 'timeout' };
+      }
+      console.error(`[ExactPoint Forensic] Marine fetch exception: ${err.message} | Elapsed: ${elapsed.toFixed(2)}s`);
+      if (typeof window !== 'undefined') {
+        window.__MARINE_EXACT_POINT_ERROR__ = {
+          status: 'exception',
+          point: { lat: rLat, lng: rLng },
+          model: apiModel,
+          requestedVars: hourlyVars,
+          error: err.message,
+          timestamp: new Date().toISOString()
+        };
+      }
+      return null;
+    } finally {
+      _inFlightExactPointRequests.delete(inFlightKey);
     }
-    if (err.name === 'AbortError') {
-      console.warn(`[ExactPoint Forensic] TIMEOUT: Fetch aborted after ${elapsed.toFixed(2)}s for model=${apiModel} (Florida snappy cap)`);
-      return { status: 'timeout' };
-    }
-    console.error(`[ExactPoint Forensic] Marine fetch exception: ${err.message} | Elapsed: ${elapsed.toFixed(2)}s`);
-    if (typeof window !== 'undefined') {
-      window.__MARINE_EXACT_POINT_ERROR__ = {
-        status: 'exception',
-        point: { lat: rLat, lng: rLng },
-        model: apiModel,
-        requestedVars: hourlyVars,
-        error: err.message,
-        timestamp: new Date().toISOString()
-      };
-    }
-    return null;
-  }
+  })();
+
+  _inFlightExactPointRequests.set(inFlightKey, fetchPromise);
+  return fetchPromise;
 }
 
 /**

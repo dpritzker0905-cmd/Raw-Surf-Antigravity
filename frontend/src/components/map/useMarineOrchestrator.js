@@ -531,7 +531,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
     if (activeModelRef.current !== 'EURO') return;
-    if (!activeMarineLayer || !COMPONENT_LAYERS.includes(activeMarineLayer)) return;
+    if (!activeMarineLayer || !COMPONENT_LAYERS.includes(activeMarineLayer)) {
+      lastFetchedLayerRef.current = null;
+      return;
+    }
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
 
     lastFetchedLayerRef.current = activeMarineLayer;

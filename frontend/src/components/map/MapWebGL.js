@@ -287,6 +287,21 @@ var MapWebGL = ({
     // If it's a EURO component layer and the Copernicus grid componentLayer doesn't match yet,
     // return null synchronously to trigger/await fetch and avoid rendering stale/zero data.
     if (isEuroComponent && !hasCopernicusGrid) {
+      if (typeof window !== 'undefined') {
+        window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
+          hasData: !!marineData,
+          hasGrid: !!marineData?.grid,
+          gridProvider: marineData?.grid?.__gridProvider || 'none',
+          componentLayer: marineData?.grid?.__componentLayer || 'none',
+          activeMarineLayer,
+          activeModel,
+          isEuroComponent,
+          hasCopernicusGrid,
+          mismatch: true,
+          mismatchReason: `EURO component layer ${activeMarineLayer} requested but Copernicus grid componentLayer is ${marineData?.grid?.__componentLayer || 'none'}`,
+          timestamp: new Date().toISOString()
+        };
+      }
       return null;
     }
 
@@ -325,6 +340,18 @@ var MapWebGL = ({
       window.__MARINE_WIND_DATA__ = res;
       window.__MARINE_WIND_DATA__.__sourceModel = activeModel;
       window.__MARINE_WIND_DATA__.__provider = res.__provider;
+      window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
+        hasData: true,
+        hasGrid: true,
+        gridProvider: res.__gridProvider,
+        componentLayer: res.__componentLayer,
+        activeMarineLayer,
+        activeModel,
+        isEuroComponent,
+        hasCopernicusGrid,
+        mismatch: false,
+        timestamp: new Date().toISOString()
+      };
     }
     return res;
   }, [marineData, activeMarineLayer, activeModel]);
