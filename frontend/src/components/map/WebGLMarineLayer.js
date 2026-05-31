@@ -307,7 +307,40 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   useEffect(() => {
     const engine = engineRef.current;
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
-    if (!engine || !data?.vectors?.length || !gl) return;
+    if (!engine || !gl) return;
+
+    // v6.9: Expose exhaustive diagnostics detailing exact render source, provider, and stale clearance states
+    if (typeof window !== 'undefined') {
+      const activeModel = data?.grid?.__sourceModel || window.__DATA_DIAG__?.activeModel || 'unknown';
+      const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
+      let nonzeroCount = 0;
+      if (data?.vectors) {
+        for (const vec of data.vectors) {
+          if (vec && vec.speed > 0) nonzeroCount++;
+        }
+      }
+      window.__WebGLMarineLayer_DIAG__ = {
+        activeModel: activeModel,
+        activeMarineLayer: activeMarineLayer,
+        gridProvider: data?.grid?.__gridProvider || 'none',
+        componentLayer: data?.grid?.__componentLayer || 'none',
+        renderedLayer: activeMarineLayer,
+        renderedProvider: data?.grid?.provider || 'none',
+        renderedVectorCount: data?.vectors?.length || 0,
+        renderedNonzeroCount: nonzeroCount,
+        staleRenderBlocked: !data?.vectors?.length,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    if (!data?.vectors?.length) {
+      console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched, clearing active textures`);
+      engine.clearBuffers(gl);
+      if (mapInstance) {
+        mapInstance.triggerRepaint();
+      }
+      return;
+    }
 
     if (engine._dispatcherActive) {
       console.log(`[WebGLMarine] Skipping React effect setWaveData because RenderPlanDispatcher is active`);

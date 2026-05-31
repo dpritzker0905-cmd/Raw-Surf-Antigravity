@@ -80,11 +80,11 @@ export var MapForecastOverlay = ({
     const token = { cancelled: false };
     exactPointFetchRef.current = token;
 
-    // v6.7: Strict 12-second abort timeout controller
+    // v6.7: Strict 18-second abort timeout controller
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 12000);
+    }, 18000);
 
     fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal).then(data => {
       clearTimeout(timeoutId);

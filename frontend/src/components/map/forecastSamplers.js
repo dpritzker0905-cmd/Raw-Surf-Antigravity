@@ -196,6 +196,7 @@ var MARINE_MODEL_LIMITS = {
 export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null) {
   if (lat == null || lng == null) return null;
 
+  const startTime = Date.now();
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
   
@@ -271,9 +272,10 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       signal
     });
     if (!res.ok) {
+      const elapsed = (Date.now() - startTime) / 1000;
       var errText = '';
       try { errText = await res.text(); } catch(e) { errText = '(could not read body)'; }
-      console.error(`[ExactPoint] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel}`, errText.substring(0, 300));
+      console.error(`[ExactPoint Forensic] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel} | Elapsed: ${elapsed.toFixed(2)}s`, errText.substring(0, 300));
       if (typeof window !== 'undefined') {
         window.__MARINE_EXACT_POINT_ERROR__ = {
           status: res.status,
@@ -309,6 +311,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       source: 'exact_point_api'
     };
 
+    const elapsed = (Date.now() - startTime) / 1000;
+    console.log(`[ExactPoint Forensic] Model: ${model} | Layer: ${activeLayer} | Provider: ${detectedProvider} | Elapsed: ${elapsed.toFixed(2)}s | Variables: ${JSON.stringify(hourlyVars)}`);
+
     if (typeof window !== 'undefined' && proxyType === 'copernicus_marine') {
       const hourly = result.hourly || {};
       window.__COPERNICUS_MARINE_DIAG__ = {
@@ -343,10 +348,12 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 
     return data;
   } catch (err) {
+    const elapsed = (Date.now() - startTime) / 1000;
     if (err.name === 'AbortError') {
+      console.warn(`[ExactPoint Forensic] TIMEOUT: Fetch aborted after ${elapsed.toFixed(2)}s for model=${apiModel} (Florida snappy cap)`);
       return { status: 'timeout' };
     }
-    console.error('[ExactPoint] Marine fetch exception:', err.message);
+    console.error(`[ExactPoint Forensic] Marine fetch exception: ${err.message} | Elapsed: ${elapsed.toFixed(2)}s`);
     if (typeof window !== 'undefined') {
       window.__MARINE_EXACT_POINT_ERROR__ = {
         status: 'exception',

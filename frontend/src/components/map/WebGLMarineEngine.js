@@ -719,7 +719,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;
 
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
-  // Direct drawing to screen FBO.
+  if (!gl) return;
+  console.log('[WebGLMarineEngine-Clear] Clearing resident wave textures and waveData');
+  if (this._waveData) {
+    if (this._waveData.u_waveTexture && this._waveData.u_waveTexture !== this._residentWaveTex) {
+      safeDeleteTexture(gl, this._waveData.u_waveTexture, this);
+    }
+    if (this._waveData.u_chlorophyllTexture && this._waveData.u_chlorophyllTexture !== this._residentChlTex) {
+      safeDeleteTexture(gl, this._waveData.u_chlorophyllTexture, this);
+    }
+    if (this._waveData.u_bathymetryTexture && this._waveData.u_bathymetryTexture !== this._residentBathTex) {
+      safeDeleteTexture(gl, this._waveData.u_bathymetryTexture, this);
+    }
+    if (this._waveData.u_oceanMaskTexture && this._waveData.u_oceanMaskTexture !== this._cachedMaskTex) {
+      safeDeleteTexture(gl, this._waveData.u_oceanMaskTexture, this);
+    }
+    this._waveData = null;
+  }
 };
 
 WebGLMarineEngine.prototype.dispose = function(gl) {
