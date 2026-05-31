@@ -236,6 +236,7 @@ function clampBounds(bounds) {
 }
 
 async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheKey) {
+  var startTime = Date.now();
   var vars = COPERNICUS_LAYER_VARS[layer];
   var fields = LAYER_FIELD_MAP[layer];
 
@@ -289,8 +290,22 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
 
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
-        layer, skipped: true, skippedReason: skippedReason,
-        httpStatus: res.status, errorDetail: detail, timestamp: new Date().toISOString(), zoom
+        layer,
+        componentLayer: layer,
+        provider: 'copernicus',
+        backendPointCount: gridSize * gridSize,
+        renderPointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
+        nonzeroCount: 0,
+        bbox: bounds,
+        zoom,
+        cacheHit: false,
+        isStale: false,
+        elapsedMs: Date.now() - startTime,
+        skipped: true,
+        skippedReason: skippedReason,
+        httpStatus: res.status,
+        errorDetail: detail,
+        timestamp: new Date().toISOString()
       };
     }
     throw new Error(`HTTP ${res.status}: ${skippedReason}`);
@@ -301,8 +316,20 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
   if (!results || results.length === 0) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
-        layer, skipped: true, skippedReason: 'empty_backend_results',
-        timestamp: new Date().toISOString(), zoom
+        layer,
+        componentLayer: layer,
+        provider: 'copernicus',
+        backendPointCount: gridSize * gridSize,
+        renderPointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
+        nonzeroCount: 0,
+        bbox: bounds,
+        zoom,
+        cacheHit: false,
+        isStale: false,
+        elapsedMs: Date.now() - startTime,
+        skipped: true,
+        skippedReason: 'empty_backend_results',
+        timestamp: new Date().toISOString()
       };
     }
     throw new Error('empty_backend_results');
@@ -312,8 +339,20 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
   if (!timeArray || timeArray.length === 0) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
-        layer, skipped: true, skippedReason: 'copernicus_empty_time_range',
-        timestamp: new Date().toISOString(), zoom
+        layer,
+        componentLayer: layer,
+        provider: 'copernicus',
+        backendPointCount: gridSize * gridSize,
+        renderPointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
+        nonzeroCount: 0,
+        bbox: bounds,
+        zoom,
+        cacheHit: false,
+        isStale: false,
+        elapsedMs: Date.now() - startTime,
+        skipped: true,
+        skippedReason: 'copernicus_empty_time_range',
+        timestamp: new Date().toISOString()
       };
     }
     throw new Error('copernicus_empty_time_range');
@@ -397,19 +436,22 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
     timestamp: Date.now()
   });
 
+  var elapsedMs = Date.now() - startTime;
+
   if (typeof window !== 'undefined') {
     window.__COPERNICUS_GRID_DIAG__ = {
       layer,
-      gridSize: COPERNICUS_UPSCALED_GRID_SIZE,
-      pointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
+      componentLayer: layer,
+      provider: 'copernicus',
+      backendPointCount: gridSize * gridSize,
+      renderPointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
       nonzeroCount,
-      vars,
-      hourOffset,
       bbox: bounds,
-      timestamp: new Date().toISOString(),
       zoom,
-      isClamped: isClamped,
       cacheHit: false,
+      isStale: false,
+      elapsedMs,
+      timestamp: new Date().toISOString(),
       skipped: nonzeroCount === 0,
       skippedReason: nonzeroCount === 0 ? 'copernicus_no_nonzero_vectors' : null
     };
@@ -432,8 +474,20 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
   if (!viewportBounds) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
-        layer, skipped: true, skippedReason: 'missing_viewport_bounds',
-        timestamp: new Date().toISOString(), zoom
+        layer,
+        componentLayer: layer,
+        provider: 'copernicus',
+        backendPointCount: 0,
+        renderPointCount: 0,
+        nonzeroCount: 0,
+        bbox: null,
+        zoom,
+        cacheHit: false,
+        isStale: false,
+        elapsedMs: 0,
+        skipped: true,
+        skippedReason: 'missing_viewport_bounds',
+        timestamp: new Date().toISOString()
       };
     }
     return null;
@@ -442,8 +496,20 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
     console.log(`[CopernicusGrid] Zoom ${zoom} < ${MIN_ZOOM}, skipping component grid`);
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
-        layer, skipped: true, skippedReason: 'zoom_too_low',
-        timestamp: new Date().toISOString(), zoom
+        layer,
+        componentLayer: layer,
+        provider: 'copernicus',
+        backendPointCount: 0,
+        renderPointCount: 0,
+        nonzeroCount: 0,
+        bbox: null,
+        zoom,
+        cacheHit: false,
+        isStale: false,
+        elapsedMs: 0,
+        skipped: true,
+        skippedReason: 'zoom_too_low',
+        timestamp: new Date().toISOString()
       };
     }
     return null;
@@ -454,8 +520,20 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
   if (!vars || !fields) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
-        layer, skipped: true, skippedReason: 'unsupported_layer_vars',
-        timestamp: new Date().toISOString(), zoom
+        layer,
+        componentLayer: layer,
+        provider: 'copernicus',
+        backendPointCount: 0,
+        renderPointCount: 0,
+        nonzeroCount: 0,
+        bbox: null,
+        zoom,
+        cacheHit: false,
+        isStale: false,
+        elapsedMs: 0,
+        skipped: true,
+        skippedReason: 'unsupported_layer_vars',
+        timestamp: new Date().toISOString()
       };
     }
     return null;
@@ -475,22 +553,57 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
   var cached = clientGridCache.get(cacheKey);
   if (cached) {
     var isExpired = now - cached.timestamp > CLIENT_CACHE_TTL_MS;
+    
+    // Deterministic nonzeroCount calculation from cached grid
+    var nzCount = 0;
+    if (cached.data?.grid?.vectors) {
+      cached.data.grid.vectors.forEach(function(v) {
+        var compVec = v[layer];
+        if (compVec && compVec.speed > 0) nzCount++;
+      });
+    }
+
     if (!isExpired) {
       console.log(`[CopernicusGrid] Cache HIT for key: ${cacheKey}`);
       if (typeof window !== 'undefined') {
         window.__COPERNICUS_GRID_DIAG__ = {
           layer,
-          gridSize: COPERNICUS_UPSCALED_GRID_SIZE,
-          pointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
+          componentLayer: layer,
+          provider: 'copernicus',
+          backendPointCount: COPERNICUS_COMPONENT_GRID_SIZE * COPERNICUS_COMPONENT_GRID_SIZE,
+          renderPointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
+          nonzeroCount: nzCount,
+          bbox: cached.data?.grid?.bounds || null,
+          zoom,
           cacheHit: true,
           isStale: false,
+          elapsedMs: 0,
           timestamp: new Date().toISOString(),
-          zoom
+          skipped: nzCount === 0,
+          skippedReason: nzCount === 0 ? 'copernicus_no_nonzero_vectors' : null
         };
       }
       return cached.data;
     } else {
       console.log(`[CopernicusGrid] Cache STALE hit for key: ${cacheKey}. Revalidating in background.`);
+      if (typeof window !== 'undefined') {
+        window.__COPERNICUS_GRID_DIAG__ = {
+          layer,
+          componentLayer: layer,
+          provider: 'copernicus',
+          backendPointCount: COPERNICUS_COMPONENT_GRID_SIZE * COPERNICUS_COMPONENT_GRID_SIZE,
+          renderPointCount: COPERNICUS_UPSCALED_GRID_SIZE * COPERNICUS_UPSCALED_GRID_SIZE,
+          nonzeroCount: nzCount,
+          bbox: cached.data?.grid?.bounds || null,
+          zoom,
+          cacheHit: true,
+          isStale: true,
+          elapsedMs: 0,
+          timestamp: new Date().toISOString(),
+          skipped: nzCount === 0,
+          skippedReason: nzCount === 0 ? 'copernicus_no_nonzero_vectors' : null
+        };
+      }
       // SWR: trigger in background, don't await, return stale immediately
       triggerBackgroundRevalidate(viewportBounds, layer, hourOffset, zoom, cacheKey);
       return cached.data;

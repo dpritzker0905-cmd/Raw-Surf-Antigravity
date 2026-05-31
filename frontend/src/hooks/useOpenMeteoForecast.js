@@ -183,6 +183,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       const marineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=${marineModel}&forecast_days=${Math.min(forecastDays, 16)}`;
 
       const needBaseGfs = activeModel !== 'GFS';
+      const needBaseGfsMarine = activeModel !== 'GFS' && activeModel !== 'EURO';
       const gfsWxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=gfs_seamless&forecast_days=16&wind_speed_unit=kn`;
       const gfsMarineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=ncep_gfswave025&forecast_days=16`;
 
@@ -209,7 +210,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             .then(r => ({ type: 'wx_base', ok: r.ok, value: r }))
             .catch(e => ({ type: 'wx_base', ok: false, reason: e }))
         );
+      }
 
+      if (needBaseGfsMarine) {
         // 4. Marine Base GFS (16 days)
         fetchQueue.push(
           safeFetch(`/api/weather-proxy?type=marine&${gfsMarineParams}`, 'marine', gfsMarineParams)

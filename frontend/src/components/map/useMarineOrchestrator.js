@@ -207,54 +207,79 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             }
           };
           
-          try {
-            const b = mapInstance.getBounds();
-            const west = b.getWest();
-            const east = b.getEast();
-            const south = b.getSouth();
-            const north = b.getNorth();
-            const lngSpan = east - west;
-            const latSpan = north - south;
-            const padding = 0.25; // 25% padding on each side (1.5x total span centered)
-            const vpBounds = {
-              west: west - lngSpan * padding,
-              east: east + lngSpan * padding,
-              south: Math.max(-80, south - latSpan * padding),
-              north: Math.min(85, north + latSpan * padding)
-            };
-            const componentGrid = await fetchCopernicusComponentGrid(
-              vpBounds, currentLayer, timeOffsetRef.current, zoom
-            );
-            if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
-              const vectors = componentGrid.grid.vectors;
-              let nonzeroCount = 0;
-              vectors.forEach(v => {
-                const compVec = v[currentLayer];
-                if (compVec && compVec.speed > 0) {
-                  nonzeroCount++;
-                }
-              });
+          if (zoom < 4) {
+            console.log(`[Marine] Zoom ${zoom} < 4, skipping Copernicus component grid fetch (zoom_too_low)`);
+            data.grid.__skippedReason = 'zoom_too_low';
+            data.grid.__gridProvider = 'copernicus';
+            data.grid.__componentLayer = currentLayer;
+            if (typeof window !== 'undefined') {
+              window.__COPERNICUS_GRID_DIAG__ = {
+                layer: currentLayer,
+                componentLayer: currentLayer,
+                provider: 'copernicus',
+                backendPointCount: 0,
+                renderPointCount: 0,
+                nonzeroCount: 0,
+                bbox: null,
+                zoom,
+                cacheHit: false,
+                isStale: false,
+                elapsedMs: 0,
+                timestamp: new Date().toISOString(),
+                skipped: true,
+                skippedReason: 'zoom_too_low'
+              };
+            }
+          } else {
+            try {
+              const b = mapInstance.getBounds();
+              const west = b.getWest();
+              const east = b.getEast();
+              const south = b.getSouth();
+              const north = b.getNorth();
+              const lngSpan = east - west;
+              const latSpan = north - south;
+              const padding = 0.25; // 25% padding on each side (1.5x total span centered)
+              const vpBounds = {
+                west: west - lngSpan * padding,
+                east: east + lngSpan * padding,
+                south: Math.max(-80, south - latSpan * padding),
+                north: Math.min(85, north + latSpan * padding)
+              };
+              const componentGrid = await fetchCopernicusComponentGrid(
+                vpBounds, currentLayer, timeOffsetRef.current, zoom
+              );
+              if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
+                const vectors = componentGrid.grid.vectors;
+                let nonzeroCount = 0;
+                vectors.forEach(v => {
+                  const compVec = v[currentLayer];
+                  if (compVec && compVec.speed > 0) {
+                    nonzeroCount++;
+                  }
+                });
 
-              if (nonzeroCount === 0) {
-                console.warn(`[Marine] Copernicus grid has vectors but zero active values for ${currentLayer} (no_nonzero_vectors)`);
-                if (typeof window !== 'undefined') {
-                  window.__COPERNICUS_GRID_DIAG__ = {
-                    ...window.__COPERNICUS_GRID_DIAG__,
-                    skipped: true,
-                    skippedReason: 'no_nonzero_vectors'
-                  };
+                if (nonzeroCount === 0) {
+                  console.warn(`[Marine] Copernicus grid has vectors but zero active values for ${currentLayer} (no_nonzero_vectors)`);
+                  if (typeof window !== 'undefined') {
+                    window.__COPERNICUS_GRID_DIAG__ = {
+                      ...window.__COPERNICUS_GRID_DIAG__,
+                      skipped: true,
+                      skippedReason: 'no_nonzero_vectors'
+                    };
+                  }
                 }
+
+                data = mergeComponentGrid(data, componentGrid, currentLayer);
+                console.log(`[Marine] Copernicus ${currentLayer} grid merged: ${componentGrid.grid?.vectors?.length} vectors, nonzeroCount: ${nonzeroCount}`);
+              } else {
+                console.warn(`[Marine] Copernicus component grid failed or returned empty.`);
+                data = null;
               }
-
-              data = mergeComponentGrid(data, componentGrid, currentLayer);
-              console.log(`[Marine] Copernicus ${currentLayer} grid merged: ${componentGrid.grid?.vectors?.length} vectors, nonzeroCount: ${nonzeroCount}`);
-            } else {
-              console.warn(`[Marine] Copernicus component grid failed or returned empty.`);
+            } catch (err) {
+              console.warn(`[Marine] Copernicus component grid failed:`, err.message);
               data = null;
             }
-          } catch (err) {
-            console.warn(`[Marine] Copernicus component grid failed:`, err.message);
-            data = null;
           }
         } else {
           data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, activeModelRef.current);
@@ -280,7 +305,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
         // Silenced: fetchMarineData result trace
 
-        if (data && (data.features?.length > 0 || (isEuroComponent && data.grid?.vectors?.length > 0))) {
+        if (data && (data.features?.length > 0 || (isEuroComponent && data.grid?.vectors?.length > 0) || (isEuroComponent && data.grid?.__skippedReason === 'zoom_too_low'))) {
           consecutiveFailuresRef.current = 0; // Reset circuit breaker on success
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();

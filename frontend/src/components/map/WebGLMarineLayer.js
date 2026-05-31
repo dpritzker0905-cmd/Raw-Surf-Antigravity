@@ -312,7 +312,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     // v6.9: Expose exhaustive diagnostics detailing exact render source, provider, and stale clearance states
     if (typeof window !== 'undefined') {
-      const activeModel = data?.__sourceModel || window.__DATA_DIAG__?.activeModel || 'unknown';
+      const activeModel = activeModelRef.current || data?.__sourceModel || window.__DATA_DIAG__?.activeModel || 'unknown';
       const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
       let nonzeroCount = 0;
       if (data?.vectors) {

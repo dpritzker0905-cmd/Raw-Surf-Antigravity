@@ -31,6 +31,7 @@ import { useSpotClusteringData } from './useSpotClusteringData';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
 import { useMapObservability } from './useMapObservability';
+import { useMapDebugTools } from './useMapDebugTools';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 var MapWebGL = ({
@@ -208,46 +209,20 @@ var MapWebGL = ({
   });
 
   // Expose FCE + simulation state for debugging
-  if (typeof window !== 'undefined') {
-    window.__FCE_FIELD__ = simulationField;
-    window.__FCE_RENDER_PLAN__ = renderPlan;
-    window.__FCE_DIAGNOSTICS__ = fieldDiagnostics;
-    window.__SIM_DIAGNOSTICS__ = simDiagnostics;
-    window.__SIM_FRAME__ = simFrameIndex;
-    window.__SIM_EVOLUTION__ = renderPlan?.evolution || null;
-    window.__GPU_DISPATCHER__ = getDispatcherDiagnostics();
-
-    // v5.0: Data Freshness Diagnostic — callable from console as window.__DATA_DIAG__
-    window.__DATA_DIAG__ = {
-      wind: {
-        hasData: !!windData,
-        vectorCount: windData?.vectors?.length || 0,
-        gridSize: windData ? `${windData.cols}×${windData.rows}` : 'none',
-        source: windData?.source || 'unknown',
-        hourOffset: windData?.hourOffset ?? null,
-        stale: windData?.stale ?? null,
-      },
-      marine: {
-        hasData: !!marineData,
-        featureCount: marineData?.features?.length || 0,
-        gridVectorCount: marineData?.grid?.vectors?.length || 0,
-        gridSize: marineData?.grid ? `${marineData.grid.cols}×${marineData.grid.rows}` : 'none',
-        gridTimestamp: marineData?.grid?.timestamp ? new Date(marineData.grid.timestamp).toISOString() : null,
-        ageSec: marineData?.grid?.timestamp ? Math.round((Date.now() - marineData.grid.timestamp) / 1000) : null,
-      },
-      activeLayer: activeLayers[0] || 'none',
-      activeMarineLayer: activeMarineLayer || 'none',
-      activeModel,
-      timeOffsetHours: debouncedTimeOffsetHours,
-      fce: {
-        fieldRevision: simulationField?.revision || null,
-        fieldSources: simulationField?.sources || null,
-        renderPlanExists: !!renderPlan,
-        simFrame: simFrameIndex,
-      },
-      timestamp: new Date().toISOString(),
-    };
-  }
+  useMapDebugTools({
+    mapInstance,
+    activeLayers,
+    activeMarineLayer,
+    activeModel,
+    debouncedTimeOffsetHours,
+    windData,
+    marineData,
+    simulationField,
+    renderPlan,
+    fieldDiagnostics,
+    simDiagnostics,
+    simFrameIndex
+  });
 
   const activeRenderType = useMemo(() => {
     const layerId = activeLayers[0];
@@ -263,7 +238,51 @@ var MapWebGL = ({
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
 
+    const gridModel = marineData.grid.__sourceModel || marineData.__sourceModel;
+    const gridProvider = marineData.grid.__gridProvider || 'none';
     const isEuroComponent = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
+
+    // 1. Cross-model mismatch check: if the grid source model does not match the active model, return null to clear visual buffers.
+    if (gridModel !== activeModel) {
+      if (typeof window !== 'undefined') {
+        window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
+          hasData: !!marineData,
+          hasGrid: !!marineData?.grid,
+          gridProvider,
+          componentLayer: marineData.grid.__componentLayer || 'none',
+          activeMarineLayer,
+          activeModel,
+          isEuroComponent,
+          hasCopernicusGrid: false,
+          mismatch: true,
+          mismatchReason: `Model mismatch: activeModel is ${activeModel} but grid sourceModel is ${gridModel || 'none'}`,
+          timestamp: new Date().toISOString()
+        };
+        window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
+      }
+      return null;
+    }
+
+    // 2. Cross-layer mismatch check: if we expect the global waves grid (non-component) but the current grid is a regional Copernicus component grid, return null.
+    if (!isEuroComponent && gridProvider === 'copernicus') {
+      if (typeof window !== 'undefined') {
+        window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
+          hasData: !!marineData,
+          hasGrid: !!marineData?.grid,
+          gridProvider,
+          componentLayer: marineData.grid.__componentLayer || 'none',
+          activeMarineLayer,
+          activeModel,
+          isEuroComponent,
+          hasCopernicusGrid: false,
+          mismatch: true,
+          mismatchReason: `Expected global waves grid but received Copernicus component grid (${marineData.grid.__componentLayer || 'none'})`,
+          timestamp: new Date().toISOString()
+        };
+        window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
+      }
+      return null;
+    }
     
     // v6.6: Tight dynamic grid capability validation: if Copernicus regional grid provided component data,
     // it MUST match the active model and component layer exactly.
@@ -477,86 +496,7 @@ var MapWebGL = ({
     };
   }, [mapInstance]);
 
-  // Runtime diagnostic — call window.__MAP_DEBUG__() or window.__SOURCECACHE_TRUTH__() in console
-  useEffect(() => {
-    if (!mapInstance) return;
 
-    window.__MAP_INSTANCE__ = mapInstance;
-
-    // Layer stack inspector
-    window.__MAP_DEBUG__ = () => {
-      const style = mapInstance.getStyle();
-      const layers = style?.layers?.map((l, i) => ({
-        idx: i,
-        id: l.id,
-        type: l.type,
-        visibility: l.layout?.visibility ?? 'visible',
-        opacity: l.paint?.['raster-opacity'] ?? l.paint?.['circle-opacity'] ?? l.paint?.['fill-opacity'] ?? l.paint?.['line-opacity'] ?? '-',
-        fadeDuration: l.paint?.['raster-fade-duration'] ?? '-'
-      }));
-      console.table(layers);
-      console.log('[DEBUG] Total layers:', layers?.length);
-      console.log('[DEBUG] Active marine settings:', !!window.__OM_MARINE_SETTINGS__);
-      console.log('[DEBUG] Raster sources:', Object.keys(style?.sources || {}).filter(s => s.includes('slot')));
-      return layers;
-    };
-
-    // SourceCache deep inspector — reads MapLibre's INTERNAL tile state
-    window.__SOURCECACHE_TRUTH__ = () => {
-      const map = mapInstance;
-      const style = map.style;
-      if (!style) { console.error('Style not loaded'); return null; }
-
-      const report = {};
-      const tileManagers = style.tileManagers || style.sourceCaches || {};
-
-      for (const [name, tm] of Object.entries(tileManagers)) {
-        if (!name.includes('slot') && !name.includes('radar') && !name.includes('satellite')) continue;
-        const src = tm._source || tm.source || {};
-        const inView = tm._inViewTiles || tm._tiles || {};
-        const outCache = tm._outOfViewCache || tm._cache || {};
-
-        // Extract tile IDs from in-view tiles
-        const tileIds = [];
-        for (const [tileId, tile] of Object.entries(inView)) {
-          tileIds.push({
-            id: tileId,
-            state: tile.state,
-            loaded: tile.loaded,
-            zoom: tile.tileID?.canonical?.z || '?',
-            x: tile.tileID?.canonical?.x || '?',
-            y: tile.tileID?.canonical?.y || '?',
-            overscaled: tile.tileID?.overscaledZ > tile.tileID?.canonical?.z
-          });
-        }
-
-        report[name] = {
-          sourceUrl: src.url || '-',
-          sourceTiles: src.tiles || '-',
-          inViewCount: tileIds.length,
-          outOfViewCount: Object.keys(outCache).length,
-          overscaledCount: tileIds.filter(t => t.overscaled).length,
-          tiles: tileIds
-        };
-      }
-
-      console.log('%c=== SourceCache Truth ===', 'font-size: 14px; font-weight: bold; color: #00ff88');
-      for (const [name, data] of Object.entries(report)) {
-        console.log(`%c${name}`, 'color: #44aaff; font-weight: bold');
-        console.log('  Source URL:', data.sourceUrl);
-        console.log('  Source tiles:', data.sourceTiles);
-        console.log(`  In-view: ${data.inViewCount} | Out-of-view: ${data.outOfViewCount} | Overscaled: ${data.overscaledCount}`);
-        if (data.tiles.length > 0) console.table(data.tiles);
-      }
-      return report;
-    };
-
-    return () => {
-      delete window.__MAP_INSTANCE__;
-      delete window.__MAP_DEBUG__;
-      delete window.__SOURCECACHE_TRUTH__;
-    };
-  }, [mapInstance]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -684,6 +624,7 @@ var MapWebGL = ({
             theme={theme}
             activeLayers={activeLayers}
             timeOffsetHours={timeOffsetHours}
+            activeModel={activeModel}
             onError={() => {
               console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
               setWebglMarineFailed(true);
