@@ -5,17 +5,7 @@ import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPON
 
 /**
  * useMarineOrchestrator (v238)
- *
- * SINGLE-PIPELINE marine data orchestrator. Consolidates all entry paths
- * (manual toggle, moveend, mount) into one serialized update function.
- *
- * Architecture (addresses ChatGPT architectural audit):
- * 1. ONE enqueueUpdate function all sources funnel through it
- * 2. Camera-hash dedup won't fetch if viewport hasn't moved
- * 3. Post-manual suppression blocks moveend-derived triggers for 1500ms
- * 4. Intent tracking only user-driven moveend events trigger fetches
- * 5. Internal update tracking ignores moveend caused by source/style mutations
- *
+ * SINGLE-PIPELINE viewport-driven marine data orchestrator.
  * RULE: This hook has ZERO knowledge of rendering. It only manages data.
  */
 const loadGrid = async (model, layer, hour, bounds, zoom) => {
@@ -94,9 +84,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         // Only trigger manual fetch on FIRST activation, not re-renders
         hasActivatedRef.current = true;
         console.log('[Marine] Layer activated, triggering manual fetch...');
-        // Reset hash so the 5-min TTL guard does not block re-activation fetches
+        // Reset hash and circuit breaker so the 5-min TTL guard does not block re-activation fetches
         marineFetchLocksRef.current.lastHash = null;
         marineFetchLocksRef.current.lastTime = 0;
+        consecutiveFailuresRef.current = 0;
+        marineRetryCountRef.current = 0;
         manualMarineTriggerRef.current?.();
       }
     }, 50);
@@ -502,10 +494,31 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             isInternalMapUpdateRef.current = false;
           }, 800);
         } else {
- // Data is null or empty increment circuit breaker
+          // Data is null or empty increment circuit breaker
           consecutiveFailuresRef.current += 1;
+
+          if (typeof window !== 'undefined') {
+            window.__MARINE_FETCH_DIAG__ = {
+              activeModel: activeModelRef.current,
+              activeLayer: currentLayer,
+              timeOffsetHours: timeOffsetRef.current,
+              provider: 'none',
+              gridProvider: 'none',
+              requestSummary: `Grid points query failed or empty bounds=[${bounds.west}, ${bounds.south}, ${bounds.east}, ${bounds.north}]`,
+              httpStatus: 502,
+              elapsedMs: Date.now() - now,
+              cacheHit: false,
+              inFlightDeduped: locks.isFetching,
+              vectorCount: 0,
+              nonzeroCount: 0,
+              consecutiveFailures: consecutiveFailuresRef.current,
+              rejectionReason: 'Proxy returned empty or failed payload',
+              timestamp: new Date().toISOString()
+            };
+          }
+
           if (consecutiveFailuresRef.current >= 3) {
-            console.warn('[FETCH] [Marine] Circuit breaker: 3 consecutive failures stopping until viewport changes.');
+            console.warn('[FETCH] [Marine] Circuit breaker: 3 consecutive failures stopping until model, layer, or viewport changes.');
             return; // Don't schedule more retries
           }
           const remaining = getRemainingCooldown('marine');
@@ -749,6 +762,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
+    consecutiveFailuresRef.current = 0;
+    marineRetryCountRef.current = 0;
     const t = setTimeout(() => {
       manualMarineTriggerRef.current?.();
     }, 350);

@@ -121,9 +121,15 @@ export function compileForecastCards({
       displayPeriod = 'Timeout';
       displayDir = 'Timeout';
     } else if (isExactPointAuthority && isExactPointError && waveHeight == null) {
-      displayHeight = 'Unavailable';
-      displayPeriod = 'Unavailable';
-      displayDir = 'Unavailable';
+      displayHeight = exactPointStatus === 'rate_limited'
+        ? 'Rate limited'
+        : exactPointStatus === 'copernicus_backend_502'
+          ? 'Proxy 502'
+          : exactPointStatus === 'copernicus_credentials_missing'
+            ? 'Backend unavailable'
+            : 'Unavailable';
+      displayPeriod = displayHeight;
+      displayDir = displayHeight;
     } else if (isNoCoverage && waveHeight == null) {
       displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -186,9 +192,15 @@ export function compileForecastCards({
         displayPeriod = 'Timeout';
         displayDir = 'Timeout';
       } else if (isExactPointAuthority && isExactPointError && swell1Height == null) {
-        displayHeight = 'Unavailable';
-        displayPeriod = 'Unavailable';
-        displayDir = 'Unavailable';
+        displayHeight = exactPointStatus === 'rate_limited'
+          ? 'Rate limited'
+          : exactPointStatus === 'copernicus_backend_502'
+            ? 'Proxy 502'
+            : exactPointStatus === 'copernicus_credentials_missing'
+              ? 'Backend unavailable'
+              : 'Unavailable';
+        displayPeriod = displayHeight;
+        displayDir = displayHeight;
       } else if (isNoCoverage && swell1Height == null) {
         displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -266,9 +278,15 @@ export function compileForecastCards({
         displayPeriod = 'Timeout';
         displayDir = 'Timeout';
       } else if (isExactPointAuthority && isExactPointError && swell2Height == null) {
-        displayHeight = 'Unavailable';
-        displayPeriod = 'Unavailable';
-        displayDir = 'Unavailable';
+        displayHeight = exactPointStatus === 'rate_limited'
+          ? 'Rate limited'
+          : exactPointStatus === 'copernicus_backend_502'
+            ? 'Proxy 502'
+            : exactPointStatus === 'copernicus_credentials_missing'
+              ? 'Backend unavailable'
+              : 'Unavailable';
+        displayPeriod = displayHeight;
+        displayDir = displayHeight;
       } else if (isNoCoverage && swell2Height == null) {
         displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -340,9 +358,15 @@ export function compileForecastCards({
         displayPeriod = 'Timeout';
         displayDir = 'Timeout';
       } else if (isExactPointAuthority && isExactPointError && windWaveHeight == null) {
-        displayHeight = 'Unavailable';
-        displayPeriod = 'Unavailable';
-        displayDir = 'Unavailable';
+        displayHeight = exactPointStatus === 'rate_limited'
+          ? 'Rate limited'
+          : exactPointStatus === 'copernicus_backend_502'
+            ? 'Proxy 502'
+            : exactPointStatus === 'copernicus_credentials_missing'
+              ? 'Backend unavailable'
+              : 'Unavailable';
+        displayPeriod = displayHeight;
+        displayDir = displayHeight;
       } else if (isNoCoverage && windWaveHeight == null) {
         displayHeight = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
@@ -423,7 +447,13 @@ export function compileForecastCards({
     cards.push({
       icon: Waves,
       label: 'Source',
-      value: 'Unavailable (Grid Fallback)',
+      value: exactPointStatus === 'rate_limited'
+        ? 'Rate limited (Using heatmap grid)'
+        : exactPointStatus === 'copernicus_backend_502'
+          ? 'Proxy 502 (Using heatmap grid)'
+          : exactPointStatus === 'copernicus_credentials_missing'
+            ? 'Credentials missing (Using heatmap grid)'
+            : 'Unavailable (Using heatmap grid)',
       color: 'text-rose-400'
     });
   } else if (isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage' && waveHeight != null) {

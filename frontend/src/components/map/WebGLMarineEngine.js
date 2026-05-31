@@ -329,7 +329,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const t = Math.max(0.0, Math.min(1.0, (x - edge0) / (edge1 - edge0)));
     return t * t * (3.0 - 2.0 * t);
   };
-  const motionScale = 0.75 + 0.25 * smoothstepVal(4.0, 7.0, z);
+  // v7.0: Slow animation motion speed smoothly by 25% at lower/far zoom without changing animation type
+  const zoomFactor = z < 6.0 ? (0.75 + 0.25 * smoothstepVal(3.0, 6.0, z)) : 1.0;
+  const motionScale = (0.75 + 0.25 * smoothstepVal(4.0, 7.0, z)) * zoomFactor;
   this.motionScale = motionScale;
 
   // ==========================================

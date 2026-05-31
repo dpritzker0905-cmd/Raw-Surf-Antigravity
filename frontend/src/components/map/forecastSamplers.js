@@ -196,20 +196,23 @@ var MARINE_MODEL_LIMITS = {
  * @param {AbortSignal} [signal=null] - Abort controller signal for timeouts
  * @returns {Promise<Object|null>} Full response with hourly arrays
  */
-export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null) {
+export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null, timeOffsetHours = 0) {
   if (lat == null || lng == null) return null;
 
   const startTime = Date.now();
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
   
-  if (model === 'EURO' && !signal?.aborted) {
+  const nativeLimit = model === 'EURO' ? (activeLayer === 'waves' ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS) : ICON_LIMIT;
+  const isPastLimit = (model === 'EURO' && timeOffsetHours > nativeLimit) || (model === 'ICON' && timeOffsetHours > nativeLimit);
+
+  if (model === 'EURO' && isPastLimit && !signal?.aborted) {
     // Proactively pre-warm GFS and ICON exact point data in background for Extended Estimate
-    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal).catch(() => {});
-    fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal).catch(() => {});
-  } else if (model === 'ICON' && !signal?.aborted) {
+    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
+    fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal, timeOffsetHours).catch(() => {});
+  } else if (model === 'ICON' && isPastLimit && !signal?.aborted) {
     // Proactively pre-warm GFS exact point data in background for ICON Extended Estimate
-    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal).catch(() => {});
+    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
   }
   
   // v6.7: Route EURO waves exact-point through Open-Meteo ecmwf_wam025 since
@@ -331,6 +334,8 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
             statusStr = errText.toLowerCase().includes('timeout') ? 'copernicus_timeout' : 'copernicus_backend_502';
           } else if (res.status === 504 || errText.toLowerCase().includes('gateway timeout')) {
             statusStr = 'copernicus_timeout';
+          } else if (res.status === 429 || errText.toLowerCase().includes('rate limit') || errText.toLowerCase().includes('429')) {
+            statusStr = 'rate_limited';
           }
 
           if (typeof window !== 'undefined') {

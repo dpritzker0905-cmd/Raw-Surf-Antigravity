@@ -82,6 +82,18 @@ export var MapForecastOverlay = ({
       setExactPointStatus('idle');
       return;
     }
+
+    const isUserExplicitSelection = !!(selectedSpot || longPressLocation);
+    const hasGrid = marineData?.grid?.vectors?.length > 0;
+
+    // v7.0: Eager default snap request mitigation
+    if (!isUserExplicitSelection && !hasGrid) {
+      setExactPointResponse(null);
+      setExactPoint(null);
+      setExactPointStatus('idle');
+      return;
+    }
+
     setExactPointResponse(null);
     setExactPoint(null);
     setExactPointStatus('exact_loading');
@@ -91,49 +103,54 @@ export var MapForecastOverlay = ({
     const token = { cancelled: false };
     exactPointFetchRef.current = token;
 
-    // v6.7: Strict 18-second abort timeout controller
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 18000);
+    const debounceTime = isUserExplicitSelection ? 200 : 3000;
 
-    fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal).then(data => {
-      clearTimeout(timeoutId);
-      if (!token.cancelled) {
-        if (data) {
-          if (data.status === 'timeout') {
-            setExactPointStatus('exact_timeout');
-          } else if (data.status === 'error') {
-            setExactPointStatus('exact_backend_error');
-          } else if (data.status === 'empty') {
-            setExactPointStatus('exact_empty');
-          } else if (['copernicus_credentials_missing', 'copernicus_backend_502', 'copernicus_timeout'].includes(data.status)) {
-            setExactPointStatus(data.status);
+    const timeoutId = setTimeout(() => {
+      if (token.cancelled) return;
+
+      const fetchTimeoutId = setTimeout(() => {
+        controller.abort();
+      }, 18000);
+
+      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, timeOffsetHours).then(data => {
+        clearTimeout(fetchTimeoutId);
+        if (!token.cancelled) {
+          if (data) {
+            if (data.status === 'timeout') {
+              setExactPointStatus('exact_timeout');
+            } else if (data.status === 'error') {
+              setExactPointStatus('exact_backend_error');
+            } else if (data.status === 'empty') {
+              setExactPointStatus('exact_empty');
+            } else if (['copernicus_credentials_missing', 'copernicus_backend_502', 'copernicus_timeout', 'rate_limited'].includes(data.status)) {
+              setExactPointStatus(data.status);
+            } else {
+              setExactPointResponse(data);
+              setExactPointStatus('exact_success');
+            }
           } else {
-            setExactPointResponse(data);
-            setExactPointStatus('exact_success');
+            setExactPointStatus('exact_backend_error');
           }
-        } else {
-          setExactPointStatus('exact_backend_error');
         }
-      }
-    }).catch(err => {
-      clearTimeout(timeoutId);
-      if (!token.cancelled) {
-        if (err.name === 'AbortError') {
-          setExactPointStatus('exact_timeout');
-        } else {
-          setExactPointStatus('exact_backend_error');
+      }).catch(err => {
+        clearTimeout(fetchTimeoutId);
+        if (!token.cancelled) {
+          if (err.name === 'AbortError') {
+            setExactPointStatus('exact_timeout');
+          } else {
+            setExactPointStatus('exact_backend_error');
+          }
         }
-      }
-    });
+      });
+    }, debounceTime);
 
     return () => {
       token.cancelled = true;
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, isMarineLayer, currentPointKey]);
+  }, [pointLat, pointLng, activeModel, isMarineLayer, currentPointKey, selectedSpot, longPressLocation, marineData, timeOffsetHours]);
 
   // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
   // This is synchronous and instant — no network request on scrub.
@@ -255,11 +272,12 @@ export var MapForecastOverlay = ({
 
   const isExactPointLoading = ['exact_loading', 'exact_stale_rejected'].includes(effectiveExactPointStatus);
   const isExactPointTimeout = ['exact_timeout', 'copernicus_timeout'].includes(effectiveExactPointStatus);
-  const isExactPointError = ['exact_backend_error', 'exact_empty', 'exact_error', 'error', 'copernicus_credentials_missing', 'copernicus_backend_502'].includes(effectiveExactPointStatus);
+  const isExactPointError = ['exact_backend_error', 'exact_empty', 'exact_error', 'error', 'copernicus_credentials_missing', 'copernicus_backend_502', 'rate_limited'].includes(effectiveExactPointStatus);
 
   // v6.6: For selected marine points, exact-point is THE authority.
   // Block ALL fallbacks while loading or if exact point is valid/success.
-  const isExactPointAuthority = isMarineLayer && (pointLat != null) && (pointLng != null);
+  const isUserExplicitSelection = !!(selectedSpot || longPressLocation);
+  const isExactPointAuthority = isMarineLayer && isUserExplicitSelection && (pointLat != null) && (pointLng != null);
   
   // v6.9: Grid Fallback on Point Error: if exact point is loading, failed, timed out,
   // or has no coverage, but the visual/blended heatmap grid is valid, use the grid sample.
