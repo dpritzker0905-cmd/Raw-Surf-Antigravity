@@ -265,12 +265,13 @@ export var MapForecastOverlay = ({
   const lng = selectedSpot?.longitude || longPressLocation?.lng;
 
   // v6.2: Validate exactPoint still matches current point/model.
-  // Prevents stale data from a previous coordinate or model from being used.
   const isExactPointValid = (() => {
     if (!effectiveExactPoint) return false;
     if (effectiveExactPointStatus !== 'exact_success' && 
         effectiveExactPointStatus !== 'exact_stale_available' &&
-        effectiveExactPointStatus !== 'exact_no_time_coverage') return false;
+        effectiveExactPointStatus !== 'exact_no_time_coverage' &&
+        effectiveExactPointStatus !== 'euro_extended_estimate' &&
+        effectiveExactPointStatus !== 'icon_extended_estimate') return false;
     // v6.6: Stricter coordinate check — reject if exactPoint was fetched for a different point
     const epLat = effectiveExactPoint.requestedLat;
     const epLng = effectiveExactPoint.requestedLng;
@@ -284,8 +285,13 @@ export var MapForecastOverlay = ({
     }
     // Provider check
     const expectedExactProv = activeModel === 'EURO' ? 'copernicus' : 'open-meteo';
-    if (effectiveExactPoint.provider !== expectedExactProv && !(activeModel === 'EURO' && activeLayer === 'waves')) {
-      return false;
+    const isEstimated = effectiveExactPointStatus === 'euro_extended_estimate' || 
+                        effectiveExactPointStatus === 'icon_extended_estimate' || 
+                        effectiveExactPoint.provider === 'estimated';
+    if (!isEstimated) {
+      if (effectiveExactPoint.provider !== expectedExactProv && !(activeModel === 'EURO' && activeLayer === 'waves')) {
+        return false;
+      }
     }
     return true;
   })();

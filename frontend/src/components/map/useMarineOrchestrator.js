@@ -18,15 +18,8 @@ const loadGrid = async (model, layer, hour, bounds, zoom) => {
 
 export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
   const [marineData, setMarineData] = useState(null);
-
-  // --- Refs (all internal to this hook) ---
   const marineRevision = useRef(0);
-  const marineFetchLocksRef = useRef({
-    lastHash: null,
-    lastTime: 0,
-    isFetching: false,
-    manualFetchActiveUntil: 0
-  });
+  const marineFetchLocksRef = useRef({ lastHash: null, lastTime: 0, isFetching: false, manualFetchActiveUntil: 0 });
   const marineRequestIdRef = useRef(0);
   const activeMarineLayersRef = useRef(false);
   const manualMarineTriggerRef = useRef(null);
@@ -41,7 +34,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const marineRetryCountRef = useRef(0);
   const updateMarineGridRef = useRef(null);
   const hasActivatedRef = useRef(false);
-  const consecutiveFailuresRef = useRef(0); // v3.9: Circuit breaker
+  const consecutiveFailuresRef = useRef(0);
   const activeModelRef = useRef(activeModel);
   const lastFetchedModelRef = useRef(null);
 
@@ -589,7 +582,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           west: b.getWest(), south: b.getSouth(),
           east: b.getEast(), north: b.getNorth()
         };
-        isCached = isContainedInMarineCache(bounds, activeModelRef.current);
+        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current);
       } catch (e) { /* map not ready */ }
 
       // Hard Dedupe: Ignore identical triggers within 800ms (reduced to 50ms if cached)
@@ -659,7 +652,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           west: b.getWest(), south: b.getSouth(),
           east: b.getEast(), north: b.getNorth()
         };
-        isCached = isContainedInMarineCache(bounds, activeModelRef.current);
+        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current);
       } catch (e) { /* map not ready */ }
       const debounceTime = isCached ? 50 : 900;
 

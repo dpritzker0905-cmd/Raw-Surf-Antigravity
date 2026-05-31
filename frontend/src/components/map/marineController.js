@@ -157,10 +157,19 @@ export function isContainedInWindCache(bounds, model) {
   return isViewportInsideCachedBounds(bounds, windHourlyCache.bounds);
 }
 
-export function isContainedInMarineCache(bounds, model) {
+function hasTimeCoverage(cache, hourOffset) {
+  const timeArray = cache?.results?.[0]?.hourly?.time;
+  if (!timeArray || timeArray.length === 0) return false;
+  const targetMs = Date.now() + hourOffset * 3600000;
+  const lastCachedMs = new Date(timeArray[timeArray.length - 1] + 'Z').getTime();
+  return targetMs <= lastCachedMs + 2 * 3600000;
+}
+
+export function isContainedInMarineCache(bounds, model, hourOffset = 0) {
   if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
   if (marineHourlyCache.model !== (model || 'GFS')) return false;
   if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
+  if (!hasTimeCoverage(marineHourlyCache, hourOffset)) return false;
   const isGlobalCached = !!marineHourlyCache.isGlobal;
   const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
   if (isGlobalCached !== isGlobalViewport) return false;
@@ -576,7 +585,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (marineHourlyCache.hash === viewHash &&
       marineHourlyCache.model === (model || 'GFS') &&
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
-      Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+      Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL &&
+      hasTimeCoverage(marineHourlyCache, hourOffset)) {
     console.log(`[Marine] Cache HIT for offset=${hourOffset}h, model=${model || 'GFS'}, provider=${expectedProvider}`);
     return extractMarineAtOffset(marineHourlyCache, hourOffset);
   }
@@ -639,10 +649,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
     const marineVarList = MODEL_SUPPORTED_VARS[apiModel] || MODEL_SUPPORTED_VARS['ncep_gfswave025'];
     
-    let forecastDays = 3;
-    if (apiModel === 'ncep_gfswave025') forecastDays = 16;
-    else if (apiModel === 'gwam') forecastDays = 7;
-    else if (apiModel === 'ecmwf_wam025') forecastDays = 10;
+    let maxForecastDays = 3;
+    if (apiModel === 'ncep_gfswave025') maxForecastDays = 16;
+    else if (apiModel === 'gwam') maxForecastDays = 7;
+    else if (apiModel === 'ecmwf_wam025') maxForecastDays = 10;
+
+    // Adaptive request budget: request smallest needed forecast window covering the selected hourOffset
+    const neededDays = Math.max(1, Math.ceil((hourOffset + 1) / 24));
+    const forecastDays = Math.min(maxForecastDays, neededDays);
 
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: forecastDays };
 

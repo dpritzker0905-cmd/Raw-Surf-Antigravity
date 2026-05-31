@@ -34,6 +34,157 @@ let _lastFieldRevision = 0;
 let _dispatchCount = 0;
 const _lastGoodGridsCache = {};
 
+function hydrateGridFromLocalStorage(activeModel, activeMarineLayer, hourOffset) {
+  try {
+    const raw = localStorage.getItem('rawsurf_marine_cache_v9');
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    if (!cache || !cache.results || !cache.points) return null;
+
+    const sourceModel = cache.model || 'GFS';
+    const provider = cache.provider || 'open-meteo';
+    if (sourceModel !== activeModel) return null;
+    if (provider === 'fallback_safe_zero') return null;
+
+    const timeArray = cache.results[0]?.hourly?.time;
+    if (!timeArray || timeArray.length === 0) return null;
+
+    const targetMs = Date.now() + hourOffset * 3600000;
+    let bestIdx = 0;
+    let minDiff = Infinity;
+    for (let i = 0; i < timeArray.length; i++) {
+      const diff = Math.abs(new Date(timeArray[i] + 'Z').getTime() - targetMs);
+      if (diff < minDiff) {
+        minDiff = diff;
+        bestIdx = i;
+      }
+    }
+
+    if (minDiff > 3 * 3600000) {
+      if (typeof window !== 'undefined') {
+        window.__MARINE_BOOTSTRAP_GRID_DIAG__ = {
+          hydrated: false,
+          reason: `Hour offset ${hourOffset} is too far from cached times (min diff: ${Math.round(minDiff / 3600000)}h)`,
+          timestamp: new Date().toISOString()
+        };
+      }
+      return null;
+    }
+
+    const size = cache.points.length;
+    const vectors = new Array(size);
+    let nonzeroCount = 0;
+    let maxHeight = 0;
+    let sumHeight = 0;
+
+    for (let i = 0; i < size; i++) {
+      const r = cache.results[i];
+      if (!r?.hourly) {
+        vectors[i] = { u: 0, v: 0, speed: 0, period: 0, isOcean: false };
+        continue;
+      }
+
+      let h = 0;
+      let dir = 0;
+      let period = 0;
+
+      const h_all = r.hourly.wave_height;
+      const d_all = r.hourly.wave_direction;
+      const p_all = r.hourly.wave_period;
+
+      const s1_h_all = r.hourly.swell_wave_height;
+      const s1_d_all = r.hourly.swell_wave_direction;
+      const s1_p_all = r.hourly.swell_wave_period;
+
+      const s2_h_all = r.hourly.secondary_swell_wave_height;
+      const s2_d_all = r.hourly.secondary_swell_wave_direction;
+      const s2_p_all = r.hourly.secondary_swell_wave_period;
+
+      const ww_h_all = r.hourly.wind_wave_height;
+      const ww_d_all = r.hourly.wind_wave_direction;
+      const ww_p_all = r.hourly.wind_wave_period;
+
+      if (activeMarineLayer === 'waves') {
+        h = h_all?.[bestIdx] ?? 0;
+        dir = (d_all?.[bestIdx] ?? 0) * (Math.PI / 180);
+        period = p_all?.[bestIdx] ?? 0;
+      } else if (activeMarineLayer === 'swell_1') {
+        h = s1_h_all?.[bestIdx] ?? 0;
+        dir = (s1_d_all?.[bestIdx] ?? 0) * (Math.PI / 180);
+        period = s1_p_all?.[bestIdx] ?? 0;
+      } else if (activeMarineLayer === 'swell_2') {
+        h = s2_h_all?.[bestIdx] ?? 0;
+        dir = (s2_d_all?.[bestIdx] ?? 0) * (Math.PI / 180);
+        period = s2_p_all?.[bestIdx] ?? 0;
+      } else if (activeMarineLayer === 'wind_waves') {
+        h = ww_h_all?.[bestIdx] ?? 0;
+        dir = (ww_d_all?.[bestIdx] ?? 0) * (Math.PI / 180);
+        period = ww_p_all?.[bestIdx] ?? 0;
+      }
+
+      if (h > 0) {
+        nonzeroCount++;
+        if (h > maxHeight) maxHeight = h;
+        sumHeight += h;
+      }
+
+      vectors[i] = {
+        u: -h * Math.sin(dir),
+        v: -h * Math.cos(dir),
+        speed: h,
+        height: h,
+        direction: dir * (180 / Math.PI),
+        period: period,
+        isOcean: h > 0 || (r.hourly.wave_height?.[bestIdx] ?? 0) > 0
+      };
+    }
+
+    const meanHeight = nonzeroCount > 0 ? sumHeight / nonzeroCount : 0;
+    const marineGrid = {
+      vectors,
+      cols: cache.gridSize,
+      rows: cache.gridSize,
+      bounds: cache.bounds,
+      nonzeroCount,
+      maxHeight,
+      meanHeight
+    };
+
+    if (typeof window !== 'undefined') {
+      window.__MARINE_BOOTSTRAP_GRID_DIAG__ = {
+        hydrated: true,
+        sourceModel,
+        activeMarineLayer,
+        hourOffset,
+        provider,
+        vectorCount: vectors.length,
+        nonzeroCount,
+        maxHeight,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    return {
+      marineGrid,
+      model: activeModel,
+      layer: activeMarineLayer,
+      provider,
+      timestamp: Date.now(),
+      hourOffset
+    };
+
+  } catch (e) {
+    if (typeof window !== 'undefined') {
+      window.__MARINE_BOOTSTRAP_GRID_DIAG__ = {
+        hydrated: false,
+        reason: `Hydration exception: ${e.message}`,
+        timestamp: new Date().toISOString()
+      };
+    }
+    return null;
+  }
+}
+
 // Throttle GPU texture uploads to ~10Hz (every 6th frame at 60Hz)
 // GPU texture upload is expensive — don't do it every frame
 const DISPATCH_INTERVAL = 6;
@@ -221,7 +372,9 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     const isEuro = activeModel === 'EURO';
     const isWaves = activeMarineLayer === 'waves';
     if (isValid) {
-      if (gridProvider === 'estimated') {
+      if (gridProvider === 'fallback_safe_zero') {
+        isValid = false;
+      } else if (gridProvider === 'estimated') {
         if (componentLayer !== activeMarineLayer) {
           isValid = false;
         }
@@ -284,7 +437,13 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
         };
       } else {
         // Retrieve from cache if transient error
-        const cached = _lastGoodGridsCache[cacheKey];
+        let cached = _lastGoodGridsCache[cacheKey];
+        if (!cached && !isHardMismatch) {
+          cached = hydrateGridFromLocalStorage(activeModel, activeMarineLayer, field.hourOffset);
+          if (cached) {
+            _lastGoodGridsCache[cacheKey] = cached;
+          }
+        }
         if (cached && !isHardMismatch) {
           gridToUpload = cached.marineGrid;
           usingLastGood = true;
@@ -322,7 +481,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
           renderAccepted: isValid,
           renderHeldLastGood: usingLastGood || (!isValid && !isHardMismatch),
           clearReason: isHardMismatch ? (isLayerDisabled ? 'Layer disabled' : isModelMismatch ? 'Model mismatch' : 'Component layer mismatch') : null,
-          rejectionReason: isValid ? null : `Mismatch guard: model=${gridModel} vs ${activeModel}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}, hard=${isHardMismatch}`,
+          rejectionReason: isValid ? null : (gridProvider === 'fallback_safe_zero' ? 'fallback_safe_zero rejected, holding last valid grid' : `Mismatch guard: model=${gridModel} vs ${activeModel}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}, hard=${isHardMismatch}`),
           lastGoodAgeMs: cached ? (Date.now() - cached.timestamp) : null,
           lastGoodModel: cached ? cached.model : null,
           lastGoodLayer: cached ? cached.layer : null,

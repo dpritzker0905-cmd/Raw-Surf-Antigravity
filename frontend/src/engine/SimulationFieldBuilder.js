@@ -91,6 +91,7 @@ export function injectWindData(field, windData) {
  */
 export function injectMarineData(field, marineData) {
   if (!marineData?.grid?.vectors?.length) return field;
+  if (marineData.__renderable === false || marineData.grid?.__renderable === false) return field;
 
   const gridVectors = marineData.grid.vectors;
   const srcCols = marineData.grid.cols || Math.round(Math.sqrt(gridVectors.length));
@@ -326,9 +327,10 @@ export function buildSimulationField({
   let cols = 15, rows = 15; // Default to wind grid size
   let bounds = { north: 85, south: -85, east: 180, west: -180 };
 
+  const isMarineRenderable = marineData && marineData.__renderable !== false && marineData.grid?.__renderable !== false;
   const isMarineActive = !!activeMarineLayer;
 
-  if (isMarineActive && marineData?.grid?.cols) {
+  if (isMarineActive && isMarineRenderable && marineData?.grid?.cols) {
     cols = marineData.grid.cols;
     rows = marineData.grid.rows || cols;
     if (marineData.grid.bounds) bounds = { ...marineData.grid.bounds };
@@ -336,7 +338,7 @@ export function buildSimulationField({
     cols = windData.cols;
     rows = windData.rows || cols;
     if (windData.bounds) bounds = { ...windData.bounds };
-  } else if (marineData?.grid?.cols) {
+  } else if (isMarineRenderable && marineData?.grid?.cols) {
     cols = marineData.grid.cols;
     rows = marineData.grid.rows || cols;
     if (marineData.grid.bounds) bounds = { ...marineData.grid.bounds };

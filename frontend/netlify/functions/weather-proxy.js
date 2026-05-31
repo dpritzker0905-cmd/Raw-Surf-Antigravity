@@ -341,6 +341,8 @@ exports.handler = async function(event, context) {
       const numPoints = body.latitude.length;
       console.log(`[weather-proxy] POST ${type}: ${numPoints} points, trying upstream POST first`);
 
+      const startTime = Date.now();
+      let fallbackUsed = false;
       let apiRes;
       let data;
 
@@ -369,9 +371,12 @@ exports.handler = async function(event, context) {
 
       // Strategy 2: Chunked GET fallback (if POST failed)
       if (!data) {
+        fallbackUsed = true;
         console.log(`[weather-proxy] Falling back to chunked GET for ${type}`);
         const result = await chunkedGetFallback(targetUrl, body);
         if (result.status === 429) {
+          const elapsedMs = Date.now() - startTime;
+          console.log(`[weather-proxy-diag] model=${body.models?.[0] || 'unknown'} pointCount=${numPoints} forecastDays=${body.forecast_days || 'unknown'} hourlyVarCount=${body.hourly?.length || 0} upstreamStatus=${apiRes?.status || 'unknown'} fallbackUsed=${fallbackUsed} elapsedMs=${elapsedMs} finalStatus=429`);
           return {
             statusCode: 429,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -379,6 +384,8 @@ exports.handler = async function(event, context) {
           };
         }
         if (result.status !== 200 || !result.data) {
+          const elapsedMs = Date.now() - startTime;
+          console.log(`[weather-proxy-diag] model=${body.models?.[0] || 'unknown'} pointCount=${numPoints} forecastDays=${body.forecast_days || 'unknown'} hourlyVarCount=${body.hourly?.length || 0} upstreamStatus=${apiRes?.status || 'unknown'} fallbackUsed=${fallbackUsed} elapsedMs=${elapsedMs} finalStatus=${result.status || 502}`);
           return {
             statusCode: result.status || 502,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -394,6 +401,9 @@ exports.handler = async function(event, context) {
         const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
         for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
       }
+
+      const elapsedMs = Date.now() - startTime;
+      console.log(`[weather-proxy-diag] model=${body.models?.[0] || 'unknown'} pointCount=${numPoints} forecastDays=${body.forecast_days || 'unknown'} hourlyVarCount=${body.hourly?.length || 0} upstreamStatus=${apiRes?.status || 'unknown'} fallbackUsed=${fallbackUsed} elapsedMs=${elapsedMs} finalStatus=200`);
 
       return {
         statusCode: 200,
