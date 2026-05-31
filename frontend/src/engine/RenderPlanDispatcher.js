@@ -185,6 +185,83 @@ function hydrateGridFromLocalStorage(activeModel, activeMarineLayer, hourOffset)
   }
 }
 
+function updateMarineTruthTrace(stage, data, activeModel, activeLayer, hourOffset, sourcePath, rejectionReason = null, gpuUploaded = false, httpStatus = 200) {
+  if (typeof window === 'undefined') return;
+
+  let vCount = 0;
+  let nzCount = 0;
+  let hMin = Infinity, hMax = -Infinity, hSum = 0;
+  let pMin = Infinity, pMax = -Infinity, pSum = 0;
+  let dirSum = 0;
+  let gridSum = 0;
+
+  const vectors = data?.grid?.vectors || data?.vectors;
+  if (vectors?.length) {
+    vCount = vectors.length;
+    const compKey = activeLayer || 'waves';
+    const step = Math.max(1, Math.floor(vectors.length / 50));
+    
+    vectors.forEach((v) => {
+      if (!v) return;
+      const c = v[compKey] !== undefined ? v[compKey] : v;
+      if (c && c.speed > 0) {
+        nzCount++;
+        hSum += c.speed;
+        if (c.speed < hMin) hMin = c.speed;
+        if (c.speed > hMax) hMax = c.speed;
+        
+        const period = c.period || 0;
+        if (period > 0) {
+          pSum += period;
+          if (period < pMin) pMin = period;
+          if (period > pMax) pMax = period;
+        }
+      }
+    });
+
+    for (let i = 0; i < vectors.length; i += step) {
+      const v = vectors[i];
+      if (v) {
+        const c = v[compKey] !== undefined ? v[compKey] : v;
+        dirSum += (c?.direction || 0) + (c?.u || 0) + (c?.v || 0);
+        gridSum += (c?.speed || c?.height || 0) + (c?.period || 0);
+      }
+    }
+  }
+
+  if (gpuUploaded) {
+    window.__MARINE_UPLOAD_SEQ_NUM__ = (window.__MARINE_UPLOAD_SEQ_NUM__ || 0) + 1;
+  }
+
+  window.__MARINE_TRUTH_TRACE__ = {
+    timeOffsetHours: hourOffset,
+    selectedForecastTimestamp: new Date(Date.now() + hourOffset * 3600000).toISOString(),
+    activeModel,
+    activeMarineLayer: activeLayer,
+    provider: data?.grid?.__provider || data?.grid?.provider || data?.__provider || 'none',
+    gridProvider: data?.grid?.__gridProvider || data?.__gridProvider || 'none',
+    componentLayer: data?.grid?.__componentLayer || data?.__componentLayer || 'none',
+    sourcePath: sourcePath || 'none',
+    vectorCount: vCount,
+    nonzeroCount: nzCount,
+    heightMin: hMin === Infinity ? 0 : hMin,
+    heightMax: hMax === -Infinity ? 0 : hMax,
+    heightMean: nzCount > 0 ? hSum / nzCount : 0,
+    periodMin: pMin === Infinity ? 0 : pMin,
+    periodMax: pMax === -Infinity ? 0 : pMax,
+    periodMean: nzCount > 0 ? pSum / nzCount : 0,
+    directionChecksum: Math.round(dirSum * 100),
+    gridChecksum: Math.round(gridSum * 100),
+    uploadSequenceNumber: window.__MARINE_UPLOAD_SEQ_NUM__ || 0,
+    gpuTextureUploaded: gpuUploaded,
+    rejectionReason,
+    httpStatus,
+    cacheHit: sourcePath?.includes('cache') || sourcePath?.includes('direct') || sourcePath?.includes('orchestrator') || sourcePath?.includes('dispatcher'),
+    cooldownState: (typeof window !== 'undefined' && window.__MARINE_FETCH_DIAG__?.cooldownState) || 'ok',
+    timestamp: new Date().toISOString()
+  };
+}
+
 // Throttle GPU texture uploads to ~10Hz (every 6th frame at 60Hz)
 // GPU texture upload is expensive — don't do it every frame
 const DISPATCH_INTERVAL = 6;
@@ -354,9 +431,17 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
   }
 
   if (_marineEngine && _marineGL && field.sources.marine) {
-    if (typeof window !== 'undefined' && window.isScrubbingTimeline) {
-      // Suspend dispatcher marine uploads during active scrubbing to allow direct React path to drive smooth rendering
-      return;
+    if (typeof window !== 'undefined') {
+      if (window.isScrubbingTimeline) {
+        window.lastScrubTime = Date.now();
+      }
+      const isScrubbing = window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500));
+      if (isScrubbing) {
+        return; // Suspend dispatcher uploads during scrub settling window
+      }
+      if (window.activeTimeOffsetHours !== undefined && field.hourOffset !== window.activeTimeOffsetHours) {
+        return; // Suspend dispatcher uploads for mismatched hours to prevent stale grid overwrites
+      }
     }
     const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
     const activeModel = renderPlan.activeModel || renderPlan.model || 'GFS';
@@ -472,9 +557,11 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
       if (gridToUpload) {
         _marineEngine._dispatcherActive = true;
         _marineEngine.setWaveData(_marineGL, gridToUpload);
+        updateMarineTruthTrace('upload', gridToUpload, activeModel, activeMarineLayer, field.hourOffset, usingLastGood ? 'last_good_cache' : 'render_plan_dispatcher', null, true);
       } else if (isHardMismatch) {
         // Confirmed hard mismatch: clear buffers to prevent stale/tight heatmap rendering
         _marineEngine.clearBuffers(_marineGL);
+        updateMarineTruthTrace('rejection', null, activeModel, activeMarineLayer, field.hourOffset, 'cleared', isLayerDisabled ? 'Layer disabled' : isModelMismatch ? 'Model mismatch' : 'Component layer mismatch', false);
       }
 
       // Diagnostic: expose dispatch status for console verification

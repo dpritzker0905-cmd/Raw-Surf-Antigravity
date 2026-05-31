@@ -93,12 +93,16 @@ if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${la
  * Returns null if the cached data is from a different model,
  * preventing GFS component data from being served as EURO.
  */
-function getModelSafeMarine(requestedModel) {
+function getModelSafeMarine(requestedModel, requestedHourOffset) {
   if (!lastKnownGoodMarine) return null;
   const cachedModel = lastKnownGoodMarineModel || 'GFS';
   const wanted = requestedModel || 'GFS';
   if (cachedModel !== wanted) {
     console.log(`[Marine] lastKnownGood model mismatch: cached=${cachedModel}, wanted=${wanted} — returning null`);
+    return null;
+  }
+  if (requestedHourOffset !== undefined && lastKnownGoodMarine.hourOffset !== requestedHourOffset) {
+    console.log(`[Marine] lastKnownGood hour mismatch: cached=${lastKnownGoodMarine.hourOffset}h, wanted=${requestedHourOffset}h — returning null`);
     return null;
   }
   // v6.3: Grid data always comes from open-meteo (EURO grid uses ecmwf_wam025).
@@ -522,8 +526,9 @@ function extractMarineAtOffset(cache, hourOffset) {
   const provider = cache.provider || 'open-meteo';
   return {
     type: 'FeatureCollection', features,
+    hourOffset,
     grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now(),
-            __sourceModel: activeModel, __provider: provider, provider: provider }
+            __sourceModel: activeModel, __provider: provider, provider: provider, hourOffset }
   };
 }
 
@@ -532,21 +537,21 @@ function extractMarineAtOffset(cache, hourOffset) {
 // v3.9.1: Pre-fetches 72h hourly data. Timeline scrub re-indexes locally.
 // ========================================================================
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null) {
-  if (!bounds) return getModelSafeMarine(model);
+  if (!bounds) return getModelSafeMarine(model, hourOffset);
 
   // Viewport containment caching hit (0ms load from memory)
-  if (!forceFetch && isContainedInMarineCache(bounds, model)) {
+  if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset)) {
     console.log(`[Marine] Viewport containment HIT: zero-API pan served instantly from memory`);
     return extractMarineAtOffset(marineHourlyCache, hourOffset);
   }
 
   if (marineRequestInFlight) {
     console.log('[Marine] fetchMarineData: request inflight, returning cached');
-    return getModelSafeMarine(model);
+    return getModelSafeMarine(model, hourOffset);
   }
   if (!forceFetch && isInCooldown('marine')) {
     console.log('[Marine] fetchMarineData: in cooldown, returning cached');
-    return getModelSafeMarine(model);
+    return getModelSafeMarine(model, hourOffset);
   }
 
   // Adjust for Antimeridian / Pacific wrap (ensure east is always greater than west)
@@ -654,8 +659,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     else if (apiModel === 'gwam') maxForecastDays = 7;
     else if (apiModel === 'ecmwf_wam025') maxForecastDays = 10;
 
-    // Adaptive request budget: request smallest needed forecast window covering the selected hourOffset
-    const neededDays = Math.max(1, Math.ceil((hourOffset + 1) / 24));
+    // v7.3: Request at least 7 days for GFS and ICON so scrubbing timeline within 7 days is 100% cache HIT and instant.
+    const defaultDays = (apiModel === 'ncep_gfswave025' || apiModel === 'gwam') ? 7 : 3;
+    const neededDays = Math.max(defaultDays, Math.ceil((hourOffset + 1) / 24));
     const forecastDays = Math.min(maxForecastDays, neededDays);
 
     const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: forecastDays };
@@ -684,7 +690,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       if (res.status === 429) {
         enterCooldown('marine');
         console.warn('[Marine] 429 from proxy, cooldown activated (not retrying direct)');
-        return getModelSafeMarine(model);
+        return getModelSafeMarine(model, hourOffset);
       }
       if (!res.ok) {
         // v3.14: Check if proxy 500 wraps a rate-limit (chunk 429 → proxy 500 regression)
@@ -694,7 +700,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
             if (errBody?.isRateLimit || errBody?.message?.includes('429') || errBody?.statusCode === 429) {
               enterCooldown('marine');
               console.warn('[Marine] Proxy 500 wrapping rate-limit, cooldown activated');
-              return getModelSafeMarine(model);
+              return getModelSafeMarine(model, hourOffset);
             }
           } catch(e) { /* not JSON, proceed with normal error */ }
         }
@@ -758,10 +764,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     if (!res.ok) {
       if (res.status === 429) { 
         enterCooldown('marine'); 
-        return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'rate_limited'); 
+        return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'rate_limited'); 
       }
       console.error(`[Marine] Fetch failed: HTTP ${res.status}`);
-      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, res.status === 502 ? 'proxy_502' : 'fetch_error');
+      return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, res.status === 502 ? 'proxy_502' : 'fetch_error');
     }
 
     const data = await res.json();
@@ -769,7 +775,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       : (data?.hourly ? points.map(() => data) : null);
     if (!allResults) { 
       console.warn('[Marine] Unexpected API response shape'); 
-      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'invalid_response'); 
+      return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'invalid_response'); 
     }
 
     // Cache full hourly response
@@ -796,14 +802,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       return result;
     } else {
       console.warn('[Marine] Zero valid features from API');
-      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'empty_response');
+      return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'empty_response');
     }
   } catch (err) {
     if (err.name === 'AbortError') {
-      return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'abort');
+      return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'abort');
     }
     console.error(`[Marine] Fetch failed: ${err.message}`);
-    return getModelSafeMarine(model) || createFallbackSafeZeroGrid(model, 'fetch_error');
+    return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'fetch_error');
   } finally {
     marineRequestInFlight = false;
   }

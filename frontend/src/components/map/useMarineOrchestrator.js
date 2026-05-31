@@ -48,11 +48,24 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
   useEffect(() => {
     activeModelRef.current = activeModel;
+    if (typeof window !== 'undefined') {
+      window.activeModel = activeModel;
+    }
   }, [activeModel]);
 
   useEffect(() => {
     activeMarineLayerRef.current = activeMarineLayer;
+    if (typeof window !== 'undefined') {
+      window.activeMarineLayer = activeMarineLayer || 'waves';
+    }
   }, [activeMarineLayer]);
+
+  useEffect(() => {
+    timeOffsetRef.current = timeOffsetHours;
+    if (typeof window !== 'undefined') {
+      window.activeTimeOffsetHours = timeOffsetHours;
+    }
+  }, [timeOffsetHours]);
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -336,27 +349,51 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             };
             
             if (zoom < 4) {
-              console.log(`[Marine] Zoom ${zoom} < 4, skipping Copernicus component grid fetch (zoom_too_low)`);
-              data.grid.__skippedReason = 'zoom_too_low';
-              data.grid.__gridProvider = 'copernicus';
-              data.grid.__componentLayer = currentLayer;
-              if (typeof window !== 'undefined') {
-                window.__COPERNICUS_GRID_DIAG__ = {
-                  layer: currentLayer,
-                  componentLayer: currentLayer,
-                  provider: 'copernicus',
-                  backendPointCount: 0,
-                  renderPointCount: 0,
-                  nonzeroCount: 0,
-                  bbox: null,
-                  zoom,
-                  cacheHit: false,
-                  isStale: false,
-                  elapsedMs: 0,
-                  timestamp: new Date().toISOString(),
-                  skipped: true,
-                  skippedReason: 'zoom_too_low'
-                };
+              console.log(`[Marine] Zoom ${zoom} < 4, fetching GFS as safe estimated fallback for EURO ${currentLayer}`);
+              try {
+                const gfsGridData = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, 'GFS');
+                if (gfsGridData?.grid?.vectors?.length > 0) {
+                  data = {
+                    ...gfsGridData,
+                    grid: {
+                      ...gfsGridData.grid,
+                      __sourceModel: 'EURO',
+                      __provider: 'estimated',
+                      __gridProvider: 'estimated',
+                      __componentLayer: currentLayer,
+                      __gridSupportsLayer: true,
+                      __skippedReason: 'zoom_too_low_fallback',
+                      provider: 'estimated'
+                    }
+                  };
+                  if (typeof window !== 'undefined') {
+                    window.__COPERNICUS_GRID_DIAG__ = {
+                      layer: currentLayer,
+                      componentLayer: currentLayer,
+                      provider: 'estimated',
+                      backendPointCount: gfsGridData.grid.vectors.length,
+                      renderPointCount: gfsGridData.grid.vectors.length,
+                      nonzeroCount: gfsGridData.grid.nonzeroCount || 0,
+                      bbox: gfsGridData.grid.bounds,
+                      zoom,
+                      cacheHit: false,
+                      isStale: false,
+                      elapsedMs: 0,
+                      timestamp: new Date().toISOString(),
+                      skipped: false,
+                      skippedReason: null
+                    };
+                  }
+                } else {
+                  data.grid.__skippedReason = 'zoom_too_low';
+                  data.grid.__gridProvider = 'copernicus';
+                  data.grid.__componentLayer = currentLayer;
+                }
+              } catch (err) {
+                console.warn(`[Marine] Zoom < 4 GFS fallback failed:`, err.message);
+                data.grid.__skippedReason = 'zoom_too_low';
+                data.grid.__gridProvider = 'copernicus';
+                data.grid.__componentLayer = currentLayer;
               }
             } else {
               try {

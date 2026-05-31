@@ -497,10 +497,13 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   const hasCombinedWaves = cachedResponse.hourly.wave_height !== undefined;
   const hardNativeLimit = hasCombinedWaves ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS;
 
-  // Calculate actual returned native limit based on hourly time array to eliminate dead zones/gaps
+  // Calculate actual returned native limit based on the actual hours from now to the last timestamp in the time array,
+  // resolving the 3-hourly step length mismatch (Request 2)
   let nativeLimit = hardNativeLimit;
   if (cachedResponse.hourly?.time?.length) {
-    nativeLimit = Math.min(hardNativeLimit, cachedResponse.hourly.time.length - 1);
+    const lastTimeMs = new Date(cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1] + 'Z').getTime();
+    const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
+    nativeLimit = Math.min(hardNativeLimit, hoursFromNow);
   }
 
   if (isEuro && hourOffset > nativeLimit) {
