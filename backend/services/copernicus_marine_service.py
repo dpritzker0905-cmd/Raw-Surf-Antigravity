@@ -67,6 +67,12 @@ def _check_credentials():
     return user, pwd
 
 
+import copy
+import time
+
+_point_cache = {}
+POINT_CACHE_TTL = 600.0  # 10 minutes
+
 async def fetch_euro_marine(
     latitudes: List[float],
     longitudes: List[float],
@@ -75,24 +81,37 @@ async def fetch_euro_marine(
 ) -> List[dict]:
     """
     Fetch EURO marine wave data from Copernicus Marine Service.
-
-    Args:
-        latitudes: List of latitude values
-        longitudes: List of longitude values
-        forecast_days: Number of forecast days (default 3)
-        variables: Optional list of Open-Meteo variable names to fetch.
-                   If None, fetches all 12. Reduces memory for component grids.
-
-    Returns:
-        List of Open-Meteo-shaped result dicts, one per coordinate pair.
+    Includes 10-minute server-side caching keyed by rounded coordinate arrays.
     """
+    # Round latitudes/longitudes to 2 decimals for caching stability
+    rounded_lats = tuple(round(lat, 2) for lat in latitudes)
+    rounded_lons = tuple(round(lon, 2) for lon in longitudes)
+    sorted_vars = tuple(sorted(variables)) if variables else None
+    
+    cache_key = (rounded_lats, rounded_lons, forecast_days, sorted_vars)
+    
+    now = time.time()
+    if cache_key in _point_cache:
+        cached_data, timestamp = _point_cache[cache_key]
+        if now - timestamp < POINT_CACHE_TTL:
+            logger.info(f"[Copernicus Backend Cache] HIT for cache_key={cache_key}")
+            return copy.deepcopy(cached_data)
+            
     import asyncio
 
     # Run the blocking Copernicus fetch in a thread pool
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
+    results = await loop.run_in_executor(
         None, _fetch_sync, latitudes, longitudes, forecast_days, variables
     )
+    
+    if results and len(results) > 0:
+        _point_cache[cache_key] = (copy.deepcopy(results), now)
+        if len(_point_cache) > 100:
+            oldest_key = min(_point_cache.keys(), key=lambda k: _point_cache[k][1])
+            _point_cache.pop(oldest_key, None)
+            
+    return results
 
 
 def _fetch_sync(
@@ -248,6 +267,18 @@ def _fetch_sync(
         pass
 
     total_time = time.time() - start_time_total
+
+    # v6.9: Expose timing telemetries directly inside the JSON response
+    for res in results:
+        res["__diagnostics"] = {
+            "open_time_sec": round(open_time, 3),
+            "extract_time_sec": round(extract_time, 3),
+            "total_time_sec": round(total_time, 3),
+            "point_count": len(latitudes),
+            "variable_count": len(fetch_vars),
+            "variables": fetch_vars
+        }
+
     logger.info(
         f"[Copernicus Diagnostics Telemetry] Success: {len(results)} points. "
         f"OpenTime: {open_time:.2f}s | ExtractTime: {extract_time:.2f}s | "

@@ -311,7 +311,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     // v6.9: Expose exhaustive diagnostics detailing exact render source, provider, and stale clearance states
     if (typeof window !== 'undefined') {
-      const activeModel = data?.grid?.__sourceModel || window.__DATA_DIAG__?.activeModel || 'unknown';
+      const activeModel = data?.__sourceModel || window.__DATA_DIAG__?.activeModel || 'unknown';
       const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
       let nonzeroCount = 0;
       if (data?.vectors) {
@@ -319,16 +319,45 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           if (vec && vec.speed > 0) nonzeroCount++;
         }
       }
+      
+      const gridProvider = data?.__gridProvider || 'none';
+      const componentLayer = data?.__componentLayer || 'none';
+      const renderedProvider = data?.__provider || 'none';
+      const renderedVectorCount = data?.vectors?.length || 0;
+      const staleRenderBlocked = !data?.vectors?.length;
+
       window.__WebGLMarineLayer_DIAG__ = {
-        activeModel: activeModel,
-        activeMarineLayer: activeMarineLayer,
-        gridProvider: data?.grid?.__gridProvider || 'none',
-        componentLayer: data?.grid?.__componentLayer || 'none',
+        activeModel,
+        activeMarineLayer,
+        gridProvider,
+        componentLayer,
         renderedLayer: activeMarineLayer,
-        renderedProvider: data?.grid?.provider || 'none',
-        renderedVectorCount: data?.vectors?.length || 0,
+        renderedProvider,
+        renderedVectorCount,
         renderedNonzeroCount: nonzeroCount,
-        staleRenderBlocked: !data?.vectors?.length,
+        staleRenderBlocked,
+        timestamp: new Date().toISOString()
+      };
+
+      // v6.9: Expose the new unified truth diagnostics for automated tests and developer audit
+      const exactDiag = window.__MARINE_DIAG__ || {};
+      const isEuro = activeModel === 'EURO';
+      const isWaves = activeMarineLayer === 'waves';
+      const heatmapAvailable = isEuro ? isWaves : true;
+      const heatmapUnavailableReason = (isEuro && !isWaves) ? 'heatmap_unavailable_path_a' : null;
+
+      window.__EURO_MARINE_TRUTH_DIAG__ = {
+        activeModel,
+        activeLayer: activeMarineLayer,
+        exactProvider: exactDiag.exactPointValues ? (isEuro && isWaves ? 'open-meteo' : 'copernicus') : 'none',
+        exactStatus: exactDiag.exactPointStatus || 'idle',
+        exactElapsedMs: window.__LAST_EXACT_FETCH_ELAPSED_MS__ || null,
+        requestedVars: exactDiag.exactPointValues ? Object.keys(exactDiag.exactPointValues) : [],
+        heatmapAvailable,
+        heatmapUnavailableReason,
+        renderedVectorCount,
+        renderedNonzeroCount: nonzeroCount,
+        staleRenderBlocked,
         timestamp: new Date().toISOString()
       };
     }

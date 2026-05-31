@@ -273,6 +273,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     });
     if (!res.ok) {
       const elapsed = (Date.now() - startTime) / 1000;
+      if (typeof window !== 'undefined') {
+        window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
+      }
       var errText = '';
       try { errText = await res.text(); } catch(e) { errText = '(could not read body)'; }
       console.error(`[ExactPoint Forensic] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel} | Elapsed: ${elapsed.toFixed(2)}s`, errText.substring(0, 300));
@@ -312,6 +315,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     };
 
     const elapsed = (Date.now() - startTime) / 1000;
+    if (typeof window !== 'undefined') {
+      window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
+    }
     console.log(`[ExactPoint Forensic] Model: ${model} | Layer: ${activeLayer} | Provider: ${detectedProvider} | Elapsed: ${elapsed.toFixed(2)}s | Variables: ${JSON.stringify(hourlyVars)}`);
 
     if (typeof window !== 'undefined' && proxyType === 'copernicus_marine') {
@@ -349,6 +355,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     return data;
   } catch (err) {
     const elapsed = (Date.now() - startTime) / 1000;
+    if (typeof window !== 'undefined') {
+      window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
+    }
     if (err.name === 'AbortError') {
       console.warn(`[ExactPoint Forensic] TIMEOUT: Fetch aborted after ${elapsed.toFixed(2)}s for model=${apiModel} (Florida snappy cap)`);
       return { status: 'timeout' };

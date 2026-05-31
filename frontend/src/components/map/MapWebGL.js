@@ -313,10 +313,18 @@ var MapWebGL = ({
         };
       })
     };
+    res.__sourceModel = activeModel;
+    res.__provider = marineData?.grid?.provider || 'unknown';
+    res.__gridProvider = marineData?.grid?.__gridProvider || 'none';
+    res.__componentLayer = marineData?.grid?.__componentLayer || 'none';
+    res.__gridSupportsLayer = layerSupported;
+    res.activeMarineLayer = activeMarineLayer;
+    res.activeModel = activeModel;
+
     if (typeof window !== 'undefined') {
       window.__MARINE_WIND_DATA__ = res;
-      window.__MARINE_WIND_DATA__.__sourceModel = activeModel; // v5.9.3: Model tag for diagnostics
-      window.__MARINE_WIND_DATA__.__provider = marineData?.grid?.provider || 'unknown'; // v5.9.5: Provider tracking
+      window.__MARINE_WIND_DATA__.__sourceModel = activeModel;
+      window.__MARINE_WIND_DATA__.__provider = res.__provider;
     }
     return res;
   }, [marineData, activeMarineLayer, activeModel]);
