@@ -28,7 +28,7 @@ var LAYER_FIELD_MAP = {
 };
 
 var COMPONENT_LAYERS = ['swell_1', 'swell_2', 'wind_waves'];
-var MAX_GRID = 11;
+var MAX_GRID = 9; // Optimized to 9x9 (81 points) for fast, sub-2.5s rendering and reduced memory footprint
 var MIN_ZOOM = 4;
 
 function safeNum(v) { return (v != null && isFinite(v)) ? v : 0; }
@@ -145,15 +145,6 @@ function clampBounds(bounds) {
  * @returns {Object|null} Grid data in marineData.grid format, or null on error
  */
 export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOffset, zoom) {
-  // Path A: Copernicus regional grid fetching is disabled completely to eliminate
-  // the ~75s request latency and memory exhaustion risk on Render, keeping interactive toggles fast.
-  if (typeof window !== 'undefined') {
-    window.__COPERNICUS_GRID_DIAG__ = {
-      layer, skipped: true, skippedReason: 'heatmap_unavailable_path_a',
-      timestamp: new Date().toISOString(), zoom
-    };
-  }
-  return null;
   if (!viewportBounds) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {

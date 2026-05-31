@@ -189,8 +189,10 @@ def _fetch_sync(
             username=username,
             password=password,
         )
+        # Pre-load the dataset subset to make coordinate extraction extremely fast and local
+        ds = ds.load()
     except Exception as e:
-        logger.error(f"[Copernicus Forensic API] Dataset open failed: {e}")
+        logger.error(f"[Copernicus Forensic API] Dataset open and load failed: {e}")
         raise
     open_time = time.time() - open_start
 

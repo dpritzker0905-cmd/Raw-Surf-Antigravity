@@ -326,6 +326,27 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       const renderedVectorCount = data?.vectors?.length || 0;
       const staleRenderBlocked = !data?.vectors?.length;
 
+      const isEuro = activeModel === 'EURO';
+      const isWaves = activeMarineLayer === 'waves';
+      const isComponent = ['swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
+
+      let maxH = 0;
+      let sumH = 0;
+      let cntH = 0;
+      if (data?.vectors) {
+        for (const vec of data.vectors) {
+          if (vec && vec.speed > 0) {
+            cntH++;
+            sumH += vec.speed;
+            if (vec.speed > maxH) maxH = vec.speed;
+          }
+        }
+      }
+      const meanH = cntH > 0 ? sumH / cntH : 0;
+
+      const dispatcherActive = !!engine?._dispatcherActive;
+      const visualSource = dispatcherActive ? 'render_plan_dispatcher' : 'direct_mapwebgl';
+
       window.__WebGLMarineLayer_DIAG__ = {
         activeModel,
         activeMarineLayer,
@@ -339,19 +360,41 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         timestamp: new Date().toISOString()
       };
 
-      // v6.9: Expose the new unified truth diagnostics for automated tests and developer audit
       const exactDiag = window.__MARINE_DIAG__ || {};
-      const isEuro = activeModel === 'EURO';
-      const isWaves = activeMarineLayer === 'waves';
-      const heatmapAvailable = isEuro ? isWaves : true;
-      const heatmapUnavailableReason = (isEuro && !isWaves) ? 'heatmap_unavailable_path_a' : null;
+      const exactProvider = exactDiag.exactPointValues ? (isEuro && isWaves ? 'open-meteo' : 'copernicus') : 'none';
+      const exactStatus = exactDiag.exactPointStatus || 'idle';
+      const exactElapsedMs = window.__LAST_EXACT_FETCH_ELAPSED_MS__ || null;
+
+      window.__MARINE_VISUAL_TRUTH_DIAG__ = {
+        activeModel,
+        activeMarineLayer,
+        visualSource,
+        gridProvider,
+        exactProvider,
+        gridComponentLayer: componentLayer,
+        dispatcherActive,
+        renderedVectorCount,
+        renderedNonzeroCount: nonzeroCount,
+        maxHeight: maxH,
+        meanHeight: meanH,
+        bounds: data?.bounds || null,
+        timestamp: new Date().toISOString(),
+        sourceModel: activeModel
+      };
+
+      const heatmapAvailable = isEuro
+        ? (isWaves || (isComponent && gridProvider === 'copernicus'))
+        : true;
+      const heatmapUnavailableReason = (isEuro && isComponent && gridProvider !== 'copernicus')
+        ? 'heatmap_loading_or_failed'
+        : null;
 
       window.__EURO_MARINE_TRUTH_DIAG__ = {
         activeModel,
         activeLayer: activeMarineLayer,
-        exactProvider: exactDiag.exactPointValues ? (isEuro && isWaves ? 'open-meteo' : 'copernicus') : 'none',
-        exactStatus: exactDiag.exactPointStatus || 'idle',
-        exactElapsedMs: window.__LAST_EXACT_FETCH_ELAPSED_MS__ || null,
+        exactProvider,
+        exactStatus,
+        exactElapsedMs,
         requestedVars: exactDiag.exactPointValues ? Object.keys(exactDiag.exactPointValues) : [],
         heatmapAvailable,
         heatmapUnavailableReason,

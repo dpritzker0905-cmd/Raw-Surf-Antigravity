@@ -224,18 +224,18 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     forecastDays = 1;
   }
 
-  // v6.7: For EURO layers, request ONLY the variables needed for the active layer
-  // to avoid loading unnecessary data and prevent Render OOM failures.
-  var LAYER_SPECIFIC_VARS = {
-    waves: ['wave_height', 'wave_direction', 'wave_period'],
-    swell_1: ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'],
-    swell_2: ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'],
-    wind_waves: ['wind_wave_height', 'wind_wave_direction', 'wind_wave_period'],
-  };
-
   let hourlyVars;
   if (model === 'EURO') {
-    hourlyVars = LAYER_SPECIFIC_VARS[activeLayer] || LAYER_SPECIFIC_VARS.waves;
+    if (activeLayer === 'waves') {
+      hourlyVars = ['wave_height', 'wave_direction', 'wave_period'];
+    } else {
+      // Combined 9-variable component request for swell_1 + swell_2 + wind_waves
+      hourlyVars = [
+        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+        'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+      ];
+    }
   } else {
     // Keep GFS & ICON fully compatible with original behaviors
     const EXACT_POINT_VARS = {
@@ -346,7 +346,16 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       };
     }
 
-    _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
+    if (model === 'EURO' && provider === 'copernicus') {
+      const componentLayers = ['swell_1', 'swell_2', 'wind_waves'];
+      for (const compLayer of componentLayers) {
+        const k = `${rLat}_${rLng}_EURO_${compLayer}_copernicus`;
+        _exactPointCache.set(k, { data, timestamp: Date.now() });
+      }
+    } else {
+      _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
+    }
+
     if (_exactPointCache.size > 50) {
       const oldest = [..._exactPointCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
       for (let i = 0; i < 10; i++) _exactPointCache.delete(oldest[i][0]);

@@ -122,10 +122,18 @@ function fieldToMarineGrid(field, activeMarineLayer) {
   }
 
   const vectors = new Array(size);
+  let nonzeroCount = 0;
+  let maxHeight = 0;
+  let sumHeight = 0;
   for (let i = 0; i < size; i++) {
     const h = hSrc ? hSrc[i] : waveHeight[i];
     const dir = (dirSrc ? dirSrc[i] : waveDir[i]) * (Math.PI / 180);
     const period = periodSrc ? periodSrc[i] : 0;
+    if (h > 0) {
+      nonzeroCount++;
+      if (h > maxHeight) maxHeight = h;
+      sumHeight += h;
+    }
     // Convert wave height + direction to u/v for advection visualization (meteorological velocity vector)
     // isOcean flag is REQUIRED by WebGLMarineEngine's shader (alpha channel = land mask)
     vectors[i] = {
@@ -140,6 +148,7 @@ function fieldToMarineGrid(field, activeMarineLayer) {
       isOcean: landMask ? (landMask[i] === 0) : (h > 0),
     };
   }
+  const meanHeight = nonzeroCount > 0 ? sumHeight / nonzeroCount : 0;
 
   return {
     vectors,
@@ -151,6 +160,9 @@ function fieldToMarineGrid(field, activeMarineLayer) {
       east: bounds.east,
       north: bounds.north,
     },
+    nonzeroCount,
+    maxHeight,
+    meanHeight
   };
 }
 
@@ -202,6 +214,12 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
             lastDispatchFrame: _dispatchCount,
             marineVectors: marineGrid.vectors.length,
             activeLayer: activeMarineLayer,
+            nonzeroCount: marineGrid.nonzeroCount,
+            maxHeight: marineGrid.maxHeight,
+            meanHeight: marineGrid.meanHeight,
+            sourceModel: field.model || 'unknown',
+            provider: field.model === 'EURO' ? 'copernicus' : 'open-meteo',
+            isOverridingReactData: true,
             timestamp: Date.now()
           };
         }
