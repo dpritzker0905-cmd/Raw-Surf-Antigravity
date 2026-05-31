@@ -173,7 +173,7 @@ export function safeMoveLayer(mapInstance, layerId, beforeId) {
   }
 }
 
-export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange, onError, beforeId, theme, activeLayers, timeOffsetHours = 0 }) {
+export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange, onError, beforeId, theme, activeLayers, activeModel = 'GFS', timeOffsetHours = 0 }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -185,8 +185,21 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const themeRef = useRef(theme);
   const beforeIdRef = useRef(beforeId);
   const activeLayersRef = useRef(activeLayers);
+  const activeModelRef = useRef(activeModel);
   const timeOffsetHoursRef = useRef(timeOffsetHours);
-  const lastUploadedGridRef = useRef({ vectorsLength: 0, firstSpeed: 0, lastSpeed: 0, cols: 0, rows: 0, timestamp: 0 });
+  const lastUploadedGridRef = useRef({
+    activeModel: '',
+    activeMarineLayer: '',
+    gridProvider: '',
+    componentLayer: '',
+    boundsStr: '',
+    cols: 0,
+    rows: 0,
+    vectorsLength: 0,
+    nonzeroCount: 0,
+    sampleSum: 0,
+    timestamp: 0
+  });
 
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   const landGeoJSONRef = useRef(null);
@@ -200,6 +213,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { beforeIdRef.current = beforeId; }, [beforeId]);
   useEffect(() => { activeLayersRef.current = activeLayers; }, [activeLayers]);
+  useEffect(() => { activeModelRef.current = activeModel; }, [activeModel]);
   useEffect(() => { timeOffsetHoursRef.current = timeOffsetHours; }, [timeOffsetHours]);
 
   // Load high-resolution land polygons on mount
@@ -408,7 +422,19 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (!data?.vectors?.length) {
       console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched, clearing active textures`);
-      lastUploadedGridRef.current = { vectorsLength: 0, firstSpeed: 0, lastSpeed: 0, cols: 0, rows: 0, timestamp: 0 };
+      lastUploadedGridRef.current = {
+        activeModel: '',
+        activeMarineLayer: '',
+        gridProvider: '',
+        componentLayer: '',
+        boundsStr: '',
+        cols: 0,
+        rows: 0,
+        vectorsLength: 0,
+        nonzeroCount: 0,
+        sampleSum: 0,
+        timestamp: 0
+      };
       engine.clearBuffers(gl);
       if (mapInstance) {
         mapInstance.triggerRepaint();
@@ -421,16 +447,45 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       return;
     }
 
-    const firstVecSpeed = data.vectors[0]?.speed || 0;
-    const lastVecSpeed = data.vectors[data.vectors.length - 1]?.speed || 0;
-    const currentTimestamp = data.timestamp || revision || 0;
+    const gridModel = data.__sourceModel || activeModel;
+    const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
+    const gridProvider = data.grid?.__gridProvider || data.__gridProvider || 'none';
+    const componentLayer = data.grid?.__componentLayer || data.__componentLayer || 'none';
+    const boundsStr = data.bounds ? `${data.bounds.west.toFixed(2)}:${data.bounds.south.toFixed(2)}:${data.bounds.east.toFixed(2)}:${data.bounds.north.toFixed(2)}` : 'none';
+    
+    let nonzeroCount = 0;
+    let sampleSum = 0;
+    if (data.vectors) {
+      const len = data.vectors.length;
+      for (let i = 0; i < len; i++) {
+        const v = data.vectors[i];
+        if (v && v.speed > 0) nonzeroCount++;
+      }
+      if (len > 0) {
+        const step = Math.max(1, Math.floor(len / 10));
+        for (let i = 0; i < len; i += step) {
+          const v = data.vectors[i];
+          if (v) {
+            sampleSum += (v.speed || 0) + (v.u || 0) + (v.v || 0) + (v.period || 0);
+          }
+        }
+      }
+    }
 
-    const gridChanged = lastUploadedGridRef.current.vectorsLength !== data.vectors.length ||
-                        lastUploadedGridRef.current.cols !== data.cols ||
-                        lastUploadedGridRef.current.rows !== data.rows ||
-                        lastUploadedGridRef.current.firstSpeed !== firstVecSpeed ||
-                        lastUploadedGridRef.current.lastSpeed !== lastVecSpeed ||
-                        lastUploadedGridRef.current.timestamp !== currentTimestamp;
+    const currentTimestamp = data.timestamp || revision || 0;
+    const lastSig = lastUploadedGridRef.current;
+
+    const gridChanged = lastSig.activeModel !== gridModel ||
+                        lastSig.activeMarineLayer !== activeMarineLayer ||
+                        lastSig.gridProvider !== gridProvider ||
+                        lastSig.componentLayer !== componentLayer ||
+                        lastSig.boundsStr !== boundsStr ||
+                        lastSig.cols !== data.cols ||
+                        lastSig.rows !== data.rows ||
+                        lastSig.vectorsLength !== data.vectors.length ||
+                        lastSig.nonzeroCount !== nonzeroCount ||
+                        Math.abs(lastSig.sampleSum - sampleSum) > 0.001 ||
+                        lastSig.timestamp !== currentTimestamp;
 
     if (!gridChanged) {
       // Data is identical, skip setWaveData upload to avoid rendering churn
@@ -438,11 +493,16 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
 
     lastUploadedGridRef.current = {
-      vectorsLength: data.vectors.length,
+      activeModel: gridModel,
+      activeMarineLayer: activeMarineLayer,
+      gridProvider: gridProvider,
+      componentLayer: componentLayer,
+      boundsStr: boundsStr,
       cols: data.cols,
       rows: data.rows,
-      firstSpeed: firstVecSpeed,
-      lastSpeed: lastVecSpeed,
+      vectorsLength: data.vectors.length,
+      nonzeroCount: nonzeroCount,
+      sampleSum: sampleSum,
       timestamp: currentTimestamp
     };
 
