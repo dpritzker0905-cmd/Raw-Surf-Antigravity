@@ -101,46 +101,40 @@ def _fetch_sync(
     forecast_days: int,
     variables: Optional[List[str]] = None,
 ) -> List[dict]:
-    """Synchronous Copernicus fetch (runs in thread pool)."""
+    """Synchronous Copernicus fetch (runs in thread pool) with precise timing telemetry."""
     import copernicusmarine
     import numpy as np
+    import time
 
+    start_time_total = time.time()
     username, password = _check_credentials()
 
-    # Compute bounding box — tight padding for nearest-grid-cell selection.
-    # v6.4: Use ±0.15° for exact-point (1-2 points).
-    # v6.5: For regional grids (>2 points), use the provided coordinate extent directly.
+    # Compute bounding box
     if len(latitudes) <= 2:
         lat_min = min(latitudes) - 0.15
         lat_max = max(latitudes) + 0.15
         lon_min = min(longitudes) - 0.15
         lon_max = max(longitudes) + 0.15
     else:
-        # Regional grid: coordinates already define the bbox, add minimal padding
         lat_min = min(latitudes) - 0.05
         lat_max = max(latitudes) + 0.05
         lon_min = min(longitudes) - 0.05
         lon_max = max(longitudes) + 0.05
-    # Clamp to valid ranges
+
     lat_min = max(-90, lat_min)
     lat_max = min(90, lat_max)
     lon_min = max(-180, lon_min)
     lon_max = min(180, lon_max)
 
-    # v6.5: Hard cap bbox size to prevent global/large-area requests
     bbox_lat_range = lat_max - lat_min
     bbox_lon_range = lon_max - lon_min
     if bbox_lat_range > 30 or bbox_lon_range > 60:
         raise ValueError(
-            f"Bbox too large: {bbox_lat_range:.1f}° x {bbox_lon_range:.1f}°. "
-            f"Max: 30° x 60°."
+            f"Bbox too large: {bbox_lat_range:.1f}° x {bbox_lon_range:.1f}°. Max: 30° x 60°."
         )
 
-    # v6.4: Cap forecast_days at 3 as backend safety net.
     forecast_days = min(forecast_days, 3)
 
-    # v6.5: If specific variables requested, only fetch those Copernicus vars.
-    # Maps Open-Meteo names → Copernicus names for the subset.
     OM_TO_COPERNICUS = {v[1]: v[0] for v in VARIABLE_MAP}
     if variables and len(variables) > 0:
         requested_cop_vars = []
@@ -151,18 +145,18 @@ def _fetch_sync(
     else:
         fetch_vars = COPERNICUS_VARS
 
-    # Time range
     now = datetime.now(timezone.utc)
     start_time = now - timedelta(hours=6)
     end_time = now + timedelta(days=forecast_days)
 
     logger.info(
-        f"[Copernicus] Fetching {len(latitudes)} points, "
+        f"[Copernicus Forensic API] Fetching {len(latitudes)} points, "
         f"bbox=[{lat_min:.2f},{lat_max:.2f},{lon_min:.2f},{lon_max:.2f}], "
         f"vars={len(fetch_vars)}/{len(COPERNICUS_VARS)}, "
         f"time=[{start_time.isoformat()},{end_time.isoformat()}]"
     )
 
+    open_start = time.time()
     try:
         ds = copernicusmarine.open_dataset(
             dataset_id=DATASET_ID,
@@ -177,9 +171,11 @@ def _fetch_sync(
             password=password,
         )
     except Exception as e:
-        logger.error(f"[Copernicus] Dataset open failed: {e}")
+        logger.error(f"[Copernicus Forensic API] Dataset open failed: {e}")
         raise
+    open_time = time.time() - open_start
 
+    extract_start = time.time()
     results = []
 
     for i in range(len(latitudes)):
@@ -187,25 +183,19 @@ def _fetch_sync(
         lon = longitudes[i]
 
         try:
-            # Select nearest grid point
             point = ds.sel(latitude=lat, longitude=lon, method="nearest")
-
-            # Extract time array
-            times_raw = point.time.values  # numpy datetime64 array
+            times_raw = point.time.values
             times = []
             for t in times_raw:
-                # Convert numpy datetime64 → ISO string without Z/seconds
                 ts = np.datetime_as_string(t, unit="m")
                 times.append(ts)
 
-            # Build hourly dict
             hourly = {"time": times}
             hourly_units = {"time": "iso8601"}
 
             for cop_var, om_var, unit in VARIABLE_MAP:
                 if cop_var in point:
                     vals = point[cop_var].values
-                    # Convert to Python floats, NaN → None
                     hourly[om_var] = [
                         round(float(v), 4) if not np.isnan(v) else None
                         for v in vals
@@ -232,9 +222,8 @@ def _fetch_sync(
 
         except Exception as e:
             logger.warning(
-                f"[Copernicus] Point {lat},{lon} extraction failed: {e}"
+                f"[Copernicus Forensic API] Point {lat},{lon} extraction failed: {e}"
             )
-            # Return an empty result for this point (land / out of domain)
             results.append({
                 "latitude": lat,
                 "longitude": lon,
@@ -247,17 +236,21 @@ def _fetch_sync(
                 "hourly_units": {"time": "iso8601"},
                 "hourly": {"time": []},
             })
+    extract_time = time.time() - extract_start
 
     # Close dataset and explicitly free memory
     try:
         ds.close()
         del ds
+        import gc
         gc.collect()
     except Exception:
         pass
 
+    total_time = time.time() - start_time_total
     logger.info(
-        f"[Copernicus] Success: {len(results)} points, "
-        f"{len(results[0].get('hourly', {}).get('time', []))} timesteps"
+        f"[Copernicus Diagnostics Telemetry] Success: {len(results)} points. "
+        f"OpenTime: {open_time:.2f}s | ExtractTime: {extract_time:.2f}s | "
+        f"TotalTime: {total_time:.2f}s | Variables: {fetch_vars}"
     )
     return results

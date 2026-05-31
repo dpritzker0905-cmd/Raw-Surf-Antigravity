@@ -145,15 +145,15 @@ function clampBounds(bounds) {
  * @returns {Object|null} Grid data in marineData.grid format, or null on error
  */
 export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOffset, zoom) {
-  if (!COMPONENT_LAYERS.includes(layer)) {
-    if (typeof window !== 'undefined') {
-      window.__COPERNICUS_GRID_DIAG__ = {
-        layer, skipped: true, skippedReason: 'component_layer_mismatch',
-        timestamp: new Date().toISOString(), zoom
-      };
-    }
-    return null;
+  // Path A: Copernicus regional grid fetching is disabled completely to eliminate
+  // the ~75s request latency and memory exhaustion risk on Render, keeping interactive toggles fast.
+  if (typeof window !== 'undefined') {
+    window.__COPERNICUS_GRID_DIAG__ = {
+      layer, skipped: true, skippedReason: 'heatmap_unavailable_path_a',
+      timestamp: new Date().toISOString(), zoom
+    };
   }
+  return null;
   if (!viewportBounds) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {

@@ -189,17 +189,26 @@ var MARINE_MODEL_LIMITS = {
  * @param {number} lat
  * @param {number} lng
  * @param {string} model - 'GFS' | 'ICON' | 'EURO'
+ * @param {string} [activeLayer='waves'] - The active layer to optimize variable requests
+ * @param {AbortSignal} [signal=null] - Abort controller signal for timeouts
  * @returns {Promise<Object|null>} Full response with hourly arrays
  */
-export async function fetchExactMarinePoint(lat, lng, model) {
+export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null) {
   if (lat == null || lng == null) return null;
 
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
-  // v6.1: Include provider in cache key to prevent Copernicus/Open-Meteo cross-hits
+  
+  // v6.7: Route EURO waves exact-point through Open-Meteo ecmwf_wam025 since
+  // combined waves maps perfectly and resolves in <200ms, bypassing Copernicus.
   const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
-  const provider = PROVIDER_MAP[model] || 'open-meteo';
-  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}_${provider}`;
+  let provider = PROVIDER_MAP[model] || 'open-meteo';
+  if (model === 'EURO' && activeLayer === 'waves') {
+    provider = 'open-meteo';
+  }
+
+  // Cache by layer and provider to avoid cross-layer pollution
+  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`;
 
   const cached = _exactPointCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
@@ -210,38 +219,39 @@ export async function fetchExactMarinePoint(lat, lng, model) {
   const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
   let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
 
-  // v6.4: EURO exact-point goes through Copernicus which loads entire bbox into memory.
-  // Reduce forecast window to 1 day (current + 24h) to minimize Render memory usage.
-  // 10 days × 12 vars × 3-hourly = ~80 timesteps → 1 day = ~8 timesteps (10x reduction).
   if (provider === 'copernicus') {
     forecastDays = 1;
   }
 
-  // v5.9.1: Model-specific variable map — aligned with marineController.js MODEL_SUPPORTED_VARS.
-  // CRITICAL: Only request variables the model actually supports.
-  // Open-Meteo returns 400 for any unsupported variable, killing the ENTIRE request.
-  // Verified 2026-05-30: secondary_swell_wave_peak_period does NOT exist in Open-Meteo.
-  var EXACT_POINT_VARS = {
-    'ncep_gfswave025': [
-      'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period',
-      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
-      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
-      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
-    ],
-    'gwam': [
-      'wave_height', 'wave_direction', 'wave_period',
-      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
-      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
-    ],
-    'ecmwf_wam025': [
-      'wave_height', 'wave_direction', 'wave_period',
-      'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
-      'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
-      'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
-    ]
+  // v6.7: For EURO layers, request ONLY the variables needed for the active layer
+  // to avoid loading unnecessary data and prevent Render OOM failures.
+  var LAYER_SPECIFIC_VARS = {
+    waves: ['wave_height', 'wave_direction', 'wave_period'],
+    swell_1: ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'],
+    swell_2: ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'],
+    wind_waves: ['wind_wave_height', 'wind_wave_direction', 'wind_wave_period'],
   };
 
-  var hourlyVars = EXACT_POINT_VARS[apiModel] || EXACT_POINT_VARS['ncep_gfswave025'];
+  let hourlyVars;
+  if (model === 'EURO') {
+    hourlyVars = LAYER_SPECIFIC_VARS[activeLayer] || LAYER_SPECIFIC_VARS.waves;
+  } else {
+    // Keep GFS & ICON fully compatible with original behaviors
+    const EXACT_POINT_VARS = {
+      'ncep_gfswave025': [
+        'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period',
+        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period', 'swell_wave_peak_period',
+        'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
+        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period', 'wind_wave_peak_period'
+      ],
+      'gwam': [
+        'wave_height', 'wave_direction', 'wave_period',
+        'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
+        'wind_wave_height', 'wind_wave_direction', 'wind_wave_period'
+      ]
+    };
+    hourlyVars = EXACT_POINT_VARS[apiModel] || EXACT_POINT_VARS['ncep_gfswave025'];
+  }
 
   const body = {
     latitude: [rLat],
@@ -252,16 +262,15 @@ export async function fetchExactMarinePoint(lat, lng, model) {
   };
 
   try {
-    // Route EURO through Copernicus Marine backend, others through Open-Meteo
-    const proxyType = (apiModel === 'ecmwf_wam025') ? 'copernicus_marine' : 'marine';
+    const proxyType = (provider === 'copernicus') ? 'copernicus_marine' : 'marine';
 
     const res = await fetch('/api/weather-proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: proxyType, body })
+      body: JSON.stringify({ type: proxyType, body }),
+      signal
     });
     if (!res.ok) {
-      // v5.9.1: LOUD error diagnostics — never silently swallow exact-point failures
       var errText = '';
       try { errText = await res.text(); } catch(e) { errText = '(could not read body)'; }
       console.error(`[ExactPoint] FAILED: HTTP ${res.status} for ${rLat},${rLng} model=${apiModel}`, errText.substring(0, 300));
@@ -281,20 +290,16 @@ export async function fetchExactMarinePoint(lat, lng, model) {
     const result = Array.isArray(json) ? json[0] : json;
     if (!result?.hourly) return null;
 
-    // Clear any previous error on success
     if (typeof window !== 'undefined') {
       window.__MARINE_EXACT_POINT_ERROR__ = null;
     }
 
-    // v6.1: Detect provider from response, default based on proxy type
     const detectedProvider = result.__provider || (proxyType === 'copernicus_marine' ? 'copernicus' : 'open-meteo');
 
     const data = {
       hourly: result.hourly,
       snappedLat: result.latitude,
       snappedLng: result.longitude,
-      // v6.2: Store the requested coordinates and model so consumers can verify
-      // the response still matches the current selected point (stale-state guard)
       requestedLat: rLat,
       requestedLng: rLng,
       requestedModel: model || 'GFS',
@@ -304,7 +309,6 @@ export async function fetchExactMarinePoint(lat, lng, model) {
       source: 'exact_point_api'
     };
 
-    // v6.1: Copernicus Marine diagnostic (never prints credentials)
     if (typeof window !== 'undefined' && proxyType === 'copernicus_marine') {
       const hourly = result.hourly || {};
       window.__COPERNICUS_MARINE_DIAG__ = {
@@ -332,7 +336,6 @@ export async function fetchExactMarinePoint(lat, lng, model) {
     }
 
     _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
-    // Evict old entries
     if (_exactPointCache.size > 50) {
       const oldest = [..._exactPointCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
       for (let i = 0; i < 10; i++) _exactPointCache.delete(oldest[i][0]);
@@ -340,6 +343,9 @@ export async function fetchExactMarinePoint(lat, lng, model) {
 
     return data;
   } catch (err) {
+    if (err.name === 'AbortError') {
+      return { status: 'timeout' };
+    }
     console.error('[ExactPoint] Marine fetch exception:', err.message);
     if (typeof window !== 'undefined') {
       window.__MARINE_EXACT_POINT_ERROR__ = {

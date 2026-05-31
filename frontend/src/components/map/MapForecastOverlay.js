@@ -33,8 +33,8 @@ export var MapForecastOverlay = ({
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [exactPoint, setExactPoint] = useState(null);
-  // v6.1: Exact-point status machine to prevent infobox bouncing during load
-  const [exactPointStatus, setExactPointStatus] = useState('idle'); // idle | loading | success | error
+  // v6.7: Exact-point status machine: idle | exact_loading | exact_success | exact_timeout | exact_backend_error | exact_empty | exact_stale_rejected
+  const [exactPointStatus, setExactPointStatus] = useState('idle');
   const exactPointFetchRef = useRef(null);
   const isLight = theme === 'light';
 
@@ -49,58 +49,78 @@ export var MapForecastOverlay = ({
   const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
   const [exactPointResponse, setExactPointResponse] = useState(null);
 
-  // v6.6: Clear stale exact-point state synchronously during render when active coordinates/model/layer change.
-  // This blocks the old state from leaking even for a single frame.
+  // v6.7: Clear stale exact-point state synchronously using refs instead of render-time setState.
+  // This blocks the old state from leaking even for a single frame, preventing React hooks ordering crashes.
   const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${activeLayer}`;
-  const [prevPointKey, setPrevPointKey] = useState(currentPointKey);
-  const isStale = currentPointKey !== prevPointKey;
-
-  if (isStale) {
-    setPrevPointKey(currentPointKey);
-    setExactPointResponse(null);
-    setExactPoint(null);
-    setExactPointStatus(pointLat && pointLng && isMarineLayer ? 'loading' : 'idle');
-  }
+  const prevPointKeyRef = useRef(currentPointKey);
+  const isStale = currentPointKey !== prevPointKeyRef.current;
 
   const effectiveExactPointResponse = isStale ? null : exactPointResponse;
   const effectiveExactPoint = isStale ? null : exactPoint;
   const effectiveExactPointStatus = isStale
-    ? (pointLat && pointLng && isMarineLayer ? 'loading' : 'idle')
+    ? (pointLat && pointLng && isMarineLayer ? 'exact_stale_rejected' : 'idle')
     : exactPointStatus;
 
   useEffect(() => {
+    // Update the ref to currentPointKey inside the coordinate/model/layer-change useEffect
+    prevPointKeyRef.current = currentPointKey;
+
     if (!pointLat || !pointLng || !isMarineLayer) {
       setExactPointResponse(null);
       setExactPoint(null);
       setExactPointStatus('idle');
       return;
     }
-    // Synchronously cleared during render, but keep inside effect for safety
     setExactPointResponse(null);
     setExactPoint(null);
-    setExactPointStatus('loading');
+    setExactPointStatus('exact_loading');
 
     // Debounce: cancel previous fetch
     if (exactPointFetchRef.current) exactPointFetchRef.current.cancelled = true;
     const token = { cancelled: false };
     exactPointFetchRef.current = token;
 
-    // v5.7.2: Fetch by lat/lng/model only (not hourOffset).
-    // Caches the full response.
-    fetchExactMarinePoint(pointLat, pointLng, activeModel).then(data => {
+    // v6.7: Strict 12-second abort timeout controller
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 12000);
+
+    fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal).then(data => {
+      clearTimeout(timeoutId);
       if (!token.cancelled) {
         if (data) {
-          setExactPointResponse(data);
-          setExactPointStatus('success');
+          if (data.status === 'timeout') {
+            setExactPointStatus('exact_timeout');
+          } else if (data.status === 'error') {
+            setExactPointStatus('exact_backend_error');
+          } else if (data.status === 'empty') {
+            setExactPointStatus('exact_empty');
+          } else {
+            setExactPointResponse(data);
+            setExactPointStatus('exact_success');
+          }
         } else {
-          setExactPointStatus('error');
+          setExactPointStatus('exact_backend_error');
         }
       }
-    }).catch(() => {
-      if (!token.cancelled) setExactPointStatus('error');
+    }).catch(err => {
+      clearTimeout(timeoutId);
+      if (!token.cancelled) {
+        if (err.name === 'AbortError') {
+          setExactPointStatus('exact_timeout');
+        } else {
+          setExactPointStatus('exact_backend_error');
+        }
+      }
     });
-    return () => { token.cancelled = true; };
-  }, [pointLat, pointLng, activeModel, isMarineLayer]);
+
+    return () => {
+      token.cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [pointLat, pointLng, activeModel, isMarineLayer, activeLayer, currentPointKey]);
 
   // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
   // This is synchronous and instant — no network request on scrub.
@@ -169,7 +189,7 @@ export var MapForecastOverlay = ({
   // Prevents stale data from a previous coordinate or model from being used.
   const isExactPointValid = (() => {
     if (!effectiveExactPoint) return false;
-    if (effectiveExactPointStatus !== 'success') return false;
+    if (effectiveExactPointStatus !== 'exact_success') return false;
     // v6.6: Stricter coordinate check — reject if exactPoint was fetched for a different point
     const epLat = effectiveExactPoint.requestedLat;
     const epLng = effectiveExactPoint.requestedLng;
@@ -183,11 +203,15 @@ export var MapForecastOverlay = ({
     }
     // Provider check
     const expectedExactProv = activeModel === 'EURO' ? 'copernicus' : 'open-meteo';
-    if (effectiveExactPoint.provider !== expectedExactProv) {
+    if (effectiveExactPoint.provider !== expectedExactProv && !(activeModel === 'EURO' && activeLayer === 'waves')) {
       return false;
     }
     return true;
   })();
+
+  const isExactPointLoading = ['exact_loading', 'exact_stale_rejected'].includes(effectiveExactPointStatus);
+  const isExactPointTimeout = effectiveExactPointStatus === 'exact_timeout';
+  const isExactPointError = ['exact_backend_error', 'exact_empty', 'exact_error', 'error'].includes(effectiveExactPointStatus);
 
   // v6.6: For selected marine points, exact-point is THE authority.
   // Block ALL fallbacks while loading or if exact point is valid/success.
@@ -445,11 +469,15 @@ export var MapForecastOverlay = ({
     let displayDir = '--';
     let displayCompass = '';
 
-    if (isExactPointAuthority && effectiveExactPointStatus === 'loading') {
+    if (isExactPointAuthority && isExactPointLoading) {
       displayHeight = 'Loading...';
       displayPeriod = 'Loading...';
       displayDir = 'Loading...';
-    } else if (isExactPointAuthority && effectiveExactPointStatus === 'error') {
+    } else if (isExactPointAuthority && isExactPointTimeout) {
+      displayHeight = 'Timeout';
+      displayPeriod = 'Timeout';
+      displayDir = 'Timeout';
+    } else if (isExactPointAuthority && isExactPointError) {
       displayHeight = 'Unavailable';
       displayPeriod = 'Unavailable';
       displayDir = 'Unavailable';
@@ -467,13 +495,13 @@ export var MapForecastOverlay = ({
     }
 
     cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300' });
-    if (displayPeriod !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+    if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
       cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-blue-200' });
     }
     if (displayPeak) {
       cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-blue-100' });
     }
-    if (displayDir !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+    if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
       cards.push({ icon: ArrowUp, label: displayCompass || 'Dir', value: displayDir, color: 'text-blue-200', rotate: waveDir != null ? (waveDir + 180) % 360 : undefined });
     }
   }
@@ -494,11 +522,15 @@ export var MapForecastOverlay = ({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
-      if (isExactPointAuthority && effectiveExactPointStatus === 'loading') {
+      if (isExactPointAuthority && isExactPointLoading) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
-      } else if (isExactPointAuthority && effectiveExactPointStatus === 'error') {
+      } else if (isExactPointAuthority && isExactPointTimeout) {
+        displayHeight = 'Timeout';
+        displayPeriod = 'Timeout';
+        displayDir = 'Timeout';
+      } else if (isExactPointAuthority && isExactPointError) {
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
@@ -531,13 +563,13 @@ export var MapForecastOverlay = ({
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
-        if (displayPeriod !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
           cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-cyan-300' });
         }
         if (displayPeak) {
           cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-cyan-200' });
         }
-        if (displayDir !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
           cards.push({ icon: ArrowUp, label: displayCompass || 'Dir', value: displayDir, color: 'text-cyan-200', rotate: swell1Dir != null ? (swell1Dir + 180) % 360 : undefined });
         }
       }
@@ -558,11 +590,15 @@ export var MapForecastOverlay = ({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
-      if (isExactPointAuthority && effectiveExactPointStatus === 'loading') {
+      if (isExactPointAuthority && isExactPointLoading) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
-      } else if (isExactPointAuthority && effectiveExactPointStatus === 'error') {
+      } else if (isExactPointAuthority && isExactPointTimeout) {
+        displayHeight = 'Timeout';
+        displayPeriod = 'Timeout';
+        displayDir = 'Timeout';
+      } else if (isExactPointAuthority && isExactPointError) {
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
@@ -592,10 +628,10 @@ export var MapForecastOverlay = ({
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
-        if (displayPeriod !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
           cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-purple-300' });
         }
-        if (displayDir !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
           cards.push({ icon: ArrowUp, label: displayCompass || 'Dir', value: displayDir, color: 'text-purple-200', rotate: swell2Dir != null ? (swell2Dir + 180) % 360 : undefined });
         }
       }
@@ -616,11 +652,15 @@ export var MapForecastOverlay = ({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
-      if (isExactPointAuthority && effectiveExactPointStatus === 'loading') {
+      if (isExactPointAuthority && isExactPointLoading) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
-      } else if (isExactPointAuthority && effectiveExactPointStatus === 'error') {
+      } else if (isExactPointAuthority && isExactPointTimeout) {
+        displayHeight = 'Timeout';
+        displayPeriod = 'Timeout';
+        displayDir = 'Timeout';
+      } else if (isExactPointAuthority && isExactPointError) {
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
@@ -650,10 +690,10 @@ export var MapForecastOverlay = ({
       if (showStatus) {
         cards.push({ icon: Wind, label: 'Status', value: showStatus, color: statusColor });
       } else {
-        if (displayPeriod !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
           cards.push({ icon: Wind, label: 'Period', value: displayPeriod, color: 'text-emerald-300' });
         }
-        if (displayDir !== '--' || displayHeight === 'Loading...' || displayHeight === 'Unavailable') {
+        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
           cards.push({ icon: ArrowUp, label: displayCompass || 'Dir', value: displayDir, color: 'text-emerald-200', rotate: windWaveDir != null ? (windWaveDir + 180) % 360 : undefined });
         }
       }
@@ -665,13 +705,13 @@ export var MapForecastOverlay = ({
     if (isMarineLayer && pointLat && pointLng) {
       console.log(`%c[Forensic Audit] Infobox display data source for ${activeLayer} (Model: ${activeModel})`, 'color: #06b6d4; font-weight: bold;');
       console.log(`Coords: ${pointLat.toFixed(4)}, ${pointLng.toFixed(4)} | Status: ${effectiveExactPointStatus}`);
-      if (effectiveExactPointStatus === 'success' && effectiveExactPoint) {
+      if (effectiveExactPointStatus === 'exact_success' && effectiveExactPoint) {
         console.table({
           height: { displayedValue: cards.find(c => c.label === 'Height')?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' },
           period: { displayedValue: cards.find(c => c.label === 'Period')?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' },
           direction: { displayedValue: cards.find(c => c.label === 'Dir' || c.label === degToCompass(waveDir || swell1Dir || swell2Dir || windWaveDir))?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' }
         });
-      } else if (effectiveExactPointStatus === 'loading') {
+      } else if (effectiveExactPointStatus === 'exact_loading') {
         console.log('[Forensic Audit] Exact point is loading — fallbacks blocked.');
       } else {
         console.log(`[Forensic Audit] Exact point failed/unavailable: ${effectiveExactPointStatus}`);
@@ -757,19 +797,27 @@ export var MapForecastOverlay = ({
  Loading
             </div>
           ) : (
-            cards.map((card, i) => {
-              const Icon = card.icon;
-              return (
-                <div key={i} className="flex items-center gap-2">
-                  <Icon
-                    className={`w-3.5 h-3.5 ${card.color} shrink-0 inline-block`}
-                    style={card.rotate ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
-                  />
-                  <span className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
-                  <span className={`text-xs font-bold ${textClass}`}>{card.value}</span>
+            <>
+              {cards.map((card, i) => {
+                const Icon = card.icon;
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <Icon
+                      className={`w-3.5 h-3.5 ${card.color} shrink-0 inline-block`}
+                      style={card.rotate ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
+                    />
+                    <span className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
+                    <span className={`text-xs font-bold ${textClass}`}>{card.value}</span>
+                  </div>
+                );
+              })}
+              {activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer) && (
+                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-cyan-400 font-semibold flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Heatmap Unavailable</span>
                 </div>
-              );
-            })
+              )}
+            </>
           )}
         </div>
       </div>
