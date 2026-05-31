@@ -108,6 +108,8 @@ export function compileForecastCards({
     let displayDir = '--';
     let displayCompass = '';
 
+    const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+
     if (isExactPointAuthority && isExactPointLoading) {
       displayHeight = 'Loading...';
       displayPeriod = 'Loading...';
@@ -120,9 +122,14 @@ export function compileForecastCards({
       displayHeight = 'Unavailable';
       displayPeriod = 'Unavailable';
       displayDir = 'Unavailable';
+    } else if (isNoCoverage) {
+      displayHeight = 'No Coverage';
+      displayPeriod = 'No Coverage';
+      displayDir = 'No Coverage';
     } else {
       const hFt = mToFt(waveHeight);
-      displayHeight = hFt != null ? `${hFt} ft` : '--';
+      const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
+      displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
       if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s`;
       if (useExactPoint?.wave_peak_period != null && useExactPoint.wave_peak_period > 0) {
         displayPeak = `${useExactPoint.wave_peak_period.toFixed(1)}s`;
@@ -134,13 +141,13 @@ export function compileForecastCards({
     }
 
     cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300' });
-    if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+    if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
       cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-blue-200' });
     }
     if (displayPeak) {
       cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-blue-100' });
     }
-    if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+    if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
       cards.push({
         icon: ArrowUp,
         label: displayCompass || 'Dir',
@@ -165,6 +172,8 @@ export function compileForecastCards({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
+      const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+
       if (isExactPointAuthority && isExactPointLoading) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
@@ -177,10 +186,15 @@ export function compileForecastCards({
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
+      } else if (isNoCoverage) {
+        displayHeight = 'No Coverage';
+        displayPeriod = 'No Coverage';
+        displayDir = 'No Coverage';
       } else {
         const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
         const hFt = mToFt(swell1Height);
-        displayHeight = hFt != null ? `${hFt} ft` : '--';
+        const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
         if (!swell1LowEnergy) {
           if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s`;
           if (useExactPoint?.swell_wave_peak_period != null && useExactPoint.swell_wave_peak_period > 0) {
@@ -191,7 +205,7 @@ export function compileForecastCards({
             displayCompass = degToCompass(swell1Dir);
           }
         } else {
-          const gridHasData = swell1Supported; // EURO now always supports it via Copernicus
+          const gridHasData = swell1Supported;
           const hasExactData = useExactPoint?.swell_wave_height != null;
           if (!gridHasData && !hasExactData) {
             showStatus = 'No data';
@@ -205,13 +219,13 @@ export function compileForecastCards({
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
-        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-cyan-300' });
         }
         if (displayPeak) {
           cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-cyan-200' });
         }
-        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({
             icon: ArrowUp,
             label: displayCompass || 'Dir',
@@ -237,6 +251,8 @@ export function compileForecastCards({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
+      const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+
       if (isExactPointAuthority && isExactPointLoading) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
@@ -249,10 +265,15 @@ export function compileForecastCards({
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
+      } else if (isNoCoverage) {
+        displayHeight = 'No Coverage';
+        displayPeriod = 'No Coverage';
+        displayDir = 'No Coverage';
       } else {
         const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
         const hFt = mToFt(swell2Height);
-        displayHeight = hFt != null ? `${hFt} ft` : '--';
+        const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
         if (!swell2LowEnergy) {
           if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s`;
           if (swell2Dir != null) {
@@ -274,10 +295,10 @@ export function compileForecastCards({
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
-        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-purple-300' });
         }
-        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({
             icon: ArrowUp,
             label: displayCompass || 'Dir',
@@ -303,6 +324,8 @@ export function compileForecastCards({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
+      const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+
       if (isExactPointAuthority && isExactPointLoading) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
@@ -315,10 +338,15 @@ export function compileForecastCards({
         displayHeight = 'Unavailable';
         displayPeriod = 'Unavailable';
         displayDir = 'Unavailable';
+      } else if (isNoCoverage) {
+        displayHeight = 'No Coverage';
+        displayPeriod = 'No Coverage';
+        displayDir = 'No Coverage';
       } else {
         const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
         const hFt = mToFt(windWaveHeight);
-        displayHeight = hFt != null ? `${hFt} ft` : '--';
+        const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : ''}` : '--';
         if (!windWaveLowEnergy) {
           if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s`;
           if (windWaveDir != null) {
@@ -340,10 +368,10 @@ export function compileForecastCards({
       if (showStatus) {
         cards.push({ icon: Wind, label: 'Status', value: showStatus, color: statusColor });
       } else {
-        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+        if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({ icon: Wind, label: 'Period', value: displayPeriod, color: 'text-emerald-300' });
         }
-        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError) {
+        if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({
             icon: ArrowUp,
             label: displayCompass || 'Dir',

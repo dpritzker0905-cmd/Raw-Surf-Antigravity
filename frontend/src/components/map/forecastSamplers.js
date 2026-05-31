@@ -221,7 +221,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
 
   if (provider === 'copernicus') {
-    forecastDays = 1;
+    forecastDays = 3;
   }
 
   let hourlyVars;
@@ -406,32 +406,38 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     if (diff < minDiff) { minDiff = diff; bestIdx = i; }
   }
 
-  // If best match is > 3 hours away, consider it a miss (model doesn't cover this time)
-  if (minDiff > 3 * 3600000) return null;
+  // v6.9: Expose exact status depending on time matching diff instead of silently returning null
+  let status = 'exact_success';
+  if (minDiff > 3 * 3600000) {
+    if (minDiff <= 12 * 3600000) {
+      status = 'exact_stale_available';
+    } else {
+      status = 'exact_no_time_coverage';
+    }
+  }
 
   return {
-    wave_height: h.wave_height?.[bestIdx] ?? null,
-    wave_direction: h.wave_direction?.[bestIdx] ?? null,
-    wave_period: h.wave_period?.[bestIdx] ?? null,
-    wave_peak_period: h.wave_peak_period?.[bestIdx] ?? null,
-    swell_wave_height: h.swell_wave_height?.[bestIdx] ?? null,
-    swell_wave_direction: h.swell_wave_direction?.[bestIdx] ?? null,
-    swell_wave_period: h.swell_wave_period?.[bestIdx] ?? null,
-    swell_wave_peak_period: h.swell_wave_peak_period?.[bestIdx] ?? null,
-    secondary_swell_wave_height: h.secondary_swell_wave_height?.[bestIdx] ?? null,
-    secondary_swell_wave_direction: h.secondary_swell_wave_direction?.[bestIdx] ?? null,
-    secondary_swell_wave_period: h.secondary_swell_wave_period?.[bestIdx] ?? null,
-    // NOTE: secondary_swell_wave_peak_period does NOT exist in Open-Meteo (verified 2026-05-30)
-    wind_wave_height: h.wind_wave_height?.[bestIdx] ?? null,
-    wind_wave_direction: h.wind_wave_direction?.[bestIdx] ?? null,
-    wind_wave_period: h.wind_wave_period?.[bestIdx] ?? null,
-    wind_wave_peak_period: h.wind_wave_peak_period?.[bestIdx] ?? null,
+    wave_height: status === 'exact_no_time_coverage' ? null : (h.wave_height?.[bestIdx] ?? null),
+    wave_direction: status === 'exact_no_time_coverage' ? null : (h.wave_direction?.[bestIdx] ?? null),
+    wave_period: status === 'exact_no_time_coverage' ? null : (h.wave_period?.[bestIdx] ?? null),
+    wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.wave_peak_period?.[bestIdx] ?? null),
+    swell_wave_height: status === 'exact_no_time_coverage' ? null : (h.swell_wave_height?.[bestIdx] ?? null),
+    swell_wave_direction: status === 'exact_no_time_coverage' ? null : (h.swell_wave_direction?.[bestIdx] ?? null),
+    swell_wave_period: status === 'exact_no_time_coverage' ? null : (h.swell_wave_period?.[bestIdx] ?? null),
+    swell_wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.swell_wave_peak_period?.[bestIdx] ?? null),
+    secondary_swell_wave_height: status === 'exact_no_time_coverage' ? null : (h.secondary_swell_wave_height?.[bestIdx] ?? null),
+    secondary_swell_wave_direction: status === 'exact_no_time_coverage' ? null : (h.secondary_swell_wave_direction?.[bestIdx] ?? null),
+    secondary_swell_wave_period: status === 'exact_no_time_coverage' ? null : (h.secondary_swell_wave_period?.[bestIdx] ?? null),
+    wind_wave_height: status === 'exact_no_time_coverage' ? null : (h.wind_wave_height?.[bestIdx] ?? null),
+    wind_wave_direction: status === 'exact_no_time_coverage' ? null : (h.wind_wave_direction?.[bestIdx] ?? null),
+    wind_wave_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_period?.[bestIdx] ?? null),
+    wind_wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_peak_period?.[bestIdx] ?? null),
+    status,
     source: 'exact_point_api',
     hourIndex: bestIdx,
     time: times[bestIdx],
     snappedLat: cachedResponse.snappedLat,
     snappedLng: cachedResponse.snappedLng,
-    // v6.2: Carry forward request metadata for stale-state detection
     requestedLat: cachedResponse.requestedLat,
     requestedLng: cachedResponse.requestedLng,
     requestedModel: cachedResponse.requestedModel,

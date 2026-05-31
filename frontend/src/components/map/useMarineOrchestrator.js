@@ -225,9 +225,29 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               const componentGrid = await fetchCopernicusComponentGrid(
                 vpBounds, currentLayer, timeOffsetRef.current, zoom
               );
-              if (componentGrid && componentGrid.features?.length > 0) {
+              if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
+                const vectors = componentGrid.grid.vectors;
+                let nonzeroCount = 0;
+                vectors.forEach(v => {
+                  const compVec = v[currentLayer];
+                  if (compVec && compVec.speed > 0) {
+                    nonzeroCount++;
+                  }
+                });
+
+                if (nonzeroCount === 0) {
+                  console.warn(`[Marine] Copernicus grid has vectors but zero active values for ${currentLayer} (no_nonzero_vectors)`);
+                  if (typeof window !== 'undefined') {
+                    window.__COPERNICUS_GRID_DIAG__ = {
+                      ...window.__COPERNICUS_GRID_DIAG__,
+                      skipped: true,
+                      skippedReason: 'no_nonzero_vectors'
+                    };
+                  }
+                }
+
                 data = mergeComponentGrid(data, componentGrid, currentLayer);
-                console.log(`[Marine] Copernicus ${currentLayer} grid merged: ${componentGrid.grid?.vectors?.length} vectors`);
+                console.log(`[Marine] Copernicus ${currentLayer} grid merged: ${componentGrid.grid?.vectors?.length} vectors, nonzeroCount: ${nonzeroCount}`);
               }
             } catch (err) {
               console.warn(`[Marine] Copernicus component grid failed:`, err.message);

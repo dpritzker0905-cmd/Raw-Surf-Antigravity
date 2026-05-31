@@ -58,9 +58,15 @@ export var MapForecastOverlay = ({
 
   const effectiveExactPointResponse = isStale ? null : exactPointResponse;
   const effectiveExactPoint = isStale ? null : exactPoint;
-  const effectiveExactPointStatus = isStale
-    ? (pointLat && pointLng && isMarineLayer ? 'exact_stale_rejected' : 'idle')
-    : exactPointStatus;
+  const effectiveExactPointStatus = (() => {
+    if (isStale) {
+      return (pointLat && pointLng && isMarineLayer ? 'exact_stale_rejected' : 'idle');
+    }
+    if (exactPointStatus === 'exact_success' && effectiveExactPoint?.status) {
+      return effectiveExactPoint.status;
+    }
+    return exactPointStatus;
+  })();
 
   useEffect(() => {
     // Update the ref to currentPointKey inside the coordinate/model/layer-change useEffect
@@ -190,7 +196,7 @@ export var MapForecastOverlay = ({
   // Prevents stale data from a previous coordinate or model from being used.
   const isExactPointValid = (() => {
     if (!effectiveExactPoint) return false;
-    if (effectiveExactPointStatus !== 'exact_success') return false;
+    if (effectiveExactPointStatus !== 'exact_success' && effectiveExactPointStatus !== 'exact_stale_available') return false;
     // v6.6: Stricter coordinate check — reject if exactPoint was fetched for a different point
     const epLat = effectiveExactPoint.requestedLat;
     const epLng = effectiveExactPoint.requestedLng;
@@ -217,8 +223,13 @@ export var MapForecastOverlay = ({
   // v6.6: For selected marine points, exact-point is THE authority.
   // Block ALL fallbacks while loading or if exact point is valid/success.
   const isExactPointAuthority = isMarineLayer && (pointLat != null) && (pointLng != null);
-  const blockFallbacks = isExactPointAuthority;
+  
+  // v6.9: Grid Fallback on Point Error: if exact point failed/timed out/has no coverage,
+  // but the Copernicus heatmap grid is valid, use the grid sample.
   const useExactPoint = isExactPointValid ? effectiveExactPoint : null;
+  const useGridFallback = isExactPointAuthority && !useExactPoint && !isExactPointLoading;
+  
+  const blockFallbacks = isExactPointAuthority && !useGridFallback;
 
   const sampledWaves = blockFallbacks ? null : sampleValueFromDecodedTiles(lat, lng, 'wave_height', timeOffsetHours, activeModel);
   const sampledSwell1 = blockFallbacks ? null : sampleValueFromDecodedTiles(lat, lng, 'swell_wave_height', timeOffsetHours, activeModel);
@@ -278,7 +289,7 @@ export var MapForecastOverlay = ({
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
   // v6.6: Exact-point is authoritative when valid. Fallbacks only when exact-point failed.
   const waveHeight = isExactPointAuthority
-    ? useExactPoint?.wave_height
+    ? (useExactPoint?.wave_height ?? (useGridFallback && marineGridSample ? marineGridSample.value : null))
     : (activeLayer === 'waves' && sampledWaves)
       ? sampledWaves.value
       : (activeLayer === 'waves' && marineGridSample)
@@ -286,7 +297,7 @@ export var MapForecastOverlay = ({
         : getBiasAdjustedLocal(rawWaveHeight, 'wave');
 
   const wavePeriod = isExactPointAuthority
-    ? (useExactPoint?.wave_period > 0 ? useExactPoint.wave_period : null)
+    ? (useExactPoint?.wave_period > 0 ? useExactPoint.wave_period : (useGridFallback && marineGridSample?.period > 0 ? marineGridSample.period : null))
     : (sampledWavePeriod && sampledWavePeriod.value > 0)
       ? sampledWavePeriod.value
       : (activeLayer === 'waves' && marineGridSample?.period > 0)
@@ -294,7 +305,7 @@ export var MapForecastOverlay = ({
         : (isLive && marineCurrent.wave_period != null ? marineCurrent.wave_period : getClampedValue(marine.wave_period, marineHourIndex));
   
   const waveDir = isExactPointAuthority
-    ? useExactPoint?.wave_direction
+    ? (useExactPoint?.wave_direction ?? (useGridFallback && marineGridSample ? marineGridSample.direction : null))
     : (activeLayer === 'waves' && sampledWaves && sampledWaves.direction != null)
       ? sampledWaves.direction
       : (activeLayer === 'waves' && marineGridSample?.direction != null)
@@ -313,7 +324,7 @@ export var MapForecastOverlay = ({
     const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
     const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : null;
     swell1Height = isExactPointAuthority
-      ? useExactPoint?.swell_wave_height
+      ? (useExactPoint?.swell_wave_height ?? (useGridFallback && marineGridSample ? marineGridSample.value : null))
       : (activeLayer === 'swell_1' && sampledSwell1)
         ? sampledSwell1.value
         : (activeLayer === 'swell_1' && marineGridSample)
@@ -322,14 +333,14 @@ export var MapForecastOverlay = ({
 
     const rawSwell1Period = isLive && marineCurrent.swell_wave_period != null ? marineCurrent.swell_wave_period : getClampedValue(marine.swell_wave_period, marineHourIndex);
     swell1Period = isExactPointAuthority
-      ? (useExactPoint?.swell_wave_period > 0 ? useExactPoint.swell_wave_period : null)
+      ? (useExactPoint?.swell_wave_period > 0 ? useExactPoint.swell_wave_period : (useGridFallback && marineGridSample?.period > 0 ? marineGridSample.period : null))
       : (sampledSwell1Period && sampledSwell1Period.value > 0)
         ? sampledSwell1Period.value
         : (rawSwell1Period != null ? rawSwell1Period : null);
 
     const rawSwell1Dir = isLive && marineCurrent.swell_wave_direction != null ? marineCurrent.swell_wave_direction : getClampedValue(marine.swell_wave_direction, marineHourIndex);
     swell1Dir = isExactPointAuthority
-      ? useExactPoint?.swell_wave_direction
+      ? (useExactPoint?.swell_wave_direction ?? (useGridFallback && marineGridSample ? marineGridSample.direction : null))
       : (activeLayer === 'swell_1' && sampledSwell1 && sampledSwell1.direction != null)
         ? sampledSwell1.direction
         : (activeLayer === 'swell_1' && marineGridSample?.direction != null)
@@ -349,7 +360,7 @@ export var MapForecastOverlay = ({
     const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
     const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
     swell2Height = isExactPointAuthority
-      ? useExactPoint?.secondary_swell_wave_height
+      ? (useExactPoint?.secondary_swell_wave_height ?? (useGridFallback && marineGridSample ? marineGridSample.value : null))
       : (activeLayer === 'swell_2' && sampledSwell2)
         ? sampledSwell2.value
         : (activeLayer === 'swell_2' && marineGridSample)
@@ -358,7 +369,7 @@ export var MapForecastOverlay = ({
 
     const rawSwell2Period = getClampedValue(marine.secondary_swell_wave_period, marineHourIndex);
     swell2Period = isExactPointAuthority
-      ? (useExactPoint?.secondary_swell_wave_period > 0 ? useExactPoint.secondary_swell_wave_period : null)
+      ? (useExactPoint?.secondary_swell_wave_period > 0 ? useExactPoint.secondary_swell_wave_period : (useGridFallback && marineGridSample?.period > 0 ? marineGridSample.period : null))
       : (sampledSwell2Period && sampledSwell2Period.value > 0)
         ? sampledSwell2Period.value
         : (activeLayer === 'swell_2' && marineGridSample?.period > 0)
@@ -366,7 +377,7 @@ export var MapForecastOverlay = ({
           : rawSwell2Period;
 
     swell2Dir = isExactPointAuthority
-      ? useExactPoint?.secondary_swell_wave_direction
+      ? (useExactPoint?.secondary_swell_wave_direction ?? (useGridFallback && marineGridSample ? marineGridSample.direction : null))
       : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
         ? sampledSwell2.direction
         : (activeLayer === 'swell_2' && marineGridSample?.direction != null)
@@ -389,7 +400,7 @@ export var MapForecastOverlay = ({
     windWaveDir = null;
   } else {
     windWaveHeight = isExactPointAuthority
-      ? useExactPoint?.wind_wave_height
+      ? (useExactPoint?.wind_wave_height ?? (useGridFallback && marineGridSample ? marineGridSample.value : null))
       : (activeLayer === 'wind_waves' && sampledWindWaves)
         ? sampledWindWaves.value
         : (activeLayer === 'wind_waves' && marineGridSample)
@@ -397,7 +408,7 @@ export var MapForecastOverlay = ({
           : (rawWindWaveHeight != null ? getBiasAdjustedLocal(rawWindWaveHeight, 'wind_wave') : null);
 
     windWavePeriod = isExactPointAuthority
-      ? (useExactPoint?.wind_wave_period > 0 ? useExactPoint.wind_wave_period : null)
+      ? (useExactPoint?.wind_wave_period > 0 ? useExactPoint.wind_wave_period : (useGridFallback && marineGridSample?.period > 0 ? marineGridSample.period : null))
       : (sampledWindWavesPeriod && sampledWindWavesPeriod.value > 0)
         ? sampledWindWavesPeriod.value
         : (activeLayer === 'wind_waves' && marineGridSample?.period > 0)
@@ -405,7 +416,7 @@ export var MapForecastOverlay = ({
           : rawWindWavePeriod;
 
     windWaveDir = isExactPointAuthority
-      ? useExactPoint?.wind_wave_direction
+      ? (useExactPoint?.wind_wave_direction ?? (useGridFallback && marineGridSample ? marineGridSample.direction : null))
       : (activeLayer === 'wind_waves' && sampledWindWaves && sampledWindWaves.direction != null)
         ? sampledWindWaves.direction
         : (activeLayer === 'wind_waves' && marineGridSample?.direction != null)
