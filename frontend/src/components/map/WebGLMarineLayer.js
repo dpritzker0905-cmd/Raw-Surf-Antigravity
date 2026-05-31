@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
-import { registerMarineEngine, unregisterMarineEngine } from '../../engine/RenderPlanDispatcher';
+import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
 
 var LAYER_ID = 'webgl-marine-particles';
 
@@ -31,86 +31,6 @@ export function getSharedLandGeoJSON() {
   }
 
   return window.__LAND_GEOJSON_PROMISE__;
-}
-
-
-let uploadSeqNum = 0;
-
-export function updateMarineTruthTrace(stage, data, activeModel, activeLayer, hourOffset, sourcePath, rejectionReason = null, gpuUploaded = false, httpStatus = 200) {
-  if (typeof window === 'undefined') return;
-
-  let vCount = 0;
-  let nzCount = 0;
-  let hMin = Infinity, hMax = -Infinity, hSum = 0;
-  let pMin = Infinity, pMax = -Infinity, pSum = 0;
-  let dirSum = 0;
-  let gridSum = 0;
-
-  const vectors = data?.grid?.vectors || data?.vectors;
-  if (vectors?.length) {
-    vCount = vectors.length;
-    const compKey = activeLayer || 'waves';
-    const step = Math.max(1, Math.floor(vectors.length / 50));
-    
-    vectors.forEach((v) => {
-      if (!v) return;
-      const c = v[compKey] !== undefined ? v[compKey] : v;
-      if (c && c.speed > 0) {
-        nzCount++;
-        hSum += c.speed;
-        if (c.speed < hMin) hMin = c.speed;
-        if (c.speed > hMax) hMax = c.speed;
-        
-        const period = c.period || 0;
-        if (period > 0) {
-          pSum += period;
-          if (period < pMin) pMin = period;
-          if (period > pMax) pMax = period;
-        }
-      }
-    });
-
-    for (let i = 0; i < vectors.length; i += step) {
-      const v = vectors[i];
-      if (v) {
-        const c = v[compKey] !== undefined ? v[compKey] : v;
-        dirSum += (c?.direction || 0) + (c?.u || 0) + (c?.v || 0);
-        gridSum += (c?.speed || c?.height || 0) + (c?.period || 0);
-      }
-    }
-  }
-
-  if (gpuUploaded) {
-    uploadSeqNum++;
-  }
-
-  window.__MARINE_TRUTH_TRACE__ = {
-    timeOffsetHours: hourOffset,
-    selectedForecastTimestamp: new Date(Date.now() + hourOffset * 3600000).toISOString(),
-    activeModel,
-    activeMarineLayer: activeLayer,
-    provider: data?.grid?.__provider || data?.grid?.provider || data?.__provider || 'none',
-    gridProvider: data?.grid?.__gridProvider || data?.__gridProvider || 'none',
-    componentLayer: data?.grid?.__componentLayer || data?.__componentLayer || 'none',
-    sourcePath: sourcePath || 'none',
-    vectorCount: vCount,
-    nonzeroCount: nzCount,
-    heightMin: hMin === Infinity ? 0 : hMin,
-    heightMax: hMax === -Infinity ? 0 : hMax,
-    heightMean: nzCount > 0 ? hSum / nzCount : 0,
-    periodMin: pMin === Infinity ? 0 : pMin,
-    periodMax: pMax === -Infinity ? 0 : pMax,
-    periodMean: nzCount > 0 ? pSum / nzCount : 0,
-    directionChecksum: Math.round(dirSum * 100),
-    gridChecksum: Math.round(gridSum * 100),
-    uploadSequenceNumber: uploadSeqNum,
-    gpuTextureUploaded: gpuUploaded,
-    rejectionReason,
-    httpStatus,
-    cacheHit: sourcePath?.includes('cache') || sourcePath?.includes('direct') || sourcePath?.includes('orchestrator'),
-    cooldownState: (typeof window !== 'undefined' && window.__MARINE_FETCH_DIAG__?.cooldownState) || 'ok',
-    timestamp: new Date().toISOString()
-  };
 }
 
 
@@ -555,12 +475,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (window.isScrubbingTimeline) {
       window.lastScrubTime = Date.now();
-    }
-    const isScrubbing = window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500));
-
-    if (engine._dispatcherActive && !isScrubbing) {
-      console.log(`[WebGLMarine] Skipping React effect setWaveData because RenderPlanDispatcher is active`);
-      return;
     }
 
     const gridModel = data.__sourceModel || activeModel;

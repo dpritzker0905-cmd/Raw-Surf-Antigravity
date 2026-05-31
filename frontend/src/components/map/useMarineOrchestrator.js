@@ -333,121 +333,60 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         } else {
           const isEuroComponent = activeModelRef.current === 'EURO' && currentLayer && COMPONENT_LAYERS.includes(currentLayer);
           if (isEuroComponent) {
-            // Bypass global Open-Meteo fetch to avoid timeouts, redundant requests, and save roundtrip latency
-            data = {
-              type: 'FeatureCollection',
-              features: [],
-              grid: {
-                vectors: [],
-                bounds: { west: -180, south: -85, east: 180, north: 85 },
-                cols: 0,
-                rows: 0,
-                timestamp: Date.now(),
-                __sourceModel: 'EURO',
-                provider: 'copernicus'
-              }
-            };
-            
-            if (zoom < 4) {
-              console.log(`[Marine] Zoom ${zoom} < 4, fetching GFS as safe estimated fallback for EURO ${currentLayer}`);
-              try {
-                const gfsGridData = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, 'GFS');
-                if (gfsGridData?.grid?.vectors?.length > 0) {
-                  data = {
-                    ...gfsGridData,
-                    grid: {
-                      ...gfsGridData.grid,
-                      __sourceModel: 'EURO',
-                      __provider: 'estimated',
-                      __gridProvider: 'estimated',
-                      __componentLayer: currentLayer,
-                      __gridSupportsLayer: true,
-                      __skippedReason: 'zoom_too_low_fallback',
-                      provider: 'estimated'
-                    }
-                  };
-                  if (typeof window !== 'undefined') {
-                    window.__COPERNICUS_GRID_DIAG__ = {
-                      layer: currentLayer,
-                      componentLayer: currentLayer,
-                      provider: 'estimated',
-                      backendPointCount: gfsGridData.grid.vectors.length,
-                      renderPointCount: gfsGridData.grid.vectors.length,
-                      nonzeroCount: gfsGridData.grid.nonzeroCount || 0,
-                      bbox: gfsGridData.grid.bounds,
-                      zoom,
-                      cacheHit: false,
-                      isStale: false,
-                      elapsedMs: 0,
-                      timestamp: new Date().toISOString(),
-                      skipped: false,
-                      skippedReason: null
-                    };
+            try {
+              const gfsGridData = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, 'GFS', currentLayer);
+              if (gfsGridData?.grid?.vectors?.length > 0) {
+                data = {
+                  ...gfsGridData,
+                  grid: {
+                    ...gfsGridData.grid,
+                    __sourceModel: 'EURO',
+                    __provider: 'copernicus',
+                    __gridProvider: 'copernicus',
+                    provider: 'copernicus'
                   }
-                } else {
-                  data.grid.__skippedReason = 'zoom_too_low';
-                  data.grid.__gridProvider = 'copernicus';
-                  data.grid.__componentLayer = currentLayer;
-                }
-              } catch (err) {
-                console.warn(`[Marine] Zoom < 4 GFS fallback failed:`, err.message);
-                data.grid.__skippedReason = 'zoom_too_low';
-                data.grid.__gridProvider = 'copernicus';
+                };
+              }
+            } catch (err) {
+              console.warn('[Marine] Global backdrop fetch failed:', err.message);
+            }
+
+            if (!data) {
+              data = {
+                type: 'FeatureCollection', features: [],
+                grid: { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', provider: 'copernicus' }
+              };
+            }
+
+            if (zoom < 4) {
+              console.log(`[Marine] Zoom ${zoom} < 4, using GFS estimated backdrop`);
+              if (data?.grid) {
+                data.grid.__provider = 'estimated';
+                data.grid.__gridProvider = 'estimated';
                 data.grid.__componentLayer = currentLayer;
+                data.grid.__gridSupportsLayer = true;
+                data.grid.__skippedReason = 'zoom_too_low_fallback';
+                data.grid.provider = 'estimated';
               }
             } else {
               try {
                 const b = mapInstance.getBounds();
-                const west = b.getWest();
-                const east = b.getEast();
-                const south = b.getSouth();
-                const north = b.getNorth();
-                const lngSpan = east - west;
-                const latSpan = north - south;
-                const padding = 0.25; // 25% padding on each side (1.5x total span centered)
+                const west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
+                const lngSpan = east - west, latSpan = north - south, padding = 0.25;
                 const vpBounds = {
-                  west: west - lngSpan * padding,
-                  east: east + lngSpan * padding,
-                  south: Math.max(-80, south - latSpan * padding),
-                  north: Math.min(85, north + latSpan * padding)
+                  west: west - lngSpan * padding, east: east + lngSpan * padding,
+                  south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding)
                 };
-                const componentGrid = await fetchCopernicusComponentGrid(
-                  vpBounds, currentLayer, timeOffsetRef.current, zoom
-                );
+                const componentGrid = await fetchCopernicusComponentGrid(vpBounds, currentLayer, timeOffsetRef.current, zoom);
                 if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
-                  const vectors = componentGrid.grid.vectors;
-                  let nonzeroCount = 0;
-                  vectors.forEach(v => {
-                    const compVec = v[currentLayer];
-                    if (compVec && compVec.speed > 0) {
-                      nonzeroCount++;
-                    }
-                  });
-
-                  if (nonzeroCount === 0) {
-                    console.warn(`[Marine] Copernicus grid has vectors but zero active values for ${currentLayer} (no_nonzero_vectors)`);
-                    if (typeof window !== 'undefined') {
-                      window.__COPERNICUS_GRID_DIAG__ = {
-                        ...window.__COPERNICUS_GRID_DIAG__,
-                        skipped: true,
-                        skippedReason: 'no_nonzero_vectors'
-                      };
-                    }
-                  }
-
                   data = mergeComponentGrid(data, componentGrid, currentLayer);
-                  console.log(`[Marine] Copernicus ${currentLayer} grid merged: ${componentGrid.grid?.vectors?.length} vectors, nonzeroCount: ${nonzeroCount}`);
-                } else {
-                  console.warn(`[Marine] Copernicus component grid failed or returned empty.`);
-                  data = null;
                 }
               } catch (err) {
-                console.warn(`[Marine] Copernicus component grid failed:`, err.message);
-                data = null;
+                console.warn('[Marine] Copernicus fetch failed:', err.message);
               }
             }
           } else {
-            data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, activeModelRef.current);
+            data = await fetchMarineData(bounds, zoom, null, timeOffsetRef.current, false, activeModelRef.current, currentLayer);
           }
         }
 

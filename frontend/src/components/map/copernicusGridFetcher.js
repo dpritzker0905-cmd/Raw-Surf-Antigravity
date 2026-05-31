@@ -684,13 +684,98 @@ function triggerBackgroundRevalidate(viewportBounds, layer, hourOffset, zoom, ca
 export function mergeComponentGrid(baseData, componentData, layer) {
   if (!baseData?.grid?.vectors || !componentData?.grid?.vectors) return baseData;
 
-  // The component grid may have different bounds/size than the base grid.
-  // Replace the entire grid with the Copernicus component grid, but carry
-  // forward Copernicus metadata so MapWebGL knows to render it.
-  var merged = {
-    ...componentData,
+  const cBounds = componentData.grid.bounds;
+  const cVectors = componentData.grid.vectors;
+  const cCols = componentData.grid.cols;
+  const cRows = componentData.grid.rows;
+
+  // Feathering boundary width in degrees
+  const featherLat = Math.min(2.0, (cBounds.north - cBounds.south) * 0.15);
+  const featherLng = Math.min(2.0, (cBounds.east - cBounds.west) * 0.15);
+
+  const vectors = baseData.grid.vectors.map(v => {
+    let lng = v.lng;
+    if (lng < cBounds.west && cBounds.west > 180) lng += 360;
+    if (lng > cBounds.east && cBounds.east < -180) lng -= 360;
+
+    const inLat = v.lat >= cBounds.south && v.lat <= cBounds.north;
+    const inLng = lng >= cBounds.west && lng <= cBounds.east;
+
+    if (!inLat || !inLng) {
+      return {
+        ...v,
+        [layer]: {
+          u: v[layer]?.u || 0,
+          v: v[layer]?.v || 0,
+          speed: v[layer]?.speed || 0,
+          period: v[layer]?.period || 0,
+          __estimated: true
+        }
+      };
+    }
+
+    // Bilinear interpolation on Copernicus regional grid
+    const fx = ((lng - cBounds.west) / (cBounds.east - cBounds.west)) * (cCols - 1);
+    const fy = ((v.lat - cBounds.south) / (cBounds.north - cBounds.south)) * (cRows - 1);
+
+    const x0 = Math.floor(fx);
+    const x1 = Math.min(cCols - 1, x0 + 1);
+    const y0 = Math.floor(fy);
+    const y1 = Math.min(cRows - 1, y0 + 1);
+
+    const dx = fx - x0;
+    const dy = fy - y0;
+
+    const v00 = cVectors[y0 * cCols + x0];
+    const v10 = cVectors[y0 * cCols + x1];
+    const v01 = cVectors[y1 * cCols + x0];
+    const v11 = cVectors[y1 * cCols + x1];
+
+    const getComp = (vec) => vec?.[layer] || vec || { u: 0, v: 0, speed: 0, period: 0 };
+    const c00 = getComp(v00), c10 = getComp(v10), c01 = getComp(v01), c11 = getComp(v11);
+
+    const interp = (f) => c00[f] * (1 - dx) * (1 - dy) + c10[f] * dx * (1 - dy) + c01[f] * (1 - dx) * dy + c11[f] * dx * dy;
+    const copU = interp('u');
+    const copV = interp('v');
+    const copSpeed = interp('speed');
+    const copPeriod = interp('period');
+
+    // Smooth boundary feather blend
+    const distSouth = v.lat - cBounds.south;
+    const distNorth = cBounds.north - v.lat;
+    const distWest = lng - cBounds.west;
+    const distEast = cBounds.east - lng;
+
+    const minLatDist = Math.min(distSouth, distNorth);
+    const minLngDist = Math.min(distWest, distEast);
+
+    const alphaLat = featherLat > 0 ? Math.min(1.0, minLatDist / featherLat) : 1.0;
+    const alphaLng = featherLng > 0 ? Math.min(1.0, minLngDist / featherLng) : 1.0;
+    const alpha = Math.min(alphaLat, alphaLng);
+
+    const finalU = alpha * copU + (1 - alpha) * (v[layer]?.u || 0);
+    const finalV = alpha * copV + (1 - alpha) * (v[layer]?.v || 0);
+    const finalSpeed = alpha * copSpeed + (1 - alpha) * (v[layer]?.speed || 0);
+    const finalPeriod = alpha * copPeriod + (1 - alpha) * (v[layer]?.period || 0);
+
+    return {
+      ...v,
+      [layer]: {
+        u: finalU,
+        v: finalV,
+        speed: finalSpeed,
+        period: finalPeriod,
+        __blended: alpha < 1.0 && alpha > 0,
+        __estimated: alpha === 0
+      }
+    };
+  });
+
+  return {
+    ...baseData,
     grid: {
-      ...componentData.grid,
+      ...baseData.grid,
+      vectors,
       __sourceModel: 'EURO',
       __provider: 'copernicus',
       __gridProvider: 'copernicus',
@@ -699,8 +784,6 @@ export function mergeComponentGrid(baseData, componentData, layer) {
       provider: 'copernicus'
     }
   };
-
-  return merged;
 }
 
 export { COMPONENT_LAYERS, COPERNICUS_LAYER_VARS };

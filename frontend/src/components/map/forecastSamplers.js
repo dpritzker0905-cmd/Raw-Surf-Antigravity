@@ -589,7 +589,9 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   const isIcon = cachedResponse.requestedModel === 'ICON';
   let iconLimit = ICON_LIMIT;
   if (isIcon && cachedResponse.hourly?.time?.length) {
-    iconLimit = Math.min(ICON_LIMIT, cachedResponse.hourly.time.length - 1);
+    const lastTimeMs = new Date(cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1] + 'Z').getTime();
+    const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
+    iconLimit = Math.min(ICON_LIMIT, hoursFromNow);
   }
   if (isIcon && hourOffset > iconLimit) {
     const activeLayer = cachedResponse.activeLayer || 'waves';

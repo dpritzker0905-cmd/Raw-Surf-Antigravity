@@ -185,7 +185,7 @@ function hydrateGridFromLocalStorage(activeModel, activeMarineLayer, hourOffset)
   }
 }
 
-function updateMarineTruthTrace(stage, data, activeModel, activeLayer, hourOffset, sourcePath, rejectionReason = null, gpuUploaded = false, httpStatus = 200) {
+export function updateMarineTruthTrace(stage, data, activeModel, activeLayer, hourOffset, sourcePath, rejectionReason = null, gpuUploaded = false, httpStatus = 200) {
   if (typeof window === 'undefined') return;
 
   let vCount = 0;
@@ -437,10 +437,18 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
       }
       const isScrubbing = window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500));
       if (isScrubbing) {
-        return; // Suspend dispatcher uploads during scrub settling window
+        return;
       }
+      const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
+      const activeModel = renderPlan.activeModel || renderPlan.model || 'GFS';
       if (window.activeTimeOffsetHours !== undefined && field.hourOffset !== window.activeTimeOffsetHours) {
-        return; // Suspend dispatcher uploads for mismatched hours to prevent stale grid overwrites
+        return;
+      }
+      if (window.activeModel !== undefined && activeModel !== window.activeModel) {
+        return;
+      }
+      if (window.activeMarineLayer !== undefined && activeMarineLayer !== window.activeMarineLayer) {
+        return;
       }
     }
     const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
