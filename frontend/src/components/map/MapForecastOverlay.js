@@ -509,6 +509,25 @@ export var MapForecastOverlay = ({
     });
   }
 
+  const heatmapStatus = useMemo(() => {
+    if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
+      return null;
+    }
+    const isCopernicusGrid = marineData?.grid?.__gridProvider === 'copernicus' &&
+                            marineData?.grid?.__componentLayer === activeLayer;
+    if (isCopernicusGrid) {
+      return 'ready';
+    }
+    const diag = typeof window !== 'undefined' ? window.__COPERNICUS_GRID_DIAG__ : null;
+    if (diag?.skippedReason === 'zoom_too_low') {
+      return 'zoom_too_low';
+    }
+    if (diag?.skippedReason === 'fetch_exception' || diag?.skippedReason === 'backend_error') {
+      return 'unavailable';
+    }
+    return 'loading';
+  }, [marineData, activeModel, activeLayer]);
+
   if (!forecastData && !marineData && !isLoading) return null;
   if (cards.length === 0) return null;
 
@@ -530,25 +549,6 @@ export var MapForecastOverlay = ({
 
   // v163: Show pin icon when displaying spot or long-press location
   const showPinIcon = !!(selectedSpot || longPressLocation);
-
-  const heatmapStatus = useMemo(() => {
-    if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
-      return null;
-    }
-    const isCopernicusGrid = marineData?.grid?.__gridProvider === 'copernicus' &&
-                            marineData?.grid?.__componentLayer === activeLayer;
-    if (isCopernicusGrid) {
-      return 'ready';
-    }
-    const diag = typeof window !== 'undefined' ? window.__COPERNICUS_GRID_DIAG__ : null;
-    if (diag?.skippedReason === 'zoom_too_low') {
-      return 'zoom_too_low';
-    }
-    if (diag?.skippedReason === 'fetch_exception' || diag?.skippedReason === 'backend_error') {
-      return 'unavailable';
-    }
-    return 'loading';
-  }, [marineData, activeModel, activeLayer]);
 
   return (
     <div
