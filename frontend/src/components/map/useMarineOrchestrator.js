@@ -218,9 +218,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           if (activeModelRef.current === 'EURO' && currentLayer && COMPONENT_LAYERS.includes(currentLayer)) {
             try {
               const b = mapInstance.getBounds();
+              const west = b.getWest();
+              const east = b.getEast();
+              const south = b.getSouth();
+              const north = b.getNorth();
+              const lngSpan = east - west;
+              const latSpan = north - south;
+              const padding = 0.25; // 25% padding on each side (1.5x total span centered)
               const vpBounds = {
-                west: b.getWest(), south: b.getSouth(),
-                east: b.getEast(), north: b.getNorth()
+                west: west - lngSpan * padding,
+                east: east + lngSpan * padding,
+                south: Math.max(-80, south - latSpan * padding),
+                north: Math.min(85, north + latSpan * padding)
               };
               const componentGrid = await fetchCopernicusComponentGrid(
                 vpBounds, currentLayer, timeOffsetRef.current, zoom

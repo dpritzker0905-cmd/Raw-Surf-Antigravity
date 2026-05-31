@@ -121,7 +121,12 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
   const componentKey = LAYER_TO_COMPONENT[activeLayer] || 'waves';
 
   // Helper to extract component data from a grid vector
-  const getComp = (vec) => vec?.[componentKey] || null;
+  const getComp = (vec) => {
+    if (grid.__gridProvider === 'copernicus') {
+      return vec;
+    }
+    return vec?.[componentKey] || null;
+  };
 
   // All 4 corners must be ocean for a valid interpolation
   if (!v00?.isOcean || !v10?.isOcean || !v01?.isOcean || !v11?.isOcean) {
@@ -282,7 +287,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       let standaloneTimeoutId = null;
       if (isEuroComponent) {
         const controller = new AbortController();
-        standaloneTimeoutId = setTimeout(() => controller.abort(), 18000);
+        standaloneTimeoutId = setTimeout(() => controller.abort(), 25000);
         fetchSignal = controller.signal;
       }
 
@@ -729,7 +734,7 @@ export function writeOverlayDiagnostics(params) {
     swell1Dir, swell2Dir, windWaveDir, blockFallbacks, isExactPointAuthority,
     sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
     useExactPoint, rawWaveHeight, mToFt, degToCompass,
-    currentHourIndex, wx
+    currentHourIndex, wx, exactPointResponse
   } = params;
 
   // Consolidate into a single lightweight diagnostic payload (saves ~130 LOC)
@@ -743,6 +748,18 @@ export function writeOverlayDiagnostics(params) {
     fallbackBlocked: blockFallbacks,
     gridProvider: marineData?.grid?.__gridProvider || 'open-meteo',
     gridComponentLayer: marineData?.grid?.__componentLayer || null,
+    snappedPoint: exactPointResponse ? { lat: exactPointResponse.snappedLat, lng: exactPointResponse.snappedLng } : null,
+    requestedPoint: exactPointResponse ? { lat: exactPointResponse.requestedLat, lng: exactPointResponse.requestedLng } : null,
+    snapExplanation: (() => {
+      if (!exactPointResponse || !exactPointResponse.snappedLat || !exactPointResponse.requestedLat) return null;
+      const dLat = exactPointResponse.snappedLat - exactPointResponse.requestedLat;
+      const dLng = exactPointResponse.snappedLng - exactPointResponse.requestedLng;
+      const dist = Math.sqrt(dLat * dLat + dLng * dLng) * 111;
+      if (dist > 0.5) {
+        return `Coastal Snapping: Snapped from (${exactPointResponse.requestedLat.toFixed(3)}, ${exactPointResponse.requestedLng.toFixed(3)}) to nearest ocean point (${exactPointResponse.snappedLat.toFixed(3)}, ${exactPointResponse.snappedLng.toFixed(3)}) ${dist.toFixed(1)} km offshore.`;
+      }
+      return null;
+    })(),
     displayedValues: {
       waveHeight: mToFt(waveHeight),
       wavePeriod,

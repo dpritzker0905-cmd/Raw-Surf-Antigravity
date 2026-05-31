@@ -465,7 +465,7 @@ module.exports = function(app) {
 
         // Route Copernicus Marine requests to FastAPI backend (replaces GribStream)
         if (type === 'copernicus_marine') {
-          const cacheKey = `POST_copernicus_${JSON.stringify(apiBody).substring(0, 200)}`;
+          const cacheKey = `POST_copernicus_${JSON.stringify(apiBody)}`;
           const cached = cache.get(cacheKey);
           if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
             res.setHeader('Content-Type', 'application/json');
@@ -480,7 +480,7 @@ module.exports = function(app) {
         }
 
         const targetUrl = API_MAP[type];
-        const cacheKey = `POST_${type}_${JSON.stringify(apiBody).substring(0, 200)}`;
+        const cacheKey = `POST_${type}_${JSON.stringify(apiBody)}`;
         const cached = cache.get(cacheKey);
         if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
           res.setHeader('Content-Type', 'application/json');

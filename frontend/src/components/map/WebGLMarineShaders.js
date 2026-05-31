@@ -346,6 +346,13 @@ void main() {
   // Per-particle brightness variation (±10%) — subtle, NOT on phase speed
   v_alpha *= 0.9 + particleHash * 0.2;
 
+  // Smoothstep boundary feathering so particles dissolve softly near grid edges
+  float distToEdgeX = min(tex_u, 1.0 - tex_u);
+  float distToEdgeY = min(tex_v, 1.0 - tex_v);
+  float minDistToEdge = min(distToEdgeX, distToEdgeY);
+  float edgeFade = smoothstep(0.0, 0.10, minDistToEdge);
+  v_alpha *= edgeFade;
+
   // === WHITECAP STRENGTH (separate from base ripple) ===
   // Only significant for waves with real breaking potential
   v_whitecap = smoothstep(0.5, 3.0, waveHeight);
@@ -688,6 +695,13 @@ void main() {
   float alpha = u_opacity;
   float maskFade = smoothstep(0.3, 0.8, oceanAlpha);
   alpha *= maskFade;
+
+  // Smoothstep edge feathering to dissolve regional bounds softly
+  float edgeDistX = min(v_grid_uv.x, 1.0 - v_grid_uv.x);
+  float edgeDistY = min(v_grid_uv.y, 1.0 - v_grid_uv.y);
+  float minEdgeDist = min(edgeDistX, edgeDistY);
+  float feather = smoothstep(0.0, 0.10, minEdgeDist);
+  alpha *= feather;
 
   gl_FragColor = vec4(finalColor * alpha, alpha);
 }

@@ -512,7 +512,7 @@ export var MapForecastOverlay = ({
       sampledWaves, sampledSwell1, sampledSwell2, sampledWindWaves,
       sampledSwell2Period, sampledWindWavesPeriod, useExactPoint,
       rawWaveHeight, mToFt, degToCompass,
-      currentHourIndex, wx
+      currentHourIndex, wx, exactPointResponse: effectiveExactPointResponse
     });
   }
 

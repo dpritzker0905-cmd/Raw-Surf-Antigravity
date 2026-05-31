@@ -47,12 +47,12 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
             detail="At least one coordinate pair is required"
         )
 
-    # v6.5: Cap at 150 points — supports exact-point (1-2) and regional grid (11×11=121).
+    # v6.5: Cap at 500 points — supports exact-point (1-2) and regional grid (up to 21×21=441).
     # Global grid requests (729+) are still rejected.
-    if len(req.latitude) > 150:
+    if len(req.latitude) > 500:
         raise HTTPException(
             status_code=400,
-            detail=f"Too many points ({len(req.latitude)}). Maximum is 150. "
+            detail=f"Too many points ({len(req.latitude)}). Maximum is 500. "
                    f"Global grid requests should use Open-Meteo ecmwf_wam025 model."
         )
 

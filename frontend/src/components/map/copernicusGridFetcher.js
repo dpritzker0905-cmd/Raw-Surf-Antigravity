@@ -43,7 +43,7 @@ function getUV(speed, dirDeg) {
  * Compute a regular lat/lon grid within the given viewport bounds.
  * Returns at most MAX_GRID × MAX_GRID = 121 points.
  */
-function computeRegionalGrid(bounds) {
+function computeRegionalGrid(bounds, gridSize) {
   var latMin = Math.max(-80, bounds.south);
   var latMax = Math.min(85, bounds.north);
   var lonMin = bounds.west;
@@ -52,12 +52,12 @@ function computeRegionalGrid(bounds) {
   // Handle antimeridian wrap
   if (lonMax < lonMin) lonMax += 360;
 
-  var latStep = (latMax - latMin) / (MAX_GRID - 1);
-  var lonStep = (lonMax - lonMin) / (MAX_GRID - 1);
+  var latStep = (latMax - latMin) / (gridSize - 1);
+  var lonStep = (lonMax - lonMin) / (gridSize - 1);
   var points = [];
 
-  for (var r = 0; r < MAX_GRID; r++) {
-    for (var c = 0; c < MAX_GRID; c++) {
+  for (var r = 0; r < gridSize; r++) {
+    for (var c = 0; c < gridSize; c++) {
       var lat = latMin + r * latStep;
       var lng = lonMin + c * lonStep;
       // Normalize longitude to [-180, 180]
@@ -70,7 +70,7 @@ function computeRegionalGrid(bounds) {
 
   return {
     points,
-    gridSize: MAX_GRID,
+    gridSize: gridSize,
     bounds: { west: lonMin, south: latMin, east: lonMax, north: latMax }
   };
 }
@@ -177,10 +177,25 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
     return null;
   }
 
+  // Dynamic adaptive grid sizing based on zoom level for Copernicus Marine Service
+  var gridSize = 9;
+  if (zoom < 5) {
+    gridSize = 9;
+  } else if (zoom < 8) {
+    gridSize = 13; // mid zoom: 13x13 = 169 points
+  } else if (zoom < 11) {
+    gridSize = 17; // high zoom: 17x17 = 289 points
+  } else {
+    gridSize = 21; // detailed high zoom: 21x21 = 441 points
+  }
+
   // v6.6: Clamp bounds around the center to ensure backend safety (max 30° x 60°)
   var { bounds: clampedBBox, isClamped } = clampBounds(viewportBounds);
+  if (isClamped) {
+    console.warn(`[CopernicusGrid] Viewport bounds clamped from ${JSON.stringify(viewportBounds)} to ${JSON.stringify(clampedBBox)} for safety limits.`);
+  }
 
-  var { points, gridSize, bounds } = computeRegionalGrid(clampedBBox);
+  var { points, gridSize: computedSize, bounds } = computeRegionalGrid(clampedBBox, gridSize);
   var lats = points.map(function(p) { return p.lat; });
   var lons = points.map(function(p) { return p.lng; });
 
