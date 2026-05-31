@@ -182,8 +182,10 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       const wxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=${modelParam}&forecast_days=${forecastDays}&wind_speed_unit=kn`;
       const marineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=${marineModel}&forecast_days=${Math.min(forecastDays, 16)}`;
 
-      const needBaseGfs = activeModel !== 'GFS';
-      const needBaseGfsMarine = activeModel !== 'GFS' && activeModel !== 'EURO';
+      // Disable redundant base GFS weather and marine requests to eradicate rate limit storms
+      // and prevent displaying fallback GFS data as the active model's truth when rate-limited.
+      const needBaseGfs = false;
+      const needBaseGfsMarine = false;
       const gfsWxParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${WEATHER_VARS}&current=${CURRENT_WEATHER_VARS}&models=gfs_seamless&forecast_days=16&wind_speed_unit=kn`;
       const gfsMarineParams = `latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}&hourly=${hourlyMarineVars}&current=${currentMarineVars}&models=ncep_gfswave025&forecast_days=16`;
 

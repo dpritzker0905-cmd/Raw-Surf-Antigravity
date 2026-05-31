@@ -142,38 +142,67 @@ export var MapForecastOverlay = ({
     }
     const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
     setExactPoint(selected);
-    // Enhanced diagnostic
-    if (typeof window !== 'undefined' && selected) {
-      const targetTimestamp = new Date(Date.now() + timeOffsetHours * 3600000).toISOString();
-      window.__MARINE_POINT_DIAG__ = {
-        point: { lat: pointLat, lng: pointLng },
-        activeModel, activeLayer, timeOffsetHours,
-        targetTimestamp,
-        requestedForecastDays: effectiveExactPointResponse.forecastDays,
-        returnedTimeRange: {
-          start: selected.timeRangeStart,
-          end: selected.timeRangeEnd
-        },
-        selectedHourIndex: selected.hourIndex,
-        selectedTimestamp: selected.time,
-        matchDiffMs: selected.matchDiffMs,
-        exactPointValues: {
-          wave_height: selected.wave_height,
-          wave_direction: selected.wave_direction,
-          wave_period: selected.wave_period,
-          swell_wave_height: selected.swell_wave_height,
-          swell_wave_direction: selected.swell_wave_direction,
-          swell_wave_period: selected.swell_wave_period,
-          secondary_swell_wave_height: selected.secondary_swell_wave_height,
-          secondary_swell_wave_direction: selected.secondary_swell_wave_direction,
-          secondary_swell_wave_period: selected.secondary_swell_wave_period,
-          wind_wave_height: selected.wind_wave_height,
-          wind_wave_direction: selected.wind_wave_direction,
-          wind_wave_period: selected.wind_wave_period,
-        },
-        source: 'exact_point_api',
-        timestamp: new Date().toISOString()
-      };
+
+    // Enhanced diagnostic and Scrubber Truth logging
+    if (selected) {
+      const targetTs = Date.now() + timeOffsetHours * 3600000;
+      const targetTimestamp = new Date(targetTs).toISOString();
+      const selectedTimestamp = selected.time;
+      const selectedHourIndex = selected.hourIndex;
+      const provider = selected.provider;
+      const returnedTimeRange = `${selected.timeRangeStart} to ${selected.timeRangeEnd}`;
+      
+      let sourceStr = 'exact_point_api';
+      if (selected.status === 'exact_no_time_coverage') {
+        sourceStr = 'no_coverage';
+      }
+
+      console.log(
+        `%c[FORECAST SCRUBBER TRUTH] InfoBox Sync:\n` +
+        `  - activeModel: ${activeModel}\n` +
+        `  - activeLayer: ${activeLayer}\n` +
+        `  - marker lat/lng: ${pointLat?.toFixed(4)}, ${pointLng?.toFixed(4)}\n` +
+        `  - timeOffsetHours: ${timeOffsetHours}\n` +
+        `  - targetTimestamp: ${targetTimestamp}\n` +
+        `  - selectedTimestamp: ${selectedTimestamp}\n` +
+        `  - selectedHourIndex: ${selectedHourIndex}\n` +
+        `  - provider: ${provider}\n` +
+        `  - returned time range: ${returnedTimeRange}\n` +
+        `  - source: ${sourceStr}`,
+        'color: #22c55e; font-weight: bold;'
+      );
+
+      if (typeof window !== 'undefined') {
+        window.__MARINE_POINT_DIAG__ = {
+          point: { lat: pointLat, lng: pointLng },
+          activeModel, activeLayer, timeOffsetHours,
+          targetTimestamp,
+          requestedForecastDays: effectiveExactPointResponse.forecastDays,
+          returnedTimeRange: {
+            start: selected.timeRangeStart,
+            end: selected.timeRangeEnd
+          },
+          selectedHourIndex: selected.hourIndex,
+          selectedTimestamp: selected.time,
+          matchDiffMs: selected.matchDiffMs,
+          exactPointValues: {
+            wave_height: selected.wave_height,
+            wave_direction: selected.wave_direction,
+            wave_period: selected.wave_period,
+            swell_wave_height: selected.swell_wave_height,
+            swell_wave_direction: selected.swell_wave_direction,
+            swell_wave_period: selected.swell_wave_period,
+            secondary_swell_wave_height: selected.secondary_swell_wave_height,
+            secondary_swell_wave_direction: selected.secondary_swell_wave_direction,
+            secondary_swell_wave_period: selected.secondary_swell_wave_period,
+            wind_wave_height: selected.wind_wave_height,
+            wind_wave_direction: selected.wind_wave_direction,
+            wind_wave_period: selected.wind_wave_period,
+          },
+          source: sourceStr,
+          timestamp: new Date().toISOString()
+        };
+      }
     }
   }, [effectiveExactPointResponse, timeOffsetHours, activeLayer, activeModel, pointLat, pointLng]);
 
@@ -200,7 +229,9 @@ export var MapForecastOverlay = ({
   // Prevents stale data from a previous coordinate or model from being used.
   const isExactPointValid = (() => {
     if (!effectiveExactPoint) return false;
-    if (effectiveExactPointStatus !== 'exact_success' && effectiveExactPointStatus !== 'exact_stale_available') return false;
+    if (effectiveExactPointStatus !== 'exact_success' && 
+        effectiveExactPointStatus !== 'exact_stale_available' &&
+        effectiveExactPointStatus !== 'exact_no_time_coverage') return false;
     // v6.6: Stricter coordinate check — reject if exactPoint was fetched for a different point
     const epLat = effectiveExactPoint.requestedLat;
     const epLng = effectiveExactPoint.requestedLng;

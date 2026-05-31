@@ -322,6 +322,17 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }
         
         if (bounds && variable) {
+          let model = state.dataOptions?.domain?.value;
+          if (!model && state.omFileUrl) {
+            const urlParts = state.omFileUrl.split('/');
+            model = urlParts.find(p => p.includes('wave') || p.includes('wam') || p.includes('gwam') || p.includes('gfs') || p.includes('icon') || p.includes('ifs') || p.includes('ecmwf'));
+          }
+          if (!model) {
+            const isMarineVar = MARINE_VARIABLES.has(variable);
+            model = isMarineVar ? 'ncep_gfswave025' : 'gfs_seamless';
+            console.warn(`[OM-Protocol-Callback] Model not resolved for variable "${variable}". Defensive fallback used: "${model}"`);
+          }
+
           let timeIndex = 0;
           if (state.omFileUrl) {
             const match = state.omFileUrl.match(/time_step=valid_times_(\d+)/);
@@ -338,13 +349,6 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
                 const min = timeMatch[5] ? parseInt(timeMatch[5], 10) : 0;
                 const sec = timeMatch[6] ? parseInt(timeMatch[6], 10) : 0;
                 const targetTimeMs = Date.UTC(year, month, day, hour, min, sec);
-                
-                let model = state.dataOptions?.domain?.value;
-                if (!model) {
-                  const urlParts = state.omFileUrl.split('/');
-                  model = urlParts.find(p => p.includes('wave') || p.includes('wam') || p.includes('gwam') || p.includes('gfs') || p.includes('icon') || p.includes('ifs') || p.includes('ecmwf'));
-                }
-                if (!model) model = 'ncep_gfswave025';
                 
                 const meta = MODEL_METADATA_CACHE?.[model];
                 if (meta && Array.isArray(meta.validTimes) && meta.validTimes.length > 0) {
