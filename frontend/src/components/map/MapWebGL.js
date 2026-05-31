@@ -171,7 +171,7 @@ var MapWebGL = ({
   const { marineData } = useMarineOrchestrator({
     mapInstance,
     activeLayers,
-    timeOffsetHours: debouncedTimeOffsetHours,
+    timeOffsetHours: timeOffsetHours,
     activeModel
   });
 
@@ -186,7 +186,7 @@ var MapWebGL = ({
     marineData,
     pressureData: null,
     activeModel,
-    timeOffsetHours: debouncedTimeOffsetHours,
+    timeOffsetHours: timeOffsetHours,
     enableLogging: true,
     activeMarineLayer,
   });
