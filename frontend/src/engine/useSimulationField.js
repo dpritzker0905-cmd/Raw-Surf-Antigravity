@@ -47,7 +47,7 @@ export function useSimulationField({
 
   // Compute stable primitive dependency keys to bypass React object reference changes on every frame
   const windDep = windData ? `${windData.vectors?.length || 0}-${windData.bounds?.west || 0}-${windData.revision || 0}` : 'null';
-  const marineDep = marineData ? `${marineData.grid?.vectors?.length || 0}-${marineData.grid?.timestamp || 0}-${marineData.revision || 0}` : 'null';
+  const marineDep = marineData ? `${marineData.grid?.vectors?.length || 0}-${marineData.grid?.__sourceModel || 'x'}-${marineData.grid?.__componentLayer || 'x'}-${marineData.grid?.__activeLayerNonzeroCount || 0}-${marineData.grid?.__renderable}-${marineData.hourOffset || 0}` : 'null';
   const pressureDep = pressureData ? `${pressureData.vectors?.length || 0}-${pressureData.bounds?.west || 0}-${pressureData.revision || 0}` : 'null';
 
   // Memo keys: rebuild only when actual data values change

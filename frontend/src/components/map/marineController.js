@@ -770,15 +770,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         _cacheMarineResult(model || 'GFS', hourOffset, result, activeLayer);
         if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; }
         
-        // v7.8: SWR prefetch disabled during active use — rate-limit-safe gate
+        // v7.10: SWR marine prefetch DISABLED — rate limits remain too risky
         if (forecastDays < maxForecastDays && !isPrefetch && !signal?.aborted) {
-          const swrDelay = 15000; // 15s minimum delay
-          setTimeout(() => {
-            if (isInCooldown('marine') || inFlightMarineRequests.size > 0) return;
-            if (typeof window !== 'undefined' && (window.isScrubbingTimeline || window.__MARINE_FETCH_PENDING__)) return;
-            console.log(`[Marine] SWR prefetch starting: ${model} ${maxForecastDays}d`);
-            fetchMarineData(bounds, zoom, null, hourOffset, true, model, activeLayer, true).catch(() => {});
-          }, swrDelay);
+          console.log(`[Marine] SWR prefetch suppressed (disabled in v7.10): ${model} ${maxForecastDays}d`);
         }
         
         return result;

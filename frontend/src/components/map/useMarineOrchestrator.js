@@ -55,11 +55,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (eventType === 'stale_async_response_rejected') pipelineCountersRef.current.staleRejections++;
     if (eventType === 'intent_buffered') pipelineCountersRef.current.pendingIntents++;
     if (eventType.startsWith('network_fetch')) pipelineCountersRef.current.networkFetches++;
-    if (eventType === 'local_cache_remap') pipelineCountersRef.current.cacheRemaps++;
+    if (eventType.startsWith('local_cache_remap')) pipelineCountersRef.current.cacheRemaps++;
     if (eventType === 'duplicate_commit_skipped') pipelineCountersRef.current.duplicateSkipped++;
     if (typeof window !== 'undefined') {
       window.__MARINE_PIPELINE_TRUTH__ = {
-        deployedVersion: 'v7.9', activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves', activeHour: timeOffsetRef.current,
+        deployedVersion: 'v7.10', activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves', activeHour: timeOffsetRef.current,
         cacheMode: (activeModelRef.current || 'GFS') !== 'EURO' ? 'all_vars_model_cache' : 'layer_scoped',
         pendingIntent: pendingMarineIntentRef.current, fetchPending: !!window.__MARINE_FETCH_PENDING__,
         lastCommittedSignature: lastCommittedSigRef.current,
@@ -77,26 +77,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const activeMarineLayerRef = useRef(activeMarineLayer);
   const lastFetchedLayerRef = useRef(null);
 
-  useEffect(() => {
-    activeModelRef.current = activeModel;
-    if (typeof window !== 'undefined') {
-      window.activeModel = activeModel;
-    }
-  }, [activeModel]);
-
-  useEffect(() => {
-    activeMarineLayerRef.current = activeMarineLayer;
-    if (typeof window !== 'undefined') {
-      window.activeMarineLayer = activeMarineLayer || 'waves';
-    }
-  }, [activeMarineLayer]);
-
-  useEffect(() => {
-    timeOffsetRef.current = timeOffsetHours;
-    if (typeof window !== 'undefined') {
-      window.activeTimeOffsetHours = timeOffsetHours;
-    }
-  }, [timeOffsetHours]);
+  useEffect(() => { activeModelRef.current = activeModel; if (typeof window !== 'undefined') window.activeModel = activeModel; }, [activeModel]);
+  useEffect(() => { activeMarineLayerRef.current = activeMarineLayer; if (typeof window !== 'undefined') window.activeMarineLayer = activeMarineLayer || 'waves'; }, [activeMarineLayer]);
+  useEffect(() => { timeOffsetRef.current = timeOffsetHours; if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
 
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
 
@@ -137,11 +120,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     let timeoutId;
     const locks = marineFetchLocksRef.current;
     const updateMarineGrid = async (source = 'unknown') => {
-      // Scrubbing mode hard freeze (Request 3)
-      if (window.isScrubbingTimeline) {
-        console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
-        return;
-      }
+      if (window.isScrubbingTimeline) { console.log('[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing'); return; }
 
       if (isCommittingDataRef.current) {
         console.log(`[FETCH] [Marine Trace] aborted (data commit in progress) source=${source}`);
@@ -485,6 +464,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             }
             lastCommittedSigRef.current = newSig;
             marineRevision.current += 1;
+            data.__commitRevision = marineRevision.current;
             return data;
           });
 
@@ -705,6 +685,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer} renderable=${data.grid?.__renderable}`);
             lastCommittedSigRef.current = sig;
             _logPipelineEvent(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
+            marineRevision.current += 1;
+            data.__commitRevision = marineRevision.current;
             setMarineData(data);
           }
           return;
@@ -764,8 +746,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => {
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
-    lastFetchedLayerRef.current = activeMarineLayer;
-    // v7.9: Try local cache remap for GFS/ICON before network fetch
+    // v7.10: Try local cache remap for GFS/ICON before network fetch
     if (activeModel !== 'EURO') {
       try {
         const cache = getMarineHourlyCache();
@@ -778,17 +759,30 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType} (no network fetch)`);
             _logPipelineEvent(evtType, { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
             lastCommittedSigRef.current = sig;
+            marineRevision.current += 1;
+            remapped.__commitRevision = marineRevision.current;
             setMarineData(remapped);
+            lastFetchedLayerRef.current = activeMarineLayer;
             return;
+          } else {
+            const reason = !cache ? 'no_cache' : !remapped ? 'extract_returned_null' : 'no_vectors';
+            console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), cache miss: ${reason}`);
+            _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer, reason });
           }
+        } else {
+          const reason = !getMarineHourlyCache() ? 'no_cache' : !getMarineHourlyCache()?.results?.length ? 'empty_cache' : 'model_mismatch';
+          console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), cache miss: ${reason}`);
+          _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer, reason });
         }
       } catch (e) { console.warn('[Marine] Cache remap failed:', e.message); }
+    } else {
+      console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), EURO is layer-scoped`);
+      _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer, reason: 'euro_layer_scoped' });
     }
-    console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), network fetch required`);
-    _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer });
+    // v7.10: Do NOT set lastFetchedLayerRef until commit succeeds
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
+    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); lastFetchedLayerRef.current = activeMarineLayer; }, 350);
     return () => clearTimeout(t);
   }, [activeMarineLayer, activeModel, mapInstance]);
 

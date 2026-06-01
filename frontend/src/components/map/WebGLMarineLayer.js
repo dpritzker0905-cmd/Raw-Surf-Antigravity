@@ -591,6 +591,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
                         lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
 
     if (!gridChanged) {
+      if (!window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__) window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__ = 0;
+      window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__++;
       return;
     }
 
