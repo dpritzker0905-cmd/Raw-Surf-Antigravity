@@ -375,24 +375,38 @@ exports.handler = async function(event, context) {
         console.log(`[weather-proxy] Falling back to chunked GET for ${type}`);
         const result = await chunkedGetFallback(targetUrl, body);
         if (result.status === 429) {
-          const elapsedMs = Date.now() - startTime;
-          console.log(`[weather-proxy-diag] model=${body.models?.[0] || 'unknown'} pointCount=${numPoints} forecastDays=${body.forecast_days || 'unknown'} hourlyVarCount=${body.hourly?.length || 0} upstreamStatus=${apiRes?.status || 'unknown'} fallbackUsed=${fallbackUsed} elapsedMs=${elapsedMs} finalStatus=429`);
-          return {
-            statusCode: 429,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true })
-          };
+          // v7.5: Retry once with reduced grid (first 120 points only) after 3s delay
+          if (numPoints > 120) {
+            console.log(`[weather-proxy] Retrying with reduced grid (120 of ${numPoints} pts) after 3s`);
+            await new Promise(r => setTimeout(r, 3000));
+            const reducedBody = { ...body, latitude: body.latitude.slice(0, 120), longitude: body.longitude.slice(0, 120) };
+            const retryResult = await chunkedGetFallback(targetUrl, reducedBody);
+            if (retryResult.status === 200 && retryResult.data) {
+              data = retryResult.data;
+              console.log(`[weather-proxy] Reduced grid retry succeeded: ${retryResult.data.length} results`);
+            }
+          }
+          if (!data) {
+            const elapsedMs = Date.now() - startTime;
+            console.log(`[weather-proxy-diag] 429 final | model=${body.models?.[0] || 'unknown'} pts=${numPoints} elapsed=${elapsedMs}ms`);
+            return {
+              statusCode: 429,
+              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
+                'X-Rate-Limited': 'true', 'X-Points-Attempted': String(numPoints) },
+              body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true,
+                pointsAttempted: numPoints, elapsedMs })
+            };
+          }
         }
-        if (result.status !== 200 || !result.data) {
+        if (!data && (result.status !== 200 || !result.data)) {
           const elapsedMs = Date.now() - startTime;
-          console.log(`[weather-proxy-diag] model=${body.models?.[0] || 'unknown'} pointCount=${numPoints} forecastDays=${body.forecast_days || 'unknown'} hourlyVarCount=${body.hourly?.length || 0} upstreamStatus=${apiRes?.status || 'unknown'} fallbackUsed=${fallbackUsed} elapsedMs=${elapsedMs} finalStatus=${result.status || 502}`);
           return {
             statusCode: result.status || 502,
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
             body: JSON.stringify({ error: result.error || 'Chunked GET failed', statusCode: result.status })
           };
         }
-        data = result.data;
+        if (!data) data = result.data;
       }
 
       // Cache and return

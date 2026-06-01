@@ -120,15 +120,13 @@ export function hydrateCache(key) {
   } catch (e) { return null; }
 }
 
-// --- 429 COOLDOWN STATE ---
+// --- 429 COOLDOWN STATE (v7.5: adaptive, was 300s fixed) ---
 var windCooldownUntil = 0;
 var marineCooldownUntil = 0;
 var pressureCooldownUntil = 0;
-export var COOLDOWN_MS = 300000; // 5 min cooldown — OpenMeteo free tier has aggressive rate limits
+var marineCooldownCount = 0; // consecutive 429 count for adaptive backoff
+export var COOLDOWN_MS = 60000; // v7.5: base 60s (was 300s — too aggressive)
 
-/**
- * Check if we are in 429 cooldown for a given domain.
- */
 export function isInCooldown(domain) {
   const now = Date.now();
   if (domain === 'wind') return now < windCooldownUntil;
@@ -138,22 +136,39 @@ export function isInCooldown(domain) {
 }
 
 export function enterCooldown(domain) {
-  const until = Date.now() + COOLDOWN_MS;
+  // v7.5: Adaptive cooldown — 30s first, 60s second, 120s third+
+  const count = domain === 'marine' ? ++marineCooldownCount : 1;
+  const adaptive = Math.min(120000, 30000 * Math.pow(2, Math.min(count - 1, 2)));
+  const until = Date.now() + adaptive;
   if (domain === 'wind') windCooldownUntil = until;
   if (domain === 'marine') marineCooldownUntil = until;
   if (domain === 'pressure') pressureCooldownUntil = until;
-  console.warn(`[${domain}] 429 cooldown activated for ${COOLDOWN_MS / 1000}s`);
+  console.warn(`[${domain}] 429 cooldown: ${adaptive / 1000}s (attempt ${count})`);
 }
 
-/**
- * Get remaining cooldown time for scheduling retries.
- */
+export function clearCooldown(domain) {
+  if (domain === 'marine') { marineCooldownUntil = 0; marineCooldownCount = 0; }
+  if (domain === 'wind') windCooldownUntil = 0;
+  if (domain === 'pressure') pressureCooldownUntil = 0;
+}
+
 export function getRemainingCooldown(domain) {
   const now = Date.now();
   if (domain === 'wind') return Math.max(0, windCooldownUntil - now);
   if (domain === 'marine') return Math.max(0, marineCooldownUntil - now);
   if (domain === 'pressure') return Math.max(0, pressureCooldownUntil - now);
   return 0;
+}
+
+// --- MARINE REQUEST LEDGER (v7.5) ---
+var _marineRequestLedger = [];
+var LEDGER_MAX = 30;
+export function logMarineRequest(entry) {
+  entry.timestamp = new Date().toISOString();
+  entry.cooldownBefore = isInCooldown('marine');
+  _marineRequestLedger.push(entry);
+  if (_marineRequestLedger.length > LEDGER_MAX) _marineRequestLedger.shift();
+  if (typeof window !== 'undefined') window.__MARINE_REQUEST_LEDGER__ = _marineRequestLedger;
 }
 
 /**
