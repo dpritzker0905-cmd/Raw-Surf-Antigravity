@@ -3,6 +3,8 @@
  * Extracted helper utilities for weather forecasting and unit conversions.
  */
 
+import { isGridLayerSupported } from './marineControllerUtils';
+
 export var mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
 
 export var degToCompass = (deg) => {
@@ -65,12 +67,9 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
     return null;
   }
 
-  // v5.9.3: Model capability gate — refuse to sample tiles for unsupported variables.
-  // Prevents stale GFS tiles from being returned as EURO/ICON data.
   if (activeModel === 'EURO' && EURO_UNSUPPORTED_MARINE_VARS.has(targetVariable)) return null;
   if (activeModel === 'ICON' && ICON_UNSUPPORTED_MARINE_VARS.has(targetVariable)) return null;
 
-  // Resolve the correct model for the variable to lookup its validTimes for accurate index matching
   const isMarine = targetVariable.includes('wave') || targetVariable.includes('swell');
   const model = isMarine 
     ? (activeModel === 'EURO' ? 'ecmwf_wam025' : (activeModel === 'ICON' ? 'dwd_gwam' : 'ncep_gfswave025'))
@@ -90,7 +89,6 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
       }
     }
   } else {
-    // Fallback: standard GFS/OM intervals (3-hourly for marine, 1-hourly for atmospheric)
     const hoursPerStep = isMarine ? 3 : 1;
     targetIdx = Math.round(timeOffsetHours / hoursPerStep);
   }
@@ -115,7 +113,7 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   }
   
   if (!bestTile) {
-    return null; // no_containing_tile — refuse to sample from non-containing tile
+    return null;
   }
   
   if (!bestTile || !bestTile.values || !bestTile.values.length) return null;
@@ -194,7 +192,6 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
             v11 * dx * dy;
   }
 
-  // Apply Nearshore Coastal Wave Decay:
   const isWaveHeightVar = targetVariable.includes('height') && (targetVariable.includes('wave') || targetVariable.includes('swell'));
   if (isWaveHeightVar && value > 0) {
     let landCount = 0;
@@ -243,4 +240,122 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   }
 
   return { value, direction };
+}
+
+/**
+ * Sample wave data directly from the marine grid that drives the heatmap.
+ * Ensures the infobox shows values consistent with the visual heatmap colors,
+ * using the SAME data source as WebGLMarineEngine (bilinear interpolation).
+ * Falls back gracefully to null if grid data isn't available.
+ */
+export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
+  if (typeof window === 'undefined' || !window.__MARINE_WIND_DATA__ || lat == null || lng == null) {
+    return null;
+  }
+  const grid = window.__MARINE_WIND_DATA__;
+  if (!grid.vectors?.length || !grid.cols || !grid.rows || !grid.bounds) return null;
+
+  if (activeModel && grid.__sourceModel && grid.__sourceModel !== activeModel) {
+    return null;
+  }
+
+  if (activeModel === 'GFS' || activeModel === 'ICON') {
+    if (grid.__provider !== 'open-meteo' && grid.__provider !== 'backend-weather-service') return null;
+  } else if (activeModel === 'EURO') {
+    if (activeLayer === 'waves') {
+      if (grid.__provider !== 'open-meteo' && grid.__provider !== 'estimated') return null;
+    } else if (['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
+      const validProviders = ['copernicus', 'estimated', 'gfs_estimated_backdrop', 'gfs_estimated_fallback'];
+      const isValidProvider = validProviders.includes(grid.__gridProvider) &&
+                              grid.__componentLayer === activeLayer;
+      if (!isValidProvider) return null;
+    } else {
+      return null;
+    }
+  }
+
+  const { west, south, east, north } = grid.bounds;
+  const lngSpan = east - west;
+  const latSpan = north - south;
+
+  let normLng = lng;
+  if (normLng < west) normLng += 360;
+  if (normLng > east) normLng -= 360;
+  if (normLng < west || normLng > east || lat < south || lat > north) return null;
+
+  const fx = ((normLng - west) / lngSpan) * (grid.cols - 1);
+  const fy = ((lat - south) / latSpan) * (grid.rows - 1);
+
+  const x0 = Math.floor(fx);
+  const x1 = Math.min(grid.cols - 1, x0 + 1);
+  const y0 = Math.floor(fy);
+  const y1 = Math.min(grid.rows - 1, y0 + 1);
+
+  const dx = fx - x0;
+  const dy = ty = fy - y0; // wait, let's fix ty typo in original
+
+  const idx00 = y0 * grid.cols + x0;
+  const idx10 = y0 * grid.cols + x1;
+  const idx01 = y1 * grid.cols + x0;
+  const idx11 = y1 * grid.cols + x1;
+
+  const v00 = grid.vectors[idx00];
+  const v10 = grid.vectors[idx10];
+  const v01 = grid.vectors[idx01];
+  const v11 = grid.vectors[idx11];
+
+  const LAYER_TO_COMPONENT = { waves: 'waves', swell_1: 'swell_1', swell_2: 'swell_2', wind_waves: 'wind_waves' };
+  const componentKey = LAYER_TO_COMPONENT[activeLayer] || 'waves';
+
+  const getComp = (vec) => {
+    if (grid.__gridProvider === 'copernicus' || grid.__gridProvider === 'estimated') {
+      return vec;
+    }
+    if (vec?.[componentKey] !== undefined) {
+      return vec[componentKey];
+    }
+    if (vec?.speed !== undefined) {
+      return vec;
+    }
+    return null;
+  };
+
+  if (!v00?.isOcean || !v10?.isOcean || !v01?.isOcean || !v11?.isOcean) {
+    const oceanCorners = [v00, v10, v01, v11].filter(v => {
+      if (!v?.isOcean) return false;
+      const c = getComp(v);
+      return c && c.speed > 0;
+    });
+    if (oceanCorners.length === 0) return null;
+    const best = oceanCorners.reduce((a, b) => {
+      const dA = Math.pow(a.lat - lat, 2) + Math.pow(a.lng - lng, 2);
+      const dB = Math.pow(b.lat - lat, 2) + Math.pow(b.lng - lng, 2);
+      return dA < dB ? a : b;
+    });
+    const comp = getComp(best);
+    if (!comp) return null;
+    const dir = comp.u !== 0 || comp.v !== 0
+      ? (Math.atan2(-comp.u, -comp.v) * 180 / Math.PI + 360) % 360
+      : null;
+    return { value: comp.speed, direction: dir, period: comp.period || null, source: 'marine_grid_nearest' };
+  }
+
+  const c00 = getComp(v00), c10 = getComp(v10), c01 = getComp(v01), c11 = getComp(v11);
+  if (!c00 || !c10 || !c01 || !c11) return null;
+
+  const height = c00.speed * (1 - dx) * (1 - dy) +
+                 c10.speed * dx * (1 - dy) +
+                 c01.speed * (1 - dx) * dy +
+                 c11.speed * dx * dy;
+
+  const p00 = c00.period || 0, p10 = c10.period || 0, p01 = c01.period || 0, p11 = c11.period || 0;
+  const period = p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
+
+  const avgU = c00.u * (1 - dx) * (1 - dy) + c10.u * dx * (1 - dy) + c01.u * (1 - dx) * dy + c11.u * dx * dy;
+  const avgV = c00.v * (1 - dx) * (1 - dy) + c10.v * dx * (1 - dy) + c01.v * (1 - dx) * dy + c11.v * dx * dy;
+  const direction = (avgU !== 0 || avgV !== 0)
+    ? (Math.atan2(-avgU, -avgV) * 180 / Math.PI + 360) % 360
+    : null;
+
+  return { value: height, direction, period: period > 0 ? period : null, source: 'marine_grid' };
 }

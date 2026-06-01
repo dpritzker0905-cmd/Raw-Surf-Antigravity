@@ -1,181 +1,26 @@
 /**
  * forecastSamplers.js — Marine data sampling utilities
  *
- * Extracted from MapForecastOverlay.js (v5.7.2 refactor) to keep
- * the overlay component under 800 LOC.
- *
  * Contains three independent sampling pathways:
  *   1. sampleFromMarineGrid()      — samples the live WebGL marine grid
  *   2. fetchExactMarinePoint()     — exact-point Open-Meteo API fetch
  *   3. sampleValueFromDecodedTiles() — samples decoded OM raster tiles
- *
- * RULES:
- *   - NO React, NO DOM manipulation
- *   - Pure data sampling + caching
- *   - Marine directions are forecast-authoritative (no mutation)
- *   - v5.9.3: No cross-model sampling — unsupported model/var returns null
  */
 
 import { MARINE_MODEL_CAPABILITIES, isInCooldown } from './marineControllerUtils';
-import { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted } from './forecastHelpers';
+import {
+  mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted,
+  sampleValueFromDecodedTiles, sampleFromMarineGrid
+} from './forecastHelpers';
 import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { governMarineRequest } from './marineRequestGovernor';
+import { BACKEND_URL } from '../../lib/apiClient';
+import { getBackendWeatherFlag } from './marineController';
+
+export { sampleFromMarineGrid };
 
 var _recentFailedRequests = new Map();
 var RECENT_FAILED_TTL = 30000;
-
-
-// Sets moved to forecastHelpers.js to respect 800 LOC limit.
-
-// ========================================================================
-// 1. MARINE GRID SAMPLER — bilinear interpolation on the live heatmap grid
-// ========================================================================
-
-/**
- * Sample wave data directly from the marine grid that drives the heatmap.
- * Ensures the infobox shows values consistent with the visual heatmap colors,
- * using the SAME data source as WebGLMarineEngine (bilinear interpolation).
- * Falls back gracefully to null if grid data isn't available.
- *
- * v5.9.4: Added activeModel parameter to prevent cross-model grid leakage.
- * Returns null if the grid was produced by a different model than requested.
- *
- * v6.2: Added activeLayer parameter. Grid vectors store per-component data
- * (waves, swell_1, swell_2, wind_waves). Without activeLayer, the function
- * was reading undefined top-level v.speed/v.u/v.v — always returning 0/null.
- *
- * @param {number|null} lat
- * @param {number|null} lng
- * @param {string} [activeModel] - 'GFS' | 'ICON' | 'EURO'
- * @param {string} [activeLayer] - 'waves' | 'swell_1' | 'swell_2' | 'wind_waves'
- * @returns {{ value: number, direction: number|null, period: number|null, source: string } | null}
- */
-export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
-  if (typeof window === 'undefined' || !window.__MARINE_WIND_DATA__ || lat == null || lng == null) {
-    return null;
-  }
-  const grid = window.__MARINE_WIND_DATA__;
-  if (!grid.vectors?.length || !grid.cols || !grid.rows || !grid.bounds) return null;
-
-  // v5.9.4: Model guard — reject grid data from a different model to prevent
-  // GFS values leaking into EURO/ICON infobox during model switch transitions.
-  if (activeModel && grid.__sourceModel && grid.__sourceModel !== activeModel) {
-    return null;
-  }
-
-  // v6.6: Grid provider guard
-  if (activeModel === 'GFS' || activeModel === 'ICON') {
-    if (grid.__provider !== 'open-meteo') return null;
-  } else if (activeModel === 'EURO') {
-    if (activeLayer === 'waves') {
-      if (grid.__provider !== 'open-meteo' && grid.__provider !== 'estimated') return null;
-    } else if (['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
-      // v7.0: Accept copernicus, estimated, and GFS estimated backdrop/fallback providers
-      const validProviders = ['copernicus', 'estimated', 'gfs_estimated_backdrop', 'gfs_estimated_fallback'];
-      const isValidProvider = validProviders.includes(grid.__gridProvider) &&
-                              grid.__componentLayer === activeLayer;
-      if (!isValidProvider) return null;
-    } else {
-      return null;
-    }
-  }
-
-  const { west, south, east, north } = grid.bounds;
-  const lngSpan = east - west;
-  const latSpan = north - south;
-
-  // Normalize longitude into grid bounds
-  let normLng = lng;
-  if (normLng < west) normLng += 360;
-  if (normLng > east) normLng -= 360;
-  if (normLng < west || normLng > east || lat < south || lat > north) return null;
-
-  // Compute fractional grid coordinates
-  const fx = ((normLng - west) / lngSpan) * (grid.cols - 1);
-  const fy = ((lat - south) / latSpan) * (grid.rows - 1);
-
-  const x0 = Math.floor(fx);
-  const x1 = Math.min(grid.cols - 1, x0 + 1);
-  const y0 = Math.floor(fy);
-  const y1 = Math.min(grid.rows - 1, y0 + 1);
-
-  const dx = fx - x0;
-  const dy = fy - y0;
-
-  const idx00 = y0 * grid.cols + x0;
-  const idx10 = y0 * grid.cols + x1;
-  const idx01 = y1 * grid.cols + x0;
-  const idx11 = y1 * grid.cols + x1;
-
-  const v00 = grid.vectors[idx00];
-  const v10 = grid.vectors[idx10];
-  const v01 = grid.vectors[idx01];
-  const v11 = grid.vectors[idx11];
-
-  // v6.2: Map activeLayer to the correct grid vector component key.
-  // Grid vectors have: { waves: {u,v,speed,period}, swell_1: {...}, swell_2: {...}, wind_waves: {...} }
-  const LAYER_TO_COMPONENT = { waves: 'waves', swell_1: 'swell_1', swell_2: 'swell_2', wind_waves: 'wind_waves' };
-  const componentKey = LAYER_TO_COMPONENT[activeLayer] || 'waves';
-
-  // Helper to extract component data from a grid vector
-  const getComp = (vec) => {
-    if (grid.__gridProvider === 'copernicus' || grid.__gridProvider === 'estimated') {
-      return vec;
-    }
-    if (vec?.[componentKey] !== undefined) {
-      return vec[componentKey];
-    }
-    if (vec?.speed !== undefined) {
-      return vec;
-    }
-    return null;
-  };
-
-  // All 4 corners must be ocean for a valid interpolation
-  if (!v00?.isOcean || !v10?.isOcean || !v01?.isOcean || !v11?.isOcean) {
-    // Partial ocean: use nearest ocean neighbor by geographic distance.
-    const oceanCorners = [v00, v10, v01, v11].filter(v => {
-      if (!v?.isOcean) return false;
-      const c = getComp(v);
-      return c && c.speed > 0;
-    });
-    if (oceanCorners.length === 0) return null;
-    const best = oceanCorners.reduce((a, b) => {
-      const dA = Math.pow(a.lat - lat, 2) + Math.pow(a.lng - lng, 2);
-      const dB = Math.pow(b.lat - lat, 2) + Math.pow(b.lng - lng, 2);
-      return dA < dB ? a : b;
-    });
-    const comp = getComp(best);
-    if (!comp) return null;
-    const dir = comp.u !== 0 || comp.v !== 0
-      ? (Math.atan2(-comp.u, -comp.v) * 180 / Math.PI + 360) % 360
-      : null;
-    return { value: comp.speed, direction: dir, period: comp.period || null, source: 'marine_grid_nearest' };
-  }
-
-  // Get component data from each corner
-  const c00 = getComp(v00), c10 = getComp(v10), c01 = getComp(v01), c11 = getComp(v11);
-  if (!c00 || !c10 || !c01 || !c11) return null;
-
-  // Bilinear interpolation of wave height (speed field = wave height in marine context)
-  const height = c00.speed * (1 - dx) * (1 - dy) +
-                 c10.speed * dx * (1 - dy) +
-                 c01.speed * (1 - dx) * dy +
-                 c11.speed * dx * dy;
-
-  // Bilinear interpolation of period
-  const p00 = c00.period || 0, p10 = c10.period || 0, p01 = c01.period || 0, p11 = c11.period || 0;
-  const period = p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
-
-  // Circular interpolation of direction from u,v
-  const avgU = c00.u * (1 - dx) * (1 - dy) + c10.u * dx * (1 - dy) + c01.u * (1 - dx) * dy + c11.u * dx * dy;
-  const avgV = c00.v * (1 - dx) * (1 - dy) + c10.v * dx * (1 - dy) + c01.v * (1 - dx) * dy + c11.v * dx * dy;
-  const direction = (avgU !== 0 || avgV !== 0)
-    ? (Math.atan2(-avgU, -avgV) * 180 / Math.PI + 360) % 360
-    : null;
-
-  return { value: height, direction, period: period > 0 ? period : null, source: 'marine_grid' };
-}
 
 // ========================================================================
 // 2. EXACT POINT MARINE FETCH — single-point API for infobox accuracy
@@ -197,25 +42,118 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves') {
 }
 
 var _inFlightExactPointRequests = new Map();
-var EXACT_POINT_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+var EXACT_POINT_CACHE_TTL = 10 * 60 * 1000;
 
-// Model-specific forecast day limits (Open-Meteo marine models)
 var MARINE_MODEL_LIMITS = {
-  'ncep_gfswave025': 16,   // GFS Wave: 16 days
-  'gwam': 7,               // DWD GWAM (ICON marine): 7.5 days
-  'ecmwf_wam025': 10,      // ECMWF WAM: 10 days
+  'ncep_gfswave025': 16,
+  'gwam': 7,
+  'ecmwf_wam025': 10,
 };
+
+// --- BACKEND EXACT POINT FETCH & DIAGNOSTICS ---
+var lastPointUrl = 'none';
+var lastPointStatus = 0;
+var lastPointValidTime = 'none';
+var lastPointValueKind = 'none';
+var lastPointValueUnit = 'none';
+var lastPointDisplayUnitHint = 'none';
+var lastPointElapsedMs = 0;
+var lastPointError = null;
+
+async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
+  const start = Date.now();
+  const targetDt = new Date(Math.round(Date.now() / 3600000) * 3600000 + hourOffset * 3600000);
+  const validTimeStr = targetDt.toISOString();
+  lastPointValidTime = validTimeStr;
+
+  const url = `${BACKEND_URL}/api/weather/point?model=GFS&domain=marine&layer=waves&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  lastPointUrl = url;
+
+  try {
+    const res = await fetch(url, { signal });
+    lastPointStatus = res.status;
+    if (!res.ok) {
+      throw new Error(`Backend point returned HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    lastPointValueKind = json.value_kind || 'wave_height';
+    lastPointValueUnit = json.value_unit || 'm';
+    lastPointDisplayUnitHint = json.display_unit_hint || 'ft';
+    lastPointElapsedMs = Date.now() - start;
+    lastPointError = null;
+
+    const mockTime = targetDt.toISOString().replace(/\.\d+Z$/, 'Z');
+    const mockHourly = {
+      time: [mockTime],
+      wave_height: [json.point.speed || 0],
+      wave_direction: [json.point.direction || 0],
+      wave_period: [json.point.period || 0],
+      wave_peak_period: [json.point.period || 0],
+      swell_wave_height: [0],
+      swell_wave_direction: [0],
+      swell_wave_period: [0],
+      swell_wave_peak_period: [0],
+      secondary_swell_wave_height: [0],
+      secondary_swell_wave_direction: [0],
+      secondary_swell_wave_period: [0],
+      wind_wave_height: [0],
+      wind_wave_direction: [0],
+      wind_wave_period: [0],
+      wind_wave_peak_period: [0]
+    };
+
+    const data = {
+      hourly: mockHourly,
+      snappedLat: json.point.sampled_lat || lat,
+      snappedLng: json.point.sampled_lng || lng,
+      requestedLat: lat,
+      requestedLng: lng,
+      requestedModel: 'GFS',
+      activeLayer: 'waves',
+      forecastDays: 1,
+      apiModel: 'ncep_gfswave025',
+      provider: json.provider || 'backend-weather-service',
+      source: 'backend_point_api'
+    };
+
+    if (typeof window !== 'undefined' && window.__BACKEND_WEATHER_SERVICE_DIAG__) {
+      window.__BACKEND_WEATHER_SERVICE_DIAG__.lastPointFetch = {
+        url,
+        status: res.status,
+        validTime: validTimeStr,
+        valueKind: lastPointValueKind,
+        valueUnit: lastPointValueUnit,
+        displayUnitHint: lastPointDisplayUnitHint,
+        elapsedMs: lastPointElapsedMs,
+        error: null
+      };
+      window.__BACKEND_WEATHER_SERVICE_DIAG__.featureFlagActive = getBackendWeatherFlag();
+    }
+
+    return data;
+  } catch (err) {
+    lastPointElapsedMs = Date.now() - start;
+    lastPointError = err.message;
+    if (typeof window !== 'undefined' && window.__BACKEND_WEATHER_SERVICE_DIAG__) {
+      window.__BACKEND_WEATHER_SERVICE_DIAG__.lastPointFetch = {
+        url,
+        status: lastPointStatus,
+        validTime: validTimeStr,
+        valueKind: 'none',
+        valueUnit: 'none',
+        displayUnitHint: 'none',
+        elapsedMs: lastPointElapsedMs,
+        error: err.message
+      };
+      window.__BACKEND_WEATHER_SERVICE_DIAG__.featureFlagActive = getBackendWeatherFlag();
+    }
+    console.error(`[Backend Weather Service] Point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
+    throw err;
+  }
+}
 
 /**
  * Fetch the FULL multi-day forecast for a single point.
- * Caches by lat/lng/model so timeline scrubs don't re-fetch.
- *
- * @param {number} lat
- * @param {number} lng
- * @param {string} model - 'GFS' | 'ICON' | 'EURO'
- * @param {string} [activeLayer='waves'] - The active layer to optimize variable requests
- * @param {AbortSignal} [signal=null] - Abort controller signal for timeouts
- * @returns {Promise<Object|null>} Full response with hourly arrays
  */
 export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null, timeOffsetHours = 0, force = false) {
   if (lat == null || lng == null) return null;
@@ -229,13 +167,25 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     return { status: 'rate_limited' };
   }
 
+  // --- REDIRECT GFS WAVES TO BACKEND IF FEATURE FLAG IS ACTIVE ---
+  if (typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && activeLayer === 'waves') {
+    try {
+      console.log(`[Backend Weather Service] Redirecting GFS Waves point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
+      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal);
+      if (pointResult) {
+        return pointResult;
+      }
+    } catch (err) {
+      console.warn(`[Backend Weather Service] Point redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
+  }
+
   const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
   let provider = PROVIDER_MAP[model] || 'open-meteo';
   if (model === 'EURO' && activeLayer === 'waves') {
     provider = 'open-meteo';
   }
 
-  // Cache by layer and provider to avoid cross-layer pollution
   const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`;
 
   const cached = _exactPointCache.get(cacheKey);
@@ -255,19 +205,6 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   const nativeLimit = model === 'EURO' ? (activeLayer === 'waves' ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS) : ICON_LIMIT;
   const isPastLimit = (model === 'EURO' && timeOffsetHours > 72) || (model === 'ICON' && timeOffsetHours > 120);
 
-  const shouldPrewarm = false; // Temporarily disabled to prevent background request storms
-
-  if (shouldPrewarm) {
-    if (model === 'EURO' && isPastLimit && !signal?.aborted) {
-      // Proactively pre-warm GFS and ICON exact point data in background for Extended Estimate
-      fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
-      fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal, timeOffsetHours).catch(() => {});
-    } else if (model === 'ICON' && isPastLimit && !signal?.aborted) {
-      // Proactively pre-warm GFS exact point data in background for ICON Extended Estimate
-      fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
-    }
-  }
-
   const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
   const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
   let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
@@ -275,7 +212,6 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     forecastDays = 3;
   }
 
-  // Group Copernicus component requests under EURO_COMPONENTS to share the in-flight fetch
   const isEuroComponent = model === 'EURO' && provider === 'copernicus';
   const inFlightKey = isEuroComponent
     ? `${rLat}_${rLng}_EURO_COMPONENTS_fd${forecastDays}`
@@ -292,7 +228,6 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       if (activeLayer === 'waves') {
         hourlyVars = ['wave_height', 'wave_direction', 'wave_period'];
       } else {
-        // Combined 9-variable component request for swell_1 + swell_2 + wind_waves
         hourlyVars = [
           'swell_wave_height', 'swell_wave_direction', 'swell_wave_period',
           'secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period',
@@ -300,7 +235,6 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         ];
       }
     } else {
-      // Keep GFS & ICON fully compatible with original behaviors
       const EXACT_POINT_VARS = {
         'ncep_gfswave025': [
           'wave_height', 'wave_direction', 'wave_period', 'wave_peak_period',
@@ -358,7 +292,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 
           const isTimeout = res.status === 504 || res.status === 502 || errText.toLowerCase().includes('timeout') || errText.toLowerCase().includes('gateway');
           if (isTimeout && retriesLeft > 0) {
-            console.warn(`[ExactPoint Forensic] Copernicus fetch got HTTP ${res.status} (possible cold-start/backend warming). Retrying with backoff in 2.5s...`);
+            console.warn(`[ExactPoint Forensic] Copernicus fetch got HTTP ${res.status}. Retrying in 2.5s...`);
             retriesLeft--;
             await new Promise(resolve => setTimeout(resolve, 2500));
             continue;
@@ -480,7 +414,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         
         const isAbortOrTimeout = err.name === 'AbortError' || err.message?.toLowerCase().includes('timeout') || err.message?.toLowerCase().includes('abort');
         if (isAbortOrTimeout && retriesLeft > 0) {
-          console.warn(`[ExactPoint Forensic] Copernicus fetch exception/abort (possible cold-start/backend warming): ${err.message}. Retrying with backoff in 2.5s...`);
+          console.warn(`[ExactPoint Forensic] Copernicus fetch got error: ${err.message}. Retrying in 2.5s...`);
           retriesLeft--;
           await new Promise(resolve => setTimeout(resolve, 2500));
           continue;
@@ -490,7 +424,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
         }
         if (err.name === 'AbortError') {
-          console.warn(`[ExactPoint Forensic] TIMEOUT: Fetch aborted after ${elapsed.toFixed(2)}s for model=${apiModel} (Florida snappy cap)`);
+          console.warn(`[ExactPoint Forensic] TIMEOUT: Fetch aborted after ${elapsed.toFixed(2)}s for model=${apiModel}`);
           return { status: 'timeout' };
         }
         console.error(`[ExactPoint Forensic] Marine fetch exception: ${err.message} | Elapsed: ${elapsed.toFixed(2)}s`);
@@ -516,14 +450,8 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   return fetchPromise;
 }
 
-
 /**
  * Select the correct hour from a cached exact-point response.
- * Returns an object with all variable values for that hour, or null.
- *
- * @param {Object} cachedResponse - Full response from fetchExactMarinePoint
- * @param {number} hourOffset - Hours from now
- * @returns {Object|null} Variable values for the matched hour
  */
 export function selectExactPointHour(cachedResponse, hourOffset) {
   if (!cachedResponse?.hourly?.time) return null;
@@ -535,8 +463,6 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   const hasCombinedWaves = cachedResponse.hourly.wave_height !== undefined;
   const hardNativeLimit = hasCombinedWaves ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS;
 
-  // Calculate actual returned native limit based on the actual hours from now to the last timestamp in the time array,
-  // resolving the 3-hourly step length mismatch (Request 2)
   let nativeLimit = hardNativeLimit;
   if (cachedResponse.hourly?.time?.length) {
     const lastTimeMs = new Date(cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1] + 'Z').getTime();
@@ -704,7 +630,6 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   targetTime.setHours(targetTime.getHours() + (hourOffset || 0));
   const minDiff = Math.abs(new Date(times[bestIdx] + 'Z').getTime() - targetTime.getTime());
 
-  // v6.9: Expose exact status depending on time matching diff instead of silently returning null
   let status = 'exact_success';
   if (minDiff > 3 * 3600000) {
     if (minDiff <= 12 * 3600000) {
@@ -731,7 +656,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     wind_wave_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_period?.[bestIdx] ?? null),
     wind_wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_peak_period?.[bestIdx] ?? null),
     status,
-    source: 'exact_point_api',
+    source: cachedResponse.source || 'exact_point_api',
     hourIndex: bestIdx,
     time: times[bestIdx],
     snappedLat: cachedResponse.snappedLat,
@@ -748,7 +673,4 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 }
 
 export { writeOverlayDiagnostics } from './forecastDiagnostics';
-
-// Re-export helper functions from modularized forecastHelpers.js to respect LOC limits
-export { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted, sampleValueFromDecodedTiles } from './forecastHelpers';
-
+export { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted, sampleValueFromDecodedTiles };
