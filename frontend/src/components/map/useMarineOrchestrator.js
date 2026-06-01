@@ -36,13 +36,16 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const pipelineCountersRef = useRef({ staleRejections: 0, pendingIntents: 0, networkFetches: 0, cacheRemaps: 0, clears: 0, duplicateSkipped: 0, webglUploads: 0, _429s: 0 });
   const lastCommittedSigRef = useRef(null); // v7.8: Stable signature for dedup
 
-  // v7.8: Stable marine data signature — ignores volatile timestamps
+  // v7.9: Stable marine data signature — evenly sampled, includes renderable metadata
   const _marineDataSignature = (data, layer) => {
     if (!data?.grid) return null;
     const g = data.grid;
     let checksum = 0;
-    if (g.vectors) { for (let i = 0; i < Math.min(g.vectors.length, 50); i++) { const v = g.vectors[i]; const c = v?.[layer || 'waves']; if (c) checksum += (c.speed || 0) * 1000 | 0; } }
-    return `${g.__sourceModel}_${g.__componentLayer}_${data.hourOffset}_${g.__provider}_${g.cols}_${g.rows}_${g.vectors?.length}_${g.__activeLayerNonzeroCount}_ck${checksum}`;
+    if (g.vectors?.length) {
+      const step = Math.max(1, Math.floor(g.vectors.length / 20));
+      for (let i = 0; i < g.vectors.length; i += step) { const c = g.vectors[i]?.[layer || 'waves']; if (c) checksum += (c.speed || 0) * 1000 | 0; }
+    }
+    return `${g.__sourceModel}_${g.__componentLayer}_${data.hourOffset}_${g.__provider}_${g.cols}x${g.rows}_n${g.vectors?.length}_nz${g.__activeLayerNonzeroCount}_mx${g.__activeLayerMax?.toFixed?.(2) || 0}_r${g.__renderable}_ck${checksum}`;
   };
 
   // v7.7: Pipeline event logger + truth diagnostic
@@ -56,7 +59,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (eventType === 'duplicate_commit_skipped') pipelineCountersRef.current.duplicateSkipped++;
     if (typeof window !== 'undefined') {
       window.__MARINE_PIPELINE_TRUTH__ = {
-        deployedVersion: 'v7.8', activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves', activeHour: timeOffsetRef.current,
+        deployedVersion: 'v7.9', activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves', activeHour: timeOffsetRef.current,
         cacheMode: (activeModelRef.current || 'GFS') !== 'EURO' ? 'all_vars_model_cache' : 'layer_scoped',
         pendingIntent: pendingMarineIntentRef.current, fetchPending: !!window.__MARINE_FETCH_PENDING__,
         lastCommittedSignature: lastCommittedSigRef.current,
@@ -485,25 +488,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             return data;
           });
 
-          requestAnimationFrame(() => {
-            isCommittingDataRef.current = false;
-          });
+          requestAnimationFrame(() => { isCommittingDataRef.current = false; });
           clearTimeout(internalUpdateTimerRef.current);
-          internalUpdateTimerRef.current = setTimeout(() => {
-            isInternalMapUpdateRef.current = false;
-          }, 800);
+          internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
         } else {
-          // Data is null or empty increment circuit breaker
           consecutiveFailuresRef.current += 1;
-
-          if (typeof window !== 'undefined') {
-            window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: currentLayer, timeOffsetHours: timeOffsetRef.current, provider: 'none', gridProvider: 'none', httpStatus: 502, elapsedMs: Date.now() - now, vectorCount: 0, nonzeroCount: 0, consecutiveFailures: consecutiveFailuresRef.current, timestamp: new Date().toISOString() };
-          }
-
+          if (typeof window !== 'undefined') window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: currentLayer, timeOffsetHours: timeOffsetRef.current, provider: 'none', httpStatus: 502, elapsedMs: Date.now() - now, vectorCount: 0, consecutiveFailures: consecutiveFailuresRef.current, timestamp: new Date().toISOString() };
           if (consecutiveFailuresRef.current >= 3) return;
           if (['cooldown_retry', 'delayed_retry'].includes(source)) return;
           const remaining = getRemainingCooldown('marine');
-
           marineRetryCountRef.current = (marineRetryCountRef.current || 0) + 1;
           if (marineRetryCountRef.current > 3) { marineRetryCountRef.current = 0;
           } else if (!cooldownRetryRef.current) {
@@ -708,9 +701,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         if (data) {
           const sig = _marineDataSignature(data, curLayer);
           if (sig && sig !== lastCommittedSigRef.current) {
-            console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
+            const evtType = data.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
+            console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer} renderable=${data.grid?.__renderable}`);
             lastCommittedSigRef.current = sig;
-            _logPipelineEvent('local_cache_remap_timeline', { model: curModel, layer: curLayer, hour: timeOffsetHours });
+            _logPipelineEvent(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
             setMarineData(data);
           }
           return;
@@ -771,16 +765,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
     lastFetchedLayerRef.current = activeMarineLayer;
-    // v7.7: Try local cache remap for GFS/ICON before network fetch
+    // v7.9: Try local cache remap for GFS/ICON before network fetch
     if (activeModel !== 'EURO') {
       try {
         const cache = getMarineHourlyCache();
         if (cache?.results?.length && cache.model === activeModel) {
           const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
-          if (remapped?.grid?.vectors?.length > 0 && remapped.grid.__renderable !== false) {
+          if (remapped?.grid?.vectors?.length > 0) {
+            const isRenderable = remapped.grid.__renderable !== false;
             const sig = _marineDataSignature(remapped, activeMarineLayer);
-            console.log(`[Marine] Layer switch to ${activeMarineLayer}: local cache remap (no network fetch)`);
-            _logPipelineEvent('local_cache_remap', { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours });
+            const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
+            console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType} (no network fetch)`);
+            _logPipelineEvent(evtType, { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
             lastCommittedSigRef.current = sig;
             setMarineData(remapped);
             return;

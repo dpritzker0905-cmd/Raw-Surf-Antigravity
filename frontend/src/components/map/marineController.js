@@ -75,27 +75,30 @@ var PER_MODEL_HOUR_CACHE_MAX = 50;
 var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
 function _cacheMarineResult(model, hourOffset, data, layer) {
   if (!data) return;
-  const key = `${model || 'GFS'}_${layer || 'waves'}_${hourOffset}`;
-  _perModelHourCache.set(key, { data, timestamp: Date.now() });
+  // v7.9: All-var models use model+hour key; EURO keeps layer-scoped
+  const layerPart = _isAllVarModel(model) ? 'all' : (layer || 'waves');
+  const key = `${model || 'GFS'}_${layerPart}_${hourOffset}`;
+  _perModelHourCache.set(key, { data, timestamp: Date.now(), model: model || 'GFS' });
   if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
     const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
     for (let i = 0; i < 10; i++) _perModelHourCache.delete(oldest[i][0]);
   }
 }
 
-/** v7.1: Per-model/layer/hour cache accessor. Falls back to nearest hour within ±6h. */
+/** v7.9: Per-model/layer/hour cache accessor. All-var models search by model+hour. */
 function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
   const wanted = requestedModel || 'GFS';
   const wantedLayer = requestedLayer || 'waves';
   const wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
-  const exactKey = `${wanted}_${wantedLayer}_${wantedHour}`;
+  const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
+  const exactKey = `${wanted}_${layerPart}_${wantedHour}`;
   const exact = _perModelHourCache.get(exactKey);
   if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
     return exact.data;
   }
 
-  // 2. Nearest hour within ±6h in the same model+layer
-  const prefix = `${wanted}_${wantedLayer}_`;
+  // Nearest hour within ±6h
+  const prefix = `${wanted}_${layerPart}_`;
   let bestEntry = null;
   let bestDiff = Infinity;
   for (const [key, entry] of _perModelHourCache.entries()) {
@@ -103,10 +106,7 @@ function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer)
     if (Date.now() - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL) continue;
     const cachedHour = parseInt(key.substring(prefix.length), 10);
     const diff = Math.abs(cachedHour - wantedHour);
-    if (diff < bestDiff && diff <= 6) {
-      bestDiff = diff;
-      bestEntry = entry;
-    }
+    if (diff < bestDiff && diff <= 6) { bestDiff = diff; bestEntry = entry; }
   }
   if (bestEntry) {
     const staleResult = { ...bestEntry.data };

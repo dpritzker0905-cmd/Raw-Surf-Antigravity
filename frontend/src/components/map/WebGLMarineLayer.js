@@ -651,22 +651,20 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
         updateMarineTruthTrace('upload', data, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 
+        const uploadSig = `${gridModel}_${componentLayer}_${timeOffsetHoursRef.current}_${gridProvider}_${data.vectors.length}_nz${nonzeroCount}_ss${sampleSum.toFixed(1)}`;
+        if (!window.__WEBGL_MARINE_UPLOAD_COUNT__) window.__WEBGL_MARINE_UPLOAD_COUNT__ = 0;
+        window.__WEBGL_MARINE_UPLOAD_COUNT__++;
+        window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
+          uploadCount: window.__WEBGL_MARINE_UPLOAD_COUNT__,
+          uploadSignature: uploadSig,
+          activeModel: activeModelRef.current, activeLayer: activeMarineLayer,
+          timeOffsetHours: timeOffsetHoursRef.current, provider: data?.__provider || 'none',
+          gridProvider, sourceModel: gridModel, componentLayer,
+          vectorCount: data.vectors.length, nonzeroCount, renderAccepted: true,
+          rejectionReason: null, elapsedMs: uploadElapsed,
+          timestamp: new Date().toISOString()
+        };
         if (typeof window !== 'undefined') {
-          window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
-            activeModel: activeModelRef.current,
-            activeLayer: activeMarineLayer,
-            timeOffsetHours: timeOffsetHoursRef.current,
-            provider: data?.__provider || 'none',
-            gridProvider,
-            sourceModel: gridModel,
-            componentLayer,
-            vectorCount: data.vectors.length,
-            nonzeroCount: nonzeroCount,
-            renderAccepted: true,
-            rejectionReason: null,
-            elapsedMs: uploadElapsed,
-            timestamp: new Date().toISOString()
-          };
           window.__MARINE_RENDER_SOURCE_DIAG__ = {
             sourcePath: 'direct_mapwebgl',
             heatmapProvider: gridProvider,
