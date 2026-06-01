@@ -85,46 +85,52 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
   }
 }
 
-/** v7.9: Per-model/layer/hour cache accessor. All-var models search by model+hour. */
+/** v7.11: Per-model safe cache. GFS/ICON re-extract from raw hourly cache. */
 function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
   const wanted = requestedModel || 'GFS';
   const wantedLayer = requestedLayer || 'waves';
   const wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
+
+  // v7.11: For all-var models, prefer re-extraction from raw hourly cache
+  if (_isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted) {
+    try {
+      const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
+      if (reExtracted?.grid?.vectors?.length > 0) return reExtracted;
+    } catch (e) { /* fall through to per-model cache */ }
+  }
+
+  // Per-model hour cache (layer-scoped for EURO, all-var for GFS/ICON)
   const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
   const exactKey = `${wanted}_${layerPart}_${wantedHour}`;
   const exact = _perModelHourCache.get(exactKey);
   if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-    return exact.data;
+    // For EURO (layer-scoped), return directly. For GFS/ICON this is a fallback.
+    if (!_isAllVarModel(wanted)) return exact.data;
   }
 
-  // Nearest hour within ±6h
-  const prefix = `${wanted}_${layerPart}_`;
-  let bestEntry = null;
-  let bestDiff = Infinity;
-  for (const [key, entry] of _perModelHourCache.entries()) {
-    if (!key.startsWith(prefix)) continue;
-    if (Date.now() - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL) continue;
-    const cachedHour = parseInt(key.substring(prefix.length), 10);
-    const diff = Math.abs(cachedHour - wantedHour);
-    if (diff < bestDiff && diff <= 6) { bestDiff = diff; bestEntry = entry; }
-  }
-  if (bestEntry) {
-    const staleResult = { ...bestEntry.data };
-    staleResult.__staleHour = true;
-    staleResult.__originalHour = bestEntry.data.hourOffset;
-    return staleResult;
+  // Nearest hour within ±6h (EURO only — GFS/ICON use raw cache above)
+  if (!_isAllVarModel(wanted)) {
+    const prefix = `${wanted}_${layerPart}_`;
+    let bestEntry = null, bestDiff = Infinity;
+    for (const [key, entry] of _perModelHourCache.entries()) {
+      if (!key.startsWith(prefix)) continue;
+      if (Date.now() - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL) continue;
+      const cachedHour = parseInt(key.substring(prefix.length), 10);
+      const diff = Math.abs(cachedHour - wantedHour);
+      if (diff < bestDiff && diff <= 6) { bestDiff = diff; bestEntry = entry; }
+    }
+    if (bestEntry) {
+      const staleResult = { ...bestEntry.data };
+      staleResult.__staleHour = true;
+      staleResult.__originalHour = bestEntry.data.hourOffset;
+      return staleResult;
+    }
   }
 
   // 3. Fall back to legacy single lastKnownGood (model + layer safe only)
-  if (lastKnownGoodMarine) {
-    const cachedModel = lastKnownGoodMarineModel || 'GFS';
-    const cachedLayer = lastKnownGoodMarine?.grid?.__componentLayer || 'waves';
-    if (cachedModel === wanted && cachedLayer === wantedLayer) {
-      const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
-      if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated') {
-        return lastKnownGoodMarine;
-      }
-    }
+  if (lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
+    const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
+    if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated') return lastKnownGoodMarine;
   }
   return null;
 }

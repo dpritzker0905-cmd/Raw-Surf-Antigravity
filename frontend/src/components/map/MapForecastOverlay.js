@@ -16,6 +16,16 @@ import {
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { compileForecastCards } from './forecastCardCompiler';
+const STATUS_RENDERS = {
+  ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
+  zoom_too_low: { color: 'text-amber-400', text: 'Zoom In for Heatmap' },
+  copernicus_credentials_missing: { color: 'text-rose-400', text: 'Config Error (Credentials)' },
+  copernicus_backend_502: { color: 'text-rose-400', text: 'Heatmap Backend Error (502)' },
+  copernicus_timeout: { color: 'text-rose-400', text: 'Heatmap Timeout' },
+  copernicus_empty_time_range: { color: 'text-rose-400', text: 'Out of Time Range' },
+  copernicus_no_nonzero_vectors: { color: 'text-amber-400', text: 'Calm/Zero Data (No Waves)' },
+  unavailable: { color: 'text-rose-400', text: 'Heatmap Error/Timeout' }
+};
 
 export var MapForecastOverlay = ({
   forecastData,
@@ -184,15 +194,21 @@ export var MapForecastOverlay = ({
     const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
     setExactPoint(selected);
 
-    // v7.2: If selectExactPointHour returned estimate_pending_sources, trigger background prewarms
+    // v7.11: Gate prewarm during scrubbing/cooldown
     if (selected?.status === 'estimate_pending_sources' && pointLat && pointLng) {
-      console.log("[Forecast Overlay] Pending estimate sources. Launching background prewarm...");
-      const gfsPromise = fetchExactMarinePoint(pointLat, pointLng, 'GFS', activeLayer, null, timeOffsetHours);
-      const iconPromise = activeModel === 'EURO' ? fetchExactMarinePoint(pointLat, pointLng, 'ICON', activeLayer, null, timeOffsetHours) : Promise.resolve(null);
-      Promise.all([gfsPromise, iconPromise]).then(() => {
-        console.log("[Forecast Overlay] Background prewarms completed. Re-triggering overlay...");
-        setEstimateTrigger(prev => prev + 1);
-      });
+      const isScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline;
+      const isCooling = typeof isInCooldown === 'function' && isInCooldown('marine');
+      if (isScrubbing || isCooling) {
+        console.log(`[Forecast Overlay] Prewarm suppressed: scrubbing=${!!isScrubbing} cooldown=${!!isCooling}`);
+      } else {
+        console.log("[Forecast Overlay] Pending estimate sources. Launching background prewarm...");
+        const gfsPromise = fetchExactMarinePoint(pointLat, pointLng, 'GFS', activeLayer, null, timeOffsetHours);
+        const iconPromise = activeModel === 'EURO' ? fetchExactMarinePoint(pointLat, pointLng, 'ICON', activeLayer, null, timeOffsetHours) : Promise.resolve(null);
+        Promise.all([gfsPromise, iconPromise]).then(() => {
+          console.log("[Forecast Overlay] Background prewarms completed. Re-triggering overlay...");
+          setEstimateTrigger(prev => prev + 1);
+        });
+      }
     }
 
     // Enhanced diagnostic and Scrubber Truth logging
@@ -610,6 +626,28 @@ export var MapForecastOverlay = ({
       currentHourIndex, wx, exactPointResponse: effectiveExactPointResponse,
       hasGfs, hasIcon
     });
+
+    // v7.11: Source parity diagnostic
+    const webglDiag = window.__WebGLMarineLayer_DIAG__;
+    const heatmapModel = webglDiag?.activeModel || 'none';
+    const heatmapLayer = webglDiag?.activeMarineLayer || 'none';
+    const heatmapProvider = webglDiag?.renderedProvider || 'none';
+    const heatmapWaveData = !!window.__MARINE_ENGINE__?._waveData;
+    const heatmapVectors = webglDiag?.renderedVectorCount || 0;
+    const heatmapNonzero = webglDiag?.renderedNonzeroCount || 0;
+    const infoboxProvider = effectiveExactPoint?.provider || marineGridSample?.provider || 'none';
+    const infoboxStatus = effectiveExactPointStatus;
+    const mismatches = [];
+    if (heatmapModel !== activeModel) mismatches.push(`model: heatmap=${heatmapModel} infobox=${activeModel}`);
+    if (heatmapLayer !== 'unknown' && heatmapLayer !== activeLayer) mismatches.push(`layer: heatmap=${heatmapLayer} infobox=${activeLayer}`);
+    if (heatmapProvider !== 'none' && infoboxProvider !== 'none' && heatmapProvider !== infoboxProvider) mismatches.push(`provider: heatmap=${heatmapProvider} infobox=${infoboxProvider}`);
+    window.__MARINE_SOURCE_PARITY__ = {
+      activeModel, activeLayer, timeOffsetHours,
+      infobox: { provider: infoboxProvider, status: infoboxStatus, timestamp: effectiveExactPoint?.time || null },
+      heatmap: { model: heatmapModel, provider: heatmapProvider, waveData: heatmapWaveData, vectorCount: heatmapVectors, nonzeroActiveLayer: heatmapNonzero },
+      match: mismatches.length === 0, mismatchReasons: mismatches.length > 0 ? mismatches : null,
+      timestamp: new Date().toISOString()
+    };
   }
 
   const heatmapStatus = useMemo(() => {
@@ -722,52 +760,10 @@ export var MapForecastOverlay = ({
                   <span>Heatmap Loading...</span>
                 </div>
               )}
-              {heatmapStatus === 'ready' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-emerald-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-emerald-400" />
-                  <span>Heatmap Ready (CMEMS)</span>
-                </div>
-              )}
-              {heatmapStatus === 'zoom_too_low' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-amber-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-amber-400" />
-                  <span>Zoom In for Heatmap</span>
-                </div>
-              )}
-              {heatmapStatus === 'copernicus_credentials_missing' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-rose-400" />
-                  <span>Config Error (Credentials)</span>
-                </div>
-              )}
-              {heatmapStatus === 'copernicus_backend_502' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-rose-400" />
-                  <span>Heatmap Backend Error (502)</span>
-                </div>
-              )}
-              {heatmapStatus === 'copernicus_timeout' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-rose-400" />
-                  <span>Heatmap Timeout</span>
-                </div>
-              )}
-              {heatmapStatus === 'copernicus_empty_time_range' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-rose-400" />
-                  <span>Out of Time Range</span>
-                </div>
-              )}
-              {heatmapStatus === 'copernicus_no_nonzero_vectors' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-amber-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-amber-400" />
-                  <span>Calm/Zero Data (No Waves)</span>
-                </div>
-              )}
-              {heatmapStatus === 'unavailable' && (
-                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-rose-400 font-semibold flex items-center gap-1.5">
-                  <Lock className="w-3 h-3 text-rose-400" />
-                  <span>Heatmap Error/Timeout</span>
+              {STATUS_RENDERS[heatmapStatus] && (
+                <div className={`pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] ${STATUS_RENDERS[heatmapStatus].color} font-semibold flex items-center gap-1.5`}>
+                  <Lock className={`w-3 h-3 ${STATUS_RENDERS[heatmapStatus].color}`} />
+                  <span>{STATUS_RENDERS[heatmapStatus].text}</span>
                 </div>
               )}
             </>

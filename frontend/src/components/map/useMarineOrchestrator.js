@@ -450,6 +450,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           consecutiveFailuresRef.current = 0;
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();
+          lastFetchedLayerRef.current = currentLayer; // v7.11: Set only after successful commit
           _logPipelineEvent('data_committed', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
 
           isCommittingDataRef.current = true;
@@ -779,10 +780,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), EURO is layer-scoped`);
       _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer, reason: 'euro_layer_scoped' });
     }
-    // v7.10: Do NOT set lastFetchedLayerRef until commit succeeds
+    // v7.11: Only trigger fetch — do NOT set lastFetchedLayerRef here.
+    // It's set after successful commit in updateMarineGrid data_committed path.
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); lastFetchedLayerRef.current = activeMarineLayer; }, 350);
+    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
     return () => clearTimeout(t);
   }, [activeMarineLayer, activeModel, mapInstance]);
 

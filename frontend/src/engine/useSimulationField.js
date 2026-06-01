@@ -44,10 +44,11 @@ export function useSimulationField({
 }) {
   const lastRevisionRef = useRef(0);
   const lastLogTimeRef = useRef(0);
+  const lastDepsRef = useRef({ windDep: 'null', marineDep: 'null', pressureDep: 'null', activeModel: '', timeOffsetHours: 0, activeMarineLayer: '' });
 
   // Compute stable primitive dependency keys to bypass React object reference changes on every frame
   const windDep = windData ? `${windData.vectors?.length || 0}-${windData.bounds?.west || 0}-${windData.revision || 0}` : 'null';
-  const marineDep = marineData ? `${marineData.grid?.vectors?.length || 0}-${marineData.grid?.__sourceModel || 'x'}-${marineData.grid?.__componentLayer || 'x'}-${marineData.grid?.__activeLayerNonzeroCount || 0}-${marineData.grid?.__renderable}-${marineData.hourOffset || 0}` : 'null';
+  const marineDep = marineData ? `${marineData.grid?.vectors?.length || 0}-${marineData.grid?.__sourceModel || 'x'}-${marineData.grid?.__componentLayer || 'x'}-${marineData.grid?.__activeLayerNonzeroCount || 0}-${marineData.grid?.__renderable}-${marineData.hourOffset || 0}-${marineData.__commitRevision || 0}` : 'null';
   const pressureDep = pressureData ? `${pressureData.vectors?.length || 0}-${pressureData.bounds?.west || 0}-${pressureData.revision || 0}` : 'null';
 
   // Memo keys: rebuild only when actual data values change
@@ -64,6 +65,19 @@ export function useSimulationField({
       activeMarineLayer,
     });
 
+    // v7.11: Track bind reason
+    const prev = lastDepsRef.current;
+    const changed = [];
+    if (prev.windDep !== windDep) changed.push('wind');
+    if (prev.marineDep !== marineDep) changed.push('marine');
+    if (prev.pressureDep !== pressureDep) changed.push('pressure');
+    if (prev.activeModel !== activeModel) changed.push('model');
+    if (prev.timeOffsetHours !== timeOffsetHours) changed.push('timeOffset');
+    if (prev.activeMarineLayer !== activeMarineLayer) changed.push('marineLayer');
+    if (typeof window !== 'undefined') {
+      window.__SIM_BIND_REASON__ = { changed, prevMarineDep: prev.marineDep, nextMarineDep: marineDep, prevModel: prev.activeModel, nextModel: activeModel, revision: f.revision, timestamp: new Date().toISOString() };
+    }
+    lastDepsRef.current = { windDep, marineDep, pressureDep, activeModel, timeOffsetHours, activeMarineLayer };
     lastRevisionRef.current = f.revision;
     return f;
   }, [windDep, marineDep, pressureDep, activeModel, timeOffsetHours, activeMarineLayer]);
