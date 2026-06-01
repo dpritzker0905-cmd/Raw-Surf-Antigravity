@@ -542,11 +542,13 @@ function extractMarineAtOffset(cache, hourOffset) {
 
   // v6.1: Propagate provider and source model to grid for infobox/WebGL verification
   const provider = cache.provider || 'open-meteo';
+  const activeLayerFromCache = cache.activeLayer || 'waves';
   return {
-    type: 'FeatureCollection', features,
-    hourOffset,
+    type: 'FeatureCollection', features, hourOffset,
     grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now(),
-            __sourceModel: activeModel, __provider: provider, provider: provider, hourOffset }
+            __sourceModel: activeModel, __provider: provider, __gridProvider: provider,
+            __componentLayer: activeLayerFromCache, __gridSupportsLayer: true,
+            provider: provider, hourOffset }
   };
 }
 

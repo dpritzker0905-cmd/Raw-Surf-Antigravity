@@ -717,19 +717,23 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (prev === timeOffsetHours) return;
     if (!mapInstance || !activeMarineLayersRef.current) return;
 
-    // 1. Try instant local cache re-index first
+    // 1. Try instant local cache re-index first — validate cache identity
     try {
       const cache = getMarineHourlyCache();
-      if (cache?.results?.length) {
+      const curModel = activeModelRef.current || 'GFS';
+      const curLayer = activeMarineLayerRef.current || 'waves';
+      if (cache?.results?.length &&
+          cache.model === curModel &&
+          (cache.activeLayer || 'waves') === curLayer) {
         const data = extractMarineAtOffset(cache, timeOffsetHours);
         if (data) {
-          console.log(`[SCRUB] [CACHE] [Marine Orchestrator] Instant local timeline re-index: +${timeOffsetHours}h`);
+          console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
           setMarineData(data);
-          return; // Skip API fetch entirely!
+          return; // Skip API fetch
         }
       }
     } catch (e) {
-      console.warn('[CACHE] [Marine Orchestrator] Local timeline re-index failed:', e.message);
+      console.warn('[CACHE] Local timeline re-index failed:', e.message);
     }
 
     // Scrubbing mode hard freeze (Request 3)
@@ -775,18 +779,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     return () => clearTimeout(t);
   }, [activeModel, mapInstance]);
 
-  // v6.15: Re-fetch when active marine layer changes while EURO is active
-  // This triggers Copernicus component grid fetch on layer switch (e.g. waves → swell_1)
+  // v7.1: Re-fetch when active marine layer changes for ANY model, not just EURO components.
+  // Without this, GFS/ICON sublayer switches leave stale previous-layer data.
   useEffect(() => {
-    if (!mapInstance) return;
-    if (activeModel !== 'EURO' || !activeMarineLayer || !COMPONENT_LAYERS.includes(activeMarineLayer)) {
-      lastFetchedLayerRef.current = null;
-      return;
-    }
+    if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
-
     lastFetchedLayerRef.current = activeMarineLayer;
-    console.log(`[Marine] EURO layer changed to ${activeMarineLayer}, triggering component grid fetch...`);
+    console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), triggering refetch...`);
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
     const t = setTimeout(() => {
