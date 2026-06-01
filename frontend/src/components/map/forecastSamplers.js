@@ -14,8 +14,7 @@ import {
 } from './forecastHelpers';
 import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { governMarineRequest } from './marineRequestGovernor';
-import { BACKEND_URL } from '../../lib/apiClient';
-import { getBackendWeatherFlag } from './marineController';
+import { getBackendWeatherFlag, fetchBackendExactPoint } from './backendWeatherServiceClient';
 
 export { sampleFromMarineGrid };
 
@@ -49,108 +48,6 @@ var MARINE_MODEL_LIMITS = {
   'gwam': 7,
   'ecmwf_wam025': 10,
 };
-
-// --- BACKEND EXACT POINT FETCH & DIAGNOSTICS ---
-var lastPointUrl = 'none';
-var lastPointStatus = 0;
-var lastPointValidTime = 'none';
-var lastPointValueKind = 'none';
-var lastPointValueUnit = 'none';
-var lastPointDisplayUnitHint = 'none';
-var lastPointElapsedMs = 0;
-var lastPointError = null;
-
-async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
-  const start = Date.now();
-  const targetDt = new Date(Math.round(Date.now() / 3600000) * 3600000 + hourOffset * 3600000);
-  const validTimeStr = targetDt.toISOString();
-  lastPointValidTime = validTimeStr;
-
-  const url = `${BACKEND_URL}/api/weather/point?model=GFS&domain=marine&layer=waves&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
-  lastPointUrl = url;
-
-  try {
-    const res = await fetch(url, { signal });
-    lastPointStatus = res.status;
-    if (!res.ok) {
-      throw new Error(`Backend point returned HTTP ${res.status}`);
-    }
-    const json = await res.json();
-    lastPointValueKind = json.value_kind || 'wave_height';
-    lastPointValueUnit = json.value_unit || 'm';
-    lastPointDisplayUnitHint = json.display_unit_hint || 'ft';
-    lastPointElapsedMs = Date.now() - start;
-    lastPointError = null;
-
-    const mockTime = targetDt.toISOString().replace(/\.\d+Z$/, 'Z');
-    const mockHourly = {
-      time: [mockTime],
-      wave_height: [json.point.speed || 0],
-      wave_direction: [json.point.direction || 0],
-      wave_period: [json.point.period || 0],
-      wave_peak_period: [json.point.period || 0],
-      swell_wave_height: [0],
-      swell_wave_direction: [0],
-      swell_wave_period: [0],
-      swell_wave_peak_period: [0],
-      secondary_swell_wave_height: [0],
-      secondary_swell_wave_direction: [0],
-      secondary_swell_wave_period: [0],
-      wind_wave_height: [0],
-      wind_wave_direction: [0],
-      wind_wave_period: [0],
-      wind_wave_peak_period: [0]
-    };
-
-    const data = {
-      hourly: mockHourly,
-      snappedLat: json.point.sampled_lat || lat,
-      snappedLng: json.point.sampled_lng || lng,
-      requestedLat: lat,
-      requestedLng: lng,
-      requestedModel: 'GFS',
-      activeLayer: 'waves',
-      forecastDays: 1,
-      apiModel: 'ncep_gfswave025',
-      provider: json.provider || 'backend-weather-service',
-      source: 'backend_point_api'
-    };
-
-    if (typeof window !== 'undefined' && window.__BACKEND_WEATHER_SERVICE_DIAG__) {
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.lastPointFetch = {
-        url,
-        status: res.status,
-        validTime: validTimeStr,
-        valueKind: lastPointValueKind,
-        valueUnit: lastPointValueUnit,
-        displayUnitHint: lastPointDisplayUnitHint,
-        elapsedMs: lastPointElapsedMs,
-        error: null
-      };
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.featureFlagActive = getBackendWeatherFlag();
-    }
-
-    return data;
-  } catch (err) {
-    lastPointElapsedMs = Date.now() - start;
-    lastPointError = err.message;
-    if (typeof window !== 'undefined' && window.__BACKEND_WEATHER_SERVICE_DIAG__) {
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.lastPointFetch = {
-        url,
-        status: lastPointStatus,
-        validTime: validTimeStr,
-        valueKind: 'none',
-        valueUnit: 'none',
-        displayUnitHint: 'none',
-        elapsedMs: lastPointElapsedMs,
-        error: err.message
-      };
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.featureFlagActive = getBackendWeatherFlag();
-    }
-    console.error(`[Backend Weather Service] Point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
-    throw err;
-  }
-}
 
 /**
  * Fetch the FULL multi-day forecast for a single point.

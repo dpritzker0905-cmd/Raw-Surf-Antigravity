@@ -9,6 +9,15 @@ import {
 } from './marineControllerUtils';
 import { governMarineRequest } from './marineRequestGovernor';
 import { BACKEND_URL } from '../../lib/apiClient';
+import {
+  getBackendWeatherFlag,
+  getSharedValidTime,
+  clampViewportBbox,
+  mapNormalizedGridToWebGL,
+  updateDiagnostics,
+  GRID_URL
+} from './backendWeatherServiceClient';
+export { getBackendWeatherFlag };
 
 // Re-export wind controller components for timeline scrubs and observers
 export { fetchWindData, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './windController';
@@ -185,134 +194,76 @@ export function getMarineHourlyCache() {
   return marineHourlyCache;
 }
 
-// --- FEATURE FLAG CONTROLLER FOR BACKEND WEATHER SERVICE ---
-export function getBackendWeatherFlag() {
-  if (typeof window === 'undefined') return false;
-  if (window.__USE_BACKEND_WEATHER_SERVICE__ !== undefined) {
-    return !!window.__USE_BACKEND_WEATHER_SERVICE__;
-  }
-  try {
-    const lsVal = window.localStorage.getItem('__USE_BACKEND_WEATHER_SERVICE__');
-    if (lsVal !== null) return lsVal === 'true';
-  } catch (e) {}
-  return process.env.REACT_APP_USE_BACKEND_WEATHER === 'true';
-}
-
-var lastGridUrl = 'none';
-var lastGridStatus = 0;
-var lastGridValidTime = 'none';
-var lastGridValueKind = 'none';
-var lastGridValueUnit = 'none';
-var lastGridDisplayUnitHint = 'none';
-var lastGridElapsedMs = 0;
-var lastGridError = null;
-
-if (typeof window !== 'undefined') {
-  window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
-    featureFlagActive: getBackendWeatherFlag(),
-    activeModel: 'GFS',
-    activeLayer: 'waves',
-    gridUrl: `${BACKEND_URL}/api/weather/grid`,
-    pointUrl: `${BACKEND_URL}/api/weather/point`,
-    statusUrl: `${BACKEND_URL}/api/weather/status`,
-    lastGridFetch: null,
-    lastPointFetch: null
-  };
-}
-
+// --- GFS BACKEND SERVICE GRID FETCH ---
 async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds) {
   const start = Date.now();
-  const targetDt = new Date(Math.round(Date.now() / 3600000) * 3600000 + hourOffset * 3600000);
-  const validTimeStr = targetDt.toISOString();
-  lastGridValidTime = validTimeStr;
+  const validTimeStr = getSharedValidTime(hourOffset);
 
-  const bboxParam = `${snappedBounds.west},${snappedBounds.south},${snappedBounds.east},${snappedBounds.north}`;
-  const url = `${BACKEND_URL}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${validTimeStr}&bbox=${bboxParam}`;
-  lastGridUrl = url;
+  // 1. Perform Bbox Clamping and Coverage verification
+  const clampResult = clampViewportBbox(snappedBounds);
+  if (!clampResult.isInside) {
+    const errorDetails = {
+      url: 'none',
+      status: 0,
+      validTime: validTimeStr,
+      valueKind: 'none',
+      valueUnit: 'none',
+      displayUnitHint: 'none',
+      elapsedMs: Date.now() - start,
+      error: clampResult.fallbackReason,
+      requestedBbox: snappedBounds,
+      clampedBbox: null,
+      fallbackReason: clampResult.fallbackReason,
+      hourOffset
+    };
+    updateDiagnostics('grid', errorDetails);
+    throw new Error(clampResult.fallbackReason);
+  }
+
+  const { clampedBbox } = clampResult;
+  const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
+  const url = `${GRID_URL}?model=GFS&domain=marine&layer=waves&valid_time=${validTimeStr}&bbox=${bboxParam}`;
 
   try {
     const res = await fetch(url, { signal });
-    lastGridStatus = res.status;
     if (!res.ok) {
       throw new Error(`Backend returned HTTP ${res.status}`);
     }
     const json = await res.json();
-    lastGridValueKind = json.value_kind || 'wave_height';
-    lastGridValueUnit = json.value_unit || 'm';
-    lastGridDisplayUnitHint = json.display_unit_hint || 'ft';
-    lastGridElapsedMs = Date.now() - start;
-    lastGridError = null;
+    const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset);
 
-    const mappedVectors = json.grid.vectors.map(v => ({
-      lat: v.lat,
-      lng: v.lng,
-      isOcean: true,
-      waves: {
-        u: v.u || 0,
-        v: v.v || 0,
-        speed: v.speed || 0,
-        period: v.period || 0
-      },
-      swell_1: { u: 0, v: 0, speed: 0, period: 0 },
-      swell_2: { u: 0, v: 0, speed: 0, period: 0 },
-      wind_waves: { u: 0, v: 0, speed: 0, period: 0 }
-    }));
-
-    const result = {
-      type: 'FeatureCollection',
-      features: [],
-      hourOffset,
-      grid: {
-        vectors: mappedVectors,
-        bounds: json.grid.bounds || snappedBounds,
-        cols: json.grid.cols,
-        rows: json.grid.rows,
-        timestamp: Date.now(),
-        __sourceModel: 'GFS',
-        __provider: json.provider || 'backend-weather-service',
-        __gridProvider: json.provider || 'backend-weather-service',
-        __componentLayer: 'waves',
-        __gridSupportsLayer: true,
-        __activeLayerNonzeroCount: mappedVectors.filter(v => v.waves.speed > 0).length,
-        __activeLayerMax: Math.max(...mappedVectors.map(v => v.waves.speed), 0),
-        __oceanMaskCount: mappedVectors.length,
-        __renderable: true,
-        provider: json.provider || 'backend-weather-service',
-        hourOffset
-      }
-    };
-
-    if (typeof window !== 'undefined') {
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.lastGridFetch = {
-        url,
-        status: res.status,
-        validTime: validTimeStr,
-        valueKind: lastGridValueKind,
-        valueUnit: lastGridValueUnit,
-        displayUnitHint: lastGridDisplayUnitHint,
-        elapsedMs: lastGridElapsedMs,
-        error: null
-      };
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.featureFlagActive = getBackendWeatherFlag();
-    }
+    updateDiagnostics('grid', {
+      url,
+      status: res.status,
+      validTime: validTimeStr,
+      valueKind: json.value_kind || 'wave_height',
+      valueUnit: json.value_unit || 'm',
+      displayUnitHint: json.display_unit_hint || 'ft',
+      elapsedMs: Date.now() - start,
+      error: null,
+      requestedBbox: snappedBounds,
+      clampedBbox,
+      fallbackReason: null,
+      hourOffset
+    });
 
     return result;
   } catch (err) {
-    lastGridElapsedMs = Date.now() - start;
-    lastGridError = err.message;
-    if (typeof window !== 'undefined') {
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.lastGridFetch = {
-        url,
-        status: lastGridStatus,
-        validTime: validTimeStr,
-        valueKind: 'none',
-        valueUnit: 'none',
-        displayUnitHint: 'none',
-        elapsedMs: lastGridElapsedMs,
-        error: err.message
-      };
-      window.__BACKEND_WEATHER_SERVICE_DIAG__.featureFlagActive = getBackendWeatherFlag();
-    }
+    const errorDetails = {
+      url,
+      status: err.message.includes('HTTP') ? parseInt(err.message.match(/\d+/)?.[0] || '0') : 500,
+      validTime: validTimeStr,
+      valueKind: 'none',
+      valueUnit: 'none',
+      displayUnitHint: 'none',
+      elapsedMs: Date.now() - start,
+      error: err.message,
+      requestedBbox: snappedBounds,
+      clampedBbox,
+      fallbackReason: `Fetch error: ${err.message}`,
+      hourOffset
+    };
+    updateDiagnostics('grid', errorDetails);
     console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
     throw err;
   }

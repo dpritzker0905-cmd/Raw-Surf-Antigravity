@@ -1,0 +1,215 @@
+/**
+ * backendWeatherServiceClient.test.js
+ * 
+ * Unit test suite for backendWeatherServiceClient.js.
+ * Verifies clamping, valid_time helpers, schema mapping, diagnostics parity, and HTTP fetching fallbacks.
+ */
+
+import {
+  PILOT_COVERAGE,
+  getBackendWeatherFlag,
+  getSharedValidTime,
+  clampViewportBbox,
+  mapNormalizedGridToWebGL,
+  fetchBackendExactPoint,
+  updateDiagnostics
+} from './backendWeatherServiceClient';
+
+describe('backendWeatherServiceClient', () => {
+  let origFetch;
+
+  beforeAll(() => {
+    origFetch = global.fetch;
+  });
+
+  afterAll(() => {
+    global.fetch = origFetch;
+  });
+
+  beforeEach(() => {
+    // Reset global overrides and overrides in window/localStorage
+    if (typeof window !== 'undefined') {
+      delete window.__USE_BACKEND_WEATHER_SERVICE__;
+      delete window.__BACKEND_WEATHER_SERVICE_DIAG__;
+    }
+    try {
+      localStorage.clear();
+    } catch (e) {}
+    jest.clearAllMocks();
+  });
+
+  describe('getBackendWeatherFlag', () => {
+    it('returns false by default', () => {
+      expect(getBackendWeatherFlag()).toBe(false);
+    });
+
+    it('uses window.__USE_BACKEND_WEATHER_SERVICE__ override if set', () => {
+      window.__USE_BACKEND_WEATHER_SERVICE__ = true;
+      expect(getBackendWeatherFlag()).toBe(true);
+
+      window.__USE_BACKEND_WEATHER_SERVICE__ = false;
+      expect(getBackendWeatherFlag()).toBe(false);
+    });
+
+    it('uses localStorage override if set', () => {
+      try {
+        localStorage.setItem('__USE_BACKEND_WEATHER_SERVICE__', 'true');
+        expect(getBackendWeatherFlag()).toBe(true);
+
+        localStorage.setItem('__USE_BACKEND_WEATHER_SERVICE__', 'false');
+        expect(getBackendWeatherFlag()).toBe(false);
+      } catch (e) {}
+    });
+  });
+
+  describe('getSharedValidTime', () => {
+    it('generates snapped UTC ISO strings matching time offset', () => {
+      const roundedNow = Math.round(Date.now() / 3600000) * 3600000;
+      const expected0 = new Date(roundedNow).toISOString();
+      const expected5 = new Date(roundedNow + 5 * 3600000).toISOString();
+
+      expect(getSharedValidTime(0)).toBe(expected0);
+      expect(getSharedValidTime(5)).toBe(expected5);
+    });
+  });
+
+  describe('clampViewportBbox', () => {
+    it('returns isInside: false if bbox is missing', () => {
+      const res = clampViewportBbox(null);
+      expect(res.isInside).toBe(false);
+      expect(res.fallbackReason).toBe('Missing requested bounding box coordinates');
+    });
+
+    it('returns isInside: false if bbox is completely outside coverage bounds', () => {
+      // Entirely west of coverage bounds (-85.0)
+      const bboxWest = { west: -90.0, south: 25.0, east: -86.0, north: 30.0 };
+      const resWest = clampViewportBbox(bboxWest);
+      expect(resWest.isInside).toBe(false);
+      expect(resWest.fallbackReason).toContain('completely outside GFS Waves pilot coverage area');
+
+      // Entirely north of coverage bounds (31.0)
+      const bboxNorth = { west: -84.0, south: 32.0, east: -80.0, north: 35.0 };
+      const resNorth = clampViewportBbox(bboxNorth);
+      expect(resNorth.isInside).toBe(false);
+    });
+
+    it('performs intersection clamping if viewport overlaps with coverage bounds', () => {
+      const bboxOverlap = { west: -88.0, south: 23.0, east: -80.0, north: 30.0 };
+      const res = clampViewportBbox(bboxOverlap);
+      expect(res.isInside).toBe(true);
+      expect(res.clampedBbox.west).toBe(-85.0); // clamped to PILOT_COVERAGE.west
+      expect(res.clampedBbox.south).toBe(24.0); // clamped to PILOT_COVERAGE.south
+      expect(res.clampedBbox.east).toBe(-80.0); // unchanged
+      expect(res.clampedBbox.north).toBe(30.0); // unchanged
+    });
+
+    it('returns the same coordinates if viewport is completely inside coverage bounds', () => {
+      const bboxInside = { west: -84.0, south: 25.0, east: -81.0, north: 29.0 };
+      const res = clampViewportBbox(bboxInside);
+      expect(res.isInside).toBe(true);
+      expect(res.clampedBbox.west).toBe(-84.0);
+      expect(res.clampedBbox.south).toBe(25.0);
+      expect(res.clampedBbox.east).toBe(-81.0);
+      expect(res.clampedBbox.north).toBe(29.0);
+    });
+  });
+
+  describe('mapNormalizedGridToWebGL', () => {
+    it('maps backend response schema to expected WebGL feature properties', () => {
+      const sampleResponse = {
+        grid: {
+          vectors: [
+            { lat: 28.0, lng: -82.0, u: 1.0, v: 0.5, speed: 1.11, period: 8.0 }
+          ],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1,
+          rows: 1
+        },
+        provider: 'backend-weather-service'
+      };
+
+      const result = mapNormalizedGridToWebGL(sampleResponse, sampleResponse.grid.bounds, 4);
+      expect(result.grid.cols).toBe(1);
+      expect(result.grid.vectors[0].waves.speed).toBe(1.11);
+      expect(result.grid.vectors[0].waves.period).toBe(8.0);
+      expect(result.grid.__sourceModel).toBe('GFS');
+      expect(result.grid.__componentLayer).toBe('waves');
+      expect(result.grid.__renderable).toBe(true);
+      expect(result.hourOffset).toBe(4);
+    });
+
+    it('throws error for invalid schema shapes', () => {
+      expect(() => mapNormalizedGridToWebGL(null)).toThrow('Invalid normalized grid response structure');
+      expect(() => mapNormalizedGridToWebGL({ invalid: true })).toThrow();
+    });
+  });
+
+  describe('updateDiagnostics', () => {
+    it('sets and recalculates telemetry state correctly', () => {
+      window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
+        gridValidTime: null,
+        pointValidTime: null,
+        parity: false
+      };
+
+      updateDiagnostics('grid', {
+        validTime: '2026-06-01T23:00:00.000Z',
+        hourOffset: 3,
+        requestedBbox: { west: -85, south: 24, east: -79, north: 31 },
+        clampedBbox: { west: -85, south: 24, east: -79, north: 31 }
+      });
+
+      expect(window.__BACKEND_WEATHER_SERVICE_DIAG__.gridValidTime).toBe('2026-06-01T23:00:00.000Z');
+      expect(window.__BACKEND_WEATHER_SERVICE_DIAG__.requestedHour).toBe(3);
+
+      updateDiagnostics('point', {
+        validTime: '2026-06-01T23:00:00.000Z',
+        hourOffset: 3
+      });
+
+      expect(window.__BACKEND_WEATHER_SERVICE_DIAG__.pointValidTime).toBe('2026-06-01T23:00:00.000Z');
+      expect(window.__BACKEND_WEATHER_SERVICE_DIAG__.parity).toBe(true);
+    });
+  });
+
+  describe('fetchBackendExactPoint', () => {
+    it('resolves point data successfully on valid server responses', async () => {
+      const mockJson = {
+        point: {
+          speed: 1.43,
+          direction: 85,
+          period: 7.2,
+          sampled_lat: 28.4,
+          sampled_lng: -80.6
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      const res = await fetchBackendExactPoint(28.4, -80.6, 1);
+      expect(res.hourly.wave_height[0]).toBe(1.43);
+      expect(res.hourly.wave_direction[0]).toBe(85);
+      expect(res.hourly.wave_period[0]).toBe(7.2);
+      expect(res.provider).toBe('backend-weather-service');
+      expect(res.snappedLat).toBe(28.4);
+    });
+
+    it('rejects on HTTP failures', async () => {
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: false,
+          status: 500
+        })
+      );
+
+      await expect(fetchBackendExactPoint(28.4, -80.6, 1)).rejects.toThrow('Backend point returned HTTP 500');
+    });
+  });
+});
