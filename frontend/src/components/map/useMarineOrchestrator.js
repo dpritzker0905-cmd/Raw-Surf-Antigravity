@@ -2,12 +2,6 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
-
-/**
- * useMarineOrchestrator (v239)
- * SINGLE-PIPELINE viewport-driven marine data orchestrator.
- * RULE: This hook has ZERO knowledge of rendering. It only manages data.
- */
 const loadGrid = async (model, layer, hour, bounds, zoom) => {
   if (model === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(layer)) {
     return fetchCopernicusComponentGrid(bounds, layer, hour, zoom);
@@ -736,10 +730,16 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       console.warn('[CACHE] Local timeline re-index failed:', e.message);
     }
 
-    // Scrubbing mode hard freeze (Request 3)
+    // Scrubbing mode: suppress fetch but schedule settle-refetch for final scrub position
     if (window.isScrubbingTimeline) {
-      console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing");
-      return;
+      console.log("[SCRUB] [FETCH] Marine fetch suppressed during active scrubbing, settle scheduled");
+      const settle = setTimeout(() => {
+        if (!window.isScrubbingTimeline) {
+          marineFetchLocksRef.current.lastHash = null;
+          manualMarineTriggerRef.current?.();
+        }
+      }, 500);
+      return () => clearTimeout(settle);
     }
 
     // 2. Fall back to fetch if cache is unavailable or empty
@@ -756,7 +756,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     // Model Switch Guard (Request 2)
     if (lastFetchedModelRef.current === activeModel) {
-      console.log(`[MODEL] Marine model ${activeModel} already active -> no-op`);
       return;
     }
 

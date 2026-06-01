@@ -360,6 +360,17 @@ var MapWebGL = ({
     res.activeMarineLayer = activeMarineLayer;
     res.activeModel = activeModel;
 
+    // v7.3: All-zero active-layer guard — don't upload flat/invisible heatmaps
+    let nonzeroCount = 0, maxHeight = 0;
+    for (const v of res.vectors) {
+      if (v.speed > 0) { nonzeroCount++; if (v.speed > maxHeight) maxHeight = v.speed; }
+    }
+    res.__nonzeroCount = nonzeroCount;
+    res.__maxHeight = maxHeight;
+    if (nonzeroCount === 0 && res.vectors.length > 0 && !layerSupported && !hasCopernicusGrid) {
+      res.__renderBlockedReason = 'all_zero_unsupported_layer';
+    }
+
     if (typeof window !== 'undefined') {
       window.__MARINE_WIND_DATA__ = res;
       window.__MARINE_WIND_DATA__.__sourceModel = activeModel;
@@ -373,7 +384,9 @@ var MapWebGL = ({
         activeModel,
         isEuroComponent,
         hasCopernicusGrid,
+        nonzeroCount, maxHeight,
         mismatch: false,
+        renderBlockedReason: res.__renderBlockedReason || null,
         heatmapProvider: res.__provider,
         infoboxProvider: (window.__EURO_EXTENDED_ESTIMATE_DIAG__?.isEstimated) ? 'estimated' : res.__provider,
         timestamp: new Date().toISOString()

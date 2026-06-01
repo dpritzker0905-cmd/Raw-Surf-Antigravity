@@ -1,15 +1,5 @@
-/**
- * marineController.js v3.0.0 — Fetch layer for wind and marine data.
- *
- * RULES:
- * - NO mock data injection in production
- * - Viewport-based fetching ONLY
- * - 429 cooldown protection (120s)
- * - AbortController for inflight cancellation
- * - Cache-first architecture
- * - Last valid field preservation on failure
- * Pressure data: marineControllerPressure.js. Shared utilities: marineControllerUtils.js.
- */
+// marineController.js — Fetch layer for wind and marine data.
+// Pressure data: marineControllerPressure.js. Shared utilities: marineControllerUtils.js.
 
 import {
   safeNum, getUV, PROXY_URL, isLocalhost, findClosestHourIndex,
@@ -72,14 +62,10 @@ if (_hydratedMarine) {
 }
 
 // --- LAST KNOWN GOOD FIELDS ---
-// Pre-populated from localStorage hydrated cache if available
 var lastKnownGoodWind = _hydratedWind ? extractWindAtOffset(_hydratedWind, 0) : null;
 var lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarine, 0) : null;
-// v5.9.3: Tag lastKnownGood with its source model to prevent cross-model leaks
 var lastKnownGoodMarineModel = _hydratedMarine?.model || 'GFS';
 if (lastKnownGoodMarine) lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
-if (lastKnownGoodWind) console.log(`[Wind] Pre-populated lastKnownGood: ${lastKnownGoodWind.vectors.length} vectors`);
-if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${lastKnownGoodMarine.features?.length} features, model=${lastKnownGoodMarineModel}`);
 
 var _perModelHourCache = new Map();
 var PER_MODEL_HOUR_CACHE_MAX = 50;
@@ -126,10 +112,11 @@ function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer)
     return staleResult;
   }
 
-  // 3. Fall back to legacy single lastKnownGood (model-safe only)
+  // 3. Fall back to legacy single lastKnownGood (model + layer safe only)
   if (lastKnownGoodMarine) {
     const cachedModel = lastKnownGoodMarineModel || 'GFS';
-    if (cachedModel === wanted) {
+    const cachedLayer = lastKnownGoodMarine?.grid?.__componentLayer || 'waves';
+    if (cachedModel === wanted && cachedLayer === wantedLayer) {
       const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
       if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated') {
         return lastKnownGoodMarine;
@@ -454,14 +441,17 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   }
 }
 
-// ========================================================================
-// EXTRACT MARINE DATA AT A GIVEN HOUR OFFSET (from pre-fetched hourly cache)
-// ========================================================================
 function extractMarineAtOffset(cache, hourOffset) {
   const { results, points, gridSize, bounds } = cache;
   const timeArray = results[0]?.hourly?.time;
   const targetMs = Date.now() + hourOffset * 3600000;
   const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+  // v7.3: Coverage check — reject if closest cached hour is >3h from target to prevent stale heatmaps
+  if (timeArray?.[idx]) {
+    const ts = timeArray[idx];
+    const cachedMs = new Date(ts.endsWith('Z') ? ts : ts + 'Z').getTime();
+    if (Math.abs(cachedMs - targetMs) > 3 * 3600000) return null;
+  }
 
   const activeModel = cache.model || 'GFS';
   const gridVectors = [];
@@ -488,13 +478,9 @@ function extractMarineAtOffset(cache, hourOffset) {
       wind_wave_period: r.hourly.wind_wave_period?.[idx],
     };
     const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
-    // v5.9.2: No EURO synthesis — unsupported components stay at 0, not faked from wave_*
-    const s1_h = safeNum(c.swell_wave_height != null ? c.swell_wave_height : 0), 
-          s1_d = safeNum(c.swell_wave_direction != null ? c.swell_wave_direction : 0);
-    const s2_h = safeNum(c.secondary_swell_wave_height != null ? c.secondary_swell_wave_height : 0), 
-          s2_d = safeNum(c.secondary_swell_wave_direction != null ? c.secondary_swell_wave_direction : 0);
-    const ww_h = safeNum(c.wind_wave_height != null ? c.wind_wave_height : 0), 
-          ww_d = safeNum(c.wind_wave_direction != null ? c.wind_wave_direction : 0);
+    const s1_h = safeNum(c.swell_wave_height ?? 0), s1_d = safeNum(c.swell_wave_direction ?? 0);
+    const s2_h = safeNum(c.secondary_swell_wave_height ?? 0), s2_d = safeNum(c.secondary_swell_wave_direction ?? 0);
+    const ww_h = safeNum(c.wind_wave_height ?? 0), ww_d = safeNum(c.wind_wave_direction ?? 0);
 
     // v7.1: isOcean from active layer's height field, with wave_height as fallback mask
     const activeLayerFromCache = cache.activeLayer || 'waves';
@@ -519,10 +505,20 @@ function extractMarineAtOffset(cache, hourOffset) {
       return;
     }
 
+    // v7.3: ICON swell_2 estimated from primary swell — gwam doesn't support secondary_swell
+    // When activeLayer='swell_2' and model=ICON, the API returns swell_wave_* (primary swell)
+    // but extractMarineAtOffset always maps that to swell_1. Copy to swell_2 and mark estimated.
+    const isIconSwell2Estimated = activeLayerFromCache === 'swell_2' && activeModel === 'ICON' && s2_h === 0 && s1_h > 0;
+    const final_s2_h = isIconSwell2Estimated ? s1_h : s2_h;
+    const final_s2_d = isIconSwell2Estimated ? s1_d : s2_d;
+    const final_s2_period = isIconSwell2Estimated
+      ? safeNum(c.swell_wave_period != null ? c.swell_wave_period : 0)
+      : safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : 0);
+
     gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
       waves: { ...getUV(w_h, w_d), period: safeNum(c.wave_period) },
       swell_1: { ...getUV(s1_h, s1_d), period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : 0) },
-      swell_2: { ...getUV(s2_h, s2_d), period: safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : 0) },
+      swell_2: { ...getUV(final_s2_h, final_s2_d), period: final_s2_period },
       wind_waves: { ...getUV(ww_h, ww_d), period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : 0) },
       isOcean });
 
