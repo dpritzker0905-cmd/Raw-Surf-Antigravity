@@ -260,7 +260,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     };
 
     window.__WebGLMarineLayer_DIAG__ = diag;
-    window.__MARINE_SOURCE_PARITY__ = diag;
   };
 
   const safeUploadWaveData = (reason, gl, grid, geojson) => {
@@ -295,12 +294,17 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       }
     }
 
-    const uploadSig = `${gridModel}_${componentLayer}_${timeOffsetHoursRef.current}_${gridProvider}_${grid.vectors.length}_nz${nonzeroCount}_ss${sampleSum.toFixed(1)}`;
+    const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
+    const themeSig = themeRef.current || 'default_style';
+    const uploadSig = `${gridModel}_${componentLayer}_${timeOffsetHoursRef.current}_${gridProvider}_${grid.vectors.length}_nz${nonzeroCount}_ss${sampleSum.toFixed(1)}_bnd_${boundsStr}_geo_${geojsonSig}_thm_${themeSig}`;
     const alreadyResident = !!engine._waveData;
 
     if (lastUploadedSignatureRef.current === uploadSig && alreadyResident) {
       if (!window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__) window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__ = 0;
       window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__++;
+      if (window.__MARINE_PIPELINE_TRUTH__?.counters) {
+        window.__MARINE_PIPELINE_TRUTH__.counters.duplicateUploadSkipped = window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__;
+      }
       window.__WEBGL_MARINE_UPLOAD_REASON__ = 'duplicate_skipped';
       updateWebGLMarineLayerDiag('duplicate_skipped');
       return;
@@ -342,6 +346,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (window.__MARINE_PIPELINE_TRUTH__) {
       window.__MARINE_PIPELINE_TRUTH__.webglUploads = window.__WEBGL_MARINE_UPLOAD_COUNT__;
+      if (window.__MARINE_PIPELINE_TRUTH__.counters) {
+        window.__MARINE_PIPELINE_TRUTH__.counters.webglUploads = window.__WEBGL_MARINE_UPLOAD_COUNT__;
+      }
     }
 
     const newUploadDiag = {
@@ -583,6 +590,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
           if (window.__MARINE_PIPELINE_TRUTH__) {
             window.__MARINE_PIPELINE_TRUTH__.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
+            if (window.__MARINE_PIPELINE_TRUTH__.counters) {
+              window.__MARINE_PIPELINE_TRUTH__.counters.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
+            }
           }
 
           window.__WEBGL_MARINE_UPLOAD_REASON__ = 'forced_clear';
