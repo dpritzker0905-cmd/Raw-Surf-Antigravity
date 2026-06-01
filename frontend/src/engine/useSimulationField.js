@@ -65,7 +65,7 @@ export function useSimulationField({
       activeMarineLayer,
     });
 
-    // v7.11: Track bind reason
+    // v7.12: Track bind reason
     const prev = lastDepsRef.current;
     const changed = [];
     if (prev.windDep !== windDep) changed.push('wind');
@@ -75,7 +75,24 @@ export function useSimulationField({
     if (prev.timeOffsetHours !== timeOffsetHours) changed.push('timeOffset');
     if (prev.activeMarineLayer !== activeMarineLayer) changed.push('marineLayer');
     if (typeof window !== 'undefined') {
-      window.__SIM_BIND_REASON__ = { changed, prevMarineDep: prev.marineDep, nextMarineDep: marineDep, prevModel: prev.activeModel, nextModel: activeModel, revision: f.revision, timestamp: new Date().toISOString() };
+      window.__SIM_BIND_REASON__ = {
+        changed,
+        prevWindDep: prev.windDep,
+        nextWindDep: windDep,
+        prevMarineDep: prev.marineDep,
+        nextMarineDep: marineDep,
+        prevPressureDep: prev.pressureDep,
+        nextPressureDep: pressureDep,
+        prevActiveModel: prev.activeModel,
+        nextActiveModel: activeModel,
+        prevActiveMarineLayer: prev.prevActiveMarineLayer || prev.activeMarineLayer,
+        nextActiveMarineLayer: activeMarineLayer,
+        prevTimeOffsetHours: prev.timeOffsetHours,
+        nextTimeOffsetHours: timeOffsetHours,
+        prevRevision: lastRevisionRef.current,
+        nextRevision: f.revision,
+        timestamp: new Date().toISOString()
+      };
     }
     lastDepsRef.current = { windDep, marineDep, pressureDep, activeModel, timeOffsetHours, activeMarineLayer };
     lastRevisionRef.current = f.revision;
