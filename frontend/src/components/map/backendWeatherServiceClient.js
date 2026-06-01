@@ -21,6 +21,49 @@ export const STATUS_URL = `${BACKEND_URL}/api/weather/status`;
 export const GRID_URL = `${BACKEND_URL}/api/weather/grid`;
 export const POINT_URL = `${BACKEND_URL}/api/weather/point`;
 
+// Cache manifest products listing
+let cachedManifest = null;
+let manifestFetchPromise = null;
+
+let latestTimeDiag = {
+  requestedValidTime: null,
+  selectedManifestValidTime: null,
+  manifestDeltaHours: null,
+  fallbackReason: null
+};
+
+/**
+ * Direct setter to mock cached manifest registry during unit tests.
+ */
+export function setCachedManifest(manifest) {
+  cachedManifest = manifest;
+}
+
+/**
+ * Fetches the products manifest from the backend registry.
+ */
+export async function fetchProductsManifest() {
+  if (cachedManifest) return cachedManifest;
+  if (manifestFetchPromise) return manifestFetchPromise;
+
+  manifestFetchPromise = (async () => {
+    try {
+      const res = await fetch(STATUS_URL.replace('/status', '/products'));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      cachedManifest = data;
+      return cachedManifest;
+    } catch (err) {
+      console.warn("[Backend Weather Service] Failed to fetch products manifest:", err.message);
+      return null;
+    } finally {
+      manifestFetchPromise = null;
+    }
+  })();
+
+  return manifestFetchPromise;
+}
+
 /**
  * Resolves the weather service feature flag.
  * Disabled by default. Can be overridden in console or localStorage.
@@ -39,12 +82,62 @@ export function getBackendWeatherFlag() {
 
 /**
  * Computes a standardized snapped UTC ISO string from hourOffset.
+ * Resolves the nearest valid_time from cachedManifest when available (max 3h delta).
  * Provides the single source of authority for matching grid/point time dimensions.
  */
 export function getSharedValidTime(timeOffsetHours) {
   const roundedNow = Math.round(Date.now() / 3600000) * 3600000;
   const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
-  return targetDt.toISOString();
+  const requestedValidTime = targetDt.toISOString();
+
+  let selectedManifestValidTime = null;
+  let manifestDeltaHours = null;
+  let fallbackReason = null;
+
+  if (cachedManifest && Array.isArray(cachedManifest.products)) {
+    const matchingProducts = cachedManifest.products.filter(p => 
+      p.model.toUpperCase() === 'GFS' &&
+      p.domain.toLowerCase() === 'marine' &&
+      p.layer.toLowerCase() === 'waves'
+    );
+
+    if (matchingProducts.length > 0) {
+      let minDiffMs = Infinity;
+      let bestProduct = null;
+
+      for (const p of matchingProducts) {
+        const pDate = new Date(p.valid_time_start);
+        const diffMs = Math.abs(pDate.getTime() - targetDt.getTime());
+        if (diffMs < minDiffMs) {
+          minDiffMs = diffMs;
+          bestProduct = p;
+        }
+      }
+
+      // Snapped to products within a max 3h delta window
+      if (minDiffMs <= 3 * 3600000 && bestProduct) {
+        selectedManifestValidTime = new Date(bestProduct.valid_time_start).toISOString();
+        manifestDeltaHours = minDiffMs / 3600000;
+      } else {
+        fallbackReason = `No GFS waves product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
+      }
+    } else {
+      fallbackReason = "No GFS waves products found matching GFS model/marine domain/waves layer";
+    }
+  } else {
+    fallbackReason = "Manifest is not yet loaded or invalid; using snapped target valid time as fallback";
+    // Prefetch manifest in background
+    fetchProductsManifest().catch(() => {});
+  }
+
+  latestTimeDiag = {
+    requestedValidTime,
+    selectedManifestValidTime,
+    manifestDeltaHours,
+    fallbackReason
+  };
+
+  return selectedManifestValidTime || requestedValidTime;
 }
 
 /**
@@ -93,6 +186,7 @@ export function clampViewportBbox(requestedBbox) {
 
 /**
  * Maps the standard backend grid response schema to the WebGLMarineLayer expectations.
+ * Computes grid renderability checks (all-zero and empty vectors rejection).
  */
 export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset) {
   if (!json || !json.grid || !Array.isArray(json.grid.vectors)) {
@@ -114,6 +208,16 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset) {
     wind_waves: { u: 0, v: 0, speed: 0, period: 0 }
   }));
 
+  const nonzeroCount = mappedVectors.filter(v => v.waves.speed > 0).length;
+  const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v.waves.speed), 0) : 0;
+  
+  // A grid is renderable only if it has vectors and at least one non-zero speed vector
+  const renderable = mappedVectors.length > 0 && nonzeroCount > 0;
+
+  if (!renderable) {
+    console.warn(`[Backend Weather Service] Grid is not renderable. mappedVectors=${mappedVectors.length}, nonzeroCount=${nonzeroCount}`);
+  }
+
   return {
     type: 'FeatureCollection',
     features: [],
@@ -128,13 +232,17 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset) {
       __provider: json.provider || 'backend-weather-service',
       __gridProvider: json.provider || 'backend-weather-service',
       __componentLayer: 'waves',
-      __gridSupportsLayer: true,
-      __activeLayerNonzeroCount: mappedVectors.filter(v => v.waves.speed > 0).length,
-      __activeLayerMax: Math.max(...mappedVectors.map(v => v.waves.speed), 0),
+      __gridSupportsLayer: renderable,
+      __activeLayerNonzeroCount: nonzeroCount,
+      __activeLayerMax: maxSpeed,
       __oceanMaskCount: mappedVectors.length,
-      __renderable: true,
+      __renderable: renderable,
       provider: json.provider || 'backend-weather-service',
-      hourOffset
+      hourOffset,
+      nonzeroCount,
+      maxSpeed,
+      renderable,
+      emptyGridWarning: !renderable ? "All vectors in grid are zero or null, or grid is empty" : null
     }
   };
 }
@@ -159,7 +267,15 @@ if (typeof window !== 'undefined') {
     coverage: PILOT_COVERAGE,
     fallbackReason: null,
     lastGridFetch: null,
-    lastPointFetch: null
+    lastPointFetch: null,
+    // Coverage diagnostics
+    coverageInside: true,
+    fallbackToLegacy: false,
+    reason: null,
+    // Time diagnostics
+    requestedValidTime: null,
+    selectedManifestValidTime: null,
+    manifestDeltaHours: null
   };
 }
 
@@ -188,7 +304,13 @@ export function updateDiagnostics(type, details) {
       coverage: PILOT_COVERAGE,
       fallbackReason: null,
       lastGridFetch: null,
-      lastPointFetch: null
+      lastPointFetch: null,
+      coverageInside: true,
+      fallbackToLegacy: false,
+      reason: null,
+      requestedValidTime: null,
+      selectedManifestValidTime: null,
+      manifestDeltaHours: null
     };
   }
 
@@ -201,6 +323,15 @@ export function updateDiagnostics(type, details) {
     diag.requestedBbox = details.requestedBbox;
     diag.clampedBbox = details.clampedBbox;
     diag.fallbackReason = details.fallbackReason || null;
+
+    // Handle coverage flags and fallback telemetry
+    const isInside = details.coverageInside !== undefined 
+      ? details.coverageInside 
+      : (details.clampedBbox !== null && !details.error?.includes('outside'));
+      
+    diag.coverageInside = isInside;
+    diag.fallbackToLegacy = !isInside;
+    diag.reason = !isInside ? 'outside_pilot_coverage' : null;
   } else if (type === 'point') {
     diag.lastPointFetch = details;
     diag.pointValidTime = details.validTime;
@@ -208,8 +339,15 @@ export function updateDiagnostics(type, details) {
 
   if (details.hourOffset !== undefined) {
     diag.requestedHour = details.hourOffset;
+    // Calling getSharedValidTime refreshes latestTimeDiag state
     diag.validTime = getSharedValidTime(details.hourOffset);
   }
+
+  // Inject computed nearest manifest time match diagnostics
+  diag.requestedValidTime = latestTimeDiag.requestedValidTime;
+  diag.selectedManifestValidTime = latestTimeDiag.selectedManifestValidTime;
+  diag.manifestDeltaHours = latestTimeDiag.manifestDeltaHours;
+  diag.timeFallbackReason = latestTimeDiag.fallbackReason;
 
   // Recalculate parity
   diag.parity = !!(diag.gridValidTime && diag.pointValidTime && diag.gridValidTime === diag.pointValidTime);
@@ -295,4 +433,3 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
     throw err;
   }
 }
-

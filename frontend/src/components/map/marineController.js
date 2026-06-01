@@ -214,7 +214,8 @@ async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds)
       requestedBbox: snappedBounds,
       clampedBbox: null,
       fallbackReason: clampResult.fallbackReason,
-      hourOffset
+      hourOffset,
+      coverageInside: false
     };
     updateDiagnostics('grid', errorDetails);
     throw new Error(clampResult.fallbackReason);

@@ -9,6 +9,7 @@ import {
   PILOT_COVERAGE,
   getBackendWeatherFlag,
   getSharedValidTime,
+  setCachedManifest,
   clampViewportBbox,
   mapNormalizedGridToWebGL,
   fetchBackendExactPoint,
@@ -36,6 +37,7 @@ describe('backendWeatherServiceClient', () => {
       localStorage.clear();
     } catch (e) {}
     jest.clearAllMocks();
+    setCachedManifest(null);
   });
 
   describe('getBackendWeatherFlag', () => {
@@ -63,13 +65,59 @@ describe('backendWeatherServiceClient', () => {
   });
 
   describe('getSharedValidTime', () => {
-    it('generates snapped UTC ISO strings matching time offset', () => {
+    it('generates snapped UTC ISO strings matching time offset by default', () => {
       const roundedNow = Math.round(Date.now() / 3600000) * 3600000;
       const expected0 = new Date(roundedNow).toISOString();
       const expected5 = new Date(roundedNow + 5 * 3600000).toISOString();
 
       expect(getSharedValidTime(0)).toBe(expected0);
       expect(getSharedValidTime(5)).toBe(expected5);
+    });
+
+    it('snaps to the closest manifest valid_time when within 3h limit', () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'GFS',
+            domain: 'marine',
+            layer: 'waves',
+            valid_time_start: '2026-06-02T01:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
+      const resolvedTime = getSharedValidTime(1); // offset is 1h -> requested is 2026-06-02T01:00:00.000Z
+      expect(resolvedTime).toBe('2026-06-02T01:00:00.000Z');
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
+
+    it('falls back to rounded requestedValidTime when closest manifest product is > 3h', () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'GFS',
+            domain: 'marine',
+            layer: 'waves',
+            valid_time_start: '2026-06-02T10:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
+      const resolvedTime = getSharedValidTime(0); // requested: 2026-06-02T00:00:00.000Z. manifest is 10h delta.
+      expect(resolvedTime).toBe('2026-06-02T00:00:00.000Z');
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
     });
   });
 
@@ -138,6 +186,24 @@ describe('backendWeatherServiceClient', () => {
       expect(result.hourOffset).toBe(4);
     });
 
+    it('rejects all-zero speed grids as renderable: false', () => {
+      const zeroResponse = {
+        grid: {
+          vectors: [
+            { lat: 28.0, lng: -82.0, u: 0.0, v: 0.0, speed: 0.0, period: 0.0 }
+          ],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1,
+          rows: 1
+        },
+        provider: 'backend-weather-service'
+      };
+      const result = mapNormalizedGridToWebGL(zeroResponse, zeroResponse.grid.bounds, 0);
+      expect(result.grid.renderable).toBe(false);
+      expect(result.grid.__gridSupportsLayer).toBe(false);
+      expect(result.grid.emptyGridWarning).toContain("All vectors in grid are zero or null");
+    });
+
     it('throws error for invalid schema shapes', () => {
       expect(() => mapNormalizedGridToWebGL(null)).toThrow('Invalid normalized grid response structure');
       expect(() => mapNormalizedGridToWebGL({ invalid: true })).toThrow();
@@ -169,6 +235,23 @@ describe('backendWeatherServiceClient', () => {
 
       expect(window.__BACKEND_WEATHER_SERVICE_DIAG__.pointValidTime).toBe('2026-06-01T23:00:00.000Z');
       expect(window.__BACKEND_WEATHER_SERVICE_DIAG__.parity).toBe(true);
+    });
+
+    it('handles coverage checks and sets outside coverage diagnostics flags correctly', () => {
+      updateDiagnostics('grid', {
+        validTime: '2026-06-01T23:00:00.000Z',
+        hourOffset: 3,
+        requestedBbox: { west: -95, south: 24, east: -90, north: 31 },
+        clampedBbox: null,
+        coverageInside: false,
+        fallbackReason: 'Requested viewport completely outside GFS Waves pilot coverage area'
+      });
+
+      const diag = window.__BACKEND_WEATHER_SERVICE_DIAG__;
+      expect(diag.coverageInside).toBe(false);
+      expect(diag.fallbackToLegacy).toBe(true);
+      expect(diag.reason).toBe('outside_pilot_coverage');
+      expect(diag.fallbackReason).toBe('Requested viewport completely outside GFS Waves pilot coverage area');
     });
   });
 
