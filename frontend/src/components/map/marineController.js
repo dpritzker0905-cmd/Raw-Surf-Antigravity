@@ -67,6 +67,9 @@ var lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarin
 var lastKnownGoodMarineModel = _hydratedMarine?.model || 'GFS';
 if (lastKnownGoodMarine) lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
 
+// v7.8: Helper — GFS/ICON use all-variable cache, EURO stays layer-scoped
+function _isAllVarModel(model) { return (model || 'GFS') !== 'EURO'; }
+
 var _perModelHourCache = new Map();
 var PER_MODEL_HOUR_CACHE_MAX = 50;
 var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
@@ -167,7 +170,8 @@ function hasTimeCoverage(cache, hourOffset) {
 export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 'waves') {
   if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
   if (marineHourlyCache.model !== (model || 'GFS')) return false;
-  if ((marineHourlyCache.activeLayer || 'waves') !== layer) return false;
+  // v7.8: All-var caches serve any layer; skip layer check for GFS/ICON
+  if (!_isAllVarModel(model) && (marineHourlyCache.activeLayer || 'waves') !== layer) return false;
   if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
   if (!hasTimeCoverage(marineHourlyCache, hourOffset)) return false;
   const isGlobalCached = !!marineHourlyCache.isGlobal;
@@ -552,23 +556,14 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
 }
 
 // v7.5: Auto-retry after 429 cooldown expires
-var _marineRetryTimer = null;
-var _marineRetryCount = 0;
-var MAX_MARINE_RETRIES = 2;
+var _marineRetryTimer = null, _marineRetryCount = 0, MAX_MARINE_RETRIES = 2;
 function _scheduleMarineRetry(bounds, zoom, hourOffset, model, activeLayer) {
-  if (_marineRetryCount >= MAX_MARINE_RETRIES) {
-    console.warn(`[Marine] Max retries (${MAX_MARINE_RETRIES}) reached, not scheduling more`);
-    return;
-  }
+  if (_marineRetryCount >= MAX_MARINE_RETRIES) return;
   clearTimeout(_marineRetryTimer);
-  const delay = getRemainingCooldown('marine') + 2000; // wait for cooldown + 2s buffer
+  const delay = getRemainingCooldown('marine') + 2000;
   _marineRetryCount++;
-  console.log(`[Marine] Auto-retry #${_marineRetryCount} scheduled in ${Math.round(delay / 1000)}s`);
   _marineRetryTimer = setTimeout(() => {
-    console.log(`[Marine] Auto-retry #${_marineRetryCount} firing now`);
-    fetchMarineData(bounds, zoom, null, hourOffset, true, model, activeLayer, false).catch(e => {
-      console.warn(`[Marine] Auto-retry failed:`, e.message);
-    });
+    fetchMarineData(bounds, zoom, null, hourOffset, true, model, activeLayer, false).catch(() => {});
   }, delay);
 }
 
@@ -580,7 +575,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // Viewport containment cache hit
   if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset, activeLayer)) {
-    return extractMarineAtOffset(marineHourlyCache, hourOffset);
+    return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
   }
 
   // Adjust for Pacific wrap
@@ -595,32 +590,33 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
   const expectedProvider = 'open-meteo';
-  const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${activeLayer || 'waves'}_${expectedProvider}`);
+  // v7.8: For all-var models, cache key omits layer so one cache serves all sublayers
+  const layerKey = _isAllVarModel(model) ? 'all' : (activeLayer || 'waves');
+  const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${layerKey}_${expectedProvider}`);
 
   // Check hourly cache
   if (marineHourlyCache.hash === viewHash &&
       marineHourlyCache.model === (model || 'GFS') &&
-      (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves') &&
+      (_isAllVarModel(model) || (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves')) &&
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL &&
       hasTimeCoverage(marineHourlyCache, hourOffset)) {
-    return extractMarineAtOffset(marineHourlyCache, hourOffset);
+    return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
   }
 
-  // Stale fallback — keep last known good if cache is fresh but wrong viewport
   if (marineHourlyCache.hash && marineHourlyCache.model === (model || 'GFS') &&
-      (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves') &&
+      (_isAllVarModel(model) || (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves')) &&
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
-    const stale = extractMarineAtOffset(marineHourlyCache, hourOffset);
+    const stale = extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
     if (stale?.features?.length) { lastKnownGoodMarine = stale; lastKnownGoodMarineModel = model || 'GFS'; lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel; lastKnownGoodMarine.__provider = expectedProvider; }
   }
 
-  const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${activeLayer || 'waves'}_${expectedProvider}_h${hourOffset}`);
+  const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${layerKey}_${expectedProvider}_h${hourOffset}`);
   const cachedResult = MARINE_CACHE.get(cacheKey);
   if (cachedResult && Date.now() - cachedResult.timestamp < 300000) return cachedResult.data;
 
-  const requestKey = `${model || 'GFS'}_${activeLayer || 'waves'}_${hourOffset}_${expectedProvider}_${viewHash}_${isPrefetch ? 'p' : 'l'}`;
+  const requestKey = `${model || 'GFS'}_${layerKey}_${hourOffset}_${expectedProvider}_${viewHash}_${isPrefetch ? 'p' : 'l'}`;
   if (inFlightMarineRequests.has(requestKey)) return inFlightMarineRequests.get(requestKey);
 
   if (!forceFetch && isInCooldown('marine')) {
@@ -757,7 +753,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       };
       persistCache(LS_MARINE_KEY, marineHourlyCache);
 
-      const result = extractMarineAtOffset(marineHourlyCache, hourOffset);
+      const result = extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
       if (result) {
         // v7.5: Success — reset retry counter and clear cooldown
         _marineRetryCount = 0;
@@ -774,12 +770,15 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         _cacheMarineResult(model || 'GFS', hourOffset, result, activeLayer);
         if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; }
         
-        // v7.0: Gated SWR background prefetch — cooldown + inflight + 5s delay
+        // v7.8: SWR prefetch disabled during active use — rate-limit-safe gate
         if (forecastDays < maxForecastDays && !isPrefetch && !signal?.aborted) {
+          const swrDelay = 15000; // 15s minimum delay
           setTimeout(() => {
             if (isInCooldown('marine') || inFlightMarineRequests.size > 0) return;
+            if (typeof window !== 'undefined' && (window.isScrubbingTimeline || window.__MARINE_FETCH_PENDING__)) return;
+            console.log(`[Marine] SWR prefetch starting: ${model} ${maxForecastDays}d`);
             fetchMarineData(bounds, zoom, null, hourOffset, true, model, activeLayer, true).catch(() => {});
-          }, 5000);
+          }, swrDelay);
         }
         
         return result;

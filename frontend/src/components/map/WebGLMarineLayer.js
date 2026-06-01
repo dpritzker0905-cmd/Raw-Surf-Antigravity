@@ -396,8 +396,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       }
 
       console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched`);
-      // v7.0: Delayed clear — don't blank immediately on layer change, wait for replacement
+      // v7.8: Hold during pending fetch; only clear if truly abandoned
       const clearTimer = setTimeout(() => {
+        if (window.__MARINE_FETCH_PENDING__) { console.log(`[WebGLMarine-Hold] Fetch pending, extending hold`); return; }
         if (!dataRef.current?.vectors?.length) {
           console.log(`[WebGLMarine-Clear] Confirmed empty after delay, clearing buffers`);
           engine.clearBuffers(gl);
