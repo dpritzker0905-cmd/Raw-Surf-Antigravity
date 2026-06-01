@@ -302,7 +302,9 @@ credentials.json
 backend/uploads/weather_products/
 
 # Local screenshots and scratch utilities
-*.png
+screenshot_*.png
+map_screenshot.png
+.screenshots/
 scratch/
 backend/scripts/test_endpoints.py
 Graph-Tools/
