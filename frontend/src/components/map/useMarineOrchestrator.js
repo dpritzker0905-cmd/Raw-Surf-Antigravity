@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache, getModelSafeMarine } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
-import { isInCooldown } from './marineControllerUtils';
+import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
+import { computeGridContentHash } from './marineGridHash';
 
 const loadGrid = (model, layer, hour, bounds, zoom) =>
   model === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(layer)
@@ -37,24 +38,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     } catch (e) { return null; }
   };
 
-  const computeGridContentHash = (grid, layer) => {
-    if (!grid?.vectors?.length) return 0;
-    const len = grid.vectors.length;
-    let hashSum = 0;
-    for (let i = 0; i < len; i++) {
-      const v = grid.vectors[i];
-      if (v) {
-        const comp = v[layer || 'waves'] || v;
-        if (comp) {
-          hashSum += Math.round((comp.speed || 0) * 100) +
-                     Math.round((comp.u || 0) * 100) +
-                     Math.round((comp.v || 0) * 100) +
-                     Math.round((comp.period || 0) * 100);
-        }
-      }
-    }
-    return hashSum;
-  };
+
 
   const _marineDataSignature = (data, layer) => {
     if (!data?.grid) return null;
@@ -578,11 +562,41 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (prev === timeOffsetHours) return;
     if (!mapInstance || !activeMarineLayersRef.current) return;
 
+    let selectedApiTimestamp = 'none';
+    let selectedIndex = -1;
+    let cacheStartStr = 'none';
+    let cacheEndStr = 'none';
+    let cacheForecastDays = 0;
+    let coverageRejected = false;
+    let extractedGrid = null;
+    let curModel = activeModelRef.current || 'GFS';
+    let curLayer = activeMarineLayerRef.current || 'waves';
+    
+    const cache = getMarineHourlyCache();
+
+    if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer)) {
+      const timeArray = cache.results[0]?.hourly?.time;
+      const targetMs = Date.now() + timeOffsetHours * 3600000;
+      const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+      selectedIndex = idx;
+      if (timeArray?.[idx]) {
+        selectedApiTimestamp = timeArray[idx];
+        const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
+        const delta = Math.abs(cachedMs - targetMs);
+        if (delta > 3 * 3600000) {
+          coverageRejected = true;
+        }
+      }
+      cacheForecastDays = cache.__forecastDays || 0;
+      if (cache.__coverageStartMs) cacheStartStr = new Date(cache.__coverageStartMs).toISOString();
+      if (cache.__coverageEndMs) cacheEndStr = new Date(cache.__coverageEndMs).toISOString();
+    }
+
     try {
-      const cache = getMarineHourlyCache(), curModel = activeModelRef.current || 'GFS', curLayer = activeMarineLayerRef.current || 'waves';
       if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer)) {
         const data = extractMarineAtOffset(cache, timeOffsetHours, curLayer);
         if (data) {
+          extractedGrid = data.grid;
           const sig = _marineDataSignature(data, curLayer);
           if (sig && sig !== lastCommittedSigRef.current) {
             const evtType = data.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
@@ -594,11 +608,48 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
             setMarineData(data);
           }
+          
+          // Populate scrub diagnostics
+          const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
+          const samples = sampleIndices.map(idx => {
+            const v = extractedGrid?.vectors?.[idx];
+            const comp = v?.[curLayer] || v;
+            return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
+          });
+
+          window.__MARINE_SCRUB_DIAG__ = {
+            requestedHour: timeOffsetHours,
+            targetMs: Date.now() + timeOffsetHours * 3600000,
+            selectedApiTimestamp,
+            selectedIndex,
+            cacheCoverageStart: cacheStartStr,
+            cacheCoverageEnd: cacheEndStr,
+            forecastDays: cacheForecastDays,
+            contentHash: computeGridContentHash(extractedGrid, curLayer),
+            samples,
+            coverageRejected,
+            timestamp: new Date().toISOString()
+          };
           return;
         }
       }
     } catch (e) { console.warn('[CACHE] Local timeline re-index failed:', e.message); }
-    
+
+    // If cache re-indexing failed or returned null (e.g. coverage rejected)
+    window.__MARINE_SCRUB_DIAG__ = {
+      requestedHour: timeOffsetHours,
+      targetMs: Date.now() + timeOffsetHours * 3600000,
+      selectedApiTimestamp,
+      selectedIndex,
+      cacheCoverageStart: cacheStartStr,
+      cacheCoverageEnd: cacheEndStr,
+      forecastDays: cacheForecastDays,
+      contentHash: 0,
+      samples: [],
+      coverageRejected,
+      timestamp: new Date().toISOString()
+    };
+
     if (window.isScrubbingTimeline) {
       const settle = setTimeout(() => { if (!window.isScrubbingTimeline) { marineFetchLocksRef.current.lastHash = null; manualMarineTriggerRef.current?.(); } }, 800);
       return () => clearTimeout(settle);

@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
+import { computeGridContentHash } from './marineGridHash';
 
 var LAYER_ID = 'webgl-marine-particles';
 
@@ -274,22 +275,15 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     let nonzeroCount = 0;
     let contentHash = 0;
+    const activeML = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     if (grid.vectors) {
       const len = grid.vectors.length;
-      const activeML = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-      let hashSum = 0;
       for (let i = 0; i < len; i++) {
         const v = grid.vectors[i];
         const comp = v?.[activeML] || v;
-        if (comp) {
-          if (comp.speed > 0) nonzeroCount++;
-          hashSum += Math.round((comp.speed || 0) * 100) +
-                     Math.round((comp.u || 0) * 100) +
-                     Math.round((comp.v || 0) * 100) +
-                     Math.round((comp.period || 0) * 100);
-        }
+        if (comp && comp.speed > 0) nonzeroCount++;
       }
-      contentHash = hashSum;
+      contentHash = computeGridContentHash(grid, activeML);
     }
 
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
@@ -347,6 +341,36 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       currSig: uploadSigResidency,
       timestamp: new Date().toISOString()
     };
+    // Add __MARINE_FORECAST_VECTOR_DIFF__ comparison
+    const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
+    const prevSamples = prev.samples || [];
+    const currSamples = sampleIndices.map(idx => {
+      const v = grid.vectors?.[idx];
+      const comp = v?.[activeML] || v;
+      return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
+    });
+
+    const diffs = sampleIndices.map((idx, sIdx) => {
+      const p = prevSamples[sIdx] || { speed: -1, u: 0, v: 0, period: -1 };
+      const c = currSamples[sIdx];
+      return {
+        index: idx,
+        prev: p,
+        curr: c,
+        identical: p.speed === c.speed && p.u === c.u && p.v === c.v && p.period === c.period
+      };
+    });
+
+    window.__MARINE_FORECAST_VECTOR_DIFF__ = {
+      prevHour: prev.timeOffsetHours,
+      currHour: timeOffsetHoursRef.current,
+      activeModel: gridModel,
+      activeLayer: activeMarineLayer,
+      samples: diffs,
+      allIdentical: diffs.every(d => d.identical),
+      timestamp: new Date().toISOString()
+    };
+
     window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ = diff;
 
     if (shouldSkip) {
@@ -394,7 +418,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       timeOffsetHours: timeOffsetHoursRef.current,
       geojsonSig: geojsonSig,
       themeSig: themeSig,
-      uploadSig: uploadSigResidency
+      uploadSig: uploadSigResidency,
+      samples: currSamples
     };
 
     if (!window.__WEBGL_MARINE_UPLOAD_COUNT__) window.__WEBGL_MARINE_UPLOAD_COUNT__ = 0;

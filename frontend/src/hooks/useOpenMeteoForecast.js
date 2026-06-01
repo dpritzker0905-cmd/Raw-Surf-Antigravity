@@ -258,11 +258,17 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         );
 
         // 2. Marine Selected
-        fetchQueue.push(
-          safeFetch('marine', marineBody)
-            .then(r => ({ type: 'marine_sel', ok: r.ok, value: r }))
-            .catch(e => ({ type: 'marine_sel', ok: false, reason: e }))
-        );
+        if (isExplicit) {
+          fetchQueue.push(
+            safeFetch('marine', marineBody)
+              .then(r => ({ type: 'marine_sel', ok: r.ok, value: r }))
+              .catch(e => ({ type: 'marine_sel', ok: false, reason: e }))
+          );
+        } else {
+          fetchQueue.push(
+            Promise.resolve({ type: 'marine_sel', ok: false, skipped: true })
+          );
+        }
 
         const results = await Promise.all(fetchQueue);
         const rx = {};
@@ -294,7 +300,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           forecastData: finalForecastData,
           marineData: finalMarineData,
           currentWeather: finalCurrentWeather,
-          isStale: !finalForecastData || !finalMarineData
+          isStale: !finalForecastData || (isExplicit ? !finalMarineData : false)
         };
 
       } catch (err) {
@@ -328,7 +334,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         setMarineData(result.marineData);
       } else {
         lastFetchKey.current = '';
-        setIsStale(true);
+        if (isExplicit) {
+          setIsStale(true);
+        }
         if (isCoordinateMoved || isExplicit) {
           setMarineData(null);
         }
