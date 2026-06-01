@@ -37,18 +37,30 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     } catch (e) { return null; }
   };
 
+  const computeGridContentHash = (grid, layer) => {
+    if (!grid?.vectors?.length) return 0;
+    const len = grid.vectors.length;
+    let hashSum = 0;
+    for (let i = 0; i < len; i++) {
+      const v = grid.vectors[i];
+      if (v) {
+        const comp = v[layer || 'waves'] || v;
+        if (comp) {
+          hashSum += Math.round((comp.speed || 0) * 100) +
+                     Math.round((comp.u || 0) * 100) +
+                     Math.round((comp.v || 0) * 100) +
+                     Math.round((comp.period || 0) * 100);
+        }
+      }
+    }
+    return hashSum;
+  };
+
   const _marineDataSignature = (data, layer) => {
     if (!data?.grid) return null;
     const g = data.grid;
-    let checksum = 0;
-    if (g.vectors?.length) {
-      const step = Math.max(1, Math.floor(g.vectors.length / 20));
-      for (let i = 0; i < g.vectors.length; i += step) {
-        const c = g.vectors[i]?.[layer || 'waves'];
-        if (c) checksum += (c.speed || 0) * 1000 | 0;
-      }
-    }
-    return `${g.__sourceModel}_${g.__componentLayer}_${data.hourOffset}_${g.__provider}_${g.cols}x${g.rows}_n${g.vectors?.length}_nz${g.__activeLayerNonzeroCount}_mx${g.__activeLayerMax?.toFixed?.(2) || 0}_r${g.__renderable}_ck${checksum}`;
+    const contentHash = computeGridContentHash(g, layer);
+    return `${g.__sourceModel}_${g.__componentLayer}_${data.hourOffset}_${g.__provider}_${g.cols}x${g.rows}_n${g.vectors?.length}_ch${contentHash}`;
   };
 
   const _logPipelineEvent = (eventType, detail) => {
@@ -588,11 +600,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     } catch (e) { console.warn('[CACHE] Local timeline re-index failed:', e.message); }
     
     if (window.isScrubbingTimeline) {
-      const settle = setTimeout(() => { if (!window.isScrubbingTimeline) { marineFetchLocksRef.current.lastHash = null; manualMarineTriggerRef.current?.(); } }, 500);
+      const settle = setTimeout(() => { if (!window.isScrubbingTimeline) { marineFetchLocksRef.current.lastHash = null; manualMarineTriggerRef.current?.(); } }, 800);
       return () => clearTimeout(settle);
     }
     marineFetchLocksRef.current.lastHash = null;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
+    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 400);
     return () => clearTimeout(t);
   }, [timeOffsetHours, mapInstance]);
 

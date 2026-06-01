@@ -191,7 +191,18 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
   // v7.8: All-var caches serve any layer; skip layer check for GFS/ICON
   if (!_isAllVarModel(model) && (marineHourlyCache.activeLayer || 'waves') !== layer) return false;
   if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
-  if (!hasTimeCoverage(marineHourlyCache, hourOffset)) return false;
+  
+  // Use explicit coverage check if available
+  if (marineHourlyCache.__coverageStartMs && marineHourlyCache.__coverageEndMs) {
+    const targetMs = Date.now() + hourOffset * 3600000;
+    // Coverage check: target time must fall between start and end (with a safe 1h buffer)
+    if (targetMs < marineHourlyCache.__coverageStartMs - 3600000 || targetMs > marineHourlyCache.__coverageEndMs + 3600000) {
+      return false;
+    }
+  } else {
+    if (!hasTimeCoverage(marineHourlyCache, hourOffset)) return false;
+  }
+  
   const isGlobalCached = !!marineHourlyCache.isGlobal;
   const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
   if (isGlobalCached !== isGlobalViewport) return false;
@@ -554,6 +565,12 @@ var inFlightMarineRequests = new Map();
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false) {
   if (!bounds) return getModelSafeMarine(model, hourOffset, activeLayer);
 
+  const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
+  const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
+  const maxForecastDays = apiModel === 'ncep_gfswave025' ? 16 : apiModel === 'gwam' ? 7 : apiModel === 'ecmwf_wam025' ? 10 : 3;
+  const requestedDays = isPrefetch ? maxForecastDays : hourOffset > 48 ? Math.ceil((hourOffset + 1) / 24) : 2;
+  const forecastDays = Math.min(maxForecastDays, requestedDays);
+
   // Viewport containment cache hit
   if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset, activeLayer)) {
     return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
@@ -597,8 +614,17 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const cachedResult = MARINE_CACHE.get(cacheKey);
   if (cachedResult && Date.now() - cachedResult.timestamp < 300000) return cachedResult.data;
 
-  const requestKey = `${model || 'GFS'}_${layerKey}_${hourOffset}_${expectedProvider}_${viewHash}_${isPrefetch ? 'p' : 'l'}`;
-  if (inFlightMarineRequests.has(requestKey)) return inFlightMarineRequests.get(requestKey);
+  // v7.14.2: Deduplicate requests by model + provider + layerKey + forecastDays/horizon
+  const requestKey = `${model || 'GFS'}_${layerKey}_fd${forecastDays}_${expectedProvider}_${viewHash}_${isPrefetch ? 'p' : 'l'}`;
+  if (inFlightMarineRequests.has(requestKey)) {
+    try {
+      console.log(`[Marine] Deduplicating concurrent request for model=${model} layerKey=${layerKey} forecastDays=${forecastDays} (awaiting in-flight promise)`);
+      await inFlightMarineRequests.get(requestKey);
+      return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
+    } catch (e) {
+      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'inflight_failed');
+    }
+  }
 
   if (!forceFetch && isInCooldown('marine')) {
     return getModelSafeMarine(model, hourOffset, activeLayer);
@@ -614,7 +640,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       const lats = points.map(p => p.lat);
       const lons = points.map(p => p.reqLng);
 
-      const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
       const _baseVars = ['wave_height','wave_direction','wave_period','swell_wave_height','swell_wave_direction','swell_wave_period'];
       const _swellVars = ['secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period'];
       const _windVars = ['wind_wave_height','wind_wave_direction','wind_wave_period'];
@@ -623,12 +648,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         'gwam': [..._baseVars, ..._windVars],
         'ecmwf_wam025': [..._baseVars, ..._swellVars, ..._windVars]
       };
-
-      const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
-      
-      const maxForecastDays = apiModel === 'ncep_gfswave025' ? 16 : apiModel === 'gwam' ? 7 : apiModel === 'ecmwf_wam025' ? 10 : 3;
-      const requestedDays = isPrefetch ? maxForecastDays : hourOffset > 48 ? Math.ceil((hourOffset + 1) / 24) : 2;
-      const forecastDays = Math.min(maxForecastDays, requestedDays);
 
       // v7.7: For GFS/ICON, request ALL supported vars to enable local remap on layer switch
       // For EURO, keep layer-scoped (Copernicus routing uses different variable sets)
@@ -726,11 +745,22 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       let allResults = Array.isArray(json) ? json : (json?.hourly ? points.map(() => json) : null);
       if (!allResults) return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'invalid_shape');
 
+      const timeArray = allResults[0]?.hourly?.time;
+      const validTimesCount = timeArray ? timeArray.length : 0;
+      const coverageStartMs = timeArray && timeArray[0] ? new Date(timeArray[0].endsWith('Z') ? timeArray[0] : timeArray[0] + 'Z').getTime() : Date.now();
+      const coverageEndMs = timeArray && timeArray[timeArray.length - 1] ? new Date(timeArray[timeArray.length - 1].endsWith('Z') ? timeArray[timeArray.length - 1] : timeArray[timeArray.length - 1] + 'Z').getTime() : Date.now();
+
       var detectedProvider = (allResults[0]?.__provider === 'copernicus') ? 'copernicus' : 'open-meteo';
       marineHourlyCache = {
         hash: viewHash, results: allResults, points, gridSize,
         bounds: gridBounds, timestamp: Date.now(),
-        model: model || 'GFS', activeLayer: activeLayer || 'waves', provider: detectedProvider, isGlobal
+        model: model || 'GFS', activeLayer: activeLayer || 'waves', provider: detectedProvider, isGlobal,
+        __coverageStartMs: coverageStartMs,
+        __coverageEndMs: coverageEndMs,
+        __forecastDays: forecastDays,
+        __validTimesCount: validTimesCount,
+        __model: model || 'GFS',
+        __layerKey: layerKey
       };
       persistCache(LS_MARINE_KEY, marineHourlyCache);
 

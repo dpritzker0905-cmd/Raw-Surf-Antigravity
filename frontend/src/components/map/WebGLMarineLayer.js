@@ -203,7 +203,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     rows: 0,
     vectorsLength: 0,
     nonzeroCount: 0,
-    sampleSum: 0,
+    contentHash: 0,
     timestamp: 0,
     timeOffsetHours: 0
   });
@@ -273,34 +273,52 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const boundsStr = grid.bounds ? `${grid.bounds.west.toFixed(2)}:${grid.bounds.south.toFixed(2)}:${grid.bounds.east.toFixed(2)}:${grid.bounds.north.toFixed(2)}` : 'none';
 
     let nonzeroCount = 0;
-    let sampleSum = 0;
+    let contentHash = 0;
     if (grid.vectors) {
       const len = grid.vectors.length;
       const activeML = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
+      let hashSum = 0;
       for (let i = 0; i < len; i++) {
         const v = grid.vectors[i];
         const comp = v?.[activeML] || v;
-        if (comp && comp.speed > 0) nonzeroCount++;
-      }
-      if (len > 0) {
-        const step = Math.max(1, Math.floor(len / 10));
-        for (let i = 0; i < len; i += step) {
-          const v = grid.vectors[i];
-          if (v) {
-            const comp = v[activeML] || v;
-            sampleSum += (comp?.speed || 0) + (comp?.u || 0) + (comp?.v || 0) + (comp?.period || 0);
-          }
+        if (comp) {
+          if (comp.speed > 0) nonzeroCount++;
+          hashSum += Math.round((comp.speed || 0) * 100) +
+                     Math.round((comp.u || 0) * 100) +
+                     Math.round((comp.v || 0) * 100) +
+                     Math.round((comp.period || 0) * 100);
         }
       }
+      contentHash = hashSum;
     }
 
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
-    const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_nz${nonzeroCount}_ss${sampleSum.toFixed(1)}_bnd_${boundsStr}_geo_${geojsonSig}_thm_${themeSig}`;
+    const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_ch${contentHash}_bnd_${boundsStr}_geo_${geojsonSig}_thm_${themeSig}`;
     const alreadyResident = !!engine._waveData;
 
     // Build the diff diagnostic object
     const prev = lastUploadedGridRef.current || {};
+    const hourChanged = prev.timeOffsetHours !== timeOffsetHoursRef.current;
+    const contentHashChanged = prev.contentHash !== contentHash;
+
+    let shouldSkip = false;
+    let skipReason = 'none';
+
+    if (alreadyResident) {
+      if (prev.activeModel === gridModel &&
+          prev.activeMarineLayer === activeMarineLayer &&
+          prev.gridProvider === gridProvider &&
+          prev.boundsStr === boundsStr &&
+          prev.geojsonSig === geojsonSig &&
+          prev.themeSig === themeSig &&
+          prev.contentHash === contentHash) {
+        
+        shouldSkip = true;
+        skipReason = hourChanged ? 'skipped_identical_content_across_hours' : 'duplicate_skipped';
+      }
+    }
+
     const diff = {
       model: `${prev.activeModel || 'none'} -> ${gridModel}`,
       layer: `${prev.activeMarineLayer || 'none'} -> ${activeMarineLayer}`,
@@ -309,34 +327,39 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       bounds: `${prev.boundsStr || 'none'} -> ${boundsStr}`,
       vectorCount: `${prev.vectorsLength || 0} -> ${grid.vectors.length}`,
       nonzeroCount: `${prev.nonzeroCount || 0} -> ${nonzeroCount}`,
-      sampleSum: `${prev.sampleSum?.toFixed?.(1) || '0.0'} -> ${sampleSum.toFixed(1)}`,
+      contentHash: `${prev.contentHash !== undefined ? prev.contentHash : 'none'} -> ${contentHash}`,
       landMask: `${prev.geojsonSig || 'none'} -> ${geojsonSig}`,
       theme: `${prev.themeSig || 'none'} -> ${themeSig}`,
       modelChanged: prev.activeModel !== gridModel,
       layerChanged: prev.activeMarineLayer !== activeMarineLayer,
-      hourChanged: prev.timeOffsetHours !== timeOffsetHoursRef.current,
+      hourChanged: hourChanged,
       providerChanged: prev.gridProvider !== gridProvider,
       boundsChanged: prev.boundsStr !== boundsStr,
       vectorCountChanged: prev.vectorsLength !== grid.vectors.length,
       nonzeroCountChanged: prev.nonzeroCount !== nonzeroCount,
-      sampleSumChanged: Math.abs((prev.sampleSum || 0) - sampleSum) > 0.01,
+      contentHashChanged: contentHashChanged,
       landMaskChanged: prev.geojsonSig !== geojsonSig,
       themeChanged: prev.themeSig !== themeSig,
       alreadyResident: alreadyResident,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
       prevSig: prev.uploadSig || 'none',
       currSig: uploadSigResidency,
       timestamp: new Date().toISOString()
     };
     window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ = diff;
 
-    if (lastUploadedSignatureRef.current === uploadSigResidency && alreadyResident) {
+    if (shouldSkip) {
+      if (skipReason === 'skipped_identical_content_across_hours') {
+        console.log(`[WebGLMarine] Skip upload for hour +${timeOffsetHoursRef.current}h: content is mathematically identical to hour +${prev.timeOffsetHours}h (hash=${contentHash})`);
+      }
       if (!window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__) window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__ = 0;
       window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__++;
       if (window.__MARINE_PIPELINE_TRUTH__?.counters) {
         window.__MARINE_PIPELINE_TRUTH__.counters.duplicateUploadSkipped = window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__;
       }
-      window.__WEBGL_MARINE_UPLOAD_REASON__ = 'duplicate_skipped';
-      updateWebGLMarineLayerDiag('duplicate_skipped');
+      window.__WEBGL_MARINE_UPLOAD_REASON__ = skipReason;
+      updateWebGLMarineLayerDiag(skipReason);
       return;
     }
 
@@ -366,7 +389,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       rows: grid.rows,
       vectorsLength: grid.vectors.length,
       nonzeroCount: nonzeroCount,
-      sampleSum: sampleSum,
+      contentHash: contentHash,
       timestamp: grid.timestamp || revision || 0,
       timeOffsetHours: timeOffsetHoursRef.current,
       geojsonSig: geojsonSig,

@@ -20,6 +20,25 @@ import { useMemo, useRef } from 'react';
 import { buildSimulationField } from './SimulationFieldBuilder';
 import { getFieldDiagnostics, isFieldPopulated } from './SimulationField';
 
+function computeGridContentHash(grid, layer) {
+  if (!grid?.vectors?.length) return 0;
+  const len = grid.vectors.length;
+  let hashSum = 0;
+  for (let i = 0; i < len; i++) {
+    const v = grid.vectors[i];
+    if (v) {
+      const comp = v[layer || 'waves'] || v;
+      if (comp) {
+        hashSum += Math.round((comp.speed || 0) * 100) +
+                   Math.round((comp.u || 0) * 100) +
+                   Math.round((comp.v || 0) * 100) +
+                   Math.round((comp.period || 0) * 100);
+      }
+    }
+  }
+  return hashSum;
+}
+
 /**
  * Build a SimulationField from all available weather data sources.
  *
@@ -69,7 +88,8 @@ export function useSimulationField({
 
     // Compute a strict data signature to see if the actual grid contents changed
     const wSig = windData ? `${windData.vectors?.length || 0}_${windData.bounds?.west?.toFixed(2) || 0}` : 'null';
-    const mSig = effectiveMarineData ? `${effectiveMarineData.grid?.vectors?.length || 0}_${effectiveMarineData.grid?.__componentLayer || 'x'}_${effectiveMarineData.grid?.__activeLayerNonzeroCount || 0}_${effectiveMarineData.grid?.__renderable}` : 'null';
+    const mContentHash = effectiveMarineData?.grid ? computeGridContentHash(effectiveMarineData.grid, activeMarineLayer) : 0;
+    const mSig = effectiveMarineData ? `${effectiveMarineData.grid?.vectors?.length || 0}_${effectiveMarineData.grid?.__componentLayer || 'x'}_ch${mContentHash}_${effectiveMarineData.grid?.__renderable}` : 'null';
     const pSig = pressureData ? `${pressureData.vectors?.length || 0}_${pressureData.bounds?.west?.toFixed(2) || 0}` : 'null';
     const currentSig = `${wSig}_${mSig}_${pSig}_${activeModel}_${timeOffsetHours}_${activeMarineLayer}`;
 
