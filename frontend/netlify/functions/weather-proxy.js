@@ -375,30 +375,19 @@ exports.handler = async function(event, context) {
         console.log(`[weather-proxy] Falling back to chunked GET for ${type}`);
         const result = await chunkedGetFallback(targetUrl, body);
         if (result.status === 429) {
-          // v7.5: Retry once with reduced grid (first 120 points only) after 3s delay
-          if (numPoints > 120) {
-            console.log(`[weather-proxy] Retrying with reduced grid (120 of ${numPoints} pts) after 3s`);
-            await new Promise(r => setTimeout(r, 3000));
-            const reducedBody = { ...body, latitude: body.latitude.slice(0, 120), longitude: body.longitude.slice(0, 120) };
-            const retryResult = await chunkedGetFallback(targetUrl, reducedBody);
-            if (retryResult.status === 200 && retryResult.data) {
-              data = retryResult.data;
-              console.log(`[weather-proxy] Reduced grid retry succeeded: ${retryResult.data.length} results`);
-            }
-          }
-          if (!data) {
-            const elapsedMs = Date.now() - startTime;
-            console.log(`[weather-proxy-diag] 429 final | model=${body.models?.[0] || 'unknown'} pts=${numPoints} elapsed=${elapsedMs}ms`);
-            return {
-              statusCode: 429,
-              headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-                'X-Rate-Limited': 'true', 'X-Points-Attempted': String(numPoints) },
-              body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true,
-                pointsAttempted: numPoints, elapsedMs })
-            };
-          }
+          // v7.6: Return clean 429 — frontend has adaptive cooldown + auto-retry
+          // (Removed v7.5 reduced-grid retry that caused 120-vs-729 mismatch)
+          const elapsedMs = Date.now() - startTime;
+          console.log(`[weather-proxy-diag] 429 final | model=${body.models?.[0] || 'unknown'} pts=${numPoints} elapsed=${elapsedMs}ms`);
+          return {
+            statusCode: 429,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
+              'X-Rate-Limited': 'true', 'X-Points-Attempted': String(numPoints) },
+            body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true,
+              pointsAttempted: numPoints, elapsedMs })
+          };
         }
-        if (!data && (result.status !== 200 || !result.data)) {
+        if (result.status !== 200 || !result.data) {
           const elapsedMs = Date.now() - startTime;
           return {
             statusCode: result.status || 502,
@@ -406,7 +395,7 @@ exports.handler = async function(event, context) {
             body: JSON.stringify({ error: result.error || 'Chunked GET failed', statusCode: result.status })
           };
         }
-        if (!data) data = result.data;
+        data = result.data;
       }
 
       // Cache and return

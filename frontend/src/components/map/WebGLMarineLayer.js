@@ -50,7 +50,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         // Register with RenderPlanDispatcher for evolved wave field data
         registerMarineEngine(engine, _gl);
         if (dataRef.current?.vectors?.length) {
-          console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors (FCE direct-grid)');
+          console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors (forecast-authoritative)');
           engine.setWaveData(_gl, dataRef.current, landGeoJSONRef.current);
         }
       } catch (e) {
@@ -235,12 +235,11 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           const gl = glRef.current || mapInstance?.painter?.context?.gl;
           if (engine && gl) {
             engine._landGeoJSON = geojson;
-            if (!engine._dispatcherActive && dataRef.current?.vectors?.length) {
-              console.log('[WebGLMarineLayer] Upgrading active GPU wave texture to high-resolution land mask');
+            if (dataRef.current?.vectors?.length) {
+              console.log('[WebGLMarineLayer] Upgrading active GPU wave texture to high-resolution land mask (forecast-authoritative)');
+              engine._dispatcherActive = false; // v7.6: React path is authoritative
               engine.setWaveData(gl, dataRef.current, geojson);
               if (mapInstance) mapInstance.triggerRepaint();
-            } else {
-              console.log('[WebGLMarineLayer] High-resolution land mask stashed; background dispatcher will apply it on the next frame');
             }
           }
           if (mapInstance) {
@@ -642,13 +641,14 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         for (const vec of data.vectors) {
           if (vec && vec.speed > 0) { cnt++; sumS += vec.speed; if (vec.speed > maxS) maxS = vec.speed; }
         }
-        console.log(`[WebGLMarine] setWaveData: ${data.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (FCE direct-grid)`);
+        console.log(`[WebGLMarine] setWaveData: ${data.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (forecast-authoritative)`);
         
         const uploadStart = Date.now();
+        engine._dispatcherActive = false; // v7.6: React forecast path is authoritative
         engine.setWaveData(gl, data, landGeoJSONRef.current);
         const uploadElapsed = Date.now() - uploadStart;
 
-        updateMarineTruthTrace('upload', data, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'direct_mapwebgl', null, true);
+        updateMarineTruthTrace('upload', data, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 
         if (typeof window !== 'undefined') {
           window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
@@ -724,6 +724,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
             waveDataPresentBefore: !!engine?._waveData,
             waveDataPresentAfter: true,
             directUploadBlockedReason: null,
+            uploadSource: 'forecast_direct',
+            fceOverrideActive: false,
             cacheHit: false,
             cacheSource: 'none',
             networkStatus: 200,

@@ -43,8 +43,16 @@ function hydrateGridFromLocalStorage(activeModel, activeMarineLayer, hourOffset)
 
     const sourceModel = cache.model || 'GFS';
     const provider = cache.provider || 'open-meteo';
-    if (sourceModel !== activeModel) return null;
-    if (provider === 'fallback_safe_zero') return null;
+    const cachedLayer = cache.activeLayer || 'waves';
+    if (sourceModel !== activeModel) {
+      if (typeof window !== 'undefined') window.__MARINE_BOOTSTRAP_GRID_DIAG__ = { hydrated: false, reason: `Model mismatch: cache=${sourceModel} vs active=${activeModel}`, timestamp: new Date().toISOString() };
+      return null;
+    }
+    if (cachedLayer !== activeMarineLayer) {
+      if (typeof window !== 'undefined') window.__MARINE_BOOTSTRAP_GRID_DIAG__ = { hydrated: false, reason: `Layer mismatch: cache=${cachedLayer} vs active=${activeMarineLayer}`, timestamp: new Date().toISOString() };
+      return null;
+    }
+    if (provider === 'fallback_safe_zero' || provider === 'estimated') return null;
 
     const timeArray = cache.results[0]?.hourly?.time;
     if (!timeArray || timeArray.length === 0) return null;
@@ -242,8 +250,10 @@ export function updateMarineTruthTrace(stage, data, activeModel, activeLayer, ho
     gridProvider: data?.grid?.__gridProvider || data?.__gridProvider || 'none',
     componentLayer: data?.grid?.__componentLayer || data?.__componentLayer || 'none',
     sourcePath: sourcePath || 'none',
+    uploadSource: sourcePath || 'none',
     vectorCount: vCount,
     nonzeroCount: nzCount,
+    gridBounds: data?.grid?.bounds || data?.bounds || null,
     heightMin: hMin === Infinity ? 0 : hMin,
     heightMax: hMax === -Infinity ? 0 : hMax,
     heightMean: nzCount > 0 ? hSum / nzCount : 0,
@@ -254,6 +264,8 @@ export function updateMarineTruthTrace(stage, data, activeModel, activeLayer, ho
     gridChecksum: Math.round(gridSum * 100),
     uploadSequenceNumber: window.__MARINE_UPLOAD_SEQ_NUM__ || 0,
     gpuTextureUploaded: gpuUploaded,
+    fceOverrideActive: window.__ALLOW_FCE_MARINE_UPLOAD__ === true,
+    dispatcherBlocked: !!window.__FCE_MARINE_BLOCKED__?.blocked,
     rejectionReason,
     httpStatus,
     cacheHit: sourcePath?.includes('cache') || sourcePath?.includes('direct') || sourcePath?.includes('orchestrator') || sourcePath?.includes('dispatcher'),
@@ -430,26 +442,23 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     }
   }
 
+  // v7.6: FCE marine texture uploads are DISABLED by default.
+  // Forecast-authoritative data from React/WebGLMarineLayer is the only source.
+  // Enable FCE marine uploads for diagnostics only: window.__ALLOW_FCE_MARINE_UPLOAD__ = true
   if (_marineEngine && _marineGL && field.sources.marine) {
+    if (typeof window !== 'undefined' && window.__ALLOW_FCE_MARINE_UPLOAD__ !== true) {
+      window.__FCE_MARINE_BLOCKED__ = { blocked: true, reason: 'v7.6: FCE marine uploads disabled — forecast-authoritative mode', frameIndex, timestamp: new Date().toISOString() };
+      return;
+    }
     if (typeof window !== 'undefined') {
-      if (window.isScrubbingTimeline) {
-        window.lastScrubTime = Date.now();
-      }
+      if (window.isScrubbingTimeline) { window.lastScrubTime = Date.now(); }
       const isScrubbing = window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500));
-      if (isScrubbing) {
-        return;
-      }
+      if (isScrubbing) return;
       const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
       const activeModel = renderPlan.activeModel || renderPlan.model || 'GFS';
-      if (window.activeTimeOffsetHours !== undefined && field.hourOffset !== window.activeTimeOffsetHours) {
-        return;
-      }
-      if (window.activeModel !== undefined && activeModel !== window.activeModel) {
-        return;
-      }
-      if (window.activeMarineLayer !== undefined && activeMarineLayer !== window.activeMarineLayer) {
-        return;
-      }
+      if (window.activeTimeOffsetHours !== undefined && field.hourOffset !== window.activeTimeOffsetHours) return;
+      if (window.activeModel !== undefined && activeModel !== window.activeModel) return;
+      if (window.activeMarineLayer !== undefined && activeMarineLayer !== window.activeMarineLayer) return;
     }
     const activeMarineLayer = renderPlan.waveField.marineLayer || 'waves';
     const activeModel = renderPlan.activeModel || renderPlan.model || 'GFS';
@@ -592,7 +601,9 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
           maxHeight: gridToUpload ? gridToUpload.maxHeight : 0,
           meanHeight: gridToUpload ? gridToUpload.meanHeight : 0,
           timeOffsetHours: field.hourOffset,
-          isOverridingReactData: true,
+          isOverridingReactData: false,  // v7.6: FCE marine uploads disabled by default
+          fceGateEnabled: typeof window !== 'undefined' && window.__ALLOW_FCE_MARINE_UPLOAD__ === true,
+          dispatcherBlocked: typeof window !== 'undefined' && window.__ALLOW_FCE_MARINE_UPLOAD__ !== true,
           
           renderAccepted: isValid,
           renderHeldLastGood: usingLastGood || (!isValid && !isHardMismatch),
