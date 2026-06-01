@@ -56,6 +56,21 @@ async def copernicus_marine_endpoint(req: CopernicusMarineRequest):
                    f"Global grid requests should use Open-Meteo ecmwf_wam025 model."
         )
 
+    # v7.14.7: Preflight Bounding Box Span Validation
+    # Prevent heavy CMEMS queries that will exceed boundary limits
+    if len(req.latitude) <= 2:
+        lat_span = max(req.latitude) - min(req.latitude) + 0.3
+        lon_span = max(req.longitude) - min(req.longitude) + 0.3
+    else:
+        lat_span = max(req.latitude) - min(req.latitude) + 0.1
+        lon_span = max(req.longitude) - min(req.longitude) + 0.1
+
+    if lat_span > 30.001 or lon_span > 60.001:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Copernicus Marine fetch failed: Bbox too large: {lat_span:.2f}° x {lon_span:.2f}°. Max: 30.0° x 60.0°."
+        )
+
     # v6.4: Clamp forecast_days to 3 max — prevents old clients from requesting 10 days
     clamped_days = min(req.forecast_days, 3)
 

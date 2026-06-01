@@ -399,7 +399,23 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
                 const b = mapInstance.getBounds(), west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
                 const lngSpan = east - west, latSpan = north - south, padding = 0.25;
                 const vpBounds = { west: west - lngSpan * padding, east: east + lngSpan * padding, south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding) };
-                const componentGrid = await fetchCopernicusComponentGrid(vpBounds, layer, timeOffset, zoom);
+                
+                const stateValidator = {
+                  getCurrentZoom: () => mapInstance?.getZoom(),
+                  getCurrentBounds: () => {
+                    try {
+                      const b2 = mapInstance.getBounds();
+                      return { west: b2.getWest(), south: b2.getSouth(), east: b2.getEast(), north: b2.getNorth() };
+                    } catch (e) { return null; }
+                  },
+                  isActiveIntent: () => (
+                    activeModelRef.current === 'EURO' &&
+                    activeMarineLayerRef.current === layer &&
+                    timeOffsetRef.current === timeOffset
+                  )
+                };
+
+                const componentGrid = await fetchCopernicusComponentGrid(vpBounds, layer, timeOffset, zoom, stateValidator);
                 if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
                   data = mergeComponentGrid(data, componentGrid, layer);
                   if (data?.grid) { data.grid.__baseProvider = 'open-meteo'; data.grid.__overlayProvider = 'copernicus'; data.grid.__isBlended = true; }
@@ -636,6 +652,29 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     } catch (e) { console.warn('[CACHE] Local timeline re-index failed:', e.message); }
 
     // If cache re-indexing failed or returned null (e.g. coverage rejected)
+    if (coverageRejected) {
+      let renderedHour = timeOffsetHours;
+      if (cache?.results?.[0]?.hourly?.time) {
+        const timeArray = cache.results[0].hourly.time;
+        if (timeArray[selectedIndex]) {
+          const closestTimeMs = new Date(timeArray[selectedIndex].endsWith('Z') ? timeArray[selectedIndex] : timeArray[selectedIndex] + 'Z').getTime();
+          renderedHour = Math.round((closestTimeMs - Date.now()) / 3600000);
+        }
+      }
+      window.__MARINE_HEATMAP_STATUS__ = {
+        status: 'retained_previous_hour_warning',
+        requestedHour: timeOffsetHours,
+        renderedHour: renderedHour,
+        coverageRejected: true,
+        retainedPrevious: true,
+        blockedReason: 'cache_coverage_exceeded'
+      };
+    } else {
+      if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour_warning') {
+        window.__MARINE_HEATMAP_STATUS__ = null;
+      }
+    }
+
     window.__MARINE_SCRUB_DIAG__ = {
       requestedHour: timeOffsetHours,
       targetMs: Date.now() + timeOffsetHours * 3600000,

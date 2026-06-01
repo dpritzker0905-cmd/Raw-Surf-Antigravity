@@ -68,6 +68,14 @@ var lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarin
 var lastKnownGoodMarineModel = _hydratedMarine?.model || 'GFS';
 if (lastKnownGoodMarine) lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
 
+function estimateRequestCost(type, model, pointCount, hourlyVarCount, forecastDays) {
+  if (type === 'tiles') return 50000;
+  const timeBytes = forecastDays * 24 * 25;
+  const varBytes = hourlyVarCount * forecastDays * 24 * 8;
+  const metadataBytes = 1500;
+  return pointCount * (timeBytes + varBytes + metadataBytes);
+}
+
 // v7.8: Helper — GFS/ICON use all-variable cache, EURO stays layer-scoped
 function _isAllVarModel(model) { return (model || 'GFS') !== 'EURO'; }
 
@@ -90,7 +98,10 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
 export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
   const wanted = requestedModel || 'GFS', wantedLayer = requestedLayer || 'waves', wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
   let hitData = null, cacheSource = 'none', staleHour = false, returnedHour = null;
-  if (_isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted) {
+  const cacheLayerKey = marineHourlyCache?.__layerKey || 'all';
+  const isCacheMatch = cacheLayerKey === 'all' || cacheLayerKey === wantedLayer;
+  
+  if (_isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted && isCacheMatch) {
     try {
       const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
       if (reExtracted?.grid?.vectors?.length > 0) { hitData = reExtracted; cacheSource = 'raw_hourly_cache'; }
@@ -189,7 +200,9 @@ function hasTimeCoverage(cache, hourOffset) {
 export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 'waves') {
   if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
   if (marineHourlyCache.model !== (model || 'GFS')) return false;
-  // v7.8: All-var caches serve any layer; skip layer check for GFS/ICON
+  // v7.8: All-var caches serve any layer; skip layer check for GFS/ICON unless the cache is layer-scoped
+  const cacheLayerKey = marineHourlyCache.__layerKey || 'all';
+  if (cacheLayerKey !== 'all' && cacheLayerKey !== layer) return false;
   if (!_isAllVarModel(model) && (marineHourlyCache.activeLayer || 'waves') !== layer) return false;
   if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
   
@@ -559,17 +572,6 @@ var inFlightMarineRequests = new Map();
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false) {
   if (!bounds) return getModelSafeMarine(model, hourOffset, activeLayer);
 
-  const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
-  const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
-  const maxForecastDays = apiModel === 'ncep_gfswave025' ? 16 : apiModel === 'gwam' ? 7 : apiModel === 'ecmwf_wam025' ? 10 : 3;
-  const requestedDays = isPrefetch ? maxForecastDays : hourOffset > 48 ? Math.ceil((hourOffset + 1) / 24) : 2;
-  const forecastDays = Math.min(maxForecastDays, requestedDays);
-
-  // Viewport containment cache hit
-  if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset, activeLayer)) {
-    return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
-  }
-
   // Adjust for Pacific wrap
   let west = bounds.west, east = bounds.east;
   if (east < west) east += 360;
@@ -581,15 +583,93 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (latMax <= latMin) { latMin = -80; latMax = 85; }
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
+  // Calculate points and count early to run cost estimation
+  const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
+  const pointCount = points.length || 1;
+
+  const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
+  const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
+  const maxForecastDays = apiModel === 'ncep_gfswave025' ? 16 : apiModel === 'gwam' ? 7 : apiModel === 'ecmwf_wam025' ? 10 : 3;
+  const requestedDays = isPrefetch ? maxForecastDays : hourOffset > 48 ? Math.ceil((hourOffset + 1) / 24) : 2;
+  let forecastDays = Math.min(maxForecastDays, requestedDays);
+
+  const _baseVars = ['wave_height','wave_direction','wave_period','swell_wave_height','swell_wave_direction','swell_wave_period'];
+  const _swellVars = ['secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period'];
+  const _windVars = ['wind_wave_height','wind_wave_direction','wind_wave_period'];
+  const allVarsList = apiModel === 'gwam' ? [..._baseVars, ..._windVars] : [..._baseVars, ..._swellVars, ..._windVars];
+  const allVarsCount = allVarsList.length;
+
+  let varFetchMode = 'all';
+  let activeVars = [];
+
+  const isAllVarModel = (model !== 'EURO');
+
+  // We choose all-variable fetch ONLY if:
+  // - GFS/ICON model
+  // - forecastDays <= 2
+  // - estimated payload is well below our 4.5MB budget
+  const estimatedAllVarBytes = estimateRequestCost('marine', model, pointCount, allVarsCount, forecastDays);
+  if (isAllVarModel && forecastDays <= 2 && estimatedAllVarBytes <= 4500000) {
+    varFetchMode = 'all';
+    activeVars = [...allVarsList];
+  } else {
+    varFetchMode = 'layer_scoped';
+    // Active-layer scoped variables list
+    if (activeLayer === 'waves') {
+      activeVars = ['wave_height', 'wave_direction', 'wave_period'];
+    } else if (activeLayer === 'swell_1') {
+      activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
+    } else if (activeLayer === 'swell_2') {
+      if (apiModel === 'gwam') activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
+      else activeVars = ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'];
+    } else if (activeLayer === 'wind_waves') {
+      activeVars = ['wind_wave_height', 'wind_wave_direction', 'wind_wave_period'];
+    } else {
+      activeVars = ['wave_height', 'wave_direction', 'wave_period'];
+    }
+  }
+
+  // Always include wave_height for ocean mask validation
+  if (!activeVars.includes('wave_height')) {
+    activeVars.push('wave_height');
+  }
+
+  // Filter against API model capability
+  let marineVarList = activeVars.filter(v => allVarsList.includes(v));
+  if (marineVarList.length === 0) {
+    marineVarList = allVarsList.slice(0, 3);
+  }
+
+  // Preflight cost check and clamp forecastDays dynamically if still unsafe
+  let estimatedBytes = estimateRequestCost('marine', model, pointCount, marineVarList.length, forecastDays);
+  if (estimatedBytes > 4500000) {
+    // Dynamically solve for maximum safe forecastDays:
+    // pointCount * (24 * 19 + vars * 24 * 6) * days + pointCount * 1000 <= 4500000
+    const bytesPerDay = pointCount * (24 * 19 + marineVarList.length * 24 * 6);
+    const maxSafeDays = Math.floor((4500000 - pointCount * 1000) / bytesPerDay);
+    
+    // For GFS/ICON extended forecast heatmaps, prefer fetching target forecast window:
+    const targetRequiredDays = Math.ceil((hourOffset + 1) / 24);
+    if (targetRequiredDays > maxSafeDays) {
+      console.warn(`[Marine] Target hour +${hourOffset}h requires ${targetRequiredDays} days, but safe days limit is ${maxSafeDays}. Clamping to safeDays.`);
+    }
+    forecastDays = Math.min(forecastDays, Math.max(1, maxSafeDays));
+    estimatedBytes = estimateRequestCost('marine', model, pointCount, marineVarList.length, forecastDays);
+  }
+
+  // Viewport containment cache hit
+  if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset, activeLayer)) {
+    return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
+  }
+
   const expectedProvider = 'open-meteo';
-  // v7.8: For all-var models, cache key omits layer so one cache serves all sublayers
-  const layerKey = _isAllVarModel(model) ? 'all' : (activeLayer || 'waves');
+  const layerKey = varFetchMode === 'all' ? 'all' : (activeLayer || 'waves');
   const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${layerKey}_${expectedProvider}`);
 
   // Check hourly cache
   if (marineHourlyCache.hash === viewHash &&
       marineHourlyCache.model === (model || 'GFS') &&
-      (_isAllVarModel(model) || (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves')) &&
+      (layerKey === 'all' || (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves')) &&
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL &&
       hasTimeCoverage(marineHourlyCache, hourOffset)) {
@@ -597,7 +677,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   }
 
   if (marineHourlyCache.hash && marineHourlyCache.model === (model || 'GFS') &&
-      (_isAllVarModel(model) || (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves')) &&
+      (layerKey === 'all' || (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves')) &&
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const stale = extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
@@ -659,46 +739,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const fetchSignal = signal || (isPrefetch ? null : marinAbortController.signal);
 
     try {
-      let { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
       const lats = points.map(p => p.lat);
       const lons = points.map(p => p.reqLng);
-
-      const _baseVars = ['wave_height','wave_direction','wave_period','swell_wave_height','swell_wave_direction','swell_wave_period'];
-      const _swellVars = ['secondary_swell_wave_height','secondary_swell_wave_direction','secondary_swell_wave_period'];
-      const _windVars = ['wind_wave_height','wind_wave_direction','wind_wave_period'];
-      const MODEL_SUPPORTED_VARS = {
-        'ncep_gfswave025': [..._baseVars, ..._swellVars, ..._windVars],
-        'gwam': [..._baseVars, ..._windVars],
-        'ecmwf_wam025': [..._baseVars, ..._swellVars, ..._windVars]
-      };
-
-      // v7.7: For GFS/ICON, request ALL supported vars to enable local remap on layer switch
-      // For EURO, keep layer-scoped (Copernicus routing uses different variable sets)
-      const isAllVarModel = (model !== 'EURO');
-      let activeVars;
-      if (isAllVarModel) {
-        activeVars = [...MODEL_SUPPORTED_VARS[apiModel]];
-      } else if (activeLayer === 'waves') {
-        activeVars = ['wave_height', 'wave_direction', 'wave_period'];
-      } else if (activeLayer === 'swell_1') {
-        activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
-      } else if (activeLayer === 'swell_2') {
-        if (apiModel === 'gwam') activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
-        else activeVars = ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'];
-      } else if (activeLayer === 'wind_waves') {
-        activeVars = ['wind_wave_height', 'wind_wave_direction', 'wind_wave_period'];
-      } else {
-        activeVars = ['wave_height', 'wave_direction', 'wave_period'];
-      }
-
-      let marineVarList = activeVars.filter(v => MODEL_SUPPORTED_VARS[apiModel].includes(v));
-      if (marineVarList.length === 0) {
-        marineVarList = MODEL_SUPPORTED_VARS[apiModel].slice(0, 3);
-      }
-      // v7.1: Always include wave_height as ocean-mask variable (negligible payload, reliable isOcean)
-      if (!marineVarList.includes('wave_height') && MODEL_SUPPORTED_VARS[apiModel].includes('wave_height')) {
-        marineVarList.push('wave_height');
-      }
 
       const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: forecastDays };
       if (model && MARINE_OM_MODELS[model]) body.models = [MARINE_OM_MODELS[model]];
@@ -761,6 +803,28 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       }
 
       if (!res.ok) {
+        if (res.status === 413) {
+          console.warn('[Marine] Payload size limit exceeded (413). Setting response_too_large_prevented.');
+          if (typeof window !== 'undefined') {
+            window.__MARINE_HEATMAP_STATUS__ = {
+              status: 'response_too_large_prevented',
+              requestedModel: model,
+              requestedLayer: activeLayer,
+              requestedHour: hourOffset
+            };
+            window.__MARINE_FETCH_DIAG__ = {
+              activeModel: model || 'GFS',
+              activeLayer: activeLayer,
+              timeOffsetHours: hourOffset,
+              provider: 'none',
+              httpStatus: 413,
+              elapsedMs: Date.now() - fetchStart,
+              vectorCount: 0,
+              timestamp: new Date().toISOString()
+            };
+          }
+          return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'payload_too_large');
+        }
         if (res.status === 429) {
           enterCooldown('marine');
           logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: 429, result: 'rate_limited_fallback', elapsedMs: Date.now() - fetchStart });

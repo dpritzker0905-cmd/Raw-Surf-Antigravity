@@ -166,7 +166,11 @@ function computeRegionalGrid(bounds, gridSize) {
       var normLng = lng;
       if (normLng > 180) normLng -= 360;
       if (normLng < -180) normLng += 360;
-      points.push({ lat, lng: normLng, monotonicLng: lng });
+      points.push({
+        lat: Number(lat.toFixed(4)),
+        lng: Number(normLng.toFixed(4)),
+        monotonicLng: Number(lng.toFixed(4))
+      });
     }
   }
 
@@ -190,7 +194,7 @@ function findClosestHourIndex(timeArray, targetMs) {
 }
 
 /**
- * Clamp bounds around their geographic center if they exceed the maximum safe dimensions (30° lat x 60° lon) for the Copernicus backend.
+ * Clamp bounds around their geographic center if they exceed the maximum safe dimensions (28° lat x 56° lon) for the Copernicus backend.
  */
 function clampBounds(bounds) {
   var latMin = bounds.south;
@@ -214,14 +218,15 @@ function clampBounds(bounds) {
 
   var isClamped = false;
 
-  if (latDiff > 30) {
-    clampedSouth = latCenter - 15;
-    clampedNorth = latCenter + 15;
+  // v7.14.7: Secure 28° × 56° maximum bounds limit
+  if (latDiff > 28) {
+    clampedSouth = latCenter - 14;
+    clampedNorth = latCenter + 14;
     isClamped = true;
   }
-  if (lonDiff > 60) {
-    clampedWest = lonCenter - 30;
-    clampedEast = lonCenter + 30;
+  if (lonDiff > 56) {
+    clampedWest = lonCenter - 28;
+    clampedEast = lonCenter + 28;
     isClamped = true;
   }
 
@@ -237,7 +242,7 @@ function clampBounds(bounds) {
   };
 }
 
-async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheKey) {
+async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheKey, stateValidator) {
   var startTime = Date.now();
   var vars = COPERNICUS_LAYER_VARS[layer];
   var fields = LAYER_FIELD_MAP[layer];
@@ -248,6 +253,73 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
   var { points, bounds } = computeRegionalGrid(clampedBBox, gridSize);
   var lats = points.map(function(p) { return p.lat; });
   var lons = points.map(function(p) { return p.lng; });
+
+  var zoomAtSchedule = zoom;
+  var boundsAtSchedule = viewportBounds;
+  var zoomAtSend = zoom;
+  var boundsAtSend = viewportBounds;
+
+  if (stateValidator) {
+    if (typeof stateValidator.getCurrentZoom === 'function') zoomAtSend = stateValidator.getCurrentZoom();
+    if (typeof stateValidator.getCurrentBounds === 'function') boundsAtSend = stateValidator.getCurrentBounds();
+
+    if (zoomAtSend !== undefined && zoomAtSend < 4.0) {
+      console.log(`[CopernicusGrid] Active zoom ${zoomAtSend} < 4.0 immediately before fetch, aborting.`);
+      if (typeof window !== 'undefined') {
+        window.__COPERNICUS_GRID_DIAG__ = {
+          layer,
+          componentLayer: layer,
+          provider: 'copernicus',
+          backendPointCount: 0,
+          renderPointCount: 0,
+          nonzeroCount: 0,
+          bbox: bounds,
+          zoom: zoomAtSend,
+          cacheHit: false,
+          isStale: false,
+          elapsedMs: Date.now() - startTime,
+          skipped: true,
+          skippedReason: 'zoom_too_low_deferred',
+          timestamp: new Date().toISOString(),
+          zoomAtSchedule,
+          zoomAtSend,
+          boundsAtSchedule,
+          boundsAtSend,
+          inputBounds: viewportBounds,
+          clampedBounds: clampedBBox,
+          sentMinLat: lats.length > 0 ? Math.min(...lats) : null,
+          sentMaxLat: lats.length > 0 ? Math.max(...lats) : null,
+          sentMinLon: lons.length > 0 ? Math.min(...lons) : null,
+          sentMaxLon: lons.length > 0 ? Math.max(...lons) : null,
+          sentLatSpan: lats.length > 0 ? (Math.max(...lats) - Math.min(...lats)) : null,
+          sentLonSpan: lons.length > 0 ? (Math.max(...lons) - Math.min(...lons)) : null,
+          zoomSnapshot: zoomAtSend
+        };
+      }
+      throw new Error('zoom_too_low_deferred');
+    }
+
+    if (typeof stateValidator.isActiveIntent === 'function' && !stateValidator.isActiveIntent()) {
+      console.log(`[CopernicusGrid] Active intent changed while queued. Aborting stale request.`);
+      throw new Error('stale_intent_aborted');
+    }
+  }
+
+  var boundsDiag = {
+    inputBounds: viewportBounds,
+    clampedBounds: clampedBBox,
+    sentMinLat: lats.length > 0 ? Math.min(...lats) : null,
+    sentMaxLat: lats.length > 0 ? Math.max(...lats) : null,
+    sentMinLon: lons.length > 0 ? Math.min(...lons) : null,
+    sentMaxLon: lons.length > 0 ? Math.max(...lons) : null,
+    sentLatSpan: lats.length > 0 ? (Math.max(...lats) - Math.min(...lats)) : null,
+    sentLonSpan: lons.length > 0 ? (Math.max(...lons) - Math.min(...lons)) : null,
+    zoomSnapshot: zoomAtSend,
+    zoomAtSchedule,
+    zoomAtSend,
+    boundsAtSchedule,
+    boundsAtSend
+  };
 
   var forecastDays = Math.min(3, Math.max(1, Math.ceil((hourOffset + 1) / 24)));
   var body = {
@@ -311,7 +383,8 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
         skippedReason: skippedReason,
         httpStatus: res.status,
         errorDetail: detail,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...boundsDiag
       };
     }
     throw new Error(`HTTP ${res.status}: ${skippedReason}`);
@@ -335,7 +408,8 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
         elapsedMs: Date.now() - startTime,
         skipped: true,
         skippedReason: 'empty_backend_results',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...boundsDiag
       };
     }
     throw new Error('empty_backend_results');
@@ -358,7 +432,8 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
         elapsedMs: Date.now() - startTime,
         skipped: true,
         skippedReason: 'copernicus_empty_time_range',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...boundsDiag
       };
     }
     throw new Error('copernicus_empty_time_range');
@@ -459,7 +534,8 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
       elapsedMs,
       timestamp: new Date().toISOString(),
       skipped: nonzeroCount === 0,
-      skippedReason: nonzeroCount === 0 ? 'copernicus_no_nonzero_vectors' : null
+      skippedReason: nonzeroCount === 0 ? 'copernicus_no_nonzero_vectors' : null,
+      ...boundsDiag
     };
   }
 
@@ -476,7 +552,7 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
  * @param {number} zoom - current map zoom level
  * @returns {Object|null} Grid data in marineData.grid format, or null on error
  */
-export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOffset, zoom) {
+export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOffset, zoom, stateValidator) {
   if (hourOffset > 72) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
@@ -633,7 +709,7 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
         };
       }
       // SWR: trigger in background, don't await, return stale immediately
-      triggerBackgroundRevalidate(viewportBounds, layer, hourOffset, zoom, cacheKey);
+      triggerBackgroundRevalidate(viewportBounds, layer, hourOffset, zoom, cacheKey, stateValidator);
       return cached.data;
     }
   }
@@ -647,7 +723,7 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
   // 3. Create a new in-flight request
   var promise = (async () => {
     try {
-      var result = await doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheKey);
+      var result = await doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheKey, stateValidator);
       return result;
     } catch (err) {
       console.error(`[CopernicusGrid] Fetch failed for ${layer}:`, err.message);
@@ -661,12 +737,12 @@ export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOf
   return promise;
 }
 
-function triggerBackgroundRevalidate(viewportBounds, layer, hourOffset, zoom, cacheKey) {
+function triggerBackgroundRevalidate(viewportBounds, layer, hourOffset, zoom, cacheKey, stateValidator) {
   if (inFlightRequests.has(cacheKey)) return;
   
   var promise = (async () => {
     try {
-      await doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheKey);
+      await doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheKey, stateValidator);
     } catch (err) {
       console.warn(`[CopernicusGrid] Background SWR refresh failed for ${layer}:`, err.message);
     } finally {

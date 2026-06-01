@@ -16,6 +16,38 @@
 // In-memory cache and circuit breakers (persists across warm container invocations)
 const cache = new Map();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const RESPONSE_SIZE_LIMIT = 4.5 * 1024 * 1024; // 4.5 MB budget
+
+function estimateRequestCost(type, model, pointCount, hourlyVarCount, forecastDays) {
+  if (type === 'tiles') return 50000;
+  const timeBytes = forecastDays * 24 * 25;
+  const varBytes = hourlyVarCount * forecastDays * 24 * 8;
+  const metadataBytes = 1500;
+  return pointCount * (timeBytes + varBytes + metadataBytes);
+}
+
+function makeResponseTooLargeResponse(estimatedBytes, actualBytes, pointCount, hourlyVarCount, forecastDays) {
+  console.warn(`[weather-proxy] Response payload size ${actualBytes} bytes exceeds 4.5MB budget! Preventing return.`);
+  return {
+    statusCode: 413,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'X-Failure-Phase': 'response_too_large_prevented',
+      'X-Estimated-Response-Bytes': String(estimatedBytes),
+      'X-Actual-Response-Bytes': String(actualBytes)
+    },
+    body: JSON.stringify({
+      error: 'Response size too large prevented',
+      estimatedBytes,
+      actualBytes,
+      pointCount,
+      hourlyVarCount,
+      forecastDays,
+      failurePhase: 'response_too_large_prevented'
+    })
+  };
+}
 
 const openMeteoCircuitUntil = new Map();
 const copernicusCircuitUntil = new Map();
@@ -355,6 +387,25 @@ exports.handler = async function(event, context) {
       hourly = event.queryStringParameters.hourly;
     }
 
+    let forecastDays = 7;
+    if (body) {
+      forecastDays = body.forecast_days || body.forecastDays || 7;
+    } else if (event.queryStringParameters) {
+      const qDays = event.queryStringParameters.forecast_days || event.queryStringParameters.forecastDays;
+      if (qDays) forecastDays = parseInt(qDays, 10);
+    }
+
+    let hourlyVarCount = 0;
+    if (hourly) {
+      if (Array.isArray(hourly)) {
+        hourlyVarCount = hourly.length;
+      } else if (typeof hourly === 'string') {
+        hourlyVarCount = hourly.split(',').filter(Boolean).length;
+      }
+    }
+
+    const estimatedBytes = estimateRequestCost(type, model, pointCount, hourlyVarCount, forecastDays);
+
     const cached = cache.get(cacheKey);
 
     // ========================================================================
@@ -368,7 +419,52 @@ exports.handler = async function(event, context) {
       const staleShape = cached ? validateCacheShape(cached.data) : null;
       if (cached && staleShape) {
         const ageMs = Date.now() - cached.timestamp;
-        console.log(`[weather-proxy] Upstream failed (${errStatus}): serving recovered STALE cache for key=${cacheKey}`);
+        const actualBytes = JSON.stringify(cached.data).length;
+
+        if (actualBytes > RESPONSE_SIZE_LIMIT) {
+          console.warn(`[weather-proxy] Stale cache payload size ${actualBytes} bytes exceeds 4.5MB budget! Preventing return.`);
+          return {
+            statusCode: 413,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'X-Failure-Phase': 'stale_cache_too_large',
+              'X-Estimated-Response-Bytes': String(estimatedBytes),
+              'X-Actual-Response-Bytes': String(actualBytes),
+              'X-Circuit-Open': 'true',
+              'X-Circuit-Remaining-Ms': String(remainingMs)
+            },
+            body: JSON.stringify({
+              error: 'Stale cache size limit exceeded',
+              estimatedBytes,
+              actualBytes,
+              pointCount,
+              hourlyVarCount,
+              forecastDays,
+              failurePhase: 'stale_cache_too_large'
+            })
+          };
+        }
+
+        console.log(`[weather-proxy] Upstream failed (${errStatus}): serving recovered STALE cache for key=${cacheKey} (est: ${estimatedBytes}B, actual: ${actualBytes}B)`);
+
+        const isArray = Array.isArray(cached.data);
+        const payloadBody = isArray
+          ? JSON.stringify(cached.data)
+          : JSON.stringify({
+              ...cached.data,
+              __stale_telemetry: {
+                stale: true,
+                staleReason: 'upstream_fetch_failed',
+                ageMs,
+                originalCacheKey: cacheKey,
+                shape: staleShape,
+                failurePhase,
+                errorDetail: errDetail.substring(0, 150),
+                circuitRemainingMs: remainingMs
+              }
+            });
+
         return {
           statusCode: 200,
           headers: {
@@ -381,21 +477,11 @@ exports.handler = async function(event, context) {
             'X-Failure-Phase': failurePhase,
             'X-Circuit-Open': 'true',
             'X-Circuit-Remaining-Ms': String(remainingMs),
+            'X-Estimated-Response-Bytes': String(estimatedBytes),
+            'X-Actual-Response-Bytes': String(actualBytes),
             'Access-Control-Allow-Origin': '*',
           },
-          body: JSON.stringify({
-            ...cached.data,
-            __stale_telemetry: {
-              stale: true,
-              staleReason: 'upstream_fetch_failed',
-              ageMs,
-              originalCacheKey: cacheKey,
-              shape: staleShape,
-              failurePhase,
-              errorDetail: errDetail.substring(0, 150),
-              circuitRemainingMs: remainingMs
-            }
-          })
+          body: payloadBody
         };
       }
 
@@ -441,6 +527,30 @@ exports.handler = async function(event, context) {
     };
 
     // ========================================================================
+    // Response Size Preflight Budget Guard
+    // ========================================================================
+    if (estimatedBytes > RESPONSE_SIZE_LIMIT) {
+      console.warn(`[weather-proxy] Preflight rejected: estimated cost ${estimatedBytes} bytes exceeds ${RESPONSE_SIZE_LIMIT} limit.`);
+      return {
+        statusCode: 413,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'X-Failure-Phase': 'response_too_large_prevented',
+          'X-Estimated-Response-Bytes': String(estimatedBytes)
+        },
+        body: JSON.stringify({
+          error: "Response size too large prevented",
+          estimatedBytes,
+          pointCount,
+          hourlyVarCount,
+          forecastDays,
+          failurePhase: "response_too_large_prevented"
+        })
+      };
+    }
+
+    // ========================================================================
     // 1. Check Fresh Cache (HIT)
     // ========================================================================
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -465,7 +575,50 @@ exports.handler = async function(event, context) {
       const staleShape = cached ? validateCacheShape(cached.data) : null;
       if (cached && staleShape) {
         const ageMs = Date.now() - cached.timestamp;
-        console.log(`[weather-proxy] Circuit OPEN: serving STALE cache for key=${cacheKey}`);
+        const actualBytes = JSON.stringify(cached.data).length;
+
+        if (actualBytes > RESPONSE_SIZE_LIMIT) {
+          console.warn(`[weather-proxy] Stale cache payload size ${actualBytes} bytes exceeds 4.5MB budget! Preventing return.`);
+          return {
+            statusCode: 413,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'X-Failure-Phase': 'stale_cache_too_large',
+              'X-Estimated-Response-Bytes': String(estimatedBytes),
+              'X-Actual-Response-Bytes': String(actualBytes),
+              'X-Circuit-Open': 'true',
+              'X-Circuit-Remaining-Ms': String(remainingMs)
+            },
+            body: JSON.stringify({
+              error: 'Stale cache size limit exceeded',
+              estimatedBytes,
+              actualBytes,
+              pointCount,
+              hourlyVarCount,
+              forecastDays,
+              failurePhase: 'stale_cache_too_large'
+            })
+          };
+        }
+
+        console.log(`[weather-proxy] Circuit OPEN: serving STALE cache for key=${cacheKey} (est: ${estimatedBytes}B, actual: ${actualBytes}B)`);
+        
+        const isArray = Array.isArray(cached.data);
+        const payloadBody = isArray
+          ? JSON.stringify(cached.data)
+          : JSON.stringify({
+              ...cached.data,
+              __stale_telemetry: {
+                stale: true,
+                staleReason: 'upstream_circuit_open',
+                ageMs,
+                originalCacheKey: cacheKey,
+                shape: staleShape,
+                circuitRemainingMs: remainingMs
+              }
+            });
+
         return {
           statusCode: 200,
           headers: {
@@ -477,19 +630,11 @@ exports.handler = async function(event, context) {
             'X-Stale-Age-Ms': String(ageMs),
             'X-Stale-Original-Cache-Key': cacheKey,
             'X-Stale-Shape': staleShape,
+            'X-Estimated-Response-Bytes': String(estimatedBytes),
+            'X-Actual-Response-Bytes': String(actualBytes),
             'Access-Control-Allow-Origin': '*',
           },
-          body: JSON.stringify({
-            ...cached.data,
-            __stale_telemetry: {
-              stale: true,
-              staleReason: 'upstream_circuit_open',
-              ageMs,
-              originalCacheKey: cacheKey,
-              shape: staleShape,
-              circuitRemainingMs: remainingMs
-            }
-          })
+          body: payloadBody
         };
       }
 
@@ -523,18 +668,26 @@ exports.handler = async function(event, context) {
       console.log(`[weather-proxy] Routing to Copernicus for EURO marine`);
       try {
         const cmData = await forwardToCopernicus(body);
+        const actualBytes = JSON.stringify(cmData).length;
+        console.log(`[weather-proxy] Copernicus success: ${Array.isArray(cmData) ? cmData.length : '?'} points (est: ${estimatedBytes}B, actual: ${actualBytes}B)`);
+        
+        if (actualBytes > RESPONSE_SIZE_LIMIT) {
+          return makeResponseTooLargeResponse(estimatedBytes, actualBytes, pointCount, hourlyVarCount, forecastDays);
+        }
+
         cache.set(cacheKey, { data: cmData, timestamp: Date.now() });
         if (cache.size > 100) {
           const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
           for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
         }
-        console.log(`[weather-proxy] Copernicus success: ${Array.isArray(cmData) ? cmData.length : '?'} points`);
         return {
           statusCode: 200,
           headers: {
             'Content-Type': 'application/json',
             'X-Cache': 'MISS',
             'X-Source': 'Copernicus',
+            'X-Estimated-Response-Bytes': String(estimatedBytes),
+            'X-Actual-Response-Bytes': String(actualBytes),
             'Access-Control-Allow-Origin': '*',
           },
           body: JSON.stringify(cmData)
@@ -612,6 +765,13 @@ exports.handler = async function(event, context) {
       }
 
       // Cache and return success
+      const actualBytes = JSON.stringify(data).length;
+      console.log(`[weather-proxy] Upstream success for ${type}: (est: ${estimatedBytes}B, actual: ${actualBytes}B)`);
+
+      if (actualBytes > RESPONSE_SIZE_LIMIT) {
+        return makeResponseTooLargeResponse(estimatedBytes, actualBytes, pointCount, hourlyVarCount, forecastDays);
+      }
+
       cache.set(cacheKey, { data, timestamp: Date.now() });
       if (cache.size > 100) {
         const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
@@ -623,6 +783,8 @@ exports.handler = async function(event, context) {
         headers: {
           'Content-Type': 'application/json',
           'X-Cache': 'MISS',
+          'X-Estimated-Response-Bytes': String(estimatedBytes),
+          'X-Actual-Response-Bytes': String(actualBytes),
           'Access-Control-Allow-Origin': '*',
         },
         body: JSON.stringify(data)
@@ -675,6 +837,12 @@ exports.handler = async function(event, context) {
     }
 
     const data = await apiRes.json();
+    const actualBytes = JSON.stringify(data).length;
+    console.log(`[weather-proxy] Success: ${type}, cached as ${cacheKey} (est: ${estimatedBytes}B, actual: ${actualBytes}B)`);
+
+    if (actualBytes > RESPONSE_SIZE_LIMIT) {
+      return makeResponseTooLargeResponse(estimatedBytes, actualBytes, pointCount, hourlyVarCount, forecastDays);
+    }
 
     // Cache the response
     cache.set(cacheKey, { data, timestamp: Date.now() });
@@ -683,12 +851,13 @@ exports.handler = async function(event, context) {
       for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
     }
 
-    console.log(`[weather-proxy] Success: ${type}, cached as ${cacheKey}`);
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
         'X-Cache': 'MISS',
+        'X-Estimated-Response-Bytes': String(estimatedBytes),
+        'X-Actual-Response-Bytes': String(actualBytes),
         'Access-Control-Allow-Origin': '*',
       },
       body: JSON.stringify(data)

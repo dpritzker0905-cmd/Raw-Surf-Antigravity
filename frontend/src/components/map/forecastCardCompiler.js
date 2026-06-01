@@ -9,7 +9,9 @@ export const STATUS_RENDERS = {
   copernicus_empty_time_range: { color: 'text-rose-400', text: 'Out of Time Range' },
   copernicus_no_nonzero_vectors: { color: 'text-amber-400', text: 'Calm/Zero Data (No Waves)' },
   rate_limited: { color: 'text-rose-400', text: 'Rate Limited (429 Cooldown)' },
-  unavailable: { color: 'text-rose-400', text: 'Heatmap Error/Timeout' }
+  unavailable: { color: 'text-rose-400', text: 'Heatmap Error/Timeout' },
+  retained_stale_warning: { color: 'text-amber-400', text: 'Stale Hour Retained' },
+  payload_too_large: { color: 'text-amber-400', text: 'Forecast heatmap too large / scoped fetch required' }
 };
 
 export function compileForecastCards({

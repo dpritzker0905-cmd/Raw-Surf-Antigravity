@@ -9,6 +9,15 @@ import { isInCooldown } from './marineControllerUtils';
 
 export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }) {
   if (typeof window === 'undefined') return null;
+  
+  const statusDiag = window.__MARINE_HEATMAP_STATUS__;
+  if (statusDiag?.status === 'retained_previous_hour_warning' || statusDiag?.status === 'retained_previous_hour') {
+    return 'retained_stale_warning';
+  }
+  if (statusDiag?.status === 'response_too_large_prevented' || window.__MARINE_FETCH_DIAG__?.httpStatus === 413) {
+    return 'payload_too_large';
+  }
+
   // v7.12: Instantly check and show rate-limited status for any model in cooldown
   if (window.__MARINE_FETCH_DIAG__?.cooldownState === 'rate_limited' || isInCooldown('marine')) {
     return 'rate_limited';
