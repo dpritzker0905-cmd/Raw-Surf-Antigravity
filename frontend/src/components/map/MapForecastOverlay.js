@@ -222,8 +222,8 @@ export var MapForecastOverlay = ({
     const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
     setExactPoint(selected);
 
-    // v7.11: Gate prewarm during scrubbing/cooldown
-    if (selected?.status === 'estimate_pending_sources' && pointLat && pointLng) {
+    // v7.14.5: Temporarily disabled proactive prewarm to eliminate background request storms
+    if (false && selected?.status === 'estimate_pending_sources' && pointLat && pointLng) {
       const isScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline;
       const isCooling = typeof isInCooldown === 'function' && isInCooldown('marine');
       if (isScrubbing || isCooling) {
@@ -357,7 +357,7 @@ export var MapForecastOverlay = ({
 
   const isExactPointLoading = ['exact_loading', 'exact_stale_rejected'].includes(effectiveExactPointStatus);
   const isExactPointTimeout = ['exact_timeout', 'copernicus_timeout'].includes(effectiveExactPointStatus);
-  const isExactPointError = ['exact_backend_error', 'exact_empty', 'exact_error', 'error', 'copernicus_credentials_missing', 'copernicus_backend_502', 'rate_limited'].includes(effectiveExactPointStatus);
+  const isExactPointError = ['exact_backend_error', 'exact_empty', 'exact_error', 'error', 'copernicus_credentials_missing', 'copernicus_backend_502', 'rate_limited', 'estimate_pending_sources'].includes(effectiveExactPointStatus);
 
   // v6.6: For selected marine points, exact-point is THE authority.
   // Block ALL fallbacks while loading or if exact point is valid/success.
@@ -787,6 +787,27 @@ export var MapForecastOverlay = ({
                   </div>
                 );
               })}
+              {effectiveExactPointStatus === 'estimate_pending_sources' && (
+                <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[10px] text-amber-400 font-semibold flex flex-col gap-1">
+                  <span>Estimate pending source data</span>
+                  <button 
+                    onClick={() => {
+                      if (pointLat && pointLng) {
+                        console.log("[Forecast Overlay] Explicit user action: loading background data for estimate.");
+                        setExactPointStatus('exact_loading');
+                        const gfsPromise = fetchExactMarinePoint(pointLat, pointLng, 'GFS', activeLayer, null, timeOffsetHours);
+                        const iconPromise = activeModel === 'EURO' ? fetchExactMarinePoint(pointLat, pointLng, 'ICON', activeLayer, null, timeOffsetHours) : Promise.resolve(null);
+                        Promise.all([gfsPromise, iconPromise]).then(() => {
+                          setEstimateTrigger(prev => prev + 1);
+                        });
+                      }
+                    }}
+                    className="px-2 py-0.5 mt-1 bg-amber-500/20 hover:bg-amber-500/30 text-[9px] text-amber-300 font-bold border border-amber-500/30 rounded active:scale-95 transition-transform text-center"
+                  >
+                    Load missing data
+                  </button>
+                </div>
+              )}
               {heatmapStatus === 'loading' && (
                 <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] text-cyan-400 font-semibold flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 border border-cyan-400 border-t-transparent rounded-full animate-spin" />

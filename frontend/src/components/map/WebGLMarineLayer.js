@@ -10,31 +10,9 @@ import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } 
 import { computeGridContentHash } from './marineGridHash';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { getMarineHourlyCache } from './marineController';
+import { getSharedLandGeoJSON, safeMoveLayer } from './mapUtils';
 
 var LAYER_ID = 'webgl-marine-particles';
-
-export function getSharedLandGeoJSON() {
-  if (typeof window === 'undefined') return Promise.resolve(null);
-
-  if (window.__LAND_GEOJSON_CACHE__) {
-    return Promise.resolve(window.__LAND_GEOJSON_CACHE__);
-  }
-
-  if (!window.__LAND_GEOJSON_PROMISE__) {
-    window.__LAND_GEOJSON_PROMISE__ = fetch('/ne_50m_land.json')
-      .then(res => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
-      .catch(() => fetch('/ne_110m_land.json').then(res => res.json()))
-      .then(geojson => {
-        window.__LAND_GEOJSON_CACHE__ = geojson;
-        return geojson;
-      });
-  }
-
-  return window.__LAND_GEOJSON_PROMISE__;
-}
 
 
 function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef) {
@@ -142,42 +120,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       glRef.current = null;
     }
   };
-}
-
-export function safeMoveLayer(mapInstance, layerId, beforeId) {
-  if (!mapInstance || !layerId) return;
-  try {
-    if (!mapInstance.getLayer(layerId)) return;
-    
-    // Resolve beforeId or fallbacks
-    let targetBefore = beforeId;
-    if (!targetBefore) targetBefore = mapInstance.getLayer('ocean-mask-fill') ? 'ocean-mask-fill' : undefined;
-    if (!targetBefore) targetBefore = mapInstance.getLayer('landuse') ? 'landuse' : undefined;
-    if (!targetBefore) targetBefore = mapInstance.getLayer('spot-geofences-layer') ? 'spot-geofences-layer' : undefined;
-
-    if (targetBefore && !mapInstance.getLayer(targetBefore)) {
-      targetBefore = undefined;
-    }
-
-    const style = mapInstance.getStyle();
-    if (!style || !style.layers) return;
-
-    const layers = style.layers;
-    const layerIdx = layers.findIndex(l => l.id === layerId);
-    const beforeIdx = targetBefore ? layers.findIndex(l => l.id === targetBefore) : layers.length;
-
-    if (layerIdx === -1) return;
-
-    // Already in correct position immediately before targetBefore
-    if (layerIdx === beforeIdx - 1) {
-      return;
-    }
-
-    mapInstance.moveLayer(layerId, targetBefore);
-    console.log(`[WebGLMarine-Forensic] Moved layer '${layerId}' before '${targetBefore || 'TOP'}' (was at index ${layerIdx}, target before index ${beforeIdx})`);
-  } catch (e) {
-    console.warn(`[WebGLMarine-Forensic] safeMoveLayer error:`, e.message);
-  }
 }
 
 export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange, onError, beforeId, theme, activeLayers, activeModel = 'GFS', timeOffsetHours = 0 }) {

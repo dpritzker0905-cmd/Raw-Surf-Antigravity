@@ -127,7 +127,9 @@ export function compileForecastCards({
           ? 'Proxy 502'
           : exactPointStatus === 'copernicus_credentials_missing'
             ? 'Backend unavailable'
-            : 'Unavailable';
+            : exactPointStatus === 'estimate_pending_sources'
+              ? 'Estimate pending'
+              : 'Unavailable';
       displayPeriod = displayHeight;
       displayDir = displayHeight;
     } else if (isNoCoverage && waveHeight == null) {

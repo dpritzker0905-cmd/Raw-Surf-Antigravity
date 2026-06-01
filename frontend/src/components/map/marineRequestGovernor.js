@@ -50,95 +50,7 @@ function setCopernicusCooldownUntil(until) {
   setPersistedTime('rawsurf_cooldown_copernicus_until', until);
 }
 
-// Global raw proxy diagnostic ledger for all weather-proxy calls (POST & GET)
-if (typeof window !== 'undefined' && !window.__RAW_SURF_PROXY_PATCHED__) {
-  window.__RAW_SURF_PROXY_PATCHED__ = true;
-  window.__RAW_SURF_PROXY_LEDGER__ = [];
 
-  const originalFetch = window.fetch;
-  window.fetch = async function(input, init) {
-    const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-    if (url.includes('/api/weather-proxy')) {
-      const timestamp = new Date().toISOString();
-      let type = 'unknown';
-      let source = 'direct_fetch';
-      let bodyData = null;
-      let model = 'unknown';
-      let layer = 'none';
-
-      // Parse payload if it's a POST
-      if (init && init.method === 'POST' && init.body) {
-        try {
-          const parsed = JSON.parse(init.body);
-          type = parsed.type || 'unknown';
-          bodyData = parsed.body || null;
-          if (bodyData) {
-            model = (bodyData.models && bodyData.models[0]) || 'unknown';
-            if (bodyData.hourly) {
-              layer = Array.isArray(bodyData.hourly) ? bodyData.hourly.join(',') : bodyData.hourly;
-            }
-          }
-        } catch (e) {}
-      } else {
-        // Parse from GET URL
-        try {
-          const searchParams = new URL(url, window.location.origin).searchParams;
-          type = searchParams.get('type') || 'unknown';
-          model = searchParams.get('models') || 'unknown';
-          layer = searchParams.get('hourly') || 'none';
-        } catch (e) {}
-      }
-
-      // Try to determine source from callstack
-      try {
-        const stack = new Error().stack;
-        if (stack) {
-          if (stack.includes('fetchExactMarinePoint')) source = 'forecastSamplers.fetchExactMarinePoint';
-          else if (stack.includes('fetchMarineData')) source = 'marineController.fetchMarineData';
-          else if (stack.includes('fetchCopernicusComponentGrid')) source = 'copernicusGridFetcher.fetchCopernicusComponentGrid';
-          else if (stack.includes('useOpenMeteoForecast')) source = 'useOpenMeteoForecast';
-          else if (stack.includes('fetchPressureData')) source = 'marineControllerPressure.fetchPressureData';
-        }
-      } catch (e) {}
-
-      const entry = {
-        timestamp,
-        method: init?.method || 'GET',
-        url,
-        type,
-        model,
-        layer,
-        source,
-        status: 'pending',
-        decision: 'allowed'
-      };
-
-      window.__RAW_SURF_PROXY_LEDGER__.push(entry);
-      if (window.__RAW_SURF_PROXY_LEDGER__.length > 50) {
-        window.__RAW_SURF_PROXY_LEDGER__.shift();
-      }
-
-      try {
-        const response = await originalFetch.apply(this, arguments);
-        entry.status = response.status;
-        if (response.status === 429) {
-          entry.decision = 'rate_limited_response';
-        } else if (!response.ok) {
-          entry.decision = 'error_response';
-        } else {
-          entry.decision = 'success';
-        }
-        return response;
-      } catch (err) {
-        entry.status = 'exception';
-        entry.decision = 'exception_thrown';
-        throw err;
-      }
-    }
-
-    return originalFetch.apply(this, arguments);
-  };
-}
 
 // Global ledger tracking last 50 attempted requests specific to Governor
 if (typeof window !== 'undefined') {
@@ -151,7 +63,7 @@ if (typeof window !== 'undefined') {
 const inFlightRequests = new Map();
 
 // Copernicus specific cooldown duration
-const COPERNICUS_COOLDOWN_DURATION = 30000;
+const COPERNICUS_COOLDOWN_DURATION = 60000;
 const FAILURE_TTL = 30000;
 
 // Active grid fetches counter
@@ -236,13 +148,18 @@ export async function governMarineRequest({
   layer,
   category,
   lat = null,
-  lng = null
+  lng = null,
+  isExplicit = false
 }) {
   const now = Date.now();
   const rLat = lat != null ? +lat.toFixed(2) : null;
   const rLng = lng != null ? +lng.toFixed(2) : null;
   const forecastDays = body.forecast_days || 1;
   const provider = type === 'copernicus_marine' ? 'copernicus' : 'open-meteo';
+
+  const domain = (type === 'wind' || category === 'wind_forecast' || category === 'wind') ? 'wind'
+               : (type === 'pressure') ? 'pressure'
+               : 'marine';
 
   // Construct request key
   let requestKey = '';
@@ -267,7 +184,7 @@ export async function governMarineRequest({
       forecastDays,
       provider,
       requestKey,
-      cooldownBefore: isInCooldown('marine'),
+      cooldownBefore: isInCooldown(domain),
       category,
       lat: rLat,
       lng: rLng,
@@ -276,13 +193,13 @@ export async function governMarineRequest({
     });
   };
 
-  // 1. Enforce Global Marine Cooldown
-  if (isInCooldown('marine')) {
-    console.warn(`[Governor] Blocked request for ${requestKey}: Global Marine Cooldown active.`);
+  // 1. Enforce Global Domain Cooldown
+  if (isInCooldown(domain)) {
+    console.warn(`[Governor] Blocked request for ${requestKey}: Global ${domain} Cooldown active.`);
     logAttempt('cooldown_blocked', { cooldownActive: true });
-    logDecision(requestKey, 'blocked_global_cooldown');
-    updateGovernorState('cooldown_active');
-    throw new Error('cooldown_active');
+    logDecision(requestKey, `blocked_global_${domain}_cooldown`);
+    updateGovernorState(`${domain}_cooldown_active`);
+    throw new Error(`${domain}_cooldown_active`);
   }
 
   // 2. Enforce Copernicus-specific Cooldown
@@ -296,8 +213,13 @@ export async function governMarineRequest({
   }
 
   // 3. Enforce Recent Failure TTL (30s)
+  if (isExplicit) {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(`rawsurf_failure_${requestKey}`);
+    }
+  }
   const failureTime = getFailureTime(requestKey);
-  if (failureTime && now - failureTime < FAILURE_TTL) {
+  if (!isExplicit && failureTime && now - failureTime < FAILURE_TTL) {
     console.warn(`[Governor] Blocked request for ${requestKey}: Recent failed request in TTL window.`);
     logAttempt('failure_ttl_blocked', { remainingTtlMs: FAILURE_TTL - (now - failureTime) });
     logDecision(requestKey, 'blocked_failure_ttl');
@@ -359,7 +281,7 @@ export async function governMarineRequest({
         setFailureTime(requestKey, Date.now());
 
         if (res.status === 429 || errText.toLowerCase().includes('rate limit') || errText.toLowerCase().includes('429')) {
-          enterCooldown('marine');
+          enterCooldown(domain);
           logAttempt(`failed_429`, { httpStatus: res.status, elapsedMs, errText: errText.substring(0, 100) });
           logDecision(requestKey, 'failed_429', { httpStatus: res.status });
         } else if (res.status === 502 || res.status === 504 || errText.toLowerCase().includes('timeout') || errText.toLowerCase().includes('gateway')) {

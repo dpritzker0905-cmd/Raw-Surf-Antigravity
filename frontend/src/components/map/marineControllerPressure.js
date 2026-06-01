@@ -11,6 +11,7 @@ import {
   isInCooldown, enterCooldown,
   getSnapConfig, isViewportInsideCachedBounds, viewportCacheKey, computeGridPoints
 } from './marineControllerUtils';
+import { governMarineRequest } from './marineRequestGovernor';
 
 // --- CACHES ---
 var PRESSURE_CACHE = new Map();
@@ -193,29 +194,35 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
       body.models = [OM_MODELS[model]];
     }
 
+    // v7.14.5: Route pressure grid fetches through the centralized governor
     let res;
     try {
-      res = await fetch(PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'wind', body }),  // 'wind' routes to api.open-meteo.com/v1/forecast which also serves pressure_msl
-        signal: fetchSignal
+      res = await governMarineRequest({
+        source: 'marineControllerPressure.fetchPressureData',
+        type: 'pressure',
+        body: body,
+        signal: fetchSignal,
+        model: model || 'GFS',
+        layer: 'pressure',
+        category: 'grid'
       });
-      // v3.13: 429 = API rate limit, NOT proxy failure.
       if (res.status === 429) {
         enterCooldown('pressure');
-        console.warn('[Pressure] 429 from proxy, cooldown activated (not retrying direct)');
+        console.warn('[Pressure] 429 from proxy governor, cooldown activated');
         return lastKnownGoodPressure;
       }
       if (!res.ok) {
         throw new Error(`Proxy returned HTTP ${res.status}`);
       }
-      // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
       const pressContentType = res.headers.get('content-type') || '';
       if (!pressContentType.includes('application/json')) {
         throw new Error(`Proxy returned non-JSON content-type: ${pressContentType.substring(0, 50)}`);
       }
     } catch (proxyErr) {
+      if (proxyErr.message === 'pressure_cooldown_active' || proxyErr.message === 'failure_ttl_active' || proxyErr.message === 'grid_fetch_in_flight') {
+        console.warn(`[PressureController] Governor blocked pressure fetch: ${proxyErr.message}`);
+        return lastKnownGoodPressure;
+      }
       if (isLocalhost) {
         console.log('[Pressure] Proxy unavailable or error, direct API fallback:', proxyErr.message);
         res = await fetch('https://api.open-meteo.com/v1/forecast', {

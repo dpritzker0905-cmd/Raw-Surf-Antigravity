@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import logger from '../utils/logger';
 import { isInCooldown } from '../components/map/marineControllerUtils';
+import { governMarineRequest as governProxyRequest } from '../components/map/marineRequestGovernor';
 
 /**
  * Open-Meteo Weather + Marine forecast hook (v3.12.5).
@@ -74,15 +75,17 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
 
-    // Scrubbing mode hard freeze (Request 3)
-    if (window.isScrubbingTimeline) {
-      console.log("[SCRUB] [FETCH] Spot forecast fetch suppressed during active scrubbing");
+    // v7.14.5: Startup and scrubbing stability gates
+    const isMapBooted = typeof window !== 'undefined' && window.__MAP_BOOTSTRAPPED__ === true;
+    const isTimelineScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline === true;
+    const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('wind') || isInCooldown('marine') || isInCooldown('pressure'));
+
+    if (!isExplicit && (!isMapBooted || isTimelineScrubbing || isAnyCooldownActive)) {
+      console.log(`[Forecast] Suppressing background snap fetch: booted=${isMapBooted} scrubbing=${isTimelineScrubbing} cooldown=${isAnyCooldownActive}`);
       return;
     }
 
-    // Suppress background updates if active marine cooldown is active
-    if (!isExplicit && isInCooldown('marine')) {
-      console.log("[Forecast] Suppressing background center snapped forecast fetch during active marine cooldown");
+    if (window.isScrubbingTimeline) {
       return;
     }
 
@@ -179,14 +182,18 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         const isLocalhost = typeof window !== 'undefined' && 
           (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
 
-        // Helper: fetch via POST proxy, wrapping point requests in coordinate-arrays to hit deep Netlify POST caching
+        // Helper: fetch via POST proxy, routing through unified governProxyRequest
         const safeFetch = async (type, body) => {
           try {
-            const res = await fetch('/api/weather-proxy', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ type, body }),
-              signal: controller.signal
+            const res = await governProxyRequest({
+              source: 'useOpenMeteoForecast.safeFetch',
+              type: type,
+              body: body,
+              signal: controller.signal,
+              model: activeModel,
+              layer: 'wind_weather',
+              category: 'wind_forecast',
+              isExplicit: isExplicit || isModelSwitch
             });
             const ct = res.headers.get('content-type') || '';
             if (res.status === 429) {
@@ -210,6 +217,10 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             }
             return res;
           } catch (e) {
+            if (e.message === 'cooldown_active' || e.message === 'failure_ttl_active') {
+              console.warn(`[OpenMeteo] Request blocked by governor: ${e.message}`);
+              return { ok: false, status: 429, json: async () => ({ error: 'Rate limited by governor' }), clone: function() { return this; } };
+            }
             if (e.name !== 'AbortError') {
               if (isLocalhost) {
                 console.log(`[OpenMeteo] Proxy error (${e.message}), falling back to direct API for ${type}`);

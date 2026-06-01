@@ -217,7 +217,7 @@ var MARINE_MODEL_LIMITS = {
  * @param {AbortSignal} [signal=null] - Abort controller signal for timeouts
  * @returns {Promise<Object|null>} Full response with hourly arrays
  */
-export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null, timeOffsetHours = 0) {
+export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null, timeOffsetHours = 0, force = false) {
   if (lat == null || lng == null) return null;
 
   const startTime = Date.now();
@@ -243,8 +243,11 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     return cached.data;
   }
 
+  if (force) {
+    _recentFailedRequests.delete(cacheKey);
+  }
   const recentFailure = _recentFailedRequests.get(cacheKey);
-  if (recentFailure && Date.now() - recentFailure < RECENT_FAILED_TTL) {
+  if (!force && recentFailure && Date.now() - recentFailure < RECENT_FAILED_TTL) {
     console.warn(`[ExactPoint] Blocked fetch: recent failed request exists in TTL window for key: ${cacheKey}`);
     return { status: 'rate_limited' };
   }
@@ -252,12 +255,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   const nativeLimit = model === 'EURO' ? (activeLayer === 'waves' ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS) : ICON_LIMIT;
   const isPastLimit = (model === 'EURO' && timeOffsetHours > 72) || (model === 'ICON' && timeOffsetHours > 120);
 
-  const isInitialBoot = typeof window !== 'undefined' && !window.__MAP_BOOTSTRAPPED__;
-  const isScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline === true;
-  const isCooling = typeof isInCooldown === 'function' && (isInCooldown('marine') || isInCooldown('wind'));
-  const isGridInFlight = typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__?.activeGridFetches > 0;
-
-  const shouldPrewarm = !isInitialBoot && !isScrubbing && !isCooling && !isGridInFlight;
+  const shouldPrewarm = false; // Temporarily disabled to prevent background request storms
 
   if (shouldPrewarm) {
     if (model === 'EURO' && isPastLimit && !signal?.aborted) {
@@ -348,7 +346,8 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           layer: activeLayer || 'waves',
           category: 'exact_point',
           lat: lat,
-          lng: lng
+          lng: lng,
+          isExplicit: force
         });
         if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
 

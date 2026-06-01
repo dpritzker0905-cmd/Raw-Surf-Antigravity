@@ -12,7 +12,7 @@
 
 /* eslint-disable no-empty */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getSharedLandGeoJSON } from './WebGLMarineLayer';
+import { getSharedLandGeoJSON } from './mapUtils';
 import { safeSetPaintProperty } from './mapUtils';
 
 const NE_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';

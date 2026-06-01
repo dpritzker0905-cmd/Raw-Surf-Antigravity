@@ -181,6 +181,7 @@ async function forwardToCopernicus(body) {
 }
 
 exports.handler = async function(event, context) {
+  const startTime = Date.now();
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -284,10 +285,38 @@ exports.handler = async function(event, context) {
         };
       } catch (cmErr) {
         console.error(`[weather-proxy] Copernicus error:`, cmErr.message);
+        const cmElapsedMs = Date.now() - startTime;
         return {
           statusCode: 502,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: JSON.stringify({ error: 'Copernicus Marine error', message: cmErr.message })
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'X-Proxy-Type': 'copernicus_marine',
+            'X-Upstream-Provider': 'copernicus',
+            'X-Model': 'ecmwf_wam025',
+            'X-Point-Count': String(body ? (body.latitude ? body.latitude.length : 0) : 0),
+            'X-Hourly-Var-Count': String(body ? (body.hourly ? body.hourly.length : 0) : 0),
+            'X-Forecast-Days': String(body ? body.forecast_days : 0),
+            'X-Fallback-Used': 'false',
+            'X-Cache-Hit': 'false',
+            'X-Elapsed-Ms': String(cmElapsedMs),
+            'X-Failure-Phase': 'copernicus_forward'
+          },
+          body: JSON.stringify({
+            error: 'Copernicus Marine error',
+            message: cmErr.message,
+            proxyType: 'copernicus_marine',
+            upstreamProvider: 'copernicus',
+            'upstream provider': 'copernicus',
+            model: 'ecmwf_wam025',
+            pointCount: body ? (body.latitude ? body.latitude.length : 0) : 0,
+            hourlyVarCount: body ? (body.hourly ? body.hourly.length : 0) : 0,
+            forecastDays: body ? body.forecast_days : 0,
+            fallbackUsed: false,
+            cacheHit: false,
+            elapsedMs: cmElapsedMs,
+            failurePhase: 'copernicus_forward'
+          })
         };
       }
     }
@@ -381,18 +410,75 @@ exports.handler = async function(event, context) {
           console.log(`[weather-proxy-diag] 429 final | model=${body.models?.[0] || 'unknown'} pts=${numPoints} elapsed=${elapsedMs}ms`);
           return {
             statusCode: 429,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
-              'X-Rate-Limited': 'true', 'X-Points-Attempted': String(numPoints) },
-            body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true,
-              pointsAttempted: numPoints, elapsedMs })
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'X-Rate-Limited': 'true',
+              'X-Points-Attempted': String(numPoints),
+              'X-Proxy-Type': type,
+              'X-Upstream-Provider': 'open-meteo',
+              'X-Model': body.models?.[0] || 'unknown',
+              'X-Point-Count': String(numPoints),
+              'X-Hourly-Var-Count': String(body.hourly ? body.hourly.length : 0),
+              'X-Forecast-Days': String(body.forecast_days),
+              'X-Fallback-Used': 'true',
+              'X-Cache-Hit': 'false',
+              'X-Elapsed-Ms': String(elapsedMs),
+              'X-Failure-Phase': 'chunked_get'
+            },
+            body: JSON.stringify({
+              error: 'Rate limit exceeded',
+              statusCode: 429,
+              isRateLimit: true,
+              pointsAttempted: numPoints,
+              elapsedMs,
+              proxyType: type,
+              upstreamProvider: 'open-meteo',
+              'upstream provider': 'open-meteo',
+              model: body.models?.[0] || 'unknown',
+              pointCount: numPoints,
+              hourlyVarCount: body.hourly ? body.hourly.length : 0,
+              forecastDays: body.forecast_days,
+              fallbackUsed: true,
+              cacheHit: false,
+              failurePhase: 'chunked_get'
+            })
           };
         }
         if (result.status !== 200 || !result.data) {
           const elapsedMs = Date.now() - startTime;
+          const failStatus = result.status || 502;
           return {
-            statusCode: result.status || 502,
-            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: result.error || 'Chunked GET failed', statusCode: result.status })
+            statusCode: failStatus,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'X-Proxy-Type': type,
+              'X-Upstream-Provider': 'open-meteo',
+              'X-Model': body.models?.[0] || 'unknown',
+              'X-Point-Count': String(numPoints),
+              'X-Hourly-Var-Count': String(body.hourly ? body.hourly.length : 0),
+              'X-Forecast-Days': String(body.forecast_days),
+              'X-Fallback-Used': 'true',
+              'X-Cache-Hit': 'false',
+              'X-Elapsed-Ms': String(elapsedMs),
+              'X-Failure-Phase': 'chunked_get'
+            },
+            body: JSON.stringify({
+              error: result.error || 'Chunked GET failed',
+              statusCode: failStatus,
+              proxyType: type,
+              upstreamProvider: 'open-meteo',
+              'upstream provider': 'open-meteo',
+              model: body.models?.[0] || 'unknown',
+              pointCount: numPoints,
+              hourlyVarCount: body.hourly ? body.hourly.length : 0,
+              forecastDays: body.forecast_days,
+              fallbackUsed: true,
+              cacheHit: false,
+              elapsedMs,
+              failurePhase: 'chunked_get'
+            })
           };
         }
         data = result.data;
@@ -463,25 +549,50 @@ exports.handler = async function(event, context) {
 
       console.error(`[weather-proxy] Open-Meteo error after ${attempt} attempts: ${status} ${errorText.substring(0, 200)}`);
 
-      // Check if this is a wrapped rate limit
-      if (status === 429) {
-        return {
-          statusCode: 429,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-          body: JSON.stringify({ error: 'Rate limit exceeded', statusCode: 429, isRateLimit: true })
-        };
-      }
+      const elapsedMs = Date.now() - startTime;
+      const ptsCount = event.queryStringParameters?.latitude ? event.queryStringParameters.latitude.split(',').length : 1;
+      const hourlyCount = event.queryStringParameters?.hourly ? event.queryStringParameters.hourly.split(',').length : 0;
+      const fDays = parseFloat(event.queryStringParameters?.forecast_days || 16);
+
+      const resHeaders = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'X-Proxy-Type': type || 'unknown',
+        'X-Upstream-Provider': 'open-meteo',
+        'X-Model': event.queryStringParameters?.models || 'unknown',
+        'X-Point-Count': String(ptsCount),
+        'X-Hourly-Var-Count': String(hourlyCount),
+        'X-Forecast-Days': String(fDays),
+        'X-Fallback-Used': 'false',
+        'X-Cache-Hit': 'false',
+        'X-Elapsed-Ms': String(elapsedMs),
+        'X-Failure-Phase': 'upstream_get'
+      };
+
+      const resBody = {
+        error: status === 429 ? 'Rate limit exceeded' : 'Open-Meteo Gateway Error',
+        statusCode: status,
+        isRateLimit: status === 429,
+        isGatewayError: status !== 429,
+        attempts: attempt,
+        detail: errorText.substring(0, 500),
+        proxyType: type || 'unknown',
+        upstreamProvider: 'open-meteo',
+        'upstream provider': 'open-meteo',
+        model: event.queryStringParameters?.models || 'unknown',
+        pointCount: ptsCount,
+        hourlyVarCount: hourlyCount,
+        forecastDays: fDays,
+        fallbackUsed: false,
+        cacheHit: false,
+        elapsedMs,
+        failurePhase: 'upstream_get'
+      };
 
       return {
         statusCode: status,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        body: JSON.stringify({
-          error: 'Open-Meteo Gateway Error',
-          statusCode: status,
-          isGatewayError: true,
-          attempts: attempt,
-          detail: errorText.substring(0, 500)
-        })
+        headers: resHeaders,
+        body: JSON.stringify(resBody)
       };
     }
 
@@ -506,10 +617,40 @@ exports.handler = async function(event, context) {
     };
   } catch (err) {
     console.error(`[weather-proxy] Error:`, err);
+    const elapsedMs = Date.now() - startTime;
+    const isCopernicus = type === 'copernicus_marine' || (event.body && event.body.includes('copernicus_marine'));
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: 'Proxy error', message: err.message })
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'X-Proxy-Type': type || 'unknown',
+        'X-Upstream-Provider': isCopernicus ? 'copernicus' : 'open-meteo',
+        'X-Model': 'unknown',
+        'X-Point-Count': '0',
+        'X-Hourly-Var-Count': '0',
+        'X-Forecast-Days': '0',
+        'X-Fallback-Used': 'false',
+        'X-Cache-Hit': 'false',
+        'X-Elapsed-Ms': String(elapsedMs),
+        'X-Failure-Phase': 'unhandled_exception'
+      },
+      body: JSON.stringify({
+        error: 'Proxy error',
+        message: err.message,
+        statusCode: 500,
+        proxyType: type || 'unknown',
+        upstreamProvider: isCopernicus ? 'copernicus' : 'open-meteo',
+        'upstream provider': isCopernicus ? 'copernicus' : 'open-meteo',
+        model: 'unknown',
+        pointCount: 0,
+        hourlyVarCount: 0,
+        forecastDays: 0,
+        fallbackUsed: false,
+        cacheHit: false,
+        elapsedMs,
+        failurePhase: 'unhandled_exception'
+      })
     };
   }
 };

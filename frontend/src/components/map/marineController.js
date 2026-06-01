@@ -338,42 +338,35 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       body.models = [OM_MODELS[model]];
     }
 
-    // v3.9.6: Proxy-first, direct fallback
+    // v7.14.5: Route wind grid fetches through the centralized governor
     let res;
     try {
-      res = await fetch(PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'wind', body }),
-        signal: fetchSignal
+      res = await governMarineRequest({
+        source: 'marineController.fetchWindData',
+        type: 'wind',
+        body: body,
+        signal: fetchSignal,
+        model: model || 'GFS',
+        layer: 'wind',
+        category: 'grid'
       });
-      // v3.13: 429 = API rate limit, NOT proxy failure. Do NOT fall back to direct.
       if (res.status === 429) {
         enterCooldown('wind');
-        console.warn('[Wind] 429 from proxy, cooldown activated (not retrying direct)');
+        console.warn('[Wind] 429 from proxy governor, cooldown activated');
         return lastKnownGoodWind;
       }
       if (!res.ok) {
-        // v3.14: Check if proxy 500 wraps a rate-limit (chunk 429 → proxy 500 regression)
-        if (res.status === 500) {
-          try {
-            const errBody = await res.clone().json();
-            if (errBody?.isRateLimit || errBody?.message?.includes('429') || errBody?.statusCode === 429) {
-              enterCooldown('wind');
-              console.warn('[Wind] Proxy 500 wrapping rate-limit, cooldown activated');
-              return lastKnownGoodWind;
-            }
-          } catch(e) { /* not JSON, proceed with normal error */ }
-        }
         throw new Error(`Proxy returned HTTP ${res.status}`);
       }
-      // v3.13: React dev server returns 200 with HTML for unknown routes — detect and skip
       const windContentType = res.headers.get('content-type') || '';
       if (!windContentType.includes('application/json')) {
         throw new Error(`Proxy returned non-JSON content-type: ${windContentType.substring(0, 50)}`);
       }
-      // X-Cache header check (no-op, kept for future diagnostics)
     } catch (proxyErr) {
+      if (proxyErr.message === 'wind_cooldown_active' || proxyErr.message === 'failure_ttl_active' || proxyErr.message === 'grid_fetch_in_flight') {
+        console.warn(`[WindController] Governor blocked wind fetch: ${proxyErr.message}`);
+        return lastKnownGoodWind;
+      }
       if (isLocalhost) {
         console.log('[Wind] Proxy unavailable or error, direct API fallback:', proxyErr.message);
         res = await fetch('https://api.open-meteo.com/v1/forecast', {
@@ -391,7 +384,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     if (!res.ok) {
       if (res.status === 429) {
         enterCooldown('wind');
- console.warn(`[Wind] 429 rate limited cooldown active`);
+        console.warn(`[Wind] 429 rate limited cooldown active`);
         return lastKnownGoodWind;
       }
       throw new Error(`HTTP ${res.status}`);
