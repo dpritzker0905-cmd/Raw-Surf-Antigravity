@@ -12,7 +12,7 @@ const loadGrid = async (model, layer, hour, bounds, zoom) => {
   if (model === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(layer)) {
     return fetchCopernicusComponentGrid(bounds, layer, hour, zoom);
   } else {
-    return fetchMarineData(bounds, zoom, null, hour, false, model);
+    return fetchMarineData(bounds, zoom, null, hour, false, model, layer);
   }
 };
 
@@ -586,7 +586,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           west: b.getWest(), south: b.getSouth(),
           east: b.getEast(), north: b.getNorth()
         };
-        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current);
+        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves');
       } catch (e) { /* map not ready */ }
 
       // Hard Dedupe: Ignore identical triggers within 800ms (reduced to 50ms if cached)
@@ -656,7 +656,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           west: b.getWest(), south: b.getSouth(),
           east: b.getEast(), north: b.getNorth()
         };
-        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current);
+        isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves');
       } catch (e) { /* map not ready */ }
       const debounceTime = isCached ? 50 : 900;
 

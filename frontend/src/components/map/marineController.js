@@ -1,8 +1,5 @@
 /**
- * marineController.js v3.0.0
- *
- * Authoritative fetch layer for wind and marine data.
- * Conforms to the Marine Engine v3 runtime contract.
+ * marineController.js v3.0.0 — Fetch layer for wind and marine data.
  *
  * RULES:
  * - NO mock data injection in production
@@ -11,9 +8,7 @@
  * - AbortController for inflight cancellation
  * - Cache-first architecture
  * - Last valid field preservation on failure
- *
- * Pressure data has been extracted to marineControllerPressure.js.
- * Shared utilities live in marineControllerUtils.js.
+ * Pressure data: marineControllerPressure.js. Shared utilities: marineControllerUtils.js.
  */
 
 import {
@@ -33,9 +28,7 @@ export { fetchPressureData, extractPressureAtOffset, getPressureHourlyCache, isC
 var MARINE_CACHE = new Map();
 var WIND_CACHE = new Map();
 
-// --- HOURLY DATA CACHE (pre-fetched for timeline scrub) ---
-// Stores full API responses keyed by viewport hash so timeline
-// changes re-index locally instead of making new API calls.
+// Hourly cache stores full API responses keyed by viewport+model+layer hash.
 var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
 
@@ -91,9 +84,9 @@ if (lastKnownGoodMarine) console.log(`[Marine] Pre-populated lastKnownGood: ${la
 var _perModelHourCache = new Map();
 var PER_MODEL_HOUR_CACHE_MAX = 50;
 var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
-function _cacheMarineResult(model, hourOffset, data) {
+function _cacheMarineResult(model, hourOffset, data, layer) {
   if (!data) return;
-  const key = `${model || 'GFS'}_${hourOffset}`;
+  const key = `${model || 'GFS'}_${layer || 'waves'}_${hourOffset}`;
   _perModelHourCache.set(key, { data, timestamp: Date.now() });
   if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
     const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
@@ -101,23 +94,25 @@ function _cacheMarineResult(model, hourOffset, data) {
   }
 }
 
-/** v7.0: Per-model/hour cache accessor. Falls back to nearest hour within ±6h. */
-function getModelSafeMarine(requestedModel, requestedHourOffset) {
+/** v7.1: Per-model/layer/hour cache accessor. Falls back to nearest hour within ±6h. */
+function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
   const wanted = requestedModel || 'GFS';
+  const wantedLayer = requestedLayer || 'waves';
   const wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
-  const exactKey = `${wanted}_${wantedHour}`;
+  const exactKey = `${wanted}_${wantedLayer}_${wantedHour}`;
   const exact = _perModelHourCache.get(exactKey);
   if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
     return exact.data;
   }
 
-  // 2. Nearest hour within ±6h in the same model
+  // 2. Nearest hour within ±6h in the same model+layer
+  const prefix = `${wanted}_${wantedLayer}_`;
   let bestEntry = null;
   let bestDiff = Infinity;
   for (const [key, entry] of _perModelHourCache.entries()) {
-    if (!key.startsWith(wanted + '_')) continue;
+    if (!key.startsWith(prefix)) continue;
     if (Date.now() - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL) continue;
-    const cachedHour = parseInt(key.split('_')[1], 10);
+    const cachedHour = parseInt(key.substring(prefix.length), 10);
     const diff = Math.abs(cachedHour - wantedHour);
     if (diff < bestDiff && diff <= 6) {
       bestDiff = diff;
@@ -145,25 +140,10 @@ function getModelSafeMarine(requestedModel, requestedHourOffset) {
 }
 
 function createFallbackSafeZeroGrid(model, failureReason) {
-  return {
-    type: 'FeatureCollection',
-    features: [],
-    grid: {
-      vectors: [],
-      bounds: { west: -180, south: -80, east: 180, north: 85 },
-      cols: 27,
-      rows: 27,
-      __provider: 'fallback_safe_zero',
-      __gridProvider: 'none',
-      __renderable: false,
-      __failureReason: failureReason
-    },
-    __sourceModel: model || 'GFS',
-    __provider: 'fallback_safe_zero',
-    __gridProvider: 'none',
-    __renderable: false,
-    __failureReason: failureReason
-  };
+  const m = model || 'GFS', g = { vectors: [], bounds: { west: -180, south: -80, east: 180, north: 85 }, cols: 27, rows: 27,
+    __provider: 'fallback_safe_zero', __gridProvider: 'none', __renderable: false, __failureReason: failureReason };
+  return { type: 'FeatureCollection', features: [], grid: g, __sourceModel: m, __provider: 'fallback_safe_zero',
+    __gridProvider: 'none', __renderable: false, __failureReason: failureReason };
 }
 
 // --- INFLIGHT ABORT CONTROLLERS ---
@@ -197,9 +177,10 @@ function hasTimeCoverage(cache, hourOffset) {
   return targetMs <= lastCachedMs + 2 * 3600000;
 }
 
-export function isContainedInMarineCache(bounds, model, hourOffset = 0) {
+export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 'waves') {
   if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
   if (marineHourlyCache.model !== (model || 'GFS')) return false;
+  if ((marineHourlyCache.activeLayer || 'waves') !== layer) return false;
   if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
   if (!hasTimeCoverage(marineHourlyCache, hourOffset)) return false;
   const isGlobalCached = !!marineHourlyCache.isGlobal;
@@ -515,8 +496,20 @@ function extractMarineAtOffset(cache, hourOffset) {
     const ww_h = safeNum(c.wind_wave_height != null ? c.wind_wave_height : 0), 
           ww_d = safeNum(c.wind_wave_direction != null ? c.wind_wave_direction : 0);
 
-    const w_h_raw = r.hourly.wave_height?.[idx];
-    const isOcean = (w_h_raw !== null && w_h_raw !== undefined);
+    // v7.1: isOcean from active layer's height field, with wave_height as fallback mask
+    const activeLayerFromCache = cache.activeLayer || 'waves';
+    let isOcean = false;
+    if (activeLayerFromCache === 'waves') {
+      isOcean = (r.hourly.wave_height?.[idx] != null);
+    } else if (activeLayerFromCache === 'swell_1') {
+      isOcean = (r.hourly.swell_wave_height?.[idx] != null) || (r.hourly.wave_height?.[idx] != null);
+    } else if (activeLayerFromCache === 'swell_2') {
+      isOcean = (r.hourly.secondary_swell_wave_height?.[idx] != null) || (r.hourly.swell_wave_height?.[idx] != null) || (r.hourly.wave_height?.[idx] != null);
+    } else if (activeLayerFromCache === 'wind_waves') {
+      isOcean = (r.hourly.wind_wave_height?.[idx] != null) || (r.hourly.wave_height?.[idx] != null);
+    } else {
+      isOcean = (r.hourly.wave_height?.[idx] != null);
+    }
 
     if (w_h === 0 && s1_h === 0 && ww_h === 0) {
       gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
@@ -561,10 +554,10 @@ function extractMarineAtOffset(cache, hourOffset) {
 var inFlightMarineRequests = new Map();
 
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false) {
-  if (!bounds) return getModelSafeMarine(model, hourOffset);
+  if (!bounds) return getModelSafeMarine(model, hourOffset, activeLayer);
 
   // Viewport containment cache hit
-  if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset)) {
+  if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset, activeLayer)) {
     return extractMarineAtOffset(marineHourlyCache, hourOffset);
   }
 
@@ -580,11 +573,12 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
   const expectedProvider = 'open-meteo';
-  const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${expectedProvider}`);
+  const viewHash = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${activeLayer || 'waves'}_${expectedProvider}`);
 
   // Check hourly cache
   if (marineHourlyCache.hash === viewHash &&
       marineHourlyCache.model === (model || 'GFS') &&
+      (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves') &&
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL &&
       hasTimeCoverage(marineHourlyCache, hourOffset)) {
@@ -593,6 +587,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // Stale fallback
   if (marineHourlyCache.hash && marineHourlyCache.model === (model || 'GFS') &&
+      (marineHourlyCache.activeLayer || 'waves') === (activeLayer || 'waves') &&
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const stale = extractMarineAtOffset(marineHourlyCache, hourOffset);
@@ -605,7 +600,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   }
 
   // Per-offset cache
-  const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${expectedProvider}_h${hourOffset}`);
+  const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${activeLayer || 'waves'}_${expectedProvider}_h${hourOffset}`);
   if (MARINE_CACHE.has(cacheKey)) {
     const cached = MARINE_CACHE.get(cacheKey);
     if (Date.now() - cached.timestamp < 300000) return cached.data;
@@ -618,7 +613,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   }
 
   if (!forceFetch && isInCooldown('marine')) {
-    return getModelSafeMarine(model, hourOffset);
+    return getModelSafeMarine(model, hourOffset, activeLayer);
   }
 
   const fetchPromise = (async () => {
@@ -693,6 +688,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       if (marineVarList.length === 0) {
         marineVarList = MODEL_SUPPORTED_VARS[apiModel].slice(0, 3);
       }
+      // v7.1: Always include wave_height as ocean-mask variable (negligible payload, reliable isOcean)
+      if (!marineVarList.includes('wave_height') && MODEL_SUPPORTED_VARS[apiModel].includes('wave_height')) {
+        marineVarList.push('wave_height');
+      }
 
       const body = { latitude: lats, longitude: lons, hourly: marineVarList, forecast_days: forecastDays };
       if (model && MARINE_OM_MODELS[model]) body.models = [MARINE_OM_MODELS[model]];
@@ -711,7 +710,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         });
         if (res.status === 429) {
           enterCooldown('marine');
-          return getModelSafeMarine(model, hourOffset);
+          return getModelSafeMarine(model, hourOffset, activeLayer);
         }
         if (!res.ok) {
           if (res.status === 500) {
@@ -719,7 +718,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
               const err = await res.clone().json();
               if (err?.isRateLimit || err?.message?.includes('429')) {
                 enterCooldown('marine');
-                return getModelSafeMarine(model, hourOffset);
+                return getModelSafeMarine(model, hourOffset, activeLayer);
               }
             } catch(e) {}
           }
@@ -746,20 +745,20 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       if (!res.ok) {
         if (res.status === 429) {
           enterCooldown('marine');
-          return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'rate_limited');
+          return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'rate_limited');
         }
-        return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'proxy_error');
+        return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'proxy_error');
       }
 
       const json = await res.json();
       let allResults = Array.isArray(json) ? json : (json?.hourly ? points.map(() => json) : null);
-      if (!allResults) return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'invalid_shape');
+      if (!allResults) return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'invalid_shape');
 
       var detectedProvider = (allResults[0]?.__provider === 'copernicus') ? 'copernicus' : 'open-meteo';
       marineHourlyCache = {
         hash: viewHash, results: allResults, points, gridSize,
         bounds: gridBounds, timestamp: Date.now(),
-        model: model || 'GFS', provider: detectedProvider, isGlobal
+        model: model || 'GFS', activeLayer: activeLayer || 'waves', provider: detectedProvider, isGlobal
       };
       persistCache(LS_MARINE_KEY, marineHourlyCache);
 
@@ -770,7 +769,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         lastKnownGoodMarineModel = model || 'GFS';
         lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
         lastKnownGoodMarine.__provider = detectedProvider;
-        _cacheMarineResult(model || 'GFS', hourOffset, result);
+        _cacheMarineResult(model || 'GFS', hourOffset, result, activeLayer);
         if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; }
         
         // v7.0: Gated SWR background prefetch — cooldown + inflight + 5s delay
@@ -783,10 +782,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         
         return result;
       }
-      return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'empty_vectors');
+      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'empty_vectors');
     } catch (err) {
-      if (err.name === 'AbortError') return getModelSafeMarine(model, hourOffset);
-      return getModelSafeMarine(model, hourOffset) || createFallbackSafeZeroGrid(model, 'fetch_exception');
+      if (err.name === 'AbortError') return getModelSafeMarine(model, hourOffset, activeLayer);
+      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'fetch_exception');
     } finally {
       inFlightMarineRequests.delete(requestKey);
     }
