@@ -19,9 +19,21 @@
 # Dev branch - always build, gets stable URL at dev--rawsurf.netlify.app
 [context.dev]
   ignore = "false"
+  [context.dev.environment]
+    REACT_APP_BACKEND_URL = ""
+
+[[redirects]]
+  from = "/api/weather/*"
+  to = "/.netlify/functions/weather/:splat"
+  status = 200
 
 [[redirects]]
   from = "/api/weather-proxy"
   to = "/.netlify/functions/weather-proxy"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://raw-surf-antigravity.onrender.com/api/:splat"
   status = 200
 
