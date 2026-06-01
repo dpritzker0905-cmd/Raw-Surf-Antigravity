@@ -118,31 +118,10 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
       abortRef.current = controller;
       var signal = controller.signal;
 
-      // Programmatic GRIB pre-warmer for marine layers (avoids MapLibre rasters entirely)
+      // v7.4: Marine temporal preloading disabled — competes with direct-grid pipeline
+      // and contributes to 429 rate limit pressure. Marine heatmaps use custom WebGL grid, not tiles.
       if (entry.omModelGroup === 'marine') {
-        if (typeof window !== 'undefined' && window.__FETCH_OM_TILE__) {
-          var marineSteps = [0, 1, 2, 3]; // current, next, and future seek steps
-          var heightVar = resolvedVar;
-          var periodVar = resolvedVar.replace('_height', '_period').replace('wave_height', 'wave_period');
-          
-          for (var s = 0; s < marineSteps.length; s++) {
-            var targetIdx = closestIdx + marineSteps[s];
-            if (targetIdx < 0 || targetIdx >= meta.validTimes.length) continue;
-            
-            var cacheKeyH = model + ':' + heightVar + ':' + targetIdx;
-            if (!cacheRef.current.has(cacheKeyH)) {
-              cacheRef.current.add(cacheKeyH);
-              window.__FETCH_OM_TILE__(heightVar, targetIdx, model);
-            }
-            
-            var cacheKeyP = model + ':' + periodVar + ':' + targetIdx;
-            if (!cacheRef.current.has(cacheKeyP)) {
-              cacheRef.current.add(cacheKeyP);
-              window.__FETCH_OM_TILE__(periodVar, targetIdx, model);
-            }
-          }
-        }
-        return; // Exits early! Zero raster tile fetches or sources are created.
+        return; // Skip marine GRIB pre-fetching entirely
       }
 
 

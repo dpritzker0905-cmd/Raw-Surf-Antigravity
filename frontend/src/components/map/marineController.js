@@ -446,10 +446,9 @@ function extractMarineAtOffset(cache, hourOffset) {
   const timeArray = results[0]?.hourly?.time;
   const targetMs = Date.now() + hourOffset * 3600000;
   const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-  // v7.3: Coverage check — reject if closest cached hour is >3h from target to prevent stale heatmaps
+  // v7.3: Coverage check — reject if closest cached hour >3h from target
   if (timeArray?.[idx]) {
-    const ts = timeArray[idx];
-    const cachedMs = new Date(ts.endsWith('Z') ? ts : ts + 'Z').getTime();
+    const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
     if (Math.abs(cachedMs - targetMs) > 3 * 3600000) return null;
   }
 
@@ -505,21 +504,17 @@ function extractMarineAtOffset(cache, hourOffset) {
       return;
     }
 
-    // v7.3: ICON swell_2 estimated from primary swell — gwam doesn't support secondary_swell
-    // When activeLayer='swell_2' and model=ICON, the API returns swell_wave_* (primary swell)
-    // but extractMarineAtOffset always maps that to swell_1. Copy to swell_2 and mark estimated.
+    // v7.3: ICON swell_2 estimated from primary swell (gwam lacks secondary_swell)
     const isIconSwell2Estimated = activeLayerFromCache === 'swell_2' && activeModel === 'ICON' && s2_h === 0 && s1_h > 0;
     const final_s2_h = isIconSwell2Estimated ? s1_h : s2_h;
     const final_s2_d = isIconSwell2Estimated ? s1_d : s2_d;
-    const final_s2_period = isIconSwell2Estimated
-      ? safeNum(c.swell_wave_period != null ? c.swell_wave_period : 0)
-      : safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : 0);
+    const final_s2_period = isIconSwell2Estimated ? safeNum(c.swell_wave_period ?? 0) : safeNum(c.secondary_swell_wave_period ?? 0);
 
     gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
       waves: { ...getUV(w_h, w_d), period: safeNum(c.wave_period) },
-      swell_1: { ...getUV(s1_h, s1_d), period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : 0) },
+      swell_1: { ...getUV(s1_h, s1_d), period: safeNum(c.swell_wave_period ?? 0) },
       swell_2: { ...getUV(final_s2_h, final_s2_d), period: final_s2_period },
-      wind_waves: { ...getUV(ww_h, ww_d), period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : 0) },
+      wind_waves: { ...getUV(ww_h, ww_d), period: safeNum(c.wind_wave_period ?? 0) },
       isOcean });
 
     features.push({
@@ -536,14 +531,24 @@ function extractMarineAtOffset(cache, hourOffset) {
 
   if (features.length === 0) return null;
 
-  // v6.1: Propagate provider and source model to grid for infobox/WebGL verification
+  // v7.4: Active-layer truth metadata — separate ocean mask from active component data
   const provider = cache.provider || 'open-meteo';
   const activeLayerFromCache = cache.activeLayer || 'waves';
+  let activeLayerNonzero = 0, activeLayerMax = 0, oceanMaskCount = 0;
+  for (const gv of gridVectors) {
+    if (gv.isOcean) oceanMaskCount++;
+    const ld = gv[activeLayerFromCache];
+    if (ld && ld.speed > 0) { activeLayerNonzero++; if (ld.speed > activeLayerMax) activeLayerMax = ld.speed; }
+  }
+  const renderable = activeLayerNonzero > 0;
+  const noDataReason = !renderable ? (oceanMaskCount > 0 ? 'active_layer_zero_ocean_present' : 'no_ocean_data') : null;
   return {
     type: 'FeatureCollection', features, hourOffset,
     grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now(),
             __sourceModel: activeModel, __provider: provider, __gridProvider: provider,
-            __componentLayer: activeLayerFromCache, __gridSupportsLayer: true,
+            __componentLayer: activeLayerFromCache, __gridSupportsLayer: renderable,
+            __activeLayerNonzeroCount: activeLayerNonzero, __activeLayerMax: activeLayerMax,
+            __oceanMaskCount: oceanMaskCount, __renderable: renderable, __noDataReason: noDataReason,
             provider: provider, hourOffset }
   };
 }

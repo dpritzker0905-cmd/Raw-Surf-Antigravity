@@ -360,15 +360,23 @@ var MapWebGL = ({
     res.activeMarineLayer = activeMarineLayer;
     res.activeModel = activeModel;
 
-    // v7.3: All-zero active-layer guard — don't upload flat/invisible heatmaps
+    // v7.4: Active-layer truth guard — don't upload any all-zero active-layer grid as a valid heatmap
     let nonzeroCount = 0, maxHeight = 0;
     for (const v of res.vectors) {
       if (v.speed > 0) { nonzeroCount++; if (v.speed > maxHeight) maxHeight = v.speed; }
     }
     res.__nonzeroCount = nonzeroCount;
     res.__maxHeight = maxHeight;
-    if (nonzeroCount === 0 && res.vectors.length > 0 && !layerSupported && !hasCopernicusGrid) {
-      res.__renderBlockedReason = 'all_zero_unsupported_layer';
+    // Check both local nonzero count AND upstream __renderable from extractMarineAtOffset
+    const upstreamRenderable = marineData?.grid?.__renderable !== false;
+    if (nonzeroCount === 0 && res.vectors.length > 0) {
+      res.__renderBlockedReason = 'all_zero_active_layer';
+      res.__renderable = false;
+    } else if (!upstreamRenderable) {
+      res.__renderBlockedReason = marineData?.grid?.__noDataReason || 'upstream_not_renderable';
+      res.__renderable = false;
+    } else {
+      res.__renderable = true;
     }
 
     if (typeof window !== 'undefined') {
@@ -376,17 +384,13 @@ var MapWebGL = ({
       window.__MARINE_WIND_DATA__.__sourceModel = activeModel;
       window.__MARINE_WIND_DATA__.__provider = res.__provider;
       window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
-        hasData: true,
-        hasGrid: true,
-        gridProvider: res.__gridProvider,
-        componentLayer: res.__componentLayer,
-        activeMarineLayer,
-        activeModel,
-        isEuroComponent,
-        hasCopernicusGrid,
-        nonzeroCount, maxHeight,
-        mismatch: false,
-        renderBlockedReason: res.__renderBlockedReason || null,
+        hasData: true, hasGrid: true, gridProvider: res.__gridProvider,
+        componentLayer: res.__componentLayer, activeMarineLayer, activeModel,
+        isEuroComponent, hasCopernicusGrid, nonzeroCount, maxHeight,
+        renderable: res.__renderable, renderBlockedReason: res.__renderBlockedReason || null,
+        activeLayerNonzeroCount: marineData?.grid?.__activeLayerNonzeroCount,
+        activeLayerMax: marineData?.grid?.__activeLayerMax,
+        oceanMaskCount: marineData?.grid?.__oceanMaskCount,
         heatmapProvider: res.__provider,
         infoboxProvider: (window.__EURO_EXTENDED_ESTIMATE_DIAG__?.isEstimated) ? 'estimated' : res.__provider,
         timestamp: new Date().toISOString()

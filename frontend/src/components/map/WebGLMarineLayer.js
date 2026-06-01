@@ -361,8 +361,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         nonzeroCount: cntH,
         maxHeight: maxH,
         meanHeight: cntH > 0 ? sumH / cntH : 0,
-        renderAccepted: !!data?.vectors?.length,
-        rejectionReason: data?.vectors?.length ? null : 'Empty vector data',
+        renderAccepted: data?.__renderable !== false && !!data?.vectors?.length,
+        rejectionReason: data?.__renderable === false ? (data.__renderBlockedReason || 'not_renderable') : (data?.vectors?.length ? null : 'Empty vector data'),
         clearCalled: false,
         clearReason: null,
         dispatcherActiveBefore: dispatcherActive,
@@ -591,8 +591,22 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
                         lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
 
     if (!gridChanged) {
-      // Data is identical, skip setWaveData upload to avoid rendering churn
       return;
+    }
+
+    // v7.4: Block GPU upload of non-renderable data (all-zero active layer)
+    if (data.__renderable === false) {
+      console.log(`[WebGLMarine-Block] Skipping upload: ${data.__renderBlockedReason || 'not_renderable'} (nonzero=${nonzeroCount})`);
+      if (typeof window !== 'undefined') {
+        window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
+          activeModel: gridModel, activeLayer: activeMarineLayer,
+          timeOffsetHours: timeOffsetHoursRef.current, vectorCount: data.vectors?.length || 0,
+          nonzeroCount, renderAccepted: false,
+          rejectionReason: data.__renderBlockedReason || 'not_renderable',
+          timestamp: new Date().toISOString()
+        };
+      }
+      return; // Hold last valid texture
     }
 
     lastUploadedGridRef.current = {
