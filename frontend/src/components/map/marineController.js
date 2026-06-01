@@ -86,7 +86,7 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
 }
 
 /** v7.11: Per-model safe cache. GFS/ICON re-extract from raw hourly cache. */
-function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
+export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
   const wanted = requestedModel || 'GFS';
   const wantedLayer = requestedLayer || 'waves';
   const wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
@@ -564,13 +564,8 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
 // v7.5: Auto-retry after 429 cooldown expires
 var _marineRetryTimer = null, _marineRetryCount = 0, MAX_MARINE_RETRIES = 2;
 function _scheduleMarineRetry(bounds, zoom, hourOffset, model, activeLayer) {
-  if (_marineRetryCount >= MAX_MARINE_RETRIES) return;
-  clearTimeout(_marineRetryTimer);
-  const delay = getRemainingCooldown('marine') + 2000;
-  _marineRetryCount++;
-  _marineRetryTimer = setTimeout(() => {
-    fetchMarineData(bounds, zoom, null, hourOffset, true, model, activeLayer, false).catch(() => {});
-  }, delay);
+  // v7.14: Completely disabled controller-level retries in favor of orchestrator's single retry policy.
+  return;
 }
 
 // Centralized single-flight request registry for marine fetches

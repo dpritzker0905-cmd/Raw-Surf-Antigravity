@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache } from './marineController';
+import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache, getModelSafeMarine } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { isInCooldown } from './marineControllerUtils';
@@ -69,7 +69,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       c.webglUploads = window.__WEBGL_MARINE_UPLOAD_COUNT__ || 0;
       c.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__ || 0;
       window.__MARINE_PIPELINE_TRUTH__ = {
-        deployedVersion: 'v7.13', activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves',
+        deployedVersion: 'v7.14', activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves',
         activeHour: timeOffsetRef.current, cacheMode: activeModelRef.current !== 'EURO' ? 'all_vars_model_cache' : 'layer_scoped',
         pendingIntent: pendingMarineIntentRef.current, fetchPending: !!window.__MARINE_FETCH_PENDING__,
         lastCommittedSignature: lastCommittedSigRef.current, counters: { ...c }, lastEvents: pipelineEventsRef.current, timestamp: new Date().toISOString()
@@ -154,10 +154,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
           let cachedData = null;
           try {
-            const cache = getMarineHourlyCache();
-            if (cache?.results?.length && cache.model === model && (model !== 'EURO' || (cache.activeLayer || 'waves') === layer) && Date.now() - cache.timestamp < 5 * 60 * 1000) {
-              cachedData = extractMarineAtOffset(cache, timeOffset, layer);
-            }
+            cachedData = getModelSafeMarine(model, timeOffset, layer);
           } catch (e) { console.warn('[Cooldown Fallback] cache check failed:', e.message); }
 
           if (cachedData?.grid?.vectors?.length > 0) {
@@ -167,23 +164,31 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               lastCommittedSigRef.current = sig; marineRevision.current += 1;
               cachedData.__commitRevision = marineRevision.current; setMarineData(cachedData);
             }
+            if (typeof window !== 'undefined') {
+              window.__MARINE_HEATMAP_STATUS__ = { status: 'rate_limited_cached', model, layer, hour: timeOffset, retainedPrevious: false };
+            }
             return;
           }
 
-          if (marineData?.grid?.vectors?.length > 0 && marineData.grid.__sourceModel === model && marineData.grid.__componentLayer === layer && marineData.hourOffset === timeOffset) {
+          const hasMatches = marineData?.grid?.vectors?.length > 0 &&
+                            marineData.grid.__sourceModel === model &&
+                            marineData.grid.__componentLayer === layer &&
+                            marineData.hourOffset === timeOffset;
+
+          if (typeof window !== 'undefined') {
+            window.__MARINE_HEATMAP_STATUS__ = {
+              status: 'rate_limited_no_cache',
+              model, layer, hour: timeOffset,
+              retainedPrevious: hasMatches
+            };
+          }
+
+          if (hasMatches) {
             console.log(`[Cooldown Fallback] Retaining active valid matching data`);
             return;
           }
 
-          console.log(`[Cooldown Fallback] Showing honest rate limited status without poisoning WebGL`);
-          setMarineData({
-            type: 'FeatureCollection', features: [],
-            grid: {
-              vectors: null, bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0, timestamp: Date.now(),
-              __sourceModel: model, __provider: 'fallback_safe_zero', __gridProvider: 'fallback_safe_zero', __componentLayer: layer,
-              __gridSupportsLayer: false, __renderable: false, __noDataReason: 'rate_limited', provider: 'fallback_safe_zero'
-            }, __provider: 'fallback_safe_zero'
-          });
+          console.log(`[Cooldown Fallback] Skipping setMarineData fallback commit to prevent rendering empty/poisonous data`);
           return;
         }
 
@@ -197,9 +202,19 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
         const safeLoadGrid = async (modelName, targetLayer, targetHour, targetBounds, targetZoom, diagObj) => {
           phase = `load_${modelName}_h${targetHour}`;
+          
+          try {
+            const cached = getModelSafeMarine(modelName, targetHour, targetLayer);
+            if (cached?.grid?.vectors?.length > 0) {
+              diagObj.cacheHits.push(`${modelName}_h${targetHour}`);
+              return cached;
+            }
+          } catch (e) { console.warn('[safeLoadGrid] Cache read error:', e.message); }
+
           if (isInCooldown('marine')) {
             diagObj.cooldownStatus = 'rate_limited'; diagObj.skippedReason = 'cooldown_active'; return null;
           }
+
           const expectedProvider = (modelName === 'EURO' && COMPONENT_LAYERS.includes(targetLayer)) ? 'copernicus' : 'open-meteo';
           const layerKey = (modelName !== 'EURO') ? 'all' : (targetLayer || 'waves');
           const requestKey = `${modelName}_${layerKey}_${targetHour}_${expectedProvider}_vp_${targetZoom}`;

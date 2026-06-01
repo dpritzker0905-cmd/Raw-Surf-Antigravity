@@ -46,19 +46,28 @@ export function useSimulationField({
   const lastLogTimeRef = useRef(0);
   const lastDepsRef = useRef({ windDep: 'null', marineDep: 'null', pressureDep: 'null', activeModel: '', timeOffsetHours: 0, activeMarineLayer: '' });
 
+  const isMarineValid = marineData && 
+                        marineData.grid?.vectors && 
+                        marineData.grid.vectors.length > 0 && 
+                        marineData.__provider !== 'fallback_safe_zero' && 
+                        marineData.grid?.__provider !== 'fallback_safe_zero' && 
+                        marineData.grid?.__renderable !== false &&
+                        marineData.__renderable !== false;
+  const effectiveMarineData = isMarineValid ? marineData : null;
+
   // Compute stable primitive dependency keys to bypass React object reference changes on every frame
   const windDep = windData ? `${windData.vectors?.length || 0}-${windData.bounds?.west || 0}-${windData.revision || 0}` : 'null';
-  const marineDep = marineData ? `${marineData.grid?.vectors?.length || 0}-${marineData.grid?.__sourceModel || 'x'}-${marineData.grid?.__componentLayer || 'x'}-${marineData.grid?.__activeLayerNonzeroCount || 0}-${marineData.grid?.__renderable}-${marineData.hourOffset || 0}-${marineData.__commitRevision || 0}` : 'null';
+  const marineDep = effectiveMarineData ? `${effectiveMarineData.grid?.vectors?.length || 0}-${effectiveMarineData.grid?.__sourceModel || 'x'}-${effectiveMarineData.grid?.__componentLayer || 'x'}-${effectiveMarineData.grid?.__activeLayerNonzeroCount || 0}-${effectiveMarineData.grid?.__renderable}-${effectiveMarineData.hourOffset || 0}-${effectiveMarineData.__commitRevision || 0}` : 'null';
   const pressureDep = pressureData ? `${pressureData.vectors?.length || 0}-${pressureData.bounds?.west || 0}-${pressureData.revision || 0}` : 'null';
 
   // Memo keys: rebuild only when actual data values change
   const field = useMemo(() => {
     // Skip if no data at all
-    if (!windData && !marineData && !pressureData) return null;
+    if (!windData && !effectiveMarineData && !pressureData) return null;
 
     const f = buildSimulationField({
       windData,
-      marineData,
+      marineData: effectiveMarineData,
       pressureData,
       model: activeModel,
       hourOffset: timeOffsetHours,
@@ -77,6 +86,14 @@ export function useSimulationField({
     if (typeof window !== 'undefined') {
       window.__SIM_BIND_REASON__ = {
         changed,
+        marineDataIgnored: !!marineData && !isMarineValid,
+        marineIgnoreReason: (marineData && !isMarineValid) ? {
+          noGrid: !marineData.grid,
+          noVectors: !marineData.grid?.vectors,
+          emptyVectors: marineData.grid?.vectors?.length === 0,
+          fallbackSafeZero: marineData.__provider === 'fallback_safe_zero' || marineData.grid?.__provider === 'fallback_safe_zero',
+          notRenderable: marineData.grid?.__renderable === false || marineData.__renderable === false
+        } : null,
         prevWindDep: prev.windDep,
         nextWindDep: windDep,
         prevMarineDep: prev.marineDep,

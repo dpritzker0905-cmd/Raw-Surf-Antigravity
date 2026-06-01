@@ -380,9 +380,11 @@ var MapWebGL = ({
     }
 
     if (typeof window !== 'undefined') {
-      window.__MARINE_WIND_DATA__ = res;
-      window.__MARINE_WIND_DATA__.__sourceModel = activeModel;
-      window.__MARINE_WIND_DATA__.__provider = res.__provider;
+      window.__MARINE_WIND_DATA__ = res.__renderable ? res : null;
+      if (res.__renderable) {
+        window.__MARINE_WIND_DATA__.__sourceModel = activeModel;
+        window.__MARINE_WIND_DATA__.__provider = res.__provider;
+      }
       window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
         hasData: true, hasGrid: true, gridProvider: res.__gridProvider,
         componentLayer: res.__componentLayer, activeMarineLayer, activeModel,
@@ -397,6 +399,8 @@ var MapWebGL = ({
       };
       window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
     }
+    
+    if (!res.__renderable) return null;
     return res;
   }, [marineData, activeMarineLayer, activeModel, timeOffsetHours]);
 
