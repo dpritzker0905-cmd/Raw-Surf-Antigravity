@@ -87,30 +87,21 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
 
 /** v7.11: Per-model safe cache. GFS/ICON re-extract from raw hourly cache. */
 export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
-  const wanted = requestedModel || 'GFS';
-  const wantedLayer = requestedLayer || 'waves';
-  const wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
-
-  // v7.11: For all-var models, prefer re-extraction from raw hourly cache
+  const wanted = requestedModel || 'GFS', wantedLayer = requestedLayer || 'waves', wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
+  let hitData = null, cacheSource = 'none', staleHour = false, returnedHour = null;
   if (_isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted) {
     try {
       const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
-      if (reExtracted?.grid?.vectors?.length > 0) return reExtracted;
-    } catch (e) { /* fall through to per-model cache */ }
+      if (reExtracted?.grid?.vectors?.length > 0) { hitData = reExtracted; cacheSource = 'raw_hourly_cache'; }
+    } catch (e) {}
   }
-
-  // Per-model hour cache (layer-scoped for EURO, all-var for GFS/ICON)
-  const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
-  const exactKey = `${wanted}_${layerPart}_${wantedHour}`;
-  const exact = _perModelHourCache.get(exactKey);
-  if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-    // For EURO (layer-scoped), return directly. For GFS/ICON this is a fallback.
-    if (!_isAllVarModel(wanted)) return exact.data;
+  if (!hitData) {
+    const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
+    const exact = _perModelHourCache.get(`${wanted}_${layerPart}_${wantedHour}`);
+    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) { hitData = exact.data; cacheSource = 'per_model_hour_cache_exact'; }
   }
-
-  // Nearest hour within ±6h (EURO only — GFS/ICON use raw cache above)
-  if (!_isAllVarModel(wanted)) {
-    const prefix = `${wanted}_${layerPart}_`;
+  if (!hitData && !_isAllVarModel(wanted)) {
+    const prefix = `${wanted}_${wantedLayer}_`;
     let bestEntry = null, bestDiff = Infinity;
     for (const [key, entry] of _perModelHourCache.entries()) {
       if (!key.startsWith(prefix)) continue;
@@ -120,19 +111,40 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
       if (diff < bestDiff && diff <= 6) { bestDiff = diff; bestEntry = entry; }
     }
     if (bestEntry) {
-      const staleResult = { ...bestEntry.data };
-      staleResult.__staleHour = true;
-      staleResult.__originalHour = bestEntry.data.hourOffset;
-      return staleResult;
+      hitData = { ...bestEntry.data, __staleHour: true, __originalHour: bestEntry.data.hourOffset };
+      staleHour = true; cacheSource = 'per_model_hour_cache_nearest';
     }
   }
-
-  // 3. Fall back to legacy single lastKnownGood (model + layer safe only)
-  if (lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
+  if (!hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
     const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
-    if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated') return lastKnownGoodMarine;
+    if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated') {
+      const diff = Math.abs((lastKnownGoodMarine.hourOffset || 0) - wantedHour);
+      if (diff <= 6) {
+        hitData = { ...lastKnownGoodMarine };
+        if (diff > 0) { hitData.__staleHour = true; hitData.__originalHour = lastKnownGoodMarine.hourOffset; staleHour = true; }
+        cacheSource = 'last_known_good';
+      }
+    }
   }
-  return null;
+  if (hitData) {
+    const gotModel = hitData.__sourceModel || hitData.grid?.__sourceModel || 'GFS';
+    const gotLayer = hitData.grid?.__componentLayer || 'waves';
+    returnedHour = hitData.hourOffset !== undefined ? hitData.hourOffset : wantedHour;
+    if (gotModel !== wanted || gotLayer !== wantedLayer) {
+      console.warn(`[Safe Cache] Mismatch! Wanted ${wanted}/${wantedLayer}, got ${gotModel}/${gotLayer}`);
+      hitData = null;
+    } else if (Math.abs(returnedHour - wantedHour) > 6) {
+      console.warn(`[Safe Cache] Hour delta ${Math.abs(returnedHour - wantedHour)}h > 6h, rejected.`);
+      hitData = null;
+    }
+  }
+  const provider = hitData?.grid?.__provider || hitData?.grid?.provider || 'none';
+  const hasHit = !!hitData;
+  returnedHour = hasHit ? (hitData.hourOffset !== undefined ? hitData.hourOffset : wantedHour) : null;
+  if (typeof window !== 'undefined') {
+    window.__MARINE_SAFE_CACHE_DIAG__ = { requestedModel: wanted, requestedLayer: wantedLayer, requestedHour: wantedHour, returnedHour, provider, staleHour: staleHour && hasHit, cacheHit: hasHit, cacheSource, timestamp: new Date().toISOString() };
+  }
+  return hitData;
 }
 
 function createFallbackSafeZeroGrid(model, failureReason) {
