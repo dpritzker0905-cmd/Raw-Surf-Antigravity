@@ -16,9 +16,13 @@
  *   - v5.9.3: No cross-model sampling — unsupported model/var returns null
  */
 
-import { MARINE_MODEL_CAPABILITIES } from './marineControllerUtils';
+import { MARINE_MODEL_CAPABILITIES, isInCooldown } from './marineControllerUtils';
 import { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted } from './forecastHelpers';
 import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
+
+var _recentFailedRequests = new Map();
+var RECENT_FAILED_TTL = 30000;
+
 
 // Sets moved to forecastHelpers.js to respect 800 LOC limit.
 
@@ -219,20 +223,11 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
   
-  const nativeLimit = model === 'EURO' ? (activeLayer === 'waves' ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS) : ICON_LIMIT;
-  const isPastLimit = (model === 'EURO' && timeOffsetHours > 72) || (model === 'ICON' && timeOffsetHours > 120);
-
-  if (model === 'EURO' && isPastLimit && !signal?.aborted) {
-    // Proactively pre-warm GFS and ICON exact point data in background for Extended Estimate
-    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
-    fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal, timeOffsetHours).catch(() => {});
-  } else if (model === 'ICON' && isPastLimit && !signal?.aborted) {
-    // Proactively pre-warm GFS exact point data in background for ICON Extended Estimate
-    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
+  if (typeof isInCooldown === 'function' && isInCooldown('marine')) {
+    console.warn(`[ExactPoint] Blocked fetch for model=${model} lat=${rLat} lng=${rLng}: marine cooldown is active.`);
+    return { status: 'rate_limited' };
   }
-  
-  // v6.7: Route EURO waves exact-point through Open-Meteo ecmwf_wam025 since
-  // combined waves maps perfectly and resolves in <200ms, bypassing Copernicus.
+
   const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
   let provider = PROVIDER_MAP[model] || 'open-meteo';
   if (model === 'EURO' && activeLayer === 'waves') {
@@ -247,11 +242,36 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     return cached.data;
   }
 
+  const recentFailure = _recentFailedRequests.get(cacheKey);
+  if (recentFailure && Date.now() - recentFailure < RECENT_FAILED_TTL) {
+    console.warn(`[ExactPoint] Blocked fetch: recent failed request exists in TTL window for key: ${cacheKey}`);
+    return { status: 'rate_limited' };
+  }
+
+  const nativeLimit = model === 'EURO' ? (activeLayer === 'waves' ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS) : ICON_LIMIT;
+  const isPastLimit = (model === 'EURO' && timeOffsetHours > 72) || (model === 'ICON' && timeOffsetHours > 120);
+
+  if (model === 'EURO' && isPastLimit && !signal?.aborted) {
+    // Proactively pre-warm GFS and ICON exact point data in background for Extended Estimate
+    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
+    fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal, timeOffsetHours).catch(() => {});
+  } else if (model === 'ICON' && isPastLimit && !signal?.aborted) {
+    // Proactively pre-warm GFS exact point data in background for ICON Extended Estimate
+    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
+  }
+
+  const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
+  const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
+  let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
+  if (provider === 'copernicus') {
+    forecastDays = 3;
+  }
+
   // Group Copernicus component requests under EURO_COMPONENTS to share the in-flight fetch
   const isEuroComponent = model === 'EURO' && provider === 'copernicus';
   const inFlightKey = isEuroComponent
-    ? `${rLat}_${rLng}_EURO_COMPONENTS`
-    : cacheKey;
+    ? `${rLat}_${rLng}_EURO_COMPONENTS_fd${forecastDays}`
+    : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_fd${forecastDays}`;
 
   if (_inFlightExactPointRequests.has(inFlightKey)) {
     console.log(`[ExactPoint] Sharing in-flight request for: ${inFlightKey}`);
@@ -259,14 +279,6 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   const fetchPromise = (async () => {
-    const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
-    const apiModel = (model && MARINE_OM_MODELS[model]) ? MARINE_OM_MODELS[model] : 'ncep_gfswave025';
-    let forecastDays = MARINE_MODEL_LIMITS[apiModel] || 7;
-
-    if (provider === 'copernicus') {
-      forecastDays = 3;
-    }
-
     let hourlyVars;
     if (model === 'EURO') {
       if (activeLayer === 'waves') {
@@ -365,12 +377,16 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
               timestamp: new Date().toISOString()
             };
           }
+          _recentFailedRequests.set(cacheKey, Date.now());
           return { status: statusStr };
         }
 
         const json = await res.json();
         const result = Array.isArray(json) ? json[0] : json;
-        if (!result?.hourly) return null;
+        if (!result?.hourly) {
+          _recentFailedRequests.set(cacheKey, Date.now());
+          return null;
+        }
 
         if (typeof window !== 'undefined') {
           window.__MARINE_EXACT_POINT_ERROR__ = null;
@@ -470,6 +486,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
             timestamp: new Date().toISOString()
           };
         }
+        _recentFailedRequests.set(cacheKey, Date.now());
         return null;
       } finally {
         _inFlightExactPointRequests.delete(inFlightKey);
@@ -480,6 +497,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   _inFlightExactPointRequests.set(inFlightKey, fetchPromise);
   return fetchPromise;
 }
+
 
 /**
  * Select the correct hour from a cached exact-point response.

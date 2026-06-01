@@ -127,6 +127,17 @@ export var MapForecastOverlay = ({
       return;
     }
 
+    const isCooling = typeof isInCooldown === 'function' && isInCooldown('marine');
+    const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer);
+
+    if (isCooling && !isCached) {
+      console.log("[Forecast] Suppressing exact-point fetch because marine is cooling down and no cache is available.");
+      setExactPointResponse(null);
+      setExactPoint(null);
+      setExactPointStatus('rate_limited');
+      return;
+    }
+
     setExactPointResponse(null);
     setExactPoint(null);
     setExactPointStatus('exact_loading');
@@ -340,7 +351,8 @@ export var MapForecastOverlay = ({
   // v6.9: Grid Fallback on Point Error: if exact point is loading, failed, timed out,
   // or has no coverage, but the visual/blended heatmap grid is valid, use the grid sample.
   const useExactPoint = isExactPointValid ? effectiveExactPoint : null;
-  const useGridFallback = isExactPointAuthority && !useExactPoint && (isExactPointLoading || isExactPointTimeout || isExactPointError || effectiveExactPointStatus === 'exact_no_time_coverage');
+  const hasGridParity = typeof window !== 'undefined' && window.__MARINE_RENDER_HOUR_PARITY__?.parity === true;
+  const useGridFallback = isExactPointAuthority && !useExactPoint && hasGridParity && (isExactPointLoading || isExactPointTimeout || isExactPointError || effectiveExactPointStatus === 'exact_no_time_coverage');
   
   const blockFallbacks = isExactPointAuthority && !useGridFallback;
 

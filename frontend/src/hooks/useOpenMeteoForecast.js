@@ -257,18 +257,10 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             .catch(e => ({ type: 'wx_sel', ok: false, reason: e }))
         );
 
-        // 2. Marine Selected
-        if (isExplicit) {
-          fetchQueue.push(
-            safeFetch('marine', marineBody)
-              .then(r => ({ type: 'marine_sel', ok: r.ok, value: r }))
-              .catch(e => ({ type: 'marine_sel', ok: false, reason: e }))
-          );
-        } else {
-          fetchQueue.push(
-            Promise.resolve({ type: 'marine_sel', ok: false, skipped: true })
-          );
-        }
+        // 2. Marine Selected (authoritative marine pipeline handles all marine fetches; skip here entirely to protect rate limits)
+        fetchQueue.push(
+          Promise.resolve({ type: 'marine_sel', ok: false, skipped: true })
+        );
 
         const results = await Promise.all(fetchQueue);
         const rx = {};
@@ -298,9 +290,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
         return {
           forecastData: finalForecastData,
-          marineData: finalMarineData,
+          marineData: null,
           currentWeather: finalCurrentWeather,
-          isStale: !finalForecastData || (isExplicit ? !finalMarineData : false)
+          isStale: !finalForecastData
         };
 
       } catch (err) {
@@ -330,17 +322,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
         }
       }
 
-      if (result.marineData) {
-        setMarineData(result.marineData);
-      } else {
-        lastFetchKey.current = '';
-        if (isExplicit) {
-          setIsStale(true);
-        }
-        if (isCoordinateMoved || isExplicit) {
-          setMarineData(null);
-        }
-      }
+      setMarineData(null);
 
       if (result.forecastData || result.marineData) {
         forecastCache.set(fetchKey, {

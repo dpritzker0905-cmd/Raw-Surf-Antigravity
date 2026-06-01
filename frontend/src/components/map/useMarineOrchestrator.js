@@ -593,7 +593,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
 
     try {
-      if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer)) {
+      if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer) && !coverageRejected) {
         const data = extractMarineAtOffset(cache, timeOffsetHours, curLayer);
         if (data) {
           extractedGrid = data.grid;

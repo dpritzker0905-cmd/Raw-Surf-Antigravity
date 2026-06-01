@@ -616,6 +616,35 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // v7.14.2: Deduplicate requests by model + provider + layerKey + forecastDays/horizon
   const requestKey = `${model || 'GFS'}_${layerKey}_fd${forecastDays}_${expectedProvider}_${viewHash}_${isPrefetch ? 'p' : 'l'}`;
+  
+  // Look for any existing in-flight request for the same model, layer, provider, and bounds, with equal or greater forecastDays
+  let matchedPromise = null;
+  for (const [key, promise] of inFlightMarineRequests.entries()) {
+    if (key.includes(`_${expectedProvider}_${viewHash}_`)) {
+      const parts = key.split('_');
+      const keyModel = parts[0];
+      const keyLayerKey = parts[1];
+      const keyFdPart = parts[2] || '';
+      if (keyFdPart.startsWith('fd')) {
+        const keyFd = parseInt(keyFdPart.replace('fd', ''), 10);
+        if (keyModel === (model || 'GFS') && keyLayerKey === layerKey && keyFd >= forecastDays) {
+          matchedPromise = promise;
+          console.log(`[Marine] Found existing in-flight promise with equal or greater forecastDays (${keyFd} >= ${forecastDays}), reusing: ${key}`);
+          break;
+        }
+      }
+    }
+  }
+
+  if (matchedPromise) {
+    try {
+      await matchedPromise;
+      return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
+    } catch (e) {
+      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'inflight_failed');
+    }
+  }
+
   if (inFlightMarineRequests.has(requestKey)) {
     try {
       console.log(`[Marine] Deduplicating concurrent request for model=${model} layerKey=${layerKey} forecastDays=${forecastDays} (awaiting in-flight promise)`);
