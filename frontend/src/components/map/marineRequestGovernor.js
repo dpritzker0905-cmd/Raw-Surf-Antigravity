@@ -273,6 +273,24 @@ export async function governMarineRequest({
 
       const elapsedMs = Date.now() - startTime;
 
+      // Extract and set precise circuit-open local cooldown
+      const isCircuitOpenHeader = res.headers.get('X-Circuit-Open') === 'true';
+      if (isCircuitOpenHeader) {
+        const remainingMs = parseInt(res.headers.get('X-Circuit-Remaining-Ms'), 10);
+        if (remainingMs > 0) {
+          const until = Date.now() + remainingMs;
+          if (provider === 'copernicus') {
+            setPersistedTime('rawsurf_cooldown_copernicus_until', until);
+            console.warn(`[Governor] Circuit open detected for Copernicus. Setting local cooldown for ${remainingMs}ms.`);
+          } else {
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem(`rawsurf_cooldown_${domain}_until`, until.toString());
+            }
+            console.warn(`[Governor] Circuit open detected for ${domain}. Setting local cooldown for ${remainingMs}ms.`);
+          }
+        }
+      }
+
       if (!res.ok) {
         let errText = '';
         try { errText = await res.clone().text(); } catch(e) {}
@@ -281,11 +299,13 @@ export async function governMarineRequest({
         setFailureTime(requestKey, Date.now());
 
         if (res.status === 429 || errText.toLowerCase().includes('rate limit') || errText.toLowerCase().includes('429')) {
-          enterCooldown(domain);
+          if (!isCircuitOpenHeader) {
+            enterCooldown(domain);
+          }
           logAttempt(`failed_429`, { httpStatus: res.status, elapsedMs, errText: errText.substring(0, 100) });
           logDecision(requestKey, 'failed_429', { httpStatus: res.status });
         } else if (res.status === 502 || res.status === 504 || errText.toLowerCase().includes('timeout') || errText.toLowerCase().includes('gateway')) {
-          if (provider === 'copernicus') {
+          if (provider === 'copernicus' && !isCircuitOpenHeader) {
             const until = Date.now() + COPERNICUS_COOLDOWN_DURATION;
             setCopernicusCooldownUntil(until);
             console.warn(`[Governor] Copernicus backend failure/timeout detected. Cooldown activated for ${COPERNICUS_COOLDOWN_DURATION / 1000}s.`);
@@ -301,8 +321,14 @@ export async function governMarineRequest({
         return res;
       }
 
-      logAttempt('success', { elapsedMs });
-      logDecision(requestKey, 'success', { elapsedMs });
+      const cacheHeader = res.headers.get('X-Cache');
+      if (cacheHeader === 'STALE') {
+        logAttempt('success_stale', { elapsedMs, staleReason: res.headers.get('X-Stale-Reason'), staleAgeMs: res.headers.get('X-Stale-Age-Ms') });
+        logDecision(requestKey, 'success_stale', { elapsedMs });
+      } else {
+        logAttempt('success', { elapsedMs });
+        logDecision(requestKey, 'success', { elapsedMs });
+      }
       updateGovernorState();
       return res;
 

@@ -15,18 +15,8 @@ import {
   hasCacheForModel
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
-import { compileForecastCards } from './forecastCardCompiler';
-const STATUS_RENDERS = {
-  ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
-  zoom_too_low: { color: 'text-amber-400', text: 'Zoom In for Heatmap' },
-  copernicus_credentials_missing: { color: 'text-rose-400', text: 'Config Error (Credentials)' },
-  copernicus_backend_502: { color: 'text-rose-400', text: 'Heatmap Backend Error (502)' },
-  copernicus_timeout: { color: 'text-rose-400', text: 'Heatmap Timeout' },
-  copernicus_empty_time_range: { color: 'text-rose-400', text: 'Out of Time Range' },
-  copernicus_no_nonzero_vectors: { color: 'text-amber-400', text: 'Calm/Zero Data (No Waves)' },
-  rate_limited: { color: 'text-rose-400', text: 'Rate Limited (429 Cooldown)' },
-  unavailable: { color: 'text-rose-400', text: 'Heatmap Error/Timeout' }
-};
+import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
+import { computeHeatmapStatus } from './forecastDiagnostics';
 
 export var MapForecastOverlay = ({
   forecastData,
@@ -655,60 +645,10 @@ export var MapForecastOverlay = ({
       currentHourIndex, wx, exactPointResponse: effectiveExactPointResponse,
       hasGfs, hasIcon
     });
-
-    // v7.11: Source parity diagnostic
-    const webglDiag = window.__WebGLMarineLayer_DIAG__;
-    const heatmapModel = webglDiag?.activeModel || 'none';
-    const heatmapLayer = webglDiag?.activeMarineLayer || 'none';
-    const heatmapProvider = webglDiag?.renderedProvider || 'none';
-    const heatmapWaveData = !!window.__MARINE_ENGINE__?._waveData;
-    const heatmapVectors = webglDiag?.renderedVectorCount || 0;
-    const heatmapNonzero = webglDiag?.renderedNonzeroCount || 0;
-    const infoboxProvider = effectiveExactPoint?.provider || marineGridSample?.provider || 'none';
-    const infoboxStatus = effectiveExactPointStatus;
-    const mismatches = [];
-    if (heatmapModel !== activeModel) mismatches.push(`model: heatmap=${heatmapModel} infobox=${activeModel}`);
-    if (heatmapLayer !== 'unknown' && heatmapLayer !== activeLayer) mismatches.push(`layer: heatmap=${heatmapLayer} infobox=${activeLayer}`);
-    if (heatmapProvider !== 'none' && infoboxProvider !== 'none' && heatmapProvider !== infoboxProvider) mismatches.push(`provider: heatmap=${heatmapProvider} infobox=${infoboxProvider}`);
-    window.__MARINE_SOURCE_PARITY__ = {
-      activeModel, activeLayer, timeOffsetHours,
-      infobox: { provider: infoboxProvider, status: infoboxStatus, timestamp: effectiveExactPoint?.time || null },
-      heatmap: { model: heatmapModel, provider: heatmapProvider, waveData: heatmapWaveData, vectorCount: heatmapVectors, nonzeroActiveLayer: heatmapNonzero },
-      match: mismatches.length === 0, mismatchReasons: mismatches.length > 0 ? mismatches : null,
-      timestamp: new Date().toISOString()
-    };
   }
 
   const heatmapStatus = useMemo(() => {
-    // v7.12: Instantly check and show rate-limited status for any model in cooldown
-    if (typeof window !== 'undefined' && (window.__MARINE_FETCH_DIAG__?.cooldownState === 'rate_limited' || isInCooldown('marine'))) {
-      return 'rate_limited';
-    }
-    if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
-      return null;
-    }
-    
-    const webglDiag = typeof window !== 'undefined' ? window.__WebGLMarineLayer_DIAG__ : null;
-    const isWebGLRendered = webglDiag?.renderedProvider === 'copernicus' && 
-                            webglDiag?.activeMarineLayer === activeLayer && 
-                            webglDiag?.componentLayer === activeLayer &&
-                            webglDiag?.renderedVectorCount > 0 &&
-                            webglDiag?.renderedNonzeroCount > 0;
-
-    if (isWebGLRendered) {
-      return 'ready';
-    }
-    
-    // Check if the backend request skipped/failed
-    const diag = typeof window !== 'undefined' ? window.__COPERNICUS_GRID_DIAG__ : null;
-    if (diag && diag.layer === activeLayer && diag.skipped) {
-      if (diag.skippedReason === 'copernicus_no_nonzero_vectors' || diag.skippedReason === 'no_nonzero_vectors') {
-        return 'copernicus_no_nonzero_vectors';
-      }
-      return diag.skippedReason || 'unavailable';
-    }
-    
-    return 'loading';
+    return computeHeatmapStatus({ activeModel, activeLayer, renderMarineData });
   }, [renderMarineData, activeModel, activeLayer]);
 
   if (!forecastData && !marineData && !isLoading) return null;

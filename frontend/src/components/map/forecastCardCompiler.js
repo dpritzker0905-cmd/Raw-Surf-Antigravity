@@ -1,5 +1,17 @@
 import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Thermometer } from 'lucide-react';
 
+export const STATUS_RENDERS = {
+  ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
+  zoom_too_low: { color: 'text-amber-400', text: 'Zoom In for Heatmap' },
+  copernicus_credentials_missing: { color: 'text-rose-400', text: 'Config Error (Credentials)' },
+  copernicus_backend_502: { color: 'text-rose-400', text: 'Heatmap Backend Error (502)' },
+  copernicus_timeout: { color: 'text-rose-400', text: 'Heatmap Timeout' },
+  copernicus_empty_time_range: { color: 'text-rose-400', text: 'Out of Time Range' },
+  copernicus_no_nonzero_vectors: { color: 'text-amber-400', text: 'Calm/Zero Data (No Waves)' },
+  rate_limited: { color: 'text-rose-400', text: 'Rate Limited (429 Cooldown)' },
+  unavailable: { color: 'text-rose-400', text: 'Heatmap Error/Timeout' }
+};
+
 export function compileForecastCards({
   activeLayer,
   activeModel,

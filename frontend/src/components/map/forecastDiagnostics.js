@@ -5,6 +5,41 @@
  * Keeps forecastSamplers.js strictly under 800 lines.
  */
 
+import { isInCooldown } from './marineControllerUtils';
+
+export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }) {
+  if (typeof window === 'undefined') return null;
+  // v7.12: Instantly check and show rate-limited status for any model in cooldown
+  if (window.__MARINE_FETCH_DIAG__?.cooldownState === 'rate_limited' || isInCooldown('marine')) {
+    return 'rate_limited';
+  }
+  if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
+    return null;
+  }
+  
+  const webglDiag = window.__WebGLMarineLayer_DIAG__;
+  const isWebGLRendered = webglDiag?.renderedProvider === 'copernicus' && 
+                          webglDiag?.activeMarineLayer === activeLayer && 
+                          webglDiag?.componentLayer === activeLayer &&
+                          webglDiag?.renderedVectorCount > 0 &&
+                          webglDiag?.renderedNonzeroCount > 0;
+
+  if (isWebGLRendered) {
+    return 'ready';
+  }
+  
+  // Check if the backend request skipped/failed
+  const diag = window.__COPERNICUS_GRID_DIAG__;
+  if (diag && diag.layer === activeLayer && diag.skipped) {
+    if (diag.skippedReason === 'copernicus_no_nonzero_vectors' || diag.skippedReason === 'no_nonzero_vectors') {
+      return 'copernicus_no_nonzero_vectors';
+    }
+    return diag.skippedReason || 'unavailable';
+  }
+  
+  return 'loading';
+}
+
 export function writeOverlayDiagnostics(params) {
   if (typeof window === 'undefined') return;
   const {
@@ -145,4 +180,53 @@ export function writeOverlayDiagnostics(params) {
     renderRejectedReason,
     fetchElapsedMs
   };
+
+  // v7.11: Source parity diagnostic moved from MapForecastOverlay to keep it under LOC limits
+  const webglDiag = window.__WebGLMarineLayer_DIAG__;
+  const heatmapModel = webglDiag?.activeModel || 'none';
+  const heatmapLayer = webglDiag?.activeMarineLayer || 'none';
+  const heatmapProvider = webglDiag?.renderedProvider || 'none';
+  const heatmapWaveData = !!window.__MARINE_ENGINE__?._waveData;
+  const heatmapVectors = webglDiag?.renderedVectorCount || 0;
+  const heatmapNonzero = webglDiag?.renderedNonzeroCount || 0;
+  const infoboxProvider = exactPoint?.provider || marineGridSample?.provider || 'none';
+  const infoboxStatus = exactPointStatus;
+  const mismatches = [];
+  if (heatmapModel !== activeModel) mismatches.push(`model: heatmap=${heatmapModel} infobox=${activeModel}`);
+  if (heatmapLayer !== 'unknown' && heatmapLayer !== activeLayer) mismatches.push(`layer: heatmap=${heatmapLayer} infobox=${activeLayer}`);
+  if (heatmapProvider !== 'none' && infoboxProvider !== 'none' && heatmapProvider !== infoboxProvider) mismatches.push(`provider: heatmap=${heatmapProvider} infobox=${infoboxProvider}`);
+  
+  window.__MARINE_SOURCE_PARITY__ = {
+    activeModel, activeLayer, timeOffsetHours,
+    infobox: { provider: infoboxProvider, status: infoboxStatus, timestamp: exactPoint?.time || null },
+    heatmap: { model: heatmapModel, provider: heatmapProvider, waveData: heatmapWaveData, vectorCount: heatmapVectors, nonzeroActiveLayer: heatmapNonzero },
+    match: mismatches.length === 0, mismatchReasons: mismatches.length > 0 ? mismatches : null,
+    timestamp: new Date().toISOString()
+  };
+
+  // Set window.__MARINE_STALE_DIAG__ if stale response is detected (User Rule 5 / 6)
+  if (exactPointResponse?.__stale_telemetry) {
+    window.__MARINE_STALE_DIAG__ = {
+      isStale: true,
+      staleReason: exactPointResponse.__stale_telemetry.staleReason,
+      ageMs: exactPointResponse.__stale_telemetry.ageMs,
+      shape: exactPointResponse.__stale_telemetry.shape,
+      originalCacheKey: exactPointResponse.__stale_telemetry.originalCacheKey,
+      circuitRemainingMs: exactPointResponse.__stale_telemetry.circuitRemainingMs,
+      timestamp: new Date().toISOString()
+    };
+  } else if (exactPointResponse && exactPointResponse.headers?.get?.('X-Cache') === 'STALE') {
+    // Fallback if headers is a Headers object instead of inline JSON
+    window.__MARINE_STALE_DIAG__ = {
+      isStale: true,
+      staleReason: exactPointResponse.headers.get('X-Stale-Reason') || 'unknown',
+      ageMs: parseInt(exactPointResponse.headers.get('X-Stale-Age-Ms'), 10) || 0,
+      shape: exactPointResponse.headers.get('X-Stale-Shape') || 'unknown',
+      originalCacheKey: exactPointResponse.headers.get('X-Stale-Original-Cache-Key') || 'unknown',
+      circuitRemainingMs: parseInt(exactPointResponse.headers.get('X-Circuit-Remaining-Ms'), 10) || 0,
+      timestamp: new Date().toISOString()
+    };
+  } else {
+    window.__MARINE_STALE_DIAG__ = null;
+  }
 }

@@ -13,9 +13,89 @@
  *   Body: { type: "wind"|"marine"|"pressure", body: <original POST body> }
  */
 
-// In-memory cache (persists across warm invocations)
+// In-memory cache and circuit breakers (persists across warm container invocations)
 const cache = new Map();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+const openMeteoCircuitUntil = new Map();
+const copernicusCircuitUntil = new Map();
+
+function getPointCountBucket(pointCount) {
+  if (pointCount === 1) return 'exact';
+  if (pointCount <= 60) return 'small';
+  return 'large';
+}
+
+function getLayerFamily(hourly, type) {
+  if (type === 'wind') return 'wind';
+  if (type === 'pressure') return 'pressure';
+  if (!hourly) return 'generic';
+  const hourlyStr = Array.isArray(hourly) ? hourly.join(',') : String(hourly);
+  if (hourlyStr.includes('secondary_swell_wave_height')) return 'swell_2';
+  if (hourlyStr.includes('swell_wave_height')) return 'swell_1';
+  if (hourlyStr.includes('wind_wave_height')) return 'wind_waves';
+  if (hourlyStr.includes('wave_height')) return 'waves';
+  return 'combined';
+}
+
+function getCircuitKey(provider, type, model, pointCount, hourly) {
+  const gridOrExact = pointCount > 1 ? 'grid' : 'exact';
+  const pointCountBucket = getPointCountBucket(pointCount);
+  const layerFamily = getLayerFamily(hourly, type);
+  return `${provider}_${type}_${model}_${gridOrExact}_${layerFamily}_${pointCountBucket}`;
+}
+
+function isCircuitOpen(provider, type, model, pointCount, hourly) {
+  const circuitKey = getCircuitKey(provider, type, model, pointCount, hourly);
+  const circuitUntilMap = provider === 'copernicus' ? copernicusCircuitUntil : openMeteoCircuitUntil;
+  const until = circuitUntilMap.get(circuitKey) || 0;
+  return until > Date.now();
+}
+
+function openCircuit(provider, type, model, pointCount, hourly, status) {
+  const circuitKey = getCircuitKey(provider, type, model, pointCount, hourly);
+  const circuitUntilMap = provider === 'copernicus' ? copernicusCircuitUntil : openMeteoCircuitUntil;
+  
+  let duration = 45000; // default 45s for Open-Meteo 502/503/504
+  if (status === 429) {
+    duration = 90000; // 90s for Open-Meteo 429
+  } else if (provider === 'copernicus') {
+    duration = 120000; // 120s for Copernicus 502/504
+  }
+  
+  circuitUntilMap.set(circuitKey, Date.now() + duration);
+  console.warn(`[weather-proxy] Circuit OPENED for key=${circuitKey} duration=${duration}ms status=${status}`);
+}
+
+function getCircuitRemainingMs(provider, type, model, pointCount, hourly) {
+  const circuitKey = getCircuitKey(provider, type, model, pointCount, hourly);
+  const circuitUntilMap = provider === 'copernicus' ? copernicusCircuitUntil : openMeteoCircuitUntil;
+  const until = circuitUntilMap.get(circuitKey) || 0;
+  return Math.max(0, until - Date.now());
+}
+
+function validateCacheShape(cachedData) {
+  if (!cachedData) return null;
+  const item = Array.isArray(cachedData) ? cachedData[0] : cachedData;
+  if (!item) return null;
+  
+  if (item.hourly && Object.keys(item.hourly).length > 0) {
+    const firstKey = Object.keys(item.hourly)[0];
+    if (Array.isArray(item.hourly[firstKey]) && item.hourly[firstKey].length > 0) {
+      return 'hourly';
+    }
+  }
+  if (item.vectors && Array.isArray(item.vectors) && item.vectors.length > 0) {
+    return 'grid';
+  }
+  if (item.results) {
+    return 'results';
+  }
+  if (Object.keys(item).length > 0) {
+    return 'unknown';
+  }
+  return null;
+}
 
 function getCacheKey(type, body, event) {
   if (event.httpMethod === 'GET') {
@@ -101,7 +181,8 @@ async function chunkedGetFallback(targetUrl, body) {
 
     let chunkRes;
     let attempt = 0;
-    const maxAttempts = 3;
+    const ptCount = body.latitude ? body.latitude.length : 1;
+    const maxAttempts = ptCount > 1 ? 1 : 3; // Grid requests get only 1 attempt
     let delay = 200;
 
     while (attempt < maxAttempts) {
@@ -245,29 +326,204 @@ exports.handler = async function(event, context) {
     }
 
     // ========================================================================
-    // Copernicus Marine routing for EURO marine data (replaces GribStream)
+    // Unified Request Parameter Extraction
     // ========================================================================
-    if (type === 'copernicus_marine' && event.httpMethod === 'POST' && body) {
-      console.log(`[weather-proxy] Routing to Copernicus for EURO marine`);
-      const cacheKeyCM = getCacheKey('copernicus_marine', body, event);
-      const cachedCM = cache.get(cacheKeyCM);
-      if (cachedCM && Date.now() - cachedCM.timestamp < CACHE_TTL) {
-        console.log(`[weather-proxy] Copernicus cache HIT`);
+    const cacheKey = getCacheKey(type, body, event);
+    const isCopernicus = type === 'copernicus_marine' || (event.body && event.body.includes('copernicus_marine'));
+    const provider = isCopernicus ? 'copernicus' : 'open-meteo';
+
+    let pointCount = 1;
+    if (body) {
+      if (Array.isArray(body.latitude)) {
+        pointCount = body.latitude.length;
+      }
+    } else if (event.queryStringParameters?.latitude) {
+      pointCount = event.queryStringParameters.latitude.split(',').length;
+    }
+
+    let model = 'unknown';
+    if (body) {
+      model = (body.models && body.models[0]) || 'unknown';
+    } else if (event.queryStringParameters?.models) {
+      model = event.queryStringParameters.models;
+    }
+
+    let hourly = null;
+    if (body) {
+      hourly = body.hourly || null;
+    } else if (event.queryStringParameters?.hourly) {
+      hourly = event.queryStringParameters.hourly;
+    }
+
+    const cached = cache.get(cacheKey);
+
+    // ========================================================================
+    // Unified Failure and Stale Cache Response Handler
+    // ========================================================================
+    const handleFailure = async (errStatus, failurePhase, errDetail = '') => {
+      openCircuit(provider, type, model, pointCount, hourly, errStatus);
+      const remainingMs = getCircuitRemainingMs(provider, type, model, pointCount, hourly);
+
+      // Stale cache structural recovery
+      const staleShape = cached ? validateCacheShape(cached.data) : null;
+      if (cached && staleShape) {
+        const ageMs = Date.now() - cached.timestamp;
+        console.log(`[weather-proxy] Upstream failed (${errStatus}): serving recovered STALE cache for key=${cacheKey}`);
         return {
           statusCode: 200,
           headers: {
             'Content-Type': 'application/json',
-            'X-Cache': 'HIT',
-            'X-Cache-Age': String(Math.round((Date.now() - cachedCM.timestamp) / 1000)),
+            'X-Cache': 'STALE',
+            'X-Stale-Reason': 'upstream_fetch_failed',
+            'X-Stale-Age-Ms': String(ageMs),
+            'X-Stale-Original-Cache-Key': cacheKey,
+            'X-Stale-Shape': staleShape,
+            'X-Failure-Phase': failurePhase,
+            'X-Circuit-Open': 'true',
+            'X-Circuit-Remaining-Ms': String(remainingMs),
             'Access-Control-Allow-Origin': '*',
           },
-          body: JSON.stringify(cachedCM.data)
+          body: JSON.stringify({
+            ...cached.data,
+            __stale_telemetry: {
+              stale: true,
+              staleReason: 'upstream_fetch_failed',
+              ageMs,
+              originalCacheKey: cacheKey,
+              shape: staleShape,
+              failurePhase,
+              errorDetail: errDetail.substring(0, 150),
+              circuitRemainingMs: remainingMs
+            }
+          })
         };
       }
 
+      console.warn(`[weather-proxy] Upstream failed (${errStatus}): no cache to serve for key=${cacheKey}`);
+      const elapsedMs = Date.now() - startTime;
+      return {
+        statusCode: errStatus,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'X-Proxy-Type': type || 'unknown',
+          'X-Upstream-Provider': provider,
+          'X-Model': model,
+          'X-Point-Count': String(pointCount),
+          'X-Hourly-Var-Count': String(hourly ? (Array.isArray(hourly) ? hourly.length : hourly.split(',').length) : 0),
+          'X-Forecast-Days': String(body ? body.forecast_days : 0),
+          'X-Fallback-Used': 'false',
+          'X-Cache-Hit': 'false',
+          'X-Elapsed-Ms': String(elapsedMs),
+          'X-Failure-Phase': failurePhase,
+          'X-Circuit-Open': 'true',
+          'X-Circuit-Remaining-Ms': String(remainingMs)
+        },
+        body: JSON.stringify({
+          error: errStatus === 429 ? 'Rate limit exceeded' : 'Upstream gateway error',
+          statusCode: errStatus,
+          isRateLimit: errStatus === 429,
+          detail: errDetail.substring(0, 500),
+          proxyType: type || 'unknown',
+          upstreamProvider: provider,
+          'upstream provider': provider,
+          model,
+          pointCount,
+          hourlyVarCount: hourly ? (Array.isArray(hourly) ? hourly.length : hourly.split(',').length) : 0,
+          forecastDays: body ? body.forecast_days : 0,
+          fallbackUsed: false,
+          cacheHit: false,
+          elapsedMs,
+          failurePhase,
+          circuitRemainingMs: remainingMs
+        })
+      };
+    };
+
+    // ========================================================================
+    // 1. Check Fresh Cache (HIT)
+    // ========================================================================
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      console.log(`[weather-proxy] Fresh Cache HIT for key=${cacheKey}`);
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Cache': 'HIT',
+          'X-Cache-Age': String(Math.round((Date.now() - cached.timestamp) / 1000)),
+          'Access-Control-Allow-Origin': '*',
+        },
+        body: JSON.stringify(cached.data)
+      };
+    }
+
+    // ========================================================================
+    // 2. Check Circuit-Open State
+    // ========================================================================
+    if (isCircuitOpen(provider, type, model, pointCount, hourly)) {
+      const remainingMs = getCircuitRemainingMs(provider, type, model, pointCount, hourly);
+      const staleShape = cached ? validateCacheShape(cached.data) : null;
+      if (cached && staleShape) {
+        const ageMs = Date.now() - cached.timestamp;
+        console.log(`[weather-proxy] Circuit OPEN: serving STALE cache for key=${cacheKey}`);
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Cache': 'STALE',
+            'X-Stale-Reason': 'upstream_circuit_open',
+            'X-Circuit-Open': 'true',
+            'X-Circuit-Remaining-Ms': String(remainingMs),
+            'X-Stale-Age-Ms': String(ageMs),
+            'X-Stale-Original-Cache-Key': cacheKey,
+            'X-Stale-Shape': staleShape,
+            'Access-Control-Allow-Origin': '*',
+          },
+          body: JSON.stringify({
+            ...cached.data,
+            __stale_telemetry: {
+              stale: true,
+              staleReason: 'upstream_circuit_open',
+              ageMs,
+              originalCacheKey: cacheKey,
+              shape: staleShape,
+              circuitRemainingMs: remainingMs
+            }
+          })
+        };
+      }
+
+      console.warn(`[weather-proxy] Circuit OPEN: blocking upstream and no cache for key=${cacheKey}`);
+      const errStatus = provider === 'copernicus' ? 502 : 429;
+      return {
+        statusCode: errStatus,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'X-Circuit-Open': 'true',
+          'X-Circuit-Remaining-Ms': String(remainingMs),
+          'X-Failure-Phase': 'circuit_open'
+        },
+        body: JSON.stringify({
+          error: provider === 'copernicus' ? 'Copernicus Circuit Open' : 'Open-Meteo Circuit Open',
+          statusCode: errStatus,
+          isCircuitOpen: true,
+          circuitRemainingMs: remainingMs,
+          failurePhase: 'circuit_open'
+        })
+      };
+    }
+
+    // ========================================================================
+    // 3. Routing and Upstream Execution
+    // ========================================================================
+
+    // A. Copernicus Marine route (EURO marine)
+    if (type === 'copernicus_marine' && event.httpMethod === 'POST' && body) {
+      console.log(`[weather-proxy] Routing to Copernicus for EURO marine`);
       try {
         const cmData = await forwardToCopernicus(body);
-        cache.set(cacheKeyCM, { data: cmData, timestamp: Date.now() });
+        cache.set(cacheKey, { data: cmData, timestamp: Date.now() });
         if (cache.size > 100) {
           const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
           for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
@@ -285,54 +541,22 @@ exports.handler = async function(event, context) {
         };
       } catch (cmErr) {
         console.error(`[weather-proxy] Copernicus error:`, cmErr.message);
-        const cmElapsedMs = Date.now() - startTime;
-        return {
-          statusCode: 502,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'X-Proxy-Type': 'copernicus_marine',
-            'X-Upstream-Provider': 'copernicus',
-            'X-Model': 'ecmwf_wam025',
-            'X-Point-Count': String(body ? (body.latitude ? body.latitude.length : 0) : 0),
-            'X-Hourly-Var-Count': String(body ? (body.hourly ? body.hourly.length : 0) : 0),
-            'X-Forecast-Days': String(body ? body.forecast_days : 0),
-            'X-Fallback-Used': 'false',
-            'X-Cache-Hit': 'false',
-            'X-Elapsed-Ms': String(cmElapsedMs),
-            'X-Failure-Phase': 'copernicus_forward'
-          },
-          body: JSON.stringify({
-            error: 'Copernicus Marine error',
-            message: cmErr.message,
-            proxyType: 'copernicus_marine',
-            upstreamProvider: 'copernicus',
-            'upstream provider': 'copernicus',
-            model: 'ecmwf_wam025',
-            pointCount: body ? (body.latitude ? body.latitude.length : 0) : 0,
-            hourlyVarCount: body ? (body.hourly ? body.hourly.length : 0) : 0,
-            forecastDays: body ? body.forecast_days : 0,
-            fallbackUsed: false,
-            cacheHit: false,
-            elapsedMs: cmElapsedMs,
-            failurePhase: 'copernicus_forward'
-          })
-        };
+        return await handleFailure(502, 'copernicus_forward', cmErr.message);
       }
     }
 
-    // Determine target URL
+    // Determine target URL for Open-Meteo
     let targetUrl;
     if (type === 'tiles') {
-      const model = event.queryStringParameters?.model;
-      if (!model) {
+      const tileModel = event.queryStringParameters?.model;
+      if (!tileModel) {
         return {
           statusCode: 400,
           headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
           body: JSON.stringify({ error: 'Missing model for tiles' })
         };
       }
-      targetUrl = `https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json`;
+      targetUrl = `https://map-tiles.open-meteo.com/data_spatial/${tileModel}/latest.json`;
     } else {
       const base = API_URLS[type];
       if (!base) {
@@ -345,44 +569,20 @@ exports.handler = async function(event, context) {
       targetUrl = base + (queryParamsString ? '?' + queryParamsString : '');
     }
 
-    // Check cache
-    const cacheKey = getCacheKey(type, body, event);
-    const cached = cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      console.log(`[weather-proxy] Cache HIT for ${type} (age: ${Math.round((Date.now() - cached.timestamp) / 1000)}s)`);
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Cache': 'HIT',
-          'X-Cache-Age': String(Math.round((Date.now() - cached.timestamp) / 1000)),
-          'Access-Control-Allow-Origin': '*',
-        },
-        body: JSON.stringify(cached.data)
-      };
-    }
-
-    // ========================================================================
-    // POST with coordinate arrays → use upstream POST (not GET translation!)
-    // This is the critical fix for 414 Request-URI Too Large.
-    // ========================================================================
+    // B. POST with coordinate arrays → use upstream POST (no GET translation!)
     if (event.httpMethod === 'POST' && body && Array.isArray(body.latitude) && Array.isArray(body.longitude)) {
       const numPoints = body.latitude.length;
-      console.log(`[weather-proxy] POST ${type}: ${numPoints} points, trying upstream POST first`);
+      console.log(`[weather-proxy] POST ${type}: ${numPoints} points, trying upstream POST`);
 
-      const startTime = Date.now();
-      let fallbackUsed = false;
-      let apiRes;
       let data;
+      let apiRes;
 
-      // Strategy 1: Forward as upstream POST (no URL length issue)
       try {
         apiRes = await forwardAsUpstreamPost(targetUrl, body);
 
         if (apiRes.status === 429) {
-          console.warn(`[weather-proxy] Upstream POST 429 for ${type}, will try chunked GET fallback`);
-          // Fall through to chunked GET — don't return 429 immediately.
-          // The chunked GET has 800ms inter-chunk delay designed for rate limit avoidance.
+          console.warn(`[weather-proxy] Upstream POST 429 for ${type}, returning clean 429 immediately`);
+          return await handleFailure(429, 'upstream_post_429_no_fallback', 'Rate limit exceeded on upstream POST');
         }
 
         if (apiRes.ok) {
@@ -398,101 +598,25 @@ exports.handler = async function(event, context) {
         // Fall through to GET chunking fallback
       }
 
-      // Strategy 2: Chunked GET fallback (if POST failed)
+      // Strategy 2: Chunked GET fallback (if POST failed and was not a 429)
       if (!data) {
-        fallbackUsed = true;
         console.log(`[weather-proxy] Falling back to chunked GET for ${type}`);
         const result = await chunkedGetFallback(targetUrl, body);
         if (result.status === 429) {
-          // v7.6: Return clean 429 — frontend has adaptive cooldown + auto-retry
-          // (Removed v7.5 reduced-grid retry that caused 120-vs-729 mismatch)
-          const elapsedMs = Date.now() - startTime;
-          console.log(`[weather-proxy-diag] 429 final | model=${body.models?.[0] || 'unknown'} pts=${numPoints} elapsed=${elapsedMs}ms`);
-          return {
-            statusCode: 429,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-              'X-Rate-Limited': 'true',
-              'X-Points-Attempted': String(numPoints),
-              'X-Proxy-Type': type,
-              'X-Upstream-Provider': 'open-meteo',
-              'X-Model': body.models?.[0] || 'unknown',
-              'X-Point-Count': String(numPoints),
-              'X-Hourly-Var-Count': String(body.hourly ? body.hourly.length : 0),
-              'X-Forecast-Days': String(body.forecast_days),
-              'X-Fallback-Used': 'true',
-              'X-Cache-Hit': 'false',
-              'X-Elapsed-Ms': String(elapsedMs),
-              'X-Failure-Phase': 'chunked_get'
-            },
-            body: JSON.stringify({
-              error: 'Rate limit exceeded',
-              statusCode: 429,
-              isRateLimit: true,
-              pointsAttempted: numPoints,
-              elapsedMs,
-              proxyType: type,
-              upstreamProvider: 'open-meteo',
-              'upstream provider': 'open-meteo',
-              model: body.models?.[0] || 'unknown',
-              pointCount: numPoints,
-              hourlyVarCount: body.hourly ? body.hourly.length : 0,
-              forecastDays: body.forecast_days,
-              fallbackUsed: true,
-              cacheHit: false,
-              failurePhase: 'chunked_get'
-            })
-          };
+          return await handleFailure(429, 'chunked_get', result.error || 'Rate limit exceeded on chunked GET');
         }
         if (result.status !== 200 || !result.data) {
-          const elapsedMs = Date.now() - startTime;
-          const failStatus = result.status || 502;
-          return {
-            statusCode: failStatus,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-              'X-Proxy-Type': type,
-              'X-Upstream-Provider': 'open-meteo',
-              'X-Model': body.models?.[0] || 'unknown',
-              'X-Point-Count': String(numPoints),
-              'X-Hourly-Var-Count': String(body.hourly ? body.hourly.length : 0),
-              'X-Forecast-Days': String(body.forecast_days),
-              'X-Fallback-Used': 'true',
-              'X-Cache-Hit': 'false',
-              'X-Elapsed-Ms': String(elapsedMs),
-              'X-Failure-Phase': 'chunked_get'
-            },
-            body: JSON.stringify({
-              error: result.error || 'Chunked GET failed',
-              statusCode: failStatus,
-              proxyType: type,
-              upstreamProvider: 'open-meteo',
-              'upstream provider': 'open-meteo',
-              model: body.models?.[0] || 'unknown',
-              pointCount: numPoints,
-              hourlyVarCount: body.hourly ? body.hourly.length : 0,
-              forecastDays: body.forecast_days,
-              fallbackUsed: true,
-              cacheHit: false,
-              elapsedMs,
-              failurePhase: 'chunked_get'
-            })
-          };
+          return await handleFailure(result.status || 502, 'chunked_get', result.error || 'Chunked GET failed');
         }
         data = result.data;
       }
 
-      // Cache and return
+      // Cache and return success
       cache.set(cacheKey, { data, timestamp: Date.now() });
       if (cache.size > 100) {
         const oldest = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
         for (let i = 0; i < 20; i++) cache.delete(oldest[i][0]);
       }
-
-      const elapsedMs = Date.now() - startTime;
-      console.log(`[weather-proxy-diag] model=${body.models?.[0] || 'unknown'} pointCount=${numPoints} forecastDays=${body.forecast_days || 'unknown'} hourlyVarCount=${body.hourly?.length || 0} upstreamStatus=${apiRes?.status || 'unknown'} fallbackUsed=${fallbackUsed} elapsedMs=${elapsedMs} finalStatus=200`);
 
       return {
         statusCode: 200,
@@ -505,12 +629,10 @@ exports.handler = async function(event, context) {
       };
     }
 
-    // ========================================================================
-    // Simple GET passthrough (single-point requests, tile metadata, etc.)
-    // ========================================================================
+    // C. Simple GET passthrough (single-point requests, tile metadata, etc.)
     let apiRes;
     let attempt = 0;
-    const maxAttempts = 3;
+    const maxAttempts = pointCount > 1 ? 1 : 3; // Grid requests get only 1 attempt
     let delay = 100;
 
     while (attempt < maxAttempts) {
@@ -524,14 +646,16 @@ exports.handler = async function(event, context) {
         }
         apiRes = await fetch(targetUrl, fetchOptions);
 
-        if (apiRes.ok || (apiRes.status !== 502 && apiRes.status !== 503 && apiRes.status !== 504)) {
+        if (apiRes.ok || (apiRes.status !== 502 && apiRes.status !== 503 && apiRes.status !== 504 && apiRes.status !== 429)) {
           break;
         }
 
-        console.warn(`[weather-proxy] Attempt ${attempt} failed with status ${apiRes.status}. Retrying in ${delay}ms...`);
+        console.warn(`[weather-proxy] Attempt ${attempt} failed with status ${apiRes.status}.`);
       } catch (fetchErr) {
-        if (attempt >= maxAttempts) throw fetchErr;
-        console.warn(`[weather-proxy] Attempt ${attempt} threw error: ${fetchErr.message}. Retrying in ${delay}ms...`);
+        if (attempt >= maxAttempts) {
+          return await handleFailure(502, 'upstream_get', fetchErr.message);
+        }
+        console.warn(`[weather-proxy] Attempt ${attempt} threw error: ${fetchErr.message}.`);
       }
 
       if (attempt < maxAttempts) {
@@ -547,53 +671,7 @@ exports.handler = async function(event, context) {
         if (apiRes) errorText = await apiRes.text();
       } catch (e) { /* ignore */ }
 
-      console.error(`[weather-proxy] Open-Meteo error after ${attempt} attempts: ${status} ${errorText.substring(0, 200)}`);
-
-      const elapsedMs = Date.now() - startTime;
-      const ptsCount = event.queryStringParameters?.latitude ? event.queryStringParameters.latitude.split(',').length : 1;
-      const hourlyCount = event.queryStringParameters?.hourly ? event.queryStringParameters.hourly.split(',').length : 0;
-      const fDays = parseFloat(event.queryStringParameters?.forecast_days || 16);
-
-      const resHeaders = {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'X-Proxy-Type': type || 'unknown',
-        'X-Upstream-Provider': 'open-meteo',
-        'X-Model': event.queryStringParameters?.models || 'unknown',
-        'X-Point-Count': String(ptsCount),
-        'X-Hourly-Var-Count': String(hourlyCount),
-        'X-Forecast-Days': String(fDays),
-        'X-Fallback-Used': 'false',
-        'X-Cache-Hit': 'false',
-        'X-Elapsed-Ms': String(elapsedMs),
-        'X-Failure-Phase': 'upstream_get'
-      };
-
-      const resBody = {
-        error: status === 429 ? 'Rate limit exceeded' : 'Open-Meteo Gateway Error',
-        statusCode: status,
-        isRateLimit: status === 429,
-        isGatewayError: status !== 429,
-        attempts: attempt,
-        detail: errorText.substring(0, 500),
-        proxyType: type || 'unknown',
-        upstreamProvider: 'open-meteo',
-        'upstream provider': 'open-meteo',
-        model: event.queryStringParameters?.models || 'unknown',
-        pointCount: ptsCount,
-        hourlyVarCount: hourlyCount,
-        forecastDays: fDays,
-        fallbackUsed: false,
-        cacheHit: false,
-        elapsedMs,
-        failurePhase: 'upstream_get'
-      };
-
-      return {
-        statusCode: status,
-        headers: resHeaders,
-        body: JSON.stringify(resBody)
-      };
+      return await handleFailure(status, 'upstream_get', errorText);
     }
 
     const data = await apiRes.json();
