@@ -19,6 +19,7 @@
 import { MARINE_MODEL_CAPABILITIES, isInCooldown } from './marineControllerUtils';
 import { mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted } from './forecastHelpers';
 import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
+import { governMarineRequest } from './marineRequestGovernor';
 
 var _recentFailedRequests = new Map();
 var RECENT_FAILED_TTL = 30000;
@@ -329,11 +330,16 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 
       try {
         const proxyType = (provider === 'copernicus') ? 'copernicus_marine' : 'marine';
-        const res = await fetch('/api/weather-proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: proxyType, body }),
-          signal: fetchSignal
+        const res = await governMarineRequest({
+          source: 'forecastSamplers.fetchExactMarinePoint',
+          type: proxyType,
+          body: body,
+          signal: fetchSignal,
+          model: model || 'GFS',
+          layer: activeLayer || 'waves',
+          category: 'exact_point',
+          lat: lat,
+          lng: lng
         });
         if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
 
@@ -459,6 +465,10 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       } catch (err) {
         if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
         const elapsed = (Date.now() - startTime) / 1000;
+        
+        if (err.message === 'cooldown_active' || err.message === 'copernicus_cooldown_active' || err.message === 'failure_ttl_active' || err.message === 'grid_fetch_in_flight' || err.message === 'copernicus_concurrency_active') {
+          return { status: 'rate_limited' };
+        }
         
         const isAbortOrTimeout = err.name === 'AbortError' || err.message?.toLowerCase().includes('timeout') || err.message?.toLowerCase().includes('abort');
         if (isAbortOrTimeout && retriesLeft > 0) {

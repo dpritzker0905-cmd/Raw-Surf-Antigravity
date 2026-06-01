@@ -7,6 +7,7 @@ import {
   isInCooldown, enterCooldown, clearCooldown, logMarineRequest,
   getSnapConfig, isViewportInsideCachedBounds, viewportCacheKey, computeGridPoints
 } from './marineControllerUtils';
+import { governMarineRequest } from './marineRequestGovernor';
 
 // Re-export shared utilities for consumers that import from marineController
 export { getRemainingCooldown } from './marineControllerUtils';
@@ -715,11 +716,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
       let res;
       try {
-        res = await fetch(PROXY_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'marine', body }),
-          signal: fetchSignal
+        res = await governMarineRequest({
+          source: 'marineController.fetchMarineData',
+          type: 'marine',
+          body: body,
+          signal: fetchSignal,
+          model: model || 'GFS',
+          layer: activeLayer || 'waves',
+          category: 'grid'
         });
         if (res.status === 429) {
           enterCooldown('marine');
@@ -744,6 +748,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         const ct = res.headers.get('content-type') || '';
         if (!ct.includes('application/json')) throw new Error('Non-JSON response');
       } catch (err) {
+        if (err.message === 'cooldown_active' || err.message === 'failure_ttl_active' || err.message === 'grid_fetch_in_flight') {
+          console.warn(`[MarineController] Governor blocked grid fetch: ${err.message}`);
+          return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'rate_limited');
+        }
         if (isLocalhost) {
           const rg = 6, rLats = [], rLons = [], rPts = [];
           for (let y = 0; y <= rg; y++) for (let x = 0; x <= rg; x++) {

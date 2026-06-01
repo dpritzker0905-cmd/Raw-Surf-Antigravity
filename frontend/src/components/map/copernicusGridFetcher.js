@@ -13,6 +13,8 @@
  *   - No global grids — always viewport-bounded
  */
 
+import { governMarineRequest } from './marineRequestGovernor';
+
 // Maps marine layer → Copernicus/Open-Meteo variable names
 var COPERNICUS_LAYER_VARS = {
   swell_1:    ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'],
@@ -258,10 +260,13 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
 
   console.log(`[CopernicusGrid] Fetching ${layer} regional: ${points.length} pts, clamped=${isClamped}`);
 
-  var res = await fetch('/api/weather-proxy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'copernicus_marine', body })
+  var res = await governMarineRequest({
+    source: 'copernicusGridFetcher.doFetchAndUpscale',
+    type: 'copernicus_marine',
+    body: body,
+    model: 'EURO',
+    layer: layer,
+    category: 'copernicus_grid'
   });
 
   if (!res.ok) {
