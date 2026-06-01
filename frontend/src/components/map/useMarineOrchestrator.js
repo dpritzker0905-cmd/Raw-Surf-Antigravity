@@ -88,6 +88,35 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => { activeMarineLayerRef.current = activeMarineLayer; if (typeof window !== 'undefined') window.activeMarineLayer = activeMarineLayer || 'waves'; }, [activeMarineLayer]);
   useEffect(() => { timeOffsetRef.current = timeOffsetHours; if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
 
+  useEffect(() => {
+    const handleRejection = (event) => {
+      const reason = event.reason;
+      let message = 'Unknown';
+      let stack = '';
+      if (reason) {
+        message = reason.message || String(reason);
+        stack = reason.stack || '';
+      }
+      const activeRequestStatus = window.__MARINE_FETCH_PENDING__ ? 'pending' : 'idle';
+      const lastEvents = pipelineEventsRef.current || [];
+      const lastEvent = lastEvents[lastEvents.length - 1];
+      window.__UNHANDLED_PROMISE_DIAG__ = {
+        reason: reason,
+        message: message,
+        stack: stack,
+        model: activeModelRef.current,
+        layer: activeMarineLayerRef.current || 'waves',
+        hour: timeOffsetRef.current,
+        activeRequestStatus: activeRequestStatus,
+        lastMarinePipelineEvent: lastEvent ? lastEvent.event : 'none',
+        timestamp: new Date().toISOString()
+      };
+      console.error('[Unhandled Promise Rejection Captured]', window.__UNHANDLED_PROMISE_DIAG__);
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => window.removeEventListener('unhandledrejection', handleRejection);
+  }, []);
+
   const activeLayersKey = useMemo(() => activeLayers.join(','), [activeLayers]);
   const prevActiveLayersRef = useRef('');
 

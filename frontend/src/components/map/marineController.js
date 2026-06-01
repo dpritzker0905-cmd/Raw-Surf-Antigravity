@@ -24,7 +24,7 @@ var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, 
 
 // --- PERSISTENT CACHE (localStorage) ---
 var LS_WIND_KEY = 'rawsurf_wind_cache_v3'; // v5.5: bumped to invalidate stale direction data
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v9'; // v6.5: Copernicus component grid integration
+var LS_MARINE_KEY = 'rawsurf_marine_cache_v10'; // v7.14.2: Bumped to avoid stale 3-var GFS cache poisoning
 
 // Hydrate from localStorage on module init
 // v3.13: Only accept global wind caches (lngSpan > 180). Viewport-scoped
@@ -269,75 +269,36 @@ export { extractWindAtOffset, extractMarineAtOffset };
 // ========================================================================
 export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null) {
   if (!bounds) { console.log('[Wind] fetchWindData: no bounds'); return lastKnownGoodWind; }
+  if (!forceFetch && isContainedInWindCache(bounds, model)) return extractWindAtOffset(windHourlyCache, hourOffset);
+  if (windRequestInFlight) return lastKnownGoodWind;
+  if (!forceFetch && isInCooldown('wind')) return lastKnownGoodWind;
 
-  // Viewport containment caching hit (0ms load from memory)
-  if (!forceFetch && isContainedInWindCache(bounds, model)) {
-    console.log(`[Wind] Viewport containment HIT`);
-    return extractWindAtOffset(windHourlyCache, hourOffset);
-  }
+  let west = bounds.west, east = bounds.east;
+  if (east < west) east += 360;
 
- // Inflight lock but DON'T return null on first load, return lastKnownGood
-  if (windRequestInFlight) {
-    console.log('[Wind] fetchWindData: request already inflight, returning cached');
-    return lastKnownGoodWind;
-  }
-
-  // 429 cooldown check (bypassable by timeline forceFetch)
-  if (!forceFetch && isInCooldown('wind')) {
-    console.log(`[Wind] fetchWindData: in 429 cooldown, returning cached`);
-    return lastKnownGoodWind;
-  }
-
-  // Adjust for Antimeridian / Pacific wrap (ensure east is always greater than west)
-  let west = bounds.west;
-  let east = bounds.east;
-  if (east < west) {
-    east += 360;
-  }
-
-  // Snap bounds
   const { snap, padding } = getSnapConfig(bounds);
   const latMinRaw = Math.floor((bounds.south - padding) / snap) * snap;
   const latMaxRaw = Math.ceil((bounds.north + padding) / snap) * snap;
   const lngMin = Math.floor((west - padding) / snap) * snap;
   const lngMax = Math.ceil((east + padding) / snap) * snap;
-
-  // Clamp requested latitudes to Open-Meteo weather API limits [-85, 85]
   const latMin = Math.max(-85, Math.min(85, latMinRaw));
   const latMax = Math.max(-85, Math.min(85, latMaxRaw));
 
   if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodWind;
-
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
-  // v3.9.1: Hourly cache re-index locally instead of making new API call
-  // Cache key now includes model so GFS/EURO/ICON don't collide
   const viewHash = viewportCacheKey(snappedBounds, `wind_${model || 'GFS'}`);
-  if (windHourlyCache.hash === viewHash &&
-      windHourlyCache.model === (model || 'GFS') &&
-      Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
-    // Exact cache hit: extract data at the requested offset without API call
-
+  if (windHourlyCache.hash === viewHash && windHourlyCache.model === (model || 'GFS') && Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     return extractWindAtOffset(windHourlyCache, hourOffset);
   }
 
-  // v3.9.5: Stale viewport fallback only if same model
-  if (windHourlyCache.hash && windHourlyCache.model === (model || 'GFS') &&
-      Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
+  if (windHourlyCache.hash && windHourlyCache.model === (model || 'GFS') && Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const staleData = extractWindAtOffset(windHourlyCache, hourOffset);
-    if (staleData && staleData.vectors.length > 0) {
-      lastKnownGoodWind = staleData;
-    }
+    if (staleData?.vectors?.length) lastKnownGoodWind = staleData;
   }
 
-  // Per-offset cache (covers initial load + exact re-visits)
   const cacheKey = viewportCacheKey(snappedBounds, `wind_${model || 'GFS'}_h${hourOffset}`);
-  if (WIND_CACHE.has(cacheKey)) {
-    const cached = WIND_CACHE.get(cacheKey);
-    if (Date.now() - cached.timestamp < 300000) {
-      return cached.data;
-    }
-  }
+  if (WIND_CACHE.has(cacheKey) && Date.now() - WIND_CACHE.get(cacheKey).timestamp < 300000) return WIND_CACHE.get(cacheKey).data;
 
   if (windAbortController) windAbortController.abort();
   windAbortController = new AbortController();
@@ -469,7 +430,11 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
   // v7.3: Coverage check — reject if closest cached hour >3h from target
   if (timeArray?.[idx]) {
     const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
-    if (Math.abs(cachedMs - targetMs) > 3 * 3600000) return null;
+    const delta = Math.abs(cachedMs - targetMs);
+    if (delta > 3 * 3600000) {
+      console.warn(`[extractMarineAtOffset] Rejected: cachedMs (${new Date(cachedMs).toISOString()}) vs targetMs (${new Date(targetMs).toISOString()}) delta=${(delta/3600000).toFixed(1)}h > 3h`);
+      return null;
+    }
   }
 
   const activeModel = cache.model || 'GFS';
@@ -549,7 +514,10 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
     });
   });
 
-  if (features.length === 0) return null;
+  if (gridVectors.length === 0) {
+    console.warn('[extractMarineAtOffset] Rejected: gridVectors has 0 length');
+    return null;
+  }
 
   // v7.4: Active-layer truth metadata — separate ocean mask from active component data
   const provider = cache.provider || 'open-meteo';

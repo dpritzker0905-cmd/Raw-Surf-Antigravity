@@ -675,7 +675,7 @@ var MapWebGL = ({
             mapInstance={mapInstance} 
             active={!isTransitioning && !!activeMarineLayer}
             data={marineWindData}
-            revision={marineData?.grid?.timestamp || Date.now()}
+            revision={marineData?.__commitRevision || marineData?.grid?.__activeLayerNonzeroCount || 0}
           />
         )}
         <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>

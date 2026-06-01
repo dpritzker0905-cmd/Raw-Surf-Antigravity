@@ -296,10 +296,40 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
-    const uploadSig = `${gridModel}_${componentLayer}_${timeOffsetHoursRef.current}_${gridProvider}_${grid.vectors.length}_nz${nonzeroCount}_ss${sampleSum.toFixed(1)}_bnd_${boundsStr}_geo_${geojsonSig}_thm_${themeSig}`;
+    const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_nz${nonzeroCount}_ss${sampleSum.toFixed(1)}_bnd_${boundsStr}_geo_${geojsonSig}_thm_${themeSig}`;
     const alreadyResident = !!engine._waveData;
 
-    if (lastUploadedSignatureRef.current === uploadSig && alreadyResident) {
+    // Build the diff diagnostic object
+    const prev = lastUploadedGridRef.current || {};
+    const diff = {
+      model: `${prev.activeModel || 'none'} -> ${gridModel}`,
+      layer: `${prev.activeMarineLayer || 'none'} -> ${activeMarineLayer}`,
+      hour: `${prev.timeOffsetHours !== undefined ? prev.timeOffsetHours : 'none'} -> ${timeOffsetHoursRef.current}`,
+      provider: `${prev.gridProvider || 'none'} -> ${gridProvider}`,
+      bounds: `${prev.boundsStr || 'none'} -> ${boundsStr}`,
+      vectorCount: `${prev.vectorsLength || 0} -> ${grid.vectors.length}`,
+      nonzeroCount: `${prev.nonzeroCount || 0} -> ${nonzeroCount}`,
+      sampleSum: `${prev.sampleSum?.toFixed?.(1) || '0.0'} -> ${sampleSum.toFixed(1)}`,
+      landMask: `${prev.geojsonSig || 'none'} -> ${geojsonSig}`,
+      theme: `${prev.themeSig || 'none'} -> ${themeSig}`,
+      modelChanged: prev.activeModel !== gridModel,
+      layerChanged: prev.activeMarineLayer !== activeMarineLayer,
+      hourChanged: prev.timeOffsetHours !== timeOffsetHoursRef.current,
+      providerChanged: prev.gridProvider !== gridProvider,
+      boundsChanged: prev.boundsStr !== boundsStr,
+      vectorCountChanged: prev.vectorsLength !== grid.vectors.length,
+      nonzeroCountChanged: prev.nonzeroCount !== nonzeroCount,
+      sampleSumChanged: Math.abs((prev.sampleSum || 0) - sampleSum) > 0.01,
+      landMaskChanged: prev.geojsonSig !== geojsonSig,
+      themeChanged: prev.themeSig !== themeSig,
+      alreadyResident: alreadyResident,
+      prevSig: prev.uploadSig || 'none',
+      currSig: uploadSigResidency,
+      timestamp: new Date().toISOString()
+    };
+    window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ = diff;
+
+    if (lastUploadedSignatureRef.current === uploadSigResidency && alreadyResident) {
       if (!window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__) window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__ = 0;
       window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__++;
       if (window.__MARINE_PIPELINE_TRUTH__?.counters) {
@@ -325,7 +355,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 
-    lastUploadedSignatureRef.current = uploadSig;
+    lastUploadedSignatureRef.current = uploadSigResidency;
     lastUploadedGridRef.current = {
       activeModel: gridModel,
       activeMarineLayer: activeMarineLayer,
@@ -338,7 +368,10 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       nonzeroCount: nonzeroCount,
       sampleSum: sampleSum,
       timestamp: grid.timestamp || revision || 0,
-      timeOffsetHours: timeOffsetHoursRef.current
+      timeOffsetHours: timeOffsetHoursRef.current,
+      geojsonSig: geojsonSig,
+      themeSig: themeSig,
+      uploadSig: uploadSigResidency
     };
 
     if (!window.__WEBGL_MARINE_UPLOAD_COUNT__) window.__WEBGL_MARINE_UPLOAD_COUNT__ = 0;

@@ -45,6 +45,8 @@ export function useSimulationField({
   const lastRevisionRef = useRef(0);
   const lastLogTimeRef = useRef(0);
   const lastDepsRef = useRef({ windDep: 'null', marineDep: 'null', pressureDep: 'null', activeModel: '', timeOffsetHours: 0, activeMarineLayer: '' });
+  const lastFieldRef = useRef(null);
+  const lastFieldSigRef = useRef('');
 
   const isMarineValid = marineData && 
                         marineData.grid?.vectors && 
@@ -64,6 +66,27 @@ export function useSimulationField({
   const field = useMemo(() => {
     // Skip if no data at all
     if (!windData && !effectiveMarineData && !pressureData) return null;
+
+    // Compute a strict data signature to see if the actual grid contents changed
+    const wSig = windData ? `${windData.vectors?.length || 0}_${windData.bounds?.west?.toFixed(2) || 0}` : 'null';
+    const mSig = effectiveMarineData ? `${effectiveMarineData.grid?.vectors?.length || 0}_${effectiveMarineData.grid?.__componentLayer || 'x'}_${effectiveMarineData.grid?.__activeLayerNonzeroCount || 0}_${effectiveMarineData.grid?.__renderable}` : 'null';
+    const pSig = pressureData ? `${pressureData.vectors?.length || 0}_${pressureData.bounds?.west?.toFixed(2) || 0}` : 'null';
+    const currentSig = `${wSig}_${mSig}_${pSig}_${activeModel}_${timeOffsetHours}_${activeMarineLayer}`;
+
+    if (lastFieldRef.current && lastFieldSigRef.current === currentSig) {
+      if (typeof window !== 'undefined') {
+        window.__SIM_BIND_REASON__ = {
+          changed: [],
+          deduped: true,
+          reason: 'identical_data_signature',
+          signature: currentSig,
+          prevRevision: lastRevisionRef.current,
+          nextRevision: lastRevisionRef.current,
+          timestamp: new Date().toISOString()
+        };
+      }
+      return lastFieldRef.current;
+    }
 
     const f = buildSimulationField({
       windData,
@@ -86,6 +109,7 @@ export function useSimulationField({
     if (typeof window !== 'undefined') {
       window.__SIM_BIND_REASON__ = {
         changed,
+        deduped: false,
         marineDataIgnored: !!marineData && !isMarineValid,
         marineIgnoreReason: (marineData && !isMarineValid) ? {
           noGrid: !marineData.grid,
@@ -113,6 +137,8 @@ export function useSimulationField({
     }
     lastDepsRef.current = { windDep, marineDep, pressureDep, activeModel, timeOffsetHours, activeMarineLayer };
     lastRevisionRef.current = f.revision;
+    lastFieldRef.current = f;
+    lastFieldSigRef.current = currentSig;
     return f;
   }, [windDep, marineDep, pressureDep, activeModel, timeOffsetHours, activeMarineLayer]);
 
