@@ -31,6 +31,30 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const consecutiveFailuresRef = useRef(0);
   const activeModelRef = useRef(activeModel);
   const lastFetchedModelRef = useRef(null);
+  const pendingMarineIntentRef = useRef(null); // v7.7: Buffer for dropped requests during in-flight
+  const pipelineEventsRef = useRef([]); // v7.7: Last 10 pipeline events
+  const pipelineCountersRef = useRef({ staleRejections: 0, pendingIntents: 0, networkFetches: 0, cacheRemaps: 0, clears: 0 });
+
+  // v7.7: Pipeline event logger + truth diagnostic
+  const _logPipelineEvent = (eventType, detail) => {
+    const entry = { event: eventType, ...detail, timestamp: new Date().toISOString() };
+    pipelineEventsRef.current = [...pipelineEventsRef.current.slice(-9), entry];
+    if (eventType === 'stale_async_response_rejected') pipelineCountersRef.current.staleRejections++;
+    if (eventType === 'intent_buffered') pipelineCountersRef.current.pendingIntents++;
+    if (eventType.startsWith('network_fetch')) pipelineCountersRef.current.networkFetches++;
+    if (eventType === 'local_cache_remap') pipelineCountersRef.current.cacheRemaps++;
+    if (typeof window !== 'undefined') {
+      window.__MARINE_PIPELINE_TRUTH__ = {
+        activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves', activeHour: timeOffsetRef.current,
+        pendingIntent: pendingMarineIntentRef.current,
+        fetchPending: !!window.__MARINE_FETCH_PENDING__,
+        fetchDiag: window.__MARINE_FETCH_DIAG__ || null,
+        counters: { ...pipelineCountersRef.current },
+        lastEvents: pipelineEventsRef.current,
+        timestamp: new Date().toISOString()
+      };
+    }
+  };
 
   // v6.5: Derive the active marine layer for Copernicus component grid routing
   const activeMarineLayer = useMemo(() => {
@@ -145,20 +169,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       // Store ref for cooldown retry direct access
       updateMarineGridRef.current = updateMarineGrid;
 
-      // Hard block: concurrent fetch or rate limit (bypass for retries)
       if (locks.isFetching) {
-        // Silenced: already fetching
+        pendingMarineIntentRef.current = { source, model, layer, hour: timeOffset, timestamp: Date.now() };
         return;
       }
-      const now = Date.now();
-      if (!isRetry && now - locks.lastTime < 1200) {
- return; // Rate limit suppress log spam
-      }
 
- // v3.9: Circuit breaker stop after 3 consecutive failures
-      if (!isRetry && consecutiveFailuresRef.current >= 3) {
-        return; // Silently block until viewport changes
-      }
+      if (!isRetry && consecutiveFailuresRef.current >= 3) return;
+      const now = Date.now();
+      if (!isRetry && now - locks.lastTime < 1200) return;
 
       // Hard block: map is actively moving/zooming
       if (mapInstance.isMoving() || mapInstance.isZooming()) {
@@ -188,8 +206,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         locks.isFetching = false;
         return;
       }
-      // Silenced: fetchMarineData call
       locks.isFetching = true;
+      if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
+      const fetchIntent = { model, layer, hour: timeOffset }; // v7.7: Capture intent for stale detection
       try {
         const currentLayer = activeMarineLayerRef.current || 'waves';
         const isWaves = currentLayer === 'waves';
@@ -412,21 +431,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           }
         }
 
-        if (window.__LRCM_EXEC_TRACE__) {
-          const isDebug = typeof window !== 'undefined' && window.__RASTER_DEBUG__?.enableTrace;
-          window.__LRCM_EXEC_TRACE__.push({
-            layer: 'marine',
-            action: 'fetch',
-            source: 'useMarineOrchestrator',
-            timestamp: Date.now(),
-            payload: data,
-            stack: isDebug ? new Error().stack : null
-          });
-        }
 
-        // Stale request discard
-        if (requestId !== marineRequestIdRef.current) {
-          // Silenced: stale request
+
+        // v7.7: Stale request discard — check both requestId AND intent match
+        if (requestId !== marineRequestIdRef.current) return;
+        if (fetchIntent.model !== activeModelRef.current || fetchIntent.layer !== (activeMarineLayerRef.current || 'waves') || fetchIntent.hour !== timeOffsetRef.current) {
+          _logPipelineEvent('stale_async_response_rejected', fetchIntent);
           return;
         }
 
@@ -440,21 +450,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               }
             }
           }
-          window.__MARINE_FETCH_DIAG__ = {
-            activeModel: activeModelRef.current,
-            activeLayer: currentLayer,
-            timeOffsetHours: timeOffsetRef.current,
-            provider: data?.grid?.__provider || data?.grid?.provider || 'none',
-            gridProvider: data?.grid?.__gridProvider || 'none',
-            requestSummary: `Grid points query bounds=[${bounds.west}, ${bounds.south}, ${bounds.east}, ${bounds.north}]`,
-            httpStatus: data ? 200 : 502,
-            elapsedMs: Date.now() - now,
-            cacheHit: data ? (data.grid?.__estimated ? false : true) : false,
-            inFlightDeduped: locks.isFetching,
-            vectorCount: data?.grid?.vectors?.length || 0,
-            nonzeroCount: nzCount,
-            timestamp: new Date().toISOString()
-          };
+          window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: currentLayer, timeOffsetHours: timeOffsetRef.current, provider: data?.grid?.__provider || 'none', gridProvider: data?.grid?.__gridProvider || 'none', httpStatus: data ? 200 : 502, elapsedMs: Date.now() - now, vectorCount: data?.grid?.vectors?.length || 0, nonzeroCount: nzCount, timestamp: new Date().toISOString() };
         }
 
         const hasFeatures = data?.features?.length > 0;
@@ -462,9 +458,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         const hasSkippedZoom = data?.grid?.__skippedReason === 'zoom_too_low' || data?.grid?.skippedReason === 'zoom_too_low';
 
         if (data && (hasFeatures || hasGridVectors || hasSkippedZoom)) {
-          consecutiveFailuresRef.current = 0; // Reset circuit breaker on success
+          consecutiveFailuresRef.current = 0;
           locks.lastHash = viewportHash;
           locks.lastTime = Date.now();
+          _logPipelineEvent('data_committed', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
 
           isCommittingDataRef.current = true;
           isInternalMapUpdateRef.current = true;
@@ -489,60 +486,35 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           consecutiveFailuresRef.current += 1;
 
           if (typeof window !== 'undefined') {
-            window.__MARINE_FETCH_DIAG__ = {
-              activeModel: activeModelRef.current,
-              activeLayer: currentLayer,
-              timeOffsetHours: timeOffsetRef.current,
-              provider: 'none',
-              gridProvider: 'none',
-              requestSummary: `Grid points query failed or empty bounds=[${bounds.west}, ${bounds.south}, ${bounds.east}, ${bounds.north}]`,
-              httpStatus: 502,
-              elapsedMs: Date.now() - now,
-              cacheHit: false,
-              inFlightDeduped: locks.isFetching,
-              vectorCount: 0,
-              nonzeroCount: 0,
-              consecutiveFailures: consecutiveFailuresRef.current,
-              rejectionReason: 'Proxy returned empty or failed payload',
-              timestamp: new Date().toISOString()
-            };
+            window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: currentLayer, timeOffsetHours: timeOffsetRef.current, provider: 'none', gridProvider: 'none', httpStatus: 502, elapsedMs: Date.now() - now, vectorCount: 0, nonzeroCount: 0, consecutiveFailures: consecutiveFailuresRef.current, timestamp: new Date().toISOString() };
           }
 
-          if (consecutiveFailuresRef.current >= 3) {
-            console.warn('[FETCH] [Marine] Circuit breaker: 3 consecutive failures stopping until model, layer, or viewport changes.');
-            return; // Don't schedule more retries
-          }
-
-          // Cap retries: if this failure was itself on a retry attempt, stop scheduling further retries
-          const isRetry = ['cooldown_retry', 'delayed_retry'].includes(source);
-          if (isRetry) {
-            console.warn('[FETCH] [Marine] Retry failed. Silently halting automatic retries until user interaction/model/layer changes.');
-            return;
-          }
-
+          if (consecutiveFailuresRef.current >= 3) return;
+          if (['cooldown_retry', 'delayed_retry'].includes(source)) return;
           const remaining = getRemainingCooldown('marine');
+
           marineRetryCountRef.current = (marineRetryCountRef.current || 0) + 1;
-          if (marineRetryCountRef.current > 3) {
-            console.warn('[FETCH] [Marine] Max retries (3) reached stopping.');
-            marineRetryCountRef.current = 0;
-          } else if (remaining > 0 && !cooldownRetryRef.current) {
-            cooldownRetryRef.current = setTimeout(() => {
-              cooldownRetryRef.current = null;
-              if (updateMarineGridRef.current && activeMarineLayersRef.current) {
-                updateMarineGridRef.current('cooldown_retry');
-              }
-            }, remaining + 3000);
-          } else if (remaining <= 0 && !cooldownRetryRef.current) {
-            cooldownRetryRef.current = setTimeout(() => {
-              cooldownRetryRef.current = null;
-              if (updateMarineGridRef.current && activeMarineLayersRef.current) {
-                updateMarineGridRef.current('delayed_retry');
-              }
-            }, 5000);
+          if (marineRetryCountRef.current > 3) { marineRetryCountRef.current = 0;
+          } else if (!cooldownRetryRef.current) {
+            const delay = remaining > 0 ? remaining + 3000 : 5000;
+            const retrySource = remaining > 0 ? 'cooldown_retry' : 'delayed_retry';
+            cooldownRetryRef.current = setTimeout(() => { cooldownRetryRef.current = null; if (updateMarineGridRef.current && activeMarineLayersRef.current) updateMarineGridRef.current(retrySource); }, delay);
           }
         }
       } finally {
         locks.isFetching = false;
+        if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = null;
+        // v7.7: Replay pending intent if one was buffered during in-flight fetch
+        const pending = pendingMarineIntentRef.current;
+        if (pending) {
+          pendingMarineIntentRef.current = null;
+          if (pending.model === activeModelRef.current && pending.layer === (activeMarineLayerRef.current || 'waves')) {
+            console.log(`[Marine] Replaying pending intent: ${pending.source} model=${pending.model} layer=${pending.layer}`);
+            setTimeout(() => enqueueMarineUpdate(pending.source + '_pending'), 50);
+          } else {
+            _logPipelineEvent('pending_intent_expired', pending);
+          }
+        }
       }
     };
 
@@ -559,8 +531,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
       const now = Date.now();
 
-      // HARD GATE: If a fetch is already in-flight, reject immediately
-      if (locks.isFetching) return;
+      // v7.7: Buffer intent instead of dropping when fetch is in-flight
+      if (locks.isFetching) {
+        pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
+        _logPipelineEvent('intent_buffered', pendingMarineIntentRef.current);
+        return;
+      }
 
       // Manual activation: set suppression window
       if (source === 'manual') {
@@ -653,12 +629,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves');
       } catch (e) { /* map not ready */ }
       const debounceTime = isCached ? 50 : 900;
-
-      // v3 contract: 900ms debounce for moveend per rate limit protection
       clearTimeout(moveendDebounceRef.timer);
-      moveendDebounceRef.timer = setTimeout(() => {
-        enqueueMarineUpdate('moveend');
-      }, debounceTime);
+      moveendDebounceRef.timer = setTimeout(() => { enqueueMarineUpdate('moveend'); }, debounceTime);
     };
 
     // User Intent Tracking
@@ -778,18 +750,30 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     return () => clearTimeout(t);
   }, [activeModel, mapInstance]);
 
-  // v7.1: Re-fetch when active marine layer changes for ANY model, not just EURO components.
-  // Without this, GFS/ICON sublayer switches leave stale previous-layer data.
   useEffect(() => {
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
     lastFetchedLayerRef.current = activeMarineLayer;
-    console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), triggering refetch...`);
+    // v7.7: Try local cache remap for GFS/ICON before network fetch
+    if (activeModel !== 'EURO') {
+      try {
+        const cache = getMarineHourlyCache();
+        if (cache?.results?.length && cache.model === activeModel) {
+          const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
+          if (remapped?.grid?.vectors?.length > 0 && remapped.grid.__renderable !== false) {
+            console.log(`[Marine] Layer switch to ${activeMarineLayer}: local cache remap (no network fetch)`);
+            _logPipelineEvent('local_cache_remap', { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours });
+            setMarineData(remapped);
+            return; // Skip network fetch — cache had all vars
+          }
+        }
+      } catch (e) { console.warn('[Marine] Cache remap failed:', e.message); }
+    }
+    console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), network fetch required`);
+    _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer });
     marineFetchLocksRef.current.lastHash = null;
     marineFetchLocksRef.current.lastTime = 0;
-    const t = setTimeout(() => {
-      manualMarineTriggerRef.current?.();
-    }, 350);
+    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
     return () => clearTimeout(t);
   }, [activeMarineLayer, activeModel, mapInstance]);
 

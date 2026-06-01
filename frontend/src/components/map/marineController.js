@@ -439,7 +439,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   }
 }
 
-function extractMarineAtOffset(cache, hourOffset) {
+function extractMarineAtOffset(cache, hourOffset, targetLayer) {
   const { results, points, gridSize, bounds } = cache;
   const timeArray = results[0]?.hourly?.time;
   const targetMs = Date.now() + hourOffset * 3600000;
@@ -479,8 +479,8 @@ function extractMarineAtOffset(cache, hourOffset) {
     const s2_h = safeNum(c.secondary_swell_wave_height ?? 0), s2_d = safeNum(c.secondary_swell_wave_direction ?? 0);
     const ww_h = safeNum(c.wind_wave_height ?? 0), ww_d = safeNum(c.wind_wave_direction ?? 0);
 
-    // v7.1: isOcean from active layer's height field, with wave_height as fallback mask
-    const activeLayerFromCache = cache.activeLayer || 'waves';
+    // v7.7: Use explicit targetLayer if provided, otherwise fall back to cache.activeLayer
+    const activeLayerFromCache = targetLayer || cache.activeLayer || 'waves';
     let isOcean = false;
     if (activeLayerFromCache === 'waves') {
       isOcean = (r.hourly.wave_height?.[idx] != null);
@@ -531,7 +531,7 @@ function extractMarineAtOffset(cache, hourOffset) {
 
   // v7.4: Active-layer truth metadata — separate ocean mask from active component data
   const provider = cache.provider || 'open-meteo';
-  const activeLayerFromCache = cache.activeLayer || 'waves';
+  const activeLayerFromCache = targetLayer || cache.activeLayer || 'waves';
   let activeLayerNonzero = 0, activeLayerMax = 0, oceanMaskCount = 0;
   for (const gv of gridVectors) {
     if (gv.isOcean) oceanMaskCount++;
@@ -653,19 +653,19 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       const requestedDays = isPrefetch ? maxForecastDays : hourOffset > 48 ? Math.ceil((hourOffset + 1) / 24) : 2;
       const forecastDays = Math.min(maxForecastDays, requestedDays);
 
-      // Active variable filtering — layer-scoped to minimize payload
-      let activeVars = [];
-      if (activeLayer === 'waves') {
+      // v7.7: For GFS/ICON, request ALL supported vars to enable local remap on layer switch
+      // For EURO, keep layer-scoped (Copernicus routing uses different variable sets)
+      const isAllVarModel = (model !== 'EURO');
+      let activeVars;
+      if (isAllVarModel) {
+        activeVars = [...MODEL_SUPPORTED_VARS[apiModel]];
+      } else if (activeLayer === 'waves') {
         activeVars = ['wave_height', 'wave_direction', 'wave_period'];
       } else if (activeLayer === 'swell_1') {
         activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
       } else if (activeLayer === 'swell_2') {
-        // v7.0: gwam (ICON) doesn't support secondary_swell — fall back to primary swell for grid
-        if (apiModel === 'gwam') {
-          activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
-        } else {
-          activeVars = ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'];
-        }
+        if (apiModel === 'gwam') activeVars = ['swell_wave_height', 'swell_wave_direction', 'swell_wave_period'];
+        else activeVars = ['secondary_swell_wave_height', 'secondary_swell_wave_direction', 'secondary_swell_wave_period'];
       } else if (activeLayer === 'wind_waves') {
         activeVars = ['wind_wave_height', 'wind_wave_direction', 'wind_wave_period'];
       } else {
