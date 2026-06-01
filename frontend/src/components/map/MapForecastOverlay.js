@@ -110,6 +110,22 @@ export var MapForecastOverlay = ({
     const isUserExplicitSelection = !!(selectedSpot || longPressLocation);
     const hasGrid = marineDataRef.current?.grid?.vectors?.length > 0;
 
+    // v7.14.5: Startup stability gate
+    const isMapBooted = typeof window !== 'undefined' && window.__MAP_BOOTSTRAPPED__ === true;
+    const isTimelineScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline === true;
+    const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('marine') || isInCooldown('wind') || isInCooldown('pressure'));
+
+    if (!isMapBooted || isTimelineScrubbing || isAnyCooldownActive) {
+      const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer);
+      if (!isCached) {
+        console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isTimelineScrubbing} cooldown=${isAnyCooldownActive}`);
+        setExactPointResponse(null);
+        setExactPoint(null);
+        setExactPointStatus(isAnyCooldownActive ? 'rate_limited' : 'idle');
+        return;
+      }
+    }
+
     // v7.0: Eager default snap request mitigation
     if (!isUserExplicitSelection && !hasGrid) {
       setExactPointResponse(null);

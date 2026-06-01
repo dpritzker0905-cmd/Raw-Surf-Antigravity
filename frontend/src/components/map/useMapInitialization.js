@@ -99,6 +99,9 @@ export function useMapInitialization({ innerMapRef, mapInstanceRef }) {
       });
 
       markMapReady(); // Init sequencer: map is ready
+      if (typeof window !== 'undefined') {
+        window.__MAP_BOOTSTRAPPED__ = true;
+      }
       setTimeout(() => {
         try { map.triggerRepaint(); } catch(e) {}
       }, 300);

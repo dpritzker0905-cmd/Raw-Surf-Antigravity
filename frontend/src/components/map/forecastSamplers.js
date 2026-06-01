@@ -252,13 +252,22 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   const nativeLimit = model === 'EURO' ? (activeLayer === 'waves' ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS) : ICON_LIMIT;
   const isPastLimit = (model === 'EURO' && timeOffsetHours > 72) || (model === 'ICON' && timeOffsetHours > 120);
 
-  if (model === 'EURO' && isPastLimit && !signal?.aborted) {
-    // Proactively pre-warm GFS and ICON exact point data in background for Extended Estimate
-    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
-    fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal, timeOffsetHours).catch(() => {});
-  } else if (model === 'ICON' && isPastLimit && !signal?.aborted) {
-    // Proactively pre-warm GFS exact point data in background for ICON Extended Estimate
-    fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
+  const isInitialBoot = typeof window !== 'undefined' && !window.__MAP_BOOTSTRAPPED__;
+  const isScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline === true;
+  const isCooling = typeof isInCooldown === 'function' && (isInCooldown('marine') || isInCooldown('wind'));
+  const isGridInFlight = typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__?.activeGridFetches > 0;
+
+  const shouldPrewarm = !isInitialBoot && !isScrubbing && !isCooling && !isGridInFlight;
+
+  if (shouldPrewarm) {
+    if (model === 'EURO' && isPastLimit && !signal?.aborted) {
+      // Proactively pre-warm GFS and ICON exact point data in background for Extended Estimate
+      fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
+      fetchExactMarinePoint(lat, lng, 'ICON', activeLayer, signal, timeOffsetHours).catch(() => {});
+    } else if (model === 'ICON' && isPastLimit && !signal?.aborted) {
+      // Proactively pre-warm GFS exact point data in background for ICON Extended Estimate
+      fetchExactMarinePoint(lat, lng, 'GFS', activeLayer, signal, timeOffsetHours).catch(() => {});
+    }
   }
 
   const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };

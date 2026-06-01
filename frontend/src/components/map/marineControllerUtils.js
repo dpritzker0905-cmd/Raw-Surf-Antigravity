@@ -120,43 +120,71 @@ export function hydrateCache(key) {
   } catch (e) { return null; }
 }
 
-// --- 429 COOLDOWN STATE (v7.5: adaptive, was 300s fixed) ---
-var windCooldownUntil = 0;
-var marineCooldownUntil = 0;
-var pressureCooldownUntil = 0;
-var marineCooldownCount = 0; // consecutive 429 count for adaptive backoff
+// --- 429 COOLDOWN STATE (v7.5: adaptive, was 300s fixed, now persisted in localStorage) ---
+function getPersistedTime(key, defaultVal) {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const val = window.localStorage.getItem(key);
+    if (val) {
+      const parsed = parseInt(val, 10);
+      if (!isNaN(parsed) && parsed > Date.now()) {
+        return parsed;
+      }
+    }
+  }
+  return defaultVal;
+}
+
+function setPersistedTime(key, val) {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    window.localStorage.setItem(key, val.toString());
+  }
+}
+
 export var COOLDOWN_MS = 60000; // v7.5: base 60s (was 300s — too aggressive)
 
 export function isInCooldown(domain) {
   const now = Date.now();
-  if (domain === 'wind') return now < windCooldownUntil;
-  if (domain === 'marine') return now < marineCooldownUntil;
-  if (domain === 'pressure') return now < pressureCooldownUntil;
+  if (domain === 'wind') return now < getPersistedTime('rawsurf_cooldown_wind_until', 0);
+  if (domain === 'marine') return now < getPersistedTime('rawsurf_cooldown_marine_until', 0);
+  if (domain === 'pressure') return now < getPersistedTime('rawsurf_cooldown_pressure_until', 0);
   return false;
 }
 
 export function enterCooldown(domain) {
   // v7.5: Adaptive cooldown — 30s first, 60s second, 120s third+
-  const count = domain === 'marine' ? ++marineCooldownCount : 1;
+  let count = 1;
+  if (domain === 'marine') {
+    let curCount = parseInt((typeof window !== 'undefined' && window.localStorage && window.localStorage.getItem('rawsurf_cooldown_marine_count')) || '0', 10);
+    curCount++;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('rawsurf_cooldown_marine_count', curCount.toString());
+    }
+    count = curCount;
+  }
   const adaptive = Math.min(120000, 30000 * Math.pow(2, Math.min(count - 1, 2)));
   const until = Date.now() + adaptive;
-  if (domain === 'wind') windCooldownUntil = until;
-  if (domain === 'marine') marineCooldownUntil = until;
-  if (domain === 'pressure') pressureCooldownUntil = until;
+  if (domain === 'wind') setPersistedTime('rawsurf_cooldown_wind_until', until);
+  if (domain === 'marine') setPersistedTime('rawsurf_cooldown_marine_until', until);
+  if (domain === 'pressure') setPersistedTime('rawsurf_cooldown_pressure_until', until);
   console.warn(`[${domain}] 429 cooldown: ${adaptive / 1000}s (attempt ${count})`);
 }
 
 export function clearCooldown(domain) {
-  if (domain === 'marine') { marineCooldownUntil = 0; marineCooldownCount = 0; }
-  if (domain === 'wind') windCooldownUntil = 0;
-  if (domain === 'pressure') pressureCooldownUntil = 0;
+  if (domain === 'marine') {
+    setPersistedTime('rawsurf_cooldown_marine_until', 0);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem('rawsurf_cooldown_marine_count', '0');
+    }
+  }
+  if (domain === 'wind') setPersistedTime('rawsurf_cooldown_wind_until', 0);
+  if (domain === 'pressure') setPersistedTime('rawsurf_cooldown_pressure_until', 0);
 }
 
 export function getRemainingCooldown(domain) {
   const now = Date.now();
-  if (domain === 'wind') return Math.max(0, windCooldownUntil - now);
-  if (domain === 'marine') return Math.max(0, marineCooldownUntil - now);
-  if (domain === 'pressure') return Math.max(0, pressureCooldownUntil - now);
+  if (domain === 'wind') return Math.max(0, getPersistedTime('rawsurf_cooldown_wind_until', 0) - now);
+  if (domain === 'marine') return Math.max(0, getPersistedTime('rawsurf_cooldown_marine_until', 0) - now);
+  if (domain === 'pressure') return Math.max(0, getPersistedTime('rawsurf_cooldown_pressure_until', 0) - now);
   return 0;
 }
 
