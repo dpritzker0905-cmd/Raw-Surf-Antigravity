@@ -386,7 +386,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     const newUploadDiag = {
       uploadCount: window.__WEBGL_MARINE_UPLOAD_COUNT__,
-      uploadSignature: uploadSig,
+      uploadSignature: uploadSigResidency,
       activeModel: activeModelRef.current, activeLayer: activeMarineLayer,
       timeOffsetHours: timeOffsetHoursRef.current, provider: grid?.__provider || 'none',
       gridProvider, sourceModel: gridModel, componentLayer,
