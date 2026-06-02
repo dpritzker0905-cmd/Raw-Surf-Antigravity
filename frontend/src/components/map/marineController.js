@@ -11,13 +11,15 @@ import { governMarineRequest } from './marineRequestGovernor';
 import { BACKEND_URL } from '../../lib/apiClient';
 import {
   getBackendWeatherFlag,
+  getBackendCopernicusFlag,
   getSharedValidTime,
   clampViewportBbox,
   mapNormalizedGridToWebGL,
   updateDiagnostics,
-  GRID_URL
+  GRID_URL,
+  fetchBackendCopernicusGrid
 } from './backendWeatherServiceClient';
-export { getBackendWeatherFlag };
+export { getBackendWeatherFlag, getBackendCopernicusFlag };
 
 // Re-export wind controller components for timeline scrubs and observers
 export { fetchWindData, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './windController';
@@ -408,6 +410,17 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       return result;
     } catch (err) {
       console.warn(`[Backend Weather Service] Grid redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
+  }
+
+  // --- COPERNICUS BACKEND SERVICE REDIRECT ---
+  if (getBackendCopernicusFlag() && model === 'EURO' && activeLayer === 'swell_1') {
+    try {
+      console.log(`[Backend Weather Service] Redirecting Copernicus swell_1 grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+      const result = await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller");
+      return result;
+    } catch (err) {
+      console.warn(`[Backend Weather Service] Copernicus grid redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 

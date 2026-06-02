@@ -181,12 +181,12 @@ class WeatherPipelineScheduler:
 
     async def ingest_copernicus_regional(self) -> bool:
         """
-        Stage 4 Ingestion: Scheduled fetch of Copernicus regional wave component layers (swell_1, swell_2, wind_waves)
+        Stage 4 Ingestion: Scheduled fetch of Copernicus regional wave component layers (swell_1)
         at a 6-hour refresh cadence.
         """
         logger.info("[Pipeline Scheduler] Starting Copernicus Regional Ingestion job...")
         region = REGIONAL_CONFIGS["florida_east_coast"]
-        layers = ["swell_1", "swell_2", "wind_waves"]
+        layers = ["swell_1"]
         run_time = datetime.now(timezone.utc)
         total_success = 0
 

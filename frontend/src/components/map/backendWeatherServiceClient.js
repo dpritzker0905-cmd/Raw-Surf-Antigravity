@@ -106,11 +106,26 @@ export function getBackendWindFlag() {
 }
 
 /**
+ * Resolves the backend Copernicus service feature flag.
+ */
+export function getBackendCopernicusFlag() {
+  if (typeof window === 'undefined') return false;
+  if (window.__USE_BACKEND_COPERNICUS_SERVICE__ !== undefined) {
+    return !!window.__USE_BACKEND_COPERNICUS_SERVICE__;
+  }
+  try {
+    const lsVal = window.localStorage.getItem('__USE_BACKEND_COPERNICUS_SERVICE__');
+    if (lsVal !== null) return lsVal === 'true';
+  } catch (e) {}
+  return process.env.REACT_APP_USE_BACKEND_COPERNICUS === 'true';
+}
+
+/**
  * Computes a standardized snapped UTC ISO string from hourOffset.
  * Resolves the nearest valid_time from cachedManifest when available (max 3h delta).
  * Provides the single source of authority for matching grid/point time dimensions.
  */
-export function getSharedValidTime(timeOffsetHours, layer = 'waves') {
+export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS') {
   const roundedNow = Math.round(Date.now() / 3600000) * 3600000;
   const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
   const requestedValidTime = targetDt.toISOString();
@@ -121,12 +136,13 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves') {
 
   const filterLayer = (layer || 'waves').toLowerCase();
   const filterDomain = filterLayer === 'wind' ? 'wind' : 'marine';
+  const filterModel = (modelName || 'GFS').toUpperCase();
 
   const hasEmptyProducts = cachedManifest && Array.isArray(cachedManifest.products) && cachedManifest.products.length === 0;
 
   if (cachedManifest && Array.isArray(cachedManifest.products) && !hasEmptyProducts) {
     const matchingProducts = cachedManifest.products.filter(p => 
-      p.model.toUpperCase() === 'GFS' &&
+      p.model.toUpperCase() === filterModel &&
       p.domain.toLowerCase() === filterDomain &&
       p.layer.toLowerCase() === filterLayer
     );
@@ -149,10 +165,10 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves') {
         selectedManifestValidTime = new Date(bestProduct.valid_time_start).toISOString();
         manifestDeltaHours = minDiffMs / 3600000;
       } else {
-        fallbackReason = `No GFS ${filterLayer} product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
+        fallbackReason = `No ${filterModel} ${filterLayer} product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
       }
     } else {
-      fallbackReason = `No GFS products found matching GFS model/${filterDomain} domain/${filterLayer} layer`;
+      fallbackReason = `No ${filterModel} products found matching ${filterModel} model/${filterDomain} domain/${filterLayer} layer`;
     }
   } else {
     fallbackReason = "Manifest is not yet loaded, empty, or invalid; using snapped target valid time as fallback";
@@ -160,7 +176,8 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves') {
     fetchProductsManifest(true).catch(() => {});
   }
 
-  latestTimeDiag[filterDomain] = {
+  const cacheDiagKey = `${filterModel}_${filterLayer}`;
+  latestTimeDiag[cacheDiagKey] = {
     requestedValidTime,
     selectedManifestValidTime,
     manifestDeltaHours,
@@ -192,7 +209,12 @@ export function clampViewportBbox(requestedBbox, layerName = "waves") {
     north < PILOT_COVERAGE.south ||
     south > PILOT_COVERAGE.north
   ) {
-    const areaName = layerName === "wind" ? "GFS Wind" : "GFS Waves";
+    let areaName = "GFS Waves";
+    if (layerName === "wind") {
+      areaName = "GFS Wind";
+    } else if (layerName === "swell_1" || layerName === "swell_2" || layerName === "wind_waves") {
+      areaName = "Copernicus Waves";
+    }
     return {
       isInside: false,
       clampedBbox: null,
@@ -375,10 +397,11 @@ export function updateDiagnostics(type, details) {
   }
 
   // Inject computed nearest manifest time match diagnostics
-  diag.requestedValidTime = latestTimeDiag.marine.requestedValidTime;
-  diag.selectedManifestValidTime = latestTimeDiag.marine.selectedManifestValidTime;
-  diag.manifestDeltaHours = latestTimeDiag.marine.manifestDeltaHours;
-  diag.timeFallbackReason = latestTimeDiag.marine.fallbackReason;
+  const timeDiag = latestTimeDiag['GFS_waves'] || {};
+  diag.requestedValidTime = timeDiag.requestedValidTime;
+  diag.selectedManifestValidTime = timeDiag.selectedManifestValidTime;
+  diag.manifestDeltaHours = timeDiag.manifestDeltaHours;
+  diag.timeFallbackReason = timeDiag.fallbackReason;
 
   // Recalculate parity
   diag.parity = diag.pointValidTime 
@@ -596,10 +619,11 @@ export function updateWindDiagnostics(type, details) {
     getSharedValidTime(details.hourOffset, 'wind');
   }
 
-  diag.requestedValidTime = latestTimeDiag.wind.requestedValidTime;
-  diag.selectedManifestValidTime = latestTimeDiag.wind.selectedManifestValidTime;
-  diag.manifestDeltaHours = latestTimeDiag.wind.manifestDeltaHours;
-  diag.timeFallbackReason = latestTimeDiag.wind.fallbackReason;
+  const timeDiag = latestTimeDiag['GFS_wind'] || {};
+  diag.requestedValidTime = timeDiag.requestedValidTime;
+  diag.selectedManifestValidTime = timeDiag.selectedManifestValidTime;
+  diag.manifestDeltaHours = timeDiag.manifestDeltaHours;
+  diag.timeFallbackReason = timeDiag.fallbackReason;
 
   diag.pointParity = diag.pointValidTime 
     ? (diag.gridValidTime === diag.pointValidTime) 
@@ -778,4 +802,354 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
     throw err;
   }
 }
+
+/**
+ * Maps the standard backend grid response schema to the WebGLMarineLayer expectations for Copernicus swell/waves.
+ */
+export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffset, layer = 'swell_1') {
+  if (!json || !json.grid || !Array.isArray(json.grid.vectors)) {
+    throw new Error("Invalid normalized grid response structure");
+  }
+
+  const zeroVec = { u: 0, v: 0, speed: 0, period: 0 };
+  const mappedVectors = json.grid.vectors.map(v => {
+    const componentUV = {
+      u: v.u || 0,
+      v: v.v || 0,
+      speed: v.speed || 0,
+      period: v.period || 0
+    };
+    return {
+      lat: v.lat,
+      lng: v.lng,
+      isOcean: true,
+      waves: zeroVec,
+      swell_1: layer === 'swell_1' ? componentUV : zeroVec,
+      swell_2: layer === 'swell_2' ? componentUV : zeroVec,
+      wind_waves: layer === 'wind_waves' ? componentUV : zeroVec
+    };
+  });
+
+  const nonzeroCount = mappedVectors.filter(v => v[layer].speed > 0).length;
+  const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v[layer].speed), 0) : 0;
+  const renderable = mappedVectors.length > 0 && nonzeroCount > 0;
+
+  return {
+    type: 'FeatureCollection',
+    features: [],
+    hourOffset,
+    grid: {
+      vectors: mappedVectors,
+      bounds: json.grid.bounds || snappedBounds,
+      cols: json.grid.cols,
+      rows: json.grid.rows,
+      timestamp: Date.now(),
+      __sourceModel: 'EURO',
+      __provider: json.provider || 'backend-weather-service',
+      __gridProvider: json.provider || 'backend-weather-service',
+      __componentLayer: layer,
+      __gridSupportsLayer: renderable,
+      __activeLayerNonzeroCount: nonzeroCount,
+      __activeLayerMax: maxSpeed,
+      __oceanMaskCount: mappedVectors.length,
+      __renderable: renderable,
+      provider: json.provider || 'backend-weather-service',
+      hourOffset,
+      nonzeroCount,
+      maxSpeed,
+      renderable
+    }
+  };
+}
+
+// Copernicus Diagnostics Telemetry Initializer
+if (typeof window !== 'undefined') {
+  window.__BACKEND_COPERNICUS_SERVICE_DIAG__ = window.__BACKEND_COPERNICUS_SERVICE_DIAG__ || {
+    featureFlagActive: getBackendCopernicusFlag(),
+    selectedManifestValidTime: null,
+    requestedValidTime: null,
+    manifestDeltaHours: null,
+    fallbackReason: null,
+    timeFallbackReason: null,
+    pointParity: 'pending_point_fetch',
+    requestedBbox: null,
+    clampedBbox: null,
+    coverageInside: true,
+    fallbackToLegacy: false,
+    gridVectorCount: null,
+    nonzeroCount: null,
+    provider: 'backend-weather-service',
+    model: 'EURO',
+    layer: 'swell_1',
+    lastGridFetch: null,
+    lastPointFetch: null,
+    renderable: false,
+    gridValidTime: null,
+    pointValidTime: null,
+    boundsSource: 'controller'
+  };
+}
+
+/**
+ * Updates the global Copernicus diagnostics telemetry registry.
+ */
+export function updateCopernicusDiagnostics(type, details) {
+  if (typeof window === 'undefined') return;
+
+  if (!window.__BACKEND_COPERNICUS_SERVICE_DIAG__) {
+    window.__BACKEND_COPERNICUS_SERVICE_DIAG__ = {
+      featureFlagActive: getBackendCopernicusFlag(),
+      selectedManifestValidTime: null,
+      requestedValidTime: null,
+      manifestDeltaHours: null,
+      fallbackReason: null,
+      timeFallbackReason: null,
+      pointParity: 'pending_point_fetch',
+      requestedBbox: null,
+      clampedBbox: null,
+      coverageInside: true,
+      fallbackToLegacy: false,
+      gridVectorCount: null,
+      nonzeroCount: null,
+      provider: 'backend-weather-service',
+      model: 'EURO',
+      layer: 'swell_1',
+      lastGridFetch: null,
+      lastPointFetch: null,
+      renderable: false,
+      gridValidTime: null,
+      pointValidTime: null,
+      boundsSource: 'controller'
+    };
+  }
+
+  const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
+  diag.featureFlagActive = getBackendCopernicusFlag();
+
+  if (type === 'grid') {
+    diag.lastGridFetch = details;
+    diag.gridValidTime = details.validTime || null;
+    diag.requestedBbox = details.requestedBbox;
+    diag.clampedBbox = details.clampedBbox;
+    diag.gridVectorCount = details.gridVectorCount || null;
+    diag.nonzeroCount = details.nonzeroCount || null;
+    diag.renderable = details.renderable || false;
+    diag.boundsSource = details.boundsSource || diag.boundsSource || 'controller';
+
+    const isInside = details.coverageInside !== undefined 
+      ? details.coverageInside 
+      : (details.clampedBbox !== null && !details.error?.includes('outside'));
+      
+    diag.coverageInside = isInside;
+    diag.fallbackToLegacy = !isInside || !!details.error;
+    diag.fallbackReason = details.error || null;
+  } else if (type === 'point') {
+    diag.lastPointFetch = details;
+    diag.pointValidTime = details.validTime || null;
+  }
+
+  if (details.hourOffset !== undefined) {
+    getSharedValidTime(details.hourOffset, 'swell_1', 'EURO');
+  }
+
+  const timeDiag = latestTimeDiag['EURO_swell_1'] || {};
+  diag.requestedValidTime = timeDiag.requestedValidTime;
+  diag.selectedManifestValidTime = timeDiag.selectedManifestValidTime;
+  diag.manifestDeltaHours = timeDiag.manifestDeltaHours;
+  diag.timeFallbackReason = timeDiag.fallbackReason;
+
+  diag.pointParity = diag.pointValidTime 
+    ? (diag.gridValidTime === diag.pointValidTime) 
+    : 'pending_point_fetch';
+}
+
+/**
+ * Fetches EURO Copernicus swell_1 grid forecast from backend weather service.
+ */
+export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, boundsSource = "controller") {
+  const start = Date.now();
+  const validTimeStr = getSharedValidTime(hourOffset, 'swell_1', 'EURO');
+
+  let actualBounds = bounds;
+  let actualSource = boundsSource;
+
+  if (!actualBounds) {
+    if (typeof window !== 'undefined' && window.map) {
+      try {
+        const b = window.map.getBounds();
+        actualBounds = {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
+        actualSource = "window_map";
+      } catch (e) {
+        actualBounds = snappedBounds || PILOT_COVERAGE;
+        actualSource = "fallback";
+      }
+    } else {
+      actualBounds = snappedBounds || PILOT_COVERAGE;
+      actualSource = "fallback";
+    }
+  }
+
+  const clampResult = clampViewportBbox(actualBounds, 'swell_1');
+  if (!clampResult.isInside) {
+    const errorDetails = {
+      url: 'none',
+      status: 0,
+      validTime: validTimeStr,
+      elapsedMs: Date.now() - start,
+      error: clampResult.fallbackReason,
+      requestedBbox: actualBounds,
+      clampedBbox: null,
+      hourOffset,
+      coverageInside: false,
+      fallbackToLegacy: true,
+      boundsSource: actualSource
+    };
+    updateCopernicusDiagnostics('grid', errorDetails);
+    throw new Error(clampResult.fallbackReason);
+  }
+
+  const { clampedBbox } = clampResult;
+  const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
+  const url = `${GRID_URL}?model=EURO&domain=marine&layer=swell_1&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) {
+      throw new Error(`Backend returned HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    const result = mapNormalizedCopernicusGridToWebGL(json, clampedBbox, hourOffset, 'swell_1');
+
+    updateCopernicusDiagnostics('grid', {
+      url,
+      status: res.status,
+      validTime: validTimeStr,
+      elapsedMs: Date.now() - start,
+      error: null,
+      requestedBbox: actualBounds,
+      clampedBbox,
+      hourOffset,
+      gridVectorCount: result.grid.vectors.length,
+      nonzeroCount: result.grid.nonzeroCount,
+      renderable: result.grid.renderable,
+      coverageInside: true,
+      boundsSource: actualSource
+    });
+
+    return result;
+  } catch (err) {
+    const errorDetails = {
+      url,
+      status: err.message.includes('HTTP') ? parseInt(err.message.match(/\d+/)?.[0] || '0') : 500,
+      validTime: validTimeStr,
+      elapsedMs: Date.now() - start,
+      error: err.message,
+      requestedBbox: actualBounds,
+      clampedBbox,
+      hourOffset,
+      fallbackToLegacy: true,
+      boundsSource: actualSource
+    };
+    updateCopernicusDiagnostics('grid', errorDetails);
+    console.error(`[Backend Weather Service] Copernicus grid fetch error: ${err.message}. Falling back cleanly.`);
+    throw err;
+  }
+}
+
+/**
+ * Fetches exact point forecast from backend weather service for EURO Copernicus swell_1.
+ */
+export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal) {
+  const start = Date.now();
+  const validTimeStr = getSharedValidTime(hourOffset, 'swell_1', 'EURO');
+  const url = `${POINT_URL}?model=EURO&domain=marine&layer=swell_1&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) {
+      throw new Error(`Backend point returned HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    
+    // Structure mock hourly response compatible with forecastSamplers.js expectances
+    const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
+    const mockHourly = {
+      time: [mockTime],
+      wave_height: [0],
+      wave_direction: [0],
+      wave_period: [0],
+      wave_peak_period: [0],
+      swell_wave_height: [json.point.speed || 0],
+      swell_wave_direction: [json.point.direction || 0],
+      swell_wave_period: [json.point.period || 0],
+      swell_wave_peak_period: [json.point.period || 0],
+      secondary_swell_wave_height: [0],
+      secondary_swell_wave_direction: [0],
+      secondary_swell_wave_period: [0],
+      wind_wave_height: [0],
+      wind_wave_direction: [0],
+      wind_wave_period: [0],
+      wind_wave_peak_period: [0]
+    };
+
+    const data = {
+      hourly: mockHourly,
+      snappedLat: json.point.sampled_lat || lat,
+      snappedLng: json.point.sampled_lng || lng,
+      requestedLat: lat,
+      requestedLng: lng,
+      requestedModel: 'EURO',
+      activeLayer: 'swell_1',
+      forecastDays: 1,
+      apiModel: 'ecmwf_wam025',
+      provider: json.provider || 'backend-weather-service',
+      source: 'backend_point_api'
+    };
+
+    updateCopernicusDiagnostics('point', {
+      url,
+      status: res.status,
+      validTime: validTimeStr,
+      valueKind: json.value_kind || 'swell_wave_height',
+      valueUnit: json.value_unit || 'm',
+      displayUnitHint: json.display_unit_hint || 'ft',
+      elapsedMs: Date.now() - start,
+      error: null,
+      hourOffset,
+      speed: json.point.speed || 0,
+      direction: json.point.direction || 0,
+      interpolationMethod: json.point.interpolation_method || 'bilinear',
+      interpolation_method: json.point.interpolation_method || 'bilinear',
+      provider: json.provider || 'backend-weather-service'
+    });
+
+    return data;
+  } catch (err) {
+    const status = err.message.includes('HTTP') ? parseInt(err.message.match(/\d+/)?.[0] || '0') : 500;
+    updateCopernicusDiagnostics('point', {
+      url,
+      status,
+      validTime: validTimeStr,
+      valueKind: 'none',
+      valueUnit: 'none',
+      displayUnitHint: 'none',
+      elapsedMs: Date.now() - start,
+      error: err.message,
+      hourOffset,
+      speed: 0,
+      direction: 0,
+      interpolationMethod: 'none',
+      interpolation_method: 'none',
+      provider: 'none'
+    });
+    console.error(`[Backend Weather Service] Copernicus point fetch error: ${err.message}. Falling back cleanly.`);
+    throw err;
+  }
+}
+
 

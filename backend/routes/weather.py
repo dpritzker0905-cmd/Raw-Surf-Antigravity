@@ -23,16 +23,17 @@ sampler = PointSampler()
 async def trigger_ingestion(background_tasks: BackgroundTasks):
     """
     POST /api/weather/ingest
-    Manually triggers GFS waves and wind pilot ingestion in the background.
+    Manually triggers GFS waves, wind, and Copernicus marine pilot ingestion in the background.
     """
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     scheduler = WeatherPipelineScheduler(store=store)
 
     async def run_jobs():
-        logger.info("[Manual Ingestion] Triggering GFS Marine & GFS Wind pilot ingestion...")
+        logger.info("[Manual Ingestion] Triggering GFS Marine, GFS Wind, & Copernicus Marine pilot ingestion...")
         try:
             await scheduler.ingest_gfs_marine_pilot()
             await scheduler.ingest_gfs_wind_pilot()
+            await scheduler.ingest_copernicus_regional()
             logger.info("[Manual Ingestion] Ingestion jobs completed.")
         except Exception as e:
             logger.error(f"[Manual Ingestion] Ingestion failed: {e}")

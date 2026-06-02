@@ -19,7 +19,12 @@ import {
   updateDiagnostics,
   updateWindDiagnostics,
   fetchBackendWindGrid,
-  fetchProductsManifest
+  fetchProductsManifest,
+  getBackendCopernicusFlag,
+  mapNormalizedCopernicusGridToWebGL,
+  updateCopernicusDiagnostics,
+  fetchBackendCopernicusGrid,
+  fetchBackendExactCopernicusPoint
 } from './backendWeatherServiceClient';
 
 describe('backendWeatherServiceClient', () => {
@@ -468,6 +473,126 @@ describe('backendWeatherServiceClient', () => {
       expect(diag.lastPointFetch.interpolationMethod).toBe('bilinear');
       expect(diag.lastPointFetch.provider).toBe('backend-weather-service');
       expect(diag.pointParity).toBe(true); // both grid and point times are '2026-06-02T03:00:00.000Z'
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
+  });
+
+  describe('getBackendCopernicusFlag', () => {
+    it('returns false by default', () => {
+      expect(getBackendCopernicusFlag()).toBe(false);
+    });
+
+    it('uses window.__USE_BACKEND_COPERNICUS_SERVICE__ override if set', () => {
+      window.__USE_BACKEND_COPERNICUS_SERVICE__ = true;
+      expect(getBackendCopernicusFlag()).toBe(true);
+
+      window.__USE_BACKEND_COPERNICUS_SERVICE__ = false;
+      expect(getBackendCopernicusFlag()).toBe(false);
+    });
+  });
+
+  describe('mapNormalizedCopernicusGridToWebGL', () => {
+    it('maps backend response schema to expected WebGL swell/waves properties', () => {
+      const sampleResponse = {
+        grid: {
+          vectors: [
+            { lat: 28.0, lng: -82.0, u: 0.5, v: -0.5, speed: 0.707, period: 9.0 }
+          ],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1,
+          rows: 1
+        },
+        provider: 'backend-weather-service'
+      };
+
+      const result = mapNormalizedCopernicusGridToWebGL(sampleResponse, sampleResponse.grid.bounds, 2, 'swell_1');
+      expect(result.grid.cols).toBe(1);
+      expect(result.grid.vectors[0].swell_1.speed).toBe(0.707);
+      expect(result.grid.vectors[0].swell_1.period).toBe(9.0);
+      expect(result.grid.__sourceModel).toBe('EURO');
+      expect(result.grid.__componentLayer).toBe('swell_1');
+      expect(result.grid.__renderable).toBe(true);
+      expect(result.hourOffset).toBe(2);
+    });
+  });
+
+  describe('fetchBackendCopernicusGrid out of bounds', () => {
+    it('rejects and throws if requested bbox is outside Florida pilot bounds', async () => {
+      const oobBbox = { west: -120.0, south: 40.0, east: -110.0, north: 45.0 };
+      await expect(fetchBackendCopernicusGrid(oobBbox, 0, null, oobBbox, 'controller')).rejects.toThrow('viewport completely outside');
+      
+      const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
+      expect(diag.coverageInside).toBe(false);
+      expect(diag.fallbackToLegacy).toBe(true);
+      expect(diag.boundsSource).toBe('controller');
+      expect(diag.fallbackReason).toBe('Requested viewport completely outside Copernicus Waves pilot coverage area');
+    });
+  });
+
+  describe('fetchBackendExactCopernicusPoint', () => {
+    it('resolves swell height and direction successfully and updates telemetry', async () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'EURO',
+            domain: 'marine',
+            layer: 'swell_1',
+            valid_time_start: '2026-06-02T03:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
+      const mockJson = {
+        point: {
+          speed: 1.8,
+          direction: 120.0,
+          period: 9.5,
+          sampled_lat: 28.4,
+          sampled_lng: -80.6,
+          interpolation_method: 'bilinear'
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      // Verify initial parity is pending_point_fetch
+      window.__BACKEND_COPERNICUS_SERVICE_DIAG__ = null;
+      updateCopernicusDiagnostics('grid', {
+        validTime: '2026-06-02T03:00:00.000Z',
+        hourOffset: 3,
+        requestedBbox: PILOT_COVERAGE,
+        clampedBbox: PILOT_COVERAGE,
+        gridVectorCount: 600,
+        nonzeroCount: 600,
+        renderable: true
+      });
+      expect(window.__BACKEND_COPERNICUS_SERVICE_DIAG__.pointParity).toBe('pending_point_fetch');
+
+      const res = await fetchBackendExactCopernicusPoint(28.4, -80.6, 3);
+      expect(res.hourly.swell_wave_height[0]).toBe(1.8);
+      expect(res.hourly.swell_wave_direction[0]).toBe(120.0);
+      expect(res.hourly.swell_wave_period[0]).toBe(9.5);
+      expect(res.provider).toBe('backend-weather-service');
+
+      const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
+      expect(diag.lastPointFetch).not.toBeNull();
+      expect(diag.lastPointFetch.speed).toBe(1.8);
+      expect(diag.lastPointFetch.direction).toBe(120.0);
+      expect(diag.lastPointFetch.interpolationMethod).toBe('bilinear');
+      expect(diag.pointParity).toBe(true);
 
       Date.now = originalDateNow;
       setCachedManifest(null);

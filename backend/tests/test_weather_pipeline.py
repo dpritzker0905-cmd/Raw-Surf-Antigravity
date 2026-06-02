@@ -458,3 +458,101 @@ def test_gfs_wind_coordinate_reconstruction_and_bilinear():
     assert res.point.interpolation_method == "bilinear"
     assert res.point.speed > 0.0
     assert len(res.warnings) == 0
+
+def test_copernicus_provider_normalization_and_endpoints(tmp_path, monkeypatch):
+    """
+    Test Copernicus provider normalization, product saving, and grid/point endpoints.
+    Verifies that the normalized Copernicus product is saved, listed in manifest,
+    and queried correctly via grid and point endpoints.
+    """
+    temp_store = ProductStore(cache_dir=tmp_path)
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    # Mock Copernicus fetcher results for 2x2 grid
+    # Bbox: west=-85, south=24, east=-79, north=30
+    # Resolution 6.0 yields lats: [24.0, 30.0], lons: [-85.0, -79.0]
+    mock_results = [
+        {
+            "latitude": 24.0, "longitude": -85.0,
+            "hourly_units": {"swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s"},
+            "hourly": {"time": ["2026-06-01T21:00:00Z"], "swell_wave_height": [1.0], "swell_wave_direction": [45.0], "swell_wave_period": [6.0]}
+        },
+        {
+            "latitude": 24.0, "longitude": -79.0,
+            "hourly_units": {"swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s"},
+            "hourly": {"time": ["2026-06-01T21:00:00Z"], "swell_wave_height": [2.0], "swell_wave_direction": [45.0], "swell_wave_period": [6.0]}
+        },
+        {
+            "latitude": 30.0, "longitude": -85.0,
+            "hourly_units": {"swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s"},
+            "hourly": {"time": ["2026-06-01T21:00:00Z"], "swell_wave_height": [3.0], "swell_wave_direction": [45.0], "swell_wave_period": [8.0]}
+        },
+        {
+            "latitude": 30.0, "longitude": -79.0,
+            "hourly_units": {"swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s"},
+            "hourly": {"time": ["2026-06-01T21:00:00Z"], "swell_wave_height": [4.0], "swell_wave_direction": [45.0], "swell_wave_period": [8.0]}
+        }
+    ]
+
+    normalizer = WeatherNormalizer()
+    target_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    bbox = {"west": -85.0, "south": 24.0, "east": -79.0, "north": 30.0}
+
+    product = normalizer.normalize(
+        model="EURO",
+        provider="copernicus",
+        domain="marine",
+        layer="swell_1",
+        raw_results=mock_results,
+        bbox=bbox,
+        resolution=6.0,
+        target_time=target_dt
+    )
+
+    assert product is not None
+    assert product.model == "EURO"
+    assert product.layer == "swell_1"
+    assert product.grid.cols == 2
+    assert product.grid.rows == 2
+    assert len(product.grid.vectors) == 4
+
+    # Save to temp store
+    temp_store.save_product(product, resolution=6.0)
+
+    # 1. Query products manifest API
+    response = client.get("/api/weather/products")
+    assert response.status_code == 200
+    manifest = response.json()
+    assert any(p["model"] == "EURO" and p["layer"] == "swell_1" for p in manifest["products"])
+
+    # 2. Query grid API
+    response_grid = client.get(
+        "/api/weather/grid?model=EURO&domain=marine&layer=swell_1&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_grid.status_code == 200
+    grid_payload = response_grid.json()
+    assert grid_payload["model"] == "EURO"
+    assert grid_payload["layer"] == "swell_1"
+
+    # 3. Query point API inside the grid (bilinear interpolation)
+    lat, lng = 27.0, -82.0
+    response_point = client.get(
+        f"/api/weather/point?model=EURO&domain=marine&layer=swell_1&lat={lat}&lng={lng}&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_point.status_code == 200
+    point_payload = response_point.json()
+    assert point_payload["is_forecast_authoritative"] is True
+    assert point_payload["point"]["interpolation_method"] == "bilinear"
+    assert point_payload["point"]["speed"] > 0.0
+
+    # 4. Query point API outside grid boundaries
+    response_point_outside = client.get(
+        f"/api/weather/point?model=EURO&domain=marine&layer=swell_1&lat=35.0&lng=-90.0&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_point_outside.status_code == 200
+    point_outside_payload = response_point_outside.json()
+    assert point_outside_payload["is_estimated"] is True
+    assert point_outside_payload["is_forecast_authoritative"] is False
+    assert point_outside_payload["point"]["interpolation_method"] == "out_of_bounds_fallback"
+
