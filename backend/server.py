@@ -164,10 +164,9 @@ async def ensure_database_tables():
 
 async def run_background_cache_population():
     """
-    Asynchronously checks the weather product cache and spawns an isolated 
-    weather_diagnostics subprocess in the background if it is empty. 
-    This prevents blocking uvicorn's event loop and port binding during startup, 
-    avoiding Render deployment health check timeouts.
+    Asynchronously checks the weather product cache and runs the ingestion jobs
+    directly in the main process (GFS waves/wind) and via an isolated subprocess 
+    (Copernicus swell_1) to ensure we don't exceed the 512MB RAM cap on Render.
     """
     logger.info("[lifespan] Starting background cache pre-population check...")
     cache_dir = ROOT_DIR / "uploads" / "weather_products"
@@ -184,33 +183,31 @@ async def run_background_cache_population():
             pass
 
     if not cache_exists:
-        logger.info("[lifespan] Cache is empty. Spawning weather_diagnostics background subprocess...")
+        logger.info("[lifespan] Cache is empty. Running pre-population directly in background tasks...")
         try:
-            script_path = ROOT_DIR / "scripts" / "weather_diagnostics.py"
-            # Asynchronously spawn the subprocess
-            import asyncio
-            process = await asyncio.create_subprocess_exec(
-                sys.executable, str(script_path),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            logger.info(f"[lifespan] Weather diagnostics subprocess spawned with PID {process.pid}")
+            from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+            from services.weather_pipeline.store import ProductStore
             
-            # Wait for it in a non-blocking way
-            stdout, stderr = await process.communicate()
-            returncode = process.returncode
-            if returncode == 0:
-                logger.info(f"[lifespan] Weather diagnostics background subprocess (PID {process.pid}) completed successfully.")
-            else:
-                stderr_str = stderr.decode('utf-8', errors='replace')
-                logger.error(
-                    f"[lifespan] Weather diagnostics background subprocess (PID {process.pid}) failed with code {returncode}.\n"
-                    f"Stderr: {stderr_str}"
-                )
-        except Exception as se:
-            logger.error(f"[lifespan] Failed to spawn weather diagnostics background subprocess: {se}")
+            store = ProductStore()
+            scheduler = WeatherPipelineScheduler(store=store)
+            
+            # Step 1: Ingest GFS Waves (Florida Pilot Grid)
+            logger.info("[lifespan] Running GFS waves grid pre-population...")
+            await scheduler.ingest_gfs_marine_pilot()
+            
+            # Step 2: Ingest GFS Wind (Florida Pilot Grid)
+            logger.info("[lifespan] Running GFS wind grid pre-population...")
+            await scheduler.ingest_gfs_wind_pilot()
+            
+            # Step 3: Ingest Copernicus Swell 1 (Florida Pilot Grid via isolated downloader)
+            logger.info("[lifespan] Running Copernicus swell_1 grid pre-population...")
+            await scheduler.ingest_copernicus_regional()
+            
+            logger.info("[lifespan] Cache pre-population completed successfully!")
+        except Exception as e:
+            logger.error(f"[lifespan] Cache pre-population failed: {e}")
     else:
-        logger.info("[lifespan] Cache is already populated. Background ingestion skipped.")
+        logger.info("[lifespan] Cache is already populated. Background Ingestion skipped.")
 
 
 @asynccontextmanager

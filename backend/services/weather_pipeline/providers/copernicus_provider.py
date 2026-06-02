@@ -62,14 +62,63 @@ class CopernicusProvider:
         )
 
         try:
-            # We call our vectorized CMEMS fetcher directly in its async context
-            results = await fetch_euro_marine(
-                latitudes=lats,
-                longitudes=lons,
-                forecast_days=forecast_days,
-                variables=variables
+            import os
+            import tempfile
+            import json
+            import sys
+            import asyncio
+            from pathlib import Path
+
+            input_fd, input_path_str = tempfile.mkstemp(suffix="_in.json", prefix="cop_fetch_")
+            os.close(input_fd)
+            output_fd, output_path_str = tempfile.mkstemp(suffix="_out.json", prefix="cop_fetch_")
+            os.close(output_fd)
+
+            input_path = Path(input_path_str)
+            output_path = Path(output_path_str)
+
+            req_data = {
+                "latitudes": lats,
+                "longitudes": lons,
+                "forecast_days": forecast_days,
+                "variables": variables
+            }
+            with open(input_path, "w") as f:
+                json.dump(req_data, f)
+
+            script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "copernicus_downloader.py"
+            
+            logger.info(f"[Copernicus Provider] Spawning isolated download subprocess: {script_path}")
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, str(script_path), str(input_path), str(output_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode != 0:
+                stdout_str = stdout.decode('utf-8', errors='replace')
+                stderr_str = stderr.decode('utf-8', errors='replace')
+                logger.error(
+                    f"[Copernicus Provider] Subprocess exited with code {process.returncode}.\n"
+                    f"Stdout: {stdout_str}\nStderr: {stderr_str}"
+                )
+                return None
+
+            if not output_path.exists():
+                logger.error("[Copernicus Provider] Subprocess exited successfully but output JSON was not created.")
+                return None
+
+            with open(output_path, "r") as f:
+                results = json.load(f)
+            logger.info(f"[Copernicus Provider] Subprocess fetch succeeded, read {len(results)} points.")
             return results
+
         except Exception as e:
-            logger.error(f"[Copernicus Provider] CMEMS fetch exception: {e}")
+            logger.error(f"[Copernicus Provider] Subprocess execution exception: {e}")
             return None
+        finally:
+            for path in [input_path, output_path]:
+                if 'path' in locals() and path.exists():
+                    try: path.unlink()
+                    except Exception: pass
