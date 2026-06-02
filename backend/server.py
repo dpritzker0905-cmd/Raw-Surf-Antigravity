@@ -164,26 +164,30 @@ async def ensure_database_tables():
 
 async def run_background_cache_population():
     """
-    Asynchronously checks the weather product cache and runs the ingestion jobs
-    directly in the main process (GFS waves/wind) and via an isolated subprocess 
-    (Copernicus swell_1) to ensure we don't exceed the 512MB RAM cap on Render.
+    Asynchronously checks the weather product cache on disk.
+    If files for GFS Waves, GFS Wind, or Copernicus Swell 1 are missing,
+    it triggers their respective ingestion jobs.
     """
+    import os
     logger.info("[lifespan] Starting background cache pre-population check...")
     cache_dir = ROOT_DIR / "uploads" / "weather_products"
-    manifest_path = cache_dir / "manifest.json"
-    cache_exists = False
-    if manifest_path.exists():
-        try:
-            import json
-            with open(manifest_path, "r") as f:
-                data = json.load(f)
-                if data.get("products"):
-                    cache_exists = True
-        except Exception:
-            pass
-
-    if not cache_exists:
-        logger.info("[lifespan] Cache is empty. Running pre-population directly in background tasks...")
+    
+    files = os.listdir(cache_dir) if cache_dir.exists() else []
+    has_gfs_waves = any("gfs_marine_waves" in f for f in files)
+    has_gfs_wind = any("gfs_wind_wind" in f for f in files)
+    has_copernicus = any("euro_marine_swell_1" in f for f in files)
+    
+    logger.info(
+        f"[lifespan] Cache status: GFS Waves={has_gfs_waves}, "
+        f"GFS Wind={has_gfs_wind}, Copernicus Swell 1={has_copernicus}"
+    )
+    
+    need_gfs_waves = not has_gfs_waves
+    need_gfs_wind = not has_gfs_wind
+    need_copernicus = not has_copernicus
+    
+    if need_gfs_waves or need_gfs_wind or need_copernicus:
+        logger.info("[lifespan] Incomplete cache detected. Triggering selective background pre-population...")
         try:
             from services.weather_pipeline.scheduler import WeatherPipelineScheduler
             from services.weather_pipeline.store import ProductStore
@@ -191,23 +195,31 @@ async def run_background_cache_population():
             store = ProductStore()
             scheduler = WeatherPipelineScheduler(store=store)
             
-            # Step 1: Ingest GFS Waves (Florida Pilot Grid)
-            logger.info("[lifespan] Running GFS waves grid pre-population...")
-            await scheduler.ingest_gfs_marine_pilot()
+            # Step 1: Ingest GFS Waves if missing
+            if need_gfs_waves:
+                logger.info("[lifespan] Running GFS waves grid pre-population...")
+                await scheduler.ingest_gfs_marine_pilot()
             
-            # Step 2: Ingest GFS Wind (Florida Pilot Grid)
-            logger.info("[lifespan] Running GFS wind grid pre-population...")
-            await scheduler.ingest_gfs_wind_pilot()
+            # Step 2: Ingest GFS Wind if missing
+            if need_gfs_wind:
+                logger.info("[lifespan] Running GFS wind grid pre-population...")
+                await scheduler.ingest_gfs_wind_pilot()
             
-            # Step 3: Ingest Copernicus Swell 1 (Florida Pilot Grid via isolated downloader)
-            logger.info("[lifespan] Running Copernicus swell_1 grid pre-population...")
-            await scheduler.ingest_copernicus_regional()
+            # Step 3: Ingest Copernicus Swell 1 if missing and credentials exist
+            if need_copernicus:
+                cop_username = os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME")
+                cop_password = os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
+                if cop_username and cop_password:
+                    logger.info("[lifespan] Running Copernicus swell_1 grid pre-population...")
+                    await scheduler.ingest_copernicus_regional()
+                else:
+                    logger.warning("[lifespan] Copernicus credentials not configured. Skipping background swell_1 pre-population.")
             
-            logger.info("[lifespan] Cache pre-population completed successfully!")
+            logger.info("[lifespan] Background cache pre-population completed successfully!")
         except Exception as e:
-            logger.error(f"[lifespan] Cache pre-population failed: {e}")
+            logger.error(f"[lifespan] Background cache pre-population failed: {e}")
     else:
-        logger.info("[lifespan] Cache is already populated. Background Ingestion skipped.")
+        logger.info("[lifespan] Cache is fully populated. Background ingestion skipped.")
 
 
 @asynccontextmanager
