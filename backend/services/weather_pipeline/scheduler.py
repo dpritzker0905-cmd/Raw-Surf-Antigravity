@@ -111,6 +111,7 @@ class WeatherPipelineScheduler:
                 if product:
                     self.store.save_product(product, resolution=region["resolution"])
                     success_count += 1
+                    await asyncio.sleep(0.2)
             except Exception as e:
                 logger.error(f"[Pipeline Scheduler] Normalization error at hour index {idx}: {e}")
 
@@ -192,6 +193,7 @@ class WeatherPipelineScheduler:
                 if product:
                     self.store.save_product(product, resolution=region["resolution"])
                     success_count += 1
+                    await asyncio.sleep(0.2)
             except Exception as e:
                 logger.error(f"[Pipeline Scheduler] Normalization error at hour index {idx}: {e}")
 
@@ -282,6 +284,7 @@ class WeatherPipelineScheduler:
                     if product:
                         self.store.save_product(product, resolution=0.5)
                         total_success += 1
+                        await asyncio.sleep(0.2)
                 except Exception as e:
                     logger.error(f"[Pipeline Scheduler] Copernicus normalize error for {layer} at {time_str}: {e}")
 
