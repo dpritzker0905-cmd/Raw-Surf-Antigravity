@@ -188,16 +188,19 @@ async def lifespan(app: FastAPI):
             has_copernicus = any(p.model == "EURO" and p.layer == "swell_1" for p in manifest.products)
             
             if not has_waves or not has_wind or not has_copernicus:
-                logger.info("[Startup Ingestion] Products missing from cache. Spawning weather diagnostics subprocess...")
-                import subprocess
-                import sys
-                script_path = Path(__file__).parent / "scripts" / "weather_diagnostics.py"
-                subprocess.Popen([sys.executable, str(script_path)])
-                logger.info("[Startup Ingestion] Weather diagnostics subprocess spawned successfully.")
+                logger.info("[Startup Ingestion] Products missing from cache. Triggering ingestion...")
+                scheduler = WeatherPipelineScheduler(store=store)
+                if not has_waves:
+                    await scheduler.ingest_gfs_marine_pilot()
+                if not has_wind:
+                    await scheduler.ingest_gfs_wind_pilot()
+                if not has_copernicus:
+                    await scheduler.ingest_copernicus_regional()
+                logger.info("[Startup Ingestion] Ingestion complete.")
             else:
                 logger.info("[Startup Ingestion] Cache already populated. Skipping startup ingestion.")
         except Exception as e:
-            logger.error(f"[Startup Ingestion] Failed to spawn startup diagnostics: {e}")
+            logger.error(f"[Startup Ingestion] Failed during startup: {e}")
 
     import asyncio
     asyncio.create_task(trigger_startup_ingestion())
