@@ -46,8 +46,15 @@ async def get_products():
     GET /api/weather/products
     Returns the current manifest registry listing available prepared weather products.
     """
+    import os
     manifest = store.get_manifest()
-    return manifest
+    files = os.listdir(store.cache_dir) if os.path.exists(store.cache_dir) else []
+    return {
+        "last_manifest_update": manifest.last_manifest_update,
+        "products": manifest.products,
+        "files_on_disk": files,
+        "cache_dir": str(store.cache_dir)
+    }
 
 @router.get("/grid", response_model=NormalizedProduct)
 async def get_grid(
