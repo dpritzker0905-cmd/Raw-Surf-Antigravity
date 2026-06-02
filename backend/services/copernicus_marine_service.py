@@ -199,18 +199,20 @@ def _fetch_sync(
         lon_da = xr.DataArray(longitudes, dims="point")
         ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
         
-        # Load variables sequentially to minimize peak memory footprint
-        for var in fetch_vars:
-            if var in ds_points:
-                ds_points[var] = ds_points[var].load()
-                
-        # Also load coordinate variables
-        if "latitude" in ds_points:
-            ds_points["latitude"] = ds_points["latitude"].load()
-        if "longitude" in ds_points:
-            ds_points["longitude"] = ds_points["longitude"].load()
-        if "time" in ds_points:
-            ds_points["time"] = ds_points["time"].load()
+        # Load variables sequentially and synchronously to minimize peak memory footprint
+        import dask
+        with dask.config.set(scheduler='synchronous'):
+            for var in fetch_vars:
+                if var in ds_points:
+                    ds_points[var] = ds_points[var].load()
+                    
+            # Also load coordinate variables
+            if "latitude" in ds_points:
+                ds_points["latitude"] = ds_points["latitude"].load()
+            if "longitude" in ds_points:
+                ds_points["longitude"] = ds_points["longitude"].load()
+            if "time" in ds_points:
+                ds_points["time"] = ds_points["time"].load()
     except Exception as e:
         logger.error(f"[Copernicus Forensic API] Dataset open and load failed: {e}")
         raise
