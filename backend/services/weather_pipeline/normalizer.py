@@ -105,16 +105,42 @@ class WeatherNormalizer:
         direction_key = layer_def["direction"]
         period_key = layer_def["period"]
 
+        # Reconstruct clean coordinates by rounding to the nearest resolution step relative to bbox origins
+        west = min(bbox["west"], bbox["east"])
+        east = max(bbox["west"], bbox["east"])
+        south = min(bbox["south"], bbox["north"])
+        north = max(bbox["south"], bbox["north"])
+
+        clean_lats_set = set()
+        clean_lons_set = set()
+
+        lat_step = south
+        while lat_step <= north + 0.0001:
+            clean_lats_set.add(round(lat_step, 4))
+            lat_step += resolution
+
+        lon_step = west
+        while lon_step <= east + 0.0001:
+            clean_lons_set.add(round(lon_step, 4))
+            lon_step += resolution
+
+        unique_lats = sorted(list(clean_lats_set))
+        unique_lons = sorted(list(clean_lons_set))
+        cols = len(unique_lons)
+        rows = len(unique_lats)
+
         vectors = []
-        lats_seen = sorted(list(set(pt.get("latitude") for pt in raw_results)))
-        lons_seen = sorted(list(set(pt.get("longitude") for pt in raw_results)))
-
-        cols = len(lons_seen) if lons_seen else 0
-        rows = len(lats_seen) if lats_seen else 0
-
         for pt in raw_results:
-            lat = pt.get("latitude")
-            lng = pt.get("longitude")
+            raw_lat = pt.get("latitude")
+            raw_lng = pt.get("longitude")
+            
+            # Map raw snapped coordinates to the nearest clean coordinate
+            mapped_lat = round(round((raw_lat - south) / resolution) * resolution + south, 4)
+            mapped_lng = round(round((raw_lng - west) / resolution) * resolution + west, 4)
+            
+            # Clamp to the unique lists to be absolutely sure they lie on the clean grid
+            lat = min(unique_lats, key=lambda val: abs(val - mapped_lat))
+            lng = min(unique_lons, key=lambda val: abs(val - mapped_lng))
             pt_hourly = pt.get("hourly", {})
 
             # Open-Meteo gwam secondary swell fallback
@@ -167,6 +193,9 @@ class WeatherNormalizer:
                 v=round(v, 4),
                 period=round(period, 2) if period is not None else None
             ))
+
+        # Sort vectors in stable row-major order (south-to-north, west-to-east)
+        vectors.sort(key=lambda v: (v.lat, v.lng))
 
         grid = NormalizedGrid(
             bounds=bounds,

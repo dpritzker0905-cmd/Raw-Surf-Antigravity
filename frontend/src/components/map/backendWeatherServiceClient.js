@@ -26,10 +26,18 @@ let cachedManifest = null;
 let manifestFetchPromise = null;
 
 let latestTimeDiag = {
-  requestedValidTime: null,
-  selectedManifestValidTime: null,
-  manifestDeltaHours: null,
-  fallbackReason: null
+  marine: {
+    requestedValidTime: null,
+    selectedManifestValidTime: null,
+    manifestDeltaHours: null,
+    fallbackReason: null
+  },
+  wind: {
+    requestedValidTime: null,
+    selectedManifestValidTime: null,
+    manifestDeltaHours: null,
+    fallbackReason: null
+  }
 };
 
 /**
@@ -41,10 +49,12 @@ export function setCachedManifest(manifest) {
 
 /**
  * Fetches the products manifest from the backend registry.
+ * Forces refetch if cachedManifest is empty to support dynamic ingestion updates.
  */
-export async function fetchProductsManifest() {
-  if (cachedManifest) return cachedManifest;
-  if (manifestFetchPromise) return manifestFetchPromise;
+export async function fetchProductsManifest(forceRefresh = false) {
+  const isEmpty = cachedManifest && Array.isArray(cachedManifest.products) && cachedManifest.products.length === 0;
+  if (cachedManifest && !forceRefresh && !isEmpty) return cachedManifest;
+  if (manifestFetchPromise && !forceRefresh) return manifestFetchPromise;
 
   manifestFetchPromise = (async () => {
     try {
@@ -109,10 +119,12 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves') {
   let manifestDeltaHours = null;
   let fallbackReason = null;
 
-  if (cachedManifest && Array.isArray(cachedManifest.products)) {
-    const filterLayer = (layer || 'waves').toLowerCase();
-    const filterDomain = filterLayer === 'wind' ? 'wind' : 'marine';
+  const filterLayer = (layer || 'waves').toLowerCase();
+  const filterDomain = filterLayer === 'wind' ? 'wind' : 'marine';
 
+  const hasEmptyProducts = cachedManifest && Array.isArray(cachedManifest.products) && cachedManifest.products.length === 0;
+
+  if (cachedManifest && Array.isArray(cachedManifest.products) && !hasEmptyProducts) {
     const matchingProducts = cachedManifest.products.filter(p => 
       p.model.toUpperCase() === 'GFS' &&
       p.domain.toLowerCase() === filterDomain &&
@@ -143,12 +155,12 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves') {
       fallbackReason = `No GFS products found matching GFS model/${filterDomain} domain/${filterLayer} layer`;
     }
   } else {
-    fallbackReason = "Manifest is not yet loaded or invalid; using snapped target valid time as fallback";
-    // Prefetch manifest in background
-    fetchProductsManifest().catch(() => {});
+    fallbackReason = "Manifest is not yet loaded, empty, or invalid; using snapped target valid time as fallback";
+    // Prefetch or refresh manifest in background
+    fetchProductsManifest(true).catch(() => {});
   }
 
-  latestTimeDiag = {
+  latestTimeDiag[filterDomain] = {
     requestedValidTime,
     selectedManifestValidTime,
     manifestDeltaHours,
@@ -362,10 +374,10 @@ export function updateDiagnostics(type, details) {
   }
 
   // Inject computed nearest manifest time match diagnostics
-  diag.requestedValidTime = latestTimeDiag.requestedValidTime;
-  diag.selectedManifestValidTime = latestTimeDiag.selectedManifestValidTime;
-  diag.manifestDeltaHours = latestTimeDiag.manifestDeltaHours;
-  diag.timeFallbackReason = latestTimeDiag.fallbackReason;
+  diag.requestedValidTime = latestTimeDiag.marine.requestedValidTime;
+  diag.selectedManifestValidTime = latestTimeDiag.marine.selectedManifestValidTime;
+  diag.manifestDeltaHours = latestTimeDiag.marine.manifestDeltaHours;
+  diag.timeFallbackReason = latestTimeDiag.marine.fallbackReason;
 
   // Recalculate parity
   diag.parity = diag.pointValidTime 
@@ -500,6 +512,8 @@ if (typeof window !== 'undefined') {
     selectedManifestValidTime: null,
     requestedValidTime: null,
     manifestDeltaHours: null,
+    fallbackReason: null,
+    pointParity: 'pending_point_fetch',
     requestedBbox: null,
     clampedBbox: null,
     coverageInside: true,
@@ -511,7 +525,10 @@ if (typeof window !== 'undefined') {
     layer: 'wind',
     lastGridFetch: null,
     lastPointFetch: null,
-    renderable: false
+    renderable: false,
+    gridValidTime: null,
+    pointValidTime: null,
+    boundsSource: 'controller'
   };
 }
 
@@ -527,6 +544,8 @@ export function updateWindDiagnostics(type, details) {
       selectedManifestValidTime: null,
       requestedValidTime: null,
       manifestDeltaHours: null,
+      fallbackReason: null,
+      pointParity: 'pending_point_fetch',
       requestedBbox: null,
       clampedBbox: null,
       coverageInside: true,
@@ -538,7 +557,10 @@ export function updateWindDiagnostics(type, details) {
       layer: 'wind',
       lastGridFetch: null,
       lastPointFetch: null,
-      renderable: false
+      renderable: false,
+      gridValidTime: null,
+      pointValidTime: null,
+      boundsSource: 'controller'
     };
   }
 
@@ -547,11 +569,13 @@ export function updateWindDiagnostics(type, details) {
 
   if (type === 'grid') {
     diag.lastGridFetch = details;
+    diag.gridValidTime = details.validTime || null;
     diag.requestedBbox = details.requestedBbox;
     diag.clampedBbox = details.clampedBbox;
     diag.gridVectorCount = details.gridVectorCount || null;
     diag.nonzeroCount = details.nonzeroCount || null;
     diag.renderable = details.renderable || false;
+    diag.boundsSource = details.boundsSource || diag.boundsSource || 'controller';
 
     const isInside = details.coverageInside !== undefined 
       ? details.coverageInside 
@@ -561,15 +585,21 @@ export function updateWindDiagnostics(type, details) {
     diag.fallbackToLegacy = !isInside || !!details.error;
   } else if (type === 'point') {
     diag.lastPointFetch = details;
+    diag.pointValidTime = details.validTime || null;
   }
 
   if (details.hourOffset !== undefined) {
     getSharedValidTime(details.hourOffset, 'wind');
   }
 
-  diag.requestedValidTime = latestTimeDiag.requestedValidTime;
-  diag.selectedManifestValidTime = latestTimeDiag.selectedManifestValidTime;
-  diag.manifestDeltaHours = latestTimeDiag.manifestDeltaHours;
+  diag.requestedValidTime = latestTimeDiag.wind.requestedValidTime;
+  diag.selectedManifestValidTime = latestTimeDiag.wind.selectedManifestValidTime;
+  diag.manifestDeltaHours = latestTimeDiag.wind.manifestDeltaHours;
+  diag.fallbackReason = latestTimeDiag.wind.fallbackReason;
+
+  diag.pointParity = diag.pointValidTime 
+    ? (diag.gridValidTime === diag.pointValidTime) 
+    : 'pending_point_fetch';
 }
 
 /**
@@ -615,7 +645,12 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
       displayUnitHint: json.display_unit_hint || 'kn',
       elapsedMs: Date.now() - start,
       error: null,
-      hourOffset
+      hourOffset,
+      speed: json.point.speed || 0,
+      direction: json.point.direction || 0,
+      interpolationMethod: json.point.interpolation_method || 'bilinear',
+      interpolation_method: json.point.interpolation_method || 'bilinear',
+      provider: json.provider || 'backend-weather-service'
     });
 
     return data;
@@ -630,7 +665,12 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
       displayUnitHint: 'none',
       elapsedMs: Date.now() - start,
       error: err.message,
-      hourOffset
+      hourOffset,
+      speed: 0,
+      direction: 0,
+      interpolationMethod: 'none',
+      interpolation_method: 'none',
+      provider: 'none'
     });
     console.error(`[Backend Weather Service] Wind point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
     throw err;
@@ -640,11 +680,35 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
 /**
  * Fetches GFS wind grid forecast from backend weather service.
  */
-export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBounds) {
+export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBounds, boundsSource = "controller") {
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, 'wind');
 
-  const clampResult = clampViewportBbox(snappedBounds);
+  let actualBounds = bounds;
+  let actualSource = boundsSource;
+
+  if (!actualBounds) {
+    if (typeof window !== 'undefined' && window.map) {
+      try {
+        const b = window.map.getBounds();
+        actualBounds = {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
+        actualSource = "window_map";
+      } catch (e) {
+        actualBounds = snappedBounds || PILOT_COVERAGE;
+        actualSource = "fallback";
+      }
+    } else {
+      actualBounds = snappedBounds || PILOT_COVERAGE;
+      actualSource = "fallback";
+    }
+  }
+
+  const clampResult = clampViewportBbox(actualBounds);
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',
@@ -652,11 +716,12 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       validTime: validTimeStr,
       elapsedMs: Date.now() - start,
       error: clampResult.fallbackReason,
-      requestedBbox: snappedBounds,
+      requestedBbox: actualBounds,
       clampedBbox: null,
       hourOffset,
       coverageInside: false,
-      fallbackToLegacy: true
+      fallbackToLegacy: true,
+      boundsSource: actualSource
     };
     updateWindDiagnostics('grid', errorDetails);
     throw new Error(clampResult.fallbackReason);
@@ -680,13 +745,14 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       validTime: validTimeStr,
       elapsedMs: Date.now() - start,
       error: null,
-      requestedBbox: snappedBounds,
+      requestedBbox: actualBounds,
       clampedBbox,
       hourOffset,
       gridVectorCount: result.vectors.length,
       nonzeroCount: result.nonzeroCount,
       renderable: result.renderable,
-      coverageInside: true
+      coverageInside: true,
+      boundsSource: actualSource
     });
 
     return result;
@@ -697,10 +763,11 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       validTime: validTimeStr,
       elapsedMs: Date.now() - start,
       error: err.message,
-      requestedBbox: snappedBounds,
+      requestedBbox: actualBounds,
       clampedBbox,
       hourOffset,
-      fallbackToLegacy: true
+      fallbackToLegacy: true,
+      boundsSource: actualSource
     };
     updateWindDiagnostics('grid', errorDetails);
     console.error(`[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);

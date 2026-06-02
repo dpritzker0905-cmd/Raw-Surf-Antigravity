@@ -134,7 +134,30 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   if (getBackendWindFlag() && (model === 'GFS' || !model)) {
     try {
       console.log(`[Backend Weather Service] Redirecting GFS Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
-      const result = await fetchBackendWindGrid(bounds, hourOffset, signal, snappedBounds);
+      
+      // Resolve actual viewport bounds to pass explicitly
+      let viewportBounds = bounds;
+      let source = "controller";
+      if (bounds && Math.abs(bounds.east - bounds.west) > 180) {
+        if (typeof window !== 'undefined' && window.map) {
+          try {
+            const b = window.map.getBounds();
+            viewportBounds = {
+              west: b.getWest(),
+              south: Math.max(-85, b.getSouth()),
+              east: b.getEast(),
+              north: Math.min(85, b.getNorth())
+            };
+            source = "window_map";
+          } catch (e) {
+            source = "fallback";
+          }
+        } else {
+          source = "fallback";
+        }
+      }
+      
+      const result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source);
       return result;
     } catch (err) {
       console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);

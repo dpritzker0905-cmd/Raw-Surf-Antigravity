@@ -205,9 +205,11 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
   useEffect(function() { activeRef.current = active; }, [active]);
   useEffect(function() { themeRef.current = theme; }, [theme]);
   useEffect(function() {
-    if (data?.vectors?.length) {
+    if (data?.vectors?.length && data.renderable !== false) {
       dataRef.current = data;
       debugRef.current.logged = false; // Reset debug on new data
+    } else {
+      dataRef.current = null;
     }
   }, [data]);
 

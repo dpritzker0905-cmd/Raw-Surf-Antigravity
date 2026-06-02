@@ -216,7 +216,19 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
   useEffect(() => {
     const engine = engineRef.current;
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
-    if (!engine || !data?.vectors?.length || !mapInstance) return;
+    if (!engine || !mapInstance) return;
+
+    if (!data?.vectors?.length || data.renderable === false) {
+      if (gl) {
+        if (engine._windData?.texture) {
+          gl.deleteTexture(engine._windData.texture);
+        }
+        engine._windData = null;
+        engine.clearBuffers(gl);
+        mapInstance.triggerRepaint();
+      }
+      return;
+    }
 
     // v3.13: If GL isn't ready yet (onAdd hasn't fired), stash data for deferred application
     if (!gl) {

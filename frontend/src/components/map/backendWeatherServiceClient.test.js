@@ -18,7 +18,8 @@ import {
   fetchBackendExactWindPoint,
   updateDiagnostics,
   updateWindDiagnostics,
-  fetchBackendWindGrid
+  fetchBackendWindGrid,
+  fetchProductsManifest
 } from './backendWeatherServiceClient';
 
 describe('backendWeatherServiceClient', () => {
@@ -122,6 +123,21 @@ describe('backendWeatherServiceClient', () => {
       expect(resolvedTime).toBe('2026-06-02T00:00:00.000Z');
 
       Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
+
+    it('forces manifest refresh when products list is empty', async () => {
+      setCachedManifest({ products: [] });
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ products: [{ model: 'GFS', domain: 'wind', layer: 'wind', valid_time_start: '2026-06-02T03:00:00.000Z' }] })
+        })
+      );
+      
+      const res = await fetchProductsManifest(true);
+      expect(res.products.length).toBe(1);
       setCachedManifest(null);
     });
   });
@@ -363,24 +379,59 @@ describe('backendWeatherServiceClient', () => {
   describe('fetchBackendWindGrid out of bounds', () => {
     it('rejects and throws if requested bbox is outside Florida pilot bounds', async () => {
       const oobBbox = { west: -120.0, south: 40.0, east: -110.0, north: 45.0 };
-      await expect(fetchBackendWindGrid(oobBbox, 0, null, oobBbox)).rejects.toThrow('viewport completely outside');
+      await expect(fetchBackendWindGrid(oobBbox, 0, null, oobBbox, 'controller')).rejects.toThrow('viewport completely outside');
       
       const diag = window.__BACKEND_WIND_SERVICE_DIAG__;
       expect(diag.coverageInside).toBe(false);
       expect(diag.fallbackToLegacy).toBe(true);
+      expect(diag.boundsSource).toBe('controller');
+    });
+
+    it('falls back to window.map if bounds are missing', async () => {
+      window.map = {
+        getBounds: () => ({
+          getWest: () => -120.0,
+          getSouth: () => 40.0,
+          getEast: () => -110.0,
+          getNorth: () => 45.0
+        })
+      };
+      await expect(fetchBackendWindGrid(null, 0, null, null)).rejects.toThrow('viewport completely outside');
+      const diag = window.__BACKEND_WIND_SERVICE_DIAG__;
+      expect(diag.boundsSource).toBe('window_map');
+      delete window.map;
     });
   });
 
   describe('fetchBackendExactWindPoint', () => {
-    it('resolves wind speed and direction successfully', async () => {
+    it('resolves wind speed and direction successfully and populates lastPointFetch and pointParity', async () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'GFS',
+            domain: 'wind',
+            layer: 'wind',
+            valid_time_start: '2026-06-02T03:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
       const mockJson = {
         point: {
           speed: 15.4,
           direction: 90.0,
           sampled_lat: 28.4,
-          sampled_lng: -80.6
+          sampled_lng: -80.6,
+          interpolation_method: 'bilinear'
         },
-        provider: 'backend-weather-service'
+        provider: 'backend-weather-service',
+        value_kind: 'wind_speed',
+        value_unit: 'kn',
+        display_unit_hint: 'kn'
       };
 
       global.fetch = jest.fn().mockImplementation(() =>
@@ -391,10 +442,34 @@ describe('backendWeatherServiceClient', () => {
         })
       );
 
-      const res = await fetchBackendExactWindPoint(28.4, -80.6, 0);
+      // Verify initial parity is pending_point_fetch
+      window.__BACKEND_WIND_SERVICE_DIAG__ = null;
+      updateWindDiagnostics('grid', {
+        validTime: '2026-06-02T03:00:00.000Z',
+        hourOffset: 3,
+        requestedBbox: PILOT_COVERAGE,
+        clampedBbox: PILOT_COVERAGE,
+        gridVectorCount: 725,
+        nonzeroCount: 725,
+        renderable: true
+      });
+      expect(window.__BACKEND_WIND_SERVICE_DIAG__.pointParity).toBe('pending_point_fetch');
+
+      const res = await fetchBackendExactWindPoint(28.4, -80.6, 3);
       expect(res.hourly.wind_speed_10m[0]).toBe(15.4);
       expect(res.hourly.wind_direction_10m[0]).toBe(90.0);
       expect(res.provider).toBe('backend-weather-service');
+
+      const diag = window.__BACKEND_WIND_SERVICE_DIAG__;
+      expect(diag.lastPointFetch).not.toBeNull();
+      expect(diag.lastPointFetch.speed).toBe(15.4);
+      expect(diag.lastPointFetch.direction).toBe(90.0);
+      expect(diag.lastPointFetch.interpolationMethod).toBe('bilinear');
+      expect(diag.lastPointFetch.provider).toBe('backend-weather-service');
+      expect(diag.pointParity).toBe(true); // both grid and point times are '2026-06-02T03:00:00.000Z'
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
     });
   });
 });

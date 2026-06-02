@@ -371,3 +371,90 @@ def test_api_endpoints_wind_manifest_and_parity(tmp_path, monkeypatch):
     assert math.isclose(point_payload["point"]["speed"], local_point_res.point.speed, abs_tol=1e-4)
     assert math.isclose(point_payload["point"]["u"], local_point_res.point.u, abs_tol=1e-4)
     assert math.isclose(point_payload["point"]["v"], local_point_res.point.v, abs_tol=1e-4)
+
+
+def test_gfs_wind_coordinate_reconstruction_and_bilinear():
+    """
+    Verify coordinate reconstruction fixes float coordinate noise, outputs stable row-major
+    vectors where cols * rows == vectors.length, and supports successful bilinear lookup.
+    """
+    normalizer = WeatherNormalizer()
+    sampler = PointSampler()
+
+    # Bounding box from 24.0 to 24.5 lat, -85.0 to -84.5 lon.
+    # At resolution 0.25, we expect coordinates:
+    # Lats: 24.0, 24.25, 24.5 (3 rows)
+    # Lons: -85.0, -84.75, -84.5 (3 cols)
+    # Total points: 9.
+    # We will simulate noisy floats from Open-Meteo.
+    bbox = {"west": -85.0, "south": 24.0, "east": -84.5, "north": 24.5}
+    resolution = 0.25
+    target_dt = datetime.fromisoformat("2026-06-01T15:00:00+00:00")
+
+    # Order in raw results is mixed/transposed to verify sorting and stable order
+    raw_results = [
+        # (24.25, -84.75) with float noise
+        {"latitude": 24.2501, "longitude": -84.7499, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [15.0], "wind_direction_10m": [90.0]}},
+        # (24.0, -85.0)
+        {"latitude": 23.9998, "longitude": -85.0002, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [10.0], "wind_direction_10m": [90.0]}},
+        # (24.5, -84.5)
+        {"latitude": 24.5002, "longitude": -84.5001, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [25.0], "wind_direction_10m": [90.0]}},
+        # (24.0, -84.75)
+        {"latitude": 24.0001, "longitude": -84.7503, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [11.0], "wind_direction_10m": [90.0]}},
+        # (24.25, -85.0)
+        {"latitude": 24.2499, "longitude": -85.0002, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [14.0], "wind_direction_10m": [90.0]}},
+        # (24.0, -84.5)
+        {"latitude": 23.9999, "longitude": -84.4998, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [12.0], "wind_direction_10m": [90.0]}},
+        # (24.5, -85.0)
+        {"latitude": 24.5001, "longitude": -85.0003, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [20.0], "wind_direction_10m": [90.0]}},
+        # (24.5, -84.75)
+        {"latitude": 24.4998, "longitude": -84.7501, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [22.0], "wind_direction_10m": [90.0]}},
+        # (24.25, -84.5)
+        {"latitude": 24.2502, "longitude": -84.4999, "hourly_units": {"wind_speed_10m": "kn", "wind_direction_10m": "°"},
+         "hourly": {"time": ["2026-06-01T15:00:00Z"], "wind_speed_10m": [16.0], "wind_direction_10m": [90.0]}}
+    ]
+
+    product = normalizer.normalize(
+        model="GFS",
+        provider="open-meteo",
+        domain="wind",
+        layer="wind",
+        raw_results=raw_results,
+        bbox=bbox,
+        resolution=resolution,
+        target_time=target_dt
+    )
+
+    assert product is not None
+    grid = product.grid
+    assert grid.cols == 3
+    assert grid.rows == 3
+    assert len(grid.vectors) == 9
+    assert grid.cols * grid.rows == len(grid.vectors)
+
+    # Verify stable row-major order: south-to-north, west-to-east
+    expected_order = [
+        (24.0, -85.0), (24.0, -84.75), (24.0, -84.5),
+        (24.25, -85.0), (24.25, -84.75), (24.25, -84.5),
+        (24.5, -85.0), (24.5, -84.75), (24.5, -84.5)
+    ]
+    
+    for idx, (expected_lat, expected_lng) in enumerate(expected_order):
+        v = grid.vectors[idx]
+        assert v.lat == expected_lat
+        assert v.lng == expected_lng
+
+    # Verify bilinear corner lookup succeeds (no nearest neighbor fallback) for an interior point
+    # We sample lat=24.1, lng=-84.8
+    res = sampler.sample_point(product, 24.1, -84.8)
+    assert res.point.interpolation_method == "bilinear"
+    assert res.point.speed > 0.0
+    assert len(res.warnings) == 0
