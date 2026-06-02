@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+import traceback
 import math
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
@@ -9,16 +10,8 @@ from datetime import datetime, timezone, timedelta
 backend_dir = Path(__file__).parent.parent
 sys.path.append(str(backend_dir))
 
-from dotenv import load_dotenv
-load_dotenv(backend_dir / ".env", override=True)
-
-from services.weather_pipeline.scheduler import WeatherPipelineScheduler, REGIONAL_CONFIGS
-from services.weather_pipeline.store import ProductStore
-from services.weather_pipeline.sampler import PointSampler
-from services.weather_pipeline.schemas import NormalizedProduct, CoverageBounds
-
-# Set up logging to stdout and a file
-log_path = Path(__file__).parent.parent / "diagnostics.log"
+# Set up logging immediately so any import errors are captured
+log_path = backend_dir / "diagnostics.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -29,7 +22,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Now import project modules wrapped in try/except to catch import tracebacks
+try:
+    from dotenv import load_dotenv
+    load_dotenv(backend_dir / ".env", override=True)
+
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler, REGIONAL_CONFIGS
+    from services.weather_pipeline.store import ProductStore
+    from services.weather_pipeline.sampler import PointSampler
+    from services.weather_pipeline.schemas import NormalizedProduct, CoverageBounds
+except Exception as ie:
+    logger.critical(f"FATAL: Import error during startup diagnostics: {ie}\n{traceback.format_exc()}")
+    sys.exit(1)
+
 async def run_diagnostics():
+
     logger.info("====================================================")
     logger.info("Raw Surf Backend Weather Data Service Diagnostics Tool")
     logger.info("====================================================")
