@@ -212,18 +212,33 @@ class WeatherPipelineScheduler:
         total_success = 0
 
         for layer in layers:
-            # Copernicus NetCDF regional slice fetch
-            results = await self.cop_provider.fetch_grid(
-                layer=layer,
-                bbox=region,
-                resolution=0.5, # Slightly lower resolution to guarantee Render runtime stability
-                forecast_days=3
+            # Check if credentials are configured
+            import os
+            has_credentials = bool(
+                os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME") and
+                os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
             )
+            
+            results = None
+            res_to_save = 0.5
+            
+            if has_credentials:
+                # Copernicus NetCDF regional slice fetch
+                results = await self.cop_provider.fetch_grid(
+                    layer=layer,
+                    bbox=region,
+                    resolution=0.5, # Slightly lower resolution to guarantee Render runtime stability
+                    forecast_days=3
+                )
+            else:
+                logger.info("[Pipeline Scheduler] Copernicus credentials not configured. Skipping subprocess fetch and generating coarse mock data directly.")
 
             if not results:
                 logger.warning(f"[Pipeline Scheduler] Copernicus Ingestion: failed to fetch grid for layer: {layer}. Injecting high-fidelity mock Copernicus regional wave data...")
                 import math
-                lats, lons = OpenMeteoProvider.generate_grid_coords(region, 0.5)
+                mock_res = 1.5 # Coarser resolution to scale down coords count and save memory/CPU
+                res_to_save = mock_res
+                lats, lons = OpenMeteoProvider.generate_grid_coords(region, mock_res)
                 # Generate hourly times for the next 72 hours matching GFS times
                 times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 72)]
                 mock_results = []
@@ -276,13 +291,13 @@ class WeatherPipelineScheduler:
                         layer=layer,
                         raw_results=results,
                         bbox=region,
-                        resolution=0.5,
+                        resolution=res_to_save,
                         target_time=target_dt,
                         run_time=run_time
                     )
                     
                     if product:
-                        self.store.save_product(product, resolution=0.5)
+                        self.store.save_product(product, resolution=res_to_save)
                         total_success += 1
                         await asyncio.sleep(0.2)
                 except Exception as e:
