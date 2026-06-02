@@ -257,3 +257,117 @@ def test_api_endpoints_manifest_and_parity(tmp_path, monkeypatch):
     assert math.isclose(point_payload["point"]["u"], local_point_res.point.u, abs_tol=1e-4)
     assert math.isclose(point_payload["point"]["v"], local_point_res.point.v, abs_tol=1e-4)
     assert math.isclose(point_payload["point"]["period"], local_point_res.point.period, abs_tol=1e-4)
+
+def test_weather_normalizer_wind_knots_conversion():
+    """Prove that normalizer converts wind speed to knots if raw speed is in other units."""
+    normalizer = WeatherNormalizer()
+    raw_results = [
+        {
+            "latitude": 27.5,
+            "longitude": -80.0,
+            "hourly_units": {
+                "wind_speed_10m": "km/h",
+                "wind_direction_10m": "°"
+            },
+            "hourly": {
+                "time": ["2026-06-01T15:00:00Z"],
+                "wind_speed_10m": [36.0], # 36 km/h
+                "wind_direction_10m": [180.0] # Blowing FROM South TO North
+            }
+        }
+    ]
+
+    target_dt = datetime.fromisoformat("2026-06-01T15:00:00+00:00")
+    product = normalizer.normalize(
+        model="GFS",
+        provider="open-meteo",
+        domain="wind",
+        layer="wind",
+        raw_results=raw_results,
+        bbox={"west": -80.0, "south": 27.5, "east": -80.0, "north": 27.5},
+        resolution=0.25,
+        target_time=target_dt
+    )
+
+    assert product is not None
+    assert product.grid is not None
+    assert len(product.grid.vectors) == 1
+    
+    vec = product.grid.vectors[0]
+    expected_kn = 36.0 * 0.539957
+    assert math.isclose(vec.speed, expected_kn, abs_tol=1e-4)
+    assert vec.direction == 180.0
+    
+    assert math.isclose(vec.u, 0.0, abs_tol=1e-4)
+    assert math.isclose(vec.v, expected_kn, abs_tol=1e-4)
+
+def test_api_endpoints_wind_manifest_and_parity(tmp_path, monkeypatch):
+    """
+    Test API grid and point endpoints integration for wind and prove they
+    sample the exact same product with absolute parity.
+    """
+    temp_store = ProductStore(cache_dir=tmp_path)
+    
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    bounds = CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0)
+    valid_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    
+    vectors = [
+        GridVector(lat=24.0, lng=-85.0, speed=10.0, direction=90.0, u=-10.0, v=0.0),
+        GridVector(lat=24.0, lng=-79.0, speed=20.0, direction=90.0, u=-20.0, v=0.0),
+        GridVector(lat=31.0, lng=-85.0, speed=30.0, direction=90.0, u=-30.0, v=0.0),
+        GridVector(lat=31.0, lng=-79.0, speed=40.0, direction=90.0, u=-40.0, v=0.0),
+    ]
+
+    grid = NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors)
+    product = NormalizedProduct(
+        model="GFS",
+        provider="open-meteo",
+        domain="wind",
+        layer="wind",
+        run_time=datetime.now(timezone.utc),
+        valid_time=valid_dt,
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wind_speed",
+        value_unit="kn",
+        display_unit_hint="kn",
+        source_variables=["wind_speed_10m", "wind_direction_10m"],
+        freshness_sec=1800
+    )
+
+    temp_store.save_product(product, resolution=6.0)
+
+    response = client.get("/api/weather/products")
+    assert response.status_code == 200
+    manifest = response.json()
+    assert "products" in manifest
+    assert len(manifest["products"]) > 0
+
+    response_grid = client.get(
+        "/api/weather/grid?model=GFS&domain=wind&layer=wind&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_grid.status_code == 200
+    grid_payload = response_grid.json()
+    assert grid_payload["model"] == "GFS"
+    assert grid_payload["layer"] == "wind"
+
+    lat, lng = 27.5, -82.0
+    response_point = client.get(
+        f"/api/weather/point?model=GFS&domain=wind&layer=wind&lat={lat}&lng={lng}&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_point.status_code == 200
+    point_payload = response_point.json()
+    assert point_payload["is_forecast_authoritative"] is True
+    assert point_payload["point"]["interpolation_method"] == "bilinear"
+
+    sampler = PointSampler()
+    local_point_res = sampler.sample_point(product, lat, lng)
+    
+    assert math.isclose(point_payload["point"]["speed"], local_point_res.point.speed, abs_tol=1e-4)
+    assert math.isclose(point_payload["point"]["u"], local_point_res.point.u, abs_tol=1e-4)
+    assert math.isclose(point_payload["point"]["v"], local_point_res.point.v, abs_tol=1e-4)

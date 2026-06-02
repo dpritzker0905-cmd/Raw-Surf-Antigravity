@@ -84,9 +84,17 @@ async def run_diagnostics():
         logger.info(f"Offline Ingestion Injected: Saved {success_count} GFS Waves mock grid files into cache!")
         gfs_success = True
 
+    # 1B. Trigger GFS wind grid ingestion
+    logger.info("\nSTEP 1B: Triggering GFS Wind regional ingestion job...")
+    gfs_wind_success = await scheduler.ingest_gfs_wind_pilot()
+    if gfs_wind_success:
+        logger.info("SUCCESS: GFS Wind regional grid successfully ingested and cached!")
+    else:
+        logger.warning("FAILED: GFS Wind regional grid ingestion failed. No mock fallbacks are injected on deployed dev.")
+
     # 2. Query point forecast near Cape Canaveral (28.40, -80.60)
     lat, lng = 28.40, -80.60
-    logger.info(f"\nSTEP 2: Querying point forecast near Cape Canaveral ({lat}, {lng})...")
+    logger.info(f"\nSTEP 2: Querying GFS Waves point forecast near Cape Canaveral ({lat}, {lng})...")
 
     manifest = store.get_manifest()
     logger.info(f"Available cached products count: {len(manifest.products)}")
@@ -115,14 +123,46 @@ async def run_diagnostics():
         logger.info(f"Display Unit Hint: {response.display_unit_hint}")
         logger.info(f"Warnings: {response.warnings}")
         logger.info(f"Interpolation Method: {point.interpolation_method}")
-        speed_label = "Calculated Wave Height (m)" if response.value_kind == "wave_height" else "Calculated Wind Speed (kn)"
-        logger.info(f"{speed_label}: {point.speed}")
+        logger.info(f"Calculated Wave Height (m): {point.speed}")
         logger.info(f"Calculated Direction (deg): {point.direction}")
         logger.info(f"Calculated Cartesian U: {point.u}")
         logger.info(f"Calculated Cartesian V: {point.v}")
         logger.info(f"Calculated Period (s): {point.period}")
     else:
         logger.warning("WARNING: GFS waves grid file not found in cache. Cannot sample Cape Canaveral.")
+
+    # 2B. GFS Wind Query near Cape Canaveral
+    logger.info(f"\nSTEP 2B: Querying GFS Wind point forecast near Cape Canaveral ({lat}, {lng})...")
+    gfs_wind_product = None
+    for p in manifest.products:
+        if p.model == "GFS" and p.layer == "wind":
+            gfs_wind_product = store.load_product(p.filename)
+            break
+
+    if gfs_wind_product:
+        logger.info("\n--- GFS WIND SAMPLING RESULT ---")
+        response = sampler.sample_point(gfs_wind_product, lat, lng)
+        point = response.point
+        logger.info(f"Model: {response.model}")
+        logger.info(f"Provider: {response.provider}")
+        logger.info(f"Domain: {response.domain}")
+        logger.info(f"Layer: {response.layer}")
+        logger.info(f"Run Time (UTC): {response.run_time.isoformat()}")
+        logger.info(f"Valid Time (UTC): {response.valid_time.isoformat()}")
+        logger.info(f"Is Forecast Authoritative: {response.is_forecast_authoritative}")
+        logger.info(f"Is Estimated: {response.is_estimated}")
+        logger.info(f"Value Kind: {response.value_kind}")
+        logger.info(f"Value Unit: {response.value_unit}")
+        logger.info(f"Display Unit Hint: {response.display_unit_hint}")
+        logger.info(f"Warnings: {response.warnings}")
+        logger.info(f"Interpolation Method: {point.interpolation_method}")
+        logger.info(f"Calculated Wind Speed (kn): {point.speed}")
+        logger.info(f"Calculated Direction (deg): {point.direction}")
+        logger.info(f"Calculated Cartesian U: {point.u}")
+        logger.info(f"Calculated Cartesian V: {point.v}")
+        logger.info(f"Calculated Period (s): {point.period}")
+    else:
+        logger.warning("WARNING: GFS wind grid file not found in cache. Cannot sample Cape Canaveral wind.")
 
     # Copernicus mock test (checks fallback / bounds validation)
     logger.info("\nSTEP 3: Testing Copernicus / Out-of-bounds unavailable state...")

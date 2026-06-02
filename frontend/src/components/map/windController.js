@@ -8,6 +8,7 @@ import {
   getSnapConfig, isViewportInsideCachedBounds, viewportCacheKey, computeGridPoints
 } from './marineControllerUtils';
 import { governMarineRequest } from './marineRequestGovernor';
+import { getBackendWindFlag, fetchBackendWindGrid } from './backendWeatherServiceClient';
 
 // --- CACHES ---
 var WIND_CACHE = new Map();
@@ -128,6 +129,17 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 
   if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodWind;
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
+
+  // --- GFS WIND BACKEND SERVICE REDIRECT FOR STAGE 3A PILOT ---
+  if (getBackendWindFlag() && (model === 'GFS' || !model)) {
+    try {
+      console.log(`[Backend Weather Service] Redirecting GFS Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+      const result = await fetchBackendWindGrid(bounds, hourOffset, signal, snappedBounds);
+      return result;
+    } catch (err) {
+      console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
+  }
 
   const viewHash = viewportCacheKey(snappedBounds, `wind_${model || 'GFS'}`);
   if (windHourlyCache.hash === viewHash && windHourlyCache.model === (model || 'GFS') && Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {

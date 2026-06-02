@@ -112,9 +112,22 @@ class OpenMeteoProvider:
                     if "wind_speed_unit" in params:
                         query_params["wind_speed_unit"] = params["wind_speed_unit"]
 
-                    response = await client.get(url, params=query_params, timeout=45.0)
-                    if response.status_code == 429:
-                        logger.warning("[Open-Meteo Provider] Hit rate limits (429).")
+                    max_retries = 3
+                    retry_delay = 5.0
+                    response = None
+                    for attempt in range(1, max_retries + 2):
+                        response = await client.get(url, params=query_params, timeout=45.0)
+                        if response.status_code == 429:
+                            if attempt > max_retries:
+                                logger.warning(f"[Open-Meteo Provider] Hit rate limits (429) and exhausted all {max_retries} retries.")
+                                return None
+                            logger.warning(f"[Open-Meteo Provider] Hit rate limits (429). Retrying in {retry_delay}s... (Attempt {attempt}/{max_retries})")
+                            await asyncio.sleep(retry_delay)
+                        else:
+                            break
+
+                    if response is None:
+                        logger.error("[Open-Meteo Provider] Response is None after batch call.")
                         return None
                         
                     response.raise_for_status()
@@ -127,8 +140,10 @@ class OpenMeteoProvider:
                         aggregated_results.append(data)
 
                     # Increase delay to 1.2s to fully respect Open-Meteo rate limits during background ingestion
+                    # For wind grids, increase the delay to 2.5s to be safe
+                    delay = 2.5 if domain == "wind" else 1.2
                     if i + batch_size < len(lats):
-                        await asyncio.sleep(1.2)
+                        await asyncio.sleep(delay)
 
                 return aggregated_results
                 

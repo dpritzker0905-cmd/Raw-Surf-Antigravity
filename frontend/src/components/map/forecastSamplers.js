@@ -14,7 +14,7 @@ import {
 } from './forecastHelpers';
 import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { governMarineRequest } from './marineRequestGovernor';
-import { getBackendWeatherFlag, fetchBackendExactPoint } from './backendWeatherServiceClient';
+import { getBackendWeatherFlag, fetchBackendExactPoint, getBackendWindFlag, fetchBackendExactWindPoint } from './backendWeatherServiceClient';
 
 export { sampleFromMarineGrid };
 
@@ -74,6 +74,19 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       }
     } catch (err) {
       console.warn(`[Backend Weather Service] Point redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
+  }
+
+  // --- REDIRECT GFS WIND TO BACKEND IF FEATURE FLAG IS ACTIVE ---
+  if (typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || !model) && activeLayer === 'wind') {
+    try {
+      console.log(`[Backend Weather Service] Redirecting GFS Wind point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
+      const pointResult = await fetchBackendExactWindPoint(rLat, rLng, timeOffsetHours, signal);
+      if (pointResult) {
+        return pointResult;
+      }
+    } catch (err) {
+      console.warn(`[Backend Weather Service] Wind point redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 
