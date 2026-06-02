@@ -62,7 +62,15 @@ try:
         else:
             logger.info("[Startup Diagnostics] Cache already fully populated. Skipping pre-population.")
 except Exception as pe:
+    import traceback
     logger.error(f"[Startup Diagnostics] Failed during pre-population: {pe}")
+    try:
+        log_path = Path(__file__).parent / "diagnostics.log"
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write(f"FATAL: Pre-population failed: {pe}\n")
+            f.write(traceback.format_exc())
+    except Exception as le:
+        logger.error(f"[Startup Diagnostics] Failed to write pre-population traceback to log file: {le}")
 
 # ── Stripe API key: check both common env var names ──
 # STRIPE_SECRET_KEY is the Stripe standard; STRIPE_API_KEY is the legacy name used in some files.

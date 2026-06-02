@@ -12,14 +12,25 @@ sys.path.append(str(backend_dir))
 
 # Set up logging immediately so any import errors are captured
 log_path = backend_dir / "diagnostics.log"
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(log_path, mode="w", encoding="utf-8")
-    ]
-)
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+
+# Remove any existing FileHandlers to diagnostics.log to avoid duplicates
+for handler in list(root_logger.handlers):
+    if isinstance(handler, logging.FileHandler) and getattr(handler, "baseFilename", "").endswith("diagnostics.log"):
+        root_logger.removeHandler(handler)
+
+file_handler = logging.FileHandler(log_path, mode="w", encoding="utf-8")
+file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+root_logger.addHandler(file_handler)
+
+# Also ensure stdout output is active
+stdout_exists = any(isinstance(h, logging.StreamHandler) and h.stream == sys.stdout for h in root_logger.handlers)
+if not stdout_exists:
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+    root_logger.addHandler(stream_handler)
+
 logger = logging.getLogger(__name__)
 
 # Now import project modules wrapped in try/except to catch import tracebacks
@@ -265,5 +276,5 @@ async def run_diagnostics():
 if __name__ == "__main__":
     asyncio.run(run_diagnostics())
 
-# Force deploy trigger: 2026-06-02T10:04:00Z
+# Force deploy trigger: 2026-06-02T10:11:00Z
 
