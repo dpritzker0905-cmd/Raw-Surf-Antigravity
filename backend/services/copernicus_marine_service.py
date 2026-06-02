@@ -125,13 +125,14 @@ def _fetch_sync(
     import sys
     import os
     import time
+    import json
     from pathlib import Path
     import tempfile
 
     start_time_total = time.time()
-    username, password = _check_credentials()
+    username, pwd = _check_credentials()
 
-    # Compute bounding box
+    # Pre-validation check for bounding box size
     if len(latitudes) <= 2:
         lat_min = min(latitudes) - 0.15
         lat_max = max(latitudes) + 0.15
@@ -157,38 +158,37 @@ def _fetch_sync(
 
     forecast_days = min(forecast_days, 3)
 
-    OM_TO_COPERNICUS = {v[1]: v[0] for v in VARIABLE_MAP}
-    if variables and len(variables) > 0:
-        requested_cop_vars = []
-        for om_var in variables:
-            if om_var in OM_TO_COPERNICUS:
-                requested_cop_vars.append(OM_TO_COPERNICUS[om_var])
-        fetch_vars = requested_cop_vars if requested_cop_vars else COPERNICUS_VARS
-    else:
-        fetch_vars = COPERNICUS_VARS
-
-    now = datetime.now(timezone.utc)
-    start_time = now - timedelta(hours=6)
-    end_time = now + timedelta(days=forecast_days)
-
     logger.info(
-        f"[Copernicus Subprocess API] Triggering downloader for {len(latitudes)} points, "
-        f"bbox=[{lat_min:.2f},{lat_max:.2f},{lon_min:.2f},{lon_max:.2f}], "
-        f"vars={len(fetch_vars)}/{len(COPERNICUS_VARS)}, "
-        f"time=[{start_time.isoformat()},{end_time.isoformat()}]"
+        f"[Copernicus Subprocess API] Setting up isolated downloader for {len(latitudes)} points..."
     )
 
-    open_start = time.time()
-    temp_file = None
+    req_file = None
+    res_file = None
+    results = []
 
     try:
         import gc
         gc.collect()
 
-        # Create a temp file to hold the subset NetCDF
-        fd, temp_path_str = tempfile.mkstemp(suffix=".nc", prefix="cmems_subset_")
-        os.close(fd) # Close file descriptor, let downloader write to it
-        temp_file = Path(temp_path_str)
+        # Create input JSON file
+        fd_in, req_path_str = tempfile.mkstemp(suffix=".json", prefix="cmems_req_")
+        os.close(fd_in)
+        req_file = Path(req_path_str)
+        
+        # Create output JSON file path
+        fd_out, res_path_str = tempfile.mkstemp(suffix=".json", prefix="cmems_res_")
+        os.close(fd_out)
+        res_file = Path(res_path_str)
+
+        # Write request parameters
+        req_data = {
+            "latitudes": latitudes,
+            "longitudes": longitudes,
+            "forecast_days": forecast_days,
+            "variables": variables
+        }
+        with open(req_file, "w") as f_in:
+            json.dump(req_data, f_in)
 
         # Build paths
         script_path = Path(__file__).parent.parent / "scripts" / "copernicus_downloader.py"
@@ -199,7 +199,7 @@ def _fetch_sync(
 
         # Invoke subprocess synchronously inside the thread pool
         res = subprocess.run(
-            [sys.executable, str(script_path), str(temp_file.parent), temp_file.name],
+            [sys.executable, str(script_path), str(req_file), str(res_file)],
             env=env,
             capture_output=True,
             text=True,
@@ -212,131 +212,38 @@ def _fetch_sync(
 
         logger.info(f"[Copernicus Subprocess API] Downloader completed. Stdout: {res.stdout.strip()}")
 
-        # Now import xarray and numpy dynamically to parse the local NetCDF file
-        import xarray as xr
-        import numpy as np
+        # Load parsed results
+        with open(res_file, "r") as f_out:
+            results = json.load(f_out)
 
-        logger.info(f"[Copernicus Subprocess API] Parsing downloaded NetCDF file...")
-        ds = xr.open_dataset(temp_file, engine="h5netcdf")
-
-        # Load variables to memory synchronously
-        for var in fetch_vars:
-            if var in ds:
-                ds[var] = ds[var].load()
-        if "latitude" in ds:
-            ds["latitude"] = ds["latitude"].load()
-        if "longitude" in ds:
-            ds["longitude"] = ds["longitude"].load()
-        if "time" in ds:
-            ds["time"] = ds["time"].load()
-
-        # Perform pointwise selection locally in memory on the loaded dataset
-        lat_da = xr.DataArray(latitudes, dims="point")
-        lon_da = xr.DataArray(longitudes, dims="point")
-        ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
     except Exception as e:
         logger.error(f"[Copernicus Subprocess API] Fetch and load failed: {e}")
-        if temp_file and temp_file.exists():
-            try:
-                temp_file.unlink()
-            except Exception:
-                pass
         raise
-    open_time = time.time() - open_start
-
-    extract_start = time.time()
-    results = []
-
-    for i in range(len(latitudes)):
-        lat = latitudes[i]
-        lon = longitudes[i]
-
-        try:
-            point = ds_points.isel(point=i)
-            times_raw = point.time.values
-            times = []
-            for t in times_raw:
-                ts = np.datetime_as_string(t, unit="m")
-                times.append(ts)
-
-            hourly = {"time": times}
-            hourly_units = {"time": "iso8601"}
-
-            for cop_var, om_var, unit in VARIABLE_MAP:
-                if cop_var in point:
-                    vals = point[cop_var].values
-                    hourly[om_var] = [
-                        round(float(v), 4) if not np.isnan(v) else None
-                        for v in vals
-                    ]
-                else:
-                    hourly[om_var] = [None] * len(times)
-                hourly_units[om_var] = unit
-
-            snapped_lat = float(point.latitude.values)
-            snapped_lon = float(point.longitude.values)
-
-            results.append({
-                "latitude": snapped_lat,
-                "longitude": snapped_lon,
-                "generationtime_ms": 0,
-                "utc_offset_seconds": 0,
-                "timezone": "GMT",
-                "timezone_abbreviation": "GMT",
-                "elevation": 0,
-                "__provider": "copernicus",
-                "hourly_units": hourly_units,
-                "hourly": hourly,
-            })
-
-        except Exception as e:
-            logger.warning(
-                f"[Copernicus Subprocess API] Point {lat},{lon} extraction failed: {e}"
-            )
-            results.append({
-                "latitude": lat,
-                "longitude": lon,
-                "generationtime_ms": 0,
-                "utc_offset_seconds": 0,
-                "timezone": "GMT",
-                "timezone_abbreviation": "GMT",
-                "elevation": 0,
-                "__provider": "copernicus",
-                "hourly_units": {"time": "iso8601"},
-                "hourly": {"time": []},
-            })
-    extract_time = time.time() - extract_start
-
-    # Close dataset and explicitly free memory/delete temp file
-    try:
-        ds_points.close()
-        del ds_points
-        ds.close()
-        del ds
-        if temp_file and temp_file.exists():
-            temp_file.unlink()
-        import gc
-        gc.collect()
-    except Exception:
-        pass
+    finally:
+        # Clean up temp files
+        for f in (req_file, res_file):
+            if f and f.exists():
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
 
     total_time = time.time() - start_time_total
 
     # Expose timing telemetries directly inside the JSON response
     for res in results:
         res["__diagnostics"] = {
-            "open_time_sec": round(open_time, 3),
-            "extract_time_sec": round(extract_time, 3),
+            "open_time_sec": 0.0,
+            "extract_time_sec": 0.0,
             "total_time_sec": round(total_time, 3),
             "point_count": len(latitudes),
-            "variable_count": len(fetch_vars),
-            "variables": fetch_vars
+            "variable_count": len(variables) if variables else 12,
+            "variables": variables
         }
 
     logger.info(
         f"[Copernicus Diagnostics Telemetry] Success: {len(results)} points. "
-        f"OpenTime: {open_time:.2f}s | ExtractTime: {extract_time:.2f}s | "
-        f"TotalTime: {total_time:.2f}s | Variables: {fetch_vars}"
+        f"TotalTime: {total_time:.2f}s"
     )
     return results
 
