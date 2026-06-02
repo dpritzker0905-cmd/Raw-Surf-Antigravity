@@ -1,6 +1,6 @@
 import math
 import logging
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 from services.weather_pipeline.schemas import (
     NormalizedProduct, NormalizedPointDetail, NormalizedPointResponse
 )
