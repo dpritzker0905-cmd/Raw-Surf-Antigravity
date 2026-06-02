@@ -110,53 +110,46 @@ def download_and_parse():
         print("Download completed successfully.")
         
         # Import scientific libraries in the subprocess
-        import xarray as xr
+        import netCDF4
         import numpy as np
         
-        print("Parsing downloaded NetCDF file...")
-        ds = xr.open_dataset(temp_file, engine="h5netcdf")
+        print("Parsing downloaded NetCDF file using netCDF4...")
+        nc = netCDF4.Dataset(temp_file, "r")
         
-        # Load variables
-        for var in fetch_vars:
-            if var in ds:
-                ds[var] = ds[var].load()
-        if "latitude" in ds:
-            ds["latitude"] = ds["latitude"].load()
-        if "longitude" in ds:
-            ds["longitude"] = ds["longitude"].load()
-        if "time" in ds:
-            ds["time"] = ds["time"].load()
-            
-        lat_da = xr.DataArray(latitudes, dims="point")
-        lon_da = xr.DataArray(longitudes, dims="point")
-        ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
+        lats = nc.variables["latitude"][:]
+        lons = nc.variables["longitude"][:]
+        time_var = nc.variables["time"]
+        times_raw = time_var[:]
+        
+        # Convert times to string dates
+        times_parsed = netCDF4.num2date(times_raw, units=time_var.units)
+        times = [t.strftime("%Y-%m-%dT%H:%M:%SZ") for t in times_parsed]
         
         results = []
         for i in range(len(latitudes)):
             lat_val = latitudes[i]
             lon_val = longitudes[i]
             try:
-                point = ds_points.isel(point=i)
-                times_raw = point.time.values
-                times = [np.datetime_as_string(t, unit="m") for t in times_raw]
+                lat_idx = np.abs(lats - lat_val).argmin()
+                lon_idx = np.abs(lons - lon_val).argmin()
+                
+                snapped_lat = float(lats[lat_idx])
+                snapped_lon = float(lons[lon_idx])
                 
                 hourly = {"time": times}
                 hourly_units = {"time": "iso8601"}
                 
                 for cop_var, om_var, unit in VARIABLE_MAP:
-                    if cop_var in point:
-                        vals = point[cop_var].values
+                    if cop_var in nc.variables:
+                        vals = nc.variables[cop_var][:, lat_idx, lon_idx]
                         hourly[om_var] = [
-                            round(float(v), 4) if not np.isnan(v) else None
+                            round(float(v), 4) if not np.ma.is_masked(v) and not np.isnan(v) else None
                             for v in vals
                         ]
                     else:
                         hourly[om_var] = [None] * len(times)
                     hourly_units[om_var] = unit
                     
-                snapped_lat = float(point.latitude.values)
-                snapped_lon = float(point.longitude.values)
-                
                 results.append({
                     "latitude": snapped_lat,
                     "longitude": snapped_lon,
@@ -184,9 +177,8 @@ def download_and_parse():
                     "hourly": {"time": []},
                 })
                 
-        # Close datasets
-        ds_points.close()
-        ds.close()
+        # Close NetCDF file
+        nc.close()
         
         # Save output to response path
         with open(output_path, "w") as out_f:
