@@ -195,9 +195,7 @@ async def lifespan(app: FastAPI):
                 if not has_wind:
                     await scheduler.ingest_gfs_wind_pilot()
                 if not has_copernicus:
-                    # We skip Copernicus ingestion inside the server lifespan on Render to prevent OOM.
-                    # Copernicus ingestion is handled sequentially by startup diagnostics before Uvicorn boots.
-                    logger.info("[Startup Ingestion] Skipping Copernicus regional ingestion in server lifespan to prevent OOM.")
+                    await scheduler.ingest_copernicus_regional()
                 logger.info("[Startup Ingestion] Ingestion complete.")
             else:
                 logger.info("[Startup Ingestion] Cache already populated. Skipping startup ingestion.")
