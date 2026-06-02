@@ -23,18 +23,7 @@ load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Run weather diagnostics as a separate subprocess to prevent FastAPI module import memory overhead on Render
-if os.environ.get("RENDER") == "true" or os.environ.get("FORCE_STARTUP_DIAGNOSTICS") == "true":
-    logger.info("[Startup Process] Deployed on Render. Running weather diagnostics subprocess...")
-    try:
-        import subprocess
-        import sys
-        script_path = Path(__file__).parent / "scripts" / "weather_diagnostics.py"
-        subprocess.run([sys.executable, str(script_path)], check=True)
-        logger.info("[Startup Process] Weather diagnostics subprocess completed successfully.")
-    except Exception as e:
-        logger.error(f"[Startup Process] Weather diagnostics subprocess failed: {e}")
-
+# Run weather diagnostics subprocess has been reverted to background task to prevent port timeouts
 # ── Stripe API key: check both common env var names ──
 # STRIPE_SECRET_KEY is the Stripe standard; STRIPE_API_KEY is the legacy name used in some files.
 STRIPE_API_KEY = (
@@ -181,7 +170,7 @@ async def lifespan(app: FastAPI):
     # Start background scheduler
     start_scheduler()
     
-    # Run a one-time startup task to ingest GFS waves/wind if the cache is empty
+    # Run a one-time startup task to ingest GFS waves/wind and Copernicus regional if the cache is empty
     # This guarantees the cache is populated immediately when a new deploy starts up!
     async def trigger_startup_ingestion():
         import asyncio
@@ -196,14 +185,17 @@ async def lifespan(app: FastAPI):
             # Check if GFS wind or waves are missing from the cache
             has_waves = any(p.model == "GFS" and p.layer == "waves" for p in manifest.products)
             has_wind = any(p.model == "GFS" and p.layer == "wind" for p in manifest.products)
+            has_copernicus = any(p.model == "EURO" and p.layer == "swell_1" for p in manifest.products)
             
-            if not has_waves or not has_wind:
-                logger.info("[Startup Ingestion] GFS products missing from cache. Triggering ingestion...")
+            if not has_waves or not has_wind or not has_copernicus:
+                logger.info("[Startup Ingestion] Products missing from cache. Triggering ingestion...")
                 scheduler = WeatherPipelineScheduler(store=store)
                 if not has_waves:
                     await scheduler.ingest_gfs_marine_pilot()
                 if not has_wind:
                     await scheduler.ingest_gfs_wind_pilot()
+                if not has_copernicus:
+                    await scheduler.ingest_copernicus_regional()
                 logger.info("[Startup Ingestion] Ingestion complete.")
             else:
                 logger.info("[Startup Ingestion] Cache already populated. Skipping startup ingestion.")
