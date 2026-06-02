@@ -87,6 +87,10 @@ def download_and_parse():
     os.environ["COPERNICUSMARINE_CREDENTIALS_DIRECTORY"] = str(temp_file.parent)
     
     import copernicusmarine
+    # Delete the pre-created 0-byte temp file placeholder so copernicusmarine.subset can download and write to the path successfully
+    if temp_file.exists():
+        temp_file.unlink()
+        
     print(f"Downloading subset to {temp_file}...")
     try:
         copernicusmarine.subset(
