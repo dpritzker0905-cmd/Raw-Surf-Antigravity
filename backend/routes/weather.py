@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
 from datetime import datetime, timezone
 from typing import Optional, List
 import logging
@@ -18,6 +18,27 @@ router = APIRouter(prefix="/weather")
 # Instantiate Store and Sampler
 store = ProductStore()
 sampler = PointSampler()
+
+@router.post("/ingest")
+async def trigger_ingestion(background_tasks: BackgroundTasks):
+    """
+    POST /api/weather/ingest
+    Manually triggers GFS waves and wind pilot ingestion in the background.
+    """
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    scheduler = WeatherPipelineScheduler(store=store)
+
+    async def run_jobs():
+        logger.info("[Manual Ingestion] Triggering GFS Marine & GFS Wind pilot ingestion...")
+        try:
+            await scheduler.ingest_gfs_marine_pilot()
+            await scheduler.ingest_gfs_wind_pilot()
+            logger.info("[Manual Ingestion] Ingestion jobs completed.")
+        except Exception as e:
+            logger.error(f"[Manual Ingestion] Ingestion failed: {e}")
+
+    background_tasks.add_task(run_jobs)
+    return {"status": "ingestion_triggered"}
 
 @router.get("/products")
 async def get_products():
