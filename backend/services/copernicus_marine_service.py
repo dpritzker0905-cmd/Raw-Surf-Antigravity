@@ -120,10 +120,10 @@ def _fetch_sync(
     forecast_days: int,
     variables: Optional[List[str]] = None,
 ) -> List[dict]:
-    """Synchronous Copernicus fetch (runs in thread pool) using subset API to prevent memory OOMs."""
-    import copernicusmarine
-    import xarray as xr
-    import numpy as np
+    """Synchronous Copernicus fetch using a separate lightweight downloader subprocess to prevent OOMs."""
+    import subprocess
+    import sys
+    import os
     import time
     from pathlib import Path
     import tempfile
@@ -172,7 +172,7 @@ def _fetch_sync(
     end_time = now + timedelta(days=forecast_days)
 
     logger.info(
-        f"[Copernicus Subset API] Fetching {len(latitudes)} points, "
+        f"[Copernicus Subprocess API] Triggering downloader for {len(latitudes)} points, "
         f"bbox=[{lat_min:.2f},{lat_max:.2f},{lon_min:.2f},{lon_max:.2f}], "
         f"vars={len(fetch_vars)}/{len(COPERNICUS_VARS)}, "
         f"time=[{start_time.isoformat()},{end_time.isoformat()}]"
@@ -187,27 +187,37 @@ def _fetch_sync(
 
         # Create a temp file to hold the subset NetCDF
         fd, temp_path_str = tempfile.mkstemp(suffix=".nc", prefix="cmems_subset_")
-        os.close(fd) # Close file descriptor, let copernicusmarine open it
+        os.close(fd) # Close file descriptor, let downloader write to it
         temp_file = Path(temp_path_str)
 
-        # Download subset directly to temp file
-        copernicusmarine.subset(
-            dataset_id=DATASET_ID,
-            variables=fetch_vars,
-            minimum_longitude=lon_min,
-            maximum_longitude=lon_max,
-            minimum_latitude=lat_min,
-            maximum_latitude=lat_max,
-            start_datetime=start_time.strftime("%Y-%m-%dT%H:%M:%S"),
-            end_datetime=end_time.strftime("%Y-%m-%dT%H:%M:%S"),
-            output_directory=str(temp_file.parent),
-            output_filename=temp_file.name,
-            username=username,
-            password=password
+        # Build paths
+        script_path = Path(__file__).parent.parent / "scripts" / "copernicus_downloader.py"
+
+        # Run downloader as a separate subprocess to avoid memory overhead
+        logger.info(f"[Copernicus Subprocess API] Executing downloader subprocess...")
+        env = os.environ.copy()
+
+        # Invoke subprocess synchronously inside the thread pool
+        res = subprocess.run(
+            [sys.executable, str(script_path), str(temp_file.parent), temp_file.name],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=180.0
         )
 
-        # Open download subset locally using xarray
-        ds = xr.open_dataset(temp_file)
+        if res.returncode != 0:
+            logger.error(f"[Copernicus Subprocess API] Downloader subprocess failed (code {res.returncode}): {res.stderr}")
+            raise RuntimeError(f"Downloader failed: {res.stderr}")
+
+        logger.info(f"[Copernicus Subprocess API] Downloader completed. Stdout: {res.stdout.strip()}")
+
+        # Now import xarray and numpy dynamically to parse the local NetCDF file
+        import xarray as xr
+        import numpy as np
+
+        logger.info(f"[Copernicus Subprocess API] Parsing downloaded NetCDF file...")
+        ds = xr.open_dataset(temp_file, engine="h5netcdf")
 
         # Load variables to memory synchronously
         for var in fetch_vars:
@@ -225,7 +235,7 @@ def _fetch_sync(
         lon_da = xr.DataArray(longitudes, dims="point")
         ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
     except Exception as e:
-        logger.error(f"[Copernicus Subset API] Subset fetch and load failed: {e}")
+        logger.error(f"[Copernicus Subprocess API] Fetch and load failed: {e}")
         if temp_file and temp_file.exists():
             try:
                 temp_file.unlink()
@@ -281,7 +291,7 @@ def _fetch_sync(
 
         except Exception as e:
             logger.warning(
-                f"[Copernicus Subset API] Point {lat},{lon} extraction failed: {e}"
+                f"[Copernicus Subprocess API] Point {lat},{lon} extraction failed: {e}"
             )
             results.append({
                 "latitude": lat,
