@@ -24,6 +24,46 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Run weather diagnostics subprocess has been reverted to background task to prevent port timeouts
+# ── Synchronous Pre-population of Weather Cache ──
+try:
+    import sys
+    import gc
+    is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
+    
+    if is_testing:
+        logger.info("[Startup Diagnostics] Running in test mode. Skipping pre-population.")
+    else:
+        from services.weather_pipeline.store import ProductStore
+        store = ProductStore()
+        manifest = store.get_manifest()
+        has_waves = any(p.model == "GFS" and p.layer == "waves" for p in manifest.products)
+        has_wind = any(p.model == "GFS" and p.layer == "wind" for p in manifest.products)
+        has_copernicus = any(p.model == "EURO" and p.layer == "swell_1" for p in manifest.products)
+        
+        if not has_waves or not has_wind or not has_copernicus:
+            logger.info("[Startup Diagnostics] Cache is incomplete or empty. Pre-populating cache synchronously before server start...")
+            import asyncio
+            from scripts.weather_diagnostics import run_diagnostics
+            
+            asyncio.run(run_diagnostics())
+            
+            # Clean up heavy libraries to release memory before Uvicorn starts
+            heavy_mods = [
+                "copernicusmarine", "netCDF4", "numpy", "pandas", "xarray", "dask",
+                "services.weather_pipeline.scheduler", "services.copernicus_marine_service",
+                "scripts.weather_diagnostics"
+            ]
+            for mod in list(sys.modules.keys()):
+                for heavy in heavy_mods:
+                    if mod == heavy or mod.startswith(heavy + "."):
+                        sys.modules.pop(mod, None)
+            gc.collect()
+            logger.info("[Startup Diagnostics] Pre-population complete. Heavy modules unloaded from memory.")
+        else:
+            logger.info("[Startup Diagnostics] Cache already fully populated. Skipping pre-population.")
+except Exception as pe:
+    logger.error(f"[Startup Diagnostics] Failed during pre-population: {pe}")
+
 # ── Stripe API key: check both common env var names ──
 # STRIPE_SECRET_KEY is the Stripe standard; STRIPE_API_KEY is the legacy name used in some files.
 STRIPE_API_KEY = (
@@ -187,18 +227,19 @@ async def lifespan(app: FastAPI):
             has_wind = any(p.model == "GFS" and p.layer == "wind" for p in manifest.products)
             has_copernicus = any(p.model == "EURO" and p.layer == "swell_1" for p in manifest.products)
             
-            if not has_waves or not has_wind or not has_copernicus:
-                logger.info("[Startup Ingestion] Products missing from cache. Triggering ingestion...")
+            if not has_waves or not has_wind:
+                logger.info("[Startup Ingestion] GFS products missing from cache. Triggering GFS ingestion...")
                 scheduler = WeatherPipelineScheduler(store=store)
                 if not has_waves:
                     await scheduler.ingest_gfs_marine_pilot()
                 if not has_wind:
                     await scheduler.ingest_gfs_wind_pilot()
-                if not has_copernicus:
-                    await scheduler.ingest_copernicus_regional()
-                logger.info("[Startup Ingestion] Ingestion complete.")
+                logger.info("[Startup Ingestion] GFS Ingestion complete.")
             else:
-                logger.info("[Startup Ingestion] Cache already populated. Skipping startup ingestion.")
+                logger.info("[Startup Ingestion] GFS cache already populated. Skipping GFS startup ingestion.")
+                
+            if not has_copernicus:
+                logger.warning("[Startup Ingestion] Copernicus Swell 1 data is missing! Please populate it via scripts or manual endpoint. Auto-ingestion skipped to prevent OOM.")
         except Exception as e:
             logger.error(f"[Startup Ingestion] Failed during startup: {e}")
 
