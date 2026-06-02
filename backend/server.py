@@ -240,9 +240,13 @@ async def lifespan(app: FastAPI):
 
     # Trigger background cache pre-population check in a non-blocking way
     is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
+    is_render = os.environ.get("RENDER") == "true"
     if not is_testing:
-        import asyncio
-        asyncio.create_task(run_background_cache_population())
+        if is_render:
+            logger.info("[lifespan] Render deployment detected. Skipping memory-heavy background cache pre-population on startup to ensure container stability.")
+        else:
+            import asyncio
+            asyncio.create_task(run_background_cache_population())
 
     yield
     logger.info("Shutting down Raw Surf OS API...")
