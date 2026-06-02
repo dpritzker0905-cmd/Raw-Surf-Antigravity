@@ -266,3 +266,21 @@ async def ingest_copernicus_only():
     except Exception as e:
         logger.exception("Diagnostic Copernicus ingestion failed")
         return {"status": "error", "message": str(e)}
+
+@router.get("/diagnostics-log")
+async def get_diagnostics_log():
+    """
+    GET /api/weather/diagnostics-log
+    Returns the contents of the diagnostics log file.
+    """
+    from pathlib import Path
+    log_path = Path(__file__).parent.parent / "diagnostics.log"
+    if not log_path.exists():
+        return {"status": "error", "message": f"Log file not found at {log_path.absolute()}"}
+    try:
+        with open(log_path, "r") as f:
+            content = f.read()
+        return {"status": "success", "content": content}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
