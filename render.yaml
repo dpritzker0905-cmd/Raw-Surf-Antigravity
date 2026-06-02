@@ -3,8 +3,8 @@ services:
     name: raw-surf-backend
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python scripts/weather_diagnostics.py
-    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/prepopulate_cache.py && uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
         sync: false
