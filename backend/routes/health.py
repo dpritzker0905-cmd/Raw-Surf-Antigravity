@@ -24,9 +24,12 @@ async def health_check(
     Returns database status, table counts, and scheduler job status.
     """
     from scheduler import scheduler
+    import os
     
     health_data = {
         "status": "healthy",
+        "version": "2.0.0-gc-safety-v3",
+        "environment": os.environ.get("RENDER", "local"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "database": {},
         "scheduler": {},

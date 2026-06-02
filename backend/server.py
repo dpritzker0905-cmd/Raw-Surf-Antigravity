@@ -195,20 +195,24 @@ async def run_background_cache_population():
             store = ProductStore()
             scheduler = WeatherPipelineScheduler(store=store)
             
-            # Step 1: Ingest GFS Waves if missing
-            if need_gfs_waves:
-                logger.info("[lifespan] Running GFS waves grid pre-population...")
-                await scheduler.ingest_gfs_marine_pilot()
-            
-            # Step 2: Ingest GFS Wind if missing
-            if need_gfs_wind:
-                logger.info("[lifespan] Running GFS wind grid pre-population...")
-                await scheduler.ingest_gfs_wind_pilot()
-            
-            # Step 3: Ingest Copernicus Swell 1 if missing
+            import gc
+            # Step 1: Ingest Copernicus Swell 1 if missing (run first when memory is at baseline before GFS object allocation)
             if need_copernicus:
                 logger.info("[lifespan] Running Copernicus swell_1 grid pre-population (will fall back to high-fidelity mock if credentials missing)...")
                 await scheduler.ingest_copernicus_regional()
+                gc.collect()
+            
+            # Step 2: Ingest GFS Waves if missing
+            if need_gfs_waves:
+                logger.info("[lifespan] Running GFS waves grid pre-population...")
+                await scheduler.ingest_gfs_marine_pilot()
+                gc.collect()
+            
+            # Step 3: Ingest GFS Wind if missing
+            if need_gfs_wind:
+                logger.info("[lifespan] Running GFS wind grid pre-population...")
+                await scheduler.ingest_gfs_wind_pilot()
+                gc.collect()
             
             logger.info("[lifespan] Background cache pre-population completed successfully!")
         except Exception as e:
