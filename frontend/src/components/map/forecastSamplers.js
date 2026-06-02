@@ -565,6 +565,8 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     wind_wave_direction: status === 'exact_no_time_coverage' ? null : (h.wind_wave_direction?.[bestIdx] ?? null),
     wind_wave_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_period?.[bestIdx] ?? null),
     wind_wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_peak_period?.[bestIdx] ?? null),
+    wind_speed_10m: status === 'exact_no_time_coverage' ? null : (h.wind_speed_10m?.[bestIdx] ?? null),
+    wind_direction_10m: status === 'exact_no_time_coverage' ? null : (h.wind_direction_10m?.[bestIdx] ?? null),
     status,
     source: cachedResponse.source || 'exact_point_api',
     hourIndex: bestIdx,

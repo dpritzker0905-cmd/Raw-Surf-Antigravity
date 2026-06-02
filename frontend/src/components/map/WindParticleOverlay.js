@@ -268,7 +268,10 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
         return;
       }
       var grid = dataRef.current;
-      if (!grid?.vectors?.length) return;
+      if (!grid?.vectors?.length) {
+        if (wasActive) { ctx.clearRect(0, 0, cw, ch); wasActive = false; }
+        return;
+      }
       wasActive = true;
 
       // Redistribute particles on MODEL change (full respawn) or

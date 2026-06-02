@@ -53,7 +53,7 @@ export var MapForecastOverlay = ({
   // Caches the FULL multi-day response; hour selection happens at render time.
   const pointLat = selectedSpot?.latitude || longPressLocation?.lat || defaultSnappedLat;
   const pointLng = selectedSpot?.longitude || longPressLocation?.lng || defaultSnappedLng;
-  const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
+  const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves', 'wind'].includes(activeLayer);
   const [exactPointResponse, setExactPointResponse] = useState(null);
 
   // v6.7: Clear stale exact-point state synchronously using refs instead of render-time setState.
@@ -392,14 +392,18 @@ export var MapForecastOverlay = ({
   const liveWind = currentWeather;
   const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
     ? liveWind.wind_speed_10m : getClampedValue(wx.wind_speed_10m, currentHourIndex);
-  const windSpeed = (activeLayer === 'wind' && sampledWind)
-    ? sampledWind.value
-    : getBiasAdjustedLocal(rawWindSpeed, 'wind');
+  const windSpeed = (isExactPointAuthority && activeLayer === 'wind')
+    ? (useExactPoint?.wind_speed_10m ?? (useGridFallback && sampledWind ? sampledWind.value : null))
+    : (activeLayer === 'wind' && sampledWind)
+      ? sampledWind.value
+      : getBiasAdjustedLocal(rawWindSpeed, 'wind');
 
-  const windDir = (activeLayer === 'wind' && sampledWind)
-    ? sampledWind.direction
-    : (isLive && liveWind?.wind_direction_10m != null
-      ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex));
+  const windDir = (isExactPointAuthority && activeLayer === 'wind')
+    ? (useExactPoint?.wind_direction_10m ?? (useGridFallback && sampledWind ? sampledWind.direction : null))
+    : (activeLayer === 'wind' && sampledWind)
+      ? sampledWind.direction
+      : (isLive && liveWind?.wind_direction_10m != null
+        ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex));
 
   const rawWindGusts = isLive && liveWind?.wind_gusts_10m != null
     ? liveWind.wind_gusts_10m : getClampedValue(wx.wind_gusts_10m, currentHourIndex);

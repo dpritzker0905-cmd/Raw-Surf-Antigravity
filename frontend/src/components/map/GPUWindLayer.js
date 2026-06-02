@@ -102,7 +102,7 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
   const transitionStartRef = useRef(0);
 
   useEffect(() => {
-    if (data?.vectors?.length) {
+    if (data?.vectors?.length && data.renderable !== false) {
       if (windRef.current) {
         prevWindRef.current = windRef.current;
         transitionStartRef.current = performance.now();
@@ -115,6 +115,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
         const sample = data.vectors[0];
         console.log(`[Wind] Data updated: ${data.vectors.length} vectors, ${data.cols}x${data.rows}, sample: u=${sample.u?.toFixed(2)} v=${sample.v?.toFixed(2)} speed=${sample.speed?.toFixed(1)}`);
       }
+    } else {
+      windRef.current = null;
     }
   }, [data]);
 
@@ -200,7 +202,13 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
         return;
       }
       const grid = windRef.current;
-      if (!grid?.vectors?.length) return;
+      if (!grid?.vectors?.length) {
+        if (wasActive) {
+          ctx.clearRect(0, 0, cw, ch);
+          wasActive = false;
+        }
+        return;
+      }
       
       wasActive = true;
       frameCount++;
