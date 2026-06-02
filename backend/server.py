@@ -24,54 +24,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Run weather diagnostics subprocess has been reverted to background task to prevent port timeouts
-# ── Synchronous Pre-population of Weather Cache ──
-try:
-    import sys
-    import gc
-    is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
-    
-    if is_testing:
-        logger.info("[Startup Diagnostics] Running in test mode. Skipping pre-population.")
-    else:
-        from services.weather_pipeline.store import ProductStore
-        store = ProductStore()
-        manifest = store.get_manifest()
-        has_waves = any(p.model == "GFS" and p.layer == "waves" for p in manifest.products)
-        has_wind = any(p.model == "GFS" and p.layer == "wind" for p in manifest.products)
-        has_copernicus = any(p.model == "EURO" and p.layer == "swell_1" for p in manifest.products)
-        
-        if not has_waves or not has_wind or not has_copernicus:
-            logger.info("[Startup Diagnostics] Cache is incomplete or empty. Pre-populating cache synchronously before server start...")
-            import asyncio
-            from scripts.weather_diagnostics import run_diagnostics
-            
-            asyncio.run(run_diagnostics())
-            
-            # Clean up heavy libraries to release memory before Uvicorn starts
-            heavy_mods = [
-                "copernicusmarine", "netCDF4", "numpy", "pandas", "xarray", "dask",
-                "services.weather_pipeline.scheduler", "services.copernicus_marine_service",
-                "scripts.weather_diagnostics"
-            ]
-            for mod in list(sys.modules.keys()):
-                for heavy in heavy_mods:
-                    if mod == heavy or mod.startswith(heavy + "."):
-                        sys.modules.pop(mod, None)
-            gc.collect()
-            logger.info("[Startup Diagnostics] Pre-population complete. Heavy modules unloaded from memory.")
-        else:
-            logger.info("[Startup Diagnostics] Cache already fully populated. Skipping pre-population.")
-except Exception as pe:
-    import traceback
-    logger.error(f"[Startup Diagnostics] Failed during pre-population: {pe}")
-    try:
-        log_path = Path(__file__).parent / "diagnostics.log"
-        with open(log_path, "w", encoding="utf-8") as f:
-            f.write(f"FATAL: Pre-population failed: {pe}\n")
-            f.write(traceback.format_exc())
-    except Exception as le:
-        logger.error(f"[Startup Diagnostics] Failed to write pre-population traceback to log file: {le}")
-
 # ── Stripe API key: check both common env var names ──
 # STRIPE_SECRET_KEY is the Stripe standard; STRIPE_API_KEY is the legacy name used in some files.
 STRIPE_API_KEY = (
@@ -218,41 +170,54 @@ async def lifespan(app: FastAPI):
     # Start background scheduler
     start_scheduler()
     
-    # Run a one-time startup task to ingest GFS waves/wind and Copernicus regional if the cache is empty
-    # This guarantees the cache is populated immediately when a new deploy starts up!
-    async def trigger_startup_ingestion():
-        import asyncio
-        # Wait 5 seconds to let the server start up and settle
-        await asyncio.sleep(5.0)
-        try:
+    # ── Synchronous Pre-population of Weather Cache inside Lifespan ──
+    try:
+        import sys
+        import gc
+        is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
+        
+        if is_testing:
+            logger.info("[Lifespan Startup] Running in test mode. Skipping weather pre-population.")
+        else:
             from services.weather_pipeline.store import ProductStore
-            from services.weather_pipeline.scheduler import WeatherPipelineScheduler
             store = ProductStore()
             manifest = store.get_manifest()
             
-            # Check if GFS wind or waves are missing from the cache
             has_waves = any(p.model == "GFS" and p.layer == "waves" for p in manifest.products)
             has_wind = any(p.model == "GFS" and p.layer == "wind" for p in manifest.products)
             has_copernicus = any(p.model == "EURO" and p.layer == "swell_1" for p in manifest.products)
             
-            if not has_waves or not has_wind:
-                logger.info("[Startup Ingestion] GFS products missing from cache. Triggering GFS ingestion...")
-                scheduler = WeatherPipelineScheduler(store=store)
-                if not has_waves:
-                    await scheduler.ingest_gfs_marine_pilot()
-                if not has_wind:
-                    await scheduler.ingest_gfs_wind_pilot()
-                logger.info("[Startup Ingestion] GFS Ingestion complete.")
-            else:
-                logger.info("[Startup Ingestion] GFS cache already populated. Skipping GFS startup ingestion.")
+            if not has_waves or not has_wind or not has_copernicus:
+                logger.info("[Lifespan Startup] Weather cache is incomplete. Pre-populating cache synchronously in lifespan...")
+                from scripts.weather_diagnostics import run_diagnostics
                 
-            if not has_copernicus:
-                logger.warning("[Startup Ingestion] Copernicus Swell 1 data is missing! Please populate it via scripts or manual endpoint. Auto-ingestion skipped to prevent OOM.")
-        except Exception as e:
-            logger.error(f"[Startup Ingestion] Failed during startup: {e}")
-
-    import asyncio
-    asyncio.create_task(trigger_startup_ingestion())
+                # Await in-process diagnostics to build all cache files (GFS Waves + GFS Wind + Copernicus Swell 1)
+                await run_diagnostics()
+                
+                # Clean up heavy libraries to release memory before yielding to Uvicorn requests
+                heavy_mods = [
+                    "copernicusmarine", "netCDF4", "numpy", "pandas", "xarray", "dask",
+                    "services.weather_pipeline.scheduler", "services.copernicus_marine_service",
+                    "scripts.weather_diagnostics"
+                ]
+                for mod in list(sys.modules.keys()):
+                    for heavy in heavy_mods:
+                        if mod == heavy or mod.startswith(heavy + "."):
+                            sys.modules.pop(mod, None)
+                gc.collect()
+                logger.info("[Lifespan Startup] Pre-population complete. Heavy modules unloaded from memory.")
+            else:
+                logger.info("[Lifespan Startup] Weather cache already fully populated. Skipping pre-population.")
+    except Exception as pe:
+        import traceback
+        logger.error(f"[Lifespan Startup] Failed during weather pre-population: {pe}")
+        try:
+            log_path = Path(__file__).parent / "diagnostics.log"
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(f"FATAL: Lifespan pre-population failed: {pe}\n")
+                f.write(traceback.format_exc())
+        except Exception as le:
+            logger.error(f"[Lifespan Startup] Failed to write pre-population traceback: {le}")
 
     yield
     logger.info("Shutting down Raw Surf OS API...")

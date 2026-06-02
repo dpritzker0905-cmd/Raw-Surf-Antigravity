@@ -276,5 +276,5 @@ async def run_diagnostics():
 if __name__ == "__main__":
     asyncio.run(run_diagnostics())
 
-# Force deploy trigger: 2026-06-02T10:11:00Z
+# Force deploy trigger: 2026-06-02T10:16:00Z
 
