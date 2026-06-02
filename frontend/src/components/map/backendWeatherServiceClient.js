@@ -514,6 +514,7 @@ if (typeof window !== 'undefined') {
     requestedValidTime: null,
     manifestDeltaHours: null,
     fallbackReason: null,
+    timeFallbackReason: null,
     pointParity: 'pending_point_fetch',
     requestedBbox: null,
     clampedBbox: null,
@@ -546,6 +547,7 @@ export function updateWindDiagnostics(type, details) {
       requestedValidTime: null,
       manifestDeltaHours: null,
       fallbackReason: null,
+      timeFallbackReason: null,
       pointParity: 'pending_point_fetch',
       requestedBbox: null,
       clampedBbox: null,
@@ -584,6 +586,7 @@ export function updateWindDiagnostics(type, details) {
       
     diag.coverageInside = isInside;
     diag.fallbackToLegacy = !isInside || !!details.error;
+    diag.fallbackReason = details.error || null;
   } else if (type === 'point') {
     diag.lastPointFetch = details;
     diag.pointValidTime = details.validTime || null;
@@ -596,7 +599,7 @@ export function updateWindDiagnostics(type, details) {
   diag.requestedValidTime = latestTimeDiag.wind.requestedValidTime;
   diag.selectedManifestValidTime = latestTimeDiag.wind.selectedManifestValidTime;
   diag.manifestDeltaHours = latestTimeDiag.wind.manifestDeltaHours;
-  diag.fallbackReason = latestTimeDiag.wind.fallbackReason;
+  diag.timeFallbackReason = latestTimeDiag.wind.fallbackReason;
 
   diag.pointParity = diag.pointValidTime 
     ? (diag.gridValidTime === diag.pointValidTime) 

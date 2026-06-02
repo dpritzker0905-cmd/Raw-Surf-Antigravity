@@ -385,6 +385,7 @@ describe('backendWeatherServiceClient', () => {
       expect(diag.coverageInside).toBe(false);
       expect(diag.fallbackToLegacy).toBe(true);
       expect(diag.boundsSource).toBe('controller');
+      expect(diag.fallbackReason).toBe('Requested viewport completely outside GFS Wind pilot coverage area');
     });
 
     it('falls back to window.map if bounds are missing', async () => {
