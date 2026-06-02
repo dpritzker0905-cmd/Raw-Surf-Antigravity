@@ -276,10 +276,9 @@ async def health_check():
     minutes, seconds = divmod(remainder, 60)
     return {
         "status": "healthy",
-        "version": "2.0.0-gc-safety-v3",
+        "version": "2.0.0-gc-safety-v4",
         "uptime": f"{hours}h {minutes}m {seconds}s",
         "uptime_seconds": round(uptime_seconds, 1),
-        "python_version": platform.python_version(),
         "environment": os.environ.get("RENDER", "local"),
     }
 

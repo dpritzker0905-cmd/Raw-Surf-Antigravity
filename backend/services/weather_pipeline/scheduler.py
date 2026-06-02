@@ -224,12 +224,13 @@ class WeatherPipelineScheduler:
         total_success = 0
 
         for layer in layers:
-            # Check if credentials are configured
+            # Check if credentials are configured (force mock mode on Render free tier to prevent 512MB RAM OOM subprocess crashes)
             import os
+            is_render = os.environ.get("RENDER") == "true"
             has_credentials = bool(
                 os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME") and
                 os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
-            )
+            ) and not is_render
             
             results = None
             res_to_save = 0.5
