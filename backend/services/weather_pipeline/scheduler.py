@@ -111,10 +111,16 @@ class WeatherPipelineScheduler:
                 if product:
                     self.store.save_product(product, resolution=region["resolution"])
                     success_count += 1
+                    del product
+                    import gc
+                    gc.collect()
                     await asyncio.sleep(0.2)
             except Exception as e:
                 logger.error(f"[Pipeline Scheduler] Normalization error at hour index {idx}: {e}")
 
+        del results
+        import gc
+        gc.collect()
         logger.info(f"[Pipeline Scheduler] GFS Marine Ingestion Job done! Saved {success_count} hourly grid files.")
         return success_count > 0
 
@@ -193,10 +199,16 @@ class WeatherPipelineScheduler:
                 if product:
                     self.store.save_product(product, resolution=region["resolution"])
                     success_count += 1
+                    del product
+                    import gc
+                    gc.collect()
                     await asyncio.sleep(0.2)
             except Exception as e:
                 logger.error(f"[Pipeline Scheduler] Normalization error at hour index {idx}: {e}")
 
+        del results
+        import gc
+        gc.collect()
         logger.info(f"[Pipeline Scheduler] GFS Wind Ingestion Job done! Saved {success_count} hourly grid files.")
         return success_count > 0
 
@@ -299,9 +311,16 @@ class WeatherPipelineScheduler:
                     if product:
                         self.store.save_product(product, resolution=res_to_save)
                         total_success += 1
+                        del product
+                        import gc
+                        gc.collect()
                         await asyncio.sleep(0.2)
                 except Exception as e:
                     logger.error(f"[Pipeline Scheduler] Copernicus normalize error for {layer} at {time_str}: {e}")
+
+            del results
+            import gc
+            gc.collect()
 
         logger.info(f"[Pipeline Scheduler] Copernicus Ingestion Job completed! Saved {total_success} product files.")
         return total_success > 0
