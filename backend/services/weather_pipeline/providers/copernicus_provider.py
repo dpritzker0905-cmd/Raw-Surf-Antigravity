@@ -27,7 +27,7 @@ class CopernicusProvider:
         forecast_days: int = 3
     ) -> Optional[List[Dict[str, Any]]]:
         """
-        Asynchronously fetches a coordinate snap-grid from CMEMS using the existing service.
+        Asynchronously fetches a coordinate snap-grid from CMEMS using the existing service in-process.
         Returns a list of shaped coordinate dicts.
         """
         # Step 1: Generate coordinates
@@ -57,94 +57,20 @@ class CopernicusProvider:
             variables = list(variables) + ["wave_height"]
 
         logger.info(
-            f"[Copernicus Provider] Running background ingestion for EURO/{layer}. "
+            f"[Copernicus Provider] Running in-process background ingestion for EURO/{layer}. "
             f"Bbox: {bbox} | Coords count: {len(lats)} | Variables: {variables}"
         )
 
         try:
-            import os
-            import tempfile
-            import json
-            import sys
-            import asyncio
-            from pathlib import Path
-
-            input_fd, input_path_str = tempfile.mkstemp(suffix="_in.json", prefix="cop_fetch_")
-            os.close(input_fd)
-            output_fd, output_path_str = tempfile.mkstemp(suffix="_out.json", prefix="cop_fetch_")
-            os.close(output_fd)
-            temp_nc_fd, temp_nc_path_str = tempfile.mkstemp(suffix="_temp.nc", prefix="cop_fetch_")
-            os.close(temp_nc_fd)
-
-            input_path = Path(input_path_str)
-            output_path = Path(output_path_str)
-            temp_nc_path = Path(temp_nc_path_str)
-
-            # Clean up the 0-byte placeholder created by mkstemp so copernicusmarine can download directly
-            if temp_nc_path.exists():
-                temp_nc_path.unlink()
-
-            req_data = {
-                "latitudes": lats,
-                "longitudes": lons,
-                "forecast_days": forecast_days,
-                "variables": variables
-            }
-            with open(input_path, "w") as f:
-                json.dump(req_data, f)
-
-            script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "copernicus_downloader.py"
-            
-            # Phase 1: Isolated Download (Imports copernicusmarine)
-            logger.info(f"[Copernicus Provider] Phase 1/2: Spawning isolated download subprocess: {script_path}")
-            process1 = await asyncio.create_subprocess_exec(
-                sys.executable, str(script_path), "download", str(input_path), str(temp_nc_path),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+            results = await fetch_euro_marine(
+                latitudes=lats,
+                longitudes=lons,
+                forecast_days=forecast_days,
+                variables=variables
             )
-            stdout1, stderr1 = await process1.communicate()
-            
-            if process1.returncode != 0:
-                stdout_str = stdout1.decode('utf-8', errors='replace')
-                stderr_str = stderr1.decode('utf-8', errors='replace')
-                logger.error(
-                    f"[Copernicus Provider] Phase 1 (Download) failed with code {process1.returncode}.\n"
-                    f"Stdout: {stdout_str}\nStderr: {stderr_str}"
-                )
-                return None
-
-            # Phase 2: Isolated Parse (Imports netCDF4 + numpy)
-            logger.info(f"[Copernicus Provider] Phase 2/2: Spawning isolated parse subprocess: {script_path}")
-            process2 = await asyncio.create_subprocess_exec(
-                sys.executable, str(script_path), "parse", str(input_path), str(temp_nc_path), str(output_path),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout2, stderr2 = await process2.communicate()
-            
-            if process2.returncode != 0:
-                stdout_str = stdout2.decode('utf-8', errors='replace')
-                stderr_str = stderr2.decode('utf-8', errors='replace')
-                logger.error(
-                    f"[Copernicus Provider] Phase 2 (Parse) failed with code {process2.returncode}.\n"
-                    f"Stdout: {stdout_str}\nStderr: {stderr_str}"
-                )
-                return None
-
-            if not output_path.exists():
-                logger.error("[Copernicus Provider] Subprocess exited successfully but output JSON was not created.")
-                return None
-
-            with open(output_path, "r") as f:
-                results = json.load(f)
-            logger.info(f"[Copernicus Provider] Subprocess sequential fetch succeeded, read {len(results)} points.")
+            if results:
+                logger.info(f"[Copernicus Provider] In-process grid fetch succeeded, read {len(results)} points.")
             return results
-
         except Exception as e:
-            logger.error(f"[Copernicus Provider] Subprocess execution exception: {e}")
+            logger.error(f"[Copernicus Provider] In-process grid fetch exception: {e}")
             return None
-        finally:
-            for path in [input_path, output_path, temp_nc_path]:
-                if 'path' in locals() and path.exists():
-                    try: path.unlink()
-                    except Exception: pass
