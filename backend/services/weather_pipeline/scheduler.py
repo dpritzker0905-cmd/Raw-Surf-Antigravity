@@ -40,20 +40,24 @@ class WeatherPipelineScheduler:
         logger.info("[Pipeline Scheduler] Starting GFS Marine Pilot ingestion job...")
         region = REGIONAL_CONFIGS["florida_east_coast"]
         
+        import os
+        is_render = os.environ.get("RENDER") == "true"
+        resolution = 0.5 if is_render else region["resolution"]
+
         # Open-Meteo GFS wave grid fetch
         raw_data = await self.om_provider.fetch_grid(
             model="GFS",
             domain="marine",
             layer="waves",
             bbox=region,
-            resolution=region["resolution"],
+            resolution=resolution,
             forecast_days=2
         )
 
         if not raw_data:
             logger.warning("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Injecting high-fidelity mock wave raw data for offline/deployed fallback...")
             import math
-            lats, lons = self.om_provider.generate_grid_coords(region, region["resolution"])
+            lats, lons = self.om_provider.generate_grid_coords(region, resolution)
             times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
             mock_raw_results_waves = []
             for lat, lon in zip(lats, lons):
@@ -103,13 +107,13 @@ class WeatherPipelineScheduler:
                     layer="waves",
                     raw_results=results,
                     bbox=region,
-                    resolution=region["resolution"],
+                    resolution=resolution,
                     target_time=target_dt,
                     run_time=run_time
                 )
                 
                 if product:
-                    self.store.save_product(product, resolution=region["resolution"])
+                    self.store.save_product(product, resolution=resolution)
                     success_count += 1
                     del product
                     import gc
@@ -132,20 +136,24 @@ class WeatherPipelineScheduler:
         logger.info("[Pipeline Scheduler] Starting GFS Wind Pilot ingestion job...")
         region = REGIONAL_CONFIGS["florida_east_coast"]
         
+        import os
+        is_render = os.environ.get("RENDER") == "true"
+        resolution = 0.5 if is_render else region["resolution"]
+
         # Open-Meteo GFS wind grid fetch
         raw_data = await self.om_provider.fetch_grid(
             model="GFS",
             domain="wind",
             layer="wind",
             bbox=region,
-            resolution=region["resolution"],
+            resolution=resolution,
             forecast_days=2
         )
 
         if not raw_data:
             logger.warning("[Pipeline Scheduler] GFS Wind Ingestion: failed to fetch grid data. Injecting high-fidelity mock wind raw data for offline/deployed fallback...")
             import math
-            lats, lons = self.om_provider.generate_grid_coords(region, region["resolution"])
+            lats, lons = self.om_provider.generate_grid_coords(region, resolution)
             times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
             mock_raw_results_wind = []
             for lat, lon in zip(lats, lons):
@@ -191,13 +199,13 @@ class WeatherPipelineScheduler:
                     layer="wind",
                     raw_results=results,
                     bbox=region,
-                    resolution=region["resolution"],
+                    resolution=resolution,
                     target_time=target_dt,
                     run_time=run_time
                 )
                 
                 if product:
-                    self.store.save_product(product, resolution=region["resolution"])
+                    self.store.save_product(product, resolution=resolution)
                     success_count += 1
                     del product
                     import gc
