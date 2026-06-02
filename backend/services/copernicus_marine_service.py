@@ -177,6 +177,10 @@ def _fetch_sync(
 
     open_start = time.time()
     try:
+        # Force garbage collection to free any cached pipeline memory
+        import gc
+        gc.collect()
+
         ds = copernicusmarine.open_dataset(
             dataset_id=DATASET_ID,
             variables=fetch_vars,
@@ -189,14 +193,35 @@ def _fetch_sync(
             username=username,
             password=password,
         )
-        # v6.13: Perform high-efficiency vectorized selection on the lazy dataset first,
-        # then load ONLY the selected coordinates into memory. This reduces memory
-        # consumption by >3,000x and avoids Render OOM/502 crashes on large grid views.
-        import xarray as xr
-        lat_da = xr.DataArray(latitudes, dims="point")
-        lon_da = xr.DataArray(longitudes, dims="point")
-        ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
-        ds_points = ds_points.load()
+        
+        # Load contiguous slice first (far more memory-safe for Zarr chunks than vectorized point sel)
+        try:
+            lat_sample = ds.latitude.values
+            if len(lat_sample) > 1 and lat_sample[0] > lat_sample[1]:
+                lat_slice = slice(lat_max, lat_min)
+            else:
+                lat_slice = slice(lat_min, lat_max)
+
+            lon_sample = ds.longitude.values
+            if len(lon_sample) > 1 and lon_sample[0] > lon_sample[1]:
+                lon_slice = slice(lon_max, lon_min)
+            else:
+                lon_slice = slice(lon_min, lon_max)
+
+            ds_sliced = ds.sel(latitude=lat_slice, longitude=lon_slice)
+            ds_sliced = ds_sliced.load()
+
+            import xarray as xr
+            lat_da = xr.DataArray(latitudes, dims="point")
+            lon_da = xr.DataArray(longitudes, dims="point")
+            ds_points = ds_sliced.sel(latitude=lat_da, longitude=lon_da, method="nearest")
+        except Exception as slice_err:
+            logger.warning(f"[Copernicus Forensic API] Contiguous slice load failed: {slice_err}. Falling back to default selection.")
+            import xarray as xr
+            lat_da = xr.DataArray(latitudes, dims="point")
+            lon_da = xr.DataArray(longitudes, dims="point")
+            ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
+            ds_points = ds_points.load()
     except Exception as e:
         logger.error(f"[Copernicus Forensic API] Dataset open and load failed: {e}")
         raise
