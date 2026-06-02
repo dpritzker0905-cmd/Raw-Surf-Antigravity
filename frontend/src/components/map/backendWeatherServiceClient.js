@@ -174,7 +174,7 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves') {
  * Clamps or intersects the requested viewport bbox coordinates with the pilot coverage limits.
  * Triggers fallback if viewport lies completely outside West Florida's region.
  */
-export function clampViewportBbox(requestedBbox) {
+export function clampViewportBbox(requestedBbox, layerName = "waves") {
   if (!requestedBbox) {
     return {
       isInside: false,
@@ -192,10 +192,11 @@ export function clampViewportBbox(requestedBbox) {
     north < PILOT_COVERAGE.south ||
     south > PILOT_COVERAGE.north
   ) {
+    const areaName = layerName === "wind" ? "GFS Wind" : "GFS Waves";
     return {
       isInside: false,
       clampedBbox: null,
-      fallbackReason: "Requested viewport completely outside GFS Waves pilot coverage area"
+      fallbackReason: `Requested viewport completely outside ${areaName} pilot coverage area`
     };
   }
 
@@ -708,7 +709,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
     }
   }
 
-  const clampResult = clampViewportBbox(actualBounds);
+  const clampResult = clampViewportBbox(actualBounds, 'wind');
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',
