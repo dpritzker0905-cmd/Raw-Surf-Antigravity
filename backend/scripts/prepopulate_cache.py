@@ -40,15 +40,10 @@ async def main():
         
     # 3. Ingest Copernicus Swell 1
     logger.info("Step 3/3: Ingesting Copernicus Swell 1 grid...")
-    username = os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME")
-    password = os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
-    if not username or not password:
-        logger.warning("Copernicus credentials not configured. Skipping swell_1 ingestion.")
-    else:
-        try:
-            await scheduler.ingest_copernicus_regional()
-        except Exception as e:
-            logger.error(f"Copernicus Swell 1 Ingestion failed: {e}")
+    try:
+        await scheduler.ingest_copernicus_regional()
+    except Exception as e:
+        logger.error(f"Copernicus Swell 1 Ingestion failed: {e}")
             
     logger.info("====================================================")
     logger.info("Pre-population completed.")

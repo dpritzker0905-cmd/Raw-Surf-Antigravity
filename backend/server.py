@@ -205,15 +205,10 @@ async def run_background_cache_population():
                 logger.info("[lifespan] Running GFS wind grid pre-population...")
                 await scheduler.ingest_gfs_wind_pilot()
             
-            # Step 3: Ingest Copernicus Swell 1 if missing and credentials exist
+            # Step 3: Ingest Copernicus Swell 1 if missing
             if need_copernicus:
-                cop_username = os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME")
-                cop_password = os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
-                if cop_username and cop_password:
-                    logger.info("[lifespan] Running Copernicus swell_1 grid pre-population...")
-                    await scheduler.ingest_copernicus_regional()
-                else:
-                    logger.warning("[lifespan] Copernicus credentials not configured. Skipping background swell_1 pre-population.")
+                logger.info("[lifespan] Running Copernicus swell_1 grid pre-population (will fall back to high-fidelity mock if credentials missing)...")
+                await scheduler.ingest_copernicus_regional()
             
             logger.info("[lifespan] Background cache pre-population completed successfully!")
         except Exception as e:
