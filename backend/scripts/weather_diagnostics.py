@@ -9,6 +9,9 @@ from datetime import datetime, timezone, timedelta
 backend_dir = Path(__file__).parent.parent
 sys.path.append(str(backend_dir))
 
+from dotenv import load_dotenv
+load_dotenv(backend_dir / ".env", override=True)
+
 from services.weather_pipeline.scheduler import WeatherPipelineScheduler, REGIONAL_CONFIGS
 from services.weather_pipeline.store import ProductStore
 from services.weather_pipeline.sampler import PointSampler
@@ -131,6 +134,17 @@ async def run_diagnostics():
                 success_count_wind += 1
         logger.info(f"Offline Ingestion Injected: Saved {success_count_wind} GFS Wind mock grid files into cache!")
         gfs_wind_success = True
+
+    # 1C. Trigger Copernicus Regional swell_1 grid ingestion
+    logger.info("\nSTEP 1C: Triggering Copernicus Regional swell_1 ingestion job...")
+    try:
+        cop_success = await scheduler.ingest_copernicus_regional()
+        if cop_success:
+            logger.info("SUCCESS: Copernicus Regional swell_1 grid successfully ingested and cached!")
+        else:
+            logger.error("ERROR: Copernicus Regional swell_1 ingestion job returned failure status.")
+    except Exception as e:
+        logger.error(f"ERROR: Copernicus Regional swell_1 ingestion failed with exception: {e}")
 
     # 2. Query point forecast near Cape Canaveral (28.40, -80.60)
     lat, lng = 28.40, -80.60

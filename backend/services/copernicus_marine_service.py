@@ -193,26 +193,43 @@ def _fetch_sync(
             username=username,
             password=password,
         )
-        # Perform vectorized selection on the lazy dataset first (reduces data size by 30x)
-        import xarray as xr
-        lat_da = xr.DataArray(latitudes, dims="point")
-        lon_da = xr.DataArray(longitudes, dims="point")
-        ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
+        # Check coordinate sorting to handle both ascending/descending datasets safely
+        lats_coord = ds.latitude.values
+        is_descending = len(lats_coord) > 1 and lats_coord[0] > lats_coord[-1]
+        
+        lons_coord = ds.longitude.values
+        lon_descending = len(lons_coord) > 1 and lons_coord[0] > lons_coord[-1]
+        
+        lat_slice = slice(lat_max, lat_min) if is_descending else slice(lat_min, lat_max)
+        lon_slice = slice(lon_max, lon_min) if lon_descending else slice(lon_min, lon_max)
+        
+        logger.info(
+            f"[Copernicus Forensic API] Slicing remote dataset: "
+            f"lat_slice={lat_slice}, lon_slice={lon_slice}"
+        )
+        
+        ds_sliced = ds.sel(latitude=lat_slice, longitude=lon_slice)
         
         # Load variables sequentially and synchronously to minimize peak memory footprint
         import dask
         with dask.config.set(scheduler='synchronous'):
             for var in fetch_vars:
-                if var in ds_points:
-                    ds_points[var] = ds_points[var].load()
+                if var in ds_sliced:
+                    ds_sliced[var] = ds_sliced[var].load()
                     
             # Also load coordinate variables
-            if "latitude" in ds_points:
-                ds_points["latitude"] = ds_points["latitude"].load()
-            if "longitude" in ds_points:
-                ds_points["longitude"] = ds_points["longitude"].load()
-            if "time" in ds_points:
-                ds_points["time"] = ds_points["time"].load()
+            if "latitude" in ds_sliced:
+                ds_sliced["latitude"] = ds_sliced["latitude"].load()
+            if "longitude" in ds_sliced:
+                ds_sliced["longitude"] = ds_sliced["longitude"].load()
+            if "time" in ds_sliced:
+                ds_sliced["time"] = ds_sliced["time"].load()
+
+        # Perform pointwise selection locally in memory on the loaded dataset
+        import xarray as xr
+        lat_da = xr.DataArray(latitudes, dims="point")
+        lon_da = xr.DataArray(longitudes, dims="point")
+        ds_points = ds_sliced.sel(latitude=lat_da, longitude=lon_da, method="nearest")
     except Exception as e:
         logger.error(f"[Copernicus Forensic API] Dataset open and load failed: {e}")
         raise
