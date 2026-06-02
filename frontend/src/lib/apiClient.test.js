@@ -41,71 +41,63 @@ describe('apiClient', () => {
       // Re-import to get fresh interceptors
       const { default: client } = require('./apiClient');
 
-      // Mock the actual HTTP call
+      // Mock the actual HTTP call via Axios adapter
       const mockAdapter = jest.fn().mockResolvedValue({
         status: 200,
         data: {},
         headers: {},
         config: {},
       });
+      client.defaults.adapter = mockAdapter;
 
-      // Intercept the request config before it goes out
-      let capturedConfig = null;
-      client.interceptors.request.use((config) => {
-        capturedConfig = config;
-        throw new axios.Cancel('stop'); // Short-circuit the request
-      });
+      await client.get('/test');
 
-      try {
-        await client.get('/test');
-      } catch (e) {
-        // Expected cancel
-      }
-
-      if (capturedConfig) {
-        expect(capturedConfig.headers['Authorization']).toMatch(/^Bearer /);
-      }
+      expect(mockAdapter).toHaveBeenCalled();
+      const passedConfig = mockAdapter.mock.calls[0][0];
+      expect(passedConfig.headers['Authorization']).toMatch(/^Bearer /);
     });
 
     it('does not inject Authorization header when no user in localStorage', async () => {
       // No user stored
       const { default: client } = require('./apiClient');
 
-      let capturedConfig = null;
-      client.interceptors.request.use((config) => {
-        capturedConfig = config;
-        throw new axios.Cancel('stop');
+      const mockAdapter = jest.fn().mockResolvedValue({
+        status: 200,
+        data: {},
+        headers: {},
+        config: {},
       });
+      client.defaults.adapter = mockAdapter;
 
-      try {
-        await client.get('/test');
-      } catch (e) {
-        // Expected cancel
-      }
+      await client.get('/test');
 
-      if (capturedConfig) {
-        expect(capturedConfig.headers['Authorization']).toBeUndefined();
-      }
+      expect(mockAdapter).toHaveBeenCalled();
+      const passedConfig = mockAdapter.mock.calls[0][0];
+      expect(passedConfig.headers['Authorization']).toBeUndefined();
     });
 
     it('silently skips malformed localStorage JSON', async () => {
       localStorage.setItem('raw-surf-user', 'NOT_VALID_JSON{{{{');
       const { default: client } = require('./apiClient');
 
-      let error = null;
-      client.interceptors.request.use(
-        (config) => { throw new axios.Cancel('stop'); },
-        (err) => { error = err; }
-      );
+      const mockAdapter = jest.fn().mockResolvedValue({
+        status: 200,
+        data: {},
+        headers: {},
+        config: {},
+      });
+      client.defaults.adapter = mockAdapter;
 
+      let error = null;
       try {
         await client.get('/test');
-      } catch (e) {
-        // Expected cancel
+      } catch (err) {
+        error = err;
       }
 
-      // Should not throw a JSON parse error
+      // Should not throw a JSON parse error, should complete successfully
       expect(error).toBeNull();
+      expect(mockAdapter).toHaveBeenCalled();
     });
   });
 
@@ -115,9 +107,9 @@ describe('apiClient', () => {
       expect(client.defaults.baseURL).toBe(`${BACKEND_URL}/api`);
     });
 
-    it('has 30s timeout configured', () => {
+    it('has 60s timeout configured', () => {
       const { default: client } = require('./apiClient');
-      expect(client.defaults.timeout).toBe(30000);
+      expect(client.defaults.timeout).toBe(60000);
     });
   });
 });
