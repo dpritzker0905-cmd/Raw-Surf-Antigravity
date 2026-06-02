@@ -11,38 +11,7 @@ load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ── Early Synchronous Cache Check & Subprocess Diagnostics ──
-is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
-if not is_testing:
-    cache_dir = ROOT_DIR / "uploads" / "weather_products"
-    manifest_path = cache_dir / "manifest.json"
-    cache_exists = False
-    if manifest_path.exists():
-        try:
-            import json
-            with open(manifest_path, "r") as f:
-                data = json.load(f)
-                if data.get("products"):
-                    cache_exists = True
-        except Exception:
-            pass
-            
-    if not cache_exists:
-        logger.info("[Startup Process] Cache is empty. Spawning weather_diagnostics subprocess...")
-        try:
-            script_path = ROOT_DIR / "scripts" / "weather_diagnostics.py"
-            result = subprocess.run(
-                [sys.executable, str(script_path)],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            if result.returncode == 0:
-                logger.info("[Startup Process] Weather diagnostics subprocess completed successfully.")
-            else:
-                logger.error(f"[Startup Process] Weather diagnostics subprocess failed (code {result.returncode}):\n{result.stderr}")
-        except Exception as se:
-            logger.error(f"[Startup Process] Failed to run weather diagnostics subprocess: {se}")
+# (Early Synchronous Cache Check has been shifted to the lifespan function to avoid blocking port binding and causing Render health check failures)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -193,6 +162,57 @@ async def ensure_database_tables():
             logger.info("[DB Migration] ✓ profiles.avatar_url already TEXT or absent")
 
 
+async def run_background_cache_population():
+    """
+    Asynchronously checks the weather product cache and spawns an isolated 
+    weather_diagnostics subprocess in the background if it is empty. 
+    This prevents blocking uvicorn's event loop and port binding during startup, 
+    avoiding Render deployment health check timeouts.
+    """
+    logger.info("[lifespan] Starting background cache pre-population check...")
+    cache_dir = ROOT_DIR / "uploads" / "weather_products"
+    manifest_path = cache_dir / "manifest.json"
+    cache_exists = False
+    if manifest_path.exists():
+        try:
+            import json
+            with open(manifest_path, "r") as f:
+                data = json.load(f)
+                if data.get("products"):
+                    cache_exists = True
+        except Exception:
+            pass
+
+    if not cache_exists:
+        logger.info("[lifespan] Cache is empty. Spawning weather_diagnostics background subprocess...")
+        try:
+            script_path = ROOT_DIR / "scripts" / "weather_diagnostics.py"
+            # Asynchronously spawn the subprocess
+            import asyncio
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, str(script_path),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            logger.info(f"[lifespan] Weather diagnostics subprocess spawned with PID {process.pid}")
+            
+            # Wait for it in a non-blocking way
+            stdout, stderr = await process.communicate()
+            returncode = process.returncode
+            if returncode == 0:
+                logger.info(f"[lifespan] Weather diagnostics background subprocess (PID {process.pid}) completed successfully.")
+            else:
+                stderr_str = stderr.decode('utf-8', errors='replace')
+                logger.error(
+                    f"[lifespan] Weather diagnostics background subprocess (PID {process.pid}) failed with code {returncode}.\n"
+                    f"Stderr: {stderr_str}"
+                )
+        except Exception as se:
+            logger.error(f"[lifespan] Failed to spawn weather diagnostics background subprocess: {se}")
+    else:
+        logger.info("[lifespan] Cache is already populated. Background ingestion skipped.")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Raw Surf OS API...")
@@ -200,6 +220,12 @@ async def lifespan(app: FastAPI):
     await ensure_database_tables()
     # Start background scheduler
     start_scheduler()
+
+    # Trigger background cache pre-population check in a non-blocking way
+    is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
+    if not is_testing:
+        import asyncio
+        asyncio.create_task(run_background_cache_population())
 
     yield
     logger.info("Shutting down Raw Surf OS API...")
