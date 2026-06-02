@@ -23,6 +23,18 @@ load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Run weather diagnostics as a separate subprocess to prevent FastAPI module import memory overhead on Render
+if os.environ.get("RENDER") == "true" or os.environ.get("FORCE_STARTUP_DIAGNOSTICS") == "true":
+    logger.info("[Startup Process] Deployed on Render. Running weather diagnostics subprocess...")
+    try:
+        import subprocess
+        import sys
+        script_path = Path(__file__).parent / "scripts" / "weather_diagnostics.py"
+        subprocess.run([sys.executable, str(script_path)], check=True)
+        logger.info("[Startup Process] Weather diagnostics subprocess completed successfully.")
+    except Exception as e:
+        logger.error(f"[Startup Process] Weather diagnostics subprocess failed: {e}")
+
 # ── Stripe API key: check both common env var names ──
 # STRIPE_SECRET_KEY is the Stripe standard; STRIPE_API_KEY is the legacy name used in some files.
 STRIPE_API_KEY = (
