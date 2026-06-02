@@ -120,10 +120,13 @@ def _fetch_sync(
     forecast_days: int,
     variables: Optional[List[str]] = None,
 ) -> List[dict]:
-    """Synchronous Copernicus fetch (runs in thread pool) with precise timing telemetry."""
+    """Synchronous Copernicus fetch (runs in thread pool) using subset API to prevent memory OOMs."""
     import copernicusmarine
+    import xarray as xr
     import numpy as np
     import time
+    from pathlib import Path
+    import tempfile
 
     start_time_total = time.time()
     username, password = _check_credentials()
@@ -169,69 +172,65 @@ def _fetch_sync(
     end_time = now + timedelta(days=forecast_days)
 
     logger.info(
-        f"[Copernicus Forensic API] Fetching {len(latitudes)} points, "
+        f"[Copernicus Subset API] Fetching {len(latitudes)} points, "
         f"bbox=[{lat_min:.2f},{lat_max:.2f},{lon_min:.2f},{lon_max:.2f}], "
         f"vars={len(fetch_vars)}/{len(COPERNICUS_VARS)}, "
         f"time=[{start_time.isoformat()},{end_time.isoformat()}]"
     )
 
     open_start = time.time()
+    temp_file = None
+
     try:
-        # Force garbage collection to free any cached pipeline memory
         import gc
         gc.collect()
 
-        ds = copernicusmarine.open_dataset(
+        # Create a temp file to hold the subset NetCDF
+        fd, temp_path_str = tempfile.mkstemp(suffix=".nc", prefix="cmems_subset_")
+        os.close(fd) # Close file descriptor, let copernicusmarine open it
+        temp_file = Path(temp_path_str)
+
+        # Download subset directly to temp file
+        copernicusmarine.subset(
             dataset_id=DATASET_ID,
             variables=fetch_vars,
-            minimum_latitude=lat_min,
-            maximum_latitude=lat_max,
             minimum_longitude=lon_min,
             maximum_longitude=lon_max,
+            minimum_latitude=lat_min,
+            maximum_latitude=lat_max,
             start_datetime=start_time.strftime("%Y-%m-%dT%H:%M:%S"),
             end_datetime=end_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            output_directory=str(temp_file.parent),
+            output_filename=temp_file.name,
             username=username,
-            password=password,
+            password=password
         )
-        # Check coordinate sorting to handle both ascending/descending datasets safely
-        lats_coord = ds.latitude.values
-        is_descending = len(lats_coord) > 1 and lats_coord[0] > lats_coord[-1]
-        
-        lons_coord = ds.longitude.values
-        lon_descending = len(lons_coord) > 1 and lons_coord[0] > lons_coord[-1]
-        
-        lat_slice = slice(lat_max, lat_min) if is_descending else slice(lat_min, lat_max)
-        lon_slice = slice(lon_max, lon_min) if lon_descending else slice(lon_min, lon_max)
-        
-        logger.info(
-            f"[Copernicus Forensic API] Slicing remote dataset: "
-            f"lat_slice={lat_slice}, lon_slice={lon_slice}"
-        )
-        
-        ds_sliced = ds.sel(latitude=lat_slice, longitude=lon_slice)
-        
-        # Load variables sequentially and synchronously to minimize peak memory footprint
-        import dask
-        with dask.config.set(scheduler='synchronous'):
-            for var in fetch_vars:
-                if var in ds_sliced:
-                    ds_sliced[var] = ds_sliced[var].load()
-                    
-            # Also load coordinate variables
-            if "latitude" in ds_sliced:
-                ds_sliced["latitude"] = ds_sliced["latitude"].load()
-            if "longitude" in ds_sliced:
-                ds_sliced["longitude"] = ds_sliced["longitude"].load()
-            if "time" in ds_sliced:
-                ds_sliced["time"] = ds_sliced["time"].load()
+
+        # Open download subset locally using xarray
+        ds = xr.open_dataset(temp_file)
+
+        # Load variables to memory synchronously
+        for var in fetch_vars:
+            if var in ds:
+                ds[var] = ds[var].load()
+        if "latitude" in ds:
+            ds["latitude"] = ds["latitude"].load()
+        if "longitude" in ds:
+            ds["longitude"] = ds["longitude"].load()
+        if "time" in ds:
+            ds["time"] = ds["time"].load()
 
         # Perform pointwise selection locally in memory on the loaded dataset
-        import xarray as xr
         lat_da = xr.DataArray(latitudes, dims="point")
         lon_da = xr.DataArray(longitudes, dims="point")
-        ds_points = ds_sliced.sel(latitude=lat_da, longitude=lon_da, method="nearest")
+        ds_points = ds.sel(latitude=lat_da, longitude=lon_da, method="nearest")
     except Exception as e:
-        logger.error(f"[Copernicus Forensic API] Dataset open and load failed: {e}")
+        logger.error(f"[Copernicus Subset API] Subset fetch and load failed: {e}")
+        if temp_file and temp_file.exists():
+            try:
+                temp_file.unlink()
+            except Exception:
+                pass
         raise
     open_time = time.time() - open_start
 
@@ -282,7 +281,7 @@ def _fetch_sync(
 
         except Exception as e:
             logger.warning(
-                f"[Copernicus Forensic API] Point {lat},{lon} extraction failed: {e}"
+                f"[Copernicus Subset API] Point {lat},{lon} extraction failed: {e}"
             )
             results.append({
                 "latitude": lat,
@@ -298,12 +297,14 @@ def _fetch_sync(
             })
     extract_time = time.time() - extract_start
 
-    # Close dataset and explicitly free memory
+    # Close dataset and explicitly free memory/delete temp file
     try:
         ds_points.close()
         del ds_points
         ds.close()
         del ds
+        if temp_file and temp_file.exists():
+            temp_file.unlink()
         import gc
         gc.collect()
     except Exception:
@@ -311,7 +312,7 @@ def _fetch_sync(
 
     total_time = time.time() - start_time_total
 
-    # v6.9: Expose timing telemetries directly inside the JSON response
+    # Expose timing telemetries directly inside the JSON response
     for res in results:
         res["__diagnostics"] = {
             "open_time_sec": round(open_time, 3),
@@ -328,3 +329,4 @@ def _fetch_sync(
         f"TotalTime: {total_time:.2f}s | Variables: {fetch_vars}"
     )
     return results
+
