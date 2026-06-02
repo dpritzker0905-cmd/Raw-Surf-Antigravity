@@ -1,27 +1,58 @@
-"""
-Raw Surf OS API Server
-Refactored to use modular routers for better maintainability
-"""
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from contextlib import asynccontextmanager
 import os
+import sys
+import subprocess
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-import json
-import stripe
-
-from database import engine, Base
-from routes import api_router
-from scheduler import start_scheduler, stop_scheduler
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .env values
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ── Early Synchronous Cache Check & Subprocess Diagnostics ──
+is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
+if not is_testing:
+    cache_dir = ROOT_DIR / "uploads" / "weather_products"
+    manifest_path = cache_dir / "manifest.json"
+    cache_exists = False
+    if manifest_path.exists():
+        try:
+            import json
+            with open(manifest_path, "r") as f:
+                data = json.load(f)
+                if data.get("products"):
+                    cache_exists = True
+        except Exception:
+            pass
+            
+    if not cache_exists:
+        logger.info("[Startup Process] Cache is empty. Spawning weather_diagnostics subprocess...")
+        try:
+            script_path = ROOT_DIR / "scripts" / "weather_diagnostics.py"
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if result.returncode == 0:
+                logger.info("[Startup Process] Weather diagnostics subprocess completed successfully.")
+            else:
+                logger.error(f"[Startup Process] Weather diagnostics subprocess failed (code {result.returncode}):\n{result.stderr}")
+        except Exception as se:
+            logger.error(f"[Startup Process] Failed to run weather diagnostics subprocess: {se}")
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from contextlib import asynccontextmanager
+import stripe
+
+from database import engine, Base
+from routes import api_router
+from scheduler import start_scheduler, stop_scheduler
 
 # Run weather diagnostics subprocess has been reverted to background task to prevent port timeouts
 # ── Stripe API key: check both common env var names ──
@@ -169,55 +200,6 @@ async def lifespan(app: FastAPI):
     await ensure_database_tables()
     # Start background scheduler
     start_scheduler()
-    
-    # ── Synchronous Pre-population of Weather Cache inside Lifespan ──
-    try:
-        import sys
-        import gc
-        is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
-        
-        if is_testing:
-            logger.info("[Lifespan Startup] Running in test mode. Skipping weather pre-population.")
-        else:
-            from services.weather_pipeline.store import ProductStore
-            store = ProductStore()
-            manifest = store.get_manifest()
-            
-            has_waves = any(p.model == "GFS" and p.layer == "waves" for p in manifest.products)
-            has_wind = any(p.model == "GFS" and p.layer == "wind" for p in manifest.products)
-            has_copernicus = any(p.model == "EURO" and p.layer == "swell_1" for p in manifest.products)
-            
-            if not has_waves or not has_wind or not has_copernicus:
-                logger.info("[Lifespan Startup] Weather cache is incomplete. Pre-populating cache synchronously in lifespan...")
-                from scripts.weather_diagnostics import run_diagnostics
-                
-                # Await in-process diagnostics to build all cache files (GFS Waves + GFS Wind + Copernicus Swell 1)
-                await run_diagnostics()
-                
-                # Clean up heavy libraries to release memory before yielding to Uvicorn requests
-                heavy_mods = [
-                    "copernicusmarine", "netCDF4", "numpy", "pandas", "xarray", "dask",
-                    "services.weather_pipeline.scheduler", "services.copernicus_marine_service",
-                    "scripts.weather_diagnostics"
-                ]
-                for mod in list(sys.modules.keys()):
-                    for heavy in heavy_mods:
-                        if mod == heavy or mod.startswith(heavy + "."):
-                            sys.modules.pop(mod, None)
-                gc.collect()
-                logger.info("[Lifespan Startup] Pre-population complete. Heavy modules unloaded from memory.")
-            else:
-                logger.info("[Lifespan Startup] Weather cache already fully populated. Skipping pre-population.")
-    except Exception as pe:
-        import traceback
-        logger.error(f"[Lifespan Startup] Failed during weather pre-population: {pe}")
-        try:
-            log_path = Path(__file__).parent / "diagnostics.log"
-            with open(log_path, "w", encoding="utf-8") as f:
-                f.write(f"FATAL: Lifespan pre-population failed: {pe}\n")
-                f.write(traceback.format_exc())
-        except Exception as le:
-            logger.error(f"[Lifespan Startup] Failed to write pre-population traceback: {le}")
 
     yield
     logger.info("Shutting down Raw Surf OS API...")
