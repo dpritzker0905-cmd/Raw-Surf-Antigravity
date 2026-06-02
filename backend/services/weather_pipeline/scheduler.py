@@ -223,17 +223,23 @@ class WeatherPipelineScheduler:
         run_time = datetime.now(timezone.utc)
         total_success = 0
 
+        # Detect test fixture environment flags
+        import os
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or 
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+
         for layer in layers:
-            # Check if credentials are configured (force mock mode on Render free tier to prevent 512MB RAM OOM subprocess crashes)
-            import os
-            is_render = os.environ.get("RENDER") == "true"
+            # Check if credentials are configured
             has_credentials = bool(
                 os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME") and
                 os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
-            ) and not is_render
+            )
             
             results = None
             res_to_save = 0.5
+            provider_name = "copernicus"
             
             if has_credentials:
                 # Copernicus NetCDF regional slice fetch
@@ -244,43 +250,48 @@ class WeatherPipelineScheduler:
                     forecast_days=3
                 )
             else:
-                logger.info("[Pipeline Scheduler] Copernicus credentials not configured. Skipping subprocess fetch and generating coarse mock data directly.")
+                logger.warning("[Pipeline Scheduler] Copernicus credentials not configured. Skipping CMEMS fetch.")
 
             if not results:
-                logger.warning(f"[Pipeline Scheduler] Copernicus Ingestion: failed to fetch grid for layer: {layer}. Injecting high-fidelity mock Copernicus regional wave data...")
-                import math
-                mock_res = 1.5 # Coarser resolution to scale down coords count and save memory/CPU
-                res_to_save = mock_res
-                lats, lons = OpenMeteoProvider.generate_grid_coords(region, mock_res)
-                # Generate hourly times for the next 72 hours matching GFS times
-                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 72)]
-                mock_results = []
-                for lat, lon in zip(lats, lons):
-                    mock_results.append({
-                        "latitude": lat,
-                        "longitude": lon,
-                        "generationtime_ms": 0,
-                        "utc_offset_seconds": 0,
-                        "timezone": "GMT",
-                        "timezone_abbreviation": "GMT",
-                        "elevation": 0,
-                        "__provider": "copernicus",
-                        "hourly_units": {
-                            "time": "iso8601",
-                            "swell_wave_height": "m",
-                            "swell_wave_direction": "°",
-                            "swell_wave_period": "s",
-                            "wave_height": "m"
-                        },
-                        "hourly": {
-                            "time": times,
-                            "swell_wave_height": [0.8 + 0.3 * math.sin(lat) for _ in times],
-                            "swell_wave_direction": [110.0 for _ in times],
-                            "swell_wave_period": [8.0 for _ in times],
-                            "wave_height": [1.0 + 0.3 * math.sin(lat) for _ in times]
-                        }
-                    })
-                results = mock_results
+                if is_test_env:
+                    logger.info("[Pipeline Scheduler] Test environment active. Generating isolated mock Copernicus test fixture...")
+                    import math
+                    mock_res = 1.5 # Coarser resolution to scale down coords count and save memory/CPU
+                    res_to_save = mock_res
+                    provider_name = "test-fixture"
+                    lats, lons = OpenMeteoProvider.generate_grid_coords(region, mock_res)
+                    # Generate hourly times for the next 72 hours matching GFS times
+                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 72)]
+                    mock_results = []
+                    for lat, lon in zip(lats, lons):
+                        mock_results.append({
+                            "latitude": lat,
+                            "longitude": lon,
+                            "generationtime_ms": 0,
+                            "utc_offset_seconds": 0,
+                            "timezone": "GMT",
+                            "timezone_abbreviation": "GMT",
+                            "elevation": 0,
+                            "__provider": "test-fixture",
+                            "hourly_units": {
+                                "time": "iso8601",
+                                "swell_wave_height": "m",
+                                "swell_wave_direction": "°",
+                                "swell_wave_period": "s",
+                                "wave_height": "m"
+                            },
+                            "hourly": {
+                                "time": times,
+                                "swell_wave_height": [0.8 + 0.3 * math.sin(lat) for _ in times],
+                                "swell_wave_direction": [110.0 for _ in times],
+                                "swell_wave_period": [8.0 for _ in times],
+                                "wave_height": [1.0 + 0.3 * math.sin(lat) for _ in times]
+                            }
+                        })
+                    results = mock_results
+                else:
+                    logger.error(f"[Pipeline Scheduler] Copernicus Ingestion: failed to fetch grid for layer: {layer}. No credentials or CMEMS error. Ingestion failed (will not generate synthetic data in production/dev).")
+                    continue
 
             first_pt = results[0]
             times = first_pt.get("hourly", {}).get("time", [])
@@ -299,7 +310,7 @@ class WeatherPipelineScheduler:
                 try:
                     product = self.normalizer.normalize(
                         model="EURO",
-                        provider="copernicus",
+                        provider=provider_name,
                         domain="marine",
                         layer=layer,
                         raw_results=results,

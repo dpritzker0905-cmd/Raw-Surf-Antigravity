@@ -886,7 +886,12 @@ if (typeof window !== 'undefined') {
     renderable: false,
     gridValidTime: null,
     pointValidTime: null,
-    boundsSource: 'controller'
+    boundsSource: 'controller',
+    sourceDataset: null,
+    sourceVariables: null,
+    is_forecast_authoritative: false,
+    is_estimated: false,
+    is_test_fixture: false
   };
 }
 
@@ -919,7 +924,12 @@ export function updateCopernicusDiagnostics(type, details) {
       renderable: false,
       gridValidTime: null,
       pointValidTime: null,
-      boundsSource: 'controller'
+      boundsSource: 'controller',
+      sourceDataset: null,
+      sourceVariables: null,
+      is_forecast_authoritative: false,
+      is_estimated: false,
+      is_test_fixture: false
     };
   }
 
@@ -943,9 +953,23 @@ export function updateCopernicusDiagnostics(type, details) {
     diag.coverageInside = isInside;
     diag.fallbackToLegacy = !isInside || !!details.error;
     diag.fallbackReason = details.error || null;
+
+    diag.provider = details.provider || diag.provider;
+    diag.sourceDataset = details.sourceDataset || null;
+    diag.sourceVariables = details.sourceVariables || null;
+    diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
+    diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
+    diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
   } else if (type === 'point') {
     diag.lastPointFetch = details;
     diag.pointValidTime = details.validTime || null;
+
+    diag.provider = details.provider || diag.provider;
+    diag.sourceDataset = details.sourceDataset || null;
+    diag.sourceVariables = details.sourceVariables || null;
+    diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
+    diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
+    diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
   }
 
   if (details.hourOffset !== undefined) {
@@ -961,6 +985,23 @@ export function updateCopernicusDiagnostics(type, details) {
   diag.pointParity = diag.pointValidTime 
     ? (diag.gridValidTime === diag.pointValidTime) 
     : 'pending_point_fetch';
+
+  // Synchronize with window.__COPERNICUS_GRID_DIAG__ for frontend visual inspection compliance
+  window.__COPERNICUS_GRID_DIAG__ = {
+    layer: diag.layer,
+    componentLayer: diag.layer,
+    provider: diag.provider,
+    sourceDataset: diag.sourceDataset,
+    sourceVariables: diag.sourceVariables,
+    is_forecast_authoritative: diag.is_forecast_authoritative,
+    is_estimated: diag.is_estimated,
+    is_test_fixture: diag.is_test_fixture,
+    selectedManifestValidTime: diag.selectedManifestValidTime,
+    pointParity: diag.pointParity,
+    renderable: diag.renderable,
+    fallbackReason: diag.fallbackReason,
+    timestamp: new Date().toISOString()
+  };
 }
 
 /**
@@ -1038,7 +1079,13 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       nonzeroCount: result.grid.nonzeroCount,
       renderable: result.grid.renderable,
       coverageInside: true,
-      boundsSource: actualSource
+      boundsSource: actualSource,
+      provider: json.provider,
+      sourceDataset: json.source_dataset,
+      sourceVariables: json.source_variables,
+      is_forecast_authoritative: json.is_forecast_authoritative,
+      is_estimated: json.is_estimated,
+      is_test_fixture: json.is_test_fixture
     });
 
     return result;
@@ -1053,10 +1100,16 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       clampedBbox,
       hourOffset,
       fallbackToLegacy: true,
-      boundsSource: actualSource
+      boundsSource: actualSource,
+      provider: 'backend-weather-service',
+      sourceDataset: null,
+      sourceVariables: null,
+      is_forecast_authoritative: false,
+      is_estimated: false,
+      is_test_fixture: false
     };
     updateCopernicusDiagnostics('grid', errorDetails);
-    console.error(`[Backend Weather Service] Copernicus grid fetch error: ${err.message}. Falling back cleanly.`);
+    console.error(`[Backend Weather Service] Copernicus grid fetch error: ${err.message}.`);
     throw err;
   }
 }
@@ -1125,7 +1178,12 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       direction: json.point.direction || 0,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
       interpolation_method: json.point.interpolation_method || 'bilinear',
-      provider: json.provider || 'backend-weather-service'
+      provider: json.provider || 'backend-weather-service',
+      sourceDataset: json.source_dataset,
+      sourceVariables: json.source_variables,
+      is_forecast_authoritative: json.is_forecast_authoritative,
+      is_estimated: json.is_estimated,
+      is_test_fixture: json.is_test_fixture
     });
 
     return data;
@@ -1145,9 +1203,14 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       direction: 0,
       interpolationMethod: 'none',
       interpolation_method: 'none',
-      provider: 'none'
+      provider: 'none',
+      sourceDataset: null,
+      sourceVariables: null,
+      is_forecast_authoritative: false,
+      is_estimated: false,
+      is_test_fixture: false
     });
-    console.error(`[Backend Weather Service] Copernicus point fetch error: ${err.message}. Falling back cleanly.`);
+    console.error(`[Backend Weather Service] Copernicus point fetch error: ${err.message}.`);
     throw err;
   }
 }

@@ -224,6 +224,31 @@ class WeatherNormalizer:
                 "period": "seconds"
             }
 
+        source_vars = list(filter(None, [speed_key, direction_key, period_key]))
+        source_dataset = None
+        is_test_fixture = False
+
+        if provider.lower() == "copernicus":
+            source_dataset = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
+            # Map standard variables to CMEMS variable names
+            om_to_cop_map = {
+                "wave_height": "VHM0",
+                "wave_direction": "VMDR",
+                "wave_period": "VTM10",
+                "swell_wave_height": "VHM0_SW1",
+                "swell_wave_direction": "VMDR_SW1",
+                "swell_wave_period": "VTM01_SW1",
+                "secondary_swell_wave_height": "VHM0_SW2",
+                "secondary_swell_wave_direction": "VMDR_SW2",
+                "secondary_swell_wave_period": "VTM01_SW2",
+                "wind_wave_height": "VHM0_WW",
+                "wind_wave_direction": "VMDR_WW",
+                "wind_wave_period": "VTM01_WW",
+            }
+            source_vars = [om_to_cop_map.get(v, v) for v in source_vars]
+        elif provider.lower() == "test-fixture":
+            is_test_fixture = True
+
         return NormalizedProduct(
             model=model.upper(),
             provider=provider.lower(),
@@ -231,16 +256,18 @@ class WeatherNormalizer:
             layer=layer.lower(),
             run_time=run_time,
             valid_time=actual_valid_time,
-            is_forecast_authoritative=True,
-            is_estimated=False,
+            is_forecast_authoritative=provider.lower() != "test-fixture",
+            is_estimated=provider.lower() == "test-fixture",
             coverage=bounds,
             grid=grid,
             value_kind=value_kind,
             value_unit=value_unit,
             display_unit_hint=display_unit_hint,
             units=units,
-            source_variables=list(filter(None, [speed_key, direction_key, period_key])),
-            freshness_sec=1800
+            source_variables=source_vars,
+            freshness_sec=1800,
+            is_test_fixture=is_test_fixture,
+            source_dataset=source_dataset
         )
 
     @staticmethod

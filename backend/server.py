@@ -198,7 +198,7 @@ async def run_background_cache_population():
             import gc
             # Step 1: Ingest Copernicus Swell 1 if missing (run first when memory is at baseline before GFS object allocation)
             if need_copernicus:
-                logger.info("[lifespan] Running Copernicus swell_1 grid pre-population (will fall back to high-fidelity mock if credentials missing)...")
+                logger.info("[lifespan] Running Copernicus swell_1 grid pre-population...")
                 await scheduler.ingest_copernicus_regional()
                 gc.collect()
             
@@ -226,6 +226,15 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Raw Surf OS API...")
     # Database health check - ensure all tables exist
     await ensure_database_tables()
+
+    # Run Copernicus quarantine scan
+    from services.weather_pipeline.store import ProductStore
+    try:
+        store = ProductStore()
+        store.quarantine_invalid_copernicus_products()
+    except Exception as q_err:
+        logger.error(f"[lifespan] Startup Copernicus quarantine failed: {q_err}")
+
     # Start background scheduler
     start_scheduler()
 

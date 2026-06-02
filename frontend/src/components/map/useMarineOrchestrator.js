@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache, getModelSafeMarine } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
+import { getBackendCopernicusFlag } from './backendWeatherServiceClient';
 import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
@@ -367,64 +368,114 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           }
         } else {
           if (model === 'EURO' && layer && COMPONENT_LAYERS.includes(layer)) {
-            phase = 'euro_component';
-            try {
-              const gfsGridData = await fetchMarineData(bounds, zoom, null, timeOffset, false, 'GFS', layer);
-              if (gfsGridData?.grid?.vectors?.length > 0) {
+            if (getBackendCopernicusFlag()) {
+              phase = 'standard_fetch_copernicus';
+              try {
+                data = await fetchMarineData(bounds, zoom, null, timeOffset, false, model, layer);
+                if (!data || !data.grid || !data.grid.renderable) {
+                  console.warn('[Marine] Deployed Copernicus grid returned empty/unrenderable grid.');
+                  data = {
+                    type: 'FeatureCollection',
+                    features: [],
+                    hourOffset: timeOffset,
+                    grid: {
+                      vectors: [],
+                      bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
+                      cols: 0,
+                      rows: 0,
+                      timestamp: Date.now(),
+                      __sourceModel: 'EURO',
+                      __provider: 'backend-weather-service',
+                      __gridProvider: 'backend-weather-service',
+                      __componentLayer: layer,
+                      __gridSupportsLayer: false,
+                      renderable: false,
+                      provider: 'backend-weather-service'
+                    }
+                  };
+                }
+              } catch (err) {
+                console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
                 data = {
-                  ...gfsGridData,
+                  type: 'FeatureCollection',
+                  features: [],
+                  hourOffset: timeOffset,
                   grid: {
-                    ...gfsGridData.grid, __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop',
-                    __baseProvider: 'open-meteo', __overlayProvider: 'pending_copernicus', __isEstimated: true, __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated'
+                    vectors: [],
+                    bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
+                    cols: 0,
+                    rows: 0,
+                    timestamp: Date.now(),
+                    __sourceModel: 'EURO',
+                    __provider: 'backend-weather-service',
+                    __gridProvider: 'backend-weather-service',
+                    __componentLayer: layer,
+                    __gridSupportsLayer: false,
+                    renderable: false,
+                    provider: 'backend-weather-service'
                   }
                 };
               }
-            } catch (err) { console.warn('[Marine] Global backdrop fetch failed:', err.message); }
-
-            if (!data) {
-              data = {
-                type: 'FeatureCollection', features: [],
-                grid: { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop', __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated' }
-              };
-            }
-
-            if (zoom < 4) {
-              if (data?.grid) {
-                data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_backdrop';
-                data.grid.__componentLayer = layer; data.grid.__gridSupportsLayer = true;
-                data.grid.__skippedReason = 'zoom_too_low_fallback'; data.grid.provider = 'estimated';
-              }
             } else {
+              phase = 'euro_component';
               try {
-                const b = mapInstance.getBounds(), west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
-                const lngSpan = east - west, latSpan = north - south, padding = 0.25;
-                const vpBounds = { west: west - lngSpan * padding, east: east + lngSpan * padding, south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding) };
-                
-                const stateValidator = {
-                  getCurrentZoom: () => mapInstance?.getZoom(),
-                  getCurrentBounds: () => {
-                    try {
-                      const b2 = mapInstance.getBounds();
-                      return { west: b2.getWest(), south: b2.getSouth(), east: b2.getEast(), north: b2.getNorth() };
-                    } catch (e) { return null; }
-                  },
-                  isActiveIntent: () => (
-                    activeModelRef.current === 'EURO' &&
-                    activeMarineLayerRef.current === layer &&
-                    timeOffsetRef.current === timeOffset
-                  )
-                };
-
-                const componentGrid = await fetchCopernicusComponentGrid(vpBounds, layer, timeOffset, zoom, stateValidator);
-                if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
-                  data = mergeComponentGrid(data, componentGrid, layer);
-                  if (data?.grid) { data.grid.__baseProvider = 'open-meteo'; data.grid.__overlayProvider = 'copernicus'; data.grid.__isBlended = true; }
-                } else {
-                  if (data?.grid) { data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_fallback'; data.grid.__overlayProvider = 'copernicus_unavailable'; data.grid.provider = 'estimated'; }
+                const gfsGridData = await fetchMarineData(bounds, zoom, null, timeOffset, false, 'GFS', layer);
+                if (gfsGridData?.grid?.vectors?.length > 0) {
+                  data = {
+                    ...gfsGridData,
+                    grid: {
+                      ...gfsGridData.grid, __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop',
+                      __baseProvider: 'open-meteo', __overlayProvider: 'pending_copernicus', __isEstimated: true, __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated'
+                    }
+                  };
                 }
-              } catch (err) {
-                console.warn('[Marine] Copernicus fetch failed:', err.message);
-                if (data?.grid) { data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_fallback'; data.grid.__overlayProvider = 'copernicus_error'; data.grid.provider = 'estimated'; }
+              } catch (err) { console.warn('[Marine] Global backdrop fetch failed:', err.message); }
+
+              if (!data) {
+                data = {
+                  type: 'FeatureCollection', features: [],
+                  grid: { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop', __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated' }
+                };
+              }
+
+              if (zoom < 4) {
+                if (data?.grid) {
+                  data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_backdrop';
+                  data.grid.__componentLayer = layer; data.grid.__gridSupportsLayer = true;
+                  data.grid.__skippedReason = 'zoom_too_low_fallback'; data.grid.provider = 'estimated';
+                }
+              } else {
+                try {
+                  const b = mapInstance.getBounds(), west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
+                  const lngSpan = east - west, latSpan = north - south, padding = 0.25;
+                  const vpBounds = { west: west - lngSpan * padding, east: east + lngSpan * padding, south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding) };
+                  
+                  const stateValidator = {
+                    getCurrentZoom: () => mapInstance?.getZoom(),
+                    getCurrentBounds: () => {
+                      try {
+                        const b2 = mapInstance.getBounds();
+                        return { west: b2.getWest(), south: b2.getSouth(), east: b2.getEast(), north: b2.getNorth() };
+                      } catch (e) { return null; }
+                    },
+                    isActiveIntent: () => (
+                      activeModelRef.current === 'EURO' &&
+                      activeMarineLayerRef.current === layer &&
+                      timeOffsetRef.current === timeOffset
+                    )
+                  };
+
+                  const componentGrid = await fetchCopernicusComponentGrid(vpBounds, layer, timeOffset, zoom, stateValidator);
+                  if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
+                    data = mergeComponentGrid(data, componentGrid, layer);
+                    if (data?.grid) { data.grid.__baseProvider = 'open-meteo'; data.grid.__overlayProvider = 'copernicus'; data.grid.__isBlended = true; }
+                  } else {
+                    if (data?.grid) { data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_fallback'; data.grid.__overlayProvider = 'copernicus_unavailable'; data.grid.provider = 'estimated'; }
+                  }
+                } catch (err) {
+                  console.warn('[Marine] Copernicus fetch failed:', err.message);
+                  if (data?.grid) { data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_fallback'; data.grid.__overlayProvider = 'copernicus_error'; data.grid.provider = 'estimated'; }
+                }
               }
             }
           } else {

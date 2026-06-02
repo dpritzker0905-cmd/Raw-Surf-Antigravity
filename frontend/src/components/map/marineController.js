@@ -415,13 +415,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // --- COPERNICUS BACKEND SERVICE REDIRECT ---
   if (getBackendCopernicusFlag() && model === 'EURO' && activeLayer === 'swell_1') {
-    try {
-      console.log(`[Backend Weather Service] Redirecting Copernicus swell_1 grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
-      const result = await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller");
-      return result;
-    } catch (err) {
-      console.warn(`[Backend Weather Service] Copernicus grid redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
-    }
+    console.log(`[Backend Weather Service] Redirecting Copernicus swell_1 grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+    return await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller");
   }
 
   const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');

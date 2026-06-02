@@ -46,6 +46,8 @@ class NormalizedProduct(BaseModel):
     source_variables: List[str]
     freshness_sec: int
     warnings: List[str] = Field(default_factory=list)
+    is_test_fixture: bool = False
+    source_dataset: Optional[str] = None
 
 class NormalizedPointDetail(BaseModel):
     requested_lat: float
@@ -81,6 +83,8 @@ class NormalizedPointResponse(BaseModel):
     source_variables: List[str]
     freshness_sec: int
     warnings: List[str] = Field(default_factory=list)
+    is_test_fixture: bool = False
+    source_dataset: Optional[str] = None
 
 class ManifestProduct(BaseModel):
     model: str
@@ -95,6 +99,8 @@ class ManifestProduct(BaseModel):
     is_forecast_authoritative: bool
     coverage: CoverageBounds
     filename: str
+    is_test_fixture: bool = False
+    source_dataset: Optional[str] = None
 
 class PipelineManifest(BaseModel):
     last_manifest_update: datetime
