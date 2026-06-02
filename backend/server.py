@@ -168,6 +168,39 @@ async def lifespan(app: FastAPI):
     await ensure_database_tables()
     # Start background scheduler
     start_scheduler()
+    
+    # Run a one-time startup task to ingest GFS waves/wind if the cache is empty
+    # This guarantees the cache is populated immediately when a new deploy starts up!
+    async def trigger_startup_ingestion():
+        import asyncio
+        # Wait 5 seconds to let the server start up and settle
+        await asyncio.sleep(5.0)
+        try:
+            from services.weather_pipeline.store import ProductStore
+            from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+            store = ProductStore()
+            manifest = store.get_manifest()
+            
+            # Check if GFS wind or waves are missing from the cache
+            has_waves = any(p.model == "GFS" and p.layer == "waves" for p in manifest.products)
+            has_wind = any(p.model == "GFS" and p.layer == "wind" for p in manifest.products)
+            
+            if not has_waves or not has_wind:
+                logger.info("[Startup Ingestion] GFS products missing from cache. Triggering ingestion...")
+                scheduler = WeatherPipelineScheduler(store=store)
+                if not has_waves:
+                    await scheduler.ingest_gfs_marine_pilot()
+                if not has_wind:
+                    await scheduler.ingest_gfs_wind_pilot()
+                logger.info("[Startup Ingestion] Ingestion complete.")
+            else:
+                logger.info("[Startup Ingestion] Cache already populated. Skipping startup ingestion.")
+        except Exception as e:
+            logger.error(f"[Startup Ingestion] Failed during startup: {e}")
+
+    import asyncio
+    asyncio.create_task(trigger_startup_ingestion())
+
     yield
     logger.info("Shutting down Raw Surf OS API...")
     # Stop background scheduler
