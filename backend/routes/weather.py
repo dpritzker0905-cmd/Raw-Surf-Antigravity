@@ -251,3 +251,18 @@ async def get_status():
         },
         "last_errors": []
     }
+
+@router.post("/ingest_copernicus")
+async def ingest_copernicus_only():
+    """
+    POST /api/weather/ingest_copernicus
+    Synchronously triggers Copernicus marine swell_1 ingestion and returns the results.
+    """
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    scheduler = WeatherPipelineScheduler(store=store)
+    try:
+        success = await scheduler.ingest_copernicus_regional()
+        return {"status": "success", "ingested": success}
+    except Exception as e:
+        logger.exception("Diagnostic Copernicus ingestion failed")
+        return {"status": "error", "message": str(e)}
