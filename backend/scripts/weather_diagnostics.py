@@ -17,11 +17,15 @@ from services.weather_pipeline.store import ProductStore
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.schemas import NormalizedProduct, CoverageBounds
 
-# Set up logging to stdout using safe stream handler
+# Set up logging to stdout and a file
+log_path = Path(__file__).parent.parent / "diagnostics.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)]
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(log_path, mode="w", encoding="utf-8")
+    ]
 )
 logger = logging.getLogger(__name__)
 
