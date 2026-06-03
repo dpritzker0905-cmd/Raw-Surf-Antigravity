@@ -1,5 +1,8 @@
 # Weather Engine Architecture
 
+> [!NOTE]
+> For the active project roadmap transitioning our weather models to a unified backend-owned architecture (including GFS, ICON, and Copernicus Swell grid coherence), see [weather-backend-migration-roadmap.md](file:///c:/Users/dprit/Raw-Surf/docs/architecture/weather-backend-migration-roadmap.md).
+
 ## Data Flow
 
 ```mermaid

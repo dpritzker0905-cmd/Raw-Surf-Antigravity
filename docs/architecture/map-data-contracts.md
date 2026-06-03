@@ -3,6 +3,9 @@
 > Canonical reference for all data ingestion formats, coordinate logic, and tile rendering pipelines.  
 > Eliminates AI guesswork about data shapes.
 
+> [!NOTE]
+> For the active roadmap transitioning from legacy direct-client weather APIs to backend-prepared products, see the [Weather Backend Migration Roadmap](file:///c:/Users/dprit/Raw-Surf/docs/architecture/weather-backend-migration-roadmap.md).
+
 ---
 
 ## 1. Data Ingestion Pipeline

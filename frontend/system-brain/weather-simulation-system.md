@@ -3,6 +3,9 @@
 
 This document serves as the high-fidelity source of truth for the **Raw Surf OS Map Weather & Marine Simulation System**. It details the architectural bounds, component contracts, binary WASM protocols, GPU-accelerated rendering pipelines, and stabilization checklists necessary to maintain pristine performance and zero regressions.
 
+> [!NOTE]
+> For the active backend-owned weather ingestion engine migration status and GFS/Copernicus API data contracts, see the [Weather Backend Migration Roadmap](file:///c:/Users/dprit/Raw-Surf/docs/architecture/weather-backend-migration-roadmap.md).
+
 ---
 
 ## 1. High-Level Architecture Map
