@@ -140,15 +140,18 @@ Point sampling [sampler.py](file:///c:/Users/dprit/Raw-Surf/backend/services/wea
   * Frontend: 30/30 Jest tests passed successfully.
   * Production: Craco build compiled successfully.
 
+### Stage 4B: Copernicus Swell 2 Ingest & Data Proof
+We extended the Copernicus backend and frontend mapping pipelines to support secondary swell (`swell_2`).
+* **Swell 2 Ingestion & Storage:** Handled CMEMS variable mapping for `VHM0_SW2`, `VMDR_SW2`, and `VTM01_SW2`.
+* **Redirection Verification:** Configured map controller and sampler to redirect Swell 2 requests to the backend service instead of legacy Netlify proxies.
+* **Point Sampler Hardening:** Verified Option A bilinear ocean-masked point sampler at Cape Canaveral coastline, retrieving `speed: 0.052`, `period: 2.29`, and `interpolation_method: "bilinear_ocean_masked"`.
+* **Visual & Diagnostics Proof:** Confirmed conformed 13x15 rectangular grid (195 vectors) renders on the WebGL flow map, with diagnostic telemetry sync verified via `window.__BACKEND_COPERNICUS_SERVICE_DIAG__`.
+
 ---
 
 ## 4. Remaining Migration Plan
 
 We will roll out the remaining stages to bring all weather models and visual layers under the unified backend-owned architecture:
-
-### Stage 4B: Copernicus Swell 2 Ingestion
-* **Incorporate Swell 2:** Query and cache the secondary swell layer variables from CMEMS.
-* **Conform to Contract:** Apply the same truth gate pattern, Option A point sampler interpolation, rectangular grid coherence, and memory cap tuning as Swell 1.
 
 ### Stage 4C: Copernicus Wind Waves Ingestion
 * **Incorporate Wind Waves:** Query and cache CMEMS wind wave components.
@@ -196,7 +199,7 @@ We will roll out the remaining stages to bring all weather models and visual lay
 | **ICON Wind Waves**| Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
 | **EURO Waves** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | Model shift |
 | **EURO Swell 1** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__`| **Verified** | CMEMS latency |
-| **EURO Swell 2** | Copernicus API | `copernicus` (Backend) | Planned | Legacy | `__USE_BACKEND_COPERNICUS_SERVICE__`| Pending | CMEMS latency |
+| **EURO Swell 2** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__`| **Verified** | CMEMS latency |
 | **EURO Wind Waves**| Copernicus API | `copernicus` (Backend) | Planned | Legacy | `__USE_BACKEND_COPERNICUS_SERVICE__`| Pending | CMEMS latency |
 | **GFS Wind** | Open-Meteo API | `open-meteo` (Backend) | Ingested | Mapped | `__USE_BACKEND_WIND_SERVICE__` | Verified | None |
 | **ICON Wind** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
@@ -233,5 +236,5 @@ To inspect the map's current weather telemetry, verify these globals in the brow
 
 * **`window.__BACKEND_WEATHER_SERVICE_DIAG__`**: Monitors the GFS Waves backend grid/point state, boundary clamps, and timeline parity.
 * **`window.__BACKEND_WIND_SERVICE_DIAG__`**: Monitors wind grid vector count, non-zero counts, and particle flow rendering status.
-* **`window.__BACKEND_COPERNICUS_SERVICE_DIAG__`**: Monitors Copernicus Swell 1 grid status, source metadata, and CMEMS variable validation.
+* **`window.__BACKEND_COPERNICUS_SERVICE_DIAG__`**: Monitors Copernicus Swell 1 and Swell 2 grid/point status, source metadata, and CMEMS variable validation.
 * **`window.__COPERNICUS_GRID_DIAG__`**: Exposes the visual grid rendering state, conformed `gridMode`, and provider metadata in real-time.
