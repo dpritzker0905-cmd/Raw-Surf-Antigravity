@@ -87,6 +87,12 @@ var MapPageContent = () => {
   const [longPressLocation, setLongPressLocation] = useState(null);
   const [renderMarineData, setRenderMarineData] = useState(null);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.setLongPressLocation = setLongPressLocation;
+    }
+  }, [setLongPressLocation]);
+
   // User location hook - handles GPS and location-related state
   const {
     userLocation, locationDenied, gpsLoading, requestLocation, findNearestSpot,
@@ -198,6 +204,14 @@ var MapPageContent = () => {
     toggleLayer,
     isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.setActiveModel = setActiveModel;
+      window.setTimeOffsetHours = setTimeOffsetHours;
+      window.toggleLayer = toggleLayer;
+    }
+  }, [setActiveModel, setTimeOffsetHours, toggleLayer]);
 
   // Snapped ocean/water coordinates to avoid querying land cells
   const forecastLat = snappedCoordinates.lat;
