@@ -278,6 +278,28 @@ describe('backendWeatherServiceClient', () => {
       expect(result.grid.__componentLayer).toBe('swell_2');
       expect(result.grid.renderable).toBe(true);
     });
+
+    it('maps backend response schema correctly when layer is wind_waves', () => {
+      const sampleResponse = {
+        grid: {
+          vectors: [
+            { lat: 28.0, lng: -82.0, u: 0.3, v: -0.3, speed: 0.42, period: 5.0 }
+          ],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1,
+          rows: 1
+        },
+        provider: 'backend-weather-service'
+      };
+
+      const result = mapNormalizedGridToWebGL(sampleResponse, sampleResponse.grid.bounds, 4, 'wind_waves');
+      expect(result.grid.cols).toBe(1);
+      expect(result.grid.vectors[0].wind_waves.speed).toBe(0.42);
+      expect(result.grid.vectors[0].wind_waves.period).toBe(5.0);
+      expect(result.grid.vectors[0].waves.speed).toBe(0);
+      expect(result.grid.__componentLayer).toBe('wind_waves');
+      expect(result.grid.renderable).toBe(true);
+    });
   });
 
   describe('updateDiagnostics', () => {
@@ -420,6 +442,35 @@ describe('backendWeatherServiceClient', () => {
       expect(res.hourly.secondary_swell_wave_period[0]).toBe(8.5);
       expect(res.hourly.wave_height[0]).toBe(0);
       expect(res.activeLayer).toBe('swell_2');
+    });
+
+    it('resolves point data successfully for wind_waves layer with conformed hourly fields', async () => {
+      const mockJson = {
+        point: {
+          speed: 0.75,
+          direction: 130,
+          period: 6.0,
+          sampled_lat: 28.39,
+          sampled_lng: -80.35
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      const res = await fetchBackendExactPoint(28.39, -80.35, 1, null, 'wind_waves');
+      expect(res.hourly.wind_wave_height[0]).toBe(0.75);
+      expect(res.hourly.wind_wave_direction[0]).toBe(130);
+      expect(res.hourly.wind_wave_period[0]).toBe(6.0);
+      expect(res.hourly.wind_wave_peak_period[0]).toBe(0);
+      expect(res.hourly.wave_height[0]).toBe(0);
+      expect(res.activeLayer).toBe('wind_waves');
     });
   });
 

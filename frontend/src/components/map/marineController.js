@@ -422,7 +422,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
   // --- GFS BACKEND SERVICE REDIRECT ---
-  if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2')) {
+  if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
       console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
