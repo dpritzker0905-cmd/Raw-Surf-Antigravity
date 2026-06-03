@@ -516,6 +516,25 @@ describe('backendWeatherServiceClient', () => {
       expect(result.grid.__renderable).toBe(true);
       expect(result.hourOffset).toBe(2);
     });
+
+    it('maps backend response schema to expected WebGL waves layer properties', () => {
+      const sampleResponse = {
+        grid: {
+          vectors: [
+            { lat: 28.0, lng: -82.0, u: 0.6, v: -0.8, speed: 1.0, period: 10.0 }
+          ],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1,
+          rows: 1
+        },
+        provider: 'backend-weather-service'
+      };
+
+      const result = mapNormalizedCopernicusGridToWebGL(sampleResponse, sampleResponse.grid.bounds, 2, 'waves');
+      expect(result.grid.vectors[0].waves.speed).toBe(1.0);
+      expect(result.grid.vectors[0].waves.period).toBe(10.0);
+      expect(result.grid.__componentLayer).toBe('waves');
+    });
   });
 
   describe('fetchBackendCopernicusGrid out of bounds', () => {
@@ -719,6 +738,70 @@ describe('backendWeatherServiceClient', () => {
       expect(diag.layer).toBe('wind_waves');
       expect(diag.lastPointFetch.speed).toBe(1.5);
       expect(diag.lastPointFetch.direction).toBe(100.0);
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
+
+    it('resolves base waves height and direction successfully and updates telemetry for waves', async () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'EURO',
+            domain: 'marine',
+            layer: 'waves',
+            valid_time_start: '2026-06-02T03:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
+      const mockJson = {
+        point: {
+          speed: 2.2,
+          direction: 180.0,
+          period: 9.0,
+          sampled_lat: 28.4,
+          sampled_lng: -80.6,
+          interpolation_method: 'bilinear'
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      window.__BACKEND_COPERNICUS_SERVICE_DIAG__ = null;
+      updateCopernicusDiagnostics('grid', {
+        validTime: '2026-06-02T03:00:00.000Z',
+        hourOffset: 3,
+        requestedBbox: PILOT_COVERAGE,
+        clampedBbox: PILOT_COVERAGE,
+        gridVectorCount: 600,
+        nonzeroCount: 600,
+        renderable: true,
+        layer: 'waves'
+      });
+
+      const res = await fetchBackendExactCopernicusPoint(28.4, -80.6, 3, null, 'waves');
+      expect(res.hourly.wave_height[0]).toBe(2.2);
+      expect(res.hourly.wave_direction[0]).toBe(180.0);
+      expect(res.hourly.wave_period[0]).toBe(9.0);
+      expect(res.hourly.wave_peak_period[0]).toBe(0);
+      expect(res.provider).toBe('backend-weather-service');
+
+      const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
+      expect(diag.layer).toBe('waves');
+      expect(diag.lastPointFetch.speed).toBe(2.2);
+      expect(diag.lastPointFetch.direction).toBe(180.0);
 
       Date.now = originalDateNow;
       setCachedManifest(null);

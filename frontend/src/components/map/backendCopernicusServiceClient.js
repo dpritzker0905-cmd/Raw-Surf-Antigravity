@@ -35,7 +35,7 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       lat: v.lat,
       lng: v.lng,
       isOcean: true,
-      waves: zeroVec,
+      waves: layer === 'waves' ? componentUV : zeroVec,
       swell_1: layer === 'swell_1' ? componentUV : zeroVec,
       swell_2: layer === 'swell_2' ? componentUV : zeroVec,
       wind_waves: layer === 'wind_waves' ? componentUV : zeroVec
@@ -388,6 +388,11 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       conformedHourly.wind_wave_direction = [json.point.direction || 0];
       conformedHourly.wind_wave_period = [json.point.period || 0];
       conformedHourly.wind_wave_peak_period = [json.point.period || 0];
+    } else if (layer === 'waves') {
+      conformedHourly.wave_height = [json.point.speed || 0];
+      conformedHourly.wave_direction = [json.point.direction || 0];
+      conformedHourly.wave_period = [json.point.period || 0];
+      // Note: Do NOT set wave_peak_period (keep it 0) so that we don't display "Peak Period" or "Peak" in the UI (Guardrail 1).
     }
 
     const data = {

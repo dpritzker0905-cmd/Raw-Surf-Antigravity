@@ -40,7 +40,7 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves') {
   const rLng = +lng.toFixed(2);
   const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
   let provider = PROVIDER_MAP[model] || 'open-meteo';
-  if (model === 'EURO' && activeLayer === 'waves') {
+  if (model === 'EURO' && activeLayer === 'waves' && !getBackendCopernicusFlag()) {
     provider = 'open-meteo';
   }
   const cacheKey = `${rLat}_${rLng}_${model}_${activeLayer}_${provider}`;
@@ -98,7 +98,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   // --- REDIRECT COPERNICUS TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
+  if (typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves')) {
     try {
       console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer);
@@ -112,7 +112,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 
   const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
   let provider = PROVIDER_MAP[model] || 'open-meteo';
-  if (model === 'EURO' && activeLayer === 'waves') {
+  if (model === 'EURO' && activeLayer === 'waves' && !getBackendCopernicusFlag()) {
     provider = 'open-meteo';
   }
 

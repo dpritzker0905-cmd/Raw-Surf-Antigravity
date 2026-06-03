@@ -247,7 +247,7 @@ class WeatherPipelineScheduler:
         """
         logger.info("[Pipeline Scheduler] Starting Copernicus Regional Ingestion job...")
         region = REGIONAL_CONFIGS["florida_east_coast"]
-        layers = ["swell_1", "swell_2", "wind_waves"]
+        layers = ["waves", "swell_1", "swell_2", "wind_waves"]
         run_time = datetime.now(timezone.utc)
         total_success = 0
 
@@ -312,7 +312,9 @@ class WeatherPipelineScheduler:
                                 "wind_wave_height": "m",
                                 "wind_wave_direction": "°",
                                 "wind_wave_period": "s",
-                                "wave_height": "m"
+                                "wave_height": "m",
+                                "wave_direction": "°",
+                                "wave_period": "s"
                             },
                             "hourly": {
                                 "time": times,
@@ -325,7 +327,9 @@ class WeatherPipelineScheduler:
                                 "wind_wave_height": [0.5 + 0.2 * math.sin(lat) for _ in times],
                                 "wind_wave_direction": [100.0 for _ in times],
                                 "wind_wave_period": [5.0 for _ in times],
-                                "wave_height": [1.0 + 0.3 * math.sin(lat) for _ in times]
+                                "wave_height": [1.0 + 0.3 * math.sin(lat) for _ in times],
+                                "wave_direction": [240.0 for _ in times],
+                                "wave_period": [10.0 for _ in times]
                             }
                         })
                     results = mock_results
