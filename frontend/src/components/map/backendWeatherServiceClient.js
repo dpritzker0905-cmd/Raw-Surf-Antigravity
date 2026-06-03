@@ -891,7 +891,8 @@ if (typeof window !== 'undefined') {
     sourceVariables: null,
     is_forecast_authoritative: false,
     is_estimated: false,
-    is_test_fixture: false
+    is_test_fixture: false,
+    gridMode: null
   };
 }
 
@@ -929,7 +930,8 @@ export function updateCopernicusDiagnostics(type, details) {
       sourceVariables: null,
       is_forecast_authoritative: false,
       is_estimated: false,
-      is_test_fixture: false
+      is_test_fixture: false,
+      gridMode: null
     };
   }
 
@@ -960,6 +962,7 @@ export function updateCopernicusDiagnostics(type, details) {
     diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
     diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
     diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
+    diag.gridMode = details.gridMode || diag.gridMode || null;
   } else if (type === 'point') {
     diag.lastPointFetch = details;
     diag.pointValidTime = details.validTime || null;
@@ -1000,6 +1003,7 @@ export function updateCopernicusDiagnostics(type, details) {
     pointParity: diag.pointParity,
     renderable: diag.renderable,
     fallbackReason: diag.fallbackReason,
+    gridMode: diag.gridMode,
     timestamp: new Date().toISOString()
   };
 }
@@ -1085,7 +1089,8 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       sourceVariables: json.source_variables,
       is_forecast_authoritative: json.is_forecast_authoritative,
       is_estimated: json.is_estimated,
-      is_test_fixture: json.is_test_fixture
+      is_test_fixture: json.is_test_fixture,
+      gridMode: json.grid?.diagnostics?.gridMode || 'rectangular'
     });
 
     return result;

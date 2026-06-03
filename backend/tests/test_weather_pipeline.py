@@ -556,3 +556,154 @@ def test_copernicus_provider_normalization_and_endpoints(tmp_path, monkeypatch):
     assert point_outside_payload["is_forecast_authoritative"] is False
     assert point_outside_payload["point"]["interpolation_method"] == "out_of_bounds_fallback"
 
+    # Verify grid diagnostics and metadata presence
+    assert "diagnostics" in grid_payload["grid"]
+    diag = grid_payload["grid"]["diagnostics"]
+    assert diag["gridMode"] == "rectangular"
+    assert diag["cols"] == 2
+    assert diag["rows"] == 2
+    assert diag["vectors_length"] == 4
+    assert diag["expectedCellCount"] == 4
+    assert diag["missingCellCount"] == 0
+
+    # Verify point metadata propagation
+    assert point_payload["source_dataset"] == "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
+    assert point_payload["source_variables"] == ["VHM0_SW1", "VMDR_SW1", "VTM01_SW1"]
+    assert point_payload["is_test_fixture"] is False
+    assert point_payload["is_forecast_authoritative"] is True
+    assert point_payload["is_estimated"] is False
+
+
+def test_point_sampler_bilinear_ocean_masked():
+    """Verify Option A bilinear_ocean_masked interpolation when 2-3 corners are valid ocean points."""
+    bounds = CoverageBounds(west=-80.0, south=24.0, east=-79.0, north=25.0)
+    
+    # 2 valid ocean corners: (24.0, -80.0) -> speed=10.0 and (25.0, -79.0) -> speed=40.0
+    # 2 land/zero corners: (24.0, -79.0) -> speed=0.0 and (25.0, -80.0) -> speed=0.0
+    vectors = [
+        GridVector(lat=24.0, lng=-80.0, speed=10.0, direction=90.0, u=-10.0, v=0.0, period=5.0),
+        GridVector(lat=24.0, lng=-79.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-80.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-79.0, speed=40.0, direction=90.0, u=-40.0, v=0.0, period=8.0),
+    ]
+
+    grid = NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors)
+    product = NormalizedProduct(
+        model="EURO",
+        provider="copernicus",
+        domain="marine",
+        layer="swell_1",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.now(timezone.utc),
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["VHM0_SW1"],
+        freshness_sec=1800,
+        source_dataset="cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
+    )
+
+    sampler = PointSampler()
+
+    # Sample in center (24.5, -79.5)
+    # Weights for all corners are 0.25.
+    # Standard sum of weights S = 0.25 (v11) + 0.25 (v22) = 0.5.
+    # Normalized weights: v11 has weight 0.5, v22 has weight 0.5.
+    # interp_u = 0.5 * (-10) + 0.5 * (-40) = -25.0.
+    # interp_v = 0.5 * 0 + 0.5 * 0 = 0.0.
+    # interp_period = 0.5 * 5.0 + 0.5 * 8.0 = 6.5.
+    res = sampler.sample_point(product, 24.5, -79.5)
+    assert res.point.interpolation_method == "bilinear_ocean_masked"
+    assert math.isclose(res.point.speed, 25.0, abs_tol=1e-4)
+    assert math.isclose(res.point.u, -25.0, abs_tol=1e-4)
+    assert res.point.period == 6.5
+    assert res.source_dataset == "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
+
+
+def test_point_sampler_nearest_ocean_fallback():
+    """Verify Option A falls back to nearest ocean point when < 2 corners are valid ocean points."""
+    bounds = CoverageBounds(west=-80.0, south=24.0, east=-79.0, north=25.0)
+    
+    # Only 1 valid ocean corner: (24.0, -80.0) -> speed=10.0
+    # Other 3 corners are land/zero.
+    # There is also another ocean point far away in the grid at (25.0, -79.0) which is 0.0 but let's see.
+    vectors = [
+        GridVector(lat=24.0, lng=-80.0, speed=10.0, direction=90.0, u=-10.0, v=0.0, period=5.0),
+        GridVector(lat=24.0, lng=-79.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-80.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-79.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+    ]
+
+    grid = NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors)
+    product = NormalizedProduct(
+        model="EURO",
+        provider="copernicus",
+        domain="marine",
+        layer="swell_1",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.now(timezone.utc),
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["VHM0_SW1"],
+        freshness_sec=1800
+    )
+
+    sampler = PointSampler()
+
+    # Sample near center (24.5, -79.5)
+    # Less than 2 ocean corners, so it falls back to nearest ocean vector.
+    # The only ocean vector in the grid is (24.0, -80.0).
+    res = sampler.sample_point(product, 24.5, -79.5)
+    assert res.point.interpolation_method == "nearest_ocean_fallback"
+    assert res.point.speed == 10.0
+    assert res.point.sampled_lat == 24.0
+    assert res.point.sampled_lng == -80.0
+
+
+def test_point_sampler_unavailable_no_ocean_data():
+    """Verify Option A returns unavailable when no valid ocean vectors exist at all in the grid."""
+    bounds = CoverageBounds(west=-80.0, south=24.0, east=-79.0, north=25.0)
+    
+    # All 4 corners are land/zero.
+    vectors = [
+        GridVector(lat=24.0, lng=-80.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=24.0, lng=-79.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-80.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-79.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+    ]
+
+    grid = NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors)
+    product = NormalizedProduct(
+        model="EURO",
+        provider="copernicus",
+        domain="marine",
+        layer="swell_1",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.now(timezone.utc),
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["VHM0_SW1"],
+        freshness_sec=1800
+    )
+
+    sampler = PointSampler()
+
+    res = sampler.sample_point(product, 24.5, -79.5)
+    assert res.point.interpolation_method == "unavailable"
+    assert res.point.speed == 0.0
+
+

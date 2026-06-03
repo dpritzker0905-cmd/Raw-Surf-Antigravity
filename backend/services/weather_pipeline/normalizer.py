@@ -129,10 +129,13 @@ class WeatherNormalizer:
         cols = len(unique_lons)
         rows = len(unique_lats)
 
-        vectors = []
+        # Build mapping from raw results to snapped grid coordinates
+        grid_data = {}
         for pt in raw_results:
             raw_lat = pt.get("latitude")
             raw_lng = pt.get("longitude")
+            if raw_lat is None or raw_lng is None:
+                continue
             
             # Map raw snapped coordinates to the nearest clean coordinate
             mapped_lat = round(round((raw_lat - south) / resolution) * resolution + south, 4)
@@ -160,48 +163,72 @@ class WeatherNormalizer:
 
             # Guard against invalid or land null coordinates
             if speed is None or direction is None:
-                # Keep a safe zero vector to guarantee coordinate indexing is perfectly regular
-                vectors.append(GridVector(
+                vector = GridVector(
                     lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0
-                ))
-                continue
+                )
+            else:
+                # Standardize Wind knots conversions if needed
+                hourly_units = pt.get("hourly_units", {})
+                speed_unit = hourly_units.get(s_key, "")
+                
+                if domain == "wind" and speed_unit != "kn" and speed_unit != "knots":
+                    if speed_unit == "km/h":
+                        speed = speed * 0.539957
+                    elif speed_unit == "m/s":
+                        speed = speed * 1.943844
+                    elif speed_unit == "mph":
+                        speed = speed * 0.868976
 
-            # Standardize Wind knots conversions if needed
-            # Open-Meteo forecast hourly units wind_speed is knots only if requested, default km/h
-            hourly_units = pt.get("hourly_units", {})
-            speed_unit = hourly_units.get(s_key, "")
+                # Compute Cartesian U/V velocities
+                rad = direction * (math.pi / 180.0)
+                u = -speed * math.sin(rad)
+                v = -speed * math.cos(rad)
+
+                vector = GridVector(
+                    lat=lat,
+                    lng=lng,
+                    speed=round(speed, 4),
+                    direction=round(direction, 2),
+                    u=round(u, 4),
+                    v=round(v, 4),
+                    period=round(period, 2) if period is not None else 0.0
+                )
             
-            if domain == "wind" and speed_unit != "kn" and speed_unit != "knots":
-                if speed_unit == "km/h":
-                    speed = speed * 0.539957
-                elif speed_unit == "m/s":
-                    speed = speed * 1.943844
-                elif speed_unit == "mph":
-                    speed = speed * 0.868976
+            grid_data[(lat, lng)] = vector
 
-            # Compute Cartesian U/V velocities
-            rad = direction * (math.pi / 180.0)
-            u = -speed * math.sin(rad)
-            v = -speed * math.cos(rad)
-
-            vectors.append(GridVector(
-                lat=lat,
-                lng=lng,
-                speed=round(speed, 4),
-                direction=round(direction, 2),
-                u=round(u, 4),
-                v=round(v, 4),
-                period=round(period, 2) if period is not None else None
-            ))
+        # Build full rectangular grid
+        vectors = []
+        for lat in unique_lats:
+            for lng in unique_lons:
+                if (lat, lng) in grid_data:
+                    vectors.append(grid_data[(lat, lng)])
+                else:
+                    # Explicit ocean-masked vector for missing cells
+                    vectors.append(GridVector(
+                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0
+                    ))
 
         # Sort vectors in stable row-major order (south-to-north, west-to-east)
         vectors.sort(key=lambda v: (v.lat, v.lng))
+
+        nonzero_count = sum(1 for v in vectors if v.speed > 0.0)
+        expected_cell_count = cols * rows
+        missing_cell_count = expected_cell_count - len(vectors)  # Should always be 0 now
 
         grid = NormalizedGrid(
             bounds=bounds,
             cols=cols,
             rows=rows,
-            vectors=vectors
+            vectors=vectors,
+            diagnostics={
+                "cols": cols,
+                "rows": rows,
+                "vectors_length": len(vectors),
+                "expectedCellCount": expected_cell_count,
+                "missingCellCount": missing_cell_count,
+                "nonzeroCount": nonzero_count,
+                "gridMode": "rectangular"
+            }
         )
 
         # Configure truth units and kind metadata dynamically based on domain

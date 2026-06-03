@@ -34,40 +34,30 @@ class CopernicusProvider:
         import os
         is_render = os.environ.get("RENDER") == "true"
         
-        if is_render:
-            logger.info("[Copernicus Provider] Detected Render environment. Restricting coordinate search space to 4 corners + Cape Canaveral to avoid OOM.")
-            w = bbox.get("west", -85.0)
-            e = bbox.get("east", -79.0)
-            s = bbox.get("south", 24.0)
-            n = bbox.get("north", 31.0)
-            lats = [s, s, n, n, 28.39]
-            lons = [w, e, w, e, -80.35]
-            variables = ["swell_wave_height", "swell_wave_direction", "swell_wave_period"]
-        else:
-            lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, resolution)
-            if not lats:
-                logger.error(f"[Copernicus Provider] Generated empty grid for bbox: {bbox}")
-                return None
+        target_resolution = 0.5 if is_render else resolution
+        lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, target_resolution)
+        if not lats:
+            logger.error(f"[Copernicus Provider] Generated empty grid for bbox: {bbox}")
+            return None
 
-            # Verify point limit (Cap at 500 points to keep Render memory happy)
-            if len(lats) > 500:
-                logger.warning(
-                    f"[Copernicus Provider] Coordinate count {len(lats)} exceeds safe Render 500 point cap. "
-                    "Coarsening grid resolution..."
-                )
-                # Increase resolution step until count falls below 500
-                adj_res = resolution
-                while len(lats) > 500:
-                    adj_res += 0.1
-                    lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, adj_res)
-                logger.info(f"[Copernicus Provider] Adjusted resolution to {adj_res:.2f}° ({len(lats)} points)")
+        # Verify point limit (Cap at 500 points to keep Render memory happy)
+        if len(lats) > 500:
+            logger.warning(
+                f"[Copernicus Provider] Coordinate count {len(lats)} exceeds safe Render 500 point cap. "
+                "Coarsening grid resolution..."
+            )
+            adj_res = target_resolution
+            while len(lats) > 500:
+                adj_res += 0.1
+                lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, adj_res)
+            logger.info(f"[Copernicus Provider] Adjusted resolution to {adj_res:.2f}° ({len(lats)} points)")
 
-            # Map layer to Copernicus variables
-            variables = self.LAYER_VARIABLES.get(layer, self.LAYER_VARIABLES["waves"])
-            
-            # Ensure wave_height is present for grid mask support
-            if "wave_height" not in variables:
-                variables = list(variables) + ["wave_height"]
+        # Map layer to Copernicus variables
+        variables = self.LAYER_VARIABLES.get(layer, self.LAYER_VARIABLES["waves"])
+        
+        # Ensure wave_height is present for grid mask support
+        if "wave_height" not in variables:
+            variables = list(variables) + ["wave_height"]
 
         logger.info(
             f"[Copernicus Provider] Running in-process background ingestion for EURO/{layer}. "

@@ -115,10 +115,104 @@ class PointSampler:
         v21 = coordinate_map.get((lat1, lon0)) # top-left
         v22 = coordinate_map.get((lat1, lon1)) # top-right
 
-        # Fallback if any corners are missing
-        if not v11 or not v12 or not v21 or not v22:
-            # Nearest neighbor fallback
-            nearest = self._find_nearest_vector(grid.vectors, lat, lng)
+        # Solve fractions:
+        t = (lng - lon0) / (lon1 - lon0) if lon1 != lon0 else 0.0
+        u = (lat - lat0) / (lat1 - lat0) if lat1 != lat0 else 0.0
+
+        # Weights
+        w11 = (1.0 - t) * (1.0 - u)
+        w12 = t * (1.0 - u)
+        w21 = (1.0 - t) * u
+        w22 = t * u
+
+        corner_weights = [
+            (v11, w11),
+            (v12, w12),
+            (v21, w21),
+            (v22, w22)
+        ]
+
+        valid_ocean_corners = [
+            (v, w) for v, w in corner_weights
+            if v is not None and v.speed > 0.0
+        ]
+
+        if len(valid_ocean_corners) == 4:
+            # 1. Standard Bilinear Interpolation
+            interp_u = w11 * v11.u + w12 * v12.u + w21 * v21.u + w22 * v22.u
+            interp_v = w11 * v11.v + w12 * v12.v + w21 * v21.v + w22 * v22.v
+            
+            interp_period = 0.0
+            p_sum_weights = 0.0
+            for v, w in corner_weights:
+                if v is not None and v.period is not None:
+                    interp_period += w * v.period
+                    p_sum_weights += w
+            if p_sum_weights > 0.0:
+                interp_period = interp_period / p_sum_weights
+            
+            interp_speed = math.sqrt(interp_u**2 + interp_v**2)
+            interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
+            if interp_dir < 0.0:
+                interp_dir += 360.0
+
+            detail = NormalizedPointDetail(
+                requested_lat=lat,
+                requested_lng=lng,
+                sampled_lat=round(lat, 4),
+                sampled_lng=round(lng, 4),
+                speed=round(interp_speed, 4),
+                direction=round(interp_dir, 2),
+                u=round(interp_u, 4),
+                v=round(interp_v, 4),
+                period=round(interp_period, 2),
+                interpolation_method="bilinear"
+            )
+            return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+
+        elif len(valid_ocean_corners) >= 2:
+            # 2. Bilinear Ocean Masked (Normalized Bilinear over valid ocean corners)
+            sum_w = sum(w for v, w in valid_ocean_corners)
+            if sum_w > 0.0:
+                interp_u = 0.0
+                interp_v = 0.0
+                interp_period = 0.0
+                p_sum_w = 0.0
+                
+                for v, w in valid_ocean_corners:
+                    norm_w = w / sum_w
+                    interp_u += norm_w * v.u
+                    interp_v += norm_w * v.v
+                    if v.period is not None:
+                        interp_period += norm_w * v.period
+                        p_sum_w += norm_w
+                
+                if p_sum_w > 0.0:
+                    interp_period = interp_period / p_sum_w
+                
+                interp_speed = math.sqrt(interp_u**2 + interp_v**2)
+                interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
+                if interp_dir < 0.0:
+                    interp_dir += 360.0
+
+                detail = NormalizedPointDetail(
+                    requested_lat=lat,
+                    requested_lng=lng,
+                    sampled_lat=round(lat, 4),
+                    sampled_lng=round(lng, 4),
+                    speed=round(interp_speed, 4),
+                    direction=round(interp_dir, 2),
+                    u=round(interp_u, 4),
+                    v=round(interp_v, 4),
+                    period=round(interp_period, 2),
+                    interpolation_method="bilinear_ocean_masked"
+                )
+                return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+            
+        # 3. Fallback to Nearest Ocean Vector
+        ocean_vectors = [v for v in grid.vectors if v.speed > 0.0]
+        if ocean_vectors:
+            nearest = self._find_nearest_vector(ocean_vectors, lat, lng)
             detail = NormalizedPointDetail(
                 requested_lat=lat,
                 requested_lng=lng,
@@ -129,44 +223,12 @@ class PointSampler:
                 u=nearest.u,
                 v=nearest.v,
                 period=nearest.period,
-                interpolation_method="nearest_neighbor_fallback"
+                interpolation_method="nearest_ocean_fallback"
             )
-            warnings.append("Bilinear corners missing in grid layout; fallback to nearest-neighbor.")
+            warnings.append("Bilinear corners are land/masked; fallback to nearest ocean neighbor.")
             return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
-
-        # 5. Bilinear Interpolation Formula
-        # Solve fractions:
-        t = (lng - lon0) / (lon1 - lon0) if lon1 != lon0 else 0.0
-        u = (lat - lat0) / (lat1 - lat0) if lat1 != lat0 else 0.0
-
-        # Interpolate components u, v, period
-        interp_u = (1.0 - t) * (1.0 - u) * v11.u + t * (1.0 - u) * v12.u + (1.0 - t) * u * v21.u + t * u * v22.u
-        interp_v = (1.0 - t) * (1.0 - u) * v11.v + t * (1.0 - u) * v12.v + (1.0 - t) * u * v21.v + t * u * v22.v
-        
-        interp_period = None
-        if v11.period is not None and v12.period is not None and v21.period is not None and v22.period is not None:
-            interp_period = (1.0 - t) * (1.0 - u) * v11.period + t * (1.0 - u) * v12.period + (1.0 - t) * u * v21.period + t * u * v22.period
-            interp_period = round(interp_period, 2)
-
-        # Resolve speed and angle
-        interp_speed = math.sqrt(interp_u**2 + interp_v**2)
-        interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
-        if interp_dir < 0.0:
-            interp_dir += 360.0
-
-        detail = NormalizedPointDetail(
-            requested_lat=lat,
-            requested_lng=lng,
-            sampled_lat=round(lat, 4),
-            sampled_lng=round(lng, 4),
-            speed=round(interp_speed, 4),
-            direction=round(interp_dir, 2),
-            u=round(interp_u, 4),
-            v=round(interp_v, 4),
-            period=interp_period,
-            interpolation_method="bilinear"
-        )
-        return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+        else:
+            return self._build_unavailable_response(product, lat, lng, "No valid ocean data in grid")
 
     @staticmethod
     def _find_surrounding_brackets(coords: List[float], val: float) -> Tuple[float, float]:
@@ -229,7 +291,9 @@ class PointSampler:
             units=product.units,
             source_variables=product.source_variables,
             freshness_sec=product.freshness_sec,
-            warnings=[f"Point unavailable: {reason}"]
+            warnings=[f"Point unavailable: {reason}"],
+            source_dataset=product.source_dataset,
+            is_test_fixture=product.is_test_fixture
         )
 
     def _build_success_response(
@@ -257,5 +321,7 @@ class PointSampler:
             units=product.units,
             source_variables=product.source_variables,
             freshness_sec=product.freshness_sec,
-            warnings=warnings
+            warnings=warnings,
+            source_dataset=product.source_dataset,
+            is_test_fixture=product.is_test_fixture
         )

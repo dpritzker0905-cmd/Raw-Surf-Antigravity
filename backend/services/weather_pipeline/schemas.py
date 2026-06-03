@@ -22,6 +22,7 @@ class NormalizedGrid(BaseModel):
     cols: int
     rows: int
     vectors: List[GridVector]
+    diagnostics: Optional[Dict[str, Any]] = None
 
 class NormalizedProduct(BaseModel):
     model: str
