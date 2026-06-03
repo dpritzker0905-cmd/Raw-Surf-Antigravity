@@ -29,7 +29,7 @@ async def health_check(
     copernicus_password = os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD", "")
     health_data = {
         "status": "healthy",
-        "version": "2.0.0-gc-safety-v7",
+        "version": "2.0.0-gc-safety-v8",
         "environment": os.environ.get("RENDER", "local"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),
