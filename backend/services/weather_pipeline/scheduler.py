@@ -313,8 +313,8 @@ class WeatherPipelineScheduler:
                     res_to_save = mock_res
                     provider_name = "test-fixture"
                     lats, lons = OpenMeteoProvider.generate_grid_coords(region, mock_res)
-                    # Generate hourly times for the next 72 hours matching GFS times
-                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 72)]
+                    # Generate hourly times for the next 72 hours matching GFS times (in 3-hourly steps)
+                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 72, 3)]
                     mock_results = []
                     for lat, lon in zip(lats, lons):
                         mock_results.append({
@@ -369,8 +369,8 @@ class WeatherPipelineScheduler:
                 continue
 
             for idx, time_str in enumerate(times):
-                if idx % 6 != 0:
-                    continue # Slice every 6 hours as approved
+                # Save all 3-hourly conformed frames to database to align with frontend timelines
+                pass
 
                 if not time_str.endswith("Z"):
                     time_str += "Z"

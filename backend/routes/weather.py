@@ -145,9 +145,15 @@ async def get_grid(
                 matching_item = p
 
     if not matching_item:
-        raise HTTPException(
+        reason = "no_copernicus_coverage" if model.upper() == "EURO" else "no_backend_coverage"
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
             status_code=404,
-            detail=f"Authoritative weather grid product not found for {model} {layer} at time {valid_time}."
+            content={
+                "status": "error",
+                "reason": reason,
+                "detail": f"Authoritative weather grid product not found for {model} {layer} at time {valid_time}."
+            }
         )
 
     product = store.load_product(matching_item.filename)
@@ -263,38 +269,18 @@ async def get_point(
                 min_diff = diff
                 matching_item = p
 
-    # If no product found in cache, return an explicit estimated/unavailable fallback
+    # If no product found in cache, return a structured 404 response
     if not matching_item:
-        if domain.lower() == "marine":
-            value_kind = "wave_height"
-            value_unit = "m"
-            display_unit_hint = "ft"
-            units = {"speed": "m", "direction": "degrees", "period": "seconds"}
-        else:
-            value_kind = "wind_speed"
-            value_unit = "kn"
-            display_unit_hint = "kn"
-            units = {"speed": "kn", "direction": "degrees", "period": "seconds"}
-
-        dummy_product = NormalizedProduct(
-            model=model,
-            provider="open-meteo" if model != "EURO" else "copernicus",
-            domain=domain,
-            layer=layer,
-            run_time=datetime.now(timezone.utc),
-            valid_time=target_dt,
-            is_forecast_authoritative=False,
-            is_estimated=True,
-            coverage=CoverageBounds(west=-180, south=-90, east=180, north=90),
-            value_kind=value_kind,
-            value_unit=value_unit,
-            display_unit_hint=display_unit_hint,
-            units=units,
-            source_variables=[],
-            freshness_sec=1800,
-            warnings=["No matching product grid found in manifest range"]
+        reason = "no_copernicus_coverage" if model.upper() == "EURO" else "no_backend_coverage"
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=404,
+            content={
+                "status": "error",
+                "reason": reason,
+                "detail": f"Authoritative weather point product not found for {model} {layer} at time {valid_time}."
+            }
         )
-        return sampler.sample_point(dummy_product, lat, lng)
 
     product = store.load_product(matching_item.filename)
     if not product:

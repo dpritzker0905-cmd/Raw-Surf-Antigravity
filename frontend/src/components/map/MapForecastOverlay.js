@@ -319,6 +319,8 @@ export var MapForecastOverlay = ({
     if (effectiveExactPointStatus !== 'exact_success' && 
         effectiveExactPointStatus !== 'exact_stale_available' &&
         effectiveExactPointStatus !== 'exact_no_time_coverage' &&
+        effectiveExactPointStatus !== 'no_copernicus_coverage' &&
+        effectiveExactPointStatus !== 'no_backend_coverage' &&
         effectiveExactPointStatus !== 'euro_extended_estimate' &&
         effectiveExactPointStatus !== 'icon_extended_estimate' &&
         effectiveExactPointStatus !== 'unsupported') return false;

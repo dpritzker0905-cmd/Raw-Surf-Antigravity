@@ -809,6 +809,23 @@ describe('backendWeatherServiceClient', () => {
       setCachedManifest(null);
     });
 
+    it('returns status no_copernicus_coverage when server returns 404 with structured reason', async () => {
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: false,
+          status: 404,
+          json: () => Promise.resolve({ reason: 'no_copernicus_coverage' })
+        })
+      );
+
+      const res = await fetchBackendExactCopernicusPoint(28.4, -80.6, 3);
+      expect(res.status).toBe('no_copernicus_coverage');
+      expect(res.hourly.time.length).toBe(0);
+
+      const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
+      expect(diag.lastPointFetch.error).toBe('no_copernicus_coverage');
+    });
+
     it('resolves secondary swell height and direction successfully and updates telemetry for swell_2', async () => {
       const mockManifest = {
         products: [

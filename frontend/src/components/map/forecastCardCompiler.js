@@ -124,7 +124,11 @@ export function compileForecastCards({
     let displayDir = '--';
     let displayCompass = '';
 
-    const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+    const isNoCoverage = isExactPointAuthority && (
+      exactPointStatus === 'exact_no_time_coverage' ||
+      exactPointStatus === 'no_copernicus_coverage' ||
+      exactPointStatus === 'no_backend_coverage'
+    );
 
     if (isExactPointAuthority && isExactPointLoading && waveHeight == null) {
       displayHeight = 'Loading...';
@@ -197,7 +201,11 @@ export function compileForecastCards({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
-      const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+      const isNoCoverage = isExactPointAuthority && (
+        exactPointStatus === 'exact_no_time_coverage' ||
+        exactPointStatus === 'no_copernicus_coverage' ||
+        exactPointStatus === 'no_backend_coverage'
+      );
 
       if (isExactPointAuthority && isExactPointLoading && swell1Height == null) {
         displayHeight = 'Loading...';
@@ -283,7 +291,11 @@ export function compileForecastCards({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
-      const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+      const isNoCoverage = isExactPointAuthority && (
+        exactPointStatus === 'exact_no_time_coverage' ||
+        exactPointStatus === 'no_copernicus_coverage' ||
+        exactPointStatus === 'no_backend_coverage'
+      );
 
       if (exactPointStatus === 'unsupported') {
         displayHeight = 'Unsupported';
@@ -367,7 +379,11 @@ export function compileForecastCards({
       let showStatus = null;
       let statusColor = 'text-gray-500';
 
-      const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
+      const isNoCoverage = isExactPointAuthority && (
+        exactPointStatus === 'exact_no_time_coverage' ||
+        exactPointStatus === 'no_copernicus_coverage' ||
+        exactPointStatus === 'no_backend_coverage'
+      );
 
       if (isExactPointAuthority && isExactPointLoading && windWaveHeight == null) {
         displayHeight = 'Loading...';

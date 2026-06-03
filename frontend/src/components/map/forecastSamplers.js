@@ -398,9 +398,41 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
  * Select the correct hour from a cached exact-point response.
  */
 export function selectExactPointHour(cachedResponse, hourOffset) {
-  if (!cachedResponse?.hourly?.time) return null;
+  if (!cachedResponse) return null;
 
-  if (cachedResponse?.status === 'unsupported') {
+  if (cachedResponse.status === 'no_copernicus_coverage' || cachedResponse.status === 'no_backend_coverage') {
+    return {
+      status: cachedResponse.status,
+      source: cachedResponse.source || 'exact_point_api',
+      requestedLat: cachedResponse.requestedLat,
+      requestedLng: cachedResponse.requestedLng,
+      requestedModel: cachedResponse.requestedModel,
+      activeLayer: cachedResponse.activeLayer,
+      provider: cachedResponse.provider || 'copernicus',
+      is_estimated: false,
+      wave_height: null,
+      wave_direction: null,
+      wave_period: null,
+      wave_peak_period: null,
+      swell_wave_height: null,
+      swell_wave_direction: null,
+      swell_wave_period: null,
+      swell_wave_peak_period: null,
+      secondary_swell_wave_height: null,
+      secondary_swell_wave_direction: null,
+      secondary_swell_wave_period: null,
+      wind_wave_height: null,
+      wind_wave_direction: null,
+      wind_wave_period: null,
+      wind_wave_peak_period: null,
+      wind_speed_10m: null,
+      wind_direction_10m: null
+    };
+  }
+
+  if (!cachedResponse.hourly?.time) return null;
+
+  if (cachedResponse.status === 'unsupported') {
     return {
       status: 'unsupported',
       source: 'unsupported_model_layer',

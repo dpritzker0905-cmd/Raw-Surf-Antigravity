@@ -281,7 +281,16 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) {
-      throw new Error(`Backend returned HTTP ${res.status}`);
+      let reason = `Backend returned HTTP ${res.status}`;
+      try {
+        const errorJson = await res.json();
+        if (errorJson && errorJson.reason) {
+          reason = errorJson.reason;
+        } else if (errorJson && errorJson.detail) {
+          reason = errorJson.detail;
+        }
+      } catch (e) {}
+      throw new Error(reason);
     }
     const json = await res.json();
     const result = mapNormalizedCopernicusGridToWebGL(json, clampedBbox, hourOffset, layer);
@@ -348,7 +357,50 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) {
-      throw new Error(`Backend point returned HTTP ${res.status}`);
+      let reason = 'no_copernicus_coverage';
+      try {
+        const errorJson = await res.json();
+        if (errorJson && errorJson.reason) {
+          reason = errorJson.reason;
+        } else if (errorJson && errorJson.detail) {
+          reason = errorJson.detail;
+        }
+      } catch (e) {}
+      
+      const errorDetails = {
+        url,
+        status: res.status,
+        validTime: validTimeStr,
+        valueKind: 'none',
+        valueUnit: 'none',
+        displayUnitHint: 'none',
+        elapsedMs: Date.now() - start,
+        error: reason,
+        hourOffset,
+        speed: 0,
+        direction: 0,
+        interpolationMethod: 'none',
+        interpolation_method: 'none',
+        provider: 'none',
+        sourceDataset: null,
+        sourceVariables: null,
+        is_forecast_authoritative: false,
+        is_estimated: false,
+        is_test_fixture: false,
+        layer
+      };
+      updateCopernicusDiagnostics('point', errorDetails);
+      console.warn(`[Backend Weather Service] Copernicus point fetch returned status ${res.status}: ${reason}`);
+      return {
+        status: reason,
+        hourly: { time: [] },
+        requestedLat: lat,
+        requestedLng: lng,
+        requestedModel: 'EURO',
+        activeLayer: layer,
+        provider: 'copernicus',
+        source: 'backend_point_api'
+      };
     }
     const json = await res.json();
     
