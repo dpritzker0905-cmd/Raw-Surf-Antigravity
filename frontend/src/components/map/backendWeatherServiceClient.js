@@ -592,7 +592,52 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) {
-      throw new Error(`Backend point returned HTTP ${res.status}`);
+      let reason = `Backend point returned HTTP ${res.status}`;
+      let errorJson = null;
+      try {
+        errorJson = await res.json();
+        if (errorJson && errorJson.reason) {
+          reason = errorJson.reason;
+        } else if (errorJson && errorJson.detail) {
+          reason = errorJson.detail;
+        }
+      } catch (e) {}
+
+      if (reason === 'no_backend_coverage' || reason === 'no_copernicus_coverage') {
+        const errorDetails = {
+          url,
+          status: res.status,
+          validTime: validTimeStr,
+          valueKind: 'none',
+          valueUnit: 'none',
+          displayUnitHint: 'none',
+          elapsedMs: Date.now() - start,
+          error: reason,
+          hourOffset,
+          layer,
+          speed: 0,
+          direction: 0,
+          interpolationMethod: 'none',
+          provider: 'backend-weather-service',
+          sourceDataset: null,
+          sourceVariables: null,
+          is_forecast_authoritative: false,
+          is_estimated: false,
+          is_test_fixture: false
+        };
+        updateDiagnostics('point', errorDetails, model);
+        return {
+          status: reason,
+          hourly: { time: [] },
+          requestedLat: lat,
+          requestedLng: lng,
+          requestedModel: model,
+          activeLayer: layer,
+          provider: 'backend-weather-service',
+          source: 'backend_point_api'
+        };
+      }
+      throw new Error(reason);
     }
     const json = await res.json();
     
@@ -775,7 +820,16 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) {
-      throw new Error(`Backend returned HTTP ${res.status}`);
+      let reason = `Backend returned HTTP ${res.status}`;
+      try {
+        const errorJson = await res.json();
+        if (errorJson && errorJson.reason) {
+          reason = errorJson.reason;
+        } else if (errorJson && errorJson.detail) {
+          reason = errorJson.detail;
+        }
+      } catch (e) {}
+      throw new Error(reason);
     }
     const json = await res.json();
     const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);

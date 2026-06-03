@@ -29,6 +29,7 @@ import {
   getBackendIconMarineFlag,
   fetchBackendMarineGrid
 } from './backendWeatherServiceClient';
+import { selectExactPointHour } from './forecastSamplers';
 
 describe('backendWeatherServiceClient', () => {
   let origFetch;
@@ -1107,6 +1108,59 @@ describe('backendWeatherServiceClient', () => {
       expect(diag.activeModel).toBe('ICON');
       expect(diag.sourceDataset).toBe('dwd_gwam');
       setCachedManifest(null);
+    });
+  });
+
+  describe('selectExactPointHour with grid diagnostics', () => {
+    it('returns status no_copernicus_coverage when Copernicus grid fallbackReason is set', () => {
+      window.__BACKEND_COPERNICUS_SERVICE_DIAG__ = {
+        fallbackReason: 'no_copernicus_coverage',
+        requestedHour: 72,
+        lastGridFetch: { hourOffset: 72 }
+      };
+
+      const cachedResponse = {
+        requestedLat: 28.4,
+        requestedLng: -80.0,
+        requestedModel: 'EURO',
+        activeLayer: 'swell_1',
+        hourly: {
+          time: ['2026-06-03T00:00:00Z'],
+          swell_wave_height: [1.5],
+          swell_wave_direction: [120],
+          swell_wave_period: [9.0]
+        }
+      };
+
+      const res = selectExactPointHour(cachedResponse, 72);
+      expect(res.status).toBe('no_copernicus_coverage');
+      expect(res.wave_height).toBeNull();
+      expect(res.swell_wave_height).toBeNull();
+    });
+
+    it('returns status no_backend_coverage when GFS grid fallbackReason is set', () => {
+      window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
+        fallbackReason: 'no_backend_coverage',
+        requestedHour: 72,
+        lastGridFetch: { hourOffset: 72 }
+      };
+
+      const cachedResponse = {
+        requestedLat: 28.4,
+        requestedLng: -80.0,
+        requestedModel: 'GFS',
+        activeLayer: 'waves',
+        hourly: {
+          time: ['2026-06-03T00:00:00Z'],
+          wave_height: [1.5],
+          wave_direction: [120],
+          wave_period: [9.0]
+        }
+      };
+
+      const res = selectExactPointHour(cachedResponse, 72);
+      expect(res.status).toBe('no_backend_coverage');
+      expect(res.wave_height).toBeNull();
     });
   });
 });

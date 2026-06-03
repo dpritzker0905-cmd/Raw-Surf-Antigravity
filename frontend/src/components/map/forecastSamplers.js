@@ -400,6 +400,56 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 export function selectExactPointHour(cachedResponse, hourOffset) {
   if (!cachedResponse) return null;
 
+  const model = cachedResponse.requestedModel || 'GFS';
+  const activeLayer = cachedResponse.activeLayer || 'waves';
+
+  if (typeof window !== 'undefined') {
+    let diag = null;
+    let fallbackReasonValue = null;
+    if (model === 'EURO') {
+      diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__ || window.__COPERNICUS_GRID_DIAG__;
+      fallbackReasonValue = 'no_copernicus_coverage';
+    } else if (model === 'GFS') {
+      diag = window.__BACKEND_WEATHER_SERVICE_DIAG__;
+      fallbackReasonValue = 'no_backend_coverage';
+    } else if (model === 'ICON') {
+      diag = window.__BACKEND_ICON_SERVICE_DIAG__;
+      fallbackReasonValue = 'no_backend_coverage';
+    }
+
+    if (diag && 
+        (diag.fallbackReason === fallbackReasonValue || diag.fallbackReason?.includes(fallbackReasonValue)) && 
+        (diag.requestedHour === hourOffset || diag.lastGridFetch?.hourOffset === hourOffset)) {
+      return {
+        status: fallbackReasonValue,
+        source: 'exact_point_api',
+        requestedLat: cachedResponse.requestedLat,
+        requestedLng: cachedResponse.requestedLng,
+        requestedModel: model,
+        activeLayer: activeLayer,
+        provider: model === 'EURO' ? 'copernicus' : 'backend-weather-service',
+        is_estimated: false,
+        wave_height: null,
+        wave_direction: null,
+        wave_period: null,
+        wave_peak_period: null,
+        swell_wave_height: null,
+        swell_wave_direction: null,
+        swell_wave_period: null,
+        swell_wave_peak_period: null,
+        secondary_swell_wave_height: null,
+        secondary_swell_wave_direction: null,
+        secondary_swell_wave_period: null,
+        wind_wave_height: null,
+        wind_wave_direction: null,
+        wind_wave_period: null,
+        wind_wave_peak_period: null,
+        wind_speed_10m: null,
+        wind_direction_10m: null
+      };
+    }
+  }
+
   if (cachedResponse.status === 'no_copernicus_coverage' || cachedResponse.status === 'no_backend_coverage') {
     return {
       status: cachedResponse.status,
