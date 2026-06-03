@@ -26,6 +26,13 @@ def main():
 
     try:
         import copernicusmarine
+        try:
+            import dask
+            dask.config.set(scheduler='single-threaded')
+        except ImportError:
+            pass
+        import gc
+        gc.collect()
         copernicusmarine.subset(
             dataset_id=dataset_id,
             variables=variables,

@@ -220,9 +220,9 @@ def _fetch_sync(
             "password": pwd
         }
 
-        logger.info(f"[Copernicus Subprocess API] Downloading subset via {sys.executable} {fetcher_script} to {temp_file}...")
+        logger.info(f"[Copernicus Subprocess API] Downloading subset via {sys.executable} -OO {fetcher_script} to {temp_file}...")
         result = subprocess.run(
-            [sys.executable, fetcher_script, json.dumps(payload)],
+            [sys.executable, "-OO", fetcher_script, json.dumps(payload)],
             capture_output=True,
             text=True,
             check=False

@@ -255,7 +255,7 @@ class WeatherPipelineScheduler:
                     layer=layer,
                     bbox=region,
                     resolution=0.5, # Slightly lower resolution to guarantee Render runtime stability
-                    forecast_days=3
+                    forecast_days=1 if os.environ.get("RENDER") == "true" else 3
                 )
             else:
                 logger.warning("[Pipeline Scheduler] Copernicus credentials not configured. Skipping CMEMS fetch.")
