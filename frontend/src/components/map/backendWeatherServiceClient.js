@@ -425,9 +425,11 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
     }
     const json = await res.json();
     
-    // Structure mock hourly response compatible with forecastSamplers.js expectances
+    // Structure conformed hourly response compatible with forecastSamplers.js expectations.
+    // NOTE: conformedHourly is a client-side adapter shape translating single-step point forecasts
+    // into the infobox-compatible hourly format, not a fake or mock data generator.
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
-    const mockHourly = {
+    const conformedHourly = {
       time: [mockTime],
       wave_height: [json.point.speed || 0],
       wave_direction: [json.point.direction || 0],
@@ -447,7 +449,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
     };
 
     const data = {
-      hourly: mockHourly,
+      hourly: conformedHourly,
       snappedLat: json.point.sampled_lat || lat,
       snappedLng: json.point.sampled_lng || lng,
       requestedLat: lat,

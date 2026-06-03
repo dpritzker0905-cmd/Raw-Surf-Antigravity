@@ -660,5 +660,68 @@ describe('backendWeatherServiceClient', () => {
       Date.now = originalDateNow;
       setCachedManifest(null);
     });
+
+    it('resolves wind waves height and direction successfully and updates telemetry for wind_waves', async () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'EURO',
+            domain: 'marine',
+            layer: 'wind_waves',
+            valid_time_start: '2026-06-02T03:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
+      const mockJson = {
+        point: {
+          speed: 1.5,
+          direction: 100.0,
+          period: 5.5,
+          sampled_lat: 28.4,
+          sampled_lng: -80.6,
+          interpolation_method: 'bilinear'
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      window.__BACKEND_COPERNICUS_SERVICE_DIAG__ = null;
+      updateCopernicusDiagnostics('grid', {
+        validTime: '2026-06-02T03:00:00.000Z',
+        hourOffset: 3,
+        requestedBbox: PILOT_COVERAGE,
+        clampedBbox: PILOT_COVERAGE,
+        gridVectorCount: 600,
+        nonzeroCount: 600,
+        renderable: true,
+        layer: 'wind_waves'
+      });
+
+      const res = await fetchBackendExactCopernicusPoint(28.4, -80.6, 3, null, 'wind_waves');
+      expect(res.hourly.wind_wave_height[0]).toBe(1.5);
+      expect(res.hourly.wind_wave_direction[0]).toBe(100.0);
+      expect(res.hourly.wind_wave_period[0]).toBe(5.5);
+      expect(res.provider).toBe('backend-weather-service');
+
+      const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
+      expect(diag.layer).toBe('wind_waves');
+      expect(diag.lastPointFetch.speed).toBe(1.5);
+      expect(diag.lastPointFetch.direction).toBe(100.0);
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
   });
 });

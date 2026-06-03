@@ -351,9 +351,11 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
     }
     const json = await res.json();
     
-    // Structure mock hourly response compatible with forecastSamplers.js expectances
+    // Structure conformed hourly response compatible with forecastSamplers.js expectations.
+    // NOTE: conformedHourly is a client-side adapter shape translating single-step point forecasts
+    // into the infobox-compatible hourly format, not a fake or mock data generator.
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
-    const mockHourly = {
+    const conformedHourly = {
       time: [mockTime],
       wave_height: [0],
       wave_direction: [0],
@@ -373,18 +375,23 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
     };
 
     if (layer === 'swell_1') {
-      mockHourly.swell_wave_height = [json.point.speed || 0];
-      mockHourly.swell_wave_direction = [json.point.direction || 0];
-      mockHourly.swell_wave_period = [json.point.period || 0];
-      mockHourly.swell_wave_peak_period = [json.point.period || 0];
+      conformedHourly.swell_wave_height = [json.point.speed || 0];
+      conformedHourly.swell_wave_direction = [json.point.direction || 0];
+      conformedHourly.swell_wave_period = [json.point.period || 0];
+      conformedHourly.swell_wave_peak_period = [json.point.period || 0];
     } else if (layer === 'swell_2') {
-      mockHourly.secondary_swell_wave_height = [json.point.speed || 0];
-      mockHourly.secondary_swell_wave_direction = [json.point.direction || 0];
-      mockHourly.secondary_swell_wave_period = [json.point.period || 0];
+      conformedHourly.secondary_swell_wave_height = [json.point.speed || 0];
+      conformedHourly.secondary_swell_wave_direction = [json.point.direction || 0];
+      conformedHourly.secondary_swell_wave_period = [json.point.period || 0];
+    } else if (layer === 'wind_waves') {
+      conformedHourly.wind_wave_height = [json.point.speed || 0];
+      conformedHourly.wind_wave_direction = [json.point.direction || 0];
+      conformedHourly.wind_wave_period = [json.point.period || 0];
+      conformedHourly.wind_wave_peak_period = [json.point.period || 0];
     }
 
     const data = {
-      hourly: mockHourly,
+      hourly: conformedHourly,
       snappedLat: json.point.sampled_lat || lat,
       snappedLng: json.point.sampled_lng || lng,
       requestedLat: lat,

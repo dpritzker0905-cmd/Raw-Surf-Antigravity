@@ -54,29 +54,39 @@ class WeatherPipelineScheduler:
             forecast_days=2
         )
 
+        import os
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or 
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+
         if not raw_data:
-            logger.warning("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Injecting high-fidelity mock wave raw data for offline/deployed fallback...")
-            import math
-            lats, lons = self.om_provider.generate_grid_coords(region, resolution)
-            times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
-            mock_raw_results_waves = []
-            for lat, lon in zip(lats, lons):
-                mock_raw_results_waves.append({
-                    "latitude": lat,
-                    "longitude": lon,
-                    "hourly_units": {
-                        "wave_height": "m",
-                        "wave_direction": "°",
-                        "wave_period": "s"
-                    },
-                    "hourly": {
-                        "time": times,
-                        "wave_height": [1.2 + 0.4 * math.sin(lat) for _ in times],
-                        "wave_direction": [240.0 for _ in times],
-                        "wave_period": [10.0 for _ in times]
-                    }
-                })
-            results = mock_raw_results_waves
+            if is_test_env:
+                logger.warning("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Injecting high-fidelity mock wave raw data for offline/deployed fallback...")
+                import math
+                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                mock_raw_results_waves = []
+                for lat, lon in zip(lats, lons):
+                    mock_raw_results_waves.append({
+                        "latitude": lat,
+                        "longitude": lon,
+                        "hourly_units": {
+                            "wave_height": "m",
+                            "wave_direction": "°",
+                            "wave_period": "s"
+                        },
+                        "hourly": {
+                            "time": times,
+                            "wave_height": [1.2 + 0.4 * math.sin(lat) for _ in times],
+                            "wave_direction": [240.0 for _ in times],
+                            "wave_period": [10.0 for _ in times]
+                        }
+                    })
+                results = mock_raw_results_waves
+            else:
+                logger.error("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Ingestion failed (will not generate synthetic data in production/dev).")
+                return False
         else:
             results = raw_data if isinstance(raw_data, list) else [raw_data]
         
@@ -150,27 +160,37 @@ class WeatherPipelineScheduler:
             forecast_days=2
         )
 
+        import os
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or 
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+
         if not raw_data:
-            logger.warning("[Pipeline Scheduler] GFS Wind Ingestion: failed to fetch grid data. Injecting high-fidelity mock wind raw data for offline/deployed fallback...")
-            import math
-            lats, lons = self.om_provider.generate_grid_coords(region, resolution)
-            times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
-            mock_raw_results_wind = []
-            for lat, lon in zip(lats, lons):
-                mock_raw_results_wind.append({
-                    "latitude": lat,
-                    "longitude": lon,
-                    "hourly_units": {
-                        "wind_speed_10m": "kn",
-                        "wind_direction_10m": "°"
-                    },
-                    "hourly": {
-                        "time": times,
-                        "wind_speed_10m": [8.5 + 2.5 * math.cos(lat) for _ in times],
-                        "wind_direction_10m": [120.0 for _ in times]
-                    }
-                })
-            results = mock_raw_results_wind
+            if is_test_env:
+                logger.warning("[Pipeline Scheduler] GFS Wind Ingestion: failed to fetch grid data. Injecting high-fidelity mock wind raw data for offline/deployed fallback...")
+                import math
+                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                mock_raw_results_wind = []
+                for lat, lon in zip(lats, lons):
+                    mock_raw_results_wind.append({
+                        "latitude": lat,
+                        "longitude": lon,
+                        "hourly_units": {
+                            "wind_speed_10m": "kn",
+                            "wind_direction_10m": "°"
+                        },
+                        "hourly": {
+                            "time": times,
+                            "wind_speed_10m": [8.5 + 2.5 * math.cos(lat) for _ in times],
+                            "wind_direction_10m": [120.0 for _ in times]
+                        }
+                    })
+                results = mock_raw_results_wind
+            else:
+                logger.error("[Pipeline Scheduler] GFS Wind Ingestion: failed to fetch grid data. Ingestion failed (will not generate synthetic data in production/dev).")
+                return False
         else:
             results = raw_data if isinstance(raw_data, list) else [raw_data]
             first_pt = results[0]
@@ -227,7 +247,7 @@ class WeatherPipelineScheduler:
         """
         logger.info("[Pipeline Scheduler] Starting Copernicus Regional Ingestion job...")
         region = REGIONAL_CONFIGS["florida_east_coast"]
-        layers = ["swell_1", "swell_2"]
+        layers = ["swell_1", "swell_2", "wind_waves"]
         run_time = datetime.now(timezone.utc)
         total_success = 0
 
@@ -286,6 +306,12 @@ class WeatherPipelineScheduler:
                                 "swell_wave_height": "m",
                                 "swell_wave_direction": "°",
                                 "swell_wave_period": "s",
+                                "secondary_swell_wave_height": "m",
+                                "secondary_swell_wave_direction": "°",
+                                "secondary_swell_wave_period": "s",
+                                "wind_wave_height": "m",
+                                "wind_wave_direction": "°",
+                                "wind_wave_period": "s",
                                 "wave_height": "m"
                             },
                             "hourly": {
@@ -293,6 +319,12 @@ class WeatherPipelineScheduler:
                                 "swell_wave_height": [0.8 + 0.3 * math.sin(lat) for _ in times],
                                 "swell_wave_direction": [110.0 for _ in times],
                                 "swell_wave_period": [8.0 for _ in times],
+                                "secondary_swell_wave_height": [0.3 + 0.1 * math.sin(lat) for _ in times],
+                                "secondary_swell_wave_direction": [140.0 for _ in times],
+                                "secondary_swell_wave_period": [6.0 for _ in times],
+                                "wind_wave_height": [0.5 + 0.2 * math.sin(lat) for _ in times],
+                                "wind_wave_direction": [100.0 for _ in times],
+                                "wind_wave_period": [5.0 for _ in times],
                                 "wave_height": [1.0 + 0.3 * math.sin(lat) for _ in times]
                             }
                         })
