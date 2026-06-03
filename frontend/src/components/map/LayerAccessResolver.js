@@ -54,7 +54,11 @@ export function getUserTier(userOrTier) {
 export function getAllowedModels(user) {
   const tier = getUserTier(user);
   const rules = TIER_ACCESS[tier] || TIER_ACCESS.free;
-  return rules.models;
+  const models = [...rules.models];
+  if (typeof window !== 'undefined' && window.__USE_BACKEND_ICON_MARINE_SERVICE__ && !models.includes('ICON')) {
+    models.push('ICON');
+  }
+  return models;
 }
 
 /**
