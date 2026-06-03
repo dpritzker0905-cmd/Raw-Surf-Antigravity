@@ -78,6 +78,55 @@ async def get_grid(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid valid_time ISO-8601 format.")
 
+    if model.upper() == "ICON" and layer.lower() == "swell_2":
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=200, content={
+            "model": "ICON",
+            "provider": "none",
+            "domain": domain,
+            "layer": "swell_2",
+            "run_time": datetime.now(timezone.utc).isoformat(),
+            "valid_time": target_dt.isoformat(),
+            "is_forecast_authoritative": False,
+            "is_estimated": False,
+            "coverage": {
+                "west": -180.0, "south": -90.0, "east": 180.0, "north": 90.0
+            },
+            "grid": {
+                "bounds": {
+                    "west": -180.0, "south": -90.0, "east": 180.0, "north": 90.0
+                },
+                "cols": 0,
+                "rows": 0,
+                "vectors": [],
+                "diagnostics": {
+                    "nonzeroCount": 0,
+                    "vectors_length": 0,
+                    "renderable": False,
+                    "gridMode": "none"
+                }
+            },
+            "value_kind": "wave_height",
+            "value_unit": "m",
+            "display_unit_hint": "ft",
+            "units": {
+                "speed": "m",
+                "direction": "degrees",
+                "period": "seconds"
+            },
+            "source_variables": [],
+            "freshness_sec": 1800,
+            "warnings": ["unsupported_model_layer"],
+            "is_test_fixture": False,
+            "status": "unsupported",
+            "reason": "unsupported_model_layer",
+            "source": "unsupported_model_layer",
+            "renderable": False,
+            "__renderable": False,
+            "__unsupportedLayer": True
+        })
+
+
     # Find matching product registry in manifest
     manifest = store.get_manifest()
     matching_item = None
@@ -155,6 +204,48 @@ async def get_point(
         target_dt = datetime.fromisoformat(valid_time.replace("Z", "+00:00"))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid valid_time ISO-8601 format.")
+
+    if model.upper() == "ICON" and layer.lower() == "swell_2":
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=200, content={
+            "model": "ICON",
+            "provider": "none",
+            "domain": domain,
+            "layer": "swell_2",
+            "run_time": datetime.now(timezone.utc).isoformat(),
+            "valid_time": target_dt.isoformat(),
+            "is_forecast_authoritative": False,
+            "is_estimated": False,
+            "point": {
+                "requested_lat": lat,
+                "requested_lng": lng,
+                "sampled_lat": lat,
+                "sampled_lng": lng,
+                "speed": 0.0,
+                "direction": 0.0,
+                "u": 0.0,
+                "v": 0.0,
+                "period": 0.0,
+                "interpolation_method": "unsupported"
+            },
+            "value_kind": "wave_height",
+            "value_unit": "m",
+            "display_unit_hint": "ft",
+            "units": {
+                "speed": "m",
+                "direction": "degrees",
+                "period": "seconds"
+            },
+            "source_variables": [],
+            "freshness_sec": 1800,
+            "warnings": ["unsupported_model_layer"],
+            "is_test_fixture": False,
+            "status": "unsupported",
+            "reason": "unsupported_model_layer",
+            "source": "unsupported_model_layer",
+            "renderable": False
+        })
+
 
     # Find matching product registry in manifest
     manifest = store.get_manifest()

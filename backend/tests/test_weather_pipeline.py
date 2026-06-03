@@ -766,11 +766,27 @@ def test_icon_swell2_unsupported(tmp_path, monkeypatch):
     )
     assert res is None # Explicitly rejected
 
-    # Request /grid for ICON swell_2 (should return 404 since it was not ingested/stored)
+    # Request /grid for ICON swell_2 (should return conformed unsupported response)
     response_grid = client.get(
         "/api/weather/grid?model=ICON&domain=marine&layer=swell_2&valid_time=2026-06-01T21:00:00Z"
     )
-    assert response_grid.status_code == 404
+    assert response_grid.status_code == 200
+    grid_payload = response_grid.json()
+    assert grid_payload["status"] == "unsupported"
+    assert grid_payload["reason"] == "unsupported_model_layer"
+    assert grid_payload["is_estimated"] is False
+    assert grid_payload["__unsupportedLayer"] is True
+
+    # Request /point for ICON swell_2 (should return conformed unsupported response)
+    response_point = client.get(
+        "/api/weather/point?model=ICON&domain=marine&layer=swell_2&lat=28.40&lng=-80.60&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_point.status_code == 200
+    point_payload = response_point.json()
+    assert point_payload["status"] == "unsupported"
+    assert point_payload["reason"] == "unsupported_model_layer"
+    assert point_payload["is_estimated"] is False
+    assert point_payload["point"]["interpolation_method"] == "unsupported"
 
 
 
