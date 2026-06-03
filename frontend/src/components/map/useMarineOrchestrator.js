@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { fetchMarineData, getRemainingCooldown, getMarineHourlyCache, extractMarineAtOffset, isContainedInMarineCache, getModelSafeMarine } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
-import { getBackendCopernicusFlag } from './backendWeatherServiceClient';
+import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFlag } from './backendWeatherServiceClient';
 import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
@@ -638,69 +638,116 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     let extractedGrid = null;
     let curModel = activeModelRef.current || 'GFS';
     let curLayer = activeMarineLayerRef.current || 'waves';
-    
+    const isGfsBackend = getBackendWeatherFlag() && (curModel === 'GFS' || !curModel);
+    const isIconBackend = getBackendIconMarineFlag() && curModel === 'ICON';
+    const isCopernicusBackend = getBackendCopernicusFlag() && curModel === 'EURO';
+    const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
+
     const cache = getMarineHourlyCache();
 
-    if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer)) {
-      const timeArray = cache.results[0]?.hourly?.time;
-      const targetMs = Date.now() + timeOffsetHours * 3600000;
-      const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-      selectedIndex = idx;
-      if (timeArray?.[idx]) {
-        selectedApiTimestamp = timeArray[idx];
-        const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
-        const delta = Math.abs(cachedMs - targetMs);
-        if (delta > 3 * 3600000) {
-          coverageRejected = true;
-        }
-      }
-      cacheForecastDays = cache.__forecastDays || 0;
-      if (cache.__coverageStartMs) cacheStartStr = new Date(cache.__coverageStartMs).toISOString();
-      if (cache.__coverageEndMs) cacheEndStr = new Date(cache.__coverageEndMs).toISOString();
-    }
+    if (isBackendActive) {
+      const cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer);
+      if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour) {
+        extractedGrid = cachedBackendData.grid;
+        const sig = _marineDataSignature(cachedBackendData, curLayer);
+        if (sig && sig !== lastCommittedSigRef.current) {
+          const evtType = cachedBackendData.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
+          console.log(`[SCRUB] [BACKEND CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer} renderable=${cachedBackendData.grid?.__renderable}`);
+          lastCommittedSigRef.current = sig;
+          _logPipelineEvent(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: cachedBackendData.grid?.__renderable });
+          marineRevision.current += 1;
+          cachedBackendData.__commitRevision = marineRevision.current;
 
-    try {
-      if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer) && !coverageRejected) {
-        const data = extractMarineAtOffset(cache, timeOffsetHours, curLayer);
-        if (data) {
-          extractedGrid = data.grid;
-          const sig = _marineDataSignature(data, curLayer);
-          if (sig && sig !== lastCommittedSigRef.current) {
-            const evtType = data.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
-            console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer} renderable=${data.grid?.__renderable}`);
-            lastCommittedSigRef.current = sig; _logPipelineEvent(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
-            marineRevision.current += 1; data.__commitRevision = marineRevision.current;
-            
-            const vHash = getViewportHash();
-            if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
-            setMarineData(data);
+          const vHash = getViewportHash();
+          if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
+          setMarineData(cachedBackendData);
+        }
+
+        // Populate scrub diagnostics
+        const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
+        const samples = sampleIndices.map(idx => {
+          const v = extractedGrid?.vectors?.[idx];
+          const comp = v?.[curLayer] || v;
+          return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
+        });
+
+        window.__MARINE_SCRUB_DIAG__ = {
+          requestedHour: timeOffsetHours,
+          targetMs: Date.now() + timeOffsetHours * 3600000,
+          selectedApiTimestamp: 'none',
+          selectedIndex: -1,
+          cacheCoverageStart: 'none',
+          cacheCoverageEnd: 'none',
+          forecastDays: 1,
+          contentHash: computeGridContentHash(extractedGrid, curLayer),
+          samples,
+          coverageRejected: false,
+          timestamp: new Date().toISOString()
+        };
+        return;
+      }
+    } else {
+      if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer)) {
+        const timeArray = cache.results[0]?.hourly?.time;
+        const targetMs = Date.now() + timeOffsetHours * 3600000;
+        const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+        selectedIndex = idx;
+        if (timeArray?.[idx]) {
+          selectedApiTimestamp = timeArray[idx];
+          const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
+          const delta = Math.abs(cachedMs - targetMs);
+          if (delta > 3 * 3600000) {
+            coverageRejected = true;
           }
-          
-          // Populate scrub diagnostics
-          const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
-          const samples = sampleIndices.map(idx => {
-            const v = extractedGrid?.vectors?.[idx];
-            const comp = v?.[curLayer] || v;
-            return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
-          });
-
-          window.__MARINE_SCRUB_DIAG__ = {
-            requestedHour: timeOffsetHours,
-            targetMs: Date.now() + timeOffsetHours * 3600000,
-            selectedApiTimestamp,
-            selectedIndex,
-            cacheCoverageStart: cacheStartStr,
-            cacheCoverageEnd: cacheEndStr,
-            forecastDays: cacheForecastDays,
-            contentHash: computeGridContentHash(extractedGrid, curLayer),
-            samples,
-            coverageRejected,
-            timestamp: new Date().toISOString()
-          };
-          return;
         }
+        cacheForecastDays = cache.__forecastDays || 0;
+        if (cache.__coverageStartMs) cacheStartStr = new Date(cache.__coverageStartMs).toISOString();
+        if (cache.__coverageEndMs) cacheEndStr = new Date(cache.__coverageEndMs).toISOString();
       }
-    } catch (e) { console.warn('[CACHE] Local timeline re-index failed:', e.message); }
+
+      try {
+        if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer) && !coverageRejected) {
+          const data = extractMarineAtOffset(cache, timeOffsetHours, curLayer);
+          if (data) {
+            extractedGrid = data.grid;
+            const sig = _marineDataSignature(data, curLayer);
+            if (sig && sig !== lastCommittedSigRef.current) {
+              const evtType = data.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
+              console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer} renderable=${data.grid?.__renderable}`);
+              lastCommittedSigRef.current = sig; _logPipelineEvent(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
+              marineRevision.current += 1; data.__commitRevision = marineRevision.current;
+              
+              const vHash = getViewportHash();
+              if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
+              setMarineData(data);
+            }
+            
+            // Populate scrub diagnostics
+            const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
+            const samples = sampleIndices.map(idx => {
+              const v = extractedGrid?.vectors?.[idx];
+              const comp = v?.[curLayer] || v;
+              return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
+            });
+
+            window.__MARINE_SCRUB_DIAG__ = {
+              requestedHour: timeOffsetHours,
+              targetMs: Date.now() + timeOffsetHours * 3600000,
+              selectedApiTimestamp,
+              selectedIndex,
+              cacheCoverageStart: cacheStartStr,
+              cacheCoverageEnd: cacheEndStr,
+              forecastDays: cacheForecastDays,
+              contentHash: computeGridContentHash(extractedGrid, curLayer),
+              samples,
+              coverageRejected,
+              timestamp: new Date().toISOString()
+            };
+            return;
+          }
+        }
+      } catch (e) { console.warn('[CACHE] Local timeline re-index failed:', e.message); }
+    }
 
     // If cache re-indexing failed or returned null (e.g. coverage rejected)
     if (coverageRejected) {

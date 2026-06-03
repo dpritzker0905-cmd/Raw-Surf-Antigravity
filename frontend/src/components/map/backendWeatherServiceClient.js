@@ -75,11 +75,31 @@ export async function fetchProductsManifest(forceRefresh = false) {
 }
 
 /**
+ * Resolves the master backend marine weather system feature flag.
+ * Enabled by default. Can be overridden in console or localStorage.
+ */
+export function getBackendMarineSystemFlag() {
+  if (typeof window === 'undefined') return true;
+  if (window.__USE_BACKEND_MARINE_SYSTEM__ !== undefined) {
+    return !!window.__USE_BACKEND_MARINE_SYSTEM__;
+  }
+  try {
+    const lsVal = window.localStorage.getItem('__USE_BACKEND_MARINE_SYSTEM__');
+    if (lsVal !== null) return lsVal === 'true';
+  } catch (e) {}
+  if (process.env.REACT_APP_USE_BACKEND_MARINE_SYSTEM !== undefined) {
+    return process.env.REACT_APP_USE_BACKEND_MARINE_SYSTEM === 'true';
+  }
+  return true;
+}
+
+/**
  * Resolves the weather service feature flag.
- * Disabled by default. Can be overridden in console or localStorage.
+ * Defaults to true under active master flag. Can be overridden in console or localStorage.
  */
 export function getBackendWeatherFlag() {
-  if (typeof window === 'undefined') return false;
+  if (!getBackendMarineSystemFlag()) return false;
+  if (typeof window === 'undefined') return true;
   if (window.__USE_BACKEND_WEATHER_SERVICE__ !== undefined) {
     return !!window.__USE_BACKEND_WEATHER_SERVICE__;
   }
@@ -87,11 +107,15 @@ export function getBackendWeatherFlag() {
     const lsVal = window.localStorage.getItem('__USE_BACKEND_WEATHER_SERVICE__');
     if (lsVal !== null) return lsVal === 'true';
   } catch (e) {}
-  return process.env.REACT_APP_USE_BACKEND_WEATHER === 'true';
+  if (process.env.REACT_APP_USE_BACKEND_WEATHER !== undefined) {
+    return process.env.REACT_APP_USE_BACKEND_WEATHER === 'true';
+  }
+  return true;
 }
 
 /**
  * Resolves the backend wind service feature flag.
+ * Keeps its legacy behavior (disabled by default) untouched.
  */
 export function getBackendWindFlag() {
   if (typeof window === 'undefined') return false;
@@ -107,9 +131,11 @@ export function getBackendWindFlag() {
 
 /**
  * Resolves the backend Copernicus service feature flag.
+ * Defaults to true under active master flag.
  */
 export function getBackendCopernicusFlag() {
-  if (typeof window === 'undefined') return false;
+  if (!getBackendMarineSystemFlag()) return false;
+  if (typeof window === 'undefined') return true;
   if (window.__USE_BACKEND_COPERNICUS_SERVICE__ !== undefined) {
     return !!window.__USE_BACKEND_COPERNICUS_SERVICE__;
   }
@@ -117,14 +143,19 @@ export function getBackendCopernicusFlag() {
     const lsVal = window.localStorage.getItem('__USE_BACKEND_COPERNICUS_SERVICE__');
     if (lsVal !== null) return lsVal === 'true';
   } catch (e) {}
-  return process.env.REACT_APP_USE_BACKEND_COPERNICUS === 'true';
+  if (process.env.REACT_APP_USE_BACKEND_COPERNICUS !== undefined) {
+    return process.env.REACT_APP_USE_BACKEND_COPERNICUS === 'true';
+  }
+  return true;
 }
 
 /**
  * Resolves the backend ICON service feature flag.
+ * Defaults to true under active master flag.
  */
 export function getBackendIconMarineFlag() {
-  if (typeof window === 'undefined') return false;
+  if (!getBackendMarineSystemFlag()) return false;
+  if (typeof window === 'undefined') return true;
   if (window.__USE_BACKEND_ICON_MARINE_SERVICE__ !== undefined) {
     return !!window.__USE_BACKEND_ICON_MARINE_SERVICE__;
   }
@@ -132,7 +163,10 @@ export function getBackendIconMarineFlag() {
     const lsVal = window.localStorage.getItem('__USE_BACKEND_ICON_MARINE_SERVICE__');
     if (lsVal !== null) return lsVal === 'true';
   } catch (e) {}
-  return process.env.REACT_APP_USE_BACKEND_ICON_MARINE === 'true';
+  if (process.env.REACT_APP_USE_BACKEND_ICON_MARINE !== undefined) {
+    return process.env.REACT_APP_USE_BACKEND_ICON_MARINE === 'true';
+  }
+  return true;
 }
 
 /**
@@ -545,7 +579,9 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       requestedModel: 'ICON',
       activeLayer: 'swell_2',
       provider: 'none',
-      source: 'unsupported_model_layer'
+      source: 'unsupported_model_layer',
+      is_estimated: false,
+      warnings: ['unsupported_model_layer']
     };
   }
 

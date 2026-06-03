@@ -400,6 +400,20 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 export function selectExactPointHour(cachedResponse, hourOffset) {
   if (!cachedResponse?.hourly?.time) return null;
 
+  if (cachedResponse?.status === 'unsupported') {
+    return {
+      status: 'unsupported',
+      source: 'unsupported_model_layer',
+      requestedLat: cachedResponse.requestedLat,
+      requestedLng: cachedResponse.requestedLng,
+      requestedModel: cachedResponse.requestedModel,
+      activeLayer: cachedResponse.activeLayer,
+      provider: 'none',
+      is_estimated: false,
+      warnings: ['unsupported_model_layer']
+    };
+  }
+
   const times = cachedResponse.hourly.time;
   const h = cachedResponse.hourly;
 

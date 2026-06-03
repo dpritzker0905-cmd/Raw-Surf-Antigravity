@@ -13,6 +13,7 @@ import {
   getBackendWeatherFlag,
   getBackendCopernicusFlag,
   getBackendIconMarineFlag,
+  getBackendMarineSystemFlag,
   getSharedValidTime,
   clampViewportBbox,
   mapNormalizedGridToWebGL,
@@ -21,7 +22,7 @@ import {
   fetchBackendCopernicusGrid,
   fetchBackendMarineGrid
 } from './backendWeatherServiceClient';
-export { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag };
+export { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag };
 
 // Re-export wind controller components for timeline scrubs and observers
 export { fetchWindData, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './windController';
@@ -79,7 +80,29 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
   if (!data) return;
   const layerPart = _isAllVarModel(model) ? 'all' : (layer || 'waves');
   const key = `${model || 'GFS'}_${layerPart}_${hourOffset}`;
-  _perModelHourCache.set(key, { data, timestamp: Date.now(), model: model || 'GFS' });
+  
+  const g = data.grid || {};
+  const bounds = g.bounds || {};
+  const boundsStr = bounds.west !== undefined ? `${bounds.west.toFixed(2)}:${bounds.south.toFixed(2)}:${bounds.east.toFixed(2)}:${bounds.north.toFixed(2)}` : 'none';
+
+  const signature = {
+    model: model || 'GFS',
+    layer: layer || 'waves',
+    provider: g.__gridProvider || g.provider || 'none',
+    hourOffset: hourOffset,
+    boundsStr: boundsStr,
+    cols: g.cols || 0,
+    rows: g.rows || 0,
+    vectorsLength: g.vectors?.length || 0
+  };
+
+  _perModelHourCache.set(key, { 
+    data, 
+    timestamp: Date.now(), 
+    model: model || 'GFS',
+    signature
+  });
+
   if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
     const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
     for (let i = 0; i < 10; i++) _perModelHourCache.delete(oldest[i][0]);
@@ -93,7 +116,12 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   const cacheLayerKey = marineHourlyCache?.__layerKey || 'all';
   const isCacheMatch = cacheLayerKey === 'all' || cacheLayerKey === wantedLayer;
   
-  if (_isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted && isCacheMatch) {
+  const isGfsBackend = getBackendWeatherFlag() && (wanted === 'GFS' || !wanted);
+  const isIconBackend = getBackendIconMarineFlag() && wanted === 'ICON';
+  const isCopernicusBackend = getBackendCopernicusFlag() && wanted === 'EURO';
+  const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
+
+  if (!isBackendActive && _isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted && isCacheMatch) {
     try {
       const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
       if (reExtracted?.grid?.vectors?.length > 0) { hitData = reExtracted; cacheSource = 'raw_hourly_cache'; }
@@ -102,9 +130,37 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   if (!hitData) {
     const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
     const exact = _perModelHourCache.get(`${wanted}_${layerPart}_${wantedHour}`);
-    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) { hitData = exact.data; cacheSource = 'per_model_hour_cache_exact'; }
+    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+      const sig = exact.signature;
+      if (sig) {
+        const g = exact.data?.grid || {};
+        const b = g.bounds || {};
+        const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
+        const provider = g.__gridProvider || g.provider || 'none';
+
+        if (sig.model !== wanted ||
+            sig.layer !== wantedLayer ||
+            sig.provider !== provider ||
+            sig.hourOffset !== wantedHour ||
+            sig.boundsStr !== bStr ||
+            sig.cols !== (g.cols || 0) ||
+            sig.rows !== (g.rows || 0) ||
+            sig.vectorsLength !== (g.vectors?.length || 0)) {
+          console.warn(`[Safe Cache] Rejecting cached entry due to signature mismatch!`, sig, {wanted, wantedLayer, provider, wantedHour, bStr, cols: g.cols, rows: g.rows, vectorsLength: g.vectors?.length});
+        } else {
+          hitData = exact.data;
+          cacheSource = 'per_model_hour_cache_exact';
+        }
+      } else {
+        // Skip legacy un-signatured cache if backend is active
+        if (!isBackendActive) {
+          hitData = exact.data;
+          cacheSource = 'per_model_hour_cache_exact';
+        }
+      }
+    }
   }
-  if (!hitData && !_isAllVarModel(wanted)) {
+  if (!isBackendActive && !hitData && !_isAllVarModel(wanted)) {
     const prefix = `${wanted}_${wantedLayer}_`;
     let bestEntry = null, bestDiff = Infinity;
     for (const [key, entry] of _perModelHourCache.entries()) {
@@ -119,7 +175,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
       staleHour = true; cacheSource = 'per_model_hour_cache_nearest';
     }
   }
-  if (!hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
+  if (!isBackendActive && !hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
     const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
     if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated' || cachedProvider === 'backend-weather-service') {
       const diff = Math.abs((lastKnownGoodMarine.hourOffset || 0) - wantedHour);
@@ -172,6 +228,37 @@ function hasTimeCoverage(cache, hourOffset) {
 }
 
 export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 'waves') {
+  const isGfsBackend = getBackendWeatherFlag() && (model === 'GFS' || !model);
+  const isIconBackend = getBackendIconMarineFlag() && model === 'ICON';
+  const isCopernicusBackend = getBackendCopernicusFlag() && model === 'EURO';
+  const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
+
+  if (isBackendActive) {
+    const layerPart = _isAllVarModel(model) ? 'all' : layer;
+    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${hourOffset}`);
+    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+      const sig = exact.signature;
+      if (sig) {
+        const g = exact.data?.grid || {};
+        const b = g.bounds || {};
+        const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
+        const provider = g.__gridProvider || g.provider || 'none';
+
+        if (sig.model === (model || 'GFS') &&
+            sig.layer === layer &&
+            sig.provider === provider &&
+            sig.hourOffset === hourOffset &&
+            sig.boundsStr === bStr &&
+            sig.cols === (g.cols || 0) &&
+            sig.rows === (g.rows || 0) &&
+            sig.vectorsLength === (g.vectors?.length || 0)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
   if (marineHourlyCache.model !== (model || 'GFS')) return false;
   const cacheLayerKey = marineHourlyCache.__layerKey || 'all';
@@ -265,7 +352,7 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
       return;
     }
 
-    const isIconSwell2Estimated = activeLayerFromCache === 'swell_2' && activeModel === 'ICON' && s2_h === 0 && s1_h > 0 && !getBackendIconMarineFlag();
+    const isIconSwell2Estimated = false; // Permanently disabled in Stage 4H
     const final_s2_h = isIconSwell2Estimated ? s1_h : s2_h;
     const final_s2_d = isIconSwell2Estimated ? s1_d : s2_d;
     const final_s2_period = isIconSwell2Estimated ? safeNum(c.swell_wave_period ?? 0) : safeNum(c.secondary_swell_wave_period ?? 0);
@@ -316,7 +403,6 @@ export { extractMarineAtOffset };
 
 // Centralized single-flight request registry for marine fetches
 var inFlightMarineRequests = new Map();
-
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false) {
   if (!bounds) return getModelSafeMarine(model, hourOffset, activeLayer);
 
@@ -329,11 +415,43 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (latMax <= latMin) { latMin = -80; latMax = 85; }
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
+  const isGfsBackend = getBackendWeatherFlag() && (model === 'GFS' || !model);
+  const isIconBackend = getBackendIconMarineFlag() && model === 'ICON';
+  const isCopernicusBackend = getBackendCopernicusFlag() && model === 'EURO';
+  const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
+
+  if (!forceFetch && isBackendActive) {
+    const layerPart = _isAllVarModel(model) ? 'all' : activeLayer;
+    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${hourOffset}`);
+    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+      const sig = exact.signature;
+      if (sig) {
+        const g = exact.data?.grid || {};
+        const b = g.bounds || {};
+        const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
+        const provider = g.__gridProvider || g.provider || 'none';
+
+        if (sig.model === (model || 'GFS') &&
+            sig.layer === activeLayer &&
+            sig.provider === provider &&
+            sig.hourOffset === hourOffset &&
+            sig.boundsStr === bStr &&
+            sig.cols === (g.cols || 0) &&
+            sig.rows === (g.rows || 0) &&
+            sig.vectorsLength === (g.vectors?.length || 0)) {
+          console.log(`[Backend Cache Hit] Returning cached backend grid for ${model || 'GFS'} ${activeLayer} at hourOffset=+${hourOffset}h`);
+          return exact.data;
+        }
+      }
+    }
+  }
+
   // --- GFS BACKEND SERVICE REDIRECT ---
   if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
       console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
+      _cacheMarineResult('GFS', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
       console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
@@ -342,8 +460,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // --- COPERNICUS BACKEND SERVICE REDIRECT ---
   if (getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves')) {
-    console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
-    return await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller", activeLayer);
+    try {
+      console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+      const result = await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller", activeLayer);
+      _cacheMarineResult('EURO', hourOffset, result, activeLayer);
+      return result;
+    } catch (err) {
+      console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
   }
 
   // --- ICON BACKEND SERVICE REDIRECT ---
@@ -351,12 +475,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     try {
       console.log(`[Backend Weather Service] Redirecting ICON ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
+      _cacheMarineResult('ICON', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
       console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 
+  console.warn(`[Fallback] Using legacy Open-Meteo proxy pipeline for model=${model || 'GFS'}, layer=${activeLayer || 'waves'}, hour=${hourOffset}`);
   const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
   const pointCount = points.length || 1;
 

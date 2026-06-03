@@ -7,6 +7,7 @@
 
 import {
   PILOT_COVERAGE,
+  getBackendMarineSystemFlag,
   getBackendWeatherFlag,
   getBackendWindFlag,
   getSharedValidTime,
@@ -43,7 +44,10 @@ describe('backendWeatherServiceClient', () => {
   beforeEach(() => {
     // Reset global overrides and overrides in window/localStorage
     if (typeof window !== 'undefined') {
+      delete window.__USE_BACKEND_MARINE_SYSTEM__;
       delete window.__USE_BACKEND_WEATHER_SERVICE__;
+      delete window.__USE_BACKEND_COPERNICUS_SERVICE__;
+      delete window.__USE_BACKEND_ICON_MARINE_SERVICE__;
       delete window.__BACKEND_WEATHER_SERVICE_DIAG__;
     }
     try {
@@ -53,26 +57,55 @@ describe('backendWeatherServiceClient', () => {
     setCachedManifest(null);
   });
 
-  describe('getBackendWeatherFlag', () => {
-    it('returns false by default', () => {
-      expect(getBackendWeatherFlag()).toBe(false);
+  describe('getBackendMarineSystemFlag', () => {
+    it('returns true by default', () => {
+      expect(getBackendMarineSystemFlag()).toBe(true);
     });
 
-    it('uses window.__USE_BACKEND_WEATHER_SERVICE__ override if set', () => {
-      window.__USE_BACKEND_WEATHER_SERVICE__ = true;
-      expect(getBackendWeatherFlag()).toBe(true);
+    it('uses window.__USE_BACKEND_MARINE_SYSTEM__ override if set', () => {
+      window.__USE_BACKEND_MARINE_SYSTEM__ = false;
+      expect(getBackendMarineSystemFlag()).toBe(false);
 
-      window.__USE_BACKEND_WEATHER_SERVICE__ = false;
-      expect(getBackendWeatherFlag()).toBe(false);
+      window.__USE_BACKEND_MARINE_SYSTEM__ = true;
+      expect(getBackendMarineSystemFlag()).toBe(true);
     });
 
     it('uses localStorage override if set', () => {
       try {
-        localStorage.setItem('__USE_BACKEND_WEATHER_SERVICE__', 'true');
-        expect(getBackendWeatherFlag()).toBe(true);
+        localStorage.setItem('__USE_BACKEND_MARINE_SYSTEM__', 'false');
+        expect(getBackendMarineSystemFlag()).toBe(false);
 
+        localStorage.setItem('__USE_BACKEND_MARINE_SYSTEM__', 'true');
+        expect(getBackendMarineSystemFlag()).toBe(true);
+      } catch (e) {}
+    });
+  });
+
+  describe('getBackendWeatherFlag', () => {
+    it('returns true by default when master is active', () => {
+      expect(getBackendWeatherFlag()).toBe(true);
+    });
+
+    it('returns false if master flag is disabled', () => {
+      window.__USE_BACKEND_MARINE_SYSTEM__ = false;
+      expect(getBackendWeatherFlag()).toBe(false);
+    });
+
+    it('uses window.__USE_BACKEND_WEATHER_SERVICE__ override if set', () => {
+      window.__USE_BACKEND_WEATHER_SERVICE__ = false;
+      expect(getBackendWeatherFlag()).toBe(false);
+
+      window.__USE_BACKEND_WEATHER_SERVICE__ = true;
+      expect(getBackendWeatherFlag()).toBe(true);
+    });
+
+    it('uses localStorage override if set', () => {
+      try {
         localStorage.setItem('__USE_BACKEND_WEATHER_SERVICE__', 'false');
         expect(getBackendWeatherFlag()).toBe(false);
+
+        localStorage.setItem('__USE_BACKEND_WEATHER_SERVICE__', 'true');
+        expect(getBackendWeatherFlag()).toBe(true);
       } catch (e) {}
     });
   });
@@ -634,16 +667,21 @@ describe('backendWeatherServiceClient', () => {
   });
 
   describe('getBackendCopernicusFlag', () => {
-    it('returns false by default', () => {
+    it('returns true by default when master is active', () => {
+      expect(getBackendCopernicusFlag()).toBe(true);
+    });
+
+    it('returns false if master flag is disabled', () => {
+      window.__USE_BACKEND_MARINE_SYSTEM__ = false;
       expect(getBackendCopernicusFlag()).toBe(false);
     });
 
     it('uses window.__USE_BACKEND_COPERNICUS_SERVICE__ override if set', () => {
-      window.__USE_BACKEND_COPERNICUS_SERVICE__ = true;
-      expect(getBackendCopernicusFlag()).toBe(true);
-
       window.__USE_BACKEND_COPERNICUS_SERVICE__ = false;
       expect(getBackendCopernicusFlag()).toBe(false);
+
+      window.__USE_BACKEND_COPERNICUS_SERVICE__ = true;
+      expect(getBackendCopernicusFlag()).toBe(true);
     });
   });
 
@@ -963,15 +1001,20 @@ describe('backendWeatherServiceClient', () => {
   });
 
   describe('ICON Marine Service Integration & Redirects', () => {
-    it('getBackendIconMarineFlag returns false by default', () => {
+    it('getBackendIconMarineFlag returns true by default when master is active', () => {
+      expect(getBackendIconMarineFlag()).toBe(true);
+    });
+
+    it('returns false if master flag is disabled', () => {
+      window.__USE_BACKEND_MARINE_SYSTEM__ = false;
       expect(getBackendIconMarineFlag()).toBe(false);
     });
 
     it('getBackendIconMarineFlag respects window override', () => {
-      window.__USE_BACKEND_ICON_MARINE_SERVICE__ = true;
-      expect(getBackendIconMarineFlag()).toBe(true);
       window.__USE_BACKEND_ICON_MARINE_SERVICE__ = false;
       expect(getBackendIconMarineFlag()).toBe(false);
+      window.__USE_BACKEND_ICON_MARINE_SERVICE__ = true;
+      expect(getBackendIconMarineFlag()).toBe(true);
     });
 
     it('fetchBackendMarineGrid handles unsupported swell_2 immediately without fetching', async () => {
@@ -1006,6 +1049,8 @@ describe('backendWeatherServiceClient', () => {
       expect(res.status).toBe('unsupported');
       expect(res.provider).toBe('none');
       expect(res.source).toBe('unsupported_model_layer');
+      expect(res.is_estimated).toBe(false);
+      expect(res.warnings).toContain('unsupported_model_layer');
       expect(res.hourly.secondary_swell_wave_height[0]).toBeNull();
       setCachedManifest(null);
     });

@@ -9,7 +9,7 @@ import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
 import { computeGridContentHash } from './marineGridHash';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
-import { getMarineHourlyCache } from './marineController';
+import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
 import { getSharedLandGeoJSON, safeMoveLayer } from './mapUtils';
 
 var LAYER_ID = 'webgl-marine-particles';
@@ -183,23 +183,37 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       reason = 'layer_inactive';
     } else if (renderedDataHour === null) {
       reason = 'no_data_rendered';
+
     } else if (!parity) {
-      const cache = getMarineHourlyCache ? getMarineHourlyCache() : null;
       let coverageMissing = false;
-      if (cache?.results?.length) {
-        const timeArray = cache.results[0]?.hourly?.time;
-        const targetMs = Date.now() + requestedHour * 3600000;
-        const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-        if (timeArray?.[idx]) {
-          const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
-          if (Math.abs(cachedMs - targetMs) > 3 * 3600000) {
+      const isGfsBackend = getBackendWeatherFlag() && (activeModel === 'GFS' || !activeModel);
+      const isIconBackend = getBackendIconMarineFlag() && activeModel === 'ICON';
+      const isCopernicusBackend = getBackendCopernicusFlag() && activeModel === 'EURO';
+      const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
+
+      if (isBackendActive) {
+        const curLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
+        const cached = getModelSafeMarine(activeModel, requestedHour, curLayer);
+        if (!cached || cached.__staleHour) {
+          coverageMissing = true;
+        }
+      } else {
+        const cache = getMarineHourlyCache ? getMarineHourlyCache() : null;
+        if (cache?.results?.length) {
+          const timeArray = cache.results[0]?.hourly?.time;
+          const targetMs = Date.now() + requestedHour * 3600000;
+          const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+          if (timeArray?.[idx]) {
+            const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
+            if (Math.abs(cachedMs - targetMs) > 3 * 3600000) {
+              coverageMissing = true;
+            }
+          } else {
             coverageMissing = true;
           }
         } else {
           coverageMissing = true;
         }
-      } else {
-        coverageMissing = true;
       }
 
       if (coverageMissing) {
@@ -251,14 +265,27 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
                     infoboxLayer === heatmapLayer &&
                     infoboxHour === heatmapHour &&
                     infoboxProvider === heatmapProvider;
+    const isGfsBackend = getBackendWeatherFlag() && (heatmapModel === 'GFS' || !heatmapModel);
+    const isIconBackend = getBackendIconMarineFlag() && heatmapModel === 'ICON';
+    const isCopernicusBackend = getBackendCopernicusFlag() && heatmapModel === 'EURO';
+    const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
+
+    const backendGridVectorCount = isBackendActive ? (lastSig.vectorsLength || 0) : 0;
+    const webglSourceVectorCount = lastSig.vectorsLength || 0;
+    const particleCount = engine ? (engine.particleRes ** 2) : 0;
+    const renderedParticleCount = (engine && engine._waveData) ? (engine.particleRes ** 2) : 0;
+    const lastUploadedGridSignature = lastSig.uploadSig || 'none';
 
     const diag = {
       activeModel: heatmapModel,
       activeMarineLayer: heatmapLayer,
       renderedProvider: heatmapProvider,
       componentLayer: lastSig.componentLayer || 'none',
-      renderedVectorCount: lastSig.vectorsLength || 0,
-      renderedNonzeroCount: lastSig.nonzeroCount || 0,
+      backendGridVectorCount,
+      webglSourceVectorCount,
+      particleCount,
+      renderedParticleCount,
+      lastUploadedGridSignature,
       waveDataPresent: !!engine?._waveData,
       timeOffsetHours: heatmapHour,
       lastUploadClearRejectionReason: rejectionOrClearReason || window.__WEBGL_MARINE_UPLOAD_REASON__ || 'none',
