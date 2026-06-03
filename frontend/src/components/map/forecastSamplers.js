@@ -98,10 +98,10 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   // --- REDIRECT COPERNICUS TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && activeLayer === 'swell_1') {
+  if (typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2')) {
     try {
-      console.log(`[Backend Weather Service] Redirecting Copernicus swell_1 point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal);
+      console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
+      const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer);
       if (pointResult) {
         return pointResult;
       }

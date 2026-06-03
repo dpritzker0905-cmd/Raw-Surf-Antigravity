@@ -414,9 +414,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   }
 
   // --- COPERNICUS BACKEND SERVICE REDIRECT ---
-  if (getBackendCopernicusFlag() && model === 'EURO' && activeLayer === 'swell_1') {
-    console.log(`[Backend Weather Service] Redirecting Copernicus swell_1 grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
-    return await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller");
+  if (getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2')) {
+    console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+    return await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller", activeLayer);
   }
 
   const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');

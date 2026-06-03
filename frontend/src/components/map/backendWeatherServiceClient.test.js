@@ -597,5 +597,68 @@ describe('backendWeatherServiceClient', () => {
       Date.now = originalDateNow;
       setCachedManifest(null);
     });
+
+    it('resolves secondary swell height and direction successfully and updates telemetry for swell_2', async () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'EURO',
+            domain: 'marine',
+            layer: 'swell_2',
+            valid_time_start: '2026-06-02T03:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
+      const mockJson = {
+        point: {
+          speed: 1.2,
+          direction: 140.0,
+          period: 8.5,
+          sampled_lat: 28.4,
+          sampled_lng: -80.6,
+          interpolation_method: 'bilinear'
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      window.__BACKEND_COPERNICUS_SERVICE_DIAG__ = null;
+      updateCopernicusDiagnostics('grid', {
+        validTime: '2026-06-02T03:00:00.000Z',
+        hourOffset: 3,
+        requestedBbox: PILOT_COVERAGE,
+        clampedBbox: PILOT_COVERAGE,
+        gridVectorCount: 600,
+        nonzeroCount: 600,
+        renderable: true,
+        layer: 'swell_2'
+      });
+
+      const res = await fetchBackendExactCopernicusPoint(28.4, -80.6, 3, null, 'swell_2');
+      expect(res.hourly.secondary_swell_wave_height[0]).toBe(1.2);
+      expect(res.hourly.secondary_swell_wave_direction[0]).toBe(140.0);
+      expect(res.hourly.secondary_swell_wave_period[0]).toBe(8.5);
+      expect(res.provider).toBe('backend-weather-service');
+
+      const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
+      expect(diag.layer).toBe('swell_2');
+      expect(diag.lastPointFetch.speed).toBe(1.2);
+      expect(diag.lastPointFetch.direction).toBe(140.0);
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
   });
 });
