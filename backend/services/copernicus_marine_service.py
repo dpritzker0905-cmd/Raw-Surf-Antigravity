@@ -127,7 +127,6 @@ def _fetch_sync(
     import json
     import gc
     from pathlib import Path
-    import copernicusmarine
     import netCDF4
     import numpy as np
 
@@ -202,22 +201,35 @@ def _fetch_sync(
     results = []
 
     try:
-        logger.info(f"[Copernicus In-Process API] Downloading subset to {temp_file}...")
-        copernicusmarine.subset(
-            dataset_id="cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
-            variables=fetch_vars,
-            minimum_longitude=lon_min,
-            maximum_longitude=lon_max,
-            minimum_latitude=lat_min,
-            maximum_latitude=lat_max,
-            start_datetime=start_time_dt.strftime("%Y-%m-%dT%H:%M:%S"),
-            end_datetime=end_time_dt.strftime("%Y-%m-%dT%H:%M:%S"),
-            output_directory=str(temp_dir),
-            output_filename=temp_file.name,
-            username=username,
-            password=pwd
+        import subprocess
+        import sys
+        
+        fetcher_script = os.path.join(os.path.dirname(__file__), "copernicus_fetcher.py")
+        payload = {
+            "dataset_id": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+            "variables": fetch_vars,
+            "minimum_longitude": float(lon_min),
+            "maximum_longitude": float(lon_max),
+            "minimum_latitude": float(lat_min),
+            "maximum_latitude": float(lat_max),
+            "start_datetime": start_time_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+            "end_datetime": end_time_dt.strftime("%Y-%m-%dT%H:%M:%S"),
+            "output_directory": str(temp_dir),
+            "output_filename": temp_file.name,
+            "username": username,
+            "password": pwd
+        }
+
+        logger.info(f"[Copernicus Subprocess API] Downloading subset via {sys.executable} {fetcher_script} to {temp_file}...")
+        result = subprocess.run(
+            [sys.executable, fetcher_script, json.dumps(payload)],
+            capture_output=True,
+            text=True,
+            check=False
         )
-        logger.info("[Copernicus In-Process API] Download completed. Parsing with netCDF4...")
+        if result.returncode != 0:
+            raise RuntimeError(f"Fetcher subprocess failed (exit code {result.returncode}): {result.stdout.strip()} | stderr: {result.stderr.strip()}")
+        logger.info("[Copernicus Subprocess API] Download completed. Parsing with netCDF4...")
         
         nc = netCDF4.Dataset(temp_file, "r")
         lats = nc.variables["latitude"][:]
