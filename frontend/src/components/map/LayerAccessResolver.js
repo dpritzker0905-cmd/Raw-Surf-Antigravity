@@ -55,7 +55,11 @@ export function getAllowedModels(user) {
   const tier = getUserTier(user);
   const rules = TIER_ACCESS[tier] || TIER_ACCESS.free;
   const models = [...rules.models];
-  if (typeof window !== 'undefined' && window.__USE_BACKEND_ICON_MARINE_SERVICE__ && !models.includes('ICON')) {
+  const isIconActive = typeof window !== 'undefined' && (
+    window.__USE_BACKEND_ICON_MARINE_SERVICE__ === true ||
+    window.localStorage.getItem('__USE_BACKEND_ICON_MARINE_SERVICE__') === 'true'
+  );
+  if (isIconActive && !models.includes('ICON')) {
     models.push('ICON');
   }
   return models;
