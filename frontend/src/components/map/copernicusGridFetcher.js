@@ -187,7 +187,7 @@ function computeRegionalGrid(bounds, gridSize) {
 function findClosestHourIndex(timeArray, targetMs) {
   var bestIdx = 0, minDiff = Infinity;
   for (var i = 0; i < timeArray.length; i++) {
-    var diff = Math.abs(new Date(timeArray[i] + 'Z').getTime() - targetMs);
+    var diff = Math.abs(new Date(timeArray[i].endsWith('Z') ? timeArray[i] : timeArray[i] + 'Z').getTime() - targetMs);
     if (diff < minDiff) { minDiff = diff; bestIdx = i; }
   }
   return bestIdx;

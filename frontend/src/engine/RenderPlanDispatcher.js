@@ -61,7 +61,7 @@ function hydrateGridFromLocalStorage(activeModel, activeMarineLayer, hourOffset)
     let bestIdx = 0;
     let minDiff = Infinity;
     for (let i = 0; i < timeArray.length; i++) {
-      const diff = Math.abs(new Date(timeArray[i] + 'Z').getTime() - targetMs);
+      const diff = Math.abs(new Date(timeArray[i].endsWith('Z') ? timeArray[i] : timeArray[i] + 'Z').getTime() - targetMs);
       if (diff < minDiff) {
         minDiff = diff;
         bestIdx = i;

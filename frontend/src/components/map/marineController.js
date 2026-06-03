@@ -223,7 +223,8 @@ function hasTimeCoverage(cache, hourOffset) {
   const timeArray = cache?.results?.[0]?.hourly?.time;
   if (!timeArray || timeArray.length === 0) return false;
   const targetMs = Date.now() + hourOffset * 3600000;
-  const lastCachedMs = new Date(timeArray[timeArray.length - 1] + 'Z').getTime();
+  const lastTimeStr = timeArray[timeArray.length - 1];
+  const lastCachedMs = new Date(lastTimeStr.endsWith('Z') ? lastTimeStr : lastTimeStr + 'Z').getTime();
   return targetMs <= lastCachedMs + 2 * 3600000;
 }
 
