@@ -256,6 +256,28 @@ describe('backendWeatherServiceClient', () => {
       expect(result.grid.__componentLayer).toBe('swell_1');
       expect(result.grid.renderable).toBe(true);
     });
+
+    it('maps backend response schema correctly when layer is swell_2', () => {
+      const sampleResponse = {
+        grid: {
+          vectors: [
+            { lat: 28.0, lng: -82.0, u: 0.4, v: -0.4, speed: 0.56, period: 8.5 }
+          ],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1,
+          rows: 1
+        },
+        provider: 'backend-weather-service'
+      };
+
+      const result = mapNormalizedGridToWebGL(sampleResponse, sampleResponse.grid.bounds, 4, 'swell_2');
+      expect(result.grid.cols).toBe(1);
+      expect(result.grid.vectors[0].swell_2.speed).toBe(0.56);
+      expect(result.grid.vectors[0].swell_2.period).toBe(8.5);
+      expect(result.grid.vectors[0].waves.speed).toBe(0);
+      expect(result.grid.__componentLayer).toBe('swell_2');
+      expect(result.grid.renderable).toBe(true);
+    });
   });
 
   describe('updateDiagnostics', () => {
@@ -370,6 +392,34 @@ describe('backendWeatherServiceClient', () => {
       expect(res.hourly.swell_wave_peak_period[0]).toBe(0);
       expect(res.hourly.wave_height[0]).toBe(0);
       expect(res.activeLayer).toBe('swell_1');
+    });
+
+    it('resolves point data successfully for swell_2 layer with conformed hourly fields', async () => {
+      const mockJson = {
+        point: {
+          speed: 0.65,
+          direction: 120,
+          period: 8.5,
+          sampled_lat: 28.39,
+          sampled_lng: -80.35
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      const res = await fetchBackendExactPoint(28.39, -80.35, 1, null, 'swell_2');
+      expect(res.hourly.secondary_swell_wave_height[0]).toBe(0.65);
+      expect(res.hourly.secondary_swell_wave_direction[0]).toBe(120);
+      expect(res.hourly.secondary_swell_wave_period[0]).toBe(8.5);
+      expect(res.hourly.wave_height[0]).toBe(0);
+      expect(res.activeLayer).toBe('swell_2');
     });
   });
 
