@@ -651,7 +651,7 @@ def test_gfs_all_marine_layers_normalization(tmp_path, monkeypatch):
     assert point_payload["point"]["period"] > 0.0
 
     # Verify point metadata propagation
-    assert point_payload["source_dataset"] is None  # Open-Meteo has no source_dataset in conformed schema currently
+    assert point_payload["source_dataset"] == "ncep_gfswave025"
     assert point_payload["source_variables"] == ["swell_wave_height", "swell_wave_direction", "swell_wave_period"]
     assert point_payload["is_test_fixture"] is False
     assert point_payload["is_forecast_authoritative"] is True

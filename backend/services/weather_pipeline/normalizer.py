@@ -273,6 +273,8 @@ class WeatherNormalizer:
                 "wind_wave_period": "VTM01_WW",
             }
             source_vars = [om_to_cop_map.get(v, v) for v in source_vars]
+        elif provider.lower() == "open-meteo" and model.upper() == "GFS" and domain.lower() == "marine":
+            source_dataset = "ncep_gfswave025"
         elif provider.lower() == "test-fixture":
             is_test_fixture = True
 
