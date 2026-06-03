@@ -126,7 +126,8 @@ export function getBackendCopernicusFlag() {
  * Provides the single source of authority for matching grid/point time dimensions.
  */
 export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS') {
-  const roundedNow = Math.round(Date.now() / 3600000) * 3600000;
+  const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
+  const roundedNow = Math.round(baseTime / 3600000) * 3600000;
   const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
   const requestedValidTime = targetDt.toISOString();
 
