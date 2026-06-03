@@ -240,7 +240,21 @@ var MapWebGL = ({
   const marineWindData = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
 
-    if (marineData.__renderable === false || marineData.grid.__renderable === false) {
+    if (marineData.__renderable === false || marineData.grid?.__renderable === false) {
+      if (marineData.__unsupportedLayer || marineData.grid?.__unsupportedLayer) {
+        return {
+          bounds: marineData.grid?.bounds || { west: -180, south: -80, east: 180, north: 85 },
+          cols: 0,
+          rows: 0,
+          vectors: [],
+          __unsupportedLayer: true,
+          __renderable: false,
+          __sourceModel: activeModel,
+          __gridProvider: 'none',
+          __componentLayer: activeMarineLayer,
+          __gridSupportsLayer: false
+        };
+      }
       return null;
     }
 

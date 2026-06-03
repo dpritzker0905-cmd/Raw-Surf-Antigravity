@@ -76,6 +76,16 @@ class ProductStore:
         target_path = self.cache_dir / filename
         tmp_path = target_path.with_suffix(".tmp")
 
+        # Double check test fixture guard before writing to disk (Correction 2)
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or 
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+        is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
+        if is_tf and not is_test_env:
+            logger.error(f"[Product Store] Security Violation: Refusing to save test-fixture product '{filename}' in non-test environment.")
+            return None
+
         try:
             # 1. Write product data atomically to disk
             with open(tmp_path, "w") as f:
@@ -129,7 +139,9 @@ class ProductStore:
             coverage=product.coverage,
             filename=filename,
             is_test_fixture=is_tf,
-            source_dataset=getattr(product, "source_dataset", None)
+            source_dataset=getattr(product, "source_dataset", None),
+            upstream_provider=getattr(product, "upstream_provider", None),
+            upstream_model=getattr(product, "upstream_model", None)
         )
         updated_products.append(manifest_item)
         manifest.products = updated_products

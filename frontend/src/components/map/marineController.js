@@ -12,14 +12,16 @@ import { BACKEND_URL } from '../../lib/apiClient';
 import {
   getBackendWeatherFlag,
   getBackendCopernicusFlag,
+  getBackendIconMarineFlag,
   getSharedValidTime,
   clampViewportBbox,
   mapNormalizedGridToWebGL,
   updateDiagnostics,
   GRID_URL,
-  fetchBackendCopernicusGrid
+  fetchBackendCopernicusGrid,
+  fetchBackendMarineGrid
 } from './backendWeatherServiceClient';
-export { getBackendWeatherFlag, getBackendCopernicusFlag };
+export { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag };
 
 // Re-export wind controller components for timeline scrubs and observers
 export { fetchWindData, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './windController';
@@ -196,100 +198,6 @@ export function getMarineHourlyCache() {
   return marineHourlyCache;
 }
 
-// --- GFS BACKEND SERVICE GRID FETCH ---
-async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = "waves") {
-  const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, layer, 'GFS');
-
-  // 1. Perform Bbox Clamping and Coverage verification
-  const clampResult = clampViewportBbox(snappedBounds, layer);
-  if (!clampResult.isInside) {
-    const errorDetails = {
-      url: 'none',
-      status: 0,
-      validTime: validTimeStr,
-      valueKind: 'none',
-      valueUnit: 'none',
-      displayUnitHint: 'none',
-      elapsedMs: Date.now() - start,
-      error: clampResult.fallbackReason,
-      requestedBbox: snappedBounds,
-      clampedBbox: null,
-      fallbackReason: clampResult.fallbackReason,
-      hourOffset,
-      coverageInside: false,
-      layer
-    };
-    updateDiagnostics('grid', errorDetails);
-    throw new Error(clampResult.fallbackReason);
-  }
-
-  const { clampedBbox } = clampResult;
-  const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=GFS&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}`;
-
-  try {
-    const res = await fetch(url, { signal });
-    if (!res.ok) {
-      throw new Error(`Backend returned HTTP ${res.status}`);
-    }
-    const json = await res.json();
-    const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer);
-
-    updateDiagnostics('grid', {
-      url,
-      status: res.status,
-      validTime: validTimeStr,
-      valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),
-      valueUnit: json.value_unit || 'm',
-      displayUnitHint: json.display_unit_hint || 'ft',
-      elapsedMs: Date.now() - start,
-      error: null,
-      requestedBbox: snappedBounds,
-      clampedBbox,
-      fallbackReason: null,
-      hourOffset,
-      layer,
-      gridVectorCount: result.grid.vectors.length,
-      nonzeroCount: result.grid.nonzeroCount,
-      renderable: result.grid.renderable,
-      provider: json.provider,
-      sourceDataset: json.source_dataset,
-      sourceVariables: json.source_variables,
-      is_forecast_authoritative: json.is_forecast_authoritative,
-      is_estimated: json.is_estimated,
-      is_test_fixture: json.is_test_fixture,
-      gridMode: json.grid?.diagnostics?.gridMode || 'rectangular'
-    });
-
-    return result;
-  } catch (err) {
-    const errorDetails = {
-      url,
-      status: err.message.includes('HTTP') ? parseInt(err.message.match(/\d+/)?.[0] || '0') : 500,
-      validTime: validTimeStr,
-      valueKind: 'none',
-      valueUnit: 'none',
-      displayUnitHint: 'none',
-      elapsedMs: Date.now() - start,
-      error: err.message,
-      requestedBbox: snappedBounds,
-      clampedBbox,
-      fallbackReason: err.message,
-      hourOffset,
-      layer,
-      provider: 'backend-weather-service',
-      sourceDataset: null,
-      sourceVariables: null,
-      is_forecast_authoritative: false,
-      is_estimated: false,
-      is_test_fixture: false
-    };
-    updateDiagnostics('grid', errorDetails);
-    console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
-    throw err;
-  }
-}
 
 function extractMarineAtOffset(cache, hourOffset, targetLayer) {
   const { results, points, gridSize, bounds } = cache;
@@ -357,7 +265,7 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
       return;
     }
 
-    const isIconSwell2Estimated = activeLayerFromCache === 'swell_2' && activeModel === 'ICON' && s2_h === 0 && s1_h > 0;
+    const isIconSwell2Estimated = activeLayerFromCache === 'swell_2' && activeModel === 'ICON' && s2_h === 0 && s1_h > 0 && !getBackendIconMarineFlag();
     const final_s2_h = isIconSwell2Estimated ? s1_h : s2_h;
     const final_s2_d = isIconSwell2Estimated ? s1_d : s2_d;
     const final_s2_period = isIconSwell2Estimated ? safeNum(c.swell_wave_period ?? 0) : safeNum(c.secondary_swell_wave_period ?? 0);
@@ -436,6 +344,17 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves')) {
     console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
     return await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller", activeLayer);
+  }
+
+  // --- ICON BACKEND SERVICE REDIRECT ---
+  if (getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
+    try {
+      console.log(`[Backend Weather Service] Redirecting ICON ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+      const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
+      return result;
+    } catch (err) {
+      console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
   }
 
   const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');

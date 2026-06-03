@@ -49,6 +49,8 @@ class NormalizedProduct(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     is_test_fixture: bool = False
     source_dataset: Optional[str] = None
+    upstream_provider: Optional[str] = None
+    upstream_model: Optional[str] = None
 
 class NormalizedPointDetail(BaseModel):
     requested_lat: float
@@ -86,6 +88,8 @@ class NormalizedPointResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     is_test_fixture: bool = False
     source_dataset: Optional[str] = None
+    upstream_provider: Optional[str] = None
+    upstream_model: Optional[str] = None
 
 class ManifestProduct(BaseModel):
     model: str
@@ -102,6 +106,8 @@ class ManifestProduct(BaseModel):
     filename: str
     is_test_fixture: bool = False
     source_dataset: Optional[str] = None
+    upstream_provider: Optional[str] = None
+    upstream_model: Optional[str] = None
 
 class PipelineManifest(BaseModel):
     last_manifest_update: datetime

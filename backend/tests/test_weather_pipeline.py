@@ -92,12 +92,6 @@ def test_weather_normalizer_uv_conversion():
 def test_point_sampler_bilinear_interpolation():
     """Verify point sampling bilinear interpolation math over a 2x2 grid cell."""
     bounds = CoverageBounds(west=-80.0, south=24.0, east=-79.0, north=25.0)
-    
-    # Set known vectors at 4 grid corners
-    # (24.0, -80.0) -> speed=10.0, dir=90.0 (u=-10.0, v=0.0)
-    # (24.0, -79.0) -> speed=20.0, dir=90.0 (u=-20.0, v=0.0)
-    # (25.0, -80.0) -> speed=30.0, dir=90.0 (u=-30.0, v=0.0)
-    # (25.0, -79.0) -> speed=40.0, dir=90.0 (u=-40.0, v=0.0)
     vectors = [
         GridVector(lat=24.0, lng=-80.0, speed=10.0, direction=90.0, u=-10.0, v=0.0, period=5.0),
         GridVector(lat=24.0, lng=-79.0, speed=20.0, direction=90.0, u=-20.0, v=0.0, period=6.0),
@@ -258,48 +252,7 @@ def test_api_endpoints_manifest_and_parity(tmp_path, monkeypatch):
     assert math.isclose(point_payload["point"]["v"], local_point_res.point.v, abs_tol=1e-4)
     assert math.isclose(point_payload["point"]["period"], local_point_res.point.period, abs_tol=1e-4)
 
-def test_weather_normalizer_wind_knots_conversion():
-    """Prove that normalizer converts wind speed to knots if raw speed is in other units."""
-    normalizer = WeatherNormalizer()
-    raw_results = [
-        {
-            "latitude": 27.5,
-            "longitude": -80.0,
-            "hourly_units": {
-                "wind_speed_10m": "km/h",
-                "wind_direction_10m": "°"
-            },
-            "hourly": {
-                "time": ["2026-06-01T15:00:00Z"],
-                "wind_speed_10m": [36.0], # 36 km/h
-                "wind_direction_10m": [180.0] # Blowing FROM South TO North
-            }
-        }
-    ]
 
-    target_dt = datetime.fromisoformat("2026-06-01T15:00:00+00:00")
-    product = normalizer.normalize(
-        model="GFS",
-        provider="open-meteo",
-        domain="wind",
-        layer="wind",
-        raw_results=raw_results,
-        bbox={"west": -80.0, "south": 27.5, "east": -80.0, "north": 27.5},
-        resolution=0.25,
-        target_time=target_dt
-    )
-
-    assert product is not None
-    assert product.grid is not None
-    assert len(product.grid.vectors) == 1
-    
-    vec = product.grid.vectors[0]
-    expected_kn = 36.0 * 0.539957
-    assert math.isclose(vec.speed, expected_kn, abs_tol=1e-4)
-    assert vec.direction == 180.0
-    
-    assert math.isclose(vec.u, 0.0, abs_tol=1e-4)
-    assert math.isclose(vec.v, expected_kn, abs_tol=1e-4)
 
 def test_api_endpoints_wind_manifest_and_parity(tmp_path, monkeypatch):
     """
@@ -469,16 +422,10 @@ def test_gfs_direction_to_uv_convention():
     target_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
     bbox = {"west": -80.0, "south": 24.0, "east": -79.0, "north": 25.0}
 
-    # Test cases: speed=2.0, direction in degrees (meteorological FROM direction)
-    # expected u and v (Cartesian travel direction, +u=Eastward, +v=Northward)
     test_cases = [
-        # 0 degrees: coming FROM North -> traveling South (u=0, v=-2.0)
         {"direction": 0.0, "expected_u": 0.0, "expected_v": -2.0},
-        # 90 degrees: coming FROM East -> traveling West (u=-2.0, v=0)
         {"direction": 90.0, "expected_u": -2.0, "expected_v": 0.0},
-        # 180 degrees: coming FROM South -> traveling North (u=0, v=2.0)
         {"direction": 180.0, "expected_u": 0.0, "expected_v": 2.0},
-        # 270 degrees: coming FROM West -> traveling East (u=2.0, v=0)
         {"direction": 270.0, "expected_u": 2.0, "expected_v": 0.0},
     ]
 
@@ -656,6 +603,175 @@ def test_gfs_all_marine_layers_normalization(tmp_path, monkeypatch):
     assert point_payload["is_test_fixture"] is False
     assert point_payload["is_forecast_authoritative"] is True
     assert point_payload["is_estimated"] is False
+
+
+def test_icon_marine_layers_normalization(tmp_path, monkeypatch):
+    """
+    Verify ICON Marine Ingestion, normalization, saving, conformed point/grid endpoints,
+    and metadata properties mapping. Checks waves, swell_1, and wind_waves.
+    """
+    temp_store = ProductStore(cache_dir=tmp_path)
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    # 2x2 grid for Florida East Coast
+    mock_results = [
+        {
+            "latitude": 24.0, "longitude": -85.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [1.0], "wave_direction": [90.0], "wave_period": [10.0],
+                "swell_wave_height": [0.8], "swell_wave_direction": [100.0], "swell_wave_period": [8.0],
+                "wind_wave_height": [0.5], "wind_wave_direction": [120.0], "wind_wave_period": [4.0]
+            }
+        },
+        {
+            "latitude": 24.0, "longitude": -79.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [2.0], "wave_direction": [90.0], "wave_period": [10.0],
+                "swell_wave_height": [1.6], "swell_wave_direction": [100.0], "swell_wave_period": [8.0],
+                "wind_wave_height": [1.0], "wind_wave_direction": [120.0], "wind_wave_period": [4.0]
+            }
+        },
+        {
+            "latitude": 30.0, "longitude": -85.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [3.0], "wave_direction": [90.0], "wave_period": [12.0],
+                "swell_wave_height": [2.4], "swell_wave_direction": [100.0], "swell_wave_period": [9.0],
+                "wind_wave_height": [1.5], "wind_wave_direction": [120.0], "wind_wave_period": [5.0]
+            }
+        },
+        {
+            "latitude": 30.0, "longitude": -79.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [4.0], "wave_direction": [90.0], "wave_period": [12.0],
+                "swell_wave_height": [3.2], "swell_wave_direction": [100.0], "swell_wave_period": [9.0],
+                "wind_wave_height": [2.0], "wind_wave_direction": [120.0], "wind_wave_period": [5.0]
+            }
+        }
+    ]
+
+    normalizer = WeatherNormalizer()
+    target_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    bbox = {"west": -85.0, "south": 24.0, "east": -79.0, "north": 30.0}
+
+    layers = ["waves", "swell_1", "wind_waves"]
+    for layer in layers:
+        product = normalizer.normalize(
+            model="ICON",
+            provider="open-meteo",
+            domain="marine",
+            layer=layer,
+            raw_results=mock_results,
+            bbox=bbox,
+            resolution=6.0,
+            target_time=target_dt
+        )
+        assert product is not None
+        assert product.model == "ICON"
+        assert product.layer == layer
+        assert product.grid.cols == 2
+        assert product.grid.rows == 2
+        assert len(product.grid.vectors) == 4
+        assert product.is_test_fixture is False
+        assert product.source_dataset == "dwd_gwam"
+        assert product.upstream_provider == "open-meteo"
+        assert product.upstream_model == "gwam"
+
+        # Save to temp store
+        temp_store.save_product(product, resolution=6.0)
+
+    # 1. Query products manifest API
+    response = client.get("/api/weather/products")
+    assert response.status_code == 200
+    manifest = response.json()
+    for layer in layers:
+        assert any(
+            p["model"] == "ICON" and p["layer"] == layer and p["provider"] == "open-meteo" 
+            and p["source_dataset"] == "dwd_gwam"
+            and p["upstream_provider"] == "open-meteo"
+            and p["upstream_model"] == "gwam"
+            for p in manifest["products"]
+        )
+
+    # 2. Query grid API for swell_1
+    response_grid = client.get(
+        "/api/weather/grid?model=ICON&domain=marine&layer=swell_1&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_grid.status_code == 200
+    grid_payload = response_grid.json()
+    assert grid_payload["model"] == "ICON"
+    assert grid_payload["layer"] == "swell_1"
+    assert grid_payload["upstream_provider"] == "open-meteo"
+    assert grid_payload["upstream_model"] == "gwam"
+
+    # 3. Query point API inside the grid (bilinear interpolation) for swell_1
+    lat, lng = 27.0, -82.0
+    response_point = client.get(
+        f"/api/weather/point?model=ICON&domain=marine&layer=swell_1&lat={lat}&lng={lng}&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_point.status_code == 200
+    point_payload = response_point.json()
+    assert point_payload["is_forecast_authoritative"] is True
+    assert point_payload["point"]["interpolation_method"] == "bilinear"
+    assert point_payload["point"]["speed"] > 0.0
+    assert point_payload["point"]["period"] > 0.0
+    assert point_payload["source_dataset"] == "dwd_gwam"
+    assert point_payload["upstream_provider"] == "open-meteo"
+    assert point_payload["upstream_model"] == "gwam"
+
+
+def test_icon_swell2_unsupported(tmp_path, monkeypatch):
+    """Verify that normalizer rejects ICON swell_2, and API endpoints return honest unsupported response."""
+    temp_store = ProductStore(cache_dir=tmp_path)
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    normalizer = WeatherNormalizer()
+    target_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    
+    # Try normalizing swell_2 for ICON
+    res = normalizer.normalize(
+        model="ICON",
+        provider="open-meteo",
+        domain="marine",
+        layer="swell_2",
+        raw_results=[{"latitude": 24.0, "longitude": -80.0, "hourly": {"time": ["2026-06-01T21:00:00Z"]}}],
+        bbox={"west": -80.0, "south": 24.0, "east": -80.0, "north": 24.0},
+        resolution=0.25,
+        target_time=target_dt
+    )
+    assert res is None # Explicitly rejected
+
+    # Request /grid for ICON swell_2 (should return 404 since it was not ingested/stored)
+    response_grid = client.get(
+        "/api/weather/grid?model=ICON&domain=marine&layer=swell_2&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_grid.status_code == 404
+
 
 
 

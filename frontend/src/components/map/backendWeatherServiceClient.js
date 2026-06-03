@@ -121,6 +121,21 @@ export function getBackendCopernicusFlag() {
 }
 
 /**
+ * Resolves the backend ICON service feature flag.
+ */
+export function getBackendIconMarineFlag() {
+  if (typeof window === 'undefined') return false;
+  if (window.__USE_BACKEND_ICON_MARINE_SERVICE__ !== undefined) {
+    return !!window.__USE_BACKEND_ICON_MARINE_SERVICE__;
+  }
+  try {
+    const lsVal = window.localStorage.getItem('__USE_BACKEND_ICON_MARINE_SERVICE__');
+    if (lsVal !== null) return lsVal === 'true';
+  } catch (e) {}
+  return process.env.REACT_APP_USE_BACKEND_ICON_MARINE === 'true';
+}
+
+/**
  * Computes a standardized snapped UTC ISO string from hourOffset.
  * Resolves the nearest valid_time from cachedManifest when available (max 3h delta).
  * Provides the single source of authority for matching grid/point time dimensions.
@@ -242,7 +257,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves") {
  * Maps the standard backend grid response schema to the WebGLMarineLayer expectations.
  * Computes grid renderability checks (all-zero and empty vectors rejection).
  */
-export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer = 'waves') {
+export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer = 'waves', model = 'GFS') {
   if (!json || !json.grid || !Array.isArray(json.grid.vectors)) {
     throw new Error("Invalid normalized grid response structure");
   }
@@ -286,7 +301,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       cols: json.grid.cols,
       rows: json.grid.rows,
       timestamp: Date.now(),
-      __sourceModel: 'GFS',
+      __sourceModel: model,
       __provider: json.provider || 'backend-weather-service',
       __gridProvider: json.provider || 'backend-weather-service',
       __componentLayer: layer,
@@ -305,11 +320,50 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
   };
 }
 
-// Global Diagnostics Telemetry Initializer
+// Global Diagnostics Telemetry Initializers
 if (typeof window !== 'undefined') {
   window.__BACKEND_WEATHER_SERVICE_DIAG__ = window.__BACKEND_WEATHER_SERVICE_DIAG__ || {
     featureFlagActive: getBackendWeatherFlag(),
     activeModel: 'GFS',
+    activeLayer: 'waves',
+    layer: 'waves',
+    backendUrl: BACKEND_URL,
+    statusUrl: STATUS_URL,
+    gridUrl: GRID_URL,
+    pointUrl: POINT_URL,
+    requestedHour: null,
+    validTime: null,
+    gridValidTime: null,
+    pointValidTime: null,
+    parity: 'pending_point_fetch',
+    pointParity: 'pending_point_fetch',
+    requestedBbox: null,
+    clampedBbox: null,
+    coverage: PILOT_COVERAGE,
+    fallbackReason: null,
+    lastGridFetch: null,
+    lastPointFetch: null,
+    coverageInside: true,
+    fallbackToLegacy: false,
+    reason: null,
+    requestedValidTime: null,
+    selectedManifestValidTime: null,
+    manifestDeltaHours: null,
+    gridVectorCount: null,
+    nonzeroCount: null,
+    renderable: false,
+    sourceDataset: null,
+    sourceVariables: null,
+    is_forecast_authoritative: false,
+    is_estimated: false,
+    is_test_fixture: false,
+    gridMode: null,
+    interpolationMethod: null
+  };
+
+  window.__BACKEND_ICON_SERVICE_DIAG__ = window.__BACKEND_ICON_SERVICE_DIAG__ || {
+    featureFlagActive: getBackendIconMarineFlag(),
+    activeModel: 'ICON',
     activeLayer: 'waves',
     layer: 'waves',
     backendUrl: BACKEND_URL,
@@ -350,13 +404,16 @@ if (typeof window !== 'undefined') {
 /**
  * Updates the global diagnostics telemetry registry.
  */
-export function updateDiagnostics(type, details) {
+export function updateDiagnostics(type, details, model = 'GFS') {
   if (typeof window === 'undefined') return;
 
-  if (!window.__BACKEND_WEATHER_SERVICE_DIAG__) {
-    window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
-      featureFlagActive: getBackendWeatherFlag(),
-      activeModel: 'GFS',
+  const isIcon = model.toUpperCase() === 'ICON';
+  const diagKey = isIcon ? '__BACKEND_ICON_SERVICE_DIAG__' : '__BACKEND_WEATHER_SERVICE_DIAG__';
+
+  if (!window[diagKey]) {
+    window[diagKey] = {
+      featureFlagActive: isIcon ? getBackendIconMarineFlag() : getBackendWeatherFlag(),
+      activeModel: model.toUpperCase(),
       activeLayer: 'waves',
       layer: 'waves',
       backendUrl: BACKEND_URL,
@@ -394,8 +451,8 @@ export function updateDiagnostics(type, details) {
     };
   }
 
-  const diag = window.__BACKEND_WEATHER_SERVICE_DIAG__;
-  diag.featureFlagActive = getBackendWeatherFlag();
+  const diag = window[diagKey];
+  diag.featureFlagActive = isIcon ? getBackendIconMarineFlag() : getBackendWeatherFlag();
 
   if (type === 'grid') {
     diag.layer = details.layer || diag.layer || 'waves';
@@ -414,36 +471,50 @@ export function updateDiagnostics(type, details) {
     diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
     diag.gridMode = details.gridMode || null;
 
-    // Handle coverage flags and fallback telemetry
+    // Handle coverage flags and fallback telemetry (Correction 4: precise status)
     const isInside = details.coverageInside !== undefined 
       ? details.coverageInside 
       : (details.clampedBbox !== null && !details.error?.includes('outside'));
       
     diag.coverageInside = isInside;
     diag.fallbackToLegacy = !isInside || !!details.error;
-    diag.reason = !isInside ? 'outside_pilot_coverage' : null;
+    
+    if (!isInside) {
+      diag.reason = 'outside_coverage';
+    } else if (details.error) {
+      diag.reason = 'fallback_legacy';
+    } else {
+      diag.reason = 'backend_success';
+    }
   } else if (type === 'point') {
     diag.layer = details.layer || diag.layer || 'waves';
     diag.lastPointFetch = details;
     diag.pointValidTime = details.validTime || null;
     diag.interpolationMethod = details.interpolationMethod || null;
+    diag.period = details.period || 0;
     diag.sourceDataset = details.sourceDataset || null;
     diag.sourceVariables = details.sourceVariables || null;
     diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
     diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
     diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
+
+    if (details.error) {
+      diag.reason = details.error === 'unsupported' ? 'unsupported_model_layer' : 'fallback_legacy';
+    } else {
+      diag.reason = 'backend_success';
+    }
   }
 
-  diag.activeModel = 'GFS';
+  diag.activeModel = model.toUpperCase();
   diag.activeLayer = diag.layer;
 
   if (details.hourOffset !== undefined) {
     diag.requestedHour = details.hourOffset;
-    diag.validTime = getSharedValidTime(details.hourOffset, diag.layer, 'GFS');
+    diag.validTime = getSharedValidTime(details.hourOffset, diag.layer, model);
   }
 
   // Inject computed nearest manifest time match diagnostics
-  const timeDiag = latestTimeDiag[`GFS_${diag.layer}`] || {};
+  const timeDiag = latestTimeDiag[`${model.toUpperCase()}_${diag.layer}`] || {};
   diag.requestedValidTime = timeDiag.requestedValidTime;
   diag.selectedManifestValidTime = timeDiag.selectedManifestValidTime;
   diag.manifestDeltaHours = timeDiag.manifestDeltaHours;
@@ -459,10 +530,28 @@ export function updateDiagnostics(type, details) {
 /**
  * Fetches exact point forecast from backend weather service.
  */
-export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves') {
+export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS') {
+  if (model === 'ICON' && layer === 'swell_2') {
+    return {
+      status: 'unsupported',
+      hourly: {
+        time: [getSharedValidTime(hourOffset, 'swell_2', 'ICON')],
+        secondary_swell_wave_height: [null],
+        secondary_swell_wave_direction: [null],
+        secondary_swell_wave_period: [null]
+      },
+      requestedLat: lat,
+      requestedLng: lng,
+      requestedModel: 'ICON',
+      activeLayer: 'swell_2',
+      provider: 'none',
+      source: 'unsupported_model_layer'
+    };
+  }
+
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, layer, 'GFS');
-  const url = `${POINT_URL}?model=GFS&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  const validTimeStr = getSharedValidTime(hourOffset, layer, model);
+  const url = `${POINT_URL}?model=${model}&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
 
   try {
     const res = await fetch(url, { signal });
@@ -519,10 +608,10 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       snappedLng: json.point.sampled_lng || lng,
       requestedLat: lat,
       requestedLng: lng,
-      requestedModel: 'GFS',
+      requestedModel: model,
       activeLayer: layer,
       forecastDays: 1,
-      apiModel: 'ncep_gfswave025',
+      apiModel: model === 'ICON' ? 'gwam' : (model === 'EURO' ? 'ecmwf_wam025' : 'ncep_gfswave025'),
       provider: json.provider || 'backend-weather-service',
       source: 'backend_point_api'
     };
@@ -540,6 +629,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       layer,
       speed: json.point.speed || 0,
       direction: json.point.direction || 0,
+      period: json.point.period || 0,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
       provider: json.provider || 'backend-weather-service',
       sourceDataset: json.source_dataset,
@@ -547,7 +637,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       is_forecast_authoritative: json.is_forecast_authoritative,
       is_estimated: json.is_estimated,
       is_test_fixture: json.is_test_fixture
-    });
+    }, model);
 
     return data;
   } catch (err) {
@@ -572,13 +662,145 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       is_forecast_authoritative: false,
       is_estimated: false,
       is_test_fixture: false
-    });
+    }, model);
     console.error(`[Backend Weather Service] Point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
+    throw err;
+  }
+}
+
+/**
+ * Fetches marine forecast grid from backend weather service.
+ */
+export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
+  if (model === 'ICON' && layer === 'swell_2') {
+    return {
+      type: 'FeatureCollection',
+      features: [],
+      hourOffset,
+      grid: {
+        vectors: [],
+        bounds: snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
+        cols: 0,
+        rows: 0,
+        timestamp: Date.now(),
+        __sourceModel: 'ICON',
+        __provider: 'none',
+        __gridProvider: 'none',
+        __componentLayer: 'swell_2',
+        __gridSupportsLayer: false,
+        __activeLayerNonzeroCount: 0,
+        __activeLayerMax: 0,
+        __oceanMaskCount: 0,
+        __renderable: false,
+        __unsupportedLayer: true,
+        provider: 'none',
+        hourOffset,
+        nonzeroCount: 0,
+        maxSpeed: 0,
+        renderable: false,
+        status: 'unsupported'
+      },
+      __renderable: false,
+      __unsupportedLayer: true,
+      status: 'unsupported'
+    };
+  }
+
+  const start = Date.now();
+  const validTimeStr = getSharedValidTime(hourOffset, layer, model);
+
+  // 1. Perform Bbox Clamping and Coverage verification
+  const clampResult = clampViewportBbox(snappedBounds, layer);
+  if (!clampResult.isInside) {
+    const errorDetails = {
+      url: 'none',
+      status: 0,
+      validTime: validTimeStr,
+      valueKind: 'none',
+      valueUnit: 'none',
+      displayUnitHint: 'none',
+      elapsedMs: Date.now() - start,
+      error: clampResult.fallbackReason,
+      requestedBbox: snappedBounds,
+      clampedBbox: null,
+      fallbackReason: clampResult.fallbackReason,
+      hourOffset,
+      coverageInside: false,
+      layer
+    };
+    updateDiagnostics('grid', errorDetails, model);
+    throw new Error(clampResult.fallbackReason);
+  }
+
+  const { clampedBbox } = clampResult;
+  const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
+  const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+
+  try {
+    const res = await fetch(url, { signal });
+    if (!res.ok) {
+      throw new Error(`Backend returned HTTP ${res.status}`);
+    }
+    const json = await res.json();
+    const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);
+
+    updateDiagnostics('grid', {
+      url,
+      status: res.status,
+      validTime: validTimeStr,
+      valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),
+      valueUnit: json.value_unit || 'm',
+      displayUnitHint: json.display_unit_hint || 'ft',
+      elapsedMs: Date.now() - start,
+      error: null,
+      requestedBbox: snappedBounds,
+      clampedBbox,
+      fallbackReason: null,
+      hourOffset,
+      layer,
+      gridVectorCount: result.grid.vectors.length,
+      nonzeroCount: result.grid.nonzeroCount,
+      renderable: result.grid.renderable,
+      provider: json.provider,
+      sourceDataset: json.source_dataset,
+      sourceVariables: json.source_variables,
+      is_forecast_authoritative: json.is_forecast_authoritative,
+      is_estimated: json.is_estimated,
+      is_test_fixture: json.is_test_fixture,
+      gridMode: json.grid?.diagnostics?.gridMode || 'rectangular'
+    }, model);
+
+    return result;
+  } catch (err) {
+    const errorDetails = {
+      url,
+      status: err.message.includes('HTTP') ? parseInt(err.message.match(/\d+/)?.[0] || '0') : 500,
+      validTime: validTimeStr,
+      valueKind: 'none',
+      valueUnit: 'none',
+      displayUnitHint: 'none',
+      elapsedMs: Date.now() - start,
+      error: err.message,
+      requestedBbox: snappedBounds,
+      clampedBbox,
+      fallbackReason: err.message,
+      hourOffset,
+      layer,
+      provider: 'backend-weather-service',
+      sourceDataset: null,
+      sourceVariables: null,
+      is_forecast_authoritative: false,
+      is_estimated: false,
+      is_test_fixture: false
+    };
+    updateDiagnostics('grid', errorDetails, model);
+    console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
     throw err;
   }
 }
 
 export * from './backendWindServiceClient';
 export * from './backendCopernicusServiceClient';
+
 
 

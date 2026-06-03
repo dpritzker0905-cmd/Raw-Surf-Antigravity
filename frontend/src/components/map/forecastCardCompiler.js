@@ -285,7 +285,11 @@ export function compileForecastCards({
 
       const isNoCoverage = isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage';
 
-      if (isExactPointAuthority && isExactPointLoading && swell2Height == null) {
+      if (exactPointStatus === 'unsupported') {
+        displayHeight = 'Unsupported';
+        showStatus = 'No source data';
+        statusColor = 'text-amber-500';
+      } else if (isExactPointAuthority && isExactPointLoading && swell2Height == null) {
         displayHeight = 'Loading...';
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';

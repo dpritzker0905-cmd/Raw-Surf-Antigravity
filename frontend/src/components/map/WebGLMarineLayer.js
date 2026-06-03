@@ -637,6 +637,20 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (!engine || !gl) return;
 
     if (!data?.vectors?.length) {
+      if (data?.__unsupportedLayer === true) {
+        console.log(`[WebGLMarine-Clear] Unsupported layer active, clearing buffers immediately`);
+        engine.clearBuffers(gl);
+        lastUploadedSignatureRef.current = '';
+        lastUploadedGridRef.current = {
+          activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
+          boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
+          sampleSum: 0, timestamp: 0, timeOffsetHours: 0
+        };
+        updateWebGLMarineLayerDiag('unsupported_layer');
+        if (mapInstance) mapInstance.triggerRepaint();
+        return;
+      }
+
       const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
       const lastSig = lastUploadedGridRef.current;
       const modelOrLayerOrHourChanged = lastSig.activeModel !== activeModelRef.current ||

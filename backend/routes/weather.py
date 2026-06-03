@@ -34,6 +34,7 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
             await scheduler.ingest_gfs_marine_pilot()
             await scheduler.ingest_gfs_wind_pilot()
             await scheduler.ingest_copernicus_regional()
+            await scheduler.ingest_icon_marine_pilot()
             logger.info("[Manual Ingestion] Ingestion jobs completed.")
         except Exception as e:
             logger.error(f"[Manual Ingestion] Ingestion failed: {e}")

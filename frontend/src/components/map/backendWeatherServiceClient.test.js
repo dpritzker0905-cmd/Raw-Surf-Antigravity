@@ -24,7 +24,9 @@ import {
   mapNormalizedCopernicusGridToWebGL,
   updateCopernicusDiagnostics,
   fetchBackendCopernicusGrid,
-  fetchBackendExactCopernicusPoint
+  fetchBackendExactCopernicusPoint,
+  getBackendIconMarineFlag,
+  fetchBackendMarineGrid
 } from './backendWeatherServiceClient';
 
 describe('backendWeatherServiceClient', () => {
@@ -342,7 +344,7 @@ describe('backendWeatherServiceClient', () => {
       const diag = window.__BACKEND_WEATHER_SERVICE_DIAG__;
       expect(diag.coverageInside).toBe(false);
       expect(diag.fallbackToLegacy).toBe(true);
-      expect(diag.reason).toBe('outside_pilot_coverage');
+      expect(diag.reason).toBe('outside_coverage');
       expect(diag.fallbackReason).toBe('Requested viewport completely outside GFS Waves pilot coverage area');
     });
   });
@@ -956,6 +958,92 @@ describe('backendWeatherServiceClient', () => {
       expect(diag.lastPointFetch.direction).toBe(180.0);
 
       Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
+  });
+
+  describe('ICON Marine Service Integration & Redirects', () => {
+    it('getBackendIconMarineFlag returns false by default', () => {
+      expect(getBackendIconMarineFlag()).toBe(false);
+    });
+
+    it('getBackendIconMarineFlag respects window override', () => {
+      window.__USE_BACKEND_ICON_MARINE_SERVICE__ = true;
+      expect(getBackendIconMarineFlag()).toBe(true);
+      window.__USE_BACKEND_ICON_MARINE_SERVICE__ = false;
+      expect(getBackendIconMarineFlag()).toBe(false);
+    });
+
+    it('fetchBackendMarineGrid handles unsupported swell_2 immediately without fetching', async () => {
+      const fetchSpy = jest.fn();
+      global.fetch = fetchSpy;
+
+      const res = await fetchBackendMarineGrid(
+        { west: -85, south: 24, east: -79, north: 31 },
+        3,
+        null,
+        { west: -85, south: 24, east: -79, north: 31 },
+        'swell_2',
+        'ICON'
+      );
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(res.status).toBe('unsupported');
+      expect(res.__unsupportedLayer).toBe(true);
+      expect(res.grid.__unsupportedLayer).toBe(true);
+      expect(res.grid.__renderable).toBe(false);
+      expect(res.grid.provider).toBe('none');
+    });
+
+    it('fetchBackendExactPoint handles unsupported swell_2 immediately without fetching', async () => {
+      setCachedManifest({ products: [{ model: 'ICON', domain: 'marine', layer: 'swell_2', valid_time_start: '2026-06-02T03:00:00.000Z' }] });
+      const fetchSpy = jest.fn();
+      global.fetch = fetchSpy;
+
+      const res = await fetchBackendExactPoint(28.4, -80.6, 3, null, 'swell_2', 'ICON');
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(res.status).toBe('unsupported');
+      expect(res.provider).toBe('none');
+      expect(res.source).toBe('unsupported_model_layer');
+      expect(res.hourly.secondary_swell_wave_height[0]).toBeNull();
+      setCachedManifest(null);
+    });
+
+    it('resolves supported ICON point forecast successfully and updates diagnostics', async () => {
+      setCachedManifest({ products: [{ model: 'ICON', domain: 'marine', layer: 'waves', valid_time_start: '2026-06-02T03:00:00.000Z' }] });
+      const mockJson = {
+        point: {
+          speed: 1.25,
+          direction: 95.0,
+          period: 7.5,
+          sampled_lat: 28.4,
+          sampled_lng: -80.6,
+          interpolation_method: 'bilinear'
+        },
+        provider: 'backend-weather-service',
+        source_dataset: 'dwd_gwam',
+        source_variables: ['wave_height', 'wave_direction', 'wave_period']
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      const res = await fetchBackendExactPoint(28.4, -80.6, 3, null, 'waves', 'ICON');
+      expect(res.hourly.wave_height[0]).toBe(1.25);
+      expect(res.hourly.wave_direction[0]).toBe(95.0);
+      expect(res.hourly.wave_period[0]).toBe(7.5);
+      expect(res.provider).toBe('backend-weather-service');
+      expect(res.apiModel).toBe('gwam');
+
+      const diag = window.__BACKEND_ICON_SERVICE_DIAG__;
+      expect(diag.activeModel).toBe('ICON');
+      expect(diag.sourceDataset).toBe('dwd_gwam');
       setCachedManifest(null);
     });
   });

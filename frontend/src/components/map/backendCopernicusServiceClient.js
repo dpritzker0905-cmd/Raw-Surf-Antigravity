@@ -180,6 +180,7 @@ export function updateCopernicusDiagnostics(type, details) {
     diag.layer = details.layer || diag.layer || 'swell_1';
     diag.lastPointFetch = details;
     diag.pointValidTime = details.validTime || null;
+    diag.period = details.period || 0;
 
     diag.provider = details.provider || diag.provider;
     diag.sourceDataset = details.sourceDataset || null;
@@ -419,8 +420,10 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       elapsedMs: Date.now() - start,
       error: null,
       hourOffset,
+      layer,
       speed: json.point.speed || 0,
       direction: json.point.direction || 0,
+      period: json.point.period || 0,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
       interpolation_method: json.point.interpolation_method || 'bilinear',
       provider: json.provider || 'backend-weather-service',

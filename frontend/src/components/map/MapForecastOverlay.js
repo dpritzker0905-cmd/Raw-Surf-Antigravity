@@ -320,7 +320,8 @@ export var MapForecastOverlay = ({
         effectiveExactPointStatus !== 'exact_stale_available' &&
         effectiveExactPointStatus !== 'exact_no_time_coverage' &&
         effectiveExactPointStatus !== 'euro_extended_estimate' &&
-        effectiveExactPointStatus !== 'icon_extended_estimate') return false;
+        effectiveExactPointStatus !== 'icon_extended_estimate' &&
+        effectiveExactPointStatus !== 'unsupported') return false;
     // v6.6: Stricter coordinate check — reject if exactPoint was fetched for a different point
     const epLat = effectiveExactPoint.requestedLat;
     const epLng = effectiveExactPoint.requestedLng;

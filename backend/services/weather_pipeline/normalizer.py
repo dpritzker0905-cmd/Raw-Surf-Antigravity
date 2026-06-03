@@ -58,6 +58,10 @@ class WeatherNormalizer:
         """
         Processes raw hourly coordinate grids and returns a NormalizedProduct for a specific target time.
         """
+        if model.upper() == "ICON" and layer.lower() == "swell_2":
+            logger.warning("[Normalizer] ICON swell_2 is unsupported by source data.")
+            return None
+
         if not raw_results:
             logger.warning("[Normalizer] Received empty raw results list.")
             return None
@@ -146,11 +150,7 @@ class WeatherNormalizer:
             lng = min(unique_lons, key=lambda val: abs(val - mapped_lng))
             pt_hourly = pt.get("hourly", {})
 
-            # Open-Meteo gwam secondary swell fallback
-            if layer == "swell_2" and speed_key not in pt_hourly and "swell_wave_height" in pt_hourly:
-                s_key, d_key, p_key = "swell_wave_height", "swell_wave_direction", "swell_wave_period"
-            else:
-                s_key, d_key, p_key = speed_key, direction_key, period_key
+            s_key, d_key, p_key = speed_key, direction_key, period_key
 
             speed_list = pt_hourly.get(s_key, [])
             dir_list = pt_hourly.get(d_key, [])
@@ -254,9 +254,13 @@ class WeatherNormalizer:
         source_vars = list(filter(None, [speed_key, direction_key, period_key]))
         source_dataset = None
         is_test_fixture = False
+        up_provider = None
+        up_model = None
 
         if provider.lower() == "copernicus":
             source_dataset = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
+            up_provider = "copernicus"
+            up_model = "ecmwf_wam025"
             # Map standard variables to CMEMS variable names
             om_to_cop_map = {
                 "wave_height": "VHM0",
@@ -275,8 +279,31 @@ class WeatherNormalizer:
             source_vars = [om_to_cop_map.get(v, v) for v in source_vars]
         elif provider.lower() == "open-meteo" and model.upper() == "GFS" and domain.lower() == "marine":
             source_dataset = "ncep_gfswave025"
+            up_provider = "open-meteo"
+            up_model = "ncep_gfswave025"
+        elif provider.lower() == "open-meteo" and model.upper() == "GFS" and domain.lower() == "wind":
+            source_dataset = "gfs_seamless"
+            up_provider = "open-meteo"
+            up_model = "gfs_seamless"
+        elif provider.lower() == "open-meteo" and model.upper() == "ICON" and domain.lower() == "marine":
+            source_dataset = "dwd_gwam"
+            up_provider = "open-meteo"
+            up_model = "gwam"
+        elif provider.lower() == "open-meteo" and model.upper() == "ICON" and domain.lower() == "wind":
+            source_dataset = "dwd_icon"
+            up_provider = "open-meteo"
+            up_model = "dwd_icon"
         elif provider.lower() == "test-fixture":
-            is_test_fixture = True
+            import os
+            is_test_env = (
+                os.environ.get("NODE_ENV") == "test" or 
+                os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+            )
+            if is_test_env:
+                is_test_fixture = True
+            else:
+                logger.error("[Normalizer] Security Violation: Refusing to set is_test_fixture=True in non-test environment.")
+                is_test_fixture = False
 
         return NormalizedProduct(
             model=model.upper(),
@@ -296,7 +323,9 @@ class WeatherNormalizer:
             source_variables=source_vars,
             freshness_sec=1800,
             is_test_fixture=is_test_fixture,
-            source_dataset=source_dataset
+            source_dataset=source_dataset,
+            upstream_provider=up_provider,
+            upstream_model=up_model
         )
 
     @staticmethod

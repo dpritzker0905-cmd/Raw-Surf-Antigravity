@@ -81,7 +81,11 @@ class PointSampler:
                 units=product.units,
                 source_variables=product.source_variables,
                 freshness_sec=product.freshness_sec,
-                warnings=warnings
+                warnings=warnings,
+                source_dataset=product.source_dataset,
+                is_test_fixture=product.is_test_fixture,
+                upstream_provider=product.upstream_provider,
+                upstream_model=product.upstream_model
             )
 
         # 2. Build coordinate map for constant-time lookup
@@ -298,7 +302,9 @@ class PointSampler:
             freshness_sec=product.freshness_sec,
             warnings=[f"Point unavailable: {reason}"],
             source_dataset=product.source_dataset,
-            is_test_fixture=product.is_test_fixture
+            is_test_fixture=product.is_test_fixture,
+            upstream_provider=product.upstream_provider,
+            upstream_model=product.upstream_model
         )
 
     def _build_success_response(
@@ -328,5 +334,7 @@ class PointSampler:
             freshness_sec=product.freshness_sec,
             warnings=warnings,
             source_dataset=product.source_dataset,
-            is_test_fixture=product.is_test_fixture
+            is_test_fixture=product.is_test_fixture,
+            upstream_provider=product.upstream_provider,
+            upstream_model=product.upstream_model
         )

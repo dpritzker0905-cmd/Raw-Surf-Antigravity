@@ -16,6 +16,7 @@ import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMP
 import { governMarineRequest } from './marineRequestGovernor';
 import {
   getBackendWeatherFlag,
+  getBackendIconMarineFlag,
   fetchBackendExactPoint,
   getBackendWindFlag,
   fetchBackendExactWindPoint,
@@ -107,6 +108,19 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       }
     } catch (err) {
       console.warn(`[Backend Weather Service] Copernicus point redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
+  }
+
+  // --- REDIRECT ICON WAVES / SWELL_1 / SWELL_2 / WIND_WAVES TO BACKEND IF FEATURE FLAG IS ACTIVE ---
+  if (typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
+    try {
+      console.log(`[Backend Weather Service] Redirecting ICON ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
+      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'ICON');
+      if (pointResult) {
+        return pointResult;
+      }
+    } catch (err) {
+      console.warn(`[Backend Weather Service] Point redirect failed for ICON ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 

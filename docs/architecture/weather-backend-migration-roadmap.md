@@ -197,10 +197,10 @@ We will roll out the remaining stages to bring all weather models and visual lay
 | **GFS Swell 1** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | `__USE_BACKEND_WEATHER_SERVICE__` | Pending | API timeout |
 | **GFS Swell 2** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | `__USE_BACKEND_WEATHER_SERVICE__` | Pending | Data gaps |
 | **GFS Wind Waves**| Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | `__USE_BACKEND_WEATHER_SERVICE__` | Pending | None |
-| **ICON Waves** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | Resolution |
-| **ICON Swell 1** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
-| **ICON Swell 2** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | Data gaps |
-| **ICON Wind Waves**| Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
+| **ICON Waves**      | Open-Meteo API | `open-meteo` (Backend)   | Planned       | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | Pending     | None           |
+| **ICON Swell 1**    | Open-Meteo API | `open-meteo` (Backend)   | Planned       | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | Pending     | None           |
+| **ICON Swell 2**    | Open-Meteo API | *Unsupported (No-Data)*  | *Unsupported* | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | *No*        | Source lack    |
+| **ICON Wind Waves** | Open-Meteo API | `open-meteo` (Backend)   | Planned       | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | Pending     | None           |
 | **EURO Waves** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | None |
 | **EURO Swell 1** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | CMEMS latency |
 | **EURO Swell 2** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | CMEMS latency |
