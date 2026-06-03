@@ -147,18 +147,22 @@ We extended the Copernicus backend and frontend mapping pipelines to support sec
 * **Point Sampler Hardening:** Verified Option A bilinear ocean-masked point sampler at Cape Canaveral coastline, retrieving `speed: 0.052`, `period: 2.29`, and `interpolation_method: "bilinear_ocean_masked"`.
 * **Visual & Diagnostics Proof:** Confirmed conformed 13x15 rectangular grid (195 vectors) renders on the WebGL flow map, with diagnostic telemetry sync verified via `window.__BACKEND_COPERNICUS_SERVICE_DIAG__`.
 
+### Stage 4C: Copernicus Wind Waves Ingestion
+We extended the Copernicus regional weather ingestion pipeline to support wind waves (`wind_waves`).
+* **Wind Waves Ingestion & Vector Math:** Handled CMEMS variable mapping for `VHM0_WW`, `VMDR_WW` (meteorological FROM travel convention), and `VTM01_WW`. Cartesian translation math ($u = -speed \times \sin(\text{rad})$, $v = -speed \times \cos(\text{rad})$) is formally validated and guarded by tests to align with travel directions for WebGL particles.
+* **Diagnostics Verification:** Proved conformed 13x15 grid parity and Option A bilinear ocean-masked point sampler returns correct values near Cape Canaveral.
+
+### Stage 4D: Copernicus Base EURO Waves Ingestion (Model Origin Decision & Ingestion)
+We migrated the base EURO Waves layer (`waves` under model `EURO`) to the backend-prepared Copernicus CMEMS pipeline, achieving single-source parity for all wave layers.
+* **Model Origin Decision:** Selected Copernicus CMEMS to ensure total wave heights, swell components, and wind waves share the identical run initialization, grid coordinates, and calculation cadence, resolving mathematical swell/total wave discrepancies.
+* **VTM10 Period Semantics:** Proved that CMEMS variable `VTM10` represents the spectral moment (-1,0) wave energy period, not the peak period. Conformed UI outputs to label this generically as "Period" and hide the "Peak" card (leaving `wave_peak_period` at 0).
+* **Overhead Verification:** Telemetry verified peak RAM usage of **310.37 MB** and subprocess extraction completion in **81.23s** with zero OOMs or 502 bad gateways.
+
 ---
 
 ## 4. Remaining Migration Plan
 
 We will roll out the remaining stages to bring all weather models and visual layers under the unified backend-owned architecture:
-
-### Stage 4C: Copernicus Wind Waves Ingestion
-* **Incorporate Wind Waves:** Query and cache CMEMS wind wave components.
-* **Conform to Contract:** Same truth gate, grid coherence, and point interpolation verification.
-
-### Stage 4D: Decide WAM Model Origin
-* **Evaluate EURO Waves:** Determine whether the base EURO Waves layer stays routed through Open-Meteo's ECMWF WAM model or migrates to a direct, backend-prepared Copernicus dataset. Implement if necessary.
 
 ### Stage 4E: GFS Marine Components Ingestion
 * **Consolidate GFS Marine:** Migrate the remaining GFS marine variables (waves, swell_1, wind_waves, and swell_2 where available) to backend-prepared products, replacing the direct frontend Open-Meteo calls.
@@ -197,10 +201,10 @@ We will roll out the remaining stages to bring all weather models and visual lay
 | **ICON Swell 1** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
 | **ICON Swell 2** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | Data gaps |
 | **ICON Wind Waves**| Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
-| **EURO Waves** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | Model shift |
-| **EURO Swell 1** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__`| **Verified** | CMEMS latency |
-| **EURO Swell 2** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__`| **Verified** | CMEMS latency |
-| **EURO Wind Waves**| Copernicus API | `copernicus` (Backend) | Planned | Legacy | `__USE_BACKEND_COPERNICUS_SERVICE__`| Pending | CMEMS latency |
+| **EURO Waves** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | None |
+| **EURO Swell 1** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | CMEMS latency |
+| **EURO Swell 2** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | CMEMS latency |
+| **EURO Wind Waves**| Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | None |
 | **GFS Wind** | Open-Meteo API | `open-meteo` (Backend) | Ingested | Mapped | `__USE_BACKEND_WIND_SERVICE__` | Verified | None |
 | **ICON Wind** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
 | **EURO Wind** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |

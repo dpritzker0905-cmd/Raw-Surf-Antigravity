@@ -35,20 +35,20 @@ class WeatherPipelineScheduler:
     async def ingest_gfs_marine_pilot(self) -> bool:
         """
         Stage 2 Pilot: Ingests GFS waves grid forecast for Florida/East Coast.
-        Fetches 48 hours of forecasts in 3-hour increments.
+        Fetches 48 hours of forecasts in 3-hour increments for waves, swell_1, swell_2, and wind_waves.
         """
-        logger.info("[Pipeline Scheduler] Starting GFS Marine Pilot ingestion job...")
+        logger.info("[Pipeline Scheduler] Starting GFS Marine Ingestion job for all component layers...")
         region = REGIONAL_CONFIGS["florida_east_coast"]
         
         import os
         is_render = os.environ.get("RENDER") == "true"
         resolution = 0.5 if is_render else region["resolution"]
 
-        # Open-Meteo GFS wave grid fetch
+        # Open-Meteo GFS wave grid fetch - query conformed 12 variables at once
         raw_data = await self.om_provider.fetch_grid(
             model="GFS",
             domain="marine",
-            layer="waves",
+            layer="all_marine",
             bbox=region,
             resolution=resolution,
             forecast_days=2
@@ -62,7 +62,7 @@ class WeatherPipelineScheduler:
 
         if not raw_data:
             if is_test_env:
-                logger.warning("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Injecting high-fidelity mock wave raw data for offline/deployed fallback...")
+                logger.warning("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Injecting high-fidelity mock conformed raw data for offline/deployed fallback...")
                 import math
                 lats, lons = self.om_provider.generate_grid_coords(region, resolution)
                 times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
@@ -74,13 +74,31 @@ class WeatherPipelineScheduler:
                         "hourly_units": {
                             "wave_height": "m",
                             "wave_direction": "°",
-                            "wave_period": "s"
+                            "wave_period": "s",
+                            "swell_wave_height": "m",
+                            "swell_wave_direction": "°",
+                            "swell_wave_period": "s",
+                            "secondary_swell_wave_height": "m",
+                            "secondary_swell_wave_direction": "°",
+                            "secondary_swell_wave_period": "s",
+                            "wind_wave_height": "m",
+                            "wind_wave_direction": "°",
+                            "wind_wave_period": "s"
                         },
                         "hourly": {
                             "time": times,
                             "wave_height": [1.2 + 0.4 * math.sin(lat) for _ in times],
                             "wave_direction": [240.0 for _ in times],
-                            "wave_period": [10.0 for _ in times]
+                            "wave_period": [10.0 for _ in times],
+                            "swell_wave_height": [0.8 + 0.3 * math.sin(lat) for _ in times],
+                            "swell_wave_direction": [110.0 for _ in times],
+                            "swell_wave_period": [8.0 for _ in times],
+                            "secondary_swell_wave_height": [0.3 + 0.1 * math.sin(lat) for _ in times],
+                            "secondary_swell_wave_direction": [140.0 for _ in times],
+                            "secondary_swell_wave_period": [6.0 for _ in times],
+                            "wind_wave_height": [0.5 + 0.2 * math.sin(lat) for _ in times],
+                            "wind_wave_direction": [100.0 for _ in times],
+                            "wind_wave_period": [5.0 for _ in times]
                         }
                     })
                 results = mock_raw_results_waves
@@ -98,45 +116,52 @@ class WeatherPipelineScheduler:
             return False
 
         run_time = datetime.now(timezone.utc)
-        success_count = 0
+        layers = ["waves", "swell_1", "swell_2", "wind_waves"]
+        total_saved = 0
 
-        # Normalization and atomic cache slicing (every 3 hours to optimize file count)
-        for idx, time_str in enumerate(times):
-            if idx % 3 != 0:
-                continue # Slice every 3 hours
-                
-            if not time_str.endswith("Z"):
-                time_str += "Z"
-            target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+        for layer in layers:
+            success_count = 0
+            # Normalization and atomic cache slicing (every 3 hours to optimize file count)
+            for idx, time_str in enumerate(times):
+                if idx % 3 != 0:
+                    continue # Slice every 3 hours
+                    
+                if not time_str.endswith("Z"):
+                    time_str += "Z"
+                target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
 
-            try:
-                product = self.normalizer.normalize(
-                    model="GFS",
-                    provider="open-meteo",
-                    domain="marine",
-                    layer="waves",
-                    raw_results=results,
-                    bbox=region,
-                    resolution=resolution,
-                    target_time=target_dt,
-                    run_time=run_time
-                )
-                
-                if product:
-                    self.store.save_product(product, resolution=resolution)
-                    success_count += 1
-                    del product
-                    import gc
-                    gc.collect()
-                    await asyncio.sleep(0.2)
-            except Exception as e:
-                logger.error(f"[Pipeline Scheduler] Normalization error at hour index {idx}: {e}")
+                try:
+                    product = self.normalizer.normalize(
+                        model="GFS",
+                        provider="open-meteo",
+                        domain="marine",
+                        layer=layer,
+                        raw_results=results,
+                        bbox=region,
+                        resolution=resolution,
+                        target_time=target_dt,
+                        run_time=run_time
+                    )
+                    
+                    if product:
+                        self.store.save_product(product, resolution=resolution)
+                        success_count += 1
+                        del product
+                        import gc
+                        gc.collect()
+                        await asyncio.sleep(0.2)
+                except Exception as e:
+                    logger.error(f"[Pipeline Scheduler] Normalization error for GFS {layer} at hour index {idx}: {e}")
+            
+            logger.info(f"[Pipeline Scheduler] Ingested {success_count} GFS {layer} products.")
+            if success_count > 0:
+                total_saved += success_count
 
         del results
         import gc
         gc.collect()
-        logger.info(f"[Pipeline Scheduler] GFS Marine Ingestion Job done! Saved {success_count} hourly grid files.")
-        return success_count > 0
+        logger.info(f"[Pipeline Scheduler] GFS Marine Ingestion Job done! Saved {total_saved} total conformed product files.")
+        return total_saved > 0
 
     async def ingest_gfs_wind_pilot(self) -> bool:
         """

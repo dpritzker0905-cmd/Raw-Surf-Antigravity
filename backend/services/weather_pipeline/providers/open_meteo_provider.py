@@ -71,6 +71,8 @@ class OpenMeteoProvider:
                     params["hourly"] = "secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period"
             elif layer == "wind_waves":
                 params["hourly"] = "wind_wave_height,wind_wave_direction,wind_wave_period"
+            elif layer == "all_marine":
+                params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
             else:
                 params["hourly"] = "wave_height,wave_direction,wave_period"
                 

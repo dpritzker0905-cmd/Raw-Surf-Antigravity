@@ -459,4 +459,204 @@ def test_gfs_wind_coordinate_reconstruction_and_bilinear():
     assert res.point.speed > 0.0
 
 
+def test_gfs_direction_to_uv_convention():
+    """
+    Verify that WeatherNormalizer translates GFS/Open-Meteo meteorological wave directions FROM
+    into correct Cartesian advection velocities (TOWARD directions) expected by
+    the WebGL marine particle engine.
+    """
+    normalizer = WeatherNormalizer()
+    target_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    bbox = {"west": -80.0, "south": 24.0, "east": -79.0, "north": 25.0}
+
+    # Test cases: speed=2.0, direction in degrees (meteorological FROM direction)
+    # expected u and v (Cartesian travel direction, +u=Eastward, +v=Northward)
+    test_cases = [
+        # 0 degrees: coming FROM North -> traveling South (u=0, v=-2.0)
+        {"direction": 0.0, "expected_u": 0.0, "expected_v": -2.0},
+        # 90 degrees: coming FROM East -> traveling West (u=-2.0, v=0)
+        {"direction": 90.0, "expected_u": -2.0, "expected_v": 0.0},
+        # 180 degrees: coming FROM South -> traveling North (u=0, v=2.0)
+        {"direction": 180.0, "expected_u": 0.0, "expected_v": 2.0},
+        # 270 degrees: coming FROM West -> traveling East (u=2.0, v=0)
+        {"direction": 270.0, "expected_u": 2.0, "expected_v": 0.0},
+    ]
+
+    for tc in test_cases:
+        mock_results = [
+            {
+                "latitude": 24.0, "longitude": -80.0,
+                "hourly_units": {"wave_height": "m", "wave_direction": "°", "wave_period": "s"},
+                "hourly": {"time": ["2026-06-01T21:00:00Z"], "wave_height": [2.0], "wave_direction": [tc["direction"]], "wave_period": [5.0]}
+            }
+        ]
+
+        product = normalizer.normalize(
+            model="GFS",
+            provider="open-meteo",
+            domain="marine",
+            layer="waves",
+            raw_results=mock_results,
+            bbox=bbox,
+            resolution=1.0,
+            target_time=target_dt
+        )
+
+        assert product is not None
+        v = product.grid.vectors[0]
+        # Match with small tolerance for floating point precision of sin/cos
+        assert math.isclose(v.u, tc["expected_u"], abs_tol=1e-4)
+        assert math.isclose(v.v, tc["expected_v"], abs_tol=1e-4)
+
+
+def test_gfs_all_marine_layers_normalization(tmp_path, monkeypatch):
+    """
+    Verify GFS Marine Ingestion, normalization, saving, and conformed point/grid endpoints.
+    Checks waves, swell_1, swell_2, and wind_waves.
+    """
+    temp_store = ProductStore(cache_dir=tmp_path)
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    # 2x2 grid for Florida East Coast
+    mock_results = [
+        {
+            "latitude": 24.0, "longitude": -85.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "secondary_swell_wave_height": "m", "secondary_swell_wave_direction": "°", "secondary_swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [1.0], "wave_direction": [90.0], "wave_period": [10.0],
+                "swell_wave_height": [0.8], "swell_wave_direction": [100.0], "swell_wave_period": [8.0],
+                "secondary_swell_wave_height": [0.3], "secondary_swell_wave_direction": [110.0], "secondary_swell_wave_period": [6.0],
+                "wind_wave_height": [0.5], "wind_wave_direction": [120.0], "wind_wave_period": [4.0]
+            }
+        },
+        {
+            "latitude": 24.0, "longitude": -79.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "secondary_swell_wave_height": "m", "secondary_swell_wave_direction": "°", "secondary_swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [2.0], "wave_direction": [90.0], "wave_period": [10.0],
+                "swell_wave_height": [1.6], "swell_wave_direction": [100.0], "swell_wave_period": [8.0],
+                "secondary_swell_wave_height": [0.6], "secondary_swell_wave_direction": [110.0], "secondary_swell_wave_period": [6.0],
+                "wind_wave_height": [1.0], "wind_wave_direction": [120.0], "wind_wave_period": [4.0]
+            }
+        },
+        {
+            "latitude": 30.0, "longitude": -85.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "secondary_swell_wave_height": "m", "secondary_swell_wave_direction": "°", "secondary_swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [3.0], "wave_direction": [90.0], "wave_period": [12.0],
+                "swell_wave_height": [2.4], "swell_wave_direction": [100.0], "swell_wave_period": [9.0],
+                "secondary_swell_wave_height": [0.9], "secondary_swell_wave_direction": [110.0], "secondary_swell_wave_period": [7.0],
+                "wind_wave_height": [1.5], "wind_wave_direction": [120.0], "wind_wave_period": [5.0]
+            }
+        },
+        {
+            "latitude": 30.0, "longitude": -79.0,
+            "hourly_units": {
+                "wave_height": "m", "wave_direction": "°", "wave_period": "s",
+                "swell_wave_height": "m", "swell_wave_direction": "°", "swell_wave_period": "s",
+                "secondary_swell_wave_height": "m", "secondary_swell_wave_direction": "°", "secondary_swell_wave_period": "s",
+                "wind_wave_height": "m", "wind_wave_direction": "°", "wind_wave_period": "s"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wave_height": [4.0], "wave_direction": [90.0], "wave_period": [12.0],
+                "swell_wave_height": [3.2], "swell_wave_direction": [100.0], "swell_wave_period": [9.0],
+                "secondary_swell_wave_height": [1.2], "secondary_swell_wave_direction": [110.0], "secondary_swell_wave_period": [7.0],
+                "wind_wave_height": [2.0], "wind_wave_direction": [120.0], "wind_wave_period": [5.0]
+            }
+        }
+    ]
+
+    normalizer = WeatherNormalizer()
+    target_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    bbox = {"west": -85.0, "south": 24.0, "east": -79.0, "north": 30.0}
+
+    layers = ["waves", "swell_1", "swell_2", "wind_waves"]
+    for layer in layers:
+        product = normalizer.normalize(
+            model="GFS",
+            provider="open-meteo",
+            domain="marine",
+            layer=layer,
+            raw_results=mock_results,
+            bbox=bbox,
+            resolution=6.0,
+            target_time=target_dt
+        )
+        assert product is not None
+        assert product.model == "GFS"
+        assert product.layer == layer
+        assert product.grid.cols == 2
+        assert product.grid.rows == 2
+        assert len(product.grid.vectors) == 4
+        assert product.is_test_fixture is False
+
+        # Save to temp store
+        temp_store.save_product(product, resolution=6.0)
+
+    # 1. Query products manifest API
+    response = client.get("/api/weather/products")
+    assert response.status_code == 200
+    manifest = response.json()
+    for layer in layers:
+        assert any(p["model"] == "GFS" and p["layer"] == layer and p["provider"] == "open-meteo" for p in manifest["products"])
+        # Verify no test fixtures in manifest
+        assert not any(p["is_test_fixture"] for p in manifest["products"])
+
+    # 2. Query grid API for swell_1
+    response_grid = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=swell_1&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_grid.status_code == 200
+    grid_payload = response_grid.json()
+    assert grid_payload["model"] == "GFS"
+    assert grid_payload["layer"] == "swell_1"
+    assert "diagnostics" in grid_payload["grid"]
+    diag = grid_payload["grid"]["diagnostics"]
+    assert diag["gridMode"] == "rectangular"
+    assert diag["cols"] == 2
+    assert diag["rows"] == 2
+    assert diag["vectors_length"] == 4
+
+    # 3. Query point API inside the grid (bilinear interpolation) for swell_1
+    lat, lng = 27.0, -82.0
+    response_point = client.get(
+        f"/api/weather/point?model=GFS&domain=marine&layer=swell_1&lat={lat}&lng={lng}&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_point.status_code == 200
+    point_payload = response_point.json()
+    assert point_payload["is_forecast_authoritative"] is True
+    assert point_payload["point"]["interpolation_method"] == "bilinear"
+    assert point_payload["point"]["speed"] > 0.0
+    # Peak period omitted/zero behavior
+    assert point_payload["point"]["period"] > 0.0
+
+    # Verify point metadata propagation
+    assert point_payload["source_dataset"] is None  # Open-Meteo has no source_dataset in conformed schema currently
+    assert point_payload["source_variables"] == ["swell_wave_height", "swell_wave_direction", "swell_wave_period"]
+    assert point_payload["is_test_fixture"] is False
+    assert point_payload["is_forecast_authoritative"] is True
+    assert point_payload["is_estimated"] is False
+
+
+
 
