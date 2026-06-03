@@ -341,7 +341,9 @@ export var MapForecastOverlay = ({
                         effectiveExactPointStatus === 'icon_extended_estimate' || 
                         effectiveExactPoint.provider === 'estimated';
     if (!isEstimated) {
-      if (effectiveExactPoint.provider !== expectedExactProv && !(activeModel === 'EURO' && activeLayer === 'waves')) {
+      if (effectiveExactPoint.provider !== expectedExactProv && 
+          effectiveExactPoint.provider !== 'backend-weather-service' && 
+          !(activeModel === 'EURO' && activeLayer === 'waves')) {
         return false;
       }
     }
@@ -734,13 +736,14 @@ export var MapForecastOverlay = ({
                   </div>
                 );
               })}
-              {effectiveExactPointStatus === 'estimate_pending_sources' && (
+              {(effectiveExactPointStatus === 'estimate_pending_sources' || 
+                (activeModel === 'EURO' && effectiveExactPointStatus === 'no_copernicus_coverage' && timeOffsetHours > 27)) && (
                 <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[10px] text-amber-400 font-semibold flex flex-col gap-1">
-                  <span>Estimate pending source data</span>
+                  <span>{effectiveExactPointStatus === 'estimate_pending_sources' ? 'Estimate pending source data' : 'Copernicus native coverage ends at +27h'}</span>
                   <button 
                     onClick={() => {
                       if (pointLat && pointLng) {
-                        console.log("[Forecast Overlay] Explicit user action: loading background data for estimate.");
+                        console.log("[Forecast Overlay] Explicit user action: loading background GFS/ICON data for estimate.");
                         setExactPointStatus('exact_loading');
                         const gfsPromise = fetchExactMarinePoint(pointLat, pointLng, 'GFS', activeLayer, null, timeOffsetHours);
                         const iconPromise = activeModel === 'EURO' ? fetchExactMarinePoint(pointLat, pointLng, 'ICON', activeLayer, null, timeOffsetHours) : Promise.resolve(null);
@@ -751,7 +754,7 @@ export var MapForecastOverlay = ({
                     }}
                     className="px-2 py-0.5 mt-1 bg-amber-500/20 hover:bg-amber-500/30 text-[9px] text-amber-300 font-bold border border-amber-500/30 rounded active:scale-95 transition-transform text-center"
                   >
-                    Load missing data
+                    {effectiveExactPointStatus === 'estimate_pending_sources' ? 'Load missing data' : 'Compute Extended Estimate (Load GFS/ICON)'}
                   </button>
                 </div>
               )}

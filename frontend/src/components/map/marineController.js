@@ -454,7 +454,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       _cacheMarineResult('GFS', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
-      console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      if (err.message === 'no_backend_coverage') {
+        console.log(`[Backend Weather Service] GFS has no conformed coverage for hourOffset=+${hourOffset}h. Blocking fallback to legacy proxy.`);
+        return createFallbackSafeZeroGrid('GFS', 'no_backend_coverage');
+      }
+      console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 
@@ -466,7 +470,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       _cacheMarineResult('EURO', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
-      console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      if (err.message === 'no_copernicus_coverage') {
+        console.log(`[Backend Weather Service] Copernicus has no conformed coverage for hourOffset=+${hourOffset}h. Blocking fallback to legacy proxy.`);
+        return createFallbackSafeZeroGrid('EURO', 'no_copernicus_coverage');
+      }
+      console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 
@@ -478,7 +486,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       _cacheMarineResult('ICON', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
-      console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      if (err.message === 'no_backend_coverage') {
+        console.log(`[Backend Weather Service] ICON has no conformed coverage for hourOffset=+${hourOffset}h. Blocking fallback to legacy proxy.`);
+        return createFallbackSafeZeroGrid('ICON', 'no_backend_coverage');
+      }
+      console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 
@@ -673,6 +685,15 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       }
 
       if (!res.ok) {
+        let reason = 'proxy_error';
+        if (res.status === 404) {
+          try {
+            const errJson = await res.json();
+            if (errJson && errJson.reason) {
+              reason = errJson.reason;
+            }
+          } catch (e) {}
+        }
         if (res.status === 413) {
           if (typeof window !== 'undefined') {
             window.__MARINE_HEATMAP_STATUS__ = { status: 'payload_too_large', model, layer: activeLayer, hour: hourOffset };
@@ -684,8 +705,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
           logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: 429, result: 'rate_limited_fallback', elapsedMs: Date.now() - fetchStart });
           return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'rate_limited');
         }
-        logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: res.status, result: 'proxy_error', elapsedMs: Date.now() - fetchStart });
-        return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'proxy_error');
+        logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: res.status, result: reason, elapsedMs: Date.now() - fetchStart });
+        return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, reason);
       }
 
       const json = await res.json();

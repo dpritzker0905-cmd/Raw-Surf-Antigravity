@@ -194,7 +194,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       if (isBackendActive) {
         const curLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
         const cached = getModelSafeMarine(activeModel, requestedHour, curLayer);
-        if (!cached || cached.__staleHour) {
+        if (!cached || cached.__staleHour || cached.__failureReason || cached.grid?.__failureReason) {
           coverageMissing = true;
         }
       } else {
@@ -234,14 +234,26 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     // If active but parity is false, make sure infobox/heatmap status reflects retained/stale
     if (active && !parity) {
+      let statusValue = 'retained_previous_hour';
+      if (reason === 'cooldownActive') {
+        statusValue = 'rate_limited_cached';
+      } else if (reason === 'coverageMissing') {
+        statusValue = activeModel === 'EURO' ? 'no_copernicus_coverage' : 'no_backend_coverage';
+      }
       window.__MARINE_HEATMAP_STATUS__ = {
-        status: reason === 'cooldownActive' ? 'rate_limited_cached' : 'retained_previous_hour',
+        status: statusValue,
         model: activeModel,
         layer: activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
         hour: requestedHour,
         renderedHour: renderedDataHour,
         retainedPrevious: true
       };
+    } else if (active && parity) {
+      if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour' ||
+          window.__MARINE_HEATMAP_STATUS__?.status === 'no_copernicus_coverage' ||
+          window.__MARINE_HEATMAP_STATUS__?.status === 'no_backend_coverage') {
+        window.__MARINE_HEATMAP_STATUS__ = null;
+      }
     }
   }, [data, timeOffsetHours, revision, active, activeModel]);
 

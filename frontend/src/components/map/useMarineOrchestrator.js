@@ -372,8 +372,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               phase = 'standard_fetch_copernicus';
               try {
                 data = await fetchMarineData(bounds, zoom, null, timeOffset, false, model, layer);
-                if (!data || !data.grid || !data.grid.renderable) {
+                 if (!data || !data.grid || !data.grid.renderable) {
                   console.warn('[Marine] Deployed Copernicus grid returned empty/unrenderable grid.');
+                  const failureReason = data?.grid?.__failureReason || 'unavailable';
+                  if (typeof window !== 'undefined') {
+                    window.__MARINE_HEATMAP_STATUS__ = { status: failureReason, model, layer, hour: timeOffset };
+                  }
                   data = {
                     type: 'FeatureCollection',
                     features: [],
@@ -389,6 +393,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
                       __gridProvider: 'backend-weather-service',
                       __componentLayer: layer,
                       __gridSupportsLayer: false,
+                      __failureReason: failureReason,
                       renderable: false,
                       provider: 'backend-weather-service'
                     }
@@ -517,6 +522,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           clearTimeout(internalUpdateTimerRef.current); internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
         } else {
           consecutiveFailuresRef.current += 1;
+          if (data?.grid?.__failureReason) {
+            if (typeof window !== 'undefined') {
+              window.__MARINE_HEATMAP_STATUS__ = { status: data.grid.__failureReason, model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour };
+            }
+          }
           if (isInCooldown('marine')) _logPipelineEvent('rate_limit_429', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour });
           if (typeof window !== 'undefined') window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: layer, timeOffsetHours: timeOffsetRef.current, provider: 'none', httpStatus: 502, elapsedMs: Date.now() - now, vectorCount: 0, consecutiveFailures: consecutiveFailuresRef.current, timestamp: new Date().toISOString() };
           if (consecutiveFailuresRef.current >= 3 || ['cooldown_retry', 'delayed_retry'].includes(source)) return;
@@ -759,8 +769,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           renderedHour = Math.round((closestTimeMs - Date.now()) / 3600000);
         }
       }
+      const statusVal = isBackendActive
+        ? (curModel === 'EURO' ? 'no_copernicus_coverage' : 'no_backend_coverage')
+        : 'retained_previous_hour_warning';
       window.__MARINE_HEATMAP_STATUS__ = {
-        status: 'retained_previous_hour_warning',
+        status: statusVal,
         requestedHour: timeOffsetHours,
         renderedHour: renderedHour,
         coverageRejected: true,
@@ -768,7 +781,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         blockedReason: 'cache_coverage_exceeded'
       };
     } else {
-      if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour_warning') {
+      if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour_warning' ||
+          window.__MARINE_HEATMAP_STATUS__?.status === 'no_copernicus_coverage' ||
+          window.__MARINE_HEATMAP_STATUS__?.status === 'no_backend_coverage') {
         window.__MARINE_HEATMAP_STATUS__ = null;
       }
     }

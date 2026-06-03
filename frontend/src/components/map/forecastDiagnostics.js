@@ -11,6 +11,12 @@ export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineDat
   if (typeof window === 'undefined') return null;
   
   const statusDiag = window.__MARINE_HEATMAP_STATUS__;
+  if (statusDiag?.status === 'no_copernicus_coverage') {
+    return 'no_copernicus_coverage';
+  }
+  if (statusDiag?.status === 'no_backend_coverage') {
+    return 'no_backend_coverage';
+  }
   if (statusDiag?.status === 'retained_previous_hour_warning' || statusDiag?.status === 'retained_previous_hour') {
     return 'retained_stale_warning';
   }

@@ -522,16 +522,31 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
     if (!gfsData) {
       return {
-        status: 'estimate_pending_sources',
+        status: 'no_copernicus_coverage',
         source: 'exact_point_api',
         requestedLat: cachedResponse.requestedLat,
         requestedLng: cachedResponse.requestedLng,
         requestedModel: cachedResponse.requestedModel,
         activeLayer: cachedResponse.activeLayer,
-        provider: 'estimated',
-        timeRangeStart: cachedResponse.hourly.time[0],
-        timeRangeEnd: cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1],
-        hourly: cachedResponse.hourly
+        provider: 'copernicus',
+        is_estimated: false,
+        wave_height: null,
+        wave_direction: null,
+        wave_period: null,
+        wave_peak_period: null,
+        swell_wave_height: null,
+        swell_wave_direction: null,
+        swell_wave_period: null,
+        swell_wave_peak_period: null,
+        secondary_swell_wave_height: null,
+        secondary_swell_wave_direction: null,
+        secondary_swell_wave_period: null,
+        wind_wave_height: null,
+        wind_wave_direction: null,
+        wind_wave_period: null,
+        wind_wave_peak_period: null,
+        wind_speed_10m: null,
+        wind_direction_10m: null
       };
     }
 
@@ -607,16 +622,31 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
     if (!gfsData) {
       return {
-        status: 'estimate_pending_sources',
+        status: 'no_backend_coverage',
         source: 'exact_point_api',
         requestedLat: cachedResponse.requestedLat,
         requestedLng: cachedResponse.requestedLng,
         requestedModel: cachedResponse.requestedModel,
         activeLayer: cachedResponse.activeLayer,
-        provider: 'estimated',
-        timeRangeStart: cachedResponse.hourly.time[0],
-        timeRangeEnd: cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1],
-        hourly: cachedResponse.hourly
+        provider: 'backend-weather-service',
+        is_estimated: false,
+        wave_height: null,
+        wave_direction: null,
+        wave_period: null,
+        wave_peak_period: null,
+        swell_wave_height: null,
+        swell_wave_direction: null,
+        swell_wave_period: null,
+        swell_wave_peak_period: null,
+        secondary_swell_wave_height: null,
+        secondary_swell_wave_direction: null,
+        secondary_swell_wave_period: null,
+        wind_wave_height: null,
+        wind_wave_direction: null,
+        wind_wave_period: null,
+        wind_wave_peak_period: null,
+        wind_speed_10m: null,
+        wind_direction_10m: null
       };
     }
 

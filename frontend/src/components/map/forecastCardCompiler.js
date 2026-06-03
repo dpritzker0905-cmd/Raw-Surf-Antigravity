@@ -11,7 +11,9 @@ export const STATUS_RENDERS = {
   rate_limited: { color: 'text-rose-400', text: 'Rate Limited (429 Cooldown)' },
   unavailable: { color: 'text-rose-400', text: 'Heatmap Error/Timeout' },
   retained_stale_warning: { color: 'text-amber-400', text: 'Stale Hour Retained' },
-  payload_too_large: { color: 'text-amber-400', text: 'Forecast heatmap too large / scoped fetch required' }
+  payload_too_large: { color: 'text-amber-400', text: 'Forecast heatmap too large / scoped fetch required' },
+  no_copernicus_coverage: { color: 'text-amber-400', text: 'No Copernicus coverage' },
+  no_backend_coverage: { color: 'text-amber-400', text: 'No Coverage' }
 };
 
 export function compileForecastCards({
@@ -492,7 +494,7 @@ export function compileForecastCards({
             : 'Unavailable (Using heatmap grid)',
       color: 'text-rose-400'
     });
-  } else if (isExactPointAuthority && exactPointStatus === 'exact_no_time_coverage' && waveHeight != null) {
+  } else if (isExactPointAuthority && (exactPointStatus === 'exact_no_time_coverage' || exactPointStatus === 'no_copernicus_coverage' || exactPointStatus === 'no_backend_coverage') && waveHeight != null) {
     cards.push({
       icon: Waves,
       label: 'Source',
