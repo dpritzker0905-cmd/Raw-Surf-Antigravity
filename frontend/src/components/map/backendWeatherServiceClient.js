@@ -242,28 +242,32 @@ export function clampViewportBbox(requestedBbox, layerName = "waves") {
  * Maps the standard backend grid response schema to the WebGLMarineLayer expectations.
  * Computes grid renderability checks (all-zero and empty vectors rejection).
  */
-export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset) {
+export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer = 'waves') {
   if (!json || !json.grid || !Array.isArray(json.grid.vectors)) {
     throw new Error("Invalid normalized grid response structure");
   }
 
-  const mappedVectors = json.grid.vectors.map(v => ({
-    lat: v.lat,
-    lng: v.lng,
-    isOcean: true,
-    waves: {
+  const zeroVec = { u: 0, v: 0, speed: 0, period: 0 };
+  const mappedVectors = json.grid.vectors.map(v => {
+    const componentUV = {
       u: v.u || 0,
       v: v.v || 0,
       speed: v.speed || 0,
       period: v.period || 0
-    },
-    swell_1: { u: 0, v: 0, speed: 0, period: 0 },
-    swell_2: { u: 0, v: 0, speed: 0, period: 0 },
-    wind_waves: { u: 0, v: 0, speed: 0, period: 0 }
-  }));
+    };
+    return {
+      lat: v.lat,
+      lng: v.lng,
+      isOcean: true,
+      waves: layer === 'waves' ? componentUV : zeroVec,
+      swell_1: layer === 'swell_1' ? componentUV : zeroVec,
+      swell_2: layer === 'swell_2' ? componentUV : zeroVec,
+      wind_waves: layer === 'wind_waves' ? componentUV : zeroVec
+    };
+  });
 
-  const nonzeroCount = mappedVectors.filter(v => v.waves.speed > 0).length;
-  const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v.waves.speed), 0) : 0;
+  const nonzeroCount = mappedVectors.filter(v => v[layer].speed > 0).length;
+  const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v[layer].speed), 0) : 0;
   
   // A grid is renderable only if it has vectors and at least one non-zero speed vector
   const renderable = mappedVectors.length > 0 && nonzeroCount > 0;
@@ -285,7 +289,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset) {
       __sourceModel: 'GFS',
       __provider: json.provider || 'backend-weather-service',
       __gridProvider: json.provider || 'backend-weather-service',
-      __componentLayer: 'waves',
+      __componentLayer: layer,
       __gridSupportsLayer: renderable,
       __activeLayerNonzeroCount: nonzeroCount,
       __activeLayerMax: maxSpeed,
@@ -307,6 +311,7 @@ if (typeof window !== 'undefined') {
     featureFlagActive: getBackendWeatherFlag(),
     activeModel: 'GFS',
     activeLayer: 'waves',
+    layer: 'waves',
     backendUrl: BACKEND_URL,
     statusUrl: STATUS_URL,
     gridUrl: GRID_URL,
@@ -316,20 +321,29 @@ if (typeof window !== 'undefined') {
     gridValidTime: null,
     pointValidTime: null,
     parity: 'pending_point_fetch',
+    pointParity: 'pending_point_fetch',
     requestedBbox: null,
     clampedBbox: null,
     coverage: PILOT_COVERAGE,
     fallbackReason: null,
     lastGridFetch: null,
     lastPointFetch: null,
-    // Coverage diagnostics
     coverageInside: true,
     fallbackToLegacy: false,
     reason: null,
-    // Time diagnostics
     requestedValidTime: null,
     selectedManifestValidTime: null,
-    manifestDeltaHours: null
+    manifestDeltaHours: null,
+    gridVectorCount: null,
+    nonzeroCount: null,
+    renderable: false,
+    sourceDataset: null,
+    sourceVariables: null,
+    is_forecast_authoritative: false,
+    is_estimated: false,
+    is_test_fixture: false,
+    gridMode: null,
+    interpolationMethod: null
   };
 }
 
@@ -344,6 +358,7 @@ export function updateDiagnostics(type, details) {
       featureFlagActive: getBackendWeatherFlag(),
       activeModel: 'GFS',
       activeLayer: 'waves',
+      layer: 'waves',
       backendUrl: BACKEND_URL,
       statusUrl: STATUS_URL,
       gridUrl: GRID_URL,
@@ -353,6 +368,7 @@ export function updateDiagnostics(type, details) {
       gridValidTime: null,
       pointValidTime: null,
       parity: 'pending_point_fetch',
+      pointParity: 'pending_point_fetch',
       requestedBbox: null,
       clampedBbox: null,
       coverage: PILOT_COVERAGE,
@@ -364,7 +380,17 @@ export function updateDiagnostics(type, details) {
       reason: null,
       requestedValidTime: null,
       selectedManifestValidTime: null,
-      manifestDeltaHours: null
+      manifestDeltaHours: null,
+      gridVectorCount: null,
+      nonzeroCount: null,
+      renderable: false,
+      sourceDataset: null,
+      sourceVariables: null,
+      is_forecast_authoritative: false,
+      is_estimated: false,
+      is_test_fixture: false,
+      gridMode: null,
+      interpolationMethod: null
     };
   }
 
@@ -372,11 +398,21 @@ export function updateDiagnostics(type, details) {
   diag.featureFlagActive = getBackendWeatherFlag();
 
   if (type === 'grid') {
+    diag.layer = details.layer || diag.layer || 'waves';
     diag.lastGridFetch = details;
-    diag.gridValidTime = details.validTime;
+    diag.gridValidTime = details.validTime || null;
     diag.requestedBbox = details.requestedBbox;
     diag.clampedBbox = details.clampedBbox;
-    diag.fallbackReason = details.fallbackReason || null;
+    diag.fallbackReason = details.error || details.fallbackReason || null;
+    diag.gridVectorCount = details.gridVectorCount || null;
+    diag.nonzeroCount = details.nonzeroCount || null;
+    diag.renderable = details.renderable !== undefined ? details.renderable : false;
+    diag.sourceDataset = details.sourceDataset || null;
+    diag.sourceVariables = details.sourceVariables || null;
+    diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
+    diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
+    diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
+    diag.gridMode = details.gridMode || null;
 
     // Handle coverage flags and fallback telemetry
     const isInside = details.coverageInside !== undefined 
@@ -384,21 +420,30 @@ export function updateDiagnostics(type, details) {
       : (details.clampedBbox !== null && !details.error?.includes('outside'));
       
     diag.coverageInside = isInside;
-    diag.fallbackToLegacy = !isInside;
+    diag.fallbackToLegacy = !isInside || !!details.error;
     diag.reason = !isInside ? 'outside_pilot_coverage' : null;
   } else if (type === 'point') {
+    diag.layer = details.layer || diag.layer || 'waves';
     diag.lastPointFetch = details;
-    diag.pointValidTime = details.validTime;
+    diag.pointValidTime = details.validTime || null;
+    diag.interpolationMethod = details.interpolationMethod || null;
+    diag.sourceDataset = details.sourceDataset || null;
+    diag.sourceVariables = details.sourceVariables || null;
+    diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
+    diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
+    diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
   }
+
+  diag.activeModel = 'GFS';
+  diag.activeLayer = diag.layer;
 
   if (details.hourOffset !== undefined) {
     diag.requestedHour = details.hourOffset;
-    // Calling getSharedValidTime refreshes latestTimeDiag state
-    diag.validTime = getSharedValidTime(details.hourOffset);
+    diag.validTime = getSharedValidTime(details.hourOffset, diag.layer, 'GFS');
   }
 
   // Inject computed nearest manifest time match diagnostics
-  const timeDiag = latestTimeDiag['GFS_waves'] || {};
+  const timeDiag = latestTimeDiag[`GFS_${diag.layer}`] || {};
   diag.requestedValidTime = timeDiag.requestedValidTime;
   diag.selectedManifestValidTime = timeDiag.selectedManifestValidTime;
   diag.manifestDeltaHours = timeDiag.manifestDeltaHours;
@@ -408,15 +453,16 @@ export function updateDiagnostics(type, details) {
   diag.parity = diag.pointValidTime 
     ? (diag.gridValidTime === diag.pointValidTime) 
     : 'pending_point_fetch';
+  diag.pointParity = diag.parity;
 }
 
 /**
  * Fetches exact point forecast from backend weather service.
  */
-export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
+export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves') {
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset);
-  const url = `${POINT_URL}?model=GFS&domain=marine&layer=waves&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  const validTimeStr = getSharedValidTime(hourOffset, layer, 'GFS');
+  const url = `${POINT_URL}?model=GFS&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
 
   try {
     const res = await fetch(url, { signal });
@@ -426,15 +472,13 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
     const json = await res.json();
     
     // Structure conformed hourly response compatible with forecastSamplers.js expectations.
-    // NOTE: conformedHourly is a client-side adapter shape translating single-step point forecasts
-    // into the infobox-compatible hourly format, not a fake or mock data generator.
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
     const conformedHourly = {
       time: [mockTime],
-      wave_height: [json.point.speed || 0],
-      wave_direction: [json.point.direction || 0],
-      wave_period: [json.point.period || 0],
-      wave_peak_period: [json.point.period || 0],
+      wave_height: [0],
+      wave_direction: [0],
+      wave_period: [0],
+      wave_peak_period: [0],
       swell_wave_height: [0],
       swell_wave_direction: [0],
       swell_wave_period: [0],
@@ -448,6 +492,27 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
       wind_wave_peak_period: [0]
     };
 
+    if (layer === 'waves') {
+      conformedHourly.wave_height = [json.point.speed || 0];
+      conformedHourly.wave_direction = [json.point.direction || 0];
+      conformedHourly.wave_period = [json.point.period || 0];
+      conformedHourly.wave_peak_period = [0];
+    } else if (layer === 'swell_1') {
+      conformedHourly.swell_wave_height = [json.point.speed || 0];
+      conformedHourly.swell_wave_direction = [json.point.direction || 0];
+      conformedHourly.swell_wave_period = [json.point.period || 0];
+      conformedHourly.swell_wave_peak_period = [0];
+    } else if (layer === 'swell_2') {
+      conformedHourly.secondary_swell_wave_height = [json.point.speed || 0];
+      conformedHourly.secondary_swell_wave_direction = [json.point.direction || 0];
+      conformedHourly.secondary_swell_wave_period = [json.point.period || 0];
+    } else if (layer === 'wind_waves') {
+      conformedHourly.wind_wave_height = [json.point.speed || 0];
+      conformedHourly.wind_wave_direction = [json.point.direction || 0];
+      conformedHourly.wind_wave_period = [json.point.period || 0];
+      conformedHourly.wind_wave_peak_period = [0];
+    }
+
     const data = {
       hourly: conformedHourly,
       snappedLat: json.point.sampled_lat || lat,
@@ -455,7 +520,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
       requestedLat: lat,
       requestedLng: lng,
       requestedModel: 'GFS',
-      activeLayer: 'waves',
+      activeLayer: layer,
       forecastDays: 1,
       apiModel: 'ncep_gfswave025',
       provider: json.provider || 'backend-weather-service',
@@ -466,12 +531,22 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
       url,
       status: res.status,
       validTime: validTimeStr,
-      valueKind: json.value_kind || 'wave_height',
+      valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),
       valueUnit: json.value_unit || 'm',
       displayUnitHint: json.display_unit_hint || 'ft',
       elapsedMs: Date.now() - start,
       error: null,
-      hourOffset
+      hourOffset,
+      layer,
+      speed: json.point.speed || 0,
+      direction: json.point.direction || 0,
+      interpolationMethod: json.point.interpolation_method || 'bilinear',
+      provider: json.provider || 'backend-weather-service',
+      sourceDataset: json.source_dataset,
+      sourceVariables: json.source_variables,
+      is_forecast_authoritative: json.is_forecast_authoritative,
+      is_estimated: json.is_estimated,
+      is_test_fixture: json.is_test_fixture
     });
 
     return data;
@@ -486,7 +561,17 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal) {
       displayUnitHint: 'none',
       elapsedMs: Date.now() - start,
       error: err.message,
-      hourOffset
+      hourOffset,
+      layer,
+      speed: 0,
+      direction: 0,
+      interpolationMethod: 'none',
+      provider: 'none',
+      sourceDataset: null,
+      sourceVariables: null,
+      is_forecast_authoritative: false,
+      is_estimated: false,
+      is_test_fixture: false
     });
     console.error(`[Backend Weather Service] Point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
     throw err;

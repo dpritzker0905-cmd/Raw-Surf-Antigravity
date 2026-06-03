@@ -197,12 +197,12 @@ export function getMarineHourlyCache() {
 }
 
 // --- GFS BACKEND SERVICE GRID FETCH ---
-async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds) {
+async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = "waves") {
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset);
+  const validTimeStr = getSharedValidTime(hourOffset, layer, 'GFS');
 
   // 1. Perform Bbox Clamping and Coverage verification
-  const clampResult = clampViewportBbox(snappedBounds);
+  const clampResult = clampViewportBbox(snappedBounds, layer);
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',
@@ -217,7 +217,8 @@ async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds)
       clampedBbox: null,
       fallbackReason: clampResult.fallbackReason,
       hourOffset,
-      coverageInside: false
+      coverageInside: false,
+      layer
     };
     updateDiagnostics('grid', errorDetails);
     throw new Error(clampResult.fallbackReason);
@@ -225,7 +226,7 @@ async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds)
 
   const { clampedBbox } = clampResult;
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=GFS&domain=marine&layer=waves&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+  const url = `${GRID_URL}?model=GFS&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}`;
 
   try {
     const res = await fetch(url, { signal });
@@ -233,13 +234,13 @@ async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds)
       throw new Error(`Backend returned HTTP ${res.status}`);
     }
     const json = await res.json();
-    const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset);
+    const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer);
 
     updateDiagnostics('grid', {
       url,
       status: res.status,
       validTime: validTimeStr,
-      valueKind: json.value_kind || 'wave_height',
+      valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),
       valueUnit: json.value_unit || 'm',
       displayUnitHint: json.display_unit_hint || 'ft',
       elapsedMs: Date.now() - start,
@@ -247,7 +248,18 @@ async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds)
       requestedBbox: snappedBounds,
       clampedBbox,
       fallbackReason: null,
-      hourOffset
+      hourOffset,
+      layer,
+      gridVectorCount: result.grid.vectors.length,
+      nonzeroCount: result.grid.nonzeroCount,
+      renderable: result.grid.renderable,
+      provider: json.provider,
+      sourceDataset: json.source_dataset,
+      sourceVariables: json.source_variables,
+      is_forecast_authoritative: json.is_forecast_authoritative,
+      is_estimated: json.is_estimated,
+      is_test_fixture: json.is_test_fixture,
+      gridMode: json.grid?.diagnostics?.gridMode || 'rectangular'
     });
 
     return result;
@@ -263,8 +275,15 @@ async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds)
       error: err.message,
       requestedBbox: snappedBounds,
       clampedBbox,
-      fallbackReason: `Fetch error: ${err.message}`,
-      hourOffset
+      fallbackReason: err.message,
+      hourOffset,
+      layer,
+      provider: 'backend-weather-service',
+      sourceDataset: null,
+      sourceVariables: null,
+      is_forecast_authoritative: false,
+      is_estimated: false,
+      is_test_fixture: false
     };
     updateDiagnostics('grid', errorDetails);
     console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
@@ -402,14 +421,14 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (latMax <= latMin) { latMin = -80; latMax = 85; }
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
-  // --- GFS BACKEND SERVICE REDIRECT FOR STAGE 2 PILOT ---
-  if (getBackendWeatherFlag() && (model === 'GFS' || !model) && activeLayer === 'waves') {
+  // --- GFS BACKEND SERVICE REDIRECT ---
+  if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1')) {
     try {
-      console.log(`[Backend Weather Service] Redirecting GFS Waves grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
-      const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds);
+      console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+      const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
       return result;
     } catch (err) {
-      console.warn(`[Backend Weather Service] Grid redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 

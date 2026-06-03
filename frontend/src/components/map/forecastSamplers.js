@@ -71,16 +71,16 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     return { status: 'rate_limited' };
   }
 
-  // --- REDIRECT GFS WAVES TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && activeLayer === 'waves') {
+  // --- REDIRECT GFS WAVES / SWELL_1 TO BACKEND IF FEATURE FLAG IS ACTIVE ---
+  if (typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1')) {
     try {
-      console.log(`[Backend Weather Service] Redirecting GFS Waves point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal);
+      console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
+      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer);
       if (pointResult) {
         return pointResult;
       }
     } catch (err) {
-      console.warn(`[Backend Weather Service] Point redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      console.warn(`[Backend Weather Service] Point redirect failed for GFS ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
 
