@@ -208,27 +208,32 @@ class PointSampler:
                     interpolation_method="bilinear_ocean_masked"
                 )
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
-            
-        # 3. Fallback to Nearest Ocean Vector
-        ocean_vectors = [v for v in grid.vectors if v.speed > 0.0]
-        if ocean_vectors:
-            nearest = self._find_nearest_vector(ocean_vectors, lat, lng)
-            detail = NormalizedPointDetail(
-                requested_lat=lat,
-                requested_lng=lng,
-                sampled_lat=nearest.lat,
-                sampled_lng=nearest.lng,
-                speed=nearest.speed,
-                direction=nearest.direction,
-                u=nearest.u,
-                v=nearest.v,
-                period=nearest.period,
-                interpolation_method="nearest_ocean_fallback"
-            )
-            warnings.append("Bilinear corners are land/masked; fallback to nearest ocean neighbor.")
-            return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+
+        elif len(valid_ocean_corners) == 1:
+            # 3. Fallback to Nearest Ocean Vector (exactly 1 valid ocean corner exists)
+            ocean_vectors = [v for v in grid.vectors if v.speed > 0.0]
+            if ocean_vectors:
+                nearest = self._find_nearest_vector(ocean_vectors, lat, lng)
+                detail = NormalizedPointDetail(
+                    requested_lat=lat,
+                    requested_lng=lng,
+                    sampled_lat=nearest.lat,
+                    sampled_lng=nearest.lng,
+                    speed=nearest.speed,
+                    direction=nearest.direction,
+                    u=nearest.u,
+                    v=nearest.v,
+                    period=nearest.period,
+                    interpolation_method="nearest_ocean_fallback"
+                )
+                warnings.append("Bilinear corners are land/masked; fallback to nearest ocean neighbor.")
+                return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+            else:
+                return self._build_unavailable_response(product, lat, lng, "No valid ocean data in grid")
+
         else:
-            return self._build_unavailable_response(product, lat, lng, "No valid ocean data in grid")
+            # 4. No valid ocean corners exist
+            return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist")
 
     @staticmethod
     def _find_surrounding_brackets(coords: List[float], val: float) -> Tuple[float, float]:

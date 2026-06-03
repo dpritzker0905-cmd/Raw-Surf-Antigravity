@@ -707,3 +707,49 @@ def test_point_sampler_unavailable_no_ocean_data():
     assert res.point.speed == 0.0
 
 
+def test_point_sampler_unavailable_inland_with_coastal_ocean():
+    """Verify Option A returns unavailable when 0 valid corners exist, even if other grid points have ocean data."""
+    bounds = CoverageBounds(west=-80.0, south=24.0, east=-78.0, north=25.0)
+    
+    # Grid is 3 cols x 2 rows.
+    # The bounding box we query is between lat (24, 25) and lng (-80, -79).
+    # All 4 corners of this bounding box are land: (24, -80), (24, -79), (25, -80), (25, -79) are speed=0.
+    # There is an ocean point at (24.0, -78.0) -> speed=12.0.
+    vectors = [
+        GridVector(lat=24.0, lng=-80.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=24.0, lng=-79.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=24.0, lng=-78.0, speed=12.0, direction=90.0, u=-12.0, v=0.0, period=6.0),
+        GridVector(lat=25.0, lng=-80.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-79.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+        GridVector(lat=25.0, lng=-78.0, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0),
+    ]
+
+    grid = NormalizedGrid(bounds=bounds, cols=3, rows=2, vectors=vectors)
+    product = NormalizedProduct(
+        model="EURO",
+        provider="copernicus",
+        domain="marine",
+        layer="swell_1",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.now(timezone.utc),
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["VHM0_SW1"],
+        freshness_sec=1800
+    )
+
+    sampler = PointSampler()
+
+    # Query coordinate (24.5, -79.5) which brackets to lat (24, 25) and lng (-80, -79).
+    # All 4 bracket corners are land. 0 valid corners. Should return unavailable.
+    res = sampler.sample_point(product, 24.5, -79.5)
+    assert res.point.interpolation_method == "unavailable"
+    assert res.point.speed == 0.0
+
+
+
