@@ -22,7 +22,7 @@ export function findHourIndex(timeArray, timeOffsetHours) {
   let closest = 0;
   let minDiff = Infinity;
   timeArray.forEach((t, i) => {
-    const diff = Math.abs(new Date(t + 'Z').getTime() - targetTs);
+    const diff = Math.abs(new Date(t.endsWith('Z') ? t : t + 'Z').getTime() - targetTs);
     if (diff < minDiff) { minDiff = diff; closest = i; }
   });
   return closest;

@@ -505,7 +505,8 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
   let nativeLimit = hardNativeLimit;
   if (cachedResponse.hourly?.time?.length) {
-    const lastTimeMs = new Date(cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1] + 'Z').getTime();
+    const lastTimeStr = cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1];
+    const lastTimeMs = new Date(lastTimeStr.endsWith('Z') ? lastTimeStr : lastTimeStr + 'Z').getTime();
     const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
     nativeLimit = Math.min(hardNativeLimit, hoursFromNow);
   }
@@ -608,7 +609,8 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   const isIcon = cachedResponse.requestedModel === 'ICON';
   let iconLimit = ICON_LIMIT;
   if (isIcon && cachedResponse.hourly?.time?.length) {
-    const lastTimeMs = new Date(cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1] + 'Z').getTime();
+    const lastTimeStr = cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1];
+    const lastTimeMs = new Date(lastTimeStr.endsWith('Z') ? lastTimeStr : lastTimeStr + 'Z').getTime();
     const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
     iconLimit = Math.min(ICON_LIMIT, hoursFromNow);
   }
@@ -698,7 +700,8 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   const bestIdx = findHourIndex(times, hourOffset);
   const targetTime = new Date();
   targetTime.setHours(targetTime.getHours() + (hourOffset || 0));
-  const minDiff = Math.abs(new Date(times[bestIdx] + 'Z').getTime() - targetTime.getTime());
+  const timeStr = times[bestIdx];
+  const minDiff = Math.abs(new Date(timeStr.endsWith('Z') ? timeStr : timeStr + 'Z').getTime() - targetTime.getTime());
 
   let status = 'exact_success';
   if (minDiff > 3 * 3600000) {
