@@ -227,7 +227,7 @@ class WeatherPipelineScheduler:
         """
         logger.info("[Pipeline Scheduler] Starting Copernicus Regional Ingestion job...")
         region = REGIONAL_CONFIGS["florida_east_coast"]
-        layers = ["swell_1"]
+        layers = ["swell_1", "swell_2"]
         run_time = datetime.now(timezone.utc)
         total_success = 0
 
