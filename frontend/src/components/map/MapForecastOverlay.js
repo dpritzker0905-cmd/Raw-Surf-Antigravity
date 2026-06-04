@@ -18,6 +18,13 @@ import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './m
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { getBackendPressureFlag } from './backendPressureServiceClient';
+import {
+  getBackendWindFlag,
+  getBackendCopernicusFlag,
+  getBackendIconMarineFlag,
+  getBackendWeatherFlag
+} from './backendWeatherServiceClient';
+
 
 export var MapForecastOverlay = ({
   forecastData,
@@ -62,7 +69,16 @@ export var MapForecastOverlay = ({
   // v6.7: Clear stale exact-point state synchronously using refs instead of render-time setState.
   // This blocks the old state from leaking even for a single frame, preventing React hooks ordering crashes.
   const isEuroComponentLayer = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
-  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}`;
+  
+  // v6D.1: Detect whether a single-hour backend redirection is active.
+  const isWindBackendActive = activeLayer === 'wind' && typeof getBackendWindFlag === 'function' && getBackendWindFlag();
+  const isCopernicusBackendActive = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves', 'waves'].includes(activeLayer) && typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag();
+  const isIconMarineBackendActive = activeModel === 'ICON' && ['swell_1', 'swell_2', 'wind_waves', 'waves'].includes(activeLayer) && typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
+  const isWeatherBackendActive = activeModel === 'GFS' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer) && typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
+  
+  const isSingleHourBackendRedirection = isPressureBackendActive || isWindBackendActive || isCopernicusBackendActive || isIconMarineBackendActive || isWeatherBackendActive;
+
+  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}${isSingleHourBackendRedirection ? `_hr${timeOffsetHours}` : ''}`;
   const prevPointKeyRef = useRef(currentPointKey);
   const isStale = currentPointKey !== prevPointKeyRef.current;
 
