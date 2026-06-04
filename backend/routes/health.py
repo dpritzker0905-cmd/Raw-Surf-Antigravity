@@ -50,7 +50,7 @@ async def health_check(
 
     health_data = {
         "status": "healthy",
-        "version": "2.0.0-stage-6b-v1",
+        "version": "2.0.0-stage-6d-v1",
         "environment": os.environ.get("RENDER", "local"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),
