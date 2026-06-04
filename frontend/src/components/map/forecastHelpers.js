@@ -292,7 +292,7 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
   const y1 = Math.min(grid.rows - 1, y0 + 1);
 
   const dx = fx - x0;
-  const dy = ty = fy - y0; // wait, let's fix ty typo in original
+  const dy = fy - y0;
 
   const idx00 = y0 * grid.cols + x0;
   const idx10 = y0 * grid.cols + x1;

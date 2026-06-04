@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from datetime import datetime, timezone
 import logging
+import os
+import time
+import psutil
 
 from database import get_db
 
@@ -48,9 +51,23 @@ async def health_check(
         logger.error(f"Health check weather diagnostics failed: {e}")
         weather_readiness = {"error": str(e)}
 
+    # Process Uptime
+    try:
+        p = psutil.Process(os.getpid())
+        uptime_seconds = time.time() - p.create_time()
+        hours, remainder = divmod(int(uptime_seconds), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        uptime = f"{hours}h {minutes}m {seconds}s"
+    except Exception as e:
+        logger.error(f"Uptime calculation failed: {e}")
+        uptime = "unknown"
+        uptime_seconds = 0.0
+
     health_data = {
         "status": "healthy",
-        "version": "2.0.0-stage-6d-v1",
+        "version": "2.0.0-stage-6f-v1",
+        "uptime": uptime,
+        "uptime_seconds": round(uptime_seconds, 1),
         "environment": os.environ.get("RENDER", "local"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),

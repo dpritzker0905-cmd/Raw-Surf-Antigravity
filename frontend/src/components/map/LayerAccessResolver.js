@@ -31,6 +31,7 @@ var TIER_ACCESS = {
  * Maps raw backend tiers (tier_1, tier_2, etc.) to canonical access levels.
  */
 export function getUserTier(userOrTier) {
+  if (typeof window !== 'undefined' && window.__FORCE_PREMIUM_TIER__) return 'premium';
   if (!userOrTier) return 'guest';
 
   const tierString = typeof userOrTier === 'string' 

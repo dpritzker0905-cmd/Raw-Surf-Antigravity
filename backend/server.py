@@ -289,46 +289,7 @@ app.add_middleware(
 # Include the main API router with all sub-routers
 app.include_router(api_router)
 
-# ── Health check endpoint for monitoring ──
-import time
-_start_time = time.time()
-
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint for external monitoring (Render, UptimeRobot, etc.)"""
-    import platform
-    uptime_seconds = time.time() - _start_time
-    hours, remainder = divmod(int(uptime_seconds), 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    # Weather readiness diagnostics
-    weather_readiness = {}
-    try:
-        from services.weather_pipeline.store import ProductStore
-        store = ProductStore()
-        manifest = store.get_manifest()
-        persistence_diag = store.get_persistence_diagnostics()
-        product_count = len(manifest.products)
-        weather_readiness = {
-            "product_count": product_count,
-            "durable_store_connected": persistence_diag.get("supabase_connected", False),
-            "restore_status": "complete" if persistence_diag.get("restored_count", 0) > 0 else ("empty" if persistence_diag.get("last_restore_time") else "pending"),
-            "restored_count": persistence_diag.get("restored_count", 0),
-            "restore_errors": persistence_diag.get("restore_errors", []),
-            "disk_product_count": persistence_diag.get("disk_product_count", 0),
-            "supabase_product_count": persistence_diag.get("supabase_product_count"),
-        }
-    except Exception as e:
-        weather_readiness = {"error": str(e)}
-
-    return {
-        "status": "healthy",
-        "version": "2.0.0-stage-6e-v1",
-        "uptime": f"{hours}h {minutes}m {seconds}s",
-        "uptime_seconds": round(uptime_seconds, 1),
-        "environment": os.environ.get("RENDER", "local"),
-        "weather_readiness": weather_readiness,
-    }
+# The duplicate /api/health endpoint has been consolidated and moved to routes/health.py to prevent priority conflict.
 
 
 # Stripe Webhook Handler (kept at root level for proper signature verification)

@@ -778,7 +778,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         if (componentLayer !== activeMarineLayer) isValid = false;
       } else if (isEuro) {
         if (isWaves) {
-          if (gridProvider !== 'open-meteo') isValid = false;
+          if (gridProvider !== 'open-meteo' && gridProvider !== 'copernicus') isValid = false;
         } else {
           // Accept copernicus, estimated, and legacy open-meteo fallback for EURO component layers
           const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'open-meteo'];

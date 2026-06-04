@@ -260,7 +260,7 @@ var MapWebGL = ({
 
     const gridModel = marineData.grid.__sourceModel || marineData.__sourceModel;
     const gridProvider = marineData.grid.__gridProvider || 'none';
-    const isEuroComponent = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
+    const isEuroComponent = activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
 
     // 1. Cross-model mismatch check: if the grid source model does not match the active model, return null to clear visual buffers.
     if (gridModel !== activeModel) {
