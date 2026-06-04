@@ -19,11 +19,11 @@
 [context.dev]
   ignore = "false"
   [context.dev.environment]
-    REACT_APP_BACKEND_URL = ""
+    REACT_APP_BACKEND_URL = "https://raw-surf-antigravity.onrender.com"
 
 [context.branch-deploy]
   [context.branch-deploy.environment]
-    REACT_APP_BACKEND_URL = ""
+    REACT_APP_BACKEND_URL = "https://raw-surf-antigravity.onrender.com"
 
 [[redirects]]
   from = "/api/weather/*"
@@ -39,4 +39,3 @@
   from = "/api/*"
   to = "https://raw-surf-antigravity.onrender.com/api/:splat"
   status = 200
-
