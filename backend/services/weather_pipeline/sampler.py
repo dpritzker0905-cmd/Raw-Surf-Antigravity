@@ -62,6 +62,7 @@ class PointSampler:
                 u=0.0,
                 v=0.0,
                 period=0.0,
+                gust=None,
                 interpolation_method="out_of_bounds_fallback"
             )
             return NormalizedPointResponse(
@@ -109,6 +110,7 @@ class PointSampler:
                     u=vec.u,
                     v=vec.v,
                     period=vec.period,
+                    gust=getattr(vec, "gust", None),
                     interpolation_method="exact_match"
                 )
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
@@ -154,6 +156,18 @@ class PointSampler:
                     p_sum_weights += w
             if p_sum_weights > 0.0:
                 interp_period = interp_period / p_sum_weights
+
+            interp_gust = 0.0
+            g_sum_weights = 0.0
+            for v, w in corner_weights:
+                vg = getattr(v, "gust", None)
+                if v is not None and vg is not None:
+                    interp_gust += w * vg
+                    g_sum_weights += w
+            if g_sum_weights > 0.0:
+                interp_gust = interp_gust / g_sum_weights
+            else:
+                interp_gust = None
             
             interp_speed = math.sqrt(interp_u**2 + interp_v**2)
             interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
@@ -170,6 +184,7 @@ class PointSampler:
                 u=round(interp_u, 4),
                 v=round(interp_v, 4),
                 period=round(interp_period, 2),
+                gust=round(interp_gust, 4) if interp_gust is not None else None,
                 interpolation_method="bilinear"
             )
             return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
@@ -183,6 +198,9 @@ class PointSampler:
                 interp_period = 0.0
                 p_sum_w = 0.0
                 
+                interp_gust = 0.0
+                g_sum_w = 0.0
+                
                 for v, w in valid_ocean_corners:
                     norm_w = w / sum_w
                     interp_u += norm_w * v.u
@@ -190,9 +208,17 @@ class PointSampler:
                     if v.period is not None:
                         interp_period += norm_w * v.period
                         p_sum_w += norm_w
+                    vg = getattr(v, "gust", None)
+                    if vg is not None:
+                        interp_gust += norm_w * vg
+                        g_sum_w += norm_w
                 
                 if p_sum_w > 0.0:
                     interp_period = interp_period / p_sum_w
+                if g_sum_w > 0.0:
+                    interp_gust = interp_gust / g_sum_w
+                else:
+                    interp_gust = None
                 
                 interp_speed = math.sqrt(interp_u**2 + interp_v**2)
                 interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
@@ -209,6 +235,7 @@ class PointSampler:
                     u=round(interp_u, 4),
                     v=round(interp_v, 4),
                     period=round(interp_period, 2),
+                    gust=round(interp_gust, 4) if interp_gust is not None else None,
                     interpolation_method="bilinear_ocean_masked"
                 )
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
@@ -228,6 +255,7 @@ class PointSampler:
                     u=nearest.u,
                     v=nearest.v,
                     period=nearest.period,
+                    gust=getattr(nearest, "gust", None),
                     interpolation_method="nearest_ocean_fallback"
                 )
                 warnings.append("Bilinear corners are land/masked; fallback to nearest ocean neighbor.")
@@ -281,6 +309,7 @@ class PointSampler:
             u=0.0,
             v=0.0,
             period=0.0,
+            gust=None,
             interpolation_method="unavailable"
         )
         return NormalizedPointResponse(

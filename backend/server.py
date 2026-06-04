@@ -204,12 +204,16 @@ async def run_background_cache_population():
             
             # Step 2: Ingest GFS Waves if missing
             if need_gfs_waves:
+                logger.info("[lifespan] Staggering GFS waves pre-population by 15s...")
+                await asyncio.sleep(15.0)
                 logger.info("[lifespan] Running GFS waves grid pre-population...")
                 await scheduler.ingest_gfs_marine_pilot()
                 gc.collect()
             
             # Step 3: Ingest GFS Wind if missing
             if need_gfs_wind:
+                logger.info("[lifespan] Staggering GFS wind pre-population by 15s...")
+                await asyncio.sleep(15.0)
                 logger.info("[lifespan] Running GFS wind grid pre-population...")
                 await scheduler.ingest_gfs_wind_pilot()
                 gc.collect()

@@ -71,6 +71,7 @@ if (typeof window !== 'undefined') {
     nonzeroCount: null,
     provider: 'backend-weather-service',
     model: 'GFS',
+    activeModel: 'GFS',
     layer: 'wind',
     lastGridFetch: null,
     lastPointFetch: null,
@@ -104,6 +105,7 @@ export function updateWindDiagnostics(type, details) {
       nonzeroCount: null,
       provider: 'backend-weather-service',
       model: 'GFS',
+      activeModel: 'GFS',
       layer: 'wind',
       lastGridFetch: null,
       lastPointFetch: null,
@@ -116,6 +118,10 @@ export function updateWindDiagnostics(type, details) {
 
   const diag = window.__BACKEND_WIND_SERVICE_DIAG__;
   diag.featureFlagActive = getBackendWindFlag();
+
+  const currentModel = details.model || diag.model || 'GFS';
+  diag.model = currentModel;
+  diag.activeModel = currentModel;
 
   if (type === 'grid') {
     diag.lastGridFetch = details;
@@ -140,10 +146,10 @@ export function updateWindDiagnostics(type, details) {
   }
 
   if (details.hourOffset !== undefined) {
-    getSharedValidTime(details.hourOffset, 'wind');
+    getSharedValidTime(details.hourOffset, 'wind', currentModel);
   }
 
-  const timeDiag = latestTimeDiag['GFS_wind'] || {};
+  const timeDiag = latestTimeDiag[`${currentModel}_wind`] || {};
   diag.requestedValidTime = timeDiag.requestedValidTime;
   diag.selectedManifestValidTime = timeDiag.selectedManifestValidTime;
   diag.manifestDeltaHours = timeDiag.manifestDeltaHours;
@@ -155,12 +161,12 @@ export function updateWindDiagnostics(type, details) {
 }
 
 /**
- * Fetches exact point forecast from backend weather service for GFS wind.
+ * Fetches exact point forecast from backend weather service for wind.
  */
-export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
+export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, model = 'GFS') {
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, 'wind');
-  const url = `${POINT_URL}?model=GFS&domain=wind&layer=wind&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  const validTimeStr = getSharedValidTime(hourOffset, 'wind', model);
+  const url = `${POINT_URL}?model=${model}&domain=wind&layer=wind&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
 
   try {
     const res = await fetch(url, { signal });
@@ -180,10 +186,10 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
       snappedLng: json.point.sampled_lng || lng,
       requestedLat: lat,
       requestedLng: lng,
-      requestedModel: 'GFS',
+      requestedModel: model,
       activeLayer: 'wind',
       forecastDays: 1,
-      apiModel: 'gfs_seamless',
+      apiModel: model === 'ICON' ? 'dwd_icon' : 'gfs_seamless',
       provider: json.provider || 'backend-weather-service',
       source: 'backend_point_api'
     };
@@ -202,7 +208,8 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
       direction: json.point.direction || 0,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
       interpolation_method: json.point.interpolation_method || 'bilinear',
-      provider: json.provider || 'backend-weather-service'
+      provider: json.provider || 'backend-weather-service',
+      model
     });
 
     return data;
@@ -222,7 +229,8 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
       direction: 0,
       interpolationMethod: 'none',
       interpolation_method: 'none',
-      provider: 'none'
+      provider: 'none',
+      model
     });
     console.error(`[Backend Weather Service] Wind point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
     throw err;
@@ -230,11 +238,11 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal) {
 }
 
 /**
- * Fetches GFS wind grid forecast from backend weather service.
+ * Fetches wind grid forecast from backend weather service.
  */
-export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBounds, boundsSource = "controller") {
+export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBounds, boundsSource = "controller", model = 'GFS') {
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, 'wind');
+  const validTimeStr = getSharedValidTime(hourOffset, 'wind', model);
 
   let actualBounds = bounds;
   let actualSource = boundsSource;
@@ -273,7 +281,8 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       hourOffset,
       coverageInside: false,
       fallbackToLegacy: true,
-      boundsSource: actualSource
+      boundsSource: actualSource,
+      model
     };
     updateWindDiagnostics('grid', errorDetails);
     throw new Error(clampResult.fallbackReason);
@@ -281,7 +290,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
 
   const { clampedBbox } = clampResult;
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=GFS&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+  const url = `${GRID_URL}?model=${model}&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}`;
 
   try {
     const res = await fetch(url, { signal });
@@ -290,6 +299,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
     }
     const json = await res.json();
     const result = mapNormalizedWindGridToWebGL(json, clampedBbox, hourOffset);
+    result.source = model;
 
     updateWindDiagnostics('grid', {
       url,
@@ -304,7 +314,8 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       nonzeroCount: result.nonzeroCount,
       renderable: result.renderable,
       coverageInside: true,
-      boundsSource: actualSource
+      boundsSource: actualSource,
+      model
     });
 
     return result;
@@ -319,10 +330,17 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       clampedBbox,
       hourOffset,
       fallbackToLegacy: true,
-      boundsSource: actualSource
+      boundsSource: actualSource,
+      model
     };
     updateWindDiagnostics('grid', errorDetails);
     console.error(`[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);
     throw err;
   }
 }
+
+if (typeof window !== 'undefined') {
+  window.fetchBackendExactWindPoint = fetchBackendExactWindPoint;
+  window.fetchBackendWindGrid = fetchBackendWindGrid;
+}
+

@@ -4,6 +4,7 @@ from typing import Optional, List
 import logging
 import os
 import psutil
+import asyncio
 
 from services.weather_pipeline.store import ProductStore
 from services.weather_pipeline.sampler import PointSampler
@@ -32,9 +33,22 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
         logger.info("[Manual Ingestion] Triggering GFS Marine, GFS Wind, & Copernicus Marine pilot ingestion...")
         try:
             await scheduler.ingest_gfs_marine_pilot()
+            
+            logger.info("[Manual Ingestion] Staggering GFS Wind Ingestion by 15s...")
+            await asyncio.sleep(15.0)
             await scheduler.ingest_gfs_wind_pilot()
+            
+            logger.info("[Manual Ingestion] Staggering Copernicus Ingestion by 15s...")
+            await asyncio.sleep(15.0)
             await scheduler.ingest_copernicus_regional()
+            
+            logger.info("[Manual Ingestion] Staggering ICON Ingestion by 15s...")
+            await asyncio.sleep(15.0)
             await scheduler.ingest_icon_marine_pilot()
+
+            logger.info("[Manual Ingestion] Staggering ICON Wind Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_icon_wind_pilot()
             logger.info("[Manual Ingestion] Ingestion jobs completed.")
         except Exception as e:
             logger.error(f"[Manual Ingestion] Ingestion failed: {e}")

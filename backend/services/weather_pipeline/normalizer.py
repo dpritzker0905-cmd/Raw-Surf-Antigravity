@@ -151,20 +151,23 @@ class WeatherNormalizer:
             pt_hourly = pt.get("hourly", {})
 
             s_key, d_key, p_key = speed_key, direction_key, period_key
+            gust_key = "wind_gusts_10m" if (domain == "wind" and model.upper() == "ICON") else None
 
             speed_list = pt_hourly.get(s_key, [])
             dir_list = pt_hourly.get(d_key, [])
             period_list = pt_hourly.get(p_key, []) if p_key else []
+            gust_list = pt_hourly.get(gust_key, []) if gust_key else []
 
             # Handle indexes out of bounds safely
             speed = speed_list[time_idx] if time_idx < len(speed_list) else None
             direction = dir_list[time_idx] if time_idx < len(dir_list) else None
             period = period_list[time_idx] if (p_key and time_idx < len(period_list)) else None
+            gust = gust_list[time_idx] if (gust_key and time_idx < len(gust_list)) else None
 
             # Guard against invalid or land null coordinates
             if speed is None or direction is None:
                 vector = GridVector(
-                    lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0
+                    lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None
                 )
             else:
                 # Standardize Wind knots conversions if needed
@@ -174,10 +177,16 @@ class WeatherNormalizer:
                 if domain == "wind" and speed_unit != "kn" and speed_unit != "knots":
                     if speed_unit == "km/h":
                         speed = speed * 0.539957
+                        if gust is not None:
+                            gust = gust * 0.539957
                     elif speed_unit == "m/s":
                         speed = speed * 1.943844
+                        if gust is not None:
+                            gust = gust * 1.943844
                     elif speed_unit == "mph":
                         speed = speed * 0.868976
+                        if gust is not None:
+                            gust = gust * 0.868976
 
                 # Compute Cartesian U/V velocities
                 rad = direction * (math.pi / 180.0)
@@ -191,7 +200,8 @@ class WeatherNormalizer:
                     direction=round(direction, 2),
                     u=round(u, 4),
                     v=round(v, 4),
-                    period=round(period, 2) if period is not None else 0.0
+                    period=round(period, 2) if period is not None else 0.0,
+                    gust=round(gust, 4) if gust is not None else None
                 )
             
             grid_data[(lat, lng)] = vector
@@ -205,7 +215,7 @@ class WeatherNormalizer:
                 else:
                     # Explicit ocean-masked vector for missing cells
                     vectors.append(GridVector(
-                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0
+                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None
                     ))
 
         # Sort vectors in stable row-major order (south-to-north, west-to-east)

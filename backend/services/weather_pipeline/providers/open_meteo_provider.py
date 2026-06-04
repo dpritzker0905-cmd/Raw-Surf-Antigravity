@@ -85,6 +85,8 @@ class OpenMeteoProvider:
             api_model = self.FORECAST_MODELS.get(model.upper(), "gfs_seamless")
             params["models"] = api_model
             params["hourly"] = "wind_speed_10m,wind_direction_10m"
+            if model.upper() == "ICON":
+                params["hourly"] += ",wind_gusts_10m"
             params["wind_speed_unit"] = "kn"
 
         logger.info(
@@ -115,11 +117,11 @@ class OpenMeteoProvider:
                         query_params["wind_speed_unit"] = params["wind_speed_unit"]
 
                     max_retries = 3
-                    retry_delay = 5.0
                     response = None
                     for attempt in range(1, max_retries + 2):
                         response = await client.get(url, params=query_params, timeout=45.0)
                         if response.status_code == 429:
+                            retry_delay = 12.0 * attempt
                             if attempt > max_retries:
                                 logger.warning(f"[Open-Meteo Provider] Hit rate limits (429) and exhausted all {max_retries} retries.")
                                 return None

@@ -16,6 +16,7 @@ class GridVector(BaseModel):
     u: float
     v: float
     period: Optional[float] = None
+    gust: Optional[float] = None
 
 class NormalizedGrid(BaseModel):
     bounds: CoverageBounds
@@ -62,6 +63,7 @@ class NormalizedPointDetail(BaseModel):
     u: float
     v: float
     period: Optional[float] = None
+    gust: Optional[float] = None
     interpolation_method: str
 
 class NormalizedPointResponse(BaseModel):

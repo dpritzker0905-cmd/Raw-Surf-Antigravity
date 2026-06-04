@@ -296,7 +296,8 @@ class ProductStore:
 
         # 2. Filter manifest entries
         for p in manifest.products:
-            if p.model.upper() == "EURO" or p.provider == "copernicus" or p.provider == "test-fixture":
+            is_copernicus = (p.model.upper() == "EURO" or p.provider == "copernicus" or (p.provider == "test-fixture" and p.model.upper() == "EURO"))
+            if is_copernicus:
                 is_valid = validated_files.get(p.filename, False)
                 if not is_valid:
                     logger.warning(f"[Product Store] Removing invalid product registry '{p.filename}' from manifest.")
