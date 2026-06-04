@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from datetime import datetime, timezone
+from deps.admin_auth import get_current_admin
 from typing import Optional, List
 import logging
 import os
@@ -21,7 +22,7 @@ store = ProductStore()
 sampler = PointSampler()
 
 @router.post("/ingest")
-async def trigger_ingestion(background_tasks: BackgroundTasks):
+async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
     """
     POST /api/weather/ingest
     Manually triggers GFS waves, wind, and Copernicus marine pilot ingestion in the background.
@@ -61,7 +62,7 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
     return {"status": "ingestion_triggered"}
 
 @router.post("/ingest_euro_wind_direct")
-async def ingest_euro_wind_direct():
+async def ingest_euro_wind_direct(admin=Depends(get_current_admin)):
     try:
         from services.weather_pipeline.scheduler import WeatherPipelineScheduler
         scheduler = WeatherPipelineScheduler(store=store)
@@ -71,7 +72,7 @@ async def ingest_euro_wind_direct():
         return {"status": "error", "detail": str(e)}
 
 @router.post("/ingest_icon_wind_direct")
-async def ingest_icon_wind_direct():
+async def ingest_icon_wind_direct(admin=Depends(get_current_admin)):
     try:
         from services.weather_pipeline.scheduler import WeatherPipelineScheduler
         scheduler = WeatherPipelineScheduler(store=store)
@@ -369,7 +370,7 @@ async def get_status():
     }
 
 @router.post("/ingest_copernicus")
-async def ingest_copernicus_only():
+async def ingest_copernicus_only(admin=Depends(get_current_admin)):
     """
     POST /api/weather/ingest_copernicus
     Synchronously triggers Copernicus marine swell_1 ingestion and returns the results.
