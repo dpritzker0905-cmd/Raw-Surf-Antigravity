@@ -1,6 +1,8 @@
 # Weather Backend Migration Roadmap
 
-This document serves as the canonical roadmap and active architecture guide for the **Raw Surf Weather & Marine Data Simulation Engine**. It outlines our transition to a backend-owned forecast architecture, summarizes the completed and conformed validation stages (including the latest **Stage 4A.6** grid coherence proofs), and details the remaining phased work for wind, marine, atmospheric, radar, satellite, and temperature layers.
+This document serves as the canonical roadmap and active architecture guide for the **Raw Surf Weather & Marine Data Simulation Engine**. It outlines our transition to a backend-owned forecast architecture, documents completed validation stages (including Copernicus Waves and GFS/ICON/EURO Wind), and details the remaining phased work for pressure, precipitation, radar, satellite, and temperature layers.
+
+For the detailed status of all weather and marine layers, see the [weather-support-matrix.md](file:///C:/Users/dprit/Raw-Surf/docs/architecture/weather-support-matrix.md).
 
 ---
 
@@ -25,7 +27,7 @@ The client-side application must only:
 The client-side application must **not**:
 * Fetch raw forecast parameters directly from external weather APIs (e.g. Open-Meteo or Copernicus).
 * Run NetCDF/GRIB download operations.
-* Fabricate synthetic weather values or generate in-memory mock fallbacks (except for isolated dev-environment proxy rate shielding).
+* Fabricate synthetic weather values or generate in-memory mock fallbacks.
 * Perform model-specific math or meteorology calculations.
 * Duplicate weather ingestion or storage pipelines.
 
@@ -43,7 +45,7 @@ sequenceDiagram
     
     FE->>BE: GET /api/weather/products
     Note over BE: Scans manifest.json & cached files
-    BE-->>FE: Returns available EURO Swell 1 products
+    BE-->>FE: Returns available weather products
     
     FE->>BE: GET /api/weather/grid?model=EURO&layer=swell_1&valid_time=2026-06-02T21:00:00Z&bbox=...
     Note over BE: Load grid file, filter by bbox, snap to 0.5°
@@ -62,7 +64,7 @@ sequenceDiagram
 * **Future `GET /api/weather/timeline`**: Will return a compact array of available valid time slices across all layers to sync timeline scrub controls dynamically.
 
 ### Schema Fields & Metadata
-All backend products and point/grid responses must propagate these metadata fields:
+All backend products and point/grid responses propagate these metadata fields:
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
@@ -91,154 +93,136 @@ All backend products and point/grid responses must propagate these metadata fiel
 
 We have forensically implemented and verified these weather backend milestones:
 
-### Stage 1: Backend Weather Product Foundation
-* Established the backend product schema in [schemas.py](file:///c:/Users/dprit/Raw-Surf/backend/services/weather_pipeline/schemas.py).
-* Added the atomic, file-based product caching and manifest registry in [store.py](file:///c:/Users/dprit/Raw-Surf/backend/services/weather_pipeline/store.py).
-
-### Stage 2: GFS Waves Pilot
-* Connected GFS Waves grid fetches from Open-Meteo.
-* Implemented meteorological direction to Cartesian wind $u/v$ transformations.
-
-### Stage 2.7: Deployed GFS Waves Truth Gate
-* Verified GFS Waves ingestion on Render and client mapping on Netlify.
-* Proved that missing database values or grid files return honest `unavailable` flags.
-
-### Stage 3A-C: Backend GFS Wind Pilot + Deployed Truth Gate
-* Added backend GFS Wind ingestion and conformed it to the same caching system.
-* Mapped particle engine flow vectors.
-
-### Stage 4A.1-4A.5: Copernicus Swell 1 Pilot
-* Cleaned up legacy mock data layers and synthetic generator paths on backend.
-* Implemented real CMEMS client credentials configuration.
-* Optimized Copernicus downloads on Render: enforced isolated subprocess execution, memory garbage collection, and restricted forecast days to stay well under the **512MB RAM cap** to prevent OOM `502` bad gateways.
-
-### Stage 4A.6: Grid Coherence and Point Hardening
-We conformed the Copernicus Swell 1 data contract to resolve grid anomalies and point lookup fallbacks.
-
-#### Option A Bilinear Interpolation Rules
-Point sampling [sampler.py](file:///c:/Users/dprit/Raw-Surf/backend/services/weather_pipeline/sampler.py) handles land-masked cells near coastlines:
-1. **`"bilinear"`**: Used when all 4 surrounding grid corners exist and are valid ocean cells ($speed > 0.0$).
-2. **`"bilinear_ocean_masked"`**: Used when 2 or 3 surrounding corners are valid ocean cells. The sampler computes an inverse-distance weighted bilinear result normalized over the valid ocean corners only:
-   $$\tilde{w}_i = \frac{w_i}{\sum_{k \in \text{valid}} w_k}$$
-   $$u_{interp} = \sum_{i \in \text{valid}} \tilde{w}_i u_i, \quad v_{interp} = \sum_{i \in \text{valid}} \tilde{w}_i v_i$$
-3. **`"nearest_ocean_fallback"`**: Used when exactly 1 corner is a valid ocean cell. Returns the single nearest valid ocean neighbor from the entire grid to prevent using land values.
-4. **`"unavailable"`**: Used when 0 surrounding corners are valid ocean cells. Returns $0.0$ for all variables to prevent inland coordinates from snapping to distant ocean points.
-
-#### Stage 4A.6 Proof Points
-* **Real Deployed Ingestion:** Render `/products` registers real Copernicus datasets.
-  * `provider`: `"copernicus"` | `model`: `"EURO"` | `layer`: `"swell_1"`
-  * `source_dataset`: `"cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"`
-  * `source_variables`: `["VHM0_SW1", "VMDR_SW1", "VTM01_SW1"]`
-* **Conformed Rectangular Grid:** Render `/grid` returns a regular Cartesian grid:
-  * `gridMode`: `"rectangular"`
-  * `cols`: 13 | `rows`: 15 | `vectors.length === cols * rows` ($13 \times 15 = 195$)
-  * `expectedCellCount`: 195 | `missingCellCount`: 0 | `nonzeroCount`: 133
-* **Point Parity:** Render `/point` at Cape Canaveral (`lat=28.39`, `lng=-80.35`) returns `speed: 1.489`, `period: 7.48`, and `interpolation_method: "bilinear_ocean_masked"`.
-* **Browser Diagnostics:** Netlify console diagnostics (`window.__BACKEND_COPERNICUS_SERVICE_DIAG__` and `window.__COPERNICUS_GRID_DIAG__`) verify `pointParity: true`, `renderable: true`, and `gridMode: "rectangular"`.
-* **Test Verification:**
-  * Backend: 13/13 pytests passed successfully.
-  * Frontend: 30/30 Jest tests passed successfully.
-  * Production: Craco build compiled successfully.
-
-### Stage 4B: Copernicus Swell 2 Ingest & Data Proof
-We extended the Copernicus backend and frontend mapping pipelines to support secondary swell (`swell_2`).
-* **Swell 2 Ingestion & Storage:** Handled CMEMS variable mapping for `VHM0_SW2`, `VMDR_SW2`, and `VTM01_SW2`.
-* **Redirection Verification:** Configured map controller and sampler to redirect Swell 2 requests to the backend service instead of legacy Netlify proxies.
-* **Point Sampler Hardening:** Verified Option A bilinear ocean-masked point sampler at Cape Canaveral coastline, retrieving `speed: 0.052`, `period: 2.29`, and `interpolation_method: "bilinear_ocean_masked"`.
-* **Visual & Diagnostics Proof:** Confirmed conformed 13x15 rectangular grid (195 vectors) renders on the WebGL flow map, with diagnostic telemetry sync verified via `window.__BACKEND_COPERNICUS_SERVICE_DIAG__`.
-
-### Stage 4C: Copernicus Wind Waves Ingestion
-We extended the Copernicus regional weather ingestion pipeline to support wind waves (`wind_waves`).
-* **Wind Waves Ingestion & Vector Math:** Handled CMEMS variable mapping for `VHM0_WW`, `VMDR_WW` (meteorological FROM travel convention), and `VTM01_WW`. Cartesian translation math ($u = -speed \times \sin(\text{rad})$, $v = -speed \times \cos(\text{rad})$) is formally validated and guarded by tests to align with travel directions for WebGL particles.
-* **Diagnostics Verification:** Proved conformed 13x15 grid parity and Option A bilinear ocean-masked point sampler returns correct values near Cape Canaveral.
-
-### Stage 4D: Copernicus Base EURO Waves Ingestion (Model Origin Decision & Ingestion)
-We migrated the base EURO Waves layer (`waves` under model `EURO`) to the backend-prepared Copernicus CMEMS pipeline, achieving single-source parity for all wave layers.
-* **Model Origin Decision:** Selected Copernicus CMEMS to ensure total wave heights, swell components, and wind waves share the identical run initialization, grid coordinates, and calculation cadence, resolving mathematical swell/total wave discrepancies.
-* **VTM10 Period Semantics:** Proved that CMEMS variable `VTM10` represents the spectral moment (-1,0) wave energy period, not the peak period. Conformed UI outputs to label this generically as "Period" and hide the "Peak" card (leaving `wave_peak_period` at 0).
-* **Overhead Verification:** Telemetry verified peak RAM usage of **310.37 MB** and subprocess extraction completion in **81.23s** with zero OOMs or 502 bad gateways.
+* **Stage 1: Backend Weather Product Foundation**: Created conformed schemas, store registry, and manifest.
+* **Stage 2: GFS Waves Pilot**: Ingested GFS wave grid from Open-Meteo with wind vector conversions.
+* **Stage 2.7: Deployed GFS Waves Truth Gate**: Verified staging and client redirections.
+* **Stage 3A-C: Backend GFS Wind Pilot + Deployed Truth Gate**: Integrated wind particle flow vectors.
+* **Stage 4A.1-4A.5: Copernicus Swell 1 Pilot**: Added regional CMEMS extraction under 512MB RAM cap.
+* **Stage 4A.6: Grid Coherence and Point Hardening**: Standardized Option A bilinear ocean-masked coastline point sampling.
+* **Stage 4B: Copernicus Swell 2 Ingest & Data Proof**: Integrated secondary swell (`swell_2`).
+* **Stage 4C: Copernicus Wind Waves Ingestion**: Integrated conformed wind waves (`wind_waves`).
+* **Stage 4D: Copernicus Base EURO Waves Ingestion**: Consolidated all EURO wave heights to Copernicus.
+* **Stage 4E: GFS Marine Components Ingestion**: Conformed GFS waves, swell_1, swell_2, and wind_waves to backend.
+* **Stage 4F: ICON Marine Components Ingestion**: Conformed ICON waves, swell_1, and wind_waves to backend (swell_2 unsupported).
+* **Stage 5C: ICON Wind Ingestion**: Integrated ICON wind with gust support.
+* **Stage 5D: EURO Wind Ingestion**: Integrated EURO wind (`ecmwf_ifs`) with gust support.
+* **Stage 5E: Wind Consolidation Gate**: Verified timeline parity and protected ingestion endpoints.
+* **Stage 5F: Wind Default-On Rollout**: Enabled backend wind service by default on map client.
+* **Stage 5G: Wind Post-Rollout Stabilization Watch**: Verified default-on redirection stability.
 
 ---
 
-## 4. Remaining Migration Plan
+## 4. Backend-Owned Product Pipeline Architecture
 
-We will roll out the remaining stages to bring all weather models and visual layers under the unified backend-owned architecture:
+The weather data pipeline is structured for efficiency, correctness, and stability under strict memory and API limits.
 
-### Stage 4E: GFS Marine Components Ingestion
-* **Consolidate GFS Marine:** Migrate the remaining GFS marine variables (waves, swell_1, wind_waves, and swell_2 where available) to backend-prepared products, replacing the direct frontend Open-Meteo calls.
+### A. Provider Ingestion Model
+Ingestion is orchestrated via `scheduler.py`:
+* **Open-Meteo Ingestion**: Grid coordinate requests are chunked into batches of **100 coordinates** to prevent HTTP 414 URI Too Long. An inter-request delay is enforced (2.5s for wind, 1.2s for marine) to respect API rate limits.
+* **Copernicus Ingestion**: Subprocess NetCDF downloads are capped to prevent out-of-memory crashes on Render. Python garbage collection (`gc.collect()`) is run aggressively between cycles.
 
-### Stage 4F: ICON Marine Components Ingestion
-* **Consolidate ICON Marine:** Migrate ICON Waves, ICON Swell 1, and ICON Wind Waves to backend-prepared products.
+### B. Product Manifest Behavior
+* The master catalog `manifest.json` registers all available weather files.
+* Every grid and point API query scans this manifest to locate the conformed file closest to the requested coordinate/valid_time.
+* Atomic file replacements (`os.replace`) prevent partial grid files from being read.
 
-### Stage 4G: Remaining Wind Models Ingestion
-* **Consolidate Wind Models:** Migrate ICON Wind and EURO Wind to backend-prepared products, keeping the proven GFS Wind as a baseline.
+### C. API Endpoint Contracts
+* **`/api/weather/grid`**: Receives target model, domain, layer, and ISO-8601 valid_time. Bounding box filters (`bbox=west,south,east,north`) are evaluated on the fly to slice the rectangular grid coordinates.
+* **`/api/weather/point`**: Evaluates coordinate sample requests. Uses the **Option A** IDW bilinear interpolation algorithm to interpolate values over ocean grid nodes, safely filtering out coastal land interference.
 
-### Stage 4H: Atmospheric Scalar/Grid Ingestion
-* **Consolidate Atmo Layers:** Migrate sea-level pressure, precipitation (rain/snow), air temperature, and sea surface temperature to backend-prepared grid products.
+### D. Temporal Valid-Time Snapping
+* Grid and point queries snap target timestamps to the closest available manifest product validity window (within a **3-hour delta limit**). If a valid slice is beyond 3 hours, a `404 Not Found` response is raised.
 
-### Stage 4I: Image/Tile Ownership for Radar/Satellite
-* **Decouple Radar/Satellite:** Keep imagery-based layers as tile-based outputs, but migrate the manifest timelines, tile session tokens, and signed CDN URLs to backend-owned APIs.
+### E. Frontend Adapter Pattern
+* `backendWeatherServiceClient.js` wraps backend network queries, clamps viewport bounding boxes, maps models to their upstream API identifiers (e.g. mapping `model: 'EURO'` to `upstream_model: 'ecmwf_ifs'`), and updates diagnostics telemetry.
 
-### Stage 5A: Frontend Simplification
-* **Remove Stale Code:** Delete all direct client-side weather fetches (Open-Meteo/Copernicus) for migrated layers.
-* **Strip Fake Paths:** Remove old synthetic fallback generator paths.
-* **Clean Stylesheet:** Strip decoded-tile dependencies and old wind/marine slot styles. Keep frontend code strictly limited to WebGL rendering.
+### F. Feature Flags & Rollback Strategy
+* **Runtime Rollbacks**: The console global `window.__USE_BACKEND_WIND_SERVICE__ = false` or the local storage key `__USE_BACKEND_WIND_SERVICE__ = 'false'` instantly roll back wind fetches to legacy pathways. Similar overrides exist for marine (`__USE_BACKEND_MARINE_SYSTEM__ = false`).
+* **Build-Time Rollbacks**: Compiling the app with `REACT_APP_USE_BACKEND_WIND=false` or `REACT_APP_USE_BACKEND_MARINE_SYSTEM=false` overrides default-on behavior at build time.
 
-### Stage 5B: Full System Stabilization
-* **Continuous QA:** Verify timeline scrubbing, point/grid parity across models, visual heatmap repaints, cache expiry, rate-limit 429 safety handles, and service worker offline caching.
+### G. Diagnostics Telemetry Objects
+Globals are registered on `window` to check telemetry:
+* `window.__BACKEND_WEATHER_SERVICE_DIAG__` (GFS marine)
+* `window.__BACKEND_WIND_SERVICE_DIAG__` (wind models)
+* `window.__BACKEND_COPERNICUS_SERVICE_DIAG__` (EURO/Copernicus marine)
 
----
+### H. Unsupported and No-Coverage Semantics
+* Coordinates falling outside the Florida pilot bbox (`PILOT_COVERAGE`) return `is_estimated = True` or fall back to legacy proxy pipelines.
+* Unsupported layer requests (e.g., ICON `swell_2`) return a conformed mock response with `status: 'unsupported'` safely to prevent API queries or crashes.
 
-## 5. Per-Layer Migration Matrix
+### I. Test-Fixture Quarantine Rules
+* Deployed environments strictly prohibit mock files. The scheduler checks `is_test_env` before saving files. Any product marked with `is_test_fixture = True` is blocked from registry writes.
 
-| Layer | Current Source | Target Backend | Backend Status | Frontend Status | Feature Flag | Truth Gate | Remaining Risk |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **GFS Waves** | Open-Meteo API | `open-meteo` (Backend) | Ingested | Mapped | `__USE_BACKEND_WEATHER_SERVICE__` | Verified | None |
-| **GFS Swell 1** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | `__USE_BACKEND_WEATHER_SERVICE__` | Pending | API timeout |
-| **GFS Swell 2** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | `__USE_BACKEND_WEATHER_SERVICE__` | Pending | Data gaps |
-| **GFS Wind Waves**| Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | `__USE_BACKEND_WEATHER_SERVICE__` | Pending | None |
-| **ICON Waves**      | Open-Meteo API | `open-meteo` (Backend)   | Planned       | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | Pending     | None           |
-| **ICON Swell 1**    | Open-Meteo API | `open-meteo` (Backend)   | Planned       | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | Pending     | None           |
-| **ICON Swell 2**    | Open-Meteo API | *Unsupported (No-Data)*  | *Unsupported* | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | *No*        | Source lack    |
-| **ICON Wind Waves** | Open-Meteo API | `open-meteo` (Backend)   | Planned       | Legacy        | `__USE_BACKEND_ICON_MARINE_SERVICE__` | Pending     | None           |
-| **EURO Waves** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | None |
-| **EURO Swell 1** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | CMEMS latency |
-| **EURO Swell 2** | Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | CMEMS latency |
-| **EURO Wind Waves**| Copernicus API | `copernicus` (Backend) | **Active** | **Mapped** | `__USE_BACKEND_COPERNICUS_SERVICE__` | **Verified** | None |
-| **GFS Wind** | Open-Meteo API | `open-meteo` (Backend) | Ingested | Mapped | `__USE_BACKEND_WIND_SERVICE__` | Verified | None |
-| **ICON Wind** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
-| **EURO Wind** | Open-Meteo API | `open-meteo` (Backend) | Planned | Legacy | TBD | Pending | None |
-| **Pressure** | Open-Meteo API | TBD | Planned | Legacy | TBD | Pending | None |
-| **Precipitation**| Open-Meteo API | TBD | Planned | Legacy | TBD | Pending | None |
-| **Radar** | Open-Meteo API | TBD | Planned | Legacy | TBD | Pending | Bandwidth |
-| **Satellite** | Open-Meteo API | TBD | Planned | Legacy | TBD | Pending | Bandwidth |
-| **Air Temp** | Open-Meteo API | TBD | Planned | Legacy | TBD | Pending | None |
-| **Water Temp** | Open-Meteo API | TBD | Planned | Legacy | TBD | Pending | None |
+### J. Scheduler Rate-Limit Strategy
+* A **15.0-second stagger delay** separates all manual ingestion background tasks.
+* A staggered retry backoff multiplier (`12s * attempt`) handles any HTTP 429 response from Open-Meteo.
 
 ---
 
-## 6. Truth Rules & Constraints
+## 5. Legacy Fallback Audit
 
-To prevent regressions, the following engineering rules are strictly enforced:
-
-1. **No Synthetic Deployed Weather:** Running systems must **never** generate fake or synthetic forecast values.
-2. **Mock Separation:** Test fixtures and mocks are restricted to unit test suites or local dev-proxy files. They must never appear in deployed manifest registries.
-3. **Honest Unavailable States:** If API keys, coordinates, or data files are missing, the server must return an honest `unavailable` payload with `is_forecast_authoritative = False` and `is_estimated = True`.
-4. **Authentic Provenance:** All real weather products must include `source_dataset` and `source_variables` indicating their origin.
-5. **Timeline Synchronization:** The grid's `valid_time` and the point sampler's `valid_time` must align during timeline scrub requests.
-6. **Visual Clear on Fallback:** When a coordinate falls outside grid coverage or is marked `unavailable`, the map's weather indicators must clear out-of-bounds metrics instead of rendering stale forecast data.
-7. **Expansion Verification:** Every layer added to the backend-owned weather engine must verify:
-   * Staging backend endpoint responses (`/products`, `/grid`, `/point`).
-   * Browser console diagnostic structures (`window.__BACKEND_*_DIAG__`).
-   * Automated unit tests and production build verification.
+While marine and wind systems are fully backend default-on, their legacy serverless proxy scraper paths remain intact:
+* **Retained Marine Paths**: Frontend direct fetches to the Open-Meteo Marine API, client-side GFS/ICON GRIB parsing, and Copernicus tile loaders in `useMarineOrchestrator.js` and `marineController.js`.
+* **Retained Wind Paths**: Client-side scrapers in `windController.js` and direct point sampling queries in `forecastSamplers.js`.
+* **Rollback Usefulness**: Provides immediate redundancy in case of staging server outages (Render 502/OOM errors), Copernicus API credential locks, or Open-Meteo IP address blocks.
+* **Sunsetting Candidates**: Once the backend service proves stable across a **30-day confidence window**, client-side NetCDF/GRIB download and legacy Open-Meteo scrapers can be removed.
 
 ---
 
-## 7. Diagnostics Registry
+## 6. Remaining Layers Source-Truth Plan
 
-To inspect the map's current weather telemetry, verify these globals in the browser console:
+We will evaluate the remaining map layers for migration to the backend-owned weather engine:
 
-* **`window.__BACKEND_WEATHER_SERVICE_DIAG__`**: Monitors the GFS Waves backend grid/point state, boundary clamps, and timeline parity.
-* **`window.__BACKEND_WIND_SERVICE_DIAG__`**: Monitors wind grid vector count, non-zero counts, and particle flow rendering status.
-* **`window.__BACKEND_COPERNICUS_SERVICE_DIAG__`**: Monitors Copernicus Swell 1 and Swell 2 grid/point status, source metadata, and CMEMS variable validation.
-* **`window.__COPERNICUS_GRID_DIAG__`**: Exposes the visual grid rendering state, conformed `gridMode`, and provider metadata in real-time.
+### A. Sea-Level Pressure
+* **Likely Source**: Open-Meteo Forecast API (`gfs_seamless`, `dwd_icon`, `ecmwf_ifs`).
+* **Data Type**: Forecast model grid parameters (`pressure_msl`).
+* **Backend Fit**: Fits the backend grid/point product model perfectly. Can be normalized into conformed JSON grids.
+* **Licensing/API Risks**: None. Included under standard Open-Meteo licenses.
+* **Difficulty**: Low.
+
+### B. Precipitation (Rain/Snow)
+* **Likely Source**: Open-Meteo Forecast API (`precipitation`).
+* **Data Type**: Forecast model grid parameters (precipitation values in `mm`).
+* **Backend Fit**: Fits the backend grid/point product model.
+* **Licensing/API Risks**: None.
+* **Difficulty**: Low.
+
+### C. Weather Radar
+* **Likely Source**: RainViewer API or NOAA MRMS.
+* **Data Type**: Real-time mosaic tiles.
+* **Backend Fit**: Radar is a dynamic observation layer, not a forecast model. It does not fit the JSON point/grid model.
+* **Architecture Fit**: Should remain tile-based, loaded via MapLibre overlay protocols, but timeline timestamps and tile endpoints can be queried via the backend.
+* **Licensing/API Risks**: RainViewer has specific rate limits and attribution requirements.
+* **Difficulty**: Medium.
+
+### D. Satellite Imagery
+* **Likely Source**: NOAA GOES / NASA GIBS.
+* **Data Type**: Real-time observational tile maps.
+* **Backend Fit**: Observational overlay, does not fit JSON point/grid model.
+* **Architecture Fit**: Should remain tile-based (MapLibre overlay protocols) with timeline synchronization managed by the backend.
+* **Difficulty**: Medium.
+
+### E. Air Temperature (Future)
+* **Likely Source**: Open-Meteo Forecast API (`temperature_2m`).
+* **Data Type**: Forecast scalar field.
+* **Backend Fit**: Fits point sampling and grid structures.
+* **Difficulty**: Low.
+
+### F. Sea Surface Water Temperature (Future)
+* **Likely Source**: NOAA RTG_SST or CMEMS Global Ocean SST.
+* **Data Type**: Daily observation/forecast.
+* **Backend Fit**: Fits point sampling and grid structures.
+* **Difficulty**: Medium (requires parsing Copernicus/NOAA daily grids).
+
+### Recommended Migration Order
+1. **Stage 6B**: Sunset legacy wind fallback paths (deleting client-side scrapers).
+2. **Stage 6C**: Pressure Backend Ingestion (migrating pressure grids to backend).
+3. **Stage 6D**: Precipitation Backend Ingestion.
+4. **Stage 6E**: Air & Water Temperature point sampling integration.
+5. **Stage 6F**: Radar & Satellite endpoint validation (backend timeline synchronization).
+
+---
+
+## 7. Recommended Next Phase
+
+Based on the stabilization watch results, the backend wind service is highly stable. We recommend proceeding to **Stage 6B: Legacy Wind Sunset / Cleanup** to prune frontend scraper pathways, reducing code footprint and technical debt.
