@@ -63,6 +63,8 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
 @router.post("/ingest_euro_wind_direct")
 async def ingest_euro_wind_direct():
     try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
         success = await scheduler.ingest_euro_wind_pilot()
         return {"status": "success" if success else "failed"}
     except Exception as e:
@@ -71,6 +73,8 @@ async def ingest_euro_wind_direct():
 @router.post("/ingest_icon_wind_direct")
 async def ingest_icon_wind_direct():
     try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
         success = await scheduler.ingest_icon_wind_pilot()
         return {"status": "success" if success else "failed"}
     except Exception as e:
