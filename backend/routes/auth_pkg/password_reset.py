@@ -6,7 +6,7 @@ Password Reset Routes
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
@@ -47,6 +47,25 @@ def generate_reset_token() -> str:
     return secrets.token_urlsafe(48)
 
 
+def password_reset_response() -> dict:
+    return {
+        "message": "If an account exists with this email, you will receive a reset link.",
+        "success": True,
+    }
+
+
+def include_dev_reset_details(response: dict, token: str, reset_link: str) -> None:
+    env = (
+        os.environ.get("ENVIRONMENT")
+        or os.environ.get("ENV")
+        or os.environ.get("NODE_ENV")
+        or ""
+    ).lower()
+    if env not in {"production", "prod"}:
+        response["_dev_token"] = token
+        response["_dev_reset_link"] = reset_link
+
+
 async def send_password_reset_email(email: str, reset_link: str, user_name: str = None) -> bool:
     """Send password reset email via Resend"""
     if not RESEND_API_KEY:
@@ -54,7 +73,7 @@ async def send_password_reset_email(email: str, reset_link: str, user_name: str 
         return False
     
     # DEBUG: Log the exact reset_link being used
-    logger.error(f"[EMAIL_DEBUG] Sending reset email to {email} with link: {reset_link}", flush=True)
+    logger.info("[EMAIL_DEBUG] Sending reset email to %s with link: %s", email, reset_link)
     
     try:
         display_name = user_name or email.split('@')[0]
@@ -143,59 +162,62 @@ async def request_password_reset(data: ForgotPasswordRequest, db: AsyncSession =
     Request a password reset. Generates a token that expires in 1 hour.
     Sends email with reset link via Resend.
     """
-    # Find user
-    result = await db.execute(select(Profile).where(Profile.email == data.email))
-    user = result.scalar_one_or_none()
-    
-    # Always return success to prevent email enumeration
-    if not user:
-        return {
-            "message": "If an account exists with this email, you will receive a reset link.",
-            "success": True
-        }
-    
-    # Invalidate any existing tokens for this user
-    existing_tokens = await db.execute(
-        select(PasswordResetToken)
-        .where(PasswordResetToken.user_id == user.id)
-        .where(PasswordResetToken.used == False)
-    )
-    for token in existing_tokens.scalars().all():
-        token.used = True
-    
-    # Generate new token
-    token = generate_reset_token()
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-    
-    reset_token = PasswordResetToken(
-        user_id=user.id,
-        token=token,
-        expires_at=expires_at
-    )
-    
-    db.add(reset_token)
-    await db.commit()
-    
-    # Build reset link and send email
-    app_url = get_app_url()
-    reset_link = f"{app_url}/reset-password?token={token}"
-    email_sent = await send_password_reset_email(
-        email=user.email,
-        reset_link=reset_link,
-        user_name=user.full_name
-    )
-    
-    response = {
-        "message": "If an account exists with this email, you will receive a reset link.",
-        "success": True
-    }
-    
-    # Include email status in dev mode (remove in production)
-    if not email_sent:
-        response["_dev_note"] = "Email service unavailable, check logs"
-        response["_dev_reset_link"] = reset_link
-    
-    return response
+    response = password_reset_response()
+
+    try:
+        normalized_email = data.email.strip().lower()
+
+        # Find user case-insensitively so existing admin accounts can reset even
+        # if the stored email has different capitalization.
+        result = await db.execute(
+            select(Profile).where(func.lower(Profile.email) == normalized_email)
+        )
+        user = result.scalar_one_or_none()
+
+        # Always return success to prevent email enumeration
+        if not user:
+            return response
+
+        # Invalidate any existing tokens for this user
+        existing_tokens = await db.execute(
+            select(PasswordResetToken)
+            .where(PasswordResetToken.user_id == user.id)
+            .where(PasswordResetToken.used == False)
+        )
+        for token_record in existing_tokens.scalars().all():
+            token_record.used = True
+
+        # Generate new token
+        token = generate_reset_token()
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        reset_token = PasswordResetToken(
+            user_id=user.id,
+            token=token,
+            expires_at=expires_at
+        )
+
+        db.add(reset_token)
+        await db.commit()
+
+        # Build reset link and send email
+        app_url = get_app_url()
+        reset_link = f"{app_url}/reset-password?token={token}"
+        email_sent = await send_password_reset_email(
+            email=user.email,
+            reset_link=reset_link,
+            user_name=user.full_name
+        )
+
+        include_dev_reset_details(response, token, reset_link)
+        if not email_sent:
+            response["_dev_note"] = "Email service unavailable, check logs"
+
+        return response
+    except Exception:
+        await db.rollback()
+        logger.exception("Password reset request failed")
+        return response
 
 
 @router.post("/auth/verify-reset-token")
