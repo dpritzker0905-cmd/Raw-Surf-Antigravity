@@ -793,8 +793,27 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
 
-  // 1. Perform Bbox Clamping and Coverage verification
-  const clampResult = clampViewportBbox(snappedBounds, layer);
+  // 1. Resolve actual viewport bounds for coverage check
+  // Use the explicit bounds parameter (actual viewport), falling back to map instance bounds
+  let actualBounds = bounds;
+  if (!actualBounds || (Math.abs((actualBounds.east || 0) - (actualBounds.west || 0)) > 300)) {
+    try {
+      if (typeof window !== 'undefined' && window.map && typeof window.map.getBounds === 'function') {
+        const mb = window.map.getBounds();
+        actualBounds = {
+          west: mb.getWest(),
+          south: mb.getSouth(),
+          east: mb.getEast(),
+          north: mb.getNorth()
+        };
+      }
+    } catch (e) {
+      // Fall through to original bounds
+    }
+  }
+
+  // 2. Perform Bbox Clamping and Coverage verification against actual viewport
+  const clampResult = clampViewportBbox(actualBounds || snappedBounds, layer);
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',
@@ -805,7 +824,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       displayUnitHint: 'none',
       elapsedMs: Date.now() - start,
       error: clampResult.fallbackReason,
-      requestedBbox: snappedBounds,
+      requestedBbox: actualBounds || snappedBounds,
       clampedBbox: null,
       fallbackReason: clampResult.fallbackReason,
       hourOffset,

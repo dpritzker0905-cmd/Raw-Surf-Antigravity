@@ -459,7 +459,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         console.log(`[Backend Weather Service] GFS has no conformed coverage for hourOffset=+${hourOffset}h. Blocking fallback to legacy proxy.`);
         return createFallbackSafeZeroGrid('GFS', 'no_backend_coverage');
       }
-      console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      // Coverage errors (outside pilot area) fall through to legacy Open-Meteo
+      console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}: ${err.message}. Falling back to legacy Open-Meteo proxy pipeline.`);
     }
   }
 
@@ -475,7 +476,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         console.log(`[Backend Weather Service] Copernicus has no conformed coverage for hourOffset=+${hourOffset}h. Blocking fallback to legacy proxy.`);
         return createFallbackSafeZeroGrid('EURO', 'no_copernicus_coverage');
       }
-      console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      // Coverage errors (outside pilot area) fall through to legacy Open-Meteo
+      console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}: ${err.message}. Falling back to legacy Open-Meteo proxy pipeline.`);
     }
   }
 
@@ -491,7 +493,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         console.log(`[Backend Weather Service] ICON has no conformed coverage for hourOffset=+${hourOffset}h. Blocking fallback to legacy proxy.`);
         return createFallbackSafeZeroGrid('ICON', 'no_backend_coverage');
       }
-      console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      // Coverage errors (outside pilot area) fall through to legacy Open-Meteo
+      console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}: ${err.message}. Falling back to legacy Open-Meteo proxy pipeline.`);
     }
   }
 
