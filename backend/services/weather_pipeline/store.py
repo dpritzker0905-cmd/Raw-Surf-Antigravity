@@ -24,6 +24,16 @@ def _get_supabase_storage():
         return _supabase_client
     if _supabase_init_attempted:
         return None  # Already tried and failed
+        
+    # Prevent tests from writing to/corrupting live Supabase bucket
+    is_test_env = (
+        os.environ.get("NODE_ENV") == "test" or 
+        os.environ.get("TESTING") == "1"
+    )
+    if is_test_env:
+        logger.info("[Product Store] Supabase L2 storage disabled in test environment")
+        return None
+
     _supabase_init_attempted = True
     try:
         from supabase import create_client as _create_supabase_client
