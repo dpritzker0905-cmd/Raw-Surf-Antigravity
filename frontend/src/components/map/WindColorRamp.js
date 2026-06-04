@@ -12,10 +12,10 @@
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
- * Each stop: [speed_ms, r, g, b, a]
- * Speed in m/s. Calm winds are nearly transparent so terrain shows through.
- * Alpha ramps nonlinearly only moderate+ winds visually dominate.
- * Colors follow Beaufort/Ventusky convention: bluecyangreenyellowredpurple.
+ * Each stop: [speed_kn, r, g, b, a]
+ * Speed in knots. Calm winds are nearly transparent so terrain shows through.
+ * Alpha ramps nonlinearly — only moderate+ winds visually dominate.
+ * Default (dark) follows Beaufort/Ventusky convention: blue→cyan→green→yellow→red→purple.
  */
 var DEFAULT_WIND_RAMP = [
   [0,  0.65, 0.75, 0.85, 0.05], // Calm: highly transparent light blue-white
@@ -30,6 +30,57 @@ var DEFAULT_WIND_RAMP = [
   [40, 0.75, 0.10, 0.35, 0.50], // Storm: soft magenta
   [50, 0.55, 0.05, 0.50, 0.50], // Hurricane: soft purple
 ];
+
+/**
+ * Theme-specific wind ramps matching the HEATMAP_FS shader palettes.
+ * Beach: warm teal → cyan → amber → cream (tropical vibes)
+ * Light: cool blue → indigo → white (clean visibility on light backgrounds)
+ * Dark: default cyan → magenta → white ramp (high contrast on dark maps)
+ */
+var BEACH_WIND_RAMP = [
+  [0,  0.04, 0.45, 0.40, 0.05],
+  [3,  0.05, 0.60, 0.55, 0.12],
+  [6,  0.05, 0.78, 0.70, 0.20],
+  [10, 0.20, 0.85, 0.72, 0.28],
+  [15, 0.65, 0.82, 0.45, 0.35],
+  [20, 1.00, 0.68, 0.30, 0.42],
+  [25, 1.00, 0.55, 0.22, 0.48],
+  [30, 1.00, 0.40, 0.15, 0.52],
+  [40, 1.00, 0.90, 0.78, 0.55],
+  [50, 1.00, 0.95, 0.86, 0.58],
+];
+
+var LIGHT_WIND_RAMP = [
+  [0,  0.78, 0.88, 0.95, 0.05],
+  [3,  0.60, 0.82, 0.95, 0.12],
+  [6,  0.25, 0.70, 0.95, 0.22],
+  [10, 0.20, 0.55, 0.92, 0.30],
+  [15, 0.18, 0.42, 0.90, 0.38],
+  [20, 0.18, 0.38, 0.90, 0.44],
+  [25, 0.22, 0.30, 0.85, 0.50],
+  [30, 0.55, 0.40, 0.90, 0.55],
+  [40, 0.85, 0.82, 0.95, 0.58],
+  [50, 0.96, 0.98, 1.00, 0.60],
+];
+
+var DARK_WIND_RAMP = [
+  [0,  0.00, 0.08, 0.15, 0.05],
+  [3,  0.00, 0.30, 0.55, 0.12],
+  [6,  0.00, 0.60, 0.85, 0.22],
+  [10, 0.00, 0.85, 1.00, 0.30],
+  [15, 0.30, 0.90, 0.90, 0.38],
+  [20, 0.70, 0.65, 0.95, 0.44],
+  [25, 0.95, 0.12, 0.80, 0.50],
+  [30, 1.00, 0.30, 0.50, 0.55],
+  [40, 1.00, 0.85, 0.85, 0.58],
+  [50, 1.00, 1.00, 1.00, 0.60],
+];
+
+var THEME_RAMPS = {
+  beach: BEACH_WIND_RAMP,
+  light: LIGHT_WIND_RAMP,
+  dark: DARK_WIND_RAMP
+};
 
 /**
  * Interpolate between two color stops.
@@ -50,7 +101,7 @@ function lerpStop(a, b, t) {
 /**
  * Sample the color ramp at a given wind speed.
  * @param {number[][]} ramp
- * @param {number} speed - wind speed in m/s
+ * @param {number} speed - wind speed in knots
  * @returns {number[]} [r, g, b, a] in [0, 1]
  */
 export function sampleRamp(ramp, speed) {
@@ -67,14 +118,15 @@ export function sampleRamp(ramp, speed) {
 
 /**
  * Generate a 256-pixel 1D color ramp texture (RGBA8).
- * Maps normalized speed [0, 1] color, where 1.0 = maxSpeed.
+ * Maps normalized speed [0, 1] → color, where 1.0 = maxSpeed.
  *
- * @param {number} maxSpeed - max wind speed in m/s (typically 50)
- * @param {number[][]} [ramp] - custom color ramp, or defaults
- * @returns {Uint8Array} 256 1 RGBA data (1024 bytes)
+ * @param {number} maxSpeed - max wind speed in knots (typically 50)
+ * @param {number[][]} [ramp] - custom color ramp, or auto-select by theme
+ * @param {string} [theme] - 'dark', 'light', or 'beach' — selects themed ramp
+ * @returns {Uint8Array} 256×1 RGBA data (1024 bytes)
  */
-export function generateRampData(maxSpeed, ramp) {
-  var stops = ramp || DEFAULT_WIND_RAMP;
+export function generateRampData(maxSpeed, ramp, theme) {
+  var stops = ramp || THEME_RAMPS[theme] || DEFAULT_WIND_RAMP;
   var data = new Uint8Array(256 * 4);
 
   for (var i = 0; i < 256; i++) {

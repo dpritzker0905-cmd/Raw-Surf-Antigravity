@@ -48,7 +48,8 @@ function WebGLWindEngine() {
   this._initialized = false;
   this._windData = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
-  this._maxWindSpeed = 50; // m/s maps to ramp max
+  this._maxWindSpeed = 50; // knots: typical range 0-50kn for color ramp
+  this._currentTheme = null; // Track theme for ramp updates
 
   // Diagnostic: expose wind engine for console verification
   if (typeof window !== 'undefined') {
@@ -121,9 +122,10 @@ WebGLWindEngine.prototype.init = function(gl) {
   this.particleStateA = initParticleTexture(gl, this.particleRes);
   this.particleStateB = initParticleTexture(gl, this.particleRes);
   this.advFBO = gl.createFramebuffer();
-  // v3.9.8: Create color ramp LUT texture
-  var rampData = generateRampData(this._maxWindSpeed);
+  // v3.9.8: Create color ramp LUT texture (theme-aware)
+  var rampData = generateRampData(this._maxWindSpeed, null, 'dark');
   this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+  this._currentTheme = 'dark';
   this._initialized = true;
   console.log('[WebGLWind] Initialized: ' + (this.particleRes * this.particleRes) + ' particles');
 };
@@ -136,6 +138,14 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme) {
   if (!this._initialized || !this._windData) return;
+  // Update color ramp when theme changes
+  if (theme && theme !== this._currentTheme) {
+    this._currentTheme = theme;
+    var rampData = generateRampData(this._maxWindSpeed, null, theme);
+    if (this._colorRamp) gl.deleteTexture(this._colorRamp);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+    console.log('[WebGLWind] Color ramp updated for theme:', theme);
+  }
   if (!matrix || !matrix.length) {
     if (this._renderLogged === undefined) {
       this._renderLogged = 0;
