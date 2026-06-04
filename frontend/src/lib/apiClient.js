@@ -17,8 +17,10 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 
+const DEFAULT_BACKEND_URL = 'https://raw-surf-antigravity.onrender.com';
+
 /** Raw backend origin (no /api suffix) G for WebSocket and media URLs */
-export const BACKEND_URL = (typeof window !== 'undefined' && (window.__BACKEND_URL__ || window.localStorage.getItem('__BACKEND_URL__'))) || process.env.REACT_APP_BACKEND_URL || '';
+export const BACKEND_URL = (typeof window !== 'undefined' && (window.__BACKEND_URL__ || window.localStorage.getItem('__BACKEND_URL__'))) || process.env.REACT_APP_BACKEND_URL || DEFAULT_BACKEND_URL;
 
 /** Full /api base URL string -- for edge cases that still need a bare string */
 export const API_BASE = `${BACKEND_URL}/api`;

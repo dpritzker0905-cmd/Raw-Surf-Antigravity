@@ -36,7 +36,7 @@ if RESEND_API_KEY:
 def get_app_url():
     url = os.environ.get('APP_URL') or os.environ.get('FRONTEND_URL')
     if not url:
-        url = 'https://dev--rawsurf.netlify.app'
+        url = 'https://rawsurf.netlify.app'
     return url
 
 def hash_password(password: str) -> str:
