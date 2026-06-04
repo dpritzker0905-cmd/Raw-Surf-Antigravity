@@ -239,9 +239,13 @@ class ProductStore:
         if sb:
             try:
                 objects = sb.storage.from_(WEATHER_BUCKET).list()
-                supabase_count = len([o for o in (objects or [])
-                                      if hasattr(o, 'name') and o['name'].endswith('.json')
-                                      and o['name'] != 'manifest.json'])
+                supabase_count = len([
+                    o for o in (objects or [])
+                    if (
+                        (isinstance(o, dict) and o.get("name", "").endswith(".json") and o.get("name") != "manifest.json") or
+                        (hasattr(o, "name") and getattr(o, "name", "").endswith(".json") and getattr(o, "name") != "manifest.json")
+                    )
+                ])
             except Exception:
                 supabase_count = -1  # Error counting
 
