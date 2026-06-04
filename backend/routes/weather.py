@@ -49,6 +49,10 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
             logger.info("[Manual Ingestion] Staggering ICON Wind Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_icon_wind_pilot()
+
+            logger.info("[Manual Ingestion] Staggering EURO Wind Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_euro_wind_pilot()
             logger.info("[Manual Ingestion] Ingestion jobs completed.")
         except Exception as e:
             logger.error(f"[Manual Ingestion] Ingestion failed: {e}")

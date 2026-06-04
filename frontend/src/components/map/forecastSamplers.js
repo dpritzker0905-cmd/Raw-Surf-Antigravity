@@ -85,8 +85,8 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     }
   }
 
-  // --- REDIRECT GFS AND ICON WIND TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || !model) && activeLayer === 'wind') {
+  // --- REDIRECT GFS, ICON AND EURO WIND TO BACKEND IF FEATURE FLAG IS ACTIVE ---
+  if (typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind') {
     try {
       console.log(`[Backend Weather Service] Redirecting ${model || 'GFS'} Wind point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactWindPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');

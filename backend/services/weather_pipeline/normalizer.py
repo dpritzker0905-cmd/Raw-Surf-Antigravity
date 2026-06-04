@@ -151,7 +151,7 @@ class WeatherNormalizer:
             pt_hourly = pt.get("hourly", {})
 
             s_key, d_key, p_key = speed_key, direction_key, period_key
-            gust_key = "wind_gusts_10m" if (domain == "wind" and model.upper() == "ICON") else None
+            gust_key = "wind_gusts_10m" if (domain == "wind" and model.upper() in ("ICON", "EURO")) else None
 
             speed_list = pt_hourly.get(s_key, [])
             dir_list = pt_hourly.get(d_key, [])
@@ -303,6 +303,10 @@ class WeatherNormalizer:
             source_dataset = "dwd_icon"
             up_provider = "open-meteo"
             up_model = "dwd_icon"
+        elif provider.lower() == "open-meteo" and model.upper() == "EURO" and domain.lower() == "wind":
+            source_dataset = "ecmwf_ifs"
+            up_provider = "open-meteo"
+            up_model = "ecmwf_ifs"
         elif provider.lower() == "test-fixture":
             import os
             is_test_env = (

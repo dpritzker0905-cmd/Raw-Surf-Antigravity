@@ -130,8 +130,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   if (latMax <= latMin || lngMax <= lngMin) return lastKnownGoodWind;
   const snappedBounds = { west: lngMin, south: latMin, east: lngMax, north: latMax };
 
-  // --- WIND BACKEND SERVICE REDIRECT FOR GFS AND ICON WIND ---
-  if (getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || !model)) {
+  // --- WIND BACKEND SERVICE REDIRECT FOR GFS, ICON AND EURO WIND ---
+  if (getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model)) {
     try {
       console.log(`[Backend Weather Service] Redirecting ${model || 'GFS'} Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
       

@@ -189,7 +189,7 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
       requestedModel: model,
       activeLayer: 'wind',
       forecastDays: 1,
-      apiModel: model === 'ICON' ? 'dwd_icon' : 'gfs_seamless',
+      apiModel: model === 'ICON' ? 'dwd_icon' : (model === 'EURO' ? 'ecmwf_ifs' : 'gfs_seamless'),
       provider: json.provider || 'backend-weather-service',
       source: 'backend_point_api'
     };

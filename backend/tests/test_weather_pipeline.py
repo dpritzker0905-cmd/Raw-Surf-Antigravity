@@ -914,6 +914,132 @@ def test_icon_wind_normalization_and_endpoints(tmp_path, monkeypatch):
     assert math.isclose(point_payload["point"]["gust"], local_point_res.point.gust, abs_tol=1e-4)
 
 
+def test_euro_wind_normalization_and_endpoints(tmp_path, monkeypatch):
+    """Verify that WeatherNormalizer parses and converts EURO wind variables, including gusts, and API endpoints function correctly with parity."""
+    temp_store = ProductStore(cache_dir=tmp_path)
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    # 2x2 grid for Florida East Coast
+    mock_results = [
+        {
+            "latitude": 24.0, "longitude": -85.0,
+            "hourly_units": {
+                "wind_speed_10m": "kn", "wind_direction_10m": "°", "wind_gusts_10m": "kn"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wind_speed_10m": [10.0], "wind_direction_10m": [90.0], "wind_gusts_10m": [15.0]
+            }
+        },
+        {
+            "latitude": 24.0, "longitude": -79.0,
+            "hourly_units": {
+                "wind_speed_10m": "kn", "wind_direction_10m": "°", "wind_gusts_10m": "kn"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wind_speed_10m": [20.0], "wind_direction_10m": [90.0], "wind_gusts_10m": [25.0]
+            }
+        },
+        {
+            "latitude": 30.0, "longitude": -85.0,
+            "hourly_units": {
+                "wind_speed_10m": "kn", "wind_direction_10m": "°", "wind_gusts_10m": "kn"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wind_speed_10m": [30.0], "wind_direction_10m": [90.0], "wind_gusts_10m": [35.0]
+            }
+        },
+        {
+            "latitude": 30.0, "longitude": -79.0,
+            "hourly_units": {
+                "wind_speed_10m": "kn", "wind_direction_10m": "°", "wind_gusts_10m": "kn"
+            },
+            "hourly": {
+                "time": ["2026-06-01T21:00:00Z"],
+                "wind_speed_10m": [40.0], "wind_direction_10m": [90.0], "wind_gusts_10m": [45.0]
+            }
+        }
+    ]
+
+    normalizer = WeatherNormalizer()
+    target_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    bbox = {"west": -85.0, "south": 24.0, "east": -79.0, "north": 30.0}
+
+    product = normalizer.normalize(
+        model="EURO",
+        provider="open-meteo",
+        domain="wind",
+        layer="wind",
+        raw_results=mock_results,
+        bbox=bbox,
+        resolution=6.0,
+        target_time=target_dt
+    )
+
+    assert product is not None
+    assert product.model == "EURO"
+    assert product.layer == "wind"
+    assert product.grid.cols == 2
+    assert product.grid.rows == 2
+    assert len(product.grid.vectors) == 4
+    assert product.is_test_fixture is False
+    assert product.source_dataset == "ecmwf_ifs"
+    assert product.upstream_provider == "open-meteo"
+    assert product.upstream_model == "ecmwf_ifs"
+
+    # Verify vector details
+    v0 = product.grid.vectors[0]
+    assert v0.speed == 10.0
+    assert v0.direction == 90.0
+    assert v0.gust == 15.0
+    assert math.isclose(v0.u, -10.0, abs_tol=1e-4)
+    assert math.isclose(v0.v, 0.0, abs_tol=1e-4)
+
+    # Save to temp store
+    temp_store.save_product(product, resolution=6.0)
+
+    # Query products manifest API
+    response = client.get("/api/weather/products")
+    assert response.status_code == 200
+    manifest = response.json()
+    assert any(
+        p["model"] == "EURO" and p["layer"] == "wind" and p["domain"] == "wind" and p["provider"] == "open-meteo"
+        for p in manifest["products"]
+    )
+
+    # Query grid API for EURO wind
+    response_grid = client.get(
+        "/api/weather/grid?model=EURO&domain=wind&layer=wind&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_grid.status_code == 200
+    grid_payload = response_grid.json()
+    assert grid_payload["model"] == "EURO"
+    assert grid_payload["layer"] == "wind"
+    assert grid_payload["grid"]["vectors"][0]["gust"] == 15.0
+
+    # Query point API inside the grid (bilinear interpolation) for EURO wind
+    lat, lng = 27.0, -82.0
+    response_point = client.get(
+        f"/api/weather/point?model=EURO&domain=wind&layer=wind&lat={lat}&lng={lng}&valid_time=2026-06-01T21:00:00Z"
+    )
+    assert response_point.status_code == 200
+    point_payload = response_point.json()
+    assert point_payload["is_forecast_authoritative"] is True
+    assert point_payload["point"]["interpolation_method"] == "bilinear"
+    assert point_payload["point"]["speed"] > 0.0
+    assert point_payload["point"]["gust"] > 0.0
+
+    # Verify point parity matches local bilinear sampling
+    sampler = PointSampler()
+    local_point_res = sampler.sample_point(product, lat, lng)
+    assert math.isclose(point_payload["point"]["speed"], local_point_res.point.speed, abs_tol=1e-4)
+    assert math.isclose(point_payload["point"]["gust"], local_point_res.point.gust, abs_tol=1e-4)
+
+
+
 
 
 

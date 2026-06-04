@@ -665,6 +665,55 @@ describe('backendWeatherServiceClient', () => {
       Date.now = originalDateNow;
       setCachedManifest(null);
     });
+
+    it('resolves wind speed and direction successfully for EURO model mapping to ecmwf_ifs', async () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'EURO',
+            domain: 'wind',
+            layer: 'wind',
+            valid_time_start: '2026-06-02T03:00:00.000Z'
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const originalDateNow = Date.now;
+      Date.now = () => new Date('2026-06-02T00:00:00Z').getTime();
+
+      const mockJson = {
+        point: {
+          speed: 12.5,
+          direction: 180.0,
+          sampled_lat: 28.4,
+          sampled_lng: -80.6,
+          interpolation_method: 'bilinear'
+        },
+        provider: 'backend-weather-service'
+      };
+
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(mockJson)
+        })
+      );
+
+      const res = await fetchBackendExactWindPoint(28.4, -80.6, 3, null, 'EURO');
+      expect(res.hourly.wind_speed_10m[0]).toBe(12.5);
+      expect(res.hourly.wind_direction_10m[0]).toBe(180.0);
+      expect(res.apiModel).toBe('ecmwf_ifs');
+      expect(res.requestedModel).toBe('EURO');
+
+      const diag = window.__BACKEND_WIND_SERVICE_DIAG__;
+      expect(diag.activeModel).toBe('EURO');
+      expect(diag.model).toBe('EURO');
+
+      Date.now = originalDateNow;
+      setCachedManifest(null);
+    });
   });
 
   describe('getBackendCopernicusFlag', () => {
