@@ -20,7 +20,7 @@ export function getBackendPressureFlag() {
     const lsVal = window.localStorage.getItem('rawsurf_backend_pressure_enabled');
     if (lsVal !== null) return lsVal === 'true';
   } catch (e) {}
-  return false;
+  return true;
 }
 
 /**

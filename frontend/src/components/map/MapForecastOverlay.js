@@ -724,6 +724,7 @@ export var MapForecastOverlay = ({
         
         if (typeof window !== 'undefined') {
           window.__PRESSURE_PARITY_DIAG__ = {
+            featureFlagActive: getBackendPressureFlag(),
             rasterModel,
             backendModel,
             rasterValidTime,
@@ -757,6 +758,7 @@ export var MapForecastOverlay = ({
         );
         if (typeof window !== 'undefined') {
           window.__PRESSURE_PARITY_DIAG__ = {
+            featureFlagActive: getBackendPressureFlag(),
             rasterModel: activeModel,
             backendModel: 'none',
             rasterValidTime,

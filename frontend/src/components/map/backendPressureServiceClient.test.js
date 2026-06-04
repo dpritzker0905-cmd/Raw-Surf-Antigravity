@@ -14,8 +14,8 @@ describe('backendPressureServiceClient', () => {
   });
 
   describe('getBackendPressureFlag', () => {
-    it('should return false by default (default-off)', () => {
-      expect(getBackendPressureFlag()).toBe(false);
+    it('should return true by default (default-on)', () => {
+      expect(getBackendPressureFlag()).toBe(true);
     });
 
     it('should respect window override', () => {
