@@ -189,79 +189,119 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 
     const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs', ICON: 'dwd_icon' };
 
-    // Cap forecast_days to stay within the 4.5MB proxy response budget
-    // Cost per point per day: 24*25 + hourlyVars*24*8 = 984 bytes (for 2 wind vars)
-    // Total: pointCount * (days * 984 + 1500) must be <= 4,500,000
+    // Determine if we need to batch requests to fit under proxy budget.
+    // Proxy budget: 4.5MB. Cost per point: forecastDays * 984 + 1500 bytes.
+    // If total exceeds budget, split points into batches and fetch in parallel.
     const PROXY_BUDGET = 4500000;
-    const perDayPerPoint = 24 * 25 + 2 * 24 * 8; // 984
-    const metadataPerPoint = 1500;
-    const maxSafeDays = Math.floor((PROXY_BUDGET / lats.length - metadataPerPoint) / perDayPerPoint);
-    const safeForecastDays = Math.min(forecastDays, Math.max(2, maxSafeDays));
+    const costPerPoint = forecastDays * (24 * 25 + 2 * 24 * 8) + 1500;
+    const maxPointsPerBatch = Math.max(50, Math.floor(PROXY_BUDGET / costPerPoint));
+    const needsBatching = lats.length > maxPointsPerBatch;
 
-    const body = {
-      latitude: lats, longitude: lons,
-      wind_speed_unit: 'kn',
-      hourly: ['wind_speed_10m', 'wind_direction_10m'],
-      forecast_days: safeForecastDays
+    const makeBody = (batchLats, batchLons) => {
+      const b = {
+        latitude: batchLats, longitude: batchLons,
+        wind_speed_unit: 'kn',
+        hourly: ['wind_speed_10m', 'wind_direction_10m'],
+        forecast_days: forecastDays
+      };
+      if (model && OM_MODELS[model]) b.models = [OM_MODELS[model]];
+      return b;
     };
-    if (model && OM_MODELS[model]) {
-      body.models = [OM_MODELS[model]];
-    }
 
-    let res;
-    try {
-      res = await governMarineRequest({
-        source: 'marineController.fetchWindData',
-        type: 'wind',
-        body: body,
-        signal: fetchSignal,
-        model: model || 'GFS',
-        layer: 'wind',
-        category: 'grid'
-      });
-      if (res.status === 429) {
-        enterCooldown('wind');
-        console.warn('[Wind] 429 from proxy governor, cooldown activated');
-        return lastKnownGoodWind;
+    let results;
+
+    if (!needsBatching) {
+      // Single request path (fits under budget)
+      const body = makeBody(lats, lons);
+      let res;
+      try {
+        res = await governMarineRequest({
+          source: 'marineController.fetchWindData',
+          type: 'wind',
+          body: body,
+          signal: fetchSignal,
+          model: model || 'GFS',
+          layer: 'wind',
+          category: 'grid'
+        });
+        if (res.status === 429) {
+          enterCooldown('wind');
+          console.warn('[Wind] 429 from proxy governor, cooldown activated');
+          return lastKnownGoodWind;
+        }
+        if (!res.ok) throw new Error(`Proxy returned HTTP ${res.status}`);
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.includes('application/json')) throw new Error(`Non-JSON: ${ct.substring(0, 50)}`);
+      } catch (proxyErr) {
+        if (proxyErr.message === 'wind_cooldown_active' || proxyErr.message === 'failure_ttl_active' || proxyErr.message === 'grid_fetch_in_flight') {
+          console.warn(`[WindController] Governor blocked wind fetch: ${proxyErr.message}`);
+          return lastKnownGoodWind;
+        }
+        if (isLocalhost) {
+          res = await fetch('https://api.open-meteo.com/v1/forecast', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body), signal: fetchSignal
+          });
+        } else { throw proxyErr; }
       }
       if (!res.ok) {
-        throw new Error(`Proxy returned HTTP ${res.status}`);
+        if (res.status === 429) { enterCooldown('wind'); return lastKnownGoodWind; }
+        throw new Error(`HTTP ${res.status}`);
       }
-      const windContentType = res.headers.get('content-type') || '';
-      if (!windContentType.includes('application/json')) {
-        throw new Error(`Proxy returned non-JSON content-type: ${windContentType.substring(0, 50)}`);
-      }
-    } catch (proxyErr) {
-      if (proxyErr.message === 'wind_cooldown_active' || proxyErr.message === 'failure_ttl_active' || proxyErr.message === 'grid_fetch_in_flight') {
-        console.warn(`[WindController] Governor blocked wind fetch: ${proxyErr.message}`);
-        return lastKnownGoodWind;
-      }
-      if (isLocalhost) {
-        console.log('[Wind] Proxy unavailable or error, direct API fallback:', proxyErr.message);
-        res = await fetch('https://api.open-meteo.com/v1/forecast', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: fetchSignal
+      const json = await res.json();
+      results = Array.isArray(json) ? json : (json?.hourly ? points.map(() => json) : null);
+    } else {
+      // Batched request path — split points, parallel fetch, merge
+      const batchCount = Math.ceil(lats.length / maxPointsPerBatch);
+      console.log(`[Wind] Batching ${lats.length} points into ${batchCount} requests of ~${maxPointsPerBatch} (${forecastDays}-day forecast)`);
+
+      const batches = [];
+      for (let i = 0; i < lats.length; i += maxPointsPerBatch) {
+        batches.push({
+          lats: lats.slice(i, i + maxPointsPerBatch),
+          lons: lons.slice(i, i + maxPointsPerBatch)
         });
-      } else {
-        console.error('[Wind] Proxy error, direct fallback skipped in production/dev:', proxyErr.message);
-        throw proxyErr;
       }
-    }
 
-    if (!res.ok) {
-      if (res.status === 429) {
-        enterCooldown('wind');
-        console.warn(`[Wind] 429 rate limited cooldown active`);
+      const batchPromises = batches.map(async (batch, idx) => {
+        const body = makeBody(batch.lats, batch.lons);
+        try {
+          const res = await governMarineRequest({
+            source: `marineController.fetchWindData.batch${idx}`,
+            type: 'wind',
+            body: body,
+            signal: fetchSignal,
+            model: model || 'GFS',
+            layer: 'wind',
+            category: 'grid'
+          });
+          if (res.status === 429) { enterCooldown('wind'); return null; }
+          if (!res.ok) throw new Error(`Batch ${idx} HTTP ${res.status}`);
+          const json = await res.json();
+          return Array.isArray(json) ? json : (json?.hourly ? batch.lats.map(() => json) : []);
+        } catch (err) {
+          if (isLocalhost) {
+            const res = await fetch('https://api.open-meteo.com/v1/forecast', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body), signal: fetchSignal
+            });
+            if (!res.ok) throw err;
+            const json = await res.json();
+            return Array.isArray(json) ? json : (json?.hourly ? batch.lats.map(() => json) : []);
+          }
+          throw err;
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      if (batchResults.some(r => r === null)) {
+        console.warn('[Wind] Batch fetch rate-limited');
         return lastKnownGoodWind;
       }
-      throw new Error(`HTTP ${res.status}`);
+      results = batchResults.flat();
+      console.log(`[Wind] Merged ${results.length} point results from ${batchCount} batches`);
     }
 
-    const json = await res.json();
-    let results = Array.isArray(json) ? json
-      : (json?.hourly ? points.map(() => json) : null);
     if (!results) { console.warn('[Wind] Unexpected API response shape'); return lastKnownGoodWind; }
 
     windHourlyCache = {
