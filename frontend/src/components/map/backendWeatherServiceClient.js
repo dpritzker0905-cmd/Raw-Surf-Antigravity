@@ -118,7 +118,7 @@ export function getBackendWeatherFlag() {
  * Keeps its legacy behavior (disabled by default) untouched.
  */
 export function getBackendWindFlag() {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return true;
   if (window.__USE_BACKEND_WIND_SERVICE__ !== undefined) {
     return !!window.__USE_BACKEND_WIND_SERVICE__;
   }
@@ -126,7 +126,10 @@ export function getBackendWindFlag() {
     const lsVal = window.localStorage.getItem('__USE_BACKEND_WIND_SERVICE__');
     if (lsVal !== null) return lsVal === 'true';
   } catch (e) {}
-  return process.env.REACT_APP_USE_BACKEND_WIND === 'true';
+  if (process.env.REACT_APP_USE_BACKEND_WIND !== undefined) {
+    return process.env.REACT_APP_USE_BACKEND_WIND === 'true';
+  }
+  return true;
 }
 
 /**

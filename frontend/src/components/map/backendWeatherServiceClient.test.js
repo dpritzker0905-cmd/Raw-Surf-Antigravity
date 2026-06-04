@@ -511,8 +511,8 @@ describe('backendWeatherServiceClient', () => {
   });
 
   describe('getBackendWindFlag', () => {
-    it('returns false by default', () => {
-      expect(getBackendWindFlag()).toBe(false);
+    it('returns true by default', () => {
+      expect(getBackendWindFlag()).toBe(true);
     });
 
     it('uses window.__USE_BACKEND_WIND_SERVICE__ override if set', () => {
