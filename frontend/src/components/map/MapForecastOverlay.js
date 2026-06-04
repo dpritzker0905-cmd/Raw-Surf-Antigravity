@@ -355,7 +355,7 @@ export var MapForecastOverlay = ({
       return false;
     }
     // Provider check
-    const expectedExactProv = activeModel === 'EURO' ? 'copernicus' : 'open-meteo';
+    const expectedExactProv = (activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) ? 'copernicus' : 'open-meteo';
     const isEstimated = effectiveExactPointStatus === 'euro_extended_estimate' || 
                         effectiveExactPointStatus === 'icon_extended_estimate' || 
                         effectiveExactPoint.provider === 'estimated';
