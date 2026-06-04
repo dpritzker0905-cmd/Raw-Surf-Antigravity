@@ -366,6 +366,208 @@ class WeatherPipelineScheduler:
         logger.info(f"[Pipeline Scheduler] GFS Pressure Ingestion Job done! Saved {success_count} hourly grid files.")
         return success_count > 0
 
+    async def ingest_icon_pressure_pilot(self) -> bool:
+        """
+        Stage 6E Pilot: Ingests ICON pressure grid forecast for Florida/East Coast.
+        Fetches 48 hours of forecasts in 3-hour increments.
+        """
+        logger.info("[Pipeline Scheduler] Starting ICON Pressure Pilot ingestion job...")
+        region = REGIONAL_CONFIGS["florida_east_coast"]
+        
+        import os
+        is_render = os.environ.get("RENDER") == "true"
+        resolution = 0.5 if is_render else region["resolution"]
+
+        # Open-Meteo ICON pressure grid fetch
+        raw_data = await self.om_provider.fetch_grid(
+            model="ICON",
+            domain="weather",
+            layer="pressure",
+            bbox=region,
+            resolution=resolution,
+            forecast_days=2
+        )
+
+        import os
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or 
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+
+        if not raw_data:
+            if is_test_env:
+                logger.warning("[Pipeline Scheduler] ICON Pressure Ingestion: failed to fetch grid data. Injecting high-fidelity mock pressure raw data for offline/deployed fallback...")
+                import math
+                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                mock_raw_results_pressure = []
+                for lat, lon in zip(lats, lons):
+                    mock_raw_results_pressure.append({
+                        "latitude": lat,
+                        "longitude": lon,
+                        "hourly_units": {
+                            "pressure_msl": "hPa"
+                        },
+                        "hourly": {
+                            "time": times,
+                            "pressure_msl": [1013.2 + 2.5 * math.sin(lat) for _ in times]
+                        }
+                    })
+                results = mock_raw_results_pressure
+            else:
+                logger.error("[Pipeline Scheduler] ICON Pressure Ingestion: failed to fetch grid data. Ingestion failed.")
+                return False
+        else:
+            results = raw_data if isinstance(raw_data, list) else [raw_data]
+
+        first_pt = results[0]
+        times = first_pt.get("hourly", {}).get("time", [])
+        if not times:
+            logger.error("[Pipeline Scheduler] Ingested ICON pressure payload missing hourly times array.")
+            return False
+
+        run_time = datetime.now(timezone.utc)
+        success_count = 0
+
+        # Normalization and atomic cache slicing (every 3 hours)
+        for idx, time_str in enumerate(times):
+            if idx % 3 != 0:
+                continue
+                
+            if not time_str.endswith("Z"):
+                time_str += "Z"
+            target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+
+            try:
+                product = self.normalizer.normalize(
+                    model="ICON",
+                    provider="open-meteo",
+                    domain="weather",
+                    layer="pressure",
+                    raw_results=results,
+                    bbox=region,
+                    resolution=resolution,
+                    target_time=target_dt,
+                    run_time=run_time
+                )
+                
+                if product:
+                    self.store.save_product(product, resolution=resolution)
+                    success_count += 1
+                    del product
+                    import gc
+                    gc.collect()
+                    await asyncio.sleep(0.2)
+            except Exception as e:
+                logger.error(f"[Pipeline Scheduler] Normalization error for ICON pressure at hour index {idx}: {e}")
+
+        del results
+        import gc
+        gc.collect()
+        logger.info(f"[Pipeline Scheduler] ICON Pressure Ingestion Job done! Saved {success_count} hourly grid files.")
+        return success_count > 0
+
+    async def ingest_euro_pressure_pilot(self) -> bool:
+        """
+        Stage 6E Pilot: Ingests EURO pressure grid forecast for Florida/East Coast.
+        Fetches 48 hours of forecasts in 3-hour increments.
+        """
+        logger.info("[Pipeline Scheduler] Starting EURO Pressure Pilot ingestion job...")
+        region = REGIONAL_CONFIGS["florida_east_coast"]
+        
+        import os
+        is_render = os.environ.get("RENDER") == "true"
+        resolution = 0.5 if is_render else region["resolution"]
+
+        # Open-Meteo EURO pressure grid fetch
+        raw_data = await self.om_provider.fetch_grid(
+            model="EURO",
+            domain="weather",
+            layer="pressure",
+            bbox=region,
+            resolution=resolution,
+            forecast_days=2
+        )
+
+        import os
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or 
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+
+        if not raw_data:
+            if is_test_env:
+                logger.warning("[Pipeline Scheduler] EURO Pressure Ingestion: failed to fetch grid data. Injecting high-fidelity mock pressure raw data for offline/deployed fallback...")
+                import math
+                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                mock_raw_results_pressure = []
+                for lat, lon in zip(lats, lons):
+                    mock_raw_results_pressure.append({
+                        "latitude": lat,
+                        "longitude": lon,
+                        "hourly_units": {
+                            "pressure_msl": "hPa"
+                        },
+                        "hourly": {
+                            "time": times,
+                            "pressure_msl": [1013.2 + 2.5 * math.sin(lat) for _ in times]
+                        }
+                    })
+                results = mock_raw_results_pressure
+            else:
+                logger.error("[Pipeline Scheduler] EURO Pressure Ingestion: failed to fetch grid data. Ingestion failed.")
+                return False
+        else:
+            results = raw_data if isinstance(raw_data, list) else [raw_data]
+
+        first_pt = results[0]
+        times = first_pt.get("hourly", {}).get("time", [])
+        if not times:
+            logger.error("[Pipeline Scheduler] Ingested EURO pressure payload missing hourly times array.")
+            return False
+
+        run_time = datetime.now(timezone.utc)
+        success_count = 0
+
+        # Normalization and atomic cache slicing (every 3 hours)
+        for idx, time_str in enumerate(times):
+            if idx % 3 != 0:
+                continue
+                
+            if not time_str.endswith("Z"):
+                time_str += "Z"
+            target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+
+            try:
+                product = self.normalizer.normalize(
+                    model="EURO",
+                    provider="open-meteo",
+                    domain="weather",
+                    layer="pressure",
+                    raw_results=results,
+                    bbox=region,
+                    resolution=resolution,
+                    target_time=target_dt,
+                    run_time=run_time
+                )
+                
+                if product:
+                    self.store.save_product(product, resolution=resolution)
+                    success_count += 1
+                    del product
+                    import gc
+                    gc.collect()
+                    await asyncio.sleep(0.2)
+            except Exception as e:
+                logger.error(f"[Pipeline Scheduler] Normalization error for EURO pressure at hour index {idx}: {e}")
+
+        del results
+        import gc
+        gc.collect()
+        logger.info(f"[Pipeline Scheduler] EURO Pressure Ingestion Job done! Saved {success_count} hourly grid files.")
+        return success_count > 0
+
     async def ingest_copernicus_regional(self) -> bool:
         """
         Stage 4 Ingestion: Scheduled fetch of Copernicus regional wave component layers (swell_1)

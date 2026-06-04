@@ -59,6 +59,14 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
             await asyncio.sleep(15.0)
             await scheduler.ingest_gfs_pressure_pilot()
             
+            logger.info("[Manual Ingestion] Staggering ICON Pressure Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_icon_pressure_pilot()
+
+            logger.info("[Manual Ingestion] Staggering EURO Pressure Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_euro_pressure_pilot()
+            
             logger.info("[Manual Ingestion] Ingestion jobs completed.")
         except Exception as e:
             logger.error(f"[Manual Ingestion] Ingestion failed: {e}")
@@ -72,6 +80,26 @@ async def ingest_gfs_pressure_direct(admin=Depends(get_current_admin)):
         from services.weather_pipeline.scheduler import WeatherPipelineScheduler
         scheduler = WeatherPipelineScheduler(store=store)
         success = await scheduler.ingest_gfs_pressure_pilot()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_icon_pressure_direct")
+async def ingest_icon_pressure_direct(admin=Depends(get_current_admin)):
+    try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
+        success = await scheduler.ingest_icon_pressure_pilot()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_euro_pressure_direct")
+async def ingest_euro_pressure_direct(admin=Depends(get_current_admin)):
+    try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
+        success = await scheduler.ingest_euro_pressure_pilot()
         return {"status": "success" if success else "failed"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}

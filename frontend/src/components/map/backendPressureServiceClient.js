@@ -23,8 +23,9 @@ export function getBackendPressureFlag() {
 /**
  * Fetches exact point pressure forecast from backend weather service.
  */
-export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signal) {
+export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signal, model = 'GFS') {
   const start = Date.now();
+  const targetModel = (model || 'GFS').toUpperCase();
   
   // Try to load manifest to get nearest valid_time
   const manifest = await fetchProductsManifest().catch(() => null);
@@ -39,7 +40,7 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
   
   if (manifest && Array.isArray(manifest.products)) {
     const matchingProducts = manifest.products.filter(p => 
-      p.model.toUpperCase() === 'GFS' &&
+      p.model.toUpperCase() === targetModel &&
       p.domain.toLowerCase() === 'weather' &&
       p.layer.toLowerCase() === 'pressure'
     );
@@ -57,16 +58,16 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
       if (minDiffMs <= 3 * 3600000 && bestProduct) {
         validTimeStr = new Date(bestProduct.valid_time_start).toISOString();
       } else {
-        fallbackReason = `No GFS pressure product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
+        fallbackReason = `No ${targetModel} pressure product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
       }
     } else {
-      fallbackReason = "No GFS weather pressure products found in manifest";
+      fallbackReason = `No ${targetModel} weather pressure products found in manifest`;
     }
   } else {
     fallbackReason = "Manifest not loaded or empty";
   }
 
-  const url = `${POINT_URL}?model=GFS&domain=weather&layer=pressure&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  const url = `${POINT_URL}?model=${targetModel}&domain=weather&layer=pressure&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
   
   try {
     const res = await fetch(url, { signal });
@@ -98,10 +99,10 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
       snappedLng: json.point.sampled_lng || lng,
       requestedLat: lat,
       requestedLng: lng,
-      requestedModel: 'GFS',
+      requestedModel: targetModel,
       activeLayer: 'pressure',
       forecastDays: 1,
-      apiModel: 'gfs_seamless',
+      apiModel: targetModel === 'ICON' ? 'dwd_icon' : (targetModel === 'EURO' ? 'ecmwf_ifs' : 'gfs_seamless'),
       provider: json.provider || 'backend-weather-service',
       source: 'backend_point_api',
       diagnosticDetails: {
@@ -124,7 +125,8 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
         sourceVariables: json.source_variables,
         is_forecast_authoritative: json.is_forecast_authoritative,
         is_estimated: json.is_estimated,
-        is_test_fixture: json.is_test_fixture
+        is_test_fixture: json.is_test_fixture,
+        model: targetModel
       }
     };
     
@@ -154,7 +156,8 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
       sourceVariables: null,
       is_forecast_authoritative: false,
       is_estimated: false,
-      is_test_fixture: false
+      is_test_fixture: false,
+      model: targetModel
     };
     if (typeof window !== 'undefined') {
       window.__BACKEND_PRESSURE_SERVICE_DIAG__ = errorDetails;

@@ -46,33 +46,34 @@ def test_pressure_normalization():
     bbox = {"west": -80.0, "south": 28.0, "east": -80.0, "north": 28.0}
     target_time = datetime.fromisoformat("2026-06-04T12:00:00+00:00")
     
-    product = normalizer.normalize(
-        model="GFS",
-        provider="open-meteo",
-        domain="weather",
-        layer="pressure",
-        raw_results=raw_results,
-        bbox=bbox,
-        resolution=0.25,
-        target_time=target_time
-    )
-    
-    assert product is not None
-    assert product.model == "GFS"
-    assert product.domain == "weather"
-    assert product.layer == "pressure"
-    assert product.value_kind == "pressure"
-    assert product.value_unit == "hPa"
-    assert product.grid.cols == 1
-    assert product.grid.rows == 1
-    assert len(product.grid.vectors) == 1
-    
-    vec = product.grid.vectors[0]
-    assert vec.value == 1015.4
-    assert vec.speed == 0.0
-    assert vec.direction == 0.0
-    assert vec.u == 0.0
-    assert vec.v == 0.0
+    for model in ["GFS", "ICON", "EURO"]:
+        product = normalizer.normalize(
+            model=model,
+            provider="open-meteo",
+            domain="weather",
+            layer="pressure",
+            raw_results=raw_results,
+            bbox=bbox,
+            resolution=0.25,
+            target_time=target_time
+        )
+        
+        assert product is not None
+        assert product.model == model.upper()
+        assert product.domain == "weather"
+        assert product.layer == "pressure"
+        assert product.value_kind == "pressure"
+        assert product.value_unit == "hPa"
+        assert product.grid.cols == 1
+        assert product.grid.rows == 1
+        assert len(product.grid.vectors) == 1
+        
+        vec = product.grid.vectors[0]
+        assert vec.value == 1015.4
+        assert vec.speed == 0.0
+        assert vec.direction == 0.0
+        assert vec.u == 0.0
+        assert vec.v == 0.0
 
 def test_point_sampler_pressure_interpolation():
     sampler = PointSampler()
@@ -129,13 +130,47 @@ def test_weather_endpoints_validation():
     # Admin header setup
     headers = {"X-Admin-Key": "test_admin_key"}
     
-    # Test valid query routes for weather pressure in fastapi router
-    # Note: we expect a 404 since GFS pressure products aren't ingested yet for 2050,
-    # but it should pass the regex validation (regex error returns 422)
-    response_grid = client.get("/api/weather/grid?model=GFS&domain=weather&layer=pressure&valid_time=2050-06-04T12:00:00Z")
-    assert response_grid.status_code == 404
-    assert response_grid.json()["reason"] == "no_backend_coverage"
+    for model in ["GFS", "ICON", "EURO"]:
+        # Test valid query routes for weather pressure in fastapi router
+        # Note: we expect a 404 since products aren't ingested yet for 2050,
+        # but it should pass the regex validation (regex error returns 422)
+        response_grid = client.get(f"/api/weather/grid?model={model}&domain=weather&layer=pressure&valid_time=2050-06-04T12:00:00Z")
+        assert response_grid.status_code == 404
+        assert response_grid.json()["reason"] == "no_backend_coverage" if model != "EURO" else "no_copernicus_coverage"
+        
+        response_point = client.get(f"/api/weather/point?model={model}&domain=weather&layer=pressure&lat=28.36&lng=-80.60&valid_time=2050-06-04T12:00:00Z")
+        assert response_point.status_code == 404
+        assert response_point.json()["reason"] == "no_backend_coverage" if model != "EURO" else "no_copernicus_coverage"
+
+def test_pressure_test_fixture_guard(monkeypatch):
+    monkeypatch.setenv("NODE_ENV", "production")
+    monkeypatch.setenv("LOCAL_TEST_FIXTURE", "")
     
-    response_point = client.get("/api/weather/point?model=GFS&domain=weather&layer=pressure&lat=28.36&lng=-80.60&valid_time=2050-06-04T12:00:00Z")
-    assert response_point.status_code == 404
-    assert response_point.json()["reason"] == "no_backend_coverage"
+    store = ProductStore()
+    
+    from services.weather_pipeline.schemas import CoverageBounds, NormalizedGrid, NormalizedProduct
+    bounds = CoverageBounds(west=-80.0, south=25.0, east=-79.0, north=26.0)
+    grid = NormalizedGrid(bounds=bounds, cols=1, rows=1, vectors=[])
+    
+    product = NormalizedProduct(
+        model="GFS",
+        provider="test-fixture",
+        domain="weather",
+        layer="pressure",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.now(timezone.utc),
+        is_forecast_authoritative=False,
+        is_estimated=True,
+        coverage=bounds,
+        grid=grid,
+        value_kind="pressure",
+        value_unit="hPa",
+        display_unit_hint="hPa",
+        source_variables=["pressure_msl"],
+        freshness_sec=1800,
+        is_test_fixture=True
+    )
+    
+    result = store.save_product(product)
+    assert result is None
+

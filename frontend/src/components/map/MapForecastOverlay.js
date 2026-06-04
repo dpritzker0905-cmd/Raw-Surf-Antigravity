@@ -656,12 +656,12 @@ export var MapForecastOverlay = ({
     }
   }, [pointLat, pointLng, activeModel, activeLayer, effectiveExactPointStatus, effectiveExactPoint]);
 
-  // v6D: Telemetry diagnostics for active pressure layer alignment
+  // v6E: Telemetry diagnostics for active pressure layer alignment
   useEffect(() => {
     if (activeLayer === 'pressure' && isExactPointAuthority && typeof getBackendPressureFlag === 'function' && getBackendPressureFlag()) {
       if (effectiveExactPointResponse) {
         const backendModel = effectiveExactPointResponse.requestedModel;
-        const backendPointValidTime = useExactPoint?.time;
+        const backendValidTime = useExactPoint?.time;
         const rasterModel = activeModel;
         
         const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
@@ -670,38 +670,68 @@ export var MapForecastOverlay = ({
         const rasterValidTime = targetDt.toISOString();
         
         const modelMatch = rasterModel === backendModel;
-        const timeMatch = backendPointValidTime && (
-          new Date(rasterValidTime).getTime() === new Date(backendPointValidTime).getTime() ||
-          Math.abs(new Date(rasterValidTime) - new Date(backendPointValidTime)) < 30 * 60 * 1000
-        );
+        
+        let exactTimeMatch = false;
+        let snapDeltaHours = 999.0;
+        let withinTolerance = false;
+        let status = 'no_coverage';
+        
+        if (backendValidTime) {
+          const rasterMs = new Date(rasterValidTime).getTime();
+          const backendMs = new Date(backendValidTime).getTime();
+          const diffMs = Math.abs(rasterMs - backendMs);
+          snapDeltaHours = diffMs / 3600000;
+          exactTimeMatch = diffMs === 0;
+          withinTolerance = snapDeltaHours <= 3.0;
+          
+          if (exactTimeMatch) {
+            status = 'exact_match';
+          } else if (withinTolerance) {
+            status = 'snapped_match';
+          } else {
+            status = 'fallback';
+          }
+        } else {
+          status = 'no_coverage';
+        }
         
         console.log(
           `%c[Pressure Telemetry Diagnostics]\n` +
           `  - Raster Model: ${rasterModel}\n` +
           `  - Backend Model: ${backendModel} (Match: ${modelMatch})\n` +
           `  - Raster Valid Time: ${rasterValidTime}\n` +
-          `  - Backend Point Valid Time: ${backendPointValidTime} (Match: ${timeMatch})\n` +
+          `  - Backend Valid Time: ${backendValidTime || 'none'} (Exact Match: ${exactTimeMatch})\n` +
+          `  - Snap Delta Hours: ${snapDeltaHours.toFixed(2)}h (Within Tolerance: ${withinTolerance})\n` +
           `  - Infobox Pressure Value: ${pressure} hPa (Sourced from backend: ${!!useExactPoint})\n` +
-          `  - Parity: ${modelMatch && timeMatch ? 'MATCH' : 'MISMATCH'}`,
-          modelMatch && timeMatch ? 'color: #22c55e; font-weight: bold;' : 'color: #ef4444; font-weight: bold;'
+          `  - Status: ${status}`,
+          status === 'exact_match' || status === 'snapped_match' ? 'color: #22c55e; font-weight: bold;' : 'color: #ef4444; font-weight: bold;'
         );
         
         if (typeof window !== 'undefined') {
           window.__PRESSURE_PARITY_DIAG__ = {
             rasterModel,
             backendModel,
-            modelMatch,
             rasterValidTime,
-            backendPointValidTime,
-            timeMatch,
+            backendValidTime: backendValidTime || null,
+            exactTimeMatch,
+            snapDeltaHours,
+            withinTolerance,
             pressureValue: pressure,
+            pressureUnit: "hPa",
             sourcedFromBackend: !!useExactPoint,
-            parity: modelMatch && timeMatch
+            status
           };
         }
       } else if (exactPointStatus === 'exact_loading' || exactPointStatus === 'exact_stale_rejected') {
         console.log('[Pressure Telemetry Diagnostics] Loading backend pressure point...');
       } else {
+        const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
+        const rasterValidTime = new Date(baseTime + timeOffsetHours * 3600000).toISOString();
+        let status = 'fallback';
+        if (['no_backend_coverage', 'no_copernicus_coverage', 'exact_no_time_coverage', 'exact_empty'].includes(exactPointStatus)) {
+          status = 'no_coverage';
+        }
+        
         console.log(
           `%c[Pressure Telemetry Diagnostics] Fallback active: Sourced from local weather forecast/raster grid. Status: ${exactPointStatus}`,
           'color: #f59e0b; font-weight: bold;'
@@ -710,13 +740,15 @@ export var MapForecastOverlay = ({
           window.__PRESSURE_PARITY_DIAG__ = {
             rasterModel: activeModel,
             backendModel: 'none',
-            modelMatch: false,
-            rasterValidTime: new Date(Date.now() + timeOffsetHours * 3600000).toISOString(),
-            backendPointValidTime: 'none',
-            timeMatch: false,
+            rasterValidTime,
+            backendValidTime: 'none',
+            exactTimeMatch: false,
+            snapDeltaHours: 999.0,
+            withinTolerance: false,
             pressureValue: pressure,
+            pressureUnit: "hPa",
             sourcedFromBackend: false,
-            fallbackReason: exactPointStatus
+            status
           };
         }
       }

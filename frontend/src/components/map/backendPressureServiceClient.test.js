@@ -35,7 +35,7 @@ describe('backendPressureServiceClient', () => {
   });
 
   describe('fetchBackendExactPressurePoint', () => {
-    it('should fetch, conform hourly response format, and update diagnostics on success', async () => {
+    it('should fetch, conform hourly response format, and update diagnostics on success for GFS', async () => {
       const mockResponse = {
         point: {
           sampled_lat: 28.36,
@@ -101,6 +101,106 @@ describe('backendPressureServiceClient', () => {
       expect(window.__BACKEND_PRESSURE_SERVICE_DIAG__).toBeDefined();
       expect(window.__BACKEND_PRESSURE_SERVICE_DIAG__.value).toBe(1018.5);
       expect(window.__BACKEND_PRESSURE_SERVICE_DIAG__.interpolationMethod).toBe('bilinear_scalar');
+    });
+
+    it('should fetch dynamically and snapped for ICON', async () => {
+      const mockResponse = {
+        point: {
+          sampled_lat: 28.36,
+          sampled_lng: -80.60,
+          value: 1012.3,
+          interpolation_method: 'exact_match'
+        },
+        provider: 'open-meteo',
+        value_kind: 'pressure',
+        value_unit: 'hPa',
+        display_unit_hint: 'hPa',
+        source_dataset: 'dwd_icon',
+        source_variables: ['pressure_msl'],
+        is_forecast_authoritative: true,
+        is_estimated: false,
+        is_test_fixture: false
+      };
+
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse
+      });
+      global.fetch = mockFetch;
+
+      const dateNow = new Date('2026-06-04T12:00:00Z').getTime();
+      window.__MOCK_DATE_NOW__ = dateNow;
+
+      // Mock manifest to return an ICON pressure product
+      setCachedManifest({
+        products: [
+          {
+            model: 'ICON',
+            domain: 'weather',
+            layer: 'pressure',
+            valid_time_start: '2026-06-04T12:00:00Z',
+            valid_time_end: '2026-06-04T12:00:00Z'
+          }
+        ]
+      });
+
+      const data = await fetchBackendExactPressurePoint(28.3601, -80.6076, 0, null, 'ICON');
+
+      expect(mockFetch.mock.calls[0][0]).toContain(`${POINT_URL}?model=ICON&domain=weather&layer=pressure&lat=28.3601&lng=-80.6076&valid_time=2026-06-04T12:00:00.000Z`);
+
+      expect(data.requestedModel).toBe('ICON');
+      expect(data.apiModel).toBe('dwd_icon');
+      expect(data.hourly.pressure_msl[0]).toBe(1012.3);
+    });
+
+    it('should fetch dynamically and snapped for EURO', async () => {
+      const mockResponse = {
+        point: {
+          sampled_lat: 28.36,
+          sampled_lng: -80.60,
+          value: 1015.7,
+          interpolation_method: 'bilinear_scalar'
+        },
+        provider: 'open-meteo',
+        value_kind: 'pressure',
+        value_unit: 'hPa',
+        display_unit_hint: 'hPa',
+        source_dataset: 'ecmwf_ifs',
+        source_variables: ['pressure_msl'],
+        is_forecast_authoritative: true,
+        is_estimated: false,
+        is_test_fixture: false
+      };
+
+      const mockFetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse
+      });
+      global.fetch = mockFetch;
+
+      const dateNow = new Date('2026-06-04T12:00:00Z').getTime();
+      window.__MOCK_DATE_NOW__ = dateNow;
+
+      // Mock manifest to return a EURO pressure product
+      setCachedManifest({
+        products: [
+          {
+            model: 'EURO',
+            domain: 'weather',
+            layer: 'pressure',
+            valid_time_start: '2026-06-04T12:00:00Z',
+            valid_time_end: '2026-06-04T12:00:00Z'
+          }
+        ]
+      });
+
+      const data = await fetchBackendExactPressurePoint(28.3601, -80.6076, 0, null, 'EURO');
+
+      expect(mockFetch.mock.calls[0][0]).toContain(`${POINT_URL}?model=EURO&domain=weather&layer=pressure&lat=28.3601&lng=-80.6076&valid_time=2026-06-04T12:00:00.000Z`);
+
+      expect(data.requestedModel).toBe('EURO');
+      expect(data.apiModel).toBe('ecmwf_ifs');
+      expect(data.hourly.pressure_msl[0]).toBe(1015.7);
     });
 
     it('should handle fetch failures cleanly', async () => {

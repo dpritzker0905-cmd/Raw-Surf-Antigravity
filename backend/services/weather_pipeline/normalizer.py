@@ -310,6 +310,14 @@ class WeatherNormalizer:
             source_dataset = "gfs_seamless"
             up_provider = "open-meteo"
             up_model = "gfs_seamless"
+        elif provider.lower() == "open-meteo" and model.upper() == "ICON" and domain.lower() == "weather" and layer.lower() == "pressure":
+            source_dataset = "dwd_icon"
+            up_provider = "open-meteo"
+            up_model = "dwd_icon"
+        elif provider.lower() == "open-meteo" and model.upper() == "EURO" and domain.lower() == "weather" and layer.lower() == "pressure":
+            source_dataset = "ecmwf_ifs"
+            up_provider = "open-meteo"
+            up_model = "ecmwf_ifs"
         elif provider.lower() == "open-meteo" and model.upper() == "GFS" and domain.lower() == "marine":
             source_dataset = "ncep_gfswave025"
             up_provider = "open-meteo"
