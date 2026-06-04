@@ -27,14 +27,36 @@ async def health_check(
     import os
     copernicus_user = os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME", "")
     copernicus_password = os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD", "")
+    # Weather readiness diagnostics
+    weather_readiness = {}
+    try:
+        from services.weather_pipeline.store import ProductStore
+        store = ProductStore()
+        manifest = store.get_manifest()
+        persistence_diag = store.get_persistence_diagnostics()
+        product_count = len(manifest.products)
+        weather_readiness = {
+            "product_count": product_count,
+            "durable_store_connected": persistence_diag.get("supabase_connected", False),
+            "restore_status": "complete" if persistence_diag.get("restored_count", 0) > 0 else ("empty" if persistence_diag.get("last_restore_time") else "pending"),
+            "restored_count": persistence_diag.get("restored_count", 0),
+            "restore_errors": persistence_diag.get("restore_errors", []),
+            "disk_product_count": persistence_diag.get("disk_product_count", 0),
+            "supabase_product_count": persistence_diag.get("supabase_product_count"),
+        }
+    except Exception as e:
+        logger.error(f"Health check weather diagnostics failed: {e}")
+        weather_readiness = {"error": str(e)}
+
     health_data = {
         "status": "healthy",
-        "version": "2.1.2-icon-marine-v14",
+        "version": "2.0.0-gc-safety-v11",
         "environment": os.environ.get("RENDER", "local"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),
         "database": {},
         "scheduler": {},
+        "weather_readiness": weather_readiness,
         "checks": []
     }
     
