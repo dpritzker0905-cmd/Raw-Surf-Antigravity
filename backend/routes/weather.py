@@ -264,12 +264,46 @@ async def get_grid(
         unique_lats = sorted(list(set(v.lat for v in filtered_vectors)))
         unique_lons = sorted(list(set(v.lng for v in filtered_vectors)))
 
-        product.grid.bounds = CoverageBounds(
-            west=west, south=south, east=east, north=north
-        )
-        product.grid.cols = len(unique_lons)
-        product.grid.rows = len(unique_lats)
-        product.grid.vectors = filtered_vectors
+        if filtered_vectors and unique_lats and unique_lons:
+            actual_west = min(unique_lons)
+            actual_east = max(unique_lons)
+            actual_south = min(unique_lats)
+            actual_north = max(unique_lats)
+            
+            # Fill missing cells to maintain rectangular grid integrity
+            from services.weather_pipeline.schemas import GridVector
+            existing_map = {(v.lat, v.lng): v for v in filtered_vectors}
+            final_vectors = []
+            for lat in unique_lats:
+                for lng in unique_lons:
+                    if (lat, lng) in existing_map:
+                        final_vectors.append(existing_map[(lat, lng)])
+                    else:
+                        # Placeholder invalid vector to maintain cols * rows grid dimensions
+                        final_vectors.append(
+                            GridVector(
+                                lat=lat, lng=lng,
+                                speed=0.0, direction=0.0,
+                                u=0.0, v=0.0, is_valid=False
+                            )
+                        )
+            
+            # Stable row-major sorting matching WebGL expectations (lat ascending, lng ascending)
+            final_vectors.sort(key=lambda v: (v.lat, v.lng))
+            
+            product.grid.bounds = CoverageBounds(
+                west=actual_west, south=actual_south, east=actual_east, north=actual_north
+            )
+            product.grid.cols = len(unique_lons)
+            product.grid.rows = len(unique_lats)
+            product.grid.vectors = final_vectors
+        else:
+            product.grid.bounds = CoverageBounds(
+                west=west, south=south, east=east, north=north
+            )
+            product.grid.cols = 0
+            product.grid.rows = 0
+            product.grid.vectors = []
 
     return product
 

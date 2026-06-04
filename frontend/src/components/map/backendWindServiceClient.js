@@ -11,7 +11,8 @@ import {
   getSharedValidTime,
   clampViewportBbox,
   getBackendWindFlag,
-  latestTimeDiag
+  latestTimeDiag,
+  updateProjectionDiag
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 
@@ -298,7 +299,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
     }
   }
 
-  const clampResult = clampViewportBbox(actualBounds, 'wind');
+  const clampResult = clampViewportBbox(actualBounds, 'wind', model);
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',
@@ -315,6 +316,19 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       model
     };
     updateWindDiagnostics('grid', errorDetails);
+
+    updateProjectionDiag('wind', {
+      activeModel: model,
+      activeLayer: 'wind',
+      requestedViewportBounds: actualBounds,
+      backendRequestBbox: null,
+      responseGridBounds: null,
+      coverageBounds: clampResult.coverageBounds,
+      renderable: false,
+      error: clampResult.fallbackReason,
+      reason: clampResult.fallbackReason
+    });
+
     throw new Error(clampResult.fallbackReason);
   }
 
@@ -349,6 +363,27 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       model
     });
 
+    const firstVector = result.vectors && result.vectors[0] ? { lat: result.vectors[0].lat, lng: result.vectors[0].lng } : null;
+    const lastVector = result.vectors && result.vectors.length > 0 ? { lat: result.vectors[result.vectors.length - 1].lat, lng: result.vectors[result.vectors.length - 1].lng } : null;
+
+    updateProjectionDiag('wind', {
+      activeModel: model,
+      activeLayer: 'wind',
+      requestedViewportBounds: actualBounds,
+      backendRequestBbox: bboxParam,
+      responseGridBounds: json.grid?.bounds,
+      coverageBounds: clampResult.coverageBounds,
+      cols: result.cols,
+      rows: result.rows,
+      vectorCount: result.vectors.length,
+      firstVectorLatLng: firstVector,
+      lastVectorLatLng: lastVector,
+      productId: json.product_id,
+      provider: json.provider,
+      renderable: result.renderable,
+      clampedBbox
+    });
+
     return result;
   } catch (err) {
     const errorDetails = {
@@ -365,6 +400,20 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       model
     };
     updateWindDiagnostics('grid', errorDetails);
+
+    updateProjectionDiag('wind', {
+      activeModel: model,
+      activeLayer: 'wind',
+      requestedViewportBounds: actualBounds,
+      backendRequestBbox: bboxParam,
+      responseGridBounds: null,
+      coverageBounds: clampResult.coverageBounds,
+      renderable: false,
+      error: err.message,
+      reason: err.message,
+      clampedBbox
+    });
+
     console.error(`[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);
     throw err;
   }

@@ -246,52 +246,182 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
 }
 
 /**
- * Clamps or intersects the requested viewport bbox coordinates with the pilot coverage limits.
- * Triggers fallback if viewport lies completely outside West Florida's region.
+ * Resolves the dynamic product coverage bounds from cachedManifest.
+ * Falls back to PILOT_COVERAGE if manifest is not loaded or has no matching product.
+ * Returns metadata indicating whether dynamic coverage or fallback was used.
  */
-export function clampViewportBbox(requestedBbox, layerName = "waves") {
+export function getProductCoverage(model = 'GFS', domain = 'marine', layer = 'waves') {
+  let isDynamic = false;
+  let coverage = PILOT_COVERAGE;
+  
+  const filterModel = (model || 'GFS').toUpperCase();
+  const filterDomain = (domain || 'marine').toLowerCase();
+  const filterLayer = (layer || 'waves').toLowerCase();
+
+  const hasEmptyProducts = cachedManifest && Array.isArray(cachedManifest.products) && cachedManifest.products.length === 0;
+
+  if (cachedManifest && Array.isArray(cachedManifest.products) && !hasEmptyProducts) {
+    const p = cachedManifest.products.find(prod =>
+      prod.model.toUpperCase() === filterModel &&
+      prod.domain.toLowerCase() === filterDomain &&
+      prod.layer.toLowerCase() === filterLayer
+    );
+    if (p && p.coverage) {
+      coverage = p.coverage;
+      isDynamic = true;
+    }
+  }
+
+  return {
+    coverage,
+    isDynamic,
+    isFallback: !isDynamic
+  };
+}
+
+/**
+ * Updates the global projection diagnostics registry for the truth gate.
+ */
+export function updateProjectionDiag(domain, details) {
+  if (typeof window === 'undefined') return;
+
+  const diagKey = domain === 'wind' 
+    ? '__WIND_PROJECTION_DIAG__' 
+    : domain === 'weather' || domain === 'pressure'
+      ? '__WEATHER_GRID_PROJECTION_DIAG__' 
+      : '__MARINE_PROJECTION_DIAG__';
+
+  let mapViewportBounds = null;
+  if (window.map && typeof window.map.getBounds === 'function') {
+    try {
+      const b = window.map.getBounds();
+      mapViewportBounds = {
+        west: b.getWest(),
+        south: b.getSouth(),
+        east: b.getEast(),
+        north: b.getNorth()
+      };
+    } catch (e) {}
+  }
+
+  const covBounds = details.coverageBounds || PILOT_COVERAGE;
+  const isIntersects = mapViewportBounds ? !(
+    mapViewportBounds.east < covBounds.west ||
+    mapViewportBounds.west > covBounds.east ||
+    mapViewportBounds.north < covBounds.south ||
+    mapViewportBounds.south > covBounds.north
+  ) : true;
+
+  // Render decision mapping
+  let renderDecision = details.renderDecision || 'unsupported';
+  if (!details.renderable && details.error) {
+    if (details.error.includes('outside')) {
+      renderDecision = 'outside_coverage_clear';
+    } else {
+      renderDecision = 'fallback_legacy';
+    }
+  } else if (details.renderable) {
+    const req = details.requestedViewportBounds;
+    const clm = details.clampedBbox;
+    if (req && clm && (clm.west > req.west || clm.east < req.east || clm.south > req.south || clm.north < req.north)) {
+      renderDecision = 'clip_to_coverage';
+    } else {
+      renderDecision = 'render';
+    }
+  }
+
+  // Check if grid bounds match requested viewport (indicating it's stretched)
+  const isStretched = !!(details.responseGridBounds && details.requestedViewportBounds &&
+    Math.abs(details.responseGridBounds.west - details.requestedViewportBounds.west) < 0.01 &&
+    Math.abs(details.responseGridBounds.east - details.requestedViewportBounds.east) < 0.01 &&
+    details.vectorCount < 1000 && 
+    Math.abs(details.requestedViewportBounds.east - details.requestedViewportBounds.west) > 10.0);
+
+  window[diagKey] = {
+    activeModel: details.activeModel || 'GFS',
+    activeLayer: details.activeLayer || 'waves',
+    requestedViewportBounds: details.requestedViewportBounds || null,
+    backendRequestBbox: details.backendRequestBbox || null,
+    responseGridBounds: details.responseGridBounds || null,
+    coverageBounds: covBounds,
+    renderBounds: details.responseGridBounds || covBounds,
+    mapViewportBounds,
+    cols: details.cols || 0,
+    rows: details.rows || 0,
+    vectorCount: details.vectorCount || 0,
+    firstVectorLatLng: details.firstVectorLatLng || null,
+    lastVectorLatLng: details.lastVectorLatLng || null,
+    productId: details.productId || null,
+    provider: details.provider || 'unknown',
+    renderDecision,
+    reason: details.reason || details.error || 'Normal execution',
+    isStretchedToViewport: isStretched,
+    coverageIntersectsViewport: isIntersects
+  };
+}
+
+/**
+ * Clamps or intersects the requested viewport bbox coordinates with the dynamic coverage limits.
+ */
+export function clampViewportBbox(requestedBbox, layerName = "waves", modelName = "GFS") {
   if (!requestedBbox) {
     return {
       isInside: false,
       clampedBbox: null,
-      fallbackReason: "Missing requested bounding box coordinates"
+      fallbackReason: "Missing requested bounding box coordinates",
+      coverageBounds: PILOT_COVERAGE,
+      isDynamicCoverage: false
     };
   }
 
   const { west, south, east, north } = requestedBbox;
+  const domainName = layerName === 'wind' ? 'wind' : layerName === 'pressure' ? 'weather' : 'marine';
+  
+  const { coverage, isDynamic } = getProductCoverage(modelName, domainName, layerName);
 
   // 1. Check if completely outside coverage limits
   if (
-    east < PILOT_COVERAGE.west ||
-    west > PILOT_COVERAGE.east ||
-    north < PILOT_COVERAGE.south ||
-    south > PILOT_COVERAGE.north
+    east < coverage.west ||
+    west > coverage.east ||
+    north < coverage.south ||
+    south > coverage.north
   ) {
-    let areaName = "GFS Waves";
-    if (layerName === "wind") {
+    let areaName = `${modelName} ${layerName}`;
+    let suffix = "pilot ";
+    if (isDynamic) {
+      suffix = "";
+    }
+    if (modelName === "GFS" && (layerName === "waves" || layerName === "marine")) {
+      areaName = "GFS Waves";
+    } else if (modelName === "GFS" && layerName === "wind") {
       areaName = "GFS Wind";
-    } else if (layerName === "swell_1" || layerName === "swell_2" || layerName === "wind_waves") {
+    } else if ((modelName === "EURO" || modelName === "copernicus") && (layerName === "swell_1" || layerName === "swell_2" || layerName === "wind_waves" || layerName === "waves")) {
       areaName = "Copernicus Waves";
     }
+    
     return {
       isInside: false,
       clampedBbox: null,
-      fallbackReason: `Requested viewport completely outside ${areaName} pilot coverage area`
+      fallbackReason: `Requested viewport completely outside ${areaName} ${suffix}coverage area`,
+      coverageBounds: coverage,
+      isDynamicCoverage: isDynamic
     };
   }
 
   // 2. Perform intersection clamping
   const clampedBbox = {
-    west: Math.max(west, PILOT_COVERAGE.west),
-    south: Math.max(south, PILOT_COVERAGE.south),
-    east: Math.min(east, PILOT_COVERAGE.east),
-    north: Math.min(north, PILOT_COVERAGE.north)
+    west: Math.max(west, coverage.west),
+    south: Math.max(south, coverage.south),
+    east: Math.min(east, coverage.east),
+    north: Math.min(north, coverage.north)
   };
 
   return {
     isInside: true,
     clampedBbox,
-    fallbackReason: null
+    fallbackReason: null,
+    coverageBounds: coverage,
+    isDynamicCoverage: isDynamic
   };
 }
 
@@ -440,6 +570,43 @@ if (typeof window !== 'undefined') {
     is_test_fixture: false,
     gridMode: null,
     interpolationMethod: null
+  };
+
+  const initialProjectionDiag = {
+    activeModel: 'GFS',
+    activeLayer: 'waves',
+    requestedViewportBounds: null,
+    backendRequestBbox: null,
+    responseGridBounds: null,
+    coverageBounds: PILOT_COVERAGE,
+    renderBounds: PILOT_COVERAGE,
+    mapViewportBounds: null,
+    cols: 0,
+    rows: 0,
+    vectorCount: 0,
+    firstVectorLatLng: null,
+    lastVectorLatLng: null,
+    productId: null,
+    provider: 'unknown',
+    renderDecision: 'unsupported',
+    reason: 'Initial state',
+    isStretchedToViewport: false,
+    coverageIntersectsViewport: true
+  };
+
+  window.__WEATHER_GRID_PROJECTION_DIAG__ = window.__WEATHER_GRID_PROJECTION_DIAG__ || {
+    ...initialProjectionDiag,
+    activeLayer: 'pressure'
+  };
+
+  window.__WIND_PROJECTION_DIAG__ = window.__WIND_PROJECTION_DIAG__ || {
+    ...initialProjectionDiag,
+    activeLayer: 'wind'
+  };
+
+  window.__MARINE_PROJECTION_DIAG__ = window.__MARINE_PROJECTION_DIAG__ || {
+    ...initialProjectionDiag,
+    activeLayer: 'waves'
   };
 }
 
@@ -788,6 +955,14 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
  */
 export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
   if (model === 'ICON' && layer === 'swell_2') {
+    updateProjectionDiag('marine', {
+      activeModel: 'ICON',
+      activeLayer: 'swell_2',
+      requestedViewportBounds: bounds || snappedBounds,
+      renderable: false,
+      renderDecision: 'unsupported',
+      reason: 'unsupported_model_layer'
+    });
     return {
       type: 'FeatureCollection',
       features: [],
@@ -825,7 +1000,6 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
 
   // 1. Resolve actual viewport bounds for coverage check
-  // Use the explicit bounds parameter (actual viewport), falling back to map instance bounds
   let actualBounds = bounds;
   if (!actualBounds || (Math.abs((actualBounds.east || 0) - (actualBounds.west || 0)) > 300)) {
     try {
@@ -838,13 +1012,11 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
           north: mb.getNorth()
         };
       }
-    } catch (e) {
-      // Fall through to original bounds
-    }
+    } catch (e) {}
   }
 
-  // 2. Perform Bbox Clamping and Coverage verification against actual viewport
-  const clampResult = clampViewportBbox(actualBounds || snappedBounds, layer);
+  // 2. Perform Bbox Clamping and Coverage verification against actual viewport passing the active model
+  const clampResult = clampViewportBbox(actualBounds || snappedBounds, layer, model);
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',
@@ -863,6 +1035,19 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       layer
     };
     updateDiagnostics('grid', errorDetails, model);
+
+    updateProjectionDiag('marine', {
+      activeModel: model,
+      activeLayer: layer,
+      requestedViewportBounds: actualBounds || snappedBounds,
+      backendRequestBbox: null,
+      responseGridBounds: null,
+      coverageBounds: clampResult.coverageBounds,
+      renderable: false,
+      error: clampResult.fallbackReason,
+      reason: clampResult.fallbackReason
+    });
+
     throw new Error(clampResult.fallbackReason);
   }
 
@@ -914,6 +1099,28 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       productId: json.product_id || null
     }, model);
 
+    const vectors = result.grid.vectors;
+    const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
+    const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
+
+    updateProjectionDiag('marine', {
+      activeModel: model,
+      activeLayer: layer,
+      requestedViewportBounds: actualBounds || snappedBounds,
+      backendRequestBbox: bboxParam,
+      responseGridBounds: result.grid.bounds,
+      coverageBounds: clampResult.coverageBounds,
+      cols: result.grid.cols,
+      rows: result.grid.rows,
+      vectorCount: vectors ? vectors.length : 0,
+      firstVectorLatLng: firstVector,
+      lastVectorLatLng: lastVector,
+      productId: json.product_id,
+      provider: json.provider,
+      renderable: result.grid.renderable,
+      clampedBbox
+    });
+
     return result;
   } catch (err) {
     const errorDetails = {
@@ -938,6 +1145,20 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       is_test_fixture: false
     };
     updateDiagnostics('grid', errorDetails, model);
+
+    updateProjectionDiag('marine', {
+      activeModel: model,
+      activeLayer: layer,
+      requestedViewportBounds: actualBounds || snappedBounds,
+      backendRequestBbox: bboxParam,
+      responseGridBounds: null,
+      coverageBounds: clampResult.coverageBounds,
+      renderable: false,
+      error: err.message,
+      reason: err.message,
+      clampedBbox
+    });
+
     console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
     throw err;
   }

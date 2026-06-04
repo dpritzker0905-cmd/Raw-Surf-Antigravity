@@ -1,5 +1,10 @@
 import { BACKEND_URL } from '../../lib/apiClient';
-import { fetchProductsManifest } from './backendWeatherServiceClient';
+import { 
+  fetchProductsManifest, 
+  updateProjectionDiag, 
+  getProductCoverage, 
+  PILOT_COVERAGE 
+} from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 
 export const pressurePointCache = new BoundedPointCache(50, 30000);
@@ -80,6 +85,18 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
     clonedData.source = 'cache';
     if (typeof window !== 'undefined') {
       window.__BACKEND_PRESSURE_SERVICE_DIAG__ = { ...cached.data.diagnosticDetails, source: 'cache' };
+      const covInfo = getProductCoverage(targetModel, 'weather', 'pressure');
+      updateProjectionDiag('weather', {
+        activeModel: targetModel,
+        activeLayer: 'pressure',
+        requestedViewportBounds: null,
+        backendRequestBbox: null,
+        responseGridBounds: null,
+        coverageBounds: covInfo.coverage,
+        renderable: false,
+        renderDecision: 'unsupported',
+        reason: 'Pressure raster visuals not supported from backend grids (contours stay legacy om://)'
+      });
     }
     return clonedData;
   }
@@ -156,6 +173,18 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
 
     if (typeof window !== 'undefined') {
       window.__BACKEND_PRESSURE_SERVICE_DIAG__ = diagnosticDetails;
+      const covInfo = getProductCoverage(targetModel, 'weather', 'pressure');
+      updateProjectionDiag('weather', {
+        activeModel: targetModel,
+        activeLayer: 'pressure',
+        requestedViewportBounds: null,
+        backendRequestBbox: null,
+        responseGridBounds: null,
+        coverageBounds: covInfo.coverage,
+        renderable: false,
+        renderDecision: 'unsupported',
+        reason: 'Pressure raster visuals not supported from backend grids (contours stay legacy om://)'
+      });
     }
     
     return data;
@@ -185,6 +214,18 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
     };
     if (typeof window !== 'undefined') {
       window.__BACKEND_PRESSURE_SERVICE_DIAG__ = errorDetails;
+      const covInfo = getProductCoverage(targetModel, 'weather', 'pressure');
+      updateProjectionDiag('weather', {
+        activeModel: targetModel,
+        activeLayer: 'pressure',
+        requestedViewportBounds: null,
+        backendRequestBbox: null,
+        responseGridBounds: null,
+        coverageBounds: (covInfo && covInfo.coverage) ? covInfo.coverage : PILOT_COVERAGE,
+        renderable: false,
+        error: err.message,
+        reason: err.message
+      });
     }
     console.error(`[Backend Pressure Service] Point fetch error: ${err.message}. Falling back cleanly.`);
     throw err;

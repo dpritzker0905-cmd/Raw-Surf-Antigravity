@@ -12,7 +12,8 @@ import {
   clampViewportBbox,
   getBackendCopernicusFlag,
   latestTimeDiag,
-  PILOT_COVERAGE
+  PILOT_COVERAGE,
+  updateProjectionDiag
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 
@@ -263,7 +264,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
     }
   }
 
-  const clampResult = clampViewportBbox(actualBounds, layer);
+  const clampResult = clampViewportBbox(actualBounds, layer, 'EURO');
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',
@@ -280,6 +281,19 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       layer
     };
     updateCopernicusDiagnostics('grid', errorDetails);
+
+    updateProjectionDiag('marine', {
+      activeModel: 'EURO',
+      activeLayer: layer,
+      requestedViewportBounds: actualBounds,
+      backendRequestBbox: null,
+      responseGridBounds: null,
+      coverageBounds: clampResult.coverageBounds,
+      renderable: false,
+      error: clampResult.fallbackReason,
+      reason: clampResult.fallbackReason
+    });
+
     throw new Error(clampResult.fallbackReason);
   }
 
@@ -329,6 +343,28 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       layer
     });
 
+    const vectors = result.grid.vectors;
+    const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
+    const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
+
+    updateProjectionDiag('marine', {
+      activeModel: 'EURO',
+      activeLayer: layer,
+      requestedViewportBounds: actualBounds,
+      backendRequestBbox: bboxParam,
+      responseGridBounds: result.grid.bounds,
+      coverageBounds: clampResult.coverageBounds,
+      cols: result.grid.cols,
+      rows: result.grid.rows,
+      vectorCount: vectors ? vectors.length : 0,
+      firstVectorLatLng: firstVector,
+      lastVectorLatLng: lastVector,
+      productId: json.product_id,
+      provider: json.provider,
+      renderable: result.grid.renderable,
+      clampedBbox
+    });
+
     return result;
   } catch (err) {
     const errorDetails = {
@@ -351,6 +387,20 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       layer
     };
     updateCopernicusDiagnostics('grid', errorDetails);
+
+    updateProjectionDiag('marine', {
+      activeModel: 'EURO',
+      activeLayer: layer,
+      requestedViewportBounds: actualBounds,
+      backendRequestBbox: bboxParam,
+      responseGridBounds: null,
+      coverageBounds: clampResult.coverageBounds,
+      renderable: false,
+      error: err.message,
+      reason: err.message,
+      clampedBbox
+    });
+
     console.error(`[Backend Weather Service] Copernicus grid fetch error: ${err.message}.`);
     throw err;
   }
