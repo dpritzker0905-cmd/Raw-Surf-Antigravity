@@ -23,6 +23,10 @@ import {
   getBackendCopernicusFlag,
   fetchBackendExactCopernicusPoint
 } from './backendWeatherServiceClient';
+import {
+  getBackendPressureFlag,
+  fetchBackendExactPressurePoint
+} from './backendPressureServiceClient';
 
 export { sampleFromMarineGrid };
 
@@ -70,6 +74,19 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (typeof isInCooldown === 'function' && isInCooldown('marine')) {
     console.warn(`[ExactPoint] Blocked fetch for model=${model} lat=${rLat} lng=${rLng}: marine cooldown is active.`);
     return { status: 'rate_limited' };
+  }
+
+  // --- REDIRECT GFS PRESSURE TO BACKEND IF FEATURE FLAG IS ACTIVE ---
+  if (typeof getBackendPressureFlag === 'function' && getBackendPressureFlag() && (model === 'GFS' || !model) && activeLayer === 'pressure') {
+    try {
+      console.log(`[Backend Pressure Service] Redirecting GFS Pressure point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
+      const pointResult = await fetchBackendExactPressurePoint(rLat, rLng, timeOffsetHours, signal);
+      if (pointResult) {
+        return pointResult;
+      }
+    } catch (err) {
+      console.warn(`[Backend Pressure Service] Pressure point redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
   }
 
   // --- REDIRECT GFS WAVES / SWELL_1 / SWELL_2 TO BACKEND IF FEATURE FLAG IS ACTIVE ---
@@ -732,6 +749,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     wind_wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_peak_period?.[bestIdx] ?? null),
     wind_speed_10m: status === 'exact_no_time_coverage' ? null : (h.wind_speed_10m?.[bestIdx] ?? null),
     wind_direction_10m: status === 'exact_no_time_coverage' ? null : (h.wind_direction_10m?.[bestIdx] ?? null),
+    pressure_msl: status === 'exact_no_time_coverage' ? null : (h.pressure_msl?.[bestIdx] ?? null),
     status,
     source: cachedResponse.source || 'exact_point_api',
     hourIndex: bestIdx,

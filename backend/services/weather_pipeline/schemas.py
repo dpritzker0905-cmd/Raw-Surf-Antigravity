@@ -11,12 +11,13 @@ class CoverageBounds(BaseModel):
 class GridVector(BaseModel):
     lat: float
     lng: float
-    speed: float
-    direction: float
-    u: float
-    v: float
+    speed: float = 0.0
+    direction: float = 0.0
+    u: float = 0.0
+    v: float = 0.0
     period: Optional[float] = None
     gust: Optional[float] = None
+    value: Optional[float] = None
 
 class NormalizedGrid(BaseModel):
     bounds: CoverageBounds
@@ -58,12 +59,13 @@ class NormalizedPointDetail(BaseModel):
     requested_lng: float
     sampled_lat: float
     sampled_lng: float
-    speed: float
-    direction: float
-    u: float
-    v: float
+    speed: float = 0.0
+    direction: float = 0.0
+    u: float = 0.0
+    v: float = 0.0
     period: Optional[float] = None
     gust: Optional[float] = None
+    value: Optional[float] = None
     interpolation_method: str
 
 class NormalizedPointResponse(BaseModel):

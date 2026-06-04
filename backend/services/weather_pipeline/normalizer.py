@@ -40,6 +40,11 @@ class WeatherNormalizer:
             "speed": "wind_wave_height",
             "direction": "wind_wave_direction",
             "period": "wind_wave_period"
+        },
+        "pressure": {
+            "speed": "pressure_msl",
+            "direction": None,
+            "period": None
         }
     }
 
@@ -165,9 +170,10 @@ class WeatherNormalizer:
             gust = gust_list[time_idx] if (gust_key and time_idx < len(gust_list)) else None
 
             # Guard against invalid or land null coordinates
-            if speed is None or direction is None:
+            is_scalar = (direction_key is None)
+            if speed is None or (not is_scalar and direction is None):
                 vector = GridVector(
-                    lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None
+                    lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None
                 )
             else:
                 # Standardize Wind knots conversions if needed
@@ -189,19 +195,25 @@ class WeatherNormalizer:
                             gust = gust * 0.868976
 
                 # Compute Cartesian U/V velocities
-                rad = direction * (math.pi / 180.0)
-                u = -speed * math.sin(rad)
-                v = -speed * math.cos(rad)
+                if is_scalar:
+                    u = 0.0
+                    v = 0.0
+                    direction = 0.0
+                else:
+                    rad = direction * (math.pi / 180.0)
+                    u = -speed * math.sin(rad)
+                    v = -speed * math.cos(rad)
 
                 vector = GridVector(
                     lat=lat,
                     lng=lng,
-                    speed=round(speed, 4),
-                    direction=round(direction, 2),
+                    speed=0.0 if is_scalar else round(speed, 4),
+                    direction=round(direction, 2) if direction is not None else 0.0,
                     u=round(u, 4),
                     v=round(v, 4),
                     period=round(period, 2) if period is not None else 0.0,
-                    gust=round(gust, 4) if gust is not None else None
+                    gust=round(gust, 4) if gust is not None else None,
+                    value=round(speed, 4) if is_scalar else None
                 )
             
             grid_data[(lat, lng)] = vector
@@ -215,7 +227,7 @@ class WeatherNormalizer:
                 else:
                     # Explicit ocean-masked vector for missing cells
                     vectors.append(GridVector(
-                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None
+                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None
                     ))
 
         # Sort vectors in stable row-major order (south-to-north, west-to-east)
@@ -242,7 +254,14 @@ class WeatherNormalizer:
         )
 
         # Configure truth units and kind metadata dynamically based on domain
-        if domain.lower() == "marine":
+        if domain.lower() == "weather" and layer.lower() == "pressure":
+            value_kind = "pressure"
+            value_unit = "hPa"
+            display_unit_hint = "hPa"
+            units = {
+                "value": "hPa"
+            }
+        elif domain.lower() == "marine":
             value_kind = "wave_height"
             value_unit = "m"
             display_unit_hint = "ft"
@@ -287,6 +306,10 @@ class WeatherNormalizer:
                 "wind_wave_period": "VTM01_WW",
             }
             source_vars = [om_to_cop_map.get(v, v) for v in source_vars]
+        elif provider.lower() == "open-meteo" and model.upper() == "GFS" and domain.lower() == "weather" and layer.lower() == "pressure":
+            source_dataset = "gfs_seamless"
+            up_provider = "open-meteo"
+            up_model = "gfs_seamless"
         elif provider.lower() == "open-meteo" and model.upper() == "GFS" and domain.lower() == "marine":
             source_dataset = "ncep_gfswave025"
             up_provider = "open-meteo"

@@ -63,6 +63,7 @@ class PointSampler:
                 v=0.0,
                 period=0.0,
                 gust=None,
+                value=None,
                 interpolation_method="out_of_bounds_fallback"
             )
             return NormalizedPointResponse(
@@ -111,6 +112,7 @@ class PointSampler:
                     v=vec.v,
                     period=vec.period,
                     gust=getattr(vec, "gust", None),
+                    value=getattr(vec, "value", None),
                     interpolation_method="exact_match"
                 )
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
@@ -130,6 +132,55 @@ class PointSampler:
         w12 = t * (1.0 - u)
         w21 = (1.0 - t) * u
         w22 = t * u
+
+        # Check if it's a scalar layer
+        is_scalar = (product.domain.lower() == "weather" and product.layer.lower() == "pressure")
+        if is_scalar:
+            v11 = coordinate_map.get((lat0, lon0))
+            v12 = coordinate_map.get((lat0, lon1))
+            v21 = coordinate_map.get((lat1, lon0))
+            v22 = coordinate_map.get((lat1, lon1))
+            
+            corners = [v for v in [v11, v12, v21, v22] if v is not None and getattr(v, "value", None) is not None]
+            if not corners:
+                return self._build_unavailable_response(product, lat, lng, "No valid pressure data in grid")
+                
+            if len(corners) < 4:
+                nearest = self._find_nearest_vector(corners, lat, lng)
+                detail = NormalizedPointDetail(
+                    requested_lat=lat,
+                    requested_lng=lng,
+                    sampled_lat=nearest.lat,
+                    sampled_lng=nearest.lng,
+                    speed=0.0,
+                    direction=0.0,
+                    u=0.0,
+                    v=0.0,
+                    value=nearest.value,
+                    interpolation_method="nearest_scalar_fallback"
+                )
+                return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+                
+            val11 = v11.value
+            val12 = v12.value
+            val21 = v21.value
+            val22 = v22.value
+            
+            interp_val = w11 * val11 + w12 * val12 + w21 * val21 + w22 * val22
+            
+            detail = NormalizedPointDetail(
+                requested_lat=lat,
+                requested_lng=lng,
+                sampled_lat=round(lat, 4),
+                sampled_lng=round(lng, 4),
+                speed=0.0,
+                direction=0.0,
+                u=0.0,
+                v=0.0,
+                value=round(interp_val, 4),
+                interpolation_method="bilinear_scalar"
+            )
+            return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
 
         corner_weights = [
             (v11, w11),

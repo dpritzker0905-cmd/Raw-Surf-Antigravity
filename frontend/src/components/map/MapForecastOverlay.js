@@ -17,6 +17,7 @@ import {
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { computeHeatmapStatus } from './forecastDiagnostics';
+import { getBackendPressureFlag } from './backendPressureServiceClient';
 
 export var MapForecastOverlay = ({
   forecastData,
@@ -54,6 +55,8 @@ export var MapForecastOverlay = ({
   const pointLat = selectedSpot?.latitude || longPressLocation?.lat || defaultSnappedLat;
   const pointLng = selectedSpot?.longitude || longPressLocation?.lng || defaultSnappedLng;
   const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves', 'wind'].includes(activeLayer);
+  const isPressureBackendActive = activeLayer === 'pressure' && typeof getBackendPressureFlag === 'function' && getBackendPressureFlag();
+  const isExactPointRequired = isMarineLayer || isPressureBackendActive;
   const [exactPointResponse, setExactPointResponse] = useState(null);
 
   // v6.7: Clear stale exact-point state synchronously using refs instead of render-time setState.
@@ -67,7 +70,7 @@ export var MapForecastOverlay = ({
   const effectiveExactPoint = isStale ? null : exactPoint;
   const effectiveExactPointStatus = (() => {
     if (isStale) {
-      return (pointLat && pointLng && isMarineLayer ? 'exact_stale_rejected' : 'idle');
+      return (pointLat && pointLng && isExactPointRequired ? 'exact_stale_rejected' : 'idle');
     }
     if (exactPointStatus === 'exact_success' && effectiveExactPoint?.status) {
       return effectiveExactPoint.status;
@@ -90,7 +93,7 @@ export var MapForecastOverlay = ({
     // Update the ref to currentPointKey inside the coordinate/model/layer-change useEffect
     prevPointKeyRef.current = currentPointKey;
 
-    if (!pointLat || !pointLng || !isMarineLayer) {
+    if (!pointLat || !pointLng || !isExactPointRequired) {
       setExactPointResponse(null);
       setExactPoint(null);
       setExactPointStatus('idle');
@@ -200,7 +203,7 @@ export var MapForecastOverlay = ({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, isMarineLayer, currentPointKey, selectedSpot, longPressLocation]);
+  }, [pointLat, pointLng, activeModel, isExactPointRequired, currentPointKey, selectedSpot, longPressLocation]);
 
   // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
   // This is synchronous and instant — no network request on scrub.
@@ -357,7 +360,7 @@ export var MapForecastOverlay = ({
   // v6.6: For selected marine points, exact-point is THE authority.
   // Block ALL fallbacks while loading or if exact point is valid/success.
   const isUserExplicitSelection = !!(selectedSpot || longPressLocation);
-  const isExactPointAuthority = isMarineLayer && isUserExplicitSelection && (pointLat != null) && (pointLng != null);
+  const isExactPointAuthority = isExactPointRequired && isUserExplicitSelection && (pointLat != null) && (pointLng != null);
   
   // v6.9: Grid Fallback on Point Error: if exact point is loading, failed, timed out,
   // or has no coverage, but the visual/blended heatmap grid is valid, use the grid sample.
@@ -421,9 +424,11 @@ export var MapForecastOverlay = ({
   const snowfall = getClampedValue(wx.snowfall, currentHourIndex);
   const temp = getClampedValue(wx.temperature_2m, currentHourIndex);
   
-  const pressure = (activeLayer === 'pressure' && sampledPressure)
-    ? sampledPressure.value
-    : (getClampedValue(wx.pressure_msl, currentHourIndex) ?? getClampedValue(wx.surface_pressure, currentHourIndex));
+  const pressure = (isExactPointAuthority && activeLayer === 'pressure')
+    ? (useExactPoint?.pressure_msl ?? (useGridFallback && sampledPressure ? sampledPressure.value : null))
+    : (activeLayer === 'pressure' && sampledPressure)
+      ? sampledPressure.value
+      : (getClampedValue(wx.pressure_msl, currentHourIndex) ?? getClampedValue(wx.surface_pressure, currentHourIndex));
 
   const marineCurrent = marineData?.current || {};
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
@@ -618,7 +623,7 @@ export var MapForecastOverlay = ({
 
   // v6.6: Console forensic log on activation / load
   useEffect(() => {
-    if (isMarineLayer && pointLat && pointLng) {
+    if (isExactPointRequired && pointLat && pointLng) {
       console.log(`%c[Forensic Audit] Infobox display data source for ${activeLayer} (Model: ${activeModel})`, 'color: #06b6d4; font-weight: bold;');
       console.log(`Coords: ${pointLat.toFixed(4)}, ${pointLng.toFixed(4)} | Status: ${effectiveExactPointStatus}`);
       if (effectiveExactPointStatus === 'exact_success' && effectiveExactPoint) {
@@ -634,6 +639,73 @@ export var MapForecastOverlay = ({
       }
     }
   }, [pointLat, pointLng, activeModel, activeLayer, effectiveExactPointStatus, effectiveExactPoint]);
+
+  // v6D: Telemetry diagnostics for active pressure layer alignment
+  useEffect(() => {
+    if (activeLayer === 'pressure' && isExactPointAuthority && typeof getBackendPressureFlag === 'function' && getBackendPressureFlag()) {
+      if (effectiveExactPointResponse) {
+        const backendModel = effectiveExactPointResponse.requestedModel;
+        const backendPointValidTime = useExactPoint?.time;
+        const rasterModel = activeModel;
+        
+        const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
+        const roundedNow = Math.round(baseTime / 3600000) * 3600000;
+        const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
+        const rasterValidTime = targetDt.toISOString();
+        
+        const modelMatch = rasterModel === backendModel;
+        const timeMatch = backendPointValidTime && (
+          new Date(rasterValidTime).getTime() === new Date(backendPointValidTime).getTime() ||
+          Math.abs(new Date(rasterValidTime) - new Date(backendPointValidTime)) < 30 * 60 * 1000
+        );
+        
+        console.log(
+          `%c[Pressure Telemetry Diagnostics]\n` +
+          `  - Raster Model: ${rasterModel}\n` +
+          `  - Backend Model: ${backendModel} (Match: ${modelMatch})\n` +
+          `  - Raster Valid Time: ${rasterValidTime}\n` +
+          `  - Backend Point Valid Time: ${backendPointValidTime} (Match: ${timeMatch})\n` +
+          `  - Infobox Pressure Value: ${pressure} hPa (Sourced from backend: ${!!useExactPoint})\n` +
+          `  - Parity: ${modelMatch && timeMatch ? 'MATCH' : 'MISMATCH'}`,
+          modelMatch && timeMatch ? 'color: #22c55e; font-weight: bold;' : 'color: #ef4444; font-weight: bold;'
+        );
+        
+        if (typeof window !== 'undefined') {
+          window.__PRESSURE_PARITY_DIAG__ = {
+            rasterModel,
+            backendModel,
+            modelMatch,
+            rasterValidTime,
+            backendPointValidTime,
+            timeMatch,
+            pressureValue: pressure,
+            sourcedFromBackend: !!useExactPoint,
+            parity: modelMatch && timeMatch
+          };
+        }
+      } else if (exactPointStatus === 'exact_loading' || exactPointStatus === 'exact_stale_rejected') {
+        console.log('[Pressure Telemetry Diagnostics] Loading backend pressure point...');
+      } else {
+        console.log(
+          `%c[Pressure Telemetry Diagnostics] Fallback active: Sourced from local weather forecast/raster grid. Status: ${exactPointStatus}`,
+          'color: #f59e0b; font-weight: bold;'
+        );
+        if (typeof window !== 'undefined') {
+          window.__PRESSURE_PARITY_DIAG__ = {
+            rasterModel: activeModel,
+            backendModel: 'none',
+            modelMatch: false,
+            rasterValidTime: new Date(Date.now() + timeOffsetHours * 3600000).toISOString(),
+            backendPointValidTime: 'none',
+            timeMatch: false,
+            pressureValue: pressure,
+            sourcedFromBackend: false,
+            fallbackReason: exactPointStatus
+          };
+        }
+      }
+    }
+  }, [activeLayer, isExactPointAuthority, effectiveExactPointResponse, useExactPoint, timeOffsetHours, activeModel, pressure, exactPointStatus]);
 
   // v6.6: Call external diagnostics helper to keep component extremely lightweight
   if (typeof window !== 'undefined') {

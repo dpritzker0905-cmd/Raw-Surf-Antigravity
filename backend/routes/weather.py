@@ -54,12 +54,27 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
             logger.info("[Manual Ingestion] Staggering EURO Wind Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_euro_wind_pilot()
+            
+            logger.info("[Manual Ingestion] Staggering GFS Pressure Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_gfs_pressure_pilot()
+            
             logger.info("[Manual Ingestion] Ingestion jobs completed.")
         except Exception as e:
             logger.error(f"[Manual Ingestion] Ingestion failed: {e}")
 
     background_tasks.add_task(run_jobs)
     return {"status": "ingestion_triggered"}
+
+@router.post("/ingest_gfs_pressure_direct")
+async def ingest_gfs_pressure_direct(admin=Depends(get_current_admin)):
+    try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
+        success = await scheduler.ingest_gfs_pressure_pilot()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 @router.post("/ingest_euro_wind_direct")
 async def ingest_euro_wind_direct(admin=Depends(get_current_admin)):
@@ -100,8 +115,8 @@ async def get_products():
 @router.get("/grid", response_model=NormalizedProduct)
 async def get_grid(
     model: str = Query(..., regex="^(GFS|ICON|EURO)$"),
-    domain: str = Query(..., regex="^(marine|wind)$"),
-    layer: str = Query(..., regex="^(waves|swell_1|swell_2|wind_waves|wind)$"),
+    domain: str = Query(..., regex="^(marine|wind|weather)$"),
+    layer: str = Query(..., regex="^(waves|swell_1|swell_2|wind_waves|wind|pressure)$"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
     bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter")
 ):
@@ -232,8 +247,8 @@ async def get_grid(
 @router.get("/point", response_model=NormalizedPointResponse)
 async def get_point(
     model: str = Query(..., regex="^(GFS|ICON|EURO)$"),
-    domain: str = Query(..., regex="^(marine|wind)$"),
-    layer: str = Query(..., regex="^(waves|swell_1|swell_2|wind_waves|wind)$"),
+    domain: str = Query(..., regex="^(marine|wind|weather)$"),
+    layer: str = Query(..., regex="^(waves|swell_1|swell_2|wind_waves|wind|pressure)$"),
     lat: float = Query(..., description="Latitude coordinate"),
     lng: float = Query(..., description="Longitude coordinate"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp")
