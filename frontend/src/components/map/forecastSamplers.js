@@ -407,7 +407,9 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     let diag = null;
     let fallbackReasonValue = null;
     if (model === 'EURO') {
-      diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__ || window.__COPERNICUS_GRID_DIAG__;
+      diag = activeLayer === 'wind'
+        ? window.__BACKEND_WIND_SERVICE_DIAG__
+        : (window.__BACKEND_COPERNICUS_SERVICE_DIAG__ || window.__COPERNICUS_GRID_DIAG__);
       fallbackReasonValue = 'no_copernicus_coverage';
     } else if (model === 'GFS') {
       diag = window.__BACKEND_WEATHER_SERVICE_DIAG__;

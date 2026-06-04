@@ -60,6 +60,22 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_jobs)
     return {"status": "ingestion_triggered"}
 
+@router.post("/ingest_euro_wind_direct")
+async def ingest_euro_wind_direct():
+    try:
+        success = await scheduler.ingest_euro_wind_pilot()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_icon_wind_direct")
+async def ingest_icon_wind_direct():
+    try:
+        success = await scheduler.ingest_icon_wind_pilot()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
 @router.get("/products")
 async def get_products():
     """

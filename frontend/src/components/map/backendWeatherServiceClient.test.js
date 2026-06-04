@@ -1187,6 +1187,30 @@ describe('backendWeatherServiceClient', () => {
       expect(res.swell_wave_height).toBeNull();
     });
 
+    it('returns status no_copernicus_coverage when EURO wind fallbackReason is set in __BACKEND_WIND_SERVICE_DIAG__', () => {
+      window.__BACKEND_WIND_SERVICE_DIAG__ = {
+        fallbackReason: 'no_copernicus_coverage',
+        requestedHour: 72,
+        lastGridFetch: { hourOffset: 72 }
+      };
+
+      const cachedResponse = {
+        requestedLat: 28.4,
+        requestedLng: -80.0,
+        requestedModel: 'EURO',
+        activeLayer: 'wind',
+        hourly: {
+          time: ['2026-06-03T00:00:00Z'],
+          wind_speed_10m: [15.0],
+          wind_direction_10m: [120]
+        }
+      };
+
+      const res = selectExactPointHour(cachedResponse, 72);
+      expect(res.status).toBe('no_copernicus_coverage');
+      expect(res.wind_speed_10m).toBeNull();
+    });
+
     it('returns status no_backend_coverage when GFS grid fallbackReason is set', () => {
       window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
         fallbackReason: 'no_backend_coverage',
