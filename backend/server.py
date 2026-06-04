@@ -323,7 +323,7 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "version": "2.0.0-stage-6d-v1",
+        "version": "2.0.0-stage-6e-v1",
         "uptime": f"{hours}h {minutes}m {seconds}s",
         "uptime_seconds": round(uptime_seconds, 1),
         "environment": os.environ.get("RENDER", "local"),
