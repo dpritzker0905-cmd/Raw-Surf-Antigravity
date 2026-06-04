@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime, timezone
 from passlib.context import CryptContext
 import uuid
+import logging
 
 from database import get_db
 from models import Profile, RoleEnum
@@ -14,6 +15,7 @@ from core.rate_limiter import rate_limit_check
 from models import Notification
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -23,6 +25,10 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
 
 class SignupRequest(BaseModel):
     email: EmailStr
@@ -340,7 +346,7 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
 async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     # Rate limit: max 5 login attempts per minute per IP (brute-force protection)
     rate_limit_check(request, max_requests=5, window_seconds=60, key_prefix="login:")
-    result = await db.execute(select(Profile).where(Profile.email == data.email))
+    result = await db.execute(select(Profile).where(func.lower(Profile.email) == normalize_email(data.email)))
     profile = result.scalar_one_or_none()
     
     if not profile:
@@ -348,7 +354,13 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     
     # Verify password (allow login if no password set for legacy accounts)
     if profile.password_hash:
-        if not verify_password(data.password, profile.password_hash):
+        try:
+            password_valid = verify_password(data.password, profile.password_hash)
+        except Exception:
+            logger.exception("Password verification failed for profile %s", profile.id)
+            raise HTTPException(status_code=401, detail="Invalid password")
+
+        if not password_valid:
             raise HTTPException(status_code=401, detail="Invalid password")
     
     # Check if suspended
