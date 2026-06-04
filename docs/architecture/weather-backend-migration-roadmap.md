@@ -14,6 +14,10 @@ Our core system design separates data ownership and visualization responsibiliti
 > **Backend owns weather truth.** It performs all network requests, dataset queries, temporal and spatial normalizations, memory caching, and point interpolation.  
 > **Frontend owns visualization.** It consumes clean API responses, renders WebGL heatmaps or particle overlays, maps timelines, and exposes diagnostic states.
 
+> [!NOTE]
+> **Pressure Layer Visuals Exceptions**:
+> The map visual pressure raster contours and heatmap remain owned by the hourly legacy `om://` tiles. The backend pressure service only owns the scalar numeric point truth (`value` in hPa, NOT vector components like speed/direction) for the map inspector infobox.
+
 ### Frontend Responsibilities
 The client-side application must only:
 * Query the active products manifest.
@@ -109,6 +113,10 @@ We have forensically implemented and verified these weather backend milestones:
 * **Stage 5E: Wind Consolidation Gate**: Verified timeline parity and protected ingestion endpoints.
 * **Stage 5F: Wind Default-On Rollout**: Enabled backend wind service by default on map client.
 * **Stage 5G: Wind Post-Rollout Stabilization Watch**: Verified default-on redirection stability.
+* **Stage 6C: Pressure Backend Migration Plan**: Analyzed pressure layer structure and upstream sources.
+* **Stage 6D: GFS Pressure Backend Pilot**: Integrated GFS weather pressure under default-off feature flag.
+* **Stage 6E: ICON/EURO Pressure Ingestion + Redirects**: Extended pressure pilot to ICON and EURO models, reframing parity as snapped tolerance parity.
+* **Stage 6F: Pressure Consolidation Gate**: Hardened out-of-coverage semantics, conformed diagnostics keys, and consolidated pressure matrices.
 
 ---
 
@@ -147,7 +155,7 @@ Globals are registered on `window` to check telemetry:
 * `window.__BACKEND_COPERNICUS_SERVICE_DIAG__` (EURO/Copernicus marine)
 
 ### H. Unsupported and No-Coverage Semantics
-* Coordinates falling outside the Florida pilot bbox (`PILOT_COVERAGE`) return `is_estimated = True` or fall back to legacy proxy pipelines.
+* Coordinates falling outside the Florida pilot bbox (`PILOT_COVERAGE`) return `is_estimated = False` with `is_forecast_authoritative = False` and `point.interpolation_method = "out_of_bounds_fallback"`, indicating no coverage exists rather than presenting it as a real forecast estimate.
 * Unsupported layer requests (e.g., ICON `swell_2`) return a conformed mock response with `status: 'unsupported'` safely to prevent API queries or crashes.
 
 ### I. Test-Fixture Quarantine Rules
@@ -215,14 +223,13 @@ We will evaluate the remaining map layers for migration to the backend-owned wea
 * **Difficulty**: Medium (requires parsing Copernicus/NOAA daily grids).
 
 ### Recommended Migration Order
-1. **Stage 6B**: Sunset legacy wind fallback paths (deleting client-side scrapers).
-2. **Stage 6C**: Pressure Backend Ingestion (migrating pressure grids to backend).
-3. **Stage 6D**: Precipitation Backend Ingestion.
-4. **Stage 6E**: Air & Water Temperature point sampling integration.
-5. **Stage 6F**: Radar & Satellite endpoint validation (backend timeline synchronization).
+1. **Stage 6G**: Pressure Default-On Rollout (default-enable backend pressure).
+2. **Stage 7**: Precipitation Backend Ingestion.
+3. **Stage 8**: Air & Water Temperature point sampling integration.
+4. **Stage 9**: Radar & Satellite endpoint validation (backend timeline synchronization).
 
 ---
 
 ## 7. Recommended Next Phase
 
-Based on the stabilization watch results, the backend wind service is highly stable. We recommend proceeding to **Stage 6B: Legacy Wind Sunset / Cleanup** to prune frontend scraper pathways, reducing code footprint and technical debt.
+Based on the completion of the Pressure Consolidation Gate, the pressure backend system is fully prepared for a production rollout. We recommend proceeding to **Stage 6G: Pressure Default-On Rollout** to enable the backend weather pressure service by default on the map client, followed by **Stage 7: Precipitation Backend Ingestion**.

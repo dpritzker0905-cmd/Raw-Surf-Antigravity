@@ -165,7 +165,7 @@ def test_point_sampler_out_of_bounds():
     
     # Request coordinate outside grid boundaries
     res = sampler.sample_point(product, 32.0, -90.0)
-    assert res.is_estimated is True
+    assert res.is_estimated is False
     assert res.is_forecast_authoritative is False
     assert res.point.speed == 0.0
     assert "Requested point falls outside the authoritative grid boundaries" in res.warnings

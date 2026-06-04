@@ -676,6 +676,9 @@ export var MapForecastOverlay = ({
         let withinTolerance = false;
         let status = 'no_coverage';
         
+        const diagDetails = effectiveExactPointResponse.diagnosticDetails || {};
+        const interpolationMethod = diagDetails.interpolationMethod || 'none';
+        
         if (backendValidTime) {
           const rasterMs = new Date(rasterValidTime).getTime();
           const backendMs = new Date(backendValidTime).getTime();
@@ -695,6 +698,16 @@ export var MapForecastOverlay = ({
           status = 'no_coverage';
         }
         
+        if (interpolationMethod === 'out_of_bounds_fallback' || 
+            ['no_backend_coverage', 'no_copernicus_coverage', 'exact_no_time_coverage', 'exact_empty'].includes(useExactPoint?.status) ||
+            ['no_backend_coverage', 'no_copernicus_coverage', 'exact_no_time_coverage', 'exact_empty'].includes(exactPointStatus)) {
+          status = 'no_coverage';
+        }
+        
+        const isForecastAuthoritative = diagDetails.is_forecast_authoritative !== undefined
+          ? diagDetails.is_forecast_authoritative
+          : (status !== 'no_coverage' && status !== 'fallback');
+        
         console.log(
           `%c[Pressure Telemetry Diagnostics]\n` +
           `  - Raster Model: ${rasterModel}\n` +
@@ -703,7 +716,9 @@ export var MapForecastOverlay = ({
           `  - Backend Valid Time: ${backendValidTime || 'none'} (Exact Match: ${exactTimeMatch})\n` +
           `  - Snap Delta Hours: ${snapDeltaHours.toFixed(2)}h (Within Tolerance: ${withinTolerance})\n` +
           `  - Infobox Pressure Value: ${pressure} hPa (Sourced from backend: ${!!useExactPoint})\n` +
-          `  - Status: ${status}`,
+          `  - Status: ${status}\n` +
+          `  - Interpolation Method: ${interpolationMethod}\n` +
+          `  - Is Forecast Authoritative: ${isForecastAuthoritative}`,
           status === 'exact_match' || status === 'snapped_match' ? 'color: #22c55e; font-weight: bold;' : 'color: #ef4444; font-weight: bold;'
         );
         
@@ -719,7 +734,9 @@ export var MapForecastOverlay = ({
             pressureValue: pressure,
             pressureUnit: "hPa",
             sourcedFromBackend: !!useExactPoint,
-            status
+            status,
+            interpolationMethod,
+            isForecastAuthoritative
           };
         }
       } else if (exactPointStatus === 'exact_loading' || exactPointStatus === 'exact_stale_rejected') {
@@ -748,7 +765,9 @@ export var MapForecastOverlay = ({
             pressureValue: pressure,
             pressureUnit: "hPa",
             sourcedFromBackend: false,
-            status
+            status,
+            interpolationMethod: 'none',
+            isForecastAuthoritative: false
           };
         }
       }

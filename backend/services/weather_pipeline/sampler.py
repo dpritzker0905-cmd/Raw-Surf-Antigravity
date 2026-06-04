@@ -44,13 +44,14 @@ class PointSampler:
         # Enforce strict coverage check as requested by User Condition 5
         if lat < min_lat or lat > max_lat or lng < min_lon or lng > max_lon:
             warnings.append("Requested point falls outside the authoritative grid boundaries")
-            is_estimated = True
+            is_estimated = False
             estimate_basis["out_of_bounds"] = {
                 "grid_min_lat": min_lat,
                 "grid_max_lat": max_lat,
                 "grid_min_lon": min_lon,
                 "grid_max_lon": max_lon
             }
+            estimate_basis["fallback_attempted"] = True
             # Return estimates as 0 when out of bounds
             detail = NormalizedPointDetail(
                 requested_lat=lat,

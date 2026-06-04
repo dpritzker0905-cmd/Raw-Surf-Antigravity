@@ -107,7 +107,7 @@ def test_copernicus_provider_normalization_and_endpoints(tmp_path, monkeypatch):
     )
     assert response_point_outside.status_code == 200
     point_outside_payload = response_point_outside.json()
-    assert point_outside_payload["is_estimated"] is True
+    assert point_outside_payload["is_estimated"] is False
     assert point_outside_payload["is_forecast_authoritative"] is False
     assert point_outside_payload["point"]["interpolation_method"] == "out_of_bounds_fallback"
 
