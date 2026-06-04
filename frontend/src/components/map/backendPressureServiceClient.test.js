@@ -1,4 +1,4 @@
-import { getBackendPressureFlag, fetchBackendExactPressurePoint, POINT_URL } from './backendPressureServiceClient';
+import { getBackendPressureFlag, fetchBackendExactPressurePoint, POINT_URL, pressurePointCache } from './backendPressureServiceClient';
 import { setCachedManifest } from './backendWeatherServiceClient';
 
 describe('backendPressureServiceClient', () => {
@@ -10,6 +10,7 @@ describe('backendPressureServiceClient', () => {
     localStorage.clear();
     setCachedManifest(null);
     jest.restoreAllMocks();
+    pressurePointCache.clear();
   });
 
   describe('getBackendPressureFlag', () => {
@@ -94,7 +95,7 @@ describe('backendPressureServiceClient', () => {
         forecastDays: 1,
         apiModel: 'gfs_seamless',
         provider: 'open-meteo',
-        source: 'backend_point_api',
+        source: 'network',
         diagnosticDetails: expect.any(Object)
       });
 

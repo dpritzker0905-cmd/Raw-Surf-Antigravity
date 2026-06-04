@@ -1,5 +1,8 @@
 import { BACKEND_URL } from '../../lib/apiClient';
 import { fetchProductsManifest } from './backendWeatherServiceClient';
+import { BoundedPointCache } from './BoundedPointCache';
+
+export const pressurePointCache = new BoundedPointCache(50, 30000);
 
 export const POINT_URL = `${BACKEND_URL}/api/weather/point`;
 
@@ -67,6 +70,20 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
     fallbackReason = "Manifest not loaded or empty";
   }
 
+  const provider = targetModel === 'EURO' ? 'copernicus' : 'open-meteo';
+  const cacheKey = `${targetModel}_weather_pressure_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+
+  const cached = pressurePointCache.get(cacheKey);
+  if (cached) {
+    console.log(`[Backend Weather Service] Cache hit for ${targetModel} Pressure: ${cacheKey}`);
+    const clonedData = JSON.parse(JSON.stringify(cached.data));
+    clonedData.source = 'cache';
+    if (typeof window !== 'undefined') {
+      window.__BACKEND_PRESSURE_SERVICE_DIAG__ = { ...cached.data.diagnosticDetails, source: 'cache' };
+    }
+    return clonedData;
+  }
+
   const url = `${POINT_URL}?model=${targetModel}&domain=weather&layer=pressure&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
   
   try {
@@ -93,6 +110,33 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
       pressure_msl: [json.point.value !== undefined ? json.point.value : null]
     };
     
+    const diagnosticDetails = {
+      url,
+      status: res.status,
+      validTime: validTimeStr,
+      requestedValidTime,
+      fallbackReason,
+      valueKind: json.value_kind || 'pressure',
+      valueUnit: json.value_unit || 'hPa',
+      displayUnitHint: json.display_unit_hint || 'hPa',
+      elapsedMs: Date.now() - start,
+      error: null,
+      hourOffset,
+      layer: 'pressure',
+      value: json.point.value,
+      interpolationMethod: json.point.interpolation_method || 'bilinear',
+      provider: json.provider || provider,
+      sourceDataset: json.source_dataset,
+      sourceVariables: json.source_variables,
+      is_forecast_authoritative: json.is_forecast_authoritative,
+      is_estimated: json.is_estimated,
+      is_test_fixture: json.is_test_fixture,
+      productId: json.product_id || null,
+      pointProductId: json.product_id || null,
+      source: 'network',
+      model: targetModel
+    };
+
     const data = {
       hourly: conformedHourly,
       snappedLat: json.point.sampled_lat || lat,
@@ -103,35 +147,15 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
       activeLayer: 'pressure',
       forecastDays: 1,
       apiModel: targetModel === 'ICON' ? 'dwd_icon' : (targetModel === 'EURO' ? 'ecmwf_ifs' : 'gfs_seamless'),
-      provider: json.provider || 'backend-weather-service',
-      source: 'backend_point_api',
-      diagnosticDetails: {
-        url,
-        status: res.status,
-        validTime: validTimeStr,
-        requestedValidTime,
-        fallbackReason,
-        valueKind: json.value_kind || 'pressure',
-        valueUnit: json.value_unit || 'hPa',
-        displayUnitHint: json.display_unit_hint || 'hPa',
-        elapsedMs: Date.now() - start,
-        error: null,
-        hourOffset,
-        layer: 'pressure',
-        value: json.point.value,
-        interpolationMethod: json.point.interpolation_method || 'bilinear',
-        provider: json.provider || 'backend-weather-service',
-        sourceDataset: json.source_dataset,
-        sourceVariables: json.source_variables,
-        is_forecast_authoritative: json.is_forecast_authoritative,
-        is_estimated: json.is_estimated,
-        is_test_fixture: json.is_test_fixture,
-        model: targetModel
-      }
+      provider: json.provider || provider,
+      source: 'network',
+      diagnosticDetails
     };
     
+    pressurePointCache.set(cacheKey, { data, details: diagnosticDetails });
+
     if (typeof window !== 'undefined') {
-      window.__BACKEND_PRESSURE_SERVICE_DIAG__ = data.diagnosticDetails;
+      window.__BACKEND_PRESSURE_SERVICE_DIAG__ = diagnosticDetails;
     }
     
     return data;

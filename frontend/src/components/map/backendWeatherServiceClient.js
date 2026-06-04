@@ -9,6 +9,11 @@
 
 import { BACKEND_URL } from '../../lib/apiClient';
 
+import { BoundedPointCache } from './BoundedPointCache';
+export { BoundedPointCache };
+
+export const pointCache = new BoundedPointCache(50, 30000);
+
 export const PILOT_COVERAGE = {
   west: -85.0,
   south: 24.0,
@@ -507,6 +512,8 @@ export function updateDiagnostics(type, details, model = 'GFS') {
     diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
     diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
     diag.gridMode = details.gridMode || null;
+    diag.productId = details.productId || null;
+    diag.gridProductId = details.productId || null;
 
     // Handle coverage flags and fallback telemetry (Correction 4: precise status)
     const isInside = details.coverageInside !== undefined 
@@ -534,6 +541,10 @@ export function updateDiagnostics(type, details, model = 'GFS') {
     diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
     diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
     diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
+    diag.productId = details.productId || null;
+    diag.pointProductId = details.productId || null;
+    diag.gridProductId = diag.lastGridFetch?.productId || null;
+    diag.source = details.source || 'network';
 
     if (details.error) {
       diag.reason = details.error === 'unsupported' ? 'unsupported_model_layer' : 'fallback_legacy';
@@ -590,6 +601,19 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
 
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
+  const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
+  const cacheKey = `${model}_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+
+  console.log("fetchBackendExactPoint: cacheKey:", cacheKey, "size:", pointCache.cache.size, "keys:", Array.from(pointCache.cache.keys()));
+  const cached = pointCache.get(cacheKey);
+  if (cached) {
+    console.log(`[Backend Weather Service] Cache hit for ${model} Marine: ${cacheKey}`);
+    const clonedData = JSON.parse(JSON.stringify(cached.data));
+    clonedData.source = 'cache';
+    updateDiagnostics('point', { ...cached.details, source: 'cache' }, model);
+    return clonedData;
+  }
+
   const url = `${POINT_URL}?model=${model}&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
 
   try {
@@ -696,11 +720,11 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       activeLayer: layer,
       forecastDays: 1,
       apiModel: model === 'ICON' ? 'gwam' : (model === 'EURO' ? 'ecmwf_wam025' : 'ncep_gfswave025'),
-      provider: json.provider || 'backend-weather-service',
-      source: 'backend_point_api'
+      provider: json.provider || provider,
+      source: 'network'
     };
 
-    updateDiagnostics('point', {
+    const details = {
       url,
       status: res.status,
       validTime: validTimeStr,
@@ -715,13 +739,20 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       direction: json.point.direction || 0,
       period: json.point.period || 0,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
-      provider: json.provider || 'backend-weather-service',
+      provider: json.provider || provider,
       sourceDataset: json.source_dataset,
       sourceVariables: json.source_variables,
       is_forecast_authoritative: json.is_forecast_authoritative,
       is_estimated: json.is_estimated,
-      is_test_fixture: json.is_test_fixture
-    }, model);
+      is_test_fixture: json.is_test_fixture,
+      productId: json.product_id || null,
+      pointProductId: json.product_id || null,
+      source: 'network'
+    };
+
+    pointCache.set(cacheKey, { data, details });
+
+    updateDiagnostics('point', details, model);
 
     return data;
   } catch (err) {
@@ -879,7 +910,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       is_forecast_authoritative: json.is_forecast_authoritative,
       is_estimated: json.is_estimated,
       is_test_fixture: json.is_test_fixture,
-      gridMode: json.grid?.diagnostics?.gridMode || 'rectangular'
+      gridMode: json.grid?.diagnostics?.gridMode || 'rectangular',
+      productId: json.product_id || null
     }, model);
 
     return result;

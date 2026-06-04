@@ -27,8 +27,12 @@ import {
   fetchBackendCopernicusGrid,
   fetchBackendExactCopernicusPoint,
   getBackendIconMarineFlag,
-  fetchBackendMarineGrid
+  fetchBackendMarineGrid,
+  pointCache
 } from './backendWeatherServiceClient';
+import { copernicusPointCache } from './backendCopernicusServiceClient';
+import { windPointCache } from './backendWindServiceClient';
+import { pressurePointCache } from './backendPressureServiceClient';
 import { selectExactPointHour } from './forecastSamplers';
 
 describe('backendWeatherServiceClient', () => {
@@ -56,6 +60,12 @@ describe('backendWeatherServiceClient', () => {
     } catch (e) {}
     jest.clearAllMocks();
     setCachedManifest(null);
+    console.log("beforeEach: pointCache size before clear:", pointCache.cache.size);
+    pointCache.clear();
+    console.log("beforeEach: pointCache size after clear:", pointCache.cache.size);
+    copernicusPointCache.clear();
+    windPointCache.clear();
+    pressurePointCache.clear();
   });
 
   describe('getBackendMarineSystemFlag', () => {

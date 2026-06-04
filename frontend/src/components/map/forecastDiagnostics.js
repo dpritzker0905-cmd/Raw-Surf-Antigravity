@@ -81,6 +81,10 @@ export function writeOverlayDiagnostics(params) {
     fallbackBlocked: blockFallbacks,
     gridProvider: marineData?.grid?.__gridProvider || 'open-meteo',
     gridComponentLayer: marineData?.grid?.__componentLayer || null,
+    productId: exactPointResponse?.productId || marineData?.grid?.productId || null,
+    pointProductId: exactPointResponse?.pointProductId || exactPointResponse?.productId || null,
+    gridProductId: marineData?.grid?.gridProductId || marineData?.grid?.productId || null,
+    source: exactPointResponse?.source || 'network',
     snappedPoint: exactPointResponse ? { lat: exactPointResponse.snappedLat, lng: exactPointResponse.snappedLng } : null,
     requestedPoint: exactPointResponse ? { lat: exactPointResponse.requestedLat, lng: exactPointResponse.requestedLng } : null,
     snapExplanation: (() => {

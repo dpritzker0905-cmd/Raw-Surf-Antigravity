@@ -18,6 +18,7 @@ class GridVector(BaseModel):
     period: Optional[float] = None
     gust: Optional[float] = None
     value: Optional[float] = None
+    is_valid: bool = True
 
 class NormalizedGrid(BaseModel):
     bounds: CoverageBounds
@@ -41,6 +42,7 @@ class NormalizedProduct(BaseModel):
     value_kind: str
     value_unit: str
     display_unit_hint: str
+    product_id: Optional[str] = None
     units: Dict[str, str] = Field(default_factory=lambda: {
         "speed": "kn",
         "direction": "degrees",
@@ -82,6 +84,7 @@ class NormalizedPointResponse(BaseModel):
     value_kind: str
     value_unit: str
     display_unit_hint: str
+    product_id: Optional[str] = None
     units: Dict[str, str] = Field(default_factory=lambda: {
         "speed": "kn",
         "direction": "degrees",

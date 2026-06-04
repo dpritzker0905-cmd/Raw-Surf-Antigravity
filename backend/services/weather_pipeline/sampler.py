@@ -142,25 +142,29 @@ class PointSampler:
             v21 = coordinate_map.get((lat1, lon0))
             v22 = coordinate_map.get((lat1, lon1))
             
-            corners = [v for v in [v11, v12, v21, v22] if v is not None and getattr(v, "value", None) is not None]
+            corners = [v for v in [v11, v12, v21, v22] if self._is_vector_valid(v, product.domain, product.layer)]
             if not corners:
                 return self._build_unavailable_response(product, lat, lng, "No valid pressure data in grid")
                 
             if len(corners) < 4:
-                nearest = self._find_nearest_vector(corners, lat, lng)
-                detail = NormalizedPointDetail(
-                    requested_lat=lat,
-                    requested_lng=lng,
-                    sampled_lat=nearest.lat,
-                    sampled_lng=nearest.lng,
-                    speed=0.0,
-                    direction=0.0,
-                    u=0.0,
-                    v=0.0,
-                    value=nearest.value,
-                    interpolation_method="nearest_scalar_fallback"
-                )
-                return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+                valid_pressure = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+                if valid_pressure:
+                    nearest = self._find_nearest_vector(valid_pressure, lat, lng)
+                    detail = NormalizedPointDetail(
+                        requested_lat=lat,
+                        requested_lng=lng,
+                        sampled_lat=nearest.lat,
+                        sampled_lng=nearest.lng,
+                        speed=0.0,
+                        direction=0.0,
+                        u=0.0,
+                        v=0.0,
+                        value=nearest.value,
+                        interpolation_method="nearest_scalar_fallback"
+                    )
+                    return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+                else:
+                    return self._build_unavailable_response(product, lat, lng, "No valid pressure data in grid")
                 
             val11 = v11.value
             val12 = v12.value
@@ -192,7 +196,7 @@ class PointSampler:
 
         valid_ocean_corners = [
             (v, w) for v, w in corner_weights
-            if v is not None and v.speed > 0.0
+            if self._is_vector_valid(v, product.domain, product.layer)
         ]
 
         if len(valid_ocean_corners) == 4:
@@ -294,9 +298,9 @@ class PointSampler:
 
         elif len(valid_ocean_corners) == 1:
             # 3. Fallback to Nearest Ocean Vector (exactly 1 valid ocean corner exists)
-            ocean_vectors = [v for v in grid.vectors if v.speed > 0.0]
-            if ocean_vectors:
-                nearest = self._find_nearest_vector(ocean_vectors, lat, lng)
+            valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+            if valid_vectors:
+                nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                 detail = NormalizedPointDetail(
                     requested_lat=lat,
                     requested_lng=lng,
@@ -310,14 +314,36 @@ class PointSampler:
                     gust=getattr(nearest, "gust", None),
                     interpolation_method="nearest_ocean_fallback"
                 )
-                warnings.append("Bilinear corners are land/masked; fallback to nearest ocean neighbor.")
+                warnings.append("Bilinear corners contain land/masked cells; fallback to nearest ocean neighbor.")
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
             else:
-                return self._build_unavailable_response(product, lat, lng, "No valid ocean data in grid")
-
+                return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist and no valid ocean data in grid")
         else:
-            # 4. No valid ocean corners exist
-            return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist")
+            # 0 valid ocean corners exist: point is inland, return unavailable
+            return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist in grid bounding box")
+
+    def _is_vector_valid(self, v: Any, domain: str, layer: str) -> bool:
+        if v is None:
+            return False
+            
+        domain_lower = domain.lower()
+        layer_lower = layer.lower()
+        
+        has_explicit_is_valid = hasattr(v, "model_fields_set") and "is_valid" in v.model_fields_set
+        if has_explicit_is_valid:
+            return getattr(v, "is_valid", True)
+            
+        # Legacy fallback heuristics
+        if domain_lower == "weather" and layer_lower == "pressure":
+            return getattr(v, "value", None) is not None
+        elif domain_lower == "marine":
+            if getattr(v, "period", 0.0) == 0.0 and getattr(v, "speed", 0.0) == 0.0:
+                return False
+            return True
+        elif domain_lower == "wind":
+            return True
+            
+        return getattr(v, "is_valid", True)
 
     @staticmethod
     def _find_surrounding_brackets(coords: List[float], val: float) -> Tuple[float, float]:
@@ -378,6 +404,7 @@ class PointSampler:
             value_kind=product.value_kind,
             value_unit=product.value_unit,
             display_unit_hint=product.display_unit_hint,
+            product_id=product.product_id,
             units=product.units,
             source_variables=product.source_variables,
             freshness_sec=product.freshness_sec,
@@ -410,6 +437,7 @@ class PointSampler:
             value_kind=product.value_kind,
             value_unit=product.value_unit,
             display_unit_hint=product.display_unit_hint,
+            product_id=product.product_id,
             units=product.units,
             source_variables=product.source_variables,
             freshness_sec=product.freshness_sec,

@@ -63,9 +63,26 @@ async def health_check(
         uptime = "unknown"
         uptime_seconds = 0.0
 
+    # Resolve version/commit dynamically from environment or local git repository
+    git_commit = os.environ.get("RENDER_GIT_COMMIT", "")
+    if not git_commit:
+        try:
+            import subprocess
+            git_commit = subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"], 
+                stderr=subprocess.DEVNULL, 
+                text=True
+            ).strip()
+        except Exception:
+            git_commit = ""
+            
+    version_str = "2.0.0-stage-6f-v1"
+    if git_commit:
+        version_str = f"2.0.0-stage-6f-v1-{git_commit}"
+
     health_data = {
         "status": "healthy",
-        "version": "2.0.0-stage-6f-v1",
+        "version": version_str,
         "uptime": uptime,
         "uptime_seconds": round(uptime_seconds, 1),
         "environment": os.environ.get("RENDER", "local"),

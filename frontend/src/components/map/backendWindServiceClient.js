@@ -13,6 +13,9 @@ import {
   getBackendWindFlag,
   latestTimeDiag
 } from './backendWeatherServiceClient';
+import { BoundedPointCache } from './BoundedPointCache';
+
+export const windPointCache = new BoundedPointCache(50, 30000);
 
 /**
  * Maps the standard backend wind grid response schema to the WebGLWindEngine expectations.
@@ -140,9 +143,17 @@ export function updateWindDiagnostics(type, details) {
     diag.coverageInside = isInside;
     diag.fallbackToLegacy = !isInside || !!details.error;
     diag.fallbackReason = details.error || null;
+    diag.provider = details.provider || diag.provider;
+    diag.productId = details.productId || null;
+    diag.gridProductId = details.productId || null;
   } else if (type === 'point') {
     diag.lastPointFetch = details;
     diag.pointValidTime = details.validTime || null;
+    diag.provider = details.provider || diag.provider;
+    diag.productId = details.productId || null;
+    diag.pointProductId = details.productId || null;
+    diag.gridProductId = diag.lastGridFetch?.productId || null;
+    diag.source = details.source || 'network';
   }
 
   if (details.hourOffset !== undefined) {
@@ -166,6 +177,18 @@ export function updateWindDiagnostics(type, details) {
 export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, model = 'GFS') {
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, 'wind', model);
+  const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
+  const cacheKey = `${model}_wind_wind_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+
+  const cached = windPointCache.get(cacheKey);
+  if (cached) {
+    console.log(`[Backend Weather Service] Cache hit for ${model} Wind: ${cacheKey}`);
+    const clonedData = JSON.parse(JSON.stringify(cached.data));
+    clonedData.source = 'cache';
+    updateWindDiagnostics('point', { ...cached.details, source: 'cache' });
+    return clonedData;
+  }
+
   const url = `${POINT_URL}?model=${model}&domain=wind&layer=wind&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
 
   try {
@@ -190,11 +213,11 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
       activeLayer: 'wind',
       forecastDays: 1,
       apiModel: model === 'ICON' ? 'dwd_icon' : (model === 'EURO' ? 'ecmwf_ifs' : 'gfs_seamless'),
-      provider: json.provider || 'backend-weather-service',
-      source: 'backend_point_api'
+      provider: json.provider || provider,
+      source: 'network'
     };
 
-    updateWindDiagnostics('point', {
+    const details = {
       url,
       status: res.status,
       validTime: validTimeStr,
@@ -208,9 +231,16 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
       direction: json.point.direction || 0,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
       interpolation_method: json.point.interpolation_method || 'bilinear',
-      provider: json.provider || 'backend-weather-service',
+      provider: json.provider || provider,
+      productId: json.product_id || null,
+      pointProductId: json.product_id || null,
+      source: 'network',
       model
-    });
+    };
+
+    windPointCache.set(cacheKey, { data, details });
+
+    updateWindDiagnostics('point', details);
 
     return data;
   } catch (err) {
@@ -315,6 +345,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       renderable: result.renderable,
       coverageInside: true,
       boundsSource: actualSource,
+      productId: json.product_id || null,
       model
     });
 

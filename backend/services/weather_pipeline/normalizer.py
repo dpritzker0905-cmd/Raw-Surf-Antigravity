@@ -173,7 +173,7 @@ class WeatherNormalizer:
             is_scalar = (direction_key is None)
             if speed is None or (not is_scalar and direction is None):
                 vector = GridVector(
-                    lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None
+                    lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None, is_valid=False
                 )
             else:
                 # Standardize Wind knots conversions if needed
@@ -213,7 +213,8 @@ class WeatherNormalizer:
                     v=round(v, 4),
                     period=round(period, 2) if period is not None else 0.0,
                     gust=round(gust, 4) if gust is not None else None,
-                    value=round(speed, 4) if is_scalar else None
+                    value=round(speed, 4) if is_scalar else None,
+                    is_valid=True
                 )
             
             grid_data[(lat, lng)] = vector
@@ -227,7 +228,7 @@ class WeatherNormalizer:
                 else:
                     # Explicit ocean-masked vector for missing cells
                     vectors.append(GridVector(
-                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None
+                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None, is_valid=False
                     ))
 
         # Sort vectors in stable row-major order (south-to-north, west-to-east)

@@ -241,6 +241,7 @@ async def get_grid(
     product = store.load_product(matching_item.filename)
     if not product or not product.grid:
         raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
+    product.product_id = matching_item.filename
 
     # Apply dynamic coordinate bounding-box filter if requested
     if bbox:
@@ -367,6 +368,7 @@ async def get_point(
     product = store.load_product(matching_item.filename)
     if not product:
         raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
+    product.product_id = matching_item.filename
 
     # Perform Bilinear Interpolation
     response = sampler.sample_point(product, lat, lng)

@@ -14,6 +14,9 @@ import {
   latestTimeDiag,
   PILOT_COVERAGE
 } from './backendWeatherServiceClient';
+import { BoundedPointCache } from './BoundedPointCache';
+
+export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
 /**
  * Maps the standard backend grid response schema to the WebGLMarineLayer expectations for Copernicus swell/waves.
@@ -176,6 +179,8 @@ export function updateCopernicusDiagnostics(type, details) {
     diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
     diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
     diag.gridMode = details.gridMode || diag.gridMode || null;
+    diag.productId = details.productId || null;
+    diag.gridProductId = details.productId || null;
   } else if (type === 'point') {
     diag.layer = details.layer || diag.layer || 'swell_1';
     diag.lastPointFetch = details;
@@ -188,6 +193,10 @@ export function updateCopernicusDiagnostics(type, details) {
     diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
     diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
     diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
+    diag.productId = details.productId || null;
+    diag.pointProductId = details.productId || null;
+    diag.gridProductId = diag.lastGridFetch?.productId || null;
+    diag.source = details.source || 'network';
   }
 
   if (details.hourOffset !== undefined) {
@@ -316,6 +325,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       is_estimated: json.is_estimated,
       is_test_fixture: json.is_test_fixture,
       gridMode: json.grid?.diagnostics?.gridMode || 'rectangular',
+      productId: json.product_id || null,
       layer
     });
 
@@ -352,6 +362,18 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
 export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1') {
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, 'EURO');
+  const provider = 'copernicus';
+  const cacheKey = `EURO_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+
+  const cached = copernicusPointCache.get(cacheKey);
+  if (cached) {
+    console.log(`[Backend Weather Service] Cache hit for EURO Copernicus: ${cacheKey}`);
+    const clonedData = JSON.parse(JSON.stringify(cached.data));
+    clonedData.source = 'cache';
+    updateCopernicusDiagnostics('point', { ...cached.details, source: 'cache' });
+    return clonedData;
+  }
+
   const url = `${POINT_URL}?model=EURO&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
 
   try {
@@ -405,8 +427,6 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
     const json = await res.json();
     
     // Structure conformed hourly response compatible with forecastSamplers.js expectations.
-    // NOTE: conformedHourly is a client-side adapter shape translating single-step point forecasts
-    // into the infobox-compatible hourly format, not a fake or mock data generator.
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
     const conformedHourly = {
       time: [mockTime],
@@ -445,7 +465,6 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       conformedHourly.wave_height = [json.point.speed || 0];
       conformedHourly.wave_direction = [json.point.direction || 0];
       conformedHourly.wave_period = [json.point.period || 0];
-      // Note: Do NOT set wave_peak_period (keep it 0) so that we don't display "Peak Period" or "Peak" in the UI (Guardrail 1).
     }
 
     const data = {
@@ -458,11 +477,11 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       activeLayer: layer,
       forecastDays: 1,
       apiModel: 'ecmwf_wam025',
-      provider: json.provider || 'backend-weather-service',
-      source: 'backend_point_api'
+      provider: json.provider || 'copernicus',
+      source: 'network'
     };
 
-    updateCopernicusDiagnostics('point', {
+    const details = {
       url,
       status: res.status,
       validTime: validTimeStr,
@@ -478,14 +497,20 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       period: json.point.period || 0,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
       interpolation_method: json.point.interpolation_method || 'bilinear',
-      provider: json.provider || 'backend-weather-service',
+      provider: json.provider || 'copernicus',
       sourceDataset: json.source_dataset,
       sourceVariables: json.source_variables,
       is_forecast_authoritative: json.is_forecast_authoritative,
       is_estimated: json.is_estimated,
       is_test_fixture: json.is_test_fixture,
-      layer
-    });
+      productId: json.product_id || null,
+      pointProductId: json.product_id || null,
+      source: 'network'
+    };
+
+    copernicusPointCache.set(cacheKey, { data, details });
+
+    updateCopernicusDiagnostics('point', details);
 
     return data;
   } catch (err) {

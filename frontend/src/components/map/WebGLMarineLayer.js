@@ -769,28 +769,34 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const componentLayer = data.grid?.__componentLayer || data.__componentLayer || 'none';
 
     const isEuro = activeModelRef.current === 'EURO';
+    const isGfsOrIcon = activeModelRef.current === 'GFS' || activeModelRef.current === 'ICON';
     const isWaves = activeMarineLayer === 'waves';
 
     let isValid = true;
     if (gridModel !== activeModelRef.current) isValid = false;
     if (isValid) {
-      if (gridProvider === 'estimated') {
-        if (componentLayer !== activeMarineLayer) isValid = false;
+      if (isGfsOrIcon) {
+        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service') {
+          isValid = false;
+        } else if (gridProvider === 'backend-weather-service' && componentLayer !== activeMarineLayer) {
+          isValid = false;
+        }
       } else if (isEuro) {
         if (isWaves) {
-          if (gridProvider !== 'open-meteo' && gridProvider !== 'copernicus') isValid = false;
-        } else {
-          // Accept copernicus, estimated, and legacy open-meteo fallback for EURO component layers
-          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'open-meteo'];
-          if (!validEuroComponentProviders.includes(gridProvider)) {
+          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && gridProvider !== 'open-meteo') {
             isValid = false;
           } else if (gridProvider !== 'open-meteo' && componentLayer !== activeMarineLayer) {
-            // For non-legacy providers, also check componentLayer matches
+            isValid = false;
+          }
+        } else {
+          // Reject open-meteo on EURO component layers
+          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service'];
+          if (!validEuroComponentProviders.includes(gridProvider)) {
+            isValid = false;
+          } else if (componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         }
-      } else {
-        if (gridProvider !== 'open-meteo') isValid = false;
       }
     }
 

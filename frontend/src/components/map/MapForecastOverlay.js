@@ -182,7 +182,7 @@ export var MapForecastOverlay = ({
         controller.abort();
       }, 18000);
 
-      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, timeOffsetHoursRef.current).then(data => {
+      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, timeOffsetHours).then(data => {
         clearTimeout(fetchTimeoutId);
         if (!token.cancelled) {
           if (data) {
@@ -219,7 +219,7 @@ export var MapForecastOverlay = ({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, isExactPointRequired, currentPointKey, selectedSpot, longPressLocation]);
+  }, [pointLat, pointLng, activeModel, activeLayer, timeOffsetHours, isExactPointRequired, currentPointKey, selectedSpot, longPressLocation]);
 
   // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
   // This is synchronous and instant — no network request on scrub.
@@ -736,7 +736,9 @@ export var MapForecastOverlay = ({
             sourcedFromBackend: !!useExactPoint,
             status,
             interpolationMethod,
-            isForecastAuthoritative
+            isForecastAuthoritative,
+            productId: exactPointResponse?.diagnosticDetails?.productId || null,
+            source: exactPointResponse?.source || 'network'
           };
         }
       } else if (exactPointStatus === 'exact_loading' || exactPointStatus === 'exact_stale_rejected') {
@@ -767,7 +769,9 @@ export var MapForecastOverlay = ({
             sourcedFromBackend: false,
             status,
             interpolationMethod: 'none',
-            isForecastAuthoritative: false
+            isForecastAuthoritative: false,
+            productId: null,
+            source: 'network'
           };
         }
       }
