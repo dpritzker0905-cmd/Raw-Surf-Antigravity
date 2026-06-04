@@ -58,6 +58,12 @@ class ProductStore:
       L1: Local disk (fast reads, ephemeral on Render)
       L2: Supabase Storage (durable, survives restarts/deploys)
     """
+    # Shared class-level persistence diagnostics to survive instantiation across requests
+    _last_restore_time: Optional[str] = None
+    _restored_count: int = 0
+    _restore_errors: List[str] = []
+    _last_upload_time: Optional[str] = None
+    _last_upload_errors: List[str] = []
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:
@@ -67,13 +73,6 @@ class ProductStore:
         
         self.manifest_path = self.cache_dir / "manifest.json"
         self._ensure_cache_dir()
-
-        # Persistence diagnostics
-        self._last_restore_time: Optional[str] = None
-        self._restored_count: int = 0
-        self._restore_errors: List[str] = []
-        self._last_upload_time: Optional[str] = None
-        self._last_upload_errors: List[str] = []
 
     def _ensure_cache_dir(self):
         """Creates the product directory if not exists."""
@@ -93,12 +92,12 @@ class ProductStore:
                 filename, data_bytes,
                 file_options={"content-type": "application/json", "upsert": "true"}
             )
-            self._last_upload_time = datetime.now(timezone.utc).isoformat()
+            ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
             logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)")
         except Exception as e:
             err_msg = f"L2 upload failed for {filename}: {e}"
             logger.warning(f"[Product Store] {err_msg}")
-            self._last_upload_errors = (self._last_upload_errors + [err_msg])[-10:]
+            ProductStore._last_upload_errors = (ProductStore._last_upload_errors + [err_msg])[-10:]
 
     def _delete_from_supabase(self, filename: str):
         """Delete a file from Supabase Storage L2 (best-effort)."""
@@ -127,8 +126,8 @@ class ProductStore:
         if sb is None:
             err = "Supabase Storage unavailable — skipping L2 restore"
             logger.warning(f"[Product Store] {err}")
-            self._restore_errors = [err]
-            self._last_restore_time = datetime.now(timezone.utc).isoformat()
+            ProductStore._restore_errors = [err]
+            ProductStore._last_restore_time = datetime.now(timezone.utc).isoformat()
             return 0, [err]
 
         logger.info("[Product Store] Starting L2 restore from Supabase Storage...")
@@ -147,9 +146,9 @@ class ProductStore:
 
         if not manifest_data or not manifest_data.get("products"):
             logger.info("[Product Store] No products in L2 manifest — nothing to restore")
-            self._last_restore_time = datetime.now(timezone.utc).isoformat()
-            self._restored_count = 0
-            self._restore_errors = errors
+            ProductStore._last_restore_time = datetime.now(timezone.utc).isoformat()
+            ProductStore._restored_count = 0
+            ProductStore._restore_errors = errors
             return 0, errors
 
         # Step 2: Validate and download each product
@@ -218,9 +217,9 @@ class ProductStore:
             logger.warning(f"[Product Store] {err}")
             errors.append(err)
 
-        self._last_restore_time = datetime.now(timezone.utc).isoformat()
-        self._restored_count = restored
-        self._restore_errors = errors
+        ProductStore._last_restore_time = datetime.now(timezone.utc).isoformat()
+        ProductStore._restored_count = restored
+        ProductStore._restore_errors = errors
         logger.info(f"[Product Store] L2 restore complete: {restored} products restored, {len(errors)} errors")
         return restored, errors
 
@@ -253,11 +252,11 @@ class ProductStore:
             "disk_product_count": disk_count,
             "supabase_connected": supabase_connected,
             "supabase_product_count": supabase_count,
-            "last_restore_time": self._last_restore_time,
-            "restored_count": self._restored_count,
-            "restore_errors": self._restore_errors[-5:],
-            "last_upload_time": self._last_upload_time,
-            "last_upload_errors": self._last_upload_errors[-5:],
+            "last_restore_time": ProductStore._last_restore_time,
+            "restored_count": ProductStore._restored_count,
+            "restore_errors": ProductStore._restore_errors[-5:],
+            "last_upload_time": ProductStore._last_upload_time,
+            "last_upload_errors": ProductStore._last_upload_errors[-5:],
         }
 
 
