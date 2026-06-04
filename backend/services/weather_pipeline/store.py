@@ -10,10 +10,53 @@ from services.weather_pipeline.schemas import (
 
 logger = logging.getLogger(__name__)
 
+# ── Supabase Storage L2 persistence ──────────────────────────────────────
+WEATHER_BUCKET = "weather-products"
+_supabase_client = None
+_supabase_init_attempted = False
+
+def _get_supabase_storage():
+    """Lazily initialize and return the Supabase storage client.
+    Uses SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY env vars (same as uploads/core.py).
+    Returns None if credentials are missing — graceful degradation."""
+    global _supabase_client, _supabase_init_attempted
+    if _supabase_client is not None:
+        return _supabase_client
+    if _supabase_init_attempted:
+        return None  # Already tried and failed
+    _supabase_init_attempted = True
+    try:
+        from supabase import create_client as _create_supabase_client
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+        if not url or not key:
+            logger.warning("[Product Store] Supabase credentials not found — L2 persistence disabled")
+            return None
+        _supabase_client = _create_supabase_client(url, key)
+        # Ensure private bucket exists (idempotent)
+        try:
+            _supabase_client.storage.create_bucket(
+                WEATHER_BUCKET,
+                options={"public": False}
+            )
+            logger.info(f"[Product Store] Created Supabase bucket '{WEATHER_BUCKET}' (private)")
+        except Exception:
+            pass  # Bucket already exists — expected
+        logger.info("[Product Store] Supabase Storage L2 connected")
+        return _supabase_client
+    except Exception as e:
+        logger.error(f"[Product Store] Supabase Storage init failed: {e}")
+        return None
+
+
 class ProductStore:
     """
     Manages atomic persistent storage of prepared weather products on disk
     at uploads/weather_products/ along with a master registry manifest.
+
+    Two-tier storage:
+      L1: Local disk (fast reads, ephemeral on Render)
+      L2: Supabase Storage (durable, survives restarts/deploys)
     """
 
     def __init__(self, cache_dir: Optional[Path] = None):
@@ -25,11 +68,194 @@ class ProductStore:
         self.manifest_path = self.cache_dir / "manifest.json"
         self._ensure_cache_dir()
 
+        # Persistence diagnostics
+        self._last_restore_time: Optional[str] = None
+        self._restored_count: int = 0
+        self._restore_errors: List[str] = []
+        self._last_upload_time: Optional[str] = None
+        self._last_upload_errors: List[str] = []
+
     def _ensure_cache_dir(self):
         """Creates the product directory if not exists."""
         if not self.cache_dir.exists():
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"[Product Store] Created products cache directory: {self.cache_dir}")
+
+    # ── Supabase Storage L2 helpers ──────────────────────────────────────
+
+    def _upload_to_supabase(self, filename: str, data_bytes: bytes):
+        """Upload a file to Supabase Storage L2 (fire-and-forget with logging)."""
+        sb = _get_supabase_storage()
+        if sb is None:
+            return
+        try:
+            sb.storage.from_(WEATHER_BUCKET).upload(
+                filename, data_bytes,
+                file_options={"content-type": "application/json", "upsert": "true"}
+            )
+            self._last_upload_time = datetime.now(timezone.utc).isoformat()
+            logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)")
+        except Exception as e:
+            err_msg = f"L2 upload failed for {filename}: {e}"
+            logger.warning(f"[Product Store] {err_msg}")
+            self._last_upload_errors = (self._last_upload_errors + [err_msg])[-10:]
+
+    def _delete_from_supabase(self, filename: str):
+        """Delete a file from Supabase Storage L2 (best-effort)."""
+        sb = _get_supabase_storage()
+        if sb is None:
+            return
+        try:
+            sb.storage.from_(WEATHER_BUCKET).remove([filename])
+            logger.info(f"[Product Store] L2 delete OK: {filename}")
+        except Exception as e:
+            logger.warning(f"[Product Store] L2 delete failed for {filename}: {e}")
+
+    def restore_from_supabase(self) -> Tuple[int, List[str]]:
+        """Restore weather products from Supabase Storage L2 into disk L1.
+
+        Downloads manifest.json first, then validates each product entry.
+        Skips stale/missing/corrupt entries without crashing.
+        Never restores test fixtures in production.
+
+        Returns (restored_count, error_messages).
+        """
+        errors: List[str] = []
+        restored = 0
+        sb = _get_supabase_storage()
+
+        if sb is None:
+            err = "Supabase Storage unavailable — skipping L2 restore"
+            logger.warning(f"[Product Store] {err}")
+            self._restore_errors = [err]
+            self._last_restore_time = datetime.now(timezone.utc).isoformat()
+            return 0, [err]
+
+        logger.info("[Product Store] Starting L2 restore from Supabase Storage...")
+
+        # Step 1: Download manifest
+        manifest_data = None
+        try:
+            manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
+            if manifest_bytes:
+                manifest_data = json.loads(manifest_bytes.decode("utf-8"))
+                logger.info(f"[Product Store] Downloaded manifest from L2 ({len(manifest_data.get('products', []))} entries)")
+        except Exception as e:
+            err = f"Manifest download failed: {e}"
+            logger.warning(f"[Product Store] {err}")
+            errors.append(err)
+
+        if not manifest_data or not manifest_data.get("products"):
+            logger.info("[Product Store] No products in L2 manifest — nothing to restore")
+            self._last_restore_time = datetime.now(timezone.utc).isoformat()
+            self._restored_count = 0
+            self._restore_errors = errors
+            return 0, errors
+
+        # Step 2: Validate and download each product
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+
+        for entry in manifest_data["products"]:
+            filename = entry.get("filename")
+            if not filename:
+                continue
+
+            # Never restore test fixtures in production
+            is_tf = entry.get("is_test_fixture", False)
+            if is_tf and not is_test_env:
+                logger.warning(f"[Product Store] Skipping test fixture during L2 restore: {filename}")
+                continue
+
+            # Skip if already on disk (L1 hit)
+            disk_path = self.cache_dir / filename
+            if disk_path.exists():
+                logger.debug(f"[Product Store] L1 hit, skip L2 download: {filename}")
+                restored += 1
+                continue
+
+            try:
+                product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
+                if not product_bytes:
+                    raise ValueError("Empty response")
+
+                # Parse to validate structure
+                product_data = json.loads(product_bytes.decode("utf-8"))
+                product = NormalizedProduct.model_validate(product_data)
+
+                # Verify not a test fixture after parse
+                if (product.is_test_fixture or product.provider == "test-fixture") and not is_test_env:
+                    logger.warning(f"[Product Store] Rejected restored test fixture: {filename}")
+                    continue
+
+                # Write to disk (restore L1 cache)
+                with open(disk_path, "wb") as f:
+                    f.write(product_bytes)
+
+                restored += 1
+                logger.info(f"[Product Store] Restored from L2: {filename}")
+            except Exception as e:
+                err = f"Failed to restore {filename}: {e}"
+                logger.warning(f"[Product Store] {err}")
+                errors.append(err)
+
+        # Step 3: Write manifest to disk
+        try:
+            manifest = PipelineManifest.model_validate(manifest_data)
+            # Filter out test fixtures from manifest in production
+            if not is_test_env:
+                manifest.products = [
+                    p for p in manifest.products
+                    if not p.is_test_fixture
+                ]
+            with open(self.manifest_path, "w") as f:
+                f.write(manifest.model_dump_json(indent=2))
+            logger.info(f"[Product Store] Manifest restored to disk with {len(manifest.products)} entries")
+        except Exception as e:
+            err = f"Manifest disk write failed: {e}"
+            logger.warning(f"[Product Store] {err}")
+            errors.append(err)
+
+        self._last_restore_time = datetime.now(timezone.utc).isoformat()
+        self._restored_count = restored
+        self._restore_errors = errors
+        logger.info(f"[Product Store] L2 restore complete: {restored} products restored, {len(errors)} errors")
+        return restored, errors
+
+    def get_persistence_diagnostics(self) -> Dict[str, Any]:
+        """Return diagnostics about L1/L2 persistence state."""
+        disk_count = 0
+        try:
+            disk_count = len([f for f in os.listdir(self.cache_dir)
+                             if f.endswith(".json") and f != "manifest.json"])
+        except Exception:
+            pass
+
+        sb = _get_supabase_storage()
+        supabase_count = None
+        supabase_connected = sb is not None
+        if sb:
+            try:
+                objects = sb.storage.from_(WEATHER_BUCKET).list()
+                supabase_count = len([o for o in (objects or [])
+                                      if hasattr(o, 'name') and o['name'].endswith('.json')
+                                      and o['name'] != 'manifest.json'])
+            except Exception:
+                supabase_count = -1  # Error counting
+
+        return {
+            "disk_product_count": disk_count,
+            "supabase_connected": supabase_connected,
+            "supabase_product_count": supabase_count,
+            "last_restore_time": self._last_restore_time,
+            "restored_count": self._restored_count,
+            "restore_errors": self._restore_errors[-5:],
+            "last_upload_time": self._last_upload_time,
+            "last_upload_errors": self._last_upload_errors[-5:],
+        }
+
 
     def get_manifest(self) -> PipelineManifest:
         """Loads and returns the registry manifest.json."""
@@ -87,9 +313,10 @@ class ProductStore:
             return None
 
         try:
-            # 1. Write product data atomically to disk
-            with open(tmp_path, "w") as f:
-                f.write(product.model_dump_json())
+            # 1. Write product data atomically to disk (L1)
+            product_json_bytes = product.model_dump_json().encode("utf-8")
+            with open(tmp_path, "wb") as f:
+                f.write(product_json_bytes)
             os.replace(tmp_path, target_path)
             logger.info(f"[Product Store] Atomic save complete: {filename}")
         except Exception as e:
@@ -98,6 +325,10 @@ class ProductStore:
                 try: os.remove(tmp_path)
                 except Exception: pass
             return None
+
+        # 2b. Upload product to Supabase Storage (L2 — fire-and-forget)
+        if not is_tf:
+            self._upload_to_supabase(filename, product_json_bytes)
 
         # 2. Update registration in master manifest
         is_test_env = (
@@ -147,6 +378,15 @@ class ProductStore:
         manifest.products = updated_products
 
         self._save_manifest(manifest)
+
+        # Upload updated manifest to Supabase (L2)
+        if not is_tf:
+            try:
+                manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+                self._upload_to_supabase("manifest.json", manifest_json)
+            except Exception as e:
+                logger.warning(f"[Product Store] Manifest L2 upload failed: {e}")
+
         return filename
 
     def load_product(self, filename: str) -> Optional[NormalizedProduct]:
@@ -165,14 +405,15 @@ class ProductStore:
             return None
 
     def prune_old_products(self, before_time: datetime):
-        """Cleans up old JSON product files that fall before the cutoff date."""
+        """Cleans up old JSON product files that fall before the cutoff date.
+        Removes from both L1 (disk) and L2 (Supabase Storage)."""
         manifest = self.get_manifest()
         manifest.last_manifest_update = datetime.now(timezone.utc)
 
         remaining_products = []
         for p in manifest.products:
             if p.valid_time_start < before_time:
-                # Remove file
+                # Remove file from disk (L1)
                 filepath = self.cache_dir / p.filename
                 if filepath.exists():
                     try:
@@ -180,11 +421,19 @@ class ProductStore:
                         logger.info(f"[Product Store] Pruned old product file: {p.filename}")
                     except Exception as e:
                         logger.warning(f"[Product Store] Failed to delete pruned file {p.filename}: {e}")
+                # Remove from Supabase Storage (L2)
+                self._delete_from_supabase(p.filename)
             else:
                 remaining_products.append(p)
 
         manifest.products = remaining_products
         self._save_manifest(manifest)
+        # Update manifest in Supabase after prune
+        try:
+            manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+            self._upload_to_supabase("manifest.json", manifest_json)
+        except Exception as e:
+            logger.warning(f"[Product Store] Manifest L2 upload after prune failed: {e}")
 
     def validate_copernicus_product(self, product: NormalizedProduct) -> Tuple[bool, str]:
         """

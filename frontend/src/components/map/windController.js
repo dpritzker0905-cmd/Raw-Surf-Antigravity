@@ -161,6 +161,11 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       return result;
     } catch (err) {
       console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+      // Expose fallback diagnostics for TRUTH INSPECTOR
+      if (typeof window !== 'undefined' && window.__BACKEND_WIND_SERVICE_DIAG__) {
+        window.__BACKEND_WIND_SERVICE_DIAG__.fallbackPath = 'proxy';
+        window.__BACKEND_WIND_SERVICE_DIAG__.fallbackReason = err.message;
+      }
     }
   }
 
@@ -232,6 +237,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         if (!res.ok) throw new Error(`Proxy returned HTTP ${res.status}`);
         const ct = res.headers.get('content-type') || '';
         if (!ct.includes('application/json')) throw new Error(`Non-JSON: ${ct.substring(0, 50)}`);
+        console.log('[Wind] Proxy response OK:', { status: res.status, cacheHit: res.headers.get('x-cache') || 'miss' });
       } catch (proxyErr) {
         if (proxyErr.message === 'wind_cooldown_active' || proxyErr.message === 'failure_ttl_active' || proxyErr.message === 'grid_fetch_in_flight') {
           console.warn(`[WindController] Governor blocked wind fetch: ${proxyErr.message}`);
@@ -316,6 +322,14 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     }
 
     const data = extractWindAtOffset(windHourlyCache, hourOffset);
+    // Wind fallback diagnostics
+    if (data && typeof window !== 'undefined' && window.__BACKEND_WIND_SERVICE_DIAG__) {
+      const nonzero = data.vectors ? data.vectors.filter(v => v.speed > 0).length : 0;
+      window.__BACKEND_WIND_SERVICE_DIAG__.fallbackVectorCount = data.vectors?.length || 0;
+      window.__BACKEND_WIND_SERVICE_DIAG__.fallbackNonzeroCount = nonzero;
+      window.__BACKEND_WIND_SERVICE_DIAG__.renderable = (data.vectors?.length || 0) > 0;
+      window.__BACKEND_WIND_SERVICE_DIAG__.fallbackFirstVector = data.vectors?.[0] ? { lat: data.vectors[0].lat, lng: data.vectors[0].lng, speed: data.vectors[0].speed } : null;
+    }
     if (data) {
       WIND_CACHE.set(cacheKey, { data, timestamp: Date.now() });
       lastKnownGoodWind = data;
