@@ -780,8 +780,12 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         if (isWaves) {
           if (gridProvider !== 'open-meteo') isValid = false;
         } else {
-          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback'];
-          if (!validEuroComponentProviders.includes(gridProvider) || componentLayer !== activeMarineLayer) {
+          // Accept copernicus, estimated, and legacy open-meteo fallback for EURO component layers
+          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'open-meteo'];
+          if (!validEuroComponentProviders.includes(gridProvider)) {
+            isValid = false;
+          } else if (gridProvider !== 'open-meteo' && componentLayer !== activeMarineLayer) {
+            // For non-legacy providers, also check componentLayer matches
             isValid = false;
           }
         }

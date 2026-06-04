@@ -189,11 +189,20 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 
     const OM_MODELS = { GFS: 'gfs_seamless', EURO: 'ecmwf_ifs', ICON: 'dwd_icon' };
 
+    // Cap forecast_days to stay within the 4.5MB proxy response budget
+    // Cost per point per day: 24*25 + hourlyVars*24*8 = 984 bytes (for 2 wind vars)
+    // Total: pointCount * (days * 984 + 1500) must be <= 4,500,000
+    const PROXY_BUDGET = 4500000;
+    const perDayPerPoint = 24 * 25 + 2 * 24 * 8; // 984
+    const metadataPerPoint = 1500;
+    const maxSafeDays = Math.floor((PROXY_BUDGET / lats.length - metadataPerPoint) / perDayPerPoint);
+    const safeForecastDays = Math.min(forecastDays, Math.max(2, maxSafeDays));
+
     const body = {
       latitude: lats, longitude: lons,
       wind_speed_unit: 'kn',
       hourly: ['wind_speed_10m', 'wind_direction_10m'],
-      forecast_days: forecastDays
+      forecast_days: safeForecastDays
     };
     if (model && OM_MODELS[model]) {
       body.models = [OM_MODELS[model]];
