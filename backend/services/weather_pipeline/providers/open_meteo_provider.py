@@ -164,6 +164,66 @@ class OpenMeteoProvider:
                 logger.error(f"[Open-Meteo Provider] Upstream request failed: {e}")
                 return None
 
+    async def fetch_point(
+        self,
+        model: str,
+        domain: str,
+        layer: str,
+        lat: float,
+        lng: float,
+        forecast_days: int = 2
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Asynchronously fetches a single coordinate point forecast from Open-Meteo.
+        Returns the raw HTTP response as JSON.
+        """
+        params = {
+            "latitude": f"{lat:.4f}",
+            "longitude": f"{lng:.4f}",
+            "forecast_days": str(forecast_days),
+        }
+
+        if domain == "marine":
+            url = self.MARINE_URL
+            api_model = self.MARINE_MODELS.get(model.upper(), "ncep_gfswave025")
+            params["models"] = api_model
+            
+            # Map layer variables
+            if layer == "waves":
+                params["hourly"] = "wave_height,wave_direction,wave_period"
+            elif layer == "swell_1":
+                params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
+            elif layer == "swell_2":
+                if api_model == "gwam":
+                    params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
+                else:
+                    params["hourly"] = "secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period"
+            elif layer == "wind_waves":
+                params["hourly"] = "wind_wave_height,wind_wave_direction,wind_wave_period"
+            else:
+                params["hourly"] = "wave_height,wave_direction,wave_period"
+        else: # wind
+            url = self.FORECAST_URL
+            api_model = self.FORECAST_MODELS.get(model.upper(), "gfs_seamless")
+            params["models"] = api_model
+            params["hourly"] = "wind_speed_10m,wind_direction_10m"
+            if model.upper() in ("ICON", "EURO"):
+                params["hourly"] += ",wind_gusts_10m"
+            params["wind_speed_unit"] = "kn"
+
+        logger.info(
+            f"[Open-Meteo Provider] Fetching single point forecast for {model} {domain}/{layer} at ({lat}, {lng})"
+        )
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(url, params=params, timeout=15.0)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                logger.error(f"[Open-Meteo Provider] Single point request failed: {e}")
+                return None
+
     @staticmethod
     def generate_grid_coords(bbox: Dict[str, float], resolution: float) -> tuple:
         """
