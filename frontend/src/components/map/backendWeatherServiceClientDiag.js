@@ -58,15 +58,19 @@ export function updateProjectionDiag(domain, details) {
     } catch (e) {}
   }
 
-  // Compute coverage percent of viewport
+  // Compute coverage percent of viewport (guaranteed number, never NaN/undefined)
   let coveragePercentOfViewport = 0;
   const viewportBounds = details.requestedViewportBounds || mapViewportBounds;
   if (viewportBounds && details.clampedBbox) {
-    const vArea = (viewportBounds.east - viewportBounds.west) * (viewportBounds.north - viewportBounds.south);
-    const iArea = (details.clampedBbox.east - details.clampedBbox.west) * (details.clampedBbox.north - details.clampedBbox.south);
-    if (vArea > 0) {
-      coveragePercentOfViewport = Math.round((iArea / vArea) * 100);
-    }
+    const vW = Math.abs(viewportBounds.east - viewportBounds.west);
+    const vH = Math.abs(viewportBounds.north - viewportBounds.south);
+    const iW = Math.abs(details.clampedBbox.east - details.clampedBbox.west);
+    const iH = Math.abs(details.clampedBbox.north - details.clampedBbox.south);
+    const vArea = vW * vH;
+    const iArea = iW * iH;
+    coveragePercentOfViewport = (vArea > 0 && isFinite(iArea / vArea))
+      ? Math.round(Math.min(100, (iArea / vArea) * 100))
+      : 0;
   }
 
   const covBounds = details.coverageBounds || PILOT_COVERAGE;
@@ -92,13 +96,26 @@ export function updateProjectionDiag(domain, details) {
     }
   }
 
-  const availableTiles = getAvailableTilesFromManifest();
+  const tileResult = getAvailableTilesFromManifest();
+  const availableTiles = tileResult.tiles || [];
   const availableTileIds = availableTiles.map(t => t.id);
   const selectedTileId = details.selectedTileId || null;
   const selectedTileBounds = details.coverageBounds || null;
   const rejectedTileIds = details.rejectedTileIds || [];
   
+  // coverage_status enum
+  let coverage_status = 'unsupported_layer';
+  if (renderDecision === 'render') {
+    coverage_status = coveragePercentOfViewport >= 95 ? 'full_coverage' : 'partial_regional_coverage';
+  } else if (renderDecision === 'clip_to_coverage') {
+    coverage_status = 'partial_regional_coverage';
+  } else if (renderDecision === 'outside_coverage_clear') {
+    coverage_status = 'outside_coverage_clear';
+  }
+
   window[diagKey] = {
+    status: 'active',
+    coverage_status,
     // 16 Required keys for Stage 6H
     coverageMode: selectedTileId ? 'regional_tile' : 'none',
     availableTileIds,
@@ -123,12 +140,17 @@ export function updateProjectionDiag(domain, details) {
     cols: details.cols || 0,
     rows: details.rows || 0,
     vectorCount: details.vectorCount || 0,
+    nonzeroCount: details.nonzeroCount || 0,
+    uploadCount: 0,
+    uploadReason: 'none',
+    staleClearStatus: 'none',
     firstVectorLatLng: details.firstVectorLatLng || null,
     lastVectorLatLng: details.lastVectorLatLng || null,
     provider: details.provider || 'unknown',
     reason: details.reason || details.error || 'Normal execution',
     coverageBounds: covBounds,
-    mapViewportBounds
+    mapViewportBounds,
+    timestamp: new Date().toISOString()
   };
 
   const prevTimelineDiag = window.__FORECAST_TIMELINE_COVERAGE_DIAG__ || {};
@@ -303,8 +325,14 @@ export function updateDiagnostics(type, details, model = 'GFS') {
 
 // Global Diagnostics Telemetry Initializers
 if (typeof window !== 'undefined') {
+  // Resolve feature flags safely — circular require may not be ready at init time
+  let _flagWeather = false;
+  let _flagIcon = false;
+  try { _flagWeather = getMainClient().getBackendWeatherFlag(); } catch (e) { /* circular dep at init time */ }
+  try { _flagIcon = getMainClient().getBackendIconMarineFlag(); } catch (e) { /* circular dep at init time */ }
+
   window.__BACKEND_WEATHER_SERVICE_DIAG__ = window.__BACKEND_WEATHER_SERVICE_DIAG__ || {
-    featureFlagActive: getMainClient().getBackendWeatherFlag(),
+    featureFlagActive: _flagWeather,
     activeModel: 'GFS',
     activeLayer: 'waves',
     layer: 'waves',
@@ -343,7 +371,7 @@ if (typeof window !== 'undefined') {
   };
 
   window.__BACKEND_ICON_SERVICE_DIAG__ = window.__BACKEND_ICON_SERVICE_DIAG__ || {
-    featureFlagActive: getMainClient().getBackendIconMarineFlag(),
+    featureFlagActive: _flagIcon,
     activeModel: 'ICON',
     activeLayer: 'waves',
     layer: 'waves',
@@ -382,8 +410,12 @@ if (typeof window !== 'undefined') {
   };
 
   const initialProjectionDiag = {
+    status: 'not_initialized',
     activeModel: 'GFS',
     activeLayer: 'waves',
+    validTime: null,
+    productId: null,
+    provider: 'unknown',
     requestedViewportBounds: null,
     backendRequestBbox: null,
     responseGridBounds: null,
@@ -393,14 +425,19 @@ if (typeof window !== 'undefined') {
     cols: 0,
     rows: 0,
     vectorCount: 0,
+    nonzeroCount: 0,
+    uploadCount: 0,
+    uploadReason: 'none',
     firstVectorLatLng: null,
     lastVectorLatLng: null,
-    productId: null,
-    provider: 'unknown',
     renderDecision: 'unsupported',
+    coverage_status: 'not_initialized',
+    coveragePercentOfViewport: 0,
+    staleClearStatus: 'none',
     reason: 'Initial state',
     isStretchedToViewport: false,
-    coverageIntersectsViewport: true
+    coverageIntersectsViewport: true,
+    timestamp: null
   };
 
   window.__WEATHER_GRID_PROJECTION_DIAG__ = window.__WEATHER_GRID_PROJECTION_DIAG__ || {
@@ -419,9 +456,21 @@ if (typeof window !== 'undefined') {
   };
 
   window.__FORECAST_TIMELINE_COVERAGE_DIAG__ = window.__FORECAST_TIMELINE_COVERAGE_DIAG__ || {
+    status: 'not_initialized',
     activeModel: 'GFS',
     activeLayer: 'waves',
     domain: 'marine',
+    validTime: null,
+    productId: null,
+    provider: null,
+    bounds: null,
+    vectorCount: 0,
+    nonzeroCount: 0,
+    uploadCount: 0,
+    uploadReason: 'none',
+    renderDecision: 'init',
+    coverage_status: 'not_initialized',
+    staleClearStatus: 'none',
     regionId: null,
     tileId: null,
     timeOffsetHours: 0,
@@ -433,12 +482,12 @@ if (typeof window !== 'undefined') {
     fetchTriggeredBy: 'init',
     commitRevision: 0,
     webglUploadCount: 0,
-    renderDecision: 'init',
     staleRejected: false,
     staleRejectReason: null,
     pointVisualParity: false,
     isEstimated: false,
     estimateBasis: null,
-    estimateSource: 'none'
+    estimateSource: 'none',
+    timestamp: null
   };
 }

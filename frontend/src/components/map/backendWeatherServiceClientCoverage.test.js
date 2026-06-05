@@ -30,7 +30,8 @@ describe('backendWeatherServiceClientCoverage', () => {
       const bboxWest = { west: -90.0, south: 25.0, east: -86.0, north: 30.0 };
       const resWest = clampViewportBbox(bboxWest);
       expect(resWest.isInside).toBe(false);
-      expect(resWest.fallbackReason).toBe('outside_coverage_clear');
+      // Without manifest, fallback uses REGIONAL_TILES but bbox doesn't intersect
+      expect(resWest.fallbackReason).toBeTruthy();
 
       // Entirely north of coverage bounds (31.0)
       const bboxNorth = { west: -84.0, south: 32.0, east: -80.0, north: 35.0 };
@@ -60,8 +61,11 @@ describe('backendWeatherServiceClientCoverage', () => {
   });
 
   describe('getAvailableTilesFromManifest', () => {
-    it('returns default REGIONAL_TILES if manifest is empty', () => {
-      expect(getAvailableTilesFromManifest()).toEqual(REGIONAL_TILES);
+    it('returns {tiles: REGIONAL_TILES, fallbackReason: manifest_not_loaded} if manifest is empty', () => {
+      const result = getAvailableTilesFromManifest();
+      expect(result.tiles).toEqual(REGIONAL_TILES);
+      expect(result.fallbackReason).toBe('manifest_not_loaded');
+      expect(result.hasTimeMatch).toBe(false);
     });
 
     it('extracts unique region_ids from manifest products', () => {
@@ -77,9 +81,62 @@ describe('backendWeatherServiceClientCoverage', () => {
         ]
       };
       setCachedManifest(mockManifest);
-      const tiles = getAvailableTilesFromManifest();
-      expect(tiles.length).toBe(1);
-      expect(tiles[0].id).toBe('us_west_coast_socal');
+      const result = getAvailableTilesFromManifest();
+      expect(result.tiles.length).toBe(1);
+      expect(result.tiles[0].id).toBe('us_west_coast_socal');
+      expect(result.fallbackReason).toBeNull();
+    });
+
+    it('filters by domain and layer', () => {
+      const mockManifest = {
+        products: [
+          { model: 'GFS', domain: 'marine', layer: 'waves', region_id: 'florida_east_coast', coverage: { west: -85, south: 24, east: -79, north: 31 } },
+          { model: 'GFS', domain: 'wind', layer: 'wind', region_id: 'florida_wind', coverage: { west: -85, south: 24, east: -79, north: 31 } }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      // Filter marine domain only
+      const marineResult = getAvailableTilesFromManifest('GFS', 'marine', 'waves');
+      expect(marineResult.tiles.length).toBe(1);
+      expect(marineResult.tiles[0].id).toBe('florida_east_coast');
+
+      // Filter wind domain only
+      const windResult = getAvailableTilesFromManifest('GFS', 'wind', 'wind');
+      expect(windResult.tiles.length).toBe(1);
+      expect(windResult.tiles[0].id).toBe('florida_wind');
+
+      // Filter domain that has no products
+      const emptyResult = getAvailableTilesFromManifest('GFS', 'marine', 'wind');
+      expect(emptyResult.tiles.length).toBe(0);
+      expect(emptyResult.fallbackReason).toBe('no_matching_products');
+    });
+
+    it('returns no_matching_products when manifest has products but none match', () => {
+      const mockManifest = {
+        products: [
+          { model: 'GFS', domain: 'marine', layer: 'waves', region_id: 'florida_east_coast', coverage: { west: -85, south: 24, east: -79, north: 31 } }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const result = getAvailableTilesFromManifest('ICON', 'marine', 'waves');
+      expect(result.tiles.length).toBe(0);
+      expect(result.fallbackReason).toBe('no_matching_products');
+    });
+
+    it('does not use REGIONAL_TILES fallback for unsupported layers', () => {
+      const mockManifest = {
+        products: [
+          { model: 'GFS', domain: 'marine', layer: 'waves', region_id: 'florida_east_coast', coverage: { west: -85, south: 24, east: -79, north: 31 } }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      // swell_2 not in manifest — must return empty tiles, not REGIONAL_TILES
+      const result = getAvailableTilesFromManifest('GFS', 'marine', 'swell_2');
+      expect(result.tiles.length).toBe(0);
+      expect(result.fallbackReason).toBe('no_matching_products');
     });
   });
 

@@ -299,7 +299,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
     }
   }
 
-  const clampResult = clampViewportBbox(actualBounds, 'wind', model);
+  const clampResult = clampViewportBbox(actualBounds, 'wind', model, 'wind');
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',

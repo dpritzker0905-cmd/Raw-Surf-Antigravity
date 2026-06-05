@@ -6,6 +6,91 @@
 
 import { computeGridContentHash } from './marineGridHash';
 
+// Initialize defaults at module load so diagnostics are never null
+if (typeof window !== 'undefined') {
+  window.__WebGLMarineLayer_DIAG__ = window.__WebGLMarineLayer_DIAG__ || {
+    status: 'not_initialized',
+    activeModel: null,
+    activeMarineLayer: null,
+    renderedProvider: null,
+    componentLayer: null,
+    backendGridVectorCount: 0,
+    webglSourceVectorCount: 0,
+    particleCount: 0,
+    renderedParticleCount: 0,
+    lastUploadedGridSignature: 'none',
+    waveDataPresent: false,
+    timeOffsetHours: null,
+    validTime: null,
+    productId: null,
+    provider: null,
+    bounds: null,
+    vectorCount: 0,
+    nonzeroCount: 0,
+    uploadCount: 0,
+    uploadReason: 'none',
+    renderDecision: 'not_initialized',
+    coverage_status: 'not_initialized',
+    staleClearStatus: 'none',
+    lastUploadClearRejectionReason: 'none',
+    infoboxHeatmapParity: false,
+    timestamp: null
+  };
+
+  window.__WEBGL_MARINE_UPLOAD_DIAG__ = window.__WEBGL_MARINE_UPLOAD_DIAG__ || {
+    status: 'not_initialized',
+    activeModel: null,
+    activeLayer: null,
+    validTime: null,
+    productId: null,
+    provider: null,
+    bounds: null,
+    vectorCount: 0,
+    nonzeroCount: 0,
+    uploadCount: 0,
+    uploadReason: 'none',
+    renderDecision: 'not_initialized',
+    coverage_status: 'not_initialized',
+    staleClearStatus: 'none',
+    timeOffsetHours: null,
+    gridProvider: null,
+    sourceModel: null,
+    componentLayer: null,
+    renderAccepted: false,
+    rejectionReason: null,
+    elapsedMs: 0,
+    timestamp: null
+  };
+
+  window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_RENDER_SOURCE_DIAG__ || {
+    status: 'not_initialized',
+    activeModel: null,
+    activeLayer: null,
+    validTime: null,
+    productId: null,
+    provider: null,
+    bounds: null,
+    vectorCount: 0,
+    nonzeroCount: 0,
+    uploadCount: 0,
+    uploadReason: 'none',
+    renderDecision: 'not_initialized',
+    coverage_status: 'not_initialized',
+    staleClearStatus: 'none',
+    sourcePath: null,
+    heatmapProvider: null,
+    gridProvider: null,
+    sourceModel: null,
+    componentLayer: null,
+    cols: 0,
+    rows: 0,
+    maxHeight: 0,
+    meanHeight: 0,
+    timeOffsetHours: null,
+    timestamp: null
+  };
+}
+
 export function updateWebGLMarineLayerDiag(engine, activeModel, activeLayers, timeOffsetHours, lastSig) {
   if (typeof window === 'undefined') return;
 

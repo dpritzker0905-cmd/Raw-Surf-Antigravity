@@ -553,7 +553,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     } catch (e) {}
   }
 
-  const clampResult = clampViewportBbox(actualBounds || snappedBounds, layer, model);
+  const clampResult = clampViewportBbox(actualBounds || snappedBounds, layer, model, 'marine');
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',

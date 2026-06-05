@@ -98,6 +98,7 @@ uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
 uniform float u_zoom;  // v3.13.5: for close-zoom density boost
+uniform float u_edgeFeatherEnabled;
 
 vec2 decodePos(vec4 color) {
   return vec2(
@@ -124,6 +125,17 @@ void main() {
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
   v_speed = length(wind);
 
+  // Edge feathering: compute tex_u/tex_v from particle position in wind grid
+  float tex_u = pos.x;
+  float tex_v = pos.y;
+  float edgeFade = 1.0;
+  if (u_edgeFeatherEnabled > 0.5) {
+    float distToEdgeX = min(tex_u, 1.0 - tex_u);
+    float distToEdgeY = min(tex_v, 1.0 - tex_v);
+    float minDistToEdge = min(distToEdgeX, distToEdgeY);
+    edgeFade = smoothstep(0.0, 0.18, minDistToEdge);
+  }
+
   // Convert to Mercator for MapLibre
   float x = (lng + 180.0) / 360.0;
   float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
@@ -135,7 +147,7 @@ void main() {
   // v3.13.5: Close-zoom density enhancement — larger particles at high zoom
   // for +20% visual density at the 3 closest zoom levels (≥8)
   float zoomBoost = u_zoom >= 8.0 ? 1.2 : 1.0;
-  gl_PointSize = v_speed < 0.5 ? 0.0 : (2.0 + clamp(v_speed / 8.0, 0.0, 3.0)) * zoomBoost;
+  gl_PointSize = v_speed < 0.5 ? 0.0 : (2.0 + clamp(v_speed / 8.0, 0.0, 3.0)) * zoomBoost * edgeFade;
 }`;
 
 export const DRAW_FS = `precision mediump float;
@@ -175,6 +187,7 @@ uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
 uniform float u_opacity;
 uniform float u_theme;
+uniform float u_edgeFeatherEnabled;
 varying vec2 v_uv;
 
 vec3 ramp(float t, float theme) {
@@ -209,6 +222,13 @@ void main() {
   float speed = length(wind);
   float t = clamp(speed / 45.0, 0.0, 1.0);
   float alpha = u_opacity * smoothstep(0.4, 4.0, speed);
+  if (u_edgeFeatherEnabled > 0.5) {
+    float edgeDistX = min(v_uv.x, 1.0 - v_uv.x);
+    float edgeDistY = min(v_uv.y, 1.0 - v_uv.y);
+    float minEdgeDist = min(edgeDistX, edgeDistY);
+    float feather = smoothstep(0.0, 0.18, minEdgeDist);
+    alpha *= feather;
+  }
   gl_FragColor = vec4(ramp(t, u_theme) * alpha, alpha);
 }`;
 

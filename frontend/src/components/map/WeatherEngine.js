@@ -78,7 +78,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       }
 
       // v6I.1 Check coverage limits first to enforce regional tiles and outside coverage clearing
-      const clampResult = clampViewportBbox(bounds, 'wind', activeModel);
+      const clampResult = clampViewportBbox(bounds, 'wind', activeModel, 'wind');
       if (!clampResult.isInside) {
         console.log(`[WeatherEngine] Viewport outside wind coverage (${clampResult.fallbackReason}). Clearing visual layer.`);
         setWindData(null);
@@ -180,7 +180,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             north: Math.min(85, b.getNorth())
           };
 
-          const clampResult = clampViewportBbox(bounds, 'wind', activeModel);
+          const clampResult = clampViewportBbox(bounds, 'wind', activeModel, 'wind');
           if (!clampResult.isInside) {
             console.log(`[WeatherEngine] Scrub target +${timeOffsetHours}h is outside wind coverage. Clearing visual.`);
             setWindData(null);
@@ -244,7 +244,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           }
 
           // v6I.1 Check coverage limits first
-          const clampResult = clampViewportBbox(bounds, 'wind', activeModel);
+          const clampResult = clampViewportBbox(bounds, 'wind', activeModel, 'wind');
           if (!clampResult.isInside) {
             console.log(`[WeatherEngine] Viewport moved outside wind coverage. Clearing visual.`);
             setWindData(null);

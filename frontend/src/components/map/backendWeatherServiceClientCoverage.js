@@ -38,20 +38,36 @@ export const REGIONAL_TILES = [
  * Extracts active tile definitions dynamically from the backend products manifest.
  * Falls back to hardcoded REGIONAL_TILES if manifest is empty or not yet loaded.
  */
-export function getAvailableTilesFromManifest(modelName = null) {
+export function getAvailableTilesFromManifest(modelName = null, domainName = null, layerName = null, targetValidTime = null) {
   const cachedManifest = getCachedManifest();
   if (!cachedManifest || !Array.isArray(cachedManifest.products) || cachedManifest.products.length === 0) {
-    return REGIONAL_TILES;
+    return { tiles: REGIONAL_TILES, fallbackReason: 'manifest_not_loaded', hasTimeMatch: false };
   }
   
   const seen = new Set();
   const tiles = [];
   const filterModel = modelName ? modelName.toUpperCase() : null;
+  const filterDomain = domainName ? domainName.toLowerCase() : null;
+  const filterLayer = layerName ? layerName.toLowerCase() : null;
+  let hasTimeMatch = false;
   
   for (const p of cachedManifest.products) {
-    if (filterModel && p.model.toUpperCase() !== filterModel) {
-      continue;
+    if (filterModel && p.model.toUpperCase() !== filterModel) continue;
+    if (filterDomain && p.domain.toLowerCase() !== filterDomain) continue;
+    if (filterLayer && p.layer.toLowerCase() !== filterLayer) continue;
+
+    // Check valid_time availability if requested
+    if (targetValidTime) {
+      try {
+        const targetMs = new Date(targetValidTime).getTime();
+        const startMs = new Date(p.valid_time_start).getTime();
+        const endMs = new Date(p.valid_time_end).getTime();
+        if (targetMs >= startMs - 3 * 3600000 && targetMs <= endMs + 3 * 3600000) {
+          hasTimeMatch = true;
+        }
+      } catch (e) { /* invalid date — skip time check */ }
     }
+
     let regionId = p.region_id;
     if (!regionId && p.coverage) {
       const isFlorida = Math.abs(p.coverage.west - (-85.0)) < 0.1 &&
@@ -76,10 +92,10 @@ export function getAvailableTilesFromManifest(modelName = null) {
   }
   
   if (tiles.length === 0) {
-    return REGIONAL_TILES;
+    return { tiles: [], fallbackReason: 'no_matching_products', hasTimeMatch: false };
   }
   
-  return tiles;
+  return { tiles, fallbackReason: null, hasTimeMatch: targetValidTime ? hasTimeMatch : true };
 }
 
 /**
@@ -120,7 +136,9 @@ export function getProductCoverage(model = 'GFS', domain = 'marine', layer = 'wa
 /**
  * Clamps or intersects the requested viewport bbox coordinates with the dynamic coverage limits.
  */
-export function clampViewportBbox(requestedBbox, layerName = "waves", modelName = "GFS") {
+export function clampViewportBbox(requestedBbox, layerName = "waves", modelName = "GFS", domainName = null) {
+  const inferredDomain = domainName || (layerName === 'wind' ? 'wind' : 'marine');
+
   if (!requestedBbox) {
     return {
       isInside: false,
@@ -129,13 +147,16 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       coverageBounds: PILOT_COVERAGE,
       selectedTileId: null,
       availableTileIds: REGIONAL_TILES.map(t => t.id),
-      rejectedTileIds: []
+      rejectedTileIds: [],
+      tileFallbackReason: null
     };
   }
 
   const { west, south, east, north } = requestedBbox;
-  const tiles = getAvailableTilesFromManifest(modelName);
+  const tileResult = getAvailableTilesFromManifest(modelName, inferredDomain, layerName);
+  const tiles = tileResult.tiles || [];
   const availableTileIds = tiles.map(t => t.id);
+  const tileFallbackReason = tileResult.fallbackReason;
   
   // Find all intersecting tiles and calculate their intersection area with the requested viewport
   const intersectingTiles = [];
@@ -162,11 +183,12 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     return {
       isInside: false,
       clampedBbox: null,
-      fallbackReason: "outside_coverage_clear",
+      fallbackReason: tileFallbackReason || "outside_coverage_clear",
       coverageBounds: PILOT_COVERAGE,
       selectedTileId: null,
       availableTileIds,
-      rejectedTileIds: []
+      rejectedTileIds: [],
+      tileFallbackReason
     };
   }
 
@@ -184,6 +206,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     coverageBounds: bestMatch.tile.bounds,
     selectedTileId,
     availableTileIds,
-    rejectedTileIds
+    rejectedTileIds,
+    tileFallbackReason
   };
 }

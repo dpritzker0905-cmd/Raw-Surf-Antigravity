@@ -354,6 +354,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   
   const isRegionalGrid = (waveBounds.east - waveBounds.west < 359.9);
   const edgeFeatherEnabledVal = isRegionalGrid ? 1.0 : 0.0;
+  if (typeof window !== 'undefined') {
+    window.__MARINE_COVERAGE_STATUS__ = isRegionalGrid
+      ? 'partial_regional_coverage'
+      : 'full_coverage';
+  }
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
 
   if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {

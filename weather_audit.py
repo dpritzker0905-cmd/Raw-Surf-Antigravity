@@ -78,7 +78,33 @@ def main():
         layer = prod.get("layer")
         if layer in layer_counts:
             layer_counts[layer] += 1
-    bbox_covered = BBOX in coverage if isinstance(coverage, str) else False
+    # Bbox sanity validation
+    bbox_validation = {
+        "west": coverage.get("west") if isinstance(coverage, dict) else None,
+        "south": coverage.get("south") if isinstance(coverage, dict) else None,
+        "east": coverage.get("east") if isinstance(coverage, dict) else None,
+        "north": coverage.get("north") if isinstance(coverage, dict) else None,
+        "west_lt_east": coverage.get("west", 0) < coverage.get("east", 0) if isinstance(coverage, dict) else False,
+        "south_lt_north": coverage.get("south", 0) < coverage.get("north", 0) if isinstance(coverage, dict) else False,
+        "florida_lat_positive": coverage.get("south", 0) > 0 and coverage.get("north", 0) > 0 if isinstance(coverage, dict) else False,
+        "florida_lon_negative": coverage.get("west", 0) < 0 and coverage.get("east", 0) < 0 if isinstance(coverage, dict) else False,
+        "ordering": "west,south,east,north",
+        "verdict": "VALID"
+    }
+    if isinstance(coverage, dict) and not all([
+        bbox_validation["west_lt_east"],
+        bbox_validation["south_lt_north"],
+        bbox_validation["florida_lat_positive"],
+        bbox_validation["florida_lon_negative"]
+    ]):
+        bbox_validation["verdict"] = "INVALID"
+    save_json(bbox_validation, "bbox_validation.json")
+
+    bbox_covered = (isinstance(coverage, dict) and
+                    coverage.get("west", 999) <= -85.0 and
+                    coverage.get("south", 999) <= 24.0 and
+                    coverage.get("east", -999) >= -79.0 and
+                    coverage.get("north", -999) >= 31.0)
     manifest_summary = {
         "tile_id": tile_id,
         "coverage": coverage,

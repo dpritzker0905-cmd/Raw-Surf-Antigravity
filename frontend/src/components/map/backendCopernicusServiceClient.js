@@ -264,7 +264,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
     }
   }
 
-  const clampResult = clampViewportBbox(actualBounds, layer, 'EURO');
+  const clampResult = clampViewportBbox(actualBounds, layer, 'EURO', 'marine');
   if (!clampResult.isInside) {
     const errorDetails = {
       url: 'none',

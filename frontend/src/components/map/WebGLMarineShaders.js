@@ -354,7 +354,7 @@ void main() {
     float distToEdgeX = min(tex_u, 1.0 - tex_u);
     float distToEdgeY = min(tex_v, 1.0 - tex_v);
     float minDistToEdge = min(distToEdgeX, distToEdgeY);
-    edgeFade = smoothstep(0.0, 0.10, minDistToEdge);
+    edgeFade = smoothstep(0.0, 0.18, minDistToEdge);
   }
   v_alpha *= edgeFade;
 
@@ -707,7 +707,7 @@ void main() {
     float edgeDistX = min(v_grid_uv.x, 1.0 - v_grid_uv.x);
     float edgeDistY = min(v_grid_uv.y, 1.0 - v_grid_uv.y);
     float minEdgeDist = min(edgeDistX, edgeDistY);
-    float feather = smoothstep(0.0, 0.10, minEdgeDist);
+    float feather = smoothstep(0.0, 0.18, minEdgeDist);
     alpha *= feather;
   }
 

@@ -250,6 +250,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const z = typeof zoom === 'number' ? zoom : 6;
   const baseScale = this.speedFactor * Math.pow(0.55, Math.max(0, z - 6)) * 0.05; // Normalizing 0.40 speedFactor to correct coordinate step sizes
   const bounds = this._windData.bounds;
+  const isRegionalGrid = (bounds.east - bounds.west < 359.9);
+  const edgeFeatherVal = isRegionalGrid ? 1.0 : 0.0;
+  if (typeof window !== 'undefined') {
+    window.__WIND_COVERAGE_STATUS__ = isRegionalGrid
+      ? 'partial_regional_coverage'
+      : 'full_coverage';
+  }
   const lngSpan = Math.max(0.01, Math.abs(bounds.east - bounds.west));
   const latSpan = Math.max(0.01, Math.abs(bounds.north - bounds.south));
   const speedScaleX = Math.max(1.0e-5, baseScale / lngSpan);
@@ -275,6 +282,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), 0.36);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   bindTexture(gl, this._windData.texture, 0);
   var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
   var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
@@ -359,6 +367,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z); // v3.13.5: close-zoom density boost
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);

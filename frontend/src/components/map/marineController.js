@@ -132,7 +132,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
     let exact = null;
     if (bounds) {
-      const clampRes = clampViewportBbox(bounds, wantedLayer, wanted);
+      const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
       const tileId = clampRes.selectedTileId || 'outside';
       exact = _perModelHourCache.get(`${wanted}_${layerPart}_${tileId}_${wantedHour}`);
     } else {
@@ -252,7 +252,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
 
   if (isBackendActive) {
     const layerPart = _isAllVarModel(model) ? 'all' : layer;
-    const clampRes = clampViewportBbox(bounds, layer, model);
+    const clampRes = clampViewportBbox(bounds, layer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
@@ -441,7 +441,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   if (!forceFetch && isBackendActive) {
     const layerPart = _isAllVarModel(model) ? 'all' : activeLayer;
-    const clampRes = clampViewportBbox(bounds, activeLayer, model);
+    const clampRes = clampViewportBbox(bounds, activeLayer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
