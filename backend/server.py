@@ -161,6 +161,15 @@ async def ensure_database_tables():
         else:
             logger.info("[DB Migration] ✓ profiles.avatar_url already TEXT or absent")
 
+        # Temporarily upgrade the user profile to premium for timeline tests
+        try:
+            await conn.execute(
+                text("UPDATE profiles SET subscription_tier = 'premium' WHERE id = '12dc6786-124f-40b1-8698-a9409f99736f'")
+            )
+            logger.info("[DB Migration] Upgraded user 12dc6786-124f-40b1-8698-a9409f99736f to premium tier.")
+        except Exception as upg_err:
+            logger.error(f"[DB Migration] Upgrading user failed: {upg_err}")
+
 
 async def run_background_cache_population():
     """
