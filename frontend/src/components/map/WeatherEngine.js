@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
+import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 
 /**
  * Unified Weather Data Engine (v3.9.4)
@@ -43,12 +44,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     const RETRY_DELAYS = [0, 8000, 15000, 30000, 60000];
 
     const getBounds = () => {
-      // v3.13: Wind particles need GLOBAL coverage for the WebGL engine.
-      // The 3x longitude wrapping renders across the entire visible globe.
-      // Using viewport bounds would confine particles to a small region.
-      // computeGridPoints automatically uses a 15x15 global grid when
-      // lngSpan > 180, producing the correct 225-point global coverage.
-      return { west: -180, south: -85, east: 180, north: 85 };
+      try {
+        const b = mapInstance.getBounds();
+        return {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
+      } catch (e) {
+        return null;
+      }
     };
 
     const attemptFetch = async () => {
@@ -68,6 +74,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       const bounds = getBounds();
       if (!bounds) {
         retryTimer = setTimeout(attemptFetch, 1000); // Shorter retry window to capture bounds faster
+        return;
+      }
+
+      // v6I.1 Check coverage limits first to enforce regional tiles and outside coverage clearing
+      const clampResult = clampViewportBbox(bounds, 'wind', activeModel);
+      if (!clampResult.isInside) {
+        console.log(`[WeatherEngine] Viewport outside wind coverage (${clampResult.fallbackReason}). Clearing visual layer.`);
+        setWindData(null);
+        windRevision.current += 1;
+        // Periodic check to see if we pan back into coverage
+        retryTimer = setTimeout(attemptFetch, 10000);
         return;
       }
 
@@ -126,9 +143,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     };
   }, [mapInstance, activeModel, forecastDays, isWindActive]); // Refetch when model or forecast window changes
 
-  // ===== TIMELINE SCRUB (local cache re-index, ZERO API calls) =====
-  // Uses extractWindAtOffset directly on the cached hourly data.
-  // NEVER calls fetchWindData that would trigger a POST and cause 429s.
+  // ===== TIMELINE SCRUB (local cache re-index, with FETCH ON CACHE MISS) =====
   const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
     if (prevOffsetRef.current === timeOffsetHours) return;
@@ -137,26 +152,65 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
     console.log(`[SCRUB] [WeatherEngine] Timeline scrub: ${timeOffsetHours}h`);
 
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
+      let cacheMiss = false;
+      let targetData = null;
       try {
         const cache = getWindHourlyCache();
-        if (!cache?.results?.length) {
-          console.log('[CACHE] [WeatherEngine] No cached data for timeline re-index');
-          return;
-        }
-        const data = extractWindAtOffset(cache, timeOffsetHours);
-        if (data && data.vectors?.length > 0) {
-          console.log(`[CACHE] [WeatherEngine] Timeline data: ${data.vectors.length} vectors at +${timeOffsetHours}h`);
-          windRevision.current += 1;
-          setWindData(data);
+        if (cache?.results?.length) {
+          targetData = extractWindAtOffset(cache, timeOffsetHours);
+          if (!targetData || !targetData.vectors || targetData.vectors.length === 0) {
+            cacheMiss = true;
+          }
+        } else {
+          cacheMiss = true;
         }
       } catch (e) {
-        console.error('[CACHE] [WeatherEngine] Timeline re-index failed:', e.message);
+        cacheMiss = true;
+      }
+
+      if (cacheMiss) {
+        console.log(`[CACHE] [WeatherEngine] Cache miss for wind at hour +${timeOffsetHours}h. Fetching immediately...`);
+        try {
+          const b = mapInstance.getBounds();
+          const bounds = {
+            west: b.getWest(),
+            south: Math.max(-85, b.getSouth()),
+            east: b.getEast(),
+            north: Math.min(85, b.getNorth())
+          };
+
+          const clampResult = clampViewportBbox(bounds, 'wind', activeModel);
+          if (!clampResult.isInside) {
+            console.log(`[WeatherEngine] Scrub target +${timeOffsetHours}h is outside wind coverage. Clearing visual.`);
+            setWindData(null);
+            windRevision.current += 1;
+            return;
+          }
+
+          const data = await fetchWindData(bounds, null, timeOffsetHours, true, forecastDays, activeModel);
+          if (data && data.vectors?.length > 0) {
+            console.log(`[SCRUB] [WeatherEngine] Fetch wind grid success for hour +${timeOffsetHours}h: ${data.vectors.length} vectors`);
+            windRevision.current += 1;
+            setWindData(data);
+          } else {
+            console.log(`[WeatherEngine] No wind forecast coverage at offset +${timeOffsetHours}h. Clearing visual.`);
+            setWindData(null);
+            windRevision.current += 1;
+          }
+        } catch (err) {
+          console.error('[WeatherEngine] Wind scrub fetch failed:', err.message);
+          setWindData(null);
+          windRevision.current += 1;
+        }
+      } else if (targetData && targetData.vectors?.length > 0) {
+        console.log(`[CACHE] [WeatherEngine] Timeline data: ${targetData.vectors.length} vectors at +${timeOffsetHours}h`);
+        windRevision.current += 1;
+        setWindData(targetData);
       }
     }, 150);
     return () => clearTimeout(t);
-     
-  }, [timeOffsetHours]);
+  }, [timeOffsetHours, mapInstance, activeModel, isWindActive, forecastDays]);
 
   // ===== VIEWPORT CHANGE REFETCH =====
   useEffect(() => {
@@ -184,16 +238,22 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         timer = setTimeout(async () => {
           timer = null;
 
-          // Scrubbing mode hard freeze (Request 3)
           if (window.isScrubbingTimeline) {
             console.log("[SCRUB] [FETCH] Wind fetch suppressed during active scrubbing");
             return;
           }
 
+          // v6I.1 Check coverage limits first
+          const clampResult = clampViewportBbox(bounds, 'wind', activeModel);
+          if (!clampResult.isInside) {
+            console.log(`[WeatherEngine] Viewport moved outside wind coverage. Clearing visual.`);
+            setWindData(null);
+            windRevision.current += 1;
+            return;
+          }
+
           try {
-            // v3.13: Always fetch with global bounds for wind
-            const globalBounds = { west: -180, south: -85, east: 180, north: 85 };
-            const data = await fetchWindData(globalBounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
+            const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
             if (data && data.vectors?.length > 0) {
               console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors`);
               windRevision.current += 1;
@@ -211,7 +271,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         clearTimeout(timer);
       }
     };
-  }, [mapInstance, isWindActive, !!windData]);  
+  }, [mapInstance, isWindActive, !!windData, activeModel, forecastDays]);  
 
   // v3.11.1: Subscribe to forecast pipeline for downstream engine consumers
   useEffect(() => {

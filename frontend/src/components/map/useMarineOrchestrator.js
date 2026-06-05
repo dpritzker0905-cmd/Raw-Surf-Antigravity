@@ -5,6 +5,7 @@ import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFl
 import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
+import { _marineDataSignature, _logPipelineEvent } from './useMarineOrchestratorDiag';
 
 const loadGrid = (model, layer, hour, bounds, zoom) =>
   model === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(layer)
@@ -39,39 +40,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     } catch (e) { return null; }
   };
 
-
-
-  const _marineDataSignature = (data, layer) => {
-    if (!data?.grid) return null;
-    const g = data.grid;
-    const contentHash = computeGridContentHash(g, layer);
-    return `${g.__sourceModel}_${g.__componentLayer}_${data.hourOffset}_${g.__provider}_${g.cols}x${g.rows}_n${g.vectors?.length}_ch${contentHash}`;
-  };
-
-  const _logPipelineEvent = (eventType, detail) => {
-    const entry = { event: eventType, ...detail, timestamp: new Date().toISOString() };
-    pipelineEventsRef.current = [...pipelineEventsRef.current.slice(-19), entry];
-    const c = pipelineCountersRef.current;
-    if (eventType === 'stale_async_response_rejected') c.staleRejections++;
-    if (eventType === 'intent_buffered') c.pendingIntents++;
-    if (eventType.startsWith('network_fetch')) c.networkFetches++;
-    if (eventType.startsWith('local_cache_remap')) c.cacheRemaps++;
-    if (eventType === 'duplicate_commit_skipped') c.duplicateCommitSkipped++;
-    if (eventType === 'extended_estimate_fetch') c.extendedEstimateFetches++;
-    if (eventType === 'extended_estimate_skipped') c.extendedEstimateSkipped++;
-    if (eventType === 'rate_limit_429') c.rateLimits++;
-
-    if (typeof window !== 'undefined') {
-      c.duplicateUploadSkipped = window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__ || 0;
-      c.webglUploads = window.__WEBGL_MARINE_UPLOAD_COUNT__ || 0;
-      c.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__ || 0;
-      window.__MARINE_PIPELINE_TRUTH__ = {
-        deployedVersion: 'v7.14', activeModel: activeModelRef.current, activeLayer: activeMarineLayerRef.current || 'waves',
-        activeHour: timeOffsetRef.current, cacheMode: activeModelRef.current !== 'EURO' ? 'all_vars_model_cache' : 'layer_scoped',
-        pendingIntent: pendingMarineIntentRef.current, fetchPending: !!window.__MARINE_FETCH_PENDING__,
-        lastCommittedSignature: lastCommittedSigRef.current, counters: { ...c }, lastEvents: pipelineEventsRef.current, timestamp: new Date().toISOString()
-      };
-    }
+  const logPipelineEventHelper = (eventType, detail) => {
+    _logPipelineEvent(eventType, detail, pipelineEventsRef, pipelineCountersRef, activeModelRef, activeMarineLayerRef, timeOffsetRef, lastCommittedSigRef, pendingMarineIntentRef);
   };
 
   const activeMarineLayer = useMemo(() => {
@@ -147,26 +117,27 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       const model = activeModelRef.current, layer = activeMarineLayerRef.current || 'waves', timeOffset = timeOffsetRef.current;
 
       try {
-        if (window.isScrubbingTimeline || isCommittingDataRef.current) return;
+        const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
+        if (!isTimelineScrub && (window.isScrubbingTimeline || isCommittingDataRef.current)) return;
         if (!activeMarineLayersRef.current) return;
         const center = mapInstance.getCenter(), zoom = mapInstance.getZoom(), q = (v) => Number(v).toFixed(2), z = Math.round(zoom * 2) / 2;
         const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}:${model}:${layer}:${timeOffset}`;
         const isRetry = source === 'cooldown_retry' || source === 'delayed_retry';
 
-        if (!isRetry && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
+        if (!isRetry && !isTimelineScrub && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
         if (locks.lastHash !== viewportHash) { consecutiveFailuresRef.current = 0; marineRetryCountRef.current = 0; }
         updateMarineGridRef.current = updateMarineGrid;
 
         if (locks.isFetching) {
           pendingMarineIntentRef.current = { source, model, layer, hour: timeOffset, timestamp: Date.now() };
-          _logPipelineEvent('intent_buffered', pendingMarineIntentRef.current);
+          logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
           return;
         }
 
-        if (!isRetry && consecutiveFailuresRef.current >= 3) return;
+        if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
         const now = Date.now();
-        if (!isRetry && now - locks.lastTime < 1200) return;
-        if (mapInstance.isMoving() || mapInstance.isZooming()) return;
+        if (!isRetry && !isTimelineScrub && now - locks.lastTime < 1200) return;
+        if (!isTimelineScrub && (mapInstance.isMoving() || mapInstance.isZooming())) return;
 
         phase = 'pre_fetch';
         const bounds = { west: -180, south: -85, east: 180, north: 85 };
@@ -176,7 +147,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           console.warn('[Orchestrator] 429 rate limit active, skipping network fetch and entering cooldown fallback');
           consecutiveFailuresRef.current = 3;
           clearTimeout(cooldownRetryRef.current); cooldownRetryRef.current = null;
-          _logPipelineEvent('rate_limit_429', { model, layer, hour: timeOffset });
+          logPipelineEventHelper('rate_limit_429', { model, layer, hour: timeOffset });
 
           let cachedData = null;
           try {
@@ -190,31 +161,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               lastCommittedSigRef.current = sig; marineRevision.current += 1;
               cachedData.__commitRevision = marineRevision.current; setMarineData(cachedData);
             }
-            if (typeof window !== 'undefined') {
-              window.__MARINE_HEATMAP_STATUS__ = { status: 'rate_limited_cached', model, layer, hour: timeOffset, retainedPrevious: false };
-            }
             return;
           }
-
-          const hasMatches = marineData?.grid?.vectors?.length > 0 &&
-                            marineData.grid.__sourceModel === model &&
-                            marineData.grid.__componentLayer === layer &&
-                            marineData.hourOffset === timeOffset;
-
-          if (typeof window !== 'undefined') {
-            window.__MARINE_HEATMAP_STATUS__ = {
-              status: 'rate_limited_no_cache',
-              model, layer, hour: timeOffset,
-              retainedPrevious: hasMatches
-            };
-          }
-
-          if (hasMatches) {
-            console.log(`[Cooldown Fallback] Retaining active valid matching data`);
-            return;
-          }
-
-          console.log(`[Cooldown Fallback] Skipping setMarineData fallback commit to prevent rendering empty/poisonous data`);
+          setMarineData(null); // Clear visual frame since rate limit is active and no cache exists
           return;
         }
 
@@ -254,7 +203,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             try {
               return await fetchMarineData(targetBounds, targetZoom, null, targetHour, false, modelName, targetLayer);
             } catch (e) {
-              if (e.message.includes('429')) diagObj.rateLimitStatus = 'rate_limited';
               return null;
             } finally { orchestratorInFlight.current.delete(requestKey); }
           })();
@@ -271,7 +219,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
         if (isPastLimit) {
           phase = 'extended_euro';
-          _logPipelineEvent('extended_estimate_fetch', { model: 'EURO', layer, hour: timeOffset });
+          logPipelineEventHelper('extended_estimate_fetch', { model: 'EURO', layer, hour: timeOffset });
           let vpBounds = null;
           if (!isWaves) {
             try {
@@ -289,7 +237,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           if (isIconValid) diagObj.requiredSources.push('ICON_anchor', 'ICON_target');
           if (isInCooldown('marine')) {
             diagObj.skippedReason = 'cooldown_active'; diagObj.resultStatus = 'skipped';
-            _logPipelineEvent('extended_estimate_skipped', { model: 'EURO', layer, hour: timeOffset, reason: 'cooldown_active' });
+            logPipelineEventHelper('extended_estimate_skipped', { model: 'EURO', layer, hour: timeOffset, reason: 'cooldown_active' });
             locks.isFetching = false; return;
           }
 
@@ -322,17 +270,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           if (!data) {
             diagObj.resultStatus = 'failed_sources_missing';
             console.warn('[Extended Estimate] EURO estimate sources failed to load.');
-            if (marineData?.grid?.__sourceModel === 'EURO' && marineData?.grid?.__componentLayer === layer && marineData?.hourOffset === timeOffset) {
-              locks.isFetching = false; return;
-            }
           }
         } else if (isIconPastLimit) {
           phase = 'extended_icon';
-          _logPipelineEvent('extended_estimate_fetch', { model: 'ICON', layer, hour: timeOffset });
+          logPipelineEventHelper('extended_estimate_fetch', { model: 'ICON', layer, hour: timeOffset });
           diagObj.requiredSources = ['ICON_anchor', 'GFS_anchor', 'GFS_target'];
           if (isInCooldown('marine')) {
             diagObj.skippedReason = 'cooldown_active'; diagObj.resultStatus = 'skipped';
-            _logPipelineEvent('extended_estimate_skipped', { model: 'ICON', layer, hour: timeOffset, reason: 'cooldown_active' });
+            logPipelineEventHelper('extended_estimate_skipped', { model: 'ICON', layer, hour: timeOffset, reason: 'cooldown_active' });
             locks.isFetching = false; return;
           }
 
@@ -362,9 +307,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           if (!data) {
             diagObj.resultStatus = 'failed_sources_missing';
             console.warn('[Extended Estimate] ICON estimate sources failed to load.');
-            if (marineData?.grid?.__sourceModel === 'ICON' && marineData?.grid?.__componentLayer === layer && marineData?.hourOffset === timeOffset) {
-              locks.isFetching = false; return;
-            }
           }
         } else {
           if (model === 'EURO' && layer && COMPONENT_LAYERS.includes(layer)) {
@@ -375,16 +317,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
                  if (!data || !data.grid || !data.grid.renderable) {
                   console.warn('[Marine] Deployed Copernicus grid returned empty/unrenderable grid.');
                   const failureReason = data?.grid?.__failureReason || 'unavailable';
-                  if (typeof window !== 'undefined') {
-                    window.__MARINE_HEATMAP_STATUS__ = { status: failureReason, model, layer, hour: timeOffset };
-                  }
                   data = {
                     type: 'FeatureCollection',
                     features: [],
                     hourOffset: timeOffset,
                     grid: {
                       vectors: [],
-                      bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
+                      bounds: bounds,
                       cols: 0,
                       rows: 0,
                       timestamp: Date.now(),
@@ -402,23 +341,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               } catch (err) {
                 console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
                 data = {
-                  type: 'FeatureCollection',
-                  features: [],
-                  hourOffset: timeOffset,
-                  grid: {
-                    vectors: [],
-                    bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
-                    cols: 0,
-                    rows: 0,
-                    timestamp: Date.now(),
-                    __sourceModel: 'EURO',
-                    __provider: 'backend-weather-service',
-                    __gridProvider: 'backend-weather-service',
-                    __componentLayer: layer,
-                    __gridSupportsLayer: false,
-                    renderable: false,
-                    provider: 'backend-weather-service'
-                  }
+                  type: 'FeatureCollection', features: [], hourOffset: timeOffset,
+                  grid: { vectors: [], bounds, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', __provider: 'backend-weather-service', __gridProvider: 'backend-weather-service', __componentLayer: layer, __gridSupportsLayer: false, renderable: false, provider: 'backend-weather-service' }
                 };
               }
             } else {
@@ -439,7 +363,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               if (!data) {
                 data = {
                   type: 'FeatureCollection', features: [],
-                  grid: { vectors: [], bounds: { west: -180, south: -85, east: 180, north: 85 }, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop', __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated' }
+                  grid: { vectors: [], bounds, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop', __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated' }
                 };
               }
 
@@ -491,7 +415,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
         if (requestId !== marineRequestIdRef.current) return;
         if (fetchIntent.model !== activeModelRef.current || fetchIntent.layer !== (activeMarineLayerRef.current || 'waves') || fetchIntent.hour !== timeOffsetRef.current) {
-          _logPipelineEvent('stale_async_response_rejected', fetchIntent); return;
+          logPipelineEventHelper('stale_async_response_rejected', fetchIntent); return;
         }
 
         phase = 'commit';
@@ -510,32 +434,27 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
         if (data && (data.features?.length > 0 || data.grid?.vectors?.length > 0 || data.grid?.__skippedReason === 'zoom_too_low' || data.grid?.skippedReason === 'zoom_too_low')) {
           consecutiveFailuresRef.current = 0; locks.lastHash = viewportHash; locks.lastTime = Date.now(); lastFetchedLayerRef.current = layer;
-          _logPipelineEvent('data_committed', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
+          logPipelineEventHelper('data_committed', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
           isCommittingDataRef.current = true; isInternalMapUpdateRef.current = true;
 
           setMarineData(prev => {
             const newSig = _marineDataSignature(data, layer);
-            if (newSig && newSig === lastCommittedSigRef.current) { _logPipelineEvent('duplicate_commit_skipped', { signature: newSig }); return prev; }
+            if (newSig && newSig === lastCommittedSigRef.current) { logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig }); return prev; }
             lastCommittedSigRef.current = newSig; marineRevision.current += 1; data.__commitRevision = marineRevision.current; return data;
           });
           requestAnimationFrame(() => { isCommittingDataRef.current = false; });
           clearTimeout(internalUpdateTimerRef.current); internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
         } else {
           consecutiveFailuresRef.current += 1;
-          if (data?.grid?.__failureReason) {
-            if (typeof window !== 'undefined') {
-              window.__MARINE_HEATMAP_STATUS__ = { status: data.grid.__failureReason, model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour };
-            }
-          }
-          if (isInCooldown('marine')) _logPipelineEvent('rate_limit_429', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour });
-          if (typeof window !== 'undefined') window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: layer, timeOffsetHours: timeOffsetRef.current, provider: 'none', httpStatus: 502, elapsedMs: Date.now() - now, vectorCount: 0, consecutiveFailures: consecutiveFailuresRef.current, timestamp: new Date().toISOString() };
+          setMarineData(null); // Clear visual grid honestly on fetch failure/empty data
+          if (isInCooldown('marine')) logPipelineEventHelper('rate_limit_429', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour });
           if (consecutiveFailuresRef.current >= 3 || ['cooldown_retry', 'delayed_retry'].includes(source)) return;
           const remaining = getRemainingCooldown('marine'), delay = remaining > 0 ? remaining + 3000 : 5000, retrySource = remaining > 0 ? 'cooldown_retry' : 'delayed_retry';
           cooldownRetryRef.current = setTimeout(() => { cooldownRetryRef.current = null; if (updateMarineGridRef.current && activeMarineLayersRef.current) updateMarineGridRef.current(retrySource); }, delay);
         }
       } catch (err) {
         console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
-        if (typeof window !== 'undefined') window.__MARINE_ORCHESTRATOR_ERROR__ = { model, layer, hour: timeOffset, message: err.message, stack: err.stack, phase, timestamp: new Date().toISOString() };
+        setMarineData(null); // Clear grid on crash/error
       } finally {
         locks.isFetching = false;
         if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = null;
@@ -544,7 +463,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           pendingMarineIntentRef.current = null;
           if (pending.model === activeModelRef.current && pending.layer === (activeMarineLayerRef.current || 'waves')) {
             setTimeout(() => enqueueMarineUpdate(pending.source + '_pending'), 50);
-          } else { _logPipelineEvent('pending_intent_expired', pending); }
+          } else { logPipelineEventHelper('pending_intent_expired', pending); }
         }
       }
     };
@@ -552,11 +471,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const scheduledRef = { current: false };
 
     const enqueueMarineUpdate = (source) => {
-      if (window.isScrubbingTimeline) return;
+      const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
+      if (!isTimelineScrub && window.isScrubbingTimeline) return;
       const now = Date.now();
       if (locks.isFetching) {
         pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
-        _logPipelineEvent('intent_buffered', pendingMarineIntentRef.current); return;
+        logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current); return;
       }
 
       if (source === 'manual') locks.manualFetchActiveUntil = now + 1500;
@@ -586,7 +506,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         scheduledRef.current = false; clearTimeout(timeoutId);
         const stableDelay = isCached ? 20 : 300;
         timeoutId = setTimeout(() => {
-          if (!mapInstance.isMoving() && !mapInstance.isZooming()) {
+          if (isTimelineScrub || (!mapInstance.isMoving() && !mapInstance.isZooming())) {
             updateMarineGrid(source);
           } else {
             mapInstance.once('idle', () => { if (activeMarineLayersRef.current) updateMarineGrid(source); });
@@ -655,16 +575,22 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     const cache = getMarineHourlyCache();
 
+    let vpBounds = null;
+    try {
+      const b = mapInstance.getBounds();
+      vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+    } catch (e) {}
+
     if (isBackendActive) {
-      const cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer);
+      const cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
       if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour) {
         extractedGrid = cachedBackendData.grid;
         const sig = _marineDataSignature(cachedBackendData, curLayer);
         if (sig && sig !== lastCommittedSigRef.current) {
           const evtType = cachedBackendData.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
-          console.log(`[SCRUB] [BACKEND CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer} renderable=${cachedBackendData.grid?.__renderable}`);
+          console.log(`[SCRUB] [BACKEND CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
           lastCommittedSigRef.current = sig;
-          _logPipelineEvent(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: cachedBackendData.grid?.__renderable });
+          logPipelineEventHelper(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: cachedBackendData.grid?.__renderable });
           marineRevision.current += 1;
           cachedBackendData.__commitRevision = marineRevision.current;
 
@@ -673,7 +599,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           setMarineData(cachedBackendData);
         }
 
-        // Populate scrub diagnostics
         const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
         const samples = sampleIndices.map(idx => {
           const v = extractedGrid?.vectors?.[idx];
@@ -723,8 +648,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             const sig = _marineDataSignature(data, curLayer);
             if (sig && sig !== lastCommittedSigRef.current) {
               const evtType = data.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
-              console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer} renderable=${data.grid?.__renderable}`);
-              lastCommittedSigRef.current = sig; _logPipelineEvent(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
+              console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
+              lastCommittedSigRef.current = sig; logPipelineEventHelper(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
               marineRevision.current += 1; data.__commitRevision = marineRevision.current;
               
               const vHash = getViewportHash();
@@ -732,7 +657,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               setMarineData(data);
             }
             
-            // Populate scrub diagnostics
             const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
             const samples = sampleIndices.map(idx => {
               const v = extractedGrid?.vectors?.[idx];
@@ -759,7 +683,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       } catch (e) { console.warn('[CACHE] Local timeline re-index failed:', e.message); }
     }
 
-    // If cache re-indexing failed or returned null (e.g. coverage rejected)
     if (coverageRejected) {
       let renderedHour = timeOffsetHours;
       if (cache?.results?.[0]?.hourly?.time) {
@@ -802,13 +725,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       timestamp: new Date().toISOString()
     };
 
-    if (window.isScrubbingTimeline) {
-      const settle = setTimeout(() => { if (!window.isScrubbingTimeline) { marineFetchLocksRef.current.lastHash = null; manualMarineTriggerRef.current?.(); } }, 800);
-      return () => clearTimeout(settle);
-    }
+    // Cache Miss -> Fetch immediately!
+    console.log(`[CACHE] [Marine] Cache miss for hour +${timeOffsetHours}h. Fetching...`);
     marineFetchLocksRef.current.lastHash = null;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 400);
-    return () => clearTimeout(t);
+    if (updateMarineGridRef.current) {
+      updateMarineGridRef.current('timeline_scrub');
+    }
   }, [timeOffsetHours, mapInstance]);
 
   useEffect(() => {
@@ -834,28 +756,19 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
           if (remapped?.grid?.vectors?.length > 0) {
             const isRenderable = remapped.grid.__renderable !== false, sig = _marineDataSignature(remapped, activeMarineLayer);
-            if (sig && sig === lastCommittedSigRef.current) { _logPipelineEvent('duplicate_commit_skipped', { signature: sig }); lastFetchedLayerRef.current = activeMarineLayer; return; }
+            if (sig && sig === lastCommittedSigRef.current) { logPipelineEventHelper('duplicate_commit_skipped', { signature: sig }); lastFetchedLayerRef.current = activeMarineLayer; return; }
             const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
-            console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType} (no network fetch)`);
-            _logPipelineEvent(evtType, { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
+            console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType}`);
+            logPipelineEventHelper(evtType, { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
             
             lastCommittedSigRef.current = sig; marineRevision.current += 1; remapped.__commitRevision = marineRevision.current;
             const vHash = getViewportHash();
             if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
 
             setMarineData(remapped); lastFetchedLayerRef.current = activeMarineLayer; return;
-          } else {
-            console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), cache miss: ${!cache ? 'no_cache' : !remapped ? 'extract_returned_null' : 'no_vectors'}`);
-            _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer, reason: !cache ? 'no_cache' : !remapped ? 'extract_returned_null' : 'no_vectors' });
           }
-        } else {
-          console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), cache miss: ${!getMarineHourlyCache() ? 'no_cache' : !getMarineHourlyCache()?.results?.length ? 'empty_cache' : 'model_mismatch'}`);
-          _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer, reason: !getMarineHourlyCache() ? 'no_cache' : !getMarineHourlyCache()?.results?.length ? 'empty_cache' : 'model_mismatch' });
         }
       } catch (e) { console.warn('[Marine] Cache remap failed:', e.message); }
-    } else {
-      console.log(`[Marine] Layer changed to ${activeMarineLayer} (model=${activeModel}), EURO is layer-scoped`);
-      _logPipelineEvent('network_fetch_layer_change', { model: activeModel, layer: activeMarineLayer, reason: 'euro_layer_scoped' });
     }
     
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;

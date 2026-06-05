@@ -8,18 +8,12 @@
  */
 
 import { BACKEND_URL } from '../../lib/apiClient';
-
 import { BoundedPointCache } from './BoundedPointCache';
+import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
+import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
+
 export { BoundedPointCache };
-
 export const pointCache = new BoundedPointCache(50, 30000);
-
-export const PILOT_COVERAGE = {
-  west: -85.0,
-  south: 24.0,
-  east: -79.0,
-  north: 31.0
-};
 
 // Expose standard API base endpoints
 export const STATUS_URL = `${BACKEND_URL}/api/weather/status`;
@@ -30,20 +24,9 @@ export const POINT_URL = `${BACKEND_URL}/api/weather/point`;
 let cachedManifest = null;
 let manifestFetchPromise = null;
 
-export let latestTimeDiag = {
-  marine: {
-    requestedValidTime: null,
-    selectedManifestValidTime: null,
-    manifestDeltaHours: null,
-    fallbackReason: null
-  },
-  wind: {
-    requestedValidTime: null,
-    selectedManifestValidTime: null,
-    manifestDeltaHours: null,
-    fallbackReason: null
-  }
-};
+export function getCachedManifest() {
+  return cachedManifest;
+}
 
 /**
  * Direct setter to mock cached manifest registry during unit tests.
@@ -246,270 +229,6 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
 }
 
 /**
- * Resolves the dynamic product coverage bounds from cachedManifest.
- * Falls back to PILOT_COVERAGE if manifest is not loaded or has no matching product.
- * Returns metadata indicating whether dynamic coverage or fallback was used.
- */
-/**
- * Resolves the dynamic product coverage bounds from cachedManifest.
- * Falls back to PILOT_COVERAGE if manifest is not loaded or has no matching product.
- * Returns metadata indicating whether dynamic coverage or fallback was used.
- */
-export function getProductCoverage(model = 'GFS', domain = 'marine', layer = 'waves') {
-  let isDynamic = false;
-  let coverage = PILOT_COVERAGE;
-  
-  const filterModel = (model || 'GFS').toUpperCase();
-  const filterDomain = (domain || 'marine').toLowerCase();
-  const filterLayer = (layer || 'waves').toLowerCase();
-
-  const hasEmptyProducts = cachedManifest && Array.isArray(cachedManifest.products) && cachedManifest.products.length === 0;
-
-  if (cachedManifest && Array.isArray(cachedManifest.products) && !hasEmptyProducts) {
-    const p = cachedManifest.products.find(prod =>
-      prod.model.toUpperCase() === filterModel &&
-      prod.domain.toLowerCase() === filterDomain &&
-      prod.layer.toLowerCase() === filterLayer
-    );
-    if (p && p.coverage) {
-      coverage = p.coverage;
-      isDynamic = true;
-    }
-  }
-
-  return {
-    coverage,
-    isDynamic,
-    isFallback: !isDynamic
-  };
-}
-
-export const REGIONAL_TILES = [
-  {
-    id: "florida_east_coast",
-    bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 }
-  },
-  {
-    id: "us_west_coast_socal",
-    bounds: { west: -125.0, south: 30.0, east: -115.0, north: 38.0 }
-  }
-];
-
-/**
- * Extracts active tile definitions dynamically from the backend products manifest.
- * Falls back to hardcoded REGIONAL_TILES if manifest is empty or not yet loaded.
- */
-export function getAvailableTilesFromManifest() {
-  if (!cachedManifest || !Array.isArray(cachedManifest.products) || cachedManifest.products.length === 0) {
-    return REGIONAL_TILES;
-  }
-  
-  const seen = new Set();
-  const tiles = [];
-  
-  for (const p of cachedManifest.products) {
-    let regionId = p.region_id;
-    if (!regionId && p.coverage) {
-      const isFlorida = Math.abs(p.coverage.west - (-85.0)) < 0.1 &&
-                        Math.abs(p.coverage.south - 24.0) < 0.1 &&
-                        Math.abs(p.coverage.east - (-79.0)) < 0.1 &&
-                        Math.abs(p.coverage.north - 31.0) < 0.1;
-      if (isFlorida) {
-        regionId = "florida_east_coast";
-      }
-    }
-    
-    if (regionId) {
-      const key = `${regionId}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        tiles.push({
-          id: regionId,
-          bounds: p.coverage
-        });
-      }
-    }
-  }
-  
-  if (tiles.length === 0) {
-    return REGIONAL_TILES;
-  }
-  
-  return tiles;
-}
-
-/**
- * Updates the global projection diagnostics registry for the truth gate.
- */
-export function updateProjectionDiag(domain, details) {
-  if (typeof window === 'undefined') return;
-
-  const diagKey = domain === 'wind' 
-    ? '__WIND_PROJECTION_DIAG__' 
-    : domain === 'weather' || domain === 'pressure'
-      ? '__WEATHER_GRID_PROJECTION_DIAG__' 
-      : '__MARINE_PROJECTION_DIAG__';
-
-  let mapViewportBounds = null;
-  if (window.map && typeof window.map.getBounds === 'function') {
-    try {
-      const b = window.map.getBounds();
-      mapViewportBounds = {
-        west: b.getWest(),
-        south: b.getSouth(),
-        east: b.getEast(),
-        north: b.getNorth()
-      };
-    } catch (e) {}
-  }
-
-  // Compute coverage percent of viewport
-  let coveragePercentOfViewport = 0;
-  const viewportBounds = details.requestedViewportBounds || mapViewportBounds;
-  if (viewportBounds && details.clampedBbox) {
-    const vArea = (viewportBounds.east - viewportBounds.west) * (viewportBounds.north - viewportBounds.south);
-    const iArea = (details.clampedBbox.east - details.clampedBbox.west) * (details.clampedBbox.north - details.clampedBbox.south);
-    if (vArea > 0) {
-      coveragePercentOfViewport = Math.round((iArea / vArea) * 100);
-    }
-  }
-
-  const covBounds = details.coverageBounds || PILOT_COVERAGE;
-  
-  // Render decision mapping
-  let renderDecision = details.renderDecision || 'unsupported';
-  let outsideCoverageReason = null;
-
-  if (details.error) {
-    if (details.error.includes('outside') || details.error === 'outside_coverage_clear') {
-      renderDecision = 'outside_coverage_clear';
-      outsideCoverageReason = details.error;
-    } else {
-      renderDecision = 'fallback_legacy';
-    }
-  } else if (details.renderable) {
-    const req = details.requestedViewportBounds;
-    const clm = details.clampedBbox;
-    if (req && clm && (clm.west > req.west || clm.east < req.east || clm.south > req.south || clm.north < req.north)) {
-      renderDecision = 'clip_to_coverage';
-    } else {
-      renderDecision = 'render';
-    }
-  }
-
-  const availableTiles = getAvailableTilesFromManifest();
-  const availableTileIds = availableTiles.map(t => t.id);
-  const selectedTileId = details.selectedTileId || null;
-  const selectedTileBounds = details.coverageBounds || null;
-  const rejectedTileIds = details.rejectedTileIds || [];
-  
-  window[diagKey] = {
-    // 16 Required keys for Stage 6H
-    coverageMode: selectedTileId ? 'regional_tile' : 'none',
-    availableTileIds,
-    selectedTileId,
-    selectedTileBounds,
-    rejectedTileIds,
-    requestedViewportBounds: viewportBounds || null,
-    backendRequestBbox: details.backendRequestBbox || null,
-    responseGridBounds: details.responseGridBounds || null,
-    renderBounds: details.responseGridBounds || covBounds || null,
-    coveragePercentOfViewport,
-    productId: details.productId || null,
-    regionId: details.regionId || selectedTileId || null,
-    tileId: details.tileId || selectedTileId || null,
-    validTime: details.validTime || null,
-    renderDecision,
-    outsideCoverageReason,
-    
-    // Additional legacy diagnostic properties to prevent breaks
-    activeModel: details.activeModel || 'GFS',
-    activeLayer: details.activeLayer || 'waves',
-    cols: details.cols || 0,
-    rows: details.rows || 0,
-    vectorCount: details.vectorCount || 0,
-    firstVectorLatLng: details.firstVectorLatLng || null,
-    lastVectorLatLng: details.lastVectorLatLng || null,
-    provider: details.provider || 'unknown',
-    reason: details.reason || details.error || 'Normal execution',
-    coverageBounds: covBounds,
-    mapViewportBounds
-  };
-}
-
-/**
- * Clamps or intersects the requested viewport bbox coordinates with the dynamic coverage limits.
- */
-export function clampViewportBbox(requestedBbox, layerName = "waves", modelName = "GFS") {
-  if (!requestedBbox) {
-    return {
-      isInside: false,
-      clampedBbox: null,
-      fallbackReason: "Missing requested bounding box coordinates",
-      coverageBounds: PILOT_COVERAGE,
-      selectedTileId: null,
-      availableTileIds: REGIONAL_TILES.map(t => t.id),
-      rejectedTileIds: []
-    };
-  }
-
-  const { west, south, east, north } = requestedBbox;
-  const tiles = getAvailableTilesFromManifest();
-  const availableTileIds = tiles.map(t => t.id);
-  
-  // Find all intersecting tiles and calculate their intersection area with the requested viewport
-  const intersectingTiles = [];
-  
-  for (const t of tiles) {
-    const cov = t.bounds;
-    const intWest = Math.max(west, cov.west);
-    const intSouth = Math.max(south, cov.south);
-    const intEast = Math.min(east, cov.east);
-    const intNorth = Math.min(north, cov.north);
-    
-    if (intWest < intEast && intSouth < intNorth) {
-      const area = (intEast - intWest) * (intNorth - intSouth);
-      intersectingTiles.push({
-        tile: t,
-        area,
-        clampedBbox: { west: intWest, south: intSouth, east: intEast, north: intNorth }
-      });
-    }
-  }
-
-  // If no intersection found, clear the visual layer cleanly
-  if (intersectingTiles.length === 0) {
-    return {
-      isInside: false,
-      clampedBbox: null,
-      fallbackReason: "outside_coverage_clear",
-      coverageBounds: PILOT_COVERAGE,
-      selectedTileId: null,
-      availableTileIds,
-      rejectedTileIds: []
-    };
-  }
-
-  // Sort intersecting tiles by area descending
-  intersectingTiles.sort((a, b) => b.area - a.area);
-  
-  const bestMatch = intersectingTiles[0];
-  const selectedTileId = bestMatch.tile.id;
-  const rejectedTileIds = intersectingTiles.slice(1).map(item => item.tile.id);
-
-  return {
-    isInside: true,
-    clampedBbox: bestMatch.clampedBbox,
-    fallbackReason: null,
-    coverageBounds: bestMatch.tile.bounds,
-    selectedTileId,
-    availableTileIds,
-    rejectedTileIds
-  };
-}
-
-
-/**
  * Maps the standard backend grid response schema to the WebGLMarineLayer expectations.
  * Computes grid renderability checks (all-zero and empty vectors rejection).
  */
@@ -576,256 +295,6 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
   };
 }
 
-// Global Diagnostics Telemetry Initializers
-if (typeof window !== 'undefined') {
-  window.__BACKEND_WEATHER_SERVICE_DIAG__ = window.__BACKEND_WEATHER_SERVICE_DIAG__ || {
-    featureFlagActive: getBackendWeatherFlag(),
-    activeModel: 'GFS',
-    activeLayer: 'waves',
-    layer: 'waves',
-    backendUrl: BACKEND_URL,
-    statusUrl: STATUS_URL,
-    gridUrl: GRID_URL,
-    pointUrl: POINT_URL,
-    requestedHour: null,
-    validTime: null,
-    gridValidTime: null,
-    pointValidTime: null,
-    parity: 'pending_point_fetch',
-    pointParity: 'pending_point_fetch',
-    requestedBbox: null,
-    clampedBbox: null,
-    coverage: PILOT_COVERAGE,
-    fallbackReason: null,
-    lastGridFetch: null,
-    lastPointFetch: null,
-    coverageInside: true,
-    fallbackToLegacy: false,
-    reason: null,
-    requestedValidTime: null,
-    selectedManifestValidTime: null,
-    manifestDeltaHours: null,
-    gridVectorCount: null,
-    nonzeroCount: null,
-    renderable: false,
-    sourceDataset: null,
-    sourceVariables: null,
-    is_forecast_authoritative: false,
-    is_estimated: false,
-    is_test_fixture: false,
-    gridMode: null,
-    interpolationMethod: null
-  };
-
-  window.__BACKEND_ICON_SERVICE_DIAG__ = window.__BACKEND_ICON_SERVICE_DIAG__ || {
-    featureFlagActive: getBackendIconMarineFlag(),
-    activeModel: 'ICON',
-    activeLayer: 'waves',
-    layer: 'waves',
-    backendUrl: BACKEND_URL,
-    statusUrl: STATUS_URL,
-    gridUrl: GRID_URL,
-    pointUrl: POINT_URL,
-    requestedHour: null,
-    validTime: null,
-    gridValidTime: null,
-    pointValidTime: null,
-    parity: 'pending_point_fetch',
-    pointParity: 'pending_point_fetch',
-    requestedBbox: null,
-    clampedBbox: null,
-    coverage: PILOT_COVERAGE,
-    fallbackReason: null,
-    lastGridFetch: null,
-    lastPointFetch: null,
-    coverageInside: true,
-    fallbackToLegacy: false,
-    reason: null,
-    requestedValidTime: null,
-    selectedManifestValidTime: null,
-    manifestDeltaHours: null,
-    gridVectorCount: null,
-    nonzeroCount: null,
-    renderable: false,
-    sourceDataset: null,
-    sourceVariables: null,
-    is_forecast_authoritative: false,
-    is_estimated: false,
-    is_test_fixture: false,
-    gridMode: null,
-    interpolationMethod: null
-  };
-
-  const initialProjectionDiag = {
-    activeModel: 'GFS',
-    activeLayer: 'waves',
-    requestedViewportBounds: null,
-    backendRequestBbox: null,
-    responseGridBounds: null,
-    coverageBounds: PILOT_COVERAGE,
-    renderBounds: PILOT_COVERAGE,
-    mapViewportBounds: null,
-    cols: 0,
-    rows: 0,
-    vectorCount: 0,
-    firstVectorLatLng: null,
-    lastVectorLatLng: null,
-    productId: null,
-    provider: 'unknown',
-    renderDecision: 'unsupported',
-    reason: 'Initial state',
-    isStretchedToViewport: false,
-    coverageIntersectsViewport: true
-  };
-
-  window.__WEATHER_GRID_PROJECTION_DIAG__ = window.__WEATHER_GRID_PROJECTION_DIAG__ || {
-    ...initialProjectionDiag,
-    activeLayer: 'pressure'
-  };
-
-  window.__WIND_PROJECTION_DIAG__ = window.__WIND_PROJECTION_DIAG__ || {
-    ...initialProjectionDiag,
-    activeLayer: 'wind'
-  };
-
-  window.__MARINE_PROJECTION_DIAG__ = window.__MARINE_PROJECTION_DIAG__ || {
-    ...initialProjectionDiag,
-    activeLayer: 'waves'
-  };
-}
-
-/**
- * Updates the global diagnostics telemetry registry.
- */
-export function updateDiagnostics(type, details, model = 'GFS') {
-  if (typeof window === 'undefined') return;
-
-  const isIcon = model.toUpperCase() === 'ICON';
-  const diagKey = isIcon ? '__BACKEND_ICON_SERVICE_DIAG__' : '__BACKEND_WEATHER_SERVICE_DIAG__';
-
-  if (!window[diagKey]) {
-    window[diagKey] = {
-      featureFlagActive: isIcon ? getBackendIconMarineFlag() : getBackendWeatherFlag(),
-      activeModel: model.toUpperCase(),
-      activeLayer: 'waves',
-      layer: 'waves',
-      backendUrl: BACKEND_URL,
-      statusUrl: STATUS_URL,
-      gridUrl: GRID_URL,
-      pointUrl: POINT_URL,
-      requestedHour: null,
-      validTime: null,
-      gridValidTime: null,
-      pointValidTime: null,
-      parity: 'pending_point_fetch',
-      pointParity: 'pending_point_fetch',
-      requestedBbox: null,
-      clampedBbox: null,
-      coverage: PILOT_COVERAGE,
-      fallbackReason: null,
-      lastGridFetch: null,
-      lastPointFetch: null,
-      coverageInside: true,
-      fallbackToLegacy: false,
-      reason: null,
-      requestedValidTime: null,
-      selectedManifestValidTime: null,
-      manifestDeltaHours: null,
-      gridVectorCount: null,
-      nonzeroCount: null,
-      renderable: false,
-      sourceDataset: null,
-      sourceVariables: null,
-      is_forecast_authoritative: false,
-      is_estimated: false,
-      is_test_fixture: false,
-      gridMode: null,
-      interpolationMethod: null
-    };
-  }
-
-  const diag = window[diagKey];
-  diag.featureFlagActive = isIcon ? getBackendIconMarineFlag() : getBackendWeatherFlag();
-
-  if (type === 'grid') {
-    diag.layer = details.layer || diag.layer || 'waves';
-    diag.lastGridFetch = details;
-    diag.gridValidTime = details.validTime || null;
-    diag.requestedBbox = details.requestedBbox;
-    diag.clampedBbox = details.clampedBbox;
-    diag.fallbackReason = details.error || details.fallbackReason || null;
-    diag.gridVectorCount = details.gridVectorCount || null;
-    diag.nonzeroCount = details.nonzeroCount || null;
-    diag.renderable = details.renderable !== undefined ? details.renderable : false;
-    diag.sourceDataset = details.sourceDataset || null;
-    diag.sourceVariables = details.sourceVariables || null;
-    diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
-    diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
-    diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
-    diag.gridMode = details.gridMode || null;
-    diag.productId = details.productId || null;
-    diag.gridProductId = details.productId || null;
-
-    // Handle coverage flags and fallback telemetry (Correction 4: precise status)
-    const isInside = details.coverageInside !== undefined 
-      ? details.coverageInside 
-      : (details.clampedBbox !== null && !details.error?.includes('outside'));
-      
-    diag.coverageInside = isInside;
-    diag.fallbackToLegacy = !isInside || !!details.error;
-    
-    if (!isInside) {
-      diag.reason = 'outside_coverage';
-    } else if (details.error) {
-      diag.reason = 'fallback_legacy';
-    } else {
-      diag.reason = 'backend_success';
-    }
-  } else if (type === 'point') {
-    diag.layer = details.layer || diag.layer || 'waves';
-    diag.lastPointFetch = details;
-    diag.pointValidTime = details.validTime || null;
-    diag.interpolationMethod = details.interpolationMethod || null;
-    diag.period = details.period || 0;
-    diag.sourceDataset = details.sourceDataset || null;
-    diag.sourceVariables = details.sourceVariables || null;
-    diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : false;
-    diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
-    diag.is_test_fixture = details.is_test_fixture !== undefined ? details.is_test_fixture : false;
-    diag.productId = details.productId || null;
-    diag.pointProductId = details.productId || null;
-    diag.gridProductId = diag.lastGridFetch?.productId || null;
-    diag.source = details.source || 'network';
-
-    if (details.error) {
-      diag.reason = details.error === 'unsupported' ? 'unsupported_model_layer' : 'fallback_legacy';
-    } else {
-      diag.reason = 'backend_success';
-    }
-  }
-
-  diag.activeModel = model.toUpperCase();
-  diag.activeLayer = diag.layer;
-
-  if (details.hourOffset !== undefined) {
-    diag.requestedHour = details.hourOffset;
-    diag.validTime = getSharedValidTime(details.hourOffset, diag.layer, model);
-  }
-
-  // Inject computed nearest manifest time match diagnostics
-  const timeDiag = latestTimeDiag[`${model.toUpperCase()}_${diag.layer}`] || {};
-  diag.requestedValidTime = timeDiag.requestedValidTime;
-  diag.selectedManifestValidTime = timeDiag.selectedManifestValidTime;
-  diag.manifestDeltaHours = timeDiag.manifestDeltaHours;
-  diag.timeFallbackReason = timeDiag.fallbackReason;
-
-  // Recalculate parity
-  diag.parity = diag.pointValidTime 
-    ? (diag.gridValidTime === diag.pointValidTime) 
-    : 'pending_point_fetch';
-  diag.pointParity = diag.parity;
-}
-
 /**
  * Fetches exact point forecast from backend weather service.
  */
@@ -855,7 +324,6 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
   const cacheKey = `${model}_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
 
-  console.log("fetchBackendExactPoint: cacheKey:", cacheKey, "size:", pointCache.cache.size, "keys:", Array.from(pointCache.cache.keys()));
   const cached = pointCache.get(cacheKey);
   if (cached) {
     console.log(`[Backend Weather Service] Cache hit for ${model} Marine: ${cacheKey}`);
@@ -870,7 +338,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) {
-      let reason = `Backend point returned HTTP ${res.status}`;
+      let reason = `Backend conformed point returned HTTP ${res.status}`;
       let errorJson = null;
       try {
         errorJson = await res.json();
@@ -919,7 +387,6 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     }
     const json = await res.json();
     
-    // Structure conformed hourly response compatible with forecastSamplers.js expectations.
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
     const conformedHourly = {
       time: [mockTime],
@@ -1002,9 +469,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     };
 
     pointCache.set(cacheKey, { data, details });
-
     updateDiagnostics('point', details, model);
-
     return data;
   } catch (err) {
     const status = err.message.includes('HTTP') ? parseInt(err.message.match(/\d+/)?.[0] || '0') : 500;
@@ -1035,7 +500,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
 }
 
 /**
- * Fetches marine forecast grid from backend weather service.
+ * Fetches marine conformed forecast grid from backend weather service.
  */
 export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
   if (model === 'ICON' && layer === 'swell_2') {
@@ -1083,7 +548,6 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
 
-  // 1. Resolve actual viewport bounds for coverage check
   let actualBounds = bounds;
   if (!actualBounds || (Math.abs((actualBounds.east || 0) - (actualBounds.west || 0)) > 300)) {
     try {
@@ -1099,7 +563,6 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     } catch (e) {}
   }
 
-  // 2. Perform Bbox Clamping and Coverage verification against actual viewport passing the active model
   const clampResult = clampViewportBbox(actualBounds || snappedBounds, layer, model);
   if (!clampResult.isInside) {
     const errorDetails = {
@@ -1142,7 +605,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) {
-      let reason = `Backend returned HTTP ${res.status}`;
+      let reason = `Backend grid returned HTTP ${res.status}`;
       try {
         const errorJson = await res.json();
         if (errorJson && errorJson.reason) {
@@ -1260,6 +723,5 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
 
 export * from './backendWindServiceClient';
 export * from './backendCopernicusServiceClient';
-
-
-
+export { PILOT_COVERAGE, REGIONAL_TILES, getAvailableTilesFromManifest, getProductCoverage, clampViewportBbox } from './backendWeatherServiceClientCoverage';
+export { latestTimeDiag, updateProjectionDiag, updateDiagnostics } from './backendWeatherServiceClientDiag';

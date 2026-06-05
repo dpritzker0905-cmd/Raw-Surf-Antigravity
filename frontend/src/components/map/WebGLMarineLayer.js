@@ -11,9 +11,9 @@ import { computeGridContentHash } from './marineGridHash';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
 import { getSharedLandGeoJSON, safeMoveLayer } from './mapUtils';
+import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 
 var LAYER_ID = 'webgl-marine-particles';
-
 
 function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef) {
   let errorCount = 0;
@@ -28,7 +28,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       glRef.current = _gl;
       try {
         engine.init(_gl);
-        // Register with RenderPlanDispatcher for evolved wave field data
         registerMarineEngine(engine, _gl);
         if (dataRef.current?.vectors?.length) {
           console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors (forecast-authoritative)');
@@ -98,7 +97,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-
 
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current);
         map.triggerRepaint();
@@ -174,7 +172,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const requestedHour = timeOffsetHours;
     const lastSig = lastUploadedGridRef.current;
     
-    // The actual hour of the grid currently loaded in the GPU (retained)
     const renderedDataHour = lastSig.vectorsLength > 0 ? lastSig.renderedDataHour : null;
     const parity = active && renderedDataHour !== null && requestedHour === renderedDataHour;
     
@@ -183,7 +180,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       reason = 'layer_inactive';
     } else if (renderedDataHour === null) {
       reason = 'no_data_rendered';
-
     } else if (!parity) {
       let coverageMissing = false;
       const isGfsBackend = getBackendWeatherFlag() && (activeModel === 'GFS' || !activeModel);
@@ -232,7 +228,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       reason
     };
 
-    // If active but parity is false, make sure infobox/heatmap status reflects retained/stale
     if (active && !parity) {
       let statusValue = 'retained_previous_hour';
       if (reason === 'cooldownActive') {
@@ -257,55 +252,14 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
   }, [data, timeOffsetHours, revision, active, activeModel]);
 
-  const updateWebGLMarineLayerDiag = (rejectionOrClearReason = null) => {
-    if (typeof window === 'undefined') return;
-    const engine = engineRef.current;
-    const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
-    const lastSig = lastUploadedGridRef.current;
-
-    const infoboxModel = window.__MARINE_POINT_DIAG__?.activeModel || 'unknown';
-    const infoboxLayer = window.__MARINE_POINT_DIAG__?.activeLayer || 'unknown';
-    const infoboxHour = window.__MARINE_POINT_DIAG__?.timeOffsetHours !== undefined ? window.__MARINE_POINT_DIAG__?.timeOffsetHours : -999;
-    const infoboxProvider = window.__MARINE_POINT_DIAG__?.provider || 'none';
-
-    const heatmapModel = activeModelRef.current;
-    const heatmapLayer = activeMarineLayer;
-    const heatmapHour = timeOffsetHoursRef.current;
-    const heatmapProvider = lastSig.gridProvider || 'none';
-
-    const matches = infoboxModel === heatmapModel &&
-                    infoboxLayer === heatmapLayer &&
-                    infoboxHour === heatmapHour &&
-                    infoboxProvider === heatmapProvider;
-    const isGfsBackend = getBackendWeatherFlag() && (heatmapModel === 'GFS' || !heatmapModel);
-    const isIconBackend = getBackendIconMarineFlag() && heatmapModel === 'ICON';
-    const isCopernicusBackend = getBackendCopernicusFlag() && heatmapModel === 'EURO';
-    const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
-
-    const backendGridVectorCount = isBackendActive ? (lastSig.vectorsLength || 0) : 0;
-    const webglSourceVectorCount = lastSig.vectorsLength || 0;
-    const particleCount = engine ? (engine.particleRes ** 2) : 0;
-    const renderedParticleCount = (engine && engine._waveData) ? (engine.particleRes ** 2) : 0;
-    const lastUploadedGridSignature = lastSig.uploadSig || 'none';
-
-    const diag = {
-      activeModel: heatmapModel,
-      activeMarineLayer: heatmapLayer,
-      renderedProvider: heatmapProvider,
-      componentLayer: lastSig.componentLayer || 'none',
-      backendGridVectorCount,
-      webglSourceVectorCount,
-      particleCount,
-      renderedParticleCount,
-      lastUploadedGridSignature,
-      waveDataPresent: !!engine?._waveData,
-      timeOffsetHours: heatmapHour,
-      lastUploadClearRejectionReason: rejectionOrClearReason || window.__WEBGL_MARINE_UPLOAD_REASON__ || 'none',
-      infoboxHeatmapParity: matches,
-      timestamp: new Date().toISOString()
-    };
-
-    window.__WebGLMarineLayer_DIAG__ = diag;
+  const runDiagnosticsUpdate = (rejectionOrClearReason = null) => {
+    updateWebGLMarineLayerDiag(
+      engineRef.current,
+      activeModelRef.current,
+      activeLayersRef.current,
+      timeOffsetHoursRef.current,
+      lastUploadedGridRef.current
+    );
   };
 
   const safeUploadWaveData = (reason, gl, grid, geojson) => {
@@ -313,131 +267,46 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const engine = engineRef.current;
 
     const gridModel = grid.__sourceModel || activeModelRef.current;
-    const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
+    const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const gridProvider = grid.grid?.__gridProvider || grid.__gridProvider || 'none';
     const componentLayer = grid.grid?.__componentLayer || grid.__componentLayer || 'none';
     const boundsStr = grid.bounds ? `${grid.bounds.west.toFixed(2)}:${grid.bounds.south.toFixed(2)}:${grid.bounds.east.toFixed(2)}:${grid.bounds.north.toFixed(2)}` : 'none';
 
-    let nonzeroCount = 0;
-    let contentHash = 0;
-    const activeML = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-    if (grid.vectors) {
-      const len = grid.vectors.length;
-      for (let i = 0; i < len; i++) {
-        const v = grid.vectors[i];
-        const comp = v?.[activeML] || v;
-        if (comp && comp.speed > 0) nonzeroCount++;
-      }
-      contentHash = computeGridContentHash(grid, activeML);
-    }
-
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
-    const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_ch${contentHash}_bnd_${boundsStr}_geo_${geojsonSig}_thm_${themeSig}`;
+    const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_geo_${geojsonSig}_thm_${themeSig}`;
     const alreadyResident = !!engine._waveData;
 
     const requestedHour = timeOffsetHoursRef.current;
     const renderedDataHour = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid?.hourOffset !== undefined ? grid.grid.hourOffset : null);
 
-    // Build the diff diagnostic object
-    const prev = lastUploadedGridRef.current || {};
-    const hourChanged = prev.renderedDataHour !== renderedDataHour;
-    const contentHashChanged = prev.contentHash !== contentHash;
-
-    let shouldSkip = false;
-    let skipReason = 'none';
-
-    if (alreadyResident) {
-      if (prev.activeModel === gridModel &&
-          prev.activeMarineLayer === activeMarineLayer &&
-          prev.gridProvider === gridProvider &&
-          prev.boundsStr === boundsStr &&
-          prev.geojsonSig === geojsonSig &&
-          prev.themeSig === themeSig &&
-          prev.contentHash === contentHash) {
-        
-        shouldSkip = true;
-        if (renderedDataHour !== requestedHour) {
-          skipReason = 'retained_previous_hour';
-        } else {
-          skipReason = hourChanged ? 'skipped_identical_content_across_hours' : 'duplicate_skipped';
-        }
-      }
-    }
-
-    const diff = {
-      model: `${prev.activeModel || 'none'} -> ${gridModel}`,
-      layer: `${prev.activeMarineLayer || 'none'} -> ${activeMarineLayer}`,
-      hour: `${prev.renderedDataHour !== undefined ? prev.renderedDataHour : 'none'} -> ${requestedHour}`,
-      provider: `${prev.gridProvider || 'none'} -> ${gridProvider}`,
-      bounds: `${prev.boundsStr || 'none'} -> ${boundsStr}`,
-      vectorCount: `${prev.vectorsLength || 0} -> ${grid.vectors.length}`,
-      nonzeroCount: `${prev.nonzeroCount || 0} -> ${nonzeroCount}`,
-      contentHash: `${prev.contentHash !== undefined ? prev.contentHash : 'none'} -> ${contentHash}`,
-      landMask: `${prev.geojsonSig || 'none'} -> ${geojsonSig}`,
-      theme: `${prev.themeSig || 'none'} -> ${themeSig}`,
-      modelChanged: prev.activeModel !== gridModel,
-      layerChanged: prev.activeMarineLayer !== activeMarineLayer,
-      hourChanged: hourChanged,
-      providerChanged: prev.gridProvider !== gridProvider,
-      boundsChanged: prev.boundsStr !== boundsStr,
-      vectorCountChanged: prev.vectorsLength !== grid.vectors.length,
-      nonzeroCountChanged: prev.nonzeroCount !== nonzeroCount,
-      contentHashChanged: contentHashChanged,
-      landMaskChanged: prev.geojsonSig !== geojsonSig,
-      themeChanged: prev.themeSig !== themeSig,
-      alreadyResident: alreadyResident,
-      shouldSkip: shouldSkip,
-      skipReason: skipReason,
-      prevSig: prev.uploadSig || 'none',
-      currSig: uploadSigResidency,
-      timestamp: new Date().toISOString()
-    };
-    // Add __MARINE_FORECAST_VECTOR_DIFF__ comparison
-    const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
-    const prevSamples = prev.samples || [];
-    const currSamples = sampleIndices.map(idx => {
-      const v = grid.vectors?.[idx];
-      const comp = v?.[activeML] || v;
-      return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
-    });
-
-    const diffs = sampleIndices.map((idx, sIdx) => {
-      const p = prevSamples[sIdx] || { speed: -1, u: 0, v: 0, period: -1 };
-      const c = currSamples[sIdx];
-      return {
-        index: idx,
-        prev: p,
-        curr: c,
-        identical: p.speed === c.speed && p.u === c.u && p.v === c.v && p.period === c.period
-      };
-    });
-
-    window.__MARINE_FORECAST_VECTOR_DIFF__ = {
-      prevHour: prev.renderedDataHour,
-      currHour: requestedHour,
+    const diffResult = computeVectorDiffAndLog({
+      grid,
+      prev: lastUploadedGridRef.current,
       activeModel: gridModel,
-      activeLayer: activeMarineLayer,
-      samples: diffs,
-      allIdentical: diffs.every(d => d.identical),
-      timestamp: new Date().toISOString()
-    };
+      activeLayers: activeLayersRef.current,
+      timeOffsetHours: requestedHour,
+      gridProvider,
+      componentLayer,
+      boundsStr,
+      geojsonSig,
+      themeSig,
+      uploadSigResidency,
+      alreadyResident,
+      activeML: activeMarineLayer
+    });
 
-    window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ = diff;
-
-    if (shouldSkip) {
-      if (skipReason === 'skipped_identical_content_across_hours') {
-        console.log(`[WebGLMarine] Skip upload for hour +${requestedHour}h: content is mathematically identical to hour +${prev.renderedDataHour}h (hash=${contentHash})`);
-      } else if (skipReason === 'retained_previous_hour') {
-        console.log(`[WebGLMarine] Skip upload for hour +${requestedHour}h: content is retained_previous_hour (+${renderedDataHour}h)`);
+    if (diffResult.shouldSkip) {
+      if (diffResult.skipReason === 'skipped_identical_content_across_hours') {
+        console.log(`[WebGLMarine] Skip upload for hour +${requestedHour}h: content is mathematically identical to hour +${lastUploadedGridRef.current.renderedDataHour}h`);
       }
       if (!window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__) window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__ = 0;
       window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__++;
       if (window.__MARINE_PIPELINE_TRUTH__?.counters) {
         window.__MARINE_PIPELINE_TRUTH__.counters.duplicateUploadSkipped = window.__WEBGL_MARINE_DUP_UPLOAD_SKIP__;
       }
-      window.__WEBGL_MARINE_UPLOAD_REASON__ = skipReason;
-      updateWebGLMarineLayerDiag(skipReason);
+      window.__WEBGL_MARINE_UPLOAD_REASON__ = diffResult.skipReason;
+      runDiagnosticsUpdate(diffResult.skipReason);
       return;
     }
 
@@ -447,7 +316,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     for (const vec of grid.vectors) {
       if (vec && vec.speed > 0) { cnt++; sumS += vec.speed; if (vec.speed > maxS) maxS = vec.speed; }
     }
-    console.log(`[WebGLMarine] setWaveData (${reason}): ${grid.vectors.length} vectors, max=${maxS.toFixed(2)}m, mean=${cnt > 0 ? (sumS/cnt).toFixed(2) : 0}m (forecast-authoritative)`);
+    console.log(`[WebGLMarine] setWaveData (${reason}): ${grid.vectors.length} vectors, max=${maxS.toFixed(2)}m (forecast-authoritative)`);
 
     const uploadStart = Date.now();
     engine._dispatcherActive = false;
@@ -466,14 +335,14 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       cols: grid.cols,
       rows: grid.rows,
       vectorsLength: grid.vectors.length,
-      nonzeroCount: nonzeroCount,
-      contentHash: contentHash,
+      nonzeroCount: diffResult.nonzeroCount,
+      contentHash: diffResult.contentHash,
       timestamp: grid.timestamp || revision || 0,
       renderedDataHour: renderedDataHour,
       geojsonSig: geojsonSig,
       themeSig: themeSig,
       uploadSig: uploadSigResidency,
-      samples: currSamples
+      samples: diffResult.currSamples
     };
 
     if (!window.__WEBGL_MARINE_UPLOAD_COUNT__) window.__WEBGL_MARINE_UPLOAD_COUNT__ = 0;
@@ -486,17 +355,16 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       }
     }
 
-    const newUploadDiag = {
+    window.__WEBGL_MARINE_UPLOAD_DIAG__ = {
       uploadCount: window.__WEBGL_MARINE_UPLOAD_COUNT__,
       uploadSignature: uploadSigResidency,
       activeModel: activeModelRef.current, activeLayer: activeMarineLayer,
       timeOffsetHours: timeOffsetHoursRef.current, provider: grid?.__provider || 'none',
       gridProvider, sourceModel: gridModel, componentLayer,
-      vectorCount: grid.vectors.length, nonzeroCount, renderAccepted: true,
+      vectorCount: grid.vectors.length, nonzeroCount: diffResult.nonzeroCount, renderAccepted: true,
       rejectionReason: null, elapsedMs: uploadElapsed,
       timestamp: new Date().toISOString()
     };
-    window.__WEBGL_MARINE_UPLOAD_DIAG__ = newUploadDiag;
 
     window.__MARINE_RENDER_SOURCE_DIAG__ = {
       sourcePath: 'direct_mapwebgl',
@@ -511,66 +379,17 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       cols: grid.cols,
       rows: grid.rows,
       vectorCount: grid.vectors.length,
-      nonzeroCount: nonzeroCount,
+      nonzeroCount: diffResult.nonzeroCount,
       maxHeight: maxS,
       meanHeight: cnt > 0 ? sumS / cnt : 0,
       timestamp: new Date().toISOString()
     };
 
-    window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
-      infoboxSource: window.__MARINE_POINT_DIAG__?.source || 'unknown',
-      infoboxProvider: window.__MARINE_POINT_DIAG__?.provider || 'unknown',
-      heatmapProvider: gridProvider,
-      activeModel: activeModelRef.current,
-      activeLayer: activeMarineLayer,
-      timeOffsetHours: timeOffsetHoursRef.current,
-      timestamp: new Date().toISOString()
-    };
-
-    window.__MARINE_RENDER_FORENSIC_DIAG__ = {
-      activeModel: activeModelRef.current,
-      activeLayer: activeMarineLayer,
-      timeOffsetHours: timeOffsetHoursRef.current,
-      sourcePath: 'direct_mapwebgl',
-      marineData: {
-        model: gridModel,
-        provider: gridProvider,
-        gridProvider: gridProvider,
-        componentLayer: componentLayer
-      },
-      field: {
-        model: gridModel,
-        provider: gridProvider,
-        componentLayer: componentLayer
-      },
-      vectorCount: grid.vectors.length,
-      nonzeroCount: nonzeroCount,
-      maxHeight: maxS,
-      meanHeight: cnt > 0 ? sumS / cnt : 0,
-      renderAccepted: true,
-      rejectionReason: null,
-      clearCalled: false,
-      clearReason: null,
-      dispatcherActiveBefore: true,
-      dispatcherActiveAfter: false,
-      waveDataPresentBefore: alreadyResident,
-      waveDataPresentAfter: true,
-      directUploadBlockedReason: null,
-      uploadSource: 'forecast_direct',
-      fceOverrideActive: false,
-      cacheHit: false,
-      cacheSource: 'none',
-      networkStatus: 200,
-      rateLimitStatus: 'ok',
-      timestamp: new Date().toISOString()
-    };
-
-    updateWebGLMarineLayerDiag('upload_success');
+    runDiagnosticsUpdate('upload_success');
   };
 
   safeUploadRef.current = safeUploadWaveData;
 
-  // Load high-resolution land polygons on mount
   useEffect(() => {
     let activeFetch = true;
     landGeoJSONFailedRef.current = false;
@@ -580,14 +399,12 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         if (geojson && activeFetch) {
           setLandGeoJSON(geojson);
           landGeoJSONRef.current = geojson;
-          console.log('[WebGLMarineLayer] High-resolution land GeoJSON loaded for GPU mask (shared)');
           
           const engine = engineRef.current;
           const gl = glRef.current || mapInstance?.painter?.context?.gl;
           if (engine && gl) {
             engine._landGeoJSON = geojson;
             if (dataRef.current?.vectors?.length) {
-              console.log('[WebGLMarineLayer] Upgrading active GPU wave texture to high-resolution land mask (forecast-authoritative)');
               if (safeUploadRef.current) {
                 safeUploadRef.current('land_mask_upgrade', gl, dataRef.current, geojson);
               } else {
@@ -603,15 +420,11 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         }
       })
       .catch(err => {
-        console.warn('[WebGLMarineLayer] Failed to load land GeoJSON for high-res masking:', err);
-        if (activeFetch) {
-          landGeoJSONFailedRef.current = true;
-        }
+        console.warn('[WebGLMarineLayer] Failed to load land GeoJSON:', err);
       });
     return () => { activeFetch = false; };
   }, [mapInstance]);
 
-  // Initialize engine + add custom layer (NO ordering logic)
   useEffect(() => {
     if (!mapInstance) return;
     if (!active) return;
@@ -633,12 +446,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           let targetBeforeId = beforeIdRef.current;
           if (!targetBeforeId) targetBeforeId = mapInstance.getLayer('ocean-mask-fill') ? 'ocean-mask-fill' : undefined;
           if (!targetBeforeId) targetBeforeId = mapInstance.getLayer('landuse') ? 'landuse' : undefined;
-          if (!targetBeforeId) targetBeforeId = mapInstance.getLayer('spot-geofences-layer') ? 'spot-geofences-layer' : undefined;
 
-          console.log(`[WebGLMarine-Forensic] Adding custom layer ${LAYER_ID} before '${targetBeforeId || 'TOP'}'`);
           mapInstance.addLayer(customLayer, targetBeforeId);
           layerAddedRef.current = true;
-          console.log(`[WebGLMarine-Forensic] Layer added BEFORE '${targetBeforeId || 'TOP'}' (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
           if (onAddedChangeRef.current) onAddedChangeRef.current(true);
         } catch (e) {
           console.warn('[WebGLMarine-Forensic] Failed to add layer:', e.message);
@@ -654,14 +464,13 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     return () => {
       try {
-        console.log(`[WebGLMarine-Forensic] Cleaning up custom layer ${LAYER_ID}`);
         mapInstance.off('styledata', handleStyleData);
         mapInstance.off('style.load', handleStyleData);
         if (mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }
         if (onAddedChangeRef.current) onAddedChangeRef.current(false);
-      } catch (e) { /* map may be disposed */ }
+      } catch (e) { /* map disposed */ }
       layerAddedRef.current = false;
       unregisterMarineEngine();
       engine.dispose(mapInstance.painter?.context?.gl);
@@ -669,7 +478,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     };
   }, [mapInstance, active]);
 
-  // Update wave data texture when data changes
   useEffect(() => {
     const engine = engineRef.current;
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
@@ -677,7 +485,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (!data?.vectors?.length) {
       if (data?.__unsupportedLayer === true) {
-        console.log(`[WebGLMarine-Clear] Unsupported layer active, clearing buffers immediately`);
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
         lastUploadedGridRef.current = {
@@ -685,53 +492,47 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
           sampleSum: 0, timestamp: 0, timeOffsetHours: 0
         };
-        updateWebGLMarineLayerDiag('unsupported_layer');
+        runDiagnosticsUpdate('unsupported_layer');
         if (mapInstance) mapInstance.triggerRepaint();
         return;
       }
 
-      const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
+      const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
       const lastSig = lastUploadedGridRef.current;
       const modelOrLayerOrHourChanged = lastSig.activeModel !== activeModelRef.current ||
                                         lastSig.activeMarineLayer !== activeMarineLayer ||
                                         lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
 
       if (window.isScrubbingTimeline && !modelOrLayerOrHourChanged) {
-        console.log(`[WebGLMarine-Scrub] Holding last valid marine texture during active scrubbing (model/layer/hour unchanged)`);
         return;
       }
 
       const isFallbackSafeZero = data?.__provider === 'fallback_safe_zero' || data?.grid?.__provider === 'fallback_safe_zero';
 
       if (isFallbackSafeZero && !modelOrLayerOrHourChanged) {
-        console.log(`[WebGLMarine-Hold] Holding last valid marine texture during transient rate-limit/cooldown (model/layer/hour unchanged)`);
-        updateWebGLMarineLayerDiag('held_rate_limit');
+        runDiagnosticsUpdate('held_rate_limit');
         return;
       }
 
       if (!modelOrLayerOrHourChanged) {
-        console.log(`[WebGLMarine-Hold] Holding last valid marine texture during empty data frame (model/layer/hour unchanged)`);
         return;
       }
 
-      console.log(`[WebGLMarine-Clear] Stale wave data received or layer switched`);
       const clearTimer = setTimeout(() => {
-        if (window.__MARINE_FETCH_PENDING__) { console.log(`[WebGLMarine-Hold] Fetch pending, extending hold`); return; }
+        if (window.__MARINE_FETCH_PENDING__) return;
 
         const currentData = dataRef.current;
-        const currentActiveMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
+        const currentActiveMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
         const currentModelOrLayerOrHourChanged = lastSig.activeModel !== activeModelRef.current ||
                                                  lastSig.activeMarineLayer !== currentActiveMarineLayer ||
                                                  lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
         const currentFallback = currentData?.__provider === 'fallback_safe_zero' || currentData?.grid?.__provider === 'fallback_safe_zero';
 
         if (currentFallback && !currentModelOrLayerOrHourChanged) {
-          console.log(`[WebGLMarine-Hold] Retaining valid texture during rate-limit in clear timer`);
           return;
         }
 
         if (!currentData?.vectors?.length) {
-          console.log(`[WebGLMarine-Clear] Confirmed empty after delay, clearing buffers`);
           engine.clearBuffers(gl);
 
           if (!window.__WEBGL_MARINE_CLEAR_COUNT__) window.__WEBGL_MARINE_CLEAR_COUNT__ = 0;
@@ -751,7 +552,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
             boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
             sampleSum: 0, timestamp: 0, timeOffsetHours: 0
           };
-          updateWebGLMarineLayerDiag('forced_clear');
+          runDiagnosticsUpdate('forced_clear');
           if (mapInstance) mapInstance.triggerRepaint();
         }
       }, 2000);
@@ -764,7 +565,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
 
     const gridModel = data.__sourceModel || activeModel;
-    const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'unknown';
+    const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const gridProvider = data.grid?.__gridProvider || data.__gridProvider || 'none';
     const componentLayer = data.grid?.__componentLayer || data.__componentLayer || 'none';
 
@@ -789,7 +590,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
             isValid = false;
           }
         } else {
-          // Reject open-meteo on EURO component layers
           const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service'];
           if (!validEuroComponentProviders.includes(gridProvider)) {
             isValid = false;
@@ -801,14 +601,13 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
 
     if (!isValid) {
-      console.log(`[WebGLMarine-Validate] Grid does not match active intent (model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}, provider=${gridProvider}), skipping commit`);
-      updateWebGLMarineLayerDiag(`intent_mismatch: model=${gridModel} vs ${activeModelRef.current}, layer=${componentLayer} vs ${activeMarineLayer}`);
+      console.log(`[WebGLMarine-Validate] Grid mismatch: model=${gridModel} vs ${activeModelRef.current}`);
+      runDiagnosticsUpdate(`intent_mismatch: model=${gridModel}`);
       return;
     }
 
     if (data.__renderable === false) {
-      console.log(`[WebGLMarine-Block] Skipping upload: ${data.__renderBlockedReason || 'not_renderable'}`);
-      updateWebGLMarineLayerDiag(`render_blocked: ${data.__renderBlockedReason || 'not_renderable'}`);
+      runDiagnosticsUpdate(`render_blocked: ${data.__renderBlockedReason || 'not_renderable'}`);
       return;
     }
 
@@ -841,4 +640,3 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 }
 
 export default WebGLMarineLayer;
-
