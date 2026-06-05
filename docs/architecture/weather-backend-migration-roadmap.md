@@ -223,13 +223,17 @@ We will evaluate the remaining map layers for migration to the backend-owned wea
 * **Difficulty**: Medium (requires parsing Copernicus/NOAA daily grids).
 
 ### Recommended Migration Order
-1. **Stage 6G**: Pressure Default-On Rollout (default-enable backend pressure).
-2. **Stage 7**: Precipitation Backend Ingestion.
-3. **Stage 8**: Air & Water Temperature point sampling integration.
-4. **Stage 9**: Radar & Satellite endpoint validation (backend timeline synchronization).
+1. **Stage 6G**: Pressure Default-On Rollout (default-enable backend pressure point truth).
+2. **Stage 6H**: Weather Coverage Expansion Strategy & Architecture (current).
+3. **Stage 6H.1**: SoCal Wind Tile Pilot (GFS/ICON/EURO wind tile expansion).
+4. **Stage 6H.2**: SoCal Marine Tile Pilot.
+5. **Stage 7**: Precipitation Backend Ingestion.
+6. **Stage 8**: Air & Water Temperature point sampling integration.
+7. **Stage 9**: Radar & Satellite endpoint validation.
 
 ---
 
 ## 7. Recommended Next Phase
 
-Based on the completion of the Pressure Consolidation Gate, the pressure backend system is fully prepared for a production rollout. We recommend proceeding to **Stage 6G: Pressure Default-On Rollout** to enable the backend weather pressure service by default on the map client, followed by **Stage 7: Precipitation Backend Ingestion**.
+Following the approval of the Stage 6H strategy, we recommend proceeding to **Stage 6H.1: SoCal Wind Tile Pilot** to implement the hybrid regional tile wind coverage expansion for Southern California. Radar, satellite, precipitation, and Copernicus/pressure changes remain future work.
+

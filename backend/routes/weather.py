@@ -488,6 +488,94 @@ async def get_point(
                         )
             except Exception as ex:
                 logger.error(f"[Point Fallback] Failed fetching point for {model} wind at ({lat}, {lng}): {ex}")
+        elif domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "wind_waves") and model.upper() in ("GFS", "ICON"):
+            from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+            om_provider = OpenMeteoProvider()
+            try:
+                raw_point = await om_provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng)
+                if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
+                    from services.weather_pipeline.normalizer import WeatherNormalizer
+                    times = raw_point["hourly"]["time"]
+                    idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
+                    if idx is not None:
+                        layer_vars = {
+                            "waves": ("wave_height", "wave_direction", "wave_period"),
+                            "swell_1": ("swell_wave_height", "swell_wave_direction", "swell_wave_period"),
+                            "wind_waves": ("wind_wave_height", "wind_wave_direction", "wind_wave_period"),
+                        }[layer.lower()]
+                        
+                        speed_key, dir_key, period_key = layer_vars
+                        
+                        speed = raw_point["hourly"][speed_key][idx]
+                        direction = raw_point["hourly"][dir_key][idx]
+                        period = raw_point["hourly"][period_key][idx]
+                        
+                        # Guard against None values
+                        speed = speed if speed is not None else 0.0
+                        direction = direction if direction is not None else 0.0
+                        period = period if period is not None else 0.0
+                        
+                        import math
+                        rad = direction * (math.pi / 180.0)
+                        u = -speed * math.sin(rad)
+                        v = -speed * math.cos(rad)
+                        
+                        from services.weather_pipeline.schemas import NormalizedPointDetail, NormalizedPointResponse
+                        detail = NormalizedPointDetail(
+                            requested_lat=lat,
+                            requested_lng=lng,
+                            sampled_lat=lat,
+                            sampled_lng=lng,
+                            speed=round(speed, 4),
+                            direction=round(direction, 2),
+                            u=round(u, 4),
+                            v=round(v, 4),
+                            period=round(period, 2),
+                            gust=None,
+                            interpolation_method="direct_point_api"
+                        )
+                        
+                        if model.upper() == "GFS":
+                            upstream_model = "ncep_gfswave025"
+                        elif model.upper() == "ICON":
+                            upstream_model = "gwam"
+                        else:
+                            upstream_model = "gfs_seamless"
+                            
+                        value_kind = "wave_height"
+                        value_unit = "m"
+                        display_unit_hint = "ft"
+                        units = {
+                            "speed": "m",
+                            "direction": "degrees",
+                            "period": "seconds"
+                        }
+                        
+                        return NormalizedPointResponse(
+                            model=model.upper(),
+                            provider="open-meteo",
+                            domain="marine",
+                            layer=layer.lower(),
+                            run_time=datetime.now(timezone.utc),
+                            valid_time=target_dt,
+                            is_forecast_authoritative=True,
+                            is_estimated=False,
+                            point=detail,
+                            value_kind=value_kind,
+                            value_unit=value_unit,
+                            display_unit_hint=display_unit_hint,
+                            source_variables=list(layer_vars),
+                            freshness_sec=1800,
+                            source="provider_point_api",
+                            coverage_status="outside_grid_tile",
+                            fallback_attempted=True,
+                            fallback_reason="Coordinate falls outside regional grid tile coverage, fell back to direct point query.",
+                            upstream_provider="open-meteo",
+                            upstream_model=upstream_model,
+                            units=units
+                        )
+            except Exception as ex:
+                logger.error(f"[Point Fallback] Failed fetching point for {model} marine at ({lat}, {lng}): {ex}")
         
         # If fallback not applicable or failed, return structured 404 response
         reason = "no_copernicus_coverage" if model.upper() == "EURO" else "no_backend_coverage"

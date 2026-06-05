@@ -1214,6 +1214,153 @@ def test_stage_6h1_requirements(tmp_path, monkeypatch):
     assert res_pt_hawaii_data["is_estimated"] is False
 
 
+def test_stage_6h2_requirements(tmp_path, monkeypatch):
+    """
+    Verify Stage 6H.2 SoCal GFS/ICON Marine Regional Grid Pilot specifications:
+    - GFS/ICON marine ingestion generates region-aware filenames and manifest metadata.
+    - Grid route tile selection matches the correct marine region by bbox.
+    - Rectangular grid integrity is preserved.
+    - Inside-tile marine point interpolation samples the grid file correctly.
+    - Outside-tile provider point fallback resolves with proper schema (authoritative=True, source=provider_point_api, etc).
+    - Unit consistency: raw values are meters (unit: "m") and display hint is "ft".
+    - Unsupported ICON swell_2 is rejected or handled cleanly without fake fallback.
+    """
+    temp_store = ProductStore(cache_dir=tmp_path)
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    # 1. Ingestion / Normalization test for GFS & ICON marine waves
+    # Bbox for SoCal
+    from services.weather_pipeline.scheduler import REGIONAL_CONFIGS
+    socal_bbox = REGIONAL_CONFIGS["us_west_coast_socal"]
+    times = ["2026-06-02T12:00:00Z"]
+    
+    mock_raw_gfs = [{
+        "latitude": 34.0,
+        "longitude": -118.0,
+        "hourly_units": {
+            "wave_height": "m",
+            "wave_direction": "°",
+            "wave_period": "s"
+        },
+        "hourly": {
+            "time": times,
+            "wave_height": [2.5],
+            "wave_direction": [240.0],
+            "wave_period": [12.0]
+        }
+    }]
+    
+    from services.weather_pipeline.normalizer import WeatherNormalizer
+    normalizer = WeatherNormalizer()
+    run_dt = datetime.now(timezone.utc)
+    target_dt = datetime.fromisoformat("2026-06-02T12:00:00+00:00")
+    
+    product_gfs = normalizer.normalize(
+        model="GFS",
+        provider="open-meteo",
+        domain="marine",
+        layer="waves",
+        raw_results=mock_raw_gfs,
+        bbox=socal_bbox,
+        resolution=1.0,
+        target_time=target_dt,
+        run_time=run_dt,
+        region_id="us_west_coast_socal",
+        coverage_mode="regional_tile"
+    )
+    
+    assert product_gfs is not None
+    assert product_gfs.region_id == "us_west_coast_socal"
+    assert product_gfs.tile_id == "us_west_coast_socal"
+    assert product_gfs.coverage_mode == "regional_tile"
+    assert product_gfs.value_unit == "m"
+    assert product_gfs.display_unit_hint == "ft"
+    
+    # Save product
+    filename = temp_store.save_product(product_gfs, resolution=1.0)
+    assert filename == "gfs_marine_waves_us_west_coast_socal_20260602T120000Z.json"
+    
+    # 2. Grid route tile selection & Rectangular integrity
+    from fastapi.testclient import TestClient
+    from server import app
+    client = TestClient(app)
+    
+    # Request SoCal grid waves
+    response_grid = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-123,31,-117,37"
+    )
+    assert response_grid.status_code == 200
+    grid_json = response_grid.json()
+    assert grid_json["product_id"] == filename
+    assert grid_json["grid"]["bounds"]["west"] == -123.0
+    assert grid_json["grid"]["cols"] > 0
+    # Rectangular integrity: cols * rows == vectors length
+    assert len(grid_json["grid"]["vectors"]) == grid_json["grid"]["cols"] * grid_json["grid"]["rows"]
+    
+    # 3. Inside-tile point interpolation
+    response_pt_inside = client.get(
+        "/api/weather/point?model=GFS&domain=marine&layer=waves&lat=34.0&lng=-118.0&valid_time=2026-06-02T12:00:00Z"
+    )
+    assert response_pt_inside.status_code == 200
+    pt_inside_json = response_pt_inside.json()
+    assert pt_inside_json["source"] == "grid_file"
+    assert pt_inside_json["coverage_status"] == "inside_regional_tile"
+    assert pt_inside_json["point"]["speed"] == 2.5 # speed field contains wave height in meters
+    assert pt_inside_json["value_unit"] == "m"
+    assert pt_inside_json["display_unit_hint"] == "ft"
+    
+    # 4. Outside-tile point fallback
+    # Mocking fetch_point to return successful Open-Meteo marine point payload
+    async def mock_fetch_point_marine(self, model, domain, layer, lat, lng):
+        return {
+            "latitude": lat,
+            "longitude": lng,
+            "hourly": {
+                "time": ["2026-06-02T12:00:00Z"],
+                "wave_height": [3.1],
+                "wave_direction": [250.0],
+                "wave_period": [14.0]
+            }
+        }
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+    monkeypatch.setattr(OpenMeteoProvider, "fetch_point", mock_fetch_point_marine)
+    
+    response_pt_outside = client.get(
+        "/api/weather/point?model=GFS&domain=marine&layer=waves&lat=21.0&lng=-157.0&valid_time=2026-06-02T12:00:00Z"
+    )
+    assert response_pt_outside.status_code == 200
+    pt_outside_json = response_pt_outside.json()
+    assert pt_outside_json["source"] == "provider_point_api"
+    assert pt_outside_json["coverage_status"] == "outside_grid_tile"
+    assert pt_outside_json["fallback_attempted"] is True
+    assert pt_outside_json["is_forecast_authoritative"] is True
+    assert pt_outside_json["is_estimated"] is False
+    assert pt_outside_json["point"]["speed"] == 3.1 # wave height in meters
+    assert pt_outside_json["point"]["period"] == 14.0
+    assert pt_outside_json["value_unit"] == "m"
+    assert pt_outside_json["display_unit_hint"] == "ft"
+    
+    # 5. Unsupported ICON swell_2 reject guard
+    response_icon_swell2_grid = client.get(
+        "/api/weather/grid?model=ICON&domain=marine&layer=swell_2&valid_time=2026-06-02T12:00:00Z"
+    )
+    assert response_icon_swell2_grid.status_code == 200
+    icon_swell2_grid_json = response_icon_swell2_grid.json()
+    assert icon_swell2_grid_json["status"] == "unsupported"
+    assert icon_swell2_grid_json["grid"]["cols"] == 0
+    assert len(icon_swell2_grid_json["grid"]["vectors"]) == 0
+    
+    response_icon_swell2_point = client.get(
+        "/api/weather/point?model=ICON&domain=marine&layer=swell_2&lat=34.0&lng=-118.0&valid_time=2026-06-02T12:00:00Z"
+    )
+    assert response_icon_swell2_point.status_code == 200
+    icon_swell2_point_json = response_icon_swell2_point.json()
+    assert icon_swell2_point_json["status"] == "unsupported"
+    assert icon_swell2_point_json["point"]["interpolation_method"] == "unsupported"
+
+
+
 
 
 

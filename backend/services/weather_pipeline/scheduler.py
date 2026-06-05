@@ -42,132 +42,140 @@ class WeatherPipelineScheduler:
 
     async def ingest_gfs_marine_pilot(self) -> bool:
         """
-        Stage 2 Pilot: Ingests GFS waves grid forecast for Florida/East Coast.
+        Stage 2 / 6H.2 Pilot: Ingests GFS waves grid forecast for all configured regions.
         Fetches 48 hours of forecasts in 3-hour increments for waves, swell_1, swell_2, and wind_waves.
         """
-        logger.info("[Pipeline Scheduler] Starting GFS Marine Ingestion job for all component layers...")
-        region = REGIONAL_CONFIGS["florida_east_coast"]
-        
+        logger.info("[Pipeline Scheduler] Starting GFS Marine Ingestion job for all regions...")
         import os
         is_render = os.environ.get("RENDER") == "true"
-        resolution = 0.5 if is_render else region["resolution"]
-
-        # Open-Meteo GFS wave grid fetch - query conformed 12 variables at once
-        raw_data = await self.om_provider.fetch_grid(
-            model="GFS",
-            domain="marine",
-            layer="all_marine",
-            bbox=region,
-            resolution=resolution,
-            forecast_days=2
-        )
-
-        import os
         is_test_env = (
             os.environ.get("NODE_ENV") == "test" or 
             os.environ.get("LOCAL_TEST_FIXTURE") == "true"
         )
 
-        if not raw_data:
-            if is_test_env:
-                logger.warning("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Injecting high-fidelity mock conformed raw data for offline/deployed fallback...")
-                import math
-                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
-                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
-                mock_raw_results_waves = []
-                for lat, lon in zip(lats, lons):
-                    mock_raw_results_waves.append({
-                        "latitude": lat,
-                        "longitude": lon,
-                        "hourly_units": {
-                            "wave_height": "m",
-                            "wave_direction": "°",
-                            "wave_period": "s",
-                            "swell_wave_height": "m",
-                            "swell_wave_direction": "°",
-                            "swell_wave_period": "s",
-                            "secondary_swell_wave_height": "m",
-                            "secondary_swell_wave_direction": "°",
-                            "secondary_swell_wave_period": "s",
-                            "wind_wave_height": "m",
-                            "wind_wave_direction": "°",
-                            "wind_wave_period": "s"
-                        },
-                        "hourly": {
-                            "time": times,
-                            "wave_height": [1.2 + 0.4 * math.sin(lat) for _ in times],
-                            "wave_direction": [240.0 for _ in times],
-                            "wave_period": [10.0 for _ in times],
-                            "swell_wave_height": [0.8 + 0.3 * math.sin(lat) for _ in times],
-                            "swell_wave_direction": [110.0 for _ in times],
-                            "swell_wave_period": [8.0 for _ in times],
-                            "secondary_swell_wave_height": [0.3 + 0.1 * math.sin(lat) for _ in times],
-                            "secondary_swell_wave_direction": [140.0 for _ in times],
-                            "secondary_swell_wave_period": [6.0 for _ in times],
-                            "wind_wave_height": [0.5 + 0.2 * math.sin(lat) for _ in times],
-                            "wind_wave_direction": [100.0 for _ in times],
-                            "wind_wave_period": [5.0 for _ in times]
-                        }
-                    })
-                results = mock_raw_results_waves
-            else:
-                logger.error("[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data. Ingestion failed (will not generate synthetic data in production/dev).")
-                return False
-        else:
-            results = raw_data if isinstance(raw_data, list) else [raw_data]
-        
-        # 1. Map hourly valid times and run standard normalization loops
-        first_pt = results[0]
-        times = first_pt.get("hourly", {}).get("time", [])
-        if not times:
-            logger.error("[Pipeline Scheduler] Ingested GFS payload missing hourly times array.")
-            return False
-
         run_time = datetime.now(timezone.utc)
-        layers = ["waves", "swell_1", "swell_2", "wind_waves"]
         total_saved = 0
 
-        for layer in layers:
-            success_count = 0
-            # Normalization and atomic cache slicing (every 3 hours to optimize file count)
-            for idx, time_str in enumerate(times):
-                if idx % 3 != 0:
-                    continue # Slice every 3 hours
-                    
-                if not time_str.endswith("Z"):
-                    time_str += "Z"
-                target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+        for region_id, region in REGIONAL_CONFIGS.items():
+            resolution = 0.5 if is_render else region["resolution"]
+            logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
 
-                try:
-                    product = self.normalizer.normalize(
-                        model="GFS",
-                        provider="open-meteo",
-                        domain="marine",
-                        layer=layer,
-                        raw_results=results,
-                        bbox=region,
-                        resolution=resolution,
-                        target_time=target_dt,
-                        run_time=run_time
-                    )
-                    
-                    if product:
-                        self.store.save_product(product, resolution=resolution)
-                        success_count += 1
-                        del product
-                        import gc
-                        gc.collect()
-                        await asyncio.sleep(0.2)
-                except Exception as e:
-                    logger.error(f"[Pipeline Scheduler] Normalization error for GFS {layer} at hour index {idx}: {e}")
+            # Open-Meteo GFS wave grid fetch - query conformed 12 variables at once
+            raw_data = await self.om_provider.fetch_grid(
+                model="GFS",
+                domain="marine",
+                layer="all_marine",
+                bbox=region,
+                resolution=resolution,
+                forecast_days=2
+            )
+
+            if not raw_data:
+                if is_test_env:
+                    logger.warning(f"[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data for {region_id}. Injecting mock data...")
+                    import math
+                    lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                    mock_raw_results_waves = []
+                    for lat, lon in zip(lats, lons):
+                        mock_raw_results_waves.append({
+                            "latitude": lat,
+                            "longitude": lon,
+                            "hourly_units": {
+                                "wave_height": "m",
+                                "wave_direction": "°",
+                                "wave_period": "s",
+                                "swell_wave_height": "m",
+                                "swell_wave_direction": "°",
+                                "swell_wave_period": "s",
+                                "secondary_swell_wave_height": "m",
+                                "secondary_swell_wave_direction": "°",
+                                "secondary_swell_wave_period": "s",
+                                "wind_wave_height": "m",
+                                "wind_wave_direction": "°",
+                                "wind_wave_period": "s"
+                            },
+                            "hourly": {
+                                "time": times,
+                                "wave_height": [1.2 + 0.4 * math.sin(lat) for _ in times],
+                                "wave_direction": [240.0 for _ in times],
+                                "wave_period": [10.0 for _ in times],
+                                "swell_wave_height": [0.8 + 0.3 * math.sin(lat) for _ in times],
+                                "swell_wave_direction": [110.0 for _ in times],
+                                "swell_wave_period": [8.0 for _ in times],
+                                "secondary_swell_wave_height": [0.3 + 0.1 * math.sin(lat) for _ in times],
+                                "secondary_swell_wave_direction": [140.0 for _ in times],
+                                "secondary_swell_wave_period": [6.0 for _ in times],
+                                "wind_wave_height": [0.5 + 0.2 * math.sin(lat) for _ in times],
+                                "wind_wave_direction": [100.0 for _ in times],
+                                "wind_wave_period": [5.0 for _ in times]
+                            }
+                        })
+                    results = mock_raw_results_waves
+                else:
+                    logger.error(f"[Pipeline Scheduler] GFS Marine Ingestion: failed to fetch grid data for {region_id}. Skipping.")
+                    continue
+            else:
+                results = raw_data if isinstance(raw_data, list) else [raw_data]
             
-            logger.info(f"[Pipeline Scheduler] Ingested {success_count} GFS {layer} products.")
-            if success_count > 0:
-                total_saved += success_count
+            # 1. Map hourly valid times and run standard normalization loops
+            first_pt = results[0]
+            times = first_pt.get("hourly", {}).get("time", [])
+            if not times:
+                logger.error(f"[Pipeline Scheduler] Ingested GFS payload for {region_id} missing hourly times array.")
+                continue
 
-        del results
-        import gc
-        gc.collect()
+            # Swell 2 is not requested for SoCal (unsupported in requirements / Icon swell_2 is unsupported, GFS swell_2 only florida)
+            if region_id == "us_west_coast_socal":
+                layers = ["waves", "swell_1", "wind_waves"]
+            else:
+                layers = ["waves", "swell_1", "swell_2", "wind_waves"]
+
+            for layer in layers:
+                success_count = 0
+                # Normalization and atomic cache slicing (every 3 hours to optimize file count)
+                for idx, time_str in enumerate(times):
+                    if idx % 3 != 0:
+                        continue # Slice every 3 hours
+                        
+                    if not time_str.endswith("Z"):
+                        time_str += "Z"
+                    target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+
+                    try:
+                        product = self.normalizer.normalize(
+                            model="GFS",
+                            provider="open-meteo",
+                            domain="marine",
+                            layer=layer,
+                            raw_results=results,
+                            bbox=region,
+                            resolution=resolution,
+                            target_time=target_dt,
+                            run_time=run_time,
+                            region_id=region_id,
+                            coverage_mode="regional_tile"
+                        )
+                        
+                        if product:
+                            self.store.save_product(product, resolution=resolution)
+                            success_count += 1
+                            del product
+                            import gc
+                            gc.collect()
+                            await asyncio.sleep(0.2)
+                    except Exception as e:
+                        logger.error(f"[Pipeline Scheduler] Normalization error for GFS {layer} in {region_id} at hour index {idx}: {e}")
+                
+                logger.info(f"[Pipeline Scheduler] Ingested {success_count} GFS {layer} products for region {region_id}.")
+                if success_count > 0:
+                    total_saved += success_count
+
+            del results
+            import gc
+            gc.collect()
+            await asyncio.sleep(1.0)
+
         logger.info(f"[Pipeline Scheduler] GFS Marine Ingestion Job done! Saved {total_saved} total conformed product files.")
         return total_saved > 0
 
@@ -725,127 +733,132 @@ class WeatherPipelineScheduler:
 
     async def ingest_icon_marine_pilot(self) -> bool:
         """
-        Stage 4F.1: Ingests ICON/gwam marine grid forecast for Florida/East Coast.
+        Stage 4F.1 / 6H.2: Ingests ICON/gwam marine grid forecast for all configured regions.
         Fetches 48 hours of forecasts in 3-hour increments for waves, swell_1, and wind_waves.
         Swell 2 is unsupported and will not be ingested.
         """
         logger.info("[Pipeline Scheduler] Starting ICON Marine Ingestion job for supported layers...")
-        region = REGIONAL_CONFIGS["florida_east_coast"]
-        
         import os
         is_render = os.environ.get("RENDER") == "true"
-        resolution = 0.5 if is_render else region["resolution"]
-
-        # Open-Meteo ICON wave grid fetch - models=gwam (DWD Global Wave Model)
-        raw_data = await self.om_provider.fetch_grid(
-            model="ICON",
-            domain="marine",
-            layer="all_marine",
-            bbox=region,
-            resolution=resolution,
-            forecast_days=2
-        )
-
         is_test_env = (
             os.environ.get("NODE_ENV") == "test" or 
             os.environ.get("LOCAL_TEST_FIXTURE") == "true"
         )
-
-        if not raw_data:
-            if is_test_env:
-                logger.warning("[Pipeline Scheduler] ICON Marine Ingestion: failed to fetch grid data. Injecting high-fidelity mock conformed raw data for offline/deployed fallback...")
-                import math
-                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
-                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
-                mock_raw_results = []
-                for lat, lon in zip(lats, lons):
-                    mock_raw_results.append({
-                        "latitude": lat,
-                        "longitude": lon,
-                        "hourly_units": {
-                            "wave_height": "m",
-                            "wave_direction": "°",
-                            "wave_period": "s",
-                            "swell_wave_height": "m",
-                            "swell_wave_direction": "°",
-                            "swell_wave_period": "s",
-                            "wind_wave_height": "m",
-                            "wind_wave_direction": "°",
-                            "wind_wave_period": "s"
-                        },
-                        "hourly": {
-                            "time": times,
-                            "wave_height": [1.1 + 0.3 * math.sin(lat) for _ in times],
-                            "wave_direction": [245.0 for _ in times],
-                            "wave_period": [9.0 for _ in times],
-                            "swell_wave_height": [0.7 + 0.2 * math.sin(lat) for _ in times],
-                            "swell_wave_direction": [115.0 for _ in times],
-                            "swell_wave_period": [7.5 for _ in times],
-                            "wind_wave_height": [0.4 + 0.1 * math.sin(lat) for _ in times],
-                            "wind_wave_direction": [105.0 for _ in times],
-                            "wind_wave_period": [4.5 for _ in times]
-                        }
-                    })
-                results = mock_raw_results
-            else:
-                logger.error("[Pipeline Scheduler] ICON Marine Ingestion: failed to fetch grid data from Open-Meteo. Ingestion aborted.")
-                return False
-        else:
-            results = raw_data if isinstance(raw_data, list) else [raw_data]
-
-        first_pt = results[0]
-        times = first_pt.get("hourly", {}).get("time", [])
-        if not times:
-            logger.error("[Pipeline Scheduler] Ingested ICON payload missing hourly times array.")
-            return False
-
+        
         run_time = datetime.now(timezone.utc)
-        layers = ["waves", "swell_1", "wind_waves"] # Swell 2 is unsupported, skip completely!
         total_saved = 0
 
-        for layer in layers:
-            success_count = 0
-            for idx, time_str in enumerate(times):
-                if idx % 3 != 0:
+        for region_id, region in REGIONAL_CONFIGS.items():
+            resolution = 0.5 if is_render else region["resolution"]
+            logger.info(f"[Pipeline Scheduler] Ingesting ICON Marine for region: {region_id}")
+
+            # Open-Meteo ICON wave grid fetch - models=gwam (DWD Global Wave Model)
+            raw_data = await self.om_provider.fetch_grid(
+                model="ICON",
+                domain="marine",
+                layer="all_marine",
+                bbox=region,
+                resolution=resolution,
+                forecast_days=2
+            )
+
+            if not raw_data:
+                if is_test_env:
+                    logger.warning(f"[Pipeline Scheduler] ICON Marine Ingestion: failed to fetch grid data for {region_id}. Injecting mock data...")
+                    import math
+                    lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                    mock_raw_results = []
+                    for lat, lon in zip(lats, lons):
+                        mock_raw_results.append({
+                            "latitude": lat,
+                            "longitude": lon,
+                            "hourly_units": {
+                                "wave_height": "m",
+                                "wave_direction": "°",
+                                "wave_period": "s",
+                                "swell_wave_height": "m",
+                                "swell_wave_direction": "°",
+                                "swell_wave_period": "s",
+                                "wind_wave_height": "m",
+                                "wind_wave_direction": "°",
+                                "wind_wave_period": "s"
+                            },
+                            "hourly": {
+                                "time": times,
+                                "wave_height": [1.1 + 0.3 * math.sin(lat) for _ in times],
+                                "wave_direction": [245.0 for _ in times],
+                                "wave_period": [9.0 for _ in times],
+                                "swell_wave_height": [0.7 + 0.2 * math.sin(lat) for _ in times],
+                                "swell_wave_direction": [115.0 for _ in times],
+                                "swell_wave_period": [7.5 for _ in times],
+                                "wind_wave_height": [0.4 + 0.1 * math.sin(lat) for _ in times],
+                                "wind_wave_direction": [105.0 for _ in times],
+                                "wind_wave_period": [4.5 for _ in times]
+                            }
+                        })
+                    results = mock_raw_results
+                else:
+                    logger.error(f"[Pipeline Scheduler] ICON Marine Ingestion: failed to fetch grid data from Open-Meteo for {region_id}. Skipping.")
                     continue
-                if not time_str.endswith("Z"):
-                    time_str += "Z"
-                target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+            else:
+                results = raw_data if isinstance(raw_data, list) else [raw_data]
 
-                try:
-                    product = self.normalizer.normalize(
-                        model="ICON",
-                        provider="open-meteo" if not is_test_env or raw_data else "test-fixture",
-                        domain="marine",
-                        layer=layer,
-                        raw_results=results,
-                        bbox=region,
-                        resolution=resolution,
-                        target_time=target_dt,
-                        run_time=run_time
-                    )
-                    
-                    if product:
-                        # Double-check is_test_fixture guard for deployed products (Correction 2)
-                        if not is_test_env and product.is_test_fixture:
-                            logger.error(f"[Pipeline Scheduler] Security violation: trying to save test fixture product in non-test environment.")
-                            continue
-                        self.store.save_product(product, resolution=resolution)
-                        success_count += 1
-                        del product
-                        import gc
-                        gc.collect()
-                        await asyncio.sleep(0.2)
-                except Exception as e:
-                    logger.error(f"[Pipeline Scheduler] Normalization error for ICON {layer} at hour index {idx}: {e}")
-            
-            logger.info(f"[Pipeline Scheduler] Ingested {success_count} ICON {layer} products.")
-            if success_count > 0:
-                total_saved += success_count
+            first_pt = results[0]
+            times = first_pt.get("hourly", {}).get("time", [])
+            if not times:
+                logger.error(f"[Pipeline Scheduler] Ingested ICON payload for {region_id} missing hourly times array.")
+                continue
 
-        del results
-        import gc
-        gc.collect()
+            layers = ["waves", "swell_1", "wind_waves"] # Swell 2 is unsupported, skip completely!
+
+            for layer in layers:
+                success_count = 0
+                for idx, time_str in enumerate(times):
+                    if idx % 3 != 0:
+                        continue
+                    if not time_str.endswith("Z"):
+                        time_str += "Z"
+                    target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+
+                    try:
+                        product = self.normalizer.normalize(
+                            model="ICON",
+                            provider="open-meteo" if not is_test_env or raw_data else "test-fixture",
+                            domain="marine",
+                            layer=layer,
+                            raw_results=results,
+                            bbox=region,
+                            resolution=resolution,
+                            target_time=target_dt,
+                            run_time=run_time,
+                            region_id=region_id,
+                            coverage_mode="regional_tile"
+                        )
+                        
+                        if product:
+                            # Double-check is_test_fixture guard for deployed products
+                            if not is_test_env and product.is_test_fixture:
+                                logger.error(f"[Pipeline Scheduler] Security violation: trying to save test fixture product in non-test environment.")
+                                continue
+                            self.store.save_product(product, resolution=resolution)
+                            success_count += 1
+                            del product
+                            import gc
+                            gc.collect()
+                            await asyncio.sleep(0.2)
+                    except Exception as e:
+                        logger.error(f"[Pipeline Scheduler] Normalization error for ICON {layer} in {region_id} at hour index {idx}: {e}")
+                
+                logger.info(f"[Pipeline Scheduler] Ingested {success_count} ICON {layer} products for region {region_id}.")
+                if success_count > 0:
+                    total_saved += success_count
+
+            del results
+            import gc
+            gc.collect()
+            await asyncio.sleep(1.0)
+
         logger.info(f"[Pipeline Scheduler] ICON Marine Ingestion Job done! Saved {total_saved} total conformed product files.")
         return total_saved > 0
 

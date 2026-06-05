@@ -1202,7 +1202,12 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       productId: json.product_id,
       provider: json.provider,
       renderable: result.grid.renderable,
-      clampedBbox
+      clampedBbox,
+      selectedTileId: clampResult.selectedTileId,
+      rejectedTileIds: clampResult.rejectedTileIds,
+      regionId: json.region_id || clampResult.selectedTileId,
+      tileId: json.tile_id || clampResult.selectedTileId,
+      validTime: validTimeStr
     });
 
     return result;
@@ -1240,7 +1245,12 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       renderable: false,
       error: err.message,
       reason: err.message,
-      clampedBbox
+      clampedBbox,
+      selectedTileId: clampResult.selectedTileId,
+      rejectedTileIds: clampResult.rejectedTileIds,
+      regionId: clampResult.selectedTileId,
+      tileId: clampResult.selectedTileId,
+      validTime: validTimeStr
     });
 
     console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);

@@ -36,3 +36,13 @@ This document provides a consolidated support matrix for all weather, marine, an
 - **Wind Flow Layer**: Visually displayed on the frontend map utilizing GPU Flow Particles and a text inspector infobox. There is **no backend-owned wind raster heatmap** in the weather system.
 - **Wave Height Heatmaps**: Visually rendered on the client using WebGL textures mapped from conformed backend grids.
 - **Sea Pressure Layer**: Hybrid visual/numeric pipeline. The visual contours and heatmap are rendered on the map using existing hourly `om://` raster tiles. The backend weather data service provides conformed scalar point/infobox values under the feature flag `rawsurf_backend_pressure_enabled` / `__USE_BACKEND_PRESSURE_SERVICE__` (default state: off pending Stage 6G). Parity between the visual tiles and backend values is snapping/tolerance parity (within 3 hours) rather than exact timestamp matching. Backend pressure point truth is represented as a scalar `value` in hPa, rather than vector components (speed/direction).
+
+---
+
+## Regional Visual Grid Coverage Rules
+- **Wind and Marine layers**: Currently regional-tile backend visual systems, not global.
+  - **Florida (florida_east_coast)**: Existing pilot region (wind & marine).
+  - **SoCal Wind (us_west_coast_socal)**: Next pilot region (wind only; GFS, ICON, and EURO wind models).
+  - **Marine SoCal and Copernicus SoCal**: Later stages (not included in Stage 6H.1).
+- **Radar, Satellite, and Precipitation layers**: Remain future work.
+
