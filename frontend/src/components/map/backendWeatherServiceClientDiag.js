@@ -162,6 +162,8 @@ export function updateProjectionDiag(domain, details) {
 
   window.__FORECAST_TIMELINE_COVERAGE_DIAG__ = {
     ...prevTimelineDiag,
+    status: 'active',
+    coverage_status: coverage_status,
     activeModel: details.activeModel || details.model || prevTimelineDiag.activeModel || 'GFS',
     activeLayer: details.activeLayer || prevTimelineDiag.activeLayer || 'waves',
     domain: domain === 'wind' ? 'wind' : domain === 'pressure' ? 'pressure' : 'marine',
