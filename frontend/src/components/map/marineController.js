@@ -79,7 +79,8 @@ var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
 function _cacheMarineResult(model, hourOffset, data, layer) {
   if (!data) return;
   const layerPart = _isAllVarModel(model) ? 'all' : (layer || 'waves');
-  const key = `${model || 'GFS'}_${layerPart}_${hourOffset}`;
+  const tileId = data.tile_id || data.region_id || data.grid?.region_id || 'unknown';
+  const key = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
   
   const g = data.grid || {};
   const bounds = g.bounds || {};
@@ -110,7 +111,7 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
 }
 
 /** getModelSafeMarine - returns safe model cached results */
-export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer) {
+export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null) {
   const wanted = requestedModel || 'GFS', wantedLayer = requestedLayer || 'waves', wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
   let hitData = null, cacheSource = 'none', staleHour = false, returnedHour = null;
   const cacheLayerKey = marineHourlyCache?.__layerKey || 'all';
@@ -129,7 +130,22 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   }
   if (!hitData) {
     const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
-    const exact = _perModelHourCache.get(`${wanted}_${layerPart}_${wantedHour}`);
+    let exact = null;
+    if (bounds) {
+      const clampRes = clampViewportBbox(bounds, wantedLayer, wanted);
+      const tileId = clampRes.selectedTileId || 'outside';
+      exact = _perModelHourCache.get(`${wanted}_${layerPart}_${tileId}_${wantedHour}`);
+    } else {
+      const suffix = `_${wantedHour}`;
+      const prefix = `${wanted}_${layerPart}_`;
+      for (const [k, v] of _perModelHourCache.entries()) {
+        if (k.startsWith(prefix) && k.endsWith(suffix)) {
+          exact = v;
+          break;
+        }
+      }
+    }
+    
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       const sig = exact.signature;
       if (sig) {
@@ -236,7 +252,9 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
 
   if (isBackendActive) {
     const layerPart = _isAllVarModel(model) ? 'all' : layer;
-    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${hourOffset}`);
+    const clampRes = clampViewportBbox(bounds, layer, model);
+    const tileId = clampRes.selectedTileId || 'outside';
+    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       const sig = exact.signature;
       if (sig) {
@@ -423,7 +441,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   if (!forceFetch && isBackendActive) {
     const layerPart = _isAllVarModel(model) ? 'all' : activeLayer;
-    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${hourOffset}`);
+    const clampRes = clampViewportBbox(bounds, activeLayer, model);
+    const tileId = clampRes.selectedTileId || 'outside';
+    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       const sig = exact.signature;
       if (sig) {
