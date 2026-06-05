@@ -357,6 +357,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       cols: result.grid.cols,
       rows: result.grid.rows,
       vectorCount: vectors ? vectors.length : 0,
+      nonzeroCount: result.grid.nonzeroCount,
       firstVectorLatLng: firstVector,
       lastVectorLatLng: lastVector,
       productId: json.product_id,

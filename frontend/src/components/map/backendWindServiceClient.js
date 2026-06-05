@@ -381,6 +381,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       cols: result.cols,
       rows: result.rows,
       vectorCount: result.vectors.length,
+      nonzeroCount: result.nonzeroCount,
       firstVectorLatLng: firstVector,
       lastVectorLatLng: lastVector,
       productId: json.product_id,
