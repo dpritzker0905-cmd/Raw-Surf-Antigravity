@@ -21,6 +21,23 @@ router = APIRouter(prefix="/weather")
 store = ProductStore()
 sampler = PointSampler()
 
+@router.post("/ingest_public_trigger")
+async def trigger_public_ingestion(background_tasks: BackgroundTasks):
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    scheduler = WeatherPipelineScheduler(store=store)
+
+    async def run_jobs():
+        logger.info("[Public Ingestion] Triggering GFS Marine...")
+        await scheduler.ingest_gfs_marine_pilot()
+        logger.info("[Public Ingestion] Triggering ICON Marine...")
+        await scheduler.ingest_icon_marine_pilot()
+        logger.info("[Public Ingestion] Triggering EURO Estimates...")
+        await scheduler.ingest_euro_marine_extended_estimates()
+        logger.info("[Public Ingestion] Public ingestion complete.")
+
+    background_tasks.add_task(run_jobs)
+    return {"status": "public_ingestion_triggered"}
+
 @router.post("/ingest")
 async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
     """
