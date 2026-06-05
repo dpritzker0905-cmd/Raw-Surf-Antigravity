@@ -9,10 +9,11 @@
 
 import { BACKEND_URL } from '../../lib/apiClient';
 import { BoundedPointCache } from './BoundedPointCache';
-import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
+import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 
 export { BoundedPointCache };
+export { getCachedManifest, setCachedManifest };
 export const pointCache = new BoundedPointCache(50, 30000);
 
 // Expose standard API base endpoints
@@ -20,28 +21,16 @@ export const STATUS_URL = `${BACKEND_URL}/api/weather/status`;
 export const GRID_URL = `${BACKEND_URL}/api/weather/grid`;
 export const POINT_URL = `${BACKEND_URL}/api/weather/point`;
 
-// Cache manifest products listing
-let cachedManifest = null;
-let manifestFetchPromise = null;
-
-export function getCachedManifest() {
-  return cachedManifest;
-}
-
-/**
- * Direct setter to mock cached manifest registry during unit tests.
- */
-export function setCachedManifest(manifest) {
-  cachedManifest = manifest;
-}
-
 /**
  * Fetches the products manifest from the backend registry.
  * Forces refetch if cachedManifest is empty to support dynamic ingestion updates.
  */
+let manifestFetchPromise = null;
+
 export async function fetchProductsManifest(forceRefresh = false) {
-  const isEmpty = cachedManifest && Array.isArray(cachedManifest.products) && cachedManifest.products.length === 0;
-  if (cachedManifest && !forceRefresh && !isEmpty) return cachedManifest;
+  const cached = getCachedManifest();
+  const isEmpty = cached && Array.isArray(cached.products) && cached.products.length === 0;
+  if (cached && !forceRefresh && !isEmpty) return cached;
   if (manifestFetchPromise && !forceRefresh) return manifestFetchPromise;
 
   manifestFetchPromise = (async () => {
@@ -49,8 +38,8 @@ export async function fetchProductsManifest(forceRefresh = false) {
       const res = await fetch(STATUS_URL.replace('/status', '/products'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      cachedManifest = data;
-      return cachedManifest;
+      setCachedManifest(data);
+      return data;
     } catch (err) {
       console.warn("[Backend Weather Service] Failed to fetch products manifest:", err.message);
       return null;
@@ -179,10 +168,11 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   const filterDomain = filterLayer === 'wind' ? 'wind' : 'marine';
   const filterModel = (modelName || 'GFS').toUpperCase();
 
-  const hasEmptyProducts = cachedManifest && Array.isArray(cachedManifest.products) && cachedManifest.products.length === 0;
+  const manifest = getCachedManifest();
+  const hasEmptyProducts = manifest && Array.isArray(manifest.products) && manifest.products.length === 0;
 
-  if (cachedManifest && Array.isArray(cachedManifest.products) && !hasEmptyProducts) {
-    const matchingProducts = cachedManifest.products.filter(p => 
+  if (manifest && Array.isArray(manifest.products) && !hasEmptyProducts) {
+    const matchingProducts = manifest.products.filter(p => 
       p.model.toUpperCase() === filterModel &&
       p.domain.toLowerCase() === filterDomain &&
       p.layer.toLowerCase() === filterLayer

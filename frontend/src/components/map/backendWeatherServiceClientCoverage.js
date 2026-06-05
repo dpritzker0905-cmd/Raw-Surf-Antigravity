@@ -2,9 +2,19 @@
  * backendWeatherServiceClientCoverage.js
  * 
  * Extracted coverage and bounding box calculations for backend weather service.
+ * Owns the manifest cache state to avoid circular dependencies with the main client.
  */
 
-import { getCachedManifest } from './backendWeatherServiceClient';
+// Manifest cache state - owned here to prevent circular imports
+let cachedManifest = null;
+
+export function getCachedManifest() {
+  return cachedManifest;
+}
+
+export function setCachedManifest(manifest) {
+  cachedManifest = manifest;
+}
 
 export const PILOT_COVERAGE = {
   west: -85.0,

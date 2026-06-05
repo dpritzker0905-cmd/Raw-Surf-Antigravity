@@ -2,19 +2,21 @@
  * backendWeatherServiceClientDiag.js
  * 
  * Extracted diagnostics updates for backend weather service.
+ * Uses lazy imports to avoid circular dependency with the main client.
  */
 
 import { BACKEND_URL } from '../../lib/apiClient';
-import {
-  STATUS_URL,
-  GRID_URL,
-  POINT_URL,
-  getBackendWeatherFlag,
-  getBackendIconMarineFlag,
-  getBackendWindFlag,
-  getSharedValidTime
-} from './backendWeatherServiceClient';
 import { getAvailableTilesFromManifest, PILOT_COVERAGE } from './backendWeatherServiceClientCoverage';
+
+// Lazy accessors to break circular dependency with backendWeatherServiceClient
+function getMainClient() {
+  // eslint-disable-next-line global-require
+  return require('./backendWeatherServiceClient');
+}
+
+function getStatusUrl() { return `${BACKEND_URL}/api/weather/status`; }
+function getGridUrl() { return `${BACKEND_URL}/api/weather/grid`; }
+function getPointUrl() { return `${BACKEND_URL}/api/weather/point`; }
 
 export let latestTimeDiag = {
   marine: {
@@ -170,14 +172,14 @@ export function updateDiagnostics(type, details, model = 'GFS') {
 
   if (!window[diagKey]) {
     window[diagKey] = {
-      featureFlagActive: isIcon ? getBackendIconMarineFlag() : getBackendWeatherFlag(),
+      featureFlagActive: isIcon ? getMainClient().getBackendIconMarineFlag() : getMainClient().getBackendWeatherFlag(),
       activeModel: model.toUpperCase(),
       activeLayer: 'waves',
       layer: 'waves',
       backendUrl: BACKEND_URL,
-      statusUrl: STATUS_URL,
-      gridUrl: GRID_URL,
-      pointUrl: POINT_URL,
+      statusUrl: getStatusUrl(),
+      gridUrl: getGridUrl(),
+      pointUrl: getPointUrl(),
       requestedHour: null,
       validTime: null,
       gridValidTime: null,
@@ -210,7 +212,7 @@ export function updateDiagnostics(type, details, model = 'GFS') {
   }
 
   const diag = window[diagKey];
-  diag.featureFlagActive = isIcon ? getBackendIconMarineFlag() : getBackendWeatherFlag();
+  diag.featureFlagActive = isIcon ? getMainClient().getBackendIconMarineFlag() : getMainClient().getBackendWeatherFlag();
 
   if (type === 'grid') {
     diag.layer = details.layer || diag.layer || 'waves';
@@ -273,7 +275,7 @@ export function updateDiagnostics(type, details, model = 'GFS') {
 
   if (details.hourOffset !== undefined) {
     diag.requestedHour = details.hourOffset;
-    diag.validTime = getSharedValidTime(details.hourOffset, diag.layer, model);
+    diag.validTime = getMainClient().getSharedValidTime(details.hourOffset, diag.layer, model);
   }
 
   const timeDiag = latestTimeDiag[`${model.toUpperCase()}_${diag.layer}`] || {};
@@ -291,14 +293,14 @@ export function updateDiagnostics(type, details, model = 'GFS') {
 // Global Diagnostics Telemetry Initializers
 if (typeof window !== 'undefined') {
   window.__BACKEND_WEATHER_SERVICE_DIAG__ = window.__BACKEND_WEATHER_SERVICE_DIAG__ || {
-    featureFlagActive: getBackendWeatherFlag(),
+    featureFlagActive: getMainClient().getBackendWeatherFlag(),
     activeModel: 'GFS',
     activeLayer: 'waves',
     layer: 'waves',
     backendUrl: BACKEND_URL,
-    statusUrl: STATUS_URL,
-    gridUrl: GRID_URL,
-    pointUrl: POINT_URL,
+    statusUrl: getStatusUrl(),
+    gridUrl: getGridUrl(),
+    pointUrl: getPointUrl(),
     requestedHour: null,
     validTime: null,
     gridValidTime: null,
@@ -330,14 +332,14 @@ if (typeof window !== 'undefined') {
   };
 
   window.__BACKEND_ICON_SERVICE_DIAG__ = window.__BACKEND_ICON_SERVICE_DIAG__ || {
-    featureFlagActive: getBackendIconMarineFlag(),
+    featureFlagActive: getMainClient().getBackendIconMarineFlag(),
     activeModel: 'ICON',
     activeLayer: 'waves',
     layer: 'waves',
     backendUrl: BACKEND_URL,
-    statusUrl: STATUS_URL,
-    gridUrl: GRID_URL,
-    pointUrl: POINT_URL,
+    statusUrl: getStatusUrl(),
+    gridUrl: getGridUrl(),
+    pointUrl: getPointUrl(),
     requestedHour: null,
     validTime: null,
     gridValidTime: null,
