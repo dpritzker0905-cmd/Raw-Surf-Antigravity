@@ -398,7 +398,7 @@ class PointSampler:
             run_time=product.run_time,
             valid_time=product.valid_time,
             is_forecast_authoritative=False,
-            is_estimated=True,
+            is_estimated=False,
             estimate_basis={"unavailable_reason": reason},
             point=detail,
             value_kind=product.value_kind,

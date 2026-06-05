@@ -37,6 +37,34 @@ REGIONAL_CONFIGS = {
 }
 
 
+def find_nearest_manifest_product(
+    manifest, model: str, domain: str, layer: str, region_id: str,
+    target_time: datetime, max_delta_hours: float = 3.0
+):
+    """
+    Locates the product in manifest closest to target_time within max_delta_hours.
+    Returns the ManifestProduct item or None if no product is close enough.
+    """
+    candidates = [
+        p for p in manifest.products
+        if (
+            p.model.upper() == model.upper()
+            and p.domain.lower() == domain.lower()
+            and p.layer.lower() == layer.lower()
+            and p.region_id == region_id
+            and not p.is_estimated
+        )
+    ]
+    if not candidates:
+        return None
+
+    best_candidate = min(candidates, key=lambda p: abs((p.valid_time_start - target_time).total_seconds()))
+    delta_sec = abs((best_candidate.valid_time_start - target_time).total_seconds())
+    if delta_sec <= max_delta_hours * 3600.0:
+        return best_candidate
+    return None
+
+
 class WeatherPipelineScheduler:
     """
     Orchestrates the background scheduled updates for the backend weather products.
@@ -92,7 +120,7 @@ class WeatherPipelineScheduler:
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
 
             results = await self._fetch_or_mock(
-                "GFS", "marine", "all_marine", region, resolution, 2,
+                "GFS", "marine", "all_marine", region, resolution, 16,
                 env["is_test_env"],
                 lambda: generate_mock_marine_results(self.om_provider, region, resolution),
                 region_id
@@ -323,7 +351,7 @@ class WeatherPipelineScheduler:
 
             raw_data = await self.om_provider.fetch_grid(
                 model="ICON", domain="marine", layer="all_marine",
-                bbox=region, resolution=resolution, forecast_days=2
+                bbox=region, resolution=resolution, forecast_days=7
             )
 
             if raw_data:
@@ -448,3 +476,155 @@ class WeatherPipelineScheduler:
             await self._cleanup_and_pause(results)
 
         return total_saved > 0
+
+    async def ingest_euro_marine_extended_estimates(self) -> bool:
+        """
+        Stage 6I.2: Precomputes and saves EURO Marine extended estimate grids.
+        For each region, finds the last authoritative EURO marine forecast product (the anchor),
+        then for all GFS marine forecast products beyond that anchor,
+        computes the blended estimate using the formulas in estimator.py and saves them.
+        """
+        logger.info("[Pipeline Scheduler] Starting EURO Marine Extended Estimate Ingestion job...")
+        from services.weather_pipeline.estimator import (
+            estimate_euro_grid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, EstimateContractError
+        )
+        
+        manifest = self.store.get_manifest()
+        total_saved = 0
+        
+        for region_id, region in REGIONAL_CONFIGS.items():
+            logger.info(f"[Pipeline Scheduler] Processing region for estimates: {region_id}")
+            layers = ["waves", "swell_1", "swell_2", "wind_waves"]
+            
+            for layer in layers:
+                # 1. Find the last authoritative EURO product (the anchor)
+                euro_products = [
+                    p for p in manifest.products
+                    if (
+                        p.model == "EURO"
+                        and p.domain == "marine"
+                        and p.layer == layer
+                        and p.region_id == region_id
+                        and p.is_forecast_authoritative
+                        and not p.is_estimated
+                    )
+                ]
+                if not euro_products:
+                    logger.debug(f"[Pipeline Scheduler] No authoritative EURO marine {layer} products found for region {region_id}. Skipping layer.")
+                    continue
+                
+                # The anchor is the one with the maximum valid_time_start
+                euro_anchor_item = max(euro_products, key=lambda p: p.valid_time_start)
+                anchor_time = euro_anchor_item.valid_time_start
+                logger.info(f"[Pipeline Scheduler] Found EURO marine {layer} anchor for {region_id} at {anchor_time.isoformat()}")
+                
+                # Load the full euro anchor product
+                euro_anchor_product = self.store.load_product(euro_anchor_item.filename)
+                if not euro_anchor_product:
+                    logger.warning(f"[Pipeline Scheduler] Failed to load EURO anchor product {euro_anchor_item.filename}. Skipping layer.")
+                    continue
+                
+                # 2. Find GFS anchor product near the anchor time (within 3h tolerance)
+                gfs_anchor_item = find_nearest_manifest_product(
+                    manifest, "GFS", "marine", layer, region_id, anchor_time, max_delta_hours=3.0
+                )
+                if not gfs_anchor_item:
+                    logger.warning(f"[Pipeline Scheduler] No GFS anchor product found near {anchor_time.isoformat()} for {region_id} {layer}. Skipping layer.")
+                    continue
+                
+                gfs_anchor_product = self.store.load_product(gfs_anchor_item.filename)
+                if not gfs_anchor_product:
+                    logger.warning(f"[Pipeline Scheduler] Failed to load GFS anchor product {gfs_anchor_item.filename}. Skipping layer.")
+                    continue
+                
+                # 3. Find ICON anchor product near the anchor time (within 3h tolerance, if layer != swell_2)
+                icon_anchor_product = None
+                icon_anchor_item = None
+                if layer != "swell_2":
+                    icon_anchor_item = find_nearest_manifest_product(
+                        manifest, "ICON", "marine", layer, region_id, anchor_time, max_delta_hours=3.0
+                    )
+                    if icon_anchor_item:
+                        icon_anchor_product = self.store.load_product(icon_anchor_item.filename)
+                
+                native_limit = EURO_LIMIT_WAVES if layer == "waves" else EURO_LIMIT_COMPONENTS
+                
+                # 4. Find all GFS target products with valid_time > anchor_time
+                gfs_targets = [
+                    p for p in manifest.products
+                    if (
+                        p.model == "GFS"
+                        and p.domain == "marine"
+                        and p.layer == layer
+                        and p.region_id == region_id
+                        and p.valid_time_start > anchor_time
+                        and not p.is_estimated
+                    )
+                ]
+                # Sort targets chronologically
+                gfs_targets.sort(key=lambda p: p.valid_time_start)
+                
+                for gfs_target_item in gfs_targets:
+                    target_time = gfs_target_item.valid_time_start
+                    hours_diff = (target_time - anchor_time).total_seconds() / 3600.0
+                    target_hour = native_limit + hours_diff
+                    
+                    # Load GFS target product
+                    gfs_target_product = self.store.load_product(gfs_target_item.filename)
+                    if not gfs_target_product:
+                        continue
+                    
+                    # Load ICON target product (if layer != swell_2 and target_hour <= 168)
+                    icon_target_item = None
+                    icon_target_product = None
+                    is_icon_required = (layer != "swell_2" and target_hour <= 168.0)
+                    
+                    if is_icon_required:
+                        if not icon_anchor_product:
+                            logger.debug(f"[Pipeline Scheduler] Missing required ICON anchor for target at {target_time.isoformat()} (offset <= 168h). Skipping.")
+                            continue
+                        
+                        icon_target_item = find_nearest_manifest_product(
+                            manifest, "ICON", "marine", layer, region_id, target_time, max_delta_hours=3.0
+                        )
+                        if not icon_target_item:
+                            logger.debug(f"[Pipeline Scheduler] Missing required ICON target product near {target_time.isoformat()}. Skipping.")
+                            continue
+                        icon_target_product = self.store.load_product(icon_target_item.filename)
+                        if not icon_target_product:
+                            logger.debug(f"[Pipeline Scheduler] Failed to load ICON target product {icon_target_item.filename}. Skipping.")
+                            continue
+                    
+                    # Generate the estimate product grid
+                    logger.debug(f"[Pipeline Scheduler] Generating EURO marine {layer} estimate for {target_time.isoformat()} (offset: {target_hour}h)")
+                    try:
+                        est_product = estimate_euro_grid(
+                            target_hour=target_hour,
+                            native_limit=native_limit,
+                            active_layer=layer,
+                            euro_anchor_product=euro_anchor_product,
+                            gfs_target_product=gfs_target_product,
+                            gfs_anchor_product=gfs_anchor_product,
+                            icon_target_product=icon_target_product,
+                            icon_anchor_product=icon_anchor_product,
+                            euro_anchor_valid_time=euro_anchor_item.valid_time_start,
+                            gfs_anchor_valid_time=gfs_anchor_item.valid_time_start,
+                            icon_anchor_valid_time=icon_anchor_item.valid_time_start if icon_anchor_item else None,
+                            gfs_target_valid_time=gfs_target_item.valid_time_start,
+                            icon_target_valid_time=icon_target_item.valid_time_start if icon_target_item else None
+                        )
+                        
+                        if est_product:
+                            res = self.store.save_product(est_product, resolution=euro_anchor_item.resolution)
+                            if res:
+                                total_saved += 1
+                    except EstimateContractError as e:
+                        logger.error(
+                            f"[Pipeline Scheduler] Skipped invalid estimate for region={region_id}, layer={layer}, "
+                            f"target_time={target_time.isoformat()} due to contract error: {e}"
+                        )
+                        continue
+                            
+        logger.info(f"[Pipeline Scheduler] EURO Marine Extended Estimate Ingestion job completed. Saved {total_saved} estimated product files.")
+        return total_saved > 0
+

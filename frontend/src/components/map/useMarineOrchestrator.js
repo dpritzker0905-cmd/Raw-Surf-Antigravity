@@ -265,6 +265,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
                 }
               };
               diagObj.resultStatus = 'success';
+              if (typeof window !== 'undefined') {
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__ = window.__FORECAST_TIMELINE_COVERAGE_DIAG__ || {};
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = true;
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateBasis = data.grid.__estimateBasis;
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = "frontend_fallback";
+              }
             }
           }
           if (!data) {
@@ -302,6 +308,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
                 }
               };
               diagObj.resultStatus = 'success';
+              if (typeof window !== 'undefined') {
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__ = window.__FORECAST_TIMELINE_COVERAGE_DIAG__ || {};
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = true;
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateBasis = data.grid.__estimateBasis;
+                window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = "frontend_fallback";
+              }
             }
           }
           if (!data) {

@@ -123,6 +123,8 @@ class ManifestProduct(BaseModel):
     coverage: CoverageBounds
     filename: str
     is_test_fixture: bool = False
+    is_estimated: bool = False
+    estimate_basis: Optional[Dict[str, Any]] = None
     source_dataset: Optional[str] = None
     upstream_provider: Optional[str] = None
     upstream_model: Optional[str] = None

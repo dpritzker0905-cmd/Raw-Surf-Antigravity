@@ -66,6 +66,10 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
             logger.info("[Manual Ingestion] Staggering EURO Pressure Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_euro_pressure_pilot()
+
+            logger.info("[Manual Ingestion] Staggering EURO Marine Extended Estimate Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_euro_marine_extended_estimates()
             
             logger.info("[Manual Ingestion] Ingestion jobs completed.")
         except Exception as e:
@@ -110,6 +114,16 @@ async def ingest_euro_wind_direct(admin=Depends(get_current_admin)):
         from services.weather_pipeline.scheduler import WeatherPipelineScheduler
         scheduler = WeatherPipelineScheduler(store=store)
         success = await scheduler.ingest_euro_wind_pilot()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_euro_estimates_direct")
+async def ingest_euro_estimates_direct(admin=Depends(get_current_admin)):
+    try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
+        success = await scheduler.ingest_euro_marine_extended_estimates()
         return {"status": "success" if success else "failed"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -211,9 +225,6 @@ async def get_grid(
 
     # Find matching product registry in manifest
     manifest = store.get_manifest()
-    matching_item = None
-    min_diff = float("inf")
-    max_intersection = -1.0
 
     # Parse requested bbox for tile matching
     req_west, req_south, req_east, req_north = None, None, None, None
@@ -225,7 +236,10 @@ async def get_grid(
         except ValueError:
             pass
 
-    # Match slice by target valid time and viewport intersection
+    # Group candidates
+    authoritative_candidates = []
+    estimated_candidates = []
+
     for p in manifest.products:
         if (
             p.model.upper() == model.upper()
@@ -234,29 +248,43 @@ async def get_grid(
         ):
             diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
             if diff <= 3 * 3600:
-                # If bbox is provided, choose the tile with maximum intersection area
-                if req_west is not None:
-                    T = p.coverage
-                    int_west = max(req_west, min(T.west, T.east))
-                    int_east = min(req_east, max(T.west, T.east))
-                    int_south = max(req_south, min(T.south, T.north))
-                    int_north = min(req_north, max(T.south, T.north))
-                    intersection_area = max(0.0, int_east - int_west) * max(0.0, int_north - int_south)
-                    
-                    if intersection_area > 0.0:
-                        if intersection_area > max_intersection:
-                            max_intersection = intersection_area
-                            min_diff = diff
-                            matching_item = p
-                        elif abs(intersection_area - max_intersection) < 0.0001:
-                            if diff < min_diff:
-                                min_diff = diff
-                                matching_item = p
+                if getattr(p, "is_estimated", False):
+                    estimated_candidates.append((p, diff))
                 else:
-                    # No bbox, choose closest in time
-                    if diff < min_diff:
-                        min_diff = diff
-                        matching_item = p
+                    authoritative_candidates.append((p, diff))
+
+    def select_best_candidate(candidates_list):
+        best_item = None
+        best_diff = float("inf")
+        best_intersection = -1.0
+        
+        for p, diff in candidates_list:
+            if req_west is not None:
+                T = p.coverage
+                int_west = max(req_west, min(T.west, T.east))
+                int_east = min(req_east, max(T.west, T.east))
+                int_south = max(req_south, min(T.south, T.north))
+                int_north = min(req_north, max(T.south, T.north))
+                intersection_area = max(0.0, int_east - int_west) * max(0.0, int_north - int_south)
+                
+                if intersection_area > 0.0:
+                    if intersection_area > best_intersection:
+                        best_intersection = intersection_area
+                        best_diff = diff
+                        best_item = p
+                    elif abs(intersection_area - best_intersection) < 0.0001:
+                        if diff < best_diff:
+                            best_diff = diff
+                            best_item = p
+            else:
+                if diff < best_diff:
+                    best_diff = diff
+                    best_item = p
+        return best_item
+
+    matching_item = select_best_candidate(authoritative_candidates)
+    if not matching_item:
+        matching_item = select_best_candidate(estimated_candidates)
 
     if not matching_item:
         reason = "no_copernicus_coverage" if model.upper() == "EURO" else "no_backend_coverage"
@@ -266,7 +294,8 @@ async def get_grid(
             content={
                 "status": "error",
                 "reason": reason,
-                "detail": f"Authoritative weather grid product not found for {model} {layer} at time {valid_time}."
+                "detail": f"Authoritative weather grid product not found for {model} {layer} at time {valid_time}.",
+                "is_estimated": False
             }
         )
 
@@ -404,10 +433,11 @@ async def get_point(
 
     # Find matching product registry in manifest
     manifest = store.get_manifest()
-    matching_item = None
-    min_diff = float("inf")
 
     # Filter candidates by model, layer, time, AND coordinate containment
+    authoritative_candidates = []
+    estimated_candidates = []
+
     for p in manifest.products:
         if (
             p.model.upper() == model.upper()
@@ -423,9 +453,17 @@ async def get_point(
             
             if in_south <= lat <= in_north and in_west <= lng <= in_east:
                 diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
-                if diff < min_diff and diff <= 3 * 3600:
-                    min_diff = diff
-                    matching_item = p
+                if diff <= 3 * 3600:
+                    if getattr(p, "is_estimated", False):
+                        estimated_candidates.append((p, diff))
+                    else:
+                        authoritative_candidates.append((p, diff))
+
+    matching_item = None
+    if authoritative_candidates:
+        matching_item = min(authoritative_candidates, key=lambda pair: pair[1])[0]
+    elif estimated_candidates:
+        matching_item = min(estimated_candidates, key=lambda pair: pair[1])[0]
 
     # If no product found in cache, run point fallback contract for wind/Open-Meteo
     if not matching_item:
@@ -591,7 +629,7 @@ async def get_point(
                 "fallback_attempted": True,
                 "fallback_reason": f"Coordinate falls outside regional grid tile bounds and point fallback failed or not allowed: {reason}",
                 "is_forecast_authoritative": False,
-                "is_estimated": True
+                "is_estimated": False
             }
         )
 

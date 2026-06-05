@@ -308,3 +308,9 @@ map_screenshot.png
 scratch/
 backend/scripts/test_endpoints.py
 Graph-Tools/
+
+# Local databases and test output files
+backend/*.db
+frontend/*test_output*
+frontend/test_results.json
+frontend/*jest_output*

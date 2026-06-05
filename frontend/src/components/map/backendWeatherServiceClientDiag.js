@@ -157,7 +157,10 @@ export function updateProjectionDiag(domain, details) {
     renderDecision: renderDecision || prevTimelineDiag.renderDecision || 'render',
     staleRejected: details.staleRejected !== undefined ? details.staleRejected : prevTimelineDiag.staleRejected || false,
     staleRejectReason: details.staleRejectReason || prevTimelineDiag.staleRejectReason || null,
-    pointVisualParity: prevTimelineDiag.pointVisualParity || false
+    pointVisualParity: prevTimelineDiag.pointVisualParity || false,
+    isEstimated: details.isEstimated !== undefined ? !!details.isEstimated : prevTimelineDiag.isEstimated || false,
+    estimateBasis: details.estimateBasis !== undefined ? details.estimateBasis : prevTimelineDiag.estimateBasis || null,
+    estimateSource: details.isEstimated !== undefined ? (details.isEstimated ? "backend" : "none") : prevTimelineDiag.estimateSource || "none"
   };
 }
 
@@ -267,6 +270,14 @@ export function updateDiagnostics(type, details, model = 'GFS') {
       diag.reason = details.error === 'unsupported' ? 'unsupported_model_layer' : 'fallback_legacy';
     } else {
       diag.reason = 'backend_success';
+    }
+
+    if (typeof window !== 'undefined' && window.__FORECAST_TIMELINE_COVERAGE_DIAG__) {
+      window.__FORECAST_TIMELINE_COVERAGE_DIAG__.pointProductId = details.productId || null;
+      if (details.is_estimated !== undefined) {
+        window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = !!details.is_estimated;
+        window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = details.is_estimated ? "backend" : "none";
+      }
     }
   }
 
@@ -425,6 +436,9 @@ if (typeof window !== 'undefined') {
     renderDecision: 'init',
     staleRejected: false,
     staleRejectReason: null,
-    pointVisualParity: false
+    pointVisualParity: false,
+    isEstimated: false,
+    estimateBasis: null,
+    estimateSource: 'none'
   };
 }

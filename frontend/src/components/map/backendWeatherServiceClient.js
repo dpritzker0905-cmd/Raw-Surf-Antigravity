@@ -660,7 +660,9 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       rejectedTileIds: clampResult.rejectedTileIds,
       regionId: json.region_id || clampResult.selectedTileId,
       tileId: json.tile_id || clampResult.selectedTileId,
-      validTime: validTimeStr
+      validTime: validTimeStr,
+      isEstimated: json.is_estimated,
+      estimateBasis: json.estimate_basis
     });
 
     return result;

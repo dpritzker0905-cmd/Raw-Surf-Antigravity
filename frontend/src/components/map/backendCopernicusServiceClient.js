@@ -362,7 +362,14 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       productId: json.product_id,
       provider: json.provider,
       renderable: result.grid.renderable,
-      clampedBbox
+      clampedBbox,
+      selectedTileId: clampResult.selectedTileId,
+      rejectedTileIds: clampResult.rejectedTileIds,
+      regionId: json.region_id || clampResult.selectedTileId,
+      tileId: json.tile_id || clampResult.selectedTileId,
+      validTime: validTimeStr,
+      isEstimated: json.is_estimated,
+      estimateBasis: json.estimate_basis
     });
 
     return result;

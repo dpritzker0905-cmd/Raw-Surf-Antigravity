@@ -305,11 +305,22 @@ class ProductStore:
 
     def _save_manifest(self, manifest: PipelineManifest):
         """Atomically saves the manifest registry."""
+        import time
         tmp_path = self.manifest_path.with_suffix(".manifest.tmp")
         try:
             with open(tmp_path, "w") as f:
                 f.write(manifest.model_dump_json(indent=2))
-            os.replace(tmp_path, self.manifest_path)
+            
+            # Retry loop to survive transient Windows file/antivirus locks
+            retries = 5
+            for attempt in range(retries):
+                try:
+                    os.replace(tmp_path, self.manifest_path)
+                    break
+                except PermissionError as pe:
+                    if attempt == retries - 1:
+                        raise pe
+                    time.sleep(0.05)
         except Exception as e:
             logger.error(f"[Product Store] Manifest atomic save failed: {e}")
             if tmp_path.exists():
@@ -347,7 +358,8 @@ class ProductStore:
         # Build consistent filename preventing collisions across regions
         time_str = product.valid_time.strftime("%Y%m%dT%H%M%SZ")
         region_suffix = f"_{product.region_id}" if product.region_id else ""
-        filename = f"{product.model.lower()}_{product.domain.lower()}_{product.layer.lower()}{region_suffix}_{time_str}.json"
+        estimated_suffix = "_estimated" if getattr(product, "is_estimated", False) else ""
+        filename = f"{product.model.lower()}_{product.domain.lower()}_{product.layer.lower()}{region_suffix}_{time_str}{estimated_suffix}.json"
         
         # Ensure product_id is set to the saved filename
         product.product_id = filename
@@ -370,7 +382,18 @@ class ProductStore:
             product_json_bytes = product.model_dump_json().encode("utf-8")
             with open(tmp_path, "wb") as f:
                 f.write(product_json_bytes)
-            os.replace(tmp_path, target_path)
+            
+            # Retry loop to survive transient Windows file/antivirus locks
+            import time
+            retries = 5
+            for attempt in range(retries):
+                try:
+                    os.replace(tmp_path, target_path)
+                    break
+                except PermissionError as pe:
+                    if attempt == retries - 1:
+                        raise pe
+                    time.sleep(0.05)
             logger.info(f"[Product Store] Atomic save complete: {filename}")
         except Exception as e:
             logger.error(f"[Product Store] Product atomic save failed for {filename}: {e}")
@@ -421,6 +444,8 @@ class ProductStore:
             resolution=resolution,
             freshness_sec=product.freshness_sec,
             is_forecast_authoritative=product.is_forecast_authoritative,
+            is_estimated=getattr(product, "is_estimated", False),
+            estimate_basis=getattr(product, "estimate_basis", None),
             coverage=product.coverage,
             filename=filename,
             is_test_fixture=is_tf,
@@ -513,9 +538,14 @@ class ProductStore:
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload after prune failed: {e}")
 
-    def validate_copernicus_product(self, product: NormalizedProduct) -> Tuple[bool, str]:
+    def validate_copernicus_product(
+        self,
+        product: NormalizedProduct,
+        manifest: Optional[PipelineManifest] = None
+    ) -> Tuple[bool, str]:
         """
-        Validates a Copernicus product against truth and authenticity rules.
+        Validates a Copernicus product (authoritative CMEMS or estimated blend)
+        against strict contract, authenticity, and grid rules.
         Returns (valid: bool, reason: str).
         """
         if not product:
@@ -524,35 +554,118 @@ class ProductStore:
         if product.model.upper() != "EURO":
             return True, "Valid (Not a EURO/Copernicus product)"
 
-        # 1. Test fixtures are invalid in production/dev
-        if product.provider == "test-fixture" or getattr(product, "is_test_fixture", False):
+        # Check if we are in a test environment
+        is_test_env = (
+            os.environ.get("NODE_ENV") == "test" or 
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        )
+
+        # 1. Estimate/mock products
+        if product.is_estimated:
+            # Enforce 14 strict rules
+            if product.model.upper() != "EURO":
+                return False, f"Estimated product model must be EURO, got {product.model}"
+            if product.domain.lower() != "marine":
+                return False, f"Estimated product domain must be marine, got {product.domain}"
+            if product.layer.lower() not in ("waves", "swell_1", "swell_2", "wind_waves"):
+                return False, f"Estimated product layer must be waves/swell_1/swell_2/wind_waves, got {product.layer}"
+            if product.provider != "estimated":
+                return False, f"Estimated product provider must be estimated, got {product.provider}"
+            if not product.is_estimated:
+                return False, "Estimated product is_estimated must be True"
+            if product.is_forecast_authoritative:
+                return False, "Estimated product is_forecast_authoritative must be False"
+            if product.source_dataset != "estimated_blend":
+                return False, f"Estimated product source_dataset must be estimated_blend, got {product.source_dataset}"
+            
+            basis = getattr(product, "estimate_basis", None)
+            if not basis:
+                return False, "Estimated product missing estimate_basis"
+            
+            basis_type = basis.get("type") if isinstance(basis, dict) else getattr(basis, "type", None)
+            if basis_type not in ("euro_persistence_gfs_icon_blend", "euro_persistence_gfs_blend"):
+                return False, f"Estimated product estimate_basis type must be allowed, got {basis_type}"
+            
+            if not manifest:
+                manifest = self.get_manifest()
+                
+            manifest_ids = {p.product_id for p in manifest.products if p.product_id}
+            manifest_filenames = {p.filename for p in manifest.products if p.filename}
+            all_manifest_ids = manifest_ids.union(manifest_filenames)
+            
+            source_keys = ["euro_anchor_product_id", "gfs_anchor_product_id", "gfs_target_product_id"]
+            if basis_type == "euro_persistence_gfs_icon_blend":
+                source_keys.extend(["icon_anchor_product_id", "icon_target_product_id"])
+                
+            for key in source_keys:
+                val = basis.get(key) if isinstance(basis, dict) else getattr(basis, key, None)
+                if not val:
+                    return False, f"Estimated product missing required basis key: {key}"
+                if val not in all_manifest_ids:
+                    return False, f"Estimated product source ID '{val}' for key '{key}' not found in manifest"
+                
+                src_entry = next((p for p in manifest.products if p.product_id == val or p.filename == val), None)
+                if src_entry:
+                    if src_entry.is_test_fixture or src_entry.provider == "test-fixture":
+                        if not is_test_env:
+                            return False, f"Source product '{val}' is a test fixture in a non-test environment"
+                else:
+                    return False, f"Source product '{val}' not found in manifest"
+                    
+            is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
+            if is_tf and not is_test_env:
+                return False, "Estimated product itself is a test fixture in a non-test environment"
+                
+            if not product.grid:
+                return False, "Estimated product missing grid"
+            vectors = product.grid.vectors
+            if not vectors:
+                return False, "Estimated product grid vectors are empty"
+            cols = product.grid.cols
+            rows = product.grid.rows
+            expected_len = cols * rows
+            actual_len = len(vectors)
+            if actual_len != expected_len:
+                return False, f"Grid contract mismatch: expected cols * rows = {expected_len}, got len(vectors) = {actual_len}"
+                
+            diag = product.grid.diagnostics or {}
+            diag_vector_count = diag.get("vectorCount")
+            if diag_vector_count != actual_len:
+                return False, f"Grid diagnostics mismatch: vectorCount = {diag_vector_count}, got len(vectors) = {actual_len}"
+                
+            nonzero_count = diag.get("nonzeroCount", 0)
+            if not (0 <= nonzero_count <= actual_len):
+                return False, f"Grid diagnostics mismatch: nonzeroCount = {nonzero_count} must be between 0 and {actual_len}"
+                
+            return True, "Valid estimated product"
+
+        # 2. Authoritative products validation
+        # Test fixtures are invalid in production/dev
+        is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
+        if is_tf and not is_test_env:
             return False, "Product is explicitly marked as a test fixture or provider is 'test-fixture'"
 
-        # 2. Estimate/mock products
-        if product.is_estimated:
-            return False, "Product has is_estimated == True"
-
-        # 3. Not forecast authoritative
+        # Not forecast authoritative
         if not product.is_forecast_authoritative:
             return False, "Product has is_forecast_authoritative == False"
 
-        # 4. Missing source dataset or wrong source dataset for copernicus
+        # Missing source dataset or wrong source dataset for copernicus
         src_dataset = getattr(product, "source_dataset", None)
         if not src_dataset:
             return False, "Missing source_dataset attribute for Copernicus/EURO model"
 
-        # 5. Missing source variables or wrong CMEMS variables
+        # Missing source variables or wrong CMEMS variables
         expected_vars = {"VHM0_SW1", "VMDR_SW1", "VTM01_SW1"}
         actual_vars = set(product.source_variables or [])
         if not expected_vars.issubset(actual_vars):
             return False, f"Missing required CMEMS variables. Expected subset {expected_vars}, got {actual_vars}"
 
-        # 6. Metadata warning/synthetic check
+        # Metadata warning/synthetic check
         warnings_str = " ".join(product.warnings or []).lower()
         if any(keyword in warnings_str for keyword in ["mock", "synthetic", "test"]):
             return False, f"Warnings metadata indicates synthetic/mock data: '{warnings_str}'"
 
-        # 7. Schema/Resolution validation check (mock resolution is 1.5, real is 0.5 or 0.25)
+        # Schema/Resolution validation check (mock resolution is 1.5, real is 0.5 or 0.25)
         if product.grid:
             vectors = product.grid.vectors
             if len(vectors) > 1:
@@ -596,7 +709,7 @@ class ProductStore:
                 
                 try:
                     product = NormalizedProduct.model_validate(data)
-                    valid, reason = self.validate_copernicus_product(product)
+                    valid, reason = self.validate_copernicus_product(product, manifest)
                 except Exception as ve:
                     valid, reason = False, f"Schema validation error: {ve}"
                 
