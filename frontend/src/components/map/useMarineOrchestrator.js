@@ -53,7 +53,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
   useEffect(() => { activeModelRef.current = activeModel; if (typeof window !== 'undefined') window.activeModel = activeModel; }, [activeModel]);
   useEffect(() => { activeMarineLayerRef.current = activeMarineLayer; if (typeof window !== 'undefined') window.activeMarineLayer = activeMarineLayer || 'waves'; }, [activeMarineLayer]);
-  useEffect(() => { timeOffsetRef.current = timeOffsetHours; if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
+  useEffect(() => { if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
 
   useEffect(() => {
     const handleRejection = (event) => {
