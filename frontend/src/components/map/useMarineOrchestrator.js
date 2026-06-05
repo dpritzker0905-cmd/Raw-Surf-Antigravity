@@ -172,7 +172,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         const fetchIntent = { model, layer, hour: timeOffset };
 
         const isWaves = layer === 'waves', nativeLimit = isWaves ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS;
-        const isPastLimit = model === 'EURO' && timeOffset > nativeLimit, isIconPastLimit = model === 'ICON' && timeOffset > ICON_LIMIT;
+        const isPastLimit = model === 'EURO' && timeOffset > nativeLimit && !getBackendCopernicusFlag(), isIconPastLimit = model === 'ICON' && timeOffset > ICON_LIMIT;
         let data = null;
 
         const safeLoadGrid = async (modelName, targetLayer, targetHour, targetBounds, targetZoom, diagObj) => {
