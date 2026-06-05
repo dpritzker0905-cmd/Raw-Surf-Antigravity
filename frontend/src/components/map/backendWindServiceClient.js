@@ -331,7 +331,8 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       rejectedTileIds: clampResult.rejectedTileIds,
       regionId: clampResult.selectedTileId,
       tileId: clampResult.selectedTileId,
-      validTime: validTimeStr
+      validTime: validTimeStr,
+      timeOffsetHours: hourOffset
     });
 
     throw new Error(clampResult.fallbackReason);
@@ -392,7 +393,8 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       rejectedTileIds: clampResult.rejectedTileIds,
       regionId: json.region_id || clampResult.selectedTileId,
       tileId: json.tile_id || clampResult.selectedTileId,
-      validTime: validTimeStr
+      validTime: validTimeStr,
+      timeOffsetHours: hourOffset
     });
 
     return result;
@@ -423,6 +425,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       error: err.message,
       reason: err.message,
       clampedBbox,
+      timeOffsetHours: hourOffset,
       selectedTileId: clampResult.selectedTileId,
       rejectedTileIds: clampResult.rejectedTileIds,
       regionId: clampResult.selectedTileId,

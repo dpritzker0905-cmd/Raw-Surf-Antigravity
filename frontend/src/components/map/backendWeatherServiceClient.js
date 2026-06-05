@@ -500,7 +500,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       requestedViewportBounds: bounds || snappedBounds,
       renderable: false,
       renderDecision: 'unsupported',
-      reason: 'unsupported_model_layer'
+      reason: 'unsupported_model_layer',
+      timeOffsetHours: hourOffset
     });
     return {
       type: 'FeatureCollection',
@@ -582,7 +583,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       coverageBounds: clampResult.coverageBounds,
       renderable: false,
       error: clampResult.fallbackReason,
-      reason: clampResult.fallbackReason
+      reason: clampResult.fallbackReason,
+      timeOffsetHours: hourOffset
     });
 
     throw new Error(clampResult.fallbackReason);
@@ -663,7 +665,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       tileId: json.tile_id || clampResult.selectedTileId,
       validTime: validTimeStr,
       isEstimated: json.is_estimated,
-      estimateBasis: json.estimate_basis
+      estimateBasis: json.estimate_basis,
+      timeOffsetHours: hourOffset
     });
 
     return result;
@@ -706,7 +709,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       rejectedTileIds: clampResult.rejectedTileIds,
       regionId: clampResult.selectedTileId,
       tileId: clampResult.selectedTileId,
-      validTime: validTimeStr
+      validTime: validTimeStr,
+      timeOffsetHours: hourOffset
     });
 
     console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);

@@ -291,7 +291,8 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       coverageBounds: clampResult.coverageBounds,
       renderable: false,
       error: clampResult.fallbackReason,
-      reason: clampResult.fallbackReason
+      reason: clampResult.fallbackReason,
+      timeOffsetHours: hourOffset
     });
 
     throw new Error(clampResult.fallbackReason);
@@ -370,7 +371,8 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       tileId: json.tile_id || clampResult.selectedTileId,
       validTime: validTimeStr,
       isEstimated: json.is_estimated,
-      estimateBasis: json.estimate_basis
+      estimateBasis: json.estimate_basis,
+      timeOffsetHours: hourOffset
     });
 
     return result;
@@ -406,7 +408,8 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       renderable: false,
       error: err.message,
       reason: err.message,
-      clampedBbox
+      clampedBbox,
+      timeOffsetHours: hourOffset
     });
 
     console.error(`[Backend Weather Service] Copernicus grid fetch error: ${err.message}.`);
