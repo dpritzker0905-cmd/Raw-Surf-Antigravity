@@ -453,7 +453,7 @@ async def stripe_webhook(request: Request):
                             profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
                             profile = profile_result.scalar_one_or_none()
                             if profile:
-
+                                pass  # TODO: tier upgrade logic
                         
                         await db.commit()
                         logger.info(f"Webhook processed: session {session_id} marked as completed")
