@@ -213,8 +213,19 @@ async def get_grid(
     manifest = store.get_manifest()
     matching_item = None
     min_diff = float("inf")
+    max_intersection = -1.0
 
-    # Match slice by target valid time closest delta (max 3h delta)
+    # Parse requested bbox for tile matching
+    req_west, req_south, req_east, req_north = None, None, None, None
+    if bbox:
+        try:
+            parts = [float(x) for x in bbox.split(",")]
+            if len(parts) == 4:
+                req_west, req_south, req_east, req_north = parts
+        except ValueError:
+            pass
+
+    # Match slice by target valid time and viewport intersection
     for p in manifest.products:
         if (
             p.model.upper() == model.upper()
@@ -222,9 +233,30 @@ async def get_grid(
             and p.layer.lower() == layer.lower()
         ):
             diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
-            if diff < min_diff and diff <= 3 * 3600:
-                min_diff = diff
-                matching_item = p
+            if diff <= 3 * 3600:
+                # If bbox is provided, choose the tile with maximum intersection area
+                if req_west is not None:
+                    T = p.coverage
+                    int_west = max(req_west, min(T.west, T.east))
+                    int_east = min(req_east, max(T.west, T.east))
+                    int_south = max(req_south, min(T.south, T.north))
+                    int_north = min(req_north, max(T.south, T.north))
+                    intersection_area = max(0.0, int_east - int_west) * max(0.0, int_north - int_south)
+                    
+                    if intersection_area > 0.0:
+                        if intersection_area > max_intersection:
+                            max_intersection = intersection_area
+                            min_diff = diff
+                            matching_item = p
+                        elif abs(intersection_area - max_intersection) < 0.0001:
+                            if diff < min_diff:
+                                min_diff = diff
+                                matching_item = p
+                else:
+                    # No bbox, choose closest in time
+                    if diff < min_diff:
+                        min_diff = diff
+                        matching_item = p
 
     if not matching_item:
         reason = "no_copernicus_coverage" if model.upper() == "EURO" else "no_backend_coverage"
@@ -375,19 +407,89 @@ async def get_point(
     matching_item = None
     min_diff = float("inf")
 
+    # Filter candidates by model, layer, time, AND coordinate containment
     for p in manifest.products:
         if (
             p.model.upper() == model.upper()
             and p.domain.lower() == domain.lower()
             and p.layer.lower() == layer.lower()
         ):
-            diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
-            if diff < min_diff and diff <= 3 * 3600:
-                min_diff = diff
-                matching_item = p
+            # Check coordinate containment (with 0.01 margin)
+            margin = 0.01
+            in_west = min(p.coverage.west, p.coverage.east) - margin
+            in_east = max(p.coverage.west, p.coverage.east) + margin
+            in_south = min(p.coverage.south, p.coverage.north) - margin
+            in_north = max(p.coverage.south, p.coverage.north) + margin
+            
+            if in_south <= lat <= in_north and in_west <= lng <= in_east:
+                diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
+                if diff < min_diff and diff <= 3 * 3600:
+                    min_diff = diff
+                    matching_item = p
 
-    # If no product found in cache, return a structured 404 response
+    # If no product found in cache, run point fallback contract for wind/Open-Meteo
     if not matching_item:
+        if domain.lower() == "wind" and layer.lower() == "wind":
+            from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+            om_provider = OpenMeteoProvider()
+            try:
+                raw_point = await om_provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng)
+                if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
+                    from services.weather_pipeline.normalizer import WeatherNormalizer
+                    times = raw_point["hourly"]["time"]
+                    idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
+                    if idx is not None:
+                        speed = raw_point["hourly"]["wind_speed_10m"][idx]
+                        direction = raw_point["hourly"]["wind_direction_10m"][idx]
+                        gust = raw_point["hourly"].get("wind_gusts_10m", [None])[idx]
+                        
+                        import math
+                        rad = direction * (math.pi / 180.0)
+                        u = -speed * math.sin(rad)
+                        v = -speed * math.cos(rad)
+                        
+                        from services.weather_pipeline.schemas import NormalizedPointDetail, NormalizedPointResponse
+                        detail = NormalizedPointDetail(
+                            requested_lat=lat,
+                            requested_lng=lng,
+                            sampled_lat=lat,
+                            sampled_lng=lng,
+                            speed=round(speed, 4),
+                            direction=round(direction, 2),
+                            u=round(u, 4),
+                            v=round(v, 4),
+                            gust=round(gust, 4) if gust is not None else None,
+                            interpolation_method="direct_point_api"
+                        )
+                        
+                        upstream_model = om_provider.FORECAST_MODELS.get(model.upper(), "gfs_seamless")
+                        
+                        return NormalizedPointResponse(
+                            model=model.upper(),
+                            provider="open-meteo",
+                            domain="wind",
+                            layer="wind",
+                            run_time=datetime.now(timezone.utc),
+                            valid_time=target_dt,
+                            is_forecast_authoritative=True,
+                            is_estimated=False,
+                            point=detail,
+                            value_kind="wind_speed",
+                            value_unit="kn",
+                            display_unit_hint="kn",
+                            source_variables=["wind_speed_10m", "wind_direction_10m"],
+                            freshness_sec=1800,
+                            source="provider_point_api",
+                            coverage_status="outside_grid_tile",
+                            fallback_attempted=True,
+                            fallback_reason="Coordinate falls outside regional grid tile coverage, fell back to direct point query.",
+                            upstream_provider="open-meteo",
+                            upstream_model=upstream_model
+                        )
+            except Exception as ex:
+                logger.error(f"[Point Fallback] Failed fetching point for {model} wind at ({lat}, {lng}): {ex}")
+        
+        # If fallback not applicable or failed, return structured 404 response
         reason = "no_copernicus_coverage" if model.upper() == "EURO" else "no_backend_coverage"
         from fastapi.responses import JSONResponse
         return JSONResponse(
@@ -395,7 +497,13 @@ async def get_point(
             content={
                 "status": "error",
                 "reason": reason,
-                "detail": f"Authoritative weather point product not found for {model} {layer} at time {valid_time}."
+                "detail": f"Authoritative weather point product not found for {model} {layer} at time {valid_time}.",
+                "source": "provider_point_api",
+                "coverage_status": "outside_grid_tile",
+                "fallback_attempted": True,
+                "fallback_reason": f"Coordinate falls outside regional grid tile bounds and point fallback failed or not allowed: {reason}",
+                "is_forecast_authoritative": False,
+                "is_estimated": True
             }
         )
 
@@ -406,6 +514,10 @@ async def get_point(
 
     # Perform Bilinear Interpolation
     response = sampler.sample_point(product, lat, lng)
+    response.source = "grid_file"
+    response.coverage_status = "inside_regional_tile"
+    response.fallback_attempted = False
+    response.fallback_reason = None
     return response
 
 @router.get("/status")

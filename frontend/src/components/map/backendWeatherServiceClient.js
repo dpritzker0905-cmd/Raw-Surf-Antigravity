@@ -250,6 +250,11 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
  * Falls back to PILOT_COVERAGE if manifest is not loaded or has no matching product.
  * Returns metadata indicating whether dynamic coverage or fallback was used.
  */
+/**
+ * Resolves the dynamic product coverage bounds from cachedManifest.
+ * Falls back to PILOT_COVERAGE if manifest is not loaded or has no matching product.
+ * Returns metadata indicating whether dynamic coverage or fallback was used.
+ */
 export function getProductCoverage(model = 'GFS', domain = 'marine', layer = 'waves') {
   let isDynamic = false;
   let coverage = PILOT_COVERAGE;
@@ -279,6 +284,60 @@ export function getProductCoverage(model = 'GFS', domain = 'marine', layer = 'wa
   };
 }
 
+export const REGIONAL_TILES = [
+  {
+    id: "florida_east_coast",
+    bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 }
+  },
+  {
+    id: "us_west_coast_socal",
+    bounds: { west: -125.0, south: 30.0, east: -115.0, north: 38.0 }
+  }
+];
+
+/**
+ * Extracts active tile definitions dynamically from the backend products manifest.
+ * Falls back to hardcoded REGIONAL_TILES if manifest is empty or not yet loaded.
+ */
+export function getAvailableTilesFromManifest() {
+  if (!cachedManifest || !Array.isArray(cachedManifest.products) || cachedManifest.products.length === 0) {
+    return REGIONAL_TILES;
+  }
+  
+  const seen = new Set();
+  const tiles = [];
+  
+  for (const p of cachedManifest.products) {
+    let regionId = p.region_id;
+    if (!regionId && p.coverage) {
+      const isFlorida = Math.abs(p.coverage.west - (-85.0)) < 0.1 &&
+                        Math.abs(p.coverage.south - 24.0) < 0.1 &&
+                        Math.abs(p.coverage.east - (-79.0)) < 0.1 &&
+                        Math.abs(p.coverage.north - 31.0) < 0.1;
+      if (isFlorida) {
+        regionId = "florida_east_coast";
+      }
+    }
+    
+    if (regionId) {
+      const key = `${regionId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        tiles.push({
+          id: regionId,
+          bounds: p.coverage
+        });
+      }
+    }
+  }
+  
+  if (tiles.length === 0) {
+    return REGIONAL_TILES;
+  }
+  
+  return tiles;
+}
+
 /**
  * Updates the global projection diagnostics registry for the truth gate.
  */
@@ -304,19 +363,27 @@ export function updateProjectionDiag(domain, details) {
     } catch (e) {}
   }
 
-  const covBounds = details.coverageBounds || PILOT_COVERAGE;
-  const isIntersects = mapViewportBounds ? !(
-    mapViewportBounds.east < covBounds.west ||
-    mapViewportBounds.west > covBounds.east ||
-    mapViewportBounds.north < covBounds.south ||
-    mapViewportBounds.south > covBounds.north
-  ) : true;
+  // Compute coverage percent of viewport
+  let coveragePercentOfViewport = 0;
+  const viewportBounds = details.requestedViewportBounds || mapViewportBounds;
+  if (viewportBounds && details.clampedBbox) {
+    const vArea = (viewportBounds.east - viewportBounds.west) * (viewportBounds.north - viewportBounds.south);
+    const iArea = (details.clampedBbox.east - details.clampedBbox.west) * (details.clampedBbox.north - details.clampedBbox.south);
+    if (vArea > 0) {
+      coveragePercentOfViewport = Math.round((iArea / vArea) * 100);
+    }
+  }
 
+  const covBounds = details.coverageBounds || PILOT_COVERAGE;
+  
   // Render decision mapping
   let renderDecision = details.renderDecision || 'unsupported';
-  if (!details.renderable && details.error) {
-    if (details.error.includes('outside')) {
+  let outsideCoverageReason = null;
+
+  if (details.error) {
+    if (details.error.includes('outside') || details.error === 'outside_coverage_clear') {
       renderDecision = 'outside_coverage_clear';
+      outsideCoverageReason = details.error;
     } else {
       renderDecision = 'fallback_legacy';
     }
@@ -330,33 +397,43 @@ export function updateProjectionDiag(domain, details) {
     }
   }
 
-  // Check if grid bounds match requested viewport (indicating it's stretched)
-  const isStretched = !!(details.responseGridBounds && details.requestedViewportBounds &&
-    Math.abs(details.responseGridBounds.west - details.requestedViewportBounds.west) < 0.01 &&
-    Math.abs(details.responseGridBounds.east - details.requestedViewportBounds.east) < 0.01 &&
-    details.vectorCount < 1000 && 
-    Math.abs(details.requestedViewportBounds.east - details.requestedViewportBounds.west) > 10.0);
-
+  const availableTiles = getAvailableTilesFromManifest();
+  const availableTileIds = availableTiles.map(t => t.id);
+  const selectedTileId = details.selectedTileId || null;
+  const selectedTileBounds = details.coverageBounds || null;
+  const rejectedTileIds = details.rejectedTileIds || [];
+  
   window[diagKey] = {
-    activeModel: details.activeModel || 'GFS',
-    activeLayer: details.activeLayer || 'waves',
-    requestedViewportBounds: details.requestedViewportBounds || null,
+    // 16 Required keys for Stage 6H
+    coverageMode: selectedTileId ? 'regional_tile' : 'none',
+    availableTileIds,
+    selectedTileId,
+    selectedTileBounds,
+    rejectedTileIds,
+    requestedViewportBounds: viewportBounds || null,
     backendRequestBbox: details.backendRequestBbox || null,
     responseGridBounds: details.responseGridBounds || null,
-    coverageBounds: covBounds,
-    renderBounds: details.responseGridBounds || covBounds,
-    mapViewportBounds,
+    renderBounds: details.responseGridBounds || covBounds || null,
+    coveragePercentOfViewport,
+    productId: details.productId || null,
+    regionId: details.regionId || selectedTileId || null,
+    tileId: details.tileId || selectedTileId || null,
+    validTime: details.validTime || null,
+    renderDecision,
+    outsideCoverageReason,
+    
+    // Additional legacy diagnostic properties to prevent breaks
+    activeModel: details.activeModel || 'GFS',
+    activeLayer: details.activeLayer || 'waves',
     cols: details.cols || 0,
     rows: details.rows || 0,
     vectorCount: details.vectorCount || 0,
     firstVectorLatLng: details.firstVectorLatLng || null,
     lastVectorLatLng: details.lastVectorLatLng || null,
-    productId: details.productId || null,
     provider: details.provider || 'unknown',
-    renderDecision,
     reason: details.reason || details.error || 'Normal execution',
-    isStretchedToViewport: isStretched,
-    coverageIntersectsViewport: isIntersects
+    coverageBounds: covBounds,
+    mapViewportBounds
   };
 }
 
@@ -370,60 +447,67 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       clampedBbox: null,
       fallbackReason: "Missing requested bounding box coordinates",
       coverageBounds: PILOT_COVERAGE,
-      isDynamicCoverage: false
+      selectedTileId: null,
+      availableTileIds: REGIONAL_TILES.map(t => t.id),
+      rejectedTileIds: []
     };
   }
 
   const { west, south, east, north } = requestedBbox;
-  const domainName = layerName === 'wind' ? 'wind' : layerName === 'pressure' ? 'weather' : 'marine';
+  const tiles = getAvailableTilesFromManifest();
+  const availableTileIds = tiles.map(t => t.id);
   
-  const { coverage, isDynamic } = getProductCoverage(modelName, domainName, layerName);
-
-  // 1. Check if completely outside coverage limits
-  if (
-    east < coverage.west ||
-    west > coverage.east ||
-    north < coverage.south ||
-    south > coverage.north
-  ) {
-    let areaName = `${modelName} ${layerName}`;
-    let suffix = "pilot ";
-    if (isDynamic) {
-      suffix = "";
-    }
-    if (modelName === "GFS" && (layerName === "waves" || layerName === "marine")) {
-      areaName = "GFS Waves";
-    } else if (modelName === "GFS" && layerName === "wind") {
-      areaName = "GFS Wind";
-    } else if ((modelName === "EURO" || modelName === "copernicus") && (layerName === "swell_1" || layerName === "swell_2" || layerName === "wind_waves" || layerName === "waves")) {
-      areaName = "Copernicus Waves";
-    }
+  // Find all intersecting tiles and calculate their intersection area with the requested viewport
+  const intersectingTiles = [];
+  
+  for (const t of tiles) {
+    const cov = t.bounds;
+    const intWest = Math.max(west, cov.west);
+    const intSouth = Math.max(south, cov.south);
+    const intEast = Math.min(east, cov.east);
+    const intNorth = Math.min(north, cov.north);
     
+    if (intWest < intEast && intSouth < intNorth) {
+      const area = (intEast - intWest) * (intNorth - intSouth);
+      intersectingTiles.push({
+        tile: t,
+        area,
+        clampedBbox: { west: intWest, south: intSouth, east: intEast, north: intNorth }
+      });
+    }
+  }
+
+  // If no intersection found, clear the visual layer cleanly
+  if (intersectingTiles.length === 0) {
     return {
       isInside: false,
       clampedBbox: null,
-      fallbackReason: `Requested viewport completely outside ${areaName} ${suffix}coverage area`,
-      coverageBounds: coverage,
-      isDynamicCoverage: isDynamic
+      fallbackReason: "outside_coverage_clear",
+      coverageBounds: PILOT_COVERAGE,
+      selectedTileId: null,
+      availableTileIds,
+      rejectedTileIds: []
     };
   }
 
-  // 2. Perform intersection clamping
-  const clampedBbox = {
-    west: Math.max(west, coverage.west),
-    south: Math.max(south, coverage.south),
-    east: Math.min(east, coverage.east),
-    north: Math.min(north, coverage.north)
-  };
+  // Sort intersecting tiles by area descending
+  intersectingTiles.sort((a, b) => b.area - a.area);
+  
+  const bestMatch = intersectingTiles[0];
+  const selectedTileId = bestMatch.tile.id;
+  const rejectedTileIds = intersectingTiles.slice(1).map(item => item.tile.id);
 
   return {
     isInside: true,
-    clampedBbox,
+    clampedBbox: bestMatch.clampedBbox,
     fallbackReason: null,
-    coverageBounds: coverage,
-    isDynamicCoverage: isDynamic
+    coverageBounds: bestMatch.tile.bounds,
+    selectedTileId,
+    availableTileIds,
+    rejectedTileIds
   };
 }
+
 
 /**
  * Maps the standard backend grid response schema to the WebGLMarineLayer expectations.

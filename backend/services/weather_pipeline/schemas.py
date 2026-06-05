@@ -55,6 +55,11 @@ class NormalizedProduct(BaseModel):
     source_dataset: Optional[str] = None
     upstream_provider: Optional[str] = None
     upstream_model: Optional[str] = None
+    
+    # Region metadata fields for Stage 6H
+    region_id: Optional[str] = None
+    coverage_mode: Optional[str] = None
+    tile_id: Optional[str] = None
 
 class NormalizedPointDetail(BaseModel):
     requested_lat: float
@@ -98,6 +103,12 @@ class NormalizedPointResponse(BaseModel):
     upstream_provider: Optional[str] = None
     upstream_model: Optional[str] = None
 
+    # Point Fallback status fields for Stage 6H
+    source: Optional[str] = None
+    coverage_status: Optional[str] = None
+    fallback_attempted: Optional[bool] = None
+    fallback_reason: Optional[str] = None
+
 class ManifestProduct(BaseModel):
     model: str
     provider: str
@@ -115,7 +126,14 @@ class ManifestProduct(BaseModel):
     source_dataset: Optional[str] = None
     upstream_provider: Optional[str] = None
     upstream_model: Optional[str] = None
+    
+    # Region metadata fields for Stage 6H
+    region_id: Optional[str] = None
+    coverage_mode: Optional[str] = None
+    tile_id: Optional[str] = None
+    product_id: Optional[str] = None
 
 class PipelineManifest(BaseModel):
     last_manifest_update: datetime
     products: List[ManifestProduct] = Field(default_factory=list)
+

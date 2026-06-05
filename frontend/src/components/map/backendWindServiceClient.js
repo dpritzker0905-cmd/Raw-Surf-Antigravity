@@ -326,7 +326,12 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       coverageBounds: clampResult.coverageBounds,
       renderable: false,
       error: clampResult.fallbackReason,
-      reason: clampResult.fallbackReason
+      reason: clampResult.fallbackReason,
+      selectedTileId: clampResult.selectedTileId,
+      rejectedTileIds: clampResult.rejectedTileIds,
+      regionId: clampResult.selectedTileId,
+      tileId: clampResult.selectedTileId,
+      validTime: validTimeStr
     });
 
     throw new Error(clampResult.fallbackReason);
@@ -381,7 +386,12 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       productId: json.product_id,
       provider: json.provider,
       renderable: result.renderable,
-      clampedBbox
+      clampedBbox,
+      selectedTileId: clampResult.selectedTileId,
+      rejectedTileIds: clampResult.rejectedTileIds,
+      regionId: json.region_id || clampResult.selectedTileId,
+      tileId: json.tile_id || clampResult.selectedTileId,
+      validTime: validTimeStr
     });
 
     return result;
@@ -411,7 +421,12 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       renderable: false,
       error: err.message,
       reason: err.message,
-      clampedBbox
+      clampedBbox,
+      selectedTileId: clampResult.selectedTileId,
+      rejectedTileIds: clampResult.rejectedTileIds,
+      regionId: clampResult.selectedTileId,
+      tileId: clampResult.selectedTileId,
+      validTime: validTimeStr
     });
 
     console.error(`[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);

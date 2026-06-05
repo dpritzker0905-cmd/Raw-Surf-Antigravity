@@ -278,10 +278,30 @@ class ProductStore:
         try:
             with open(self.manifest_path, "r") as f:
                 data = json.load(f)
-                return PipelineManifest.model_validate(data)
+                manifest = PipelineManifest.model_validate(data)
+                
+                # Apply backward compatibility mapping for older/restored products
+                for p in manifest.products:
+                    is_florida = (
+                        abs(p.coverage.west - (-85.0)) < 0.1 and
+                        abs(p.coverage.south - 24.0) < 0.1 and
+                        abs(p.coverage.east - (-79.0)) < 0.1 and
+                        abs(p.coverage.north - 31.0) < 0.1
+                    )
+                    if is_florida:
+                        if not p.region_id:
+                            p.region_id = "florida_east_coast"
+                        if not p.tile_id:
+                            p.tile_id = "florida_east_coast"
+                        if not p.coverage_mode:
+                            p.coverage_mode = "regional_tile"
+                    if not p.product_id:
+                        p.product_id = p.filename
+                return manifest
         except Exception as e:
             logger.error(f"[Product Store] Manifest parse error: {e}")
             return PipelineManifest(last_manifest_update=datetime.now(timezone.utc), products=[])
+
 
     def _save_manifest(self, manifest: PipelineManifest):
         """Atomically saves the manifest registry."""
@@ -309,9 +329,29 @@ class ProductStore:
             logger.warning("[Product Store] Attempted to save empty or ungrid product.")
             return None
 
-        # Build consistent filename
+        # Apply backward compatibility: Treat Florida coordinates as florida_east_coast if region not explicitly set
+        is_florida = (
+            abs(product.coverage.west - (-85.0)) < 0.1 and
+            abs(product.coverage.south - 24.0) < 0.1 and
+            abs(product.coverage.east - (-79.0)) < 0.1 and
+            abs(product.coverage.north - 31.0) < 0.1
+        )
+        if is_florida:
+            if not product.region_id:
+                product.region_id = "florida_east_coast"
+            if not product.tile_id:
+                product.tile_id = "florida_east_coast"
+            if not product.coverage_mode:
+                product.coverage_mode = "regional_tile"
+
+        # Build consistent filename preventing collisions across regions
         time_str = product.valid_time.strftime("%Y%m%dT%H%M%SZ")
-        filename = f"{product.model.lower()}_{product.domain.lower()}_{product.layer.lower()}_{time_str}.json"
+        region_suffix = f"_{product.region_id}" if product.region_id else ""
+        filename = f"{product.model.lower()}_{product.domain.lower()}_{product.layer.lower()}{region_suffix}_{time_str}.json"
+        
+        # Ensure product_id is set to the saved filename
+        product.product_id = filename
+        
         target_path = self.cache_dir / filename
         tmp_path = target_path.with_suffix(".tmp")
 
@@ -365,6 +405,7 @@ class ProductStore:
                 and p.domain == product.domain
                 and p.layer == product.layer
                 and p.valid_time_start == product.valid_time # single frame slice
+                and p.region_id == product.region_id # distinguish by region to avoid collisions!
             )
         ]
 
@@ -385,7 +426,11 @@ class ProductStore:
             is_test_fixture=is_tf,
             source_dataset=getattr(product, "source_dataset", None),
             upstream_provider=getattr(product, "upstream_provider", None),
-            upstream_model=getattr(product, "upstream_model", None)
+            upstream_model=getattr(product, "upstream_model", None),
+            region_id=product.region_id,
+            coverage_mode=product.coverage_mode,
+            tile_id=product.tile_id,
+            product_id=filename
         )
         updated_products.append(manifest_item)
         manifest.products = updated_products
@@ -412,10 +457,30 @@ class ProductStore:
         try:
             with open(filepath, "r") as f:
                 data = json.load(f)
-                return NormalizedProduct.model_validate(data)
+                product = NormalizedProduct.model_validate(data)
+                
+                # Apply backward compatibility mapping for older products
+                is_florida = (
+                    abs(product.coverage.west - (-85.0)) < 0.1 and
+                    abs(product.coverage.south - 24.0) < 0.1 and
+                    abs(product.coverage.east - (-79.0)) < 0.1 and
+                    abs(product.coverage.north - 31.0) < 0.1
+                )
+                if is_florida:
+                    if not product.region_id:
+                        product.region_id = "florida_east_coast"
+                    if not product.tile_id:
+                        product.tile_id = "florida_east_coast"
+                    if not product.coverage_mode:
+                        product.coverage_mode = "regional_tile"
+                if not product.product_id:
+                    product.product_id = filename
+                    
+                return product
         except Exception as e:
             logger.error(f"[Product Store] Stored product load and parse failed for {filename}: {e}")
             return None
+
 
     def prune_old_products(self, before_time: datetime):
         """Cleans up old JSON product files that fall before the cutoff date.

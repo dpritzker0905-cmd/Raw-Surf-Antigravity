@@ -58,7 +58,9 @@ class WeatherNormalizer:
         bbox: Dict[str, float],
         resolution: float,
         target_time: datetime,
-        run_time: Optional[datetime] = None
+        run_time: Optional[datetime] = None,
+        region_id: Optional[str] = None,
+        coverage_mode: Optional[str] = None
     ) -> Optional[NormalizedProduct]:
         """
         Processes raw hourly coordinate grids and returns a NormalizedProduct for a specific target time.
@@ -371,7 +373,10 @@ class WeatherNormalizer:
             is_test_fixture=is_test_fixture,
             source_dataset=source_dataset,
             upstream_provider=up_provider,
-            upstream_model=up_model
+            upstream_model=up_model,
+            region_id=region_id,
+            coverage_mode=coverage_mode,
+            tile_id=region_id
         )
 
     @staticmethod

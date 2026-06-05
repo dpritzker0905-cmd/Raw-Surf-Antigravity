@@ -17,8 +17,16 @@ REGIONAL_CONFIGS = {
         "east": -79.0,
         "north": 31.0,
         "resolution": 0.25
+    },
+    "us_west_coast_socal": {
+        "west": -125.0,
+        "south": 30.0,
+        "east": -115.0,
+        "north": 38.0,
+        "resolution": 0.25
     }
 }
+
 
 class WeatherPipelineScheduler:
     """
@@ -165,105 +173,111 @@ class WeatherPipelineScheduler:
 
     async def ingest_gfs_wind_pilot(self) -> bool:
         """
-        Stage 3A Pilot: Ingests GFS wind grid forecast for Florida/East Coast.
+        Stage 3A/6H.1: Ingests GFS wind grid forecast for all configured regions.
         Fetches 48 hours of forecasts in 3-hour increments.
         """
-        logger.info("[Pipeline Scheduler] Starting GFS Wind Pilot ingestion job...")
-        region = REGIONAL_CONFIGS["florida_east_coast"]
-        
+        logger.info("[Pipeline Scheduler] Starting GFS Wind Ingestion job for all regions...")
         import os
         is_render = os.environ.get("RENDER") == "true"
-        resolution = 0.5 if is_render else region["resolution"]
-
-        # Open-Meteo GFS wind grid fetch
-        raw_data = await self.om_provider.fetch_grid(
-            model="GFS",
-            domain="wind",
-            layer="wind",
-            bbox=region,
-            resolution=resolution,
-            forecast_days=2
-        )
-
-        import os
         is_test_env = (
             os.environ.get("NODE_ENV") == "test" or 
             os.environ.get("LOCAL_TEST_FIXTURE") == "true"
         )
+        
+        run_time = datetime.now(timezone.utc)
+        total_saved = 0
 
-        if not raw_data:
-            if is_test_env:
-                logger.warning("[Pipeline Scheduler] GFS Wind Ingestion: failed to fetch grid data. Injecting high-fidelity mock wind raw data for offline/deployed fallback...")
-                import math
-                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
-                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
-                mock_raw_results_wind = []
-                for lat, lon in zip(lats, lons):
-                    mock_raw_results_wind.append({
-                        "latitude": lat,
-                        "longitude": lon,
-                        "hourly_units": {
-                            "wind_speed_10m": "kn",
-                            "wind_direction_10m": "°"
-                        },
-                        "hourly": {
-                            "time": times,
-                            "wind_speed_10m": [8.5 + 2.5 * math.cos(lat) for _ in times],
-                            "wind_direction_10m": [120.0 for _ in times]
-                        }
-                    })
-                results = mock_raw_results_wind
+        for region_id, region in REGIONAL_CONFIGS.items():
+            resolution = 0.5 if is_render else region["resolution"]
+            logger.info(f"[Pipeline Scheduler] Ingesting GFS Wind for region: {region_id}")
+
+            # Open-Meteo GFS wind grid fetch
+            raw_data = await self.om_provider.fetch_grid(
+                model="GFS",
+                domain="wind",
+                layer="wind",
+                bbox=region,
+                resolution=resolution,
+                forecast_days=2
+            )
+
+            if not raw_data:
+                if is_test_env:
+                    logger.warning(f"[Pipeline Scheduler] GFS Wind Ingestion failed for {region_id}. Injecting mock data...")
+                    import math
+                    lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                    mock_raw_results_wind = []
+                    for lat, lon in zip(lats, lons):
+                        mock_raw_results_wind.append({
+                            "latitude": lat,
+                            "longitude": lon,
+                            "hourly_units": {
+                                "wind_speed_10m": "kn",
+                                "wind_direction_10m": "°"
+                            },
+                            "hourly": {
+                                "time": times,
+                                "wind_speed_10m": [8.5 + 2.5 * math.cos(lat) for _ in times],
+                                "wind_direction_10m": [120.0 for _ in times]
+                            }
+                        })
+                    results = mock_raw_results_wind
+                else:
+                    logger.error(f"[Pipeline Scheduler] GFS Wind Ingestion failed for {region_id}. Skipping.")
+                    continue
             else:
-                logger.error("[Pipeline Scheduler] GFS Wind Ingestion: failed to fetch grid data. Ingestion failed (will not generate synthetic data in production/dev).")
-                return False
-        else:
-            results = raw_data if isinstance(raw_data, list) else [raw_data]
+                results = raw_data if isinstance(raw_data, list) else [raw_data]
+
             first_pt = results[0]
             times = first_pt.get("hourly", {}).get("time", [])
             if not times:
-                logger.error("[Pipeline Scheduler] Ingested GFS payload missing hourly times array.")
-                return False
+                logger.error(f"[Pipeline Scheduler] GFS Wind payload for {region_id} missing hourly times array.")
+                continue
 
-        run_time = datetime.now(timezone.utc)
-        success_count = 0
+            success_count = 0
+            for idx, time_str in enumerate(times):
+                if idx % 3 != 0:
+                    continue # Slice every 3 hours
+                    
+                if not time_str.endswith("Z"):
+                    time_str += "Z"
+                target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
 
-        # Normalization and atomic cache slicing (every 3 hours)
-        for idx, time_str in enumerate(times):
-            if idx % 3 != 0:
-                continue # Slice every 3 hours
-                
-            if not time_str.endswith("Z"):
-                time_str += "Z"
-            target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+                try:
+                    product = self.normalizer.normalize(
+                        model="GFS",
+                        provider="open-meteo",
+                        domain="wind",
+                        layer="wind",
+                        raw_results=results,
+                        bbox=region,
+                        resolution=resolution,
+                        target_time=target_dt,
+                        run_time=run_time,
+                        region_id=region_id,
+                        coverage_mode="regional_tile"
+                    )
+                    
+                    if product:
+                        self.store.save_product(product, resolution=resolution)
+                        success_count += 1
+                        del product
+                        import gc
+                        gc.collect()
+                        await asyncio.sleep(0.2)
+                except Exception as e:
+                    logger.error(f"[Pipeline Scheduler] Normalization error for GFS wind in {region_id} at hour index {idx}: {e}")
 
-            try:
-                product = self.normalizer.normalize(
-                    model="GFS",
-                    provider="open-meteo",
-                    domain="wind",
-                    layer="wind",
-                    raw_results=results,
-                    bbox=region,
-                    resolution=resolution,
-                    target_time=target_dt,
-                    run_time=run_time
-                )
-                
-                if product:
-                    self.store.save_product(product, resolution=resolution)
-                    success_count += 1
-                    del product
-                    import gc
-                    gc.collect()
-                    await asyncio.sleep(0.2)
-            except Exception as e:
-                logger.error(f"[Pipeline Scheduler] Normalization error at hour index {idx}: {e}")
+            del results
+            import gc
+            gc.collect()
+            logger.info(f"[Pipeline Scheduler] Ingested {success_count} GFS Wind grid files for region {region_id}.")
+            total_saved += success_count
+            await asyncio.sleep(1.0)
 
-        del results
-        import gc
-        gc.collect()
-        logger.info(f"[Pipeline Scheduler] GFS Wind Ingestion Job done! Saved {success_count} hourly grid files.")
-        return success_count > 0
+        return total_saved > 0
+
 
     async def ingest_gfs_pressure_pilot(self) -> bool:
         """
@@ -837,216 +851,227 @@ class WeatherPipelineScheduler:
 
     async def ingest_icon_wind_pilot(self) -> bool:
         """
-        Stage 5C: Ingests ICON wind grid forecast for Florida/East Coast.
+        Stage 5C/6H.1: Ingests ICON wind grid forecast for all configured regions.
         Fetches 48 hours of forecasts in 3-hour increments.
         """
-        logger.info("[Pipeline Scheduler] Starting ICON Wind Pilot ingestion job...")
-        region = REGIONAL_CONFIGS["florida_east_coast"]
-        
+        logger.info("[Pipeline Scheduler] Starting ICON Wind Ingestion job for all regions...")
         import os
         is_render = os.environ.get("RENDER") == "true"
-        resolution = 0.5 if is_render else region["resolution"]
-
-        # Open-Meteo ICON wind grid fetch
-        raw_data = await self.om_provider.fetch_grid(
-            model="ICON",
-            domain="wind",
-            layer="wind",
-            bbox=region,
-            resolution=resolution,
-            forecast_days=2
-        )
-
-        import os
         is_test_env = (
             os.environ.get("NODE_ENV") == "test" or 
             os.environ.get("LOCAL_TEST_FIXTURE") == "true"
         )
+        
+        run_time = datetime.now(timezone.utc)
+        total_saved = 0
 
-        if not raw_data:
-            if is_test_env:
-                logger.warning("[Pipeline Scheduler] ICON Wind Ingestion: failed to fetch grid data. Injecting high-fidelity mock wind raw data for offline/deployed fallback...")
-                import math
-                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
-                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
-                mock_raw_results_wind = []
-                for lat, lon in zip(lats, lons):
-                    mock_raw_results_wind.append({
-                        "latitude": lat,
-                        "longitude": lon,
-                        "hourly_units": {
-                            "wind_speed_10m": "kn",
-                            "wind_direction_10m": "°",
-                            "wind_gusts_10m": "kn"
-                        },
-                        "hourly": {
-                            "time": times,
-                            "wind_speed_10m": [7.5 + 2.0 * math.cos(lat) for _ in times],
-                            "wind_direction_10m": [110.0 for _ in times],
-                            "wind_gusts_10m": [12.0 + 3.0 * math.cos(lat) for _ in times]
-                        }
-                    })
-                results = mock_raw_results_wind
+        for region_id, region in REGIONAL_CONFIGS.items():
+            resolution = 0.5 if is_render else region["resolution"]
+            logger.info(f"[Pipeline Scheduler] Ingesting ICON Wind for region: {region_id}")
+
+            # Open-Meteo ICON wind grid fetch
+            raw_data = await self.om_provider.fetch_grid(
+                model="ICON",
+                domain="wind",
+                layer="wind",
+                bbox=region,
+                resolution=resolution,
+                forecast_days=2
+            )
+
+            if not raw_data:
+                if is_test_env:
+                    logger.warning(f"[Pipeline Scheduler] ICON Wind Ingestion failed for {region_id}. Injecting mock data...")
+                    import math
+                    lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                    mock_raw_results_wind = []
+                    for lat, lon in zip(lats, lons):
+                        mock_raw_results_wind.append({
+                            "latitude": lat,
+                            "longitude": lon,
+                            "hourly_units": {
+                                "wind_speed_10m": "kn",
+                                "wind_direction_10m": "°",
+                                "wind_gusts_10m": "kn"
+                            },
+                            "hourly": {
+                                "time": times,
+                                "wind_speed_10m": [7.5 + 2.0 * math.cos(lat) for _ in times],
+                                "wind_direction_10m": [110.0 for _ in times],
+                                "wind_gusts_10m": [12.0 + 3.0 * math.cos(lat) for _ in times]
+                            }
+                        })
+                    results = mock_raw_results_wind
+                else:
+                    logger.error(f"[Pipeline Scheduler] ICON Wind Ingestion failed for {region_id}. Skipping.")
+                    continue
             else:
-                logger.error("[Pipeline Scheduler] ICON Wind Ingestion: failed to fetch grid data. Ingestion failed.")
-                return False
-        else:
-            results = raw_data if isinstance(raw_data, list) else [raw_data]
+                results = raw_data if isinstance(raw_data, list) else [raw_data]
+
             first_pt = results[0]
             times = first_pt.get("hourly", {}).get("time", [])
             if not times:
-                logger.error("[Pipeline Scheduler] Ingested ICON wind payload missing hourly times array.")
-                return False
+                logger.error(f"[Pipeline Scheduler] ICON Wind payload for {region_id} missing hourly times array.")
+                continue
 
-        run_time = datetime.now(timezone.utc)
-        success_count = 0
+            success_count = 0
+            for idx, time_str in enumerate(times):
+                if idx % 3 != 0:
+                    continue # Slice every 3 hours
+                    
+                if not time_str.endswith("Z"):
+                    time_str += "Z"
+                target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
 
-        # Normalization and atomic cache slicing (every 3 hours)
-        for idx, time_str in enumerate(times):
-            if idx % 3 != 0:
-                continue # Slice every 3 hours
-                
-            if not time_str.endswith("Z"):
-                time_str += "Z"
-            target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+                try:
+                    product = self.normalizer.normalize(
+                        model="ICON",
+                        provider="open-meteo" if not is_test_env or raw_data else "test-fixture",
+                        domain="wind",
+                        layer="wind",
+                        raw_results=results,
+                        bbox=region,
+                        resolution=resolution,
+                        target_time=target_dt,
+                        run_time=run_time,
+                        region_id=region_id,
+                        coverage_mode="regional_tile"
+                    )
+                    
+                    if product:
+                        if not is_test_env and product.is_test_fixture:
+                            logger.error(f"[Pipeline Scheduler] Security violation: trying to save test fixture product in non-test environment.")
+                            continue
+                        self.store.save_product(product, resolution=resolution)
+                        success_count += 1
+                        del product
+                        import gc
+                        gc.collect()
+                        await asyncio.sleep(0.2)
+                except Exception as e:
+                    logger.error(f"[Pipeline Scheduler] Normalization error for ICON wind in {region_id} at hour index {idx}: {e}")
 
-            try:
-                product = self.normalizer.normalize(
-                    model="ICON",
-                    provider="open-meteo" if not is_test_env or raw_data else "test-fixture",
-                    domain="wind",
-                    layer="wind",
-                    raw_results=results,
-                    bbox=region,
-                    resolution=resolution,
-                    target_time=target_dt,
-                    run_time=run_time
-                )
-                
-                if product:
-                    if not is_test_env and product.is_test_fixture:
-                        logger.error(f"[Pipeline Scheduler] Security violation: trying to save test fixture product in non-test environment.")
-                        continue
-                    self.store.save_product(product, resolution=resolution)
-                    success_count += 1
-                    del product
-                    import gc
-                    gc.collect()
-                    await asyncio.sleep(0.2)
-            except Exception as e:
-                logger.error(f"[Pipeline Scheduler] Normalization error for ICON wind at hour index {idx}: {e}")
+            del results
+            import gc
+            gc.collect()
+            logger.info(f"[Pipeline Scheduler] Ingested {success_count} ICON Wind grid files for region {region_id}.")
+            total_saved += success_count
+            await asyncio.sleep(1.0)
 
-        del results
-        import gc
-        gc.collect()
-        logger.info(f"[Pipeline Scheduler] ICON Wind Ingestion Job done! Saved {success_count} hourly grid files.")
-        return success_count > 0
+        return total_saved > 0
 
     async def ingest_euro_wind_pilot(self) -> bool:
         """
-        Stage 5D: Ingests EURO wind grid forecast for Florida/East Coast.
+        Stage 5D/6H.1: Ingests EURO wind grid forecast for all configured regions.
         Fetches 48 hours of forecasts in 3-hour increments.
         """
-        logger.info("[Pipeline Scheduler] Starting EURO Wind Pilot ingestion job...")
-        region = REGIONAL_CONFIGS["florida_east_coast"]
-        
+        logger.info("[Pipeline Scheduler] Starting EURO Wind Ingestion job for all regions...")
         import os
         is_render = os.environ.get("RENDER") == "true"
-        resolution = 0.5 if is_render else region["resolution"]
-
-        # Open-Meteo EURO wind grid fetch
-        raw_data = await self.om_provider.fetch_grid(
-            model="EURO",
-            domain="wind",
-            layer="wind",
-            bbox=region,
-            resolution=resolution,
-            forecast_days=2
-        )
-
-        import os
         is_test_env = (
             os.environ.get("NODE_ENV") == "test" or 
             os.environ.get("LOCAL_TEST_FIXTURE") == "true"
         )
+        
+        run_time = datetime.now(timezone.utc)
+        total_saved = 0
 
-        if not raw_data:
-            if is_test_env:
-                logger.warning("[Pipeline Scheduler] EURO Wind Ingestion: failed to fetch grid data. Injecting high-fidelity mock wind raw data for offline/deployed fallback...")
-                import math
-                lats, lons = self.om_provider.generate_grid_coords(region, resolution)
-                times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
-                mock_raw_results_wind = []
-                for lat, lon in zip(lats, lons):
-                    mock_raw_results_wind.append({
-                        "latitude": lat,
-                        "longitude": lon,
-                        "hourly_units": {
-                            "wind_speed_10m": "kn",
-                            "wind_direction_10m": "°",
-                            "wind_gusts_10m": "kn"
-                        },
-                        "hourly": {
-                            "time": times,
-                            "wind_speed_10m": [6.5 + 1.5 * math.cos(lat) for _ in times],
-                            "wind_direction_10m": [100.0 for _ in times],
-                            "wind_gusts_10m": [10.0 + 2.0 * math.cos(lat) for _ in times]
-                        }
-                    })
-                results = mock_raw_results_wind
+        for region_id, region in REGIONAL_CONFIGS.items():
+            resolution = 0.5 if is_render else region["resolution"]
+            logger.info(f"[Pipeline Scheduler] Ingesting EURO Wind for region: {region_id}")
+
+            # Open-Meteo EURO wind grid fetch
+            raw_data = await self.om_provider.fetch_grid(
+                model="EURO",
+                domain="wind",
+                layer="wind",
+                bbox=region,
+                resolution=resolution,
+                forecast_days=2
+            )
+
+            if not raw_data:
+                if is_test_env:
+                    logger.warning(f"[Pipeline Scheduler] EURO Wind Ingestion failed for {region_id}. Injecting mock data...")
+                    import math
+                    lats, lons = self.om_provider.generate_grid_coords(region, resolution)
+                    times = [(datetime.now(timezone.utc) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(0, 24)]
+                    mock_raw_results_wind = []
+                    for lat, lon in zip(lats, lons):
+                        mock_raw_results_wind.append({
+                            "latitude": lat,
+                            "longitude": lon,
+                            "hourly_units": {
+                                "wind_speed_10m": "kn",
+                                "wind_direction_10m": "°",
+                                "wind_gusts_10m": "kn"
+                            },
+                            "hourly": {
+                                "time": times,
+                                "wind_speed_10m": [6.5 + 1.5 * math.cos(lat) for _ in times],
+                                "wind_direction_10m": [100.0 for _ in times],
+                                "wind_gusts_10m": [10.0 + 2.0 * math.cos(lat) for _ in times]
+                            }
+                        })
+                    results = mock_raw_results_wind
+                else:
+                    logger.error(f"[Pipeline Scheduler] EURO Wind Ingestion failed for {region_id}. Skipping.")
+                    continue
             else:
-                logger.error("[Pipeline Scheduler] EURO Wind Ingestion: failed to fetch grid data. Ingestion failed.")
-                return False
-        else:
-            results = raw_data if isinstance(raw_data, list) else [raw_data]
+                results = raw_data if isinstance(raw_data, list) else [raw_data]
+
             first_pt = results[0]
             times = first_pt.get("hourly", {}).get("time", [])
             if not times:
-                logger.error("[Pipeline Scheduler] Ingested EURO wind payload missing hourly times array.")
-                return False
+                logger.error(f"[Pipeline Scheduler] EURO Wind payload for {region_id} missing hourly times array.")
+                continue
 
-        run_time = datetime.now(timezone.utc)
-        success_count = 0
+            success_count = 0
+            for idx, time_str in enumerate(times):
+                if idx % 3 != 0:
+                    continue # Slice every 3 hours
+                    
+                if not time_str.endswith("Z"):
+                    time_str += "Z"
+                target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
 
-        # Normalization and atomic cache slicing (every 3 hours)
-        for idx, time_str in enumerate(times):
-            if idx % 3 != 0:
-                continue # Slice every 3 hours
-                
-            if not time_str.endswith("Z"):
-                time_str += "Z"
-            target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+                try:
+                    product = self.normalizer.normalize(
+                        model="EURO",
+                        provider="open-meteo" if not is_test_env or raw_data else "test-fixture",
+                        domain="wind",
+                        layer="wind",
+                        raw_results=results,
+                        bbox=region,
+                        resolution=resolution,
+                        target_time=target_dt,
+                        run_time=run_time,
+                        region_id=region_id,
+                        coverage_mode="regional_tile"
+                    )
+                    
+                    if product:
+                        if not is_test_env and product.is_test_fixture:
+                            logger.error(f"[Pipeline Scheduler] Security violation: trying to save test fixture product in non-test environment.")
+                            continue
+                        self.store.save_product(product, resolution=resolution)
+                        success_count += 1
+                        del product
+                        import gc
+                        gc.collect()
+                        await asyncio.sleep(0.2)
+                except Exception as e:
+                    logger.error(f"[Pipeline Scheduler] Normalization error for EURO wind in {region_id} at hour index {idx}: {e}")
 
-            try:
-                product = self.normalizer.normalize(
-                    model="EURO",
-                    provider="open-meteo" if not is_test_env or raw_data else "test-fixture",
-                    domain="wind",
-                    layer="wind",
-                    raw_results=results,
-                    bbox=region,
-                    resolution=resolution,
-                    target_time=target_dt,
-                    run_time=run_time
-                )
-                
-                if product:
-                    if not is_test_env and product.is_test_fixture:
-                        logger.error(f"[Pipeline Scheduler] Security violation: trying to save test fixture product in non-test environment.")
-                        continue
-                    self.store.save_product(product, resolution=resolution)
-                    success_count += 1
-                    del product
-                    import gc
-                    gc.collect()
-                    await asyncio.sleep(0.2)
-            except Exception as e:
-                logger.error(f"[Pipeline Scheduler] Normalization error for EURO wind at hour index {idx}: {e}")
+            del results
+            import gc
+            gc.collect()
+            logger.info(f"[Pipeline Scheduler] Ingested {success_count} EURO Wind grid files for region {region_id}.")
+            total_saved += success_count
+            await asyncio.sleep(1.0)
 
-        del results
-        import gc
-        gc.collect()
-        logger.info(f"[Pipeline Scheduler] EURO Wind Ingestion Job done! Saved {success_count} hourly grid files.")
-        return success_count > 0
+        return total_saved > 0
+
 
 

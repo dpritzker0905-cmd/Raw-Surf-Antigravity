@@ -13,6 +13,7 @@ import {
   getSharedValidTime,
   setCachedManifest,
   clampViewportBbox,
+  getAvailableTilesFromManifest,
   mapNormalizedGridToWebGL,
   mapNormalizedWindGridToWebGL,
   fetchBackendExactPoint,
@@ -205,7 +206,7 @@ describe('backendWeatherServiceClient', () => {
       const bboxWest = { west: -90.0, south: 25.0, east: -86.0, north: 30.0 };
       const resWest = clampViewportBbox(bboxWest);
       expect(resWest.isInside).toBe(false);
-      expect(resWest.fallbackReason).toContain('completely outside GFS Waves pilot coverage area');
+      expect(resWest.fallbackReason).toBe('outside_coverage_clear');
 
       // Entirely north of coverage bounds (31.0)
       const bboxNorth = { west: -84.0, south: 32.0, east: -80.0, north: 35.0 };
@@ -382,14 +383,14 @@ describe('backendWeatherServiceClient', () => {
         requestedBbox: { west: -95, south: 24, east: -90, north: 31 },
         clampedBbox: null,
         coverageInside: false,
-        fallbackReason: 'Requested viewport completely outside GFS Waves pilot coverage area'
+        fallbackReason: 'outside_coverage_clear'
       });
 
       const diag = window.__BACKEND_WEATHER_SERVICE_DIAG__;
       expect(diag.coverageInside).toBe(false);
       expect(diag.fallbackToLegacy).toBe(true);
       expect(diag.reason).toBe('outside_coverage');
-      expect(diag.fallbackReason).toBe('Requested viewport completely outside GFS Waves pilot coverage area');
+      expect(diag.fallbackReason).toBe('outside_coverage_clear');
     });
   });
 
@@ -582,13 +583,13 @@ describe('backendWeatherServiceClient', () => {
   describe('fetchBackendWindGrid out of bounds', () => {
     it('rejects and throws if requested bbox is outside Florida pilot bounds', async () => {
       const oobBbox = { west: -120.0, south: 40.0, east: -110.0, north: 45.0 };
-      await expect(fetchBackendWindGrid(oobBbox, 0, null, oobBbox, 'controller')).rejects.toThrow('viewport completely outside');
+      await expect(fetchBackendWindGrid(oobBbox, 0, null, oobBbox, 'controller')).rejects.toThrow('outside_coverage_clear');
       
       const diag = window.__BACKEND_WIND_SERVICE_DIAG__;
       expect(diag.coverageInside).toBe(false);
       expect(diag.fallbackToLegacy).toBe(true);
       expect(diag.boundsSource).toBe('controller');
-      expect(diag.fallbackReason).toBe('Requested viewport completely outside GFS Wind pilot coverage area');
+      expect(diag.fallbackReason).toBe('outside_coverage_clear');
     });
 
     it('falls back to window.map if bounds are missing', async () => {
@@ -600,7 +601,7 @@ describe('backendWeatherServiceClient', () => {
           getNorth: () => 45.0
         })
       };
-      await expect(fetchBackendWindGrid(null, 0, null, null)).rejects.toThrow('viewport completely outside');
+      await expect(fetchBackendWindGrid(null, 0, null, null)).rejects.toThrow('outside_coverage_clear');
       const diag = window.__BACKEND_WIND_SERVICE_DIAG__;
       expect(diag.boundsSource).toBe('window_map');
       delete window.map;
@@ -792,13 +793,13 @@ describe('backendWeatherServiceClient', () => {
   describe('fetchBackendCopernicusGrid out of bounds', () => {
     it('rejects and throws if requested bbox is outside Florida pilot bounds', async () => {
       const oobBbox = { west: -120.0, south: 40.0, east: -110.0, north: 45.0 };
-      await expect(fetchBackendCopernicusGrid(oobBbox, 0, null, oobBbox, 'controller')).rejects.toThrow('viewport completely outside');
+      await expect(fetchBackendCopernicusGrid(oobBbox, 0, null, oobBbox, 'controller')).rejects.toThrow('outside_coverage_clear');
       
       const diag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__;
       expect(diag.coverageInside).toBe(false);
       expect(diag.fallbackToLegacy).toBe(true);
       expect(diag.boundsSource).toBe('controller');
-      expect(diag.fallbackReason).toBe('Requested viewport completely outside Copernicus Waves pilot coverage area');
+      expect(diag.fallbackReason).toBe('outside_coverage_clear');
     });
   });
 
@@ -1244,6 +1245,82 @@ describe('backendWeatherServiceClient', () => {
       const res = selectExactPointHour(cachedResponse, 72);
       expect(res.status).toBe('no_backend_coverage');
       expect(res.wave_height).toBeNull();
+    });
+  });
+
+  describe('Stage 6H.1 SoCal Wind Tile Pilot Requirements', () => {
+    afterEach(() => {
+      setCachedManifest(null);
+    });
+
+    it('prefers manifest-derived tiles and performs best tile selection by viewport intersection', () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'GFS',
+            domain: 'wind',
+            layer: 'wind',
+            valid_time_start: '2026-06-02T03:00:00.000Z',
+            region_id: 'florida_east_coast',
+            coverage_mode: 'regional_tile',
+            coverage: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 }
+          },
+          {
+            model: 'GFS',
+            domain: 'wind',
+            layer: 'wind',
+            valid_time_start: '2026-06-02T03:00:00.000Z',
+            region_id: 'us_west_coast_socal',
+            coverage_mode: 'regional_tile',
+            coverage: { west: -125.0, south: 30.0, east: -115.0, north: 38.0 }
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      // Available tiles should match manifest products
+      const tiles = getAvailableTilesFromManifest();
+      expect(tiles.length).toBe(2);
+      expect(tiles.map(t => t.id)).toContain('florida_east_coast');
+      expect(tiles.map(t => t.id)).toContain('us_west_coast_socal');
+
+      // Florida viewport selects florida_east_coast tile
+      const bboxFl = { west: -83, south: 25, east: -81, north: 29 };
+      const clampFl = clampViewportBbox(bboxFl, 'wind', 'GFS');
+      expect(clampFl.isInside).toBe(true);
+      expect(clampFl.selectedTileId).toBe('florida_east_coast');
+
+      // SoCal viewport selects us_west_coast_socal tile
+      const bboxSocal = { west: -120, south: 32, east: -118, north: 36 };
+      const clampSocal = clampViewportBbox(bboxSocal, 'wind', 'GFS');
+      expect(clampSocal.isInside).toBe(true);
+      expect(clampSocal.selectedTileId).toBe('us_west_coast_socal');
+
+      // Hawaii/Pacific outside coverage clears the wind visual
+      const bboxHawaii = { west: -160, south: 20, east: -155, north: 23 };
+      const clampHawaii = clampViewportBbox(bboxHawaii, 'wind', 'GFS');
+      expect(clampHawaii.isInside).toBe(false);
+      expect(clampHawaii.fallbackReason).toBe('outside_coverage_clear');
+    });
+
+    it('proves old Florida product compatibility by treating empty region_id with Florida bounds as florida_east_coast', () => {
+      const mockManifest = {
+        products: [
+          {
+            model: 'GFS',
+            domain: 'wind',
+            layer: 'wind',
+            valid_time_start: '2026-06-02T03:00:00.000Z',
+            coverage: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 }
+            // region_id is missing!
+          }
+        ]
+      };
+      setCachedManifest(mockManifest);
+
+      const tiles = getAvailableTilesFromManifest();
+      expect(tiles.length).toBe(1);
+      expect(tiles[0].id).toBe('florida_east_coast');
     });
   });
 });
