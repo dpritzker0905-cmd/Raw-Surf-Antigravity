@@ -16,7 +16,7 @@
 // In-memory cache and circuit breakers (persists across warm container invocations)
 const cache = new Map();
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-const RESPONSE_SIZE_LIMIT = 4.5 * 1024 * 1024; // 4.5 MB budget
+const RESPONSE_SIZE_LIMIT = 6.5 * 1024 * 1024; // 6.5 MB budget
 
 function estimateRequestCost(type, model, pointCount, hourlyVarCount, forecastDays) {
   if (type === 'tiles') return 50000;

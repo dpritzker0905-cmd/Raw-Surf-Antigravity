@@ -161,54 +161,13 @@ class ProductStore:
             ProductStore._restore_errors = errors
             return 0, errors
 
-        # Step 2: Validate and download each product
+        # Step 2: Skip downloading individual product files on startup.
+        # They will be dynamically restored from L2 on-demand when loaded via load_product().
         is_test_env = (
             os.environ.get("NODE_ENV") == "test" or
             os.environ.get("LOCAL_TEST_FIXTURE") == "true"
         )
-
-        for entry in manifest_data["products"]:
-            filename = entry.get("filename")
-            if not filename:
-                continue
-
-            # Never restore test fixtures in production
-            is_tf = entry.get("is_test_fixture", False)
-            if is_tf and not is_test_env:
-                logger.warning(f"[Product Store] Skipping test fixture during L2 restore: {filename}")
-                continue
-
-            # Skip if already on disk (L1 hit)
-            disk_path = self.cache_dir / filename
-            if disk_path.exists():
-                logger.debug(f"[Product Store] L1 hit, skip L2 download: {filename}")
-                restored += 1
-                continue
-
-            try:
-                product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
-                if not product_bytes:
-                    raise ValueError("Empty response")
-
-                # Parse to validate structure
-                product_data = json.loads(product_bytes.decode("utf-8"))
-                product = NormalizedProduct.model_validate(product_data)
-
-                # Verify not a test fixture after parse
-                if (product.is_test_fixture or product.provider == "test-fixture") and not is_test_env:
-                    logger.warning(f"[Product Store] Rejected restored test fixture: {filename}")
-                    continue
-
-                # Write to disk (restore L1 cache)
-                with open(disk_path, "wb") as f:
-                    f.write(product_bytes)
-
-                restored += 1
-                logger.info(f"[Product Store] Restored from L2: {filename}")
-            except Exception as e:
-                err = f"Failed to restore {filename}: {e}"
-                logger.warning(f"[Product Store] {err}")
-                errors.append(err)
+        logger.info("[Product Store] Lazy restoration enabled: skipping individual product downloads on startup.")
 
         # Step 3: Write manifest to disk
         try:
@@ -222,6 +181,8 @@ class ProductStore:
             with open(self.manifest_path, "w") as f:
                 f.write(manifest.model_dump_json(indent=2))
             logger.info(f"[Product Store] Manifest restored to disk with {len(manifest.products)} entries")
+            # All registered products are considered restored (available on demand)
+            restored = len(manifest.products)
         except Exception as e:
             err = f"Manifest disk write failed: {e}"
             logger.warning(f"[Product Store] {err}")
@@ -230,7 +191,7 @@ class ProductStore:
         ProductStore._last_restore_time = datetime.now(timezone.utc).isoformat()
         ProductStore._restored_count = restored
         ProductStore._restore_errors = errors
-        logger.info(f"[Product Store] L2 restore complete: {restored} products restored, {len(errors)} errors")
+        logger.info(f"[Product Store] L2 restore complete: manifest loaded, {restored} products available on demand")
         return restored, errors
 
     def get_persistence_diagnostics(self) -> Dict[str, Any]:
@@ -476,8 +437,22 @@ class ProductStore:
         """Loads and returns a stored grid product by filename."""
         filepath = self.cache_dir / filename
         if not filepath.exists():
-            logger.warning(f"[Product Store] Stored product path not found: {filename}")
-            return None
+            logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
+            sb = _get_supabase_storage()
+            if sb:
+                try:
+                    product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
+                    if product_bytes:
+                        with open(filepath, "wb") as f:
+                            f.write(product_bytes)
+                        logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
+                except Exception as e:
+                    logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}: {e}")
+            
+            # Re-check filepath existence after download attempt
+            if not filepath.exists():
+                logger.warning(f"[Product Store] Stored product path not found: {filename}")
+                return None
         
         try:
             with open(filepath, "r") as f:
