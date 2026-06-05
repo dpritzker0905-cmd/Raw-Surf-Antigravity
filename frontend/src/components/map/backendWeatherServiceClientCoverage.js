@@ -38,7 +38,7 @@ export const REGIONAL_TILES = [
  * Extracts active tile definitions dynamically from the backend products manifest.
  * Falls back to hardcoded REGIONAL_TILES if manifest is empty or not yet loaded.
  */
-export function getAvailableTilesFromManifest() {
+export function getAvailableTilesFromManifest(modelName = null) {
   const cachedManifest = getCachedManifest();
   if (!cachedManifest || !Array.isArray(cachedManifest.products) || cachedManifest.products.length === 0) {
     return REGIONAL_TILES;
@@ -46,8 +46,12 @@ export function getAvailableTilesFromManifest() {
   
   const seen = new Set();
   const tiles = [];
+  const filterModel = modelName ? modelName.toUpperCase() : null;
   
   for (const p of cachedManifest.products) {
+    if (filterModel && p.model.toUpperCase() !== filterModel) {
+      continue;
+    }
     let regionId = p.region_id;
     if (!regionId && p.coverage) {
       const isFlorida = Math.abs(p.coverage.west - (-85.0)) < 0.1 &&
@@ -130,7 +134,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
   }
 
   const { west, south, east, north } = requestedBbox;
-  const tiles = getAvailableTilesFromManifest();
+  const tiles = getAvailableTilesFromManifest(modelName);
   const availableTileIds = tiles.map(t => t.id);
   
   // Find all intersecting tiles and calculate their intersection area with the requested viewport
