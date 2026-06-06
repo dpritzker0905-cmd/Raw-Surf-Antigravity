@@ -39,7 +39,7 @@ var RECENT_FAILED_TTL = 30000;
 
 var _exactPointCache = new Map();
 
-export function hasCacheForModel(lat, lng, model, activeLayer = 'waves') {
+export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOffsetHours = 0) {
   if (lat == null || lng == null) return false;
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
@@ -48,7 +48,18 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves') {
   if (model === 'EURO' && activeLayer === 'waves' && !getBackendCopernicusFlag()) {
     provider = 'open-meteo';
   }
-  const cacheKey = `${rLat}_${rLng}_${model}_${activeLayer}_${provider}`;
+
+  const isPressureRedirect = typeof getBackendPressureFlag === 'function' && getBackendPressureFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'pressure';
+  const isGfsRedirect = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
+  const isWindRedirect = typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind';
+  const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
+  const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
+  const isBackendRedirect = isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect;
+
+  const cacheKey = isBackendRedirect
+    ? `${rLat}_${rLng}_${model}_${activeLayer}_${provider}_hr${timeOffsetHours}`
+    : `${rLat}_${rLng}_${model}_${activeLayer}_${provider}`;
+
   return _exactPointCache.has(cacheKey);
 }
 
@@ -147,7 +158,16 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     provider = 'open-meteo';
   }
 
-  const cacheKey = `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`;
+  const isPressureRedirect = typeof getBackendPressureFlag === 'function' && getBackendPressureFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'pressure';
+  const isGfsRedirect = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
+  const isWindRedirect = typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind';
+  const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
+  const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
+  const isBackendRedirect = isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect;
+
+  const cacheKey = isBackendRedirect
+    ? `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}_hr${timeOffsetHours}`
+    : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`;
 
   const cached = _exactPointCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
@@ -348,7 +368,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           };
         }
 
-        if (model === 'EURO' && provider === 'copernicus') {
+        if (model === 'EURO' && provider === 'copernicus' && !isBackendRedirect) {
           const componentLayers = ['swell_1', 'swell_2', 'wind_waves'];
           for (const compLayer of componentLayers) {
             const k = `${rLat}_${rLng}_EURO_${compLayer}_copernicus`;
@@ -530,7 +550,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     nativeLimit = Math.min(hardNativeLimit, hoursFromNow);
   }
 
-  if (isEuro && hourOffset > nativeLimit) {
+  if (isEuro && hourOffset > nativeLimit && !getBackendCopernicusFlag()) {
     const activeLayer = cachedResponse.activeLayer || (hasCombinedWaves ? 'waves' : 'swell_1');
     const rLat = +cachedResponse.requestedLat.toFixed(2);
     const rLng = +cachedResponse.requestedLng.toFixed(2);
@@ -633,7 +653,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
     iconLimit = Math.min(ICON_LIMIT, hoursFromNow);
   }
-  if (isIcon && hourOffset > iconLimit) {
+  if (isIcon && hourOffset > iconLimit && !getBackendIconMarineFlag()) {
     const activeLayer = cachedResponse.activeLayer || 'waves';
     const rLat = +cachedResponse.requestedLat.toFixed(2);
     const rLng = +cachedResponse.requestedLng.toFixed(2);

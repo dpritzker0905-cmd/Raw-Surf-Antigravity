@@ -289,6 +289,8 @@ export function updateDiagnostics(type, details, model = 'GFS') {
     diag.pointProductId = details.productId || null;
     diag.gridProductId = diag.lastGridFetch?.productId || null;
     diag.source = details.source || 'network';
+    diag.estimate_basis = details.estimate_basis || details.estimateBasis || null;
+    diag.estimateBasis = details.estimate_basis || details.estimateBasis || null;
 
     if (details.error) {
       diag.reason = details.error === 'unsupported' ? 'unsupported_model_layer' : 'fallback_legacy';
@@ -302,6 +304,7 @@ export function updateDiagnostics(type, details, model = 'GFS') {
         window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = !!details.is_estimated;
         window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = details.is_estimated ? "backend" : "none";
       }
+      window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateBasis = details.estimate_basis || details.estimateBasis || null;
     }
   }
 

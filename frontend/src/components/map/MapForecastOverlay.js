@@ -130,7 +130,7 @@ export var MapForecastOverlay = ({
     const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('marine') || isInCooldown('wind') || isInCooldown('pressure'));
 
     if (!isMapBooted || isScrubbing || isAnyCooldownActive) {
-      const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer);
+      const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
       if (!isCached) {
         console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} cooldown=${isAnyCooldownActive}`);
         setExactPointResponse(null);
@@ -158,7 +158,7 @@ export var MapForecastOverlay = ({
     }
 
     const isCooling = typeof isInCooldown === 'function' && isInCooldown('marine');
-    const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer);
+    const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
 
     if (isCooling && !isCached) {
       console.log("[Forecast] Suppressing exact-point fetch because marine is cooling down and no cache is available.");
@@ -649,8 +649,8 @@ export var MapForecastOverlay = ({
 
   // v6.6: Call external diagnostics helper to keep component extremely lightweight
   if (typeof window !== 'undefined') {
-    const hasGfs = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'GFS', activeLayer) : false;
-    const hasIcon = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'ICON', activeLayer) : false;
+    const hasGfs = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'GFS', activeLayer, timeOffsetHours) : false;
+    const hasIcon = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'ICON', activeLayer, timeOffsetHours) : false;
 
     writeOverlayDiagnostics({
       lat, lng, activeModel, activeLayer, timeOffsetHours, exactPoint: effectiveExactPoint,

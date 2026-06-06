@@ -198,6 +198,17 @@ export function updateCopernicusDiagnostics(type, details) {
     diag.pointProductId = details.productId || null;
     diag.gridProductId = diag.lastGridFetch?.productId || null;
     diag.source = details.source || 'network';
+    diag.estimate_basis = details.estimate_basis || details.estimateBasis || null;
+    diag.estimateBasis = details.estimate_basis || details.estimateBasis || null;
+
+    if (typeof window !== 'undefined' && window.__FORECAST_TIMELINE_COVERAGE_DIAG__) {
+      window.__FORECAST_TIMELINE_COVERAGE_DIAG__.pointProductId = details.productId || null;
+      if (details.is_estimated !== undefined) {
+        window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = !!details.is_estimated;
+        window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = details.is_estimated ? "backend" : "none";
+      }
+      window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateBasis = details.estimate_basis || details.estimateBasis || null;
+    }
   }
 
   if (details.hourOffset !== undefined) {
@@ -359,6 +370,9 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       rows: result.grid.rows,
       vectorCount: vectors ? vectors.length : 0,
       nonzeroCount: result.grid.nonzeroCount,
+      timeOffsetHours: hourOffset,
+      requestedValidTime: getSharedValidTime(hourOffset, layer, 'EURO'),
+      validTime: getSharedValidTime(hourOffset, layer, 'EURO'),
       firstVectorLatLng: firstVector,
       lastVectorLatLng: lastVector,
       productId: json.product_id,
@@ -563,6 +577,8 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       sourceVariables: json.source_variables,
       is_forecast_authoritative: json.is_forecast_authoritative,
       is_estimated: json.is_estimated,
+      estimate_basis: json.estimate_basis || null,
+      estimateBasis: json.estimate_basis || null,
       is_test_fixture: json.is_test_fixture,
       productId: json.product_id || null,
       pointProductId: json.product_id || null,

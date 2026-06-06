@@ -112,9 +112,6 @@ export function extractWindAtOffset(cache, hourOffset) {
 
 export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null) {
   if (!bounds) { console.log('[Wind] fetchWindData: no bounds'); return lastKnownGoodWind; }
-  if (!forceFetch && isContainedInWindCache(bounds, model)) return extractWindAtOffset(windHourlyCache, hourOffset);
-  if (windRequestInFlight) return lastKnownGoodWind;
-  if (!forceFetch && isInCooldown('wind')) return lastKnownGoodWind;
 
   let west = bounds.west, east = bounds.east;
   if (east < west) east += 360;
@@ -168,6 +165,11 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       }
     }
   }
+
+  // --- LEGACY PATH ---
+  if (!forceFetch && isContainedInWindCache(bounds, model)) return extractWindAtOffset(windHourlyCache, hourOffset);
+  if (windRequestInFlight) return lastKnownGoodWind;
+  if (!forceFetch && isInCooldown('wind')) return lastKnownGoodWind;
 
   const viewHash = viewportCacheKey(snappedBounds, `wind_${model || 'GFS'}`);
   if (windHourlyCache.hash === viewHash && windHourlyCache.model === (model || 'GFS') && Date.now() - windHourlyCache.timestamp < HOURLY_CACHE_TTL) {

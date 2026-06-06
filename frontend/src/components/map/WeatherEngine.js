@@ -32,6 +32,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     activeLayersRef.current = activeLayers;
   }, [activeLayers]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.getWindHourlyCache = getWindHourlyCache;
+    }
+  }, []);
+
   // ===== PRIMARY DATA FETCH WITH RETRY =====
   // Depends only on mapInstance so retries survive layer switches
   useEffect(() => {
@@ -157,7 +163,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       let targetData = null;
       try {
         const cache = getWindHourlyCache();
-        if (cache?.results?.length) {
+        if (cache?.results?.length && cache.model === activeModel) {
           targetData = extractWindAtOffset(cache, timeOffsetHours);
           if (!targetData || !targetData.vectors || targetData.vectors.length === 0) {
             cacheMiss = true;

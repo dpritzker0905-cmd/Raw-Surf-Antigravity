@@ -153,8 +153,19 @@ export function updateWindDiagnostics(type, details) {
     diag.provider = details.provider || diag.provider;
     diag.productId = details.productId || null;
     diag.pointProductId = details.productId || null;
-    diag.gridProductId = diag.lastGridFetch?.productId || null;
-    diag.source = details.source || 'network';
+    diag.is_estimated = details.is_estimated !== undefined ? details.is_estimated : false;
+    diag.is_forecast_authoritative = details.is_forecast_authoritative !== undefined ? details.is_forecast_authoritative : true;
+    diag.estimate_basis = details.estimate_basis || details.estimateBasis || null;
+    diag.estimateBasis = details.estimate_basis || details.estimateBasis || null;
+
+    if (typeof window !== 'undefined' && window.__FORECAST_TIMELINE_COVERAGE_DIAG__) {
+      window.__FORECAST_TIMELINE_COVERAGE_DIAG__.pointProductId = details.productId || null;
+      if (details.is_estimated !== undefined) {
+        window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = !!details.is_estimated;
+        window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = details.is_estimated ? "backend" : "none";
+      }
+      window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateBasis = details.estimate_basis || details.estimateBasis || null;
+    }
   }
 
   if (details.hourOffset !== undefined) {
@@ -235,6 +246,9 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
       provider: json.provider || provider,
       productId: json.product_id || null,
       pointProductId: json.product_id || null,
+      is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
+      estimate_basis: json.estimate_basis || null,
+      estimateBasis: json.estimate_basis || null,
       source: 'network',
       model
     };
@@ -383,6 +397,9 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       rows: result.rows,
       vectorCount: result.vectors.length,
       nonzeroCount: result.nonzeroCount,
+      timeOffsetHours: hourOffset,
+      requestedValidTime: getSharedValidTime(hourOffset, 'wind', model),
+      validTime: getSharedValidTime(hourOffset, 'wind', model),
       firstVectorLatLng: firstVector,
       lastVectorLatLng: lastVector,
       productId: json.product_id,
