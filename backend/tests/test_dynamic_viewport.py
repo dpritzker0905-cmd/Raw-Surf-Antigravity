@@ -190,8 +190,8 @@ def test_dynamic_viewport_point_parity(mock_weather_setup):
     assert res_pt_outside.status_code == 200
     pt_outside = res_pt_outside.json()
     assert pt_outside["coverage_status"] == "out_of_bounds/no_coverage"
-    assert pt_outside["grid_parity"] is True
-    assert pt_outside["point"]["speed"] == 0.0  # strict out_of_bounds returns 0.0 speed
+    assert pt_outside["grid_parity"] is False
+    assert pt_outside["point"]["speed"] is None
 
 def test_dynamic_viewport_point_no_grid_product_fallback(mock_weather_setup):
     """Verify fallback behavior when grid_product_id is missing: checks dynamic index first, then direct point fallback."""

@@ -113,12 +113,25 @@ export function updateProjectionDiag(domain, details) {
     coverage_status = 'outside_coverage_clear';
   }
 
+  let coverageMode = 'none';
+  if (details.coverage_scope === 'viewport' || details.coverage_scope === 'global_coarse') {
+    coverageMode = details.coverage_scope;
+  } else if (selectedTileId && !selectedTileId.startsWith('viewport_')) {
+    coverageMode = 'regional_tile';
+  }
+
   window[diagKey] = {
     status: 'active',
     coverage_status,
     coverage_scope: details.coverage_scope || null,
     // 16 Required keys for Stage 6H
-    coverageMode: selectedTileId ? 'regional_tile' : 'none',
+    coverageMode,
+    is_dynamic_viewport_product: details.is_dynamic_viewport_product || (details.coverage_scope === 'viewport' || details.coverage_scope === 'global_coarse') || false,
+    requested_bbox: details.requested_bbox || details.backendRequestBbox || null,
+    served_bbox: details.served_bbox || details.responseGridBounds || null,
+    cache_key: details.cache_key || null,
+    resolution: details.resolution || null,
+    coordinate_count: details.coordinate_count || details.vectorCount || 0,
     availableTileIds,
     selectedTileId,
     selectedTileBounds,

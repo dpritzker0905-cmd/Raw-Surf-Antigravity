@@ -227,18 +227,28 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     throw new Error("Invalid normalized grid response structure");
   }
 
-  const zeroVec = { u: 0, v: 0, speed: 0, period: 0 };
+  const zeroVec = { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
   const mappedVectors = json.grid.vectors.map(v => {
-    const componentUV = {
-      u: v.u || 0,
-      v: v.v || 0,
-      speed: v.speed || 0,
-      period: v.period || 0
-    };
+    const u = v.u || 0;
+    const v_val = v.v || 0;
+    const speed = v.speed || 0;
+    const period = v.period || 0;
+    const height = v.height !== undefined ? v.height : speed;
+    const direction = v.direction !== undefined ? v.direction : ((Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360);
+    const isOcean = v.is_valid !== false;
+
+    const componentUV = { u, v: v_val, speed, period, height, direction, isOcean };
+
     return {
       lat: v.lat,
       lng: v.lng,
-      isOcean: true,
+      u,
+      v: v_val,
+      speed,
+      period,
+      height,
+      direction,
+      isOcean,
       waves: layer === 'waves' ? componentUV : zeroVec,
       swell_1: layer === 'swell_1' ? componentUV : zeroVec,
       swell_2: layer === 'swell_2' ? componentUV : zeroVec,
@@ -309,10 +319,21 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     };
   }
 
+  let gridProductId = null;
+  if (typeof window !== 'undefined') {
+    const diag = window.__MARINE_PROJECTION_DIAG__;
+    if (diag && diag.activeLayer === layer && diag.activeModel === model) {
+      gridProductId = diag.productId || diag.gridProductId || null;
+    }
+  }
+
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
-  const cacheKey = `${model}_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+  let cacheKey = `${model}_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+  if (gridProductId) {
+    cacheKey += `_grid_${gridProductId}`;
+  }
 
   const cached = pointCache.get(cacheKey);
   if (cached) {
@@ -321,14 +342,6 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     clonedData.source = 'cache';
     updateDiagnostics('point', { ...cached.details, source: 'cache' }, model);
     return clonedData;
-  }
-
-  let gridProductId = null;
-  if (typeof window !== 'undefined') {
-    const diag = window.__MARINE_PROJECTION_DIAG__;
-    if (diag && diag.activeLayer === layer && diag.activeModel === model) {
-      gridProductId = diag.productId;
-    }
   }
 
   let url = `${POINT_URL}?model=${model}&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
@@ -440,7 +453,8 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       forecastDays: 1,
       apiModel: model === 'ICON' ? 'gwam' : (model === 'EURO' ? 'ecmwf_wam025' : 'ncep_gfswave025'),
       provider: json.provider || provider,
-      source: 'network'
+      source: 'network',
+      status: json.status || json.coverage_status || 'exact_success'
     };
 
     const details = {
@@ -691,7 +705,13 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       isEstimated: json.is_estimated,
       estimateBasis: json.estimate_basis,
       timeOffsetHours: hourOffset,
-      coverage_scope: json.coverage_scope || null
+      coverage_scope: json.coverage_scope || null,
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      requested_bbox: json.requested_bbox || null,
+      served_bbox: json.served_bbox || null,
+      cache_key: json.cache_key || null,
+      resolution: json.resolution || null,
+      coordinate_count: json.coordinate_count || null
     });
 
     return result;

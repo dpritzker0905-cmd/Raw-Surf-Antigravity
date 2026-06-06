@@ -14,7 +14,7 @@ from services.weather_pipeline.schemas import (
 )
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, is_inside_bounds, make_unsupported_icon_swell2_point_response,
-    make_no_coverage_point_response
+    make_no_coverage_point_response, make_grid_miss_point_response
 )
 
 logger = logging.getLogger(__name__)
@@ -75,91 +75,11 @@ class PointResolutionService:
         if grid_product_id:
             product = self.store.load_product(grid_product_id)
             if not product or not product.grid or not product.grid.vectors:
-                # Return empty response indicating no coverage for the requested file
-                detail = NormalizedPointDetail(
-                    requested_lat=lat,
-                    requested_lng=lng,
-                    sampled_lat=lat,
-                    sampled_lng=lng,
-                    speed=0.0,
-                    direction=0.0,
-                    u=0.0,
-                    v=0.0,
-                    period=0.0,
-                    gust=None,
-                    value=None,
-                    interpolation_method="no_coverage"
-                )
-                return NormalizedPointResponse(
-                    model=model.upper(),
-                    provider="none",
-                    domain=domain,
-                    layer=layer,
-                    run_time=datetime.now(timezone.utc),
-                    valid_time=target_dt,
-                    is_forecast_authoritative=False,
-                    is_estimated=False,
-                    point=detail,
-                    value_kind="wave_height" if domain.lower() == "marine" else "wind_speed",
-                    value_unit="m" if domain.lower() == "marine" else "kn",
-                    display_unit_hint="ft" if domain.lower() == "marine" else "kn",
-                    product_id=grid_product_id,
-                    source="grid_file",
-                    coverage_status="out_of_bounds/no_coverage",
-                    fallback_attempted=False,
-                    fallback_reason="Grid product not found or empty grid.",
-                    grid_parity=True,
-                    gridParity=True,
-                    source_variables=[],
-                    freshness_sec=1800
-                )
+                return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "grid_product_not_found")
 
             # Enforce bounds containment strictly (0.01 margin, antimeridian aware)
             if not is_inside_bounds(lat, lng, product.grid.bounds, margin=0.01):
-                detail = NormalizedPointDetail(
-                    requested_lat=lat,
-                    requested_lng=lng,
-                    sampled_lat=lat,
-                    sampled_lng=lng,
-                    speed=0.0,
-                    direction=0.0,
-                    u=0.0,
-                    v=0.0,
-                    period=0.0,
-                    gust=None,
-                    value=None,
-                    interpolation_method="out_of_bounds"
-                )
-                return NormalizedPointResponse(
-                    model=product.model,
-                    provider=product.provider,
-                    domain=product.domain,
-                    layer=product.layer,
-                    run_time=product.run_time,
-                    valid_time=product.valid_time,
-                    is_forecast_authoritative=False,
-                    is_estimated=product.is_estimated,
-                    point=detail,
-                    value_kind=product.value_kind,
-                    value_unit=product.value_unit,
-                    display_unit_hint=product.display_unit_hint,
-                    product_id=grid_product_id,
-                    source="grid_file",
-                    coverage_status="out_of_bounds/no_coverage",
-                    fallback_attempted=False,
-                    fallback_reason="Requested point is outside the bounding box of the specified grid product.",
-                    is_dynamic_viewport_product=getattr(product, "is_dynamic_viewport_product", False),
-                    cache_key=getattr(product, "cache_key", None),
-                    cache_hit=getattr(product, "cache_hit", None),
-                    requested_bbox=getattr(product, "requested_bbox", None),
-                    served_bbox=getattr(product, "served_bbox", None),
-                    coverage_scope=getattr(product, "coverage_scope", None),
-                    coordinate_count=getattr(product, "coordinate_count", None),
-                    grid_parity=True,
-                    gridParity=True,
-                    source_variables=product.source_variables or [],
-                    freshness_sec=product.freshness_sec or 1800
-                )
+                return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "point_outside_grid_product")
 
             # Inside bounds - sample from product
             response = self.sampler.sample_point(product, lat, lng)

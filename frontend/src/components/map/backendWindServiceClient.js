@@ -191,10 +191,21 @@ export function updateWindDiagnostics(type, details) {
  * Fetches exact point forecast from backend weather service for wind.
  */
 export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, model = 'GFS') {
+  let gridProductId = null;
+  if (typeof window !== 'undefined') {
+    const diag = window.__WIND_PROJECTION_DIAG__;
+    if (diag && diag.activeLayer === 'wind' && diag.activeModel === model) {
+      gridProductId = diag.productId || diag.gridProductId || null;
+    }
+  }
+
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, 'wind', model);
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
-  const cacheKey = `${model}_wind_wind_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+  let cacheKey = `${model}_wind_wind_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+  if (gridProductId) {
+    cacheKey += `_grid_${gridProductId}`;
+  }
 
   const cached = windPointCache.get(cacheKey);
   if (cached) {
@@ -203,14 +214,6 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
     clonedData.source = 'cache';
     updateWindDiagnostics('point', { ...cached.details, source: 'cache' });
     return clonedData;
-  }
-
-  let gridProductId = null;
-  if (typeof window !== 'undefined') {
-    const diag = window.__WIND_PROJECTION_DIAG__;
-    if (diag && diag.activeLayer === 'wind' && diag.activeModel === model) {
-      gridProductId = diag.productId;
-    }
   }
 
   let url = `${POINT_URL}?model=${model}&domain=wind&layer=wind&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
@@ -246,7 +249,8 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
         forecastDays: 1,
         apiModel: model === 'ICON' ? 'dwd_icon' : (model === 'EURO' ? 'ecmwf_ifs' : 'gfs_seamless'),
         provider: json.provider || provider,
-        source: 'network'
+        source: 'network',
+        status: json.status || json.coverage_status || 'exact_success'
       };
 
       const details = {

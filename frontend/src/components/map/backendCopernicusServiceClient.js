@@ -27,18 +27,28 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
     throw new Error("Invalid normalized grid response structure");
   }
 
-  const zeroVec = { u: 0, v: 0, speed: 0, period: 0 };
+  const zeroVec = { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
   const mappedVectors = json.grid.vectors.map(v => {
-    const componentUV = {
-      u: v.u || 0,
-      v: v.v || 0,
-      speed: v.speed || 0,
-      period: v.period || 0
-    };
+    const u = v.u || 0;
+    const v_val = v.v || 0;
+    const speed = v.speed || 0;
+    const period = v.period || 0;
+    const height = v.height !== undefined ? v.height : speed;
+    const direction = v.direction !== undefined ? v.direction : ((Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360);
+    const isOcean = v.is_valid !== false;
+
+    const componentUV = { u, v: v_val, speed, period, height, direction, isOcean };
+
     return {
       lat: v.lat,
       lng: v.lng,
-      isOcean: true,
+      u,
+      v: v_val,
+      speed,
+      period,
+      height,
+      direction,
+      isOcean,
       waves: layer === 'waves' ? componentUV : zeroVec,
       swell_1: layer === 'swell_1' ? componentUV : zeroVec,
       swell_2: layer === 'swell_2' ? componentUV : zeroVec,
@@ -392,7 +402,13 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       isEstimated: json.is_estimated,
       estimateBasis: json.estimate_basis,
       timeOffsetHours: hourOffset,
-      coverage_scope: json.coverage_scope || null
+      coverage_scope: json.coverage_scope || null,
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      requested_bbox: json.requested_bbox || null,
+      served_bbox: json.served_bbox || null,
+      cache_key: json.cache_key || null,
+      resolution: json.resolution || null,
+      coordinate_count: json.coordinate_count || null
     });
 
     return result;
@@ -441,10 +457,18 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
  * Fetches exact point forecast from backend weather service for EURO Copernicus.
  */
 export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1') {
+  let gridProductId = null;
+  if (typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
+    gridProductId = window.__MARINE_PROJECTION_DIAG__.productId || window.__MARINE_PROJECTION_DIAG__.gridProductId || null;
+  }
+
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, 'EURO');
   const provider = 'copernicus';
-  const cacheKey = `EURO_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+  let cacheKey = `EURO_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
+  if (gridProductId) {
+    cacheKey += `_grid_${gridProductId}`;
+  }
 
   const cached = copernicusPointCache.get(cacheKey);
   if (cached) {
@@ -453,11 +477,6 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
     clonedData.source = 'cache';
     updateCopernicusDiagnostics('point', { ...cached.details, source: 'cache' });
     return clonedData;
-  }
-
-  let gridProductId = null;
-  if (typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
-    gridProductId = window.__MARINE_PROJECTION_DIAG__.productId || window.__MARINE_PROJECTION_DIAG__.gridProductId || null;
   }
 
   let url = `${POINT_URL}?model=EURO&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
@@ -567,7 +586,8 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       forecastDays: 1,
       apiModel: 'ecmwf_wam025',
       provider: json.provider || 'copernicus',
-      source: 'network'
+      source: 'network',
+      status: json.status || json.coverage_status || 'exact_success'
     };
 
     const details = {

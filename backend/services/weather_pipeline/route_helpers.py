@@ -332,3 +332,49 @@ def make_no_coverage_point_response(model: str, layer: str, lat: float, lng: flo
             "gridParity": False
         }
     )
+
+
+def make_grid_miss_point_response(model: str, layer: str, lat: float, lng: float, valid_time: str, grid_product_id: Optional[str], reason_code: str) -> JSONResponse:
+    cov_status = "out_of_bounds/no_coverage" if reason_code == "point_outside_grid_product" else "no_coverage"
+    return JSONResponse(
+        status_code=200,
+        content={
+            "model": model.upper(),
+            "provider": "none",
+            "domain": "marine" if layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") else "wind",
+            "layer": layer.lower(),
+            "run_time": datetime.now(timezone.utc).isoformat(),
+            "valid_time": valid_time,
+            "is_forecast_authoritative": False,
+            "is_estimated": False,
+            "point": {
+                "requested_lat": lat,
+                "requested_lng": lng,
+                "sampled_lat": lat,
+                "sampled_lng": lng,
+                "speed": None,
+                "direction": None,
+                "u": None,
+                "v": None,
+                "period": None,
+                "value": None,
+                "interpolation_method": "none"
+            },
+            "value_kind": "wave_height" if layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") else "wind_speed",
+            "value_unit": "m" if layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") else "kn",
+            "display_unit_hint": "ft" if layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") else "kn",
+            "product_id": grid_product_id,
+            "source": "grid_file",
+            "status": cov_status,
+            "coverage_status": cov_status,
+            "fallback_attempted": False,
+            "fallbackAttempted": False,
+            "fallback_reason": reason_code,
+            "fallbackReason": reason_code,
+            "grid_parity": False,
+            "gridParity": False,
+            "source_variables": [],
+            "freshness_sec": 1800
+        }
+    )
+

@@ -489,7 +489,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     }
   }
 
-  if (cachedResponse.status === 'no_copernicus_coverage' || cachedResponse.status === 'no_backend_coverage') {
+  if (cachedResponse.status === 'no_copernicus_coverage' || cachedResponse.status === 'no_backend_coverage' || cachedResponse.status === 'no_coverage' || cachedResponse.status === 'out_of_bounds/no_coverage') {
     return {
       status: cachedResponse.status,
       source: cachedResponse.source || 'exact_point_api',
