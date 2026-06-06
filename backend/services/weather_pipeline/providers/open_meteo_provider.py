@@ -108,6 +108,10 @@ class OpenMeteoProvider:
             f"Coords count: {len(lats)} | Bbox: {bbox} | Res: {resolution}"
         )
 
+        import os
+        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true").lower() == "true")
+        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
+
         async with httpx.AsyncClient() as client:
             try:
                 # Coordinate batch chunking of size 100 to prevent HTTP 414 URI Too Long errors on large grids
@@ -125,15 +129,20 @@ class OpenMeteoProvider:
                         "hourly": params["hourly"]
                     }
                     
-                    if "models" in params:
-                        query_params["models"] = params["models"]
-                    if "wind_speed_unit" in params:
-                        query_params["wind_speed_unit"] = params["wind_speed_unit"]
+                    if use_proxy:
+                        query_params["type"] = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")
+                        request_url = proxy_url
+                    else:
+                        request_url = url
+                        if "models" in params:
+                            query_params["models"] = params["models"]
+                        if "wind_speed_unit" in params:
+                            query_params["wind_speed_unit"] = params["wind_speed_unit"]
 
                     max_retries = 3
                     response = None
                     for attempt in range(1, max_retries + 2):
-                        response = await client.get(url, params=query_params, timeout=45.0)
+                        response = await client.get(request_url, params=query_params, timeout=45.0)
                         if response.status_code == 429:
                             retry_delay = 12.0 * attempt
                             if attempt > max_retries:
@@ -220,9 +229,19 @@ class OpenMeteoProvider:
             f"[Open-Meteo Provider] Fetching single point forecast for {model} {domain}/{layer} at ({lat}, {lng})"
         )
 
+        import os
+        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true").lower() == "true")
+        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
+
+        if use_proxy:
+            params["type"] = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")
+            request_url = proxy_url
+        else:
+            request_url = url
+
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.get(url, params=params, timeout=15.0)
+                response = await client.get(request_url, params=params, timeout=15.0)
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
