@@ -22,6 +22,7 @@ uniform vec2 u_speed_scale;       // scale-invariant speed scale
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
 uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
+uniform float u_edgeFeatherEnabled; // regional edge feather flag
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -76,10 +77,15 @@ void main() {
   // Random new position for respawned particles
   vec2 newPos = vec2(rand(seed + 1.3), rand(seed + 2.1));
 
-  // Out of bounds: wrap X (longitude) for antimeridian, drop Y (latitude)
-  pos.x = fract(pos.x);
+  // Out of bounds: drop if regional grid and exits bounding box, otherwise wrap X and drop Y
+  float oobX = step(1.0, pos.x) + step(0.0, -pos.x);
   float oobY = step(1.0, pos.y) + step(0.0, -pos.y);
-  drop = max(drop, step(0.5, oobY));
+  if (u_edgeFeatherEnabled > 0.5) {
+    drop = max(drop, step(0.5, oobX + oobY));
+  } else {
+    pos.x = fract(pos.x);
+    drop = max(drop, step(0.5, oobY));
+  }
 
   pos = mix(pos, newPos, drop);
   gl_FragColor = encodePos(pos);
@@ -94,6 +100,7 @@ uniform vec2 u_dataBounds_min;   // [west, south] in degrees
 uniform vec2 u_dataBounds_max;   // [east, north] in degrees
 uniform float u_lng_offset;      // world-copy offset: -360, 0, or +360
 varying float v_speed;
+varying float v_alpha;
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -135,6 +142,7 @@ void main() {
     float minDistToEdge = min(distToEdgeX, distToEdgeY);
     edgeFade = smoothstep(0.0, 0.18, minDistToEdge);
   }
+  v_alpha = edgeFade;
 
   // Convert to Mercator for MapLibre
   float x = (lng + 180.0) / 360.0;
@@ -152,12 +160,13 @@ void main() {
 
 export const DRAW_FS = `precision mediump float;
 varying float v_speed;
+varying float v_alpha;
 uniform sampler2D u_color_ramp;
 uniform float u_max_speed;
 void main() {
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
   vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
-  gl_FragColor = vec4(color.rgb, 1.0);
+  gl_FragColor = vec4(color.rgb * v_alpha, v_alpha);
 }`;
 
 export const HEATMAP_VS = `
