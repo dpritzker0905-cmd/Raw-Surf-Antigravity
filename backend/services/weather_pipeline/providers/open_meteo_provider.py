@@ -34,14 +34,19 @@ class OpenMeteoProvider:
         layer: str,
         bbox: Dict[str, float],
         resolution: float = 0.25,
-        forecast_days: int = 2
+        forecast_days: int = 2,
+        precomputed_coords: Optional[tuple] = None,
+        inter_batch_delay: Optional[float] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Asynchronously fetches a coordinate snap-grid from Open-Meteo.
         Returns the raw HTTP response as JSON.
         """
         # Generate grid points
-        lats, lons = self.generate_grid_coords(bbox, resolution)
+        if precomputed_coords is not None:
+            lats, lons = precomputed_coords
+        else:
+            lats, lons = self.generate_grid_coords(bbox, resolution)
         if not lats:
             logger.error(f"[Open-Meteo Provider] Generated empty grid for bbox: {bbox}")
             return None
@@ -154,7 +159,7 @@ class OpenMeteoProvider:
 
                     # Increase delay to 1.2s to fully respect Open-Meteo rate limits during background ingestion
                     # For wind grids, increase the delay to 2.5s to be safe
-                    delay = 2.5 if domain == "wind" else 1.2
+                    delay = inter_batch_delay if inter_batch_delay is not None else (2.5 if domain == "wind" else 1.2)
                     if i + batch_size < len(lats):
                         await asyncio.sleep(delay)
 

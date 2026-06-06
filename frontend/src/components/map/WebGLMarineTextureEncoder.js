@@ -295,23 +295,56 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   const { vectors, cols, rows, bounds } = waveGrid;
   if (!vectors?.length || !cols || !rows) return null;
 
+  const activeLayer = waveGrid.__componentLayer || 'waves';
+
+  // Conform vectors to flat representation
+  const conformedVectors = vectors.map(v => {
+    // Check if it's already conformed/flat or if we need to pull from the nested activeLayer key
+    const sub = v[activeLayer] || {};
+    
+    const u = typeof v.u === 'number' ? v.u : (typeof sub.u === 'number' ? sub.u : 0);
+    const v_val = typeof v.v === 'number' ? v.v : (typeof sub.v === 'number' ? sub.v : 0);
+    const speed = typeof v.speed === 'number' ? v.speed : (typeof sub.speed === 'number' ? sub.speed : 0);
+    const period = typeof v.period === 'number' ? v.period : (typeof sub.period === 'number' ? sub.period : 0);
+    const height = typeof v.height === 'number' ? v.height : (typeof sub.height === 'number' ? sub.height : (v.speed || sub.speed || 0));
+    
+    let direction = typeof v.direction === 'number' ? v.direction : (typeof sub.direction === 'number' ? sub.direction : undefined);
+    if (direction === undefined) {
+      direction = (Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360;
+    }
+    
+    const isOcean = v.isOcean !== undefined ? v.isOcean : true;
+    
+    return {
+      lat: v.lat,
+      lng: v.lng,
+      u,
+      v: v_val,
+      speed,
+      period,
+      height,
+      direction,
+      isOcean
+    };
+  });
+
   if (!encodeMarineTexture._forensicCount) encodeMarineTexture._forensicCount = 0;
   if (encodeMarineTexture._forensicCount < 3) {
     let minS = Infinity, maxS = 0, sumS = 0, cnt = 0;
-    for (let fi = 0; fi < vectors.length; fi++) {
-      if (vectors[fi] && vectors[fi].isOcean && vectors[fi].speed > 0) {
+    for (let fi = 0; fi < conformedVectors.length; fi++) {
+      if (conformedVectors[fi] && conformedVectors[fi].isOcean && conformedVectors[fi].speed > 0) {
         cnt++;
-        if (vectors[fi].speed < minS) minS = vectors[fi].speed;
-        if (vectors[fi].speed > maxS) maxS = vectors[fi].speed;
-        sumS += vectors[fi].speed;
+        if (conformedVectors[fi].speed < minS) minS = conformedVectors[fi].speed;
+        if (conformedVectors[fi].speed > maxS) maxS = conformedVectors[fi].speed;
+        sumS += conformedVectors[fi].speed;
       }
     }
     const meanS = cnt > 0 ? sumS / cnt : 0;
-    console.log(`[FORENSIC-ENCODE] encodeMarineTexture input: ${vectors.length} vectors, ${cnt} ocean w/speed, speed: min=${minS.toFixed(3)}m max=${maxS.toFixed(3)}m mean=${meanS.toFixed(3)}m (${(meanS*3.281).toFixed(1)}ft), cols=${cols}, rows=${rows}`);
+    console.log(`[FORENSIC-ENCODE] encodeMarineTexture input: ${conformedVectors.length} vectors, ${cnt} ocean w/speed, speed: min=${minS.toFixed(3)}m max=${maxS.toFixed(3)}m mean=${meanS.toFixed(3)}m (${(meanS*3.281).toFixed(1)}ft), cols=${cols}, rows=${rows}`);
     encodeMarineTexture._forensicCount++;
   }
 
-  const extVectors = vectors.map(v => ({ ...v }));
+  const extVectors = conformedVectors.map(v => ({ ...v }));
   extrapolateOceanData(extVectors, cols, rows);
 
   const dataWave = new Uint8Array(cols * rows * 4);
@@ -320,11 +353,11 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   const dataMask = new Uint8Array(cols * rows * 4);
 
   const grid = new Uint8Array(cols * rows);
-  for (let i = 0; i < vectors.length; i++) {
+  for (let i = 0; i < conformedVectors.length; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const gfsIdx = row * cols + col;
-    const v = vectors[gfsIdx];
+    const v = conformedVectors[gfsIdx];
     const isLand = v.isOcean === false || v.isOcean === 0;
     const isOcean = !isLand && (v.isOcean === true || v.isOcean === 1 || v.speed > 0.001 || v.u !== 0 || v.v !== 0);
     grid[i] = isOcean ? 1 : 0;

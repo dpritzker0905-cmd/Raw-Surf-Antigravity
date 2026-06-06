@@ -154,13 +154,14 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
 
   const { west, south, east, north } = requestedBbox;
   
-  const isViewportEnabled = (modelName || '').toUpperCase() === 'GFS' && (
+  const isViewportEnabled = ['GFS', 'ICON', 'EURO'].includes((modelName || '').toUpperCase()) && (
     (inferredDomain === 'marine' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes((layerName || '').toLowerCase())) ||
     (inferredDomain === 'wind' && (layerName || '').toLowerCase() === 'wind')
   );
 
   if (isViewportEnabled) {
-    const selectedTileId = `viewport_${west}_${south}_${east}_${north}`;
+    const r = v => Number(v).toFixed(2);
+    const selectedTileId = `viewport_${r(west)}_${r(south)}_${r(east)}_${r(north)}`;
     return {
       isInside: true,
       clampedBbox: { west, south, east, north },

@@ -141,7 +141,9 @@ export function WebGLSynchronizedOverlay({ mapInstance, activeLayers, windData, 
               lng: v.lng,
               u: sub.u || 0,
               v: sub.v || 0,
-              speed: sub.speed || 0
+              speed: sub.speed || 0,
+              period: sub.period || 0,
+              isOcean: v.isOcean !== undefined ? v.isOcean : true
             };
           })
         };

@@ -177,7 +177,121 @@ While marine and wind systems are fully backend default-on, their legacy serverl
 
 ---
 
-## 6. Remaining Layers Source-Truth Plan
+## 6. Weather Regression Archaeology & Backend Stabilization
+
+To prevent recurring bugs and ensure long-term stability, we document the history of regressions, define strict backend API contracts, and establish regression test gates that must pass before any milestone is marked complete.
+
+### A. Regression Archaeology
+
+| Regression | User Symptom | Root Cause Pattern | Files/Systems Involved | Fix Attempted | Permanent Backend Fix | Regression Test Gate |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Marine forecast freeze** | Marine heatmap live works, but forecast does not move when scrubbing timeline. | Timeline scrub state change did not trigger WebGL texture invalidation/upload because the comparison signature omitted `valid_time`, or React state updates suffered from timeOffsetRef race conditions. | `MapWebGL.js`<br>`WebGLMarineEngine.js`<br>`useMarineOrchestrator.js` | Force-rendering components or clearing caches. | Incorporate `product_id` + `valid_time` + `bounds` into WebGL texture upload signature. Force invalidation on timeline updates. | Verify `webglUploadCount` increments and texture hashes change when timeline scrubbing. |
+| **Infobox discrepancy** | Infobox future values differ from heatmap colors at the same location. | Spot/point sampler queried Open-Meteo directly or utilized a different run/model instead of matching the exact product rendered in the grid. | `backend/routes/weather.py`<br>`forecastSamplers.js`<br>`backendWeatherServiceClient.js` | Snapping client-side valid_times. | Enforce Grid/Point Parity Contract: pass `grid_product_id` in point query, backend loads and samples that exact product. | Verify point API matches conformed grid values exactly when `grid_product_id` is supplied. |
+| **TRACE / default values** | Infobox displays "TRACE", empty string, or 0 instead of real wind/wave values. | Bilinear point interpolation failed near coastlines or grid borders (returning NaN or unhandled exceptions), falling back silently to empty/zero mock values. | `backend/services/weather_pipeline/sampler.py`<br>`forecastSamplers.js` | Nearest-neighbor fallback returning arbitrary coordinates. | Implement bilinear ocean-masked interpolation with explicit coastline check, falling back to `nearest_ocean_fallback` or `out_of_bounds_fallback`. | Validate point sampler output for coordinates near land bounds. |
+| **EURO native cutoff failure** | Map showing blank areas or console errors beyond 72 hours for EURO model. | Copernicus wave forecast (CMEMS) only has a native 72-hour limit. Requesting times > 72h returned empty grids or 404s. | `scheduler.py`<br>`backend/routes/weather.py`<br>`CopernicusGridFetcher.js` | Client-side blending logic. | Generate estimated Copernicus products beyond 72h backend-side, decaying to GFS trend and marking `is_estimated = True`. | Test backend returns conformed estimated files for EURO waves when valid_time > 72h. |
+| **Model cache pollution** | Map renders data from a previously selected model (e.g. GFS waves showing on EURO). | Overlapping cache keys on the backend or in client-side memory cache, lacking model/layer descriptors in the unique keys. | `backend/routes/weather.py`<br>`backend/services/weather_pipeline/store.py`<br>`marineController.js` | Clearing browser caches on click. | Enforce structured cache key uniqueness incorporating `model` + `domain` + `layer` + `valid_time` + `bbox_bounds`. | Automated test checking that cache keys vary uniquely across model and layer parameters. |
+| **WebGL upload skipped** | New forecast run is available, but map client fails to display updated values. | WebGL texture manager compared only time offset and bounds, missing that the underlying `product_id` (run time) changed. | `WebGLMarineEngine.js`<br>`MapWebGL.js` | Page reload or cache clear. | WebGL upload signature includes `product_id` to force texture invalidation when a new model run is fetched. | Verify `webglUploadCount` increments when a new product_id is loaded for the same valid_time. |
+| **Florida-only grid stretched** | Florida-only regional grid rendered as global coverage, distorting coordinates. | Shader projection lacked correct coordinate bounds scaling, stretching the Florida 2D texture (0 to 1 UV) over the entire viewport. | `WebGLMarineShaders.js`<br>`WebGLWindShaders.js` | Client-side CSS bounds clipping. | Implement Web Mercator projection in shaders and clip/scale coordinate mapping based on `u_dataBounds_min` and `u_dataBounds_max` uniforms. | Verify that shaders draw textures only within defined product boundaries. |
+| **Wind particles boundary wrap** | Wind particles show a hard regional rectangle, wrapping or disappearing abruptly. | Advection shader wrapped particles unconditionally on X/Y boundaries via `fract(pos.x)`, and there was no alpha transition near edges. | `WebGLWindShaders.js`<br>`WebGLWindEngine.js` | Restricting particle creation coordinates. | Disable X wrapping for regional bounds (`u_edgeFeatherEnabled = true`) and apply `smoothstep` boundary feathering. | Visual/automated validation of boundary opacity fade-out. |
+| **Land/ocean mask inversion** | Heatmap rendered on land and masked out over the ocean. | Y-flip orientation mismatch during texture upload (`UNPACK_FLIP_Y_WEBGL` state pollution) or linear projection instead of Web Mercator projection. | `WebGLMarineTextureEncoder.js`<br>`WebGLMarineShaders.js` | Inverting color values in the shader. | Wrap mask upload in explicit `gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)` and restore it, and project mask coordinates using Web Mercator formulas. | Mask alignment verification tests. |
+| **Silent weather-proxy fallback** | System breaks but fails silently, serving stale or incorrect data. | Exception handling caught fetch failures and silently fell back to legacy proxy or Open-Meteo scraper without setting `gridParity: false`. | `backendWeatherServiceClient.js`<br>`useMarineOrchestrator.js` | Console warnings. | Mandatory diagnostics telemetry, reporting `source: "backend_direct_point"` and `fallback_reason` in the response payload. | Point API response validation for fallback indicators. |
+| **Diagnostics missing/misleading** | Developer panel displays incorrect product IDs or states, making debugging impossible. | Diagnostics objects (`window.__BACKEND_WEATHER_SERVICE_DIAG__`) were not initialized correctly, or values were not propagated. | `backendWeatherServiceClientDiag.js`<br>`backendWeatherServiceClient.js` | Manual console logging. | Standardized telemetry object structure on the client window, populated on every network fetch. | Telemetry completeness checks. |
+| **Deployed visual UI failure** | Backend parity passing in CI/CD while deployed visual UI still fails. | Backend parity did not test visual projection artifacts, WebGL upload states, or CORS/CSP headers that only trigger in live environments. | Full deployment pipeline, E2E gates. | Manual browser testing. | Required Deployed E2E visual truth gates, including screenshot comparisons and timeline matrices, before marking a stage PASS. | Deployed visual/functional smoke test suite. |
+| **Wind flashing on pan/zoom** | Wind particles flash and reset to a grainy or blank state when dragging or zooming the map. | Zooming/panning triggers multiple concurrent grid fetches that resolve out-of-order, causing newer renders to be overwritten by slower, stale responses. | `backendWindServiceClient.js` | Adding local state flags. | Implement client-side in-flight request deduplication via `inFlightWindRequests = new Map()`, sharing and clean-up of active fetch promises. | Verify concurrent requests for identical URLs return the same promise. |
+| **Wind particles heatmap blockage** | Wind particle trails cover up the underlying faster wind reds/purples, forming a foggy white sheet. | Advection drawing fragment shader completely ignores speed-dependent alpha from the color ramp LUT (`u_color_ramp`), rendering slow/calm particles at full opacity. | `WebGLWindShaders.js`<br>`WebGLWindEngine.js` | Lowering the total particle count. | Multiply color ramp alpha by `v_alpha` in `DRAW_FS`. Tune `fadeOpacity` to `0.965` and composite opacity to `0.48` for crisp, non-foggy trails. | Verify red/purple heatmap layers remain clearly visible underneath active wind particles. |
+| **Marine layer high stability** | Marine layer is highly stable compared to wind, without flashing or visual inconsistencies. | Marine layer utilizes a strict orchestration state lock and unique SWR cache key registry which prevents overlapping requests and out-of-order updates. | `useMarineOrchestrator.js`<br>`marineController.js` | N/A | Leverage the marine orchestrator's state lock design patterns and SWR cache key registry, applying deduplication to other volatile layers. | Verify state transitions do not overlap. |
+
+---
+
+### B. Backend Truth Contract
+
+Every backend-served weather product must satisfy this permanent data contract:
+1. **`product_id`**: Globally unique UUID or hash representing the exact ingestion run.
+2. **`model`**: Standardized string identifier (`GFS`, `ICON`, `EURO`).
+3. **`domain`**: Either `marine` or `wind`.
+4. **`layer`**: Physical variable (e.g. `waves`, `swell_1`, `swell_2`, `wind_waves`, `wind`).
+5. **`valid_time`**: ISO-8601 UTC timestamp representing the valid forecast hour.
+6. **`requested_bbox`**: Bounding box coordinates submitted by the client `[west, south, east, north]`.
+7. **`served_bbox`**: Actual coordinate limits of the grid returned.
+8. **`coverage_scope`**: Declared scope: `regional` | `viewport` | `global_coarse` | `mosaic` | `no_coverage`.
+9. **`source`**: Provider identifier (e.g. `copernicus`, `open-meteo`).
+10. **`is_estimated`**: True if the grid includes computed or blended variables.
+11. **`estimate_basis`**: Explanation of estimation math (e.g. `gfs_blend` or `none`).
+12. **`cache_key`**: Deterministic key integrating model, layer, valid_time, and bounding box.
+13. **`product family/index entry`**: Registered in the active catalog (`manifest.json` or `dynamic_products_index.json`).
+14. **`vectorCount` / `nonzeroCount`**: Grid dimensions and non-zero counts for verification.
+15. **`grid/point compatibility`**: Conformed coordinate alignment.
+
+---
+
+### C. Grid/Point Parity Contract
+
+To eliminate differences between visual maps and spot data:
+1. **Valid Time Snapping**: `/grid` and `/point` must resolve to the exact same `valid_time`.
+2. **Strict Product Sampling**: If a client provides `grid_product_id`, the `/point` endpoint must sample exactly from that cached grid file.
+3. **Out-of-bounds Enforcement**: If the requested point falls outside the bounding box of the specified `grid_product_id`, the API must return an explicit `out_of_bounds` response with `interpolation_method = "out_of_bounds"`.
+4. **No Silent Fallback**: The server must never fall back silently to other models or times.
+5. **Direct Point Fallback Labeling**: If no grid exists, point-only fallbacks must return `source: "backend_direct_point"` and `gridParity: false`.
+
+---
+
+### D. Coverage Contract
+
+1. **No Regional Stretching**: Regional products must never be stretched. Geographies must map exactly to coordinate coordinates using Web Mercator formulas.
+2. **Dynamic Viewport Generation**: Viewport grids must be dynamically queried, conformed, and cataloged in the transient index (`dynamic_products_index.json`).
+3. **Metadata Declaration**: Every API grid payload must explicitly declare `coverage_scope`, `requested_bbox`, `served_bbox`, and `resolution`.
+4. **Frontend Respect**: Frontend renderers must inspect `coverage_scope` to apply correct projection matrix boundaries.
+
+---
+
+### E. EURO Extended Forecast Contract
+
+1. **Backend-Owned Estimates**: The legacy client-side Copernicus extended forecast math is fully migrated to the backend.
+2. **Shared Metadata**: Estimated grid and point products must share the same `product_id` family, `valid_time`, `is_estimated = True`, and `estimate_basis = "gfs_blend"`.
+3. **UI Distinction**: The UI must display an "Estimated" badge when `is_estimated` is true.
+4. **Stale Invalidation**: No stale Copernicus heatmap may remain visible once the native forecast ends.
+
+---
+
+### F. Legacy Frontend Weather Math Quarantine
+
+To clean up the client codebase, we establish a quarantine schedule for legacy scrapers:
+
+| Math Code Area | Current Role | Quarantine Status | Target Removal |
+| :--- | :--- | :--- | :--- |
+| **Direct Open-Meteo Fetches** | Client-side requests for wind/marine | **Quarantined** (feature flag disabled) | Stage 6M |
+| **`/api/weather-proxy`** | Netlify serverless scraper | **Quarantined** (used as emergency fallback) | Stage 6M |
+| **Frontend EURO blending** | Blending GFS/Copernicus client-side | **Quarantined** (bypassed) | Stage 6M |
+| **Local Cache Override** | Client-side time remap logic | **Quarantined** (disabled) | Stage 6M |
+| **Silent Fallback Paths** | Catch-block redirections to scrapers | **Keep as explicit fallback** | Retain for 30-day stability window |
+
+---
+
+### G. Regression Test Gates
+
+Before any weather stage can be marked **PASS**, it must clear these gates:
+
+#### 1. Backend Verification Gates
+* **Valid Time Snapping**: Tests snap queries to the closest available manifest product within 3 hours.
+* **Viewport Generation**: Tests verify dynamic viewport grids resolve to adaptive resolutions.
+* **Strict Point Sampling**: Verify `/point?grid_product_id=X` fails or clamps to out-of-bounds when outside X.
+* **EURO Extended Estimate**: Check estimated forecast returns `is_estimated = True`.
+* **Cache Key Uniqueness**: Verify no collision exists when changing layers or models.
+
+#### 2. Frontend Verification Gates
+* **Scrub Signature Invalidation**: Verify timeline shifts update `product_id` and recreate the WebGL upload signature.
+* **Infobox Sync**: Verify the map click queries point data matching the active map layer.
+* **No Silent Fallback**: Ensure network failures show a clear UI warning instead of silent scraping.
+* **WebGL Bounds Alignment**: Verify texture uploads map to the exact `served_bbox`.
+
+#### 3. Deployed E2E Gates
+* **Live + Forecast Matrix**: Verify the timeline works from Live out to +120h on staging.
+* **Screenshot Verification**: Visual check of heatmap boundaries, land masking, and flow particles.
+* **Diagnostics Verification**: Verify `window.__WEATHER_GRID_PROJECTION_DIAG__` has correct counts and `gridParity: true`.
+
+---
+
+## 7. Remaining Layers Source-Truth Plan
 
 We will evaluate the remaining map layers for migration to the backend-owned weather engine:
 
@@ -185,55 +299,51 @@ We will evaluate the remaining map layers for migration to the backend-owned wea
 * **Likely Source**: Open-Meteo Forecast API (`gfs_seamless`, `dwd_icon`, `ecmwf_ifs`).
 * **Data Type**: Forecast model grid parameters (`pressure_msl`).
 * **Backend Fit**: Fits the backend grid/point product model perfectly. Can be normalized into conformed JSON grids.
-* **Licensing/API Risks**: None. Included under standard Open-Meteo licenses.
 * **Difficulty**: Low.
 
 ### B. Precipitation (Rain/Snow)
 * **Likely Source**: Open-Meteo Forecast API (`precipitation`).
 * **Data Type**: Forecast model grid parameters (precipitation values in `mm`).
 * **Backend Fit**: Fits the backend grid/point product model.
-* **Licensing/API Risks**: None.
 * **Difficulty**: Low.
 
 ### C. Weather Radar
 * **Likely Source**: RainViewer API or NOAA MRMS.
 * **Data Type**: Real-time mosaic tiles.
-* **Backend Fit**: Radar is a dynamic observation layer, not a forecast model. It does not fit the JSON point/grid model.
-* **Architecture Fit**: Should remain tile-based, loaded via MapLibre overlay protocols, but timeline timestamps and tile endpoints can be queried via the backend.
-* **Licensing/API Risks**: RainViewer has specific rate limits and attribution requirements.
+* **Architecture Fit**: Should remain tile-based, loaded via MapLibre overlay protocols, with timeline synchronization managed by the backend.
 * **Difficulty**: Medium.
 
 ### D. Satellite Imagery
 * **Likely Source**: NOAA GOES / NASA GIBS.
 * **Data Type**: Real-time observational tile maps.
-* **Backend Fit**: Observational overlay, does not fit JSON point/grid model.
-* **Architecture Fit**: Should remain tile-based (MapLibre overlay protocols) with timeline synchronization managed by the backend.
+* **Architecture Fit**: Should remain tile-based with timeline synchronization managed by the backend.
 * **Difficulty**: Medium.
 
 ### E. Air Temperature (Future)
 * **Likely Source**: Open-Meteo Forecast API (`temperature_2m`).
 * **Data Type**: Forecast scalar field.
-* **Backend Fit**: Fits point sampling and grid structures.
 * **Difficulty**: Low.
 
 ### F. Sea Surface Water Temperature (Future)
 * **Likely Source**: NOAA RTG_SST or CMEMS Global Ocean SST.
-* **Data Type**: Daily observation/forecast.
-* **Backend Fit**: Fits point sampling and grid structures.
-* **Difficulty**: Medium (requires parsing Copernicus/NOAA daily grids).
-
-### Recommended Migration Order
-1. **Stage 6G**: Pressure Default-On Rollout (default-enable backend pressure point truth).
-2. **Stage 6H**: Weather Coverage Expansion Strategy & Architecture (current).
-3. **Stage 6H.1**: SoCal Wind Tile Pilot (GFS/ICON/EURO wind tile expansion).
-4. **Stage 6H.2**: SoCal Marine Tile Pilot.
-5. **Stage 7**: Precipitation Backend Ingestion.
-6. **Stage 8**: Air & Water Temperature point sampling integration.
-7. **Stage 9**: Radar & Satellite endpoint validation.
+* **Difficulty**: Medium.
 
 ---
 
-## 7. Recommended Next Phase
+## 8. Revised Phased Execution Order
 
-Following the approval of the Stage 6H strategy, we recommend proceeding to **Stage 6H.1: SoCal Wind Tile Pilot** to implement the hybrid regional tile wind coverage expansion for Southern California. Radar, satellite, precipitation, and Copernicus/pressure changes remain future work.
+We revise the remaining integration stages to prioritize stabilization and regression testing before extending coverage:
+
+1. **Stage 6J**: Dynamic viewport/global backend coverage for GFS marine + wind (Active / Code Completed).
+2. **Stage 6K**: Strict `grid_product_id` point sampling + dynamic product index validation.
+3. **Stage 6L**: EURO extended forecast backend contract lock.
+4. **Stage 6M**: Frontend legacy weather math quarantine and scraper code cleanup.
+5. **Stage 6N**: Regression test harness and deployed visual truth gates integration.
+6. **Subsequent Expansion Phases**:
+   - ICON/EURO viewport coverage expansion
+   - Pressure layer stabilization
+   - Precipitation layer backend ingestion
+   - Radar & Satellite timeline sync
+   - Temperature layers (Air & Water) point sampling integration
+
 

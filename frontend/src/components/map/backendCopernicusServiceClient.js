@@ -108,7 +108,8 @@ if (typeof window !== 'undefined') {
     is_forecast_authoritative: false,
     is_estimated: false,
     is_test_fixture: false,
-    gridMode: null
+    gridMode: null,
+    coverage_scope: null
   };
 }
 
@@ -147,7 +148,8 @@ export function updateCopernicusDiagnostics(type, details) {
       is_forecast_authoritative: false,
       is_estimated: false,
       is_test_fixture: false,
-      gridMode: null
+      gridMode: null,
+      coverage_scope: null
     };
   }
 
@@ -182,6 +184,7 @@ export function updateCopernicusDiagnostics(type, details) {
     diag.gridMode = details.gridMode || diag.gridMode || null;
     diag.productId = details.productId || null;
     diag.gridProductId = details.productId || null;
+    diag.coverage_scope = details.coverage_scope || null;
   } else if (type === 'point') {
     diag.layer = details.layer || diag.layer || 'swell_1';
     diag.lastPointFetch = details;
@@ -240,6 +243,7 @@ export function updateCopernicusDiagnostics(type, details) {
     renderable: diag.renderable,
     fallbackReason: diag.fallbackReason,
     gridMode: diag.gridMode,
+    coverage_scope: diag.coverage_scope || null,
     timestamp: new Date().toISOString()
   };
 }
@@ -352,6 +356,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       is_test_fixture: json.is_test_fixture,
       gridMode: json.grid?.diagnostics?.gridMode || 'rectangular',
       productId: json.product_id || null,
+      coverage_scope: json.coverage_scope || null,
       layer
     });
 
@@ -386,7 +391,8 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       validTime: validTimeStr,
       isEstimated: json.is_estimated,
       estimateBasis: json.estimate_basis,
-      timeOffsetHours: hourOffset
+      timeOffsetHours: hourOffset,
+      coverage_scope: json.coverage_scope || null
     });
 
     return result;
@@ -449,7 +455,15 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
     return clonedData;
   }
 
-  const url = `${POINT_URL}?model=EURO&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  let gridProductId = null;
+  if (typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
+    gridProductId = window.__MARINE_PROJECTION_DIAG__.productId || window.__MARINE_PROJECTION_DIAG__.gridProductId || null;
+  }
+
+  let url = `${POINT_URL}?model=EURO&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  if (gridProductId) {
+    url += `&grid_product_id=${gridProductId}`;
+  }
 
   try {
     const res = await fetch(url, { signal });

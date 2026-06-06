@@ -20,7 +20,7 @@ describe('backendWeatherServiceClientCoverage', () => {
 
   describe('clampViewportBbox', () => {
     it('returns isInside: false if bbox is missing', () => {
-      const res = clampViewportBbox(null);
+      const res = clampViewportBbox(null, 'waves', 'COPERNICUS');
       expect(res.isInside).toBe(false);
       expect(res.fallbackReason).toBe('Missing requested bounding box coordinates');
     });
@@ -28,20 +28,20 @@ describe('backendWeatherServiceClientCoverage', () => {
     it('returns isInside: false if bbox is completely outside coverage bounds', () => {
       // Entirely west of coverage bounds (-85.0)
       const bboxWest = { west: -90.0, south: 25.0, east: -86.0, north: 30.0 };
-      const resWest = clampViewportBbox(bboxWest);
+      const resWest = clampViewportBbox(bboxWest, 'waves', 'COPERNICUS');
       expect(resWest.isInside).toBe(false);
       // Without manifest, fallback uses REGIONAL_TILES but bbox doesn't intersect
       expect(resWest.fallbackReason).toBeTruthy();
 
       // Entirely north of coverage bounds (31.0)
       const bboxNorth = { west: -84.0, south: 32.0, east: -80.0, north: 35.0 };
-      const resNorth = clampViewportBbox(bboxNorth);
+      const resNorth = clampViewportBbox(bboxNorth, 'waves', 'COPERNICUS');
       expect(resNorth.isInside).toBe(false);
     });
 
     it('performs intersection clamping if viewport overlaps with coverage bounds', () => {
       const bboxOverlap = { west: -88.0, south: 23.0, east: -80.0, north: 30.0 };
-      const res = clampViewportBbox(bboxOverlap);
+      const res = clampViewportBbox(bboxOverlap, 'waves', 'COPERNICUS');
       expect(res.isInside).toBe(true);
       expect(res.clampedBbox.west).toBe(-85.0); // clamped to PILOT_COVERAGE.west
       expect(res.clampedBbox.south).toBe(24.0); // clamped to PILOT_COVERAGE.south
@@ -51,7 +51,7 @@ describe('backendWeatherServiceClientCoverage', () => {
 
     it('returns the same coordinates if viewport is completely inside coverage bounds', () => {
       const bboxInside = { west: -84.0, south: 25.0, east: -81.0, north: 29.0 };
-      const res = clampViewportBbox(bboxInside);
+      const res = clampViewportBbox(bboxInside, 'waves', 'COPERNICUS');
       expect(res.isInside).toBe(true);
       expect(res.clampedBbox.west).toBe(-84.0);
       expect(res.clampedBbox.south).toBe(25.0);

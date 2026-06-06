@@ -352,6 +352,10 @@ class WeatherNormalizer:
             source_dataset = "ecmwf_ifs"
             up_provider = "open-meteo"
             up_model = "ecmwf_ifs"
+        elif provider.lower() == "open-meteo" and model.upper() == "EURO" and domain.lower() == "marine":
+            source_dataset = "ecmwf_wam025"
+            up_provider = "open-meteo"
+            up_model = "ecmwf_wam025"
         elif provider.lower() == "test-fixture":
             import os
             is_test_env = (

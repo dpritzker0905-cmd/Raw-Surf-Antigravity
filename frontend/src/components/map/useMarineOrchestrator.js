@@ -179,7 +179,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           phase = `load_${modelName}_h${targetHour}`;
           
           try {
-            const cached = getModelSafeMarine(modelName, targetHour, targetLayer);
+            const cached = getModelSafeMarine(modelName, targetHour, targetLayer, targetBounds);
             if (cached?.grid?.vectors?.length > 0) {
               diagObj.cacheHits.push(`${modelName}_h${targetHour}`);
               return cached;
@@ -192,7 +192,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
           const expectedProvider = (modelName === 'EURO' && COMPONENT_LAYERS.includes(targetLayer)) ? 'copernicus' : 'open-meteo';
           const layerKey = (modelName !== 'EURO') ? 'all' : (targetLayer || 'waves');
-          const requestKey = `${modelName}_${layerKey}_${targetHour}_${expectedProvider}_vp_${targetZoom}`;
+          const snapBoundsStr = targetBounds ? `${targetBounds.west.toFixed(2)}_${targetBounds.south.toFixed(2)}_${targetBounds.east.toFixed(2)}_${targetBounds.north.toFixed(2)}` : 'global';
+          const requestKey = `${modelName}_${layerKey}_${targetHour}_${expectedProvider}_vp_${targetZoom}_${snapBoundsStr}`;
           
           if (orchestratorInFlight.current.has(requestKey)) {
             diagObj.cacheHits.push(`${modelName}_h${targetHour}_inflight`);
@@ -242,10 +243,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           }
 
           const euroAnchor = await safeLoadGrid('EURO', layer, nativeLimit, vpBounds || bounds, zoom, diagObj);
-          const gfsAnchor = await safeLoadGrid('GFS', layer, nativeLimit, bounds, zoom, diagObj);
-          const gfsTarget = await safeLoadGrid('GFS', layer, timeOffset, bounds, zoom, diagObj);
-          const iconAnchor = isIconValid ? await safeLoadGrid('ICON', layer, nativeLimit, bounds, zoom, diagObj) : null;
-          const iconTarget = isIconValid ? await safeLoadGrid('ICON', layer, timeOffset, bounds, zoom, diagObj) : null;
+          const gfsAnchor = await safeLoadGrid('GFS', layer, nativeLimit, vpBounds || bounds, zoom, diagObj);
+          const gfsTarget = await safeLoadGrid('GFS', layer, timeOffset, vpBounds || bounds, zoom, diagObj);
+          const iconAnchor = isIconValid ? await safeLoadGrid('ICON', layer, nativeLimit, vpBounds || bounds, zoom, diagObj) : null;
+          const iconTarget = isIconValid ? await safeLoadGrid('ICON', layer, timeOffset, vpBounds || bounds, zoom, diagObj) : null;
 
           if (euroAnchor?.grid && gfsAnchor?.grid && gfsTarget?.grid) {
             const blendedGrid = estimateEuroGrid(timeOffset, nativeLimit, layer, euroAnchor.grid, gfsTarget.grid, gfsAnchor.grid, iconTarget?.grid, iconAnchor?.grid);
@@ -280,6 +281,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         } else if (isIconPastLimit) {
           phase = 'extended_icon';
           logPipelineEventHelper('extended_estimate_fetch', { model: 'ICON', layer, hour: timeOffset });
+          let vpBounds = null;
+          if (!isWaves) {
+            try {
+              const b = mapInstance.getBounds(), west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
+              const lngSpan = east - west, latSpan = north - south, padding = 0.25;
+              vpBounds = {
+                west: west - lngSpan * padding, east: east + lngSpan * padding,
+                south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding)
+              };
+            } catch (e) { vpBounds = { west: -125, south: 25, east: -65, north: 50 }; }
+          }
+
           diagObj.requiredSources = ['ICON_anchor', 'GFS_anchor', 'GFS_target'];
           if (isInCooldown('marine')) {
             diagObj.skippedReason = 'cooldown_active'; diagObj.resultStatus = 'skipped';
@@ -287,9 +300,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             locks.isFetching = false; return;
           }
 
-          const iconAnchor = await safeLoadGrid('ICON', layer, ICON_LIMIT, bounds, zoom, diagObj);
-          const gfsAnchor = await safeLoadGrid('GFS', layer, ICON_LIMIT, bounds, zoom, diagObj);
-          const gfsTarget = await safeLoadGrid('GFS', layer, timeOffset, bounds, zoom, diagObj);
+          const iconAnchor = await safeLoadGrid('ICON', layer, ICON_LIMIT, vpBounds || bounds, zoom, diagObj);
+          const gfsAnchor = await safeLoadGrid('GFS', layer, ICON_LIMIT, vpBounds || bounds, zoom, diagObj);
+          const gfsTarget = await safeLoadGrid('GFS', layer, timeOffset, vpBounds || bounds, zoom, diagObj);
 
           if (iconAnchor?.grid && gfsAnchor?.grid && gfsTarget?.grid) {
             const blendedGrid = estimateIconGrid(timeOffset, ICON_LIMIT, layer, iconAnchor.grid, gfsTarget.grid, gfsAnchor.grid);

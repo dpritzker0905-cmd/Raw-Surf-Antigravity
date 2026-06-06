@@ -690,7 +690,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       validTime: validTimeStr,
       isEstimated: json.is_estimated,
       estimateBasis: json.estimate_basis,
-      timeOffsetHours: hourOffset
+      timeOffsetHours: hourOffset,
+      coverage_scope: json.coverage_scope || null
     });
 
     return result;

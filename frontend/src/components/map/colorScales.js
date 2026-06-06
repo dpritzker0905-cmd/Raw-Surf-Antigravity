@@ -204,3 +204,113 @@ export function applyThemePressureScale(theme) {
     window.__OM_PROTOCOL_SETTINGS__.colorScales.pressure_msl = CUSTOM_COLOR_SCALES.pressure_msl;
   }
 }
+
+export function getThemedWaveColorJS(h, theme) {
+  // getNonlinearT
+  let t = 0;
+  if (h < 0.5) {
+    t = (h / 0.5) * 0.15;
+  } else if (h < 1.5) {
+    t = 0.15 + ((h - 0.5) / 1.0) * 0.35;
+  } else if (h < 3.0) {
+    t = 0.50 + ((h - 1.5) / 1.5) * 0.30;
+  } else if (h < 5.0) {
+    t = 0.80 + ((h - 3.0) / 2.0) * 0.12;
+  } else {
+    t = 0.92 + Math.min(1.0, (h - 5.0) / 5.0) * 0.08;
+  }
+
+  let c0, c1, c2, c3, c4, c5;
+  if (theme === 'beach') {
+    c0 = [5, 97, 89];
+    c1 = [13, 166, 148];
+    c2 = [242, 153, 102];
+    c3 = [255, 102, 38];
+    c4 = [217, 64, 13];
+    c5 = [255, 242, 230];
+  } else if (theme === 'light') {
+    c0 = [199, 222, 240];
+    c1 = [77, 179, 230];
+    c2 = [31, 107, 217];
+    c3 = [107, 51, 209];
+    c4 = [217, 46, 128];
+    c5 = [255, 255, 255];
+  } else {
+    c0 = [3, 5, 20];
+    c1 = [0, 140, 191];
+    c2 = [0, 235, 255];
+    c3 = [89, 38, 255];
+    c4 = [255, 26, 191];
+    c5 = [255, 255, 255];
+  }
+
+  let rgb;
+  if (t < 0.15) {
+    let factor = t / 0.15;
+    rgb = [
+      c0[0] + (c1[0] - c0[0]) * factor,
+      c0[1] + (c1[1] - c0[1]) * factor,
+      c0[2] + (c1[2] - c0[2]) * factor
+    ];
+  } else if (t < 0.50) {
+    let factor = (t - 0.15) / 0.35;
+    rgb = [
+      c1[0] + (c2[0] - c1[0]) * factor,
+      c1[1] + (c2[1] - c1[1]) * factor,
+      c1[2] + (c2[2] - c1[2]) * factor
+    ];
+  } else if (t < 0.80) {
+    let factor = (t - 0.50) / 0.30;
+    rgb = [
+      c2[0] + (c3[0] - c2[0]) * factor,
+      c2[1] + (c3[1] - c2[1]) * factor,
+      c2[2] + (c3[2] - c2[2]) * factor
+    ];
+  } else if (t < 0.92) {
+    let factor = (t - 0.80) / 0.12;
+    rgb = [
+      c3[0] + (c4[0] - c3[0]) * factor,
+      c3[1] + (c4[1] - c3[1]) * factor,
+      c3[2] + (c4[2] - c3[2]) * factor
+    ];
+  } else {
+    let factor = (t - 0.92) / 0.08;
+    rgb = [
+      c4[0] + (c5[0] - c4[0]) * factor,
+      c4[1] + (c5[1] - c4[1]) * factor,
+      c4[2] + (c5[2] - c4[2]) * factor
+    ];
+  }
+
+  return [Math.round(rgb[0]), Math.round(rgb[1]), Math.round(rgb[2])];
+}
+
+export function applyThemeWaveScale(theme) {
+  var ORIGINAL_WAVE_ALPHAS = {
+    wave_height: [0.0, 0.45, 0.65, 0.75, 0.85, 0.95],
+    wave: [0.0, 0.45, 0.65, 0.75, 0.85, 0.95],
+    swell_wave_height: [0.0, 0.45, 0.65, 0.75, 0.85, 0.95],
+    secondary_swell_wave_height: [0.0, 0.4, 0.6, 0.75, 0.85, 0.95],
+    wind_wave_height: [0.0, 0.4, 0.6, 0.75, 0.85, 0.95]
+  };
+
+  var keys = ['wave_height', 'wave', 'swell_wave_height', 'secondary_swell_wave_height', 'wind_wave_height'];
+  keys.forEach(function(key) {
+    var baseScale = BASE_CUSTOM_COLOR_SCALES[key];
+    if (baseScale && baseScale.breakpoints) {
+      baseScale.colors = baseScale.breakpoints.map(function(bp, idx) {
+        var rgb = getThemedWaveColorJS(bp, theme);
+        var originalAlpha = ORIGINAL_WAVE_ALPHAS[key][idx] !== undefined ? ORIGINAL_WAVE_ALPHAS[key][idx] : 0.5;
+        return [rgb[0], rgb[1], rgb[2], originalAlpha];
+      });
+      // Re-smooth scale in memory
+      CUSTOM_COLOR_SCALES[key] = smoothColorScale(baseScale, 80);
+      
+      // Push changes to protocol if active
+      if (typeof window !== 'undefined' && window.__OM_PROTOCOL_SETTINGS__) {
+        window.__OM_PROTOCOL_SETTINGS__.colorScales[key] = CUSTOM_COLOR_SCALES[key];
+      }
+    }
+  });
+}
+

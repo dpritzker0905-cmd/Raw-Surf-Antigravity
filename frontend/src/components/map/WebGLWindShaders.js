@@ -166,7 +166,8 @@ uniform float u_max_speed;
 void main() {
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
   vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
-  gl_FragColor = vec4(color.rgb * v_alpha, v_alpha);
+  float alpha = color.a * v_alpha;
+  gl_FragColor = vec4(color.rgb * alpha, alpha);
 }`;
 
 export const HEATMAP_VS = `

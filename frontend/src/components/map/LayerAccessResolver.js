@@ -22,7 +22,7 @@ var TIER_ACCESS = {
   },
   premium: {
     models: ['GFS', 'EURO', 'ICON'],
-    forecastDays: 14
+    forecastDays: 7
   }
 };
 
@@ -38,13 +38,23 @@ export function getUserTier(userOrTier) {
     ? userOrTier 
     : (userOrTier?.subscriptionTier || userOrTier?.subscription_tier || userOrTier?.tier_id || 'guest');
 
-  // Handle tier_id format (tier_1, tier_2, etc.)
-  if (tierString === 'tier_1') return 'free';
-  if (tierString === 'tier_2') return 'basic';
-  if (['tier_3', 'tier_4', 'admin'].includes(tierString)) return 'premium';
+  const tierStringLower = String(tierString).toLowerCase();
 
-  // Handle subscription_tier name format (free, basic, premium, guest)
-  if (['free', 'basic', 'premium', 'guest'].includes(tierString)) return tierString;
+  // Handle tier mapping (tier_1, tier_2, etc. or named tiers)
+  if (tierStringLower.includes('free') || tierStringLower === 'tier_1') return 'free';
+  if (tierStringLower.includes('basic') || tierStringLower.includes('paid') || tierStringLower === 'tier_2') return 'basic';
+  if (
+    tierStringLower.includes('premium') || 
+    tierStringLower.includes('pro') || 
+    tierStringLower.includes('parent') ||
+    tierStringLower.includes('admin') ||
+    ['tier_3', 'tier_4'].includes(tierStringLower)
+  ) {
+    return 'premium';
+  }
+
+  // Handle explicit guest or other matches
+  if (tierStringLower === 'guest') return 'guest';
   
   return 'guest'; // default fallback for guests/anonymous
 }

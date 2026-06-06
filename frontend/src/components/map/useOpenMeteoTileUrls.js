@@ -5,6 +5,7 @@ import {
   fetchModelMetadata,
   registerOpenMeteoProtocol,
   applyThemePressureScale,
+  applyThemeWaveScale,
   trace
 } from './mapUtils';
 import {
@@ -282,9 +283,10 @@ export function useOpenMeteoTileUrls({
   }, [activeModel, activeLayers, debouncedTimeOffsetHours]);
 
 
-  // Dynamic theme pressure color scale synchronizer
+  // Dynamic theme pressure and wave color scale synchronizer
   useEffect(() => {
     applyThemePressureScale(theme);
+    applyThemeWaveScale(theme);
   }, [theme]);
 
   const fetchMetadata = useCallback(async (modelToCheck, signal) => {

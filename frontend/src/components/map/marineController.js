@@ -135,43 +135,101 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
       const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
       const tileId = clampRes.selectedTileId || 'outside';
       exact = _perModelHourCache.get(`${wanted}_${layerPart}_${tileId}_${wantedHour}`);
+      if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+        const sig = exact.signature;
+        if (sig) {
+          const g = exact.data?.grid || {};
+          const b = g.bounds || {};
+          const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
+          const provider = g.__gridProvider || g.provider || 'none';
+
+          if (sig.model === wanted &&
+              sig.layer === wantedLayer &&
+              sig.provider === provider &&
+              sig.hourOffset === wantedHour &&
+              sig.boundsStr === bStr &&
+              sig.cols === (g.cols || 0) &&
+              sig.rows === (g.rows || 0) &&
+              sig.vectorsLength === (g.vectors?.length || 0)) {
+            hitData = exact.data;
+            cacheSource = 'per_model_hour_cache_exact';
+          }
+        } else if (!isBackendActive) {
+          hitData = exact.data;
+          cacheSource = 'per_model_hour_cache_exact';
+        }
+      }
+
+      if (!hitData) {
+        // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
+        for (const [key, entry] of _perModelHourCache.entries()) {
+          if (key.startsWith(`${wanted}_${layerPart}_`) && key.endsWith(`_${wantedHour}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+            const g = entry.data?.grid;
+            if (g?.vectors?.length > 0 && g.bounds) {
+              const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
+              const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+              const containsLng = ge < gw 
+                ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
+                : ew >= gw && ee <= ge;
+              const containsLat = es >= gs && en <= gn;
+
+              if (containsLng && containsLat) {
+                const sig = entry.signature;
+                if (sig) {
+                  const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';
+                  const provider = g.__gridProvider || g.provider || 'none';
+
+                  if (sig.model === wanted &&
+                      sig.layer === wantedLayer &&
+                      sig.provider === provider &&
+                      sig.hourOffset === wantedHour &&
+                      sig.boundsStr === bStr &&
+                      sig.cols === (g.cols || 0) &&
+                      sig.rows === (g.rows || 0) &&
+                      sig.vectorsLength === (g.vectors?.length || 0)) {
+                    hitData = entry.data;
+                    cacheSource = 'per_model_hour_cache_contained';
+                    break;
+                  }
+                } else if (!isBackendActive) {
+                  hitData = entry.data;
+                  cacheSource = 'per_model_hour_cache_contained';
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
     } else {
       const suffix = `_${wantedHour}`;
       const prefix = `${wanted}_${layerPart}_`;
       for (const [k, v] of _perModelHourCache.entries()) {
-        if (k.startsWith(prefix) && k.endsWith(suffix)) {
-          exact = v;
-          break;
-        }
-      }
-    }
-    
-    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-      const sig = exact.signature;
-      if (sig) {
-        const g = exact.data?.grid || {};
-        const b = g.bounds || {};
-        const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
-        const provider = g.__gridProvider || g.provider || 'none';
+        if (k.startsWith(prefix) && k.endsWith(suffix) && Date.now() - v.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+          const sig = v.signature;
+          if (sig) {
+            const g = v.data?.grid || {};
+            const b = g.bounds || {};
+            const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
+            const provider = g.__gridProvider || g.provider || 'none';
 
-        if (sig.model !== wanted ||
-            sig.layer !== wantedLayer ||
-            sig.provider !== provider ||
-            sig.hourOffset !== wantedHour ||
-            sig.boundsStr !== bStr ||
-            sig.cols !== (g.cols || 0) ||
-            sig.rows !== (g.rows || 0) ||
-            sig.vectorsLength !== (g.vectors?.length || 0)) {
-          console.warn(`[Safe Cache] Rejecting cached entry due to signature mismatch!`, sig, {wanted, wantedLayer, provider, wantedHour, bStr, cols: g.cols, rows: g.rows, vectorsLength: g.vectors?.length});
-        } else {
-          hitData = exact.data;
-          cacheSource = 'per_model_hour_cache_exact';
-        }
-      } else {
-        // Skip legacy un-signatured cache if backend is active
-        if (!isBackendActive) {
-          hitData = exact.data;
-          cacheSource = 'per_model_hour_cache_exact';
+            if (sig.model === wanted &&
+                sig.layer === wantedLayer &&
+                sig.provider === provider &&
+                sig.hourOffset === wantedHour &&
+                sig.boundsStr === bStr &&
+                sig.cols === (g.cols || 0) &&
+                sig.rows === (g.rows || 0) &&
+                sig.vectorsLength === (g.vectors?.length || 0)) {
+              hitData = v.data;
+              cacheSource = 'per_model_hour_cache_prefix';
+              break;
+            }
+          } else if (!isBackendActive) {
+            hitData = v.data;
+            cacheSource = 'per_model_hour_cache_prefix';
+            break;
+          }
         }
       }
     }
@@ -272,6 +330,42 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
             sig.rows === (g.rows || 0) &&
             sig.vectorsLength === (g.vectors?.length || 0)) {
           return true;
+        }
+      }
+    }
+
+    // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
+    if (bounds) {
+      for (const [key, entry] of _perModelHourCache.entries()) {
+        if (key.startsWith(`${model || 'GFS'}_${layerPart}_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+          const g = entry.data?.grid;
+          if (g?.vectors?.length > 0 && g.bounds) {
+            const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
+            const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+            const containsLng = ge < gw 
+              ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
+              : ew >= gw && ee <= ge;
+            const containsLat = es >= gs && en <= gn;
+
+            if (containsLng && containsLat) {
+              const sig = entry.signature;
+              if (sig) {
+                const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';
+                const provider = g.__gridProvider || g.provider || 'none';
+
+                if (sig.model === (model || 'GFS') &&
+                    sig.layer === layer &&
+                    sig.provider === provider &&
+                    sig.hourOffset === hourOffset &&
+                    sig.boundsStr === bStr &&
+                    sig.cols === (g.cols || 0) &&
+                    sig.rows === (g.rows || 0) &&
+                    sig.vectorsLength === (g.vectors?.length || 0)) {
+                  return true;
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -439,9 +533,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const isCopernicusBackend = getBackendCopernicusFlag() && model === 'EURO';
   const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
 
+  const clampRes = clampViewportBbox(bounds, activeLayer, model, 'marine');
+  const resolvedBounds = clampRes.isInside && clampRes.clampedBbox ? clampRes.clampedBbox : bounds;
+
   if (!forceFetch && isBackendActive) {
     const layerPart = _isAllVarModel(model) ? 'all' : activeLayer;
-    const clampRes = clampViewportBbox(bounds, activeLayer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
@@ -462,6 +558,41 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
             sig.vectorsLength === (g.vectors?.length || 0)) {
           console.log(`[Backend Cache Hit] Returning cached backend grid for ${model || 'GFS'} ${activeLayer} at hourOffset=+${hourOffset}h`);
           return exact.data;
+        }
+      }
+    }
+
+    // Fallback: check if any cached entry contains resolvedBounds
+    for (const [key, entry] of _perModelHourCache.entries()) {
+      if (key.startsWith(`${model || 'GFS'}_${layerPart}_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+        const g = entry.data?.grid;
+        if (g?.vectors?.length > 0 && g.bounds) {
+          const ew = resolvedBounds.west, ee = resolvedBounds.east, es = resolvedBounds.south, en = resolvedBounds.north;
+          const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+          const containsLng = ge < gw 
+            ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
+            : ew >= gw && ee <= ge;
+          const containsLat = es >= gs && en <= gn;
+
+          if (containsLng && containsLat) {
+            const sig = entry.signature;
+            if (sig) {
+              const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';
+              const provider = g.__gridProvider || g.provider || 'none';
+
+              if (sig.model === (model || 'GFS') &&
+                  sig.layer === activeLayer &&
+                  sig.provider === provider &&
+                  sig.hourOffset === hourOffset &&
+                  sig.boundsStr === bStr &&
+                  sig.cols === (g.cols || 0) &&
+                  sig.rows === (g.rows || 0) &&
+                  sig.vectorsLength === (g.vectors?.length || 0)) {
+                console.log(`[Backend Contained Cache Hit] Returning cached backend grid for ${model || 'GFS'} ${activeLayer} at hourOffset=+${hourOffset}h`);
+                return entry.data;
+              }
+            }
+          }
         }
       }
     }

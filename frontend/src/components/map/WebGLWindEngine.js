@@ -41,7 +41,7 @@ import {
 function WebGLWindEngine() {
   // v3.13.4: Atmospheric transparency — continents must be clearly visible
   this.particleRes = 296; // 296² = 87,616 particles (~10% thinner than 330²)
-  this.fadeOpacity = 0.990; // Faster trail decay — less cumulative opacity buildup
+  this.fadeOpacity = 0.965; // Faster trail decay — less cumulative opacity buildup
   this.speedFactor = 0.32;  // Tuned: good correlation with real wind speeds
   this.dropRate = 0.0015; // Particles live longer continuous streams
   this.dropRateBump = 0.006;
@@ -418,9 +418,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
   gl.enableVertexAttribArray(scrLoc);
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
-  // v3.13.4: Reduced from 0.90 to 0.65 — continents must be clearly visible
+  // v3.13.4: Reduced to 0.48 — continents must be clearly visible
   // beneath the wind layer. Wind should feel atmospheric, not solid fog.
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.65);
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.48);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   var err4 = gl.getError();

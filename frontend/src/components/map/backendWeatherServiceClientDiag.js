@@ -116,6 +116,7 @@ export function updateProjectionDiag(domain, details) {
   window[diagKey] = {
     status: 'active',
     coverage_status,
+    coverage_scope: details.coverage_scope || null,
     // 16 Required keys for Stage 6H
     coverageMode: selectedTileId ? 'regional_tile' : 'none',
     availableTileIds,

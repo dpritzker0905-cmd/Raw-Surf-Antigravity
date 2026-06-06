@@ -25,6 +25,17 @@ var TruthOverlay = ({ activeLayers, activeRenderType, marineData, windData, trut
   const marineVectorCount = marineData?.grid?.vectors?.length || 0;
   const activeLayer = activeLayers?.[0] || 'none';
 
+  // Reset/initialize GPU debug mode on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!window.__GPU_DEBUG__) {
+        window.__GPU_DEBUG__ = { mode: null };
+      } else {
+        window.__GPU_DEBUG__.mode = null;
+      }
+    }
+  }, []);
+
   // Live telemetry hook
   useEffect(() => {
     let interval;

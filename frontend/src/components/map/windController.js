@@ -8,7 +8,7 @@ import {
   getSnapConfig, isViewportInsideCachedBounds, viewportCacheKey, computeGridPoints
 } from './marineControllerUtils';
 import { governMarineRequest } from './marineRequestGovernor';
-import { getBackendWindFlag, fetchBackendWindGrid } from './backendWeatherServiceClient';
+import { getBackendWindFlag, fetchBackendWindGrid, clampViewportBbox, getSharedValidTime } from './backendWeatherServiceClient';
 
 // --- CACHES ---
 var WIND_CACHE = new Map();
@@ -130,7 +130,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   // --- WIND BACKEND SERVICE REDIRECT FOR GFS, ICON AND EURO WIND ---
   if (getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model)) {
     try {
-      console.log(`[Backend Weather Service] Redirecting ${model || 'GFS'} Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+      const resolvedModel = model || 'GFS';
       
       // Resolve actual viewport bounds to pass explicitly
       let viewportBounds = bounds;
@@ -153,8 +153,58 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
           source = "fallback";
         }
       }
+
+      // Check cache first!
+      const clampResult = clampViewportBbox(viewportBounds || snappedBounds, 'wind', resolvedModel, 'wind');
+      const tileId = clampResult.selectedTileId || 'outside';
+      const cacheKey = `${resolvedModel}_wind_grid_${tileId}_${hourOffset}`;
       
-      const result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, model || 'GFS');
+      if (!forceFetch) {
+        const cached = WIND_CACHE.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) { // 10 minutes TTL
+          console.log(`[Backend Wind Cache Hit] Returning cached backend wind grid for ${resolvedModel} at hourOffset=+${hourOffset}h`);
+          return cached.data;
+        }
+
+        // Check if any cached entry contains viewportBounds/snappedBounds
+        const boundsToCheck = viewportBounds || snappedBounds;
+        for (const [key, entry] of WIND_CACHE.entries()) {
+          if (key.startsWith(`${resolvedModel}_wind_grid_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < 10 * 60 * 1000) {
+            const g = entry.data;
+            if (g?.vectors?.length > 0 && g.bounds) {
+              const ew = boundsToCheck.west, ee = boundsToCheck.east, es = boundsToCheck.south, en = boundsToCheck.north;
+              const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+              const containsLng = ge < gw 
+                ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
+                : ew >= gw && ee <= ge;
+              const containsLat = es >= gs && en <= gn;
+
+              if (containsLng && containsLat) {
+                console.log(`[Backend Contained Wind Cache Hit] Returning cached backend wind grid for ${resolvedModel} at hourOffset=+${hourOffset}h`);
+                return entry.data;
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`[Backend Weather Service] Redirecting ${resolvedModel} Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+      const result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, resolvedModel);
+      
+      if (result && result.renderable) {
+        WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
+        // Also populate windHourlyCache for timeline scrubs fallback
+        windHourlyCache = {
+          hash: tileId,
+          results: [ { hourly: { time: [ getSharedValidTime(hourOffset, 'wind', resolvedModel) ] } } ],
+          points: result.vectors.map(v => ({ lat: v.lat, reqLng: v.lng, monotonicLng: v.lng })),
+          gridSize: result.cols,
+          bounds: result.bounds,
+          timestamp: Date.now(),
+          model: resolvedModel,
+          isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180
+        };
+      }
       return result;
     } catch (err) {
       console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);

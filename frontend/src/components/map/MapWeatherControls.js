@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
-import { BASE_CUSTOM_COLOR_SCALES } from './mapUtils';
+import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
 
 // Convert meters to feet
 const M_TO_FT = 3.28084;
@@ -150,6 +150,10 @@ export var MapWeatherControls = ({
 
   // Build legend config dynamically from actual color scale data
   const legendConfig = useMemo(() => {
+    // Ensure color scales are updated with the current theme before building gradients/stops
+    applyThemePressureScale(theme);
+    applyThemeWaveScale(theme);
+
     const config = {};
 
     // Data-driven legends from BASE_CUSTOM_COLOR_SCALES

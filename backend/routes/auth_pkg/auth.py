@@ -43,7 +43,7 @@ class SignupRequest(BaseModel):
     grom_competes: Optional[bool] = False  # For competitive Groms - sets elite_tier
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 class SignupResponse(BaseModel):
@@ -346,7 +346,14 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
 async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     # Rate limit: max 5 login attempts per minute per IP (brute-force protection)
     rate_limit_check(request, max_requests=5, window_seconds=60, key_prefix="login:")
-    result = await db.execute(select(Profile).where(func.lower(Profile.email) == normalize_email(data.email)))
+    login_id = normalize_email(data.email)
+    username_id = login_id.lstrip('@')
+    result = await db.execute(
+        select(Profile).where(
+            (func.lower(Profile.email) == login_id) | 
+            (func.lower(Profile.username) == username_id)
+        )
+    )
     profile = result.scalar_one_or_none()
     
     if not profile:
