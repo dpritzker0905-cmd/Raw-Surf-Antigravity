@@ -50,6 +50,12 @@ float mercatorYToLat(float y) {
   return atan(sinhVal) * 180.0 / 3.141592653589793;
 }
 
+float latToMercatorY(float lat) {
+  float latClamped = clamp(lat, -85.051129, 85.051129);
+  float rad = latClamped * 3.141592653589793 / 180.0;
+  return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
+}
+
 void main() {
   vec4 encoded = texture2D(u_particles, v_uv);
   vec2 pos = decodePos(encoded);
@@ -63,6 +69,12 @@ void main() {
   float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
+  // Calculate Web Mercator mask coordinates
+  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
+  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+  float mask_v = (mercMaxY - pos.y) / (mercMaxY - mercMinY);
+  vec2 mask_uv = vec2(tex_u, mask_v);
+
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   // v5.5: Negate y for Mercator convention. Geographic +v=northward, but
@@ -71,7 +83,7 @@ void main() {
   // WNW instead of WSW off Florida).
   waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
-  float oceanFlag = texture2D(u_oceanMaskTexture, tex_uv).r;
+  float oceanFlag = texture2D(u_oceanMaskTexture, mask_uv).r;
 
   float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
@@ -90,9 +102,11 @@ void main() {
   float next_lat = mercatorYToLat(nextPos.y);
   float next_tex_u = (next_lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
   float next_tex_v = (next_lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
-  vec2 next_tex_uv = vec2(next_tex_u, next_tex_v);
   
-  float nextOceanFlag = texture2D(u_oceanMaskTexture, next_tex_uv).r;
+  float next_mask_v = (mercMaxY - nextPos.y) / (mercMaxY - mercMinY);
+  vec2 next_mask_uv = vec2(next_tex_u, next_mask_v);
+  
+  float nextOceanFlag = texture2D(u_oceanMaskTexture, next_mask_uv).r;
 
   vec2 seed = (nextPos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
@@ -159,6 +173,12 @@ float mercatorYToLat(float y) {
   return atan(sinhVal) * 180.0 / 3.141592653589793;
 }
 
+float latToMercatorY(float lat) {
+  float latClamped = clamp(lat, -85.051129, 85.051129);
+  float rad = latClamped * 3.141592653589793 / 180.0;
+  return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
+}
+
 void main() {
   // === v5.3: QUAD RIBBON EXPANSION ===
   // 6 vertices per particle (2 triangles). Vertex ID encodes both particle and corner.
@@ -195,6 +215,12 @@ void main() {
   float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
+  // Calculate Web Mercator mask coordinates
+  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
+  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+  float mask_v = (mercMaxY - pos.y) / (mercMaxY - mercMinY);
+  vec2 mask_uv = vec2(tex_u, mask_v);
+
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   // v5.5: Negate y for Mercator convention (geographic +v=north, Mercator +y=south).
@@ -202,7 +228,7 @@ void main() {
   waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
-  float oceanFlag = texture2D(u_oceanMaskTexture, tex_uv).r;
+  float oceanFlag = texture2D(u_oceanMaskTexture, mask_uv).r;
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
 
@@ -510,6 +536,13 @@ uniform vec2 u_dataBounds_min;   // [west, south]
 uniform vec2 u_dataBounds_max;   // [east, north]
 uniform float u_lng_offset;
 varying highp vec2 v_grid_uv;
+varying highp vec2 v_mask_uv;
+
+float latToMercatorY(float lat) {
+  float latClamped = clamp(lat, -85.051129, 85.051129);
+  float rad = latClamped * 3.141592653589793 / 180.0;
+  return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
+}
 
 void main() {
   v_grid_uv = a_grid_uv;
@@ -520,18 +553,29 @@ void main() {
   lat = clamp(lat, -85.051129, 85.051129);
 
   float x = (lng + 180.0) / 360.0;
-  float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
+  float y = latToMercatorY(lat);
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;
   }
+
+  // Calculate normalized Web Mercator coordinates for the mask
+  float mercMinX = (u_dataBounds_min.x + 180.0) / 360.0;
+  float mercMaxX = (u_dataBounds_max.x + 180.0) / 360.0;
+  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
+  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+
+  float mask_u = a_grid_uv.x;
+  float mask_v = (mercMaxY - y) / (mercMaxY - mercMinY);
+  v_mask_uv = vec2(mask_u, mask_v);
 }
 `;
 
 export const HEATMAP_FS = `
 precision mediump float;
 varying highp vec2 v_grid_uv;
+varying highp vec2 v_mask_uv;
 uniform sampler2D u_waveTexture;
 uniform sampler2D u_chlorophyllTexture;
 uniform sampler2D u_bathymetryTexture;
@@ -602,7 +646,7 @@ vec3 getThemedWaveColor(float h, float theme) {
 }
 
 void main() {
-  float oceanAlpha = texture2D(u_oceanMaskTexture, v_grid_uv).r;
+  float oceanAlpha = texture2D(u_oceanMaskTexture, v_mask_uv).r;
   vec4 waveData = texture2D(u_waveTexture, v_grid_uv);
   float depthFactor = texture2D(u_bathymetryTexture, v_grid_uv).r;
   float waveHeight = waveData.b * 10.0;
