@@ -163,7 +163,7 @@ class OpenMeteoProvider:
         )
 
         import os
-        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true").lower() == "true")
+        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "false").lower() == "true")
         proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
 
         async with httpx.AsyncClient() as client:
@@ -282,7 +282,7 @@ class OpenMeteoProvider:
         )
 
         import os
-        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true").lower() == "true")
+        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "false").lower() == "true")
         proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
 
         if use_proxy:
