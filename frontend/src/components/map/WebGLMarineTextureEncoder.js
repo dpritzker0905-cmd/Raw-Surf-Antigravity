@@ -224,8 +224,24 @@ export function renderMaskToCanvas(geojson, bounds) {
   ctx.lineWidth = 1;
   
   const { west, south, east, north } = bounds;
-  const lngSpan = east - west;
-  const latSpan = north - south;
+
+  // Web Mercator projection helpers
+  const latToMercatorY = (l) => {
+    const latClamped = Math.max(-85.051129, Math.min(85.051129, l));
+    const rad = latClamped * Math.PI / 180;
+    return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
+  };
+  const lngToMercatorX = (l) => {
+    return (l + 180.0) / 360.0;
+  };
+
+  const mercMinX = lngToMercatorX(west);
+  const mercMaxX = lngToMercatorX(east);
+  const mercMinY = latToMercatorY(north); // North maps to smaller Mercator Y
+  const mercMaxY = latToMercatorY(south); // South maps to larger Mercator Y
+  
+  const mercXSpan = mercMaxX - mercMinX;
+  const mercYSpan = mercMaxY - mercMinY;
   
   function project(lng, lat) {
     let projectedLng = lng;
@@ -235,8 +251,12 @@ export function renderMaskToCanvas(geojson, bounds) {
       if (lng < west) projectedLng += 360;
       if (lng > east) projectedLng -= 360;
     }
-    const x = ((projectedLng - west) / lngSpan) * width;
-    const y = (1.0 - (lat - south) / latSpan) * height;
+    const mx = lngToMercatorX(projectedLng);
+    const my = latToMercatorY(lat);
+    
+    // Normalize and scale to canvas dimensions
+    const x = ((mx - mercMinX) / mercXSpan) * width;
+    const y = ((my - mercMinY) / mercYSpan) * height;
     return [x, y];
   }
   
