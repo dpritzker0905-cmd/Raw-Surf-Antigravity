@@ -323,7 +323,18 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     return clonedData;
   }
 
-  const url = `${POINT_URL}?model=${model}&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  let gridProductId = null;
+  if (typeof window !== 'undefined') {
+    const diag = window.__MARINE_PROJECTION_DIAG__;
+    if (diag && diag.activeLayer === layer && diag.activeModel === model) {
+      gridProductId = diag.productId;
+    }
+  }
+
+  let url = `${POINT_URL}?model=${model}&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  if (gridProductId) {
+    url += `&grid_product_id=${encodeURIComponent(gridProductId)}`;
+  }
 
   try {
     const res = await fetch(url, { signal });
@@ -457,7 +468,15 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       is_test_fixture: json.is_test_fixture,
       productId: json.product_id || null,
       pointProductId: json.product_id || null,
-      source: 'network'
+      source: json.source || 'network',
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      coverage_scope: json.coverage_scope || null,
+      requested_bbox: json.requested_bbox || null,
+      served_bbox: json.served_bbox || null,
+      resolution: json.resolution || null,
+      coordinate_count: json.coordinate_count || null,
+      cache_key: json.cache_key || null,
+      cache_hit: json.cache_hit || null
     };
 
     pointCache.set(cacheKey, { data, details });

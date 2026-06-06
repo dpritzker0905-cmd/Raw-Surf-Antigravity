@@ -117,10 +117,16 @@ class WeatherNormalizer:
         period_key = layer_def["period"]
 
         # Reconstruct clean coordinates by rounding to the nearest resolution step relative to bbox origins
-        west = min(bbox["west"], bbox["east"])
-        east = max(bbox["west"], bbox["east"])
+        west = bbox["west"]
+        east = bbox["east"]
         south = min(bbox["south"], bbox["north"])
         north = max(bbox["south"], bbox["north"])
+
+        # Handle antimeridian crossing in monotonic space
+        if west > east:
+            east_monotonic = east + 360.0
+        else:
+            east_monotonic = east
 
         clean_lats_set = set()
         clean_lons_set = set()
@@ -131,7 +137,7 @@ class WeatherNormalizer:
             lat_step += resolution
 
         lon_step = west
-        while lon_step <= east + 0.0001:
+        while lon_step <= east_monotonic + 0.0001:
             clean_lons_set.add(round(lon_step, 4))
             lon_step += resolution
 
@@ -148,9 +154,14 @@ class WeatherNormalizer:
             if raw_lat is None or raw_lng is None:
                 continue
             
+            # Map raw coordinate to monotonic space if crossing antimeridian
+            raw_lng_monotonic = raw_lng
+            if west > east and raw_lng < west:
+                raw_lng_monotonic += 360.0
+
             # Map raw snapped coordinates to the nearest clean coordinate
             mapped_lat = round(round((raw_lat - south) / resolution) * resolution + south, 4)
-            mapped_lng = round(round((raw_lng - west) / resolution) * resolution + west, 4)
+            mapped_lng = round(round((raw_lng_monotonic - west) / resolution) * resolution + west, 4)
             
             # Clamp to the unique lists to be absolutely sure they lie on the clean grid
             lat = min(unique_lats, key=lambda val: abs(val - mapped_lat))

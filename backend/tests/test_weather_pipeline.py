@@ -1206,7 +1206,7 @@ def test_stage_6h1_requirements(tmp_path, monkeypatch):
     )
     assert response_pt_hawaii.status_code == 200
     res_pt_hawaii_data = response_pt_hawaii.json()
-    assert res_pt_hawaii_data["source"] == "provider_point_api"
+    assert res_pt_hawaii_data["source"] == "backend_direct_point"
     assert res_pt_hawaii_data["coverage_status"] == "outside_grid_tile"
     assert res_pt_hawaii_data["fallback_attempted"] is True
     assert res_pt_hawaii_data["point"]["speed"] == 15.0
@@ -1331,7 +1331,7 @@ def test_stage_6h2_requirements(tmp_path, monkeypatch):
     )
     assert response_pt_outside.status_code == 200
     pt_outside_json = response_pt_outside.json()
-    assert pt_outside_json["source"] == "provider_point_api"
+    assert pt_outside_json["source"] == "backend_direct_point"
     assert pt_outside_json["coverage_status"] == "outside_grid_tile"
     assert pt_outside_json["fallback_attempted"] is True
     assert pt_outside_json["is_forecast_authoritative"] is True

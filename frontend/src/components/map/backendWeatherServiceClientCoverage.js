@@ -153,6 +153,26 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
   }
 
   const { west, south, east, north } = requestedBbox;
+  
+  const isViewportEnabled = (modelName || '').toUpperCase() === 'GFS' && (
+    (inferredDomain === 'marine' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes((layerName || '').toLowerCase())) ||
+    (inferredDomain === 'wind' && (layerName || '').toLowerCase() === 'wind')
+  );
+
+  if (isViewportEnabled) {
+    const selectedTileId = `viewport_${west}_${south}_${east}_${north}`;
+    return {
+      isInside: true,
+      clampedBbox: { west, south, east, north },
+      fallbackReason: null,
+      coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
+      selectedTileId,
+      availableTileIds: REGIONAL_TILES.map(t => t.id),
+      rejectedTileIds: [],
+      tileFallbackReason: null
+    };
+  }
+
   const tileResult = getAvailableTilesFromManifest(modelName, inferredDomain, layerName);
   const tiles = tileResult.tiles || [];
   const availableTileIds = tiles.map(t => t.id);

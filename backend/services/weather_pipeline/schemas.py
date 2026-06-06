@@ -60,6 +60,16 @@ class NormalizedProduct(BaseModel):
     region_id: Optional[str] = None
     coverage_mode: Optional[str] = None
     tile_id: Optional[str] = None
+    
+    # Dynamic viewport metadata fields for Stage 6J
+    is_dynamic_viewport_product: bool = False
+    cache_key: Optional[str] = None
+    cache_hit: Optional[str] = None
+    requested_bbox: Optional[str] = None
+    served_bbox: Optional[str] = None
+    coverage_scope: Optional[str] = None
+    coordinate_count: Optional[int] = None
+    resolution: Optional[float] = None
 
 class NormalizedPointDetail(BaseModel):
     requested_lat: float
@@ -108,6 +118,18 @@ class NormalizedPointResponse(BaseModel):
     coverage_status: Optional[str] = None
     fallback_attempted: Optional[bool] = None
     fallback_reason: Optional[str] = None
+    
+    # Dynamic viewport metadata fields for Stage 6J
+    is_dynamic_viewport_product: bool = False
+    cache_key: Optional[str] = None
+    cache_hit: Optional[str] = None
+    requested_bbox: Optional[str] = None
+    served_bbox: Optional[str] = None
+    coverage_scope: Optional[str] = None
+    coordinate_count: Optional[int] = None
+    resolution: Optional[float] = None
+    grid_parity: Optional[Any] = None
+    gridParity: Optional[Any] = None
 
 class ManifestProduct(BaseModel):
     model: str

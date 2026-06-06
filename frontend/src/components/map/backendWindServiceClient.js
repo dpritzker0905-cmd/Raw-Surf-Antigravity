@@ -201,7 +201,18 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
     return clonedData;
   }
 
-  const url = `${POINT_URL}?model=${model}&domain=wind&layer=wind&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  let gridProductId = null;
+  if (typeof window !== 'undefined') {
+    const diag = window.__WIND_PROJECTION_DIAG__;
+    if (diag && diag.activeLayer === 'wind' && diag.activeModel === model) {
+      gridProductId = diag.productId;
+    }
+  }
+
+  let url = `${POINT_URL}?model=${model}&domain=wind&layer=wind&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
+  if (gridProductId) {
+    url += `&grid_product_id=${encodeURIComponent(gridProductId)}`;
+  }
 
   try {
     const res = await fetch(url, { signal });
@@ -249,7 +260,15 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,
       estimateBasis: json.estimate_basis || null,
-      source: 'network',
+      source: json.source || 'network',
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      coverage_scope: json.coverage_scope || null,
+      requested_bbox: json.requested_bbox || null,
+      served_bbox: json.served_bbox || null,
+      resolution: json.resolution || null,
+      coordinate_count: json.coordinate_count || null,
+      cache_key: json.cache_key || null,
+      cache_hit: json.cache_hit || null,
       model
     };
 
@@ -380,6 +399,14 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       coverageInside: true,
       boundsSource: actualSource,
       productId: json.product_id || null,
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      coverage_scope: json.coverage_scope || null,
+      requested_bbox: json.requested_bbox || null,
+      served_bbox: json.served_bbox || null,
+      resolution: json.resolution || null,
+      coordinate_count: json.coordinate_count || null,
+      cache_key: json.cache_key || null,
+      cache_hit: json.cache_hit || null,
       model
     });
 
