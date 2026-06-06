@@ -514,6 +514,21 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
+      const isDynamicViewportFetch = typeof window !== 'undefined' && window.__MARINE_FETCH_PENDING__;
+
+      if (isDynamicViewportFetch || modelOrLayerOrHourChanged) {
+        engine.clearBuffers(gl);
+        lastUploadedSignatureRef.current = '';
+        lastUploadedGridRef.current = {
+          activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
+          boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
+          sampleSum: 0, timestamp: 0, timeOffsetHours: 0
+        };
+        runDiagnosticsUpdate('instant_clear');
+        if (mapInstance) mapInstance.triggerRepaint();
+        return;
+      }
+
       if (!modelOrLayerOrHourChanged) {
         return;
       }

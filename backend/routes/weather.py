@@ -249,6 +249,8 @@ async def get_grid(
             regional_span_lng = (180.0 - cov.west) + (cov.east + 180.0)
         regional_span_lat = abs(cov.north - cov.south)
 
+        is_regional = regional_span_lng < 350.0
+
         if req_w is not None:
             # Check requested bbox span
             if req_w <= req_e:
@@ -268,6 +270,9 @@ async def get_grid(
         else:
             # If no bbox coordinates provided, serve manifest product by default
             use_manifest_product = True
+
+        if is_regional and not use_manifest_product:
+            matching_manifest_item = None
 
     # 2. Check if we should fetch a dynamic viewport grid instead of manifest product
     if viewport_service.is_viewport_enabled(model, domain, layer, use_manifest_product, bbox):

@@ -83,7 +83,12 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       hourOffset,
       nonzeroCount,
       maxSpeed,
-      renderable
+      renderable,
+      productId: json.product_id || null,
+      coverage_scope: json.coverage_scope || null,
+      is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
+      estimate_basis: json.estimate_basis || null,
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false
     }
   };
 }

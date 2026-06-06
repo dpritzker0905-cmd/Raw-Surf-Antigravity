@@ -18,6 +18,8 @@ import {
   clampViewportBbox,
   mapNormalizedGridToWebGL,
   updateDiagnostics,
+  updateCopernicusDiagnostics,
+  updateProjectionDiag,
   GRID_URL,
   fetchBackendCopernicusGrid,
   fetchBackendMarineGrid
@@ -107,6 +109,93 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
   if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
     const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
     for (let i = 0; i < 10; i++) _perModelHourCache.delete(oldest[i][0]);
+  }
+}
+
+function _updateDiagnosticsOnCacheHit(hitData, wantedModel, wantedHour, wantedLayer, bounds = null) {
+  if (!hitData || typeof window === 'undefined') return;
+  try {
+    const g = hitData.grid || {};
+    const isEuro = wantedModel === 'EURO';
+    const validTimeStr = getSharedValidTime(wantedHour, wantedLayer, wantedModel);
+    const clampRes = clampViewportBbox(bounds || g.bounds, wantedLayer, wantedModel, 'marine');
+    const clampedBbox = clampRes.clampedBbox || g.bounds;
+
+    const details = {
+      url: 'cache',
+      status: 200,
+      validTime: validTimeStr,
+      valueKind: wantedLayer === 'swell_1' ? 'swell_wave_height' : 'wave_height',
+      valueUnit: 'm',
+      displayUnitHint: 'none',
+      elapsedMs: 0,
+      error: null,
+      requestedBbox: bounds || g.bounds,
+      clampedBbox: clampedBbox,
+      fallbackReason: null,
+      hourOffset: wantedHour,
+      layer: wantedLayer,
+      gridVectorCount: g.vectors ? g.vectors.length : 0,
+      nonzeroCount: g.nonzeroCount || 0,
+      renderable: g.renderable !== false,
+      provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
+      sourceDataset: hitData.source_dataset || null,
+      sourceVariables: hitData.source_variables || null,
+      is_forecast_authoritative: g.is_forecast_authoritative || false,
+      is_estimated: g.is_estimated || false,
+      is_test_fixture: g.is_test_fixture || false,
+      gridMode: g.gridMode || 'rectangular',
+      productId: g.productId || null,
+      coverage_scope: g.coverage_scope || null
+    };
+
+    if (isEuro) {
+      updateCopernicusDiagnostics('grid', details);
+    } else {
+      updateDiagnostics('grid', details, wantedModel);
+    }
+
+    const vectors = g.vectors;
+    const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
+    const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
+    const bboxParam = clampedBbox ? `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}` : null;
+
+    updateProjectionDiag('marine', {
+      activeModel: wantedModel,
+      activeLayer: wantedLayer,
+      requestedViewportBounds: bounds || g.bounds,
+      backendRequestBbox: bboxParam,
+      responseGridBounds: g.bounds,
+      coverageBounds: clampRes.coverageBounds,
+      cols: g.cols,
+      rows: g.rows,
+      vectorCount: vectors ? vectors.length : 0,
+      nonzeroCount: g.nonzeroCount || 0,
+      timeOffsetHours: wantedHour,
+      requestedValidTime: validTimeStr,
+      validTime: validTimeStr,
+      firstVectorLatLng: firstVector,
+      lastVectorLatLng: lastVector,
+      productId: g.productId || null,
+      provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
+      renderable: g.renderable !== false,
+      clampedBbox: clampedBbox,
+      selectedTileId: clampRes.selectedTileId,
+      rejectedTileIds: clampRes.rejectedTileIds,
+      regionId: hitData.region_id || clampRes.selectedTileId,
+      tileId: hitData.tile_id || clampRes.selectedTileId,
+      isEstimated: g.is_estimated || false,
+      estimateBasis: g.estimate_basis || null,
+      coverage_scope: g.coverage_scope || null,
+      is_dynamic_viewport_product: g.is_dynamic_viewport_product || false,
+      requested_bbox: g.requested_bbox || null,
+      served_bbox: g.served_bbox || null,
+      cache_key: g.cache_key || null,
+      resolution: g.resolution || null,
+      coordinate_count: g.coordinate_count || null
+    });
+  } catch (e) {
+    console.warn('[Safe Cache] Failed to update diagnostics on cache hit:', e.message);
   }
 }
 
@@ -270,6 +359,92 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     } else if (Math.abs(returnedHour - wantedHour) > 6) {
       console.warn(`[Safe Cache] Hour delta ${Math.abs(returnedHour - wantedHour)}h > 6h, rejected.`);
       hitData = null;
+    }
+
+    if (hitData && typeof window !== 'undefined') {
+      try {
+        const g = hitData.grid || {};
+        const isEuro = wanted === 'EURO';
+        const validTimeStr = getSharedValidTime(returnedHour, wantedLayer, wanted);
+        const clampRes = clampViewportBbox(bounds || g.bounds, wantedLayer, wanted, 'marine');
+        const clampedBbox = clampRes.clampedBbox || g.bounds;
+
+        const details = {
+          url: 'cache',
+          status: 200,
+          validTime: validTimeStr,
+          valueKind: wantedLayer === 'swell_1' ? 'swell_wave_height' : 'wave_height',
+          valueUnit: 'm',
+          displayUnitHint: 'none',
+          elapsedMs: 0,
+          error: null,
+          requestedBbox: bounds || g.bounds,
+          clampedBbox: clampedBbox,
+          fallbackReason: null,
+          hourOffset: returnedHour,
+          layer: wantedLayer,
+          gridVectorCount: g.vectors ? g.vectors.length : 0,
+          nonzeroCount: g.nonzeroCount || 0,
+          renderable: g.renderable !== false,
+          provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
+          sourceDataset: hitData.source_dataset || null,
+          sourceVariables: hitData.source_variables || null,
+          is_forecast_authoritative: g.is_forecast_authoritative || false,
+          is_estimated: g.is_estimated || false,
+          is_test_fixture: g.is_test_fixture || false,
+          gridMode: g.gridMode || 'rectangular',
+          productId: g.productId || null,
+          coverage_scope: g.coverage_scope || null
+        };
+
+        if (isEuro) {
+          updateCopernicusDiagnostics('grid', details);
+        } else {
+          updateDiagnostics('grid', details, wanted);
+        }
+
+        const vectors = g.vectors;
+        const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
+        const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
+        const bboxParam = clampedBbox ? `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}` : null;
+
+        updateProjectionDiag('marine', {
+          activeModel: wanted,
+          activeLayer: wantedLayer,
+          requestedViewportBounds: bounds || g.bounds,
+          backendRequestBbox: bboxParam,
+          responseGridBounds: g.bounds,
+          coverageBounds: clampRes.coverageBounds,
+          cols: g.cols,
+          rows: g.rows,
+          vectorCount: vectors ? vectors.length : 0,
+          nonzeroCount: g.nonzeroCount || 0,
+          timeOffsetHours: returnedHour,
+          requestedValidTime: validTimeStr,
+          validTime: validTimeStr,
+          firstVectorLatLng: firstVector,
+          lastVectorLatLng: lastVector,
+          productId: g.productId || null,
+          provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
+          renderable: g.renderable !== false,
+          clampedBbox: clampedBbox,
+          selectedTileId: clampRes.selectedTileId,
+          rejectedTileIds: clampRes.rejectedTileIds,
+          regionId: hitData.region_id || clampRes.selectedTileId,
+          tileId: hitData.tile_id || clampRes.selectedTileId,
+          isEstimated: g.is_estimated || false,
+          estimateBasis: g.estimate_basis || null,
+          coverage_scope: g.coverage_scope || null,
+          is_dynamic_viewport_product: g.is_dynamic_viewport_product || false,
+          requested_bbox: g.requested_bbox || null,
+          served_bbox: g.served_bbox || null,
+          cache_key: g.cache_key || null,
+          resolution: g.resolution || null,
+          coordinate_count: g.coordinate_count || null
+        });
+      } catch (e) {
+        console.warn('[Safe Cache] Failed to update diagnostics on cache hit:', e.message);
+      }
     }
   }
   const provider = hitData?.grid?.__provider || hitData?.grid?.provider || 'none';
@@ -557,6 +732,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
             sig.rows === (g.rows || 0) &&
             sig.vectorsLength === (g.vectors?.length || 0)) {
           console.log(`[Backend Cache Hit] Returning cached backend grid for ${model || 'GFS'} ${activeLayer} at hourOffset=+${hourOffset}h`);
+          _updateDiagnosticsOnCacheHit(exact.data, model || 'GFS', hourOffset, activeLayer, bounds);
           return exact.data;
         }
       }
@@ -589,6 +765,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
                   sig.rows === (g.rows || 0) &&
                   sig.vectorsLength === (g.vectors?.length || 0)) {
                 console.log(`[Backend Contained Cache Hit] Returning cached backend grid for ${model || 'GFS'} ${activeLayer} at hourOffset=+${hourOffset}h`);
+                _updateDiagnosticsOnCacheHit(entry.data, model || 'GFS', hourOffset, activeLayer, bounds);
                 return entry.data;
               }
             }
