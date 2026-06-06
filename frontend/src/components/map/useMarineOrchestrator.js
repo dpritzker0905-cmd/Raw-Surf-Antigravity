@@ -168,6 +168,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         }
 
         locks.isFetching = true;
+        setMarineData(null); // Instantly clear regional heatmap during network fetch
         if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
         const fetchIntent = { model, layer, hour: timeOffset };
 
