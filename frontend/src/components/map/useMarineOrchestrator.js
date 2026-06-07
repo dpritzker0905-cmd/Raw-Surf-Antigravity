@@ -117,6 +117,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const updateMarineGrid = async (source = 'unknown') => {
       let phase = 'init';
       const model = activeModelRef.current, layer = activeMarineLayerRef.current || 'waves', timeOffset = timeOffsetRef.current;
+      const zoom = mapInstance.getZoom();
 
       try {
         const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
