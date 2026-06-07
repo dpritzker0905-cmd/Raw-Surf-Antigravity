@@ -21,6 +21,153 @@ export const STATUS_URL = `${BACKEND_URL}/api/weather/status`;
 export const GRID_URL = `${BACKEND_URL}/api/weather/grid`;
 export const POINT_URL = `${BACKEND_URL}/api/weather/point`;
 
+if (typeof window !== 'undefined') {
+  window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+  
+  window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ = function() {
+    const trace = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+    const reasons = [];
+    let failedStage = "none";
+    let nextPatchTarget = "none";
+
+    // 1. Check backendResponse
+    if (!trace.backendResponse) {
+      failedStage = "backendResponse";
+      reasons.push("Missing backendResponse trace data");
+      nextPatchTarget = "fetchBackendMarineGrid";
+    } else {
+      const br = trace.backendResponse;
+      if (br.product_id && br.product_id.includes("florida_east_coast")) {
+        failedStage = "backendResponse";
+        reasons.push("Backend product ID contains 'florida_east_coast': " + br.product_id);
+        nextPatchTarget = "backend/routes/weather.py (route selector)";
+      }
+      if (br.is_dynamic_viewport_product !== true) {
+        failedStage = "backendResponse";
+        reasons.push("Backend is_dynamic_viewport_product is not true");
+        nextPatchTarget = "backend/routes/weather.py";
+      }
+      if (br.coverage_scope !== "viewport" && br.coverage_scope !== "global_coarse") {
+        failedStage = "backendResponse";
+        reasons.push("Backend coverage_scope is '" + br.coverage_scope + "', expected 'viewport' or 'global_coarse'");
+        nextPatchTarget = "backend/routes/weather.py";
+      }
+      if (br.nonzeroSpeedCount === 0) {
+        failedStage = "backendResponse";
+        reasons.push("Backend nonzero speed count is 0");
+        nextPatchTarget = "backend weather ingestion / Open-Meteo API";
+      }
+    }
+
+    // 2. Check mappedGrid
+    if (failedStage === "none") {
+      if (!trace.mappedGrid) {
+        failedStage = "mappedGrid";
+        reasons.push("Missing mappedGrid trace data");
+        nextPatchTarget = "mapNormalizedGridToWebGL";
+      } else {
+        const mg = trace.mappedGrid;
+        if (mg.rootFlatSpeedNonzeroCount === 0) {
+          failedStage = "mappedGrid";
+          reasons.push("Mapped root flat speed nonzero count is 0");
+          nextPatchTarget = "mapNormalizedGridToWebGL";
+        }
+        if (mg.nestedWavesSpeedNonzeroCount === 0) {
+          failedStage = "mappedGrid";
+          reasons.push("Mapped nested waves speed nonzero count is 0");
+          nextPatchTarget = "mapNormalizedGridToWebGL";
+        }
+      }
+    }
+
+    // 3. Check cacheCommit
+    if (failedStage === "none") {
+      if (!trace.cacheCommit) {
+        failedStage = "cacheCommit";
+        reasons.push("Missing cacheCommit trace data");
+        nextPatchTarget = "useMarineOrchestrator.js";
+      } else {
+        const cc = trace.cacheCommit;
+        const brProductId = trace.backendResponse?.product_id;
+        if (cc.committedProductId !== brProductId) {
+          failedStage = "cacheCommit";
+          reasons.push("Committed product ID (" + cc.committedProductId + ") differs from backend product ID (" + brProductId + ")");
+          nextPatchTarget = "useMarineOrchestrator.js / marineController.js";
+        }
+      }
+    }
+
+    // 4. Check webglTextureUpload
+    if (failedStage === "none") {
+      if (!trace.webglTextureUpload) {
+        failedStage = "webglTextureUpload";
+        reasons.push("Missing webglTextureUpload trace data");
+        nextPatchTarget = "WebGLMarineLayer.js / WebGLMarineTextureEncoder.js";
+      } else {
+        const tu = trace.webglTextureUpload;
+        const ccProductId = trace.cacheCommit?.committedProductId;
+        if (tu.uploadProductId !== ccProductId) {
+          failedStage = "webglTextureUpload";
+          reasons.push("Uploaded product ID (" + tu.uploadProductId + ") differs from committed product ID (" + ccProductId + ")");
+          nextPatchTarget = "WebGLMarineLayer.js";
+        }
+        if (tu.encodedTextureMax <= tu.encodedTextureMin) {
+          failedStage = "webglTextureUpload";
+          reasons.push("Encoded texture max (" + tu.encodedTextureMax + ") is <= min (" + tu.encodedTextureMin + ")");
+          nextPatchTarget = "WebGLMarineTextureEncoder.js";
+        }
+        if (tu.encodedNonzeroPixelCount === 0) {
+          failedStage = "webglTextureUpload";
+          reasons.push("Encoded nonzero pixel count is 0");
+          nextPatchTarget = "WebGLMarineTextureEncoder.js";
+        }
+        if (tu.maskValidOceanCount === 0) {
+          failedStage = "webglTextureUpload";
+          reasons.push("Mask valid ocean count is 0");
+          nextPatchTarget = "WebGLMarineTextureEncoder.js / renderMaskToCanvas";
+        }
+        if (tu.renderDecision !== "render") {
+          failedStage = "webglTextureUpload";
+          reasons.push("Render decision is '" + tu.renderDecision + "', expected 'render'");
+          nextPatchTarget = "WebGLMarineLayer.js";
+        }
+      }
+    }
+
+    // 6. Check exactPoint
+    if (failedStage === "none") {
+      if (trace.exactPoint) {
+        const ep = trace.exactPoint;
+        const tuProductId = trace.webglTextureUpload?.uploadProductId;
+        if (!ep.pointRequestUrl || !ep.pointRequestUrl.includes("grid_product_id=")) {
+          failedStage = "exactPoint";
+          reasons.push("Exact point request URL lacks 'grid_product_id': " + ep.pointRequestUrl);
+          nextPatchTarget = "backendWeatherServiceClient.js (fetchBackendExactPoint)";
+        }
+        if (ep.pointProductId !== tuProductId) {
+          failedStage = "exactPoint";
+          reasons.push("Point product ID (" + ep.pointProductId + ") differs from uploaded product ID (" + tuProductId + ")");
+          nextPatchTarget = "backend/services/weather_pipeline/point_resolution.py";
+        }
+        const epTime = ep.pointValidTime ? new Date(ep.pointValidTime).toISOString() : "";
+        const ccTime = trace.cacheCommit?.committedValidTime ? new Date(trace.cacheCommit.committedValidTime).toISOString() : "";
+        if (epTime !== ccTime) {
+          failedStage = "exactPoint";
+          reasons.push("Point valid_time (" + epTime + ") differs from grid valid_time (" + ccTime + ")");
+          nextPatchTarget = "backend/services/weather_pipeline/point_resolution.py / backendWeatherServiceClient.js";
+        }
+      }
+    }
+
+    trace.verdict = {
+      status: reasons.length === 0 ? "PASS" : "BLOCKED",
+      failedStage,
+      failReasons: reasons,
+      nextPatchTarget
+    };
+  };
+}
+
 /**
  * Fetches the products manifest from the backend registry.
  * Forces refetch if cachedManifest is empty to support dynamic ingestion updates.
@@ -298,6 +445,47 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       is_dynamic_viewport_product: json.is_dynamic_viewport_product || false
     }
   };
+
+  if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+    window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+    const rootFlatSpeedNonzeroCount = mappedVectors.filter(v => v.speed > 0).length;
+    const nestedWavesSpeedNonzeroCount = mappedVectors.filter(v => v.waves && v.waves.speed > 0).length;
+    const rootFlatMaxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v.speed)) : 0;
+    const nestedWavesMaxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v.waves ? v.waves.speed : 0)) : 0;
+    const sampleMapped = mappedVectors.filter(v => v.speed > 0).slice(0, 5).map(v => ({
+      root: {
+        speed: v.speed,
+        u: v.u,
+        v: v.v,
+        period: v.period,
+        isOcean: v.isOcean
+      },
+      waves: {
+        speed: v.waves ? v.waves.speed : null,
+        u: v.waves ? v.waves.u : null,
+        v: v.waves ? v.waves.v : null,
+        period: v.waves ? v.waves.period : null
+      }
+    }));
+    window.__GFS_WAVES_SINGLE_SLICE_TRACE__.mappedGrid = {
+      gridProductId: json.product_id || null,
+      bounds: json.grid?.bounds || snappedBounds,
+      cols: json.grid?.cols,
+      rows: json.grid?.rows,
+      vectorsLength: mappedVectors.length,
+      activeLayer: layer,
+      rootFlatSpeedNonzeroCount,
+      nestedWavesSpeedNonzeroCount,
+      rootFlatMaxSpeed,
+      nestedWavesMaxSpeed,
+      sampleMappedVectors: sampleMapped
+    };
+    if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+      window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -498,6 +686,26 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       cache_hit: json.cache_hit || null
     };
 
+    if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__.exactPoint = {
+        pointRequestUrl: url,
+        pointProductId: json.point?.product_id || json.product_id || null,
+        pointValidTime: json.point?.valid_time || json.valid_time || null,
+        pointSpeed: json.point?.speed,
+        pointDirection: json.point?.direction,
+        pointPeriod: json.point?.period,
+        gridProductId: gridProductId,
+        gridParity: json.gridParity !== undefined ? json.gridParity : (json.point?.grid_parity),
+        fallbackReason: json.fallbackReason || json.point?.fallback_reason || null,
+        coverageStatus: json.status || json.coverage_status || null,
+        infoboxDisplayedHeight: json.point?.speed ? `${json.point.speed.toFixed(1)} m` : 'No Data'
+      };
+      if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+        window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+      }
+    }
+
     pointCache.set(cacheKey, { data, details });
     updateDiagnostics('point', details, model);
     return data;
@@ -649,6 +857,38 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       throw new Error(reason);
     }
     const json = await res.json();
+
+    if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+      const vectors = json.grid && Array.isArray(json.grid.vectors) ? json.grid.vectors : [];
+      const nonzero = vectors.filter(v => (v.speed || 0) > 0);
+      const minS = vectors.length > 0 ? Math.min(...vectors.map(v => v.speed || 0)) : 0;
+      const maxS = vectors.length > 0 ? Math.max(...vectors.map(v => v.speed || 0)) : 0;
+      const samples = nonzero.slice(0, 5).map(v => ({
+        lat: v.lat,
+        lng: v.lng,
+        speed: v.speed,
+        u: v.u,
+        v: v.v,
+        period: v.period,
+        is_valid: v.is_valid !== false
+      }));
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__.backendResponse = {
+        product_id: json.product_id || null,
+        valid_time: json.valid_time || null,
+        requested_bbox: json.requested_bbox || bboxParam,
+        served_bbox: json.served_bbox || null,
+        vectorCount: vectors.length,
+        nonzeroSpeedCount: nonzero.length,
+        minSpeed: minS,
+        maxSpeed: maxS,
+        sampleVectors: samples
+      };
+      if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+        window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+      }
+    }
+
     const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);
 
     updateDiagnostics('grid', {

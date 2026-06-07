@@ -527,6 +527,49 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     dataMask[i * 4 + 3] = oceanFlag;
   }
 
+  // Compute WebGL texture stats for GFS waves live trace
+  if (waveGrid.__sourceModel === 'GFS' && activeLayer === 'waves') {
+    let minH = 1.0, maxH = 0.0, sumH = 0.0, nonzeroCount = 0;
+    let validOceanCount = 0;
+    for (let i = 0; i < cols * rows; i++) {
+      const h = dataWave[i * 4 + 2] / 255.0;
+      if (h > 0) {
+        nonzeroCount++;
+        sumH += h;
+        if (h < minH) minH = h;
+        if (h > maxH) maxH = h;
+      }
+      if (dataMask[i * 4 + 0] === 255) {
+        validOceanCount++;
+      }
+    }
+    const meanH = nonzeroCount > 0 ? sumH / nonzeroCount : 0;
+    
+    if (typeof window !== 'undefined') {
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__.webglTextureUpload = {
+        uploadProductId: waveGrid.productId || null,
+        uploadReason: window.__WEBGL_MARINE_UPLOAD_REASON__ || 'unknown',
+        activeLayer: activeLayer,
+        cols: cols,
+        rows: rows,
+        vectorCount: vectors.length,
+        flatSpeedNonzeroCount: conformedVectors.filter(v => v.speed > 0).length,
+        encodedTextureMin: nonzeroCount > 0 ? minH : 0.0,
+        encodedTextureMax: maxH,
+        encodedTextureMean: meanH,
+        encodedNonzeroPixelCount: nonzeroCount,
+        maskValidOceanCount: validOceanCount,
+        colorRampName: window.__WEBGL_MARINE_THEME__ || 'default',
+        opacity: window.__WEBGL_MARINE_OPACITY__ || 0.65,
+        renderDecision: (nonzeroCount > 0 && validOceanCount > 0) ? 'render' : 'skip'
+      };
+      if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+        window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+      }
+    }
+  }
+
   for (let r = 0; r < rows; r++) {
     const idx0 = (r * cols + 0) * 4;
     const idxN = (r * cols + cols - 1) * 4;

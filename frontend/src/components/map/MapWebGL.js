@@ -374,6 +374,9 @@ var MapWebGL = ({
     res.__gridProvider = marineData?.grid?.__gridProvider || marineData?.grid?.provider || 'none';
     res.__componentLayer = marineData?.grid?.__componentLayer || 'none';
     res.__gridSupportsLayer = layerSupported;
+    res.productId = marineData.grid.productId || marineData.productId || null;
+    res.is_dynamic_viewport_product = marineData.grid.is_dynamic_viewport_product || false;
+    res.coverage_scope = marineData.grid.coverage_scope || null;
     res.activeMarineLayer = activeMarineLayer;
     res.activeModel = activeModel;
     res.hourOffset = marineData.grid.hourOffset !== undefined ? marineData.grid.hourOffset : timeOffsetHours;

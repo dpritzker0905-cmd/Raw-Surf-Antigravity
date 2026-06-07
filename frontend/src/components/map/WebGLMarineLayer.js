@@ -266,6 +266,18 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (!engineRef.current || !gl || !grid || !grid.vectors?.length) return;
     const engine = engineRef.current;
 
+    if (typeof window !== 'undefined') {
+      window.__WEBGL_MARINE_THEME__ = themeRef.current || 'default';
+      const z = mapRef.current ? mapRef.current.getZoom() : 6;
+      let opacity = 0.65;
+      if (z <= 2) opacity = 0.55;
+      else if (z <= 5) opacity = 0.55 + (z - 2) / 3 * 0.10;
+      else if (z <= 8) opacity = 0.65 + (z - 5) / 3 * 0.10;
+      else if (z <= 12) opacity = 0.75 + (z - 8) / 4 * 0.05;
+      else opacity = 0.85;
+      window.__WEBGL_MARINE_OPACITY__ = opacity;
+    }
+
     const gridModel = grid.__sourceModel || activeModelRef.current;
     const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const gridProvider = grid.grid?.__gridProvider || grid.__gridProvider || 'none';

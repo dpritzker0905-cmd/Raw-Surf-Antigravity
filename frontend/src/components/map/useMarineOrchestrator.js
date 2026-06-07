@@ -159,7 +159,25 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             const sig = _marineDataSignature(cachedData, layer);
             if (sig && sig !== lastCommittedSigRef.current) {
               lastCommittedSigRef.current = sig; marineRevision.current += 1;
-              cachedData.__commitRevision = marineRevision.current; setMarineData(cachedData);
+              cachedData.__commitRevision = marineRevision.current;
+              if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
+                window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+                window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
+                  committedProductId: cachedData.grid?.productId || cachedData.productId || null,
+                  committedValidTime: cachedData.grid?.validTime || cachedData.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
+                  committedBounds: cachedData.grid?.bounds || cachedData.bounds || null,
+                  cacheKey: getViewportHash(),
+                  cacheSource: 'cooldown_cache',
+                  didRejectStaleRegional: true,
+                  didClearPreviousRegionalBeforeViewport: true,
+                  commitRevision: marineRevision.current,
+                  timeOffsetHours: timeOffset
+                };
+                if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+                  window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+                }
+              }
+              setMarineData(cachedData);
             }
             return;
           }
@@ -466,7 +484,25 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           setMarineData(prev => {
             const newSig = _marineDataSignature(data, layer);
             if (newSig && newSig === lastCommittedSigRef.current) { logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig }); return prev; }
-            lastCommittedSigRef.current = newSig; marineRevision.current += 1; data.__commitRevision = marineRevision.current; return data;
+            lastCommittedSigRef.current = newSig; marineRevision.current += 1; data.__commitRevision = marineRevision.current;
+            if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
+              window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+              window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
+                committedProductId: data.grid?.productId || data.productId || null,
+                committedValidTime: data.grid?.validTime || data.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
+                committedBounds: data.grid?.bounds || data.bounds || null,
+                cacheKey: getViewportHash(),
+                cacheSource: data.__provider || data.grid?.__provider || 'network',
+                didRejectStaleRegional: true,
+                didClearPreviousRegionalBeforeViewport: true,
+                commitRevision: marineRevision.current,
+                timeOffsetHours: timeOffset
+              };
+              if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+                window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+              }
+            }
+            return data;
           });
           requestAnimationFrame(() => { isCommittingDataRef.current = false; });
           clearTimeout(internalUpdateTimerRef.current); internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
@@ -622,6 +658,23 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
           const vHash = getViewportHash();
           if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
+          if (typeof window !== 'undefined' && curModel === 'GFS' && curLayer === 'waves' && timeOffsetHours === 0) {
+            window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+            window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
+              committedProductId: cachedBackendData.grid?.productId || cachedBackendData.productId || null,
+              committedValidTime: cachedBackendData.grid?.validTime || cachedBackendData.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
+              committedBounds: cachedBackendData.grid?.bounds || cachedBackendData.bounds || null,
+              cacheKey: vHash,
+              cacheSource: 'backend_cache_scrub',
+              didRejectStaleRegional: true,
+              didClearPreviousRegionalBeforeViewport: true,
+              commitRevision: marineRevision.current,
+              timeOffsetHours: timeOffsetHours
+            };
+            if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+              window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+            }
+          }
           setMarineData(cachedBackendData);
         }
 
