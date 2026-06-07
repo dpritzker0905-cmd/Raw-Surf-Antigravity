@@ -163,6 +163,18 @@ class OpenMeteoProvider:
         )
 
         import os
+        is_test = (
+            os.environ.get("NODE_ENV") == "test"
+            or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+            or os.environ.get("TESTING") == "1"
+        )
+        if is_test:
+            logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock grid immediately.")
+            mock_res = generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
+            for item in mock_res:
+                item["is_test_fixture"] = True
+            return mock_res
+
         use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "false").lower() == "true")
         proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
 
@@ -295,6 +307,19 @@ class OpenMeteoProvider:
         )
 
         import os
+        is_test = (
+            os.environ.get("NODE_ENV") == "test"
+            or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+            or os.environ.get("TESTING") == "1"
+        )
+        if is_test:
+            logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock point immediately.")
+            mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)
+            if mock_res:
+                mock_res[0]["is_test_fixture"] = True
+                return mock_res[0]
+            return None
+
         use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "false").lower() == "true")
         proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
 

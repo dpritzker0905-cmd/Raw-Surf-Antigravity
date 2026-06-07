@@ -153,7 +153,12 @@ export function recordTruthStage(stageName, data, file, functionName) {
   let mismatchReason = null;
 
   if (truthTag.model === "GFS" && truthTag.layer === "waves") {
-    const previousStages = trace.stages.filter(s => s.truthTag && s.truthTag.model === "GFS" && s.truthTag.layer === "waves");
+    const previousStages = trace.stages.filter(s => 
+      s.truthTag && 
+      s.truthTag.model === "GFS" && 
+      s.truthTag.layer === "waves" &&
+      s.truthTag.valid_time === truthTag.valid_time
+    );
     if (previousStages.length > 0) {
       const prev = previousStages[previousStages.length - 1];
       if (prev.truthTag.traceId !== traceId) {

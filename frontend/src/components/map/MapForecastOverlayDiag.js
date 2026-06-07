@@ -17,6 +17,7 @@ export function logPressureTelemetryDiagnostics({
   exactPointStatus,
   exactPointResponse
 }) {
+  const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
   if (activeLayer === 'pressure' && isExactPointAuthority && typeof getBackendPressureFlag === 'function' && getBackendPressureFlag()) {
     if (effectiveExactPointResponse) {
       const backendModel = effectiveExactPointResponse.requestedModel;
@@ -25,7 +26,7 @@ export function logPressureTelemetryDiagnostics({
       
       const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
       const roundedNow = Math.round(baseTime / 3600000) * 3600000;
-      const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
+      const targetDt = new Date(roundedNow + offset * 3600000);
       const rasterValidTime = targetDt.toISOString();
       
       const modelMatch = rasterModel === backendModel;
@@ -105,7 +106,7 @@ export function logPressureTelemetryDiagnostics({
       console.log('[Pressure Telemetry Diagnostics] Loading backend pressure point...');
     } else {
       const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
-      const rasterValidTime = new Date(baseTime + timeOffsetHours * 3600000).toISOString();
+      const rasterValidTime = new Date(baseTime + offset * 3600000).toISOString();
       let status = 'fallback';
       if (['no_backend_coverage', 'no_copernicus_coverage', 'exact_no_time_coverage', 'exact_empty'].includes(exactPointStatus)) {
         status = 'no_coverage';

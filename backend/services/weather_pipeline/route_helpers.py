@@ -208,6 +208,9 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
         cloned_product.grid.cols = len(unique_lons)
         cloned_product.grid.rows = len(unique_lats)
         cloned_product.grid.vectors = final_vectors
+        cloned_product.requested_bbox = bbox_str
+        cloned_product.served_bbox = f"{actual_west:.4f},{actual_south:.4f},{actual_east:.4f},{actual_north:.4f}"
+        cloned_product.coverage = cloned_product.grid.bounds
     else:
         cloned_product.grid.bounds = CoverageBounds(
             west=west, south=south, east=east, north=north
@@ -215,6 +218,9 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
         cloned_product.grid.cols = 0
         cloned_product.grid.rows = 0
         cloned_product.grid.vectors = []
+        cloned_product.requested_bbox = bbox_str
+        cloned_product.served_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+        cloned_product.coverage = cloned_product.grid.bounds
 
     return cloned_product
 

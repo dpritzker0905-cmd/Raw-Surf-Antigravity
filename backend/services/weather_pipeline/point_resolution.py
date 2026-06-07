@@ -14,7 +14,8 @@ from services.weather_pipeline.schemas import (
 )
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, is_inside_bounds, make_unsupported_icon_swell2_point_response,
-    make_no_coverage_point_response, make_grid_miss_point_response, compute_truth_tag
+    make_no_coverage_point_response, make_grid_miss_point_response, compute_truth_tag,
+    filter_grid_to_bbox
 )
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,8 @@ class PointResolutionService:
         lat: float,
         lng: float,
         valid_time_str: str,
-        grid_product_id: Optional[str] = None
+        grid_product_id: Optional[str] = None,
+        grid_bbox: Optional[str] = None
     ) -> Any:
         """
         Resolves point forecast queries by sampling matching grids or calling the direct point API.
@@ -76,6 +78,10 @@ class PointResolutionService:
             product = self.store.load_product(grid_product_id)
             if not product or not product.grid or not product.grid.vectors:
                 return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "grid_product_not_found")
+
+            # Crop if grid_bbox is provided
+            if grid_bbox:
+                product = filter_grid_to_bbox(product, grid_bbox)
 
             # Enforce bounds containment strictly (0.01 margin, antimeridian aware)
             if not is_inside_bounds(lat, lng, product.grid.bounds, margin=0.01):
@@ -107,6 +113,8 @@ class PointResolutionService:
         if dynamic_match:
             product = self.store.load_product(dynamic_match["product_id"])
             if product:
+                if grid_bbox:
+                    product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
                 response.product_id = dynamic_match["product_id"]
                 response.source = "grid_file"
@@ -153,6 +161,8 @@ class PointResolutionService:
         if matching_item:
             product = self.store.load_product(matching_item.filename)
             if product:
+                if grid_bbox:
+                    product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
                 response.product_id = matching_item.filename
                 response.source = "grid_file"

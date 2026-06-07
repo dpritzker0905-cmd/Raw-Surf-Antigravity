@@ -705,8 +705,9 @@ export var MapForecastOverlay = ({
       return `${lat}°, ${lng}°`;
     }
     if (isLive) return 'Live Conditions';
+    const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
     const d = new Date();
-    d.setHours(d.getHours() + timeOffsetHours);
+    d.setHours(d.getHours() + offset);
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' });
   })();
 

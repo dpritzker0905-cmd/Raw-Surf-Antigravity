@@ -190,7 +190,16 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
       if (isBackendActive) {
         const curLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-        const cached = getModelSafeMarine(activeModel, requestedHour, curLayer);
+        let vpBounds = null;
+        if (mapInstance) {
+          try {
+            const b = mapInstance.getBounds();
+            vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+          } catch (e) {
+            vpBounds = null;
+          }
+        }
+        const cached = getModelSafeMarine(activeModel, requestedHour, curLayer, vpBounds);
         if (!cached || cached.__staleHour || cached.__failureReason || cached.grid?.__failureReason) {
           coverageMissing = true;
         }

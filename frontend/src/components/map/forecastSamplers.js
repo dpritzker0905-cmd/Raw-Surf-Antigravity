@@ -437,6 +437,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 export function selectExactPointHour(cachedResponse, hourOffset) {
   if (!cachedResponse) return null;
 
+  const offset = isNaN(Number(hourOffset)) ? 0 : Number(hourOffset);
   const model = cachedResponse.requestedModel || 'GFS';
   const activeLayer = cachedResponse.activeLayer || 'waves';
 
@@ -458,7 +459,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
     if (diag && 
         (diag.fallbackReason === fallbackReasonValue || diag.fallbackReason?.includes(fallbackReasonValue)) && 
-        (diag.requestedHour === hourOffset || diag.lastGridFetch?.hourOffset === hourOffset)) {
+        (diag.requestedHour === offset || diag.lastGridFetch?.hourOffset === offset)) {
       return {
         status: fallbackReasonValue,
         source: 'exact_point_api',
@@ -550,7 +551,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     nativeLimit = Math.min(hardNativeLimit, hoursFromNow);
   }
 
-  if (isEuro && hourOffset > nativeLimit && !getBackendCopernicusFlag()) {
+  if (isEuro && offset > nativeLimit && !getBackendCopernicusFlag()) {
     const activeLayer = cachedResponse.activeLayer || (hasCombinedWaves ? 'waves' : 'swell_1');
     const rLat = +cachedResponse.requestedLat.toFixed(2);
     const rLng = +cachedResponse.requestedLng.toFixed(2);
@@ -592,10 +593,10 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
     const anchorIdxEuro = findHourIndex(cachedResponse.hourly.time, nativeLimit);
     const anchorIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, nativeLimit) : 0;
-    const targetIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, hourOffset) : 0;
+    const targetIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, offset) : 0;
 
     const anchorIdxIcon = iconData ? findHourIndex(iconData.hourly.time, nativeLimit) : 0;
-    const targetIdxIcon = iconData ? findHourIndex(iconData.hourly.time, hourOffset) : 0;
+    const targetIdxIcon = iconData ? findHourIndex(iconData.hourly.time, offset) : 0;
 
     const euroAnchor = {};
     const gfsAnchor = {};
@@ -622,9 +623,9 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
       }
     });
 
-    const est = estimateEuroPoint(hourOffset, nativeLimit, activeLayer, euroAnchor, gfsTarget, gfsAnchor, iconTarget, iconAnchor);
+    const est = estimateEuroPoint(offset, nativeLimit, activeLayer, euroAnchor, gfsTarget, gfsAnchor, iconTarget, iconAnchor);
     if (est) {
-      const targetTimeStr = new Date(Date.now() + hourOffset * 3600000).toISOString();
+      const targetTimeStr = new Date(Date.now() + offset * 3600000).toISOString();
       return {
         ...est,
         status: 'euro_extended_estimate',
@@ -653,7 +654,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
     iconLimit = Math.min(ICON_LIMIT, hoursFromNow);
   }
-  if (isIcon && hourOffset > iconLimit && !getBackendIconMarineFlag()) {
+  if (isIcon && offset > iconLimit && !getBackendIconMarineFlag()) {
     const activeLayer = cachedResponse.activeLayer || 'waves';
     const rLat = +cachedResponse.requestedLat.toFixed(2);
     const rLng = +cachedResponse.requestedLng.toFixed(2);
@@ -693,7 +694,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
     const anchorIdxIcon = findHourIndex(cachedResponse.hourly.time, iconLimit);
     const anchorIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, iconLimit) : 0;
-    const targetIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, hourOffset) : 0;
+    const targetIdxGfs = gfsData ? findHourIndex(gfsData.hourly.time, offset) : 0;
 
     const iconAnchor = {};
     const gfsAnchor = {};
@@ -713,9 +714,9 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
       }
     });
 
-    const est = estimateIconPoint(hourOffset, ICON_LIMIT, activeLayer, iconAnchor, gfsTarget, gfsAnchor);
+    const est = estimateIconPoint(offset, ICON_LIMIT, activeLayer, iconAnchor, gfsTarget, gfsAnchor);
     if (est) {
-      const targetTimeStr = new Date(Date.now() + hourOffset * 3600000).toISOString();
+      const targetTimeStr = new Date(Date.now() + offset * 3600000).toISOString();
       return {
         ...est,
         status: 'icon_extended_estimate',
@@ -736,9 +737,9 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     }
   }
 
-  const bestIdx = findHourIndex(times, hourOffset);
+  const bestIdx = findHourIndex(times, offset);
   const targetTime = new Date();
-  targetTime.setHours(targetTime.getHours() + (hourOffset || 0));
+  targetTime.setHours(targetTime.getHours() + (offset || 0));
   const timeStr = times[bestIdx];
   const minDiff = Math.abs(new Date(timeStr.endsWith('Z') ? timeStr : timeStr + 'Z').getTime() - targetTime.getTime());
 

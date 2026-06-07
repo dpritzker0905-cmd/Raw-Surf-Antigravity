@@ -34,13 +34,14 @@ export function getBackendPressureFlag() {
 export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signal, model = 'GFS') {
   const start = Date.now();
   const targetModel = (model || 'GFS').toUpperCase();
+  const offset = isNaN(Number(hourOffset)) ? 0 : Number(hourOffset);
   
   // Try to load manifest to get nearest valid_time
   const manifest = await fetchProductsManifest().catch(() => null);
   
   const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
   const roundedNow = Math.round(baseTime / 3600000) * 3600000;
-  const targetDt = new Date(roundedNow + hourOffset * 3600000);
+  const targetDt = new Date(roundedNow + offset * 3600000);
   const requestedValidTime = targetDt.toISOString();
   
   let validTimeStr = requestedValidTime;
@@ -138,7 +139,7 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
       displayUnitHint: json.display_unit_hint || 'hPa',
       elapsedMs: Date.now() - start,
       error: null,
-      hourOffset,
+      hourOffset: offset,
       layer: 'pressure',
       value: json.point.value,
       interpolationMethod: json.point.interpolation_method || 'bilinear',
@@ -200,7 +201,7 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
       displayUnitHint: 'none',
       elapsedMs: Date.now() - start,
       error: err.message,
-      hourOffset,
+      hourOffset: offset,
       layer: 'pressure',
       value: null,
       interpolationMethod: 'none',

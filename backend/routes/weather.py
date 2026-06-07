@@ -336,7 +336,8 @@ async def get_point(
     lat: float = Query(..., description="Latitude coordinate"),
     lng: float = Query(..., description="Longitude coordinate"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
-    grid_product_id: Optional[str] = Query(None, description="The exact grid product to sample from")
+    grid_product_id: Optional[str] = Query(None, description="The exact grid product to sample from"),
+    grid_bbox: Optional[str] = Query(None, description="The client's viewport grid bbox")
 ):
     """
     GET /api/weather/point
@@ -349,7 +350,8 @@ async def get_point(
         lat=lat,
         lng=lng,
         valid_time_str=valid_time,
-        grid_product_id=grid_product_id
+        grid_product_id=grid_product_id,
+        grid_bbox=grid_bbox
     )
 
     if model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves":
@@ -374,7 +376,8 @@ async def get_point(
         if sampled_product_id:
             product = store.load_product(sampled_product_id)
             if product and product.grid:
-                truth_tag = compute_truth_tag(
+                # 1. Compute sourceTruthTag of the original uncropped product
+                source_truth_tag = compute_truth_tag(
                     model=product.model,
                     domain=product.domain,
                     layer=product.layer,
@@ -390,8 +393,48 @@ async def get_point(
                     cols=product.grid.cols,
                     rows=product.grid.rows,
                     vectors=product.grid.vectors,
+                    source_stage="sourceResponse"
+                )
+
+                # 2. Crop the product if grid_bbox is provided
+                cropped_product = product
+                if grid_bbox:
+                    cropped_product = filter_grid_to_bbox(product, grid_bbox)
+
+                # 3. Compute cropped truth tag
+                crop_truth_tag = compute_truth_tag(
+                    model=cropped_product.model,
+                    domain=cropped_product.domain,
+                    layer=cropped_product.layer,
+                    valid_time=cropped_product.valid_time,
+                    run_time=cropped_product.run_time,
+                    product_id=cropped_product.product_id,
+                    provider=cropped_product.provider,
+                    upstream_model=cropped_product.upstream_model,
+                    is_dynamic_viewport_product=cropped_product.is_dynamic_viewport_product,
+                    coverage_scope=cropped_product.coverage_scope,
+                    requested_bbox=cropped_product.requested_bbox,
+                    served_bbox=cropped_product.served_bbox,
+                    cols=cropped_product.grid.cols if cropped_product.grid else 0,
+                    rows=cropped_product.grid.rows if cropped_product.grid else 0,
+                    vectors=cropped_product.grid.vectors if cropped_product.grid else [],
                     source_stage="pointResponse"
                 )
+
+                # 4. Check if hashes and bounds match
+                hashes_match = (
+                    source_truth_tag["dataHash"] == crop_truth_tag["dataHash"]
+                    and source_truth_tag["boundsHash"] == crop_truth_tag["boundsHash"]
+                )
+
+                if hashes_match:
+                    truth_tag = crop_truth_tag
+                else:
+                    truth_tag = crop_truth_tag.copy()
+                    truth_tag["sourceTruthTag"] = source_truth_tag
+                    truth_tag["sampledTruthTag"] = crop_truth_tag
+                    truth_tag["cropTruthTag"] = crop_truth_tag
+                    truth_tag["parentProductId"] = product.product_id
 
         is_match = False
         mismatch_reason = None

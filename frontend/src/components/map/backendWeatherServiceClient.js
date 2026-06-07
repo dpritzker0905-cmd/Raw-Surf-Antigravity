@@ -150,8 +150,24 @@ if (typeof window !== 'undefined') {
           reasons.push("Point product ID (" + ep.pointProductId + ") differs from uploaded product ID (" + tuProductId + ")");
           nextPatchTarget = "backend/services/weather_pipeline/point_resolution.py";
         }
-        const epTime = ep.pointValidTime ? new Date(ep.pointValidTime).toISOString() : "";
-        const ccTime = trace.cacheCommit?.committedValidTime ? new Date(trace.cacheCommit.committedValidTime).toISOString() : "";
+        let epTime = "";
+        let ccTime = "";
+        if (ep.pointValidTime) {
+          try {
+            const d = new Date(ep.pointValidTime);
+            if (!isNaN(d.getTime())) {
+              epTime = d.toISOString();
+            }
+          } catch (e) {}
+        }
+        if (trace.cacheCommit?.committedValidTime) {
+          try {
+            const d = new Date(trace.cacheCommit.committedValidTime);
+            if (!isNaN(d.getTime())) {
+              ccTime = d.toISOString();
+            }
+          } catch (e) {}
+        }
         if (epTime !== ccTime) {
           failedStage = "exactPoint";
           reasons.push("Point valid_time (" + epTime + ") differs from grid valid_time (" + ccTime + ")");
@@ -303,9 +319,10 @@ export function getBackendIconMarineFlag() {
  * Provides the single source of authority for matching grid/point time dimensions.
  */
 export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS') {
+  const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
   const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
   const roundedNow = Math.round(baseTime / 3600000) * 3600000;
-  const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
+  const targetDt = new Date(roundedNow + offset * 3600000);
   const requestedValidTime = targetDt.toISOString();
 
   let selectedManifestValidTime = null;
@@ -542,12 +559,31 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     }
   }
 
+  let gridBbox = null;
+  if (typeof window !== 'undefined') {
+    const diag = window.__MARINE_PROJECTION_DIAG__;
+    if (diag && diag.activeLayer === layer && diag.activeModel === model) {
+      gridBbox = diag.requested_bbox || diag.backendRequestBbox || null;
+    }
+  }
+  if (!gridBbox && typeof window !== 'undefined' && window.map) {
+    try {
+      const b = window.map.getBounds();
+      gridBbox = `${b.getWest().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getNorth().toFixed(4)}`;
+    } catch (e) {
+      gridBbox = null;
+    }
+  }
+
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
   let cacheKey = `${model}_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
   if (gridProductId) {
     cacheKey += `_grid_${gridProductId}`;
+  }
+  if (gridBbox) {
+    cacheKey += `_bbox_${gridBbox}`;
   }
 
   const cached = pointCache.get(cacheKey);
@@ -562,6 +598,9 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
   let url = `${POINT_URL}?model=${model}&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
   if (gridProductId) {
     url += `&grid_product_id=${encodeURIComponent(gridProductId)}`;
+  }
+  if (gridBbox) {
+    url += `&grid_bbox=${encodeURIComponent(gridBbox)}`;
   }
 
   if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
@@ -902,6 +941,20 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     const json = await res.json();
 
     if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+      recordTruthStage('backendResponse', {
+        model,
+        domain: 'marine',
+        layer,
+        valid_time: json.valid_time,
+        product_id: json.product_id,
+        is_dynamic_viewport_product: json.is_dynamic_viewport_product,
+        coverage_scope: json.coverage_scope,
+        requested_bbox: json.requested_bbox,
+        served_bbox: json.served_bbox,
+        grid: json.grid,
+        truthTag: json.truthTag
+      }, 'backendWeatherServiceClient.js', 'fetchBackendMarineGrid');
+
       window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
       const vectors = json.grid && Array.isArray(json.grid.vectors) ? json.grid.vectors : [];
       const nonzero = vectors.filter(v => (v.speed || 0) > 0);

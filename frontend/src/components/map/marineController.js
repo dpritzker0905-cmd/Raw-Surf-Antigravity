@@ -953,7 +953,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       await matchedPromise;
       return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
     } catch (e) {
-      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'inflight_failed');
+      return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'inflight_failed');
     }
   }
 
@@ -962,12 +962,12 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       await inFlightMarineRequests.get(requestKey);
       return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
     } catch (e) {
-      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'inflight_failed');
+      return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'inflight_failed');
     }
   }
 
   if (!forceFetch && isInCooldown('marine')) {
-    return getModelSafeMarine(model, hourOffset, activeLayer);
+    return getModelSafeMarine(model, hourOffset, activeLayer, bounds);
   }
 
   const fetchPromise = (async () => {
@@ -997,7 +997,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         if (res.status === 429) {
           enterCooldown('marine');
           logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: 429, result: 'rate_limited', elapsedMs: Date.now() - fetchStart });
-          return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'rate_limited_no_cache');
+          return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'rate_limited_no_cache');
         }
         if (!res.ok) {
           if (res.status === 500) {
@@ -1006,7 +1006,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
               if (err?.isRateLimit || err?.message?.includes('429')) {
                 enterCooldown('marine');
                 logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: 500, upstreamStatus: 429, result: 'rate_limited', elapsedMs: Date.now() - fetchStart });
-                return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'rate_limited_no_cache');
+                return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'rate_limited_no_cache');
               }
             } catch(e) {}
           }
@@ -1016,7 +1016,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         if (!ct.includes('application/json')) throw new Error('Non-JSON response');
       } catch (err) {
         if (err.message === 'cooldown_active' || err.message === 'failure_ttl_active' || err.message === 'grid_fetch_in_flight') {
-          return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'rate_limited');
+          return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'rate_limited');
         }
         if (isLocalhost) {
           const rg = 6, rLats = [], rLons = [], rPts = [];
@@ -1047,20 +1047,20 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
           if (typeof window !== 'undefined') {
             window.__MARINE_HEATMAP_STATUS__ = { status: 'payload_too_large', model, layer: activeLayer, hour: hourOffset };
           }
-          return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'payload_too_large');
+          return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'payload_too_large');
         }
         if (res.status === 429) {
           enterCooldown('marine');
           logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: 429, result: 'rate_limited_fallback', elapsedMs: Date.now() - fetchStart });
-          return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'rate_limited');
+          return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'rate_limited');
         }
         logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset, pointCount: points.length, variables: marineVarList.length, forecastDays, proxyStatus: res.status, result: reason, elapsedMs: Date.now() - fetchStart });
-        return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, reason);
+        return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, reason);
       }
 
       const json = await res.json();
       let allResults = Array.isArray(json) ? json : (json?.hourly ? points.map(() => json) : null);
-      if (!allResults) return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'invalid_shape');
+      if (!allResults) return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'invalid_shape');
 
       const timeArray = allResults[0]?.hourly?.time;
       const validTimesCount = timeArray ? timeArray.length : 0;
@@ -1097,10 +1097,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; }
         return result;
       }
-      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'empty_vectors');
+      return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'empty_vectors');
     } catch (err) {
-      if (err.name === 'AbortError') return getModelSafeMarine(model, hourOffset, activeLayer);
-      return getModelSafeMarine(model, hourOffset, activeLayer) || createFallbackSafeZeroGrid(model, 'fetch_exception');
+      if (err.name === 'AbortError') return getModelSafeMarine(model, hourOffset, activeLayer, bounds);
+      return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'fetch_exception');
     } finally {
       inFlightMarineRequests.delete(requestKey);
     }

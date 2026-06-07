@@ -15,8 +15,9 @@ export var degToCompass = (deg) => {
 
 export function findHourIndex(timeArray, timeOffsetHours) {
   if (!timeArray) return 0;
+  const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
   const targetTime = new Date();
-  targetTime.setHours(targetTime.getHours() + timeOffsetHours);
+  targetTime.setHours(targetTime.getHours() + offset);
   const targetTs = targetTime.getTime();
 
   let closest = 0;

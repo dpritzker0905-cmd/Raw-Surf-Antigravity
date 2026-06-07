@@ -295,6 +295,28 @@ class PointSampler:
                     interpolation_method="bilinear_ocean_masked"
                 )
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+            else:
+                # Fallback to nearest ocean vector if sum of weights is zero
+                valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+                if valid_vectors:
+                    nearest = self._find_nearest_vector(valid_vectors, lat, lng)
+                    detail = NormalizedPointDetail(
+                        requested_lat=lat,
+                        requested_lng=lng,
+                        sampled_lat=nearest.lat,
+                        sampled_lng=nearest.lng,
+                        speed=nearest.speed,
+                        direction=nearest.direction,
+                        u=nearest.u,
+                        v=nearest.v,
+                        period=nearest.period,
+                        gust=getattr(nearest, "gust", None),
+                        interpolation_method="nearest_ocean_fallback"
+                    )
+                    warnings.append("Bilinear corners contain land/masked cells and sum of ocean weights is zero; fallback to nearest ocean neighbor.")
+                    return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+                else:
+                    return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist and no valid ocean data in grid")
 
         elif len(valid_ocean_corners) == 1:
             # 3. Fallback to Nearest Ocean Vector (exactly 1 valid ocean corner exists)
