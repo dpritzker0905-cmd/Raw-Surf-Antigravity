@@ -413,7 +413,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     console.warn(`[Backend Weather Service] Grid is not renderable. mappedVectors=${mappedVectors.length}, nonzeroCount=${nonzeroCount}`);
   }
 
-  return {
+  const result = {
     type: 'FeatureCollection',
     features: [],
     hourOffset,
