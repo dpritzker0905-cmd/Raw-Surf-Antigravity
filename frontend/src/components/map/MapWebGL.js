@@ -380,6 +380,8 @@ var MapWebGL = ({
     res.activeMarineLayer = activeMarineLayer;
     res.activeModel = activeModel;
     res.hourOffset = marineData.grid.hourOffset !== undefined ? marineData.grid.hourOffset : timeOffsetHours;
+    res.valid_time = marineData.valid_time || marineData.grid.valid_time;
+    res.validTime = marineData.validTime || marineData.grid.validTime;
 
     // v7.4: Active-layer truth guard — don't upload any all-zero active-layer grid as a valid heatmap
     let nonzeroCount = 0, maxHeight = 0;

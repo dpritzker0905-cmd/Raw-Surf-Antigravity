@@ -10,12 +10,19 @@ function fnv1a_32(str) {
   return h.toString(16).padStart(8, '0');
 }
 
-export function computeJsDataHash(vectors) {
+export function computeJsDataHash(vectors, layer = 'waves') {
   if (!vectors || !vectors.length) return fnv1a_32("");
   const parts = vectors.map(v => {
-    const period = v.period != null ? v.period : 0.0;
+    const hasFlat = v.speed !== undefined;
+    const layerObj = !hasFlat && layer ? v[layer] : null;
+
+    const speed = hasFlat ? v.speed : (layerObj?.speed !== undefined ? layerObj.speed : 0.0);
+    const u = hasFlat ? v.u : (layerObj?.u !== undefined ? layerObj.u : 0.0);
+    const vVal = hasFlat ? v.v : (layerObj?.v !== undefined ? layerObj.v : 0.0);
+    const period = hasFlat ? (v.period != null ? v.period : 0.0) : (layerObj?.period != null ? layerObj.period : 0.0);
     const isValid = (v.is_valid === undefined || v.is_valid) ? 1 : 0;
-    return `${Number(v.lat).toFixed(4)},${Number(v.lng).toFixed(4)},${Number(v.speed).toFixed(4)},${Number(v.u).toFixed(4)},${Number(v.v).toFixed(4)},${Number(period).toFixed(4)},${isValid}`;
+
+    return `${Number(v.lat).toFixed(4)},${Number(v.lng).toFixed(4)},${Number(speed).toFixed(4)},${Number(u).toFixed(4)},${Number(vVal).toFixed(4)},${Number(period).toFixed(4)},${isValid}`;
   });
   return fnv1a_32(parts.join('\n'));
 }
@@ -68,7 +75,7 @@ export function recordTruthStage(stageName, data, file, functionName) {
     const layer = data.layer;
     const validTime = data.valid_time || data.validTime;
     const servedBbox = data.served_bbox || data.servedBbox || (data.grid.bounds ? `${data.grid.bounds.west.toFixed(2)},${data.grid.bounds.south.toFixed(2)},${data.grid.bounds.east.toFixed(2)},${data.grid.bounds.north.toFixed(2)}` : "");
-    const dataHash = computeJsDataHash(data.grid.vectors);
+    const dataHash = computeJsDataHash(data.grid.vectors, layer);
     const boundsHash = computeJsBoundsHash(servedBbox);
     const traceId = computeJsTraceId(model, domain, layer, validTime, servedBbox, dataHash);
     

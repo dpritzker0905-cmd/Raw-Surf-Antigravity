@@ -466,18 +466,27 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     }
   }
   if (hitData && wanted === 'GFS' && wantedLayer === 'waves' && wantedHour === 0) {
+    const timeArray = hitData.results?.[0]?.hourly?.time;
+    const targetMs = Date.now() + wantedHour * 3600000;
+    const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+    const validTimeStr = timeArray?.[idx]
+      ? new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').toISOString().replace(/\.\d{3}/, '')
+      : new Date().toISOString().replace(/\.\d{3}/, '');
+
+    const extractedSlice = extractMarineAtOffset(hitData, wantedHour, wantedLayer);
+
     recordTruthStage('cacheRead', {
       model: wanted,
       domain: 'marine',
       layer: wantedLayer,
-      valid_time: hitData.valid_time || hitData.validTime,
+      valid_time: validTimeStr,
       run_time: hitData.run_time || hitData.runTime,
       product_id: hitData.product_id || hitData.productId,
       is_dynamic_viewport_product: hitData.is_dynamic_viewport_product || hitData.grid?.is_dynamic_viewport_product,
       coverage_scope: hitData.coverage_scope || hitData.grid?.coverage_scope,
       requested_bbox: hitData.requested_bbox || hitData.grid?.requested_bbox,
       served_bbox: hitData.served_bbox || hitData.grid?.served_bbox,
-      grid: hitData.grid,
+      grid: extractedSlice?.grid,
       truthTag: hitData.truthTag || hitData.grid?.truthTag
     }, 'marineController.js', 'getModelSafeMarine');
   }
@@ -609,6 +618,7 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
   const targetMs = Date.now() + hourOffset * 3600000;
   const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
   
+  let validTimeStr = new Date().toISOString().replace(/\.\d{3}/, '');
   if (timeArray?.[idx]) {
     const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
     const delta = Math.abs(cachedMs - targetMs);
@@ -616,6 +626,7 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
       console.warn(`[extractMarineAtOffset] Rejected: delta=${(delta/3600000).toFixed(1)}h > 3h`);
       return null;
     }
+    validTimeStr = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').toISOString().replace(/\.\d{3}/, '');
   }
 
   const activeModel = cache.model || 'GFS';
@@ -707,12 +718,16 @@ function extractMarineAtOffset(cache, hourOffset, targetLayer) {
   const noDataReason = !renderable ? (oceanMaskCount > 0 ? 'active_layer_zero_ocean_present' : 'no_ocean_data') : null;
   return {
     type: 'FeatureCollection', features, hourOffset,
+    valid_time: validTimeStr,
+    validTime: validTimeStr,
     grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now(),
             __sourceModel: activeModel, __provider: provider, __gridProvider: provider,
             __componentLayer: activeLayerFromCache, __gridSupportsLayer: renderable,
             __activeLayerNonzeroCount: activeLayerNonzero, __activeLayerMax: activeLayerMax,
             __oceanMaskCount: oceanMaskCount, __renderable: renderable, __noDataReason: noDataReason,
-            provider: provider, hourOffset }
+            provider: provider, hourOffset,
+            valid_time: validTimeStr,
+            validTime: validTimeStr }
   };
 }
 
