@@ -316,8 +316,8 @@ exports.handler = async function(event, context) {
     };
   }
 
+  let type = 'unknown';
   try {
-    let type;
     let body = null;
     let queryParamsString = '';
 
