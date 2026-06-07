@@ -161,18 +161,21 @@ export function recordTruthStage(stageName, data, file, functionName) {
     );
     if (previousStages.length > 0) {
       const prev = previousStages[previousStages.length - 1];
-      if (prev.truthTag.traceId !== traceId) {
-        mismatchFromPrevious = true;
-        mismatchReason = `traceId mismatch from stage ${prev.stage}: expected ${prev.truthTag.traceId}, got ${traceId}`;
-      } else if (prev.truthTag.product_id !== productId) {
-        mismatchFromPrevious = true;
-        mismatchReason = `productId mismatch from stage ${prev.stage}: expected ${prev.truthTag.product_id}, got ${productId}`;
-      } else if (prev.truthTag.dataHash !== dataHash) {
-        mismatchFromPrevious = true;
-        mismatchReason = `dataHash mismatch from stage ${prev.stage}: expected ${prev.truthTag.dataHash}, got ${dataHash}`;
-      } else if (prev.truthTag.boundsHash !== boundsHash) {
-        mismatchFromPrevious = true;
-        mismatchReason = `boundsHash mismatch from stage ${prev.stage}: expected ${prev.truthTag.boundsHash}, got ${boundsHash}`;
+      const isStartStage = stageName === "backendResponse" || stageName === "cacheRead";
+      if (!isStartStage) {
+        if (prev.truthTag.traceId !== traceId) {
+          mismatchFromPrevious = true;
+          mismatchReason = `traceId mismatch from stage ${prev.stage}: expected ${prev.truthTag.traceId}, got ${traceId}`;
+        } else if (prev.truthTag.product_id !== productId) {
+          mismatchFromPrevious = true;
+          mismatchReason = `productId mismatch from stage ${prev.stage}: expected ${prev.truthTag.product_id}, got ${productId}`;
+        } else if (prev.truthTag.dataHash !== dataHash) {
+          mismatchFromPrevious = true;
+          mismatchReason = `dataHash mismatch from stage ${prev.stage}: expected ${prev.truthTag.dataHash}, got ${dataHash}`;
+        } else if (prev.truthTag.boundsHash !== boundsHash) {
+          mismatchFromPrevious = true;
+          mismatchReason = `boundsHash mismatch from stage ${prev.stage}: expected ${prev.truthTag.boundsHash}, got ${boundsHash}`;
+        }
       }
     }
   }
