@@ -11,6 +11,7 @@ import { BACKEND_URL } from '../../lib/apiClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
+import { recordTruthStage } from './weatherTruthTracker';
 
 export { BoundedPointCache };
 export { getCachedManifest, setCachedManifest };
@@ -444,13 +445,30 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       estimate_basis: json.estimate_basis || null,
       is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
       validTime: json.valid_time || null,
-      valid_time: json.valid_time || null
+      valid_time: json.valid_time || null,
+      truthTag: json.truthTag || null
     },
     validTime: json.valid_time || null,
-    valid_time: json.valid_time || null
+    valid_time: json.valid_time || null,
+    truthTag: json.truthTag || null
   };
 
   if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+    recordTruthStage('mappedGrid', {
+      model,
+      domain: 'marine',
+      layer,
+      valid_time: result.valid_time,
+      run_time: json.run_time,
+      product_id: result.grid.productId,
+      is_dynamic_viewport_product: result.grid.is_dynamic_viewport_product,
+      coverage_scope: result.grid.coverage_scope,
+      requested_bbox: json.requested_bbox,
+      served_bbox: json.served_bbox,
+      grid: result.grid,
+      truthTag: json.truthTag
+    }, 'backendWeatherServiceClient.js', 'mapNormalizedGridToWebGL');
+
     window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
     const rootFlatSpeedNonzeroCount = mappedVectors.filter(v => v.speed > 0).length;
     const nestedWavesSpeedNonzeroCount = mappedVectors.filter(v => v.waves && v.waves.speed > 0).length;
@@ -546,6 +564,17 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     url += `&grid_product_id=${encodeURIComponent(gridProductId)}`;
   }
 
+  if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+    recordTruthStage('pointRequest', {
+      model,
+      domain: 'marine',
+      layer,
+      valid_time: validTimeStr,
+      grid_product_id: gridProductId,
+      truthTag: window.__WEATHER_TRUTH_TRACE__?.stages?.find(s => s.stage === 'webglRender')?.truthTag
+    }, 'backendWeatherServiceClient.js', 'fetchBackendExactPoint');
+  }
+
   try {
     const res = await fetch(url, { signal });
     if (!res.ok) {
@@ -597,6 +626,16 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       throw new Error(reason);
     }
     const json = await res.json();
+    if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+      recordTruthStage('pointResponse', {
+        model,
+        domain: 'marine',
+        layer,
+        valid_time: json.valid_time,
+        product_id: json.product_id,
+        truthTag: json.truthTag
+      }, 'backendWeatherServiceClient.js', 'fetchBackendExactPoint');
+    }
     
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
     const conformedHourly = {

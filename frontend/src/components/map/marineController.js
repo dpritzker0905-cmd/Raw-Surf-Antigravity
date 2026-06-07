@@ -24,6 +24,7 @@ import {
   fetchBackendCopernicusGrid,
   fetchBackendMarineGrid
 } from './backendWeatherServiceClient';
+import { recordTruthStage } from './weatherTruthTracker';
 export { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag };
 
 // Re-export wind controller components for timeline scrubs and observers
@@ -105,6 +106,23 @@ function _cacheMarineResult(model, hourOffset, data, layer) {
     model: model || 'GFS',
     signature
   });
+
+  if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+    recordTruthStage('cacheWrite', {
+      model,
+      domain: 'marine',
+      layer,
+      valid_time: data.valid_time || data.validTime,
+      run_time: data.run_time || data.runTime,
+      product_id: data.product_id || data.productId,
+      is_dynamic_viewport_product: data.is_dynamic_viewport_product,
+      coverage_scope: data.coverage_scope,
+      requested_bbox: data.requested_bbox,
+      served_bbox: data.served_bbox,
+      grid: data.grid,
+      truthTag: data.truthTag
+    }, 'marineController.js', '_cacheMarineResult');
+  }
 
   if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
     const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
@@ -447,12 +465,23 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
       }
     }
   }
-  const provider = hitData?.grid?.__provider || hitData?.grid?.provider || 'none';
-  const hasHit = !!hitData;
-  returnedHour = hasHit ? (hitData.hourOffset !== undefined ? hitData.hourOffset : wantedHour) : null;
-  if (typeof window !== 'undefined') {
-    window.__MARINE_SAFE_CACHE_DIAG__ = { requestedModel: wanted, requestedLayer: wantedLayer, requestedHour: wantedHour, returnedHour, provider, staleHour: staleHour && hasHit, cacheHit: hasHit, cacheSource, timestamp: new Date().toISOString() };
+  if (hitData && wanted === 'GFS' && wantedLayer === 'waves' && wantedHour === 0) {
+    recordTruthStage('cacheRead', {
+      model: wanted,
+      domain: 'marine',
+      layer: wantedLayer,
+      valid_time: hitData.valid_time || hitData.validTime,
+      run_time: hitData.run_time || hitData.runTime,
+      product_id: hitData.product_id || hitData.productId,
+      is_dynamic_viewport_product: hitData.is_dynamic_viewport_product || hitData.grid?.is_dynamic_viewport_product,
+      coverage_scope: hitData.coverage_scope || hitData.grid?.coverage_scope,
+      requested_bbox: hitData.requested_bbox || hitData.grid?.requested_bbox,
+      served_bbox: hitData.served_bbox || hitData.grid?.served_bbox,
+      grid: hitData.grid,
+      truthTag: hitData.truthTag || hitData.grid?.truthTag
+    }, 'marineController.js', 'getModelSafeMarine');
   }
+
   return hitData;
 }
 

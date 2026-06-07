@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
+from fastapi.responses import JSONResponse
 from datetime import datetime, timezone
 from deps.admin_auth import get_current_admin
 from typing import Optional, List
@@ -18,7 +19,8 @@ from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoPro
 # Import extracted helpers/services
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, is_bbox_covered_by, filter_grid_to_bbox,
-    make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response
+    make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
+    compute_truth_tag
 )
 from services.weather_pipeline.product_selection import select_best_candidate
 from services.weather_pipeline.viewport_service import ViewportService
@@ -276,32 +278,53 @@ async def get_grid(
 
     # 2. Check if we should fetch a dynamic viewport grid instead of manifest product
     if viewport_service.is_viewport_enabled(model, domain, layer, use_manifest_product, bbox):
-        return await viewport_service.fetch_viewport_grid(model, domain, layer, valid_time, target_dt, bbox)
-
-    # 3. Serve the manifest product grid if found
-    if not matching_manifest_item:
-        return make_no_coverage_grid_response(model, layer, valid_time)
-
-    product = store.load_product(matching_manifest_item.filename)
-    if not product or not product.grid:
-        raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
-    product.product_id = matching_manifest_item.filename
-
-    # Set coverage metadata
-    cov = matching_manifest_item.coverage
-    if cov.west <= cov.east:
-        span_lng = cov.east - cov.west
+        product = await viewport_service.fetch_viewport_grid(model, domain, layer, valid_time, target_dt, bbox)
     else:
-        span_lng = (180.0 - cov.west) + (cov.east + 180.0)
+        # 3. Serve the manifest product grid if found
+        if not matching_manifest_item:
+            return make_no_coverage_grid_response(model, layer, valid_time)
 
-    if span_lng >= 350.0:
-        product.coverage_scope = "global"
-    else:
-        product.coverage_scope = "regional"
+        product = store.load_product(matching_manifest_item.filename)
+        if not product or not product.grid:
+            raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
+        product.product_id = matching_manifest_item.filename
 
-    # Crop the conformed product's grid vectors to match requested bbox boundaries
-    if bbox:
-        product = filter_grid_to_bbox(product, bbox)
+        # Set coverage metadata
+        cov = matching_manifest_item.coverage
+        if cov.west <= cov.east:
+            span_lng = cov.east - cov.west
+        else:
+            span_lng = (180.0 - cov.west) + (cov.east + 180.0)
+
+        if span_lng >= 350.0:
+            product.coverage_scope = "global"
+        else:
+            product.coverage_scope = "regional"
+
+        # Crop the conformed product's grid vectors to match requested bbox boundaries
+        if bbox:
+            product = filter_grid_to_bbox(product, bbox)
+
+    # Attach truthTag for GFS marine waves
+    if model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves":
+        if isinstance(product, NormalizedProduct):
+            product.truthTag = compute_truth_tag(
+                model=product.model,
+                domain=product.domain,
+                layer=product.layer,
+                valid_time=product.valid_time,
+                run_time=product.run_time,
+                product_id=product.product_id,
+                provider=product.provider,
+                upstream_model=product.upstream_model,
+                is_dynamic_viewport_product=product.is_dynamic_viewport_product,
+                coverage_scope=product.coverage_scope,
+                requested_bbox=product.requested_bbox,
+                served_bbox=product.served_bbox,
+                cols=product.grid.cols if product.grid else 0,
+                rows=product.grid.rows if product.grid else 0,
+                vectors=product.grid.vectors if product.grid else []
+            )
 
     return product
 
@@ -319,7 +342,7 @@ async def get_point(
     GET /api/weather/point
     Samples from the exact same cached product grid used for heatmaps, ensuring parity.
     """
-    return await point_resolution_service.resolve_point(
+    response = await point_resolution_service.resolve_point(
         model=model,
         domain=domain,
         layer=layer,
@@ -328,6 +351,80 @@ async def get_point(
         valid_time_str=valid_time,
         grid_product_id=grid_product_id
     )
+
+    if model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves":
+        sampled_product_id = None
+        source = None
+        
+        if isinstance(response, NormalizedPointResponse):
+            sampled_product_id = response.product_id
+            source = response.source
+        elif isinstance(response, JSONResponse):
+            import json
+            try:
+                body_dict = json.loads(response.body.decode("utf-8"))
+                sampled_product_id = body_dict.get("product_id")
+                source = body_dict.get("source")
+            except Exception:
+                body_dict = {}
+        else:
+            return response
+
+        truth_tag = None
+        if sampled_product_id:
+            product = store.load_product(sampled_product_id)
+            if product and product.grid:
+                truth_tag = compute_truth_tag(
+                    model=product.model,
+                    domain=product.domain,
+                    layer=product.layer,
+                    valid_time=product.valid_time,
+                    run_time=product.run_time,
+                    product_id=product.product_id,
+                    provider=product.provider,
+                    upstream_model=product.upstream_model,
+                    is_dynamic_viewport_product=product.is_dynamic_viewport_product,
+                    coverage_scope=product.coverage_scope,
+                    requested_bbox=product.requested_bbox,
+                    served_bbox=product.served_bbox,
+                    cols=product.grid.cols,
+                    rows=product.grid.rows,
+                    vectors=product.grid.vectors,
+                    source_stage="pointResponse"
+                )
+
+        is_match = False
+        mismatch_reason = None
+        if grid_product_id:
+            if source == "grid_file" and sampled_product_id == grid_product_id:
+                is_match = True
+            else:
+                is_match = False
+                mismatch_reason = f"Sampled from source={source}, product={sampled_product_id} but expected grid_product_id={grid_product_id}"
+        else:
+            if source == "grid_file":
+                is_match = True
+            else:
+                is_match = False
+                mismatch_reason = f"Sampled from source={source} (no grid_product_id requested)"
+
+        grid_parity_dict = {
+            "status": "MATCH" if is_match else "MISMATCH",
+            "mismatchReason": mismatch_reason
+        }
+
+        if isinstance(response, NormalizedPointResponse):
+            response.truthTag = truth_tag
+            response.gridPointParity = grid_parity_dict
+            response.mismatchReason = mismatch_reason
+            return response
+        else:
+            body_dict["truthTag"] = truth_tag
+            body_dict["gridPointParity"] = grid_parity_dict
+            body_dict["mismatchReason"] = mismatch_reason
+            return JSONResponse(status_code=response.status_code, content=body_dict)
+
+    return response
 
 @router.get("/status")
 async def get_status():

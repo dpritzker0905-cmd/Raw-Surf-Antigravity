@@ -14,7 +14,7 @@ from services.weather_pipeline.schemas import (
 )
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, is_inside_bounds, make_unsupported_icon_swell2_point_response,
-    make_no_coverage_point_response, make_grid_miss_point_response
+    make_no_coverage_point_response, make_grid_miss_point_response, compute_truth_tag
 )
 
 logger = logging.getLogger(__name__)

@@ -14,6 +14,7 @@ import {
   HEATMAP_VS,
   HEATMAP_FS
 } from './WebGLMarineShaders';
+import { recordTruthStage } from './weatherTruthTracker';
 
 import {
   createShader,
@@ -224,7 +225,32 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   
   console.log('[WebGLMarineEngine] setWaveData input:', {vectors: waveGrid.vectors.length, cols: waveGrid.cols, rows: waveGrid.rows, hasBounds: !!waveGrid.bounds, hasGeoJSON: !!activeGeoJSON});
   this._waveData = encodeMarineTexture(gl, waveGrid, activeGeoJSON, this);
+  if (this._waveData) {
+    this._waveData.truthTag = waveGrid.truthTag;
+    this._waveData.waveGrid = waveGrid;
+  }
   console.log('[WebGLMarineEngine] setWaveData result:', {hasData: !!this._waveData, hasWaveTexture: !!this._waveData?.u_waveTexture});
+
+  const model = waveGrid.__sourceModel || 'GFS';
+  const layer = waveGrid.__componentLayer || 'waves';
+  const hourOffset = waveGrid.hourOffset || 0;
+
+  if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+    recordTruthStage('webglUpload', {
+      model,
+      domain: 'marine',
+      layer,
+      valid_time: waveGrid.valid_time || waveGrid.validTime,
+      run_time: waveGrid.run_time || waveGrid.runTime,
+      product_id: waveGrid.productId || waveGrid.product_id,
+      is_dynamic_viewport_product: waveGrid.is_dynamic_viewport_product,
+      coverage_scope: waveGrid.coverage_scope,
+      requested_bbox: waveGrid.requested_bbox,
+      served_bbox: waveGrid.served_bbox,
+      grid: waveGrid,
+      truthTag: waveGrid.truthTag
+    }, 'WebGLMarineEngine.js', 'setWaveData');
+  }
 };
 
 WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom, theme) {
@@ -242,6 +268,50 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "matrix:", !!matrix);
     }
     return;
+  }
+
+  if (window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true) {
+    gl.clearColor(0.05, 0.05, 0.08, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  const waveGrid = this._waveData?.waveGrid;
+  if (waveGrid) {
+    const model = waveGrid.__sourceModel || 'GFS';
+    const layer = waveGrid.__componentLayer || 'waves';
+    const hourOffset = waveGrid.hourOffset || 0;
+
+    if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+      recordTruthStage('webglRender', {
+        model,
+        domain: 'marine',
+        layer,
+        valid_time: waveGrid.valid_time || waveGrid.validTime,
+        run_time: waveGrid.run_time || waveGrid.runTime,
+        product_id: waveGrid.productId || waveGrid.product_id,
+        is_dynamic_viewport_product: waveGrid.is_dynamic_viewport_product,
+        coverage_scope: waveGrid.coverage_scope,
+        requested_bbox: waveGrid.requested_bbox,
+        served_bbox: waveGrid.served_bbox,
+        grid: waveGrid,
+        truthTag: this._waveData.truthTag
+      }, 'WebGLMarineEngine.js', 'renderHeatmapAndParticles');
+
+      recordTruthStage('animationFrame', {
+        model,
+        domain: 'marine',
+        layer,
+        valid_time: waveGrid.valid_time || waveGrid.validTime,
+        run_time: waveGrid.run_time || waveGrid.runTime,
+        product_id: waveGrid.productId || waveGrid.product_id,
+        is_dynamic_viewport_product: waveGrid.is_dynamic_viewport_product,
+        coverage_scope: waveGrid.coverage_scope,
+        requested_bbox: waveGrid.requested_bbox,
+        served_bbox: waveGrid.served_bbox,
+        grid: waveGrid,
+        truthTag: this._waveData.truthTag
+      }, 'WebGLMarineEngine.js', 'renderHeatmapAndParticles');
+    }
   }
 
   var themeVal = 0.0;
@@ -380,6 +450,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   else if (z <= 8) heatmapOpacity = 0.65 + (z - 5) / 3 * 0.10;
   else if (z <= 12) heatmapOpacity = 0.75 + (z - 8) / 4 * 0.05;
   else heatmapOpacity = 0.85;
+
+  if (window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true) {
+    heatmapOpacity = 1.0;
+  }
+
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
 
   bindTexture(gl, this._waveData.u_waveTexture, 0);

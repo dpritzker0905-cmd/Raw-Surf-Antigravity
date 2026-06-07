@@ -18,6 +18,7 @@ import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './m
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
+import { recordTruthStage } from './weatherTruthTracker';
 
 
 export var MapForecastOverlay = ({
@@ -646,6 +647,24 @@ export var MapForecastOverlay = ({
       exactPointResponse
     });
   }, [activeLayer, isExactPointAuthority, effectiveExactPointResponse, useExactPoint, timeOffsetHours, activeModel, pressure, exactPointStatus, exactPointResponse]);
+
+  useEffect(() => {
+    if (effectiveExactPointResponse && activeModel === 'GFS' && activeLayer === 'waves' && timeOffsetHours === 0) {
+      recordTruthStage('infoboxDisplay', {
+        model: activeModel,
+        domain: 'marine',
+        layer: activeLayer,
+        valid_time: effectiveExactPointResponse.valid_time || effectiveExactPointResponse.validTime,
+        run_time: effectiveExactPointResponse.run_time || effectiveExactPointResponse.runTime,
+        product_id: effectiveExactPointResponse.product_id || effectiveExactPointResponse.productId,
+        is_dynamic_viewport_product: effectiveExactPointResponse.is_dynamic_viewport_product,
+        coverage_scope: effectiveExactPointResponse.coverage_scope,
+        requested_bbox: effectiveExactPointResponse.requested_bbox,
+        served_bbox: effectiveExactPointResponse.served_bbox,
+        truthTag: effectiveExactPointResponse.truthTag
+      }, 'MapForecastOverlay.js', 'effectiveExactPointResponse useEffect');
+    }
+  }, [effectiveExactPointResponse, activeModel, activeLayer, timeOffsetHours]);
 
   // v6.6: Call external diagnostics helper to keep component extremely lightweight
   if (typeof window !== 'undefined') {

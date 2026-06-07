@@ -70,6 +70,7 @@ class NormalizedProduct(BaseModel):
     coverage_scope: Optional[str] = None
     coordinate_count: Optional[int] = None
     resolution: Optional[float] = None
+    truthTag: Optional[Dict[str, Any]] = None
 
 class NormalizedPointDetail(BaseModel):
     requested_lat: float
@@ -130,6 +131,9 @@ class NormalizedPointResponse(BaseModel):
     resolution: Optional[float] = None
     grid_parity: Optional[Any] = None
     gridParity: Optional[Any] = None
+    truthTag: Optional[Dict[str, Any]] = None
+    gridPointParity: Optional[Dict[str, Any]] = None
+    mismatchReason: Optional[str] = None
 
 class ManifestProduct(BaseModel):
     model: str

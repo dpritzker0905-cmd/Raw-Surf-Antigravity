@@ -378,3 +378,109 @@ def make_grid_miss_point_response(model: str, layer: str, lat: float, lng: float
         }
     )
 
+def compute_truth_tag(
+    model: str,
+    domain: str,
+    layer: str,
+    valid_time: datetime,
+    run_time: datetime,
+    product_id: Optional[str],
+    provider: str,
+    upstream_model: Optional[str],
+    is_dynamic_viewport_product: bool,
+    coverage_scope: Optional[str],
+    requested_bbox: Optional[str],
+    served_bbox: Optional[str],
+    cols: int,
+    rows: int,
+    vectors: list,
+    source_stage: str = "backendResponse"
+) -> dict:
+    # 1. Compute dataHash
+    serialized_parts = []
+    nonzero_count = 0
+    min_speed = float('inf')
+    max_speed = float('-inf')
+    
+    for v in vectors:
+        lat_f = f"{v.lat:.4f}"
+        lng_f = f"{v.lng:.4f}"
+        speed_f = f"{v.speed:.4f}"
+        u_f = f"{v.u:.4f}"
+        v_f = f"{v.v:.4f}"
+        period_val = v.period if (hasattr(v, 'period') and v.period is not None) else 0.0
+        period_f = f"{period_val:.4f}"
+        is_val = 1 if (hasattr(v, 'is_valid') and v.is_valid) else 0
+        serialized_parts.append(f"{lat_f},{lng_f},{speed_f},{u_f},{v_f},{period_f},{is_val}")
+        
+        if v.speed > 0.0:
+            nonzero_count += 1
+        if v.speed < min_speed:
+            min_speed = v.speed
+        if v.speed > max_speed:
+            max_speed = v.speed
+            
+    if min_speed == float('inf'):
+        min_speed = 0.0
+    if max_speed == float('-inf'):
+        max_speed = 0.0
+        
+    serialized_str = "\n".join(serialized_parts)
+    
+    # FNV-1a 32-bit hash function
+    h = 2166136261
+    for b in serialized_str.encode("utf-8"):
+        h = h ^ b
+        h = (h * 16777619) & 0xFFFFFFFF
+    data_hash = f"{h:08x}"
+    
+    # 2. Compute boundsHash
+    bbox_str = served_bbox or ""
+    bh = 2166136261
+    for b in bbox_str.encode("utf-8"):
+        bh = bh ^ b
+        bh = (bh * 16777619) & 0xFFFFFFFF
+    bounds_hash = f"{bh:08x}"
+    
+    # 3. Compute traceId
+    valid_time_str = valid_time.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    trace_key = f"{model.upper()}:{domain.lower()}:{layer.lower()}:{valid_time_str}:{bbox_str}:{data_hash}"
+    
+    th = 2166136261
+    for b in trace_key.encode("utf-8"):
+        th = th ^ b
+        th = (th * 16777619) & 0xFFFFFFFF
+    trace_id = f"{th:08x}"
+    
+    # 4. Compute timeOffsetHours
+    time_offset = int((valid_time - run_time).total_seconds() / 3600)
+    
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    
+    return {
+        "traceId": trace_id,
+        "model": model,
+        "domain": domain,
+        "layer": layer,
+        "valid_time": valid_time_str,
+        "timeOffsetHours": time_offset,
+        "product_id": product_id,
+        "grid_product_id": product_id,
+        "provider": provider,
+        "upstream_model": upstream_model,
+        "is_dynamic_viewport_product": is_dynamic_viewport_product,
+        "coverage_scope": coverage_scope,
+        "requested_bbox": requested_bbox,
+        "served_bbox": bbox_str,
+        "cols": cols,
+        "rows": rows,
+        "vectorCount": len(vectors),
+        "nonzeroCount": nonzero_count,
+        "minSpeed": round(min_speed, 4),
+        "maxSpeed": round(max_speed, 4),
+        "dataHash": data_hash,
+        "boundsHash": bounds_hash,
+        "createdAt": created_at,
+        "sourceStage": source_stage
+    }
+
