@@ -73,6 +73,10 @@ class WeatherNormalizer:
             logger.warning("[Normalizer] Received empty raw results list.")
             return None
 
+        # Check if the raw results are test fixtures
+        if raw_results and any(pt.get("is_test_fixture") is True for pt in raw_results if isinstance(pt, dict)):
+            provider = "test-fixture"
+
         # Verify time coordinate coverage and extract standard time index
         first_point = raw_results[0]
         hourly = first_point.get("hourly", {})
@@ -360,7 +364,8 @@ class WeatherNormalizer:
             import os
             is_test_env = (
                 os.environ.get("NODE_ENV") == "test" or 
-                os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+                os.environ.get("LOCAL_TEST_FIXTURE") == "true" or
+                os.environ.get("TESTING") == "1"
             )
             if is_test_env:
                 is_test_fixture = True

@@ -151,7 +151,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
           let cachedData = null;
           try {
-            cachedData = getModelSafeMarine(model, timeOffset, layer);
+            const b = mapInstance.getBounds();
+            const vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+            cachedData = getModelSafeMarine(model, timeOffset, layer, vpBounds);
           } catch (e) { console.warn('[Cooldown Fallback] cache check failed:', e.message); }
 
           if (cachedData?.grid?.vectors?.length > 0) {

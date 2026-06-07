@@ -294,4 +294,6 @@ class ViewportService:
                 if request_dedup_key in self.IN_FLIGHT_REQUESTS:
                     self.IN_FLIGHT_REQUESTS[request_dedup_key].set_exception(e)
                     self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
-            raise e
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=504, detail=f"Viewport fetch failed: {str(e)}")

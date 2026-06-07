@@ -20,7 +20,8 @@ def get_env_flags() -> dict:
         "is_render": os.environ.get("RENDER") == "true",
         "is_test_env": (
             os.environ.get("NODE_ENV") == "test" or
-            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+            os.environ.get("LOCAL_TEST_FIXTURE") == "true" or
+            os.environ.get("TESTING") == "1"
         ),
     }
 
@@ -69,6 +70,7 @@ def generate_mock_marine_results(om_provider, region: dict, resolution: float,
             "latitude": lat, "longitude": lon,
             "hourly_units": units.copy(),
             "hourly": hourly,
+            "is_test_fixture": True,
         })
     return results
 
@@ -101,6 +103,7 @@ def generate_mock_icon_marine_results(om_provider, region: dict, resolution: flo
                 "wind_wave_direction": [105.0 for _ in times],
                 "wind_wave_period": [4.5 for _ in times],
             },
+            "is_test_fixture": True,
         })
     return results
 
@@ -129,6 +132,7 @@ def generate_mock_wind_results(om_provider, region: dict, resolution: float,
             "latitude": lat, "longitude": lon,
             "hourly_units": units,
             "hourly": hourly,
+            "is_test_fixture": True,
         })
     return results
 
@@ -149,6 +153,7 @@ def generate_mock_pressure_results(om_provider, region: dict, resolution: float)
                 "time": times,
                 "pressure_msl": [1013.2 + 2.5 * math.sin(lat) for _ in times],
             },
+            "is_test_fixture": True,
         })
     return results
 
@@ -191,6 +196,7 @@ def generate_mock_copernicus_results(region: dict, resolution: float) -> list:
                 "wave_direction": [240.0 for _ in times],
                 "wave_period": [10.0 for _ in times],
             },
+            "is_test_fixture": True,
         })
     return results
 

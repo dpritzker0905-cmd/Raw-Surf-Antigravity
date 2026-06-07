@@ -221,5 +221,59 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 > [!IMPORTANT]
 > The MCP Maximize Protocol operates as a primary system binding. AI assistants must always inspect this rules checklist on each turn to preserve clean agent capabilities.
 
+---
+
+## 🌊 Weather Simulation System Features & Rules
+
+When working on weather simulation system features, follow these rules, tools, and documentation protocols:
+
+### ⚙️ Operating Rule
+> [!IMPORTANT]
+> **Do not rewrite the system.** First map the data pipeline, compare current code to stable commits, add logs, identify the exact mismatch, then make the smallest targeted fix.
+
+### 🛠️ Required MCP Servers & Tools
+1. **Context7 MCP**: For retrieving current documentation and API references.
+2. **GitHub MCP**: For commit history, diffs, regression archaeology.
+3. **Playwright MCP**: For opening the app, clicking around, and inspecting visual behavior.
+4. **Chrome DevTools MCP**: For inspecting console logs, network events, performance traces, and memory/RAF issues.
+5. **Sequential Thinking MCP**: For forcing step-by-step root-cause analysis.
+6. **Filesystem MCP**: For reading/write local project files safely.
+7. **Memory MCP**: For storing stable architecture rules, known regressions, and "do not touch" zones.
+
+### 🔍 Specialized Debugging Tools
+* **Spector.js**: Inspect WebGL draw calls, textures, framebuffers, shaders, and uniforms.
+* **Chrome Performance Profiler**: Analyze animation timing, render thrashing, and frame drops.
+* **React DevTools**: Inspect state ownership, stale props, and re-render loops.
+* **Network Inspector**: Analyze backend payload shape, forecast frame loading, and cache issues.
+
+### 📚 Reference Documentation (Load via Context7)
+* **Mapbox GL JS docs**
+* **MapLibre GL JS docs** (if applicable)
+* **deck.gl docs** (if used)
+* **WebGL Fundamentals**
+* **MDN Canvas/WebGL docs**
+* **Open-Meteo API docs**
+* **NOAA/NCEP NOMADS docs**
+* **ECMWF forecast documentation**
+* **GDAL geospatial/raster docs**
+* **proj4 / projection docs**
+* **Turf.js docs** (if used)
+* **React docs**
+* **Vite docs** (if used)
+* **Netlify/serverless docs** (if backend is deployed there)
+
+### 📂 Project-Specific Files & Assets to Load
+* **All heatmap rendering files** (e.g., `WebGLMarineLayer.js`, shaders, etc.)
+* **Forecast backend API routes** (e.g., `viewport_service.py`, `scheduler.py`, etc.)
+* **Field normalization utilities** (e.g., `normalizer.py`, etc.)
+* **Animation/timeline controller files**
+* **Info box / forecast sampling components**
+* **Map layer composer files** (e.g., `useMarineOrchestrator.js`, etc.)
+* **Model selector/state files**
+* **Cache/service worker files**
+* **Previous stable commits**: Focus on `b5bbaa7d` and `f5f6a3d` to audit changes.
+* **Regression archaeology**: Any regression notes, logs, or "archaeology" artifacts already in the repo.
+
+
 
 

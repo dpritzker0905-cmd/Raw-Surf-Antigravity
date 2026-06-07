@@ -84,10 +84,15 @@ class WeatherPipelineScheduler:
                              region: dict, resolution: float, forecast_days: int,
                              is_test_env: bool, mock_fn, region_id: str = "") -> Optional[list]:
         """Fetch grid from provider, falling back to mock data in test environments."""
-        raw_data = await self.om_provider.fetch_grid(
-            model=model, domain=domain, layer=layer,
-            bbox=region, resolution=resolution, forecast_days=forecast_days
-        )
+        try:
+            raw_data = await self.om_provider.fetch_grid(
+                model=model, domain=domain, layer=layer,
+                bbox=region, resolution=resolution, forecast_days=forecast_days
+            )
+        except Exception as e:
+            logger.error(f"[Pipeline Scheduler] Exception during fetch: {e}")
+            raw_data = None
+
         if raw_data:
             return raw_data if isinstance(raw_data, list) else [raw_data]
 
@@ -349,10 +354,14 @@ class WeatherPipelineScheduler:
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting ICON Marine for region: {region_id}")
 
-            raw_data = await self.om_provider.fetch_grid(
-                model="ICON", domain="marine", layer="all_marine",
-                bbox=region, resolution=resolution, forecast_days=7
-            )
+            try:
+                raw_data = await self.om_provider.fetch_grid(
+                    model="ICON", domain="marine", layer="all_marine",
+                    bbox=region, resolution=resolution, forecast_days=7
+                )
+            except Exception as e:
+                logger.error(f"[Pipeline Scheduler] ICON Marine fetch exception: {e}")
+                raw_data = None
 
             if raw_data:
                 results = raw_data if isinstance(raw_data, list) else [raw_data]
@@ -397,10 +406,14 @@ class WeatherPipelineScheduler:
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting ICON Wind for region: {region_id}")
 
-            raw_data = await self.om_provider.fetch_grid(
-                model="ICON", domain="wind", layer="wind",
-                bbox=region, resolution=resolution, forecast_days=2
-            )
+            try:
+                raw_data = await self.om_provider.fetch_grid(
+                    model="ICON", domain="wind", layer="wind",
+                    bbox=region, resolution=resolution, forecast_days=2
+                )
+            except Exception as e:
+                logger.error(f"[Pipeline Scheduler] ICON Wind fetch exception: {e}")
+                raw_data = None
 
             if raw_data:
                 results = raw_data if isinstance(raw_data, list) else [raw_data]
@@ -444,10 +457,14 @@ class WeatherPipelineScheduler:
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting EURO Wind for region: {region_id}")
 
-            raw_data = await self.om_provider.fetch_grid(
-                model="EURO", domain="wind", layer="wind",
-                bbox=region, resolution=resolution, forecast_days=2
-            )
+            try:
+                raw_data = await self.om_provider.fetch_grid(
+                    model="EURO", domain="wind", layer="wind",
+                    bbox=region, resolution=resolution, forecast_days=2
+                )
+            except Exception as e:
+                logger.error(f"[Pipeline Scheduler] EURO Wind fetch exception: {e}")
+                raw_data = None
 
             if raw_data:
                 results = raw_data if isinstance(raw_data, list) else [raw_data]

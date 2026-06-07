@@ -227,8 +227,21 @@ class OpenMeteoProvider:
                 return aggregated_results
                 
             except Exception as e:
-                logger.error(f"[Open-Meteo Provider] Upstream request failed: {e}. Generating conformed mock grid fallback.")
-                return generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
+                import os
+                is_test = (
+                    os.environ.get("NODE_ENV") == "test"
+                    or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+                    or os.environ.get("TESTING") == "1"
+                )
+                if is_test:
+                    logger.error(f"[Open-Meteo Provider] Upstream request failed: {e}. Generating conformed mock grid fallback.")
+                    mock_res = generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
+                    for item in mock_res:
+                        item["is_test_fixture"] = True
+                    return mock_res
+                else:
+                    logger.error(f"[Open-Meteo Provider] Upstream request failed: {e}. Propagating exception in production.")
+                    raise e
 
     async def fetch_point(
         self,
@@ -297,9 +310,22 @@ class OpenMeteoProvider:
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
-                logger.error(f"[Open-Meteo Provider] Single point request failed: {e}. Generating conformed mock point fallback.")
-                mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)
-                return mock_res[0] if mock_res else None
+                import os
+                is_test = (
+                    os.environ.get("NODE_ENV") == "test"
+                    or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+                    or os.environ.get("TESTING") == "1"
+                )
+                if is_test:
+                    logger.error(f"[Open-Meteo Provider] Single point request failed: {e}. Generating conformed mock point fallback.")
+                    mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)
+                    if mock_res:
+                        mock_res[0]["is_test_fixture"] = True
+                        return mock_res[0]
+                    return None
+                else:
+                    logger.error(f"[Open-Meteo Provider] Single point request failed: {e}. Propagating exception in production.")
+                    raise e
 
     @staticmethod
     def generate_grid_coords(bbox: Dict[str, float], resolution: float) -> tuple:

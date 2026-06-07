@@ -34,6 +34,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
           if (safeUploadRef?.current) {
             safeUploadRef.current('initial_onAdd', _gl, dataRef.current, landGeoJSONRef.current);
           } else {
+            window.__WEBGL_MARINE_UPLOAD_REASON__ = 'initial_onAdd';
             engine.setWaveData(_gl, dataRef.current, landGeoJSONRef.current);
           }
         }
@@ -420,6 +421,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
               if (safeUploadRef.current) {
                 safeUploadRef.current('land_mask_upgrade', gl, dataRef.current, geojson);
               } else {
+                window.__WEBGL_MARINE_UPLOAD_REASON__ = 'land_mask_upgrade';
                 engine._dispatcherActive = false;
                 engine.setWaveData(gl, dataRef.current, geojson);
               }
