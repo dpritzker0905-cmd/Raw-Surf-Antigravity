@@ -442,8 +442,12 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       coverage_scope: json.coverage_scope || null,
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,
-      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false
-    }
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      validTime: json.valid_time || null,
+      valid_time: json.valid_time || null
+    },
+    validTime: json.valid_time || null,
+    valid_time: json.valid_time || null
   };
 
   if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
