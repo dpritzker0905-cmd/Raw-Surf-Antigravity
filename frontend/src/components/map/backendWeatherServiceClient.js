@@ -878,6 +878,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
         valid_time: json.valid_time || null,
         requested_bbox: json.requested_bbox || bboxParam,
         served_bbox: json.served_bbox || null,
+        is_dynamic_viewport_product: json.is_dynamic_viewport_product === true,
+        coverage_scope: json.coverage_scope || null,
         vectorCount: vectors.length,
         nonzeroSpeedCount: nonzero.length,
         minSpeed: minS,
