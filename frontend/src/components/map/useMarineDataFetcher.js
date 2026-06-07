@@ -154,7 +154,6 @@ export function useMarineDataFetcher({
       }
 
       locks.isFetching = true;
-      setMarineData(null);
       if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
       const fetchIntent = { model, layer, hour: timeOffset };
 

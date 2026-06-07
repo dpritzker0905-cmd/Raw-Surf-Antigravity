@@ -537,9 +537,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
-      const isDynamicViewportFetch = typeof window !== 'undefined' && window.__MARINE_FETCH_PENDING__;
-
-      if (isDynamicViewportFetch || modelOrLayerOrHourChanged) {
+      if (modelOrLayerOrHourChanged) {
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
         lastUploadedGridRef.current = {

@@ -15,17 +15,36 @@ import {
   getBackendIconMarineFlag,
   getBackendMarineSystemFlag,
   getSharedValidTime,
-  clampViewportBbox,
   mapNormalizedGridToWebGL,
   updateDiagnostics,
   updateCopernicusDiagnostics,
   updateProjectionDiag,
   GRID_URL,
   fetchBackendCopernicusGrid,
-  fetchBackendMarineGrid
+  fetchBackendMarineGrid,
+  clampViewportBbox
 } from './backendWeatherServiceClient';
 import { recordTruthStage } from './weatherTruthTracker';
-export { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag };
+
+import {
+  getMarineHourlyCache,
+  setMarineHourlyCache,
+  getLastKnownGoodMarine,
+  setLastKnownGoodMarine,
+  getLastKnownGoodMarineModel,
+  getPerModelHourCache,
+  estimateRequestCost,
+  _isAllVarModel,
+  _cacheMarineResult,
+  _updateDiagnosticsOnCacheHit,
+  createFallbackSafeZeroGrid,
+  hasTimeCoverage,
+  isContainedInMarineCache
+} from './marineControllerCache';
+
+import { extractMarineAtOffset } from './marineControllerExtractor';
+
+export { getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag } from './backendWeatherServiceClient';
 
 // Re-export wind controller components for timeline scrubs and observers
 export { fetchWindData, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './windController';
@@ -36,191 +55,25 @@ export { getRemainingCooldown } from './marineControllerUtils';
 // Re-export pressure domain for backwards compatibility
 export { fetchPressureData, extractPressureAtOffset, getPressureHourlyCache, isContainedInPressureCache } from './marineControllerPressure';
 
-// --- CACHES ---
-var MARINE_CACHE = new Map();
+// Re-export cache/extractor functions for backwards compatibility and external imports
+export {
+  getMarineHourlyCache,
+  isContainedInMarineCache,
+  extractMarineAtOffset
+};
 
-// Hourly cache stores full API responses keyed by viewport+model+layer hash.
-var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
+// --- INFLIGHT ABORT CONTROLLERS & INFLIGHT LOCKS ---
+var marinAbortController = null;
+var marineRequestInFlight = false;
+var BOOTSTRAP_MARINE = true;
 
-// --- PERSISTENT CACHE (localStorage) ---
-var LS_MARINE_KEY = 'rawsurf_marine_cache_v10'; // v7.14.2: Bumped to avoid stale 3-var GFS cache poisoning
-
-// Hydrate from localStorage on module init
-var _hydratedMarine = hydrateCache(LS_MARINE_KEY);
-if (_hydratedMarine) {
-  var _hydMarineProvider = _hydratedMarine.provider || 'open-meteo';
-  var _hydMarineModel = _hydratedMarine.model || 'GFS';
-  var _expectedProvider = 'open-meteo';
-  if (_hydMarineProvider !== _expectedProvider) {
-    console.log(`[Marine] Rejected hydrated cache: provider=${_hydMarineProvider}, expected=${_expectedProvider} for model=${_hydMarineModel}`);
-    _hydratedMarine = null;
-    try { localStorage.removeItem(LS_MARINE_KEY); } catch(e) {}
-  } else {
-    marineHourlyCache = _hydratedMarine;
-    console.log(`[Marine] Hydrated from localStorage: ${_hydratedMarine.points?.length} pts, age ${Math.round((Date.now() - _hydratedMarine.timestamp)/1000)}s, provider=${_hydMarineProvider}`);
-  }
-}
-
-// --- LAST KNOWN GOOD FIELDS ---
-var lastKnownGoodMarine = _hydratedMarine ? extractMarineAtOffset(_hydratedMarine, 0) : null;
-var lastKnownGoodMarineModel = _hydratedMarine?.model || 'GFS';
-if (lastKnownGoodMarine) lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
-
-function estimateRequestCost(type, model, pointCount, hourlyVarCount, forecastDays) {
-  if (type === 'tiles') return 50000;
-  const timeBytes = forecastDays * 24 * 25;
-  const varBytes = hourlyVarCount * forecastDays * 24 * 8;
-  const metadataBytes = 1500;
-  return pointCount * (timeBytes + varBytes + metadataBytes);
-}
-
-function _isAllVarModel(model) { return (model || 'GFS') !== 'EURO'; }
-
-var _perModelHourCache = new Map();
-var PER_MODEL_HOUR_CACHE_MAX = 50;
 var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
-function _cacheMarineResult(model, hourOffset, data, layer) {
-  if (!data) return;
-  const layerPart = _isAllVarModel(model) ? 'all' : (layer || 'waves');
-  const tileId = data.tile_id || data.region_id || data.grid?.region_id || 'unknown';
-  const key = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
-  
-  const g = data.grid || {};
-  const bounds = g.bounds || {};
-  const boundsStr = bounds.west !== undefined ? `${bounds.west.toFixed(2)}:${bounds.south.toFixed(2)}:${bounds.east.toFixed(2)}:${bounds.north.toFixed(2)}` : 'none';
-
-  const signature = {
-    model: model || 'GFS',
-    layer: layer || 'waves',
-    provider: g.__gridProvider || g.provider || 'none',
-    hourOffset: hourOffset,
-    boundsStr: boundsStr,
-    cols: g.cols || 0,
-    rows: g.rows || 0,
-    vectorsLength: g.vectors?.length || 0
-  };
-
-  _perModelHourCache.set(key, { 
-    data, 
-    timestamp: Date.now(), 
-    model: model || 'GFS',
-    signature
-  });
-
-  if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
-    recordTruthStage('cacheWrite', {
-      model,
-      domain: 'marine',
-      layer,
-      valid_time: data.valid_time || data.validTime,
-      run_time: data.run_time || data.runTime,
-      product_id: data.product_id || data.productId,
-      is_dynamic_viewport_product: data.is_dynamic_viewport_product,
-      coverage_scope: data.coverage_scope,
-      requested_bbox: data.requested_bbox,
-      served_bbox: data.served_bbox,
-      grid: data.grid,
-      truthTag: data.truthTag
-    }, 'marineController.js', '_cacheMarineResult');
-  }
-
-  if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
-    const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    for (let i = 0; i < 10; i++) _perModelHourCache.delete(oldest[i][0]);
-  }
-}
-
-function _updateDiagnosticsOnCacheHit(hitData, wantedModel, wantedHour, wantedLayer, bounds = null) {
-  if (!hitData || typeof window === 'undefined') return;
-  try {
-    const g = hitData.grid || {};
-    const isEuro = wantedModel === 'EURO';
-    const validTimeStr = getSharedValidTime(wantedHour, wantedLayer, wantedModel);
-    const clampRes = clampViewportBbox(bounds || g.bounds, wantedLayer, wantedModel, 'marine');
-    const clampedBbox = clampRes.clampedBbox || g.bounds;
-
-    const details = {
-      url: 'cache',
-      status: 200,
-      validTime: validTimeStr,
-      valueKind: wantedLayer === 'swell_1' ? 'swell_wave_height' : 'wave_height',
-      valueUnit: 'm',
-      displayUnitHint: 'none',
-      elapsedMs: 0,
-      error: null,
-      requestedBbox: bounds || g.bounds,
-      clampedBbox: clampedBbox,
-      fallbackReason: null,
-      hourOffset: wantedHour,
-      layer: wantedLayer,
-      gridVectorCount: g.vectors ? g.vectors.length : 0,
-      nonzeroCount: g.nonzeroCount || 0,
-      renderable: g.renderable !== false,
-      provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
-      sourceDataset: hitData.source_dataset || null,
-      sourceVariables: hitData.source_variables || null,
-      is_forecast_authoritative: g.is_forecast_authoritative || false,
-      is_estimated: g.is_estimated || false,
-      is_test_fixture: g.is_test_fixture || false,
-      gridMode: g.gridMode || 'rectangular',
-      productId: g.productId || null,
-      coverage_scope: g.coverage_scope || null
-    };
-
-    if (isEuro) {
-      updateCopernicusDiagnostics('grid', details);
-    } else {
-      updateDiagnostics('grid', details, wantedModel);
-    }
-
-    const vectors = g.vectors;
-    const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
-    const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
-    const bboxParam = clampedBbox ? `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}` : null;
-
-    updateProjectionDiag('marine', {
-      activeModel: wantedModel,
-      activeLayer: wantedLayer,
-      requestedViewportBounds: bounds || g.bounds,
-      backendRequestBbox: bboxParam,
-      responseGridBounds: g.bounds,
-      coverageBounds: clampRes.coverageBounds,
-      cols: g.cols,
-      rows: g.rows,
-      vectorCount: vectors ? vectors.length : 0,
-      nonzeroCount: g.nonzeroCount || 0,
-      timeOffsetHours: wantedHour,
-      requestedValidTime: validTimeStr,
-      validTime: validTimeStr,
-      firstVectorLatLng: firstVector,
-      lastVectorLatLng: lastVector,
-      productId: g.productId || null,
-      provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
-      renderable: g.renderable !== false,
-      clampedBbox: clampedBbox,
-      selectedTileId: clampRes.selectedTileId,
-      rejectedTileIds: clampRes.rejectedTileIds,
-      regionId: hitData.region_id || clampRes.selectedTileId,
-      tileId: hitData.tile_id || clampRes.selectedTileId,
-      isEstimated: g.is_estimated || false,
-      estimateBasis: g.estimate_basis || null,
-      coverage_scope: g.coverage_scope || null,
-      is_dynamic_viewport_product: g.is_dynamic_viewport_product || false,
-      requested_bbox: g.requested_bbox || null,
-      served_bbox: g.served_bbox || null,
-      cache_key: g.cache_key || null,
-      resolution: g.resolution || null,
-      coordinate_count: g.coordinate_count || null
-    });
-  } catch (e) {
-    console.warn('[Safe Cache] Failed to update diagnostics on cache hit:', e.message);
-  }
-}
 
 /** getModelSafeMarine - returns safe model cached results */
 export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null) {
   const wanted = requestedModel || 'GFS', wantedLayer = requestedLayer || 'waves', wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
   let hitData = null, cacheSource = 'none', staleHour = false, returnedHour = null;
+  const marineHourlyCache = getMarineHourlyCache();
   const cacheLayerKey = marineHourlyCache?.__layerKey || 'all';
   const isCacheMatch = cacheLayerKey === 'all' || cacheLayerKey === wantedLayer;
   
@@ -228,6 +81,8 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   const isIconBackend = getBackendIconMarineFlag() && wanted === 'ICON';
   const isCopernicusBackend = getBackendCopernicusFlag() && wanted === 'EURO';
   const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
+
+  const _perModelHourCache = getPerModelHourCache();
 
   if (!isBackendActive && _isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted && isCacheMatch) {
     try {
@@ -356,6 +211,8 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
       staleHour = true; cacheSource = 'per_model_hour_cache_nearest';
     }
   }
+  const lastKnownGoodMarine = getLastKnownGoodMarine();
+  const lastKnownGoodMarineModel = getLastKnownGoodMarineModel();
   if (!isBackendActive && !hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
     const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
     if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated' || cachedProvider === 'backend-weather-service') {
@@ -380,89 +237,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     }
 
     if (hitData && typeof window !== 'undefined') {
-      try {
-        const g = hitData.grid || {};
-        const isEuro = wanted === 'EURO';
-        const validTimeStr = getSharedValidTime(returnedHour, wantedLayer, wanted);
-        const clampRes = clampViewportBbox(bounds || g.bounds, wantedLayer, wanted, 'marine');
-        const clampedBbox = clampRes.clampedBbox || g.bounds;
-
-        const details = {
-          url: 'cache',
-          status: 200,
-          validTime: validTimeStr,
-          valueKind: wantedLayer === 'swell_1' ? 'swell_wave_height' : 'wave_height',
-          valueUnit: 'm',
-          displayUnitHint: 'none',
-          elapsedMs: 0,
-          error: null,
-          requestedBbox: bounds || g.bounds,
-          clampedBbox: clampedBbox,
-          fallbackReason: null,
-          hourOffset: returnedHour,
-          layer: wantedLayer,
-          gridVectorCount: g.vectors ? g.vectors.length : 0,
-          nonzeroCount: g.nonzeroCount || 0,
-          renderable: g.renderable !== false,
-          provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
-          sourceDataset: hitData.source_dataset || null,
-          sourceVariables: hitData.source_variables || null,
-          is_forecast_authoritative: g.is_forecast_authoritative || false,
-          is_estimated: g.is_estimated || false,
-          is_test_fixture: g.is_test_fixture || false,
-          gridMode: g.gridMode || 'rectangular',
-          productId: g.productId || null,
-          coverage_scope: g.coverage_scope || null
-        };
-
-        if (isEuro) {
-          updateCopernicusDiagnostics('grid', details);
-        } else {
-          updateDiagnostics('grid', details, wanted);
-        }
-
-        const vectors = g.vectors;
-        const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
-        const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
-        const bboxParam = clampedBbox ? `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}` : null;
-
-        updateProjectionDiag('marine', {
-          activeModel: wanted,
-          activeLayer: wantedLayer,
-          requestedViewportBounds: bounds || g.bounds,
-          backendRequestBbox: bboxParam,
-          responseGridBounds: g.bounds,
-          coverageBounds: clampRes.coverageBounds,
-          cols: g.cols,
-          rows: g.rows,
-          vectorCount: vectors ? vectors.length : 0,
-          nonzeroCount: g.nonzeroCount || 0,
-          timeOffsetHours: returnedHour,
-          requestedValidTime: validTimeStr,
-          validTime: validTimeStr,
-          firstVectorLatLng: firstVector,
-          lastVectorLatLng: lastVector,
-          productId: g.productId || null,
-          provider: g.__gridProvider || g.provider || (isEuro ? 'copernicus' : 'open-meteo'),
-          renderable: g.renderable !== false,
-          clampedBbox: clampedBbox,
-          selectedTileId: clampRes.selectedTileId,
-          rejectedTileIds: clampRes.rejectedTileIds,
-          regionId: hitData.region_id || clampRes.selectedTileId,
-          tileId: hitData.tile_id || clampRes.selectedTileId,
-          isEstimated: g.is_estimated || false,
-          estimateBasis: g.estimate_basis || null,
-          coverage_scope: g.coverage_scope || null,
-          is_dynamic_viewport_product: g.is_dynamic_viewport_product || false,
-          requested_bbox: g.requested_bbox || null,
-          served_bbox: g.served_bbox || null,
-          cache_key: g.cache_key || null,
-          resolution: g.resolution || null,
-          coordinate_count: g.coordinate_count || null
-        });
-      } catch (e) {
-        console.warn('[Safe Cache] Failed to update diagnostics on cache hit:', e.message);
-      }
+      _updateDiagnosticsOnCacheHit(hitData, wanted, returnedHour, wantedLayer, bounds);
     }
   }
   if (hitData && wanted === 'GFS' && wantedLayer === 'waves' && wantedHour === 0) {
@@ -494,245 +269,6 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   return hitData;
 }
 
-function createFallbackSafeZeroGrid(model, failureReason) {
-  const m = model || 'GFS', g = { vectors: [], bounds: { west: -180, south: -80, east: 180, north: 85 }, cols: 27, rows: 27,
-    __provider: 'fallback_safe_zero', __gridProvider: 'none', __renderable: false, __failureReason: failureReason };
-  return { type: 'FeatureCollection', features: [], grid: g, __sourceModel: m, __provider: 'fallback_safe_zero',
-    __gridProvider: 'none', __renderable: false, __failureReason: failureReason };
-}
-
-// --- INFLIGHT ABORT CONTROLLERS & INFLIGHT LOCKS ---
-var marinAbortController = null;
-var marineRequestInFlight = false;
-var BOOTSTRAP_MARINE = true;
-
-function hasTimeCoverage(cache, hourOffset) {
-  const timeArray = cache?.results?.[0]?.hourly?.time;
-  if (!timeArray || timeArray.length === 0) return false;
-  const targetMs = Date.now() + hourOffset * 3600000;
-  const lastTimeStr = timeArray[timeArray.length - 1];
-  const lastCachedMs = new Date(lastTimeStr.endsWith('Z') ? lastTimeStr : lastTimeStr + 'Z').getTime();
-  return targetMs <= lastCachedMs + 2 * 3600000;
-}
-
-export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 'waves') {
-  const isGfsBackend = getBackendWeatherFlag() && (model === 'GFS' || !model);
-  const isIconBackend = getBackendIconMarineFlag() && model === 'ICON';
-  const isCopernicusBackend = getBackendCopernicusFlag() && model === 'EURO';
-  const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
-
-  if (isBackendActive) {
-    const layerPart = _isAllVarModel(model) ? 'all' : layer;
-    const clampRes = clampViewportBbox(bounds, layer, model, 'marine');
-    const tileId = clampRes.selectedTileId || 'outside';
-    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
-    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-      const sig = exact.signature;
-      if (sig) {
-        const g = exact.data?.grid || {};
-        const b = g.bounds || {};
-        const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
-        const provider = g.__gridProvider || g.provider || 'none';
-
-        if (sig.model === (model || 'GFS') &&
-            sig.layer === layer &&
-            sig.provider === provider &&
-            sig.hourOffset === hourOffset &&
-            sig.boundsStr === bStr &&
-            sig.cols === (g.cols || 0) &&
-            sig.rows === (g.rows || 0) &&
-            sig.vectorsLength === (g.vectors?.length || 0)) {
-          return true;
-        }
-      }
-    }
-
-    // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
-    if (bounds) {
-      for (const [key, entry] of _perModelHourCache.entries()) {
-        if (key.startsWith(`${model || 'GFS'}_${layerPart}_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-          const g = entry.data?.grid;
-          if (g?.vectors?.length > 0 && g.bounds) {
-            const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
-            const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
-            const containsLng = ge < gw 
-              ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
-              : ew >= gw && ee <= ge;
-            const containsLat = es >= gs && en <= gn;
-
-            if (containsLng && containsLat) {
-              const sig = entry.signature;
-              if (sig) {
-                const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';
-                const provider = g.__gridProvider || g.provider || 'none';
-
-                if (sig.model === (model || 'GFS') &&
-                    sig.layer === layer &&
-                    sig.provider === provider &&
-                    sig.hourOffset === hourOffset &&
-                    sig.boundsStr === bStr &&
-                    sig.cols === (g.cols || 0) &&
-                    sig.rows === (g.rows || 0) &&
-                    sig.vectorsLength === (g.vectors?.length || 0)) {
-                  return true;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    return false;
-  }
-
-  if (!bounds || !marineHourlyCache.bounds || !marineHourlyCache.results) return false;
-  if (marineHourlyCache.model !== (model || 'GFS')) return false;
-  const cacheLayerKey = marineHourlyCache.__layerKey || 'all';
-  if (cacheLayerKey !== 'all' && cacheLayerKey !== layer) return false;
-  if (!_isAllVarModel(model) && (marineHourlyCache.activeLayer || 'waves') !== layer) return false;
-  if (Date.now() - marineHourlyCache.timestamp >= HOURLY_CACHE_TTL) return false;
-  
-  if (marineHourlyCache.__coverageStartMs && marineHourlyCache.__coverageEndMs) {
-    const targetMs = Date.now() + hourOffset * 3600000;
-    if (targetMs < marineHourlyCache.__coverageStartMs - 3600000 || targetMs > marineHourlyCache.__coverageEndMs + 3600000) {
-      return false;
-    }
-  } else {
-    if (!hasTimeCoverage(marineHourlyCache, hourOffset)) return false;
-  }
-  
-  const isGlobalCached = !!marineHourlyCache.isGlobal;
-  const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
-  if (isGlobalCached !== isGlobalViewport) return false;
-  return isViewportInsideCachedBounds(bounds, marineHourlyCache.bounds);
-}
-
-export function getMarineHourlyCache() {
-  return marineHourlyCache;
-}
-
-
-function extractMarineAtOffset(cache, hourOffset, targetLayer) {
-  const { results, points, gridSize, bounds } = cache;
-  const timeArray = results[0]?.hourly?.time;
-  const targetMs = Date.now() + hourOffset * 3600000;
-  const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-  
-  let validTimeStr = new Date().toISOString().replace(/\.\d{3}/, '');
-  if (timeArray?.[idx]) {
-    const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
-    const delta = Math.abs(cachedMs - targetMs);
-    if (delta > 3 * 3600000) {
-      console.warn(`[extractMarineAtOffset] Rejected: delta=${(delta/3600000).toFixed(1)}h > 3h`);
-      return null;
-    }
-    validTimeStr = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').toISOString().replace(/\.\d{3}/, '');
-  }
-
-  const activeModel = cache.model || 'GFS';
-  const gridVectors = [];
-  const features = [];
-
-  points.forEach((pt, i) => {
-    const r = results[i];
-    if (!r?.hourly) {
-      gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
-        waves: { u: 0, v: 0, speed: 0, period: 0 }, swell_1: { u: 0, v: 0, speed: 0, period: 0 },
-        swell_2: { u: 0, v: 0, speed: 0, period: 0 }, wind_waves: { u: 0, v: 0, speed: 0, period: 0 },
-        isOcean: false });
-      return;
-    }
-    const c = {
-      wave_height: r.hourly.wave_height?.[idx], wave_direction: r.hourly.wave_direction?.[idx],
-      wave_period: r.hourly.wave_period?.[idx],
-      swell_wave_height: r.hourly.swell_wave_height?.[idx], swell_wave_direction: r.hourly.swell_wave_direction?.[idx],
-      swell_wave_period: r.hourly.swell_wave_period?.[idx],
-      secondary_swell_wave_height: r.hourly.secondary_swell_wave_height?.[idx],
-      secondary_swell_wave_direction: r.hourly.secondary_swell_wave_direction?.[idx],
-      secondary_swell_wave_period: r.hourly.secondary_swell_wave_period?.[idx],
-      wind_wave_height: r.hourly.wind_wave_height?.[idx], wind_wave_direction: r.hourly.wind_wave_direction?.[idx],
-      wind_wave_period: r.hourly.wind_wave_period?.[idx],
-    };
-    const w_h = safeNum(c.wave_height), w_d = safeNum(c.wave_direction);
-    const s1_h = safeNum(c.swell_wave_height ?? 0), s1_d = safeNum(c.swell_wave_direction ?? 0);
-    const s2_h = safeNum(c.secondary_swell_wave_height ?? 0), s2_d = safeNum(c.secondary_swell_wave_direction ?? 0);
-    const ww_h = safeNum(c.wind_wave_height ?? 0), ww_d = safeNum(c.wind_wave_direction ?? 0);
-
-    const activeLayerFromCache = targetLayer || cache.activeLayer || 'waves';
-    let isOcean = false;
-    if (activeLayerFromCache === 'waves') {
-      isOcean = (r.hourly.wave_height?.[idx] != null);
-    } else if (activeLayerFromCache === 'swell_1') {
-      isOcean = (r.hourly.swell_wave_height?.[idx] != null) || (r.hourly.wave_height?.[idx] != null);
-    } else if (activeLayerFromCache === 'swell_2') {
-      isOcean = (r.hourly.secondary_swell_wave_height?.[idx] != null) || (r.hourly.swell_wave_height?.[idx] != null) || (r.hourly.wave_height?.[idx] != null);
-    } else if (activeLayerFromCache === 'wind_waves') {
-      isOcean = (r.hourly.wind_wave_height?.[idx] != null) || (r.hourly.wave_height?.[idx] != null);
-    } else {
-      isOcean = (r.hourly.wave_height?.[idx] != null);
-    }
-
-    if (w_h === 0 && s1_h === 0 && ww_h === 0) {
-      gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
-        waves: { u: 0, v: 0, speed: 0, period: 0 }, swell_1: { u: 0, v: 0, speed: 0, period: 0 },
-        swell_2: { u: 0, v: 0, speed: 0, period: 0 }, wind_waves: { u: 0, v: 0, speed: 0, period: 0 },
-        isOcean });
-      return;
-    }
-
-    const isIconSwell2Estimated = false; // Permanently disabled in Stage 4H
-    const final_s2_h = isIconSwell2Estimated ? s1_h : s2_h;
-    const final_s2_d = isIconSwell2Estimated ? s1_d : s2_d;
-    const final_s2_period = isIconSwell2Estimated ? safeNum(c.swell_wave_period ?? 0) : safeNum(c.secondary_swell_wave_period ?? 0);
-
-    gridVectors.push({ lat: pt.lat, lng: pt.monotonicLng,
-      waves: { ...getUV(w_h, w_d), period: safeNum(c.wave_period) },
-      swell_1: { ...getUV(s1_h, s1_d), period: safeNum(c.swell_wave_period ?? 0) },
-      swell_2: { ...getUV(final_s2_h, final_s2_d), period: final_s2_period },
-      wind_waves: { ...getUV(ww_h, ww_d), period: safeNum(c.wind_wave_period ?? 0) },
-      isOcean });
-
-    features.push({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [pt.monotonicLng, pt.lat] },
-      properties: {
-        wave_height: w_h, wave_period: safeNum(c.wave_period), wave_direction: w_d,
-        swell_wave_height: s1_h, swell_wave_period: safeNum(c.swell_wave_period != null ? c.swell_wave_period : null), swell_wave_direction: s1_h > 0 ? s1_d : null,
-        secondary_swell_wave_height: s2_h, secondary_swell_wave_period: safeNum(c.secondary_swell_wave_period != null ? c.secondary_swell_wave_period : null), secondary_swell_wave_direction: s2_h > 0 ? s2_d : null,
-        wind_wave_height: ww_h, wind_wave_period: safeNum(c.wind_wave_period != null ? c.wind_wave_period : null), wind_wave_direction: ww_h > 0 ? ww_d : null,
-      },
-    });
-  });
-
-  if (gridVectors.length === 0) return null;
-
-  const provider = cache.provider || 'open-meteo';
-  const activeLayerFromCache = targetLayer || cache.activeLayer || 'waves';
-  let activeLayerNonzero = 0, activeLayerMax = 0, oceanMaskCount = 0;
-  for (const gv of gridVectors) {
-    if (gv.isOcean) oceanMaskCount++;
-    const ld = gv[activeLayerFromCache];
-    if (ld && ld.speed > 0) { activeLayerNonzero++; if (ld.speed > activeLayerMax) activeLayerMax = ld.speed; }
-  }
-  const renderable = activeLayerNonzero > 0;
-  const noDataReason = !renderable ? (oceanMaskCount > 0 ? 'active_layer_zero_ocean_present' : 'no_ocean_data') : null;
-  return {
-    type: 'FeatureCollection', features, hourOffset,
-    valid_time: validTimeStr,
-    validTime: validTimeStr,
-    grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now(),
-            __sourceModel: activeModel, __provider: provider, __gridProvider: provider,
-            __componentLayer: activeLayerFromCache, __gridSupportsLayer: renderable,
-            __activeLayerNonzeroCount: activeLayerNonzero, __activeLayerMax: activeLayerMax,
-            __oceanMaskCount: oceanMaskCount, __renderable: renderable, __noDataReason: noDataReason,
-            provider: provider, hourOffset,
-            valid_time: validTimeStr,
-            validTime: validTimeStr }
-  };
-}
-
-export { extractMarineAtOffset };
-
 // Centralized single-flight request registry for marine fetches
 var inFlightMarineRequests = new Map();
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false) {
@@ -754,6 +290,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   const clampRes = clampViewportBbox(bounds, activeLayer, model, 'marine');
   const resolvedBounds = clampRes.isInside && clampRes.clampedBbox ? clampRes.clampedBbox : bounds;
+
+  const _perModelHourCache = getPerModelHourCache();
 
   if (!forceFetch && isBackendActive) {
     const layerPart = _isAllVarModel(model) ? 'all' : activeLayer;
@@ -859,7 +397,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   }
 
   console.warn(`[Fallback] Using legacy Open-Meteo proxy pipeline for model=${model || 'GFS'}, layer=${activeLayer || 'waves'}, hour=${hourOffset}`);
-  const { points, gridSize, isGlobal, bounds: gridBounds } = computeGridPoints(snappedBounds, 'marine');
+  const gridPointsRes = computeGridPoints(snappedBounds, 'marine');
+  const points = gridPointsRes.points;
+  let gridSize = gridPointsRes.gridSize;
+  const isGlobal = gridPointsRes.isGlobal;
+  const gridBounds = gridPointsRes.bounds;
   const pointCount = points.length || 1;
 
   const MARINE_OM_MODELS = { GFS: 'ncep_gfswave025', ICON: 'gwam', EURO: 'ecmwf_wam025' };
@@ -915,6 +457,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     estimatedBytes = estimateRequestCost('marine', model, pointCount, marineVarList.length, forecastDays);
   }
 
+  const marineHourlyCache = getMarineHourlyCache();
+
   if (!forceFetch && isContainedInMarineCache(bounds, model, hourOffset, activeLayer)) {
     return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
   }
@@ -937,7 +481,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       (marineHourlyCache.provider || 'open-meteo') === expectedProvider &&
       Date.now() - marineHourlyCache.timestamp < HOURLY_CACHE_TTL) {
     const stale = extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
-    if (stale?.features?.length) { lastKnownGoodMarine = stale; lastKnownGoodMarineModel = model || 'GFS'; lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel; lastKnownGoodMarine.__provider = expectedProvider; }
+    if (stale?.features?.length) {
+      setLastKnownGoodMarine(stale, model || 'GFS', expectedProvider);
+    }
   }
 
   const cacheKey = viewportCacheKey(snappedBounds, `marine_${model || 'GFS'}_${layerKey}_${expectedProvider}_h${hourOffset}`);
@@ -966,7 +512,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (matchedPromise) {
     try {
       await matchedPromise;
-      return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
+      return extractMarineAtOffset(getMarineHourlyCache(), hourOffset, activeLayer);
     } catch (e) {
       return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'inflight_failed');
     }
@@ -975,7 +521,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (inFlightMarineRequests.has(requestKey)) {
     try {
       await inFlightMarineRequests.get(requestKey);
-      return extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
+      return extractMarineAtOffset(getMarineHourlyCache(), hourOffset, activeLayer);
     } catch (e) {
       return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'inflight_failed');
     }
@@ -1083,7 +629,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       const coverageEndMs = timeArray && timeArray[timeArray.length - 1] ? new Date(timeArray[timeArray.length - 1].endsWith('Z') ? timeArray[timeArray.length - 1] : timeArray[timeArray.length - 1] + 'Z').getTime() : Date.now();
 
       var detectedProvider = (allResults[0]?.__provider === 'copernicus') ? 'copernicus' : 'open-meteo';
-      marineHourlyCache = {
+      
+      const newCache = {
         hash: viewHash, results: allResults, points, gridSize,
         bounds: gridBounds, timestamp: Date.now(),
         model: model || 'GFS', activeLayer: activeLayer || 'waves', provider: detectedProvider, isGlobal,
@@ -1094,9 +641,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         __model: model || 'GFS',
         __layerKey: layerKey
       };
-      persistCache(LS_MARINE_KEY, marineHourlyCache);
+      setMarineHourlyCache(newCache);
 
-      const result = extractMarineAtOffset(marineHourlyCache, hourOffset, activeLayer);
+      const result = extractMarineAtOffset(newCache, hourOffset, activeLayer);
       if (result) {
         clearCooldown('marine');
         logMarineRequest({ source: 'grid', model: model || 'GFS', layer: activeLayer, hour: hourOffset,
@@ -1104,10 +651,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
           provider: detectedProvider, cacheHit: false, result: 'success',
           elapsedMs: Date.now() - fetchStart, renderable: result?.grid?.__renderable });
         MARINE_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
-        lastKnownGoodMarine = result;
-        lastKnownGoodMarineModel = model || 'GFS';
-        lastKnownGoodMarine.__sourceModel = lastKnownGoodMarineModel;
-        lastKnownGoodMarine.__provider = detectedProvider;
+        setLastKnownGoodMarine(result, model || 'GFS', detectedProvider);
         _cacheMarineResult(model || 'GFS', hourOffset, result, activeLayer);
         if (BOOTSTRAP_MARINE) { BOOTSTRAP_MARINE = false; }
         return result;
