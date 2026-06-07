@@ -38,7 +38,7 @@ export const useEvents = () => {
   useEffect(() => {
     fetchEvents();
 
-    const wsUrl = `${BACKEND_URL.replace(/^http/, 'ws')}/ws/admin/events`;
+    const wsUrl = `${BACKEND_URL.replace(/^http/, 'ws')}/api/ws/admin/events`;
     
     const connectWS = () => {
       try {
