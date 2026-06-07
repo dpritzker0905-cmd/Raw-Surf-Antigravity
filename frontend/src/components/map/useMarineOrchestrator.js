@@ -35,8 +35,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const getViewportHash = () => {
     if (!mapInstance) return null;
     try {
-      const center = mapInstance.getCenter(), zoom = mapInstance.getZoom(), q = v => Number(v).toFixed(2), z = Math.round(zoom * 2) / 2;
-      return `${q(center.lng)}:${q(center.lat)}:${z}:${activeModelRef.current}:${activeMarineLayerRef.current || 'waves'}:${timeOffsetRef.current}`;
+      const b = mapInstance.getBounds();
+      const q = v => Number(v).toFixed(2);
+      const bboxStr = `${q(b.getWest())},${q(b.getSouth())},${q(b.getEast())},${q(b.getNorth())}`;
+      return `${bboxStr}:${activeModelRef.current}:${activeMarineLayerRef.current || 'waves'}:${timeOffsetRef.current}`;
     } catch (e) { return null; }
   };
 
@@ -120,8 +122,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
         if (!isTimelineScrub && (window.isScrubbingTimeline || isCommittingDataRef.current)) return;
         if (!activeMarineLayersRef.current) return;
-        const center = mapInstance.getCenter(), zoom = mapInstance.getZoom(), q = (v) => Number(v).toFixed(2), z = Math.round(zoom * 2) / 2;
-        const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}:${model}:${layer}:${timeOffset}`;
+        const viewportHash = getViewportHash();
         const isRetry = source === 'cooldown_retry' || source === 'delayed_retry';
 
         if (!isRetry && !isTimelineScrub && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
@@ -556,9 +557,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (lastInvocationRef.current.source === source && now - lastInvocationRef.current.time < dedupeWindow) return;
 
       try {
-        const center = mapInstance.getCenter(), zoom = mapInstance.getZoom(), q = (v) => Number(v).toFixed(2), z = Math.round(zoom * 2) / 2;
-        const model = activeModelRef.current, layer = activeMarineLayerRef.current || 'waves', timeOffset = timeOffsetRef.current;
-        const viewportHash = `${q(center.lng)}:${q(center.lat)}:${z}:${model}:${layer}:${timeOffset}`;
+        const viewportHash = getViewportHash();
         if (locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) return;
       } catch (e) {}
 
