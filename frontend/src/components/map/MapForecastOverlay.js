@@ -256,7 +256,7 @@ export var MapForecastOverlay = ({
 
     // Enhanced diagnostic and Scrubber Truth logging
     if (selected) {
-      const targetTs = Date.now() + timeOffsetHours * 3600000;
+      const targetTs = Date.now() + (timeOffsetHours || 0) * 3600000;
       const targetTimestamp = new Date(targetTs).toISOString();
       const selectedTimestamp = selected.time;
       const selectedHourIndex = selected.hourIndex;

@@ -25,7 +25,15 @@ export function computeJsBoundsHash(servedBbox) {
 }
 
 export function computeJsTraceId(model, domain, layer, validTime, servedBbox, dataHash) {
-  const dateStr = new Date(validTime).toISOString().replace(/\.\d{3}/, '');
+  let dateStr = "none";
+  if (validTime) {
+    try {
+      const d = new Date(validTime);
+      if (!isNaN(d.getTime())) {
+        dateStr = d.toISOString().replace(/\.\d{3}/, '');
+      }
+    } catch (e) {}
+  }
   const traceKey = `${model.toUpperCase()}:${domain.toLowerCase()}:${layer.toLowerCase()}:${dateStr}:${servedBbox || ""}:${dataHash}`;
   return fnv1a_32(traceKey);
 }
@@ -65,14 +73,29 @@ export function recordTruthStage(stageName, data, file, functionName) {
     const traceId = computeJsTraceId(model, domain, layer, validTime, servedBbox, dataHash);
     
     const runTime = data.run_time || data.runTime || new Date().toISOString();
-    const timeOffsetHours = Math.round((new Date(validTime) - new Date(runTime)) / 3600000);
+    let timeOffsetHours = 0;
+    try {
+      const vTime = new Date(validTime);
+      const rTime = new Date(runTime);
+      if (!isNaN(vTime.getTime()) && !isNaN(rTime.getTime())) {
+        timeOffsetHours = Math.round((vTime - rTime) / 3600000);
+      }
+    } catch (e) {}
     
     truthTag = {
       traceId,
       model,
       domain,
       layer,
-      valid_time: new Date(validTime).toISOString().replace(/\.\d{3}/, ''),
+      valid_time: (() => {
+        if (validTime) {
+          try {
+            const d = new Date(validTime);
+            if (!isNaN(d.getTime())) return d.toISOString().replace(/\.\d{3}/, '');
+          } catch (e) {}
+        }
+        return new Date().toISOString().replace(/\.\d{3}/, '');
+      })(),
       timeOffsetHours,
       product_id: data.product_id || data.productId,
       grid_product_id: data.product_id || data.productId,

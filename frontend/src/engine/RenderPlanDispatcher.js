@@ -243,7 +243,7 @@ export function updateMarineTruthTrace(stage, data, activeModel, activeLayer, ho
 
   window.__MARINE_TRUTH_TRACE__ = {
     timeOffsetHours: hourOffset,
-    selectedForecastTimestamp: new Date(Date.now() + hourOffset * 3600000).toISOString(),
+    selectedForecastTimestamp: (typeof hourOffset === 'number' && !isNaN(hourOffset)) ? new Date(Date.now() + hourOffset * 3600000).toISOString() : new Date().toISOString(),
     activeModel,
     activeMarineLayer: activeLayer,
     provider: data?.grid?.__provider || data?.grid?.provider || data?.__provider || 'none',
