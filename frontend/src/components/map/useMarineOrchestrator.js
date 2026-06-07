@@ -21,6 +21,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => { activeMarineLayerRef.current = activeMarineLayer; if (typeof window !== 'undefined') window.activeMarineLayer = activeMarineLayer || 'waves'; }, [activeMarineLayer]);
   useEffect(() => { if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
 
+  const lastFetchedLayerRef = useRef(null);
+
   const {
     marineData,
     setMarineData,
@@ -36,7 +38,6 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     updateMarineGridRef,
     consecutiveFailuresRef,
     lastFetchedModelRef,
-    lastFetchedLayerRef,
     pipelineEventsRef,
     lastCommittedSigRef,
     moveendDebounceRef,
