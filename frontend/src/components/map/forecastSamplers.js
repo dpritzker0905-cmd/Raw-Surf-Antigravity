@@ -60,7 +60,7 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOff
   const isWindRedirect = typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind';
   const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
   const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
-  const isPrecipRedirect = typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'precipitation';
+  const isPrecipRedirect = typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && (activeLayer === 'precipitation' || activeLayer === 'rain');
   
   if (isPrecipRedirect) {
     const validTimeStr = getSharedValidTime(timeOffsetHours, activeLayer, model || 'GFS');
@@ -104,7 +104,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   // --- TEMPORARY ROUTING: REDIRECT GFS/ICON/EURO PRECIPITATION TO BACKEND ---
   // Since precipitation is a weather layer, it is routed through fetchExactMarinePoint temporarily
   // until a unified frontend weather/marine sampler is fully established.
-  if (typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'precipitation') {
+  if (typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && (activeLayer === 'precipitation' || activeLayer === 'rain')) {
     try {
       console.log(`[Backend Precipitation Service] Redirecting ${model || 'GFS'} Precipitation point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPrecipitationPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
@@ -800,6 +800,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     wind_speed_10m: status === 'exact_no_time_coverage' ? null : (h.wind_speed_10m?.[bestIdx] ?? null),
     wind_direction_10m: status === 'exact_no_time_coverage' ? null : (h.wind_direction_10m?.[bestIdx] ?? null),
     pressure_msl: status === 'exact_no_time_coverage' ? null : (h.pressure_msl?.[bestIdx] ?? null),
+    precipitation: status === 'exact_no_time_coverage' ? null : (h.precipitation?.[bestIdx] ?? null),
     status,
     source: cachedResponse.source || 'exact_point_api',
     hourIndex: bestIdx,

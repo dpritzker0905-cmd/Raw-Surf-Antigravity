@@ -19,6 +19,7 @@ import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
 import { recordTruthStage } from './weatherTruthTracker';
+import { getBackendPrecipitationFlag } from './backendPrecipitationServiceClient';
 
 
 export var MapForecastOverlay = ({
@@ -58,7 +59,8 @@ export var MapForecastOverlay = ({
   const pointLng = selectedSpot?.longitude || longPressLocation?.lng || defaultSnappedLng;
   const isMarineLayer = ['waves', 'swell_1', 'swell_2', 'wind_waves', 'wind'].includes(activeLayer);
   const isPressureBackendActive = activeLayer === 'pressure' && typeof getBackendPressureFlag === 'function' && getBackendPressureFlag();
-  const isExactPointRequired = isMarineLayer || isPressureBackendActive;
+  const isPrecipBackendActive = (activeLayer === 'rain' || activeLayer === 'precipitation') && typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag();
+  const isExactPointRequired = isMarineLayer || isPressureBackendActive || isPrecipBackendActive;
   const [exactPointResponse, setExactPointResponse] = useState(null);
 
   // v6.7: Clear stale exact-point state synchronously using refs instead of render-time setState.
@@ -71,7 +73,7 @@ export var MapForecastOverlay = ({
   const isIconMarineBackendActive = activeModel === 'ICON' && ['swell_1', 'swell_2', 'wind_waves', 'waves'].includes(activeLayer) && typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
   const isWeatherBackendActive = activeModel === 'GFS' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer) && typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
   
-  const isSingleHourBackendRedirection = isPressureBackendActive || isWindBackendActive || isCopernicusBackendActive || isIconMarineBackendActive || isWeatherBackendActive;
+  const isSingleHourBackendRedirection = isPressureBackendActive || isWindBackendActive || isCopernicusBackendActive || isIconMarineBackendActive || isWeatherBackendActive || isPrecipBackendActive;
 
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [settledOffset, setSettledOffset] = useState(timeOffsetHours);
@@ -412,9 +414,11 @@ export var MapForecastOverlay = ({
     ? liveWind.wind_gusts_10m : getClampedValue(wx.wind_gusts_10m, currentHourIndex);
   const windGusts = getBiasAdjustedLocal(rawWindGusts, 'wind_gusts');
 
-  const precip = (activeLayer === 'rain' && sampledRain)
-    ? sampledRain.value
-    : getClampedValue(wx.precipitation, currentHourIndex);
+  const precip = (isExactPointAuthority && (activeLayer === 'rain' || activeLayer === 'precipitation'))
+    ? (useExactPoint?.precipitation ?? (useGridFallback && sampledRain ? sampledRain.value : null))
+    : ((activeLayer === 'rain' || activeLayer === 'precipitation') && sampledRain)
+      ? sampledRain.value
+      : getClampedValue(wx.precipitation, currentHourIndex);
 
   const snowfall = getClampedValue(wx.snowfall, currentHourIndex);
   const temp = getClampedValue(wx.temperature_2m, currentHourIndex);
