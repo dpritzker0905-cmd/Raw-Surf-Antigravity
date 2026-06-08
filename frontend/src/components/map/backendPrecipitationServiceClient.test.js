@@ -111,8 +111,11 @@ describe('backendPrecipitationServiceClient', () => {
       expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.pointValueMm).toBe(1.2);
       expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.provider).toBe('open-meteo');
       expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.source).toBe('network');
+      expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.fallbackReason).toBeNull();
+      expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.gridParity).toBe('point_only');
+      expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.manifestMissReason).toBeNull();
     });
-
+ 
     it('should fetch dynamically and snapped for ICON', async () => {
       const mockResponse = {
         point: {
@@ -129,38 +132,44 @@ describe('backendPrecipitationServiceClient', () => {
         source_variables: ['precipitation'],
         is_forecast_authoritative: true,
         is_estimated: false,
-        is_test_fixture: false
+        is_test_fixture: false,
+        fallback_reason: 'point_only_precipitation_backend',
+        grid_parity: 'point_only'
       };
-
+ 
       const mockFetch = jest.fn().mockResolvedValue({
         ok: true,
         json: async () => mockResponse
       });
       global.fetch = mockFetch;
-
+ 
       const dateNow = new Date('2026-06-04T12:00:00Z').getTime();
       window.__MOCK_DATE_NOW__ = dateNow;
-
-      // Mock manifest to return an ICON precipitation product
+ 
+      // Mock manifest to return a non-empty list of products that does not match ICON precipitation (triggers manifest miss)
       setCachedManifest({
         products: [
           {
-            model: 'ICON',
-            domain: 'weather',
-            layer: 'precipitation',
+            model: 'GFS',
+            domain: 'marine',
+            layer: 'waves',
             valid_time_start: '2026-06-04T12:00:00Z',
             valid_time_end: '2026-06-04T12:00:00Z'
           }
         ]
       });
-
+ 
       const data = await fetchBackendExactPrecipitationPoint(28.3601, -80.6076, 0, null, 'ICON');
-
+ 
       expect(mockFetch.mock.calls[0][0]).toContain(`${POINT_URL}?model=ICON&domain=weather&layer=precipitation&lat=28.3601&lng=-80.6076&valid_time=2026-06-04T12:00:00.000Z`);
-
+ 
       expect(data.requestedModel).toBe('ICON');
       expect(data.apiModel).toBe('dwd_icon');
       expect(data.hourly.precipitation[0]).toBe(0.5);
+      
+      expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.manifestMissReason).toBe('No ICON weather precipitation products found in manifest');
+      expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.fallbackReason).toBe('point_only_precipitation_backend');
+      expect(window.__BACKEND_PRECIPITATION_SERVICE_DIAG__.gridParity).toBe('point_only');
     });
 
     it('should handle fetch failures cleanly', async () => {

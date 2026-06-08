@@ -46,7 +46,7 @@ export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, 
   const requestedValidTime = targetDt.toISOString();
   
   let validTimeStr = requestedValidTime;
-  let fallbackReason = null;
+  let manifestMissReason = null;
   
   if (manifest && Array.isArray(manifest.products)) {
     const matchingProducts = manifest.products.filter(p => 
@@ -68,13 +68,13 @@ export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, 
       if (minDiffMs <= 3 * 3600000 && bestProduct) {
         validTimeStr = new Date(bestProduct.valid_time_start).toISOString();
       } else {
-        fallbackReason = `No ${targetModel} precipitation product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
+        manifestMissReason = `No ${targetModel} precipitation product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
       }
     } else {
-      fallbackReason = `No ${targetModel} weather precipitation products found in manifest`;
+      manifestMissReason = `No ${targetModel} weather precipitation products found in manifest`;
     }
   } else {
-    fallbackReason = "Manifest not loaded or empty";
+    manifestMissReason = "Manifest not loaded or empty";
   }
 
   // Compute visual tile time if available
@@ -166,7 +166,9 @@ export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, 
       pointValueMm: json.point.value !== undefined ? json.point.value : null,
       provider: json.provider || provider,
       source: 'network',
-      fallbackReason: fallbackReason || (json.fallback_reason || json.fallbackReason || null),
+      fallbackReason: json.fallback_reason || json.fallbackReason || null,
+      gridParity: json.grid_parity || json.gridParity || 'point_only',
+      manifestMissReason: manifestMissReason,
 
       // Legacy/Existing keys
       url,
@@ -242,6 +244,8 @@ export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, 
       provider: 'none',
       source: 'error',
       fallbackReason: err.message,
+      gridParity: 'none',
+      manifestMissReason: manifestMissReason,
 
       // Legacy/Existing keys
       url,
