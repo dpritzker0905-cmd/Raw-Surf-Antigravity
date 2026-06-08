@@ -21,12 +21,18 @@ import {
   getBackendWindFlag,
   fetchBackendExactWindPoint,
   getBackendCopernicusFlag,
-  fetchBackendExactCopernicusPoint
+  fetchBackendExactCopernicusPoint,
+  getSharedValidTime
 } from './backendWeatherServiceClient';
 import {
   getBackendPressureFlag,
   fetchBackendExactPressurePoint
 } from './backendPressureServiceClient';
+import {
+  getBackendPrecipitationFlag,
+  fetchBackendExactPrecipitationPoint,
+  precipitationPointCache
+} from './backendPrecipitationServiceClient';
 
 export { sampleFromMarineGrid };
 
@@ -54,6 +60,14 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOff
   const isWindRedirect = typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind';
   const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
   const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
+  const isPrecipRedirect = typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'precipitation';
+  
+  if (isPrecipRedirect) {
+    const validTimeStr = getSharedValidTime(timeOffsetHours, activeLayer, model || 'GFS');
+    const cacheKey = `${(model || 'GFS').toUpperCase()}_weather_precipitation_${rLat.toFixed(2)}_${rLng.toFixed(2)}_${validTimeStr}_${provider}`;
+    return precipitationPointCache.has(cacheKey);
+  }
+
   const isBackendRedirect = isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect;
 
   const cacheKey = isBackendRedirect
@@ -85,6 +99,21 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (typeof isInCooldown === 'function' && isInCooldown('marine')) {
     console.warn(`[ExactPoint] Blocked fetch for model=${model} lat=${rLat} lng=${rLng}: marine cooldown is active.`);
     return { status: 'rate_limited' };
+  }
+
+  // --- TEMPORARY ROUTING: REDIRECT GFS/ICON/EURO PRECIPITATION TO BACKEND ---
+  // Since precipitation is a weather layer, it is routed through fetchExactMarinePoint temporarily
+  // until a unified frontend weather/marine sampler is fully established.
+  if (typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'precipitation') {
+    try {
+      console.log(`[Backend Precipitation Service] Redirecting ${model || 'GFS'} Precipitation point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
+      const pointResult = await fetchBackendExactPrecipitationPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
+      if (pointResult) {
+        return pointResult;
+      }
+    } catch (err) {
+      console.warn(`[Backend Precipitation Service] Precipitation point redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
+    }
   }
 
   // --- REDIRECT GFS/ICON/EURO PRESSURE TO BACKEND IF FEATURE FLAG IS ACTIVE ---

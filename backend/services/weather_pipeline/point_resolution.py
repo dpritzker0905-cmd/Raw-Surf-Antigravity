@@ -328,5 +328,72 @@ class PointResolutionService:
             except Exception as ex:
                 logger.error(f"[Point Fallback] Failed fetching point for {model} marine at ({lat}, {lng}): {ex}")
 
+        elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in ("GFS", "ICON", "EURO"):
+            try:
+                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng)
+                if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
+                    from services.weather_pipeline.normalizer import WeatherNormalizer
+                    times = raw_point["hourly"]["time"]
+                    idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
+                    if idx is not None:
+                        val_key = "pressure_msl" if layer.lower() == "pressure" else "precipitation"
+                        val = raw_point["hourly"][val_key][idx]
+                        val = val if val is not None else 0.0
+                        
+                        detail = NormalizedPointDetail(
+                            requested_lat=lat,
+                            requested_lng=lng,
+                            sampled_lat=lat,
+                            sampled_lng=lng,
+                            speed=0.0,
+                            direction=0.0,
+                            u=0.0,
+                            v=0.0,
+                            period=0.0,
+                            gust=None,
+                            value=round(val, 4),
+                            interpolation_method="direct_point_api"
+                        )
+                        
+                        upstream_model = self.provider.FORECAST_MODELS.get(model.upper(), "gfs_seamless")
+                        value_kind = "pressure" if layer.lower() == "pressure" else "precipitation"
+                        value_unit = "hPa" if layer.lower() == "pressure" else "mm"
+                        display_unit_hint = value_unit
+                        
+                        units = {
+                            "value": value_unit
+                        }
+                        
+                        fb_reason = "point_only_precipitation_backend" if layer.lower() == "precipitation" else "no_matching_grid_product"
+                        g_parity = "point_only" if layer.lower() == "precipitation" else False
+                        
+                        return NormalizedPointResponse(
+                            model=model.upper(),
+                            provider="open-meteo",
+                            domain="weather",
+                            layer=layer.lower(),
+                            run_time=datetime.now(timezone.utc),
+                            valid_time=target_dt,
+                            is_forecast_authoritative=True,
+                            is_estimated=False,
+                            point=detail,
+                            value_kind=value_kind,
+                            value_unit=value_unit,
+                            display_unit_hint=display_unit_hint,
+                            source_variables=[val_key],
+                            freshness_sec=1800,
+                            source="backend_direct_point",
+                            coverage_status="outside_grid_tile",
+                            fallback_attempted=True,
+                            fallback_reason=fb_reason,
+                            upstream_provider="open-meteo",
+                            upstream_model=upstream_model,
+                            units=units,
+                            grid_parity=g_parity,
+                            gridParity=g_parity
+                        )
+            except Exception as ex:
+                logger.error(f"[Point Fallback] Failed fetching point for {model} weather/{layer} at ({lat}, {lng}): {ex}")
+
         # If fallback not applicable or failed, return structured 404 response
         return make_no_coverage_point_response(model, layer, lat, lng, valid_time_str, grid_product_id)

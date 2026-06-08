@@ -145,6 +145,8 @@ class OpenMeteoProvider:
             params["models"] = api_model
             if layer == "pressure":
                 params["hourly"] = "pressure_msl"
+            elif layer == "precipitation":
+                params["hourly"] = "precipitation"
             else:
                 params["hourly"] = "pressure_msl"
                 
@@ -293,6 +295,16 @@ class OpenMeteoProvider:
                 params["hourly"] = "wind_wave_height,wind_wave_direction,wind_wave_period"
             else:
                 params["hourly"] = "wave_height,wave_direction,wave_period"
+        elif domain == "weather":
+            url = self.FORECAST_URL
+            api_model = self.FORECAST_MODELS.get(model.upper(), "gfs_seamless")
+            params["models"] = api_model
+            if layer == "pressure":
+                params["hourly"] = "pressure_msl"
+            elif layer == "precipitation":
+                params["hourly"] = "precipitation"
+            else:
+                params["hourly"] = "pressure_msl"
         else: # wind
             url = self.FORECAST_URL
             api_model = self.FORECAST_MODELS.get(model.upper(), "gfs_seamless")

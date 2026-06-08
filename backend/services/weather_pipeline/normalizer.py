@@ -45,6 +45,11 @@ class WeatherNormalizer:
             "speed": "pressure_msl",
             "direction": None,
             "period": None
+        },
+        "precipitation": {
+            "speed": "precipitation",
+            "direction": None,
+            "period": None
         }
     }
 
@@ -279,6 +284,13 @@ class WeatherNormalizer:
             units = {
                 "value": "hPa"
             }
+        elif domain.lower() == "weather" and layer.lower() == "precipitation":
+            value_kind = "precipitation"
+            value_unit = "mm"
+            display_unit_hint = "mm"
+            units = {
+                "value": "mm"
+            }
         elif domain.lower() == "marine":
             value_kind = "wave_height"
             value_unit = "m"
@@ -328,11 +340,23 @@ class WeatherNormalizer:
             source_dataset = "gfs_seamless"
             up_provider = "open-meteo"
             up_model = "gfs_seamless"
+        elif provider.lower() == "open-meteo" and model.upper() == "GFS" and domain.lower() == "weather" and layer.lower() == "precipitation":
+            source_dataset = "gfs_seamless"
+            up_provider = "open-meteo"
+            up_model = "gfs_seamless"
         elif provider.lower() == "open-meteo" and model.upper() == "ICON" and domain.lower() == "weather" and layer.lower() == "pressure":
             source_dataset = "dwd_icon"
             up_provider = "open-meteo"
             up_model = "dwd_icon"
+        elif provider.lower() == "open-meteo" and model.upper() == "ICON" and domain.lower() == "weather" and layer.lower() == "precipitation":
+            source_dataset = "dwd_icon"
+            up_provider = "open-meteo"
+            up_model = "dwd_icon"
         elif provider.lower() == "open-meteo" and model.upper() == "EURO" and domain.lower() == "weather" and layer.lower() == "pressure":
+            source_dataset = "ecmwf_ifs"
+            up_provider = "open-meteo"
+            up_model = "ecmwf_ifs"
+        elif provider.lower() == "open-meteo" and model.upper() == "EURO" and domain.lower() == "weather" and layer.lower() == "precipitation":
             source_dataset = "ecmwf_ifs"
             up_provider = "open-meteo"
             up_model = "ecmwf_ifs"

@@ -199,7 +199,7 @@ async def get_products():
 async def get_grid(
     model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
-    layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure)$"),
+    layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
     bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter")
 ):
@@ -332,7 +332,7 @@ async def get_grid(
 async def get_point(
     model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
-    layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure)$"),
+    layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     lat: float = Query(..., description="Latitude coordinate"),
     lng: float = Query(..., description="Longitude coordinate"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),

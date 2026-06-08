@@ -135,7 +135,7 @@ class PointSampler:
         w22 = t * u
 
         # Check if it's a scalar layer
-        is_scalar = (product.domain.lower() == "weather" and product.layer.lower() == "pressure")
+        is_scalar = (product.domain.lower() == "weather" and product.layer.lower() in ("pressure", "precipitation"))
         if is_scalar:
             v11 = coordinate_map.get((lat0, lon0))
             v12 = coordinate_map.get((lat0, lon1))
@@ -144,12 +144,12 @@ class PointSampler:
             
             corners = [v for v in [v11, v12, v21, v22] if self._is_vector_valid(v, product.domain, product.layer)]
             if not corners:
-                return self._build_unavailable_response(product, lat, lng, "No valid pressure data in grid")
+                return self._build_unavailable_response(product, lat, lng, f"No valid {product.layer} data in grid")
                 
             if len(corners) < 4:
-                valid_pressure = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
-                if valid_pressure:
-                    nearest = self._find_nearest_vector(valid_pressure, lat, lng)
+                valid_scalar = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+                if valid_scalar:
+                    nearest = self._find_nearest_vector(valid_scalar, lat, lng)
                     detail = NormalizedPointDetail(
                         requested_lat=lat,
                         requested_lng=lng,
@@ -164,7 +164,7 @@ class PointSampler:
                     )
                     return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
                 else:
-                    return self._build_unavailable_response(product, lat, lng, "No valid pressure data in grid")
+                    return self._build_unavailable_response(product, lat, lng, f"No valid {product.layer} data in grid")
                 
             val11 = v11.value
             val12 = v12.value
@@ -356,7 +356,7 @@ class PointSampler:
             return getattr(v, "is_valid", True)
             
         # Legacy fallback heuristics
-        if domain_lower == "weather" and layer_lower == "pressure":
+        if domain_lower == "weather" and layer_lower in ("pressure", "precipitation"):
             return getattr(v, "value", None) is not None
         elif domain_lower == "marine":
             if getattr(v, "period", 0.0) == 0.0 and getattr(v, "speed", 0.0) == 0.0:
