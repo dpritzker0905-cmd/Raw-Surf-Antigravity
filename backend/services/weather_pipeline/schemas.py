@@ -71,6 +71,13 @@ class NormalizedProduct(BaseModel):
     coordinate_count: Optional[int] = None
     resolution: Optional[float] = None
     truthTag: Optional[Dict[str, Any]] = None
+    requested_bbox_original: Optional[str] = None
+    query_bbox: Optional[str] = None
+    partial_coverage: bool = False
+    stale: bool = False
+    staleReason: Optional[str] = None
+    fallbackReason: Optional[str] = None
+
 
 class NormalizedPointDetail(BaseModel):
     requested_lat: float
@@ -134,6 +141,12 @@ class NormalizedPointResponse(BaseModel):
     truthTag: Optional[Dict[str, Any]] = None
     gridPointParity: Optional[Dict[str, Any]] = None
     mismatchReason: Optional[str] = None
+    requested_bbox_original: Optional[str] = None
+    query_bbox: Optional[str] = None
+    partial_coverage: bool = False
+    stale: bool = False
+    staleReason: Optional[str] = None
+    fallbackReason: Optional[str] = None
 
 class ManifestProduct(BaseModel):
     model: str

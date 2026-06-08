@@ -309,3 +309,248 @@ def test_all_non_gfs_layers(mock_weather_setup):
     assert json_swell2["reason"] == "unsupported_model_layer"
     assert json_swell2["renderable"] is False
     assert len(json_swell2["grid"]["vectors"]) == 0
+
+def test_manifest_self_healing_future_pruning(mock_weather_setup):
+    """Verify that impossible future-dated products (e.g. 2035) are pruned on get_manifest."""
+    store, dynamic_idx = mock_weather_setup
+    
+    # 1. Create a mock manifest with a valid product and a future-dated 2035 product
+    from services.weather_pipeline.schemas import PipelineManifest, ManifestProduct, CoverageBounds
+    from datetime import datetime, timezone, timedelta
+    
+    now = datetime.now(timezone.utc)
+    valid_time = now + timedelta(hours=1)
+    future_time = now + timedelta(days=45) # > 30 days
+    
+    coverage = CoverageBounds(west=-85, south=24, east=-80, north=30)
+    
+    manifest_data = PipelineManifest(
+        last_manifest_update=now,
+        products=[
+            ManifestProduct(
+                model="EURO",
+                provider="copernicus",
+                domain="marine",
+                layer="waves",
+                run_time=now,
+                valid_time_start=valid_time,
+                valid_time_end=valid_time,
+                resolution=0.25,
+                freshness_sec=3600,
+                is_forecast_authoritative=True,
+                coverage=coverage,
+                filename="euro_marine_waves_florida_east_coast_valid_estimated.json",
+                product_id="euro_marine_waves_florida_east_coast_valid_estimated.json"
+            ),
+            ManifestProduct(
+                model="EURO",
+                provider="estimated",
+                domain="marine",
+                layer="waves",
+                run_time=now,
+                valid_time_start=future_time,
+                valid_time_end=future_time,
+                resolution=0.25,
+                freshness_sec=3600,
+                is_forecast_authoritative=False,
+                is_estimated=True,
+                coverage=coverage,
+                filename="euro_marine_waves_florida_east_coast_20350604T150000Z_estimated.json",
+                product_id="euro_marine_waves_florida_east_coast_20350604T150000Z_estimated.json"
+            )
+        ]
+    )
+    
+    # Save this corrupt manifest to disk (L1)
+    with open(store.manifest_path, "w") as f:
+        f.write(manifest_data.model_dump_json(indent=2))
+        
+    # 2. Call get_manifest() to trigger self-healing with FORCE_MANIFEST_PRUNING
+    import os
+    os.environ["FORCE_MANIFEST_PRUNING"] = "true"
+    try:
+        cleaned_manifest = store.get_manifest()
+    finally:
+        os.environ.pop("FORCE_MANIFEST_PRUNING", None)
+    
+    # Verify the 2035 product is pruned in memory
+    assert len(cleaned_manifest.products) == 1
+    assert cleaned_manifest.products[0].product_id == "euro_marine_waves_florida_east_coast_valid_estimated.json"
+    
+    # Verify the diagnostics report the pruning details
+    diags = store.get_persistence_diagnostics()
+    assert diags["pruned_anomalous_count"] == 1
+    assert "euro_marine_waves_florida_east_coast_20350604T150000Z_estimated.json" in diags["pruned_anomalous_ids"]
+    
+    # Verify the cleaned manifest was resaved to disk (L1)
+    with open(store.manifest_path, "r") as f:
+        disk_data = json.load(f)
+        assert len(disk_data["products"]) == 1
+        assert disk_data["products"][0]["product_id"] == "euro_marine_waves_florida_east_coast_valid_estimated.json"
+
+def test_regional_partial_does_not_prevent_dynamic_fetch(mock_weather_setup):
+    """Verify that a regional manifest product does not prevent a dynamic viewport fetch from being attempted."""
+    store, dynamic_idx = mock_weather_setup
+    
+    # 1. Register a Florida regional product in the manifest
+    from services.weather_pipeline.schemas import PipelineManifest, ManifestProduct, CoverageBounds, NormalizedProduct, NormalizedGrid
+    from datetime import datetime, timezone
+    
+    target_dt = datetime(2026, 6, 2, 12, 0, 0, tzinfo=timezone.utc)
+    florida_coverage = CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0)
+    
+    manifest_item = ManifestProduct(
+        model="GFS",
+        provider="open-meteo",
+        domain="marine",
+        layer="waves",
+        run_time=target_dt,
+        valid_time_start=target_dt,
+        valid_time_end=target_dt,
+        resolution=0.25,
+        freshness_sec=3600,
+        is_forecast_authoritative=True,
+        coverage=florida_coverage,
+        filename="gfs_marine_waves_florida_east_coast_20260602T120000Z.json",
+        product_id="gfs_marine_waves_florida_east_coast_20260602T120000Z.json",
+        region_id="florida_east_coast",
+        coverage_mode="regional_tile"
+    )
+    
+    # Save the manifest with this item
+    manifest = store.get_manifest()
+    manifest.products.append(manifest_item)
+    store._save_manifest(manifest)
+    
+    # Save the dummy product file to L1 store so it can be loaded if fallback occurs
+    dummy_product = NormalizedProduct(
+        model="GFS",
+        provider="open-meteo",
+        domain="marine",
+        layer="waves",
+        run_time=target_dt,
+        valid_time=target_dt,
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=florida_coverage,
+        grid=NormalizedGrid(bounds=florida_coverage, cols=2, rows=2, vectors=[]),
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="m",
+        product_id="gfs_marine_waves_florida_east_coast_20260602T120000Z.json",
+        source_variables=["wave_height"],
+        freshness_sec=3600,
+        region_id="florida_east_coast",
+        coverage_mode="regional_tile"
+    )
+    
+    with open(store.cache_dir / "gfs_marine_waves_florida_east_coast_20260602T120000Z.json", "w") as f:
+        f.write(dummy_product.model_dump_json(indent=2))
+        
+    # 2. Query a bbox wider than Florida (should trigger dynamic fetch first)
+    response = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
+    )
+    assert response.status_code == 200
+    json_data = response.json()
+    
+    # It must be a dynamic viewport product (cache miss), not the regional manifest product
+    assert json_data["is_dynamic_viewport_product"] is True
+    assert json_data["partial_coverage"] is False
+    assert json_data["product_id"] != "gfs_marine_waves_florida_east_coast_20260602T120000Z.json"
+
+def test_dynamic_fetch_failure_regional_partial_fallback(mock_weather_setup, monkeypatch):
+    """Verify that if dynamic fetch fails, the endpoint falls back to regional_partial manifest overlap."""
+    store, dynamic_idx = mock_weather_setup
+    
+    # 1. Register a Florida regional product in the manifest
+    from services.weather_pipeline.schemas import PipelineManifest, ManifestProduct, CoverageBounds, NormalizedProduct, NormalizedGrid, GridVector
+    from datetime import datetime, timezone
+    
+    target_dt = datetime(2026, 6, 2, 12, 0, 0, tzinfo=timezone.utc)
+    florida_coverage = CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0)
+    
+    manifest_item = ManifestProduct(
+        model="GFS",
+        provider="open-meteo",
+        domain="marine",
+        layer="waves",
+        run_time=target_dt,
+        valid_time_start=target_dt,
+        valid_time_end=target_dt,
+        resolution=0.5,
+        freshness_sec=3600,
+        is_forecast_authoritative=True,
+        coverage=florida_coverage,
+        filename="gfs_marine_waves_florida_east_coast_fallback.json",
+        product_id="gfs_marine_waves_florida_east_coast_fallback.json",
+        region_id="florida_east_coast",
+        coverage_mode="regional_tile"
+    )
+    
+    # Save the manifest with this item
+    manifest = store.get_manifest()
+    manifest.products.append(manifest_item)
+    store._save_manifest(manifest)
+    
+    # Save the dummy product file to L1 store with a vector so we can verify speed interpolation
+    dummy_product = NormalizedProduct(
+        model="GFS",
+        provider="open-meteo",
+        domain="marine",
+        layer="waves",
+        run_time=target_dt,
+        valid_time=target_dt,
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=florida_coverage,
+        grid=NormalizedGrid(
+            bounds=florida_coverage, 
+            cols=2, 
+            rows=2, 
+            vectors=[
+                GridVector(lat=24.0, lng=-85.0, speed=4.0),
+                GridVector(lat=24.0, lng=-79.0, speed=4.0),
+                GridVector(lat=31.0, lng=-85.0, speed=4.0),
+                GridVector(lat=31.0, lng=-79.0, speed=4.0)
+            ]
+        ),
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="m",
+        product_id="gfs_marine_waves_florida_east_coast_fallback.json",
+        source_variables=["wave_height"],
+        freshness_sec=3600,
+        region_id="florida_east_coast",
+        coverage_mode="regional_tile"
+    )
+    
+    with open(store.cache_dir / "gfs_marine_waves_florida_east_coast_fallback.json", "w") as f:
+        f.write(dummy_product.model_dump_json(indent=2))
+        
+    # 2. Mock fetch_grid to raise a rate limit error (429)
+    async def mock_fail_fetch_grid(*args, **kwargs):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+        
+    monkeypatch.setattr(OpenMeteoProvider, "fetch_grid", mock_fail_fetch_grid)
+    
+    # 3. Query a bbox wider than Florida (should try dynamic fetch, fail, and then fallback to regional_partial)
+    response = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
+    )
+    assert response.status_code == 200
+    json_data = response.json()
+    
+    # It must be the regional manifest product served as regional_partial fallback
+    assert json_data["is_dynamic_viewport_product"] is False
+    assert json_data["coverage_scope"] == "regional_partial"
+    assert json_data["partial_coverage"] is True
+    assert json_data["product_id"] == "gfs_marine_waves_florida_east_coast_fallback.json"
+    
+    # 4. Now, if we remove the overlapping product, it should raise a 429/503/504 error
+    store.manifest_path.unlink() # Delete manifest
+    response_error = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
+    )
+    assert response_error.status_code in (429, 503, 504)

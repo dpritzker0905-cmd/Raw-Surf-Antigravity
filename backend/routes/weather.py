@@ -179,6 +179,26 @@ async def get_products():
         "cache_dir": str(store.cache_dir)
     }
 
+def is_bbox_overlapping(w1: float, s1: float, e1: float, n1: float, cov) -> bool:
+    """Checks if requested bounding box overlaps with product coverage bounds."""
+    # Check latitude overlap
+    lat_overlap = not (n1 < cov.south or s1 > cov.north)
+    # Check longitude overlap
+    if cov.west <= cov.east:
+        if w1 <= e1:
+            lon_overlap = not (e1 < cov.west or w1 > cov.east)
+        else:
+            # Requested bbox crosses antimeridian
+            lon_overlap = not (cov.east < w1 and cov.west > e1)
+    else:
+        # cov crosses antimeridian
+        if w1 <= e1:
+            lon_overlap = not (e1 < cov.west and w1 > cov.east)
+        else:
+            lon_overlap = True # both cross antimeridian
+    return lat_overlap and lon_overlap
+
+
 @router.get("/grid", response_model=NormalizedProduct)
 async def get_grid(
     model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
@@ -227,6 +247,7 @@ async def get_grid(
     )
 
     use_manifest_product = False
+    regional_span_lng = 0.0
     if matching_manifest_item:
         cov = matching_manifest_item.coverage
         if cov.west <= cov.east:
@@ -260,34 +281,89 @@ async def get_grid(
         if is_regional and not use_manifest_product:
             matching_manifest_item = None
 
-    # 2. Check if we should fetch a dynamic viewport grid instead of manifest product
-    if viewport_service.is_viewport_enabled(model, domain, layer, use_manifest_product, bbox):
-        product = await viewport_service.fetch_viewport_grid(model, domain, layer, valid_time, target_dt, bbox)
-    else:
-        # 3. Serve the manifest product grid if found
-        if not matching_manifest_item:
+    # Step-wise product resolution
+    product = None
+    
+    # Step 1 & 2: Exact/fresh or stale dynamic cache hit for snapped viewport
+    if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
+        product = await viewport_service.get_cached_dynamic_product(
+            model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox
+        )
+
+    # Step 3: Durable manifest full coverage
+    if not product:
+        if use_manifest_product and matching_manifest_item:
+            product = store.load_product(matching_manifest_item.filename)
+            if product and product.grid:
+                product.product_id = matching_manifest_item.filename
+                product.coverage_scope = "global" if regional_span_lng >= 350.0 else "regional"
+                product.partial_coverage = False
+                product.requested_bbox_original = bbox
+                product.query_bbox = bbox
+                product.requested_bbox = bbox
+                if bbox:
+                    product = filter_grid_to_bbox(product, bbox)
+                if product.grid and product.grid.bounds:
+                    product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+
+    # Step 4 & 5: Upstream dynamic fetch & stale fallback
+    if not product:
+        if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
+            try:
+                product = await viewport_service.fetch_viewport_grid_upstream(
+                    model=model, domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
+                )
+            except Exception as dynamic_err:
+                logger.warning(f"[Grid Route] Dynamic viewport upstream fetch failed: {dynamic_err}. Checking Step 6 regional_partial fallback...")
+                
+                # Step 6: Durable manifest overlap as regional_partial only if no better dynamic/stale viewport product exists
+                overlap_manifest_item = None
+                for p in manifest.products:
+                    if (
+                        p.model.upper() == model.upper()
+                        and p.domain.lower() == domain.lower()
+                        and p.layer.lower() == layer.lower()
+                    ):
+                        diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
+                        if diff <= 3 * 3600:
+                            if req_w is not None:
+                                if is_bbox_overlapping(req_w, req_s, req_e, req_n, p.coverage):
+                                    overlap_manifest_item = p
+                                    break
+                            else:
+                                overlap_manifest_item = p
+                                break
+                
+                if overlap_manifest_item:
+                    logger.info(f"[Grid Route] Fallback: Serving overlapping regional manifest product '{overlap_manifest_item.filename}' as regional_partial")
+                    product = store.load_product(overlap_manifest_item.filename)
+                    if not product or not product.grid:
+                        raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
+                    product.product_id = overlap_manifest_item.filename
+                    product.coverage_scope = "regional_partial"
+                    product.partial_coverage = True
+                    product.requested_bbox_original = bbox
+                    product.query_bbox = bbox
+                    product.requested_bbox = bbox
+                    if bbox:
+                        product = filter_grid_to_bbox(product, bbox)
+                    if product.grid and product.grid.bounds:
+                        product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                else:
+                    # Step 7: Honest no_coverage/temporary_unavailable (raise the error)
+                    if isinstance(dynamic_err, HTTPException):
+                        raise dynamic_err
+                    raise HTTPException(status_code=503, detail=f"Grid service temporarily unavailable: {dynamic_err}")
+        else:
+            # Dynamic viewport not enabled for this layer/model, return honest no-coverage
             return make_no_coverage_grid_response(model, layer, valid_time)
 
-        product = store.load_product(matching_manifest_item.filename)
-        if not product or not product.grid:
-            raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
-        product.product_id = matching_manifest_item.filename
-
-        # Set coverage metadata
-        cov = matching_manifest_item.coverage
-        if cov.west <= cov.east:
-            span_lng = cov.east - cov.west
-        else:
-            span_lng = (180.0 - cov.west) + (cov.east + 180.0)
-
-        if span_lng >= 350.0:
-            product.coverage_scope = "global"
-        else:
-            product.coverage_scope = "regional"
-
-        # Crop the conformed product's grid vectors to match requested bbox boundaries
-        if bbox:
-            product = filter_grid_to_bbox(product, bbox)
+    # 4. Set diagnostics renderable property explicitly
+    if product and product.grid:
+        if product.grid.diagnostics is None:
+            product.grid.diagnostics = {}
+        product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
+        product.grid.diagnostics["partial_coverage"] = getattr(product, "partial_coverage", False)
 
     # Attach truthTag for GFS marine waves
     if model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves":
