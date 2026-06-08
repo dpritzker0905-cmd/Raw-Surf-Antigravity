@@ -461,6 +461,103 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 }
 
 /**
+ * Helper to update window.__MARINE_ESTIMATOR_DEPRECATION_DIAG__
+ */
+export function updateDeprecationDiag(params) {
+  if (typeof window === 'undefined') return;
+  const {
+    model,
+    layer,
+    offset,
+    calledFunc = null,
+    called = false,
+    backendAvailable = false,
+    productId = null,
+    fallbackReason = null,
+    conformedPoint = null,
+    isEstimated = null,
+    estimateBasis = null,
+    confidence = null,
+    provider = null,
+    source = null,
+    infoboxValue = null
+  } = params || {};
+  
+  const prev = window.__MARINE_ESTIMATOR_DEPRECATION_DIAG__ || {};
+
+  const activeModel = model || prev.activeModel || null;
+  const activeLayer = layer || prev.activeLayer || null;
+  const timeOffsetHours = offset !== undefined ? offset : (prev.timeOffsetHours !== undefined ? prev.timeOffsetHours : null);
+
+  const isEuro = activeModel === 'EURO';
+  const isIcon = activeModel === 'ICON';
+  const isBackendCopernicus = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag();
+  const isBackendIcon = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
+  const isBackendGfs = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
+  const isBackendRedirectActive = (isEuro && isBackendCopernicus) || (isIcon && isBackendIcon) || (!isEuro && !isIcon && isBackendGfs);
+
+  // safeToDeleteNow must remain false for Stage 7B
+  const safeToDeleteNow = false;
+
+  let selectedValidTime = conformedPoint?.time || prev.selectedValidTime || null;
+  let resolvedIsEstimated = isEstimated !== null ? isEstimated : (conformedPoint ? !!conformedPoint.is_estimated : (prev.isEstimated || false));
+  let resolvedEstimateBasis = estimateBasis !== null ? estimateBasis : (conformedPoint?.estimate_basis || prev.estimateBasis || null);
+  let resolvedConfidence = confidence !== null ? confidence : (conformedPoint?.estimate_basis?.confidence || prev.confidence || null);
+  let resolvedProvider = provider !== null ? provider : (conformedPoint?.provider || prev.provider || null);
+  let resolvedSource = source !== null ? source : (conformedPoint?.source || prev.source || null);
+  
+  let resolvedInfoboxValue = infoboxValue !== null ? infoboxValue : null;
+  if (resolvedInfoboxValue === null) {
+    if (conformedPoint) {
+      if (activeLayer === 'waves') resolvedInfoboxValue = conformedPoint.wave_height;
+      else if (activeLayer === 'swell_1') resolvedInfoboxValue = conformedPoint.swell_wave_height;
+      else if (activeLayer === 'swell_2') resolvedInfoboxValue = conformedPoint.secondary_swell_wave_height;
+      else if (activeLayer === 'wind_waves') resolvedInfoboxValue = conformedPoint.wind_wave_height;
+      else if (activeLayer === 'wind') resolvedInfoboxValue = conformedPoint.wind_speed_10m;
+    } else {
+      resolvedInfoboxValue = prev.infoboxValue || null;
+    }
+  }
+
+  const gridProductId = window.__MARINE_DIAG__?.gridProductId || window.__MARINE_PROJECTION_DIAG__?.productId || prev.gridProductId || null;
+  const pointProductId = productId || conformedPoint?.productId || window.__MARINE_DIAG__?.pointProductId || prev.pointProductId || null;
+
+  let gridPointParity = null;
+  if (gridProductId && pointProductId) {
+    gridPointParity = (gridProductId === pointProductId) ? "parity_pass" : "mismatch";
+  } else if (window.__MARINE_SOURCE_PARITY__) {
+    gridPointParity = window.__MARINE_SOURCE_PARITY__.match ? "parity_pass" : "mismatch";
+  } else {
+    gridPointParity = prev.gridPointParity || null;
+  }
+
+  window.__MARINE_ESTIMATOR_DEPRECATION_DIAG__ = {
+    activeModel,
+    activeLayer,
+    timeOffsetHours,
+    selectedValidTime,
+    gridProductId,
+    pointProductId,
+    provider: resolvedProvider || (isBackendRedirectActive ? (isEuro ? 'copernicus' : 'backend-weather-service') : 'estimated'),
+    source: resolvedSource || (called ? 'frontend_fallback' : 'network'),
+    isEstimated: resolvedIsEstimated,
+    estimateBasis: resolvedEstimateBasis,
+    confidence: resolvedConfidence,
+    backendReplacementAvailable: !!backendAvailable || !!prev.backendReplacementAvailable,
+    frontendEstimatorCalled: !!called || !!prev.frontendEstimatorCalled,
+    frontendEstimatorFunction: calledFunc || prev.frontendEstimatorFunction || null,
+    fallbackOnlyRetained: true,
+    fallbackReason: fallbackReason || prev.fallbackReason || (isBackendRedirectActive ? 'backend_redirect_active' : 'within_native_limit_or_unsupported'),
+    gridPointParity,
+    infoboxValue: resolvedInfoboxValue,
+    safeToDeleteNow
+  };
+}
+
+/**
+ * Select the correct hour from a cached exact-point response.
+ */
+/**
  * Select the correct hour from a cached exact-point response.
  */
 export function selectExactPointHour(cachedResponse, hourOffset) {
@@ -489,6 +586,16 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     if (diag && 
         (diag.fallbackReason === fallbackReasonValue || diag.fallbackReason?.includes(fallbackReasonValue)) && 
         (diag.requestedHour === offset || diag.lastGridFetch?.hourOffset === offset)) {
+      updateDeprecationDiag({
+        model,
+        layer: activeLayer,
+        offset,
+        calledFunc: null,
+        called: false,
+        backendAvailable: false,
+        productId: null,
+        fallbackReason: fallbackReasonValue
+      });
       return {
         status: fallbackReasonValue,
         source: 'exact_point_api',
@@ -520,6 +627,16 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   }
 
   if (cachedResponse.status === 'no_copernicus_coverage' || cachedResponse.status === 'no_backend_coverage' || cachedResponse.status === 'no_coverage' || cachedResponse.status === 'out_of_bounds/no_coverage') {
+    updateDeprecationDiag({
+      model,
+      layer: activeLayer,
+      offset,
+      calledFunc: null,
+      called: false,
+      backendAvailable: false,
+      productId: null,
+      fallbackReason: cachedResponse.status
+    });
     return {
       status: cachedResponse.status,
       source: cachedResponse.source || 'exact_point_api',
@@ -552,6 +669,16 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   if (!cachedResponse.hourly?.time) return null;
 
   if (cachedResponse.status === 'unsupported') {
+    updateDeprecationDiag({
+      model,
+      layer: activeLayer,
+      offset,
+      calledFunc: null,
+      called: false,
+      backendAvailable: false,
+      productId: null,
+      fallbackReason: 'unsupported_model_layer'
+    });
     return {
       status: 'unsupported',
       source: 'unsupported_model_layer',
@@ -591,6 +718,16 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     const iconData = _exactPointCache.get(iconKey)?.data;
 
     if (!gfsData) {
+      updateDeprecationDiag({
+        model,
+        layer: activeLayer,
+        offset,
+        calledFunc: 'estimateEuroPoint',
+        called: true,
+        backendAvailable: false,
+        productId: null,
+        fallbackReason: 'gfs_data_missing_for_estimate'
+      });
       return {
         status: 'no_copernicus_coverage',
         source: 'exact_point_api',
@@ -652,6 +789,16 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
       }
     });
 
+    updateDeprecationDiag({
+      model,
+      layer: activeLayer,
+      offset,
+      calledFunc: 'estimateEuroPoint',
+      called: true,
+      backendAvailable: false,
+      productId: null,
+      fallbackReason: 'euro_extended_estimate'
+    });
     const est = estimateEuroPoint(offset, nativeLimit, activeLayer, euroAnchor, gfsTarget, gfsAnchor, iconTarget, iconAnchor);
     if (est) {
       const targetTimeStr = new Date(Date.now() + offset * 3600000).toISOString();
@@ -683,6 +830,48 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
     iconLimit = Math.min(ICON_LIMIT, hoursFromNow);
   }
+
+  // 4. ICON past-limit behavior must be honest
+  if (isIcon && offset > iconLimit && getBackendIconMarineFlag()) {
+    updateDeprecationDiag({
+      model,
+      layer: activeLayer,
+      offset,
+      calledFunc: null,
+      called: false,
+      backendAvailable: false,
+      productId: null,
+      fallbackReason: 'icon_no_backend_extended_estimate'
+    });
+    return {
+      status: 'no_coverage',
+      source: 'exact_point_api',
+      requestedLat: cachedResponse.requestedLat,
+      requestedLng: cachedResponse.requestedLng,
+      requestedModel: cachedResponse.requestedModel,
+      activeLayer: cachedResponse.activeLayer,
+      provider: 'backend-weather-service',
+      is_estimated: false,
+      wave_height: null,
+      wave_direction: null,
+      wave_period: null,
+      wave_peak_period: null,
+      swell_wave_height: null,
+      swell_wave_direction: null,
+      swell_wave_period: null,
+      swell_wave_peak_period: null,
+      secondary_swell_wave_height: null,
+      secondary_swell_wave_direction: null,
+      secondary_swell_wave_period: null,
+      wind_wave_height: null,
+      wind_wave_direction: null,
+      wind_wave_period: null,
+      wind_wave_peak_period: null,
+      wind_speed_10m: null,
+      wind_direction_10m: null
+    };
+  }
+
   if (isIcon && offset > iconLimit && !getBackendIconMarineFlag()) {
     const activeLayer = cachedResponse.activeLayer || 'waves';
     const rLat = +cachedResponse.requestedLat.toFixed(2);
@@ -692,6 +881,16 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     const gfsData = _exactPointCache.get(gfsKey)?.data;
 
     if (!gfsData) {
+      updateDeprecationDiag({
+        model,
+        layer: activeLayer,
+        offset,
+        calledFunc: 'estimateIconPoint',
+        called: true,
+        backendAvailable: false,
+        productId: null,
+        fallbackReason: 'gfs_data_missing_for_estimate'
+      });
       return {
         status: 'no_backend_coverage',
         source: 'exact_point_api',
@@ -743,6 +942,16 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
       }
     });
 
+    updateDeprecationDiag({
+      model,
+      layer: activeLayer,
+      offset,
+      calledFunc: 'estimateIconPoint',
+      called: true,
+      backendAvailable: false,
+      productId: null,
+      fallbackReason: 'icon_extended_estimate'
+    });
     const est = estimateIconPoint(offset, ICON_LIMIT, activeLayer, iconAnchor, gfsTarget, gfsAnchor);
     if (est) {
       const targetTimeStr = new Date(Date.now() + offset * 3600000).toISOString();
@@ -780,6 +989,66 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
       status = 'exact_no_time_coverage';
     }
   }
+  
+  const isBackendCopernicus = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag();
+  const isBackendIcon = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
+  const isBackendGfs = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
+  const isBackendRedirectActive = (isEuro && isBackendCopernicus) || (isIcon && isBackendIcon) || (!isEuro && !isIcon && isBackendGfs);
+  const backendAvailable = isBackendRedirectActive && (cachedResponse.status === 'exact_success' || cachedResponse.status === 'exact_stale_available' || cachedResponse.is_estimated || status === 'exact_success');
+  const fbReasonVal = isBackendRedirectActive ? 'backend_redirect_active' : 'within_native_limit_or_unsupported';
+
+  const pointResult = {
+    wave_height: status === 'exact_no_time_coverage' ? null : (h.wave_height?.[bestIdx] ?? null),
+    wave_direction: status === 'exact_no_time_coverage' ? null : (h.wave_direction?.[bestIdx] ?? null),
+    wave_period: status === 'exact_no_time_coverage' ? null : (h.wave_period?.[bestIdx] ?? null),
+    wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.wave_peak_period?.[bestIdx] ?? null),
+    swell_wave_height: status === 'exact_no_time_coverage' ? null : (h.swell_wave_height?.[bestIdx] ?? null),
+    swell_wave_direction: status === 'exact_no_time_coverage' ? null : (h.swell_wave_direction?.[bestIdx] ?? null),
+    swell_wave_period: status === 'exact_no_time_coverage' ? null : (h.swell_wave_period?.[bestIdx] ?? null),
+    swell_wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.swell_wave_peak_period?.[bestIdx] ?? null),
+    secondary_swell_wave_height: status === 'exact_no_time_coverage' ? null : (h.secondary_swell_wave_height?.[bestIdx] ?? null),
+    secondary_swell_wave_direction: status === 'exact_no_time_coverage' ? null : (h.secondary_swell_wave_direction?.[bestIdx] ?? null),
+    secondary_swell_wave_period: status === 'exact_no_time_coverage' ? null : (h.secondary_swell_wave_period?.[bestIdx] ?? null),
+    wind_wave_height: status === 'exact_no_time_coverage' ? null : (h.wind_wave_height?.[bestIdx] ?? null),
+    wind_wave_direction: status === 'exact_no_time_coverage' ? null : (h.wind_wave_direction?.[bestIdx] ?? null),
+    wind_wave_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_period?.[bestIdx] ?? null),
+    wind_wave_peak_period: status === 'exact_no_time_coverage' ? null : (h.wind_wave_peak_period?.[bestIdx] ?? null),
+    wind_speed_10m: status === 'exact_no_time_coverage' ? null : (h.wind_speed_10m?.[bestIdx] ?? null),
+    wind_direction_10m: status === 'exact_no_time_coverage' ? null : (h.wind_direction_10m?.[bestIdx] ?? null),
+    pressure_msl: status === 'exact_no_time_coverage' ? null : (h.pressure_msl?.[bestIdx] ?? null),
+    precipitation: status === 'exact_no_time_coverage' ? null : (h.precipitation?.[bestIdx] ?? null),
+    
+    // Pass metadata
+    status,
+    source: cachedResponse.source || 'exact_point_api',
+    is_estimated: cachedResponse.is_estimated || false,
+    estimate_basis: cachedResponse.estimate_basis || null,
+    productId: cachedResponse.productId || null,
+    provider: cachedResponse.provider,
+    hourIndex: bestIdx,
+    time: times[bestIdx],
+    snappedLat: cachedResponse.snappedLat,
+    snappedLng: cachedResponse.snappedLng,
+    requestedLat: cachedResponse.requestedLat,
+    requestedLng: cachedResponse.requestedLng,
+    requestedModel: cachedResponse.requestedModel,
+    forecastDays: cachedResponse.forecastDays,
+    timeRangeStart: times[0],
+    timeRangeEnd: times[times.length - 1],
+    matchDiffMs: minDiff
+  };
+
+  updateDeprecationDiag({
+    model,
+    layer: activeLayer,
+    offset,
+    calledFunc: null,
+    called: false,
+    backendAvailable,
+    productId: cachedResponse.productId,
+    fallbackReason: fbReasonVal,
+    conformedPoint: pointResult
+  });
 
   return {
     wave_height: status === 'exact_no_time_coverage' ? null : (h.wave_height?.[bestIdx] ?? null),

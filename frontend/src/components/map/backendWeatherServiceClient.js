@@ -729,7 +729,10 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       apiModel: model === 'ICON' ? 'gwam' : (model === 'EURO' ? 'ecmwf_wam025' : 'ncep_gfswave025'),
       provider: json.provider || provider,
       source: 'network',
-      status: json.status || json.coverage_status || 'exact_success'
+      status: json.status || json.coverage_status || 'exact_success',
+      is_estimated: json.is_estimated || false,
+      estimate_basis: json.estimate_basis || null,
+      productId: json.product_id || null
     };
 
     const details = {
