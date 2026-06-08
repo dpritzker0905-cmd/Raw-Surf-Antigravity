@@ -45,22 +45,6 @@ point_resolution_service = PointResolutionService(
     provider=provider
 )
 
-@router.post("/ingest_public_trigger")
-async def trigger_public_ingestion(background_tasks: BackgroundTasks):
-    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-    scheduler = WeatherPipelineScheduler(store=store)
-
-    async def run_jobs():
-        logger.info("[Public Ingestion] Triggering GFS Marine...")
-        await scheduler.ingest_gfs_marine_pilot()
-        logger.info("[Public Ingestion] Triggering ICON Marine...")
-        await scheduler.ingest_icon_marine_pilot()
-        logger.info("[Public Ingestion] Triggering EURO Estimates...")
-        await scheduler.ingest_euro_marine_extended_estimates()
-        logger.info("[Public Ingestion] Public ingestion complete.")
-
-    background_tasks.add_task(run_jobs)
-    return {"status": "public_ingestion_triggered"}
 
 @router.post("/ingest")
 async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get_current_admin)):
@@ -524,8 +508,17 @@ async def ingest_copernicus_only(admin=Depends(get_current_admin)):
         logger.exception("Diagnostic Copernicus ingestion failed")
         return {"status": "error", "message": str(e)}
 
+@router.get("/capabilities")
+async def get_capabilities():
+    """
+    GET /api/weather/capabilities
+    Returns the backend-owned capabilities matrix for weather, marine, and wind models.
+    """
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+    return get_weather_capabilities()
+
 @router.get("/diagnostics-log")
-async def get_diagnostics_log():
+async def get_diagnostics_log(admin=Depends(get_current_admin)):
     """
     GET /api/weather/diagnostics-log
     Returns the contents of the diagnostics log file.
@@ -540,3 +533,4 @@ async def get_diagnostics_log():
         return {"status": "success", "content": content}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+

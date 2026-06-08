@@ -26,6 +26,31 @@ var TIER_ACCESS = {
   }
 };
 
+// Start capabilities fetch immediately on module load
+if (typeof window !== 'undefined') {
+  const getBackendUrl = () => {
+    if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:8000';
+    }
+    return '';
+  };
+
+  fetch(`${getBackendUrl()}/api/weather/capabilities`)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      window.__WEATHER_CAPABILITIES__ = data;
+      window.dispatchEvent(new CustomEvent('weatherCapabilitiesLoaded', { detail: data }));
+    })
+    .catch(err => {
+      console.warn('[LayerAccessResolver] Failed to load backend capabilities:', err.message);
+    });
+}
+
 /**
  * Returns the subscription tier string based on user object or tier string.
  * Maps raw backend tiers (tier_1, tier_2, etc.) to canonical access levels.
@@ -65,13 +90,17 @@ export function getUserTier(userOrTier) {
 export function getAllowedModels(user) {
   const tier = getUserTier(user);
   const rules = TIER_ACCESS[tier] || TIER_ACCESS.free;
-  const models = [...rules.models];
-  const isIconActive = typeof window !== 'undefined' && (
-    window.__USE_BACKEND_ICON_MARINE_SERVICE__ === true ||
-    window.localStorage.getItem('__USE_BACKEND_ICON_MARINE_SERVICE__') === 'true'
-  );
-  if (isIconActive && !models.includes('ICON')) {
-    models.push('ICON');
+  let models = [...rules.models];
+
+  // Cross-reference with backend capabilities
+  if (typeof window !== 'undefined' && window.__WEATHER_CAPABILITIES__) {
+    const capModels = new Set(
+      window.__WEATHER_CAPABILITIES__
+        .filter(c => c.supports_grid || c.supports_point)
+        .map(c => c.model.toUpperCase())
+    );
+    // Effective allowed models is min(subscription entitlement, backend capabilities)
+    models = models.filter(m => capModels.has(m.toUpperCase()));
   }
   return models;
 }
@@ -91,8 +120,24 @@ export function validateModelAccess(model, user) {
 /**
  * Returns the number of allowed forecast days for the given user.
  */
-export function resolveForecastWindow(user) {
+export function resolveForecastWindow(user, model = 'GFS') {
   const tier = getUserTier(user);
   const rules = TIER_ACCESS[tier] || TIER_ACCESS.free;
-  return rules.forecastDays;
+  let allowedDays = rules.forecastDays;
+
+  // Cross-reference with backend capabilities
+  if (typeof window !== 'undefined' && window.__WEATHER_CAPABILITIES__) {
+    const caps = window.__WEATHER_CAPABILITIES__.filter(
+      c => c.model.toUpperCase() === model.toUpperCase()
+    );
+    if (caps.length > 0) {
+      const maxHours = Math.max(...caps.map(c => c.max_forecast_hours || 0));
+      if (maxHours > 0) {
+        const maxDays = Math.floor(maxHours / 24);
+        allowedDays = Math.min(allowedDays, maxDays);
+      }
+    }
+  }
+  return allowedDays;
 }
+

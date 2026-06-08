@@ -223,18 +223,8 @@ export async function fetchPressureData(bounds, signal, hourOffset = 0, forceFet
         console.warn(`[PressureController] Governor blocked pressure fetch: ${proxyErr.message}`);
         return lastKnownGoodPressure;
       }
-      if (isLocalhost) {
-        console.log('[Pressure] Proxy unavailable or error, direct API fallback:', proxyErr.message);
-        res = await fetch('https://api.open-meteo.com/v1/forecast', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-          signal: fetchSignal
-        });
-      } else {
-        console.error('[Pressure] Proxy error, direct fallback skipped in production/dev:', proxyErr.message);
-        throw proxyErr;
-      }
+      console.warn(`[PressureController] Direct Open-Meteo fallback blocked. Error: ${proxyErr.message}`);
+      throw proxyErr;
     }
 
     if (!res.ok) {

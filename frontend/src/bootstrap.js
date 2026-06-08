@@ -1,4 +1,8 @@
 // Guaranteed early app bootstrap global fetch interceptor for raw proxy diagnostics
+// NOTE: bootstrap.js is imported first in index.js. It wraps the browser's native window.fetch first (Inner Wrapper).
+// Then index.js runs and wraps the patched fetch again (Outer Wrapper).
+// This execution order is INTENTIONAL and ensures index.js's weather quarantine takes precedence
+// and blocks legacy fetches before they reach bootstrap's logging ledger.
 if (typeof window !== 'undefined' && !window.__RAW_SURF_PROXY_PATCHED__) {
   window.__RAW_SURF_PROXY_PATCHED__ = true;
   window.__RAW_SURF_PROXY_LEDGER__ = [];

@@ -43,11 +43,23 @@ export function useWeatherState({ user }) {
   const isRadarActive = activeLayers.includes('radar');
   const isRadarOrSat = isRadarActive; // Satellite IR discontinued
 
+  const [capabilitiesVersion, setCapabilitiesVersion] = useState(0);
+
+  useEffect(() => {
+    const handleCapabilities = () => {
+      setCapabilitiesVersion(prev => prev + 1);
+    };
+    window.addEventListener('weatherCapabilitiesLoaded', handleCapabilities);
+    return () => {
+      window.removeEventListener('weatherCapabilitiesLoaded', handleCapabilities);
+    };
+  }, []);
+
   // --- Subscription-gated max forecast hours ---
   const maxHoursForUser = useMemo(() => {
-    const forecastDays = resolveForecastWindow(user);
+    const forecastDays = resolveForecastWindow(user, activeModel);
     return forecastDays * 24;
-  }, [user]);
+  }, [user, activeModel, capabilitiesVersion]);
 
   const isLockedForecast = timeOffsetHours > maxHoursForUser;
 

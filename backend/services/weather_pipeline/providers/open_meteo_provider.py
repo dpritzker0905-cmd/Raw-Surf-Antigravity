@@ -1,3 +1,4 @@
+import os
 import httpx
 import logging
 import asyncio
@@ -6,6 +7,21 @@ import math
 from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
+
+def is_test_environment() -> bool:
+    import os
+    node_env = os.environ.get("NODE_ENV", "").lower()
+    env = os.environ.get("ENV", "").lower()
+    is_prod_env = os.environ.get("IS_PROD", "").lower()
+    
+    if node_env == "production" or env == "production" or is_prod_env == "true":
+        return False
+        
+    return (
+        os.environ.get("NODE_ENV") == "test"
+        or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        or os.environ.get("TESTING") == "1"
+    )
 
 def generate_mock_open_meteo_response(lats: list, lons: list, hourly_vars_str: str, forecast_days: int) -> list:
     # Generate times: hourly for forecast_days
@@ -164,12 +180,7 @@ class OpenMeteoProvider:
             f"Coords count: {len(lats)} | Bbox: {bbox} | Res: {resolution}"
         )
 
-        import os
-        is_test = (
-            os.environ.get("NODE_ENV") == "test"
-            or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
-            or os.environ.get("TESTING") == "1"
-        )
+        is_test = is_test_environment()
         if is_test:
             logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock grid immediately.")
             mock_res = generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
@@ -241,12 +252,7 @@ class OpenMeteoProvider:
                 return aggregated_results
                 
             except Exception as e:
-                import os
-                is_test = (
-                    os.environ.get("NODE_ENV") == "test"
-                    or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
-                    or os.environ.get("TESTING") == "1"
-                )
+                is_test = is_test_environment()
                 if is_test:
                     logger.error(f"[Open-Meteo Provider] Upstream request failed: {e}. Generating conformed mock grid fallback.")
                     mock_res = generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
@@ -318,12 +324,7 @@ class OpenMeteoProvider:
             f"[Open-Meteo Provider] Fetching single point forecast for {model} {domain}/{layer} at ({lat}, {lng})"
         )
 
-        import os
-        is_test = (
-            os.environ.get("NODE_ENV") == "test"
-            or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
-            or os.environ.get("TESTING") == "1"
-        )
+        is_test = is_test_environment()
         if is_test:
             logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock point immediately.")
             mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)
@@ -347,12 +348,7 @@ class OpenMeteoProvider:
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
-                import os
-                is_test = (
-                    os.environ.get("NODE_ENV") == "test"
-                    or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
-                    or os.environ.get("TESTING") == "1"
-                )
+                is_test = is_test_environment()
                 if is_test:
                     logger.error(f"[Open-Meteo Provider] Single point request failed: {e}. Generating conformed mock point fallback.")
                     mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)

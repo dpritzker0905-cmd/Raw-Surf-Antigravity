@@ -319,7 +319,7 @@ class WeatherNormalizer:
         if provider.lower() == "copernicus":
             source_dataset = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
             up_provider = "copernicus"
-            up_model = "ecmwf_wam025"
+            up_model = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
             # Map standard variables to CMEMS variable names
             om_to_cop_map = {
                 "wave_height": "VHM0",
@@ -385,12 +385,17 @@ class WeatherNormalizer:
             up_provider = "open-meteo"
             up_model = "ecmwf_wam025"
         elif provider.lower() == "test-fixture":
-            import os
-            is_test_env = (
-                os.environ.get("NODE_ENV") == "test" or 
-                os.environ.get("LOCAL_TEST_FIXTURE") == "true" or
-                os.environ.get("TESTING") == "1"
-            )
+            node_env = os.environ.get("NODE_ENV", "").lower()
+            env = os.environ.get("ENV", "").lower()
+            is_prod = os.environ.get("IS_PROD", "").lower()
+            
+            is_test_env = False
+            if not (node_env == "production" or env == "production" or is_prod == "true"):
+                is_test_env = (
+                    os.environ.get("NODE_ENV") == "test" or 
+                    os.environ.get("LOCAL_TEST_FIXTURE") == "true" or
+                    os.environ.get("TESTING") == "1"
+                )
             if is_test_env:
                 is_test_fixture = True
             else:

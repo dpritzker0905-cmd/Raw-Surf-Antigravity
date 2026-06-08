@@ -243,6 +243,7 @@ var MapPageContent = () => {
     activeModel,
     enabled: true,
     isExplicit: !!(selectedSpot || longPressLocation),
+    timeOffsetHours,
   });
 
   const handleUpgradeClick = useCallback(() => {

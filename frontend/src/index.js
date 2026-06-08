@@ -11,6 +11,156 @@ import reportWebVitals, { logWebVitals } from './reportWebVitals';
 // Aggressively suppress ResizeObserver errors - these are benign browser warnings
 // that React's dev overlay incorrectly shows as errors
 if (typeof window !== 'undefined') {
+  // Global fetch proxy for legacy weather quarantine
+  // NOTE: index.js acts as the OUTER fetch wrapper, while bootstrap.js acts as the INNER wrapper.
+  // Because bootstrap.js is imported first (line 1), it overrides window.fetch first.
+  // Then, index.js overrides window.fetch, wrapping bootstrap.js's implementation.
+  // This execution order ensures that the quarantine logic in index.js intercepts and blocks 
+  // direct legacy fetches (returning 403) BEFORE bootstrap.js logs them in its ledger.
+  const originalFetch = window.fetch;
+  window.fetch = async function (input, init) {
+    let urlString = '';
+    let method = 'GET';
+    if (typeof input === 'string') {
+      urlString = input;
+    } else if (input instanceof URL) {
+      urlString = input.toString();
+    } else if (input && typeof input === 'object' && input.url) {
+      urlString = input.url;
+      method = input.method || 'GET';
+    }
+    if (init && init.method) {
+      method = init.method;
+    }
+
+    let isTarget = false;
+    let block = false;
+    const reason = "Direct Open-Meteo or weather-proxy JSON forecast fetch is quarantined in production in favor of backend-owned routes.";
+
+    const isMarineOM = urlString.includes('marine-api.open-meteo.com');
+    const isForecastOM = urlString.includes('api.open-meteo.com') && !urlString.includes('map-tiles.open-meteo.com');
+    const isWeatherProxy = (urlString.includes('/api/weather-proxy') || urlString.endsWith('weather-proxy')) && !urlString.includes('/api/weather/');
+
+    if (isMarineOM || isForecastOM || isWeatherProxy) {
+      isTarget = true;
+    }
+
+    if (isTarget) {
+      const isProd = process.env.NODE_ENV === 'production';
+      const forceQuarantine = window.__WEATHER_FORCE_QUARANTINE__ === true;
+      if (isProd || forceQuarantine) {
+        block = true;
+      }
+
+      let model = 'unknown';
+      let layer = 'unknown';
+      let backendReplacementUrl = '';
+
+      try {
+        const urlObj = new URL(urlString, window.location.origin);
+        const searchParams = urlObj.searchParams;
+        let qModel = searchParams.get('model') || searchParams.get('models') || '';
+        let qHourly = searchParams.get('hourly') || searchParams.get('daily') || '';
+        let qType = searchParams.get('type') || '';
+
+        if (qModel) model = qModel;
+        if (qType) layer = qType;
+        else if (qHourly) layer = qHourly;
+
+        if (init && init.body && typeof init.body === 'string') {
+          const bodyObj = JSON.parse(init.body);
+          if (bodyObj.type) {
+            layer = bodyObj.type;
+          }
+          if (bodyObj.body && bodyObj.body.models) {
+            model = Array.isArray(bodyObj.body.models) ? bodyObj.body.models.join(',') : bodyObj.body.models;
+          } else if (bodyObj.models) {
+            model = Array.isArray(bodyObj.models) ? bodyObj.models.join(',') : bodyObj.models;
+          }
+        }
+      } catch (e) {}
+
+      const cleanModel = model.toUpperCase().includes('GFS') ? 'GFS' : (model.toUpperCase().includes('ICON') ? 'ICON' : 'EURO');
+      let domain = 'weather';
+      let cleanLayer = 'wind';
+      
+      const layerLower = layer.toLowerCase();
+      if (layerLower.includes('wave') || layerLower.includes('swell')) {
+        domain = 'marine';
+        if (layerLower.includes('swell_1') || layerLower.includes('swell_wave_height') || layerLower.includes('swell_wave_direction') || layerLower.includes('swell_wave_period')) cleanLayer = 'swell_1';
+        else if (layerLower.includes('swell_2') || layerLower.includes('secondary_swell')) cleanLayer = 'swell_2';
+        else if (layerLower.includes('wind_wave')) cleanLayer = 'wind_waves';
+        else cleanLayer = 'waves';
+      } else if (layerLower.includes('pressure')) {
+        cleanLayer = 'pressure';
+      } else if (layerLower.includes('precip')) {
+        cleanLayer = 'precipitation';
+      } else {
+        cleanLayer = 'wind';
+        domain = 'wind';
+      }
+
+      backendReplacementUrl = `/api/weather/point?model=${cleanModel}&domain=${domain}&layer=${cleanLayer}`;
+
+      let activeLegacyModule = 'unknown';
+      let stackTrace = '';
+      try {
+        stackTrace = new Error().stack || '';
+        if (stackTrace) {
+          if (stackTrace.includes('fetchExactMarinePoint')) activeLegacyModule = 'forecastSamplers.fetchExactMarinePoint';
+          else if (stackTrace.includes('fetchMarineData')) activeLegacyModule = 'marineController';
+          else if (stackTrace.includes('fetchCopernicusComponentGrid')) activeLegacyModule = 'copernicusGridFetcher';
+          else if (stackTrace.includes('useOpenMeteoForecast')) activeLegacyModule = 'useOpenMeteoForecast';
+          else if (stackTrace.includes('fetchPressureData')) activeLegacyModule = 'marineControllerPressure';
+          else if (stackTrace.includes('fetchWindData')) activeLegacyModule = 'windController';
+        }
+      } catch (e) {}
+
+      let actionRequired = 'delete';
+      if (activeLegacyModule === 'useOpenMeteoForecast') {
+        actionRequired = 'migrate';
+      } else if (isWeatherProxy) {
+        actionRequired = 'keep as gated rollback';
+      }
+
+      window.__WEATHER_FRONTEND_LEGACY_AUDIT__ = {
+        activeLegacyModule: activeLegacyModule,
+        attemptedUrl: urlString,
+        blocked: block,
+        productionReachable: true,
+        backendReplacementRoute: backendReplacementUrl,
+        actionRequired: actionRequired,
+        timestamp: new Date().toISOString()
+      };
+
+      window.__WEATHER_LEGACY_QUARANTINE_DIAG__ = {
+        attemptedLegacyPath: urlString,
+        url: urlString,
+        method: method,
+        blockedInProduction: block,
+        forcedByDebugFlag: forceQuarantine,
+        backendReplacementUrl: backendReplacementUrl,
+        reason: reason,
+        timestamp: new Date().toISOString()
+      };
+
+      if (block) {
+        console.warn(`[Weather Quarantine] Blocked direct JSON forecast fetch: ${urlString}`);
+        return new Response(JSON.stringify({
+          error: "Blocked by weather legacy quarantine",
+          code: "QUARANTINE_BLOCKED",
+          diagnostics: window.__WEATHER_LEGACY_QUARANTINE_DIAG__
+        }), {
+          status: 403,
+          statusText: "Forbidden",
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    return originalFetch.apply(this, arguments);
+  };
+
   // Override error handler
   const originalError = window.onerror;
   window.onerror = function(message, source, lineno, colno, error) {

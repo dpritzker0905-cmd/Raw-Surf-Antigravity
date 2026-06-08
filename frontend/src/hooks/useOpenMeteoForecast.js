@@ -62,7 +62,7 @@ const forecastCache = new Map();
 const inFlightRequests = new Map();
 const CACHE_TTL = 120_000; // 2 minutes
 
-export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false }) => {
+export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false, timeOffsetHours = 0 }) => {
   const [forecastData, setForecastData] = useState(null);
   const [marineData, setMarineData] = useState(null);
   const [currentWeather, setCurrentWeather] = useState(null);
@@ -89,8 +89,185 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       return;
     }
 
-    const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}_${isExplicit ? 'explicit' : 'auto'}`;
-    
+    const isProd = process.env.NODE_ENV === 'production';
+    const forceQuarantine = typeof window !== 'undefined' && window.__WEATHER_FORCE_QUARANTINE__ === true;
+    const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}_${isExplicit ? 'explicit' : 'auto'}_hr${timeOffsetHours}`;
+
+    if (isProd || forceQuarantine) {
+      // 1. Check in-memory cache
+      const cached = forecastCache.get(fetchKey);
+      if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+        console.log(`[CACHE] [Forecast] Serving cached backend forecast for ${fetchKey}`);
+        setForecastData(cached.forecastData);
+        setMarineData(cached.marineData);
+        setCurrentWeather(cached.currentWeather);
+        setIsStale(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Check in-flight requests
+      if (inFlightRequests.has(fetchKey)) {
+        console.log(`[DEDUPE] [Forecast] Reusing in-flight request for ${fetchKey}`);
+        setIsLoading(true);
+        try {
+          const result = await inFlightRequests.get(fetchKey);
+          setForecastData(result.forecastData);
+          setMarineData(result.marineData);
+          setCurrentWeather(result.currentWeather);
+          setIsStale(result.isStale);
+        } catch (e) {
+          // Ignored
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (fetchKey === lastFetchKey.current) return;
+      lastFetchKey.current = fetchKey;
+
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      setIsLoading(true);
+
+      const getBackendUrl = () => {
+        if (typeof window !== 'undefined' && window.__BACKEND_URL__) return window.__BACKEND_URL__;
+        return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'http://localhost:8000';
+      };
+
+      const POINT_URL = `${getBackendUrl()}/api/weather/point`;
+
+      const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
+      const roundedNow = Math.round(baseTime / 3600000) * 3600000;
+      const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
+      const validTimeStr = targetDt.toISOString();
+
+      const fetchPromise = (async () => {
+        try {
+          const windUrl = `${POINT_URL}?model=${activeModel}&domain=wind&layer=wind&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
+          const pressureUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=pressure&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
+          const precipUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=precipitation&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
+
+          const [windRes, pressRes, precipRes] = await Promise.all([
+            fetch(windUrl, { signal: controller.signal }),
+            fetch(pressureUrl, { signal: controller.signal }),
+            fetch(precipUrl, { signal: controller.signal })
+          ]);
+
+          if (!windRes.ok || !pressRes.ok || !precipRes.ok) {
+            throw new Error(`One or more backend point API fetches failed. Wind: ${windRes.status}, Pressure: ${pressRes.status}, Precip: ${precipRes.status}`);
+          }
+
+          const [windJson, pressJson, precipJson] = await Promise.all([
+            windRes.json(),
+            pressRes.json(),
+            precipRes.json()
+          ]);
+
+          const windSpeedVal = windJson.point?.speed ?? 0;
+          const windDirVal = windJson.point?.direction ?? 0;
+          const windGustVal = windJson.point?.gust ?? 0;
+          const pressureVal = pressJson.point?.value ?? 1013.25;
+          const precipVal = precipJson.point?.value ?? 0;
+
+          const stitchedForecast = {
+            latitude: +latitude.toFixed(4),
+            longitude: +longitude.toFixed(4),
+            generationtime_ms: 0.1,
+            utc_offset_seconds: 0,
+            timezone: "GMT",
+            timezone_abbreviation: "GMT",
+            elevation: 0,
+            hourly_units: {
+              time: "iso8601",
+              precipitation: "mm",
+              snowfall: "cm",
+              precipitation_probability: "%",
+              temperature_2m: "°C",
+              wind_speed_10m: "kn",
+              wind_direction_10m: "°",
+              wind_gusts_10m: "kn",
+              surface_pressure: "hPa",
+              pressure_msl: "hPa"
+            },
+            hourly: {
+              time: [validTimeStr],
+              precipitation: [precipVal],
+              snowfall: [0.0],
+              precipitation_probability: [0],
+              temperature_2m: [20.0],
+              wind_speed_10m: [windSpeedVal],
+              wind_direction_10m: [windDirVal],
+              wind_gusts_10m: [windGustVal],
+              surface_pressure: [pressureVal],
+              pressure_msl: [pressureVal]
+            },
+            current: {
+              time: validTimeStr,
+              interval: 3600,
+              wind_speed_10m: windSpeedVal,
+              wind_direction_10m: windDirVal,
+              wind_gusts_10m: windGustVal
+            }
+          };
+
+          if (typeof window !== 'undefined') {
+            window.__WEATHER_FRONTEND_LEGACY_AUDIT__ = {
+              activeLegacyModule: 'useOpenMeteoForecast',
+              attemptedUrl: 'backend-migrated-point-resolution',
+              blocked: false,
+              productionReachable: true,
+              backendReplacementRoute: '/api/weather/point',
+              actionRequired: 'migrate',
+              timestamp: new Date().toISOString()
+            };
+          }
+
+          return {
+            forecastData: stitchedForecast,
+            marineData: null,
+            currentWeather: stitchedForecast.current,
+            isStale: false
+          };
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            console.error('[useOpenMeteoForecast] Backend redirect error:', err);
+          }
+          throw err;
+        }
+      })();
+
+      inFlightRequests.set(fetchKey, fetchPromise);
+
+      try {
+        const result = await fetchPromise;
+        setForecastData(result.forecastData);
+        setCurrentWeather(result.currentWeather);
+        setMarineData(null);
+        setIsStale(false);
+        forecastCache.set(fetchKey, {
+          forecastData: result.forecastData,
+          marineData: result.marineData,
+          currentWeather: result.currentWeather,
+          timestamp: Date.now()
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setIsStale(true);
+          setForecastData(null);
+          setCurrentWeather(null);
+          setMarineData(null);
+        }
+      } finally {
+        inFlightRequests.delete(fetchKey);
+        setIsLoading(false);
+      }
+      return;
+    }
+
     // 1. Check in-memory cache
     const cached = forecastCache.get(fetchKey);
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
@@ -201,18 +378,6 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
               return res;
             }
             if (!res.ok || ct.includes('text/html')) {
-              if (isLocalhost) {
-                console.log(`[OpenMeteo] Proxy unavailable (${res.status}), falling back to direct API for ${type}`);
-                const directUrl = type === 'wind'
-                  ? 'https://api.open-meteo.com/v1/forecast'
-                  : 'https://marine-api.open-meteo.com/v1/marine';
-                return await fetch(directUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(body),
-                  signal: controller.signal
-                });
-              }
               throw new Error(`Proxy unavailable (${res.status})`);
             }
             return res;
@@ -220,21 +385,6 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             if (e.message === 'cooldown_active' || e.message === 'failure_ttl_active') {
               console.warn(`[OpenMeteo] Request blocked by governor: ${e.message}`);
               return { ok: false, status: 429, json: async () => ({ error: 'Rate limited by governor' }), clone: function() { return this; } };
-            }
-            if (e.name !== 'AbortError') {
-              if (isLocalhost) {
-                console.log(`[OpenMeteo] Proxy error (${e.message}), falling back to direct API for ${type}`);
-                const directUrl = type === 'wind'
-                  ? 'https://api.open-meteo.com/v1/forecast'
-                  : 'https://marine-api.open-meteo.com/v1/marine';
-                return await fetch(directUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(body),
-                  signal: controller.signal
-                });
-              }
-              throw e;
             }
             throw e;
           }
@@ -363,7 +513,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       inFlightRequests.delete(fetchKey);
       setIsLoading(false);
     }
-  }, [latitude, longitude, activeModel, enabled, isExplicit]);
+  }, [latitude, longitude, activeModel, enabled, isExplicit, timeOffsetHours]);
 
   // v3.12.5: Fast debounce for model switches (500ms), 300ms for explicit spots/markers, 3s for pan
   const prevModelRef = useRef(activeModel);
@@ -383,7 +533,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       fetchForecast();
     }, debounceDuration);
     return () => clearTimeout(debounceRef.current);
-  }, [fetchForecast, isExplicit, activeModel, latitude, longitude]);
+  }, [fetchForecast, isExplicit, activeModel, latitude, longitude, timeOffsetHours]);
 
   useEffect(() => {
     return () => {

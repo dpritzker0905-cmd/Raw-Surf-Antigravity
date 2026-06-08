@@ -72,7 +72,7 @@ export var getUV = (speed, dir) => {
 
 // --- PROXY CONFIG ---
 // v3.9.6: Route through Netlify serverless proxy to bypass client IP rate limits
-export var PROXY_URL = '/api/weather-proxy';
+export var PROXY_URL = '/api/weather/grid-legacy-proxy-disabled';
 export var isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168.'));
 

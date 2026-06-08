@@ -5,8 +5,20 @@
  * avoiding client-side IP rate limiting. In production, the Netlify function
  * handles this route; this file is only used in `npm start` / `craco start`.
  *
- * v3.13.1: Handles both GET (useOpenMeteoForecast single-point) and POST (marineController grid) requests.
+ * CRITICAL NOTE: Synthetic fallbacks (like generateSyntheticData) in this file
+ * are purely for local dev rate-limit shielding and MUST NEVER be treated as,
+ * or leak into, production forecast truth.
+ *
+ * RUNTIME POLICY:
+ * - Production and forced quarantine must use backend conformed APIs only.
+ * - Local dev proxy/synthetic fallback exists only for isolated developer testing and must never be used as forecast truth.
+ * - If the product goal is "zero frontend Open-Meteo logic anywhere," then remove this dev proxy path in a separate dedicated stage. Do not pretend it is already gone.
  */
+
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('setupProxy.js is restricted to local development environments only and cannot be executed in production builds.');
+}
+
 const https = require('https');
 
 // Simple in-memory cache (mirrors Netlify function behavior)

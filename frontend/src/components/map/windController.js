@@ -295,12 +295,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
           console.warn(`[WindController] Governor blocked wind fetch: ${proxyErr.message}`);
           return lastKnownGoodWind;
         }
-        if (isLocalhost) {
-          res = await fetch('https://api.open-meteo.com/v1/forecast', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body), signal: fetchSignal
-          });
-        } else { throw proxyErr; }
+        console.warn(`[windController] Direct Open-Meteo fallback blocked. Error: ${proxyErr.message}`);
+        throw proxyErr;
       }
       if (!res.ok) {
         if (res.status === 429) { enterCooldown('wind'); return lastKnownGoodWind; }
@@ -338,15 +334,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
           const json = await res.json();
           return Array.isArray(json) ? json : (json?.hourly ? batch.lats.map(() => json) : []);
         } catch (err) {
-          if (isLocalhost) {
-            const res = await fetch('https://api.open-meteo.com/v1/forecast', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body), signal: fetchSignal
-            });
-            if (!res.ok) throw err;
-            const json = await res.json();
-            return Array.isArray(json) ? json : (json?.hourly ? batch.lats.map(() => json) : []);
-          }
+          console.warn(`[windController] Direct Open-Meteo batch fallback blocked. Error: ${err.message}`);
           throw err;
         }
       });

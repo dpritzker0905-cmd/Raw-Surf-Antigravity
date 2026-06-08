@@ -155,6 +155,86 @@ describe("Layer Access Firewall", () => {
     expect(validateModelAccess("ICON", surferPremium)).toBe(true);
   });
 
+  test("entitlement capability combinations and fallback limits", () => {
+    const freeUser = { subscriptionTier: "surfer_free" };
+    const basicUser = { subscription_tier: "surfer_basic" };
+    const premiumUser = { subscriptionTier: "surfer_premium" };
+
+    if (typeof window === 'undefined') {
+      global.window = {};
+    }
+
+    // 1. free + capabilities missing + backend ICON flag true => GFS only
+    window.__WEATHER_CAPABILITIES__ = undefined;
+    window.__USE_BACKEND_ICON_MARINE_SERVICE__ = true;
+    expect(getAllowedModels(freeUser)).toEqual(["GFS"]);
+
+    // 2. free + capabilities loaded => GFS only
+    window.__WEATHER_CAPABILITIES__ = [
+      { model: "GFS", supports_grid: true, supports_point: true, max_forecast_hours: 384 },
+      { model: "EURO", supports_grid: true, supports_point: true, max_forecast_hours: 240 },
+      { model: "ICON", supports_grid: true, supports_point: true, max_forecast_hours: 168 }
+    ];
+    expect(getAllowedModels(freeUser)).toEqual(["GFS"]);
+
+    // 3. basic + capabilities missing => GFS/EURO/ICON
+    window.__WEATHER_CAPABILITIES__ = undefined;
+    window.__USE_BACKEND_ICON_MARINE_SERVICE__ = false;
+    expect(getAllowedModels(basicUser)).toContain("GFS");
+    expect(getAllowedModels(basicUser)).toContain("EURO");
+    expect(getAllowedModels(basicUser)).toContain("ICON");
+
+    // 4. premium + capabilities missing => GFS/EURO/ICON
+    expect(getAllowedModels(premiumUser)).toContain("GFS");
+    expect(getAllowedModels(premiumUser)).toContain("EURO");
+    expect(getAllowedModels(premiumUser)).toContain("ICON");
+
+    // 5. basic + capabilities only include GFS => GFS only
+    window.__WEATHER_CAPABILITIES__ = [
+      { model: "GFS", supports_grid: true, supports_point: true, max_forecast_hours: 384 }
+    ];
+    expect(getAllowedModels(basicUser)).toEqual(["GFS"]);
+
+    // 6. capabilities can remove unsupported models/layers but cannot unlock them for free
+    expect(getAllowedModels(freeUser)).toEqual(["GFS"]);
+
+    // Clean up
+    window.__WEATHER_CAPABILITIES__ = undefined;
+    window.__USE_BACKEND_ICON_MARINE_SERVICE__ = undefined;
+  });
+
+  test("explicit test: capabilities reducing access (basic user limited to GFS)", () => {
+    if (typeof window === 'undefined') {
+      global.window = {};
+    }
+    const basicUser = { subscription_tier: "surfer_basic" };
+    // capabilities only include GFS
+    window.__WEATHER_CAPABILITIES__ = [
+      { model: "GFS", supports_grid: true, supports_point: true, max_forecast_hours: 384 }
+    ];
+    // getAllowedModels returns GFS only
+    expect(getAllowedModels(basicUser)).toEqual(["GFS"]);
+    // clean up
+    window.__WEATHER_CAPABILITIES__ = undefined;
+  });
+
+  test("explicit test: free user with full capabilities (still limited to GFS only)", () => {
+    if (typeof window === 'undefined') {
+      global.window = {};
+    }
+    const freeUser = { subscriptionTier: "surfer_free" };
+    // capabilities includes GFS/EURO/ICON
+    window.__WEATHER_CAPABILITIES__ = [
+      { model: "GFS", supports_grid: true, supports_point: true, max_forecast_hours: 384 },
+      { model: "EURO", supports_grid: true, supports_point: true, max_forecast_hours: 240 },
+      { model: "ICON", supports_grid: true, supports_point: true, max_forecast_hours: 168 }
+    ];
+    // getAllowedModels returns GFS only
+    expect(getAllowedModels(freeUser)).toEqual(["GFS"]);
+    // clean up
+    window.__WEATHER_CAPABILITIES__ = undefined;
+  });
+
 });
 
 describe("Truth Engine Isolation", () => {

@@ -580,19 +580,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         if (err.message === 'cooldown_active' || err.message === 'failure_ttl_active' || err.message === 'grid_fetch_in_flight') {
           return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'rate_limited');
         }
-        if (isLocalhost) {
-          const rg = 6, rLats = [], rLons = [], rPts = [];
-          for (let y = 0; y <= rg; y++) for (let x = 0; x <= rg; x++) {
-            let lat = snappedBounds.south + y * (snappedBounds.north - snappedBounds.south) / rg;
-            let lng = snappedBounds.west + x * (snappedBounds.east - snappedBounds.west) / rg;
-            while (lng >= 180) lng -= 360; while (lng < -180) lng += 360;
-            rLats.push(lat.toFixed(2)); rLons.push(lng.toFixed(2));
-            rPts.push({ lat: +lat.toFixed(2), reqLng: +lng.toFixed(2), monotonicLng: +(snappedBounds.west + x * (snappedBounds.east - snappedBounds.west) / rg).toFixed(2) });
-          }
-          const getUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${rLats.join(',')}&longitude=${rLons.join(',')}&hourly=${marineVarList.join(',')}&forecast_days=${forecastDays}${(model && MARINE_OM_MODELS[model]) ? '&models=' + MARINE_OM_MODELS[model] : ''}`;
-          res = await fetch(getUrl, { signal: fetchSignal });
-          if (res.ok) { points.length = 0; rPts.forEach(p => points.push(p)); gridSize = rg + 1; }
-        } else { throw err; }
+        console.warn(`[marineController] Direct Open-Meteo fallback blocked. Error: ${err.message}`);
+        throw err;
       }
 
       if (!res.ok) {

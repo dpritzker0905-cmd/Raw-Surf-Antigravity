@@ -264,7 +264,7 @@ export async function governMarineRequest({
     try {
       logAttempt('network_fetch_started');
       logDecision(requestKey, 'network_fetch_started');
-      const res = await fetch('/api/weather-proxy', {
+      const res = await fetch('/api/weather/grid-legacy-proxy-disabled', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, body }),

@@ -16,13 +16,20 @@ logger = logging.getLogger(__name__)
 
 def get_env_flags() -> dict:
     """Returns environment detection flags used by all ingestion tasks."""
-    return {
-        "is_render": os.environ.get("RENDER") == "true",
-        "is_test_env": (
+    node_env = os.environ.get("NODE_ENV", "").lower()
+    env = os.environ.get("ENV", "").lower()
+    is_prod = os.environ.get("IS_PROD", "").lower()
+    
+    is_test = False
+    if not (node_env == "production" or env == "production" or is_prod == "true"):
+        is_test = (
             os.environ.get("NODE_ENV") == "test" or
             os.environ.get("LOCAL_TEST_FIXTURE") == "true" or
             os.environ.get("TESTING") == "1"
-        ),
+        )
+    return {
+        "is_render": os.environ.get("RENDER") == "true",
+        "is_test_env": is_test,
     }
 
 

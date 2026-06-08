@@ -10,6 +10,21 @@ from services.weather_pipeline.schemas import (
 
 logger = logging.getLogger(__name__)
 
+def is_test_environment() -> bool:
+    import os
+    node_env = os.environ.get("NODE_ENV", "").lower()
+    env = os.environ.get("ENV", "").lower()
+    is_prod_env = os.environ.get("IS_PROD", "").lower()
+    
+    if node_env == "production" or env == "production" or is_prod_env == "true":
+        return False
+        
+    return (
+        os.environ.get("NODE_ENV") == "test"
+        or os.environ.get("LOCAL_TEST_FIXTURE") == "true"
+        or os.environ.get("TESTING") == "1"
+    )
+
 # ── Supabase Storage L2 persistence ──────────────────────────────────────
 WEATHER_BUCKET = "weather-products"
 _supabase_client = None
@@ -163,10 +178,7 @@ class ProductStore:
 
         # Step 2: Skip downloading individual product files on startup.
         # They will be dynamically restored from L2 on-demand when loaded via load_product().
-        is_test_env = (
-            os.environ.get("NODE_ENV") == "test" or
-            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
-        )
+        is_test_env = is_test_environment()
         logger.info("[Product Store] Lazy restoration enabled: skipping individual product downloads on startup.")
 
         # Step 3: Write manifest to disk
@@ -329,10 +341,7 @@ class ProductStore:
         tmp_path = target_path.with_suffix(".tmp")
 
         # Double check test fixture guard before writing to disk (Correction 2)
-        is_test_env = (
-            os.environ.get("NODE_ENV") == "test" or 
-            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
-        )
+        is_test_env = is_test_environment()
         is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
         if is_tf and not is_test_env:
             logger.error(f"[Product Store] Security Violation: Refusing to save test-fixture product '{filename}' in non-test environment.")
@@ -368,10 +377,7 @@ class ProductStore:
             self._upload_to_supabase(filename, product_json_bytes)
 
         # 2. Update registration in master manifest
-        is_test_env = (
-            os.environ.get("NODE_ENV") == "test" or 
-            os.environ.get("LOCAL_TEST_FIXTURE") == "true"
-        )
+        is_test_env = is_test_environment()
         is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
         if is_tf and not is_test_env:
             logger.warning(f"[Product Store] Refusing to register test-fixture product '{filename}' in manifest in non-test environment.")
@@ -529,12 +535,7 @@ class ProductStore:
         if product.model.upper() != "EURO":
             return True, "Valid (Not a EURO/Copernicus product)"
 
-        # Check if we are in a test environment
-        is_test_env = (
-            os.environ.get("NODE_ENV") == "test" or 
-            os.environ.get("LOCAL_TEST_FIXTURE") == "true" or
-            os.environ.get("TESTING") == "1"
-        )
+        is_test_env = is_test_environment()
 
         is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
 
