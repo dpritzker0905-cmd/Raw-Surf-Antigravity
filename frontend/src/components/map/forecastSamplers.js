@@ -510,6 +510,8 @@ export function updateDeprecationDiag(params) {
     capAvailable = true;
   }
 
+  const isUnsupported = (activeModel === 'ICON' && activeLayer === 'swell_2');
+
   let status = "inactive";
   let cellSafe = false;
 
@@ -521,7 +523,10 @@ export function updateDeprecationDiag(params) {
     }
     cellSafe = false;
   } else {
-    if (isBackendRedirectActive || activeModel === 'GFS' || (activeModel === 'ICON' && activeLayer === 'swell_2')) {
+    if (isUnsupported || fallbackReason === 'unsupported_model_layer' || fallbackReason === 'icon_no_backend_extended_estimate' || fallbackReason === 'no_copernicus_coverage' || fallbackReason === 'no_backend_coverage') {
+      status = (fallbackReason === 'unsupported_model_layer' || isUnsupported) ? 'unsupported' : 'no_coverage';
+      cellSafe = true;
+    } else if (isBackendRedirectActive || activeModel === 'GFS') {
       status = "backend_owned_no_estimator";
       cellSafe = true;
     } else {
@@ -564,6 +569,16 @@ export function updateDeprecationDiag(params) {
     gridPointParity = prev.gridPointParity || null;
   }
 
+  const backendProductActive = !!(
+    isBackendRedirectActive ||
+    (activeModel === 'EURO' && (isBackendCopernicus || resolvedProvider === 'copernicus')) ||
+    (activeModel === 'ICON' && (isBackendIcon || resolvedProvider === 'backend-weather-service')) ||
+    (activeModel === 'GFS') ||
+    gridProductId ||
+    pointProductId ||
+    backendAvailable
+  );
+
   const resultDiagObj = {
     status,
     activeModel,
@@ -578,6 +593,7 @@ export function updateDeprecationDiag(params) {
     estimateBasis: resolvedEstimateBasis,
     confidence: resolvedConfidence,
     backendReplacementAvailable: !!backendAvailable || !!prev.backendReplacementAvailable,
+    backendProductActive,
     frontendEstimatorCalled: !!called || !!prev.frontendEstimatorCalled,
     frontendEstimatorFunction: calledFunc || prev.frontendEstimatorFunction || null,
     fallbackOnlyRetained: true,
@@ -597,7 +613,9 @@ export function updateDeprecationDiag(params) {
       provider: resultDiagObj.provider,
       frontendEstimatorCalled: !!called,
       calledFunc,
-      fallbackReason: resultDiagObj.fallbackReason
+      fallbackReason: resultDiagObj.fallbackReason,
+      backendProductActive: resultDiagObj.backendProductActive,
+      gridPointParity: resultDiagObj.gridPointParity
     });
   }
 }

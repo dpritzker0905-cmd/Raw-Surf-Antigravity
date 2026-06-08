@@ -15,7 +15,7 @@ export const ICON_LIMIT = 168;            // 7 days
 
 import { getBackendCopernicusFlag, getBackendIconMarineFlag } from './backendWeatherServiceClient';
 
-// 34 authoritative cells in the Stage 7E test matrix
+// 36 authoritative cells in the Stage 7E test matrix
 export const REQUIRED_CELLS = [
   // GFS: waves, swell_1, swell_2, wind_waves at Live (0), +72h, +168h
   { model: 'GFS', layer: 'waves', offset: 0 },
@@ -105,14 +105,29 @@ export function updateRetirementSummary() {
       return;
     }
 
+    const estimatorCalled = !!log.frontendEstimatorCalled;
+    const parityOk = log.gridPointParity !== 'mismatch';
+
     if (cell.unsupported) {
-      if (!log.frontendEstimatorCalled && (log.provider === 'backend-weather-service' || log.provider === 'none' || log.fallbackReason === 'icon_no_backend_extended_estimate' || log.fallbackReason === 'unsupported_model_layer')) {
+      // honest no_coverage/unsupported where unsupported
+      const isHonestUnsupported = (
+        log.status === 'no_coverage' || 
+        log.status === 'unsupported' || 
+        log.fallbackReason === 'icon_no_backend_extended_estimate' || 
+        log.fallbackReason === 'unsupported_model_layer' ||
+        log.provider === 'none' ||
+        log.status === 'backend_owned_no_estimator'
+      );
+      if (!estimatorCalled && isHonestUnsupported) {
         matrixPassed++;
       } else {
         matrixFailed++;
       }
     } else {
-      if (log.status === 'backend_owned_no_estimator' && !log.frontendEstimatorCalled) {
+      // supported: frontendEstimatorCalled: false, backendProductActive: true, status: "backend_owned_no_estimator", point/grid parity where applicable
+      const backendActive = !!log.backendProductActive;
+      const isBackendOwned = log.status === 'backend_owned_no_estimator';
+      if (!estimatorCalled && backendActive && isBackendOwned && parityOk) {
         matrixPassed++;
       } else {
         matrixFailed++;
@@ -122,10 +137,10 @@ export function updateRetirementSummary() {
 
   const untestedCells = untestedList.length;
   const allPassed = (matrixPassed === matrixTotal);
-  const safeToDeleteNow = allPassed && (estimatorInvocationCount === 0);
+  const safeToDeleteNow = allPassed && (untestedCells === 0) && (estimatorInvocationCount === 0);
 
   let verdict = "safe_to_delete_blocked";
-  if (allPassed && estimatorInvocationCount === 0) {
+  if (allPassed && untestedCells === 0 && estimatorInvocationCount === 0) {
     verdict = "safe_to_delete_candidate";
   }
 
@@ -160,6 +175,8 @@ export function logTestedCell(model, layer, offset, data) {
     frontendEstimatorCalled: !!data.frontendEstimatorCalled,
     calledFunc: data.calledFunc || null,
     fallbackReason: data.fallbackReason || null,
+    backendProductActive: !!data.backendProductActive,
+    gridPointParity: data.gridPointParity || null,
     timestamp: new Date().toISOString()
   };
   
@@ -260,7 +277,8 @@ export function checkEstimatorRegression(model, layer, hour, calledFunc) {
     provider: "estimated",
     frontendEstimatorCalled: true,
     calledFunc,
-    fallbackReason: status
+    fallbackReason: status,
+    backendProductActive
   });
 
   if (status === "frontend_estimator_regression") {
