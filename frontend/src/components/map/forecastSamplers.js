@@ -709,7 +709,7 @@ export function updateDeprecationDiag(params) {
 
   window.__MARINE_ESTIMATOR_DEPRECATION_DIAG__ = resultDiagObj;
   
-  if (activeModel && activeLayer && timeOffsetHours !== null) {
+  if (activeModel && activeLayer && timeOffsetHours !== null && typeof logTestedCell === 'function') {
     logTestedCell(activeModel, activeLayer, timeOffsetHours, {
       status,
       provider: resultDiagObj.provider,
