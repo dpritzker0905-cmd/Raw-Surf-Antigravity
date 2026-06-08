@@ -2,8 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag } from './backendWeatherServiceClient';
-import { estimateEuroGrid, estimateIconGrid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
 import { updateDeprecationDiag } from './forecastSamplers';
+
+const DISPLAY_EURO_WAVES_MAX_HOURS = 240;
+const DISPLAY_EURO_COMPONENT_MAX_HOURS = 72;
+const DISPLAY_ICON_MAX_HOURS = 168;
 import { isInCooldown } from './marineControllerUtils';
 import { _marineDataSignature, _logPipelineEvent } from './useMarineOrchestratorDiag';
 
@@ -159,9 +162,7 @@ export function useMarineDataFetcher({
       const fetchIntent = { model, layer, hour: timeOffset };
 
       const isWaves = layer === 'waves';
-      const nativeLimit = isWaves ? EURO_LIMIT_WAVES : EURO_LIMIT_COMPONENTS;
-      const isPastLimit = model === 'EURO' && timeOffset > nativeLimit && !getBackendCopernicusFlag();
-      const isIconPastLimit = model === 'ICON' && timeOffset > ICON_LIMIT && !getBackendIconMarineFlag();
+      const nativeLimit = isWaves ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
       let data = null;
 
       const safeLoadGrid = async (modelName, targetLayer, targetHour, targetBounds, targetZoom, diagObj) => {
@@ -201,13 +202,15 @@ export function useMarineDataFetcher({
       };
 
       const diagObj = {
-        model, layer, targetHour: timeOffset, nativeLimit: isIconPastLimit ? ICON_LIMIT : nativeLimit,
+        model, layer, targetHour: timeOffset, nativeLimit: model === 'ICON' ? DISPLAY_ICON_MAX_HOURS : nativeLimit,
         requiredSources: [], cacheHits: [], fetchStarted: [], skippedReason: null, resultStatus: 'pending',
         rateLimitStatus: 'ok', cooldownStatus: isInCooldown('marine') ? 'rate_limited' : 'ok', timestamp: new Date().toISOString()
       };
       window.__EXTENDED_ESTIMATE_FETCH_DIAG__ = diagObj;
 
-      if (model === 'ICON' && timeOffset > ICON_LIMIT && getBackendIconMarineFlag()) {
+      if (model === 'ICON' && timeOffset > DISPLAY_ICON_MAX_HOURS) {
+        const hasBackend = getBackendIconMarineFlag();
+        const fallbackReason = hasBackend ? 'icon_no_backend_extended_estimate' : 'backend_required_no_frontend_estimator';
         if (typeof window !== 'undefined') {
           updateDeprecationDiag({
             model: 'ICON',
@@ -217,7 +220,7 @@ export function useMarineDataFetcher({
             called: false,
             backendAvailable: false,
             productId: null,
-            fallbackReason: 'icon_no_backend_extended_estimate'
+            fallbackReason
           });
         }
         data = {
@@ -231,148 +234,41 @@ export function useMarineDataFetcher({
             emptyGridWarning: "No ICON weather precipitation/marine products found in manifest",
             productId: null,
             provider: 'backend-weather-service',
-            is_estimated: false
+            is_estimated: false,
+            fallbackReason,
+            renderable: false
           }
         };
-      } else if (isPastLimit) {
-        phase = 'extended_euro';
-        logPipelineEventHelper('extended_estimate_fetch', { model: 'EURO', layer, hour: timeOffset });
-        let vpBounds = null;
-        if (!isWaves) {
-          try {
-            const b = mapInstance.getBounds(), west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
-            const lngSpan = east - west, latSpan = north - south, padding = 0.25;
-            vpBounds = {
-              west: west - lngSpan * padding, east: east + lngSpan * padding,
-              south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding)
-            };
-          } catch (e) { vpBounds = { west: -125, south: 25, east: -65, north: 50 }; }
+      } else if (model === 'EURO' && timeOffset > nativeLimit && !getBackendCopernicusFlag()) {
+        const fallbackReason = 'backend_required_no_frontend_estimator';
+        if (typeof window !== 'undefined') {
+          updateDeprecationDiag({
+            model: 'EURO',
+            layer,
+            offset: timeOffset,
+            calledFunc: null,
+            called: false,
+            backendAvailable: false,
+            productId: null,
+            fallbackReason
+          });
         }
-
-        const isIconValid = timeOffset <= 168 && layer !== 'swell_2';
-        diagObj.requiredSources = ['EURO_anchor', 'GFS_anchor', 'GFS_target'];
-        if (isIconValid) diagObj.requiredSources.push('ICON_anchor', 'ICON_target');
-        if (isInCooldown('marine')) {
-          diagObj.skippedReason = 'cooldown_active'; diagObj.resultStatus = 'skipped';
-          logPipelineEventHelper('extended_estimate_skipped', { model: 'EURO', layer, hour: timeOffset, reason: 'cooldown_active' });
-          locks.isFetching = false; return;
-        }
-
-        const euroAnchor = await safeLoadGrid('EURO', layer, nativeLimit, vpBounds || bounds, zoom, diagObj);
-        const gfsAnchor = await safeLoadGrid('GFS', layer, nativeLimit, vpBounds || bounds, zoom, diagObj);
-        const gfsTarget = await safeLoadGrid('GFS', layer, timeOffset, vpBounds || bounds, zoom, diagObj);
-        const iconAnchor = isIconValid ? await safeLoadGrid('ICON', layer, nativeLimit, vpBounds || bounds, zoom, diagObj) : null;
-        const iconTarget = isIconValid ? await safeLoadGrid('ICON', layer, timeOffset, vpBounds || bounds, zoom, diagObj) : null;
-
-        if (euroAnchor?.grid && gfsAnchor?.grid && gfsTarget?.grid) {
-          if (typeof window !== 'undefined') {
-            updateDeprecationDiag({
-              model: 'EURO',
-              layer,
-              offset: timeOffset,
-              calledFunc: 'estimateEuroGrid',
-              called: true,
-              backendAvailable: false,
-              productId: null,
-              fallbackReason: 'backend_copernicus_flag_disabled'
-            });
+        data = {
+          type: 'FeatureCollection',
+          features: [],
+          grid: {
+            bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
+            cols: 0,
+            rows: 0,
+            vectors: [],
+            emptyGridWarning: "Backend Copernicus support is absent, no frontend estimator",
+            productId: null,
+            provider: 'none',
+            is_estimated: false,
+            fallbackReason,
+            renderable: false
           }
-          const blendedGrid = estimateEuroGrid(timeOffset, nativeLimit, layer, euroAnchor.grid, gfsTarget.grid, gfsAnchor.grid, iconTarget?.grid, iconAnchor?.grid);
-          if (blendedGrid) {
-            data = {
-              type: 'FeatureCollection', features: euroAnchor.features || [],
-              grid: {
-                ...blendedGrid, __sourceModel: 'EURO', __provider: 'estimated', __gridProvider: 'estimated',
-                __componentLayer: layer, __gridSupportsLayer: true, __estimated: true,
-                __estimateBasis: {
-                  euroAnchorHour: nativeLimit, targetHour: timeOffset,
-                  gfsWeight: window.__EURO_EXTENDED_ESTIMATE_DIAG__?.weights?.gfs || 0,
-                  iconWeight: window.__EURO_EXTENDED_ESTIMATE_DIAG__?.weights?.icon || 0,
-                  persistenceWeight: window.__EURO_EXTENDED_ESTIMATE_DIAG__?.weights?.persistence || 0,
-                  confidence: window.__EURO_EXTENDED_ESTIMATE_DIAG__?.estimateConfidence || 0
-                }, provider: 'estimated'
-              }
-            };
-            diagObj.resultStatus = 'success';
-            if (typeof window !== 'undefined') {
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__ = window.__FORECAST_TIMELINE_COVERAGE_DIAG__ || {};
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = true;
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateBasis = data.grid.__estimateBasis;
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = "frontend_fallback";
-            }
-          }
-        }
-        if (!data) {
-          diagObj.resultStatus = 'failed_sources_missing';
-          console.warn('[Extended Estimate] EURO estimate sources failed to load.');
-        }
-      } else if (isIconPastLimit) {
-        phase = 'extended_icon';
-        logPipelineEventHelper('extended_estimate_fetch', { model: 'ICON', layer, hour: timeOffset });
-        let vpBounds = null;
-        if (!isWaves) {
-          try {
-            const b = mapInstance.getBounds(), west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
-            const lngSpan = east - west, latSpan = north - south, padding = 0.25;
-            vpBounds = {
-              west: west - lngSpan * padding, east: east + lngSpan * padding,
-              south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding)
-            };
-          } catch (e) { vpBounds = { west: -125, south: 25, east: -65, north: 50 }; }
-        }
-
-        diagObj.requiredSources = ['ICON_anchor', 'GFS_anchor', 'GFS_target'];
-        if (isInCooldown('marine')) {
-          diagObj.skippedReason = 'cooldown_active'; diagObj.resultStatus = 'skipped';
-          logPipelineEventHelper('extended_estimate_skipped', { model: 'ICON', layer, hour: timeOffset, reason: 'cooldown_active' });
-          locks.isFetching = false; return;
-        }
-
-        const iconAnchor = await safeLoadGrid('ICON', layer, ICON_LIMIT, vpBounds || bounds, zoom, diagObj);
-        const gfsAnchor = await safeLoadGrid('GFS', layer, ICON_LIMIT, vpBounds || bounds, zoom, diagObj);
-        const gfsTarget = await safeLoadGrid('GFS', layer, timeOffset, vpBounds || bounds, zoom, diagObj);
-
-        if (iconAnchor?.grid && gfsAnchor?.grid && gfsTarget?.grid) {
-          if (typeof window !== 'undefined') {
-            updateDeprecationDiag({
-              model: 'ICON',
-              layer,
-              offset: timeOffset,
-              calledFunc: 'estimateIconGrid',
-              called: true,
-              backendAvailable: false,
-              productId: null,
-              fallbackReason: 'backend_icon_flag_disabled'
-            });
-          }
-          const blendedGrid = estimateIconGrid(timeOffset, ICON_LIMIT, layer, iconAnchor.grid, gfsTarget.grid, gfsAnchor.grid);
-          if (blendedGrid) {
-            data = {
-              type: 'FeatureCollection', features: iconAnchor.features || [],
-              grid: {
-                ...blendedGrid, __sourceModel: 'ICON', __provider: 'estimated', __gridProvider: 'estimated',
-                __componentLayer: layer, __gridSupportsLayer: true, __estimated: true,
-                __estimateBasis: {
-                  iconAnchorHour: ICON_LIMIT, targetHour: timeOffset,
-                  gfsWeight: window.__ICON_EXTENDED_ESTIMATE_DIAG__?.weights?.gfs || 0,
-                  persistenceWeight: window.__ICON_EXTENDED_ESTIMATE_DIAG__?.weights?.persistence || 0,
-                  confidence: window.__ICON_EXTENDED_ESTIMATE_DIAG__?.estimateConfidence || 0
-                }, provider: 'estimated'
-              }
-            };
-            diagObj.resultStatus = 'success';
-            if (typeof window !== 'undefined') {
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__ = window.__FORECAST_TIMELINE_COVERAGE_DIAG__ || {};
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__.isEstimated = true;
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateBasis = data.grid.__estimateBasis;
-              window.__FORECAST_TIMELINE_COVERAGE_DIAG__.estimateSource = "frontend_fallback";
-            }
-          }
-        }
-        if (!data) {
-          diagObj.resultStatus = 'failed_sources_missing';
-          console.warn('[Extended Estimate] ICON estimate sources failed to load.');
-        }
+        };
       } else if (data === null) {
         if (model === 'EURO' && layer && COMPONENT_LAYERS.includes(layer)) {
           if (getBackendCopernicusFlag()) {
@@ -411,66 +307,22 @@ export function useMarineDataFetcher({
               };
             }
           } else {
-            phase = 'euro_component';
-            try {
-              const gfsGridData = await fetchMarineData(bounds, zoom, null, timeOffset, false, 'GFS', layer);
-              if (gfsGridData?.grid?.vectors?.length > 0) {
-                data = {
-                  ...gfsGridData,
-                  grid: {
-                    ...gfsGridData.grid, __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop',
-                    __baseProvider: 'open-meteo', __overlayProvider: 'pending_copernicus', __isEstimated: true, __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated'
-                  }
-                };
+            data = {
+              type: 'FeatureCollection',
+              features: [],
+              grid: {
+                vectors: [],
+                bounds,
+                cols: 0,
+                rows: 0,
+                status: "no_coverage",
+                source: "backend_required",
+                provider: "none",
+                is_estimated: false,
+                fallbackReason: "backend_required_no_frontend_estimator",
+                renderable: false
               }
-            } catch (err) { console.warn('[Marine] Global backdrop fetch failed:', err.message); }
-
-            if (!data) {
-              data = {
-                type: 'FeatureCollection', features: [],
-                grid: { vectors: [], bounds, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', __provider: 'gfs_estimated_backdrop', __gridProvider: 'gfs_estimated_backdrop', __componentLayer: layer, __gridSupportsLayer: true, provider: 'estimated' }
-              };
-            }
-
-            if (zoom < 4) {
-              if (data?.grid) {
-                data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_backdrop';
-                data.grid.__componentLayer = layer; data.grid.__gridSupportsLayer = true;
-                data.grid.__skippedReason = 'zoom_too_low_fallback'; data.grid.provider = 'estimated';
-              }
-            } else {
-              try {
-                const b = mapInstance.getBounds(), west = b.getWest(), east = b.getEast(), south = b.getSouth(), north = b.getNorth();
-                const lngSpan = east - west, latSpan = north - south, padding = 0.25;
-                const vpBounds = { west: west - lngSpan * padding, east: east + lngSpan * padding, south: Math.max(-80, south - latSpan * padding), north: Math.min(85, north + latSpan * padding) };
-                
-                const stateValidator = {
-                  getCurrentZoom: () => mapInstance?.getZoom(),
-                  getCurrentBounds: () => {
-                    try {
-                      const b2 = mapInstance.getBounds();
-                      return { west: b2.getWest(), south: b2.getSouth(), east: b2.getEast(), north: b2.getNorth() };
-                    } catch (e) { return null; }
-                  },
-                  isActiveIntent: () => (
-                    activeModelRef.current === 'EURO' &&
-                    activeMarineLayerRef.current === layer &&
-                    timeOffsetRef.current === timeOffset
-                  )
-                };
-
-                const componentGrid = await fetchCopernicusComponentGrid(vpBounds, layer, timeOffset, zoom, stateValidator);
-                if (componentGrid && componentGrid.grid?.vectors?.length > 0) {
-                  data = mergeComponentGrid(data, componentGrid, layer);
-                  if (data?.grid) { data.grid.__baseProvider = 'open-meteo'; data.grid.__overlayProvider = 'copernicus'; data.grid.__isBlended = true; }
-                } else {
-                  if (data?.grid) { data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_fallback'; data.grid.__overlayProvider = 'copernicus_unavailable'; data.grid.provider = 'estimated'; }
-                }
-              } catch (err) {
-                console.warn('[Marine] Copernicus fetch failed:', err.message);
-                if (data?.grid) { data.grid.__provider = data.grid.__gridProvider = 'gfs_estimated_fallback'; data.grid.__overlayProvider = 'copernicus_error'; data.grid.provider = 'estimated'; }
-              }
-            }
+            };
           }
         } else {
           phase = 'standard_fetch';

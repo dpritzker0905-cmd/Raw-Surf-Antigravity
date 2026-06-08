@@ -154,8 +154,6 @@ export function checkIsExactPointValid({
       effectiveExactPointStatus !== 'exact_no_time_coverage' &&
       effectiveExactPointStatus !== 'no_copernicus_coverage' &&
       effectiveExactPointStatus !== 'no_backend_coverage' &&
-      effectiveExactPointStatus !== 'euro_extended_estimate' &&
-      effectiveExactPointStatus !== 'icon_extended_estimate' &&
       effectiveExactPointStatus !== 'unsupported') return false;
 
   const epLat = effectiveExactPoint.requestedLat;
@@ -169,9 +167,7 @@ export function checkIsExactPointValid({
   }
   
   const expectedExactProv = (activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) ? 'copernicus' : 'open-meteo';
-  const isEstimated = effectiveExactPointStatus === 'euro_extended_estimate' || 
-                      effectiveExactPointStatus === 'icon_extended_estimate' || 
-                      effectiveExactPoint.provider === 'estimated';
+  const isEstimated = effectiveExactPoint.provider === 'estimated';
   if (!isEstimated) {
     if (effectiveExactPoint.provider !== expectedExactProv && 
         effectiveExactPoint.provider !== 'backend-weather-service' && 

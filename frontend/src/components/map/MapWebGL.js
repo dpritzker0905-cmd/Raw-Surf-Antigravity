@@ -420,7 +420,7 @@ var MapWebGL = ({
         activeLayerMax: marineData?.grid?.__activeLayerMax,
         oceanMaskCount: marineData?.grid?.__oceanMaskCount,
         heatmapProvider: res.__provider,
-        infoboxProvider: (window.__EURO_EXTENDED_ESTIMATE_DIAG__?.isEstimated) ? 'estimated' : res.__provider,
+        infoboxProvider: (window.__FORECAST_TIMELINE_COVERAGE_DIAG__?.isEstimated) ? 'estimated' : res.__provider,
         timestamp: new Date().toISOString()
       };
       window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;

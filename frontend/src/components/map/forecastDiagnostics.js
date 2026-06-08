@@ -146,8 +146,6 @@ export function writeOverlayDiagnostics(params) {
   let mode = 'unavailable';
   if (exactPointStatus === 'estimate_pending_sources') {
     mode = 'estimate_pending_sources';
-  } else if (exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate') {
-    mode = 'extended_estimate';
   } else if (activeModel === 'EURO') {
     mode = isWaves ? 'native_open_meteo' : 'native_copernicus';
   } else if (activeModel === 'GFS' || activeModel === 'ICON') {
@@ -159,7 +157,7 @@ export function writeOverlayDiagnostics(params) {
   const hasIconAnchor = !!hasIcon;
   const hasIconTarget = !!hasIcon;
 
-  const estimateCreated = exactPointStatus === 'euro_extended_estimate' || exactPointStatus === 'icon_extended_estimate';
+  const estimateCreated = false;
   let estimateReasonIfNot = null;
   if (!estimateCreated && timeOffsetHours > nativeLimit) {
     if (!hasGfs) {
