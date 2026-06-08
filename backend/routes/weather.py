@@ -198,6 +198,29 @@ def is_bbox_overlapping(w1: float, s1: float, e1: float, n1: float, cov) -> bool
             lon_overlap = True # both cross antimeridian
     return lat_overlap and lon_overlap
 
+def calculate_bbox_intersection_area(w1: float, s1: float, e1: float, n1: float, w2: float, s2: float, e2: float, n2: float) -> float:
+    """Calculates the intersection area of two bounding boxes."""
+    # Latitude intersection
+    inter_s = max(s1, s2)
+    inter_n = min(n1, n2)
+    if inter_s >= inter_n:
+        return 0.0
+    
+    # Longitude intersection
+    if w1 <= e1 and w2 <= e2:
+        inter_w = max(w1, w2)
+        inter_e = min(e1, e2)
+        if inter_w >= inter_e:
+            return 0.0
+        return (inter_e - inter_w) * (inter_n - inter_s)
+    else:
+        # Simple fallback for antimeridian wrap overlaps
+        inter_w = max(w1, w2)
+        inter_e = min(e1, e2)
+        if inter_w < inter_e:
+            return (inter_e - inter_w) * (inter_n - inter_s)
+        return 0.0
+
 
 @router.get("/grid", response_model=NormalizedProduct)
 async def get_grid(
@@ -317,7 +340,7 @@ async def get_grid(
                 logger.warning(f"[Grid Route] Dynamic viewport upstream fetch failed: {dynamic_err}. Checking Step 6 regional_partial fallback...")
                 
                 # Step 6: Durable manifest overlap as regional_partial only if no better dynamic/stale viewport product exists
-                overlap_manifest_item = None
+                overlap_candidates = []
                 for p in manifest.products:
                     if (
                         p.model.upper() == model.upper()
@@ -327,12 +350,26 @@ async def get_grid(
                         diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
                         if diff <= 3 * 3600:
                             if req_w is not None:
-                                if is_bbox_overlapping(req_w, req_s, req_e, req_n, p.coverage):
-                                    overlap_manifest_item = p
-                                    break
+                                area = calculate_bbox_intersection_area(
+                                    req_w, req_s, req_e, req_n,
+                                    p.coverage.west, p.coverage.south, p.coverage.east, p.coverage.north
+                                )
+                                if area > 0.0:
+                                    overlap_candidates.append((p, area, diff))
                             else:
-                                overlap_manifest_item = p
-                                break
+                                overlap_candidates.append((p, 1.0, diff))
+                
+                overlap_manifest_item = None
+                if overlap_candidates:
+                    # Rank by: area (descending), time difference (ascending), authoritative first (is_estimated = False first)
+                    overlap_candidates.sort(
+                        key=lambda x: (
+                            -x[1],  # area descending
+                            x[2],   # time difference ascending
+                            getattr(x[0], "is_estimated", False)  # authoritative (False) before estimated (True)
+                        )
+                    )
+                    overlap_manifest_item = overlap_candidates[0][0]
                 
                 if overlap_manifest_item:
                     logger.info(f"[Grid Route] Fallback: Serving overlapping regional manifest product '{overlap_manifest_item.filename}' as regional_partial")
@@ -364,6 +401,7 @@ async def get_grid(
             product.grid.diagnostics = {}
         product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
         product.grid.diagnostics["partial_coverage"] = getattr(product, "partial_coverage", False)
+        product.grid.diagnostics["valid_time"] = product.valid_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Attach truthTag for GFS marine waves
     if model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves":

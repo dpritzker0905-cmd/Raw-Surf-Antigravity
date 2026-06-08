@@ -554,3 +554,192 @@ def test_dynamic_fetch_failure_regional_partial_fallback(mock_weather_setup, mon
         "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
     )
     assert response_error.status_code in (429, 503, 504)
+
+def test_negative_cache_stale_fallback_success(mock_weather_setup, monkeypatch):
+    """Verify that if negative cache is active, it still checks and returns a stale fallback product."""
+    store, dynamic_idx = mock_weather_setup
+    
+    # 1. Seed a conformed dynamic viewport product for GFS waves at 2026-06-02T12:00:00Z
+    response1 = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-85,24,-80,30"
+    )
+    assert response1.status_code == 200
+    p1_data = response1.json()
+    p1_id = p1_data["product_id"]
+    
+    # Let's confirm it's cached in the index
+    items = dynamic_idx._load_index()
+    assert len(items) == 1
+    
+    # 2. Add a negative cache entry for a query 1 hour later (2026-06-02T13:00:00Z)
+    from services.weather_pipeline.route_helpers import parse_bbox, clamp_and_normalize_bbox, build_dynamic_cache_key
+    from services.weather_pipeline.viewport_service import ViewportService
+    
+    target_dt = datetime(2026, 6, 2, 13, 0, 0, tzinfo=timezone.utc)
+    bbox_str = "-85,24,-80,30"
+    req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
+    tileSize = 2.0
+    snap_w = math.floor(req_w / tileSize) * tileSize
+    snap_s = math.floor(req_s / tileSize) * tileSize
+    snap_e = math.ceil(req_e / tileSize) * tileSize
+    snap_n = math.ceil(req_n / tileSize) * tileSize
+    west, south, east, north = clamp_and_normalize_bbox(snap_w, snap_s, snap_e, snap_n)
+    cache_key = build_dynamic_cache_key("GFS", "marine", "waves", target_dt, west, south, east, north)
+    
+    # Activate negative cache for this key
+    from routes import weather
+    weather.viewport_service.NEGATIVE_CACHE[cache_key] = datetime.now(timezone.utc).timestamp() + 60
+    
+    # Mock OpenMeteoProvider.fetch_grid to raise error if called
+    async def mock_fetch_grid_should_not_be_called(*args, **kwargs):
+        raise AssertionError("Upstream fetch was called despite negative cache and stale fallback!")
+    monkeypatch.setattr(OpenMeteoProvider, "fetch_grid", mock_fetch_grid_should_not_be_called)
+    
+    # 3. Query the API for 2026-06-02T13:00:00Z (should hit negative cache, check stale fallback, find p1, and return it!)
+    response2 = client.get(
+        f"/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T13:00:00Z&bbox={bbox_str}"
+    )
+    assert response2.status_code == 200
+    p2_data = response2.json()
+    assert p2_data["stale"] is True
+    assert p2_data["cache_hit"] == "stale_cache_hit"
+    assert p2_data["staleReason"] == "upstream_rate_limited"
+    assert p2_data["fallbackReason"] == "upstream_rate_limited"
+    assert p2_data["product_id"] == p1_id
+    
+    # Clean up negative cache
+    weather.viewport_service.NEGATIVE_CACHE.clear()
+
+def test_aged_dynamic_product_diagnostics(mock_weather_setup):
+    """Verify diagnostics are correctly set and marked stale/SWR for aged dynamic products."""
+    store, dynamic_idx = mock_weather_setup
+    
+    # 1. Seed dynamic product
+    response1 = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-85,24,-80,30"
+    )
+    assert response1.status_code == 200
+    p1_data = response1.json()
+    p1_id = p1_data["product_id"]
+    
+    # 2. Modify created_at to be 40 minutes in the past
+    from datetime import timedelta
+    items = dynamic_idx._load_index()
+    assert len(items) == 1
+    items[0]["created_at"] = (datetime.now(timezone.utc) - timedelta(minutes=40)).isoformat()
+    dynamic_idx._save_index(items)
+    
+    # 3. Query again to hit stale cache with SWR
+    response2 = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-85,24,-80,30"
+    )
+    assert response2.status_code == 200
+    p2_data = response2.json()
+    assert p2_data["stale"] is True
+    assert p2_data["cache_hit"] == "stale_cache_hit"
+    assert p2_data["staleReason"] == "swr_revalidation_pending"
+    assert p2_data["product_id"] == p1_id
+    
+    diags = p2_data["grid"]["diagnostics"]
+    assert diags["stale"] is True
+    assert diags["cache_hit"] == "stale_cache_hit"
+    assert diags["staleReason"] == "swr_revalidation_pending"
+    assert diags["renderable"] is True
+    # Ensure diagnostics valid_time is ISO and matches requested valid_time
+    assert diags["valid_time"] == "2026-06-02T12:00:00Z"
+
+def test_query_bbox_clamped_snapped(mock_weather_setup):
+    """Verify that query_bbox uses clamped/snapped normalized coordinates near boundaries."""
+    # Query close to North Pole (lat=84, north boundary snaps to 86 which gets clamped to 85.0)
+    response = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-85,83,-80,84"
+    )
+    assert response.status_code == 200
+    json_data = response.json()
+    assert json_data["is_dynamic_viewport_product"] is True
+    
+    query_bbox = json_data["query_bbox"]
+    parts = [float(x) for x in query_bbox.split(",")]
+    # Latitude must be <= 85.0
+    assert parts[3] <= 85.0
+    
+    # Let's test antimeridian crossing query
+    response_am = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=179,24,-179,30"
+    )
+    assert response_am.status_code == 200
+    json_am = response_am.json()
+    query_bbox_am = json_am["query_bbox"]
+    parts_am = [float(x) for x in query_bbox_am.split(",")]
+    # West should be positive, East should be negative (or normalized wrapper)
+    assert abs(parts_am[0]) <= 180.0
+    assert abs(parts_am[2]) <= 180.0
+
+def test_two_overlapping_regional_products_ranking(mock_weather_setup, monkeypatch):
+    """Verify that Step 6 fallback correctly ranks overlapping regional manifest products by area, time, and authoritative."""
+    store, dynamic_idx = mock_weather_setup
+    
+    # 1. Mock fetch_grid to raise a rate limit error (429)
+    async def mock_fail_fetch_grid(*args, **kwargs):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    monkeypatch.setattr(OpenMeteoProvider, "fetch_grid", mock_fail_fetch_grid)
+    
+    # 2. Register two regional products in the manifest:
+    # Product A: Florida (west=-82, south=24, east=-79, north=30), diff = 1 hour, authoritative
+    # Product B: Wider Florida (west=-85, south=23, east=-78, north=31), diff = 0 hour, authoritative
+    from services.weather_pipeline.schemas import PipelineManifest, ManifestProduct, CoverageBounds, NormalizedProduct, NormalizedGrid
+    from datetime import timedelta
+    
+    target_dt = datetime(2026, 6, 2, 12, 0, 0, tzinfo=timezone.utc)
+    time_a = target_dt + timedelta(hours=1)
+    
+    cov_a = CoverageBounds(west=-82.0, south=24.0, east=-79.0, north=30.0)
+    cov_b = CoverageBounds(west=-85.0, south=23.0, east=-78.0, north=31.0)
+    
+    manifest_a = ManifestProduct(
+        model="GFS", provider="open-meteo", domain="marine", layer="waves",
+        run_time=target_dt, valid_time_start=time_a, valid_time_end=time_a,
+        resolution=0.5, freshness_sec=3600, is_forecast_authoritative=True,
+        coverage=cov_a, filename="prod_a.json", product_id="prod_a.json",
+        region_id="florida_a", coverage_mode="regional_tile"
+    )
+    
+    manifest_b = ManifestProduct(
+        model="GFS", provider="open-meteo", domain="marine", layer="waves",
+        run_time=target_dt, valid_time_start=target_dt, valid_time_end=target_dt,
+        resolution=0.5, freshness_sec=3600, is_forecast_authoritative=True,
+        coverage=cov_b, filename="prod_b.json", product_id="prod_b.json",
+        region_id="florida_b", coverage_mode="regional_tile"
+    )
+    
+    manifest = store.get_manifest()
+    manifest.products = [manifest_a, manifest_b]
+    store._save_manifest(manifest)
+    
+    # Save dummy products
+    for name, cov in [("prod_a.json", cov_a), ("prod_b.json", cov_b)]:
+        dummy = NormalizedProduct(
+            model="GFS", provider="open-meteo", domain="marine", layer="waves",
+            run_time=target_dt, valid_time=target_dt, is_forecast_authoritative=True,
+            is_estimated=False, coverage=cov,
+            grid=NormalizedGrid(bounds=cov, cols=2, rows=2, vectors=[]),
+            value_kind="wave_height", value_unit="m", display_unit_hint="m",
+            product_id=name, source_variables=["wave_height"], freshness_sec=3600,
+            region_id=name.split(".")[0], coverage_mode="regional_tile"
+        )
+        with open(store.cache_dir / name, "w") as f:
+            f.write(dummy.model_dump_json(indent=2))
+            
+    # 3. Query a wider bbox so that it does not have full coverage in Step 3,
+    # forcing Step 4 dynamic fetch which fails, and then falls back to Step 6 regional_partial.
+    # Overlap area of B is larger, diff of B is smaller.
+    # So Product B must be selected!
+    response = client.get(
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
+    )
+    assert response.status_code == 200
+    json_data = response.json()
+    assert json_data["product_id"] == "prod_b.json"
+    assert json_data["coverage_scope"] == "regional_partial"
+    assert json_data["partial_coverage"] is True

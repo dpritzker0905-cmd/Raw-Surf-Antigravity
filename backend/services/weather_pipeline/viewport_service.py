@@ -127,13 +127,12 @@ class ViewportService:
             loaded_product = self.store.load_product(cached_entry["product_id"])
             if loaded_product:
                 logger.info(f"[Dynamic Viewport] Cache HIT for {viewport_filename}")
-                loaded_product.cache_hit = "cache_hit"
                 loaded_product.resolution = cached_entry.get("resolution")
                 loaded_product.requested_bbox_original = bbox_str
-                loaded_product.query_bbox = f"{snap_w:.4f},{snap_s:.4f},{snap_e:.4f},{snap_n:.4f}"
+                loaded_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
                 loaded_product.partial_coverage = False
-                loaded_product.stale = False
                 
+                is_stale_swr = False
                 # Check age for SWR background revalidation
                 created_at_str = cached_entry.get("created_at")
                 if created_at_str:
@@ -141,6 +140,7 @@ class ViewportService:
                         created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
                         age_sec = (datetime.now(timezone.utc) - created_at).total_seconds()
                         if age_sec > 1800:  # 30 minutes
+                            is_stale_swr = True
                             reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{time_str}_{cache_key}"
                             if reval_key not in self.ACTIVE_REVALIDATIONS:
                                 self.ACTIVE_REVALIDATIONS.add(reval_key)
@@ -150,6 +150,13 @@ class ViewportService:
                                 ))
                     except Exception as swr_err:
                         logger.error(f"[Dynamic Viewport] SWR setup error: {swr_err}")
+                
+                loaded_product.cache_hit = "stale_cache_hit" if is_stale_swr else "cache_hit"
+                loaded_product.stale = is_stale_swr
+                if is_stale_swr:
+                    loaded_product.staleReason = "swr_revalidation_pending"
+                else:
+                    loaded_product.staleReason = None
                 
                 # Update diagnostics in the response
                 if loaded_product.grid:
@@ -162,18 +169,19 @@ class ViewportService:
                         "served_bbox": served_bbox,
                         "coverage_scope": cached_entry.get("coverage_scope", coverage_scope),
                         "source_product_ids": [cached_entry["product_id"]],
-                        "cache_hit": "cache_hit",
+                        "cache_hit": "stale_cache_hit" if is_stale_swr else "cache_hit",
                         "provider": loaded_product.provider,
                         "model": model,
                         "domain": domain,
                         "layer": layer,
-                        "valid_time": time_str,
+                        "valid_time": target_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
                         "nonzeroCount": loaded_product.grid.diagnostics.get("nonzeroCount", 0) if loaded_product.grid.diagnostics else 0,
                         "vectorCount": len(loaded_product.grid.vectors) if loaded_product.grid.vectors else 0,
                         "vectors_length": len(loaded_product.grid.vectors) if loaded_product.grid.vectors else 0,
                         "gridMode": "rectangular",
                         "renderable": len(loaded_product.grid.vectors) > 0 and any(v.speed > 0 for v in loaded_product.grid.vectors),
-                        "stale": False,
+                        "stale": is_stale_swr,
+                        "staleReason": "swr_revalidation_pending" if is_stale_swr else None,
                         "partial_coverage": False
                     }
                     loaded_product.served_bbox = served_bbox
@@ -228,7 +236,48 @@ class ViewportService:
         if cache_key in self.NEGATIVE_CACHE:
             expire_ts = self.NEGATIVE_CACHE[cache_key]
             if now_ts < expire_ts:
-                logger.warning(f"[Dynamic Viewport] Negative cache hit for {cache_key}. Rejecting query immediately.")
+                logger.warning(f"[Dynamic Viewport] Negative cache hit for {cache_key}. Attempting stale fallback before rejecting.")
+                fallback_product = self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
+                if fallback_product:
+                    logger.info(f"[Dynamic Viewport] Fallback (Negative Cache Hit): Found previous cached product {fallback_product.product_id} for stale return")
+                    fallback_product.cache_hit = "stale_cache_hit"
+                    fallback_product.requested_bbox_original = bbox_str
+                    fallback_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+                    fallback_product.requested_bbox = bbox_str
+                    fallback_product.is_dynamic_viewport_product = True
+                    fallback_product.stale = True
+                    fallback_product.staleReason = "upstream_rate_limited"
+                    fallback_product.fallbackReason = "upstream_rate_limited"
+                    fallback_product.partial_coverage = False
+                    
+                    fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
+                    served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
+                    fallback_product.served_bbox = served_bbox
+
+                    if fallback_product.grid:
+                        fallback_product.grid.diagnostics = {
+                            "requested_bbox": bbox_str,
+                            "served_bbox": served_bbox,
+                            "coverage_scope": fallback_product.coverage_scope or coverage_scope,
+                            "source_product_ids": [fallback_product.product_id],
+                            "cache_hit": "stale_cache_hit",
+                            "provider": fallback_product.provider,
+                            "model": model,
+                            "domain": domain,
+                            "layer": layer,
+                            "valid_time": target_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                            "nonzeroCount": fallback_product.grid.diagnostics.get("nonzeroCount", 0) if fallback_product.grid.diagnostics else 0,
+                            "vectorCount": len(fallback_product.grid.vectors) if fallback_product.grid.vectors else 0,
+                            "vectors_length": len(fallback_product.grid.vectors) if fallback_product.grid.vectors else 0,
+                            "gridMode": "rectangular",
+                            "renderable": len(fallback_product.grid.vectors) > 0 and any(v.speed > 0 for v in fallback_product.grid.vectors),
+                            "stale": True,
+                            "staleReason": "upstream_rate_limited",
+                            "fallbackReason": "upstream_rate_limited",
+                            "partial_coverage": False
+                        }
+                    return fallback_product
+                
                 raise HTTPException(
                     status_code=503,
                     detail="Upstream weather API is temporarily unavailable (cached rate limit block)."
@@ -255,7 +304,7 @@ class ViewportService:
                 if loaded_product:
                     loaded_product.cache_hit = "cache_hit"  # Shared from fetcher
                     loaded_product.requested_bbox_original = bbox_str
-                    loaded_product.query_bbox = f"{snap_w:.4f},{snap_s:.4f},{snap_e:.4f},{snap_n:.4f}"
+                    loaded_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
                     loaded_product.partial_coverage = False
                     loaded_product.stale = False
                     loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
@@ -333,7 +382,7 @@ class ViewportService:
             normalized_product.coordinate_count = coord_count
             normalized_product.resolution = resolution
             normalized_product.requested_bbox_original = bbox_str
-            normalized_product.query_bbox = f"{snap_w:.4f},{snap_s:.4f},{snap_e:.4f},{snap_n:.4f}"
+            normalized_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
             normalized_product.partial_coverage = False
             normalized_product.stale = False
 
@@ -349,7 +398,7 @@ class ViewportService:
                     "model": model,
                     "domain": domain,
                     "layer": layer,
-                    "valid_time": valid_time_str,
+                    "valid_time": target_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "nonzeroCount": normalized_product.grid.diagnostics.get("nonzeroCount", 0) if normalized_product.grid.diagnostics else 0,
                     "vectorCount": len(normalized_product.grid.vectors) if normalized_product.grid.vectors else 0,
                     "vectors_length": len(normalized_product.grid.vectors) if normalized_product.grid.vectors else 0,
@@ -421,7 +470,7 @@ class ViewportService:
                 logger.info(f"[Dynamic Viewport] Fallback: Found previous cached product {fallback_product.product_id} for stale return")
                 fallback_product.cache_hit = "stale_cache_hit"
                 fallback_product.requested_bbox_original = bbox_str
-                fallback_product.query_bbox = f"{snap_w:.4f},{snap_s:.4f},{snap_e:.4f},{snap_n:.4f}"
+                fallback_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
                 fallback_product.requested_bbox = bbox_str
                 fallback_product.is_dynamic_viewport_product = True
                 fallback_product.stale = True
@@ -445,7 +494,7 @@ class ViewportService:
                         "model": model,
                         "domain": domain,
                         "layer": layer,
-                        "valid_time": valid_time_str,
+                        "valid_time": target_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
                         "nonzeroCount": fallback_product.grid.diagnostics.get("nonzeroCount", 0) if fallback_product.grid.diagnostics else 0,
                         "vectorCount": len(fallback_product.grid.vectors) if fallback_product.grid.vectors else 0,
                         "vectors_length": len(fallback_product.grid.vectors) if fallback_product.grid.vectors else 0,
