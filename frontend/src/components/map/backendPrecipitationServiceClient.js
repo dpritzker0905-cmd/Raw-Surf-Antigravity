@@ -153,7 +153,7 @@ export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, 
     const backendPointValidTime = json.valid_time || validTimeStr;
     const finalTimeParity = visualTileTime === null 
       ? "unknown_visual_tile_time" 
-      : (backendPointValidTime === visualTileTime);
+      : (new Date(backendPointValidTime).getTime() === new Date(visualTileTime).getTime());
 
     const diagnosticDetails = {
       // Requested keys
@@ -228,7 +228,7 @@ export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, 
   } catch (err) {
     const finalTimeParity = visualTileTime === null 
       ? "unknown_visual_tile_time" 
-      : (validTimeStr === visualTileTime);
+      : (new Date(validTimeStr).getTime() === new Date(visualTileTime).getTime());
 
     const errorDetails = {
       // Requested keys
