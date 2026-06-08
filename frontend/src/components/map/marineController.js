@@ -66,6 +66,7 @@ export {
 var marinAbortController = null;
 var marineRequestInFlight = false;
 var BOOTSTRAP_MARINE = true;
+var MARINE_CACHE = new Map();
 
 var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
 
