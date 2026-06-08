@@ -941,3 +941,9 @@ export function estimateIconGrid(targetHour, nativeLimit, activeLayer, iconAncho
   };
 }
 
+if (typeof window !== 'undefined') {
+  window.__logTestedCell__ = logTestedCell;
+  window.__updateRetirementSummary__ = updateRetirementSummary;
+  window.__REQUIRED_CELLS__ = REQUIRED_CELLS;
+}
+
