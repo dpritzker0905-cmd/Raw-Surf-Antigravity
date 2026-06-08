@@ -14,6 +14,7 @@ export const EURO_LIMIT_COMPONENTS = 72; // 3 days
 export const ICON_LIMIT = 168;            // 7 days
 
 import { getBackendCopernicusFlag, getBackendIconMarineFlag } from './backendWeatherServiceClient';
+import { isProductMatching } from './weatherProductIdentity';
 
 // 36 authoritative cells in the Stage 7E test matrix
 export const REQUIRED_CELLS = [
@@ -212,11 +213,11 @@ export function checkEstimatorRegression(model, layer, hour, calledFunc) {
     backendProductAvailable = !!(hasCap || hasFlag);
   }
 
+  const isGridMatching = !!(gridProductId && isProductMatching(gridProductId, activeModel, activeLayer));
+  const isPointMatching = !!(pointProductId && isProductMatching(pointProductId, activeModel, activeLayer));
+
   const backendProductActive = !!(
-    (model === 'EURO' && (copernicusDiag.active || copernicusDiag.productId)) ||
-    (model === 'ICON' && (iconDiag.active || iconDiag.productId)) ||
-    gridProductId ||
-    pointProductId
+    isGridMatching || isPointMatching
   );
 
   const backendProductMatchesRequestedLayer = !!(
@@ -234,8 +235,10 @@ export function checkEstimatorRegression(model, layer, hour, calledFunc) {
   );
 
   let status = "inactive";
-  if (backendProductAvailable) {
-    status = "frontend_estimator_regression";
+  if (backendProductActive) {
+    status = "backend_product_active_regression";
+  } else if (backendProductAvailable) {
+    status = "backend_capable_estimator_invoked";
   } else {
     status = "legacy_fallback_invoked";
   }
@@ -256,7 +259,7 @@ export function checkEstimatorRegression(model, layer, hour, calledFunc) {
       targetHour: hour,
       nativeLimit: model === 'EURO' ? (layer === 'waves' ? 240 : 72) : 168
     },
-    coverageStatus: backendProductAvailable ? "regression_detected" : "fallback_active",
+    coverageStatus: backendProductActive ? "active_regression_detected" : (backendProductAvailable ? "regression_detected" : "fallback_active"),
     backendProductAvailable,
     backendProductActive,
     backendProductMatchesRequestedLayer,
@@ -281,8 +284,8 @@ export function checkEstimatorRegression(model, layer, hour, calledFunc) {
     backendProductActive
   });
 
-  if (status === "frontend_estimator_regression") {
-    console.error(`[ESTIMATOR_REGRESSION] Frontend estimator ${calledFunc} called for ${model} ${layer} at +${hour}h, but backend product is available!`);
+  if (status === "backend_product_active_regression" || status === "backend_capable_estimator_invoked") {
+    console.error(`[ESTIMATOR_REGRESSION] Frontend estimator ${calledFunc} called for ${model} ${layer} at +${hour}h, but backend product is available/active! Status: ${status}`);
   }
 }
 

@@ -14,6 +14,7 @@ import {
 } from './forecastHelpers';
 import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT, logTestedCell } from './euroExtendedEstimate';
 import { governMarineRequest } from './marineRequestGovernor';
+import { isProductMatching } from './weatherProductIdentity';
 import {
   getBackendWeatherFlag,
   getBackendIconMarineFlag,
@@ -109,6 +110,17 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       console.log(`[Backend Precipitation Service] Redirecting ${model || 'GFS'} Precipitation point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPrecipitationPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
       if (pointResult) {
+        updateDeprecationDiag({
+          model: model || 'GFS',
+          layer: activeLayer,
+          offset: timeOffsetHours,
+          calledFunc: null,
+          called: false,
+          backendAvailable: true,
+          productId: pointResult.productId,
+          fallbackReason: 'backend_redirect_active',
+          conformedPoint: pointResult
+        });
         return pointResult;
       }
     } catch (err) {
@@ -122,6 +134,17 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       console.log(`[Backend Pressure Service] Redirecting ${model || 'GFS'} Pressure point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPressurePoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
       if (pointResult) {
+        updateDeprecationDiag({
+          model: model || 'GFS',
+          layer: activeLayer,
+          offset: timeOffsetHours,
+          calledFunc: null,
+          called: false,
+          backendAvailable: true,
+          productId: pointResult.productId,
+          fallbackReason: 'backend_redirect_active',
+          conformedPoint: pointResult
+        });
         return pointResult;
       }
     } catch (err) {
@@ -135,6 +158,17 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer);
       if (pointResult) {
+        updateDeprecationDiag({
+          model: 'GFS',
+          layer: activeLayer,
+          offset: timeOffsetHours,
+          calledFunc: null,
+          called: false,
+          backendAvailable: true,
+          productId: pointResult.productId,
+          fallbackReason: 'backend_redirect_active',
+          conformedPoint: pointResult
+        });
         return pointResult;
       }
     } catch (err) {
@@ -148,6 +182,17 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       console.log(`[Backend Weather Service] Redirecting ${model || 'GFS'} Wind point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactWindPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
       if (pointResult) {
+        updateDeprecationDiag({
+          model: model || 'GFS',
+          layer: activeLayer,
+          offset: timeOffsetHours,
+          calledFunc: null,
+          called: false,
+          backendAvailable: true,
+          productId: pointResult.productId,
+          fallbackReason: 'backend_redirect_active',
+          conformedPoint: pointResult
+        });
         return pointResult;
       }
     } catch (err) {
@@ -161,6 +206,17 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer);
       if (pointResult) {
+        updateDeprecationDiag({
+          model: 'EURO',
+          layer: activeLayer,
+          offset: timeOffsetHours,
+          calledFunc: null,
+          called: false,
+          backendAvailable: true,
+          productId: pointResult.productId,
+          fallbackReason: 'backend_redirect_active',
+          conformedPoint: pointResult
+        });
         return pointResult;
       }
     } catch (err) {
@@ -174,6 +230,17 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       console.log(`[Backend Weather Service] Redirecting ICON ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'ICON');
       if (pointResult) {
+        updateDeprecationDiag({
+          model: 'ICON',
+          layer: activeLayer,
+          offset: timeOffsetHours,
+          calledFunc: null,
+          called: false,
+          backendAvailable: true,
+          productId: pointResult.productId,
+          fallbackReason: 'backend_redirect_active',
+          conformedPoint: pointResult
+        });
         return pointResult;
       }
     } catch (err) {
@@ -512,6 +579,57 @@ export function updateDeprecationDiag(params) {
 
   const isUnsupported = (activeModel === 'ICON' && activeLayer === 'swell_2');
 
+  const gridProductId = window.__MARINE_DIAG__?.gridProductId || window.__MARINE_PROJECTION_DIAG__?.productId || prev.gridProductId || null;
+  const pointProductId = productId || conformedPoint?.productId || window.__MARINE_DIAG__?.pointProductId || prev.pointProductId || null;
+
+  let gridPointParity = null;
+  if (gridProductId && pointProductId) {
+    gridPointParity = (gridProductId === pointProductId) ? "parity_pass" : "mismatch";
+  } else if (window.__MARINE_SOURCE_PARITY__) {
+    gridPointParity = window.__MARINE_SOURCE_PARITY__.match ? "parity_pass" : "mismatch";
+  } else {
+    gridPointParity = prev.gridPointParity || null;
+  }
+
+  let selectedValidTime = conformedPoint?.time || prev.selectedValidTime || null;
+  let resolvedIsEstimated = isEstimated !== null ? isEstimated : (conformedPoint ? !!conformedPoint.is_estimated : (prev.isEstimated || false));
+  let resolvedEstimateBasis = estimateBasis !== null ? estimateBasis : (conformedPoint?.estimate_basis || prev.estimateBasis || null);
+  let resolvedConfidence = confidence !== null ? confidence : (conformedPoint?.estimate_basis?.confidence || prev.confidence || null);
+  let resolvedProvider = provider !== null ? provider : (conformedPoint?.provider || prev.provider || null);
+  let resolvedSource = source !== null ? source : (conformedPoint?.source || prev.source || null);
+
+  const isGridMatching = !!(gridProductId && isProductMatching(gridProductId, activeModel, activeLayer));
+  const isPointMatching = !!(pointProductId && isProductMatching(pointProductId, activeModel, activeLayer));
+  const isConformedPointMatching = !!(conformedPoint && conformedPoint.productId && isProductMatching(conformedPoint.productId, activeModel, activeLayer));
+
+  const hasSuccessfulBackendPoint = !!(conformedPoint && conformedPoint.productId &&
+    isProductMatching(conformedPoint.productId, activeModel, activeLayer) &&
+    resolvedProvider && resolvedProvider !== 'estimated' &&
+    resolvedSource && resolvedSource !== 'frontend_fallback');
+
+  const hasSuccessfulBackendGrid = !!(gridProductId &&
+    isProductMatching(gridProductId, activeModel, activeLayer) &&
+    resolvedProvider && resolvedProvider !== 'estimated' &&
+    resolvedSource && resolvedSource !== 'frontend_fallback');
+
+  const isExplicitUnsupportedOrNoCoverage = (isUnsupported && (
+    fallbackReason === 'unsupported_model_layer' ||
+    fallbackReason === 'icon_no_backend_extended_estimate' ||
+    fallbackReason === 'no_copernicus_coverage' ||
+    fallbackReason === 'no_backend_coverage' ||
+    fallbackReason === 'no_coverage' ||
+    fallbackReason === 'out_of_bounds/no_coverage'
+  ));
+
+  const backendProductActive = !!(
+    isGridMatching ||
+    isPointMatching ||
+    isConformedPointMatching ||
+    hasSuccessfulBackendPoint ||
+    hasSuccessfulBackendGrid ||
+    isExplicitUnsupportedOrNoCoverage
+  );
+
   let status = "inactive";
   let cellSafe = false;
 
@@ -523,26 +641,30 @@ export function updateDeprecationDiag(params) {
     }
     cellSafe = false;
   } else {
-    if (isUnsupported || fallbackReason === 'unsupported_model_layer' || fallbackReason === 'icon_no_backend_extended_estimate' || fallbackReason === 'no_copernicus_coverage' || fallbackReason === 'no_backend_coverage') {
+    if (isUnsupported || fallbackReason === 'unsupported_model_layer' || fallbackReason === 'icon_no_backend_extended_estimate' || fallbackReason === 'no_copernicus_coverage' || fallbackReason === 'no_backend_coverage' || fallbackReason === 'no_coverage' || fallbackReason === 'out_of_bounds/no_coverage') {
       status = (fallbackReason === 'unsupported_model_layer' || isUnsupported) ? 'unsupported' : 'no_coverage';
       cellSafe = true;
-    } else if (isBackendRedirectActive || activeModel === 'GFS') {
-      status = "backend_owned_no_estimator";
-      cellSafe = true;
     } else {
-      status = "inactive";
-      cellSafe = false;
+      const isResponseNotStale = conformedPoint ? (conformedPoint.status !== 'exact_stale_available' && conformedPoint.status !== 'exact_no_time_coverage') : true;
+      const isNotFallback = resolvedSource !== 'frontend_fallback' && resolvedSource !== 'estimated' && resolvedSource !== 'legacy_fallback';
+      
+      const gridProductMatches = gridProductId ? isProductMatching(gridProductId, activeModel, activeLayer) : true;
+      const pointProductMatches = pointProductId ? isProductMatching(pointProductId, activeModel, activeLayer) : true;
+      const productMatches = gridProductMatches && pointProductMatches;
+
+      const parityOk = (gridProductId && pointProductId) ? (gridPointParity === 'parity_pass') : true;
+
+      if (backendProductActive && productMatches && parityOk && isResponseNotStale && isNotFallback) {
+        status = "backend_owned_no_estimator";
+        cellSafe = true;
+      } else {
+        status = "inactive";
+        cellSafe = false;
+      }
     }
   }
 
   const safeToDeleteNow = false;
-
-  let selectedValidTime = conformedPoint?.time || prev.selectedValidTime || null;
-  let resolvedIsEstimated = isEstimated !== null ? isEstimated : (conformedPoint ? !!conformedPoint.is_estimated : (prev.isEstimated || false));
-  let resolvedEstimateBasis = estimateBasis !== null ? estimateBasis : (conformedPoint?.estimate_basis || prev.estimateBasis || null);
-  let resolvedConfidence = confidence !== null ? confidence : (conformedPoint?.estimate_basis?.confidence || prev.confidence || null);
-  let resolvedProvider = provider !== null ? provider : (conformedPoint?.provider || prev.provider || null);
-  let resolvedSource = source !== null ? source : (conformedPoint?.source || prev.source || null);
   
   let resolvedInfoboxValue = infoboxValue !== null ? infoboxValue : null;
   if (resolvedInfoboxValue === null) {
@@ -556,28 +678,6 @@ export function updateDeprecationDiag(params) {
       resolvedInfoboxValue = prev.infoboxValue || null;
     }
   }
-
-  const gridProductId = window.__MARINE_DIAG__?.gridProductId || window.__MARINE_PROJECTION_DIAG__?.productId || prev.gridProductId || null;
-  const pointProductId = productId || conformedPoint?.productId || window.__MARINE_DIAG__?.pointProductId || prev.pointProductId || null;
-
-  let gridPointParity = null;
-  if (gridProductId && pointProductId) {
-    gridPointParity = (gridProductId === pointProductId) ? "parity_pass" : "mismatch";
-  } else if (window.__MARINE_SOURCE_PARITY__) {
-    gridPointParity = window.__MARINE_SOURCE_PARITY__.match ? "parity_pass" : "mismatch";
-  } else {
-    gridPointParity = prev.gridPointParity || null;
-  }
-
-  const backendProductActive = !!(
-    isBackendRedirectActive ||
-    (activeModel === 'EURO' && (isBackendCopernicus || resolvedProvider === 'copernicus')) ||
-    (activeModel === 'ICON' && (isBackendIcon || resolvedProvider === 'backend-weather-service')) ||
-    (activeModel === 'GFS') ||
-    gridProductId ||
-    pointProductId ||
-    backendAvailable
-  );
 
   const resultDiagObj = {
     status,
