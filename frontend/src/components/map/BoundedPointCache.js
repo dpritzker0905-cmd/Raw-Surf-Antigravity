@@ -15,6 +15,16 @@ export class BoundedPointCache {
     return entry;
   }
 
+  has(key) {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    if (Date.now() - entry.timestamp > this.ttlMs) {
+      this.cache.delete(key);
+      return false;
+    }
+    return true;
+  }
+
   set(key, val) {
     if (this.cache.has(key)) {
       this.cache.delete(key);
