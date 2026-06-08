@@ -12,7 +12,7 @@ import {
   mToFt, degToCompass, findHourIndex, getClampedValue, getBiasAdjusted,
   sampleValueFromDecodedTiles, sampleFromMarineGrid
 } from './forecastHelpers';
-import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT } from './euroExtendedEstimate';
+import { estimateEuroPoint, estimateIconPoint, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, ICON_LIMIT, logTestedCell } from './euroExtendedEstimate';
 import { governMarineRequest } from './marineRequestGovernor';
 import {
   getBackendWeatherFlag,
@@ -496,7 +496,40 @@ export function updateDeprecationDiag(params) {
   const isBackendGfs = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
   const isBackendRedirectActive = (isEuro && isBackendCopernicus) || (isIcon && isBackendIcon) || (!isEuro && !isIcon && isBackendGfs);
 
-  // safeToDeleteNow must remain false for Stage 7B
+  // capabilities check
+  let capAvailable = false;
+  if (activeModel === 'EURO') {
+    const hasCap = window.__WEATHER_CAPABILITIES__?.some(c => c.model === 'EURO' && c.layer === activeLayer && c.backend_owned);
+    const hasFlag = typeof window.__USE_BACKEND_COPERNICUS_SERVICE__ !== 'undefined' ? !!window.__USE_BACKEND_COPERNICUS_SERVICE__ : true;
+    capAvailable = !!(hasCap || hasFlag);
+  } else if (activeModel === 'ICON') {
+    const hasCap = window.__WEATHER_CAPABILITIES__?.some(c => c.model === 'ICON' && c.layer === activeLayer && c.backend_owned);
+    const hasFlag = typeof window.__USE_BACKEND_ICON_MARINE_SERVICE__ !== 'undefined' ? !!window.__USE_BACKEND_ICON_MARINE_SERVICE__ : true;
+    capAvailable = !!(hasCap || hasFlag);
+  } else if (activeModel === 'GFS') {
+    capAvailable = true;
+  }
+
+  let status = "inactive";
+  let cellSafe = false;
+
+  if (called) {
+    if (capAvailable || isBackendRedirectActive || backendAvailable) {
+      status = "frontend_estimator_regression";
+    } else {
+      status = "legacy_fallback_invoked";
+    }
+    cellSafe = false;
+  } else {
+    if (isBackendRedirectActive || activeModel === 'GFS' || (activeModel === 'ICON' && activeLayer === 'swell_2')) {
+      status = "backend_owned_no_estimator";
+      cellSafe = true;
+    } else {
+      status = "inactive";
+      cellSafe = false;
+    }
+  }
+
   const safeToDeleteNow = false;
 
   let selectedValidTime = conformedPoint?.time || prev.selectedValidTime || null;
@@ -531,7 +564,8 @@ export function updateDeprecationDiag(params) {
     gridPointParity = prev.gridPointParity || null;
   }
 
-  window.__MARINE_ESTIMATOR_DEPRECATION_DIAG__ = {
+  const resultDiagObj = {
+    status,
     activeModel,
     activeLayer,
     timeOffsetHours,
@@ -550,8 +584,22 @@ export function updateDeprecationDiag(params) {
     fallbackReason: fallbackReason || prev.fallbackReason || (isBackendRedirectActive ? 'backend_redirect_active' : 'within_native_limit_or_unsupported'),
     gridPointParity,
     infoboxValue: resolvedInfoboxValue,
-    safeToDeleteNow
+    cellSafe,
+    safeToDeleteNow,
+    verdict: window.__MARINE_ESTIMATOR_RETIREMENT_SUMMARY__?.verdict || "safe_to_delete_blocked"
   };
+
+  window.__MARINE_ESTIMATOR_DEPRECATION_DIAG__ = resultDiagObj;
+  
+  if (activeModel && activeLayer && timeOffsetHours !== null) {
+    logTestedCell(activeModel, activeLayer, timeOffsetHours, {
+      status,
+      provider: resultDiagObj.provider,
+      frontendEstimatorCalled: !!called,
+      calledFunc,
+      fallbackReason: resultDiagObj.fallbackReason
+    });
+  }
 }
 
 /**

@@ -13,6 +13,261 @@ export const EURO_LIMIT_WAVES = 240;      // 10 days
 export const EURO_LIMIT_COMPONENTS = 72; // 3 days
 export const ICON_LIMIT = 168;            // 7 days
 
+import { getBackendCopernicusFlag, getBackendIconMarineFlag } from './backendWeatherServiceClient';
+
+// 34 authoritative cells in the Stage 7E test matrix
+export const REQUIRED_CELLS = [
+  // GFS: waves, swell_1, swell_2, wind_waves at Live (0), +72h, +168h
+  { model: 'GFS', layer: 'waves', offset: 0 },
+  { model: 'GFS', layer: 'waves', offset: 72 },
+  { model: 'GFS', layer: 'waves', offset: 168 },
+  { model: 'GFS', layer: 'swell_1', offset: 0 },
+  { model: 'GFS', layer: 'swell_1', offset: 72 },
+  { model: 'GFS', layer: 'swell_1', offset: 168 },
+  { model: 'GFS', layer: 'swell_2', offset: 0 },
+  { model: 'GFS', layer: 'swell_2', offset: 72 },
+  { model: 'GFS', layer: 'swell_2', offset: 168 },
+  { model: 'GFS', layer: 'wind_waves', offset: 0 },
+  { model: 'GFS', layer: 'wind_waves', offset: 72 },
+  { model: 'GFS', layer: 'wind_waves', offset: 168 },
+
+  // EURO: waves, swell_1, swell_2, wind_waves at +72h, +120h, +168h, +240h
+  { model: 'EURO', layer: 'waves', offset: 72 },
+  { model: 'EURO', layer: 'waves', offset: 120 },
+  { model: 'EURO', layer: 'waves', offset: 168 },
+  { model: 'EURO', layer: 'waves', offset: 240 },
+  { model: 'EURO', layer: 'swell_1', offset: 72 },
+  { model: 'EURO', layer: 'swell_1', offset: 120 },
+  { model: 'EURO', layer: 'swell_1', offset: 168 },
+  { model: 'EURO', layer: 'swell_1', offset: 240 },
+  { model: 'EURO', layer: 'swell_2', offset: 72 },
+  { model: 'EURO', layer: 'swell_2', offset: 120 },
+  { model: 'EURO', layer: 'swell_2', offset: 168 },
+  { model: 'EURO', layer: 'swell_2', offset: 240 },
+  { model: 'EURO', layer: 'wind_waves', offset: 72 },
+  { model: 'EURO', layer: 'wind_waves', offset: 120 },
+  { model: 'EURO', layer: 'wind_waves', offset: 168 },
+  { model: 'EURO', layer: 'wind_waves', offset: 240 },
+
+  // ICON: waves, swell_1, wind_waves at +168h, +240h
+  { model: 'ICON', layer: 'waves', offset: 168 },
+  { model: 'ICON', layer: 'waves', offset: 240 },
+  { model: 'ICON', layer: 'swell_1', offset: 168 },
+  { model: 'ICON', layer: 'swell_1', offset: 240 },
+  { model: 'ICON', layer: 'wind_waves', offset: 168 },
+  { model: 'ICON', layer: 'wind_waves', offset: 240 },
+
+  // ICON swell_2: Live (0) and +72h (must remain unsupported/no source data)
+  { model: 'ICON', layer: 'swell_2', offset: 0, unsupported: true },
+  { model: 'ICON', layer: 'swell_2', offset: 72, unsupported: true }
+];
+
+function getCallStackShort() {
+  try {
+    const err = new Error();
+    const stack = err.stack || '';
+    const lines = stack.split('\n');
+    return lines.slice(3, 6).map(l => l.trim()).join(' -> ');
+  } catch (e) {
+    return 'unknown_stack';
+  }
+}
+
+export function updateRetirementSummary() {
+  if (typeof window === 'undefined') return;
+  const logs = window.__TESTED_CELLS_LOG__ || {};
+  
+  let matrixTotal = REQUIRED_CELLS.length;
+  let matrixPassed = 0;
+  let matrixFailed = 0;
+  const untestedList = [];
+  
+  let estimatorInvocationCount = 0;
+  let regressionCount = 0;
+  let legacyFallbackCount = 0;
+
+  Object.values(logs).forEach(log => {
+    if (log.frontendEstimatorCalled) {
+      estimatorInvocationCount++;
+      if (log.status === 'frontend_estimator_regression') {
+        regressionCount++;
+      } else if (log.status === 'legacy_fallback_invoked') {
+        legacyFallbackCount++;
+      }
+    }
+  });
+
+  REQUIRED_CELLS.forEach(cell => {
+    const key = `${cell.model}_${cell.layer}_${cell.offset}`;
+    const log = logs[key];
+    if (!log) {
+      untestedList.push(key);
+      return;
+    }
+
+    if (cell.unsupported) {
+      if (!log.frontendEstimatorCalled && (log.provider === 'backend-weather-service' || log.provider === 'none' || log.fallbackReason === 'icon_no_backend_extended_estimate' || log.fallbackReason === 'unsupported_model_layer')) {
+        matrixPassed++;
+      } else {
+        matrixFailed++;
+      }
+    } else {
+      if (log.status === 'backend_owned_no_estimator' && !log.frontendEstimatorCalled) {
+        matrixPassed++;
+      } else {
+        matrixFailed++;
+      }
+    }
+  });
+
+  const untestedCells = untestedList.length;
+  const allPassed = (matrixPassed === matrixTotal);
+  const safeToDeleteNow = allPassed && (estimatorInvocationCount === 0);
+
+  let verdict = "safe_to_delete_blocked";
+  if (allPassed && estimatorInvocationCount === 0) {
+    verdict = "safe_to_delete_candidate";
+  }
+
+  window.__MARINE_ESTIMATOR_RETIREMENT_SUMMARY__ = {
+    matrixTotal,
+    matrixPassed,
+    matrixFailed,
+    untestedCells,
+    untestedList,
+    estimatorInvocationCount,
+    regressionCount,
+    legacyFallbackCount,
+    safeToDeleteNow,
+    verdict,
+    timestamp: new Date().toISOString()
+  };
+}
+
+export function logTestedCell(model, layer, offset, data) {
+  if (typeof window === 'undefined') return;
+  window.__TESTED_CELLS_LOG__ = window.__TESTED_CELLS_LOG__ || {};
+  
+  const intOffset = Math.round(Number(offset));
+  const normKey = `${model}_${layer}_${intOffset}`;
+  
+  window.__TESTED_CELLS_LOG__[normKey] = {
+    model,
+    layer,
+    offset: intOffset,
+    status: data.status,
+    provider: data.provider || null,
+    frontendEstimatorCalled: !!data.frontendEstimatorCalled,
+    calledFunc: data.calledFunc || null,
+    fallbackReason: data.fallbackReason || null,
+    timestamp: new Date().toISOString()
+  };
+  
+  updateRetirementSummary();
+}
+
+export function checkEstimatorRegression(model, layer, hour, calledFunc) {
+  if (typeof window === 'undefined') return;
+
+  const projDiag = window.__MARINE_PROJECTION_DIAG__ || {};
+  const renderSourceDiag = window.__MARINE_RENDER_SOURCE_DIAG__ || {};
+  const copernicusDiag = window.__BACKEND_COPERNICUS_SERVICE_DIAG__ || {};
+  const iconDiag = window.__BACKEND_ICON_SERVICE_DIAG__ || {};
+  const pointDiag = window.__MARINE_POINT_DIAG__ || {};
+  const timelineDiag = window.__FORECAST_TIMELINE_COVERAGE_DIAG__ || {};
+
+  const activeModel = model || projDiag.activeModel || renderSourceDiag.model || null;
+  const activeLayer = layer || projDiag.activeLayer || renderSourceDiag.layer || null;
+  const requestedHour = hour;
+
+  const selectedValidTime = projDiag.selectedValidTime || renderSourceDiag.validTime || null;
+  const gridProductId = projDiag.productId || renderSourceDiag.productId || null;
+  const pointProductId = pointDiag.productId || timelineDiag.productId || null;
+
+  let backendProductAvailable = false;
+  if (model === 'EURO') {
+    const hasCap = window.__WEATHER_CAPABILITIES__?.some(c => c.model === 'EURO' && c.layer === layer && c.backend_owned);
+    const hasFlag = typeof window.__USE_BACKEND_COPERNICUS_SERVICE__ !== 'undefined' ? !!window.__USE_BACKEND_COPERNICUS_SERVICE__ : true;
+    backendProductAvailable = !!(hasCap || hasFlag);
+  } else if (model === 'ICON') {
+    const hasCap = window.__WEATHER_CAPABILITIES__?.some(c => c.model === 'ICON' && c.layer === layer && c.backend_owned);
+    const hasFlag = typeof window.__USE_BACKEND_ICON_MARINE_SERVICE__ !== 'undefined' ? !!window.__USE_BACKEND_ICON_MARINE_SERVICE__ : true;
+    backendProductAvailable = !!(hasCap || hasFlag);
+  }
+
+  const backendProductActive = !!(
+    (model === 'EURO' && (copernicusDiag.active || copernicusDiag.productId)) ||
+    (model === 'ICON' && (iconDiag.active || iconDiag.productId)) ||
+    gridProductId ||
+    pointProductId
+  );
+
+  const backendProductMatchesRequestedLayer = !!(
+    projDiag.activeLayer === layer || 
+    renderSourceDiag.layer === layer || 
+    copernicusDiag.layer === layer || 
+    iconDiag.layer === layer
+  );
+
+  const backendProductMatchesRequestedHour = !!(
+    projDiag.timeOffsetHours === hour || 
+    renderSourceDiag.timeOffset === hour || 
+    copernicusDiag.timeOffset === hour || 
+    iconDiag.timeOffset === hour
+  );
+
+  let status = "inactive";
+  if (backendProductAvailable) {
+    status = "frontend_estimator_regression";
+  } else {
+    status = "legacy_fallback_invoked";
+  }
+
+  const diag = {
+    status,
+    activeModel,
+    activeLayer,
+    requestedHour,
+    timeOffsetHours: requestedHour,
+    selectedValidTime,
+    gridProductId,
+    pointProductId,
+    provider: "estimated",
+    isEstimated: true,
+    estimateBasis: {
+      basis: "frontend_blended",
+      targetHour: hour,
+      nativeLimit: model === 'EURO' ? (layer === 'waves' ? 240 : 72) : 168
+    },
+    coverageStatus: backendProductAvailable ? "regression_detected" : "fallback_active",
+    backendProductAvailable,
+    backendProductActive,
+    backendProductMatchesRequestedLayer,
+    backendProductMatchesRequestedHour,
+    calledFunc,
+    frontendEstimatorCalled: true,
+    frontendEstimatorFunction: calledFunc,
+    callStack: getCallStackShort(),
+    safeToDeleteNow: false,
+    cellSafe: false
+  };
+
+  window.__ESTIMATOR_REGRESSION_DIAG__ = diag;
+  window.__MARINE_ESTIMATOR_DEPRECATION_DIAG__ = diag;
+
+  logTestedCell(model, layer, hour, {
+    status,
+    provider: "estimated",
+    frontendEstimatorCalled: true,
+    calledFunc,
+    fallbackReason: status
+  });
+
+  if (status === "frontend_estimator_regression") {
+    console.error(`[ESTIMATOR_REGRESSION] Frontend estimator ${calledFunc} called for ${model} ${layer} at +${hour}h, but backend product is available!`);
+  }
+}
+
 /**
  * Calculates weights and confidence for a target hour past the native limit.
  */
@@ -204,6 +459,7 @@ export function resampleFromGrid(lat, lng, grid, componentKey) {
  * Calculates Point Extended Estimate past native EURO coverage.
  */
 export function estimateEuroPoint(targetHour, nativeLimit, activeLayer, euroAnchor, gfsTarget, gfsAnchor, iconTarget, iconAnchor) {
+  checkEstimatorRegression('EURO', activeLayer, targetHour, 'estimateEuroPoint');
   // Validate basic requirements: GFS target is required to do any estimate
   if (!gfsTarget || !gfsAnchor || !euroAnchor) {
     return null;
@@ -294,6 +550,7 @@ export function estimateEuroPoint(targetHour, nativeLimit, activeLayer, euroAnch
  * Calculates Grid Extended Estimate cell-by-cell past native EURO coverage.
  */
 export function estimateEuroGrid(targetHour, nativeLimit, activeLayer, euroAnchorGrid, gfsTargetGrid, gfsAnchorGrid, iconTargetGrid, iconAnchorGrid) {
+  checkEstimatorRegression('EURO', activeLayer, targetHour, 'estimateEuroGrid');
   if (!euroAnchorGrid?.vectors || !gfsTargetGrid?.vectors || !gfsAnchorGrid?.vectors) {
     return null;
   }
@@ -447,6 +704,7 @@ export function estimateEuroGrid(targetHour, nativeLimit, activeLayer, euroAncho
  * Calculates ICON Point Extended Estimate past native ICON coverage (168 hours).
  */
 export function estimateIconPoint(targetHour, nativeLimit, activeLayer, iconAnchor, gfsTarget, gfsAnchor) {
+  checkEstimatorRegression('ICON', activeLayer, targetHour, 'estimateIconPoint');
   // Validate basic requirements: GFS target is required to do any estimate
   if (!gfsTarget || !gfsAnchor || !iconAnchor) {
     return null;
@@ -540,6 +798,7 @@ export function estimateIconPoint(targetHour, nativeLimit, activeLayer, iconAnch
  * Calculates ICON Grid Extended Estimate cell-by-cell past native ICON coverage (168 hours).
  */
 export function estimateIconGrid(targetHour, nativeLimit, activeLayer, iconAnchorGrid, gfsTargetGrid, gfsAnchorGrid) {
+  checkEstimatorRegression('ICON', activeLayer, targetHour, 'estimateIconGrid');
   if (!iconAnchorGrid?.vectors || !gfsTargetGrid?.vectors || !gfsAnchorGrid?.vectors) {
     return null;
   }
