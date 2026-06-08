@@ -134,8 +134,15 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       setIsLoading(true);
 
       const getBackendUrl = () => {
-        if (typeof window !== 'undefined' && window.__BACKEND_URL__) return window.__BACKEND_URL__;
-        return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'http://localhost:8000';
+        if (typeof window !== 'undefined') {
+          if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
+          if (window.localStorage.getItem('__BACKEND_URL__')) return window.localStorage.getItem('__BACKEND_URL__');
+          const hostname = window.location.hostname;
+          if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'http://localhost:8000';
+          }
+        }
+        return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'https://raw-surf-antigravity.onrender.com';
       };
 
       const POINT_URL = `${getBackendUrl()}/api/weather/point`;

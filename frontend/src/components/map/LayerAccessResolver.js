@@ -30,11 +30,12 @@ var TIER_ACCESS = {
 if (typeof window !== 'undefined') {
   const getBackendUrl = () => {
     if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
+    if (window.localStorage.getItem('__BACKEND_URL__')) return window.localStorage.getItem('__BACKEND_URL__');
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return 'http://localhost:8000';
     }
-    return '';
+    return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'https://raw-surf-antigravity.onrender.com';
   };
 
   fetch(`${getBackendUrl()}/api/weather/capabilities`)
