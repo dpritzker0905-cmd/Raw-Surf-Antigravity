@@ -124,7 +124,7 @@ class ViewportService:
         )
 
         if cached_entry:
-            loaded_product = self.store.load_product(cached_entry["product_id"])
+            loaded_product = await asyncio.to_thread(self.store.load_product, cached_entry["product_id"])
             if loaded_product:
                 logger.info(f"[Dynamic Viewport] Cache HIT for {viewport_filename}")
                 loaded_product.resolution = cached_entry.get("resolution")
@@ -237,7 +237,7 @@ class ViewportService:
             expire_ts = self.NEGATIVE_CACHE[cache_key]
             if now_ts < expire_ts:
                 logger.warning(f"[Dynamic Viewport] Negative cache hit for {cache_key}. Attempting stale fallback before rejecting.")
-                fallback_product = self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
+                fallback_product = await self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
                 if fallback_product:
                     logger.info(f"[Dynamic Viewport] Fallback (Negative Cache Hit): Found previous cached product {fallback_product.product_id} for stale return")
                     fallback_product.cache_hit = "stale_cache_hit"
@@ -300,7 +300,7 @@ class ViewportService:
             logger.info(f"[Dynamic Viewport] Sharing in-flight request for {request_dedup_key}")
             try:
                 result_filename = await my_future
-                loaded_product = self.store.load_product(result_filename)
+                loaded_product = await asyncio.to_thread(self.store.load_product, result_filename)
                 if loaded_product:
                     loaded_product.cache_hit = "cache_hit"  # Shared from fetcher
                     loaded_product.requested_bbox_original = bbox_str
@@ -322,7 +322,7 @@ class ViewportService:
 
             # Safety step-up for coordinate count
             resolution_steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
-            while coord_count > 100 and resolution != 40.0:
+            while coord_count > 800 and resolution != 40.0:
                 idx = resolution_steps.index(resolution)
                 resolution = resolution_steps[min(len(resolution_steps) - 1, idx + 1)]
                 lats_coords, lons_coords = generate_bbox_coords(west, south, east, north, resolution)
@@ -413,11 +413,12 @@ class ViewportService:
             tmp_filepath = filepath.with_suffix(".tmp")
             try:
                 product_json_bytes = normalized_product.model_dump_json().encode("utf-8")
-                with open(tmp_filepath, "wb") as f:
-                    f.write(product_json_bytes)
-                os.replace(tmp_filepath, filepath)
-                
-                self.store._upload_to_supabase(viewport_filename, product_json_bytes)
+                def save_and_upload(filepath, tmp_filepath, product_json_bytes, viewport_filename, store):
+                    with open(tmp_filepath, "wb") as f:
+                        f.write(product_json_bytes)
+                    os.replace(tmp_filepath, filepath)
+                    store._upload_to_supabase(viewport_filename, product_json_bytes)
+                await asyncio.to_thread(save_and_upload, filepath, tmp_filepath, product_json_bytes, viewport_filename, self.store)
             except Exception as se:
                 logger.error(f"[Dynamic Viewport] Failed to save dynamic conformed product file: {se}")
 
@@ -463,9 +464,8 @@ class ViewportService:
             now_ts = datetime.now(timezone.utc).timestamp()
             self.NEGATIVE_CACHE[cache_key] = now_ts + neg_ttl
             logger.info(f"[Dynamic Viewport] Registered negative cache key for {neg_ttl}s: {cache_key}")
-
-            # Step 5: Stale fallback (Dynamic or Manifest)
-            fallback_product = self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
+             # Step 5: Stale fallback (Dynamic or Manifest)
+            fallback_product = await self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
             if fallback_product:
                 logger.info(f"[Dynamic Viewport] Fallback: Found previous cached product {fallback_product.product_id} for stale return")
                 fallback_product.cache_hit = "stale_cache_hit"
@@ -481,7 +481,7 @@ class ViewportService:
                 # Crop to requested bounds
                 fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
                 served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
-                fallback_product.served_bbox = served_bbox
+                fallback_product.served_bbox = served_bboxx
 
                 if fallback_product.grid:
                     fallback_product.grid.diagnostics = {
@@ -554,7 +554,7 @@ class ViewportService:
         finally:
             self.ACTIVE_REVALIDATIONS.discard(reval_key)
 
-    def _find_any_cached_product(
+    async def _find_any_cached_product(
         self,
         model: str,
         domain: str,
@@ -613,12 +613,12 @@ class ViewportService:
                     continue
                     
         if best_item:
-            loaded = self.store.load_product(best_item["product_id"])
+            loaded = await asyncio.to_thread(self.store.load_product, best_item["product_id"])
             if loaded:
                 return loaded
 
         # 2. Search Manifest (pruning for anomalous future-dated entries runs inside get_manifest())
-        manifest = self.store.get_manifest()
+        manifest = await asyncio.to_thread(self.store.get_manifest)
         best_manifest_item = None
         min_diff = float("inf")
         
@@ -640,7 +640,7 @@ class ViewportService:
                     best_manifest_item = p
                     
         if best_manifest_item:
-            loaded = self.store.load_product(best_manifest_item.filename)
+            loaded = await asyncio.to_thread(self.store.load_product, best_manifest_item.filename)
             if loaded:
                 loaded.product_id = best_manifest_item.filename
                 return loaded

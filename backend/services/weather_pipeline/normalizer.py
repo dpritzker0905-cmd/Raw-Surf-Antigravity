@@ -6,6 +6,7 @@ from typing import Dict, List, Any, Optional
 from services.weather_pipeline.schemas import (
     NormalizedProduct, NormalizedGrid, GridVector, CoverageBounds
 )
+from services.weather_pipeline.route_helpers import is_inside_bounds
 
 logger = logging.getLogger(__name__)
 
@@ -158,15 +159,19 @@ class WeatherNormalizer:
 
         # Build mapping from raw results to snapped grid coordinates
         grid_data = {}
+        bounds_obj = CoverageBounds(west=west, south=south, east=east, north=north)
         for pt in raw_results:
             raw_lat = pt.get("latitude")
             raw_lng = pt.get("longitude")
             if raw_lat is None or raw_lng is None:
                 continue
+
+            if not is_inside_bounds(raw_lat, raw_lng, bounds_obj, margin=resolution * 0.49):
+                continue
             
             # Map raw coordinate to monotonic space if crossing antimeridian
             raw_lng_monotonic = raw_lng
-            if west > east and raw_lng < west:
+            if west > east and raw_lng < 0:
                 raw_lng_monotonic += 360.0
 
             # Map raw snapped coordinates to the nearest clean coordinate
@@ -446,6 +451,8 @@ class WeatherNormalizer:
         Locates the closest available hourly index for the target datetime.
         Capped at 3 hours delta limit.
         """
+        if target.tzinfo is None:
+            target = target.replace(tzinfo=timezone.utc)
         target_ts = target.timestamp()
         best_idx = None
         min_diff = float("inf")

@@ -170,8 +170,10 @@ async def get_products():
     Returns the current manifest registry listing available prepared weather products.
     """
     import os
-    manifest = store.get_manifest()
-    files = os.listdir(store.cache_dir) if os.path.exists(store.cache_dir) else []
+    manifest = await asyncio.to_thread(store.get_manifest)
+    def get_disk_files():
+        return os.listdir(store.cache_dir) if os.path.exists(store.cache_dir) else []
+    files = await asyncio.to_thread(get_disk_files)
     return {
         "last_manifest_update": manifest.last_manifest_update,
         "products": manifest.products,
@@ -232,7 +234,7 @@ async def get_grid(
         req_w, req_s, req_e, req_n = parse_bbox(bbox)
 
     # 1. Search the manifest for candidate products covering the target time
-    manifest = store.get_manifest()
+    manifest = await asyncio.to_thread(store.get_manifest)
     authoritative_candidates = []
     estimated_candidates = []
     for p in manifest.products:
@@ -300,7 +302,7 @@ async def get_grid(
     # Step 3: Durable manifest full coverage
     if not product:
         if use_manifest_product and matching_manifest_item:
-            product = store.load_product(matching_manifest_item.filename)
+            product = await asyncio.to_thread(store.load_product, matching_manifest_item.filename)
             if product and product.grid:
                 product.product_id = matching_manifest_item.filename
                 product.coverage_scope = "global" if regional_span_lng >= 350.0 else "regional"
@@ -357,7 +359,7 @@ async def get_grid(
                 
                 if overlap_manifest_item:
                     logger.info(f"[Grid Route] Fallback: Serving overlapping regional manifest product '{overlap_manifest_item.filename}' as regional_partial")
-                    product = store.load_product(overlap_manifest_item.filename)
+                    product = await asyncio.to_thread(store.load_product, overlap_manifest_item.filename)
                     if not product or not product.grid:
                         raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
                     product.product_id = overlap_manifest_item.filename
@@ -456,7 +458,7 @@ async def get_point(
 
         truth_tag = None
         if sampled_product_id:
-            product = store.load_product(sampled_product_id)
+            product = await asyncio.to_thread(store.load_product, sampled_product_id)
             if product and product.grid:
                 # 1. Compute sourceTruthTag of the original uncropped product
                 source_truth_tag = compute_truth_tag(
@@ -557,17 +559,21 @@ async def get_status():
     GET /api/weather/status
     Exposes weather service statuses, registry telemetry, and memory/timing footprints.
     """
-    manifest = store.get_manifest()
+    manifest = await asyncio.to_thread(store.get_manifest)
     
     # Measure cache folder size
-    disk_usage = 0
-    try:
-        for f in os.listdir(store.cache_dir):
-            fp = os.path.join(store.cache_dir, f)
-            if os.path.isfile(fp):
-                disk_usage += os.path.getsize(fp)
-    except Exception:
-        pass
+    def get_disk_usage():
+        usage = 0
+        try:
+            for f in os.listdir(store.cache_dir):
+                fp = os.path.join(store.cache_dir, f)
+                if os.path.isfile(fp):
+                    usage += os.path.getsize(fp)
+        except Exception:
+            pass
+        return usage
+
+    disk_usage = await asyncio.to_thread(get_disk_usage)
 
     # Read active process memory footprint
     process = psutil.Process(os.getpid())

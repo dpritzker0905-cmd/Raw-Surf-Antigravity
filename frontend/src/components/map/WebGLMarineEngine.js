@@ -184,6 +184,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     newWaveData = encodeMarineTexture(gl, waveGrid, activeGeoJSON, this);
   } catch (err) {
     console.error('[WebGLMarineEngine] encodeMarineTexture threw an error:', err);
+    this.clearBuffers(gl);
     throw err;
   }
 
@@ -619,81 +620,85 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     this.particleStateA = this.particleStateB;
     this.particleStateB = tmp;
   } finally {
-    gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
+    if (gl && !gl.isContextLost()) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
 
-    if (isWebGL2 && gl.bindVertexArray) {
-      gl.bindVertexArray(prevVAO);
-    }
-
-    if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
-      try {
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-      } catch (e) {}
-    }
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-    gl.useProgram(prevProg);
-    gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
-    for (var u = 0; u < prevTextures2D.length; u++) {
-      gl.activeTexture(gl.TEXTURE0 + u);
-      gl.bindTexture(gl.TEXTURE_2D, prevTextures2D[u]);
-      if (prevTexturesCube[u]) {
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
+      if (isWebGL2 && gl.bindVertexArray) {
+        gl.bindVertexArray(prevVAO);
       }
-      if (isWebGL2 && prevSamplers[u] !== undefined) {
-        gl.bindSampler(u, prevSamplers[u]);
-      }
-    }
 
-    gl.activeTexture(prevActiveTex);
-    
-    for (var i = 0; i < prevAttribsEnabled.length; i++) {
-      try {
-        if (prevAttribsEnabled[i]) {
-          gl.enableVertexAttribArray(i);
-        } else {
-          gl.disableVertexAttribArray(i);
+      if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
+        try {
+          gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+        } catch (e) {}
+      }
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+      gl.useProgram(prevProg);
+      if (prevViewport) {
+        gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+      }
+      for (var u = 0; u < prevTextures2D.length; u++) {
+        gl.activeTexture(gl.TEXTURE0 + u);
+        gl.bindTexture(gl.TEXTURE_2D, prevTextures2D[u]);
+        if (prevTexturesCube[u]) {
+          gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
         }
-      } catch (e) {}
-    }
-    
-    if (prevBlend) {
-      gl.enable(gl.BLEND);
-    } else {
-      gl.disable(gl.BLEND);
-    }
-    gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
-    gl.blendEquationSeparate(prevBlendEqRGB, prevBlendEqAlpha);
+        if (isWebGL2 && prevSamplers[u] !== undefined) {
+          gl.bindSampler(u, prevSamplers[u]);
+        }
+      }
 
-    if (prevDepthTest) {
-      gl.enable(gl.DEPTH_TEST);
-    } else {
-      gl.disable(gl.DEPTH_TEST);
-    }
-    gl.depthMask(prevDepthWriteMask);
+      gl.activeTexture(prevActiveTex);
+      
+      for (var i = 0; i < prevAttribsEnabled.length; i++) {
+        try {
+          if (prevAttribsEnabled[i]) {
+            gl.enableVertexAttribArray(i);
+          } else {
+            gl.disableVertexAttribArray(i);
+          }
+        } catch (e) {}
+      }
+      
+      if (prevBlend) {
+        gl.enable(gl.BLEND);
+      } else {
+        gl.disable(gl.BLEND);
+      }
+      gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
+      gl.blendEquationSeparate(prevBlendEqRGB, prevBlendEqAlpha);
 
-    if (prevStencilTest) {
-      gl.enable(gl.STENCIL_TEST);
-    } else {
-      gl.disable(gl.STENCIL_TEST);
-    }
-    if (prevScissorTest) {
-      gl.enable(gl.SCISSOR_TEST);
-    } else {
-      gl.disable(gl.SCISSOR_TEST);
-    }
-    gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
+      if (prevDepthTest) {
+        gl.enable(gl.DEPTH_TEST);
+      } else {
+        gl.disable(gl.DEPTH_TEST);
+      }
+      gl.depthMask(prevDepthWriteMask);
 
-    if (prevCullFace) {
-      gl.enable(gl.CULL_FACE);
-    } else {
-      gl.disable(gl.CULL_FACE);
-    }
+      if (prevStencilTest) {
+        gl.enable(gl.STENCIL_TEST);
+      } else {
+        gl.disable(gl.STENCIL_TEST);
+      }
+      if (prevScissorTest) {
+        gl.enable(gl.SCISSOR_TEST);
+      } else {
+        gl.disable(gl.SCISSOR_TEST);
+      }
+      gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
 
-    if (prevClearColor) {
-      gl.clearColor(prevClearColor[0], prevClearColor[1], prevClearColor[2], prevClearColor[3]);
+      if (prevCullFace) {
+        gl.enable(gl.CULL_FACE);
+      } else {
+        gl.disable(gl.CULL_FACE);
+      }
+
+      if (prevClearColor) {
+        gl.clearColor(prevClearColor[0], prevClearColor[1], prevClearColor[2], prevClearColor[3]);
+      }
     }
 
     if (typeof window !== 'undefined' && window.__RAW_GPU__ && renderStart > 0) {
@@ -733,13 +738,27 @@ WebGLMarineEngine.prototype.clearBuffers = function(gl) {
   }
 };
 
+var deleteAttachedShaders = function(gl, prog) {
+  if (!gl || !prog) return;
+  try {
+    var shaders = gl.getAttachedShaders(prog);
+    if (shaders) {
+      for (var i = 0; i < shaders.length; i++) {
+        gl.detachShader(prog, shaders[i]);
+        gl.deleteShader(shaders[i]);
+      }
+    }
+  } catch (e) {}
+  gl.deleteProgram(prog);
+};
+
 WebGLMarineEngine.prototype.dispose = function(gl) {
   if (!gl) return;
   this.clearBuffers(gl);
 
-  if (this.advectProgram) gl.deleteProgram(this.advectProgram);
-  if (this.drawProgram) gl.deleteProgram(this.drawProgram);
-  if (this.heatmapProgram) gl.deleteProgram(this.heatmapProgram);
+  if (this.advectProgram) deleteAttachedShaders(gl, this.advectProgram);
+  if (this.drawProgram) deleteAttachedShaders(gl, this.drawProgram);
+  if (this.heatmapProgram) deleteAttachedShaders(gl, this.heatmapProgram);
   if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
   if (this.vertexIdBuffer) gl.deleteBuffer(this.vertexIdBuffer);
   if (this.gridUVBuffer) gl.deleteBuffer(this.gridUVBuffer);

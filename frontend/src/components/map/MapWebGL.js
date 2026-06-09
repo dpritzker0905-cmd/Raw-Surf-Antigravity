@@ -23,6 +23,7 @@ import { initEngine, shutdownEngine } from '../../engine/engine-bootstrap';
 import { useTemporalPreloader } from './useTemporalPreloader';
 import { useSimulationField } from '../../engine/useSimulationField';
 import { useRenderPlanBridge } from '../../engine/useRenderPlanBridge';
+import { disposeAnimationCoordinator } from './CanvasAnimationCoordinator';
 import { useMapInitialization } from './useMapInitialization';
 import { useMapViewState } from './useMapViewState';
 import { useMapLongPress } from './useMapLongPress';
@@ -518,6 +519,7 @@ const MapWebGL = ({
       if (unsubscribe) {
         unsubscribe();
       }
+      disposeAnimationCoordinator();
     };
   }, [mapInstance, userTier]);
 

@@ -1,5 +1,6 @@
 import math
 import logging
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional, Any, Dict
 
@@ -101,7 +102,7 @@ class PointResolutionService:
 
         # ── PATH 1: Strict grid_product_id lookup ────────────────────────────
         if grid_product_id:
-            product = self.store.load_product(grid_product_id)
+            product = await asyncio.to_thread(self.store.load_product, grid_product_id)
             if not product or not product.grid or not product.grid.vectors:
                 return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "grid_product_not_found")
 
@@ -139,7 +140,7 @@ class PointResolutionService:
             model=model, domain=domain, layer=layer, valid_time=target_dt, lat=lat, lng=lng
         )
         if dynamic_match:
-            product = self.store.load_product(dynamic_match["product_id"])
+            product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
             if product:
                 if grid_bbox:
                     product = filter_grid_to_bbox(product, grid_bbox)
@@ -161,7 +162,7 @@ class PointResolutionService:
                 return response
 
         # 2b. Check scheduled products in the manifest
-        manifest = self.store.get_manifest()
+        manifest = await asyncio.to_thread(self.store.get_manifest)
         authoritative_candidates = []
         estimated_candidates = []
 
@@ -174,7 +175,9 @@ class PointResolutionService:
                 # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
                 actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
                 if is_inside_bounds(lat, lng, actual_cov, margin=0.0001) or model.upper() == "EURO":
-                    diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
+                    t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
+                    t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
+                    diff = abs(t1.timestamp() - t2.timestamp())
                     if diff <= 3 * 3600:
                         if getattr(p, "is_estimated", False):
                             estimated_candidates.append((p, diff))
@@ -188,7 +191,7 @@ class PointResolutionService:
             matching_item = min(estimated_candidates, key=lambda pair: pair[1])[0]
 
         if matching_item:
-            product = self.store.load_product(matching_item.filename)
+            product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
             if product:
                 if grid_bbox:
                     product = filter_grid_to_bbox(product, grid_bbox)
@@ -422,7 +425,7 @@ class PointResolutionService:
         # If fallback not applicable or failed, return structured 404 response
         return make_no_coverage_point_response(model, layer, lat, lng, valid_time_str, grid_product_id)
 
-    def find_cached_grid_product(
+    async def find_cached_grid_product(
         self,
         model: str,
         domain: str,
@@ -437,12 +440,12 @@ class PointResolutionService:
             model=model, domain=domain, layer=layer, valid_time=target_dt, lat=lat, lng=lng
         )
         if dynamic_match:
-            product = self.store.load_product(dynamic_match["product_id"])
+            product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
             if product:
                 return product
 
         # 2. Check scheduled products in the manifest
-        manifest = self.store.get_manifest()
+        manifest = await asyncio.to_thread(self.store.get_manifest)
         authoritative_candidates = []
         estimated_candidates = []
 
@@ -455,7 +458,9 @@ class PointResolutionService:
                 from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
                 actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
                 if is_inside_bounds(lat, lng, actual_cov, margin=0.0001) or model.upper() == "EURO":
-                    diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
+                    t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
+                    t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
+                    diff = abs(t1.timestamp() - t2.timestamp())
                     if diff <= 3 * 3600:
                         if getattr(p, "is_estimated", False):
                             estimated_candidates.append((p, diff))
@@ -469,7 +474,7 @@ class PointResolutionService:
             matching_item = min(estimated_candidates, key=lambda pair: pair[1])[0]
 
         if matching_item:
-            product = self.store.load_product(matching_item.filename)
+            product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
             return product
 
         return None
@@ -511,7 +516,7 @@ class PointResolutionService:
         # Try local cache resolution for waves and swell
         for dt in all_dates:
             # Waves
-            waves_prod = self.find_cached_grid_product(model, "marine", "waves", lat, lng, dt)
+            waves_prod = await self.find_cached_grid_product(model, "marine", "waves", lat, lng, dt)
             if waves_prod:
                 res = self.sampler.sample_point(waves_prod, lat, lng)
                 waves_data[dt] = {
@@ -523,7 +528,7 @@ class PointResolutionService:
                 cache_misses = True
                 
             # Swell
-            swell_prod = self.find_cached_grid_product(model, "marine", "swell_1", lat, lng, dt)
+            swell_prod = await self.find_cached_grid_product(model, "marine", "swell_1", lat, lng, dt)
             if swell_prod:
                 res = self.sampler.sample_point(swell_prod, lat, lng)
                 swell_data[dt] = {

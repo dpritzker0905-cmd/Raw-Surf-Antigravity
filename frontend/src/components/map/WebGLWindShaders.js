@@ -127,7 +127,12 @@ void main() {
   vec2 pos = decodePos(encoded);
 
   // Convert [0,1] to [lng, lat] then apply world-copy offset
-  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, pos.x) + u_lng_offset;
+  float east = u_dataBounds_max.x < u_dataBounds_min.x ? u_dataBounds_max.x + 360.0 : u_dataBounds_max.x;
+  float lng = mix(u_dataBounds_min.x, east, pos.x);
+  if (lng > 180.0) {
+    lng -= 360.0;
+  }
+  lng += u_lng_offset;
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
 
   // Speed for coloring
@@ -149,7 +154,8 @@ void main() {
 
   // Convert to Mercator for MapLibre
   float x = (lng + 180.0) / 360.0;
-  float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
+  float clampedLat = clamp(lat, -85.051129, 85.051129);
+  float y = (1.0 - log(tan(radians(clampedLat)) + 1.0 / cos(radians(clampedLat))) / 3.141592653589793) / 2.0;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
   if (gl_Position.w == 0.0) {
@@ -182,7 +188,12 @@ uniform float u_lng_offset;
 varying vec2 v_uv;
 void main() {
   v_uv = a_grid_uv;
-  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x) + u_lng_offset;
+  float east = u_dataBounds_max.x < u_dataBounds_min.x ? u_dataBounds_max.x + 360.0 : u_dataBounds_max.x;
+  float lng = mix(u_dataBounds_min.x, east, a_grid_uv.x);
+  if (lng > 180.0) {
+    lng -= 360.0;
+  }
+  lng += u_lng_offset;
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
   lat = clamp(lat, -85.051129, 85.051129);
   float x = (lng + 180.0) / 360.0;

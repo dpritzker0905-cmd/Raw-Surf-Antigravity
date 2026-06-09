@@ -56,12 +56,13 @@ export function parseWeatherProductId(productId) {
   }
 
   const lowerPid = filename.toLowerCase();
+  const conformedPid = lowerPid.replace(/[-\s]/g, '_');
 
   // 1. Model Parsing (Strict matching, mutually exclusive validation)
   let model = null;
-  const isGfs = matchStrict(lowerPid, 'gfs') || matchStrict(lowerPid, 'ncep_gfswave');
-  const isEuro = matchStrict(lowerPid, 'euro') || matchStrict(lowerPid, 'copernicus') || matchStrict(lowerPid, 'ecmwf');
-  const isIcon = matchStrict(lowerPid, 'icon') || matchStrict(lowerPid, 'dwd');
+  const isGfs = matchStrict(conformedPid, 'gfs') || matchStrict(conformedPid, 'ncep_gfswave');
+  const isEuro = matchStrict(conformedPid, 'euro') || matchStrict(conformedPid, 'copernicus') || matchStrict(conformedPid, 'ecmwf');
+  const isIcon = matchStrict(conformedPid, 'icon') || matchStrict(conformedPid, 'dwd');
 
   // Fail closed if multiple models match, or none matches
   const matchedModelCount = (isGfs ? 1 : 0) + (isEuro ? 1 : 0) + (isIcon ? 1 : 0);
@@ -73,13 +74,13 @@ export function parseWeatherProductId(productId) {
 
   // 2. Layer Parsing (Strict matching, mutually exclusive validation)
   let layer = null;
-  const hasWindWaves = matchStrict(lowerPid, 'wind_waves') || matchStrict(lowerPid, 'wind_wave');
-  const hasSwell2 = matchStrict(lowerPid, 'swell_2') || matchStrict(lowerPid, 'secondary_swell');
-  const hasSwell1 = matchStrict(lowerPid, 'swell_1') || matchStrict(lowerPid, 'swell_wave') || matchStrict(lowerPid, 'swell');
-  const hasWaves = matchStrict(lowerPid, 'waves') || matchStrict(lowerPid, 'wave_height') || matchStrict(lowerPid, 'wave_direction') || matchStrict(lowerPid, 'wave_period');
-  const hasWind = matchStrict(lowerPid, 'wind');
-  const hasPressure = matchStrict(lowerPid, 'pressure') || matchStrict(lowerPid, 'msl');
-  const hasPrecip = matchStrict(lowerPid, 'precipitation') || matchStrict(lowerPid, 'precip') || matchStrict(lowerPid, 'snow');
+  const hasWindWaves = matchStrict(conformedPid, 'wind_waves') || matchStrict(conformedPid, 'wind_wave');
+  const hasSwell2 = matchStrict(conformedPid, 'swell_2') || matchStrict(conformedPid, 'secondary_swell');
+  const hasSwell1 = matchStrict(conformedPid, 'swell_1') || matchStrict(conformedPid, 'swell_wave') || matchStrict(conformedPid, 'swell');
+  const hasWaves = matchStrict(conformedPid, 'waves') || matchStrict(conformedPid, 'wave_height') || matchStrict(conformedPid, 'wave_direction') || matchStrict(conformedPid, 'wave_period');
+  const hasWind = matchStrict(conformedPid, 'wind');
+  const hasPressure = matchStrict(conformedPid, 'pressure') || matchStrict(conformedPid, 'msl');
+  const hasPrecip = matchStrict(conformedPid, 'precipitation') || matchStrict(conformedPid, 'precip') || matchStrict(conformedPid, 'snow');
 
   const matchesWindWaves = hasWindWaves;
   const matchesSwell2 = hasSwell2;

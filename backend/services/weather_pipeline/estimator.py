@@ -109,20 +109,20 @@ def resample_from_grid(lat: float, lng: float, grid: Any) -> Optional[dict]:
     south = grid.bounds.south
     east = grid.bounds.east
     north = grid.bounds.north
-    lng_span = east - west
+    
+    if west <= east:
+        lng_span = east - west
+    else:
+        lng_span = (east + 360.0) - west
     lat_span = north - south
 
     if lng_span == 0.0 or lat_span == 0.0:
         return None
 
     # Normalize longitude into grid bounds
-    norm_lng = lng
-    if norm_lng < west:
-        norm_lng += 360.0
-    if norm_lng > east:
-        norm_lng -= 360.0
+    norm_lng = west + (lng - west) % 360.0
 
-    if norm_lng < west or norm_lng > east or lat < south or lat > north:
+    if norm_lng < west or norm_lng > west + lng_span or lat < south or lat > north:
         return None
 
     # Compute fractional coordinates

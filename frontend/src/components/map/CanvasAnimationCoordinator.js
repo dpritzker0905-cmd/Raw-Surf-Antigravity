@@ -177,6 +177,7 @@ CanvasAnimationCoordinator.prototype._doAnimate = function(now) {
     this._autoThrottled = false;
     this._state = COORD_RUNNING;
     this._budgetOverruns = 0;
+    this._frameCount = 0;
   }
 
   // Periodic metrics log

@@ -75,6 +75,9 @@ def clamp_and_normalize_bbox(w: float, s: float, e: float, n: float) -> Tuple[fl
     south = max(-80.0, min(85.0, s))
     north = max(-80.0, min(85.0, n))
     
+    if (e - w) >= 360.0:
+        return -180.0, south, 180.0, north
+        
     west = wrap_longitude(w)
     east = wrap_longitude(e)
     
