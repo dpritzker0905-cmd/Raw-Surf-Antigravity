@@ -471,7 +471,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             console.log('[MODEL] [OM-Protocol] Registered with', Object.keys(currentSettings.colorScales).length, 'color scales');
           }
           
-           let requestedModelFolder = "";
+          let requestedModelFolder = "";
           let urlObj = null;
           let variable = "";
           try {

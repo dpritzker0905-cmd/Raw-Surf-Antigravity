@@ -136,7 +136,8 @@ export const useUserLocation = () => {
     const a = Math.sin(dLat/2) ** 2 + 
               Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
               Math.sin(dLng/2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const clampedA = Math.max(0, Math.min(1, a));
+    return R * 2 * Math.atan2(Math.sqrt(clampedA), Math.sqrt(1 - clampedA));
   }, []);
 
   // Find nearest spot

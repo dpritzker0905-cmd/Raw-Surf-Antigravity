@@ -1,4 +1,4 @@
-﻿/*
+/*
 ====================================================
  Raw Surf OS Projection Utilities
  WEB MERCATOR + COORDINATE TRANSFORMS
@@ -15,6 +15,7 @@ var TILE_SIZE = 512;
 
 /**
  * Convert longitude/latitude to Web Mercator pixel coordinates.
+ * Clamps latitude to safe Web Mercator bounds [-85.05112878, 85.05112878] to prevent tangent/secant infinity.
  * @param {number} lng - longitude (-180 to 180)
  * @param {number} lat - latitude (-85.05 to 85.05)
  * @param {number} zoom - map zoom level
@@ -23,7 +24,8 @@ var TILE_SIZE = 512;
 function lngLatToPixel(lng, lat, zoom) {
   var scale = TILE_SIZE * Math.pow(2, zoom);
   var x = ((lng + 180) / 360) * scale;
-  var latRad = lat * DEG2RAD;
+  var clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+  var latRad = clampedLat * DEG2RAD;
   var y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * scale;
   return { x: x, y: y };
 }
@@ -46,19 +48,22 @@ function pixelToLngLat(px, py, zoom) {
 /**
  * Convert lng/lat to normalized [0,1] Mercator coordinates.
  * Used by WebGL shaders for position mapping.
+ * Clamps latitude to safe Web Mercator bounds [-85.05112878, 85.05112878] to prevent tangent/secant infinity.
  * @param {number} lng
  * @param {number} lat
  * @returns {{ x: number, y: number }}
  */
 function lngLatToMercatorNormalized(lng, lat) {
   var x = (lng + 180) / 360;
-  var latRad = lat * DEG2RAD;
+  var clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+  var latRad = clampedLat * DEG2RAD;
   var y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2;
   return { x: x, y: y };
 }
 
 /**
  * Compute tile coordinates from lng/lat at a given zoom.
+ * Clamps latitude to safe Web Mercator bounds [-85.05112878, 85.05112878] to prevent tangent/secant infinity.
  * @param {number} lng
  * @param {number} lat
  * @param {number} zoom
@@ -68,13 +73,16 @@ function lngLatToTile(lng, lat, zoom) {
   var z = Math.floor(zoom);
   var n = Math.pow(2, z);
   var tileX = Math.floor(((lng + 180) / 360) * n);
-  var latRad = lat * DEG2RAD;
+  var clampedLat = Math.max(-85.05112878, Math.min(85.05112878, lat));
+  var latRad = clampedLat * DEG2RAD;
   var tileY = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
   return { z: z, x: tileX, y: tileY };
 }
 
 /**
  * Haversine distance between two points in km.
+ * Clamps the intermediate dot product to [0, 1] to prevent NaN values
+ * due to floating-point rounding errors for antipodal points.
  * @param {number} lat1
  * @param {number} lng1
  * @param {number} lat2
@@ -88,7 +96,8 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
   var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * DEG2RAD) * Math.cos(lat2 * DEG2RAD) *
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  var clampedA = Math.max(0, Math.min(1, a));
+  return R * 2 * Math.atan2(Math.sqrt(clampedA), Math.sqrt(1 - clampedA));
 }
 
 export {

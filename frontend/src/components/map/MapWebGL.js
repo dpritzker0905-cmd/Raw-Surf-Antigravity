@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
-import Map, { Source, Layer, Marker, Popup } from 'react-map-gl/maplibre';
+import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
@@ -23,7 +23,6 @@ import { initEngine, shutdownEngine } from '../../engine/engine-bootstrap';
 import { useTemporalPreloader } from './useTemporalPreloader';
 import { useSimulationField } from '../../engine/useSimulationField';
 import { useRenderPlanBridge } from '../../engine/useRenderPlanBridge';
-import { getDispatcherDiagnostics } from '../../engine/RenderPlanDispatcher';
 import { useMapInitialization } from './useMapInitialization';
 import { useMapViewState } from './useMapViewState';
 import { useMapLongPress } from './useMapLongPress';
@@ -32,12 +31,11 @@ import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
 import { useMapObservability } from './useMapObservability';
 import { useMapDebugTools } from './useMapDebugTools';
+import { useWebGLGuardrail } from './useWebGLGuardrail';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LongPressMarker from './LongPressMarker';
 
-var MapWebGL = ({
-  isLight,
-  userLocation,
+const MapWebGL = ({
   effectiveLocation,
   surfSpots,
   livePhotographers,
@@ -71,8 +69,8 @@ var MapWebGL = ({
   const { theme } = useTheme();
 
   const [activeSystemPopup, setActiveSystemPopup] = useState(null);
-  const [webglWindFailed, setWebglWindFailed] = useState(false);
-  const [webglMarineFailed, setWebglMarineFailed] = useState(false);
+  const [webglWindFailed, setWebglWindFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true'));
+  const [webglMarineFailed, setWebglMarineFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true'));
 
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);
@@ -132,8 +130,6 @@ var MapWebGL = ({
   // 6. Spot Clustering Data
   const { spotClusters, spotGeoJSON } = useSpotClusteringData({ surfSpots, filter, mapInstance, viewState });
 
-  // Shared Weather Animation Controller
-  const weatherAnimRef = useRef({ active: false, start: 0, duration: 600 });
   const animFrameRef = useRef(null);
   
   // Temporal Preloader
@@ -457,7 +453,7 @@ var MapWebGL = ({
     const mc = document.getElementById('marine-canvas-layer');
     if (!marineActive && mc) {
       mc.style.opacity = '0';
-      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch(e) {}
+      try { mc.getContext('2d')?.clearRect(0, 0, mc.width, mc.height); } catch (e) { /* ignore */ }
     }
     if (marineActive && mc) {
       const start = performance.now();
@@ -562,7 +558,18 @@ var MapWebGL = ({
     };
   }, [mapInstance]);
 
+  useWebGLGuardrail({ mapInstance, activeLayers, setWebglWindFailed, setWebglMarineFailed });
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.__WEBGL_GUARDRAIL_FALLBACK__ = {
+      webglWindFailed, webglMarineFailed,
+      setWindFailed: (v) => { setWebglWindFailed(v); localStorage.setItem('force_wind_fallback', String(v)); },
+      setMarineFailed: (v) => { setWebglMarineFailed(v); localStorage.setItem('force_marine_fallback', String(v)); },
+      reset: () => { setWebglWindFailed(false); setWebglMarineFailed(false); localStorage.removeItem('force_wind_fallback'); localStorage.removeItem('force_marine_fallback'); }
+    };
+    return () => { delete window.__WEBGL_GUARDRAIL_FALLBACK__; };
+  }, [webglWindFailed, webglMarineFailed]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

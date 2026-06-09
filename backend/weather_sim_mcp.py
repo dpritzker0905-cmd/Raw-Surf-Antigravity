@@ -217,18 +217,54 @@ def simulate_weather_change(
     wind_direction_deg: float,
     swell_height_m: float,
     swell_period_sec: float,
-    swell_direction_deg: float
+    swell_direction_deg: float,
+    caller_role: str = "surfer"
 ) -> Dict[str, Any]:
     """Simulates how changing weather and swell vectors will alter wave quality and surf height.
 
     Args:
         spot_name: The name of the spot to simulate.
-        wind_speed_knots: The simulated wind speed in knots.
-        wind_direction_deg: The simulated wind direction in degrees (0-360).
-        swell_height_m: The simulated ocean swell height in meters.
-        swell_period_sec: The simulated swell period in seconds.
-        swell_direction_deg: The simulated swell direction in degrees (0-360).
+        wind_speed_knots: The simulated wind speed in knots (0.0 to 150.0).
+        wind_direction_deg: The simulated wind direction in degrees (0.0 to 360.0).
+        swell_height_m: The simulated ocean swell height in meters (0.0 to 50.0).
+        swell_period_sec: The simulated swell period in seconds (0.0 to 30.0).
+        swell_direction_deg: The simulated swell direction in degrees (0.0 to 360.0).
+        caller_role: The role of the calling user (must be 'admin' to mutate).
     """
+    # Enforce strict admin role checking
+    if caller_role != "admin":
+        return {
+            "success": False,
+            "error": "Unauthorized: weather simulation overrides require admin role permissions."
+        }
+
+    # Verify parameter ranges to prevent database corruption and bad calculations
+    if not (0.0 <= wind_speed_knots <= 150.0):
+        return {
+            "success": False,
+            "error": f"Invalid wind speed: {wind_speed_knots} knots. Must be between 0.0 and 150.0 knots."
+        }
+    if not (0.0 <= wind_direction_deg <= 360.0):
+        return {
+            "success": False,
+            "error": f"Invalid wind direction: {wind_direction_deg} degrees. Must be between 0.0 and 360.0 degrees."
+        }
+    if not (0.0 <= swell_height_m <= 50.0):
+        return {
+            "success": False,
+            "error": f"Invalid swell height: {swell_height_m} meters. Must be between 0.0 and 50.0 meters."
+        }
+    if not (0.0 <= swell_period_sec <= 30.0):
+        return {
+            "success": False,
+            "error": f"Invalid swell period: {swell_period_sec} seconds. Must be between 0.0 and 30.0 seconds."
+        }
+    if not (0.0 <= swell_direction_deg <= 360.0):
+        return {
+            "success": False,
+            "error": f"Invalid swell direction: {swell_direction_deg} degrees. Must be between 0.0 and 360.0 degrees."
+        }
+
     spot = MOCK_SPOTS.get(spot_name)
     if not spot:
         return {"error": f"Spot '{spot_name}' not found. Supported spots: {list(MOCK_SPOTS.keys())}"}
@@ -242,9 +278,41 @@ def simulate_weather_change(
         wind_direction_deg
     )
     
+    # Persist simulation changes to condition_reports in dev.db if present
+    conn = get_db_connection()
+    db_updated = False
+    if conn:
+        try:
+            cursor = conn.cursor()
+            # Update condition_reports for this spot
+            cursor.execute(
+                """
+                UPDATE condition_reports 
+                SET wave_height_ft = ?, conditions_label = ?, wind_conditions = ?, updated_at = datetime('now')
+                WHERE spot_name = ? AND is_active = 1
+                """,
+                (calc["breaking_height_ft"], calc["conditions_label"], calc["wind_class"], spot_name)
+            )
+            conn.commit()
+            if cursor.rowcount > 0:
+                db_updated = True
+        except Exception:
+            pass
+        finally:
+            conn.close()
+
+    # Also update mock spots in memory for consistency
+    spot["base_swell_height"] = swell_height_m
+    spot["base_swell_period"] = swell_period_sec
+    spot["optimal_swell_dir"] = swell_direction_deg
+    spot["base_wind_speed"] = wind_speed_knots
+    spot["base_wind_direction"] = wind_direction_deg
+
     return {
+        "success": True,
         "simulation_type": "weather_vector_override",
         "spot": spot_name,
+        "database_updated": db_updated,
         "input_parameters": {
             "wind_speed_knots": wind_speed_knots,
             "wind_direction_deg": wind_direction_deg,

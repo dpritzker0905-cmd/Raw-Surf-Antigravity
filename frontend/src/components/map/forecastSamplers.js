@@ -11,6 +11,7 @@ import {
 import {
   getBackendCopernicusFlag,
   getBackendIconMarineFlag,
+  getBackendWeatherFlag,
 } from './backendWeatherServiceClient';
 
 import { updateDeprecationDiag } from './forecastDeprecationDiag';
