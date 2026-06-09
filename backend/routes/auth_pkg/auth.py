@@ -34,7 +34,7 @@ class SignupRequest(BaseModel):
     email: EmailStr
     password: str
     full_name: str
-    username: str  # Required @username handle
+    username: Optional[str] = None  # Required @username handle, now optional for backward compatibility
     role: str
     parent_email: Optional[str] = None
     parent_username: Optional[str] = None  # Alternative to email
@@ -124,19 +124,34 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         
         # ============ USERNAME VALIDATION ============
         # Clean username (remove @ if provided, lowercase)
-        username = data.username.lower().strip().lstrip('@')
-        
-        # Validate username format (alphanumeric, underscores, 3-30 chars)
-        if not re.match(r'^[a-z0-9_]{3,30}$', username):
-            raise HTTPException(
-                status_code=400, 
-                detail="Username must be 3-30 characters, letters, numbers, and underscores only"
-            )
-        
-        # Check username uniqueness
-        username_check = await db.execute(select(Profile).where(func.lower(Profile.username) == username))
-        if username_check.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Username already taken")
+        if data.username:
+            username = data.username.lower().strip().lstrip('@')
+            
+            # Validate username format (alphanumeric, underscores, 3-30 chars)
+            if not re.match(r'^[a-z0-9_]{3,30}$', username):
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Username must be 3-30 characters, letters, numbers, and underscores only"
+                )
+            
+            # Check username uniqueness
+            username_check = await db.execute(select(Profile).where(func.lower(Profile.username) == username))
+            if username_check.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Username already taken")
+        else:
+            # Generate default unique username from email
+            email_part = data.email.split('@')[0]
+            clean_part = re.sub(r'[^a-z0-9_]', '', email_part.lower())
+            if len(clean_part) < 3:
+                clean_part = f"{clean_part}usr"
+            # Loop to ensure uniqueness
+            base_username = clean_part[:20]
+            while True:
+                candidate = f"{base_username}_{uuid.uuid4().hex[:6]}"
+                username_check = await db.execute(select(Profile).where(func.lower(Profile.username) == candidate))
+                if not username_check.scalar_one_or_none():
+                    username = candidate
+                    break
         
         role_enum = RoleEnum[data.role.upper().replace(" ", "_")]
         
