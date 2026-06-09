@@ -1,7 +1,7 @@
 import math
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Optional, Any, Dict
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
