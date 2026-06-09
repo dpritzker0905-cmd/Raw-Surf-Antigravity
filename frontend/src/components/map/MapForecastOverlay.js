@@ -20,10 +20,11 @@ import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
 import { recordTruthStage } from './weatherTruthTracker';
 import { getBackendPrecipitationFlag } from './backendPrecipitationServiceClient';
+import { getBackendPressureFlag } from './backendPressureServiceClient';
 import { useExactPointFetch } from '../../hooks/useExactPointFetch';
 
 
-export var MapForecastOverlay = ({
+export const MapForecastOverlay = ({
   forecastData,
   marineData,
   renderMarineData,
@@ -417,10 +418,10 @@ export var MapForecastOverlay = ({
       timeOffsetHours,
       activeModel,
       pressure,
-      exactPointStatus,
-      exactPointResponse
+      exactPointStatus: effectiveExactPointStatus,
+      exactPointResponse: effectiveExactPointResponse
     });
-  }, [activeLayer, isExactPointAuthority, effectiveExactPointResponse, useExactPoint, timeOffsetHours, activeModel, pressure, exactPointStatus, exactPointResponse]);
+  }, [activeLayer, isExactPointAuthority, effectiveExactPointResponse, useExactPoint, timeOffsetHours, activeModel, pressure, effectiveExactPointStatus, effectiveExactPointResponse]);
 
   useEffect(() => {
     if (effectiveExactPointResponse && activeModel === 'GFS' && activeLayer === 'waves' && timeOffsetHours === 0) {
