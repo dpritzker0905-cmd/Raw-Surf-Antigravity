@@ -1,8 +1,8 @@
-﻿/**
+/**
  * useVirtualList.test.js Unit tests for list virtualization hook.
  */
 import { renderHook } from '@testing-library/react';
-import useVirtualList from '../../hooks/useVirtualList';
+import useVirtualList from '../hooks/useVirtualList';
 
 describe('useVirtualList', () => {
   it('returns empty visibleItems for empty items', () => {

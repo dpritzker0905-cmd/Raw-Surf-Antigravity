@@ -341,9 +341,16 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
       return c && c.speed > 0;
     });
     if (oceanCorners.length === 0) return null;
+    const cosLat = Math.cos((lat * Math.PI) / 180.0);
     const best = oceanCorners.reduce((a, b) => {
-      const dA = Math.pow(a.lat - lat, 2) + Math.pow(a.lng - lng, 2);
-      const dB = Math.pow(b.lat - lat, 2) + Math.pow(b.lng - lng, 2);
+      const dLngA = (wrapLngRelative(a.lng, normLng) - normLng) * cosLat;
+      const dLatA = a.lat - lat;
+      const dA = dLatA * dLatA + dLngA * dLngA;
+
+      const dLngB = (wrapLngRelative(b.lng, normLng) - normLng) * cosLat;
+      const dLatB = b.lat - lat;
+      const dB = dLatB * dLatB + dLngB * dLngB;
+
       return dA < dB ? a : b;
     });
     const comp = getComp(best);

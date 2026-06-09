@@ -25,6 +25,18 @@ describe("Weather Product Identity - Parser", () => {
     expect(parsed.layer).toBe("swell_1");
   });
 
+  test("4b. Parses GFS generic swell product as swell_1", () => {
+    const parsed = parseWeatherProductId("gfs_marine_swell_florida_east_coast_20260620T000000Z.json");
+    expect(parsed.model).toBe("GFS");
+    expect(parsed.layer).toBe("swell_1");
+  });
+
+  test("4c. Parses GFS swell_height product as swell_1", () => {
+    const parsed = parseWeatherProductId("gfs_swell_height_florida_east_coast_20260620T000000Z.json");
+    expect(parsed.model).toBe("GFS");
+    expect(parsed.layer).toBe("swell_1");
+  });
+
   test("5. Parses viewport GFS waves product", () => {
     const parsed = parseWeatherProductId("viewport_gfs_marine_waves_20260607T040000Z_-157.17_-12.29_-5.83_57.57.json");
     expect(parsed.model).toBe("GFS");

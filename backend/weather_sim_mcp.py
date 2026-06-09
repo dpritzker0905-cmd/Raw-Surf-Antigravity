@@ -1,8 +1,14 @@
 import sqlite3
 import math
 import random
+import logging
+import os
 from typing import List, Dict, Any, Optional
 from fastmcp import FastMCP
+from utils.sqlite_helpers import get_sqlite_connection
+
+# Setup logger
+logger = logging.getLogger("weather_sim_mcp")
 
 # Initialize FastMCP Server for the Weather Simulation System
 mcp = FastMCP("WeatherSimulationSystem")
@@ -20,6 +26,7 @@ MOCK_SPOTS = {
         "optimal_wind_dir": 90,    # Offshore East wind
         "base_swell_height": 3.5,
         "base_swell_period": 16.0,
+        "base_swell_direction": 290.0,
         "base_wind_speed": 12.0,
         "base_wind_direction": 95.0
     },
@@ -34,6 +41,7 @@ MOCK_SPOTS = {
         "optimal_wind_dir": 80,    # Offshore ENE wind
         "base_swell_height": 1.5,
         "base_swell_period": 12.0,
+        "base_swell_direction": 270.0,
         "base_wind_speed": 8.0,
         "base_wind_direction": 85.0
     },
@@ -48,17 +56,24 @@ MOCK_SPOTS = {
         "optimal_wind_dir": 90,    # Offshore East wind
         "base_swell_height": 1.2,
         "base_swell_period": 11.0,
+        "base_swell_direction": 275.0,
         "base_wind_speed": 5.0,
         "base_wind_direction": 90.0
     }
 }
 
+# Resolve the database path dynamically relative to the backend directory
+BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(BACKEND_DIR)
+DB_PATH = os.path.join(ROOT_DIR, "dev.db")
+
 # 2. Database Helper Methods with Safe Fallbacks
 def get_db_connection() -> Optional[sqlite3.Connection]:
     try:
-        conn = sqlite3.connect("c:/Users/dprit/Raw-Surf/dev.db")
+        conn = get_sqlite_connection(DB_PATH)
         return conn
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to connect to SQLite database at {DB_PATH}: {e}")
         return None
 
 def query_spots_from_db() -> List[Dict[str, Any]]:
@@ -188,11 +203,12 @@ def get_weather_forecast(spot_name: str) -> Dict[str, Any]:
         return {"error": f"Spot '{spot_name}' not found. Supported spots: {list(MOCK_SPOTS.keys())}"}
     
     # Run rating calculation
+    swell_dir = spot.get("base_swell_direction", spot["optimal_swell_dir"])
     calc = calculate_surf_rating(
         spot,
         spot["base_swell_height"],
         spot["base_swell_period"],
-        spot["optimal_swell_dir"],
+        swell_dir,
         spot["base_wind_speed"],
         spot["base_wind_direction"]
     )
@@ -203,7 +219,7 @@ def get_weather_forecast(spot_name: str) -> Dict[str, Any]:
         "forecast": {
             "swell_height_m": spot["base_swell_height"],
             "swell_period_sec": spot["base_swell_period"],
-            "swell_direction_deg": spot["optimal_swell_dir"],
+            "swell_direction_deg": swell_dir,
             "wind_speed_knots": spot["base_wind_speed"],
             "wind_direction_deg": spot["base_wind_direction"]
         },
@@ -296,15 +312,20 @@ def simulate_weather_change(
             conn.commit()
             if cursor.rowcount > 0:
                 db_updated = True
-        except Exception:
-            pass
+                logger.info(f"SQLite cache updated successfully for spot '{spot_name}'. {cursor.rowcount} rows affected.")
+            else:
+                logger.warning(f"No active condition reports found in SQLite for spot '{spot_name}' to update.")
+        except Exception as e:
+            logger.error(f"Failed to persist simulated conditions for spot '{spot_name}' to SQLite: {e}")
         finally:
             conn.close()
+    else:
+        logger.warning(f"SQLite connection unavailable. Could not persist simulated conditions for spot '{spot_name}'.")
 
     # Also update mock spots in memory for consistency
     spot["base_swell_height"] = swell_height_m
     spot["base_swell_period"] = swell_period_sec
-    spot["optimal_swell_dir"] = swell_direction_deg
+    spot["base_swell_direction"] = swell_direction_deg
     spot["base_wind_speed"] = wind_speed_knots
     spot["base_wind_direction"] = wind_direction_deg
 
@@ -334,7 +355,7 @@ def get_forecasts_summary() -> str:
             spot,
             spot["base_swell_height"],
             spot["base_swell_period"],
-            spot["optimal_swell_dir"],
+            spot.get("base_swell_direction", spot["optimal_swell_dir"]),
             spot["base_wind_speed"],
             spot["base_wind_direction"]
         )

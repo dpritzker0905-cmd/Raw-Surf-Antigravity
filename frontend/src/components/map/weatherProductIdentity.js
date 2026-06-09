@@ -46,16 +46,13 @@ export function parseWeatherProductId(productId) {
     layer = 'wind_waves';
   } else if (lowerPid.includes('swell_2') || lowerPid.includes('secondary_swell')) {
     layer = 'swell_2';
-  } else if (lowerPid.includes('swell_1') || lowerPid.includes('swell_wave')) {
+  } else if (lowerPid.includes('swell_1') || lowerPid.includes('swell_wave') || lowerPid.includes('swell')) {
     layer = 'swell_1';
   } else if (
     (lowerPid.includes('waves') || lowerPid.includes('wave_height') || lowerPid.includes('wave_direction') || lowerPid.includes('wave_period')) &&
     !lowerPid.includes('wind_waves') &&
     !lowerPid.includes('wind_wave') &&
-    !lowerPid.includes('swell_1') &&
-    !lowerPid.includes('swell_2') &&
-    !lowerPid.includes('swell_wave') &&
-    !lowerPid.includes('secondary_swell')
+    !lowerPid.includes('swell')
   ) {
     layer = 'waves';
   } else if (

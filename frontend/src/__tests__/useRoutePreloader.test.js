@@ -1,14 +1,14 @@
-﻿/**
+/**
  * useRoutePreloader.test.js Unit tests for the route preloader hook.
  */
 import { renderHook, act } from '@testing-library/react';
-import useRoutePreloader from '../../hooks/useRoutePreloader';
+import useRoutePreloader from '../hooks/useRoutePreloader';
 
 // Mock all dynamic imports
-jest.mock('../../components/Feed', () => ({ default: () => null }), { virtual: true });
-jest.mock('../../components/Profile', () => ({ default: () => null }), { virtual: true });
-jest.mock('../../components/MessagesPage', () => ({ default: () => null }), { virtual: true });
-jest.mock('../../components/Explore', () => ({ default: () => null }), { virtual: true });
+jest.mock('../components/Feed', () => ({ default: () => null }), { virtual: true });
+jest.mock('../components/Profile', () => ({ default: () => null }), { virtual: true });
+jest.mock('../components/MessagesPage', () => ({ default: () => null }), { virtual: true });
+jest.mock('../components/Explore', () => ({ default: () => null }), { virtual: true });
 
 describe('useRoutePreloader', () => {
   it('returns a preload function', () => {

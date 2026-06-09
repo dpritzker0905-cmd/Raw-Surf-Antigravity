@@ -1,9 +1,9 @@
-﻿/**
+/**
  * useWebPSupport.test.js Unit tests for WebP detection hook.
  */
 import { renderHook } from '@testing-library/react';
-import useWebPSupport from '../../hooks/useWebPSupport';
-import { getOptimizedImageUrl } from '../../hooks/useWebPSupport';
+import useWebPSupport from '../hooks/useWebPSupport';
+import { getOptimizedImageUrl } from '../hooks/useWebPSupport';
 
 describe('useWebPSupport', () => {
   it('returns a boolean value', () => {

@@ -732,7 +732,13 @@ void main() {
     shallowWaterShelfGlowColor = vec3(0.00, 0.80, 0.95);
   }
 
-  vec3 baseDepthColor = mix(midOceanBlue, deepNavy, depthFactor);
+  // Multi-band branchless depth interpolation utilizing all theme colors
+  float t1 = clamp(depthFactor / 0.2, 0.0, 1.0);
+  float t2 = clamp((depthFactor - 0.2) / 0.3, 0.0, 1.0);
+  float t3 = clamp((depthFactor - 0.5) / 0.5, 0.0, 1.0);
+  vec3 c_reef_shelf = mix(reefHighlight, shelfTurquoise, t1);
+  vec3 c_shelf_mid = mix(c_reef_shelf, midOceanBlue, t2);
+  vec3 baseDepthColor = mix(c_shelf_mid, deepNavy, t3);
 
   // ── LAYER 2: CHLOROPHYLL SATELLITE REALISM LAYER ──
   float chlDensity = texture2D(u_chlorophyllTexture, v_grid_uv).r;
@@ -741,7 +747,7 @@ void main() {
   // ── LAYER 3: SHALLOW WATER SHELF GLOW ──
   float shelfProximity = 1.0 - depthFactor;
   float shelfGlowFactor = smoothstep(0.6, 1.0, shelfProximity);
-  vec3 shallowWaterShelfGlow = vec3(0.0);
+  vec3 shallowWaterShelfGlow = shallowWaterShelfGlowColor * shelfGlowFactor;
 
   // ── LAYER 4: THEMED WAVE HEATMAP COLORS & BASE BLENDING ──
   vec3 waveColor = getThemedWaveColor(waveHeight, u_theme);

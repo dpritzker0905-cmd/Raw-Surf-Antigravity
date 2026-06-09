@@ -1,8 +1,8 @@
-﻿/**
+/**
  * useOptimisticAction.test.js Unit tests for the optimistic UI hook.
  */
 import { renderHook, act } from '@testing-library/react';
-import useOptimisticAction from '../../hooks/useOptimisticAction';
+import useOptimisticAction from '../hooks/useOptimisticAction';
 
 // Mock sonner toast
 jest.mock('sonner', () => ({

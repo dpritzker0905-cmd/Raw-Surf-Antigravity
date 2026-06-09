@@ -143,7 +143,8 @@ def test_parameter_bounds_validation():
 
 def test_database_update_propagation():
     """Verify that simulating weather changes persists results back to SQLite condition_reports."""
-    conn = sqlite3.connect("c:/Users/dprit/Raw-Surf/dev.db")
+    db_path = os.path.join(os.path.dirname(backend_dir), "dev.db")
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     # Temporarily insert a test spot condition report that is active
@@ -190,7 +191,7 @@ def test_database_update_propagation():
         assert res["database_updated"] is True
         
         # Verify db contains updated details
-        conn = sqlite3.connect("c:/Users/dprit/Raw-Surf/dev.db")
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT wave_height_ft, conditions_label, wind_conditions FROM condition_reports WHERE spot_name = ?", (test_spot,))
         row = cursor.fetchone()
@@ -204,7 +205,7 @@ def test_database_update_propagation():
 
     finally:
         # Cleanup
-        conn = sqlite3.connect("c:/Users/dprit/Raw-Surf/dev.db")
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("DELETE FROM condition_reports WHERE spot_name = ?", (test_spot,))
         conn.commit()

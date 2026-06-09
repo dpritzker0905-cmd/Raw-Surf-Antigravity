@@ -89,9 +89,9 @@ class ViewportService:
         Step 1 & 2: Checks dynamic product index for a fresh or stale cache hit.
         Returns the product if found (and triggers SWR if stale).
         """
-        # Parse and snap bounding box outward to nearest tileSize (2.0)
+        # Parse and snap bounding box outward to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
         req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
-        tileSize = 2.0
+        tileSize = 1.0 if model.upper() == "GFS" else 2.0
         
         snap_w = math.floor(req_w / tileSize) * tileSize
         snap_s = math.floor(req_s / tileSize) * tileSize
@@ -201,9 +201,9 @@ class ViewportService:
         Step 4 & 5: Fetches viewport grid from upstream Open-Meteo, handling negative caching,
         in-flight request deduplication, and conformed stale fallback if upstream fails.
         """
-        # Parse and snap bounding box outward to nearest tileSize (2.0)
+        # Parse and snap bounding box outward to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
         req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
-        tileSize = 2.0
+        tileSize = 1.0 if model.upper() == "GFS" else 2.0
         
         snap_w = math.floor(req_w / tileSize) * tileSize
         snap_s = math.floor(req_s / tileSize) * tileSize

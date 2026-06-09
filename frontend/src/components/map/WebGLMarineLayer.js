@@ -579,9 +579,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
-      if (!modelOrLayerOrHourChanged) {
-        return;
-      }
 
       const clearTimer = setTimeout(() => {
         if (window.__MARINE_FETCH_PENDING__) return;

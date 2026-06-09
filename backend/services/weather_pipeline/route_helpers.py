@@ -47,6 +47,20 @@ def parse_bbox(bbox_str: str) -> Tuple[float, float, float, float]:
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid bbox parameter format: {e}")
 
+def wrap_longitude(lng: float) -> float:
+    """
+    Wraps longitude to [-180, 180] using modulo arithmetic to prevent infinite loops.
+    Exact boundary behavior matches original while loop implementation.
+    """
+    if lng < -180.0 or lng > 180.0:
+        wrapped = lng % 360.0
+        if wrapped > 180.0:
+            wrapped -= 360.0
+        if wrapped == 180.0 and lng < 0:
+            wrapped = -180.0
+        return wrapped
+    return lng
+
 def clamp_and_normalize_bbox(w: float, s: float, e: float, n: float) -> Tuple[float, float, float, float]:
     """
     Clamps latitude to [-80, 85] and wraps longitude to [-180, 180].
@@ -58,12 +72,8 @@ def clamp_and_normalize_bbox(w: float, s: float, e: float, n: float) -> Tuple[fl
     south = max(-80.0, min(85.0, s))
     north = max(-80.0, min(85.0, n))
     
-    west = w
-    east = e
-    while west < -180.0: west += 360.0
-    while west > 180.0: west -= 360.0
-    while east < -180.0: east += 360.0
-    while east > 180.0: east -= 360.0
+    west = wrap_longitude(w)
+    east = wrap_longitude(e)
     
     return west, south, east, north
 
@@ -71,6 +81,8 @@ def generate_bbox_coords(w: float, s: float, e: float, n: float, res: float) -> 
     """
     Generates lists of latitudes and longitudes crossing the antimeridian at a given resolution.
     """
+    if res <= 0.0:
+        raise ValueError("Resolution must be greater than zero.")
     lats_list = []
     lons_list = []
     crosses = w > e
@@ -156,13 +168,8 @@ def is_bbox_covered_by(req_w: float, req_s: float, req_e: float, req_n: float, c
         return True
 
     # Normalize longitudes to [-180, 180]
-    def normalize_longitude(lng: float) -> float:
-        while lng < -180.0: lng += 360.0
-        while lng > 180.0: lng -= 360.0
-        return lng
-
-    cov_w = normalize_longitude(cov.west - margin)
-    cov_e = normalize_longitude(cov.east + margin)
+    cov_w = wrap_longitude(cov.west - margin)
+    cov_e = wrap_longitude(cov.east + margin)
     
     cov_crosses = cov_w > cov_e
     req_crosses = req_w > req_e
@@ -185,8 +192,9 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
     Crops grid vectors to requested bbox and updates dimensions, returning a deep copy to prevent mutations.
     """
     try:
-        parts = [float(x) for x in bbox_str.split(",")]
-        west, south, east, north = parts
+        west, south, east, north = clamp_and_normalize_bbox(*parse_bbox(bbox_str))
+    except HTTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=f"Invalid bbox parameter format in filter: {e.detail}")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid bbox parameter format in filter: {e}")
 
@@ -242,7 +250,8 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
                         GridVector(
                             lat=lat, lng=lng,
                             speed=0.0, direction=0.0,
-                            u=0.0, v=0.0, is_valid=False
+                            u=0.0, v=0.0, period=0.0,
+                            gust=None, value=None, is_valid=False
                         )
                     )
         

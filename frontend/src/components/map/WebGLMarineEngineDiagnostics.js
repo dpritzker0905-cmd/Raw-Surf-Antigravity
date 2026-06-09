@@ -162,7 +162,7 @@ export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
       for (let i = 0; i < len; i++) {
         const v = vectors[i];
         const comp = v?.[activeLayer] || v || {};
-        const speed = comp.speed || 0;
+        const speed = comp.height || comp.speed || 0;
         if (speed > 0) {
           nonzeroCount++;
           sumH += speed;

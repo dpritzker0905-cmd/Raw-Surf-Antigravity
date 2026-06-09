@@ -578,7 +578,8 @@ def test_negative_cache_stale_fallback_success(mock_weather_setup, monkeypatch):
     target_dt = datetime(2026, 6, 2, 13, 0, 0, tzinfo=timezone.utc)
     bbox_str = "-85,24,-80,30"
     req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
-    tileSize = 2.0
+    model = "GFS"
+    tileSize = 1.0 if model.upper() == "GFS" else 2.0
     snap_w = math.floor(req_w / tileSize) * tileSize
     snap_s = math.floor(req_s / tileSize) * tileSize
     snap_e = math.ceil(req_e / tileSize) * tileSize

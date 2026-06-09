@@ -336,6 +336,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   var prevBlendDstRGB = gl.getParameter(gl.BLEND_DST_RGB);
   var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
   var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
+  var prevBlendEqRGB = gl.getParameter(gl.BLEND_EQUATION_RGB);
+  var prevBlendEqAlpha = gl.getParameter(gl.BLEND_EQUATION_ALPHA);
 
   var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
   var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
@@ -351,6 +353,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   gl.disable(gl.STENCIL_TEST);
   gl.disable(gl.SCISSOR_TEST);
   gl.colorMask(true, true, true, true);
+  gl.blendEquation(gl.FUNC_ADD);
+
+  var prevClearColor = null;
+  if (window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true) {
+    prevClearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE);
+    gl.clearColor(0.05, 0.05, 0.08, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
 
   while (gl.getError() !== gl.NO_ERROR) {}
 
@@ -368,8 +378,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
   }
 
+  var prevVAO = null;
+  var isWebGL2 = false;
+  if (gl.bindVertexArray) {
+    isWebGL2 = true;
+  }
+
   var prevTextures2D = [];
   var prevTexturesCube = [];
+  var prevSamplers = [];
   var maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
   for (var u = 0; u < maxUnits; u++) {
     gl.activeTexture(gl.TEXTURE0 + u);
@@ -381,12 +398,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     } catch (e) {
       prevTexturesCube.push(null);
     }
+    if (isWebGL2) {
+      try {
+        prevSamplers.push(gl.getParameter(gl.SAMPLER_BINDING));
+        gl.bindSampler(u, null);
+      } catch (e) {
+        prevSamplers.push(null);
+      }
+    }
   }
 
-  var prevVAO = null;
-  var isWebGL2 = false;
-  if (gl.bindVertexArray) {
-    isWebGL2 = true;
+  if (isWebGL2) {
     prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
     gl.bindVertexArray(null);
   }
@@ -621,6 +643,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     if (prevTexturesCube[u]) {
       gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
     }
+    if (isWebGL2 && prevSamplers[u] !== undefined) {
+      gl.bindSampler(u, prevSamplers[u]);
+    }
   }
 
   gl.activeTexture(prevActiveTex);
@@ -641,6 +666,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.disable(gl.BLEND);
   }
   gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
+  gl.blendEquationSeparate(prevBlendEqRGB, prevBlendEqAlpha);
 
   if (prevDepthTest) {
     gl.enable(gl.DEPTH_TEST);
@@ -665,6 +691,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.enable(gl.CULL_FACE);
   } else {
     gl.disable(gl.CULL_FACE);
+  }
+
+  if (prevClearColor) {
+    gl.clearColor(prevClearColor[0], prevClearColor[1], prevClearColor[2], prevClearColor[3]);
   }
 
   if (typeof window !== 'undefined' && window.__RAW_GPU__ && renderStart > 0) {

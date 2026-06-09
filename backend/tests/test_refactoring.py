@@ -14,7 +14,8 @@ from services.weather_pipeline.route_helpers import (
     make_unsupported_icon_swell2_grid_response,
     make_unsupported_icon_swell2_point_response,
     make_no_coverage_grid_response,
-    make_no_coverage_point_response
+    make_no_coverage_point_response,
+    wrap_longitude
 )
 from services.weather_pipeline.product_selection import (
     bbox_intersection_area, select_best_candidate
@@ -225,3 +226,59 @@ def test_make_unsupported_icon_swell2_responses():
     
     res_point = make_unsupported_icon_swell2_point_response("marine", 25.0, -80.0, target_dt)
     assert res_point.status_code == 200
+
+def test_wrap_longitude_modulo_edge_cases():
+    # Verify exact equivalence and robustness for wrap_longitude
+    assert wrap_longitude(180.0) == 180.0
+    assert wrap_longitude(-180.0) == -180.0
+    assert wrap_longitude(200.0) == -160.0
+    assert wrap_longitude(-200.0) == 160.0
+    assert wrap_longitude(540.0) == 180.0
+    assert wrap_longitude(-540.0) == -180.0
+    assert wrap_longitude(1e9) == -80.0
+    assert wrap_longitude(-1e9) == 80.0
+
+def test_generate_bbox_coords_resolution_guard():
+    with pytest.raises(ValueError, match="Resolution must be greater than zero."):
+        generate_bbox_coords(-80.0, 25.0, -78.0, 27.0, 0.0)
+    with pytest.raises(ValueError, match="Resolution must be greater than zero."):
+        generate_bbox_coords(-80.0, 25.0, -78.0, 27.0, -0.5)
+
+def test_filter_grid_to_bbox_backfill_defaults():
+    bounds = CoverageBounds(west=-80.0, south=25.0, east=-78.0, north=27.0)
+    vectors = [
+        GridVector(lat=25.0, lng=-80.0, u=1.0, v=0.0, speed=1.0, period=6.0),
+        # lat=25.0, lng=-78.0 is missing
+        GridVector(lat=27.0, lng=-80.0, u=1.0, v=2.0, speed=2.236, period=10.0),
+        GridVector(lat=27.0, lng=-78.0, u=3.0, v=2.0, speed=3.605, period=12.0)
+    ]
+    grid = NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors)
+    product = NormalizedProduct(
+        model="GFS",
+        provider="open-meteo",
+        domain="marine",
+        layer="waves",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.now(timezone.utc),
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["wave_height"],
+        freshness_sec=1800
+    )
+
+    filtered = filter_grid_to_bbox(product, "-80.0,25.0,-78.0,27.0")
+    # There should be 4 vectors now because (25.0, -78.0) is backfilled
+    assert len(filtered.grid.vectors) == 4
+    
+    # Locate the backfilled vector
+    backfilled = [v for v in filtered.grid.vectors if v.lat == 25.0 and v.lng == -78.0][0]
+    assert backfilled.is_valid is False
+    assert backfilled.speed == 0.0
+    assert backfilled.period == 0.0
+    assert backfilled.gust is None
+    assert backfilled.value is None

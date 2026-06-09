@@ -68,6 +68,7 @@ class WeatherTelemetryEngine {
 
     const targetPrefixes = [
       '[WebGLMarine',
+      '[WebGLWind',
       '[Backend Weather Service]',
       '[Backend Precipitation Service]',
       '[Backend Pressure Service]',
@@ -79,7 +80,14 @@ class WeatherTelemetryEngine {
       '[WebGLGuardrail]',
       '[TRANSITION]',
       '[WebGLOverlay]',
-      '[WebGLMarine-Validate]'
+      '[WebGLMarine-Validate]',
+      '[OceanMask]',
+      '[LayerAccessResolver]',
+      '[LayerRegistry]',
+      '[FETCH]',
+      '[extractMarineAtOffset]',
+      '[Pressure]',
+      '[PressureController]'
     ];
 
     const originalWarn = console.warn;
@@ -136,6 +144,14 @@ class WeatherTelemetryEngine {
             warningType: 'render_early_return',
             message: msg
           });
+        } else if (msg.includes('[WebGLWindEngine] render returned early')) {
+          this.emit('model_warning', {
+            model: this.activeModel,
+            warningType: 'render_early_return',
+            message: msg
+          });
+        } else if (msg.includes('[MapWebGL] WebGL context restored')) {
+          this.emit('WebGL_context_restored');
         } else if (msg.includes('[Fallback]')) {
           this.emit('model_warning', {
             model: this.activeModel,
@@ -410,7 +426,14 @@ class WeatherTelemetryEngine {
       gpuStats: { ...this.gpuStats },
       topology: this.topologyMap,
       recentFailures: [...this.failureKnowledgebase],
-      recentEvents: this.logs.slice(0, 50)
+      recentEvents: this.logs.slice(0, 50),
+      // Granular status overlays from global states
+      heatmapStatus: typeof window !== 'undefined' ? window.__MARINE_HEATMAP_STATUS__ : null,
+      coverageStatus: typeof window !== 'undefined' ? window.__MARINE_COVERAGE_STATUS__ : null,
+      windCoverageStatus: typeof window !== 'undefined' ? window.__WIND_COVERAGE_STATUS__ : null,
+      marineLayerDiag: typeof window !== 'undefined' ? window.__WebGLMarineLayer_DIAG__ : null,
+      crestDiag: typeof window !== 'undefined' ? window.__CREST_DIAG__ : null,
+      directionDiag: typeof window !== 'undefined' ? window.__MARINE_DIRECTION_DIAG__ : null
     };
   }
 }

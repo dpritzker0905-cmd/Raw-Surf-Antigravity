@@ -24,6 +24,23 @@ const adminUser = {
   is_admin: true
 };
 
+test.beforeEach(async ({ page }) => {
+  // Abort all external requests to prevent navigation timeouts under sandbox network restrictions
+  await page.route('**/*', route => {
+    const url = route.request().url();
+    if (
+      url.startsWith('http://localhost') ||
+      url.startsWith('http://127.0.0.1') ||
+      url.startsWith('data:') ||
+      url.startsWith('blob:')
+    ) {
+      route.continue();
+    } else {
+      route.abort();
+    }
+  });
+});
+
 test.describe('Surfer Lockout Redirection', () => {
   test('non-admin surfer is locked out of admin dashboard and can redirect back', async ({ page }) => {
     // 1. Visit explore page to register domain/localStorage context
