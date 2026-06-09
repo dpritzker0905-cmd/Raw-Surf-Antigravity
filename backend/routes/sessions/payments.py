@@ -233,6 +233,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
         }
         
     except stripe.error.StripeError as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")
     except Exception as e:
         await db.rollback()

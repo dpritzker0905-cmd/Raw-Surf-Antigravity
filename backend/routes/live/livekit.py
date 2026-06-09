@@ -15,25 +15,76 @@ import logging
 from database import get_db, async_session_maker
 from models import Profile, SocialLiveStream, Follow
 from websocket_manager import broadcast_live_status_change
+from core.security import get_current_user_id
 
 # LiveKit imports
-from livekit import api
+try:
+    from livekit import api
+except ImportError:
+    api = None
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# LiveKit credentials
-LIVEKIT_URL = os.environ.get('LIVEKIT_URL')
-LIVEKIT_API_KEY = os.environ.get('LIVEKIT_API_KEY')
-LIVEKIT_API_SECRET = os.environ.get('LIVEKIT_API_SECRET')
+def _get_credentials():
+    """Get stripped LiveKit credentials from environment variables."""
+    url = os.environ.get('LIVEKIT_URL', '')
+    key = os.environ.get('LIVEKIT_API_KEY', '')
+    secret = os.environ.get('LIVEKIT_API_SECRET', '')
+    return url.strip(), key.strip(), secret.strip()
 
-LIVEKIT_CONFIGURED = bool(LIVEKIT_URL and LIVEKIT_API_KEY and LIVEKIT_API_SECRET)
+def _is_configured() -> bool:
+    """Verify actual credentials exist, strip spaces, and livekit SDK is successfully imported."""
+    if api is None:
+        return False
+    url, key, secret = _get_credentials()
+    return bool(url and key and secret)
+
+def _get_livekit_rest_url(url: str) -> str:
+    """Convert websocket URL (ws/wss) to REST API URL (http/https) for LiveKit API."""
+    if not url:
+        return ""
+    url = url.strip().rstrip('/')
+    if url.startswith("wss://"):
+        return url.replace("wss://", "https://", 1)
+    elif url.startswith("ws://"):
+        return url.replace("ws://", "http://", 1)
+    return url
+
+def _normalize_to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """Normalize a datetime object to timezone-naive UTC for SQLite compatibility."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+def _calculate_duration_seconds(started_at: datetime, ended_at: Optional[datetime] = None) -> int:
+    """Calculate duration between started_at and ended_at (or now) in UTC, avoiding timezone mismatches."""
+    if not started_at:
+        return 0
+    t_end = ended_at or datetime.now(timezone.utc)
+    naive_start = _normalize_to_utc(started_at)
+    naive_end = _normalize_to_utc(t_end)
+    return int((naive_end - naive_start).total_seconds())
+
+def _format_datetime(dt: Optional[datetime]) -> Optional[str]:
+    """Format a datetime to ISO 8601 string in UTC with timezone offset."""
+    if not dt:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc).isoformat()
+    return dt.astimezone(timezone.utc).isoformat()
+
+# Module-level legacy variables for backward compatibility
+LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET = _get_credentials()
+LIVEKIT_CONFIGURED = _is_configured()
 
 if LIVEKIT_CONFIGURED:
     logger.info(f"LiveKit configured with URL: {LIVEKIT_URL}")
 else:
-    logger.warning("LiveKit not configured - missing credentials")
+    logger.warning("LiveKit not configured - missing credentials or package import failed")
 
 
 class LiveKitTokenRequest(BaseModel):
@@ -64,9 +115,11 @@ class StartLiveKitStreamResponse(BaseModel):
 @router.get("/livekit/status")
 async def livekit_status():
     """Check if LiveKit is configured"""
+    configured = _is_configured()
+    url, _, _ = _get_credentials()
     return {
-        "configured": LIVEKIT_CONFIGURED,
-        "server_url": LIVEKIT_URL if LIVEKIT_CONFIGURED else None
+        "configured": configured,
+        "server_url": url if configured else None
     }
 
 
@@ -122,17 +175,24 @@ async def send_go_live_notifications(
 
 
 @router.post("/livekit/token", response_model=LiveKitTokenResponse)
-async def get_livekit_token(request: LiveKitTokenRequest):
+async def get_livekit_token(
+    request: LiveKitTokenRequest,
+    current_user_id: str = Depends(get_current_user_id)
+):
     """
     Generate a LiveKit access token for joining a room.
     Broadcasters get publish permissions, viewers get subscribe only.
     """
-    if not LIVEKIT_CONFIGURED:
+    if not _is_configured():
         raise HTTPException(status_code=503, detail="LiveKit not configured")
     
+    if request.participant_identity != current_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: participant_identity does not match the authenticated user.")
+    
     try:
+        url, api_key, api_secret = _get_credentials()
         # Create access token
-        token = api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        token = api.AccessToken(api_key, api_secret)
         token.identity = request.participant_identity
         token.name = request.participant_name or request.participant_identity
         
@@ -165,7 +225,7 @@ async def get_livekit_token(request: LiveKitTokenRequest):
         
         return LiveKitTokenResponse(
             token=jwt_token,
-            server_url=LIVEKIT_URL,
+            server_url=url,
             room_name=request.room_name
         )
         
@@ -178,14 +238,18 @@ async def get_livekit_token(request: LiveKitTokenRequest):
 async def start_livekit_stream(
     request: StartLiveKitStreamRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Start a new live stream with LiveKit.
     Creates a room and returns broadcaster token.
     """
-    if not LIVEKIT_CONFIGURED:
+    if not _is_configured():
         raise HTTPException(status_code=503, detail="LiveKit not configured")
+    
+    if request.broadcaster_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: broadcaster_id does not match the authenticated user.")
     
     # Verify broadcaster exists
     result = await db.execute(
@@ -204,26 +268,32 @@ async def start_livekit_stream(
     )
     existing_stream = existing.scalar_one_or_none()
     if existing_stream:
-        # Aggressively terminate any existing stream blocks natively to prevent mobile unmount lockouts
-        age = datetime.now(timezone.utc) - existing_stream.started_at.replace(tzinfo=timezone.utc)
+        age_seconds = _calculate_duration_seconds(existing_stream.started_at)
+        if age_seconds < 900:  # 15 minutes
+            raise HTTPException(
+                status_code=400,
+                detail="Already broadcasting. End current stream first."
+            )
+        # Aggressively terminate any stale existing stream blocks natively to prevent mobile unmount lockouts
         logger.warning(
             f"[livekit] Auto-ending previous stream {existing_stream.id} "
-            f"for broadcaster {request.broadcaster_id} (age: {age}) to provision new request."
+            f"for broadcaster {request.broadcaster_id} (age: {age_seconds}s) to provision new request."
         )
         existing_stream.status = 'ended'
-        existing_stream.ended_at = datetime.now(timezone.utc)
-        existing_stream.duration_seconds = int(age.total_seconds())
+        existing_stream.ended_at = _normalize_to_utc(datetime.now(timezone.utc))
+        existing_stream.duration_seconds = age_seconds
         await db.flush()
     
     try:
         # Generate unique room name
-        room_name = f"live-{request.broadcaster_id}-{int(datetime.now().timestamp())}"
+        room_name = f"live-{request.broadcaster_id}-{int(datetime.now(timezone.utc).timestamp())}"
         
+        url, api_key, api_secret = _get_credentials()
         # Create LiveKit room
         lk_api = api.LiveKitAPI(
-            url=LIVEKIT_URL.replace('wss://', 'https://'),
-            api_key=LIVEKIT_API_KEY,
-            api_secret=LIVEKIT_API_SECRET
+            url=_get_livekit_rest_url(url),
+            api_key=api_key,
+            api_secret=api_secret
         )
         try:
             await lk_api.room.create_room(
@@ -237,7 +307,7 @@ async def start_livekit_stream(
             await lk_api.aclose()
         
         # Generate broadcaster token
-        token = api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        token = api.AccessToken(api_key, api_secret)
         token.identity = request.broadcaster_id
         token.name = broadcaster.full_name or "Broadcaster"
         token.with_grants(api.VideoGrants(
@@ -258,7 +328,8 @@ async def start_livekit_stream(
             stream_url=room_name,  # Store room name as stream URL
             status='live',
             viewer_count=0,
-            peak_viewers=0
+            peak_viewers=0,
+            started_at=_normalize_to_utc(datetime.now(timezone.utc))
         )
         db.add(stream)
         
@@ -299,7 +370,7 @@ async def start_livekit_stream(
             stream_id=stream.id,
             room_name=room_name,
             token=jwt_token,
-            server_url=LIVEKIT_URL
+            server_url=url
         )
         
     except Exception as e:
@@ -325,14 +396,18 @@ class StartSocialLiveResponse(BaseModel):
 async def start_social_live(
     request: StartSocialLiveRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Start a social live stream (called from GoLiveModal).
     This is an alias for start-stream with a different request format.
     """
-    if not LIVEKIT_CONFIGURED:
+    if not _is_configured():
         raise HTTPException(status_code=503, detail="LiveKit not configured")
+    
+    if request.broadcaster_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: broadcaster_id does not match the authenticated user.")
     
     # Verify broadcaster exists
     result = await db.execute(
@@ -351,27 +426,33 @@ async def start_social_live(
     )
     existing_stream = existing_result.scalar_one_or_none()
     if existing_stream:
-        age = datetime.now(timezone.utc) - existing_stream.started_at.replace(tzinfo=timezone.utc)
+        age_seconds = _calculate_duration_seconds(existing_stream.started_at)
+        if age_seconds < 900:  # 15 minutes
+            raise HTTPException(
+                status_code=400,
+                detail="Already broadcasting. End current stream first."
+            )
         # Any existing stream is automatically ended to prevent lockouts on mobile client unmounts
         logger.warning(
             f"[livekit] Auto-ending previous stream {existing_stream.id} "
-            f"for broadcaster {request.broadcaster_id} (age: {age}) to provision new request."
+            f"for broadcaster {request.broadcaster_id} (age: {age_seconds}s) to provision new request."
         )
         existing_stream.status = 'ended'
-        existing_stream.ended_at = datetime.now(timezone.utc)
-        existing_stream.duration_seconds = int(age.total_seconds())
+        existing_stream.ended_at = _normalize_to_utc(datetime.now(timezone.utc))
+        existing_stream.duration_seconds = age_seconds
         await db.flush()
 
     
     try:
         # Generate unique room name
-        room_name = f"social-live-{request.broadcaster_id}-{int(datetime.now().timestamp())}"
+        room_name = f"social-live-{request.broadcaster_id}-{int(datetime.now(timezone.utc).timestamp())}"
         
+        url, api_key, api_secret = _get_credentials()
         # Create LiveKit room
         lk_api = api.LiveKitAPI(
-            url=LIVEKIT_URL.replace('wss://', 'https://'),
-            api_key=LIVEKIT_API_KEY,
-            api_secret=LIVEKIT_API_SECRET
+            url=_get_livekit_rest_url(url),
+            api_key=api_key,
+            api_secret=api_secret
         )
         try:
             await lk_api.room.create_room(
@@ -385,7 +466,7 @@ async def start_social_live(
             await lk_api.aclose()
         
         # Generate broadcaster token
-        token = api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        token = api.AccessToken(api_key, api_secret)
         token.identity = request.broadcaster_id
         token.name = request.broadcaster_name or broadcaster.full_name or "Broadcaster"
         token.with_grants(api.VideoGrants(
@@ -406,7 +487,8 @@ async def start_social_live(
             stream_url=room_name,  # Store room name as stream URL
             status='live',
             viewer_count=0,
-            peak_viewers=0
+            peak_viewers=0,
+            started_at=_normalize_to_utc(datetime.now(timezone.utc))
         )
         db.add(stream)
         
@@ -446,7 +528,7 @@ async def start_social_live(
             stream_id=stream.id,
             room_name=room_name,
             token=jwt_token,
-            server_url=LIVEKIT_URL
+            server_url=url
         )
         
     except Exception as e:
@@ -458,9 +540,12 @@ async def start_social_live(
 async def end_livekit_stream(
     stream_id: str,
     broadcaster_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """End a LiveKit live stream"""
+    if broadcaster_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: broadcaster_id does not match the authenticated user.")
     result = await db.execute(
         select(SocialLiveStream).where(SocialLiveStream.id == stream_id)
     )
@@ -474,12 +559,13 @@ async def end_livekit_stream(
     
     try:
         # Delete LiveKit room
-        if LIVEKIT_CONFIGURED and stream.stream_url:
+        if _is_configured() and stream.stream_url:
             try:
+                url, api_key, api_secret = _get_credentials()
                 lk_api = api.LiveKitAPI(
-                    url=LIVEKIT_URL.replace('wss://', 'https://'),
-                    api_key=LIVEKIT_API_KEY,
-                    api_secret=LIVEKIT_API_SECRET
+                    url=_get_livekit_rest_url(url),
+                    api_key=api_key,
+                    api_secret=api_secret
                 )
                 try:
                     await lk_api.room.delete_room(
@@ -491,11 +577,11 @@ async def end_livekit_stream(
                 logger.warning(f"Failed to delete LiveKit room: {e}")
         
         # Calculate duration
-        duration = int((datetime.now(timezone.utc) - stream.started_at).total_seconds())
+        duration = _calculate_duration_seconds(stream.started_at)
         
         # Update stream record
         stream.status = 'ended'
-        stream.ended_at = datetime.now(timezone.utc)
+        stream.ended_at = _normalize_to_utc(datetime.now(timezone.utc))
         stream.duration_seconds = duration
         
         # Update profile
@@ -536,13 +622,17 @@ async def get_viewer_token(
     room_name: str,
     viewer_id: str,
     viewer_name: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Get a viewer token to watch a live stream.
     """
-    if not LIVEKIT_CONFIGURED:
+    if not _is_configured():
         raise HTTPException(status_code=503, detail="LiveKit not configured")
+    
+    if viewer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: viewer_id does not match the authenticated user.")
     
     # Find the stream
     result = await db.execute(
@@ -557,8 +647,9 @@ async def get_viewer_token(
         raise HTTPException(status_code=404, detail="Stream not found or ended")
     
     try:
+        url, api_key, api_secret = _get_credentials()
         # Generate viewer token
-        token = api.AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+        token = api.AccessToken(api_key, api_secret)
         token.identity = viewer_id
         token.name = viewer_name or f"Viewer-{viewer_id[:8]}"
         token.with_grants(api.VideoGrants(
@@ -579,7 +670,7 @@ async def get_viewer_token(
         
         return {
             "token": jwt_token,
-            "server_url": LIVEKIT_URL,
+            "server_url": url,
             "room_name": room_name,
             "broadcaster_name": stream.title
         }
@@ -613,7 +704,7 @@ async def get_active_livekit_streams(db: AsyncSession = Depends(get_db)):
                 "broadcaster_username": s.broadcaster.username if s.broadcaster else None,
                 "broadcaster_avatar": s.broadcaster.avatar_url if s.broadcaster else None,
                 "viewer_count": s.viewer_count,
-                "started_at": s.started_at.isoformat() if s.started_at else None
+                "started_at": _format_datetime(s.started_at)
             }
             for s in streams
         ],

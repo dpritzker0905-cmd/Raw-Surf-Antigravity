@@ -14,6 +14,8 @@ from database import get_db
 from models import Profile, SurfSpot, RoleEnum, LiveSession
 from utils.grom_parent import is_grom_parent_eligible
 from .schemas import LivePhotographerResponse, GoLiveRequest, StopLiveRequest, SpotImageUpdate
+from core.security import get_current_user_id
+from deps.admin_auth import get_current_admin
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -44,8 +46,18 @@ async def get_live_photographers(spot_id: Optional[str] = None, db: AsyncSession
 
 
 @router.post("/photographers/{profile_id}/go-live")
-async def photographer_go_live(profile_id: str, data: GoLiveRequest, db: AsyncSession = Depends(get_db)):
+async def photographer_go_live(
+    profile_id: str,
+    data: GoLiveRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Start a live shooting session with session-specific pricing"""
+    if profile_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: profile_id does not match the authenticated user."
+        )
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
     profile = result.scalar_one_or_none()
     if not profile:
@@ -158,7 +170,17 @@ async def photographer_go_live(profile_id: str, data: GoLiveRequest, db: AsyncSe
 
 
 @router.post("/photographers/{profile_id}/stop-live")
-async def photographer_stop_live(profile_id: str, data: StopLiveRequest, db: AsyncSession = Depends(get_db)):
+async def photographer_stop_live(
+    profile_id: str,
+    data: StopLiveRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    if profile_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: profile_id does not match the authenticated user."
+        )
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
     profile = result.scalar_one_or_none()
     if not profile:
@@ -177,7 +199,16 @@ async def photographer_stop_live(profile_id: str, data: StopLiveRequest, db: Asy
 
 
 @router.post("/photographers/{profile_id}/toggle-streaming")
-async def toggle_streaming(profile_id: str, db: AsyncSession = Depends(get_db)):
+async def toggle_streaming(
+    profile_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    if profile_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Unauthorized: profile_id does not match the authenticated user."
+        )
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
     profile = result.scalar_one_or_none()
     if not profile:
@@ -190,7 +221,12 @@ async def toggle_streaming(profile_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/surf-spots/{spot_id}/image")
-async def update_spot_image(spot_id: str, data: SpotImageUpdate, db: AsyncSession = Depends(get_db)):
+async def update_spot_image(
+    spot_id: str,
+    data: SpotImageUpdate,
+    db: AsyncSession = Depends(get_db),
+    admin: Profile = Depends(get_current_admin)
+):
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
     if not spot:

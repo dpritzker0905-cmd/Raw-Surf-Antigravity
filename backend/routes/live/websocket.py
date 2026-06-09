@@ -8,12 +8,46 @@ import asyncio
 import os
 
 from websocket_manager import ws_manager
+from core.security import verify_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
 
 INTERNAL_TOKEN = os.getenv("INTERNAL_BROADCAST_TOKEN", "super_secret_internal_token_123")
 
+
+async def verify_websocket_auth(websocket: WebSocket, expected_user_id: str) -> bool:
+    """
+    Helper function to authenticate WebSocket handshakes via query parameter tokens.
+    Uses core/security 'verify_token' and compares decoded 'sub' with expected_user_id.
+    Raises HTTPException(401/403) if unauthorized.
+    """
+    token = websocket.query_params.get("token")
+    if not token:
+        logger.warning(f"WebSocket auth failed: missing token query param for user_id {expected_user_id}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token required"
+        )
+    
+    try:
+        payload = verify_token(token)
+        sub = payload.get("sub")
+        if not sub or sub != expected_user_id:
+            logger.warning(f"WebSocket auth failed: token subject {sub} does not match expected {expected_user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access forbidden"
+            )
+        return True
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"WebSocket auth unexpected error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed"
+        )
 
 
 @router.websocket("/ws/conditions")
@@ -115,6 +149,7 @@ async def websocket_earnings(websocket: WebSocket, user_id: str):
     WebSocket endpoint for real-time earnings updates
     User receives notifications when they earn credits from sales/donations
     """
+    await verify_websocket_auth(websocket, user_id)
     room = f"earnings_{user_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -225,6 +260,7 @@ async def websocket_photographer_activity(websocket: WebSocket, photographer_id:
     - Purchase their photos
     - Request edits
     """
+    await verify_websocket_auth(websocket, photographer_id)
     room = f"photographer_activity_{photographer_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -266,6 +302,7 @@ async def websocket_call(websocket: WebSocket, user_id: str):
     Each user connects to their own room: call_{user_id}
     Messages are forwarded to the target user's room.
     """
+    await verify_websocket_auth(websocket, user_id)
     room = f"call_{user_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -345,6 +382,7 @@ async def websocket_presence(websocket: WebSocket, user_id: str):
     Client can request online user list at any time.
     On disconnect, user is marked offline.
     """
+    await verify_websocket_auth(websocket, user_id)
     room = f"presence_{user_id}"
     await ws_manager.connect(websocket, room=room)
     ws_manager.mark_online(user_id)

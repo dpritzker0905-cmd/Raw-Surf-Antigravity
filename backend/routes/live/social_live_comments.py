@@ -170,8 +170,7 @@ async def toggle_live_like(
 async def toggle_comment_like(
     stream_id: str,
     comment_id: str,
-    data: dict,
-    db: AsyncSession = Depends(get_db)
+    data: dict
 ):
     """Toggle like on a live stream comment"""
     user_id = data.get("user_id")

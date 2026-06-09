@@ -18,7 +18,7 @@ from utils.geo import haversine_distance
 
 from database import get_db
 from models import Profile, SurfSpot, SocialLiveStream, Story, Follow
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from models import Notification
 
 logger = logging.getLogger(__name__)
@@ -276,7 +276,8 @@ async def check_pro_zone(
 async def start_social_live(
     data: GoLiveRequest,
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Start a social Go Live broadcast with Mux real-time streaming.
@@ -289,6 +290,13 @@ async def start_social_live(
     """
     import math
     
+    # Enforce Depends(get_current_user_id) checking to verify that broadcaster_id matches current user
+    if data.broadcaster_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: broadcaster_id does not match current user"
+        )
+        
     # Verify broadcaster exists
     result = await db.execute(
         select(Profile).where(Profile.id == data.broadcaster_id)
@@ -381,30 +389,31 @@ async def start_social_live(
             longitude = longitude or spot.longitude
     
     # Create Mux live stream
-    mux_data = None
-    stream_url = None
-    rtmp_url = None
-    stream_key = None
-    mux_stream_id = None
-    mux_playback_id = None
-    mux_error = None
-    
-    if MUX_AVAILABLE and mux_service:
-        mux_data = mux_service.create_live_stream(
-            broadcaster_name=broadcaster.full_name or "Live Stream",
-            latency_mode="standard"  # Use standard for mobile reliability
+    if not MUX_AVAILABLE or not mux_service:
+        raise HTTPException(
+            status_code=400,
+            detail="Mux live streaming is unconfigured or unavailable."
         )
         
-        if mux_data.get("success"):
-            stream_url = mux_data.get("playback_url")
-            rtmp_url = mux_data.get("rtmp_url")
-            stream_key = mux_data.get("stream_key")
-            mux_stream_id = mux_data.get("live_stream_id")
-            mux_playback_id = mux_data.get("playback_id")
-            logger.info(f"Created Mux stream {mux_stream_id} for {broadcaster.id}")
-        else:
-            mux_error = mux_data.get("error", "Unknown error")
-            logger.error(f"Mux stream creation failed: {mux_error}")
+    mux_data = mux_service.create_live_stream(
+        broadcaster_name=broadcaster.full_name or "Live Stream",
+        latency_mode="standard"  # Use standard for mobile reliability
+    )
+    
+    if not mux_data or not mux_data.get("success"):
+        mux_error = mux_data.get("error", "Unknown error") if mux_data else "Unknown error"
+        logger.error(f"Mux stream creation failed: {mux_error}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Mux live stream creation failed: {mux_error}"
+        )
+        
+    stream_url = mux_data.get("playback_url")
+    rtmp_url = mux_data.get("rtmp_url")
+    stream_key = mux_data.get("stream_key")
+    mux_stream_id = mux_data.get("live_stream_id")
+    mux_playback_id = mux_data.get("playback_id")
+    logger.info(f"Created Mux stream {mux_stream_id} for {broadcaster.id}")
     
     # Create the live stream record
     live_stream = SocialLiveStream(
@@ -462,13 +471,20 @@ async def start_social_live(
 @router.post("/social-live/force-clear/{broadcaster_id}")
 async def force_clear_stale_stream(
     broadcaster_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Force-end any stale 'live' stream for a broadcaster.
     Called by the frontend when the user gets 'already broadcasting' but isn't actually live.
     Safe to call at any time — only ends streams, never creates them.
     """
+    if broadcaster_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: broadcaster_id does not match current user"
+        )
+        
     result = await db.execute(
         select(SocialLiveStream).where(
             and_(
@@ -506,12 +522,19 @@ async def force_clear_stale_stream(
 async def end_social_live(
     stream_id: str,
     broadcaster_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     End a social live broadcast.
     Archives the stream for later viewing.
     """
+    if broadcaster_id != current_user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: broadcaster_id does not match current user"
+        )
+        
     result = await db.execute(
         select(SocialLiveStream).where(SocialLiveStream.id == stream_id)
     )

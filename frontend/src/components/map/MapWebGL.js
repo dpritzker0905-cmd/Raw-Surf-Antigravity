@@ -558,7 +558,14 @@ const MapWebGL = ({
     };
   }, [mapInstance]);
 
-  useWebGLGuardrail({ mapInstance, activeLayers, setWebglWindFailed, setWebglMarineFailed });
+  useWebGLGuardrail({
+    mapInstance,
+    activeLayers,
+    setWebglWindFailed,
+    setWebglMarineFailed,
+    webglWindFailed,
+    webglMarineFailed,
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
