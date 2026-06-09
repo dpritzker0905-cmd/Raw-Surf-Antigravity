@@ -67,14 +67,32 @@ export const useMarkerClustering = (spots, bounds, zoom, options = {}) => {
       return;
     }
     
-    const bbox = [
-      bounds.west,
-      bounds.south,
-      bounds.east,
-      bounds.north
-    ];
+    let clusterData = [];
+    const south = Math.max(-85, Math.min(85, bounds.south));
+    const north = Math.max(-85, Math.min(85, bounds.north));
     
-    const clusterData = supercluster.getClusters(bbox, Math.floor(zoom));
+    if (bounds.east - bounds.west >= 360) {
+      // Entire world
+      clusterData = supercluster.getClusters([-180, south, 180, north], Math.floor(zoom));
+    } else {
+      // Wrap longitudes to standard range [-180, 180]
+      const wrap = (lng) => {
+        const w = ((lng + 180) % 360 + 360) % 360 - 180;
+        return w === -180 ? 180 : w; // avoid -180 vs 180 boundary issues
+      };
+      const w = wrap(bounds.west);
+      const e = wrap(bounds.east);
+      
+      if (w > e) {
+        // Crossed antimeridian: split query
+        clusterData = [
+          ...supercluster.getClusters([w, south, 180, north], Math.floor(zoom)),
+          ...supercluster.getClusters([-180, south, e, north], Math.floor(zoom))
+        ];
+      } else {
+        clusterData = supercluster.getClusters([w, south, e, north], Math.floor(zoom));
+      }
+    }
     
     // Transform clusters to usable format
     const transformedClusters = clusterData.map(feature => {

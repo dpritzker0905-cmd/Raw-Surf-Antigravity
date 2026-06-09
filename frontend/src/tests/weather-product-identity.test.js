@@ -120,3 +120,65 @@ describe("Weather Product Identity - Matcher", () => {
     expect(normalizeWeatherLayer("combined_waves")).toBe("waves");
   });
 });
+
+describe("Weather Product Identity - Strict Matching & Security Validation", () => {
+  test("1. Model substring matches are strictly rejected", () => {
+    // Should not match GFS, EURO, or ICON loosely
+    const badGfs = parseWeatherProductId("notgfs_waves.json");
+    expect(badGfs.model).toBeNull();
+
+    const badEuro = parseWeatherProductId("eurocopter_waves.json");
+    expect(badEuro.model).toBeNull();
+
+    const badIcon = parseWeatherProductId("iconic_waves.json");
+    expect(badIcon.model).toBeNull();
+  });
+
+  test("2. Model ambiguity/mutual exclusivity causes fail-closed", () => {
+    // If multiple models are detected, the result should fail-closed (return null)
+    const ambiguous = parseWeatherProductId("gfs_copernicus_waves.json");
+    expect(ambiguous.model).toBeNull();
+  });
+
+  test("3. Layer substring matches are strictly rejected", () => {
+    // Should not match wind, waves, pressure, precipitation, or swell loosely
+    const badWind = parseWeatherProductId("gfs_windows.json");
+    expect(badWind.layer).toBeNull();
+
+    const badWaves = parseWeatherProductId("gfs_microwaves.json");
+    expect(badWaves.layer).toBeNull();
+
+    const badPressure = parseWeatherProductId("gfs_lowpressure.json");
+    expect(badPressure.layer).toBeNull();
+
+    const badPrecip = parseWeatherProductId("gfs_coprecipitate.json");
+    expect(badPrecip.layer).toBeNull();
+
+    const badSwell = parseWeatherProductId("gfs_swellings.json");
+    expect(badSwell.layer).toBeNull();
+  });
+
+  test("4. Path and URL pollution is ignored for token extraction", () => {
+    // Windows paths
+    const winPath = parseWeatherProductId("c:\\gfs_data\\euro_waves.json");
+    expect(winPath.model).toBe("EURO");
+    expect(winPath.layer).toBe("waves");
+
+    // Unix paths
+    const unixPath = parseWeatherProductId("/var/log/gfs/icon_wind.json");
+    expect(unixPath.model).toBe("ICON");
+    expect(unixPath.layer).toBe("wind");
+
+    // Query parameters & hashes
+    const urlPath = parseWeatherProductId("http://example.com/gfs/icon_wind.json?query=gfs#hash_gfs");
+    expect(urlPath.model).toBe("ICON");
+    expect(urlPath.layer).toBe("wind");
+  });
+
+  test("5. Layer ambiguity/mutual exclusivity causes fail-closed", () => {
+    // If multiple distinct layers are detected, the result should fail-closed
+    const ambiguous = parseWeatherProductId("gfs_wind_pressure.json");
+    expect(ambiguous.layer).toBeNull();
+  });
+});
+

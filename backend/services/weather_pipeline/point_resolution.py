@@ -15,7 +15,7 @@ from services.weather_pipeline.schemas import (
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, is_inside_bounds, make_unsupported_icon_swell2_point_response,
     make_no_coverage_point_response, make_grid_miss_point_response, compute_truth_tag,
-    filter_grid_to_bbox
+    filter_grid_to_bbox, get_actual_grid_bounds
 )
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,22 @@ class PointResolutionService:
         import routes.weather
         return routes.weather.dynamic_index
 
+    @staticmethod
+    def deduce_grid_resolution(grid) -> float:
+        """
+        Deduces the coordinate resolution step from the unique sorted latitudes/longitudes
+        of a loaded NormalizedGrid.
+        """
+        if not grid or not grid.vectors:
+            return 0.0
+        lats = sorted(list(set(v.lat for v in grid.vectors)))
+        if len(lats) > 1:
+            return round(lats[1] - lats[0], 4)
+        lons = sorted(list(set(v.lng for v in grid.vectors)))
+        if len(lons) > 1:
+            return round(lons[1] - lons[0], 4)
+        return 0.0
+
     async def resolve_point(
         self,
         model: str,
@@ -83,8 +99,10 @@ class PointResolutionService:
             if grid_bbox:
                 product = filter_grid_to_bbox(product, grid_bbox)
 
-            # Enforce bounds containment strictly (0.01 margin, antimeridian aware)
-            if not is_inside_bounds(lat, lng, product.grid.bounds, margin=0.01):
+            # Enforce bounds containment strictly (0.0001 snapping-tolerant margin, antimeridian aware)
+            res_val = self.deduce_grid_resolution(product.grid)
+            actual_cov = get_actual_grid_bounds(product.grid.bounds, res_val)
+            if not is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
                 return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "point_outside_grid_product")
 
             # Inside bounds - sample from product
@@ -143,8 +161,9 @@ class PointResolutionService:
                 and p.domain.lower() == domain.lower()
                 and p.layer.lower() == layer.lower()
             ):
-                # Check point containment (0.01 margin, antimeridian aware)
-                if is_inside_bounds(lat, lng, p.coverage, margin=0.01) or model.upper() == "EURO":
+                # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
+                actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
+                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001) or model.upper() == "EURO":
                     diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
                     if diff <= 3 * 3600:
                         if getattr(p, "is_estimated", False):
@@ -428,8 +447,9 @@ class PointResolutionService:
                 and p.domain.lower() == domain.lower()
                 and p.layer.lower() == layer.lower()
             ):
-                from services.weather_pipeline.route_helpers import is_inside_bounds
-                if is_inside_bounds(lat, lng, p.coverage, margin=0.01) or model.upper() == "EURO":
+                from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
+                actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
+                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001) or model.upper() == "EURO":
                     diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
                     if diff <= 3 * 3600:
                         if getattr(p, "is_estimated", False):

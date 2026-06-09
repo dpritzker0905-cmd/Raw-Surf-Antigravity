@@ -22,7 +22,7 @@ var TIER_ACCESS = {
   },
   premium: {
     models: ['GFS', 'EURO', 'ICON'],
-    forecastDays: 7
+    forecastDays: 14
   }
 };
 

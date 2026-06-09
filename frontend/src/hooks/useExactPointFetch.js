@@ -66,15 +66,16 @@ export function useExactPointFetch({
     const hasGrid = marineDataRef.current?.grid?.vectors?.length > 0;
 
     const isMapBooted = typeof window !== 'undefined' && window.__MAP_BOOTSTRAPPED__ === true;
-    const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('marine') || isInCooldown('wind') || isInCooldown('pressure'));
+    const domain = (activeLayer === 'wind') ? 'wind' : (activeLayer === 'pressure') ? 'pressure' : 'marine';
+    const isDomainCooldownActive = typeof isInCooldown === 'function' && isInCooldown(domain);
 
-    if (!isMapBooted || isScrubbing || isAnyCooldownActive) {
+    if (!isMapBooted || isScrubbing || isDomainCooldownActive) {
       const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
       if (!isCached) {
-        console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} cooldown=${isAnyCooldownActive}`);
+        console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} cooldown=${isDomainCooldownActive}`);
         setExactPointResponse(null);
         setExactPoint(null);
-        setExactPointStatus(isAnyCooldownActive ? 'rate_limited' : 'idle');
+        setExactPointStatus(isDomainCooldownActive ? 'rate_limited' : 'idle');
         return;
       }
     }

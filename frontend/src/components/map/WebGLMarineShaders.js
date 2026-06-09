@@ -140,7 +140,13 @@ void main() {
   float oobY = step(1.0, nextPos.y) + step(0.0, -nextPos.y);
   drop = max(drop, step(0.5, oobY));
 
-  vec2 newPos = vec2(rand(seed + 1.3), rand(seed + 2.1));
+  vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
+  float span = u_dataBounds_max.x + 360.0 - u_dataBounds_min.x;
+  float randLng = u_dataBounds_min.x > u_dataBounds_max.x
+    ? mod(u_dataBounds_min.x + randVal.x * span + 180.0, 360.0) - 180.0
+    : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
+  float randLat = mix(u_dataBounds_min.y, u_dataBounds_max.y, randVal.y);
+  vec2 newPos = vec2((randLng + 180.0) / 360.0, latToMercatorY(randLat));
   if (drop > 0.5) {
     pos = newPos;
   } else {
@@ -565,16 +571,9 @@ float latToMercatorY(float lat) {
 void main() {
   v_grid_uv = a_grid_uv;
   
-  float lng;
-  if (u_dataBounds_min.x > u_dataBounds_max.x) {
-    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
-    lng = u_dataBounds_min.x + a_grid_uv.x * span;
-    if (lng > 180.0) {
-      lng -= 360.0;
-    }
-  } else {
-    lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
-  }
+  float lng = u_dataBounds_min.x > u_dataBounds_max.x
+    ? u_dataBounds_min.x + a_grid_uv.x * (u_dataBounds_max.x + 360.0 - u_dataBounds_min.x)
+    : mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
   lng += u_lng_offset;
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
   lat = clamp(lat, -85.051129, 85.051129);

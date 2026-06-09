@@ -644,13 +644,13 @@ var MapPageContent = () => {
 
 
  {/* Forecast Data Overlay shows Open-Meteo data when layer active */}
-      {activeLayers.length > 0 && (
+      {(activeLayers.length > 0 || selectedSpot || longPressLocation) && (
         <MapForecastOverlay
           forecastData={forecastData}
           marineData={forecastMarineData}
           renderMarineData={renderMarineData}
           currentWeather={currentWeather}
-          activeLayer={activeLayers[0]}
+          activeLayer={activeLayers[0] || 'waves'}
           activeModel={activeModel}
           timeOffsetHours={timeOffsetHours}
           isLoading={forecastLoading}

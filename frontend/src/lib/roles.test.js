@@ -1,4 +1,4 @@
-﻿/**
+/**
  * roles.test.js Tests for the centralized role constants.
  *
  * Verifies that role strings match expected values, role sets contain
@@ -31,7 +31,7 @@ describe('ROLES constants', () => {
     expect(ROLES.GROM_PARENT).toBe('Grom Parent');
     expect(ROLES.COMP_SURFER).toBe('Comp Surfer');
     expect(ROLES.SHOP).toBe('Shop');
-    expect(ROLES.SURF_SCHOOL).toBe('Surf School');
+    expect(ROLES.SCHOOL).toBe('School');
     expect(ROLES.SHAPER).toBe('Shaper');
     expect(ROLES.RESORT).toBe('Resort');
     expect(ROLES.GOD).toBe('God');
@@ -55,7 +55,7 @@ describe('ROLE_SETS', () => {
     expect(ROLE_SETS.BUSINESS).toContain(ROLES.APPROVED_PRO);
     expect(ROLE_SETS.BUSINESS).toContain(ROLES.HOBBYIST);
     expect(ROLE_SETS.BUSINESS).toContain(ROLES.SHOP);
-    expect(ROLE_SETS.BUSINESS).toContain(ROLES.SURF_SCHOOL);
+    expect(ROLE_SETS.BUSINESS).toContain(ROLES.SCHOOL);
     expect(ROLE_SETS.BUSINESS).toContain(ROLES.SHAPER);
     expect(ROLE_SETS.BUSINESS).toContain(ROLES.RESORT);
     // Should NOT include non-business roles
@@ -93,7 +93,7 @@ describe('isProLevel()', () => {
 describe('isBusinessRole()', () => {
   test('returns true for Photographer', () => expect(isBusinessRole(ROLES.PHOTOGRAPHER)).toBe(true));
   test('returns true for Shop', () => expect(isBusinessRole(ROLES.SHOP)).toBe(true));
-  test('returns true for Surf School', () => expect(isBusinessRole(ROLES.SURF_SCHOOL)).toBe(true));
+  test('returns true for Surf School', () => expect(isBusinessRole(ROLES.SCHOOL)).toBe(true));
   test('returns false for Surfer', () => expect(isBusinessRole(ROLES.SURFER)).toBe(false));
   test('returns false for Pro', () => expect(isBusinessRole(ROLES.PRO)).toBe(false));
   test('returns false for Grom', () => expect(isBusinessRole(ROLES.GROM)).toBe(false));

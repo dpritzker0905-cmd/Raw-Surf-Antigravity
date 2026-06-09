@@ -54,7 +54,34 @@ When toggling the **Waves/Marine** layer, users noticed a solid, vibrant magenta
 
 ---
 
-### B. The MapLibre GL Raster Footprint Leak
+### B. Shader Modulo Antimeridian & Particle OOB Culling Audit
+
+1. **Particle Advection OOB Culling & Regional Re-Seeding (`ADVECT_FS`)**:
+   * **The Problem**: In regional viewport bounds (e.g. Hawaii, Florida, East Coast), particles that strayed outside the wave telemetry dataset bounds were correctly marked as out-of-bounds (`isOob = true`). However, the legacy re-seeding mechanism initialized dropped particles globally:
+     ```glsl
+     vec2 newPos = vec2(rand(seed + 1.3), rand(seed + 2.1));
+     ```
+     This resulted in $\sim 99\%$ of the active particle budget ($N = 87,616$) being wasted on global coordinates outside the active region, leading to extremely sparse wave animations.
+   * **The Resolution**: We introduced bounding-box-aware random re-seeding. When a particle is culled or drops out, its new coordinate is generated exclusively inside `[u_dataBounds_min, u_dataBounds_max]`, supporting both standard and wrapped antimeridian spans:
+     ```glsl
+     float span = u_dataBounds_max.x + 360.0 - u_dataBounds_min.x;
+     float randLng = u_dataBounds_min.x > u_dataBounds_max.x
+       ? mod(u_dataBounds_min.x + randVal.x * span + 180.0, 360.0) - 180.0
+       : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
+     ```
+     This instantly concentrates $100\%$ of the active simulation particles inside the active region, increasing visual density by up to $1000\times$.
+
+2. **Antimeridian Mesh Tearing Prevention (`HEATMAP_VS`)**:
+   * **The Problem**: In the heatmap vertex shader, the coordinate translation wrapped longitude back to the standard $[-180, 180]$ range:
+     ```glsl
+     if (lng > 180.0) lng -= 360.0;
+     ```
+     This caused a massive discontinuity in the interpolated grid vertices crossing the $180^\circ$ meridian, placing adjacent grid cells on opposite edges of the clip-space viewport ($x=1.0$ and $x=0.0$). The resulting triangles stretched across the entire map, creating a severe horizontal tearing glitch.
+   * **The Resolution**: We made the longitude projection strictly continuous for wrapped bounds (letting `lng` span past $180.0$ to, e.g., $190.0$), relying on the periodic drawing offsets (`u_lng_offset = [-360.0, 0.0, 360.0]`) to cover the adjacent world copies without tears.
+
+---
+
+### C. The MapLibre GL Raster Footprint Leak
 **The Problem**:
 Even though the rendering of marine wave overlays was shifted completely to WebGL custom layers (`WebGLMarineEngine.js`), the MapLibre GL stylesheet was still compiling `waves-slot-0-source`, `waves-slot-1-source`, etc. in the background.
 

@@ -1,7 +1,7 @@
-﻿/**
+/**
  * useFocusTrap.test.js Tests for the focus trap hook.
  */
-import { renderHook } from '@testing-library/react-hooks';
+import { renderHook } from '@testing-library/react';
 import useFocusTrap from '../hooks/useFocusTrap';
 
 test('returns a ref object', () => {

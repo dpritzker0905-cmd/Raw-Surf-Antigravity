@@ -1,11 +1,11 @@
-﻿/**
+/**
  * AuthContext.test.js
  * Tests for the AuthProvider and useAuth hook.
  * Covers: login, signup, logout, updateUser, refreshUser, token storage, impersonation.
  */
 
 jest.mock('../lib/apiClient', () => ({
-  get: jest.fn(),
+  get: jest.fn().mockResolvedValue({ data: {} }),
   post: jest.fn(),
   put: jest.fn(),
   delete: jest.fn(),
@@ -29,6 +29,10 @@ describe('AuthContext', () => {
   beforeEach(() => {
     localStorage.clear();
     jest.clearAllMocks();
+    apiClient.get.mockResolvedValue({ data: {} });
+    apiClient.post.mockResolvedValue({ data: {} });
+    apiClient.put.mockResolvedValue({ data: {} });
+    apiClient.delete.mockResolvedValue({ data: {} });
   });
 
  // Initial state 

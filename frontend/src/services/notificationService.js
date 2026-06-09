@@ -83,7 +83,7 @@ export const createNotification = (payload) =>
  * @returns {Promise<import('axios').AxiosResponse>}
  */
 export const getPreferences = (userId) =>
-  apiClient.get(`/notifications/preferences`);
+  apiClient.get(`/notifications/preferences?user_id=${userId}`);
 
 /**
  * Update a single notification preference key.
@@ -93,7 +93,7 @@ export const getPreferences = (userId) =>
  * @returns {Promise<import('axios').AxiosResponse>}
  */
 export const updatePreference = (userId, key, value) =>
-  apiClient.put(`/notifications/preferences`, { [key]: value });
+  apiClient.put(`/notifications/preferences?user_id=${userId}`, { [key]: value });
 
 /**
  * Bulk update all notification preferences for a user.
@@ -102,7 +102,7 @@ export const updatePreference = (userId, key, value) =>
  * @returns {Promise<import('axios').AxiosResponse>}
  */
 export const updateAllPreferences = (userId, preferences) =>
-  apiClient.put(`/notifications/preferences`, preferences);
+  apiClient.put(`/notifications/preferences?user_id=${userId}`, preferences);
 
 /**
  * Fetch notification preferences by user ID path param (Settings page variant).

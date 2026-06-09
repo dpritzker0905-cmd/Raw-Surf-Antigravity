@@ -11,7 +11,7 @@ import requests
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 # Configuration
-BASE_URL = "https://raw-surf-antigravity.onrender.com"
+BASE_URL = os.environ.get("WEATHER_AUDIT_BASE_URL", "https://raw-surf-antigravity.onrender.com")
 MANIFEST_URL = f"{BASE_URL}/api/weather/products"
 BBOX = "-85,24,-79,31"
 LAT, LNG = 27.5, -82.0  # approximate centre of Florida bbox
@@ -28,10 +28,12 @@ OFFSET_LABELS = [
     ("+240h", 240),
     ("+243h", 243),
     ("+336h", 336),
-    ("+384h", 384),
 ]
 # Artifact root (brain artifacts directory)
-ARTIFACT_ROOT = r"C:\Users\dprit\.gemini\antigravity\brain\ef32519d-dde2-4a5a-9d56-a7e0c88b3c2c"
+ARTIFACT_ROOT = os.environ.get(
+    "ANTIGRAVITY_ARTIFACT_ROOT",
+    r"C:\Users\dprit\.gemini\antigravity\brain\62ce87d9-d27a-4f39-9549-af7ce582a219"
+)
 os.makedirs(ARTIFACT_ROOT, exist_ok=True)
 
 def iso_valid_time(hours_offset: int) -> str:

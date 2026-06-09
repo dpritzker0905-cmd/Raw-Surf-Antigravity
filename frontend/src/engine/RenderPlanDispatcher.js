@@ -432,6 +432,9 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
 
   // ---- Dispatch to Wind Engine ----
   if (_windEngine && _windGL && field.sources.wind) {
+    if (typeof window !== 'undefined' && window.__ALLOW_FCE_WIND_UPLOAD__ !== true) {
+      return;
+    }
     try {
       const windGrid = fieldToWindGrid(field);
       if (windGrid) {

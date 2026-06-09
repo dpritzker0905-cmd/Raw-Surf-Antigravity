@@ -23,6 +23,8 @@ uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
 uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
 uniform float u_edgeFeatherEnabled; // regional edge feather flag
+uniform vec2 u_dataBounds_min;    // regional bounds min [west, south]
+uniform vec2 u_dataBounds_max;    // regional bounds max [east, north]
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -64,7 +66,8 @@ void main() {
 
   // Advect: move particle by wind velocity (normalized to [0,1] space)
   // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
-  float lat_rad = (pos.y - 0.5) * 3.141592653589793; // [0,1] [-/2, /2]
+  float lat_deg = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
+  float lat_rad = lat_deg * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_scale;
   pos = pos + offset;

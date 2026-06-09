@@ -23,6 +23,8 @@ class PointSampler:
         Samples a coordinate from a NormalizedProduct grid.
         Returns a NormalizedPointResponse.
         """
+        lat = round(lat, 4)
+        lng = round(lng, 4)
         warnings = []
         is_estimated = product.is_estimated
         estimate_basis = product.estimate_basis or {}

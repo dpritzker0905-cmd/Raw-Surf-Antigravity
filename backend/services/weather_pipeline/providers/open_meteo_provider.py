@@ -112,6 +112,20 @@ class OpenMeteoProvider:
         Asynchronously fetches a coordinate snap-grid from Open-Meteo.
         Returns the raw HTTP response as JSON.
         """
+        # Clamp forecast_days based on model limits to prevent Open-Meteo 400 errors
+        if domain == "marine":
+            if model.upper() in ("ICON", "EURO"):
+                forecast_days = min(forecast_days, 7)
+            else:
+                forecast_days = min(forecast_days, 16)
+        else: # weather / wind
+            if model.upper() == "ICON":
+                forecast_days = min(forecast_days, 7)
+            elif model.upper() == "EURO":
+                forecast_days = min(forecast_days, 10)
+            else:
+                forecast_days = min(forecast_days, 16)
+
         # Generate grid points
         if precomputed_coords is not None:
             lats, lons = precomputed_coords

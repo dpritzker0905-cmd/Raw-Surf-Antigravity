@@ -194,54 +194,75 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var prevBlendDstRGB = gl.getParameter(gl.BLEND_DST_RGB);
   var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
   var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
+  var prevBlendEqRGB = gl.getParameter(gl.BLEND_EQUATION_RGB);
+  var prevBlendEqAlpha = gl.getParameter(gl.BLEND_EQUATION_ALPHA);
 
   var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
   var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
   var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
   var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
   var prevColorMask = gl.getParameter(gl.COLOR_WRITEMASK);
+  var prevClearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE);
 
-  gl.disable(gl.DEPTH_TEST);
-  gl.depthMask(false);
-  gl.disable(gl.STENCIL_TEST);
-  gl.disable(gl.SCISSOR_TEST);
-  gl.colorMask(true, true, true, true);
-
-  // Clear any existing WebGL errors from MapLibre's previous drawing operations
-  while (gl.getError() !== gl.NO_ERROR) {}
-
-  // Prevent MapLibre vertex attribute pollution by disabling all attribute arrays
-  var maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
-  for (var i = 0; i < maxAttribs; i++) {
-    try {
-      gl.disableVertexAttribArray(i);
-    } catch (e) {}
-  }
+  var prevAttribsEnabled = [];
+  var prevVAO = null;
+  var isWebGL2 = !!gl.bindVertexArray;
 
   // Capture and unbind all texture units to prevent feedback loops with MapLibre's active drawing textures
   var prevTextures2D = [];
   var prevTexturesCube = [];
-  var maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
-  for (var u = 0; u < maxUnits; u++) {
-    gl.activeTexture(gl.TEXTURE0 + u);
-    prevTextures2D.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    try {
-      prevTexturesCube.push(gl.getParameter(gl.TEXTURE_BINDING_CUBE_MAP));
-      gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-    } catch (e) {
-      prevTexturesCube.push(null);
-    }
-  }
+  var prevSamplers = [];
 
-  // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
-  var prevVAO = null;
-  var isWebGL2 = false;
-  if (gl.bindVertexArray) {
-    isWebGL2 = true;
-    prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
-    gl.bindVertexArray(null);
-  }
+  try {
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+    gl.disable(gl.STENCIL_TEST);
+    gl.disable(gl.SCISSOR_TEST);
+    gl.colorMask(true, true, true, true);
+
+    // Clear any existing WebGL errors from MapLibre's previous drawing operations
+    while (gl.getError() !== gl.NO_ERROR) {}
+
+    // Prevent MapLibre vertex attribute pollution by disabling all attribute arrays
+    var maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
+    for (var i = 0; i < maxAttribs; i++) {
+      try {
+        var enabled = gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
+        prevAttribsEnabled.push(enabled);
+        if (enabled) {
+          gl.disableVertexAttribArray(i);
+        }
+      } catch (e) {
+        prevAttribsEnabled.push(false);
+      }
+    }
+
+    var maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
+    for (var u = 0; u < maxUnits; u++) {
+      gl.activeTexture(gl.TEXTURE0 + u);
+      prevTextures2D.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      try {
+        prevTexturesCube.push(gl.getParameter(gl.TEXTURE_BINDING_CUBE_MAP));
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
+      } catch (e) {
+        prevTexturesCube.push(null);
+      }
+      if (isWebGL2) {
+        try {
+          prevSamplers.push(gl.getParameter(gl.SAMPLER_BINDING));
+          gl.bindSampler(u, null);
+        } catch (e) {
+          prevSamplers.push(null);
+        }
+      }
+    }
+
+    // Capture and unbind WebGL2 VAO to prevent MapLibre attribute pollution
+    if (isWebGL2) {
+      prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
+      gl.bindVertexArray(null);
+    }
 
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
   var themeVal = theme === 'light' ? 1.0 : (theme === 'beach' ? 2.0 : 0.0);
@@ -310,6 +331,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), bounds.west, bounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), bounds.east, bounds.north);
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
@@ -427,53 +450,78 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   if (err4 !== gl.NO_ERROR) {
     console.error("[WebGLWindEngine] Step 4 Draw Error:", err4);
   }
-  gl.disableVertexAttribArray(scrLoc);
+    gl.disableVertexAttribArray(scrLoc);
+  } finally {
+    gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
+    if (isWebGL2 && gl.bindVertexArray) {
+      gl.bindVertexArray(prevVAO);
+    }
 
-  // Restore State
-  gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
-  if (isWebGL2 && gl.bindVertexArray) {
-    gl.bindVertexArray(prevVAO);
-  }
+    if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
+      try {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+      } catch (e) {}
+    }
 
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-  gl.useProgram(prevProg);
-  gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
-  for (var u = 0; u < prevTextures2D.length; u++) {
-    gl.activeTexture(gl.TEXTURE0 + u);
-    gl.bindTexture(gl.TEXTURE_2D, prevTextures2D[u]);
-    if (prevTexturesCube[u]) {
-      gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+    gl.useProgram(prevProg);
+    gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+    for (var u = 0; u < prevTextures2D.length; u++) {
+      gl.activeTexture(gl.TEXTURE0 + u);
+      gl.bindTexture(gl.TEXTURE_2D, prevTextures2D[u]);
+      if (prevTexturesCube[u]) {
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
+      }
+      if (isWebGL2 && prevSamplers[u] !== undefined) {
+        gl.bindSampler(u, prevSamplers[u]);
+      }
+    }
+
+    for (var i = 0; i < prevAttribsEnabled.length; i++) {
+      try {
+        if (prevAttribsEnabled[i]) {
+          gl.enableVertexAttribArray(i);
+        } else {
+          gl.disableVertexAttribArray(i);
+        }
+      } catch (e) {}
+    }
+
+    gl.activeTexture(prevActiveTex);
+    
+    if (prevBlend) {
+      gl.enable(gl.BLEND);
+    } else {
+      gl.disable(gl.BLEND);
+    }
+    gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
+    gl.blendEquationSeparate(prevBlendEqRGB, prevBlendEqAlpha);
+
+    if (prevDepthTest) {
+      gl.enable(gl.DEPTH_TEST);
+    } else {
+      gl.disable(gl.DEPTH_TEST);
+    }
+    gl.depthMask(prevDepthWriteMask);
+
+    if (prevStencilTest) {
+      gl.enable(gl.STENCIL_TEST);
+    } else {
+      gl.disable(gl.STENCIL_TEST);
+    }
+    if (prevScissorTest) {
+      gl.enable(gl.SCISSOR_TEST);
+    } else {
+      gl.disable(gl.SCISSOR_TEST);
+    }
+    gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
+
+    if (prevClearColor) {
+      gl.clearColor(prevClearColor[0], prevClearColor[1], prevClearColor[2], prevClearColor[3]);
     }
   }
-
-  gl.activeTexture(prevActiveTex);
-  
-  if (prevBlend) {
-    gl.enable(gl.BLEND);
-  } else {
-    gl.disable(gl.BLEND);
-  }
-  gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
-
-  if (prevDepthTest) {
-    gl.enable(gl.DEPTH_TEST);
-  } else {
-    gl.disable(gl.DEPTH_TEST);
-  }
-  gl.depthMask(prevDepthWriteMask);
-
-  if (prevStencilTest) {
-    gl.enable(gl.STENCIL_TEST);
-  } else {
-    gl.disable(gl.STENCIL_TEST);
-  }
-  if (prevScissorTest) {
-    gl.enable(gl.SCISSOR_TEST);
-  } else {
-    gl.disable(gl.SCISSOR_TEST);
-  }
-  gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {

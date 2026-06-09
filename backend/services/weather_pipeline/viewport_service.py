@@ -321,8 +321,8 @@ class ViewportService:
             coord_count = len(lats_coords)
 
             # Safety step-up for coordinate count
-            resolution_steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0]
-            while coord_count > 800 and resolution != 10.0:
+            resolution_steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
+            while coord_count > 100 and resolution != 40.0:
                 idx = resolution_steps.index(resolution)
                 resolution = resolution_steps[min(len(resolution_steps) - 1, idx + 1)]
                 lats_coords, lons_coords = generate_bbox_coords(west, south, east, north, resolution)

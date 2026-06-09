@@ -78,7 +78,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     // v7.14.5: Startup and scrubbing stability gates
     const isMapBooted = typeof window !== 'undefined' && window.__MAP_BOOTSTRAPPED__ === true;
     const isTimelineScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline === true;
-    const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('wind') || isInCooldown('marine') || isInCooldown('pressure'));
+    const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('wind') || isInCooldown('pressure'));
 
     if (!isExplicit && (!isMapBooted || isTimelineScrubbing || isAnyCooldownActive)) {
       console.log(`[Forecast] Suppressing background snap fetch: booted=${isMapBooted} scrubbing=${isTimelineScrubbing} cooldown=${isAnyCooldownActive}`);
@@ -93,7 +93,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     const forceQuarantine = typeof window !== 'undefined' && window.__WEATHER_FORCE_QUARANTINE__ === true;
     const fetchKey = `${latitude.toFixed(4)}_${longitude.toFixed(4)}_${activeModel}_${isExplicit ? 'explicit' : 'auto'}_hr${timeOffsetHours}`;
 
-    if (isProd || forceQuarantine) {
+    if (true) { // Always route through backend weather service to fetch real data
       // 1. Check in-memory cache
       const cached = forecastCache.get(fetchKey);
       if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
@@ -340,7 +340,7 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
     abortRef.current = controller;
 
     setIsLoading(true);
-    if (isCoordinateMoved || isExplicit) {
+    if (isExplicit) {
       setForecastData(null);
       setMarineData(null);
       setCurrentWeather(null);

@@ -334,49 +334,64 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
     return null;
   };
 
-  if (!v00?.isOcean || !v10?.isOcean || !v01?.isOcean || !v11?.isOcean) {
-    const oceanCorners = [v00, v10, v01, v11].filter(v => {
-      if (!v?.isOcean) return false;
-      const c = getComp(v);
-      return c && c.speed > 0;
-    });
-    if (oceanCorners.length === 0) return null;
-    const cosLat = Math.cos((lat * Math.PI) / 180.0);
-    const best = oceanCorners.reduce((a, b) => {
-      const dLngA = (wrapLngRelative(a.lng, normLng) - normLng) * cosLat;
-      const dLatA = a.lat - lat;
-      const dA = dLatA * dLatA + dLngA * dLngA;
+  const corners = [
+    { vec: v00, w: (1 - dx) * (1 - dy) },
+    { vec: v10, w: dx * (1 - dy) },
+    { vec: v01, w: (1 - dx) * dy },
+    { vec: v11, w: dx * dy }
+  ];
 
-      const dLngB = (wrapLngRelative(b.lng, normLng) - normLng) * cosLat;
-      const dLatB = b.lat - lat;
-      const dB = dLatB * dLatB + dLngB * dLngB;
+  const validOceanCorners = corners.filter(item => {
+    if (!item.vec || !item.vec.isOcean) return false;
+    const c = getComp(item.vec);
+    return c && c.speed > 0;
+  });
 
-      return dA < dB ? a : b;
-    });
-    const comp = getComp(best);
-    if (!comp) return null;
-    const dir = comp.u !== 0 || comp.v !== 0
-      ? (Math.atan2(-comp.u, -comp.v) * 180 / Math.PI + 360) % 360
-      : null;
-    return { value: comp.speed, direction: dir, period: comp.period || null, source: 'marine_grid_nearest' };
+  if (validOceanCorners.length === 0) return null;
+
+  if (validOceanCorners.length >= 2) {
+    const sumW = validOceanCorners.reduce((acc, item) => acc + item.w, 0);
+    if (sumW > 0) {
+      let avgU = 0;
+      let avgV = 0;
+      let periodSum = 0;
+      let periodW = 0;
+      for (const item of validOceanCorners) {
+        const normW = item.w / sumW;
+        const comp = getComp(item.vec);
+        avgU += normW * comp.u;
+        avgV += normW * comp.v;
+        if (comp.period !== undefined && comp.period !== null) {
+          periodSum += normW * comp.period;
+          periodW += normW;
+        }
+      }
+      const value = Math.sqrt(avgU * avgU + avgV * avgV);
+      const direction = (avgU !== 0 || avgV !== 0)
+        ? (Math.atan2(-avgU, -avgV) * 180 / Math.PI + 360) % 360
+        : null;
+      const period = periodW > 0 ? periodSum / periodW : null;
+      return { value, direction, period: period > 0 ? period : null, source: 'marine_grid' };
+    }
   }
 
-  const c00 = getComp(v00), c10 = getComp(v10), c01 = getComp(v01), c11 = getComp(v11);
-  if (!c00 || !c10 || !c01 || !c11) return null;
+  // Fallback to nearest ocean vector (if validOceanCorners.length === 1 or sumW === 0)
+  const cosLat = Math.cos((lat * Math.PI) / 180.0);
+  const best = validOceanCorners.reduce((a, b) => {
+    const dLngA = (wrapLngRelative(a.vec.lng, normLng) - normLng) * cosLat;
+    const dLatA = a.vec.lat - lat;
+    const dA = dLatA * dLatA + dLngA * dLngA;
 
-  const height = c00.speed * (1 - dx) * (1 - dy) +
-                 c10.speed * dx * (1 - dy) +
-                 c01.speed * (1 - dx) * dy +
-                 c11.speed * dx * dy;
+    const dLngB = (wrapLngRelative(b.vec.lng, normLng) - normLng) * cosLat;
+    const dLatB = b.vec.lat - lat;
+    const dB = dLatB * dLatB + dLngB * dLngB;
 
-  const p00 = c00.period || 0, p10 = c10.period || 0, p01 = c01.period || 0, p11 = c11.period || 0;
-  const period = p00 * (1 - dx) * (1 - dy) + p10 * dx * (1 - dy) + p01 * (1 - dx) * dy + p11 * dx * dy;
-
-  const avgU = c00.u * (1 - dx) * (1 - dy) + c10.u * dx * (1 - dy) + c01.u * (1 - dx) * dy + c11.u * dx * dy;
-  const avgV = c00.v * (1 - dx) * (1 - dy) + c10.v * dx * (1 - dy) + c01.v * (1 - dx) * dy + c11.v * dx * dy;
-  const direction = (avgU !== 0 || avgV !== 0)
-    ? (Math.atan2(-avgU, -avgV) * 180 / Math.PI + 360) % 360
+    return dA < dB ? a : b;
+  }).vec;
+  const comp = getComp(best);
+  if (!comp) return null;
+  const dir = comp.u !== 0 || comp.v !== 0
+    ? (Math.atan2(-comp.u, -comp.v) * 180 / Math.PI + 360) % 360
     : null;
-
-  return { value: height, direction, period: period > 0 ? period : null, source: 'marine_grid' };
+  return { value: comp.speed, direction: dir, period: comp.period || null, source: 'marine_grid_nearest' };
 }

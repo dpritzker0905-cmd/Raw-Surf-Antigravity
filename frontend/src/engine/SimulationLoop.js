@@ -204,13 +204,17 @@ function simulationTick(dt, simTime) {
 
   if (!_evolvedField) return;
 
+  const shouldEvolve = typeof window !== 'undefined' && window.__IN_SIMULATION_SANDBOX__ === true;
+
   // ---- FIELD EVOLUTION (throttled to ~15Hz) ----
   if (_frameIndex % FIELD_EVOLUTION_INTERVAL === 0) {
-    evolveField(_evolvedField, dt * FIELD_EVOLUTION_INTERVAL, simTime);
+    if (shouldEvolve) {
+      evolveField(_evolvedField, dt * FIELD_EVOLUTION_INTERVAL, simTime);
+    }
     _evolutionTicks++;
 
     // Re-bind particles to evolved field data
-    if (_windParticles && _evolvedField.sources.wind) {
+    if (_windParticles && _evolvedField.sources.wind && shouldEvolve) {
       _windParticles.setField(
         _evolvedField.grid.windU,
         _evolvedField.grid.windV,
@@ -219,18 +223,18 @@ function simulationTick(dt, simTime) {
       );
     }
 
-    if (_marineParticles && _evolvedField.sources.marine) {
+    if (_marineParticles && _evolvedField.sources.marine && shouldEvolve) {
       rebindMarineParticles();
     }
   }
 
   // ---- RK4 WIND PARTICLE ADVECTION (60Hz) ----
-  if (_windParticles && _evolvedField.sources.wind) {
+  if (_windParticles && _evolvedField.sources.wind && shouldEvolve) {
     _windParticles.update(dt);
   }
 
   // ---- RK4 MARINE PARTICLE ADVECTION (60Hz) ----
-  if (_marineParticles && _evolvedField.sources.marine) {
+  if (_marineParticles && _evolvedField.sources.marine && shouldEvolve) {
     _marineParticles.update(dt);
   }
 

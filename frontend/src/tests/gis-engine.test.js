@@ -154,9 +154,9 @@ describe("Layer Access Firewall", () => {
     expect(getAllowedModels(surferPremium)).toContain("EURO");
     expect(getAllowedModels(surferPremium)).toContain("ICON");
 
-    expect(resolveForecastWindow(surferPremium)).toBe(7);
-    expect(resolveForecastWindow(photoPremium)).toBe(7);
-    expect(resolveForecastWindow(tier3User)).toBe(7);
+    expect(resolveForecastWindow(surferPremium)).toBe(14);
+    expect(resolveForecastWindow(photoPremium)).toBe(14);
+    expect(resolveForecastWindow(tier3User)).toBe(14);
 
     expect(validateModelAccess("GFS", surferPremium)).toBe(true);
     expect(validateModelAccess("EURO", surferPremium)).toBe(true);

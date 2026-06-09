@@ -684,15 +684,16 @@ def test_query_bbox_clamped_snapped(mock_weather_setup):
     
     # Checked row lat=24.0: first >= 179.0, then < 179.0 (wrapped)
     lons_am = [v["lng"] for v in vectors_am if v["lat"] == 24.0]
-    expected_lons = [
-        179.0, 179.25, 179.5, 179.75, 180.0,
-        -179.75, -179.5, -179.25, -179.0
+    expected_lons_gfs = [
+        179.0, 179.5, 180.0,
+        -179.5, -179.0
     ]
-    assert lons_am == expected_lons
+    assert lons_am == expected_lons_gfs
 
     # Let's test antimeridian crossing query for EURO
     # EURO has resolution 0.5, so snapping tile size is 2.0.
     # Therefore, bbox=179,24,-179,30 snaps to 178,24,-178,30.
+    # Under the new coordinate cap (<100 points), GFS snaps/steps up to 0.5 and EURO snaps/steps up to 1.0.
     response_euro = client.get(
         "/api/weather/grid?model=EURO&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=179,24,-179,30"
     )
@@ -706,7 +707,10 @@ def test_query_bbox_clamped_snapped(mock_weather_setup):
         assert -180.0 <= v["lng"] <= 180.0
         
     lons_euro = [v["lng"] for v in vectors_euro if v["lat"] == 24.0]
-    assert lons_euro == expected_lons
+    expected_lons_euro = [
+        179.0, 180.0, -179.0
+    ]
+    assert lons_euro == expected_lons_euro
 
 def test_two_overlapping_regional_products_ranking(mock_weather_setup, monkeypatch):
     """Verify that Step 6 fallback correctly ranks overlapping regional manifest products by area, time, and authoritative."""

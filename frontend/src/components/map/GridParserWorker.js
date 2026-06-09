@@ -175,6 +175,7 @@ function getHaversineDistance(lat1, lon1, lat2, lon2) {
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  a = Math.max(0, Math.min(1, a)); // Clamp to avoid NaN from floating-point errors
   var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -314,6 +315,12 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
   for (var y = 0; y < denseRows; y++) {
     visitedLows[y] = Array(denseCols).fill(false);
     visitedHighs[y] = Array(denseCols).fill(false);
+    if (isGlobalLng) {
+      // Mark the duplicate column at index denseCols - 1 as visited
+      // to avoid double-counting the meridian during BFS clustering.
+      visitedLows[y][denseCols - 1] = true;
+      visitedHighs[y][denseCols - 1] = true;
+    }
   }
   
   var candidateLows = [];
@@ -347,7 +354,8 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
 
               if (ny >= 0 && ny < denseRows) {
                 if (isGlobalLng) {
-                  nx = (nx + denseCols) % denseCols;
+                  var W = denseCols - 1;
+                  nx = (nx % W + W) % W;
                 } else if (nx < 0 || nx >= denseCols) {
                   continue;
                 }
@@ -404,7 +412,8 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
 
               if (ny >= 0 && ny < denseRows) {
                 if (isGlobalLng) {
-                  nx = (nx + denseCols) % denseCols;
+                  var W = denseCols - 1;
+                  nx = (nx % W + W) % W;
                 } else if (nx < 0 || nx >= denseCols) {
                   continue;
                 }
@@ -512,7 +521,13 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
   for (var ni = 0; ni < neighborhoods.length; ni++) {
     var radius = neighborhoods[ni].radius;
     for (var y = radius; y < denseRows - radius; y++) {
-      for (var x = radius; x < denseCols - radius; x++) {
+      var xStart = radius;
+      var xEnd = denseCols - radius;
+      if (isGlobalLng) {
+        xStart = 0;
+        xEnd = denseCols - 1; // Scan unique columns up to denseCols - 2
+      }
+      for (var x = xStart; x < xEnd; x++) {
         var val = P[y][x];
         var lat = south + (y / (denseRows - 1)) * (north - south);
         var lng = west + (x / (denseCols - 1)) * (east - west);
@@ -525,7 +540,13 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
           for (var dx = -radius; dx <= radius && (isLocalMin || isLocalMax); dx++) {
             if (dy === 0 && dx === 0) continue;
             var ny = y + dy, nx = x + dx;
-            if (ny >= 0 && ny < denseRows && nx >= 0 && nx < denseCols) {
+            if (ny >= 0 && ny < denseRows) {
+              if (isGlobalLng) {
+                var W = denseCols - 1;
+                nx = (nx % W + W) % W;
+              } else if (nx < 0 || nx >= denseCols) {
+                continue;
+              }
               if (P[ny][nx] <= val) isLocalMin = false;
               if (P[ny][nx] >= val) isLocalMax = false;
             }
@@ -570,10 +591,28 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
   }
 
   // Step 7: Laplacian-based secondary detection
-  for (var y = 2; y < denseRows - 2; y++) {
-    for (var x = 2; x < denseCols - 2; x++) {
+  var yStartLap = 2;
+  var yEndLap = denseRows - 2;
+  var xStartLap = 2;
+  var xEndLap = denseCols - 2;
+  if (isGlobalLng) {
+    xStartLap = 0;
+    xEndLap = denseCols - 1; // Scan unique columns up to denseCols - 2
+  }
+
+  for (var y = yStartLap; y < yEndLap; y++) {
+    for (var x = xStartLap; x < xEndLap; x++) {
       var val = P[y][x];
-      var laplacian = P[y-1][x] + P[y+1][x] + P[y][x-1] + P[y][x+1] - 4 * val;
+      
+      var leftX = x - 1;
+      var rightX = x + 1;
+      if (isGlobalLng) {
+        var W = denseCols - 1;
+        leftX = (leftX % W + W) % W;
+        rightX = (rightX % W + W) % W;
+      }
+      
+      var laplacian = P[y-1][x] + P[y+1][x] + P[y][leftX] + P[y][rightX] - 4 * val;
 
       var lat = south + (y / (denseRows - 1)) * (north - south);
       var lng = west + (x / (denseCols - 1)) * (east - west);
@@ -585,7 +624,28 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
       var stats = basinStats[basin];
       var deviation = Math.abs(val - stats.mean);
 
-      if (laplacian > 0.3 && val < stats.mean && deviation >= 2.0) {
+      // Enforce local extremum check in 3x3 neighborhood (8-neighbors)
+      // to filter out bilinear interpolation gradient artifacts.
+      var isLocalMin = true, isLocalMax = true;
+      for (var dy = -1; dy <= 1 && (isLocalMin || isLocalMax); dy++) {
+        for (var dx = -1; dx <= 1 && (isLocalMin || isLocalMax); dx++) {
+          if (dy === 0 && dx === 0) continue;
+          var ny = y + dy;
+          var nx = x + dx;
+          if (ny >= 0 && ny < denseRows) {
+            if (isGlobalLng) {
+              var W = denseCols - 1;
+              nx = (nx % W + W) % W;
+            } else if (nx < 0 || nx >= denseCols) {
+              continue;
+            }
+            if (P[ny][nx] <= val) isLocalMin = false;
+            if (P[ny][nx] >= val) isLocalMax = false;
+          }
+        }
+      }
+
+      if (isLocalMin && laplacian > 0.3 && val < stats.mean && deviation >= 2.0) {
         var alreadyFound = false;
         for (var li = 0; li < selectedLows.length; li++) {
           if (getHaversineDistance(lat, normLng, selectedLows[li].lat, selectedLows[li].lng) < 500) {
@@ -599,7 +659,7 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
           });
         }
       }
-      if (laplacian < -0.3 && val > stats.mean && deviation >= 2.0) {
+      if (isLocalMax && laplacian < -0.3 && val > stats.mean && deviation >= 2.0) {
         var alreadyFound = false;
         for (var hi = 0; hi < selectedHighs.length; hi++) {
           if (getHaversineDistance(lat, normLng, selectedHighs[hi].lat, selectedHighs[hi].lng) < 500) {

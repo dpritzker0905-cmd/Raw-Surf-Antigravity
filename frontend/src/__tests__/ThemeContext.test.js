@@ -1,8 +1,8 @@
-﻿/**
+/**
  * ThemeContext.test.js Tests for theme auto-detection and switching.
  */
 import React from 'react';
-import { renderHook, act } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react';
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext';
 
 beforeEach(() => {

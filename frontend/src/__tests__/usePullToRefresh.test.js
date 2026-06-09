@@ -1,7 +1,7 @@
-﻿/**
+/**
  * usePullToRefresh.test.js Tests for the pull-to-refresh hook.
  */
-import { renderHook } from '@testing-library/react-hooks';
+import { renderHook } from '@testing-library/react';
 import usePullToRefresh from '../hooks/usePullToRefresh';
 
 test('initializes with correct defaults', () => {

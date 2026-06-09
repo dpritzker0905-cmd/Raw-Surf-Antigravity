@@ -127,8 +127,16 @@ def choose_adaptive_resolution(span_lng: float, span_lat: float) -> float:
         return 2.5
     elif est_res <= 5.0:
         return 5.0
-    else:
+    elif est_res <= 10.0:
         return 10.0
+    elif est_res <= 15.0:
+        return 15.0
+    elif est_res <= 20.0:
+        return 20.0
+    elif est_res <= 30.0:
+        return 30.0
+    else:
+        return 40.0
 
 def build_dynamic_cache_key(
     model: str, domain: str, layer: str, valid_time: datetime,
@@ -142,13 +150,57 @@ def build_dynamic_cache_key(
 def is_inside_bounds(lat: float, lng: float, bounds, margin: float = 0.01) -> bool:
     """
     Checks if a coordinate point is inside bounding box bounds (supports antimeridian crossing).
+    Query coordinates are rounded to 4 decimal places to align with grid snapping tolerances.
     """
-    in_lat = (bounds.south - margin) <= lat <= (bounds.north + margin)
+    lat_r = round(lat, 4)
+    lng_r = round(lng, 4)
+    in_lat = (bounds.south - margin) <= lat_r <= (bounds.north + margin)
     if bounds.west <= bounds.east:
-        in_lng = (bounds.west - margin) <= lng <= (bounds.east + margin)
+        in_lng = (bounds.west - margin) <= lng_r <= (bounds.east + margin)
     else:
-        in_lng = lng >= (bounds.west - margin) or lng <= (bounds.east + margin)
+        in_lng = lng_r >= (bounds.west - margin) or lng_r <= (bounds.east + margin)
     return in_lat and in_lng
+
+def get_actual_grid_bounds(bounds: CoverageBounds, resolution: float) -> CoverageBounds:
+    """
+    Computes the actual grid vector boundary bounds based on starting south/west coordinates
+    and resolution step increments.
+    """
+    if not resolution or resolution <= 0.0:
+        return bounds
+
+    west = bounds.west
+    east = bounds.east
+    south = min(bounds.south, bounds.north)
+    north = max(bounds.south, bounds.north)
+
+    # Handle antimeridian crossing in monotonic space
+    if west > east:
+        east_monotonic = east + 360.0
+    else:
+        east_monotonic = east
+
+    # Latitude steps (using 0.0001 padding matching normalizer.py)
+    num_steps_lat = int((north - south + 0.0001) // resolution)
+    actual_north = south + num_steps_lat * resolution
+
+    # Longitude steps
+    num_steps_lon = int((east_monotonic - west + 0.0001) // resolution)
+    actual_east_monotonic = west + num_steps_lon * resolution
+
+    # Wrap back actual_east if needed
+    if west > east:
+        actual_east = actual_east_monotonic - 360.0 if actual_east_monotonic > 180.0 else actual_east_monotonic
+    else:
+        actual_east = actual_east_monotonic
+
+    return CoverageBounds(
+        west=round(west, 4),
+        south=round(south, 4),
+        east=round(actual_east, 4),
+        north=round(actual_north, 4)
+    )
+
 
 def is_bbox_covered_by(req_w: float, req_s: float, req_e: float, req_n: float, cov, margin: float = 0.05) -> bool:
     """

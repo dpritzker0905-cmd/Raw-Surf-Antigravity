@@ -21,6 +21,17 @@ export function normalizeWeatherLayer(layer) {
 }
 
 /**
+ * Helper to check if a target keyword is matched strictly as a whole token/word.
+ * Segments are delimited by start/end of string or non-alphanumeric characters.
+ */
+function matchStrict(str, target) {
+  if (!str || !target) return false;
+  const escaped = target.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const regex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i');
+  return regex.test(str);
+}
+
+/**
  * Parses a weather product ID string to confidently determine the model and layer.
  * Returns { model: string | null, layer: string | null }
  */
@@ -28,43 +39,74 @@ export function parseWeatherProductId(productId) {
   if (!productId || typeof productId !== 'string') {
     return { model: null, layer: null };
   }
-  const lowerPid = productId.toLowerCase();
 
-  // 1. Model Parsing
-  let model = null;
-  if (lowerPid.includes('gfs') || lowerPid.includes('ncep_gfswave')) {
-    model = 'GFS';
-  } else if (lowerPid.includes('euro') || lowerPid.includes('copernicus') || lowerPid.includes('ecmwf')) {
-    model = 'EURO';
-  } else if (lowerPid.includes('icon') || lowerPid.includes('dwd')) {
-    model = 'ICON';
+  // Extract base filename to prevent directory paths or URL parameters from polluting token matches
+  let filename = productId;
+  const queryIndex = filename.indexOf('?');
+  if (queryIndex !== -1) {
+    filename = filename.substring(0, queryIndex);
+  }
+  const hashIndex = filename.indexOf('#');
+  if (hashIndex !== -1) {
+    filename = filename.substring(0, hashIndex);
+  }
+  const lastSlash = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
+  if (lastSlash !== -1) {
+    filename = filename.substring(lastSlash + 1);
   }
 
-  // 2. Layer Parsing (Check more specific layers before generic layers)
+  const lowerPid = filename.toLowerCase();
+
+  // 1. Model Parsing (Strict matching, mutually exclusive validation)
+  let model = null;
+  const isGfs = matchStrict(lowerPid, 'gfs') || matchStrict(lowerPid, 'ncep_gfswave');
+  const isEuro = matchStrict(lowerPid, 'euro') || matchStrict(lowerPid, 'copernicus') || matchStrict(lowerPid, 'ecmwf');
+  const isIcon = matchStrict(lowerPid, 'icon') || matchStrict(lowerPid, 'dwd');
+
+  // Fail closed if multiple models match, or none matches
+  const matchedModelCount = (isGfs ? 1 : 0) + (isEuro ? 1 : 0) + (isIcon ? 1 : 0);
+  if (matchedModelCount === 1) {
+    if (isGfs) model = 'GFS';
+    else if (isEuro) model = 'EURO';
+    else if (isIcon) model = 'ICON';
+  }
+
+  // 2. Layer Parsing (Strict matching, mutually exclusive validation)
   let layer = null;
-  if (lowerPid.includes('wind_waves') || lowerPid.includes('wind_wave')) {
-    layer = 'wind_waves';
-  } else if (lowerPid.includes('swell_2') || lowerPid.includes('secondary_swell')) {
-    layer = 'swell_2';
-  } else if (lowerPid.includes('swell_1') || lowerPid.includes('swell_wave') || lowerPid.includes('swell')) {
-    layer = 'swell_1';
-  } else if (
-    (lowerPid.includes('waves') || lowerPid.includes('wave_height') || lowerPid.includes('wave_direction') || lowerPid.includes('wave_period')) &&
-    !lowerPid.includes('wind_waves') &&
-    !lowerPid.includes('wind_wave') &&
-    !lowerPid.includes('swell')
-  ) {
-    layer = 'waves';
-  } else if (
-    lowerPid.includes('wind') &&
-    !lowerPid.includes('wind_waves') &&
-    !lowerPid.includes('wind_wave')
-  ) {
-    layer = 'wind';
-  } else if (lowerPid.includes('pressure') || lowerPid.includes('msl')) {
-    layer = 'pressure';
-  } else if (lowerPid.includes('precipitation') || lowerPid.includes('precip') || lowerPid.includes('snow')) {
-    layer = 'precipitation';
+  const hasWindWaves = matchStrict(lowerPid, 'wind_waves') || matchStrict(lowerPid, 'wind_wave');
+  const hasSwell2 = matchStrict(lowerPid, 'swell_2') || matchStrict(lowerPid, 'secondary_swell');
+  const hasSwell1 = matchStrict(lowerPid, 'swell_1') || matchStrict(lowerPid, 'swell_wave') || matchStrict(lowerPid, 'swell');
+  const hasWaves = matchStrict(lowerPid, 'waves') || matchStrict(lowerPid, 'wave_height') || matchStrict(lowerPid, 'wave_direction') || matchStrict(lowerPid, 'wave_period');
+  const hasWind = matchStrict(lowerPid, 'wind');
+  const hasPressure = matchStrict(lowerPid, 'pressure') || matchStrict(lowerPid, 'msl');
+  const hasPrecip = matchStrict(lowerPid, 'precipitation') || matchStrict(lowerPid, 'precip') || matchStrict(lowerPid, 'snow');
+
+  const matchesWindWaves = hasWindWaves;
+  const matchesSwell2 = hasSwell2;
+  const matchesSwell1 = hasSwell1 && !hasSwell2;
+  const matchesWaves = hasWaves && !hasWindWaves && !hasSwell1 && !hasSwell2;
+  const matchesWind = hasWind && !hasWindWaves;
+  const matchesPressure = hasPressure;
+  const matchesPrecip = hasPrecip;
+
+  // Fail closed if multiple layers match, or none matches
+  const matchedLayerCount =
+    (matchesWindWaves ? 1 : 0) +
+    (matchesSwell2 ? 1 : 0) +
+    (matchesSwell1 ? 1 : 0) +
+    (matchesWaves ? 1 : 0) +
+    (matchesWind ? 1 : 0) +
+    (matchesPressure ? 1 : 0) +
+    (matchesPrecip ? 1 : 0);
+
+  if (matchedLayerCount === 1) {
+    if (matchesWindWaves) layer = 'wind_waves';
+    else if (matchesSwell2) layer = 'swell_2';
+    else if (matchesSwell1) layer = 'swell_1';
+    else if (matchesWaves) layer = 'waves';
+    else if (matchesWind) layer = 'wind';
+    else if (matchesPressure) layer = 'pressure';
+    else if (matchesPrecip) layer = 'precipitation';
   }
 
   return { model, layer };
