@@ -11,7 +11,22 @@ import logger from '../utils/logger';
  */
 export function useWeatherState({ user }) {
   // --- Core weather state ---
-  const [activeModel, setActiveModel] = useState('GFS');
+  const [activeModel, setActiveModel] = useState(() => {
+    try {
+      return localStorage.getItem('rawsurf-active-model') || 'GFS';
+    } catch {
+      return 'GFS';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('rawsurf-active-model', activeModel);
+    } catch (e) {
+      logger.error('Failed to save activeModel to localStorage:', e);
+    }
+  }, [activeModel]);
+
   const [activeLayers, setActiveLayers] = useState([]);
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);

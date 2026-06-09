@@ -18,6 +18,18 @@ from models import (
     PhotographerRequest, PhotographerRequestStatusEnum, RoleEnum
 )
 
+# Weather pipeline point resolution
+from services.weather_pipeline.point_resolution import PointResolutionService
+from services.weather_pipeline.sampler import PointSampler
+from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+
+point_sampler = PointSampler()
+open_meteo_provider = OpenMeteoProvider()
+point_resolution_service = PointResolutionService(
+    sampler=point_sampler,
+    provider=open_meteo_provider
+)
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -279,53 +291,47 @@ async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
             continue
         
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(OPEN_METEO_MARINE_URL, params={
-                    "latitude": alert.spot.latitude,
-                    "longitude": alert.spot.longitude,
-                    "current": "wave_height,wave_period",
-                    "timezone": "America/New_York"
-                })
+            data = await point_resolution_service.resolve_spot_conditions(
+                model="GFS", lat=alert.spot.latitude, lng=alert.spot.longitude, forecast_days=1
+            )
+            if data and "current_conditions" in data:
+                current = data["current_conditions"]
+                wave_height_ft = current["wave_height_ft"]
+                wave_period = current["wave_period"] or 0
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    wave_height_m = data.get("current", {}).get("wave_height", 0)
-                    wave_period = data.get("current", {}).get("wave_period", 0)
-                    wave_height_ft = wave_height_m * 3.28084 if wave_height_m else 0
+                matches = True
+                
+                if alert.min_wave_height and wave_height_ft < alert.min_wave_height:
+                    matches = False
+                if alert.max_wave_height and wave_height_ft > alert.max_wave_height:
+                    matches = False
+                
+                if matches:
+                    alert.trigger_count += 1
+                    alert.last_triggered = datetime.now(timezone.utc)
                     
-                    matches = True
-                    
-                    if alert.min_wave_height and wave_height_ft < alert.min_wave_height:
-                        matches = False
-                    if alert.max_wave_height and wave_height_ft > alert.max_wave_height:
-                        matches = False
-                    
-                    if matches:
-                        alert.trigger_count += 1
-                        alert.last_triggered = datetime.now(timezone.utc)
-                        
-                        notification = Notification(
-                            user_id=alert.user_id,
-                            type="surf_alert",
-                            title=f"🌊 {alert.spot.name} is firing!",
-                            body=f"Waves are {wave_height_ft:.1f}ft @ {wave_period}s - perfect conditions!",
-                            data=json.dumps({
-                                "spot_id": alert.spot_id,
-                                "wave_height_ft": wave_height_ft,
-                                "wave_period": wave_period,
-                                "alert_id": alert.id,
-                                "type": "surf_alert"
-                            })
-                        )
-                        db.add(notification)
-                        
-                        triggered.append({
+                    notification = Notification(
+                        user_id=alert.user_id,
+                        type="surf_alert",
+                        title=f"🌊 {alert.spot.name} is firing!",
+                        body=f"Waves are {wave_height_ft:.1f}ft @ {wave_period}s - perfect conditions!",
+                        data=json.dumps({
+                            "spot_id": alert.spot_id,
+                            "wave_height_ft": wave_height_ft,
+                            "wave_period": wave_period,
                             "alert_id": alert.id,
-                            "user_id": alert.user_id,
-                            "spot_name": alert.spot.name,
-                            "wave_height_ft": round(wave_height_ft, 1),
-                            "wave_period": wave_period
+                            "type": "surf_alert"
                         })
+                    )
+                    db.add(notification)
+                    
+                    triggered.append({
+                        "alert_id": alert.id,
+                        "user_id": alert.user_id,
+                        "spot_name": alert.spot.name,
+                        "wave_height_ft": round(wave_height_ft, 1),
+                        "wave_period": wave_period
+                    })
         except Exception as e:
             logger.error(f"Error checking alert {alert.id}: {str(e)}")
     

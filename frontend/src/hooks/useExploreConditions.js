@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useExploreConditions.js - Extracted from Explore.js
  * Conditions, location hierarchy, surf spots, and archive data fetching.
  * 431 lines extracted.
@@ -21,6 +21,7 @@ const useExploreConditions = ({
   selectedCity,
   discoveryMode,
   archiveDate,
+  activeModel = 'GFS',
   // State setters
   setConditionReports, setConditionsLoading,
   setArchiveDates, setArchiveDate,
@@ -289,6 +290,7 @@ const useExploreConditions = ({
       }
       params.append('limit', '30');
       params.append('subscription_tier', user?.subscription_tier || 'free');
+      params.append('model', activeModel);
       
       // Add user location if available (use override if provided, otherwise use state)
       const location = locationOverride || userLocation;

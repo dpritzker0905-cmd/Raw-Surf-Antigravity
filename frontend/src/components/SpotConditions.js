@@ -106,7 +106,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   const fetchConditions = async () => {
     try {
-      const response = await apiClient.get(`/conditions/${spotId}`);
+      const activeModel = localStorage.getItem('rawsurf-active-model') || 'GFS';
+      const response = await apiClient.get(`/conditions/${spotId}?model=${activeModel}`);
       setConditions(response.data);
     } catch (error) {
       logger.error('Error fetching conditions:', error);
@@ -137,7 +138,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   const fetchForecast = async () => {
     try {
-      const response = await apiClient.get(`/conditions/forecast/${spotId}`);
+      const activeModel = localStorage.getItem('rawsurf-active-model') || 'GFS';
+      const response = await apiClient.get(`/conditions/forecast/${spotId}?model=${activeModel}`);
       if (response.data?.forecast) {
         setForecast(response.data.forecast);
       }

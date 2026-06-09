@@ -1,6 +1,5 @@
 # Weather serverless functions (must come before catch-all)
 /api/weather/*      /.netlify/functions/weather/:splat   200
-/api/weather-proxy  /.netlify/functions/weather-proxy     200
 
 # All other API calls proxy to Render backend
 /api/*  https://raw-surf-antigravity.onrender.com/api/:splat  200

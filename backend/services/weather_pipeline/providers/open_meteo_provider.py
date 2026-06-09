@@ -276,6 +276,20 @@ class OpenMeteoProvider:
         Asynchronously fetches a single coordinate point forecast from Open-Meteo.
         Returns the raw HTTP response as JSON.
         """
+        # Clamp forecast_days based on model limits to prevent Open-Meteo 400 errors
+        if domain == "marine":
+            if model.upper() in ("ICON", "EURO"):
+                forecast_days = min(forecast_days, 7)
+            else:
+                forecast_days = min(forecast_days, 16)
+        else: # weather / wind
+            if model.upper() == "ICON":
+                forecast_days = min(forecast_days, 7)
+            elif model.upper() == "EURO":
+                forecast_days = min(forecast_days, 10)
+            else:
+                forecast_days = min(forecast_days, 16)
+
         params = {
             "latitude": f"{lat:.4f}",
             "longitude": f"{lng:.4f}",
@@ -299,6 +313,8 @@ class OpenMeteoProvider:
                     params["hourly"] = "secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period"
             elif layer == "wind_waves":
                 params["hourly"] = "wind_wave_height,wind_wave_direction,wind_wave_period"
+            elif layer == "all_marine":
+                params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
             else:
                 params["hourly"] = "wave_height,wave_direction,wave_period"
         elif domain == "weather":

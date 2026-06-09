@@ -2,7 +2,7 @@
 explore_discover/spot_details.py — Spot details endpoint with full conditions, forecast, and photographer listing.
 Extracted from explore.py (v92 audit) for LOC compliance.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload
@@ -13,6 +13,18 @@ import logging
 
 from database import get_db
 from models import Profile, SurfSpot, Post, SurfReport
+
+# Weather pipeline point resolution
+from services.weather_pipeline.point_resolution import PointResolutionService
+from services.weather_pipeline.sampler import PointSampler
+from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+
+point_sampler = PointSampler()
+open_meteo_provider = OpenMeteoProvider()
+point_resolution_service = PointResolutionService(
+    sampler=point_sampler,
+    provider=open_meteo_provider
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -45,6 +57,7 @@ def get_conditions_label(wave_height_ft: float) -> str:
 async def get_spot_details(
     spot_id: str,
     subscription_tier: str = "free",
+    model: str = Query("GFS", pattern="^(GFS|ICON|EURO)$"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -91,67 +104,16 @@ async def get_spot_details(
         "forecast_days_allowed": forecast_days_after_today
     }
     
-    # Fetch real-time conditions and forecast
+    # Fetch real-time conditions and forecast using unified service
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(OPEN_METEO_MARINE_URL, params={
-                "latitude": spot.latitude,
-                "longitude": spot.longitude,
-                "current": "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction",
-                "daily": "wave_height_max,wave_direction_dominant,wave_period_max,swell_wave_height_max",
-                "forecast_days": api_forecast_days,
-                "timezone": "America/New_York"
-            })
-            
-            if response.status_code == 200:
-                data = response.json()
-                current = data.get("current", {})
-                daily = data.get("daily", {})
-                
-                wave_height_m = current.get("wave_height", 0)
-                wave_height_ft = round(wave_height_m * 3.28084, 1) if wave_height_m else 0
-                
-                swell_m = current.get("swell_wave_height", 0)
-                swell_ft = round(swell_m * 3.28084, 1) if swell_m else 0
-                
-                # Today's conditions from "current" API endpoint
-                spot_data["current_conditions"] = {
-                    "wave_height_ft": wave_height_ft,
-                    "wave_direction": current.get("wave_direction"),
-                    "wave_period": current.get("wave_period"),
-                    "swell_height_ft": swell_ft,
-                    "swell_direction": current.get("swell_wave_direction"),
-                    "label": get_conditions_label(wave_height_ft),
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }
-                
-                # Build forecast - SKIP today (index 0), start from tomorrow (index 1)
-                dates = daily.get("time", [])
-                wave_max = daily.get("wave_height_max", [])
-                directions = daily.get("wave_direction_dominant", [])
-                periods = daily.get("wave_period_max", [])
-                swell_max = daily.get("swell_wave_height_max", [])
-                
-                for i in range(1, min(len(dates), max_forecast_days + 1)):
-                    date = dates[i]
-                    max_m = wave_max[i] if i < len(wave_max) else 0
-                    max_ft = round(max_m * 3.28084, 1) if max_m else 0
-                    min_ft = round(max_ft * 0.6, 1)
-                    
-                    swell_max_m = swell_max[i] if i < len(swell_max) else 0
-                    swell_max_ft = round(swell_max_m * 3.28084, 1) if swell_max_m else 0
-                    
-                    spot_data["forecast"].append({
-                        "date": date,
-                        "wave_height_min": min_ft,
-                        "wave_height_max": max_ft,
-                        "wave_direction": directions[i] if i < len(directions) else None,
-                        "wave_period": periods[i] if i < len(periods) else None,
-                        "swell_height_ft": swell_max_ft,
-                        "label": get_conditions_label(max_ft)
-                    })
+        conditions_data = await point_resolution_service.resolve_spot_conditions(
+            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days
+        )
+        if conditions_data:
+            spot_data["current_conditions"] = conditions_data.get("current_conditions")
+            spot_data["forecast"] = conditions_data.get("forecast", [])
     except Exception as e:
-        logger.error(f"Error fetching conditions for {spot.name}: {e}")
+        logger.error(f"Error fetching conditions for {spot.name} via service: {e}")
     
     # Get recent reports (last 48 hours)
     reports_result = await db.execute(

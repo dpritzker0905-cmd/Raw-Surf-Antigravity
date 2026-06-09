@@ -152,6 +152,8 @@ export const Explore = () => {
   const [selectedState, setSelectedState] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
 
+  const activeModel = localStorage.getItem('rawsurf-active-model') || 'GFS';
+
   // WebSocket: Real-time conditions updates
   const handleNewCondition = useCallback((newCondition) => {
     // Add new condition to the top of the list
@@ -366,6 +368,7 @@ export const Explore = () => {
     conditionsCountry, conditionsState, conditionsCity,
     selectedSpotsRegion, selectedCountry, selectedState, selectedCity,
     discoveryMode, archiveDate,
+    activeModel,
     setConditionReports, setConditionsLoading,
     setArchiveDates, setArchiveDate,
     setArchiveGalleries, setArchiveGalleriesLoading,

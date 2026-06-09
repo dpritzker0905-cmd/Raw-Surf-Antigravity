@@ -18,7 +18,7 @@ def patched_filter(schema):
 mcp_utils._filter_to_supported_schema = patched_filter
 
 # Specify the absolute path to our weather simulation FastMCP server
-SERVER_PATH = r"c:\Users\dprit\Raw-Surf\weather_sim_mcp.py"
+SERVER_PATH = r"c:\Users\dprit\Raw-Surf\backend\weather_sim_mcp.py"
 
 async def run_weather_agent():
     print("=== STARTING GEMINI WEATHER SIMULATION AGENT ===")

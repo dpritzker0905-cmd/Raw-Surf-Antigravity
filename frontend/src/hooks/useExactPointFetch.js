@@ -1,0 +1,245 @@
+import { useState, useEffect, useRef } from 'react';
+import {
+  fetchExactMarinePoint,
+  selectExactPointHour,
+  hasCacheForModel,
+  updateDeprecationDiag,
+  writeOverlayDiagnostics
+} from '../components/map/forecastSamplers';
+import { isInCooldown } from '../components/map/marineControllerUtils';
+
+export function useExactPointFetch({
+  pointLat,
+  pointLng,
+  isExactPointRequired,
+  activeModel,
+  activeLayer,
+  settledOffset,
+  selectedSpot,
+  longPressLocation,
+  isScrubbing,
+  timeOffsetHours,
+  marineData
+}) {
+  const [exactPointResponse, setExactPointResponse] = useState(null);
+  const [exactPointStatus, setExactPointStatus] = useState('idle');
+  const [exactPoint, setExactPoint] = useState(null);
+  const [estimateTrigger, setEstimateTrigger] = useState(0);
+  const exactPointFetchRef = useRef(null);
+
+  const isEuroComponentLayer = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
+
+  // Decoupled refs to prevent high-frequency grid updates and timeline scrubbing from triggering redundant fetches
+  const marineDataRef = useRef(marineData);
+  useEffect(() => {
+    marineDataRef.current = marineData;
+  }, [marineData]);
+
+  // snapping key
+  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}_hr${settledOffset}`;
+  const prevPointKeyRef = useRef(currentPointKey);
+  const isStale = currentPointKey !== prevPointKeyRef.current;
+
+  const effectiveExactPointResponse = isStale ? null : exactPointResponse;
+  const effectiveExactPoint = isStale ? null : exactPoint;
+  const effectiveExactPointStatus = (() => {
+    if (isStale) {
+      return (pointLat && pointLng && isExactPointRequired ? 'exact_stale_rejected' : 'idle');
+    }
+    if (exactPointStatus === 'exact_success' && effectiveExactPoint?.status) {
+      return effectiveExactPoint.status;
+    }
+    return exactPointStatus;
+  })();
+
+  useEffect(() => {
+    prevPointKeyRef.current = currentPointKey;
+
+    if (!pointLat || !pointLng || !isExactPointRequired) {
+      setExactPointResponse(null);
+      setExactPoint(null);
+      setExactPointStatus('idle');
+      return;
+    }
+
+    const isUserExplicitSelection = !!(selectedSpot || longPressLocation);
+    const hasGrid = marineDataRef.current?.grid?.vectors?.length > 0;
+
+    const isMapBooted = typeof window !== 'undefined' && window.__MAP_BOOTSTRAPPED__ === true;
+    const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('marine') || isInCooldown('wind') || isInCooldown('pressure'));
+
+    if (!isMapBooted || isScrubbing || isAnyCooldownActive) {
+      const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
+      if (!isCached) {
+        console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} cooldown=${isAnyCooldownActive}`);
+        setExactPointResponse(null);
+        setExactPoint(null);
+        setExactPointStatus(isAnyCooldownActive ? 'rate_limited' : 'idle');
+        return;
+      }
+    }
+
+    if (!isUserExplicitSelection && !hasGrid) {
+      setExactPointResponse(null);
+      setExactPoint(null);
+      setExactPointStatus('idle');
+      return;
+    }
+
+    if (!isUserExplicitSelection && typeof isInCooldown === 'function' && isInCooldown('marine')) {
+      console.log("[Forecast] Suppressing background snap prewarm because marine fetch is cooling down/failing");
+      setExactPointResponse(null);
+      setExactPoint(null);
+      setExactPointStatus('idle');
+      return;
+    }
+
+    const isCooling = typeof isInCooldown === 'function' && isInCooldown('marine');
+    const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
+
+    if (isCooling && !isCached) {
+      console.log("[Forecast] Suppressing exact-point fetch because marine is cooling down and no cache is available.");
+      setExactPointResponse(null);
+      setExactPoint(null);
+      setExactPointStatus('rate_limited');
+      return;
+    }
+
+    setExactPointResponse(null);
+    setExactPoint(null);
+    setExactPointStatus('exact_loading');
+
+    if (exactPointFetchRef.current) exactPointFetchRef.current.cancelled = true;
+    const token = { cancelled: false };
+    exactPointFetchRef.current = token;
+
+    const controller = new AbortController();
+    const debounceTime = isUserExplicitSelection ? 200 : 3000;
+
+    const timeoutId = setTimeout(() => {
+      if (token.cancelled) return;
+
+      const fetchTimeoutId = setTimeout(() => {
+        controller.abort();
+      }, 18000);
+
+      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, settledOffset).then(data => {
+        clearTimeout(fetchTimeoutId);
+        if (!token.cancelled) {
+          if (data) {
+            if (data.status === 'timeout') {
+              setExactPointStatus('exact_timeout');
+            } else if (data.status === 'error') {
+              setExactPointStatus('exact_backend_error');
+            } else if (data.status === 'empty') {
+              setExactPointStatus('exact_empty');
+            } else if (['copernicus_credentials_missing', 'copernicus_backend_502', 'copernicus_timeout', 'rate_limited'].includes(data.status)) {
+              setExactPointStatus(data.status);
+            } else {
+              setExactPointResponse(data);
+              setExactPointStatus('exact_success');
+            }
+          } else {
+            setExactPointStatus('exact_backend_error');
+          }
+        }
+      }).catch(err => {
+        clearTimeout(fetchTimeoutId);
+        if (!token.cancelled) {
+          if (err.name === 'AbortError') {
+            setExactPointStatus('exact_timeout');
+          } else {
+            setExactPointStatus('exact_backend_error');
+          }
+        }
+      });
+    }, debounceTime);
+
+    return () => {
+      token.cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [pointLat, pointLng, activeModel, activeLayer, settledOffset, isScrubbing, isExactPointRequired, currentPointKey, selectedSpot, longPressLocation]);
+
+  useEffect(() => {
+    if (!effectiveExactPointResponse) {
+      setExactPoint(null);
+      return;
+    }
+    const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
+    setExactPoint(selected);
+
+    if (selected) {
+      const targetTs = Date.now() + (timeOffsetHours || 0) * 3600000;
+      const targetTimestamp = new Date(targetTs).toISOString();
+      const selectedTimestamp = selected.time;
+      const selectedHourIndex = selected.hourIndex;
+      const provider = selected.provider;
+      const returnedTimeRange = `${selected.timeRangeStart} to ${selected.timeRangeEnd}`;
+      
+      let sourceStr = 'exact_point_api';
+      if (selected.status === 'exact_no_time_coverage') {
+        sourceStr = 'no_coverage';
+      } else if (selected.status === 'estimate_pending_sources') {
+        sourceStr = 'estimate_pending_sources';
+      }
+
+      console.log(
+        `%c[FORECAST SCRUBUB SCRUBBER TRUTH] InfoBox Sync:\n` +
+        `  - activeModel: ${activeModel}\n` +
+        `  - activeLayer: ${activeLayer}\n` +
+        `  - marker lat/lng: ${pointLat?.toFixed(4)}, ${pointLng?.toFixed(4)}\n` +
+        `  - timeOffsetHours: ${timeOffsetHours}\n` +
+        `  - targetTimestamp: ${targetTimestamp}\n` +
+        `  - selectedTimestamp: ${selectedTimestamp}\n` +
+        `  - selectedHourIndex: ${selectedHourIndex}\n` +
+        `  - provider: ${provider}\n` +
+        `  - returned time range: ${returnedTimeRange}\n` +
+        `  - source: ${sourceStr}`,
+        'color: #22c55e; font-weight: bold;'
+      );
+
+      if (typeof window !== 'undefined') {
+        window.__MARINE_POINT_DIAG__ = {
+          point: { lat: pointLat, lng: pointLng },
+          activeModel, activeLayer, timeOffsetHours,
+          targetTimestamp,
+          requestedForecastDays: effectiveExactPointResponse.forecastDays,
+          returnedTimeRange: {
+            start: selected.timeRangeStart,
+            end: selected.timeRangeEnd
+          },
+          selectedHourIndex: selected.hourIndex,
+          selectedTimestamp: selected.time,
+          matchDiffMs: selected.matchDiffMs,
+          exactPointValues: {
+            wave_height: selected.wave_height,
+            wave_direction: selected.wave_direction,
+            wave_period: selected.wave_period,
+            swell_wave_height: selected.swell_wave_height,
+            swell_wave_direction: selected.swell_wave_direction,
+            swell_wave_period: selected.swell_wave_period,
+            secondary_swell_wave_height: selected.secondary_swell_wave_height,
+            secondary_swell_wave_direction: selected.secondary_swell_wave_direction,
+            secondary_swell_wave_period: selected.secondary_swell_wave_period,
+            wind_wave_height: selected.wind_wave_height,
+            wind_wave_direction: selected.wind_wave_direction,
+            wind_wave_period: selected.wind_wave_period,
+          },
+          source: sourceStr,
+          timestamp: new Date().toISOString()
+        };
+      }
+    }
+  }, [effectiveExactPointResponse, timeOffsetHours, activeLayer, activeModel, pointLat, pointLng, estimateTrigger]);
+
+  return {
+    exactPoint: effectiveExactPoint,
+    exactPointStatus: effectiveExactPointStatus,
+    exactPointResponse: effectiveExactPointResponse,
+    setExactPointStatus,
+    setExactPointResponse,
+    setEstimateTrigger
+  };
+}

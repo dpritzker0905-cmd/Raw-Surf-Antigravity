@@ -12,6 +12,7 @@ const useSpotHubActions = ({
   spotId,
   navigate,
   userTier,
+  activeModel = 'GFS',
   // Setters
   setSpot,
   setSpotDetails,
@@ -89,7 +90,7 @@ const useSpotHubActions = ({
     setLoading(true);
     try {
       // Fetch spot details with forecast
-      const detailsResponse = await apiClient.get(`/explore/spot-details/${spotId}?subscription_tier=${userTier}`);
+      const detailsResponse = await apiClient.get(`/explore/spot-details/${spotId}?subscription_tier=${userTier}&model=${activeModel}`);
       if (detailsResponse.data.error) {
         toast.error(detailsResponse.data.error);
         setLoading(false);

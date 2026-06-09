@@ -16,6 +16,18 @@ from database import get_db
 from models import Profile, SurfSpot, Post, ConditionReport, SurfReport, CheckIn, RoleEnum
 from core.security import get_optional_user_id
 
+# Weather pipeline point resolution
+from services.weather_pipeline.point_resolution import PointResolutionService
+from services.weather_pipeline.sampler import PointSampler
+from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+
+point_sampler = PointSampler()
+open_meteo_provider = OpenMeteoProvider()
+point_resolution_service = PointResolutionService(
+    sampler=point_sampler,
+    provider=open_meteo_provider
+)
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -33,12 +45,12 @@ _surf_spots_response_cache: Dict[str, Dict[str, Any]] = {}
 SURF_SPOTS_CACHE_TTL = 300  # 5 minutes
 
 
-def _get_cache_key(lat: float, lng: float, forecast_days: int) -> str:
-    """Generate cache key for a location + forecast days combo"""
+def _get_cache_key(lat: float, lng: float, forecast_days: int, model: str = "GFS") -> str:
+    """Generate cache key for a location + forecast days + model combo"""
     # Round to 2 decimal places to group nearby coordinates
     lat_rounded = round(lat, 2)
     lng_rounded = round(lng, 2)
-    return f"{lat_rounded}_{lng_rounded}_{forecast_days}"
+    return f"{lat_rounded}_{lng_rounded}_{forecast_days}_{model.upper()}"
 
 
 def _get_cached_conditions(cache_key: str) -> Optional[Dict]:
@@ -64,41 +76,31 @@ def _set_cached_conditions(cache_key: str, data: Dict):
             del _conditions_cache[k]
 
 
-async def fetch_marine_conditions(lat: float, lng: float, forecast_days: int) -> Optional[Dict]:
+async def fetch_marine_conditions(lat: float, lng: float, forecast_days: int, model: str = "GFS") -> Optional[Dict]:
     """
-    Fetch marine conditions from Open-Meteo with caching.
-    Returns parsed conditions dict or None on error.
+    Fetch marine conditions using PointResolutionService with L1 caching.
+    Returns conformed conditions dict or None on error.
     """
-    cache_key = _get_cache_key(lat, lng, forecast_days)
+    cache_key = _get_cache_key(lat, lng, forecast_days, model)
     
     # Check cache first
     cached = _get_cached_conditions(cache_key)
     if cached:
-        logger.debug(f"[Cache HIT] Conditions for {lat},{lng}")
+        logger.debug(f"[Cache HIT] Conditions for {lat},{lng} ({model})")
         return cached
     
-    logger.debug(f"[Cache MISS] Fetching conditions for {lat},{lng}")
+    logger.debug(f"[Cache MISS] Fetching conditions for {lat},{lng} ({model})")
     
     try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            response = await client.get(OPEN_METEO_MARINE_URL, params={
-                "latitude": lat,
-                "longitude": lng,
-                "current": "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction",
-                "daily": "wave_height_max,wave_direction_dominant,wave_period_max",
-                "forecast_days": forecast_days,
-                "timezone": "America/New_York"
-            })
-            
-            if response.status_code == 200:
-                data = response.json()
-                _set_cached_conditions(cache_key, data)
-                return data
-            else:
-                logger.warning(f"Open-Meteo API returned {response.status_code}")
-                return None
+        data = await point_resolution_service.resolve_spot_conditions(
+            model=model, lat=lat, lng=lng, forecast_days=forecast_days
+        )
+        if data:
+            _set_cached_conditions(cache_key, data)
+            return data
+        return None
     except Exception as e:
-        logger.error(f"Error fetching marine conditions: {e}")
+        logger.error(f"Error resolving marine conditions via service: {e}")
         return None
 
 def get_conditions_label(wave_height_ft: float) -> str:
@@ -411,6 +413,7 @@ async def get_surf_spots_with_conditions(
     user_lat: Optional[float] = None,
     user_lng: Optional[float] = None,
     subscription_tier: str = "free",
+    model: str = Query("GFS", pattern="^(GFS|ICON|EURO)$"),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -421,7 +424,7 @@ async def get_surf_spots_with_conditions(
     OPTIMIZED: Uses response caching (5-min TTL), batched queries, and parallel fetching.
     """
     # ============ CHECK RESPONSE CACHE ============
-    cache_key = f"surf_spots_{region}_{country}_{state_province}_{limit}_{user_lat}_{user_lng}_{subscription_tier}"
+    cache_key = f"surf_spots_{region}_{country}_{state_province}_{limit}_{user_lat}_{user_lng}_{subscription_tier}_{model.upper()}"
     now = time.time()
     if cache_key in _surf_spots_response_cache:
         cached = _surf_spots_response_cache[cache_key]
@@ -472,7 +475,7 @@ async def get_surf_spots_with_conditions(
     # ============ PARALLEL FETCH: Conditions for all spots at once ============
     async def fetch_spot_conditions(spot):
         """Fetch conditions for a single spot using cached helper"""
-        data = await fetch_marine_conditions(spot.latitude, spot.longitude, api_forecast_days)
+        data = await fetch_marine_conditions(spot.latitude, spot.longitude, api_forecast_days, model)
         return (spot.id, data)
     
     # Fetch all conditions in parallel
@@ -620,49 +623,8 @@ async def get_surf_spots_with_conditions(
         # Parse conditions from cache/API response
         conditions_data = conditions_map.get(spot.id)
         if conditions_data:
-            try:
-                current = conditions_data.get("current", {})
-                daily = conditions_data.get("daily", {})
-                
-                wave_height_m = current.get("wave_height", 0)
-                wave_height_ft = round(wave_height_m * 3.28084, 1) if wave_height_m else 0
-                
-                swell_m = current.get("swell_wave_height", 0)
-                swell_ft = round(swell_m * 3.28084, 1) if swell_m else 0
-                
-                # Today's current conditions (from "current" API, NOT forecast)
-                spot_data["current_conditions"] = {
-                    "wave_height_ft": wave_height_ft,
-                    "wave_direction": current.get("wave_direction"),
-                    "wave_period": current.get("wave_period"),
-                    "swell_height_ft": swell_ft,
-                    "swell_direction": current.get("swell_wave_direction"),
-                    "label": get_conditions_label(wave_height_ft)
-                }
-                
-                # Build forecast - SKIP today (index 0), start from tomorrow (index 1)
-                dates = daily.get("time", [])
-                wave_max = daily.get("wave_height_max", [])
-                directions = daily.get("wave_direction_dominant", [])
-                periods = daily.get("wave_period_max", [])
-                
-                # Start from index 1 (tomorrow) and take up to max_forecast_days items
-                for i in range(1, min(len(dates), max_forecast_days + 1)):
-                    date = dates[i]
-                    max_m = wave_max[i] if i < len(wave_max) else 0
-                    max_ft = round(max_m * 3.28084, 1) if max_m else 0
-                    min_ft = round(max_ft * 0.6, 1)
-                    
-                    spot_data["forecast"].append({
-                        "date": date,
-                        "wave_height_min": min_ft,
-                        "wave_height_max": max_ft,
-                        "wave_direction": directions[i] if i < len(directions) else None,
-                        "wave_period": periods[i] if i < len(periods) else None,
-                        "label": get_conditions_label(max_ft)
-                    })
-            except Exception as e:
-                logger.error(f"Error parsing conditions for {spot.name}: {e}")
+            spot_data["current_conditions"] = conditions_data.get("current_conditions")
+            spot_data["forecast"] = conditions_data.get("forecast", [])
         
         # Add recent reports (from batch query)
         spot_reports = reports_by_spot.get(spot.id, [])

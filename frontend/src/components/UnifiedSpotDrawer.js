@@ -153,7 +153,8 @@ const UnifiedSpotDrawer = ({
 
   const fetchLiveWaveHeight = async () => {
     try {
-      const response = await apiClient.get(`/conditions/${spot.id}`);
+      const activeModel = localStorage.getItem('rawsurf-active-model') || 'GFS';
+      const response = await apiClient.get(`/conditions/${spot.id}?model=${activeModel}`);
       if (response.data?.current?.wave_height_ft) {
         setLiveWaveHeight(Math.round(response.data?.current?.wave_height_ft || 0));
       }

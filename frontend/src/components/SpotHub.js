@@ -105,6 +105,7 @@ const SpotHub = () => {
   
   const searchParams = new URLSearchParams(location.search);
   const timeOffset = parseInt(searchParams.get('timeOffset') || '0', 10);
+  const activeModel = searchParams.get('model') || localStorage.getItem('rawsurf-active-model') || 'GFS';
   const forecastScrollRef = useRef(null);
   
   const [spot, setSpot] = useState(null);
@@ -162,6 +163,7 @@ const SpotHub = () => {
     spotId,
     navigate,
     userTier,
+    activeModel,
     setSpot,
     setSpotDetails,
     setActivePhotographers,

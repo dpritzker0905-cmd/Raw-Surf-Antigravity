@@ -20,6 +20,7 @@ import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
 import { recordTruthStage } from './weatherTruthTracker';
 import { getBackendPrecipitationFlag } from './backendPrecipitationServiceClient';
+import { useExactPointFetch } from '../../hooks/useExactPointFetch';
 
 
 export var MapForecastOverlay = ({
@@ -42,11 +43,6 @@ export var MapForecastOverlay = ({
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [exactPoint, setExactPoint] = useState(null);
-  // v6.7: Exact-point status machine: idle | exact_loading | exact_success | exact_timeout | exact_backend_error | exact_empty | exact_stale_rejected
-  const [exactPointStatus, setExactPointStatus] = useState('idle');
-  const [estimateTrigger, setEstimateTrigger] = useState(0);
-  const exactPointFetchRef = useRef(null);
   const isLight = theme === 'light';
 
   useEffect(() => {
@@ -61,19 +57,6 @@ export var MapForecastOverlay = ({
   const isPressureBackendActive = activeLayer === 'pressure' && typeof getBackendPressureFlag === 'function' && getBackendPressureFlag();
   const isPrecipBackendActive = (activeLayer === 'rain' || activeLayer === 'precipitation') && typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag();
   const isExactPointRequired = isMarineLayer || isPressureBackendActive || isPrecipBackendActive;
-  const [exactPointResponse, setExactPointResponse] = useState(null);
-
-  // v6.7: Clear stale exact-point state synchronously using refs instead of render-time setState.
-  // This blocks the old state from leaking even for a single frame, preventing React hooks ordering crashes.
-  const isEuroComponentLayer = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
-  
-  // v6D.1: Detect whether a single-hour backend redirection is active.
-  const isWindBackendActive = activeLayer === 'wind' && typeof getBackendWindFlag === 'function' && getBackendWindFlag();
-  const isCopernicusBackendActive = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves', 'waves'].includes(activeLayer) && typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag();
-  const isIconMarineBackendActive = activeModel === 'ICON' && ['swell_1', 'swell_2', 'wind_waves', 'waves'].includes(activeLayer) && typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
-  const isWeatherBackendActive = activeModel === 'GFS' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer) && typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
-  
-  const isSingleHourBackendRedirection = isPressureBackendActive || isWindBackendActive || isCopernicusBackendActive || isIconMarineBackendActive || isWeatherBackendActive || isPrecipBackendActive;
 
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [settledOffset, setSettledOffset] = useState(timeOffsetHours);
@@ -87,239 +70,26 @@ export var MapForecastOverlay = ({
     return () => clearTimeout(handler);
   }, [timeOffsetHours]);
 
-  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}${isSingleHourBackendRedirection ? `_hr${settledOffset}` : ''}`;
-  const prevPointKeyRef = useRef(currentPointKey);
-  const isStale = currentPointKey !== prevPointKeyRef.current;
-
-  const effectiveExactPointResponse = isStale ? null : exactPointResponse;
-  const effectiveExactPoint = isStale ? null : exactPoint;
-  const effectiveExactPointStatus = (() => {
-    if (isStale) {
-      return (pointLat && pointLng && isExactPointRequired ? 'exact_stale_rejected' : 'idle');
-    }
-    if (exactPointStatus === 'exact_success' && effectiveExactPoint?.status) {
-      return effectiveExactPoint.status;
-    }
-    return exactPointStatus;
-  })();
-
-  // Decoupled refs to prevent high-frequency grid updates and timeline scrubbing from triggering redundant fetches
-  const marineDataRef = useRef(marineData);
-  useEffect(() => {
-    marineDataRef.current = marineData;
-  }, [marineData]);
-
-  const timeOffsetHoursRef = useRef(timeOffsetHours);
-  useEffect(() => {
-    timeOffsetHoursRef.current = timeOffsetHours;
-  }, [timeOffsetHours]);
-
-  useEffect(() => {
-    // Update the ref to currentPointKey inside the coordinate/model/layer-change useEffect
-    prevPointKeyRef.current = currentPointKey;
-
-    if (!pointLat || !pointLng || !isExactPointRequired) {
-      setExactPointResponse(null);
-      setExactPoint(null);
-      setExactPointStatus('idle');
-      return;
-    }
-
-    const isUserExplicitSelection = !!(selectedSpot || longPressLocation);
-    const hasGrid = marineDataRef.current?.grid?.vectors?.length > 0;
-
-    // v7.14.5: Startup stability gate
-    const isMapBooted = typeof window !== 'undefined' && window.__MAP_BOOTSTRAPPED__ === true;
-    const isAnyCooldownActive = typeof isInCooldown === 'function' && (isInCooldown('marine') || isInCooldown('wind') || isInCooldown('pressure'));
-
-    if (!isMapBooted || isScrubbing || isAnyCooldownActive) {
-      const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
-      if (!isCached) {
-        console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} cooldown=${isAnyCooldownActive}`);
-        setExactPointResponse(null);
-        setExactPoint(null);
-        setExactPointStatus(isAnyCooldownActive ? 'rate_limited' : 'idle');
-        return;
-      }
-    }
-
-    // v7.0: Eager default snap request mitigation
-    if (!isUserExplicitSelection && !hasGrid) {
-      setExactPointResponse(null);
-      setExactPoint(null);
-      setExactPointStatus('idle');
-      return;
-    }
-
-    // background/default snapped exact-point requests should be heavily throttled and never run while marine grid fetch is failing/cooling down
-    if (!isUserExplicitSelection && typeof isInCooldown === 'function' && isInCooldown('marine')) {
-      console.log("[Forecast] Suppressing background snap prewarm because marine fetch is cooling down/failing");
-      setExactPointResponse(null);
-      setExactPoint(null);
-      setExactPointStatus('idle');
-      return;
-    }
-
-    const isCooling = typeof isInCooldown === 'function' && isInCooldown('marine');
-    const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
-
-    if (isCooling && !isCached) {
-      console.log("[Forecast] Suppressing exact-point fetch because marine is cooling down and no cache is available.");
-      setExactPointResponse(null);
-      setExactPoint(null);
-      setExactPointStatus('rate_limited');
-      return;
-    }
-
-    setExactPointResponse(null);
-    setExactPoint(null);
-    setExactPointStatus('exact_loading');
-
-    // Debounce: cancel previous fetch
-    if (exactPointFetchRef.current) exactPointFetchRef.current.cancelled = true;
-    const token = { cancelled: false };
-    exactPointFetchRef.current = token;
-
-    const controller = new AbortController();
-    const debounceTime = isUserExplicitSelection ? 200 : 3000;
-
-    const timeoutId = setTimeout(() => {
-      if (token.cancelled) return;
-
-      const fetchTimeoutId = setTimeout(() => {
-        controller.abort();
-      }, 18000);
-
-      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, settledOffset).then(data => {
-        clearTimeout(fetchTimeoutId);
-        if (!token.cancelled) {
-          if (data) {
-            if (data.status === 'timeout') {
-              setExactPointStatus('exact_timeout');
-            } else if (data.status === 'error') {
-              setExactPointStatus('exact_backend_error');
-            } else if (data.status === 'empty') {
-              setExactPointStatus('exact_empty');
-            } else if (['copernicus_credentials_missing', 'copernicus_backend_502', 'copernicus_timeout', 'rate_limited'].includes(data.status)) {
-              setExactPointStatus(data.status);
-            } else {
-              setExactPointResponse(data);
-              setExactPointStatus('exact_success');
-            }
-          } else {
-            setExactPointStatus('exact_backend_error');
-          }
-        }
-      }).catch(err => {
-        clearTimeout(fetchTimeoutId);
-        if (!token.cancelled) {
-          if (err.name === 'AbortError') {
-            setExactPointStatus('exact_timeout');
-          } else {
-            setExactPointStatus('exact_backend_error');
-          }
-        }
-      });
-    }, debounceTime);
-
-    return () => {
-      token.cancelled = true;
-      clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [pointLat, pointLng, activeModel, activeLayer, settledOffset, isScrubbing, isExactPointRequired, currentPointKey, selectedSpot, longPressLocation]);
-
-  // v5.7.2: Select the correct hour from cached response when timeline/layer changes.
-  // This is synchronous and instant — no network request on scrub.
-  useEffect(() => {
-    if (!effectiveExactPointResponse) {
-      setExactPoint(null);
-      return;
-    }
-    const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
-    setExactPoint(selected);
-
-    // v7.14.5: Temporarily disabled proactive prewarm to eliminate background request storms
-    if (false && selected?.status === 'estimate_pending_sources' && pointLat && pointLng) {
-      const isScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline;
-      const isCooling = typeof isInCooldown === 'function' && isInCooldown('marine');
-      if (isScrubbing || isCooling) {
-        console.log(`[Forecast Overlay] Prewarm suppressed: scrubbing=${!!isScrubbing} cooldown=${!!isCooling}`);
-      } else {
-        console.log("[Forecast Overlay] Pending estimate sources. Launching background prewarm...");
-        const gfsPromise = fetchExactMarinePoint(pointLat, pointLng, 'GFS', activeLayer, null, timeOffsetHours);
-        const iconPromise = activeModel === 'EURO' ? fetchExactMarinePoint(pointLat, pointLng, 'ICON', activeLayer, null, timeOffsetHours) : Promise.resolve(null);
-        Promise.all([gfsPromise, iconPromise]).then(() => {
-          console.log("[Forecast Overlay] Background prewarms completed. Re-triggering overlay...");
-          setEstimateTrigger(prev => prev + 1);
-        });
-      }
-    }
-
-    // Enhanced diagnostic and Scrubber Truth logging
-    if (selected) {
-      const targetTs = Date.now() + (timeOffsetHours || 0) * 3600000;
-      const targetTimestamp = new Date(targetTs).toISOString();
-      const selectedTimestamp = selected.time;
-      const selectedHourIndex = selected.hourIndex;
-      const provider = selected.provider;
-      const returnedTimeRange = `${selected.timeRangeStart} to ${selected.timeRangeEnd}`;
-      
-      let sourceStr = 'exact_point_api';
-      if (selected.status === 'exact_no_time_coverage') {
-        sourceStr = 'no_coverage';
-      } else if (selected.status === 'estimate_pending_sources') {
-        sourceStr = 'estimate_pending_sources';
-      }
-
-      console.log(
-        `%c[FORECAST SCRUBUB SCRUBBER TRUTH] InfoBox Sync:\n` +
-        `  - activeModel: ${activeModel}\n` +
-        `  - activeLayer: ${activeLayer}\n` +
-        `  - marker lat/lng: ${pointLat?.toFixed(4)}, ${pointLng?.toFixed(4)}\n` +
-        `  - timeOffsetHours: ${timeOffsetHours}\n` +
-        `  - targetTimestamp: ${targetTimestamp}\n` +
-        `  - selectedTimestamp: ${selectedTimestamp}\n` +
-        `  - selectedHourIndex: ${selectedHourIndex}\n` +
-        `  - provider: ${provider}\n` +
-        `  - returned time range: ${returnedTimeRange}\n` +
-        `  - source: ${sourceStr}`,
-        'color: #22c55e; font-weight: bold;'
-      );
-
-      if (typeof window !== 'undefined') {
-        window.__MARINE_POINT_DIAG__ = {
-          point: { lat: pointLat, lng: pointLng },
-          activeModel, activeLayer, timeOffsetHours,
-          targetTimestamp,
-          requestedForecastDays: effectiveExactPointResponse.forecastDays,
-          returnedTimeRange: {
-            start: selected.timeRangeStart,
-            end: selected.timeRangeEnd
-          },
-          selectedHourIndex: selected.hourIndex,
-          selectedTimestamp: selected.time,
-          matchDiffMs: selected.matchDiffMs,
-          exactPointValues: {
-            wave_height: selected.wave_height,
-            wave_direction: selected.wave_direction,
-            wave_period: selected.wave_period,
-            swell_wave_height: selected.swell_wave_height,
-            swell_wave_direction: selected.swell_wave_direction,
-            swell_wave_period: selected.swell_wave_period,
-            secondary_swell_wave_height: selected.secondary_swell_wave_height,
-            secondary_swell_wave_direction: selected.secondary_swell_wave_direction,
-            secondary_swell_wave_period: selected.secondary_swell_wave_period,
-            wind_wave_height: selected.wind_wave_height,
-            wind_wave_direction: selected.wind_wave_direction,
-            wind_wave_period: selected.wind_wave_period,
-          },
-          source: sourceStr,
-          timestamp: new Date().toISOString()
-        };
-      }
-    }
-  }, [effectiveExactPointResponse, timeOffsetHours, activeLayer, activeModel, pointLat, pointLng, estimateTrigger]);
+  const {
+    exactPoint: effectiveExactPoint,
+    exactPointStatus: effectiveExactPointStatus,
+    exactPointResponse: effectiveExactPointResponse,
+    setExactPointStatus,
+    setExactPointResponse,
+    setEstimateTrigger
+  } = useExactPointFetch({
+    pointLat,
+    pointLng,
+    isExactPointRequired,
+    activeModel,
+    activeLayer,
+    settledOffset,
+    selectedSpot,
+    longPressLocation,
+    isScrubbing,
+    timeOffsetHours,
+    marineData
+  });
 
   const bgClass = isLight
     ? 'bg-white/90 border-gray-200'

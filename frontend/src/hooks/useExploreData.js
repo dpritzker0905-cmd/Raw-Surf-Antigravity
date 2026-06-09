@@ -25,7 +25,8 @@ const useExploreData = ({
   // Fetch batch conditions for popular spots
   const fetchSpotConditions = useCallback(async (spotIds) => {
     try {
-      const response = await apiClient.get(`/conditions/batch?spot_ids=${spotIds}`);
+      const activeModel = localStorage.getItem('rawsurf-active-model') || 'GFS';
+      const response = await apiClient.get(`/conditions/batch?spot_ids=${spotIds}&model=${activeModel}`);
       const conditionsData = response.data.conditions || {};
       const conditionsMap = {};
       Object.entries(conditionsData).forEach(([spotId, data]) => {
