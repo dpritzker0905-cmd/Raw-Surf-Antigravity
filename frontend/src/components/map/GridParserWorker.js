@@ -39,20 +39,44 @@ function parseWindGrid(raw, uVar, vVar, timeIndex) {
   var lngs = Array.isArray(lng) ? lng : [lng];
   var rows = lats.length;
   var cols = lngs.length;
+  if (rows === 0 || cols === 0) return null;
   var offset = timeIndex * rows * cols;
+
+  var latIsDescending = false;
+  if (rows > 1) {
+    latIsDescending = lats[0] > lats[rows - 1];
+  }
+
+  // Normalize longitudes to be monotonically increasing from the first column's longitude
+  var normLngs = [];
+  if (cols > 0) {
+    var baseLng = lngs[0];
+    normLngs.push(baseLng);
+    for (var i = 1; i < cols; i++) {
+      var prev = normLngs[i - 1];
+      var curr = lngs[i];
+      while (curr < prev - 180) curr += 360;
+      while (curr > prev + 180) curr -= 360;
+      normLngs.push(curr);
+    }
+  }
+
+  var minLat = Math.min(lats[0], lats[rows - 1]);
+  var maxLat = Math.max(lats[0], lats[rows - 1]);
 
   var vectors = [];
   for (var r = 0; r < rows; r++) {
+    var rawR = latIsDescending ? (rows - 1 - r) : r;
     for (var c = 0; c < cols; c++) {
-      var idx = offset + r * cols + c;
+      var idx = offset + rawR * cols + c;
       var u = uData[idx] || 0;
       var v = vData[idx] || 0;
       vectors.push({
         u: u,
         v: v,
         speed: Math.sqrt(u * u + v * v),
-        lat: lats[r],
-        lng: lngs[c],
+        lat: lats[rawR],
+        lng: normLngs[c],
       });
     }
   }
@@ -62,10 +86,10 @@ function parseWindGrid(raw, uVar, vVar, timeIndex) {
     cols: cols,
     rows: rows,
     bounds: {
-      west: lngs[0],
-      east: lngs[cols - 1],
-      south: lats[0],
-      north: lats[rows - 1],
+      west: normLngs[0],
+      east: normLngs[cols - 1],
+      south: minLat,
+      north: maxLat,
     },
   };
 }
@@ -83,12 +107,36 @@ function parseMarineGrid(raw, heightVar, dirVar, periodVar, timeIndex) {
   var lng = Array.isArray(raw.longitude) ? raw.longitude : [raw.longitude];
   var rows = lat.length;
   var cols = lng.length;
+  if (rows === 0 || cols === 0) return null;
   var offset = timeIndex * rows * cols;
+
+  var latIsDescending = false;
+  if (rows > 1) {
+    latIsDescending = lat[0] > lat[rows - 1];
+  }
+
+  // Normalize longitudes to be monotonically increasing from the first column's longitude
+  var normLngs = [];
+  if (cols > 0) {
+    var baseLng = lng[0];
+    normLngs.push(baseLng);
+    for (var i = 1; i < cols; i++) {
+      var prev = normLngs[i - 1];
+      var curr = lng[i];
+      while (curr < prev - 180) curr += 360;
+      while (curr > prev + 180) curr -= 360;
+      normLngs.push(curr);
+    }
+  }
+
+  var minLat = Math.min(lat[0], lat[rows - 1]);
+  var maxLat = Math.max(lat[0], lat[rows - 1]);
 
   var vectors = [];
   for (var r = 0; r < rows; r++) {
+    var rawR = latIsDescending ? (rows - 1 - r) : r;
     for (var c = 0; c < cols; c++) {
-      var idx = offset + r * cols + c;
+      var idx = offset + rawR * cols + c;
       var h = heights[idx] || 0;
       var dir = dirs ? (dirs[idx] || 0) : 0;
       var period = periods ? (periods[idx] || 0) : 0;
@@ -99,8 +147,8 @@ function parseMarineGrid(raw, heightVar, dirVar, periodVar, timeIndex) {
         speed: h,
         direction: dir,
         period: period,
-        lat: lat[r],
-        lng: lng[c],
+        lat: lat[rawR],
+        lng: normLngs[c],
       });
     }
   }
@@ -110,10 +158,10 @@ function parseMarineGrid(raw, heightVar, dirVar, periodVar, timeIndex) {
     cols: cols,
     rows: rows,
     bounds: {
-      west: lng[0],
-      east: lng[cols - 1],
-      south: lat[0],
-      north: lat[rows - 1],
+      west: normLngs[0],
+      east: normLngs[cols - 1],
+      south: minLat,
+      north: maxLat,
     },
   };
 }
@@ -162,6 +210,14 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
     return { lowSystems: [], highSystems: [] };
   }
 
+  // Extract bounds from pressures if available, to align interpolation grid with data coordinates.
+  // Falls back to bounds argument if pressures data is missing coordinates.
+  var south = (pressures && pressures.length > 0 && pressures[0].lat !== undefined) ? pressures[0].lat : bounds.south;
+  var north = (pressures && pressures.length > 0 && pressures[pressures.length - 1].lat !== undefined) ? pressures[pressures.length - 1].lat : bounds.north;
+  var west = (pressures && pressures.length > 0 && pressures[0].lng !== undefined) ? pressures[0].lng : bounds.west;
+  var east = (pressures && pressures.length > 0 && pressures[pressures.length - 1].lng !== undefined) ? pressures[pressures.length - 1].lng : bounds.east;
+  var isGlobalLng = Math.abs(east - west) >= 350;
+
   // Step 1: Reshape 1D flat array into 2D coarse grid
   var coarseMatrix = [];
   for (var y = 0; y < coarseRows; y++) {
@@ -185,7 +241,14 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
     for (var dx = 0; dx < denseCols; dx++) {
       var cx = (dx / (denseCols - 1)) * (coarseCols - 1);
       var x0 = Math.floor(cx);
-      var x1 = Math.min(coarseCols - 1, x0 + 1);
+      var x1 = x0 + 1;
+      if (isGlobalLng) {
+        if (x1 >= coarseCols) {
+          x1 = x1 % coarseCols;
+        }
+      } else {
+        x1 = Math.min(coarseCols - 1, x1);
+      }
       var tx = cx - x0;
 
       var v00 = coarseMatrix[y0][x0];
@@ -201,11 +264,6 @@ function calculatePressureExtrema(pressures, coarseRows, coarseCols, bounds, tim
   }
 
   // Step 3: Basin-Aware Normalization
-  var south = bounds.south;
-  var north = bounds.north;
-  var west = bounds.west;
-  var east = bounds.east;
-  var isGlobalLng = Math.abs(east - west) >= 350;
 
   var basinPressures = {
     'Eurasia': [],

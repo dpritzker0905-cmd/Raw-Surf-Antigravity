@@ -65,7 +65,13 @@ void main() {
   float lat = mercatorYToLat(pos.y);
 
   // Map to local texture coordinate of u_waveTexture and u_oceanMaskTexture
-  float tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  float tex_u;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / span;
+  } else {
+    tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  }
   float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
@@ -100,7 +106,13 @@ void main() {
   // Check land / oob for next position
   float next_lng = nextPos.x * 360.0 - 180.0;
   float next_lat = mercatorYToLat(nextPos.y);
-  float next_tex_u = (next_lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  float next_tex_u;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    next_tex_u = mod(next_lng - u_dataBounds_min.x, 360.0) / span;
+  } else {
+    next_tex_u = (next_lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  }
   float next_tex_v = (next_lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
   
   float next_mask_v = (mercMaxY - nextPos.y) / (mercMaxY - mercMinY);
@@ -211,7 +223,13 @@ void main() {
   float lng = pos.x * 360.0 - 180.0;
   float lat = mercatorYToLat(pos.y);
 
-  float tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  float tex_u;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / span;
+  } else {
+    tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  }
   float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
@@ -547,7 +565,16 @@ float latToMercatorY(float lat) {
 void main() {
   v_grid_uv = a_grid_uv;
   
-  float lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
+  float lng;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    lng = u_dataBounds_min.x + a_grid_uv.x * span;
+    if (lng > 180.0) {
+      lng -= 360.0;
+    }
+  } else {
+    lng = mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
+  }
   lng += u_lng_offset;
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
   lat = clamp(lat, -85.051129, 85.051129);

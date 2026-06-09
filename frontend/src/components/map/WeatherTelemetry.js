@@ -59,7 +59,92 @@ class WeatherTelemetryEngine {
     // FPS Monitor loop
     if (typeof window !== 'undefined') {
       this.initFpsMonitor();
+      this.initConsoleInterceptors();
     }
+  }
+
+  initConsoleInterceptors() {
+    if (typeof window === 'undefined') return;
+
+    const targetPrefixes = [
+      '[WebGLMarine',
+      '[Backend Weather Service]',
+      '[Backend Precipitation Service]',
+      '[Backend Pressure Service]',
+      '[MapWebGL]',
+      '[ExactPoint]',
+      '[Safe Cache]',
+      '[Fallback]',
+      '[CopernicusGrid]',
+      '[WebGLGuardrail]',
+      '[TRANSITION]',
+      '[WebGLOverlay]',
+      '[WebGLMarine-Validate]'
+    ];
+
+    const originalWarn = console.warn;
+    console.warn = (...args) => {
+      originalWarn.apply(console, args);
+      try {
+        const msg = args.join(' ');
+        if (targetPrefixes.some(prefix => msg.includes(prefix))) {
+          this.emit('model_warning', {
+            model: this.activeModel,
+            warningType: 'console_warn',
+            message: msg
+          });
+        }
+      } catch (e) {}
+    };
+
+    const originalError = console.error;
+    console.error = (...args) => {
+      originalError.apply(console, args);
+      try {
+        const msg = args.join(' ');
+        if (targetPrefixes.some(prefix => msg.includes(prefix))) {
+          this.emit('model_error', {
+            model: this.activeModel,
+            errorType: 'console_error',
+            message: msg
+          });
+        }
+      } catch (e) {}
+    };
+
+    const originalLog = console.log;
+    console.log = (...args) => {
+      originalLog.apply(console, args);
+      try {
+        const msg = args.join(' ');
+        if (typeof args[0] === 'string' && args[0].includes('[WebGLMarineEngine] setWaveData result:') && args[1] && args[1].hasData === false) {
+          this.emit('texture_encoding_failed', {
+            model: this.activeModel,
+            layer: this.activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
+            hourOffset: this.timeOffsetHours,
+            error: 'Texture encoding returned null waveData'
+          });
+        } else if (msg.includes('[WebGLMarine-Validate]')) {
+          this.emit('model_warning', {
+            model: this.activeModel,
+            warningType: 'validation_mismatch',
+            message: msg
+          });
+        } else if (msg.includes('[WebGLMarineEngine] render returned early')) {
+          this.emit('model_warning', {
+            model: this.activeModel,
+            warningType: 'render_early_return',
+            message: msg
+          });
+        } else if (msg.includes('[Fallback]')) {
+          this.emit('model_warning', {
+            model: this.activeModel,
+            warningType: 'fallback_active',
+            message: msg
+          });
+        }
+      } catch (e) {}
+    };
   }
 
   // Event dispatching system
@@ -92,7 +177,14 @@ class WeatherTelemetryEngine {
     });
 
     // Special handlers for specific events
-    if (eventType === 'tile_failed' || eventType === 'render_failed' || eventType === 'particle_engine_failed') {
+    if (
+      eventType === 'tile_failed' || 
+      eventType === 'render_failed' || 
+      eventType === 'particle_engine_failed' ||
+      eventType === 'model_warning' ||
+      eventType === 'model_error' ||
+      eventType === 'texture_encoding_failed'
+    ) {
       this.archiveFailure(event);
     }
   }
@@ -200,6 +292,22 @@ class WeatherTelemetryEngine {
 
   trackModelSwitch(modelName) {
     this.emit('model_switch', { model: modelName });
+  }
+
+  trackModelWarning(modelName, warningType, details) {
+    this.emit('model_warning', { model: modelName, warningType, details });
+  }
+
+  trackModelError(modelName, errorType, details) {
+    this.emit('model_error', { model: modelName, errorType, details });
+  }
+
+  trackTextureGeneration(modelName, layerId, hourOffset, stats) {
+    this.emit('texture_generated', { model: modelName, layer: layerId, hourOffset, ...stats });
+  }
+
+  trackTextureEncodingError(modelName, layerId, hourOffset, error) {
+    this.emit('texture_encoding_failed', { model: modelName, layer: layerId, hourOffset, error });
   }
 
   trackLayerAttach(layerId) {

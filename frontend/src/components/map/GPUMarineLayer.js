@@ -10,6 +10,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
+import { wrapLongitude, wrapLngRelative, getCenterLng, isLngInBounds } from './mapUtils';
 
 // --- SINGLETON REGISTRY ---
 var ACTIVE_MARINE_ENGINES = new Set();
@@ -43,12 +44,12 @@ function noise2D(x, y) {
 function isWithinGridBounds(lat, lng, grid) {
   if (!grid?.vectors?.length || !grid.bounds) return false;
   const { west, south, east, north } = grid.bounds;
-  const center = (west + east) / 2;
-  let gLng = lng;
-  while (gLng - center > 180) gLng -= 360;
-  while (gLng - center < -180) gLng += 360;
+  const center = getCenterLng(west, east);
+  const wLng = wrapLngRelative(lng, center);
+  const wWest = wrapLngRelative(west, center);
+  const wEast = wrapLngRelative(east, center);
   const qLat = Math.max(south, Math.min(north, lat));
-  return !(gLng < west || gLng > east || qLat < south || qLat > north);
+  return !(wLng < wWest || wLng > wEast || qLat < south || qLat > north);
 }
 
 /**
@@ -66,15 +67,15 @@ function interpolateMarine(grid, lng, lat) {
   const { west, south, east, north } = bounds;
 
   // Wrap query longitude to grid bounds coordinate space
-  const center = (west + east) / 2;
-  let gLng = lng;
-  while (gLng - center > 180) gLng -= 360;
-  while (gLng - center < -180) gLng += 360;
+  const center = getCenterLng(west, east);
+  const wLng = wrapLngRelative(lng, center);
+  const wWest = wrapLngRelative(west, center);
+  const wEast = wrapLngRelative(east, center);
 
   // Clamp query latitude to grid latitude bounds (fixes Polar/Arctic particle absence)
   const qLat = Math.max(south, Math.min(north, lat));
 
-  const gx = Math.max(0, Math.min(cols - 1, ((gLng - west) / (east - west)) * (cols - 1)));
+  const gx = Math.max(0, Math.min(cols - 1, ((wLng - wWest) / (wEast - wWest)) * (cols - 1)));
   const gy = Math.max(0, Math.min(rows - 1, ((qLat - south) / (north - south)) * (rows - 1)));
   const xi = Math.max(0, Math.min(cols - 2, Math.floor(gx)));
   const yi = Math.max(0, Math.min(rows - 2, Math.floor(gy)));
@@ -115,21 +116,21 @@ function isLikelyOcean(lat, lng, grid) {
   const { west, south, east, north } = bounds;
 
   // Wrap query longitude to grid bounds coordinate space
-  const center = (west + east) / 2;
-  let gLng = lng;
-  while (gLng - center > 180) gLng -= 360;
-  while (gLng - center < -180) gLng += 360;
+  const center = getCenterLng(west, east);
+  const wLng = wrapLngRelative(lng, center);
+  const wWest = wrapLngRelative(west, center);
+  const wEast = wrapLngRelative(east, center);
 
   // Clamp query latitude to grid latitude bounds (fixes Polar/Arctic particle absence)
   const qLat = Math.max(south, Math.min(north, lat));
 
   // Since grid bounds are continuous, check directly against the wrapped gLng
-  if (gLng < west || gLng > east || qLat < south || qLat > north) {
+  if (wLng < wWest || wLng > wEast || qLat < south || qLat > north) {
     return false;
   }
 
   // Nearest-neighbour cell lookup using grid bounds coordinate space
-  const gx = Math.round(((gLng - west) / (east - west)) * (cols - 1));
+  const gx = Math.round(((wLng - wWest) / (wEast - wWest)) * (cols - 1));
   const gy = Math.round(((qLat - south) / (north - south)) * (rows - 1));
   
   if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return false;
@@ -141,24 +142,12 @@ function isLikelyOcean(lat, lng, grid) {
   return typeof cell.speed === 'number' && cell.speed > 0 && Number.isFinite(cell.speed);
 }
 
-
-
-/**
- * Checks if a longitude is within bounding box, accounting for Antimeridian wrap-around.
- */
-function isLngInBounds(lng, w, e) {
-  return w <= e ? (lng >= w && lng <= e) : (lng >= w || lng <= e);
-}
-
 /**
  * Wraps a longitude relative to the map's current center longitude to ensure it maps
  * correctly in the viewport's continuous rendering space (fixes the Pacific Ocean split).
  */
 function getRenderLng(lng, centerLng) {
-  let rLng = lng;
-  while (rLng - centerLng > 180) rLng -= 360;
-  while (rLng - centerLng < -180) rLng += 360;
-  return rLng;
+  return wrapLngRelative(lng, centerLng);
 }
 
 /**
@@ -224,9 +213,7 @@ function checkIsLand(lat, lng, mapInstance, grid) {
   if (mapInstance && typeof window !== 'undefined') {
     try {
       const centerLng = mapInstance.getCenter().lng;
-      let rLng = lng;
-      while (rLng - centerLng > 180) rLng -= 360;
-      while (rLng - centerLng < -180) rLng += 360;
+      const rLng = wrapLngRelative(lng, centerLng);
       
       const pt = mapInstance.project([rLng, lat]);
       if (pt && pt.x >= 0 && pt.y >= 0) {
@@ -339,10 +326,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
       if (lngWidth < 0) lngWidth += 360;
 
       for (let attempt = 0; attempt < 12; attempt++) {
-        let lng = west + Math.random() * lngWidth;
-        while (lng > 180) lng -= 360;
-        while (lng < -180) lng += 360;
-
+        const lng = wrapLongitude(west + Math.random() * lngWidth);
         const lat = south + Math.random() * (north - south);
         
         // 1. Strict Land Mask Check before wave checks
@@ -358,10 +342,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const zoomScale = Math.max(0.3, Math.min(1.5, zoom / 6));
         // v3.17: Jitter must cover full grid cell (GFS 0.25°) to eliminate grid-aligned clustering
         const jitter = 0.25;
-        let jLng = lng + (Math.random() - 0.5) * jitter;
+        const jLng = wrapLongitude(lng + (Math.random() - 0.5) * jitter);
         const jLat = lat + (Math.random() - 0.5) * jitter;
-        while (jLng > 180) jLng -= 360;
-        while (jLng < -180) jLng += 360;
 
         return {
           lng: jLng, lat: jLat,
@@ -374,9 +356,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         };
       }
       // Fallback particle: assign phase=999 to guarantee it will never be rendered
-      let fallLng = west + Math.random() * lngWidth;
-      while (fallLng > 180) fallLng -= 360;
-      while (fallLng < -180) fallLng += 360;
+      const fallLng = wrapLongitude(west + Math.random() * lngWidth);
       return { lng: fallLng, lat: south + Math.random() * (north - south), age: preAge ? Math.random() * 0.2 : 0, maxAge: 0.2, dashLen: 3, phase: 999, energy: 0, noiseSeed: Math.random() * 100 };
     };
 
@@ -460,9 +440,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         // Clamp & wrap
         if (isNaN(p.lat) || isNaN(p.lng)) { pts[i] = spawn(); continue; }
 
-        p.lat = Math.max(-85, Math.min(85, p.lat));
-        while (p.lng > 180) p.lng -= 360;
-        while (p.lng < -180) p.lng += 360;
+        p.lng = wrapLongitude(p.lng);
 
         // Post-advection land kill: catch particles that drifted across coastlines during advection.
         // Uses precise, highly optimized land-checking which combines fast grid checks and MapLibre.
@@ -475,7 +453,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
         const rLng = getRenderLng(p.lng, centerLng);
 
         // Respawn if too old or drifted completely out of the viewport
-        const inView = (be - bw >= 360) || (bw <= be ? (rLng >= bw && rLng <= be) : (rLng >= bw || rLng <= be));
+        const inView = (be - bw >= 360) || isLngInBounds(rLng, bw, be);
         if (p.age > p.maxAge || !inView || p.lat < bs || p.lat > bn) {
           pts[i] = spawn();
           continue;

@@ -34,8 +34,17 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
           if (safeUploadRef?.current) {
             safeUploadRef.current('initial_onAdd', _gl, dataRef.current, landGeoJSONRef.current);
           } else {
-            window.__WEBGL_MARINE_UPLOAD_REASON__ = 'initial_onAdd';
-            engine.setWaveData(_gl, dataRef.current, landGeoJSONRef.current);
+            try {
+              window.__WEBGL_MARINE_UPLOAD_REASON__ = 'initial_onAdd';
+              engine.setWaveData(_gl, dataRef.current, landGeoJSONRef.current);
+            } catch (err) {
+              console.error('[WebGLMarine] Texture encoding failed:', err.message);
+              if (window.__WEATHER_TELEMETRY__) {
+                const gridModel = dataRef.current?.__sourceModel || 'GFS';
+                const activeMarineLayer = 'waves';
+                window.__WEATHER_TELEMETRY__.trackTextureEncodingError(gridModel, activeMarineLayer, 0, err.message);
+              }
+            }
           }
         }
       } catch (e) {
@@ -342,7 +351,17 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     const uploadStart = Date.now();
     engine._dispatcherActive = false;
-    engine.setWaveData(gl, grid, geojson);
+    try {
+      engine.setWaveData(gl, grid, geojson);
+    } catch (err) {
+      console.error('[WebGLMarine] Texture encoding failed:', err.message);
+      if (window.__WEATHER_TELEMETRY__) {
+        window.__WEATHER_TELEMETRY__.trackTextureEncodingError(gridModel, activeMarineLayer, requestedHour, err.message);
+      }
+      lastUploadedSignatureRef.current = '';
+      runDiagnosticsUpdate('upload_failed');
+      return;
+    }
     const uploadElapsed = Date.now() - uploadStart;
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
@@ -430,9 +449,19 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
               if (safeUploadRef.current) {
                 safeUploadRef.current('land_mask_upgrade', gl, dataRef.current, geojson);
               } else {
-                window.__WEBGL_MARINE_UPLOAD_REASON__ = 'land_mask_upgrade';
-                engine._dispatcherActive = false;
-                engine.setWaveData(gl, dataRef.current, geojson);
+                try {
+                  window.__WEBGL_MARINE_UPLOAD_REASON__ = 'land_mask_upgrade';
+                  engine._dispatcherActive = false;
+                  engine.setWaveData(gl, dataRef.current, geojson);
+                } catch (err) {
+                  console.error('[WebGLMarine] Texture encoding failed:', err.message);
+                  if (window.__WEATHER_TELEMETRY__) {
+                    const gridModel = dataRef.current?.__sourceModel || activeModelRef.current;
+                    const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
+                    const requestedHour = timeOffsetHoursRef.current;
+                    window.__WEATHER_TELEMETRY__.trackTextureEncodingError(gridModel, activeMarineLayer, requestedHour, err.message);
+                  }
+                }
               }
               if (mapInstance) mapInstance.triggerRepaint();
             }
@@ -613,20 +642,20 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (gridModel !== activeModelRef.current) isValid = false;
     if (isValid) {
       if (isGfsOrIcon) {
-        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service') {
+        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated') {
           isValid = false;
-        } else if (gridProvider === 'backend-weather-service' && componentLayer !== activeMarineLayer) {
+        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated') && componentLayer !== activeMarineLayer) {
           isValid = false;
         }
       } else if (isEuro) {
         if (isWaves) {
-          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && gridProvider !== 'open-meteo') {
+          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && gridProvider !== 'open-meteo' && gridProvider !== 'estimated') {
             isValid = false;
           } else if (gridProvider !== 'open-meteo' && componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         } else {
-          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service'];
+          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated'];
           if (!validEuroComponentProviders.includes(gridProvider)) {
             isValid = false;
           } else if (componentLayer !== activeMarineLayer) {
@@ -638,7 +667,15 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (!isValid) {
       console.log(`[WebGLMarine-Validate] Grid mismatch: model=${gridModel} vs ${activeModelRef.current}`);
+      engine.clearBuffers(gl);
+      lastUploadedSignatureRef.current = '';
+      lastUploadedGridRef.current = {
+        activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
+        boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
+        sampleSum: 0, timestamp: 0, timeOffsetHours: 0
+      };
       runDiagnosticsUpdate(`intent_mismatch: model=${gridModel}`);
+      if (mapInstance) mapInstance.triggerRepaint();
       return;
     }
 

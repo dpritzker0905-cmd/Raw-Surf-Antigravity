@@ -243,18 +243,29 @@ class WeatherNormalizer:
 
         # Build full rectangular grid
         vectors = []
+        crosses_antimeridian = west > east
         for lat in unique_lats:
             for lng in unique_lons:
+                # Wrap longitude to standard range [-180, 180]
+                lng_wrapped = lng - 360.0 if lng > 180.0 else (lng + 360.0 if lng < -180.0 else lng)
+                lng_wrapped = round(lng_wrapped, 4)
+
                 if (lat, lng) in grid_data:
-                    vectors.append(grid_data[(lat, lng)])
+                    vec = grid_data[(lat, lng)]
+                    vec.lng = lng_wrapped
+                    vectors.append(vec)
                 else:
                     # Explicit ocean-masked vector for missing cells
                     vectors.append(GridVector(
-                        lat=lat, lng=lng, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None, is_valid=False
+                        lat=lat, lng=lng_wrapped, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0, gust=None, value=None, is_valid=False
                     ))
 
         # Sort vectors in stable row-major order (south-to-north, west-to-east)
-        vectors.sort(key=lambda v: (v.lat, v.lng))
+        if crosses_antimeridian:
+            # Sort with antimeridian-aware key: points >= west first, then points < west
+            vectors.sort(key=lambda v: (v.lat, 0 if v.lng >= west else 1, v.lng))
+        else:
+            vectors.sort(key=lambda v: (v.lat, v.lng))
 
         nonzero_count = sum(1 for v in vectors if v.speed > 0.0)
         expected_cell_count = cols * rows

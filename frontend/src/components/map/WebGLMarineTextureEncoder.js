@@ -1,8 +1,4 @@
-/**
- * WebGLMarineTextureEncoder.js
- * High-fidelity GPU texture encoding, coordinate projection, shoreline GFS extrapolation,
- * and distance transform calculations for the WebGLMarineEngine.
- */
+import { getCenterLng, wrapLngRelative, wrapLongitude } from './mapUtils';
 
 // --- WebGL Shader and Program Creation Utilities ---
 
@@ -102,13 +98,13 @@ export function safeDeleteTexture(gl, tex, engine) {
 
 export function extrapolateOceanData(vectors, cols, rows) {
   for (let pass = 0; pass < 2; pass++) {
-    const nextVectors = vectors.map(v => ({ ...v }));
+    const nextVectors = vectors.map(v => (v ? { ...v } : null));
     let changes = 0;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const idx = r * cols + c;
-        if (vectors[idx].isOcean) continue;
+        if (!vectors[idx] || vectors[idx].isOcean) continue;
 
         let sumU = 0, sumV = 0, sumSpeed = 0, sumHeight = 0;
         let sumPeriod = 0, sumSwellHeight = 0;
@@ -127,11 +123,11 @@ export function extrapolateOceanData(vectors, cols, rows) {
 
             const nIdx = nr * cols + nc;
             const neighbor = vectors[nIdx];
-            if (neighbor.isOcean) {
-              sumU += neighbor.u;
-              sumV += neighbor.v;
-              sumSpeed += neighbor.speed;
-              sumHeight += neighbor.height;
+            if (neighbor && neighbor.isOcean) {
+              sumU += neighbor.u || 0;
+              sumV += neighbor.v || 0;
+              sumSpeed += neighbor.speed || 0;
+              sumHeight += neighbor.height || 0;
               sumPeriod += neighbor.period || 0;
               sumSwellHeight += neighbor.swellHeight || 0;
 
@@ -150,21 +146,23 @@ export function extrapolateOceanData(vectors, cols, rows) {
 
         if (count > 0) {
           const target = nextVectors[idx];
-          target.u = sumU / count;
-          target.v = sumV / count;
-          target.speed = sumSpeed / count;
-          target.height = sumHeight / count;
-          target.period = sumPeriod / count;
-          target.swellHeight = sumSwellHeight / count;
-          
-          const avgDir = Math.atan2(sumSin / count, sumCos / count) * (180 / Math.PI);
-          target.direction = (avgDir + 360) % 360;
+          if (target) {
+            target.u = sumU / count;
+            target.v = sumV / count;
+            target.speed = sumSpeed / count;
+            target.height = sumHeight / count;
+            target.period = sumPeriod / count;
+            target.swellHeight = sumSwellHeight / count;
+            
+            const avgDir = Math.atan2(sumSin / count, sumCos / count) * (180 / Math.PI);
+            target.direction = (avgDir + 360) % 360;
 
-          const avgSwellDir = Math.atan2(sumSwellSin / count, sumSwellCos / count) * (180 / Math.PI);
-          target.swellDir = (avgSwellDir + 360) % 360;
+            const avgSwellDir = Math.atan2(sumSwellSin / count, sumSwellCos / count) * (180 / Math.PI);
+            target.swellDir = (avgSwellDir + 360) % 360;
 
-          target.isOcean = true;
-          changes++;
+            target.isOcean = true;
+            changes++;
+          }
         }
       }
     }
@@ -175,12 +173,12 @@ export function extrapolateOceanData(vectors, cols, rows) {
       const idx0 = r * cols + 0;
       const idxN = r * cols + cols - 1;
       
-      if (nextVectors[idx0].isOcean || nextVectors[idxN].isOcean) {
-        const avgSpeed = (nextVectors[idx0].speed + nextVectors[idxN].speed) * 0.5;
-        const avgHeight = (nextVectors[idx0].height + nextVectors[idxN].height) * 0.5;
+      if (nextVectors[idx0] && nextVectors[idxN] && (nextVectors[idx0].isOcean || nextVectors[idxN].isOcean)) {
+        const avgSpeed = ((nextVectors[idx0].speed || 0) + (nextVectors[idxN].speed || 0)) * 0.5;
+        const avgHeight = ((nextVectors[idx0].height || 0) + (nextVectors[idxN].height || 0)) * 0.5;
         const avgPeriod = ((nextVectors[idx0].period || 0) + (nextVectors[idxN].period || 0)) * 0.5;
-        const avgU = (nextVectors[idx0].u + nextVectors[idxN].u) * 0.5;
-        const avgV = (nextVectors[idx0].v + nextVectors[idxN].v) * 0.5;
+        const avgU = ((nextVectors[idx0].u || 0) + (nextVectors[idxN].u || 0)) * 0.5;
+        const avgV = ((nextVectors[idx0].v || 0) + (nextVectors[idxN].v || 0)) * 0.5;
         
         const dir0Rad = (nextVectors[idx0].direction || 0) * (Math.PI / 180);
         const dirNRad = (nextVectors[idxN].direction || 0) * (Math.PI / 180);
@@ -198,7 +196,17 @@ export function extrapolateOceanData(vectors, cols, rows) {
     }
 
     for (let i = 0; i < vectors.length; i++) {
-      vectors[i] = nextVectors[i];
+      if (vectors[i] && nextVectors[i]) {
+        vectors[i].u = nextVectors[i].u;
+        vectors[i].v = nextVectors[i].v;
+        vectors[i].speed = nextVectors[i].speed;
+        vectors[i].height = nextVectors[i].height;
+        vectors[i].period = nextVectors[i].period;
+        vectors[i].swellHeight = nextVectors[i].swellHeight;
+        vectors[i].direction = nextVectors[i].direction;
+        vectors[i].swellDir = nextVectors[i].swellDir;
+        vectors[i].isOcean = nextVectors[i].isOcean;
+      }
     }
   }
 }
@@ -231,12 +239,13 @@ export function renderMaskToCanvas(geojson, bounds) {
     const rad = latClamped * Math.PI / 180;
     return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
   };
-  const lngToMercatorX = (l) => {
-    return (l + 180.0) / 360.0;
-  };
 
-  const mercMinX = lngToMercatorX(west);
-  const mercMaxX = lngToMercatorX(east);
+  const center = getCenterLng(west, east);
+  const wrappedWest = wrapLngRelative(west, center);
+  const wrappedEast = wrapLngRelative(east, center);
+
+  const mercMinX = (wrappedWest + 180.0) / 360.0;
+  const mercMaxX = (wrappedEast + 180.0) / 360.0;
   const mercMinY = latToMercatorY(north); // North maps to smaller Mercator Y
   const mercMaxY = latToMercatorY(south); // South maps to larger Mercator Y
   
@@ -244,14 +253,8 @@ export function renderMaskToCanvas(geojson, bounds) {
   const mercYSpan = mercMaxY - mercMinY;
   
   function project(lng, lat) {
-    let projectedLng = lng;
-    if (west >= -180 && east <= 180) {
-      projectedLng = lng;
-    } else {
-      if (lng < west) projectedLng += 360;
-      if (lng > east) projectedLng -= 360;
-    }
-    const mx = lngToMercatorX(projectedLng);
+    const projectedLng = wrapLngRelative(lng, center);
+    const mx = (projectedLng + 180.0) / 360.0;
     const my = latToMercatorY(lat);
     
     // Normalize and scale to canvas dimensions
@@ -299,6 +302,19 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
 
   // Conform vectors to flat representation
   const conformedVectors = vectors.map(v => {
+    if (!v) {
+      return {
+        lat: 0,
+        lng: 0,
+        u: 0,
+        v: 0,
+        speed: 0,
+        period: 0,
+        height: 0,
+        direction: 0,
+        isOcean: false
+      };
+    }
     // Check if it's already conformed/flat or if we need to pull from the nested activeLayer key
     const sub = v[activeLayer] || {};
     
@@ -316,8 +332,8 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     const isOcean = v.isOcean !== undefined ? v.isOcean : true;
     
     return {
-      lat: v.lat,
-      lng: v.lng,
+      lat: v.lat || 0,
+      lng: v.lng || 0,
       u,
       v: v_val,
       speed,
@@ -353,11 +369,13 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   const dataMask = new Uint8Array(cols * rows * 4);
 
   const grid = new Uint8Array(cols * rows);
-  for (let i = 0; i < conformedVectors.length; i++) {
+  const numGridToProcess = Math.min(conformedVectors.length, cols * rows);
+  for (let i = 0; i < numGridToProcess; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const gfsIdx = row * cols + col;
     const v = conformedVectors[gfsIdx];
+    if (!v) continue;
     const isLand = v.isOcean === false || v.isOcean === 0;
     const isOcean = !isLand && (v.isOcean === true || v.isOcean === 1 || v.speed > 0.001 || v.u !== 0 || v.v !== 0);
     grid[i] = isOcean ? 1 : 0;
@@ -430,18 +448,25 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     return a * (1 - ux) * (1 - uy) + b * ux * (1 - uy) + c * (1 - ux) * uy + d * ux * uy;
   }
 
-  for (let i = 0; i < extVectors.length; i++) {
+  const centerLng = getCenterLng(bounds.west, bounds.east);
+  const wrappedWestLng = wrapLngRelative(bounds.west, centerLng);
+  const wrappedEastLng = wrapLngRelative(bounds.east, centerLng);
+  const lngSpan = wrappedEastLng - wrappedWestLng;
+
+  const numVectorsToProcess = Math.min(extVectors.length, cols * rows);
+  for (let i = 0; i < numVectorsToProcess; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const gfsIdx = row * cols + col;
     const v = extVectors[gfsIdx];
+    if (!v) continue;
 
-    const lng = bounds.west + (col / (cols - 1)) * (bounds.east - bounds.west);
+    const lng = wrapLongitude(wrappedWestLng + (col / (cols - 1)) * lngSpan);
     const lat = bounds.south + (row / (rows - 1)) * (bounds.north - bounds.south);
 
-    let speed = v.speed;
-    let u = v.u;
-    let v_y = v.v;
+    let speed = v.speed || 0;
+    let u = v.u || 0;
+    let v_y = v.v || 0;
     // v4.0: Encode direction as unit vector (RG channels) for full ±1.0 precision.
     // Height is stored separately in B channel. Previously divided by 10.0 which
     // crushed the directional signal to ±0.17 for typical 1-2m waves.
@@ -518,8 +543,8 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     dataChl[i * 4 + 3] = 255;
 
     const origV = vectors[gfsIdx];
-    const isLand = origV.isOcean === false || origV.isOcean === 0;
-    const isOcean = !isLand && (origV.isOcean === true || origV.isOcean === 1 || origV.speed > 0.001 || origV.u !== 0 || origV.v !== 0);
+    const isLand = origV ? (origV.isOcean === false || origV.isOcean === 0) : true;
+    const isOcean = origV ? (!isLand && (origV.isOcean === true || origV.isOcean === 1 || origV.speed > 0.001 || origV.u !== 0 || origV.v !== 0)) : false;
     const oceanFlag = isOcean ? 255 : 0;
     dataMask[i * 4 + 0] = oceanFlag;
     dataMask[i * 4 + 1] = oceanFlag;

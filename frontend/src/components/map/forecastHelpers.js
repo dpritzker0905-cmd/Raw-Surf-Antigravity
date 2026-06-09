@@ -4,6 +4,7 @@
  */
 
 import { isGridLayerSupported } from './marineControllerUtils';
+import { wrapLngRelative, getCenterLng } from './mapUtils';
 
 export var mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
 
@@ -104,11 +105,21 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   if (matchingTiles.length === 0) return null;
   
   let bestTile = null;
+  let wrappedLngForTile = lng;
+  let wrappedWestForTile = 0;
+  let wrappedEastForTile = 0;
   for (const tile of matchingTiles) {
     if (!tile.bounds || tile.bounds.length !== 4) continue;
     const [tWest, tSouth, tEast, tNorth] = tile.bounds;
-    if (lng >= tWest && lng <= tEast && lat >= tSouth && lat <= tNorth) {
+    const center = getCenterLng(tWest, tEast);
+    const wLng = wrapLngRelative(lng, center);
+    const wWest = wrapLngRelative(tWest, center);
+    const wEast = wrapLngRelative(tEast, center);
+    if (wLng >= wWest && wLng <= wEast && lat >= tSouth && lat <= tNorth) {
       bestTile = tile;
+      wrappedLngForTile = wLng;
+      wrappedWestForTile = wWest;
+      wrappedEastForTile = wEast;
       break;
     }
   }
@@ -120,14 +131,14 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   if (!bestTile || !bestTile.values || !bestTile.values.length) return null;
   
   const [tWest, tSouth, tEast, tNorth] = bestTile.bounds;
-  const tLngSpan = tEast - tWest;
+  const tLngSpan = wrappedEastForTile - wrappedWestForTile;
   const tLatSpan = tNorth - tSouth;
   
   const tileCols = bestTile.nx || Math.sqrt(bestTile.values.length);
   const tileRows = bestTile.ny || Math.sqrt(bestTile.values.length);
   if (!tileCols || isNaN(tileCols)) return null;
   
-  const tx = Math.max(0, Math.min(tileCols - 1, ((lng - tWest) / tLngSpan) * (tileCols - 1)));
+  const tx = Math.max(0, Math.min(tileCols - 1, ((wrappedLngForTile - wrappedWestForTile) / tLngSpan) * (tileCols - 1)));
   const ty = Math.max(0, Math.min(tileRows - 1, (1.0 - (lat - tSouth) / tLatSpan) * (tileRows - 1)));
   
   const x0 = Math.floor(tx);
@@ -276,15 +287,17 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
   }
 
   const { west, south, east, north } = grid.bounds;
-  const lngSpan = east - west;
   const latSpan = north - south;
-
-  let normLng = lng;
-  if (normLng < west) normLng += 360;
-  if (normLng > east) normLng -= 360;
-  if (normLng < west || normLng > east || lat < south || lat > north) return null;
-
-  const fx = ((normLng - west) / lngSpan) * (grid.cols - 1);
+ 
+  const center = getCenterLng(west, east);
+  const wrappedWest = wrapLngRelative(west, center);
+  const wrappedEast = wrapLngRelative(east, center);
+  const lngSpan = wrappedEast - wrappedWest;
+ 
+  const normLng = wrapLngRelative(lng, center);
+  if (normLng < wrappedWest || normLng > wrappedEast || lat < south || lat > north) return null;
+ 
+  const fx = ((normLng - wrappedWest) / lngSpan) * (grid.cols - 1);
   const fy = ((lat - south) / latSpan) * (grid.rows - 1);
 
   const x0 = Math.floor(fx);

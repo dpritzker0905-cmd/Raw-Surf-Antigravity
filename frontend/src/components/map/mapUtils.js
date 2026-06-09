@@ -81,17 +81,69 @@ export var truncateCoord = function(coord) {
   return Math.round(coord * 100000) / 100000;
 };
 
+export var wrapLongitude = function(lng) {
+  if (!isFinite(lng)) return lng;
+  let wrapped = ((lng + 180) % 360);
+  if (wrapped < 0) wrapped += 360;
+  wrapped -= 180;
+  if (wrapped === -180 && lng > 0) return 180;
+  return wrapped;
+};
+
+export var wrapLngRelative = function(lng, centerLng) {
+  if (!isFinite(lng) || !isFinite(centerLng)) return lng;
+  let diff = lng - centerLng;
+  let wrappedDiff = ((diff + 180) % 360);
+  if (wrappedDiff < 0) wrappedDiff += 360;
+  wrappedDiff -= 180;
+  if (wrappedDiff === -180 && diff > 0) return centerLng + 180;
+  return centerLng + wrappedDiff;
+};
+
+export var isLngInBounds = function(lng, west, east) {
+  const w = wrapLongitude(west);
+  const e = wrapLongitude(east);
+  const l = wrapLongitude(lng);
+  return w <= e ? (l >= w && l <= e) : (l >= w || l <= e);
+};
+
+export var getCenterLng = function(west, east) {
+  let w = wrapLongitude(west);
+  let e = wrapLongitude(east);
+  if (e < w) e += 360;
+  let center = (w + e) / 2;
+  return wrapLongitude(center);
+};
+
+export var latToMercatorY = function(lat) {
+  const latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
+  const rad = latClamped * Math.PI / 180;
+  return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
+};
+
+export var lngToMercatorX = function(lng) {
+  return (wrapLongitude(lng) + 180.0) / 360.0;
+};
+
+export var mercatorYToLat = function(y) {
+  const rad = Math.atan(Math.sinh(Math.PI * (1.0 - 2.0 * y)));
+  return rad * 180.0 / Math.PI;
+};
+
 /**
  * Validate coordinates are valid for Leaflet
  * CRITICAL: Prevents "Invalid LatLng object: (NaN, NaN)" errors on Samsung
  */
 export var isValidLatLng = function(lat, lng) {
-  return lat !== null && lng !== null && 
-         lat !== undefined && lng !== undefined &&
-         !isNaN(lat) && !isNaN(lng) &&
-         isFinite(lat) && isFinite(lng) &&
-         lat >= -90 && lat <= 90 && 
-         lng >= -180 && lng <= 180;
+  if (lat === null || lng === null || 
+      lat === undefined || lng === undefined ||
+      isNaN(lat) || isNaN(lng) ||
+      !isFinite(lat) || !isFinite(lng) ||
+      lat < -90 || lat > 90) {
+    return false;
+  }
+  const wrappedLng = wrapLongitude(lng);
+  return wrappedLng >= -180 && wrappedLng <= 180;
 };
 
 /**

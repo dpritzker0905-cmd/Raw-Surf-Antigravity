@@ -149,6 +149,7 @@ export function updateProjectionDiag(domain, details) {
     outsideCoverageReason,
     
     // Additional legacy diagnostic properties to prevent breaks
+    renderable: details.renderable || (renderDecision === 'render' || renderDecision === 'clip_to_coverage'),
     activeModel: details.activeModel || 'GFS',
     activeLayer: details.activeLayer || 'waves',
     cols: details.cols || 0,
@@ -450,6 +451,7 @@ if (typeof window !== 'undefined') {
     firstVectorLatLng: null,
     lastVectorLatLng: null,
     renderDecision: 'unsupported',
+    renderable: false,
     coverage_status: 'not_initialized',
     coveragePercentOfViewport: 0,
     staleClearStatus: 'none',

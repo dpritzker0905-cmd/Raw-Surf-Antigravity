@@ -208,4 +208,81 @@ test.describe('Standard Surfer Map Controls', () => {
     // Check time readout updates from "Live"
     await expect(timeReadout).not.toHaveText('Live');
   });
+
+  test('surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas', async ({ page }) => {
+    await page.goto('/map');
+
+    // Wait for the map page to load (wait for map right controls or general map container)
+    const rightControls = page.locator('[data-testid="featured-photographers-btn"]');
+    await expect(rightControls).toBeVisible({ timeout: 15000 });
+
+    const isMobile = await page.evaluate(() => window.innerWidth < 768);
+
+    if (isMobile) {
+      // Toggle the bottom sheet weather layers menu
+      const weatherBtn = page.locator('[data-testid="weather-layers-btn"]');
+      await expect(weatherBtn).toBeVisible();
+      await weatherBtn.evaluate(el => el.click());
+    }
+
+    // 1. Select the "Waves" layer toggle button (target the visible one)
+    const wavesBtn = page.locator('button').filter({ hasText: 'Waves' }).filter({ visible: true }).first();
+    await expect(wavesBtn).toBeVisible();
+    await wavesBtn.evaluate(el => el.click());
+
+    // Verify wave canvas overlays deck.gl and is visible
+    const waveCanvas = page.locator('#marine-canvas-layer');
+    await expect(waveCanvas).toBeVisible({ timeout: 10000 });
+
+    // 2. Select "GFS" model selector button (target the visible one)
+    const gfsBtn = page.locator('button').filter({ hasText: 'GFS' }).filter({ visible: true }).first();
+    await expect(gfsBtn).toBeVisible();
+    await gfsBtn.evaluate(el => el.click());
+
+    // Wait for GFS telemetry synchronization in window.__MARINE_PROJECTION_DIAG__
+    await page.waitForFunction(() => {
+      const diag = window.__MARINE_PROJECTION_DIAG__;
+      return diag && diag.activeModel === 'GFS' && 
+             (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage');
+    }, null, { timeout: 15000 });
+
+    // Assert GFS telemetry is fully synchronized
+    const gfsDiag = await page.evaluate(() => window.__MARINE_PROJECTION_DIAG__);
+    expect(gfsDiag.activeModel).toBe('GFS');
+    const isGfsRenderable = gfsDiag.renderable === true || gfsDiag.renderDecision === 'render' || gfsDiag.renderDecision === 'clip_to_coverage';
+    expect(isGfsRenderable).toBe(true);
+
+    // 3. Switch to "EURO" model selector (Copernicus)
+    const euroBtn = page.locator('button').filter({ hasText: 'EURO' }).filter({ visible: true }).first();
+    await expect(euroBtn).toBeVisible();
+    await euroBtn.evaluate(el => el.click());
+
+    // Wait for Copernicus (EURO) telemetry synchronization
+    await page.waitForFunction(() => {
+      const marineDiag = window.__MARINE_PROJECTION_DIAG__;
+      const copernicusDiag = window.__COPERNICUS_GRID_DIAG__;
+      return marineDiag && marineDiag.activeModel === 'EURO' && 
+             copernicusDiag && 
+             (copernicusDiag.provider === 'copernicus' || copernicusDiag.provider === 'backend-weather-service' || copernicusDiag.provider === 'open-meteo') &&
+             (!copernicusDiag.fallbackReason || copernicusDiag.fallbackReason === null) &&
+             (copernicusDiag.renderable === true || copernicusDiag.skipped === false || (copernicusDiag.nonzeroCount !== undefined && copernicusDiag.nonzeroCount > 0));
+    }, null, { timeout: 15000 });
+
+    // Assert Copernicus/EURO telemetry is fully synchronized and valid
+    const finalDiag = await page.evaluate(() => {
+      return {
+        marine: window.__MARINE_PROJECTION_DIAG__,
+        copernicus: window.__COPERNICUS_GRID_DIAG__
+      };
+    });
+
+    expect(finalDiag.marine.activeModel).toBe('EURO');
+    expect(finalDiag.copernicus.fallbackReason || null).toBeNull();
+    const isCopernicusRenderable = finalDiag.copernicus.renderable === true || 
+                                   finalDiag.copernicus.skipped === false || 
+                                   (finalDiag.copernicus.nonzeroCount !== undefined && finalDiag.nonzeroCount > 0);
+    expect(isCopernicusRenderable).toBe(true);
+    expect(['copernicus', 'backend-weather-service', 'open-meteo']).toContain(finalDiag.copernicus.provider);
+  });
 });
+

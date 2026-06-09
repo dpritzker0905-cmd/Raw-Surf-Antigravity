@@ -47,7 +47,7 @@ export function usePressureEngine({ mapInstance, activeLayers, timeOffsetHours, 
           pressures,
           coarseRows,
           coarseCols,
-          bounds,
+          data.bounds || bounds,
           timeOffsetHours,
           activeModel
         );

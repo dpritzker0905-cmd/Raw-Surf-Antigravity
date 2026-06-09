@@ -674,6 +674,38 @@ def test_query_bbox_clamped_snapped(mock_weather_setup):
     # West should be positive, East should be negative (or normalized wrapper)
     assert abs(parts_am[0]) <= 180.0
     assert abs(parts_am[2]) <= 180.0
+    
+    # Verify wrapped longitudes and correct row-major sorting for GFS
+    vectors_am = json_am["grid"]["vectors"]
+    assert len(vectors_am) > 0
+    for v in vectors_am:
+        assert -180.0 <= v["lng"] <= 180.0
+    
+    # Checked row lat=24.0: first >= 179.0, then < 179.0 (wrapped)
+    lons_am = [v["lng"] for v in vectors_am if v["lat"] == 24.0]
+    expected_lons = [
+        179.0, 179.25, 179.5, 179.75, 180.0,
+        -179.75, -179.5, -179.25, -179.0
+    ]
+    assert lons_am == expected_lons
+
+    # Let's test antimeridian crossing query for EURO
+    # EURO has resolution 0.5, so snapping tile size is 2.0.
+    # Therefore, bbox=179,24,-179,30 snaps to 178,24,-178,30.
+    response_euro = client.get(
+        "/api/weather/grid?model=EURO&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=179,24,-179,30"
+    )
+    assert response_euro.status_code == 200
+    json_euro = response_euro.json()
+    assert json_euro["is_dynamic_viewport_product"] is True
+    
+    vectors_euro = json_euro["grid"]["vectors"]
+    assert len(vectors_euro) > 0
+    for v in vectors_euro:
+        assert -180.0 <= v["lng"] <= 180.0
+        
+    lons_euro = [v["lng"] for v in vectors_euro if v["lat"] == 24.0]
+    assert lons_euro == expected_lons
 
 def test_two_overlapping_regional_products_ranking(mock_weather_setup, monkeypatch):
     """Verify that Step 6 fallback correctly ranks overlapping regional manifest products by area, time, and authoritative."""

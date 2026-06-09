@@ -2,6 +2,15 @@
 // This file is auto-loaded by CRA/craco before each test suite.
 
 import '@testing-library/jest-dom';
+import { TextEncoder, TextDecoder } from 'util';
+
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
+if (typeof window !== 'undefined' && window.URL) {
+  window.URL.createObjectURL = window.URL.createObjectURL || (() => 'blob:mock-url');
+  window.URL.revokeObjectURL = window.URL.revokeObjectURL || (() => {});
+}
 
 // Silence React 18 act() deprecation warnings since the project still uses CRA
 const originalError = console.error;

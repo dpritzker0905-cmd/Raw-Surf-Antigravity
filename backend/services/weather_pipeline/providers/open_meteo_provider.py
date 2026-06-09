@@ -381,21 +381,26 @@ class OpenMeteoProvider:
         """
         Generates flattened 1D lists of latitudes and longitudes matching the bbox step bounds.
         """
-        west = min(bbox["west"], bbox["east"])
-        east = max(bbox["west"], bbox["east"])
+        west = bbox["west"]
+        east = bbox["east"]
         south = min(bbox["south"], bbox["north"])
         north = max(bbox["south"], bbox["north"])
 
         lats = []
         lons = []
 
+        crosses = west > east
+        east_val = east + 360.0 if crosses else east
+
         # We step systematically through latitude and longitude rows
         lat = south
         while lat <= north + 0.0001:
             lon = west
-            while lon <= east + 0.0001:
+            while lon <= east_val + 0.0001:
+                # Wrap to [-180, 180]
+                lon_wrapped = lon - 360.0 if lon > 180.0 else (lon + 360.0 if lon < -180.0 else lon)
                 lats.append(round(lat, 4))
-                lons.append(round(lon, 4))
+                lons.append(round(lon_wrapped, 4))
                 lon += resolution
             lat += resolution
 

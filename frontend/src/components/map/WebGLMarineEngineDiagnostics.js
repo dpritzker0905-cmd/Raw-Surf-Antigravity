@@ -140,4 +140,80 @@ export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
     cache_version: 'v3 (bumped from v2 to invalidate stale data)',
     howToVerify: 'Open console: window.__MARINE_DIRECTION_DIAG__; then check Florida coast swell travels WSW (FROM ENE)'
   };
+
+  // --- Antigravity audit and non-GFS grid texture generation tracking ---
+  const waveGrid = engine._waveData?.waveGrid;
+  if (waveGrid) {
+    const sourceModel = waveGrid.__sourceModel || 'GFS';
+    const activeLayer = waveGrid.__componentLayer || 'waves';
+    const hourOffset = waveGrid.hourOffset || 0;
+
+    const uploadSig = waveGrid.productId || `${sourceModel}_${activeLayer}_${hourOffset}_${waveGrid.timestamp || waveGrid.grid?.timestamp || Date.now()}`;
+    if (engine._lastUploadedSig !== uploadSig) {
+      engine._lastUploadedSig = uploadSig;
+
+      let nonzeroCount = 0;
+      let maxH = 0.0;
+      let minH = Infinity;
+      let sumH = 0.0;
+      const vectors = waveGrid.vectors || [];
+      const len = vectors.length;
+
+      for (let i = 0; i < len; i++) {
+        const v = vectors[i];
+        const comp = v?.[activeLayer] || v || {};
+        const speed = comp.speed || 0;
+        if (speed > 0) {
+          nonzeroCount++;
+          sumH += speed;
+          if (speed < minH) minH = speed;
+          if (speed > maxH) maxH = speed;
+        }
+      }
+      if (minH === Infinity) minH = 0;
+      const meanH = nonzeroCount > 0 ? sumH / nonzeroCount : 0;
+
+      if (typeof window !== 'undefined' && window.__WEATHER_TELEMETRY__) {
+        window.__WEATHER_TELEMETRY__.trackTextureGeneration(sourceModel, activeLayer, hourOffset, {
+          cols: waveGrid.cols,
+          rows: waveGrid.rows,
+          vectorCount: len,
+          nonzeroCount,
+          meanHeight: meanH,
+          maxHeight: maxH,
+          minHeight: minH,
+          provider: waveGrid.__provider || waveGrid.provider || 'unknown',
+          isEstimated: !!waveGrid.is_estimated,
+          productId: waveGrid.productId || null
+        });
+      }
+
+      window.__MARINE_WAVES_SINGLE_SLICE_TRACE__ = window.__MARINE_WAVES_SINGLE_SLICE_TRACE__ || {};
+      window.__MARINE_WAVES_SINGLE_SLICE_TRACE__[sourceModel] = {
+        uploadProductId: waveGrid.productId || null,
+        uploadReason: window.__WEBGL_MARINE_UPLOAD_REASON__ || 'unknown',
+        activeLayer: activeLayer,
+        cols: waveGrid.cols,
+        rows: waveGrid.rows,
+        vectorCount: len,
+        flatSpeedNonzeroCount: nonzeroCount,
+        encodedTextureMin: minH,
+        encodedTextureMax: maxH,
+        encodedTextureMean: meanH,
+        encodedNonzeroPixelCount: nonzeroCount,
+        maskValidOceanCount: nonzeroCount,
+        colorRampName: window.__WEBGL_MARINE_THEME__ || 'default',
+        opacity: window.__WEBGL_MARINE_OPACITY__ || 0.65,
+        renderDecision: (nonzeroCount > 0) ? 'render' : 'skip'
+      };
+
+      if (sourceModel === 'GFS' && activeLayer === 'waves') {
+        window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+        window.__GFS_WAVES_SINGLE_SLICE_TRACE__.webglTextureUpload = window.__MARINE_WAVES_SINGLE_SLICE_TRACE__[sourceModel];
+        if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+          window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+        }
+      }
+    }
+  }
 }
