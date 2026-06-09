@@ -90,6 +90,14 @@ import {
 } from '../components/map/LayerAccessResolver';
 import { mapNormalizedGridToWebGL } from '../components/map/backendWeatherServiceClient';
 import { encodeMarineTexture } from '../components/map/WebGLMarineTextureEncoder';
+import {
+  lngLatToPixel,
+  pixelToLngLat,
+  lngLatToMercatorNormalized,
+  lngLatToTile,
+  haversineDistance
+} from '../engine-brain/projection-utils';
+
 
 describe("Layer Access Firewall", () => {
 
@@ -388,3 +396,94 @@ describe("GFS Color and WebGL Texture Encoding Regression Firewall", () => {
     });
   });
 });
+
+describe("Web Mercator Projection & Geodetic Math (Pure JS Tests)", () => {
+  const testCoords = [
+    { lng: 0.0, lat: 0.0 },
+    { lng: -122.4975, lat: 37.4984 }, // Mavericks
+    { lng: 140.0, lat: -35.0 }, // Southern hemisphere / East
+    { lng: -85.0, lat: 24.0 }, // Florida boundary
+    { lng: -79.0, lat: 31.0 }
+  ];
+
+  test("lngLatToPixel and pixelToLngLat round-trip consistency", () => {
+    const zoomLevels = [0, 5, 10, 15];
+    for (const coord of testCoords) {
+      for (const zoom of zoomLevels) {
+        const pixel = lngLatToPixel(coord.lng, coord.lat, zoom);
+        const roundTrip = pixelToLngLat(pixel.x, pixel.y, zoom);
+        expect(roundTrip.lng).toBeCloseTo(coord.lng, 6);
+        expect(roundTrip.lat).toBeCloseTo(coord.lat, 6);
+      }
+    }
+  });
+
+  test("latitude clamping limits to prevent singularities", () => {
+    // Web Mercator limits at ~85.05112878 degrees
+    const maxLat = 85.05112878;
+    const pMax1 = lngLatToPixel(0, 90, 0);
+    const pMax2 = lngLatToPixel(0, maxLat, 0);
+    expect(pMax1.y).toBeCloseTo(pMax2.y, 8);
+
+    const pMin1 = lngLatToPixel(0, -90, 0);
+    const pMin2 = lngLatToPixel(0, -maxLat, 0);
+    expect(pMin1.y).toBeCloseTo(pMin2.y, 8);
+
+    const normMax1 = lngLatToMercatorNormalized(0, 90);
+    const normMax2 = lngLatToMercatorNormalized(0, maxLat);
+    expect(normMax1.y).toBeCloseTo(normMax2.y, 8);
+
+    const normMin1 = lngLatToMercatorNormalized(0, -90);
+    const normMin2 = lngLatToMercatorNormalized(0, -maxLat);
+    expect(normMin1.y).toBeCloseTo(normMin2.y, 8);
+  });
+
+  test("lngLatToMercatorNormalized bounds projection", () => {
+    // Center of map
+    const center = lngLatToMercatorNormalized(0, 0);
+    expect(center.x).toBeCloseTo(0.5, 6);
+    expect(center.y).toBeCloseTo(0.5, 6);
+
+    // Top-left corner
+    const topLeft = lngLatToMercatorNormalized(-180, 85.05112878);
+    expect(topLeft.x).toBeCloseTo(0.0, 6);
+    expect(topLeft.y).toBeCloseTo(0.0, 6);
+
+    // Bottom-right corner
+    const bottomRight = lngLatToMercatorNormalized(180, -85.05112878);
+    expect(bottomRight.x).toBeCloseTo(1.0, 6);
+    expect(bottomRight.y).toBeCloseTo(1.0, 6);
+  });
+
+  test("lngLatToTile generates correct tile indices", () => {
+    const tile0 = lngLatToTile(0, 0, 0);
+    expect(tile0.z).toBe(0);
+    expect(tile0.x).toBe(0);
+    expect(tile0.y).toBe(0);
+
+    const tile5 = lngLatToTile(-122.4975, 37.4984, 5);
+    expect(tile5.z).toBe(5);
+    // At zoom 5, 2^5 = 32 tiles in each direction.
+    // -122.4975 longitude is in the first half: x = Math.floor((-122.4975 + 180)/360 * 32) = Math.floor(5.11) = 5
+    expect(tile5.x).toBe(5);
+    // 37.4984 latitude maps to Mercator y:
+    // y_norm = (1 - log(tan(37.4984*rad) + sec(37.4984*rad)) / pi) / 2 = 0.392
+    // tileY = Math.floor(0.392 * 32) = 12
+    expect(tile5.y).toBe(12);
+  });
+
+  test("haversineDistance calculates correct values and handles antipodal and wrapped longitude inputs", () => {
+    // Short distance (approx 111.12 km per degree lat)
+    const dist1 = haversineDistance(0, 0, 1, 0);
+    expect(dist1).toBeCloseTo(111.19, 1);
+
+    // Robustness against antipodal values (which would normally produce a = 1.0000001 due to precision errors)
+    const antipodalDist = haversineDistance(90, 0, -90, 0);
+    expect(antipodalDist).toBeCloseTo(20015, -1);
+
+    // Wrapping across the antimeridian
+    const wrapDist = haversineDistance(0, -179.9, 0, 179.9);
+    expect(wrapDist).toBeCloseTo(haversineDistance(0, -179.9, 0, -180.1), 3);
+  });
+});
+

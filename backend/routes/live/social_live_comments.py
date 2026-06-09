@@ -17,7 +17,7 @@ import os
 
 from database import get_db
 from models import SocialLiveStream
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -108,9 +108,12 @@ async def get_live_comments(
 async def post_live_comment(
     stream_id: str,
     data: LiveCommentRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Post a comment to a live stream"""
+    if data.user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: user_id does not match the authenticated user.")
     import uuid
 
     # Verify stream exists and is live
@@ -170,7 +173,8 @@ async def toggle_live_like(
 async def toggle_comment_like(
     stream_id: str,
     comment_id: str,
-    data: dict
+    data: dict,
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Toggle like on a live stream comment"""
     user_id = data.get("user_id")
@@ -178,6 +182,9 @@ async def toggle_comment_like(
 
     if not user_id:
         raise HTTPException(status_code=400, detail="user_id required")
+        
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: user_id does not match the authenticated user.")
 
     r = _get_redis()
     if r:

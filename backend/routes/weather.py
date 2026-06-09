@@ -200,26 +200,10 @@ def is_bbox_overlapping(w1: float, s1: float, e1: float, n1: float, cov) -> bool
 
 def calculate_bbox_intersection_area(w1: float, s1: float, e1: float, n1: float, w2: float, s2: float, e2: float, n2: float) -> float:
     """Calculates the intersection area of two bounding boxes."""
-    # Latitude intersection
-    inter_s = max(s1, s2)
-    inter_n = min(n1, n2)
-    if inter_s >= inter_n:
-        return 0.0
-    
-    # Longitude intersection
-    if w1 <= e1 and w2 <= e2:
-        inter_w = max(w1, w2)
-        inter_e = min(e1, e2)
-        if inter_w >= inter_e:
-            return 0.0
-        return (inter_e - inter_w) * (inter_n - inter_s)
-    else:
-        # Simple fallback for antimeridian wrap overlaps
-        inter_w = max(w1, w2)
-        inter_e = min(e1, e2)
-        if inter_w < inter_e:
-            return (inter_e - inter_w) * (inter_n - inter_s)
-        return 0.0
+    from services.weather_pipeline.product_selection import bbox_intersection_area
+    from collections import namedtuple
+    SimpleCov = namedtuple("SimpleCov", ["west", "south", "east", "north"])
+    return bbox_intersection_area(w1, s1, e1, n1, SimpleCov(w2, s2, e2, n2))
 
 
 @router.get("/grid", response_model=NormalizedProduct)

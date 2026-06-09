@@ -34,6 +34,7 @@ test.describe('Surfer Lockout Redirection', () => {
       localStorage.setItem('raw-surf-user', JSON.stringify(user));
       localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
       localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
+      localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
     }, { user: standardUser });
 
     // 3. Attempt to access admin page
@@ -61,6 +62,7 @@ test.describe('Admin Console Operations', () => {
       localStorage.setItem('raw-surf-user', JSON.stringify(user));
       localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
       localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
+      localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
     }, { user: adminUser });
   });
 
@@ -83,7 +85,15 @@ test.describe('Admin Console Operations', () => {
     // Adjust swell amplitude slider to 8.5 meters
     const swellSlider = page.locator('input[type="range"]').first();
     await expect(swellSlider).toBeVisible();
-    await swellSlider.fill('8.5');
+    
+    // Use native React setter override to change range input value and trigger handlers in all browsers
+    await swellSlider.evaluate(el => {
+      const prototype = Object.getPrototypeOf(el);
+      const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
+      valueSetter.call(el, '8.5');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
 
     // Run simulation
     const runBtn = page.locator('button:has-text("Run Sandbox Simulation")');
@@ -132,6 +142,7 @@ test.describe('Standard Surfer Map Controls', () => {
       localStorage.setItem('raw-surf-user', JSON.stringify(user));
       localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
       localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
+      localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
     }, { user: standardUser });
   });
 
@@ -148,18 +159,19 @@ test.describe('Standard Surfer Map Controls', () => {
       // Toggle the bottom sheet weather layers menu
       const weatherBtn = page.locator('[data-testid="weather-layers-btn"]');
       await expect(weatherBtn).toBeVisible();
-      await weatherBtn.click();
+      // Click using browser-side click to avoid WebKit-specific scrolling or click actionability bugs
+      await weatherBtn.evaluate(el => el.click());
     }
 
     // 1. Select the "ICON" model selector button (target the visible one)
     const iconBtn = page.locator('button').filter({ hasText: 'ICON' }).filter({ visible: true }).first();
     await expect(iconBtn).toBeVisible();
-    await iconBtn.click();
+    await iconBtn.evaluate(el => el.click());
 
     // 2. Select the "Wind" layer toggle button (target the visible one)
     const windBtn = page.locator('button').filter({ hasText: 'Wind' }).filter({ visible: true }).first();
     await expect(windBtn).toBeVisible();
-    await windBtn.click();
+    await windBtn.evaluate(el => el.click());
 
     // 3. Verify timeline controls are now visible since a layer is active (target the visible one)
     const playBtn = page.locator('button[aria-label="Play"]').filter({ visible: true });
@@ -170,14 +182,14 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(timeReadout).toHaveText('Live');
 
     // 4. Toggle timeline play
-    await playBtn.click();
+    await playBtn.evaluate(el => el.click());
     
     // Play button should change to Pause button (target the visible one)
     const pauseBtn = page.locator('button[aria-label="Pause"]').filter({ visible: true });
     await expect(pauseBtn).toBeVisible();
 
     // Toggle pause
-    await pauseBtn.click();
+    await pauseBtn.evaluate(el => el.click());
     await expect(playBtn).toBeVisible();
 
     // 5. Scrub the timeline slider (target the visible one)

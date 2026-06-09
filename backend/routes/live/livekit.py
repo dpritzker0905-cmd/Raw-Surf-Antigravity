@@ -133,6 +133,7 @@ async def send_go_live_notifications(
     try:
         from routes.notifications.push import send_push_notification
         
+        followers = []
         async with async_session_maker() as db:
             # Get all followers of the broadcaster
             followers_query = await db.execute(
@@ -140,35 +141,31 @@ async def send_go_live_notifications(
                 .where(Follow.following_id == broadcaster_id)
                 .options(selectinload(Follow.follower))
             )
-            followers = followers_query.scalars().all()
+            followers = [f.follower for f in followers_query.scalars().all() if f.follower]
             
-            if not followers:
-                logger.info(f"No followers to notify for LiveKit stream by {broadcaster_id}")
-                return
+        if not followers:
+            logger.info(f"No followers to notify for LiveKit stream by {broadcaster_id}")
+            return
             
-            logger.info(f"Sending go-live notifications to {len(followers)} followers")
+        logger.info(f"Sending go-live notifications to {len(followers)} followers")
+        
+        for follower in followers:
+            title = f"🔴 {broadcaster_name} is LIVE!"
+            message = f"Tune in now - {broadcaster_name} is streaming live!"
             
-            for follow in followers:
-                follower = follow.follower
-                if not follower:
-                    continue
-                
-                title = f"🔴 {broadcaster_name} is LIVE!"
-                message = f"Tune in now - {broadcaster_name} is streaming live!"
-                
-                try:
-                    await send_push_notification(
-                        user_id=follower.id,
-                        title=title,
-                        message=message,
-                        data={
-                            "type": "go_live",
-                            "broadcaster_id": broadcaster_id
-                        },
-                        action_url=f"/profile/{broadcaster_id}"
-                    )
-                except Exception as notify_err:
-                    logger.error(f"Failed to notify follower {follower.id}: {notify_err}")
+            try:
+                await send_push_notification(
+                    user_id=follower.id,
+                    title=title,
+                    message=message,
+                    data={
+                        "type": "go_live",
+                        "broadcaster_id": broadcaster_id
+                    },
+                    action_url=f"/profile/{broadcaster_id}"
+                )
+            except Exception as notify_err:
+                logger.error(f"Failed to notify follower {follower.id}: {notify_err}")
             
     except Exception as e:
         logger.error(f"Error sending go-live notifications: {e}")
@@ -177,6 +174,7 @@ async def send_go_live_notifications(
 @router.post("/livekit/token", response_model=LiveKitTokenResponse)
 async def get_livekit_token(
     request: LiveKitTokenRequest,
+    db: AsyncSession = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id)
 ):
     """
@@ -189,6 +187,17 @@ async def get_livekit_token(
     if request.participant_identity != current_user_id:
         raise HTTPException(status_code=403, detail="Forbidden: participant_identity does not match the authenticated user.")
     
+    if request.is_broadcaster:
+        # Check database if the room/stream belongs to the current user
+        room_check = await db.execute(
+            select(SocialLiveStream).where(
+                SocialLiveStream.stream_url == request.room_name,
+                SocialLiveStream.broadcaster_id == current_user_id
+            )
+        )
+        if not room_check.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Not authorized to broadcast in this room.")
+            
     try:
         url, api_key, api_secret = _get_credentials()
         # Create access token
@@ -634,12 +643,12 @@ async def get_viewer_token(
     if viewer_id != current_user_id:
         raise HTTPException(status_code=403, detail="Forbidden: viewer_id does not match the authenticated user.")
     
-    # Find the stream
+    # Find the stream with write lock
     result = await db.execute(
         select(SocialLiveStream).where(
             SocialLiveStream.stream_url == room_name,
             SocialLiveStream.status == 'live'
-        )
+        ).with_for_update()
     )
     stream = result.scalar_one_or_none()
     

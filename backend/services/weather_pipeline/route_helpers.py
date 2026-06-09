@@ -143,12 +143,42 @@ def is_bbox_covered_by(req_w: float, req_s: float, req_e: float, req_n: float, c
     Checks if requested bbox is fully covered by product coverage bounds (with margin).
     """
     lat_covers = (cov.south - margin) <= req_s and req_n <= (cov.north + margin)
+    if not lat_covers:
+        return False
+
+    # Check if coverage is global or very wide
     if cov.west <= cov.east:
-        lon_covers = (cov.west - margin) <= req_w and req_e <= (cov.east + margin)
+        cov_width = cov.east - cov.west
     else:
-        lon_covers = (req_w >= cov.west - margin or req_w <= cov.east + margin) and \
-                     (req_e >= cov.west - margin or req_e <= cov.east + margin)
-    return lat_covers and lon_covers
+        cov_width = 360.0 + cov.east - cov.west
+
+    if cov_width + 2 * margin >= 360.0:
+        return True
+
+    # Normalize longitudes to [-180, 180]
+    def normalize_longitude(lng: float) -> float:
+        while lng < -180.0: lng += 360.0
+        while lng > 180.0: lng -= 360.0
+        return lng
+
+    cov_w = normalize_longitude(cov.west - margin)
+    cov_e = normalize_longitude(cov.east + margin)
+    
+    cov_crosses = cov_w > cov_e
+    req_crosses = req_w > req_e
+
+    if not req_crosses:
+        if not cov_crosses:
+            lon_covers = (cov_w <= req_w) and (req_e <= cov_e)
+        else:
+            lon_covers = (req_w >= cov_w) or (req_e <= cov_e)
+    else:
+        if not cov_crosses:
+            lon_covers = False
+        else:
+            lon_covers = (req_w >= cov_w) and (req_e <= cov_e)
+
+    return lon_covers
 
 def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> NormalizedProduct:
     """
@@ -168,18 +198,35 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
 
     # Filter grid vectors
     filtered_vectors = []
+    crosses_antimeridian = west > east
     for v in cloned_product.grid.vectors:
         # Check bounds containment
-        if south <= v.lat <= north and west <= v.lng <= east:
+        in_lat = south <= v.lat <= north
+        if crosses_antimeridian:
+            in_lng = (v.lng >= west or v.lng <= east)
+        else:
+            in_lng = west <= v.lng <= east
+        if in_lat and in_lng:
             filtered_vectors.append(v)
 
     # Update grid bounds and dimension sizes dynamically
     unique_lats = sorted(list(set(v.lat for v in filtered_vectors)))
-    unique_lons = sorted(list(set(v.lng for v in filtered_vectors)))
+    
+    if crosses_antimeridian:
+        unique_lons = sorted(
+            list(set(v.lng for v in filtered_vectors)),
+            key=lambda lng: (0, lng) if lng >= west else (1, lng)
+        )
+    else:
+        unique_lons = sorted(list(set(v.lng for v in filtered_vectors)))
 
     if filtered_vectors and unique_lats and unique_lons:
-        actual_west = min(unique_lons)
-        actual_east = max(unique_lons)
+        if crosses_antimeridian:
+            actual_west = min([lng for lng in unique_lons if lng >= west], default=west)
+            actual_east = max([lng for lng in unique_lons if lng <= east], default=east)
+        else:
+            actual_west = min(unique_lons)
+            actual_east = max(unique_lons)
         actual_south = min(unique_lats)
         actual_north = max(unique_lats)
         
@@ -199,8 +246,9 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
                         )
                     )
         
-        # Stable row-major sorting matching WebGL expectations (lat ascending, lng ascending)
-        final_vectors.sort(key=lambda v: (v.lat, v.lng))
+        # Stable row-major sorting matching WebGL expectations (lat ascending, lng in sorted column order)
+        lon_to_index = {lng: i for i, lng in enumerate(unique_lons)}
+        final_vectors.sort(key=lambda v: (v.lat, lon_to_index.get(v.lng, 0)))
         
         cloned_product.grid.bounds = CoverageBounds(
             west=actual_west, south=actual_south, east=actual_east, north=actual_north

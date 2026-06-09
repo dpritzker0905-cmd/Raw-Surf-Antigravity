@@ -225,6 +225,7 @@ async def websocket_user(websocket: WebSocket, user_id: str):
     WebSocket endpoint for user-specific notifications
     Used for personal notifications like "Your crew member left"
     """
+    await verify_websocket_auth(websocket, user_id)
     room = f"user_{user_id}"
     await ws_manager.connect(websocket, room=room)
     

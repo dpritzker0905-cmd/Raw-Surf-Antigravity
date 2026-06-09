@@ -39,13 +39,22 @@ export function useWebGLGuardrail({
     let lowFpsCount = 0;
 
     const onRender = () => {
+      // Guard against rendering while tab is hidden
+      if (typeof document !== 'undefined' && document.hidden) {
+        frameCount = 0;
+        lastTime = performance.now();
+        lastFrameTime = performance.now();
+        return;
+      }
+
       const now = performance.now();
       const delta = now - lastFrameTime;
       lastFrameTime = now;
 
-      // Delta-time gate: if delta is >= 500ms, it's likely a tab switch or suspend.
-      // Reset the window to avoid false performance drop detection.
-      if (delta >= 500) {
+      // Delta-time gate: if delta is >= 2000ms, it's likely a suspend, wake-up, or massive stutter.
+      // Reset the window to avoid false performance drop detection, while still allowing
+      // extremely low frame rates (e.g. 1 FPS, 1000ms delta) to be detected correctly.
+      if (delta >= 2000) {
         frameCount = 0;
         lastTime = now;
         return;
@@ -107,11 +116,31 @@ export function useWebGLGuardrail({
       }
     };
 
+    const handleVisibilityChange = () => {
+      // Reset all frame rate tracking variables when tab is hidden or restored
+      frameCount = 0;
+      const now = performance.now();
+      lastTime = now;
+      lastFrameTime = now;
+      lowFpsCount = 0;
+    };
+
     mapInstance.on('render', onRender);
 
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
     return () => {
-      if (mapInstance) {
-        mapInstance.off('render', onRender);
+      try {
+        if (mapInstance) {
+          mapInstance.off('render', onRender);
+        }
+      } catch (err) {
+        console.warn('[WebGLGuardrail] Failed to remove render listener:', err);
+      }
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     };
   }, [mapInstance]);
