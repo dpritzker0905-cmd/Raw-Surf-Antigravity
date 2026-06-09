@@ -466,8 +466,7 @@ export const MapForecastOverlay = ({
     return computeHeatmapStatus({ activeModel, activeLayer, renderMarineData });
   }, [renderMarineData, activeModel, activeLayer]);
 
-  if (!forecastData && !marineData && !isLoading) return null;
-  if (cards.length === 0) return null;
+  if (cards.length === 0 && !isLoading) return null;
 
   const modelLabel = { GFS: 'GFS', EURO: 'ECMWF', ICON: 'ICON' }[activeModel] || activeModel;
 

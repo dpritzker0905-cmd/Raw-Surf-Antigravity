@@ -151,34 +151,35 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       const roundedNow = Math.round(baseTime / 3600000) * 3600000;
       const targetDt = new Date(roundedNow + timeOffsetHours * 3600000);
       const validTimeStr = targetDt.toISOString();
-
       const fetchPromise = (async () => {
         try {
           const windUrl = `${POINT_URL}?model=${activeModel}&domain=wind&layer=wind&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
           const pressureUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=pressure&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
           const precipUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=precipitation&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
 
+          // Fetch each endpoint with catch handlers to prevent a single failing request from failing the whole chain
           const [windRes, pressRes, precipRes] = await Promise.all([
-            fetch(windUrl, { signal: controller.signal }),
-            fetch(pressureUrl, { signal: controller.signal }),
-            fetch(precipUrl, { signal: controller.signal })
+            fetch(windUrl, { signal: controller.signal }).catch(err => ({ ok: false, error: err })),
+            fetch(pressureUrl, { signal: controller.signal }).catch(err => ({ ok: false, error: err })),
+            fetch(precipUrl, { signal: controller.signal }).catch(err => ({ ok: false, error: err }))
           ]);
 
-          if (!windRes.ok || !pressRes.ok || !precipRes.ok) {
-            throw new Error(`One or more backend point API fetches failed. Wind: ${windRes.status}, Pressure: ${pressRes.status}, Precip: ${precipRes.status}`);
+          // We require at least one successful fetch to construct the stitched forecast
+          if (!windRes.ok && !pressRes.ok && !precipRes.ok) {
+            throw new Error(`All backend point API fetches failed. Wind: ${windRes.status || 'failed'}, Pressure: ${pressRes.status || 'failed'}, Precip: ${precipRes.status || 'failed'}`);
           }
 
           const [windJson, pressJson, precipJson] = await Promise.all([
-            windRes.json(),
-            pressRes.json(),
-            precipRes.json()
+            windRes.ok ? windRes.json().catch(() => null) : null,
+            pressRes.ok ? pressRes.json().catch(() => null) : null,
+            precipRes.ok ? precipRes.json().catch(() => null) : null
           ]);
 
-          const windSpeedVal = windJson.point?.speed ?? 0;
-          const windDirVal = windJson.point?.direction ?? 0;
-          const windGustVal = windJson.point?.gust ?? 0;
-          const pressureVal = pressJson.point?.value ?? 1013.25;
-          const precipVal = precipJson.point?.value ?? 0;
+          const windSpeedVal = windJson?.point?.speed ?? null;
+          const windDirVal = windJson?.point?.direction ?? null;
+          const windGustVal = windJson?.point?.gust ?? null;
+          const pressureVal = pressJson?.point?.value ?? null;
+          const precipVal = precipJson?.point?.value ?? null;
 
           const stitchedForecast = {
             latitude: +latitude.toFixed(4),

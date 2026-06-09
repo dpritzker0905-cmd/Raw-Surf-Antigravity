@@ -374,7 +374,19 @@ class OpenMeteoProvider:
 
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.get(request_url, params=params, timeout=15.0)
+                max_retries = 3
+                response = None
+                for attempt in range(1, max_retries + 2):
+                    response = await client.get(request_url, params=params, timeout=15.0)
+                    if response.status_code == 429:
+                        retry_delay = 1.0 * attempt
+                        if attempt > max_retries:
+                            raise RuntimeError(f"Hit rate limits (429) for point query and exhausted all {max_retries} retries.")
+                        logger.warning(f"[Open-Meteo Provider] Hit rate limits (429) for point query. Retrying in {retry_delay}s... (Attempt {attempt}/{max_retries})")
+                        await asyncio.sleep(retry_delay)
+                    else:
+                        break
+
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
