@@ -17,9 +17,12 @@ def parse_valid_time(valid_time_str: str) -> datetime:
     Raises HTTPException(400) on parse errors.
     """
     try:
-        if not valid_time_str.endswith("Z"):
-            # Enforce UTC timezone suffix if missing
-            valid_time_str += "Z"
+        # Check if timezone is specified in the time part (after 'T' or space)
+        time_part = valid_time_str.split("T")[-1] if "T" in valid_time_str else valid_time_str
+        has_tz = "Z" in valid_time_str or "+" in time_part or "-" in time_part
+        if not has_tz:
+            valid_time_str += "+00:00"
+        
         # fromisoformat requires replacing Z with +00:00 in older python versions,
         # but Python 3.11+ natively handles Z. To be safe:
         clean_str = valid_time_str.replace("Z", "+00:00")

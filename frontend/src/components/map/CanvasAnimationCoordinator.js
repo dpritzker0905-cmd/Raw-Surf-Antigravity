@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CanvasAnimationCoordinator.js Phase 2 Render Orchestrator
  *
  * SINGLE requestAnimationFrame loop for ALL Canvas2D particle systems.
@@ -34,6 +34,7 @@ function CanvasAnimationCoordinator() {
   this._state = COORD_RUNNING;
   this._interactionCount = 0;
   this._idleTimer = null;
+  this._dormancyTimer = null;
   this._mapInstance = null;
   this._running = false;
   // Phase 3: Frame budget enforcement
@@ -93,12 +94,14 @@ CanvasAnimationCoordinator.prototype.start = function() {
 CanvasAnimationCoordinator.prototype.stop = function() {
   this._running = false;
   if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null; }
+  if (this._dormancyTimer) { clearTimeout(this._dormancyTimer); this._dormancyTimer = null; }
 };
 
 CanvasAnimationCoordinator.prototype.dispose = function() {
   this.stop();
   this._layers.clear();
   clearTimeout(this._idleTimer);
+  if (this._dormancyTimer) { clearTimeout(this._dormancyTimer); this._dormancyTimer = null; }
   if (this._mapInstance) {
     var m = this._mapInstance;
     try {
@@ -127,7 +130,8 @@ CanvasAnimationCoordinator.prototype._doAnimate = function(now) {
   if (!anyActive) {
     this._state = COORD_DORMANT;
     var self = this;
-    setTimeout(function() {
+    clearTimeout(this._dormancyTimer);
+    this._dormancyTimer = setTimeout(function() {
       if (self._running) self._rafId = requestAnimationFrame(self._animate);
     }, 500);
     return;

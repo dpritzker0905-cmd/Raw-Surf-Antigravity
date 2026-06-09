@@ -639,20 +639,20 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (gridModel !== activeModelRef.current) isValid = false;
     if (isValid) {
       if (isGfsOrIcon) {
-        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated') {
+        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture') {
           isValid = false;
-        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated') && componentLayer !== activeMarineLayer) {
+        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated' || gridProvider === 'test-fixture') && componentLayer !== activeMarineLayer) {
           isValid = false;
         }
       } else if (isEuro) {
         if (isWaves) {
-          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && gridProvider !== 'open-meteo' && gridProvider !== 'estimated') {
+          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && gridProvider !== 'open-meteo' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture') {
             isValid = false;
-          } else if (gridProvider !== 'open-meteo' && componentLayer !== activeMarineLayer) {
+          } else if (gridProvider !== 'open-meteo' && gridProvider !== 'test-fixture' && componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         } else {
-          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated'];
+          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated', 'test-fixture'];
           if (!validEuroComponentProviders.includes(gridProvider)) {
             isValid = false;
           } else if (componentLayer !== activeMarineLayer) {

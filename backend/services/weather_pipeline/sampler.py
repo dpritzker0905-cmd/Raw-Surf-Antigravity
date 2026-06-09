@@ -35,23 +35,48 @@ class PointSampler:
             return self._build_unavailable_response(product, lat, lng, "Empty or missing grid data")
 
         lats = sorted(list(set(v.lat for v in grid.vectors)))
-        lons = sorted(list(set(v.lng for v in grid.vectors)))
-
-        if not lats or not lons:
+        if not lats:
             return self._build_unavailable_response(product, lat, lng, "Invalid grid coordinates list")
 
-        min_lat, max_lat = lats[0], lats[-1]
-        min_lon, max_lon = lons[0], lons[-1]
+        bounds = grid.bounds
+        if not bounds:
+            lons_fallback = sorted(list(set(v.lng for v in grid.vectors)))
+            if not lons_fallback:
+                return self._build_unavailable_response(product, lat, lng, "Invalid grid coordinates list")
+            from services.weather_pipeline.schemas import CoverageBounds
+            bounds = CoverageBounds(west=lons_fallback[0], south=lats[0], east=lons_fallback[-1], north=lats[-1])
+
+        # Monotonic longitude mapping helpers for antimeridian crossing
+        def to_monotonic_lng(x: float, west: float) -> float:
+            val = x - west
+            if val < 0:
+                val += 360.0
+            return west + val
+
+        def from_monotonic_lng(mono_x: float) -> float:
+            wrapped = mono_x % 360.0
+            if wrapped > 180.0:
+                wrapped -= 360.0
+            return wrapped
+
+        lons_mono = sorted(list(set(to_monotonic_lng(v.lng, bounds.west) for v in grid.vectors)))
+        lng_mono = to_monotonic_lng(lng, bounds.west)
+
+        min_lat, max_lat = bounds.south, bounds.north
+        min_lon_mono, max_lon_mono = lons_mono[0], lons_mono[-1]
+
+        in_lat = min_lat <= lat <= max_lat
+        in_lng = min_lon_mono <= lng_mono <= max_lon_mono
 
         # Enforce strict coverage check as requested by User Condition 5
-        if lat < min_lat or lat > max_lat or lng < min_lon or lng > max_lon:
+        if not in_lat or not in_lng:
             warnings.append("Requested point falls outside the authoritative grid boundaries")
             is_estimated = False
             estimate_basis["out_of_bounds"] = {
                 "grid_min_lat": min_lat,
                 "grid_max_lat": max_lat,
-                "grid_min_lon": min_lon,
-                "grid_max_lon": max_lon
+                "grid_min_lon": bounds.west,
+                "grid_max_lon": bounds.east
             }
             estimate_basis["fallback_attempted"] = True
             # Return estimates as 0 when out of bounds
@@ -96,13 +121,23 @@ class PointSampler:
         # 2. Build coordinate map for constant-time lookup
         coordinate_map = {(v.lat, v.lng): v for v in grid.vectors}
 
+        def get_vector_safe(lat_val: float, lon_val: float):
+            vec = coordinate_map.get((lat_val, lon_val))
+            if vec is not None:
+                return vec
+            if abs(lon_val) == 180.0:
+                return coordinate_map.get((lat_val, -lon_val))
+            return None
+
         # 3. Locate bounding box coordinates
         lat0, lat1 = self._find_surrounding_brackets(lats, lat)
-        lon0, lon1 = self._find_surrounding_brackets(lons, lng)
+        lon0_mono, lon1_mono = self._find_surrounding_brackets(lons_mono, lng_mono)
+        lon0 = from_monotonic_lng(lon0_mono)
+        lon1 = from_monotonic_lng(lon1_mono)
 
         # Exact match path
         if lat0 == lat1 and lon0 == lon1:
-            vec = coordinate_map.get((lat0, lon0))
+            vec = get_vector_safe(lat0, lon0)
             if vec:
                 detail = NormalizedPointDetail(
                     requested_lat=lat,
@@ -121,13 +156,13 @@ class PointSampler:
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
 
         # 4. Fetch 4 grid intersections
-        v11 = coordinate_map.get((lat0, lon0)) # bottom-left
-        v12 = coordinate_map.get((lat0, lon1)) # bottom-right
-        v21 = coordinate_map.get((lat1, lon0)) # top-left
-        v22 = coordinate_map.get((lat1, lon1)) # top-right
+        v11 = get_vector_safe(lat0, lon0) # bottom-left
+        v12 = get_vector_safe(lat0, lon1) # bottom-right
+        v21 = get_vector_safe(lat1, lon0) # top-left
+        v22 = get_vector_safe(lat1, lon1) # top-right
 
         # Solve fractions:
-        t = (lng - lon0) / (lon1 - lon0) if lon1 != lon0 else 0.0
+        t = (lng_mono - lon0_mono) / (lon1_mono - lon0_mono) if lon1_mono != lon0_mono else 0.0
         u = (lat - lat0) / (lat1 - lat0) if lat1 != lat0 else 0.0
 
         # Weights
@@ -139,10 +174,10 @@ class PointSampler:
         # Check if it's a scalar layer
         is_scalar = (product.domain.lower() == "weather" and product.layer.lower() in ("pressure", "precipitation"))
         if is_scalar:
-            v11 = coordinate_map.get((lat0, lon0))
-            v12 = coordinate_map.get((lat0, lon1))
-            v21 = coordinate_map.get((lat1, lon0))
-            v22 = coordinate_map.get((lat1, lon1))
+            v11 = get_vector_safe(lat0, lon0)
+            v12 = get_vector_safe(lat0, lon1)
+            v21 = get_vector_safe(lat1, lon0)
+            v22 = get_vector_safe(lat1, lon1)
             
             corners = [v for v in [v11, v12, v21, v22] if self._is_vector_valid(v, product.domain, product.layer)]
             if not corners:
@@ -384,16 +419,18 @@ class PointSampler:
 
     @staticmethod
     def _find_nearest_vector(vectors: List[Any], lat: float, lng: float) -> Any:
-        """Finds the single nearest vector by geometric distance."""
+        """Finds the single nearest vector by geometric distance, supporting antimeridian crossing."""
         best_vec = vectors[0]
         min_dist = float("inf")
         for v in vectors:
-            dist = (v.lat - lat)**2 + (v.lng - lng)**2
+            d_lng = abs(v.lng - lng)
+            if d_lng > 180.0:
+                d_lng = 360.0 - d_lng
+            dist = (v.lat - lat)**2 + d_lng**2
             if dist < min_dist:
                 min_dist = dist
                 best_vec = v
         return best_vec
-
     def _build_unavailable_response(
         self,
         product: NormalizedProduct,

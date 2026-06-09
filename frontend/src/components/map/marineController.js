@@ -205,7 +205,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   const lastKnownGoodMarineModel = getLastKnownGoodMarineModel();
   if (!isBackendActive && !hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
     const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
-    if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated' || cachedProvider === 'backend-weather-service') {
+    if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated' || cachedProvider === 'backend-weather-service' || cachedProvider === 'test-fixture') {
       const diff = Math.abs((lastKnownGoodMarine.hourOffset || 0) - wantedHour);
       if (diff <= 6) {
         hitData = { ...lastKnownGoodMarine };

@@ -20,6 +20,16 @@ from services.weather_pipeline.route_helpers import (
 
 logger = logging.getLogger(__name__)
 
+def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0) -> Any:
+    """Safely retrieves the index element of list from dict_obj, returning default_val if missing or out of bounds."""
+    if not dict_obj:
+        return default_val
+    lst = dict_obj.get(key)
+    if isinstance(lst, list) and index < len(lst):
+        val = lst[index]
+        return val if val is not None else default_val
+    return default_val
+
 class PointResolutionService:
     """
     Service responsible for sampling weather points from grids or falling back
@@ -201,9 +211,9 @@ class PointResolutionService:
                     times = raw_point["hourly"]["time"]
                     idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
                     if idx is not None:
-                        speed = raw_point["hourly"]["wind_speed_10m"][idx]
-                        direction = raw_point["hourly"]["wind_direction_10m"][idx]
-                        gust = raw_point["hourly"].get("wind_gusts_10m", [None])[idx]
+                        speed = safe_index_get(raw_point["hourly"], "wind_speed_10m", idx, 0.0)
+                        direction = safe_index_get(raw_point["hourly"], "wind_direction_10m", idx, 0.0)
+                        gust = safe_index_get(raw_point["hourly"], "wind_gusts_10m", idx, None)
                         
                         rad = direction * (math.pi / 180.0)
                         u = -speed * math.sin(rad)
@@ -275,13 +285,9 @@ class PointResolutionService:
                         
                         speed_key, dir_key, period_key = layer_vars
                         
-                        speed = raw_point["hourly"][speed_key][idx]
-                        direction = raw_point["hourly"][dir_key][idx]
-                        period = raw_point["hourly"][period_key][idx]
-                        
-                        speed = speed if speed is not None else 0.0
-                        direction = direction if direction is not None else 0.0
-                        period = period if period is not None else 0.0
+                        speed = safe_index_get(raw_point["hourly"], speed_key, idx, 0.0)
+                        direction = safe_index_get(raw_point["hourly"], dir_key, idx, 0.0)
+                        period = safe_index_get(raw_point["hourly"], period_key, idx, 0.0)
                         
                         rad = direction * (math.pi / 180.0)
                         u = -speed * math.sin(rad)
@@ -356,8 +362,7 @@ class PointResolutionService:
                     idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
                     if idx is not None:
                         val_key = "pressure_msl" if layer.lower() == "pressure" else "precipitation"
-                        val = raw_point["hourly"][val_key][idx]
-                        val = val if val is not None else 0.0
+                        val = safe_index_get(raw_point["hourly"], val_key, idx, 0.0)
                         
                         detail = NormalizedPointDetail(
                             requested_lat=lat,
@@ -544,9 +549,9 @@ class PointResolutionService:
                         if idx is not None:
                             # Parse waves fallback
                             if dt not in waves_data:
-                                wave_height = raw_point["hourly"].get("wave_height", [0])[idx]
-                                wave_dir = raw_point["hourly"].get("wave_direction", [0])[idx]
-                                wave_per = raw_point["hourly"].get("wave_period", [0])[idx]
+                                wave_height = safe_index_get(raw_point["hourly"], "wave_height", idx, 0.0)
+                                wave_dir = safe_index_get(raw_point["hourly"], "wave_direction", idx, 0.0)
+                                wave_per = safe_index_get(raw_point["hourly"], "wave_period", idx, 0.0)
                                 waves_data[dt] = {
                                     "wave_height": wave_height,
                                     "wave_direction": wave_dir,
@@ -554,8 +559,8 @@ class PointResolutionService:
                                 }
                             # Parse swell fallback
                             if dt not in swell_data:
-                                swell_height = raw_point["hourly"].get("swell_wave_height", [0])[idx]
-                                swell_dir = raw_point["hourly"].get("swell_wave_direction", [0])[idx]
+                                swell_height = safe_index_get(raw_point["hourly"], "swell_wave_height", idx, 0.0)
+                                swell_dir = safe_index_get(raw_point["hourly"], "swell_wave_direction", idx, 0.0)
                                 swell_data[dt] = {
                                     "swell_height": swell_height,
                                     "swell_direction": swell_dir

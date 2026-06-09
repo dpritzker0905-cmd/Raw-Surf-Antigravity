@@ -140,12 +140,14 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
   const glRef = useRef(null);
   const pendingDataRef = useRef(null); // Stash data that arrives before GL is ready
   const themeRef = useRef(theme);
+  const dataRef = useRef(data);
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
+  useEffect(() => { dataRef.current = data; }, [data]);
 
   // Initialize engine + add custom layer
   useEffect(() => {
@@ -166,9 +168,10 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
       origOnAdd(_mapOrArgs, glArg);
       // Apply pending data now that GL is available
       const gl = glRef.current;
-      if (gl && pendingDataRef.current?.vectors?.length) {
+      const dataToApply = pendingDataRef.current || dataRef.current;
+      if (gl && dataToApply?.vectors?.length) {
         try {
-          engine.setWindData(gl, pendingDataRef.current);
+          engine.setWindData(gl, dataToApply);
           pendingDataRef.current = null;
           mapInstance.triggerRepaint();
         } catch (e) {

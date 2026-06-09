@@ -542,10 +542,26 @@ WebGLWindEngine.prototype.dispose = function(gl) {
   if (this._colorRamp) gl.deleteTexture(this._colorRamp);
   if (this.screenA) { gl.deleteFramebuffer(this.screenA.fbo); gl.deleteTexture(this.screenA.tex); }
   if (this.screenB) { gl.deleteFramebuffer(this.screenB.fbo); gl.deleteTexture(this.screenB.tex); }
+  
+  this.advectProgram = null;
+  this.drawProgram = null;
+  this.screenProgram = null;
+  this.fadeProgram = null;
+  this.heatmapProgram = null;
+  this.quadBuffer = null;
+  this.particleIndexBuffer = null;
+  this.heatmapGridBuffer = null;
+  this.heatmapIndexBuffer = null;
+  this.advFBO = null;
+  this.particleStateA = null;
+  this.particleStateB = null;
+  this._windData = null;
+  this._colorRamp = null;
+  this.screenA = null;
+  this.screenB = null;
   this._initialized = false;
   console.log('[WebGLWind] Disposed');
 };
-
 /**
  * v3.11.2r1: Clear all framebuffers called on layer deactivation
  * to prevent stale trails from persisting across layer switches.
