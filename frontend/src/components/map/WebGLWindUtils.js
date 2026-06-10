@@ -117,6 +117,13 @@ export function encodeWindTexture(gl, windGrid) {
   }
 
   const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
+  const isGlobal = bounds && ((bounds.east - bounds.west >= 350.0) || windGrid.coverage_scope === 'global' || windGrid.coverage_scope === 'global_coarse');
+  if (isGlobal) {
+    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+  }
   return {
     texture: tex,
     uMin: [minU, minV],

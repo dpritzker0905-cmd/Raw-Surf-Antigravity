@@ -324,7 +324,7 @@ async def get_grid(
                 product.requested_bbox_original = bbox
                 product.query_bbox = bbox
                 product.requested_bbox = bbox
-                if bbox:
+                if bbox and getattr(matching_manifest_item, "coverage_mode", None) != "global_tile":
                     product = filter_grid_to_bbox(product, bbox)
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
@@ -382,7 +382,7 @@ async def get_grid(
                     product.requested_bbox_original = bbox
                     product.query_bbox = bbox
                     product.requested_bbox = bbox
-                    if bbox:
+                    if bbox and getattr(overlap_manifest_item, "coverage_mode", None) != "global_tile":
                         product = filter_grid_to_bbox(product, bbox)
                     if product.grid and product.grid.bounds:
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"

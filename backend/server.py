@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import asyncio
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
@@ -161,7 +162,64 @@ async def ensure_database_tables():
         else:
             logger.info("[DB Migration] ✓ profiles.avatar_url already TEXT or absent")
 
+async def seed_mock_user():
+    """
+    Ensure the dev mock user profile exists in the database.
+    Only run in development mode.
+    """
+    import os
+    from database import AsyncSessionLocal
+    from models.profile import Profile
+    from models.enums import RoleEnum
+    from sqlalchemy import select
+    from datetime import datetime, timezone
 
+    # Strict environment safeguard: do not seed in production
+    if os.getenv("ENV") == "production" or os.getenv("IS_PROD") == "true":
+        logger.info("[DB Seeding] Production environment detected. Skipping mock dev user seeding.")
+        return
+
+    logger.info("[DB Seeding] Checking for mock dev user profile...")
+    async with AsyncSessionLocal() as session:
+        try:
+            result = await session.execute(
+                select(Profile).where(Profile.id == "dev-mock-user-id")
+            )
+            profile = result.scalar_one_or_none()
+            if not profile:
+                logger.info("[DB Seeding] Creating mock dev user profile in DB...")
+                profile = Profile(
+                    id="dev-mock-user-id",
+                    user_id="dev-mock-user-id",
+                    email="dev@rawsurf.com",
+                    full_name="Dev User",
+                    username="devuser",
+                    role=RoleEnum.PHOTOGRAPHER,
+                    subscription_tier="premium",
+                    is_admin=True,
+                    is_ad_supported=False,
+                    credit_balance=100.0,
+                    withdrawable_credits=100.0,
+                    created_at=datetime.now(timezone.utc)
+                )
+                session.add(profile)
+                await session.commit()
+                logger.info("[DB Seeding] Mock dev user profile seeded successfully.")
+            else:
+                updated = False
+                if not profile.is_admin:
+                    profile.is_admin = True
+                    updated = True
+                if profile.role != RoleEnum.PHOTOGRAPHER:
+                    profile.role = RoleEnum.PHOTOGRAPHER
+                    updated = True
+                if updated:
+                    await session.commit()
+                    logger.info("[DB Seeding] Mock dev user profile updated to admin/photographer.")
+                else:
+                    logger.info("[DB Seeding] Mock dev user profile already exists and is up to date.")
+        except Exception as e:
+            logger.error(f"[DB Seeding] Failed to seed mock dev user profile: {e}")
 
 
 async def run_background_cache_population():
@@ -172,12 +230,37 @@ async def run_background_cache_population():
     """
     import os
     logger.info("[lifespan] Starting background cache pre-population check...")
-    cache_dir = ROOT_DIR / "uploads" / "weather_products"
     
-    files = os.listdir(cache_dir) if cache_dir.exists() else []
-    has_gfs_waves = any("gfs_marine_waves" in f for f in files)
-    has_gfs_wind = any("gfs_wind_wind" in f for f in files)
-    has_copernicus = any("euro_marine_swell_1" in f for f in files)
+    from services.weather_pipeline.store import ProductStore, is_test_environment
+    store = ProductStore()
+    manifest = store.get_manifest()
+    is_test_env = is_test_environment()
+    
+    cache_dir = ROOT_DIR / "uploads" / "weather_products"
+    disk_files = set(os.listdir(cache_dir)) if cache_dir.exists() else set()
+    
+    def has_product_conformed(model: str, domain: str, layer: str, region_id: Optional[str] = None) -> bool:
+        matching = [
+            p for p in manifest.products
+            if p.model.upper() == model.upper()
+            and p.domain.lower() == domain.lower()
+            and p.layer.lower() == layer.lower()
+            and (region_id is None or p.region_id == region_id)
+        ]
+        if not matching:
+            return False
+        if is_test_env:
+            return any(p.filename in disk_files for p in matching)
+        return True
+
+    has_gfs_waves = has_product_conformed("GFS", "marine", "waves")
+    # For GFS wind, we specifically need the global coarse wind product as well.
+    from typing import Optional
+    has_gfs_wind = (
+        has_product_conformed("GFS", "wind", "wind", region_id="global_coarse")
+        and has_product_conformed("GFS", "wind", "wind", region_id="florida_east_coast")
+    )
+    has_copernicus = has_product_conformed("EURO", "marine", "swell_1")
     
     logger.info(
         f"[lifespan] Cache status: GFS Waves={has_gfs_waves}, "
@@ -234,6 +317,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Raw Surf OS API...")
     # Database health check - ensure all tables exist
     await ensure_database_tables()
+    # Seed mock dev user profile on startup
+    await seed_mock_user()
 
     # Run Copernicus quarantine scan
     from services.weather_pipeline.store import ProductStore

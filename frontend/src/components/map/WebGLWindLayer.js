@@ -108,7 +108,36 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current);
+
+        // Calculate visible world offsets to handle wrapping across all zoom levels and pans
+        let worldOffsets = [0.0];
+        try {
+          const center = map.getCenter();
+          if (center && typeof center.lng === 'number') {
+            const centerLng = center.lng;
+            // Calculate visible longitude span using the viewport width and zoom level
+            const span = (canvas.width * 360.0) / (256.0 * Math.pow(2.0, zoom));
+            
+            // Add padding: 180 degrees at low zoom to pre-render adjacent worlds; 10 degrees at high zoom
+            const padding = zoom < 3.5 ? 180.0 : 10.0;
+            const west = centerLng - (span / 2.0) - padding;
+            const east = centerLng + (span / 2.0) + padding;
+            
+            const minOffset = Math.floor((west + 180.0) / 360.0) * 360.0;
+            const maxOffset = Math.ceil((east - 180.0) / 360.0) * 360.0;
+            const computedOffsets = [];
+            for (let offset = minOffset; offset <= maxOffset; offset += 360.0) {
+              computedOffsets.push(offset);
+            }
+            if (computedOffsets.length > 0) {
+              worldOffsets = computedOffsets;
+            }
+          }
+        } catch (boundsErr) {
+          console.warn('[WebGLWindLayer] Failed to calculate dynamic offsets:', boundsErr);
+        }
+
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets);
         // Request continuous repainting while active
         map.triggerRepaint();
       } catch (e) {

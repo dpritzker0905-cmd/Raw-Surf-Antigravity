@@ -108,6 +108,10 @@ class ViewportService:
         span_lat = abs(north - south)
 
         is_global_view = (span_lng > 180.0 or span_lat > 90.0)
+        if is_global_view:
+            west, south, east, north = -180.0, -80.0, 180.0, 85.0
+            span_lng = 360.0
+            span_lat = 165.0
         coverage_scope = "global_coarse" if is_global_view else "viewport"
 
         # Determine adaptive resolution
@@ -161,7 +165,8 @@ class ViewportService:
                 # Update diagnostics in the response
                 if loaded_product.grid:
                     # Crop the loaded product to exact requested bbox bounds
-                    loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
+                    if cached_entry.get("coverage_scope") != "global_coarse":
+                        loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
                     served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
                     
                     loaded_product.grid.diagnostics = {
@@ -220,6 +225,10 @@ class ViewportService:
         span_lat = abs(north - south)
 
         is_global_view = (span_lng > 180.0 or span_lat > 90.0)
+        if is_global_view:
+            west, south, east, north = -180.0, -80.0, 180.0, 85.0
+            span_lng = 360.0
+            span_lat = 165.0
         coverage_scope = "global_coarse" if is_global_view else "viewport"
 
         # Determine adaptive resolution
@@ -339,8 +348,8 @@ class ViewportService:
             days_diff = (target_dt - datetime.now(timezone.utc)).days + 2
             forecast_days = max(2, min(16, days_diff))
 
-            # For GFS Wind, respect the safer 2.5s batch delay, otherwise use 0.1s
-            inter_delay = 2.5 if (model.upper() == "GFS" and domain == "wind") else 0.1
+            # For GFS Wind, respect the safer 0.2s batch delay, otherwise use 0.1s
+            inter_delay = 0.2 if (model.upper() == "GFS" and domain == "wind") else 0.1
 
             # Fetch via OpenMeteoProvider
             raw_data = await self.provider.fetch_grid(
@@ -489,7 +498,9 @@ class ViewportService:
                 my_future.set_result(True)
                 self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
 
-            # Return exact cropped product for the client's original bbox request
+            # Return exact cropped product for the client's original bbox request if not global_coarse
+            if target_normalized_product.coverage_scope == "global_coarse":
+                return target_normalized_product
             cropped_product = filter_grid_to_bbox(target_normalized_product, bbox_str)
             if cropped_product.grid and cropped_product.grid.bounds:
                 cropped_product.served_bbox = f"{cropped_product.grid.bounds.west:.4f},{cropped_product.grid.bounds.south:.4f},{cropped_product.grid.bounds.east:.4f},{cropped_product.grid.bounds.north:.4f}"

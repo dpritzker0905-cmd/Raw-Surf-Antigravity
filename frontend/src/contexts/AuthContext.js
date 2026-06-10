@@ -37,15 +37,36 @@ export const AuthProvider = ({ children }) => {
         email: 'dev@rawsurf.com',
         full_name: 'Dev User',
         username: 'devuser',
-        role: 'user',
-        subscription_tier: 'tier_1',
-        is_admin: true
+        role: 'Photographer',
+        subscription_tier: 'premium',
+        is_admin: true,
+        access_token: 'dev-mock-user-token'
       };
       localStorage.setItem('raw-surf-user', JSON.stringify(mockDevUser));
       storedUser = JSON.stringify(mockDevUser);
     }
     if (storedUser) {
-      const parsedUser = JSON.parse(storedUser);
+      let parsedUser = JSON.parse(storedUser);
+      // Auto-migrate old mock dev sessions to include token and correct role/tier
+      if (parsedUser?.id === 'dev-mock-user-id' && process.env.NODE_ENV === 'development') {
+        let updated = false;
+        if (!parsedUser.access_token) {
+          parsedUser.access_token = 'dev-mock-user-token';
+          updated = true;
+        }
+        if (parsedUser.role !== 'Photographer') {
+          parsedUser.role = 'Photographer';
+          updated = true;
+        }
+        if (parsedUser.subscription_tier !== 'premium') {
+          parsedUser.subscription_tier = 'premium';
+          updated = true;
+        }
+        if (updated) {
+          localStorage.setItem('raw-surf-user', JSON.stringify(parsedUser));
+          storedUser = JSON.stringify(parsedUser);
+        }
+      }
       setUser(parsedUser);
       document.documentElement.classList.remove('no-god-mode');
       

@@ -161,7 +161,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   }
 };
 
-WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme) {
+WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets) {
   if (!this._initialized || !this._windData) return;
 
   const windGrid = this._windData?.windGrid;
@@ -335,13 +335,19 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Compute scale-invariant advection step sizes
   const z = typeof zoom === 'number' ? zoom : 6;
   const bounds = this._windData.bounds;
-  const isRegionalGrid = (bounds.east - bounds.west < 359.9);
+  const windGrid = this._windData.windGrid;
+  const isGlobal = (bounds.east - bounds.west >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse';
+  const isRegionalGrid = !isGlobal;
   const edgeFeatherVal = isRegionalGrid ? 1.0 : 0.0;
   if (typeof window !== 'undefined') {
     window.__WIND_COVERAGE_STATUS__ = isRegionalGrid
       ? 'partial_regional_coverage'
       : 'full_coverage';
   }
+
+  const dataBoundsMinX = isRegionalGrid ? bounds.west : -180.0;
+  const dataBoundsMaxX = isRegionalGrid ? bounds.east : 180.0;
+
   // v3.14.0: Calibrate advection speed continuously across zoom levels for uniform screen-space velocity
   const stableSpeedScale = Math.max(1.0e-7, this.speedFactor * Math.pow(0.5, z) * 0.0025);
 
@@ -358,14 +364,27 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   gl.useProgram(this.heatmapProgram);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bounds.west, bounds.south);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bounds.east, bounds.north);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), dataBoundsMaxX, bounds.north);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind'), 0);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), 0.36);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
+
+  if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
+    window.__GPU_DEBUG__ = { mode: null };
+  }
+  let debugModeVal = 0.0;
+  if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
+    const mode = window.__GPU_DEBUG__.mode;
+    if (mode === 'uv') debugModeVal = 1.0;
+    else if (mode === 'mask') debugModeVal = 2.0;
+    else if (mode === 'grid') debugModeVal = 3.0;
+    else if (mode === 'mercator') debugModeVal = 4.0;
+  }
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
   bindTexture(gl, this._windData.texture, 0);
   var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
   var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
@@ -373,7 +392,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.enableVertexAttribArray(heatUVLoc);
   gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
-  var heatOffsets = z < 3.5 ? [0.0, -360.0, 360.0] : [0.0];
+  var heatOffsets = worldOffsets || (z < 3.5 ? [0.0, -360.0, 360.0] : [0.0]);
   for (var hi = 0; hi < heatOffsets.length; hi++) {
     gl.uniform1f(heatOffsetLoc, heatOffsets[hi]);
     gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
@@ -393,8 +412,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), bounds.west, bounds.south);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), bounds.east, bounds.north);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), dataBoundsMaxX, bounds.north);
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
@@ -450,10 +469,20 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
   var bnd = this._windData.bounds;
-  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), bnd.west, bnd.south);
-  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), bnd.east, bnd.north);
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), dataBoundsMinX, bnd.south);
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), dataBoundsMaxX, bnd.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z); // v3.13.5: close-zoom density boost
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
+
+  let drawDebugModeVal = 0.0;
+  if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
+    const mode = window.__GPU_DEBUG__.mode;
+    if (mode === 'part_uv') drawDebugModeVal = 5.0;
+    else if (mode === 'part_pos') drawDebugModeVal = 6.0;
+    else if (mode === 'part_offset') drawDebugModeVal = 7.0;
+    else if (mode === 'part_fbo') drawDebugModeVal = 8.0;
+  }
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_debug_mode'), drawDebugModeVal);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);
@@ -466,9 +495,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.13: Draw particles for multiple world copies to fill the entire viewport at low zoom.
   // At zoom < 3, the map shows more than 360° of longitude, so we need 3 copies.
   // At higher zoom, a single copy at offset 0 is sufficient.
-  var worldOffsets = (z < 3.5) ? [0.0, -360.0, 360.0] : [0.0];
-  for (var wi = 0; wi < worldOffsets.length; wi++) {
-    gl.uniform1f(lngOffsetLoc, worldOffsets[wi]);
+  var actualWorldOffsets = worldOffsets || (z < 3.5 ? [0.0, -360.0, 360.0] : [0.0]);
+  for (var wi = 0; wi < actualWorldOffsets.length; wi++) {
+    gl.uniform1f(lngOffsetLoc, actualWorldOffsets[wi]);
     gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
   }
   gl.disableVertexAttribArray(idxLoc);
@@ -495,6 +524,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Step 4: Composite to main framebuffer
   // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
   // RGB-fade FBO has alpha=1.0, but screen shader outputs brightness-derived alpha.
+  gl.useProgram(this.screenProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -524,7 +554,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
         try {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+          if (gl.getParameter(gl.FRAMEBUFFER_BINDING) === this.advFBO) {
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+          }
         } catch (e) {}
       }
 

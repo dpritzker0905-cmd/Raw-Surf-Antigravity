@@ -60,7 +60,29 @@ export function getWindHourlyCache() {
 }
 
 export function extractWindAtOffset(cache, hourOffset) {
-  const { results, points, gridSize, bounds } = cache;
+  const { results, points, gridSize, cols, rows, bounds, vectors: cacheVectors } = cache;
+
+  // If backend weather service / grid cache is active, check if the cache has conformed vectors
+  if (cacheVectors && cacheVectors.length > 0) {
+    const timeArray = results[0]?.hourly?.time;
+    const targetValidTime = getSharedValidTime(hourOffset, 'wind', cache.model || 'GFS');
+    // Ensure the cached grid matches the requested valid time
+    if (timeArray?.[0] === targetValidTime) {
+      return {
+        vectors: cacheVectors,
+        bounds,
+        cols: cols || gridSize,
+        rows: rows || gridSize,
+        stale: false,
+        source: cache.model || 'GFS',
+        hourOffset
+      };
+    }
+    return null; // Cache miss for the requested hour
+  }
+
+  // Legacy point-forecast fallback
+  if (!results || !points) return null;
   const timeArray = results[0]?.hourly?.time;
   const targetMs = Date.now() + hourOffset * 3600000;
   const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
@@ -98,9 +120,46 @@ export function extractWindAtOffset(cache, hourOffset) {
   if (vectors.length === 0) return null;
 
   return {
-    vectors, bounds, cols: gridSize, rows: gridSize,
+    vectors, bounds, 
+    cols: cols || gridSize, 
+    rows: rows || gridSize,
     stale: false, source: cache.model || 'GFS', hourOffset
   };
+}
+
+export function getModelSafeWind(model, hourOffset, bounds) {
+  const resolvedModel = model || 'GFS';
+  if (!bounds) return null;
+
+  const clampResult = clampViewportBbox(bounds, 'wind', resolvedModel, 'wind');
+  const tileId = clampResult.selectedTileId || 'outside';
+  const cacheKey = `${resolvedModel}_wind_grid_${tileId}_${hourOffset}`;
+
+  const cached = WIND_CACHE.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) {
+    return cached.data;
+  }
+
+  // Fallback search: check if any cached entry contains the bounds for this hour
+  for (const [key, entry] of WIND_CACHE.entries()) {
+    if (key.startsWith(`${resolvedModel}_wind_grid_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < 10 * 60 * 1000) {
+      const g = entry.data;
+      if (g?.vectors?.length > 0 && g.bounds) {
+        const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
+        const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+        const containsLng = ge < gw 
+          ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
+          : ew >= gw && ee <= ge;
+        const containsLat = es >= gs && en <= gn;
+
+        if (containsLng && containsLat) {
+          return g;
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null) {
@@ -200,10 +259,13 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
           results: [ { hourly: { time: [ getSharedValidTime(hourOffset, 'wind', resolvedModel) ] } } ],
           points: result.vectors.map(v => ({ lat: v.lat, reqLng: v.lng, monotonicLng: v.lng })),
           gridSize: result.cols,
+          cols: result.cols,
+          rows: result.rows,
           bounds: result.bounds,
           timestamp: Date.now(),
           model: resolvedModel,
-          isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180
+          isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180,
+          vectors: result.vectors
         };
         lastKnownGoodWind = result;
       }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache } from './marineController';
+import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -188,14 +188,28 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       let cacheMiss = false;
       let targetData = null;
       try {
-        const cache = getWindHourlyCache();
-        if (cache?.results?.length && cache.model === activeModel) {
-          targetData = extractWindAtOffset(cache, timeOffsetHours);
-          if (!targetData || !targetData.vectors || targetData.vectors.length === 0) {
+        if (getBackendWindFlag()) {
+          const b = mapInstance.getBounds();
+          const bounds = {
+            west: b.getWest(),
+            south: Math.max(-85, b.getSouth()),
+            east: b.getEast(),
+            north: Math.min(85, b.getNorth())
+          };
+          targetData = getModelSafeWind(activeModel, timeOffsetHours, bounds);
+          if (!targetData) {
             cacheMiss = true;
           }
         } else {
-          cacheMiss = true;
+          const cache = getWindHourlyCache();
+          if (cache?.results?.length && cache.model === activeModel) {
+            targetData = extractWindAtOffset(cache, timeOffsetHours);
+            if (!targetData || !targetData.vectors || targetData.vectors.length === 0) {
+              cacheMiss = true;
+            }
+          } else {
+            cacheMiss = true;
+          }
         }
       } catch (e) {
         cacheMiss = true;

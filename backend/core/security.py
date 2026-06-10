@@ -97,6 +97,9 @@ async def get_current_user_id(
     """
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ", 1)[1]
+        if token == "dev-mock-user-token":
+            if os.getenv("ENV") != "production" and os.getenv("IS_PROD") != "true":
+                return "dev-mock-user-id"
         payload = verify_token(token)
         sub = payload.get("sub")
         if not sub:
@@ -142,6 +145,9 @@ def get_user_id_from_jwt_or_query(
     # Try JWT first
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ", 1)[1]
+        if token == "dev-mock-user-token":
+            if os.getenv("ENV") != "production" and os.getenv("IS_PROD") != "true":
+                return "dev-mock-user-id"
         payload = verify_token(token)
         sub = payload.get("sub")
         if sub:

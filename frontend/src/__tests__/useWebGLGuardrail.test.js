@@ -116,7 +116,7 @@ describe('useWebGLGuardrail', () => {
     renderHook(() =>
       useWebGLGuardrail({
         mapInstance,
-        activeLayers: ['wind'],
+        activeLayers: ['waves'],
         setWebglWindFailed,
         setWebglMarineFailed,
         webglWindFailed: false,
@@ -146,7 +146,7 @@ describe('useWebGLGuardrail', () => {
     expect(setWebglMarineFailed).not.toHaveBeenCalled();
   });
 
-  it('triggers wind fallback when wind layer FPS is consistently low (< 30) for 6 seconds', () => {
+  it('does not trigger wind fallback when wind layer FPS is consistently low (< 30) for 6 seconds', () => {
     const setWebglWindFailed = jest.fn();
     const setWebglMarineFailed = jest.fn();
 
@@ -179,9 +179,9 @@ describe('useWebGLGuardrail', () => {
       }
     }
 
-    expect(setWebglWindFailed).toHaveBeenCalledWith(true);
+    expect(setWebglWindFailed).not.toHaveBeenCalled();
     expect(setWebglMarineFailed).not.toHaveBeenCalled();
-    expect(WeatherTelemetry.emit).toHaveBeenCalledWith('FPS_drop_detected', expect.any(Object));
+    expect(WeatherTelemetry.emit).not.toHaveBeenCalled();
   });
 
   it('triggers marine fallback when waves layer FPS is consistently low (< 30) for 6 seconds', () => {
@@ -226,7 +226,7 @@ describe('useWebGLGuardrail', () => {
     renderHook(() =>
       useWebGLGuardrail({
         mapInstance,
-        activeLayers: ['wind'],
+        activeLayers: ['waves'],
         setWebglWindFailed,
         setWebglMarineFailed,
         webglWindFailed: false,
@@ -261,7 +261,7 @@ describe('useWebGLGuardrail', () => {
     renderHook(() =>
       useWebGLGuardrail({
         mapInstance,
-        activeLayers: ['wind'],
+        activeLayers: ['waves'],
         setWebglWindFailed,
         setWebglMarineFailed,
         webglWindFailed: false,
@@ -284,7 +284,7 @@ describe('useWebGLGuardrail', () => {
       onRender();
     }
 
-    expect(setWebglWindFailed).toHaveBeenCalledWith(true);
+    expect(setWebglMarineFailed).toHaveBeenCalledWith(true);
   });
 
   it('resets tracking counters on tab visibility change to avoid false drops', () => {
@@ -294,7 +294,7 @@ describe('useWebGLGuardrail', () => {
     renderHook(() =>
       useWebGLGuardrail({
         mapInstance,
-        activeLayers: ['wind'],
+        activeLayers: ['waves'],
         setWebglWindFailed,
         setWebglMarineFailed,
         webglWindFailed: false,
@@ -331,7 +331,7 @@ describe('useWebGLGuardrail', () => {
     }
 
     // Should NOT have triggered fallback yet because counters were reset
-    expect(setWebglWindFailed).not.toHaveBeenCalled();
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
 
     // Another 5 seconds of low FPS (total 7 seconds since reset) should trigger it
     for (let sec = 0; sec < 5; sec++) {
@@ -341,7 +341,7 @@ describe('useWebGLGuardrail', () => {
       }
     }
 
-    expect(setWebglWindFailed).toHaveBeenCalledWith(true);
+    expect(setWebglMarineFailed).toHaveBeenCalledWith(true);
   });
 
   it('guards against rendering when document is hidden', () => {
@@ -351,7 +351,7 @@ describe('useWebGLGuardrail', () => {
     renderHook(() =>
       useWebGLGuardrail({
         mapInstance,
-        activeLayers: ['wind'],
+        activeLayers: ['waves'],
         setWebglWindFailed,
         setWebglMarineFailed,
         webglWindFailed: false,
@@ -380,6 +380,6 @@ describe('useWebGLGuardrail', () => {
     }
 
     // Should not trigger fallback since document is hidden
-    expect(setWebglWindFailed).not.toHaveBeenCalled();
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
   });
 });

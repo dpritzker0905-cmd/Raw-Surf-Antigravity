@@ -71,10 +71,10 @@ export function useWebGLGuardrail({
 
       // Bypass monitoring if the fallback has already occurred for active layers, or if no target WebGL layers are active
       const active = activeLayersRef.current || [];
-      const hasWind = active.includes('wind') && !webglWindFailedRef.current;
+      // Note: Wind is excluded from performance-based fallback triggers. It only falls back on hard errors.
       const hasMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => active.includes(l)) && !webglMarineFailedRef.current;
 
-      if (!hasWind && !hasMarine) {
+      if (!hasMarine) {
         frameCount = 0;
         lastTime = now;
         lowFpsCount = 0;
@@ -113,10 +113,6 @@ export function useWebGLGuardrail({
           if (lowFpsCount >= 6) {
             console.error(`[WebGLGuardrail] Frame rate consistently below 30 FPS (${fps} FPS) for 6 consecutive seconds. Triggering local rendering fallback overrides.`);
             
-            if (hasWind) {
-              console.warn('[WebGLGuardrail] Triggering fallback override for WebGL Wind layer');
-              setWebglWindFailedRef.current(true);
-            }
             if (hasMarine) {
               console.warn('[WebGLGuardrail] Triggering fallback override for WebGL Marine layer');
               setWebglMarineFailedRef.current(true);

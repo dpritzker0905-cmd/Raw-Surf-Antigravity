@@ -115,9 +115,9 @@ void main() {
   float dropRate = u_drop_rate + speed * u_drop_rate_bump;
   float drop = step(1.0 - dropRate, rand(seed));
 
-  // If regional grid and exits bounding box, drop it
-  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
-                next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
+  // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
+  bool isOob = (tex_v < 0.0 || tex_v > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0) ||
+               (u_edgeFeatherEnabled > 0.5 && (tex_u < 0.0 || tex_u > 1.0 || next_tex_u < 0.0 || next_tex_u > 1.0));
   if (isOob) {
     drop = 1.0;
   }
@@ -126,18 +126,31 @@ void main() {
   float oobY = step(1.0, nextPos.y) + step(0.0, -nextPos.y);
   drop = max(drop, step(0.5, oobY));
 
-  // Random new position for respawned particles (within the data bounds, uniform in Web Mercator)
+  // Random new position for respawned particles
   vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
-  float spanX = u_dataBounds_min.x > u_dataBounds_max.x
-    ? (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x
-    : u_dataBounds_max.x - u_dataBounds_min.x;
-  float randLng = u_dataBounds_min.x > u_dataBounds_max.x
-    ? mod(u_dataBounds_min.x + randVal.x * spanX + 180.0, 360.0) - 180.0
-    : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
-
-  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
-  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-  float randY = mix(mercMinY, mercMaxY, randVal.y);
+  float randLng;
+  float randY;
+  
+  if (u_edgeFeatherEnabled > 0.5) {
+    // Regional grid spawn limits
+    float spanX = u_dataBounds_min.x > u_dataBounds_max.x
+      ? (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x
+      : u_dataBounds_max.x - u_dataBounds_min.x;
+    randLng = u_dataBounds_min.x > u_dataBounds_max.x
+      ? mod(u_dataBounds_min.x + randVal.x * spanX + 180.0, 360.0) - 180.0
+      : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
+      
+    float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
+    float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+    randY = mix(mercMinY, mercMaxY, randVal.y);
+  } else {
+    // Global grid: spawn particles uniformly across the entire globe
+    randLng = randVal.x * 360.0 - 180.0;
+    float mercMinY = latToMercatorY(85.0); // North limit
+    float mercMaxY = latToMercatorY(-80.0); // South limit
+    randY = mix(mercMinY, mercMaxY, randVal.y);
+  }
+  
   vec2 newPos = vec2((randLng + 180.0) / 360.0, randY);
 
   pos = mix(nextPos, newPos, drop);
@@ -156,11 +169,13 @@ uniform vec2 u_dataBounds_max;   // [east, north] in degrees
 uniform float u_lng_offset;      // world-copy offset: -360, 0, or +360
 varying float v_speed;
 varying float v_alpha;
+varying vec4 v_debug_color;
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
 uniform float u_zoom;  // v3.13.5: for close-zoom density boost
 uniform float u_edgeFeatherEnabled;
+uniform float u_debug_mode;
 
 vec2 decodePos(vec4 color) {
   return vec2(
@@ -230,14 +245,29 @@ void main() {
   // v3.14.0: Speed-proportional sizing and zoom scaling for premium thickness
   float zoomBoost = u_zoom >= 8.0 ? 1.25 : 1.0;
   gl_PointSize = v_speed < 0.5 ? 0.0 : (3.5 + clamp(v_speed / 6.0, 0.0, 5.0)) * zoomBoost * edgeFade;
+
+  // Debug mode colors
+  if (u_debug_mode > 0.5) {
+    if (u_debug_mode < 5.5) v_debug_color = vec4(uv.x, uv.y, 0.0, 1.0);
+    else if (u_debug_mode < 6.5) v_debug_color = vec4(pos.x, pos.y, 0.0, 1.0);
+    else if (u_debug_mode < 7.5) v_debug_color = vec4(wind.x * 0.5 + 0.5, wind.y * 0.5 + 0.5, 0.0, 1.0);
+    else v_debug_color = vec4(1.0, 0.0, 0.0, 1.0);
+  } else {
+    v_debug_color = vec4(0.0);
+  }
 }`;
 
 export const DRAW_FS = `precision mediump float;
 varying float v_speed;
 varying float v_alpha;
+varying vec4 v_debug_color;
 uniform sampler2D u_color_ramp;
 uniform float u_max_speed;
 void main() {
+  if (v_debug_color.a > 0.5) {
+    gl_FragColor = v_debug_color;
+    return;
+  }
   // Turn square points into beautiful, soft, anti-aliased circles
   vec2 localCoord = gl_PointCoord - 0.5;
   float dist = length(localCoord);
@@ -285,6 +315,7 @@ uniform vec2 u_wind_max;
 uniform float u_opacity;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
+uniform float u_debug_mode;
 varying vec2 v_uv;
 
 vec3 ramp(float t, float theme) {
@@ -314,6 +345,21 @@ vec3 ramp(float t, float theme) {
 }
 
 void main() {
+  if (u_debug_mode > 0.5) {
+    if (u_debug_mode < 1.5) { // 'uv' -> 1.0
+      gl_FragColor = vec4(v_uv.x, v_uv.y, 0.0, u_opacity);
+      return;
+    } else if (u_debug_mode < 2.5) { // 'mask' -> 2.0
+      gl_FragColor = vec4(0.0, 0.0, 0.0, u_opacity);
+      return;
+    } else if (u_debug_mode < 3.5) { // 'grid' -> 3.0
+      gl_FragColor = vec4(0.0, 1.0, 0.0, u_opacity);
+      return;
+    } else if (u_debug_mode < 4.5) { // 'mercator' -> 4.0
+      gl_FragColor = vec4(v_uv.x, 1.0 - v_uv.y, 1.0, u_opacity);
+      return;
+    }
+  }
   vec4 encoded = texture2D(u_wind, v_uv);
   vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
   float speed = length(wind);
